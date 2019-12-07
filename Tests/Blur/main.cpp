@@ -53,8 +53,8 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
         return {};
 
     common::linq::FromIterable(plats)
-        .ForEach([i = 0u](const auto& plat) mutable 
-        { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
+        .ForEach([](const auto& plat, size_t idx) mutable 
+        { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
     const auto plat = plats[1];
 
     auto thedev = common::linq::FromContainer(plat->GetDevices())

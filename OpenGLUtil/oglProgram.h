@@ -120,6 +120,9 @@ public:
         return res ? res->location : GLInvalidIndex;
     }
     std::vector<std::pair<std::string_view, GLint>> GetBindingNames() const noexcept;
+
+    decltype(auto) begin() const noexcept { return Resources.begin(); }
+    decltype(auto) end()   const noexcept { return Resources.end();   }
 };
 
 

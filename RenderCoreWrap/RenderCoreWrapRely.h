@@ -107,3 +107,17 @@ forceinline void StoreVector4(Vector4% val, miniBLAS::Vec4& vec)
 {
     vec.x = val.X, vec.y = val.Y, vec.z = val.Z, vec.w = val.W;
 }
+
+
+template<typename T, typename... Args>
+forceinline T* TryConstruct(Args&&... args)
+{
+    try
+    {
+        return new T(std::forward<Args>(args)...);
+    }
+    catch (common::BaseException & be)
+    {
+        throw gcnew Common::CPPException(be);
+    }
+}

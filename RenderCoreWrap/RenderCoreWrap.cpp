@@ -40,7 +40,7 @@ String^ RenderPass::ToString()
 }
 
 
-RenderCore::RenderCore() : Core(new rayr::RenderCore())
+RenderCore::RenderCore() : Core(TryConstruct<rayr::RenderCore>())
 {
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);

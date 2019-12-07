@@ -47,10 +47,9 @@ struct NumericRangeSource
 {
     static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>, "Need numeric type");
     using OutType = T;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = false;
-    static constexpr bool IsCountable = true;
-    static constexpr bool CanSkipMultiple = true;
+    static constexpr bool InvolveCache      = false;
+    static constexpr bool IsCountable       = true;
+    static constexpr bool CanSkipMultiple   = true;
     
     T Current;
     T Step;
@@ -79,10 +78,9 @@ struct RepeatSource
 {
     static_assert(std::is_copy_constructible_v<T>, "Need copyable type");
     using OutType = T;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = false;
-    static constexpr bool IsCountable = true;
-    static constexpr bool CanSkipMultiple = true;
+    static constexpr bool InvolveCache      = false;
+    static constexpr bool IsCountable       = true;
+    static constexpr bool CanSkipMultiple   = true;
 
     T Val;
     size_t Avaliable;
@@ -107,10 +105,9 @@ template<typename T, typename U>
 struct RandomSource
 {
     using OutType = decltype(std::declval<U&>()(std::declval<T&>()));
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = true;
-    static constexpr bool CanSkipMultiple = true;
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = true;
+    static constexpr bool CanSkipMultiple   = true;
 
     mutable T Engine;
     mutable U Generator;
@@ -144,10 +141,9 @@ template<typename TB, typename TE>
 struct IteratorSource
 {
     using OutType = decltype(*std::declval<TB&>());
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = false;
-    static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = true;
+    static constexpr bool InvolveCache      = false;
+    static constexpr bool IsCountable       = false;
+    static constexpr bool CanSkipMultiple   = true;
 
     TB Begin;
     TE End;
@@ -171,10 +167,9 @@ private:
     using BaseType = IteratorSource<decltype(std::begin(std::declval<T&>())), decltype(std::end(std::declval<T&>()))>;
 public:
     using OutType = typename BaseType::OutType;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = false;
-    static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = true;
+    static constexpr bool InvolveCache      = false;
+    static constexpr bool IsCountable       = false;
+    static constexpr bool CanSkipMultiple   = true;
 
     template<typename U>
     constexpr ContainedIteratorSource(U&& obj) :
@@ -230,10 +225,9 @@ public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = InType;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = P::InvolveCache;
-    static constexpr bool IsCountable = P::IsCountable;
-    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+    static constexpr bool InvolveCache      = P::InvolveCache;
+    static constexpr bool IsCountable       = P::IsCountable;
+    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
 
     size_t Avaliable;
 
@@ -277,10 +271,9 @@ public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = InType;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = P::InvolveCache;
-    static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = false;
+    static constexpr bool InvolveCache      = P::InvolveCache;
+    static constexpr bool IsCountable       = false;
+    static constexpr bool CanSkipMultiple   = false;
 
     constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
     {
@@ -332,10 +325,9 @@ public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = std::invoke_result_t<Mapper, InType>;
-    static constexpr bool ShouldCache = NeedCache;
-    static constexpr bool InvolveCache = P::InvolveCache || ShouldCache;
-    static constexpr bool IsCountable = P::IsCountable;
-    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+    static constexpr bool InvolveCache      = P::InvolveCache || NeedCache;
+    static constexpr bool IsCountable       = P::IsCountable;
+    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
 
     constexpr MappedSource(P&& prev, Mapper&& mapper) : BaseType(std::move(prev)), Func(std::move(mapper))
     { }
@@ -368,10 +360,9 @@ public:
     using PlainInType = std::remove_cv_t<InType>;
     using MidType = typename std::invoke_result_t<Mapper, InType>::ProviderType;
     using OutType = typename MidType::OutType;
-    static constexpr bool ShouldCache = false;
-    static constexpr bool InvolveCache = MidType::InvolveCache;
-    static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = false;
+    static constexpr bool InvolveCache      = MidType::InvolveCache;
+    static constexpr bool IsCountable       = false;
+    static constexpr bool CanSkipMultiple   = false;
 
 
     constexpr FlatMappedSource(P&& prev, Mapper&& mapper) : Prev(std::move(prev)), Func(std::move(mapper))
@@ -467,10 +458,9 @@ private:
 public:
     using InTypes = std::tuple<typename Ps::OutType...>; // tuple support reference
     using OutType = InTypes;
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = (... && Ps::IsCountable);
-    static constexpr bool CanSkipMultiple = (... && Ps::CanSkipMultiple);
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = (... && Ps::IsCountable);
+    static constexpr bool CanSkipMultiple   = (... && Ps::CanSkipMultiple);
 
     constexpr TupledSource(Ps&&... prevs) : Prevs(std::forward<Ps>(prevs)...)
     { }
@@ -513,10 +503,9 @@ public:
     using InType1 = typename P1::OutType;
     using InType2 = typename P2::OutType;
     using OutType = std::pair<InType1, InType2>; // pair support reference
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = P1::IsCountable && P2::IsCountable;
-    static constexpr bool CanSkipMultiple = P1::CanSkipMultiple && P2::CanSkipMultiple;
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = P1::IsCountable && P2::IsCountable;
+    static constexpr bool CanSkipMultiple   = P1::CanSkipMultiple && P2::CanSkipMultiple;
 
     constexpr PairedSource(P1&& prev1, P2&& prev2) : Prev1(std::move(prev1)), Prev2(std::move(prev2))
     { }
@@ -607,10 +596,9 @@ public:
     using InType1 = typename P1::OutType;
     using InType2 = typename P2::OutType;
     using OutType = ConcatedSourceHelper::Type<InType1, InType2>;
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = P1::IsCountable && P2::IsCountable;
-    static constexpr bool CanSkipMultiple = P1::CanSkipMultiple && P2::CanSkipMultiple && IsCountable;
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = P1::IsCountable && P2::IsCountable;
+    static constexpr bool CanSkipMultiple   = P1::CanSkipMultiple && P2::CanSkipMultiple && IsCountable;
 
     constexpr ConcatedSource(P1&& prev1, P2&& prev2) : 
         Prev1(std::move(prev1)), Prev2(std::move(prev2)), IsSrc2(Prev1.IsEnd())
@@ -659,10 +647,9 @@ public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = T;
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = P::IsCountable;
-    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = P::IsCountable;
+    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
 
     constexpr CastedSource(P&& prev) : BaseType(std::move(prev))
     { }
@@ -693,10 +680,9 @@ public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = T;
-    static constexpr bool ShouldCache = true;
-    static constexpr bool InvolveCache = true;
-    static constexpr bool IsCountable = P::IsCountable;
-    static constexpr bool CanSkipMultiple = P::CanSkipMultiple;
+    static constexpr bool InvolveCache      = true;
+    static constexpr bool IsCountable       = P::IsCountable;
+    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
 
     constexpr CastCtorSource(P&& prev) : BaseType(std::move(prev))
     { }
@@ -915,10 +901,15 @@ public:
     template<typename Func>
     constexpr void ForEach(Func&& func)
     {
-        static_assert(std::is_invocable_v<Func, EleType>, "foreach function should accept element");
+        [[maybe_unused]] size_t idx = 0;
         while (!Provider.IsEnd())
         {
-            func(Provider.GetCurrent());
+            if constexpr(std::is_invocable_v<Func, EleType>)
+                func(Provider.GetCurrent());
+            else if constexpr (std::is_invocable_v<Func, EleType, size_t>)
+                func(Provider.GetCurrent(), idx++);
+            else
+                static_assert(!AlwaysTrue<Func>, "foreach function should accept element, and maybe index");
             Provider.MoveNext();
         }
     }

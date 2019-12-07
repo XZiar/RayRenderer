@@ -24,8 +24,8 @@ static MiniLogger<false>& log()
 static void OCLStub()
 {
     common::linq::FromIterable(oclUtil::GetPlatforms())
-        .ForEach([i = 0u](const auto& plat) mutable 
-    { log().info(u"option[{}] {}\t{}\n", i++, plat->Name, plat->Ver); });
+        .ForEach([](const auto& plat, size_t idx) mutable 
+    { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
     uint32_t platidx = 0;
     std::cin >> platidx;
     const auto plat = oclUtil::GetPlatforms()[platidx];

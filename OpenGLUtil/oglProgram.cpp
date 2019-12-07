@@ -253,7 +253,20 @@ void oglProgram_::RecoverState()
     SetUBO(uboMan, UBOBindings, true);
 }
 
-
+constexpr auto ResInfoPrinter = [](const auto& res, const auto& prefix)
+{
+    u16string strBuffer;
+    auto strBuf = std::back_inserter(strBuffer);
+    for (const auto& info : res)
+    {
+        if (info.size > 0)
+            fmt::format_to(strBuf, FMT_STRING(u"--{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n"), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
+        else
+            fmt::format_to(strBuf, FMT_STRING(u"--{:<3} -[{:^5}]- {}[{}]({})\n"), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName());
+    }
+    if (!strBuffer.empty())
+        oglLog().debug(u"{}: \n{}", prefix, strBuffer);
+};
 void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
 {
     CheckCurrent();
@@ -319,7 +332,6 @@ void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
         }
         if (resCategory != ProgResType::CAT_INPUT && resCategory != ProgResType::CAT_OUTPUT)
             maxUniLoc = common::max(maxUniLoc, info.location + info.len);
-        oglLog().debug(u"--{:>7}{:<3} -[{:^5}]- {}[{}]({}) size[{}]\n", info.GetTypeName(), info.ifidx, info.location, info.Name, info.len, info.GetValTypeName(), info.size);
     }
     UniformRess.Init(std::move(uniformRess), extInfo.ResMappings);
     UBORess.    Init(std::move(uboRess    ), extInfo.ResMappings);
@@ -328,6 +340,11 @@ void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
 
     UniBindCache.clear();
     UniBindCache.resize(maxUniLoc, GL_INVALID_INDEX);
+
+    ResInfoPrinter(UBORess,     u"UBO     resources");
+    ResInfoPrinter(TexRess,     u"Tex     resources");
+    ResInfoPrinter(ImgRess,     u"Img     resources");
+    ResInfoPrinter(UniformRess, u"Uniform resources");
 }
 
 void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
@@ -941,6 +958,9 @@ oglDrawProgram_::oglDrawProgram_(const std::u16string& name, const oglProgStub* 
     OutputRess.Init(std::move(outputRess), mappings);
     OutputBindings = OutputRess.GetBindingNames();
     TmpExtInfo.reset();
+
+    ResInfoPrinter(InputRess,  u"Input  attributes");
+    ResInfoPrinter(OutputRess, u"Output resources");
 }
 oglDrawProgram_::~oglDrawProgram_() { }
 
