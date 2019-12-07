@@ -324,7 +324,7 @@ struct SubroutineItem
             entry.append("    {{\r\n");
             for(const auto & [srname, srline] : Routines)
             {
-                fmt::format_to(std::back_inserter(entry), "    case {}: return {}({});\r\n", srline, srname, args);
+                fmt::format_to(std::back_inserter(entry), "    case {}u: return {}({});\r\n", srline, srname, args);
                 emulateInfo.Routines.emplace_back(srname, srline);
             }
             entry.append("    }}\r\n");

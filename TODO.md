@@ -7,6 +7,7 @@
   - [ ] Implement new SIMD vector lib
   - [ ] Makes strcharset Linq-able
   - [x] Makes string split Linq-able
+  - [ ] Use dict to store Exception's custom info
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
@@ -43,6 +44,8 @@
   - [ ] Add proper drawstate setting
   - [x] Emulate subroutine on unsupported platform
   - [ ] Add bindless texture support
+  - [ ] Add shader include support (file lookup management)
+  - [ ] Allow disable feature via env or manually to allow compatiblilty test
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL
@@ -50,6 +53,8 @@
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
+  - [ ] Add compatibility for OpenCL verson less than 1.2.
+  - [ ] Add custom debug info output
 
 * FontHelper
   - [ ] Implement proper text render

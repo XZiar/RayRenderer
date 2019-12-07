@@ -34,6 +34,7 @@ private:
     oclContext CreateContext(const std::vector<oclDevice>& devs, const std::vector<cl_context_properties>& props) const;
 public:
     std::u16string Name, Ver;
+    uint32_t Version = 0;
     Vendors PlatVendor;
     [[nodiscard]] std::vector<oclDevice> GetDevices() const;
     [[nodiscard]] const common::container::FrozenDenseSet<std::string>& GetExtensions() const { return Extensions; }

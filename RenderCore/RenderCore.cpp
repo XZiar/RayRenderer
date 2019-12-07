@@ -48,17 +48,20 @@ static int32_t JudgeVendor(const Vendors vendor)
 
 static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, const oglContext glContext)
 {
-    const auto venderClPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
-        .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
-            .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
+    const auto gpuPlats = common::linq::FromIterable(oclUtil::GetPlatforms())
+        .Where([](const auto& plat) 
+            { 
+                return plat->Version >= 12 && common::linq::FromContainer(plat->GetDevices())
+                    .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); 
+            })
+        .ToVector();
+    const auto venderClPlat = common::linq::FromIterable(gpuPlats)
         .Select([&](const auto& plat) { return std::pair{ plat->PlatVendor == vendor ? 0 : JudgeVendor(plat->PlatVendor), plat }; })
         .OrderBy<common::container::PairLess>().Select([](const auto& p) { return p.second; })
         .TryGetFirst().value_or(oclPlatform{});
     if (venderClPlat)
     {
-        const auto glPlat = common::linq::FromIterable(oclUtil::GetPlatforms())
-            .Where([](const auto& plat) { return common::linq::FromContainer(plat->GetDevices())
-                .ContainsIf([](const auto& dev) { return dev->Type == DeviceType::GPU; }); })
+        const auto glPlat = common::linq::FromIterable(gpuPlats)
             .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
             .TryGetFirst().value_or(oclPlatform{});
         oclContext defCtx, sharedCtx;

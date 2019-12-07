@@ -62,6 +62,10 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
   
   used for logging message and errors, with prefix `OpenCLUtil`
 
+## Requirements
+
+OpenCLUtil currently requires at least OpenCL1.2
+
 ## License
 
 OpenGLUtil (including its component) is licensed under the [MIT license](../License.txt).

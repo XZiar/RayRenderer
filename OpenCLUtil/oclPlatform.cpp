@@ -58,6 +58,10 @@ oclPlatform_::oclPlatform_(const cl_platform_id pID)
     Extensions = common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false);
     Name = GetUStr(pID, CL_PLATFORM_NAME);
     Ver = GetUStr(pID, CL_PLATFORM_VERSION);
+    {
+        const auto verPart = common::str::SplitStream(Ver, u' ', false).Skip(1).TryGetFirst().value();
+        Version = (verPart[0] - u'0') * 10 + (verPart[2] - u'0');
+    }
     PlatVendor = JudgeBand(Name);
 
     if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
