@@ -87,15 +87,17 @@ static void UnregistTexture(const oglTexBase_& tex)
 }
 
 
-struct TManCtxConfig : public CtxResConfig<false, detail::TextureManager>
+struct TManCtxConfig : public CtxResConfig<false, std::unique_ptr<detail::ResourceBinder<oglTexBase_>>>
 {
-    detail::TextureManager Construct() const { return {}; }
+    std::unique_ptr<detail::ResourceBinder<oglTexBase_>> Construct() const
+    { 
+        return std::make_unique<detail::CachedResManager<oglTexBase_>>(CtxFunc->MaxTextureUnits);
+    }
 };
 static TManCtxConfig TEXMAN_CTXCFG;
-
-detail::TextureManager& oglTexBase_::getTexMan() noexcept
+detail::ResourceBinder<oglTexBase_>& oglTexBase_::GetTexMan() noexcept
 {
-    return oglContext_::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
+    return *oglContext_::CurrentContext()->GetOrCreate<false>(TEXMAN_CTXCFG);
 }
 
 oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noexcept :
@@ -120,7 +122,7 @@ oglTexBase_::~oglTexBase_()
     if (!EnsureValid()) return;
     UnregistTexture(*this);
     //force unbind texture, since texID may be reused after releasaed
-    getTexMan().forcePop(TextureID);
+    GetTexMan().ReleaseRes(this);
     CtxFunc->ogluDeleteTextures(1, &TextureID);
 }
 
@@ -699,15 +701,17 @@ void oglBufferTexture_::SetBuffer(const TextureFormat format, const oglTBO& tbo)
 }
 
 
-struct TIManCtxConfig : public CtxResConfig<false, detail::TexImgManager>
+struct TIManCtxConfig : public CtxResConfig<false, std::unique_ptr<detail::ResourceBinder<oglImgBase_>>>
 {
-    detail::TexImgManager Construct() const { return {}; }
+    std::unique_ptr<detail::ResourceBinder<oglImgBase_>> Construct() const
+    {
+        return std::make_unique<detail::CachedResManager<oglImgBase_>>(CtxFunc->MaxImageUnits);
+    }
 };
 static TIManCtxConfig TEXIMGMAN_CTXCFG;
-
-detail::TexImgManager& oglImgBase_::getImgMan() noexcept
+detail::ResourceBinder<oglImgBase_>& oglImgBase_::GetImgMan() noexcept
 {
-    return oglContext_::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
+    return *oglContext_::CurrentContext()->GetOrCreate<false>(TEXIMGMAN_CTXCFG);
 }
 
 
@@ -727,6 +731,10 @@ oglImgBase_::oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const b
             TextureFormat::COMP_332 , TextureFormat::COMP_4444, TextureFormat::COMP_565 ,
             TextureFormat::COMP_5551))
         COMMON_THROWEX(OGLWrongFormatException, u"TexImg does not support some composite texture type", format);
+}
+oglu::oglImgBase_::~oglImgBase_()
+{
+    GetImgMan().ReleaseRes(this);
 }
 
 bool oglu::oglImgBase_::CheckSupport()

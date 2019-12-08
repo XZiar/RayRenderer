@@ -6,52 +6,55 @@ namespace oglu::detail
 {
 
 
-
-GLuint TextureManager::getID(const oglTexBase& obj) const
+template<>
+GLuint CachedResManager<oglTexBase_>::GetID(const oglTexBase_* tex) noexcept
 {
-    return obj->TextureID;
+    return tex->TextureID;
 }
-
-void TextureManager::innerBind(const oglTexBase& obj, const uint16_t slot) const
+template<>
+void CachedResManager<oglTexBase_>::BindRess(const oglTexBase_* tex, const uint16_t slot) noexcept
 {
-    obj->bind(slot);
+    tex->bind(slot);
 }
-
-void TextureManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
+template<>
+void CachedResManager<oglTexBase_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
 {
-    CtxFunc->ogluProgramUniform1i(prog, loc, slot);
-}
-
-
-GLuint TexImgManager::getID(const oglImgBase& obj) const
-{
-    return obj->GetTextureID();
-}
-
-void TexImgManager::innerBind(const oglImgBase& obj, const uint16_t slot) const
-{
-    obj->bind(slot);
-}
-
-void TexImgManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
-{
-    CtxFunc->ogluProgramUniform1i(prog, loc, slot);
+    CtxFunc->ogluProgramUniform1i(progId, loc, slot);
 }
 
 
-GLuint UBOManager::getID(const oglUBO& obj) const
+template<>
+GLuint CachedResManager<oglImgBase_>::GetID(const oglImgBase_* img) noexcept
 {
-    return obj->BufferID;
+    return img->GetTextureID();
+}
+template<>
+void CachedResManager<oglImgBase_>::BindRess(const oglImgBase_* img, const uint16_t slot) noexcept
+{
+    img->bind(slot);
+}
+template<>
+void CachedResManager<oglImgBase_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
+{
+    CtxFunc->ogluProgramUniform1i(progId, loc, slot);
 }
 
-void UBOManager::innerBind(const oglUBO& obj, const uint16_t slot) const
+
+template<>
+GLuint CachedResManager<oglUniformBuffer_>::GetID(const oglUniformBuffer_* ubo) noexcept
 {
-    obj->bind(slot);
+    return ubo->BufferID;
+}
+template<>
+void CachedResManager<oglUniformBuffer_>::BindRess(const oglUniformBuffer_* ubo, const uint16_t slot) noexcept
+{
+    ubo->bind(slot);
+}
+template<>
+void CachedResManager<oglUniformBuffer_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
+{
+    CtxFunc->ogluUniformBlockBinding(progId, loc, slot);
 }
 
-void UBOManager::outterBind(const GLuint prog, const GLuint loc, const uint16_t slot) const
-{
-    CtxFunc->ogluUniformBlockBinding(prog, loc, slot);
-}
 
 }

@@ -40,12 +40,13 @@
   - [x] Reduce hazzlement of TexDataType and TexInnerType
   - [x] Re-design object creation
   - [x] Replace glew since it lacks support for multi-thread & multi-contxt
-  - [ ] Re-design ResourceMappingManager
+  - [x] Re-design ResourceMappingManager
   - [ ] Add proper drawstate setting
   - [x] Emulate subroutine on unsupported platform
   - [ ] Add bindless texture support
   - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
+  - [ ] Move VAO's prepare before returning actual VAO
   * TextureUtil
     - [x] Add mipmap
     - [ ] Migate ISPC tex-compressor to OpenCL
@@ -109,5 +110,7 @@
   - [ ] Add GLFW
   - [ ] Add FancyCL codegen which can write code in C++ with template/type-safe support and emit compute langs
   - [ ] Add custom window host (for OGL/vulkan)
+  - [ ] Seperate OGL/Vulkan backend
+  - [ ] Add remote rendering backend (out-of-process or network-based)
 
 

@@ -170,14 +170,14 @@ public:
 
 class OGLUAPI oglUniformBuffer_ : public oglBuffer_
 {
-    friend class detail::UBOManager;
+    friend class detail::CachedResManager<oglUniformBuffer_>;
     friend class oglProgram_;
     friend class ProgDraw;
 private:
     MAKE_ENABLER();
     oglUniformBuffer_(const size_t size) noexcept;
 protected:
-    [[nodiscard]] static detail::UBOManager& getUBOMan();
+    [[nodiscard]] static detail::ResourceBinder<oglUniformBuffer_>& GetUBOMan() noexcept;
     void bind(const uint16_t pos) const;
 public:
     virtual ~oglUniformBuffer_() noexcept override;

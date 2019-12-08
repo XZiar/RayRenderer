@@ -88,7 +88,7 @@ private:
     mutable common::SpinLocker DataLock;
 public:
     // buffer related
-
+    GLint MaxUBOUnits = 0;
     void      (GLAPIENTRYP ogluGenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
     void      (GLAPIENTRYP ogluDeleteBuffers) (GLsizei n, const GLuint* buffers) = nullptr;
     void      (GLAPIENTRYP ogluBindBuffer) (GLenum target, GLuint buffer) = nullptr;
@@ -149,6 +149,8 @@ public:
     void ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const;
 
     // texture related
+    GLint MaxTextureUnits = 0;
+    GLint MaxImageUnits = 0;
     void (GLAPIENTRYP ogluGenTextures) (GLsizei n, GLuint* textures) = nullptr;
     void (GLAPIENTRYP ogluCreateTextures_) (GLenum target, GLsizei n, GLuint* textures) = nullptr;
     void (GLAPIENTRYP ogluDeleteTextures) (GLsizei n, const GLuint* textures) = nullptr;

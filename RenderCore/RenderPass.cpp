@@ -159,7 +159,7 @@ void DefaultRenderPass::OnDraw(RenderPassContext& context)
                 continue;
             const auto maker = GLContext->DeclareRange(u"Draw-" + drw->Name);
             drw->Draw(drawcall);
-            drawcall.Drawer.Restore(true);
+            drawcall.Drawer.Restore();
         }
     }
 

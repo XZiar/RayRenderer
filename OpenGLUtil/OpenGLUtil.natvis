@@ -1,24 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
-  <Type Name="oglu::detail::NodeBlock&lt;*&gt;">
-    <DisplayString Condition="LinkId == 0">{{[{Data}, unused]}}</DisplayString>
-    <DisplayString Condition="LinkId == 1">{{[{Data}, used]}}</DisplayString>
-    <DisplayString Condition="LinkId == 2">{{[{Data}, pinned]}}</DisplayString>
-  </Type>
-  <Type Name="oglu::detail::LRUPos&lt;*&gt;">
-    <DisplayString>{{{usedCnt} used, {unuseCnt} unused}}</DisplayString>
+  <Type Name="oglu::detail::ResManCore">
+    <DisplayString>{{{UsedCnt} used, {UnusedCnt} unused}}</DisplayString>
     <Expand>
       <Item Name="size">Nodes.size()</Item>
-      <Item Name="lookup">lookup</Item>
       <Item Name="Nodes">Nodes</Item>
-      <Synthetic Name="Unused" Condition="Unused().Head == 0xffffui16">
+      <Synthetic Name="Unused" Condition="Unused.Head == 0xffffui16">
         <DisplayString>Empty</DisplayString>
       </Synthetic>
-      <Synthetic Name="Unused" Condition="Unused().Head != 0xffffui16">
+      <Synthetic Name="Unused" Condition="Unused.Head != 0xffffui16">
         <Expand>
-          <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="Unused().Head" />
-            <Exec>ptrNode = Unused().Head</Exec>
+          <CustomListItems MaxItemsPerView="512">
+            <Variable Name="ptrNode" InitialValue="Unused.Head" />
+            <Exec>ptrNode = Unused.Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
@@ -29,32 +23,14 @@
           </CustomListItems>
         </Expand>
       </Synthetic>
-      <Synthetic Name="Used" Condition="Used().Head == 0xffffui16">
+      <Synthetic Name="Used" Condition="Used.Head == 0xffffui16">
         <DisplayString>Empty</DisplayString>
       </Synthetic>
-      <Synthetic Name="Used" Condition="Used().Head != 0xffffui16">
+      <Synthetic Name="Used" Condition="Used.Head != 0xffffui16">
         <Expand>
           <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="Used().Head" />
-            <Exec>ptrNode = Used().Head</Exec>
-            <Loop>
-              <If Condition="ptrNode == 0xffffui16">
-                <Break/>
-              </If>
-              <Item>Nodes[ptrNode]</Item>
-              <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
-            </Loop>
-          </CustomListItems>
-        </Expand>
-      </Synthetic>
-      <Synthetic Name="Pinned" Condition="Fixed().Head == 0xffffui16">
-        <DisplayString>Empty</DisplayString>
-      </Synthetic>
-      <Synthetic Name="Pinned" Condition="Fixed().Head != 0xffffui16">
-        <Expand>
-          <CustomListItems MaxItemsPerView="1024">
-            <Variable Name="ptrNode" InitialValue="Fixed().Head" />
-            <Exec>ptrNode = Fixed().Head</Exec>
+            <Variable Name="ptrNode" InitialValue="Used.Head" />
+            <Exec>ptrNode = Used.Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
@@ -68,22 +44,7 @@
     </Expand>
   </Type>
 
-  <Type Name="oglu::detail::TextureManager">
-    <DisplayString>{{TexMan {cache}}}</DisplayString>
-    <Expand>
-      <Item Name="MaxCombinedTexture">GLLimit</Item>
-      <Item Name="LRUCache">cache</Item>
-    </Expand>
-  </Type>
-  <Type Name="oglu::detail::UBOManager">
-    <DisplayString>{{UBOMan {cache}}}</DisplayString>
-    <Expand>
-      <Item Name="MaxUBOBinding">GLLimit</Item>
-      <Item Name="LRUCache">cache</Item>
-    </Expand>
-  </Type>
-  
-    <Type Name="oglu::SubroutineResource::Routine">
+  <Type Name="oglu::SubroutineResource::Routine">
     <DisplayString>{{[{Id}]{Name}}}</DisplayString>
   </Type>
   <Type Name="oglu::SubroutineResource">
@@ -98,9 +59,6 @@
   <Type Name="oglu::detail::oglProgram_">
     <DisplayString>{{{Name}}}</DisplayString>
   </Type>
-  <!--<Type Name="common::Wrapper&lt;oglu::detail::oglProgram_&gt;">
-    <DisplayString>{{{_Ptr->Name}}}</DisplayString>
-  </Type>-->
 
   <Type Name="oglu::detail::oglVAO_">
     <DisplayString Condition="Method == oglu::detail::oglVAO_::DrawMethod::UnPrepared">{{Unprepared}}</DisplayString>

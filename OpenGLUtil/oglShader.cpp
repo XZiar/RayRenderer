@@ -196,7 +196,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 }
 
 constexpr static auto OGLU_EXT_REQS = R"(
-#line 100000 1 // OGLU_EXT_REQS
+#line 1 1 // OGLU_EXT_REQS
 #if defined(OGLU_VERT)
 #   extension GL_ARB_shader_draw_parameters : enable
 #endif
@@ -207,7 +207,7 @@ constexpr static auto OGLU_EXT_REQS = R"(
 )";
 
 constexpr static auto OGLU_DEFS = R"(
-#line 110000 2 // OGLU_DEFS
+#line 1 2 // OGLU_DEFS
 #if defined(OGLU_VERT)
 
 #   define GLVARY out
@@ -313,7 +313,7 @@ struct SubroutineItem
                             ret.append(arg);
                         }, string());
             entry.append("uniform uint {0};\r\n");
-            entry.append("#line 100000 3 // OGLU_SR ").append(SubroutineName).append("\r\n");
+            entry.append("#line 1 3 // OGLU_SR ").append(SubroutineName).append("\r\n");
             for (const auto& [routine, rtline] : Routines)
             {
                 fmt::format_to(std::back_inserter(entry), "{} {}({});\r\n", ReturnType, routine, FuncParams);
@@ -329,7 +329,7 @@ struct SubroutineItem
             }
             entry.append("    }}\r\n");
             entry.append("}}\r\n");
-            entry.append("#line ").append(std::to_string(LineNum + 1)).append("\r\n");
+            entry.append("#line ").append(std::to_string(LineNum + 1)).append(" 0 \r\n");
             prefix = "";
             const bool notReplace = emulateOutput.insert_or_assign(std::string(RoutineVal), std::move(emulateInfo)).second;
             if (!notReplace)
@@ -508,7 +508,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     string beforeInit;
     {
         size_t line = (verLineNum == string::npos ? 0 : verLineNum + 1);
-        beforeInit.append("#line ").append(std::to_string(line + 1)).append("\r\n");
+        beforeInit.append("#line ").append(std::to_string(line + 1)).append(" 0 \r\n");
         while (line < restLineNum)
             std::visit([&](const auto& val) { beforeInit.append(val).append("\r\n"); }, lines[line++]);
     }

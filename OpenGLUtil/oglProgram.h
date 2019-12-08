@@ -137,14 +137,8 @@ private:
 public:
     ~ProgState();
     ProgState& SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetTexture(const oglTexBase& tex, const GLuint pos);
     ProgState& SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetImage(const oglImgBase& img, const GLuint pos);
     ProgState& SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx = 0);
-    //no check on pos, carefully use
-    ProgState& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgState& SetSubroutine(const SubroutineResource::Routine* routine);
     ProgState& SetSubroutine(const std::string_view subrName, const std::string_view routineName);
 };
@@ -198,12 +192,6 @@ protected:
     std::pair<const SubroutineResource*, const SubroutineResource::Routine*> LocateSubroutine
         (const std::string_view subrName, const std::string_view routineName) const noexcept;
 
-    void SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin = false);
-    void SetTexture(detail::TextureManager& texMan, const std::map<GLuint, oglTexBase>& texs, const bool shouldPin = false);
-    void SetImage(detail::TexImgManager& texMan, const GLint pos, const oglImgBase& tex, const bool shouldPin = false);
-    void SetImage(detail::TexImgManager& texMan, const std::map<GLuint, oglImgBase>& texs, const bool shouldPin = false);
-    void SetUBO(detail::UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin = false);
-    void SetUBO(detail::UBOManager& uboMan, const std::map<GLuint, oglUBO>& ubos, const bool shouldPin = false);
     void SetSubroutine();
     void SetSubroutine(const SubroutineResource::Routine* routine);
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
@@ -295,14 +283,13 @@ private:
     oglFrameBuffer_& FBO;
     common::SpinLocker::ScopeType Lock;
     common::RWSpinLock::ReadScopeType FBOLock;
-    detail::TextureManager& TexMan;
-    detail::TexImgManager& ImgMan;
-    detail::UBOManager& UboMan;
-    std::map<GLuint, oglTexBase> TexCache;
-    std::map<GLuint, oglImgBase> ImgCache;
-    std::map<GLuint, oglUBO> UBOCache;
+    detail::ResourceBinder<oglTexBase_>& TexMan;
+    detail::ResourceBinder<oglImgBase_>& ImgMan;
+    detail::ResourceBinder<oglUniformBuffer_>& UboMan;
+    std::map<GLuint, oglTexBase> TexBindings;
+    std::map<GLuint, oglImgBase> ImgBindings;
+    std::map<GLuint, oglUBO> UBOBindings;
     std::map<const SubroutineResource*, const SubroutineResource::Routine*> SubroutineCache;
-    std::map<GLuint, std::pair<GLint, ProgResType>> UniBindBackup;
     std::map<const ProgramResource*, UniformValue> UniValBackup;
     ProgDraw(oglDrawProgram_* prog, FBOPairType&& fboInfo) noexcept;
     ProgDraw(oglDrawProgram_* prog) noexcept;
@@ -315,13 +302,14 @@ private:
                 UniValBackup.insert_or_assign(res, *it);
         return res;
     }
+    void SetBindings() noexcept;
 public:
     ProgDraw(ProgDraw&& other) noexcept = default;
     ~ProgDraw();
     ///<summary>restore current drawing state</summary>  
     ///<param name="quick">whether perform quick restore</param>
     ///<returns>self</returns>
-    ProgDraw& Restore(const bool quick = false);
+    ProgDraw& Restore();
     std::weak_ptr<oglDrawProgram_> GetProg() const noexcept;
     ///<summary>draw vao range</summary>  
     ///<param name="size">elements count being drawed</param>
@@ -334,12 +322,10 @@ public:
     ///<returns>self</returns>
     ProgDraw& DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base = 0);
     ProgDraw& Draw(const oglVAO& vao);
+
     ProgDraw& SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx = 0);
-    ProgDraw& SetTexture(const oglTexBase& tex, const GLuint pos);
     ProgDraw& SetImage(const oglImgBase& img, const std::string_view name, const GLuint idx = 0);
-    ProgDraw& SetImage(const oglImgBase& img, const GLuint pos);
     ProgDraw& SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx = 0);
-    ProgDraw& SetUBO(const oglUBO& ubo, const GLuint pos);
     ProgDraw& SetSubroutine(const SubroutineResource::Routine* routine);
     ProgDraw& SetSubroutine(const std::string_view subrName, const std::string_view routineName);
 

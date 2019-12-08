@@ -177,21 +177,25 @@ oglUniformBuffer_::~oglUniformBuffer_() noexcept
 {
     if (!EnsureValid()) return;
     //force unbind ubo, since bufID may be reused after releasaed
-    getUBOMan().forcePop(BufferID);
+    GetUBOMan().ReleaseRes(this);
 }
 oglUBO oglUniformBuffer_::Create(const size_t size)
 {
     return MAKE_ENABLER_SHARED(oglUniformBuffer_, (size));
 }
 
-struct UBOCtxConfig : public CtxResConfig<false, detail::UBOManager>
+
+struct UBOCtxConfig : public CtxResConfig<false, std::unique_ptr<detail::ResourceBinder<oglUniformBuffer_>>>
 {
-    detail::UBOManager Construct() const { return {}; }
+    std::unique_ptr<detail::ResourceBinder<oglUniformBuffer_>> Construct() const
+    { 
+        return std::make_unique<detail::CachedResManager<oglUniformBuffer_>>(CtxFunc->MaxUBOUnits);
+    }
 };
 static UBOCtxConfig UBO_CTXCFG;
-detail::UBOManager& oglUniformBuffer_::getUBOMan()
+detail::ResourceBinder<oglUniformBuffer_>& oglUniformBuffer_::GetUBOMan() noexcept
 {
-    return oglContext_::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
+    return *oglContext_::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
 }
 
 void oglUniformBuffer_::bind(const uint16_t pos) const

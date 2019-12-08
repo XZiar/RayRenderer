@@ -846,10 +846,13 @@ CtxFuncs::CtxFuncs()
     SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
     
-    ogluGetIntegerv(GL_MAX_COLOR_ATTACHMENTS,       &MaxColorAttachment);
-    ogluGetIntegerv(GL_MAX_DRAW_BUFFERS,            &MaxDrawBuffers);
-    ogluGetIntegerv(GL_MAX_LABEL_LENGTH,            &MaxLabelLen);
-    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,    &MaxMessageLen);
+    ogluGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
+    ogluGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,    &MaxTextureUnits);
+    ogluGetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);
+    ogluGetIntegerv(GL_MAX_COLOR_ATTACHMENTS,               &MaxColorAttachment);
+    ogluGetIntegerv(GL_MAX_DRAW_BUFFERS,                    &MaxDrawBuffers);
+    ogluGetIntegerv(GL_MAX_LABEL_LENGTH,                    &MaxLabelLen);
+    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,            &MaxMessageLen);
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS

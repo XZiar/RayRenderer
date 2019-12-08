@@ -19,33 +19,31 @@ TEST(Linq, Compiling)
     std::vector<std::unique_ptr<int>> data;
     auto e1 = FromIterable(data);
     //non-copyable
-    EXPECT_EQ(SrcType(e1)::ShouldCache, false);
+    EXPECT_EQ(SrcType(e1)::InvolveCache, false);
     EXPECT_EQ(GetIsRef(e1), true);
 
     auto e2 = e1.Select([](const auto& i) -> auto& { return i; });
     //ref-type
-    EXPECT_EQ(SrcType(e2)::ShouldCache, false);
+    EXPECT_EQ(SrcType(e2)::InvolveCache, false);
     EXPECT_EQ(GetIsRef(e2), true);
 
     auto e3 = e2.Select([](const auto& i) { return *i; });
     //value-type
-    EXPECT_EQ(SrcType(e3)::ShouldCache, true);
+    EXPECT_EQ(SrcType(e3)::InvolveCache, true);
     EXPECT_EQ(GetIsRef(e3), false);
 
     auto e4 = e3.Select<false>([](const auto& i) { return i; });
     //force-non-cache
-    EXPECT_EQ(SrcType(e4)::ShouldCache, false);
+    EXPECT_EQ(SrcType(e4)::InvolveCache, false);
     EXPECT_EQ(GetIsRef(e4), false);
 
     auto e5 = e4.Select([&](const auto& i) -> auto& { return data[i]; });
     //ref-type
-    EXPECT_EQ(SrcType(e5)::ShouldCache, false);
     EXPECT_EQ(SrcType(e5)::InvolveCache, true);
     EXPECT_EQ(GetIsRef(e5), true);
 
     auto e6 = e5.Select<true>([&](const auto& i) -> auto& { return i; });
     //force-cache on reference
-    EXPECT_EQ(SrcType(e6)::ShouldCache, true);
     EXPECT_EQ(SrcType(e6)::InvolveCache, true);
     EXPECT_EQ(GetIsRef(e6), true);
 }

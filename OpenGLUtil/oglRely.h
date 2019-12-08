@@ -115,9 +115,6 @@ class oglContext_;
 
 namespace detail
 {
-class TextureManager;
-class TexImgManager;
-class UBOManager;
 struct SharedContextCore;
 
 template<bool IsShared>
@@ -133,6 +130,17 @@ protected:
 public:
     void CheckCurrent() const;
 };
+
+template<typename T>
+class ResourceBinder
+{
+public:
+    virtual ~ResourceBinder() { }
+    virtual void BindAll(const GLuint progId, const std::map<GLuint, std::shared_ptr<T>>&, std::vector<GLint>&) = 0;
+    virtual void ReleaseRes(const T* res) = 0;
+};
+template<typename T>
+class CachedResManager;
 
 }
 

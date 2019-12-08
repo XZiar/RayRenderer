@@ -101,7 +101,7 @@ enum class TexImgUsage : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 
 class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-    friend class detail::TextureManager;
+    friend class detail::CachedResManager<oglTexBase_>;
     friend class oglImgBase_;
     friend class oglCustomFrameBuffer_;
     friend class oglProgram_;
@@ -115,7 +115,7 @@ protected:
     xziar::img::TextureFormat InnerFormat;
     GLuint TextureID;
     uint8_t Mipmap;
-    static detail::TextureManager& getTexMan() noexcept;
+    [[nodiscard]] static detail::ResourceBinder<oglTexBase_>& GetTexMan() noexcept;
     explicit oglTexBase_(const TextureType type, const bool shouldBindType) noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
@@ -430,7 +430,7 @@ public:
 
 class OGLUAPI oglImgBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
-    friend class detail::TexImgManager;
+    friend class detail::CachedResManager<oglImgBase_>;
     friend class oglProgram_;
     friend class ProgState;
     friend class ProgDraw;
@@ -438,12 +438,13 @@ protected:
     oglTexBase InnerTex;
     TexImgUsage Usage;
     const bool IsLayered;
-    static detail::TexImgManager& getImgMan() noexcept;
+    [[nodiscard]] static detail::ResourceBinder<oglImgBase_>& GetImgMan() noexcept;
     GLuint GetTextureID() const noexcept;
     void bind(const uint16_t pos) const noexcept;
     void unbind() const noexcept;
     oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const bool isLayered);
 public:
+    ~oglImgBase_();
     TextureType GetType() const { return InnerTex->Type; }
 
     [[nodiscard]] static bool CheckSupport();

@@ -242,15 +242,6 @@ void oglProgram_::RecoverState()
 {
     CheckCurrent();
     SetSubroutine();
-    auto& texMan = oglTexBase_::getTexMan();
-    texMan.unpin();
-    auto& imgMan = oglImgBase_::getImgMan();
-    imgMan.unpin();
-    auto& uboMan = oglUniformBuffer_::getUBOMan();
-    uboMan.unpin();
-    SetTexture(texMan, TexBindings, true);
-    SetImage(imgMan, ImgBindings, true);
-    SetUBO(uboMan, UBOBindings, true);
 }
 
 constexpr auto ResInfoPrinter = [](const auto& res, const auto& prefix)
@@ -603,88 +594,6 @@ oglProgram_::oglProgStub oglProgram_::Create()
     return oglProgStub();
 }
 
-
-void oglProgram_::SetTexture(detail::TextureManager& texMan, const GLint pos, const oglTexBase& tex, const bool shouldPin)
-{
-    CheckCurrent();
-    auto& obj = UniBindCache[pos];
-    const GLsizei val = tex ? texMan.bind(tex, shouldPin) : 0;
-    if (obj == val)//no change
-        return;
-    //change value and update uniform-hold map
-    CtxFunc->ogluProgramUniform1i(ProgramID, pos, obj = val);
-}
-
-void oglProgram_::SetTexture(detail::TextureManager& texMan, const map<GLuint, oglTexBase>& texs, const bool shouldPin)
-{
-    CheckCurrent();
-    switch (texs.size())
-    {
-    case 0:
-        return;
-    case 1:
-        SetTexture(texMan, texs.begin()->first, texs.begin()->second, shouldPin);
-        break;
-    default:
-        texMan.bindAll(ProgramID, texs, UniBindCache, shouldPin);
-        break;
-    }
-}
-
-void oglProgram_::SetImage(detail::TexImgManager& texMan, const GLint pos, const oglImgBase& img, const bool shouldPin)
-{
-    CheckCurrent();
-    auto& obj = UniBindCache[pos];
-    const GLsizei val = img ? texMan.bind(img, shouldPin) : 0;
-    if (obj == val)//no change
-        return;
-    //change value and update uniform-hold map
-    CtxFunc->ogluProgramUniform1i(ProgramID, pos, obj = val);
-}
-
-void oglProgram_::SetImage(detail::TexImgManager& texMan, const map<GLuint, oglImgBase>& imgs, const bool shouldPin)
-{
-    CheckCurrent();
-    switch (imgs.size())
-    {
-    case 0:
-        return;
-    case 1:
-        SetImage(texMan, imgs.begin()->first, imgs.begin()->second, shouldPin);
-        break;
-    default:
-        texMan.bindAll(ProgramID, imgs, UniBindCache, shouldPin);
-        break;
-    }
-}
-
-void oglProgram_::SetUBO(detail::UBOManager& uboMan, const GLint pos, const oglUBO& ubo, const bool shouldPin)
-{
-    CheckCurrent();
-    auto& obj = UniBindCache[pos];
-    const auto val = ubo ? uboMan.bind(ubo, shouldPin) : 0;
-    if (obj == val)//no change
-        return;
-    //change value and update uniform-hold map
-    CtxFunc->ogluUniformBlockBinding(ProgramID, pos, obj = val);
-}
-
-void oglProgram_::SetUBO(detail::UBOManager& uboMan, const map<GLuint, oglUBO>& ubos, const bool shouldPin)
-{
-    CheckCurrent();
-    switch (ubos.size())
-    {
-    case 0:
-        return;
-    case 1:
-        SetUBO(uboMan, ubos.begin()->first, ubos.begin()->second, shouldPin);
-        break;
-    default:
-        uboMan.bindAll(ProgramID, ubos, UniBindCache, shouldPin);
-        break;
-    }
-}
-
 void oglProgram_::SetSubroutine()
 {
     CheckCurrent();
@@ -851,22 +760,12 @@ ProgState::~ProgState()
     }
 }
 
-
 ProgState& ProgState::SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx)
 {
     const auto res = Prog.TexRess.GetResource(name);
     if (res && idx < res->len) // legal
     {
         const auto pos = res->location + idx;
-        Prog.TexBindings.insert_or_assign(pos, tex);
-    }
-    return *this;
-}
-
-ProgState& ProgState::SetTexture(const oglTexBase& tex, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
         Prog.TexBindings.insert_or_assign(pos, tex);
     }
     return *this;
@@ -883,30 +782,12 @@ ProgState& ProgState::SetImage(const oglImgBase& img, const std::string_view nam
     return *this;
 }
 
-ProgState& ProgState::SetImage(const oglImgBase& img, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
-        Prog.ImgBindings.insert_or_assign(pos, img);
-    }
-    return *this;
-}
-
 ProgState& ProgState::SetUBO(const oglUBO& ubo, const std::string_view name, const GLuint idx)
 {
     const auto res = Prog.UBORess.GetResource(name);
     if (res && idx < res->len) // legal
     {
         const auto pos = res->location + idx;
-        Prog.UBOBindings.insert_or_assign(pos, ubo);
-    }
-    return *this;
-}
-
-ProgState& ProgState::SetUBO(const oglUBO& ubo, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
         Prog.UBOBindings.insert_or_assign(pos, ubo);
     }
     return *this;
@@ -981,9 +862,12 @@ thread_local common::SpinLocker ProgDrawLocker;
 ProgDraw::ProgDraw(oglDrawProgram_* prog, FBOPairType&& fboInfo) noexcept
     : Prog(*prog), FBO(*fboInfo.first),
     Lock(ProgDrawLocker.LockScope()), FBOLock(std::move(fboInfo.second)),
-    TexMan(oglTexBase_::getTexMan()), ImgMan(oglImgBase_::getImgMan()), UboMan(oglUniformBuffer_::getUBOMan())
+    TexMan(oglTexBase_::GetTexMan()), ImgMan(oglImgBase_::GetImgMan()), UboMan(oglUniformBuffer_::GetUBOMan())
 {
     oglProgram_::usethis(Prog);
+    TexBindings  = Prog.TexBindings;
+    ImgBindings  = Prog.ImgBindings;
+    UBOBindings  = Prog.UBOBindings;
     // bind outputs
     std::vector<GLenum> outputs(CtxFunc->MaxDrawBuffers, GL_NONE);
     GLint maxPos = 0;
@@ -1005,55 +889,19 @@ ProgDraw::~ProgDraw()
     Restore();
 }
 
-ProgDraw& ProgDraw::Restore(const bool quick)
+void ProgDraw::SetBindings() noexcept
+{
+    TexMan.BindAll(Prog.ProgramID, TexBindings, Prog.UniBindCache);
+    ImgMan.BindAll(Prog.ProgramID, ImgBindings, Prog.UniBindCache);
+    UboMan.BindAll(Prog.ProgramID, UBOBindings, Prog.UniBindCache);
+}
+
+ProgDraw& ProgDraw::Restore()
 {
     Prog.CheckCurrent();
-    if (quick) // only set binding-delegate
-    {
-        for (const auto&[pos, binding] : UniBindBackup)
-        {
-            switch (binding.second)
-            {
-            case ProgResType::TYPE_TEX:
-                if (const auto ptrTex = FindInMap(Prog.TexBindings, pos); ptrTex)
-                    TexCache.insert_or_assign(pos, *ptrTex);
-                break;
-            case ProgResType::TYPE_IMG:
-                if (const auto ptrImg = FindInMap(Prog.ImgBindings, pos); ptrImg)
-                    ImgCache.insert_or_assign(pos, *ptrImg);
-                break;
-            case ProgResType::CAT_UBO:
-                if (const auto ptrUbo = FindInMap(Prog.UBOBindings, pos); ptrUbo)
-                    UBOCache.insert_or_assign(pos, *ptrUbo);
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    else
-    {
-        for (const auto&[pos, binding] : UniBindBackup)
-        {
-            auto& obj = Prog.UniBindCache[pos];
-            const auto val = binding.first;
-            if (obj != val)
-            {
-                switch (binding.second)
-                {
-                case ProgResType::TYPE_TEX:
-                case ProgResType::TYPE_IMG:
-                    CtxFunc->ogluProgramUniform1i(Prog.ProgramID, pos, obj = val);
-                    break;
-                case ProgResType::CAT_UBO:
-                    CtxFunc->ogluUniformBlockBinding(Prog.ProgramID, pos, obj = val);
-                    break;
-                default: break;
-                }
-            }
-        }
-        UniBindBackup.clear();
-    }
+    TexBindings = Prog.TexBindings;
+    ImgBindings = Prog.ImgBindings;
+    UBOBindings = Prog.UBOBindings;
 
     for (const auto&[pos, val] : UniValBackup)
     {
@@ -1088,41 +936,26 @@ std::weak_ptr<oglDrawProgram_> ProgDraw::GetProg() const noexcept
 
 ProgDraw& ProgDraw::DrawRange(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
-    Prog.SetTexture(TexMan, TexCache);
-    Prog.SetImage(ImgMan, ImgCache);
-    Prog.SetUBO(UboMan, UBOCache);
+    SetBindings();
     Prog.SetSubroutine();
     vao->RangeDraw(size, offset);
-    TexCache.clear();
-    ImgCache.clear();
-    UBOCache.clear();
     return *this;
 }
 
 ProgDraw& ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base)
 {
-    Prog.SetTexture(TexMan, TexCache);
-    Prog.SetImage(ImgMan, ImgCache);
-    Prog.SetUBO(UboMan, UBOCache);
+    SetBindings();
     Prog.SetSubroutine();
     Prog.SetVal_(Prog.InputRess.GetResource("@BaseInstance"), static_cast<int32_t>(base), false);
     vao->InstanceDraw(count, base);
-    TexCache.clear();
-    ImgCache.clear();
-    UBOCache.clear();
     return *this;
 }
 
 ProgDraw& ProgDraw::Draw(const oglVAO& vao)
 {
-    Prog.SetTexture(TexMan, TexCache);
-    Prog.SetImage(ImgMan, ImgCache);
-    Prog.SetUBO(UboMan, UBOCache);
+    SetBindings();
     Prog.SetSubroutine();
     vao->Draw();
-    TexCache.clear();
-    ImgCache.clear();
-    UBOCache.clear();
     return *this;
 }
 
@@ -1132,22 +965,7 @@ ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const std::string_view nam
     if (res && idx < res->len) // legal
     {
         const auto pos = res->location + idx;
-        TexCache.insert_or_assign(pos, tex);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
-    }
-    return *this;
-}
-
-ProgDraw& ProgDraw::SetTexture(const oglTexBase& tex, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
-        TexCache.insert_or_assign(pos, tex);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_TEX);
+        TexBindings.insert_or_assign(pos, tex);
     }
     return *this;
 }
@@ -1158,22 +976,7 @@ ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const std::string_view name,
     if (res && idx < res->len) // legal
     {
         const auto pos = res->location + idx;
-        ImgCache.insert_or_assign(pos, img);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
-    }
-    return *this;
-}
-
-ProgDraw& ProgDraw::SetImage(const oglImgBase& img, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
-        ImgCache.insert_or_assign(pos, img);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::TYPE_IMG);
+        ImgBindings.insert_or_assign(pos, img);
     }
     return *this;
 }
@@ -1184,22 +987,7 @@ ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const std::string_view name, const
     if (res && idx < res->len) // legal
     {
         const auto pos = res->location + idx;
-        UBOCache.insert_or_assign(pos, ubo);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
-    }
-    return *this;
-}
-
-ProgDraw& ProgDraw::SetUBO(const oglUBO& ubo, const GLuint pos)
-{
-    if (pos < Prog.UniBindCache.size())
-    {
-        UBOCache.insert_or_assign(pos, ubo);
-        const auto oldVal = Prog.UniBindCache[pos];
-        if (oldVal != GLInvalidIndex)
-            UniBindBackup.try_emplace(pos, oldVal, ProgResType::CAT_UBO);
+        UBOBindings.insert_or_assign(pos, ubo);
     }
     return *this;
 }
