@@ -1028,6 +1028,8 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
     SetSubroutines();
     SetBindings();
     CtxFunc->ogluDispatchCompute(groupX, groupY, groupZ);
+    CtxFunc->ogluMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    //CtxFunc->ogluMemoryBarrier(GL_ALL_BARRIER_BITS);
 }
 
 oglComputeProgram oglComputeProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)

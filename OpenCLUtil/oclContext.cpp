@@ -43,7 +43,7 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
 oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
     : Plat(std::move(plat)), Devices(devices)
 {
-    if (Plat->Version <= 12)
+    if (Plat->Version < 12)
         oclLog().warning(u"Try to create context on [{}], which does not even support OpenCL1.2\n", Plat->Ver);
     OnMessage += [](const auto& msg) 
     { 

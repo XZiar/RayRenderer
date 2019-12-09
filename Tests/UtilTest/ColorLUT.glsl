@@ -123,7 +123,7 @@ uniform float step;
 
 
 #if defined(OGLU_COMP)
-writeonly uniform image3D result;
+OGLU_IMG writeonly uniform image3D result;
 layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 void main()
 {

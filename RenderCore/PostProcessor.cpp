@@ -46,9 +46,11 @@ private:
     oglu::oglComputeProgram LutGenerator;
     std::array<uint32_t, 3> GroupCount;
     oglu::oglImg3D LutImg;
+    oglu::oglTex3DS LutTex;
 public:
-    ComputeLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc)
+    ComputeLutGen(const uint32_t lutSize, const oglu::oglTex3DS& tex, const string& lutSrc)
     {
+        LutTex = tex;
         ShaderConfig config;
         config.Routines["ToneMap"] = "ACES";
         LutGenerator = oglu::oglComputeProgram_::Create(u"ColorLut", lutSrc, config);
@@ -81,7 +83,7 @@ private:
     oglu::oglTex3DS LutTex;
     uint32_t LutSize;
 public:
-    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS tex, const string& lutSrc) : 
+    RenderLutGen(const uint32_t lutSize, const oglu::oglTex3DS& tex, const string& lutSrc) : 
         LutTex(tex), LutSize(lutSize)
     {
         ShaderConfig config;

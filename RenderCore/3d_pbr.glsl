@@ -84,7 +84,7 @@ void main()
 ////////////////
 #ifdef OGLU_FRAG
 
-uniform sampler2DArray texs[16];
+OGLU_TEX uniform sampler2DArray texs[16];
 
 #if defined(GL_ARB_gpu_shader5) && GL_ARB_gpu_shader5
 #   define SampleTex(idx, pos) texture(texs[idx], pos)

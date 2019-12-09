@@ -43,7 +43,7 @@
   - [x] Re-design ResourceMappingManager
   - [ ] Add proper drawstate setting
   - [x] Emulate subroutine on unsupported platform
-  - [ ] Add bindless texture support
+  - [x] Add bindless texture support
   - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO

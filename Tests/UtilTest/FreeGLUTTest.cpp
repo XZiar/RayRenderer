@@ -1,5 +1,6 @@
 #include "TestRely.h"
 #include "OpenGLUtil/OpenGLUtil.h"
+#include "ImageUtil/ImageUtil.h"
 #include "OpenGLUtil/oglException.h"
 #include "FreeGLUTView/FreeGLUTView.h"
 
@@ -72,14 +73,14 @@ static void FGTest()
     auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
     auto screenBox = oglArrayBuffer_::Create();
     auto basicVAO = oglVAO_::Create(VAODrawMode::Triangles);
-    auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGB10A2);
+    auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
-    if (oglComputeProgram_::CheckSupport() && false)
+    if (oglComputeProgram_::CheckSupport())
     {
         try
         {
             const auto lutGenerator =
-                oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+                oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"ColorLUT.glsl", IDR_GL_FGLUT));
             auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
             lutGenerator->State()
                 .SetSubroutine("ToneMap", "ACES")

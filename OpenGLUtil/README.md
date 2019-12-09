@@ -179,16 +179,24 @@ OpenGLUtil provides a wrapper `ogluLayer` to support both situation. In this cas
 
 Texture and UBO are bound to slots, which are limited and context-sensitive. oglProgram(main shader) binds location with slots, which is context-insensitive. These two bindings are separated stored in context-related storage and program's state storage.
 
-OpenGLUtil include an LRU-policy resource manager to handle slots bindings, which aims at least state-changing(binding texture is costly compared with uploading uniform(it may be buffered by driver)).
+OpenGLUtil include a cached resource manager to handle slots bindings, which aims at least state-changing (binding texture is costly compared to uploading uniforms).
 
-The manager handles at most 255 slots, and slot 0-3 are always reserved for other use(e.g, slot 0 is for default binding when uploading/downloading data), hence slot 4~N will be automatically managed.
+The manager handles at most 255 slots, and slot 0-1 are always reserved for other use(e.g, slot 0 is for default binding when uploading/downloading data), hence slot 3~N will be automatically managed.
 
 For Texture, limit N is get by `GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS`.
 For UBO, limit N is get by `GL_MAX_UNIFORM_BUFFER_BINDINGS`.
 
-LRU cache has 3 bi-direction linkedlist, `unused`,`used`,`fixed`. `unused` means available slots, `used` means bound slots, `unused` means pinned slots.
+Binding Tex/Img/UBO can only be performed by `ProgState` or `ProgDraw`. They do not issue actual bind operation but only record the binding infomation. Actual bind will be performed when Drawing or Runing compute.   
 
-When an oglProgram is bound to current context, it binds its global states and pins them. Further bindings during draw calls will only modify `unused` and `used` list, so that states can be easily recovered after a draw call.
+### Bindless Texture and Image
+
+Some devices support [bindless texture](https://www.khronos.org/opengl/wiki/Bindless_Texture), which can simplify the binding manager.
+
+However, there are two extensions, [ARB_bindless_texture](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_bindless_texture.txt) and [NV_bindless_texture](https://www.khronos.org/registry/OpenGL/extensions/NV/NV_bindless_texture.txt) have slightly different behaviour (ARB version is more strict and require change on GLSL). In order to conver the difference, OpenGLUtil provide some macro to give proper hint to the samplers/images in the default FBO.
+
+`OGLU_TEX` and `OGLU_IMG` can be used to declare proper layout for sampler/image's uniform. While some uniforms will be manually assigned a index or other layout param, OpenGLUtil also provide `OGLU_TEX_LAYOUT` and `OGLU_IMG_LAYOUT` which only contains the param. They should be used as the last param, since they can be empty and you will have to deal with commas.
+
+Note that **mixing bindless and bound resources are not supported, so all the texture/image in the default FBO should specicfy the same layout**. On platforms that does not support NV's extension but support ARB's extension, OpenGLUtil will defaultly uses bindless manager, whcih conflict glsl's defualt bound layout. 
 
 ### Program State
 

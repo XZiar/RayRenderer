@@ -848,7 +848,7 @@ CtxFuncs::CtxFuncs()
     SupportClipControl      = ogluClipControl != nullptr;
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
-    SupportBindlessTexture  = true || Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
+    SupportBindlessTexture  = Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
     SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
     SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
     SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");

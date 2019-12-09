@@ -39,7 +39,7 @@ void main()
 
 #ifdef OGLU_FRAG
 
-uniform sampler3D lut;
+OGLU_TEX uniform sampler3D lut;
 uniform float lutZ = 0.5f;
 uniform int shouldLut = 0;
 uniform vec2 lutOffset = vec2(63.0f / 64.0f, 0.5f / 64.0f);

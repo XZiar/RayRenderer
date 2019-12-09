@@ -31,8 +31,8 @@ void main()
 
 #ifdef OGLU_FRAG
 
-uniform sampler2D scene;
-uniform sampler3D lut;
+OGLU_TEX uniform sampler2D scene;
+OGLU_TEX uniform sampler3D lut;
 
 uniform vec2 lutOffset = vec2(31.0f / 32.0f, 0.5f / 32.0f);
 

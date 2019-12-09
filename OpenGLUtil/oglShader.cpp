@@ -204,6 +204,8 @@ constexpr static auto OGLU_EXT_REQS = R"(
 #if !defined(GL_ARB_draw_instanced) || !GL_ARB_draw_instanced
 #   extension GL_EXT_draw_instanced : enable
 #endif
+#extension GL_ARB_bindless_texture : enable
+#extension GL_NV_bindless_texture  : enable
 )";
 
 constexpr static auto OGLU_DEFS = R"(
@@ -252,6 +254,17 @@ constexpr static auto OGLU_DEFS = R"(
 
 #   define GLVARY 
 
+#endif
+#if (!defined(GL_NV_bindless_texture) || !GL_NV_bindless_texture) && (defined(GL_ARB_bindless_texture) && GL_ARB_bindless_texture)
+#   define OGLU_TEX layout(bindless_sampler) 
+#   define OGLU_IMG layout(bindless_image) 
+#   define OGLU_TEX_LAYOUT ,bindless_sampler
+#   define OGLU_IMG_LAYOUT ,bindless_image
+#else
+#   define OGLU_TEX  
+#   define OGLU_IMG 
+#   define OGLU_TEX_LAYOUT
+#   define OGLU_IMG_LAYOUT
 #endif
 )"sv;
 
@@ -462,6 +475,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         COMMON_THROWEX(BaseException, u"Invalid shader source");
 
     string extReqs;
+    extReqs.append("#extension GL_ARB_bindless_texture : enable\r\n");
 
     //apply routines
     for (const auto&[rname, srname] : config.Routines)

@@ -102,6 +102,7 @@ RenderCore::RenderCore()
     //oriCtx->SetRetain(true);
     GLContext = oglu::oglContext_::NewContext(oriCtx);
     GLContext->UseContext();
+
     //for reverse-z
     GLContext->SetDepthClip(true);
     GLContext->SetDepthTest(DepthTestType::GreaterEqual);
