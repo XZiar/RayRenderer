@@ -17,7 +17,8 @@
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
               </If>
-              <Item>Nodes[ptrNode]</Item>
+              <Item Name="Slot {ptrNode}" Condition="Nodes[ptrNode].Data != 0xffffffffui32">Nodes[ptrNode].Data</Item>
+              <Item Name="Slot {ptrNode}" Condition="Nodes[ptrNode].Data == 0xffffffffui32">"Empty"</Item>
               <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
             </Loop>
           </CustomListItems>
@@ -28,14 +29,15 @@
       </Synthetic>
       <Synthetic Name="Used" Condition="Used.Head != 0xffffui16">
         <Expand>
-          <CustomListItems MaxItemsPerView="1024">
+          <CustomListItems MaxItemsPerView="512">
             <Variable Name="ptrNode" InitialValue="Used.Head" />
             <Exec>ptrNode = Used.Head</Exec>
             <Loop>
               <If Condition="ptrNode == 0xffffui16">
                 <Break/>
               </If>
-              <Item>Nodes[ptrNode]</Item>
+              <Item Name="Slot {ptrNode}" Condition="Nodes[ptrNode].Data != 0xffffffffui32">Nodes[ptrNode].Data</Item>
+              <Item Name="Slot {ptrNode}" Condition="Nodes[ptrNode].Data == 0xffffffffui32">"Empty"</Item>
               <Exec>ptrNode = Nodes[ptrNode].Next</Exec>
             </Loop>
           </CustomListItems>

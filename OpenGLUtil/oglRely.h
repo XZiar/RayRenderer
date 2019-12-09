@@ -115,6 +115,8 @@ class oglContext_;
 
 namespace detail
 {
+class BindlessTexManager;
+class BindlessImgManager;
 struct SharedContextCore;
 
 template<bool IsShared>
@@ -156,6 +158,7 @@ struct ContextCapability
     bool SupportClipControl     = false;
     bool SupportComputeShader   = false;
     bool SupportTessShader      = false;
+    bool SupportBindlessTexture = false;
     bool SupportImageLoadStore  = false;
     bool SupportSubroutine      = false;
     bool SupportIndirectDraw    = false;

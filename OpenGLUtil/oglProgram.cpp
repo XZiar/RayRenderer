@@ -234,14 +234,7 @@ bool oglProgram_::usethis(oglProgram_& prog, const bool change)
         return false;
 
     CtxFunc->ogluUseProgram(progRec = prog.ProgramID);
-    prog.RecoverState();
     return true;
-}
-
-void oglProgram_::RecoverState()
-{
-    CheckCurrent();
-    SetSubroutine();
 }
 
 constexpr auto ResInfoPrinter = [](const auto& res, const auto& prefix)
@@ -594,7 +587,7 @@ oglProgram_::oglProgStub oglProgram_::Create()
     return oglProgStub();
 }
 
-void oglProgram_::SetSubroutine()
+void oglProgram_::SetSubroutines() noexcept
 {
     CheckCurrent();
     for (const auto&[stage, subrs] : SubroutineSettings)
@@ -612,6 +605,13 @@ void oglProgram_::SetSubroutine()
     }
 }
 
+void oglProgram_::SetBindings() noexcept
+{
+    oglTexBase_      ::GetTexMan().BindAll(ProgramID, TexBindings, UniBindCache);
+    oglImgBase_      ::GetImgMan().BindAll(ProgramID, ImgBindings, UniBindCache);
+    oglUniformBuffer_::GetUBOMan().BindAll(ProgramID, UBOBindings, UniBindCache);
+}
+
 void oglProgram_::SetSubroutine(const SubroutineResource::Routine* routine)
 {
     const auto& sr = *routine->Host;
@@ -626,7 +626,7 @@ void oglProgram_::SetSubroutine(const SubroutineResource* subr, const Subroutine
     CheckCurrent();
     auto& oldRoutine = SubroutineBindings[subr];
     oldRoutine = routine;
-    if (subr->Stage != GLInvalidEnum)
+    if (subr->Stage != GLInvalidEnum) // avoid recording emulated subroutine, which does not need batched binding
     {
         auto& srvec = SubroutineSettings[subr->Stage][subr->UniLoc];
         srvec = routine->Id;
@@ -753,12 +753,7 @@ void oglProgram_::SetVal_(const ProgramResource* res, const uint32_t val, const 
 
 
 ProgState::~ProgState()
-{
-    if (oglProgram_::usethis(Prog, false)) //self used, then changed to keep pinned status
-    {
-        Prog.RecoverState();
-    }
-}
+{ }
 
 ProgState& ProgState::SetTexture(const oglTexBase& tex, const std::string_view name, const GLuint idx)
 {
@@ -924,7 +919,7 @@ ProgDraw& ProgDraw::Restore()
         for (const auto&[subr, routine] : SubroutineCache)
             Prog.SetSubroutine(subr, routine);
         SubroutineCache.clear();
-        Prog.SetSubroutine();
+        Prog.SetSubroutines();
     }
     return *this;
 }
@@ -937,7 +932,7 @@ std::weak_ptr<oglDrawProgram_> ProgDraw::GetProg() const noexcept
 ProgDraw& ProgDraw::DrawRange(const oglVAO& vao, const uint32_t size, const uint32_t offset)
 {
     SetBindings();
-    Prog.SetSubroutine();
+    Prog.SetSubroutines();
     vao->RangeDraw(size, offset);
     return *this;
 }
@@ -945,7 +940,7 @@ ProgDraw& ProgDraw::DrawRange(const oglVAO& vao, const uint32_t size, const uint
 ProgDraw& ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const uint32_t base)
 {
     SetBindings();
-    Prog.SetSubroutine();
+    Prog.SetSubroutines();
     Prog.SetVal_(Prog.InputRess.GetResource("@BaseInstance"), static_cast<int32_t>(base), false);
     vao->InstanceDraw(count, base);
     return *this;
@@ -954,7 +949,7 @@ ProgDraw& ProgDraw::DrawInstance(const oglVAO& vao, const uint32_t count, const 
 ProgDraw& ProgDraw::Draw(const oglVAO& vao)
 {
     SetBindings();
-    Prog.SetSubroutine();
+    Prog.SetSubroutines();
     vao->Draw();
     return *this;
 }
@@ -1030,6 +1025,8 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
 {
     CheckCurrent();
     usethis(*this);
+    SetSubroutines();
+    SetBindings();
     CtxFunc->ogluDispatchCompute(groupX, groupY, groupZ);
 }
 

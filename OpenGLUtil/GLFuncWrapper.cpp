@@ -555,6 +555,12 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC_(GenerateTextureMipmap,          "");
     QUERY_FUNC_(GenerateTextureMipmapEXT,       "");
     QUERY_FUNC_(GenerateMipmap,                 "", "EXT");
+    QUERY_FUNC (GetTextureHandle,               "ARB", "NV");
+    QUERY_FUNC (MakeTextureHandleResident,      "ARB", "NV");
+    QUERY_FUNC (MakeTextureHandleNonResident,   "ARB", "NV");
+    QUERY_FUNC (GetImageHandle,                 "ARB", "NV");
+    QUERY_FUNC (MakeImageHandleResident,        "ARB", "NV");
+    QUERY_FUNC (MakeImageHandleNonResident,     "ARB", "NV");
     QUERY_FUNC_(TextureParameteri,              "");
     QUERY_FUNC_(TextureParameteriEXT,           "");
     QUERY_FUNC_(TextureSubImage1D,              "");
@@ -747,6 +753,7 @@ CtxFuncs::CtxFuncs()
     QUERY_FUNC (ProgramUniformMatrix4x2fv,          "", "EXT");
     QUERY_FUNC (ProgramUniformMatrix4x3dv,          "");
     QUERY_FUNC (ProgramUniformMatrix4x3fv,          "", "EXT");
+    QUERY_FUNC (ProgramUniformHandleui64,           "ARB", "NV");
 
     QUERY_FUNC (GetUniformfv,                       "");
     QUERY_FUNC (GetUniformiv,                       "");
@@ -841,6 +848,7 @@ CtxFuncs::CtxFuncs()
     SupportClipControl      = ogluClipControl != nullptr;
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
+    SupportBindlessTexture  = true || Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
     SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
     SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
     SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");

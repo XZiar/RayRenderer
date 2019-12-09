@@ -136,7 +136,7 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
     LutTex->SetName(u"PostProcLUT");
     LutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     
-    if (oglu::oglComputeProgram_::CheckSupport() && oglu::oglImgBase_::CheckSupport() && false)
+    if (oglu::oglComputeProgram_::CheckSupport() && oglu::oglImgBase_::CheckSupport())
     {
         try
         {

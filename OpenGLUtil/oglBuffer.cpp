@@ -198,7 +198,7 @@ detail::ResourceBinder<oglUniformBuffer_>& oglUniformBuffer_::GetUBOMan() noexce
     return *oglContext_::CurrentContext()->GetOrCreate<false>(UBO_CTXCFG);
 }
 
-void oglUniformBuffer_::bind(const uint16_t pos) const
+void oglUniformBuffer_::BindToUnit(const uint16_t pos) const
 {
     CheckCurrent();
     CtxFunc->ogluBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);

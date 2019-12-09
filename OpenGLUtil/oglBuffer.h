@@ -178,7 +178,7 @@ private:
     oglUniformBuffer_(const size_t size) noexcept;
 protected:
     [[nodiscard]] static detail::ResourceBinder<oglUniformBuffer_>& GetUBOMan() noexcept;
-    void bind(const uint16_t pos) const;
+    void BindToUnit(const uint16_t pos) const;
 public:
     virtual ~oglUniformBuffer_() noexcept override;
     [[nodiscard]] size_t Size() const { return BufSize; };

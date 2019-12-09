@@ -102,6 +102,7 @@ enum class TexImgUsage : uint8_t { ReadOnly, WriteOnly, ReadWrite };
 class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
     friend class detail::CachedResManager<oglTexBase_>;
+    friend class detail::BindlessTexManager;
     friend class oglImgBase_;
     friend class oglCustomFrameBuffer_;
     friend class oglProgram_;
@@ -111,20 +112,22 @@ class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObje
     friend class ::oclu::GLInterop;
 protected:
     std::u16string Name;
+    std::optional<GLuint64> Handle;
     const TextureType Type;
-    xziar::img::TextureFormat InnerFormat;
     GLuint TextureID;
+    xziar::img::TextureFormat InnerFormat;
     uint8_t Mipmap;
     [[nodiscard]] static detail::ResourceBinder<oglTexBase_>& GetTexMan() noexcept;
     explicit oglTexBase_(const TextureType type, const bool shouldBindType) noexcept;
-    void bind(const uint16_t pos) const noexcept;
-    void unbind() const noexcept;
     void CheckMipmapLevel(const uint8_t level) const;
     std::pair<uint32_t, uint32_t> GetInternalSize2() const;
     std::tuple<uint32_t, uint32_t, uint32_t> GetInternalSize3() const;
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT);
     void SetWrapProperty(const TextureWrapVal wrapS, const TextureWrapVal wrapT, const TextureWrapVal wrapR);
     void Clear(const xziar::img::TextureFormat format);
+private:
+    void BindToUnit(const uint16_t pos) const noexcept;
+    void PinToHandle() noexcept;
 public:
     virtual ~oglTexBase_();
     void SetProperty(const TextureFilterVal magFilter, TextureFilterVal minFilter);
@@ -303,7 +306,7 @@ public:
         SetCompressedData(format, w, h, common::as_bytes(common::to_span(cont)));
     }
 
-    [[nodiscard]] static oglTex2DD Create();
+    /*[[deprecated("Dynamic Texture is not efficient")]]*/ [[nodiscard]] static oglTex2DD Create();
 };
 
 
@@ -431,18 +434,21 @@ public:
 class OGLUAPI oglImgBase_ : public common::NonMovable, public detail::oglCtxObject<true>
 {
     friend class detail::CachedResManager<oglImgBase_>;
+    friend class detail::BindlessImgManager;
     friend class oglProgram_;
     friend class ProgState;
     friend class ProgDraw;
 protected:
     oglTexBase InnerTex;
+    std::optional<GLuint64> Handle;
     TexImgUsage Usage;
     const bool IsLayered;
     [[nodiscard]] static detail::ResourceBinder<oglImgBase_>& GetImgMan() noexcept;
-    GLuint GetTextureID() const noexcept;
-    void bind(const uint16_t pos) const noexcept;
-    void unbind() const noexcept;
     oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const bool isLayered);
+private:
+    GLuint GetTextureID() const noexcept;
+    void BindToUnit(const uint16_t pos) const noexcept;
+    void PinToHandle() noexcept;
 public:
     ~oglImgBase_();
     TextureType GetType() const { return InnerTex->Type; }

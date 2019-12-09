@@ -34,7 +34,7 @@ TEST(Linq, Compiling)
 
     auto e4 = e3.Select<false>([](const auto& i) { return i; });
     //force-non-cache
-    EXPECT_EQ(SrcType(e4)::InvolveCache, false);
+    EXPECT_EQ(SrcType(e4)::InvolveCache, true);
     EXPECT_EQ(GetIsRef(e4), false);
 
     auto e5 = e4.Select([&](const auto& i) -> auto& { return data[i]; });

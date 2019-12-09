@@ -91,7 +91,10 @@ struct TManCtxConfig : public CtxResConfig<false, std::unique_ptr<detail::Resour
 {
     std::unique_ptr<detail::ResourceBinder<oglTexBase_>> Construct() const
     { 
-        return std::make_unique<detail::CachedResManager<oglTexBase_>>(CtxFunc->MaxTextureUnits);
+        if (CtxFunc->SupportBindlessTexture)
+            return std::make_unique<detail::BindlessTexManager>();
+        else
+            return std::make_unique<detail::CachedResManager<oglTexBase_>>(CtxFunc->MaxTextureUnits);
     }
 };
 static TManCtxConfig TEXMAN_CTXCFG;
@@ -101,7 +104,7 @@ detail::ResourceBinder<oglTexBase_>& oglTexBase_::GetTexMan() noexcept
 }
 
 oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noexcept :
-    Type(type), InnerFormat(TextureFormat::ERROR), TextureID(GL_INVALID_INDEX), Mipmap(1)
+    Type(type), TextureID(GL_INVALID_INDEX), InnerFormat(TextureFormat::ERROR), Mipmap(1)
 {
     if (shouldBindType)
         CtxFunc->ogluCreateTextures(common::enum_cast(Type), 1, &TextureID);
@@ -109,11 +112,6 @@ oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noex
         CtxFunc->ogluGenTextures(1, &TextureID);
     if (const auto e = oglUtil::GetError(); e.has_value())
         oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
-    /*if (shouldBindType)
-    {
-        CtxFunc->ogluActiveTexture(GL_TEXTURE0);
-        CtxFunc->ogluBindTexture((GLenum)Type, TextureID);
-    }*/
     RegistTexture(*this);
 }
 
@@ -126,14 +124,17 @@ oglTexBase_::~oglTexBase_()
     CtxFunc->ogluDeleteTextures(1, &TextureID);
 }
 
-void oglTexBase_::bind(const uint16_t pos) const noexcept
+void oglTexBase_::BindToUnit(const uint16_t pos) const noexcept
 {
     CheckCurrent();
     CtxFunc->ogluBindTextureUnit(pos, TextureID, common::enum_cast(Type));
 }
 
-void oglTexBase_::unbind() const noexcept
+void oglTexBase_::PinToHandle() noexcept
 {
+    CheckCurrent();
+    Handle = CtxFunc->ogluGetTextureHandle(TextureID);
+    CtxFunc->ogluMakeTextureHandleResident(Handle.value());
 }
 
 void oglTexBase_::CheckMipmapLevel(const uint8_t level) const
@@ -705,7 +706,10 @@ struct TIManCtxConfig : public CtxResConfig<false, std::unique_ptr<detail::Resou
 {
     std::unique_ptr<detail::ResourceBinder<oglImgBase_>> Construct() const
     {
-        return std::make_unique<detail::CachedResManager<oglImgBase_>>(CtxFunc->MaxImageUnits);
+        if (CtxFunc->SupportBindlessTexture)
+            return std::make_unique<detail::BindlessImgManager>();
+        else
+            return std::make_unique<detail::CachedResManager<oglImgBase_>>(CtxFunc->MaxImageUnits);
     }
 };
 static TIManCtxConfig TEXIMGMAN_CTXCFG;
@@ -744,7 +748,7 @@ bool oglu::oglImgBase_::CheckSupport()
 
 GLuint oglImgBase_::GetTextureID() const noexcept { return InnerTex ? InnerTex->TextureID : GL_INVALID_INDEX; }
 
-void oglImgBase_::bind(const uint16_t pos) const noexcept
+void oglImgBase_::BindToUnit(const uint16_t pos) const noexcept
 {
     CheckCurrent();
     GLenum usage = GL_INVALID_ENUM;
@@ -758,9 +762,21 @@ void oglImgBase_::bind(const uint16_t pos) const noexcept
     CtxFunc->ogluBindImageTexture(pos, GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, usage, OGLTexUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
 }
 
-void oglImgBase_::unbind() const noexcept
+void oglImgBase_::PinToHandle() noexcept
 {
+    CheckCurrent();
+    GLenum usage = GL_INVALID_ENUM;
+    switch (Usage)
+    {
+    case TexImgUsage::ReadOnly:     usage = GL_READ_ONLY;  break;
+    case TexImgUsage::WriteOnly:    usage = GL_WRITE_ONLY; break;
+    case TexImgUsage::ReadWrite:    usage = GL_READ_WRITE; break;
+        // Assume won't have unexpected Usage
+    }
+    Handle = CtxFunc->ogluGetImageHandle(GetTextureID(), 0, IsLayered ? GL_TRUE : GL_FALSE, 0, OGLTexUtil::GetInnerFormat(InnerTex->GetInnerFormat()));
+    CtxFunc->ogluMakeImageHandleResident(Handle.value(), usage);
 }
+
 
 oglImg2D_::oglImg2D_(const oglTex2D& tex, const TexImgUsage usage) : oglImgBase_(tex, usage, false) {}
 oglImg2D oglImg2D_::Create(const oglTex2D& tex, const TexImgUsage usage)
@@ -773,7 +789,6 @@ oglImg3D oglImg3D_::Create(const oglTex3D& tex, const TexImgUsage usage)
 {
     return MAKE_ENABLER_SHARED(oglImg3D_, (tex, usage));
 }
-
 
 
 

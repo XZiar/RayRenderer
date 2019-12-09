@@ -184,7 +184,6 @@ protected:
 
     static bool usethis(oglProgram_& prog, const bool change = true);
     oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw);
-    void RecoverState();
     void InitLocs(const ShaderExtInfo& extInfo);
     void InitSubroutines(const ShaderExtInfo& extInfo);
     void FilterProperties(const ShaderExtInfo& extInfo);
@@ -192,7 +191,8 @@ protected:
     std::pair<const SubroutineResource*, const SubroutineResource::Routine*> LocateSubroutine
         (const std::string_view subrName, const std::string_view routineName) const noexcept;
 
-    void SetSubroutine();
+    void SetSubroutines() noexcept;
+    void SetBindings() noexcept;
     void SetSubroutine(const SubroutineResource::Routine* routine);
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
