@@ -1,24 +1,9 @@
-#version 330 core
 #extension GL_ARB_shading_language_420pack	: require
 #if defined(OGLU_COMP)
 #   extension GL_ARB_shader_image_load_store	: require
 #endif
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
-
-
-#ifdef OGLU_VERT
-
-//@OGLU@Mapping(VertPos, "vertPos")
-layout(location = 0) in vec2 vertPos;
-flat out int layerIdx;
-
-void main()
-{
-    gl_Position = vec4(vertPos.xy, 1.0f, 1.0f);
-    layerIdx = gl_InstanceID;
-}
-
-#endif
+//@OGLU@StageIf("GL_AMD_vertex_shader_layer", "!GEOM")
 
 
 #if defined(OGLU_COMP) || defined(OGLU_FRAG)
@@ -123,6 +108,7 @@ uniform float step;
 
 
 #if defined(OGLU_COMP)
+
 OGLU_IMG writeonly uniform image3D result;
 layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 void main()
@@ -134,21 +120,36 @@ void main()
     const vec4 color = vec4(srgbColor, 1.0f);
     imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
 }
+
 #endif
 
+
+#if defined(OGLU_VERT)
+
+//@OGLU@Mapping(VertPos, "vertPos")
+layout(location = 0) in vec2 vertPos;
+
+void main()
+{
+    gl_Position = vec4(vertPos.xy, 1.0f, 1.0f);
+    ogluSetLayer(gl_InstanceID);
+}
+
+#endif
+
+
 #if defined(OGLU_GEOM)
+
 uniform int lutSize;
 
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
 
-flat in int layerIdx[];
-
 void main()
 {
     for(int i = 0; i < gl_in.length(); ++i)
     {
-        ogluSetLayer(layerIdx[i]);
+        ogluSetLayer(ogluGetLayer());
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
     }
@@ -157,7 +158,9 @@ void main()
 
 #endif
 
+
 #if defined(OGLU_FRAG)
+
 uniform int lutSize;
 in vec4 gl_FragCoord;
 out vec4 FragColor;
@@ -174,4 +177,5 @@ void main()
     const vec4 color = vec4(srgbColor, 1.0f);
     FragColor = color;
 }
+
 #endif

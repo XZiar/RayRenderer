@@ -19,13 +19,13 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 * **oglTexture**  OpenGL Texture
   * oglTex2D -- any 2D texture
-    * oglTex2DS -- immutable 2D texture
+    * oglTex2DS -- immutable storage 2D texture
     * oglTex2DD -- mutable 2D texture
     * oglTex2DV -- 2D texture view (readonly)
-  * oglTex3D -- any 2D texture
-    * oglTex3DS -- immutable 3D texture
+  * oglTex3D -- any 3D texture
+    * oglTex3DS -- immutable storage 3D texture
     * oglTex3DV -- 3D texture view (readonly)
-  * oglTex2DArray -- 2D texture array (immutable only)
+  * oglTex2DArray -- 2D texture array (immutable storage only)
   * oglImg -- any image-load-store variables
     * oglImg2D -- 2D image variables
     * oglImg3D -- 3D image variables
@@ -35,14 +35,16 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   Draw calls are finally fired by oglVAO
 
 * **oglFBO**  OpenGL Framebuffer object
-  * oglFBO2D -- 2D Framebuffer
-  * oglFBO3D -- Layered Framebuffer
+  * oglDefaultFBO -- Default Framebuffer
+  * oglCustomFBO -- Self created Framebuffer
+    * oglFBO2D -- 2D Framebuffer
+    * oglFBOLayered -- Layered Framebuffer
 
 * **oglProgram**  OpenGL Program
   
   It's like a "shader" in other engine, with resources slot binding with uniforms, UBOs, textures, etc. 
   * oglDrawProgram -- Program which runs on graphics pipeline
-  * oglcomputeProgram -- Program which runs on compute pipeline
+  * oglComputeProgram -- Program which runs on compute pipeline
 
 * **oglContext**  OpenGL Context
 
@@ -55,9 +57,12 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
   oglContext exposes current context's capabilities via `Capability` member.
 
+* **oglWorker** OpenGL Worker
+  By Createing a oglWorker under an existing context, you will get a thread with shared-context and a thread with unique-context. You can then dispatch tasks to these threads.
+
 * **oglUtil**  OpenGL Utility
   
-  It providing environment initializing and multi-thread worker.
+  It providing environment initializing.
 
 ## Dependency
 
@@ -92,7 +97,7 @@ Although OpenGLUtil tries to cover difference between versions and try to provid
 * [WGL_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_create_context.txt) (Windows), [GLX_ARB_create_context](https://www.khronos.org/registry/OpenGL/extensions/ARB/GLX_ARB_create_context.txt) (*nix) required.
 * [GL_ARB_program_interface_query](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_program_interface_query.txt) required for oglProgram, since it tries to introspect program's info.
 * [ARB_separate_shader_objects](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_separate_shader_objects.txt) required for oglProgram, since it uses `glProgramUniform` to get/set uniforms
-* GL3.0 required for Core Profile Context.
+* GL3.0 required for FBO, VAO, Core Profile Context.
 
 ## Feature
 
@@ -120,14 +125,33 @@ Some extensions are applied via defining attribute hints on comments. A single l
 
 The syntax is `//@OGLU@FuncName(arg0, arg1, ...)`, args can be number(treated as string) or string, where `""` will be removed for string.
 
+#### Shader Version
+
+GLSL requires version definition before all actual code. You can ignore it when using ExtShader, and OpenGLUtil will automatically assign the version of current context at the beginning.
+
 #### Merged Shader
 
 Despite of standard glsl shader like `*.vert`(Vertex Sahder), `*.frag`(Fragment Shader) and so on, OpenGLUtil also provid an extended shader format`*.glsl`.
 It's main purpose is to merge multiple shader into one, which reduces redundant codes as well as eliminate bugs caused by careless.
 
-`FuncName` should be `Stage`. Variadic arguments will be used to indicate what component this file should include(`VERT`, `FRAG`, `GEOM`...).
+`FuncName` can be `Stage`. Variadic arguments will be used to indicate what stage this file should include(`VERT`, `FRAG`, `GEOM`...).
+
+`FuncName` can also be `StageIf`, then the first argument has be a condition string, and later arguments represent stages. These stages will be avaliable only when condition satisfies. The condition string should be seperated using ` `(space), and leading `!` meansing require condition be false. Condition could be extension which starts with `GL_` or define in the ShaderConfig.
+
+Stage names can be `VERT`(Vertex), `FRAG`(Fragment), `GEOM`(Geometry), `COMP`(Compute). Tessellation shader currently not supported. If the name starts with `!` like `!VERT`, it means `VERT` stage should be removed. 
+
+Stages declarations are order-insensitive. Each declearation will be evaluated and stages gathered. Then removed stages will be evaluated and remove corresponding stages.
 
 Merged Shader is based on glsl's preprocessor. For example, when compiling vertex shader, `OGLU_VERT` will be defined just after the version statement, so your codes can be compiled conditionally, while struct definition can be shared in any shader.
+
+Stage declarations should be put right after all the extension declarations, and before any non-extension statements, since OpenGLUtil will insert helper defines right after the stage declarations.
+
+> Example:
+```
+//@OGLU@Stage("VERT", "FRAG")  // always enable vertex and fragment stage
+//@OGLU@StageIf("GL_AMD_vertex_shader_layer", "!GEOM") // disable geometry stage when GL_AMD_vertex_shader_layer exists
+//@OGLU@StageIf("!GLVERSION40", "GEOM") // enable geometry stage when OpenGL's version is at least 4.0
+```
 
 #### Uniform Description
 
@@ -173,7 +197,46 @@ OpenGLUtil provides a wrapper `ogluDrawId` to support both situation. When prepa
 
 `gl_Layer` will be used for layered rendering, while using it in Fragment Shader requires glsl 4.3. For those version under 4.3, an varying variable will be provided to emulate it.
 
-OpenGLUtil provides a wrapper `ogluLayer` to support both situation. In this case `ogluSetLayer(int)` shoud be called to properly set layerID.
+OpenGLUtil provides a wrapper `ogluLayer` in fragment stage to support both situation. To correctly get the layer data, `ogluSetLayer(int)` shoud be called to properly set layerID.
+
+When the extension [GL_AMD_vertex_shader_layer](https://www.khronos.org/registry/OpenGL/extensions/AMD/AMD_vertex_shader_layer.txt) exists, you can set layer in vertex shader without using GS. You should also uses `ogluSetLayer(int)`, since it may also set the layer information when extension is not avalibale, then you can get the layer information in GS using `ogluGetLayer()`;
+
+
+> Example:
+```
+//@OGLU@Stage("VERT", "GEOM", "FRAG")  // always enable vertex and fragment stage
+//@OGLU@StageIf("GL_AMD_vertex_shader_layer", "!GEOM") // disable geometry stage when GL_AMD_vertex_shader_layer exists
+
+#if defined(OGLU_VERT)
+void main()
+{
+    ogluSetLayer(gl_InstanceID);
+}
+#endif
+
+#if defined(OGLU_GEOM)
+layout (triangles) in;
+layout (triangle_strip, max_vertices = 3) out;
+void main()
+{
+    for(int i = 0; i < gl_in.length(); ++i)
+    {
+        ogluSetLayer(ogluGetLayer());
+        gl_Position = gl_in[i].gl_Position;
+        EmitVertex();
+    }
+    EndPrimitive();
+}
+#endif
+
+#if defined(OGLU_FRAG)
+out vec4 FragColor;
+void main()
+{
+    FragColor = vec4(ogluLayer);
+}
+#endif
+```
 
 ### Resource Management
 

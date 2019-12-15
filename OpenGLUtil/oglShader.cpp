@@ -195,21 +195,50 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         return {};
 }
 
-constexpr static auto OGLU_EXT_REQS = R"(
+constexpr static string_view OGLU_EXT_REQS = R"(
 #line 1 1 // OGLU_EXT_REQS
+
 #if defined(OGLU_VERT)
-#   extension GL_ARB_shader_draw_parameters : enable
+#   extension GL_ARB_explicit_attrib_location   : enable
+#   extension GL_ARB_shader_draw_parameters     : enable
+#elif defined(OGLU_GEOM)
+#   extension GL_ARB_geometry_shader4           : enable
 #endif
-#extension GL_ARB_draw_instanced : enable
+
+#extension GL_ARB_explicit_uniform_location : enable
+#extension GL_ARB_bindless_texture          : enable
+#extension GL_NV_bindless_texture           : enable
+#extension GL_ARB_gpu_shader_int64          : enable
+#extension GL_AMD_gpu_shader_int64          : enable
+#extension GL_NV_gpu_shader5                : enable
+#extension GL_AMD_vertex_shader_layer       : enable
+#extension GL_ARB_draw_instanced            : enable
+
 #if !defined(GL_ARB_draw_instanced) || !GL_ARB_draw_instanced
 #   extension GL_EXT_draw_instanced : enable
 #endif
-#extension GL_ARB_bindless_texture : enable
-#extension GL_NV_bindless_texture  : enable
 )";
 
-constexpr static auto OGLU_DEFS = R"(
+constexpr static string_view OGLU_DEFS = R"(
 #line 1 2 // OGLU_DEFS
+#if (!defined(GL_NV_bindless_texture) || !GL_NV_bindless_texture) && (defined(GL_ARB_bindless_texture) && GL_ARB_bindless_texture)
+#   define OGLU_TEX layout(bindless_sampler) 
+#   define OGLU_IMG layout(bindless_image) 
+#   define OGLU_TEX_LAYOUT ,bindless_sampler
+#   define OGLU_IMG_LAYOUT ,bindless_image
+#else
+#   define OGLU_TEX  
+#   define OGLU_IMG 
+#   define OGLU_TEX_LAYOUT
+#   define OGLU_IMG_LAYOUT
+#endif
+
+#if (defined(GL_ARB_gpu_shader_int64) && GL_ARB_gpu_shader_int64) || (defined(GL_AMD_gpu_shader_int64) && GL_AMD_gpu_shader_int64) || (defined(GL_NV_gpu_shader5) && GL_NV_gpu_shader5)
+#   define OGLU_HANDLE uint64_t
+#else
+#   define OGLU_HANDLE uvec2
+#endif
+
 #if defined(OGLU_VERT)
 
 #   define GLVARY out
@@ -224,19 +253,72 @@ constexpr static auto OGLU_DEFS = R"(
         uniform int ogluBaseInstance;
 #   endif
 
+    out ogluVertData
+    {
+        flat int ogluLayer;
+    } ogluData;
+#   if defined(GL_AMD_vertex_shader_layer) && GL_AMD_vertex_shader_layer
+        void ogluSetLayer(const in  int layer)
+        {
+            gl_Layer = ogluData.ogluLayer = layer;
+        }
+        void ogluSetLayer(const in uint layer)
+        {
+            gl_Layer = ogluData.ogluLayer = int(layer);
+        }
+#   else
+        void ogluSetLayer(const in  int layer)
+        {
+            ogluData.ogluLayer = layer;
+        }
+        void ogluSetLayer(const in uint layer)
+        {
+            ogluData.ogluLayer = int(layer);
+        }
+
+#   endif
+
 #elif defined(OGLU_GEOM)
 
+    in  ogluVertData
+    {
+        flat int ogluLayer;
+    } ogluDataIn[];
+    out ogluVertData
+    {
+        flat int ogluLayer;
+    } ogluData;
+    int ogluGetLayer()
+    {
+        return ogluDataIn[0].ogluLayer;
+    }
+    int ogluGetLayer(const in  int idx)
+    {
+        return ogluDataIn[idx].ogluLayer;
+    }
+    int ogluGetLayer(const in uint idx)
+    {
+        return ogluDataIn[idx].ogluLayer;
+    }
 #   if __VERSION__ >= 430
-#       define ogluLayer gl_Layer
-        void ogluSetLayer(int layer)
+        void ogluSetLayer(const in  int layer)
         {
             gl_Layer = layer;
         }
-#   else
-        flat out int ogluLayer;
-        void ogluSetLayer(int layer)
+        void ogluSetLayer(const in uint layer)
         {
-            gl_Layer = ogluLayer = layer;
+            gl_Layer = int(layer);
+        }
+#   else
+        void ogluSetLayer(const in  int layer)
+        {
+            gl_Layer            = layer;
+            ogluData.ogluLayer  = layer;
+        }
+        void ogluSetLayer(const in uint layer)
+        {
+            gl_Layer            = int(layer);
+            ogluData.ogluLayer  = int(layer);
         }
 #   endif
 
@@ -244,27 +326,20 @@ constexpr static auto OGLU_DEFS = R"(
 
 #   define GLVARY in
 
+    in  ogluVertData
+    {
+        flat int ogluLayer;
+    } ogluDataIn;
 #   if __VERSION__ >= 430
 #       define ogluLayer gl_Layer
 #   else
-        flat in int ogluLayer;
+#       define ogluLayer ogluDataIn.ogluLayer
 #   endif
 
 #else
 
 #   define GLVARY 
 
-#endif
-#if (!defined(GL_NV_bindless_texture) || !GL_NV_bindless_texture) && (defined(GL_ARB_bindless_texture) && GL_ARB_bindless_texture)
-#   define OGLU_TEX layout(bindless_sampler) 
-#   define OGLU_IMG layout(bindless_image) 
-#   define OGLU_TEX_LAYOUT ,bindless_sampler
-#   define OGLU_IMG_LAYOUT ,bindless_image
-#else
-#   define OGLU_TEX  
-#   define OGLU_IMG 
-#   define OGLU_TEX_LAYOUT
-#   define OGLU_IMG_LAYOUT
 #endif
 )"sv;
 
@@ -384,10 +459,8 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     set<string_view> stypes;
     set<SubroutineItem, common::container::SetKeyLess<SubroutineItem, &SubroutineItem::RoutineVal>> subroutines;
     vector<std::variant<string_view, string>> lines;
-    string finalShader;
-    size_t verLineNum = string::npos, initLineNum = string::npos;
+    size_t verLineNum = string::npos, stageLineNum = string::npos;
 
-    finalShader.reserve(src.size() + 1024);
     info.ResMappings.insert_or_assign("DrawID", "ogluDrawId");
     for (std::string_view line : common::str::SplitStream(src, '\n', true))
     {
@@ -413,8 +486,32 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
                     info.ResMappings.insert_or_assign(string(ogluAttr.Params[0]), string(ogluAttr.Params[1]));
                 break;
             case "Stage"_hash:
-                initLineNum = curLine;
+                stageLineNum = curLine;
                 stypes.insert(ogluAttr.Params.cbegin(), ogluAttr.Params.cend());
+                break;
+            case "StageIf"_hash:
+                stageLineNum = curLine;
+                if (ogluAttr.Params.size() > 1)
+                {
+                    const bool allmatch = common::str::SplitStream(ogluAttr.Params[0], ';', false)
+                        .AllIf([&](string_view ext)
+                            {
+                                const bool flip = ext[0] == '!';
+                                if (flip)
+                                    ext.remove_prefix(1);
+                                if (common::str::IsBeginWith(ext, "GL_"))
+                                    return flip ^ CtxFunc->Extensions.Has(ext);
+                                else if (common::str::IsBeginWith(ext, "GLVERSION"))
+                                {
+                                    const uint32_t needVersion = std::stoi(string(ext.substr(9)));
+                                    return flip ^ (CtxFunc->Version >= needVersion);
+                                }
+                                else
+                                    return flip ^ (config.Defines.find(string(ext)) != config.Defines.cend());
+                            });
+                    if (allmatch)
+                        stypes.insert(ogluAttr.Params.cbegin() + 1, ogluAttr.Params.cend());
+                }
                 break;
             case "Property"_hash:
                 if (auto prop = ParseExtProperty(ogluAttr.Params))
@@ -450,10 +547,23 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         }
     }
 
+    //clean up removed stages
+    {
+        vector<string_view> removeStages; 
+        removeStages.reserve(stypes.size() * 2);
+        for (const auto stage : stypes)
+            if (stage[0] == '!')
+                removeStages.emplace_back(stage), removeStages.emplace_back(stage.substr(1));
+        for (const auto stage : removeStages)
+            stypes.erase(stage);
+    }
+    if (stypes.empty())
+        COMMON_THROWEX(BaseException, u"Invalid shader source");
+
     const string_view partHead = verLineNum == string::npos ? "" : string_view(src.data(), std::get<string_view>(lines[verLineNum]).data() - src.data());
-    if (initLineNum == string::npos) 
-        initLineNum = verLineNum;
-    size_t restLineNum = initLineNum != string::npos ? initLineNum + 1 : 0;
+    if (stageLineNum == string::npos)
+        stageLineNum = verLineNum;
+    size_t restLineNum = stageLineNum != string::npos ? stageLineNum + 1 : 0;
     string verPrefix, verSuffix;
     uint32_t version = UINT32_MAX;
     if (verLineNum != string::npos)
@@ -466,16 +576,28 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
             version = std::stoi(mth[2]);
             constexpr std::array vers{ 110u,120u,130u,140u,150u,330u,400u,410u,420u,430u,440u,450u,460u };
             if (!std::binary_search(vers.cbegin(), vers.cend(), version))
-                COMMON_THROWEX(BaseException, u"unsupported GLSL version");
+                oglLog().warning(u"unsupported GLSL version, fallback to highest support version");
         }
     }
     if (version == UINT32_MAX)
-        COMMON_THROWEX(BaseException, u"no correct GLSL version found");
-    if (stypes.empty())
-        COMMON_THROWEX(BaseException, u"Invalid shader source");
+    {
+        if (CtxFunc->Version >= 33)
+            version = CtxFunc->Version * 10;
+        else 
+            switch (CtxFunc->Version)
+            {
+            case 32:    version = 150; break;
+            case 31:    version = 140; break;
+            case 30:    version = 130; break;
+            case 21:    version = 120; break;
+            case 20:    version = 110; break;
+            default:    COMMON_THROWEX(BaseException, u"no correct GLSL version found, unsupported GL version");
+            }
+        if (verPrefix.empty())
+            verPrefix = "#version ";
+    }
 
     string extReqs;
-    extReqs.append("#extension GL_ARB_bindless_texture : enable\r\n");
 
     //apply routines
     for (const auto&[rname, srname] : config.Routines)
@@ -532,13 +654,15 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     rest.reserve(src.size() + 1024);
     for (auto it = lines.cbegin() + restLineNum; it != lines.cend(); ++it)
         std::visit([&](const auto& val) { rest.append(val).append("\r\n"); }, *it);
+    const string lineFix = "#line " + std::to_string(restLineNum + 1) + " 0\r\n"; //fix line number
 
-    const string lineFix = "#line " + std::to_string(restLineNum + 1) + "\r\n"; //fix line number
+    string finalShader;
+    finalShader.reserve(src.size() + 4096); 
     for (const auto& stype : stypes)
     {
         uint32_t curVer = version;
         ShaderType shaderType;
-        const char *scopeDef = nullptr;
+        string_view scopeDef;
         switch (hash_(stype))
         {
         case "Vertex"_hash:
@@ -562,9 +686,9 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         case "Compute"_hash:
         case "COMP"_hash:
             {
-                if (curVer < 430) curVer = 430;
-                    shaderType = ShaderType::Compute;
+                shaderType = ShaderType::Compute;
                 scopeDef = "#define OGLU_COMP\r\n";
+                curVer = std::max(curVer, 430u);
             } break;
         default:
             oglLog().warning(u"meet shader type [{}], ignoreed.\n", stype);
