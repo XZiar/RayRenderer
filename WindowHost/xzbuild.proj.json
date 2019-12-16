@@ -1,0 +1,19 @@
+{
+    "name": "WindowHost",
+    "type": "dynamic",
+    "description": "window host",
+    "dependency": ["fmt", "MiniLogger", "StringCharset", "SystemCommon"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["X11"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["WDHOST_EXPORT"]
+        }
+    }
+}
