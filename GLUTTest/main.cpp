@@ -292,14 +292,16 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
     const auto ftest = common::linq::FromIterable(tester->GetRenderPasses())
         .Select([](const auto& pipe) { return std::dynamic_pointer_cast<rayr::FontTester>(pipe); })
         .Where([](const auto& pipe) { return (bool)pipe; })
-        .TryGetFirst().value();
-    fs::path basePath = u"C:\\Programs Temps\\RayRenderer";
-    if (!fs::exists(basePath))
-        basePath = u"D:\\ProgramsTemps\\RayRenderer";
-    if (!fs::exists(basePath))
-        basePath = u"C:\\ProgramsTemps\\RayRenderer";
-    ftest->SetFont(basePath / u"test.ttf");
-
+        .TryGetFirst();
+    if (ftest.has_value())
+    {
+        fs::path basePath = u"C:\\Programs Temps\\RayRenderer";
+        if (!fs::exists(basePath))
+            basePath = u"D:\\ProgramsTemps\\RayRenderer";
+        if (!fs::exists(basePath))
+            basePath = u"C:\\ProgramsTemps\\RayRenderer";
+        ftest.value()->SetFont(basePath / u"test.ttf");
+    }
     FreeGLUTViewRun();
     return 0;
 }
