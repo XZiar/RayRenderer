@@ -35,5 +35,8 @@
     <ClInclude Include="WindowHost.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Win32MsgName.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
