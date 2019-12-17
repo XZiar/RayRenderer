@@ -29,14 +29,14 @@ WindowHost_::~WindowHost_()
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
 {
-    InitializePms = Manager->CreateNewWindow(this);
+    OnOpen();
     DrawTimer.Start();
     return true;
 }
 
 void WindowHost_::OnStop() noexcept
 {
-    OnClose(*this);
+    OnClose();
     Manager->ReleaseWindow(this);
 }
 
@@ -52,9 +52,68 @@ LoopBase::LoopState WindowHost_::OnLoop()
     }
     if (DrawTimer.ElapseMs() < 16)
         std::this_thread::sleep_for(std::chrono::milliseconds(16 - DrawTimer.ElapseMs()));
-    OnDisplay(*this);
+    OnDisplay();
     DrawTimer.Start();
     return LoopState::Continue;
+}
+
+void WindowHost_::Initialize()
+{
+    Start();
+}
+
+void WindowHost_::OnOpen() noexcept
+{
+    Openning(*this);
+}
+
+void WindowHost_::OnClose() noexcept
+{
+    Closing(*this);
+}
+
+void WindowHost_::OnDisplay() noexcept
+{
+    Displaying(*this);
+}
+
+void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
+{
+    Resizing(*this, width, height);
+    Width = width; Height = height;
+}
+
+void WindowHost_::OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept
+{
+    MouseMove(*this, dx, dy, flags);
+}
+
+void WindowHost_::OnMouseWheel(int32_t posx, int32_t posy, int32_t d, int32_t flags) noexcept
+{
+    MouseWheel(*this, posx, posy, d, flags);
+}
+
+void WindowHost_::OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept
+{
+    KeyDown(*this, posx, posy, key);
+}
+
+void WindowHost_::OnKeyUp(int32_t posx, int32_t posy, int32_t key) noexcept
+{
+    KeyUp(*this, posx, posy, key);
+}
+
+void WindowHost_::OnDropFile(std::u16string_view filePath) noexcept
+{
+    DropFile(*this, filePath);
+}
+
+void WindowHost_::Show()
+{
+    if (!IsOpened.test_and_set())
+    {
+        Manager->CreateNewWindow(this);
+    }
 }
 
 WindowHost WindowHost_::GetSelf()
@@ -66,15 +125,6 @@ WindowHost WindowHost_::GetSelf()
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
 {
     InvokeList.AppendNode(new InvokeNode(std::move(task)));
-}
-
-void WindowHost_::Open()
-{
-    if (!InitializePms)
-    {
-        Start();
-        //InitializePms->Wait();
-    }
 }
 
 void WindowHost_::Close()

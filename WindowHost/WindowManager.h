@@ -19,18 +19,21 @@ namespace detail
 class WindowManager : private common::loop::LoopBase
 {
 private:
+    static std::shared_ptr<WindowManager> CreateManager();
+    MAKE_ENABLER();
 #if COMMON_OS_WIN
-    void* EventHandle = nullptr;
+    static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
+    void* InstanceHandle = nullptr;
     uint32_t ThreadId = 0;
 #else
     void* Connection = nullptr;
     void* Display = nullptr;
     void* Screen = nullptr;
-    uint32_t VisualID = 0;
-    uint32_t ColorMap = 0;
-    int32_t ConnFD = 0;
+    uint32_t ControlWindow = 0;
 #endif
     std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
+
+    WindowManager(uintptr_t pms);
     bool OnStart(std::any cookie) noexcept override;
     void OnStop() noexcept override;
     LoopState OnLoop() override;
@@ -38,9 +41,8 @@ private:
 public:
     common::mlog::MiniLogger<false> Logger;
 
-    WindowManager();
     ~WindowManager() override;
-    common::PromiseResult<void> CreateNewWindow(WindowHost_* host);
+    void CreateNewWindow(WindowHost_* host);
     void CloseWindow(WindowHost_* host);
     void ReleaseWindow(WindowHost_* host);
 

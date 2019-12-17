@@ -46,33 +46,45 @@ private:
     std::string Title;
 #endif
     std::shared_ptr<detail::WindowManager> Manager;
+    std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
-    common::PromiseResult<void> InitializePms;
     common::SimpleTimer DrawTimer;
     int32_t Width, Height;
     int32_t sx = 0, sy = 0, lx = 0, ly = 0;//record x/y, last x/y
     uint8_t IsMovingMouse = 0;
     bool HasMoved = false;
-    bool HasInitialized = false;
 
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
     ~WindowHost_() override;
-    bool OnStart(std::any cookie) noexcept override;
-    void OnStop() noexcept override;
-    LoopState OnLoop() override;
+    bool OnStart(std::any cookie) noexcept override final;
+    void OnStop() noexcept override final;
+    LoopState OnLoop() override final;
+    void Initialize();
+protected:
+    virtual void OnOpen() noexcept;
+    virtual void OnClose() noexcept;
+    virtual void OnDisplay() noexcept;
+
+    virtual void OnResize(int32_t width, int32_t height) noexcept;
+    virtual void OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept;
+    virtual void OnMouseWheel(int32_t posx, int32_t posy, int32_t d, int32_t flags) noexcept;
+    virtual void OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept;
+    virtual void OnKeyUp(int32_t posx, int32_t posy, int32_t key) noexcept;
+    virtual void OnDropFile(std::u16string_view filePath) noexcept;
 public:
     bool Deshake = true;
 
-    common::Delegate<WindowHost_&> OnOpen;
-    common::Delegate<WindowHost_&> OnClose;
-    common::Delegate<WindowHost_&> OnDisplay;
-    common::Delegate<WindowHost_&, int32_t, int32_t> OnReshape;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> OnMouseMove;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> OnMouseWheel;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> OnKeyDown;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> OnKeyUp;
-    common::Delegate<WindowHost_&, std::u16string_view> OnDropFile;
+    common::Delegate<WindowHost_&> Openning;
+    common::Delegate<WindowHost_&> Closing;
+    common::Delegate<WindowHost_&> Displaying;
+    common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
+    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> MouseMove;
+    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t, int32_t> MouseWheel;
+    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyDown;
+    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyUp;
+    common::Delegate<WindowHost_&, std::u16string_view> DropFile;
 
+    void Show();
     WindowHost GetSelf();
     void SetTimerCallback(std::function<bool(WindowHost_&, uint32_t)> funTime, const uint16_t ms);
     void SetTitle(const std::u16string_view title);
@@ -80,7 +92,6 @@ public:
     void InvokeUI(std::function<void(WindowHost_&)> task);
 
     void Invalidate();
-    void Open();
     void Close();
 
     static WindowHost Create(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});

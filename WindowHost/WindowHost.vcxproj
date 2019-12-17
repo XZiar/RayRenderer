@@ -167,6 +167,7 @@
     <ClCompile Include="WindowHost.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Win32MsgName.hpp" />
     <ClInclude Include="WindowManager.h" />
     <ClInclude Include="WindowHost.h" />
     <ClInclude Include="WindowHostRely.h" />
