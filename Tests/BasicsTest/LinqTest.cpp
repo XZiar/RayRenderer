@@ -254,9 +254,24 @@ TEST(Linq, ModifyNonCopyable)
     std::vector<std::unique_ptr<int>> data(5);
     const auto ret = FromIterable(data)
         .Select([](auto& ptr) -> auto& { ptr = std::make_unique<int>(0); return ptr; })
-        .Reduce([](bool ret, const auto& item) { return ret && (bool)item; }, true);
+        .Reduce([](bool ret, const auto& ptr) { return ret && (bool)ptr; }, true);
     EXPECT_TRUE(ret);
     EXPECT_THAT(data, testing::Each(testing::Pointee(0)));
+}
+
+TEST(Linq, CacheNonCopyable)
+{
+    std::vector<std::unique_ptr<int>> data(5);
+    FromIterable(data)
+        .ForEach([](auto& ptr, size_t idx) { ptr = std::make_unique<int>(static_cast<int>(idx)); });
+    const auto ret = FromIterable(data)
+        .Where([](const auto& ptr) { return *ptr != 0; })
+        .Reduce([](bool ret, const auto& ptr) { return ret && (bool)ptr && *ptr; }, true);
+    EXPECT_TRUE(ret);
+    const auto ret2 = FromIterable(data)
+        .Select([](const auto& ptr) { return *ptr; })
+        .ToVector();
+    EXPECT_THAT(ret2, testing::ElementsAre(0, 1, 2, 3, 4));
 }
 
 TEST(Linq, Pair)

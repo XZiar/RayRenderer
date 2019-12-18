@@ -296,18 +296,34 @@ public:
         return this->Prev.IsEnd();
     }
 private:
-    using TmpType = std::conditional_t<P::InvolveCache, std::optional<PlainInType>, uint8_t>;
+    using CacheType = std::conditional_t<std::is_reference_v<InType>,
+        std::reference_wrapper<std::remove_reference_t<InType>>,
+        PlainInType>;
+    using TmpType = std::conditional_t<P::InvolveCache, std::optional<CacheType>, uint8_t>;
     mutable TmpType Temp;
     constexpr void LoopUntilSatisfy()
     {
+        static constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
         while (!this->Prev.IsEnd())
         {
-            auto obj = std::move(this->GetCurrentFromPrev());
-            if (Func(obj))
+            if constexpr (P::InvolveCache)
             {
-                if constexpr (P::InvolveCache)
+                CacheType obj = this->GetCurrentFromPrev();
+                bool result;
+                if constexpr (AcceptConstRef)
+                    result = Func(static_cast<std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>(obj));
+                else
+                    result = Func(static_cast<std::add_lvalue_reference_t<PlainInType>>(obj));
+                if (result)
+                {
                     Temp.emplace(std::move(obj));
-                return;
+                    return;
+                }
+            }
+            else
+            {
+                if (Func(this->GetCurrentFromPrev()))
+                    return;
             }
             this->MoveNextFromPrev();
         }
