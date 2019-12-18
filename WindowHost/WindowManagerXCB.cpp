@@ -10,6 +10,8 @@
 #include <xcb/xcb.h>
 #undef Always
 
+constexpr uint32_t MessageCreate = 1;
+
 
 namespace xziar::gui::detail
 {
@@ -23,6 +25,8 @@ private:
     Display* TheDisplay = nullptr;
     xcb_screen_t* Screen = nullptr;
     xcb_window_t ControlWindow = 0;
+    Atom MsgAtom;
+    Atom CloseAtom;
 public:
     WindowManagerXCB(uintptr_t pms) : WindowManager(pms) { }
     ~WindowManagerXCB() override { }
@@ -30,11 +34,13 @@ public:
     void Initialize() override
     {
         using common::BaseException;
+        // XInitThreads();
         TheDisplay = XOpenDisplay(nullptr);
         /* open display */
         if (!TheDisplay)
             COMMON_THROW(BaseException, u"Failed to open display");
 
+        // const auto defScreen = DefaultScreen(TheDisplay);
         // Get the XCB connection from the display
         Connection = XGetXCBConnection(TheDisplay);
         if (!Connection)
@@ -55,7 +61,7 @@ public:
         // control window 
         ControlWindow = xcb_generate_id(Connection);
         const uint32_t valuemask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-        const uint32_t eventmask = XCB_EVENT_MASK_NO_EVENT;
+        const uint32_t eventmask = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE;
         const uint32_t valuelist[] = { Screen->white_pixel, eventmask };
 
         xcb_create_window(
@@ -71,6 +77,11 @@ public:
             valuemask,
             valuelist
         );
+
+        // prepare atoms
+        MsgAtom     = XInternAtom(TheDisplay, "XZIAR_GUI_MSG", False);
+        CloseAtom   = XInternAtom(TheDisplay, "WM_DELETE_WINDOW", True);
+
         xcb_flush(Connection);
     }
     void Terminate() noexcept override
@@ -80,22 +91,61 @@ public:
         xcb_disconnect(Connection);
     }
 
+    void HandleControlMessage(const uint32_t (&data)[5])
+    {
+        switch (data[0])
+        {
+        case MessageCreate:
+        {
+            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
+            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
+            CreateNewWindow_(host);
+        } break;
+        }
+    }
+
+    WindowHost_* GetWindow(xcb_window_t window)
+    {
+        for (const auto& pair : WindowList)
+        {
+            if (pair.first == window)
+            {
+                return pair.second;
+            }
+        }
+        return nullptr;
+    }
+
     void MessageLoop() override
     {
         xcb_generic_event_t* event;
         while ((event = xcb_wait_for_event(Connection)))
         {
+            Logger.verbose(u"Recieve message [{}]\n", (uint32_t)event->response_type);
             switch (event->response_type & 0x7f)
             {
+            case XCB_EXPOSE:
+            {
+                const auto& msg = *reinterpret_cast<xcb_expose_event_t*>(event);
+                if (const auto host = GetWindow(msg.window); host)
+                {
+                    host->Handle = msg.window;
+                    host->DCHandle = TheDisplay;
+                    host->Initialize();
+                    break;
+                }
+            } break;
             case XCB_CONFIGURE_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_configure_notify_event_t*>(event);
-                WindowHost_* host = nullptr;
-                uint16_t width = msg.width;
-                uint16_t height = msg.height;
-                if ((width > 0 && width != host->Width) || (height > 0 && height != host->Height))
+                if (const auto host = GetWindow(msg.window); host)
                 {
-                    host->OnResize(width, height);
+                    uint16_t width = msg.width;
+                    uint16_t height = msg.height;
+                    if ((width > 0 && width != host->Width) || (height > 0 && height != host->Height))
+                    {
+                        host->OnResize(width, height);
+                    }
                 }
             } break;
             case XCB_CLIENT_MESSAGE:
@@ -103,9 +153,22 @@ public:
                 const auto& msg = *reinterpret_cast<xcb_client_message_event_t*>(event);
                 if (msg.window == ControlWindow)
                 {
-                    CreateNewWindow_(nullptr);
+                    HandleControlMessage(msg.data.data32);
+                }
+                else
+                {
+                    if (const auto host = GetWindow(msg.window); host)
+                    {
+                        if (msg.type == CloseAtom)
+                        {
+                            host->Stop();
+                            break;
+                        }
+                    }
                 }
             } break;
+            default:
+                break;
             }
             free(event);
         }
@@ -133,9 +196,6 @@ public:
             valuemask,
             valuelist
         );
-
-        host->Handle = window;
-        host->DCHandle = TheDisplay;
         WindowList.emplace_back(static_cast<uintptr_t>(host->Handle), host);
 
         // set title
@@ -155,6 +215,22 @@ public:
     }
     void CreateNewWindow(WindowHost_* host) override
     {
+        xcb_client_message_event_t event;
+        event.response_type = XCB_CLIENT_MESSAGE;
+        event.format = 32;
+        event.type = MsgAtom;
+        event.window = ControlWindow;
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        event.data.data32[0] = MessageCreate;
+        event.data.data32[1] = static_cast<uint32_t>(ptr         & 0xffffffff);
+        event.data.data32[2] = static_cast<uint32_t>((ptr >> 32) & 0xffffffff);
+        xcb_send_event(
+            Connection, 
+            False, 
+            ControlWindow, 
+            XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY, 
+            reinterpret_cast<const char*>(&event)
+        );
     }
     void CloseWindow(WindowHost_* host) override
     {
