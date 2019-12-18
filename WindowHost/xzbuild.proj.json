@@ -6,13 +6,13 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["X11"]
+        "dynamic": ["X11", "X11-xcb"]
     },
     "targets":
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": ["*.cpp", {"-": "WindowManagerWin32.cpp"}],
             "defines": ["WDHOST_EXPORT"]
         }
     }

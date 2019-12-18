@@ -24,6 +24,12 @@
     <ClCompile Include="WindowHost.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WindowManagerWin32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowManagerXCB.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHostRely.h">

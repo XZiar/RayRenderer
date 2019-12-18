@@ -303,13 +303,13 @@ private:
     mutable TmpType Temp;
     constexpr void LoopUntilSatisfy()
     {
-        static constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
         while (!this->Prev.IsEnd())
         {
             if constexpr (P::InvolveCache)
             {
                 CacheType obj = this->GetCurrentFromPrev();
                 bool result;
+                constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
                 if constexpr (AcceptConstRef)
                     result = Func(static_cast<std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>(obj));
                 else

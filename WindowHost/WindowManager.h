@@ -20,31 +20,24 @@ class WindowManager : private common::loop::LoopBase
 {
 private:
     static std::shared_ptr<WindowManager> CreateManager();
-    MAKE_ENABLER();
-#if COMMON_OS_WIN
-    static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
-    void* InstanceHandle = nullptr;
-    uint32_t ThreadId = 0;
-#else
-    void* Connection = nullptr;
-    void* Display = nullptr;
-    void* Screen = nullptr;
-    uint32_t ControlWindow = 0;
-#endif
-    std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
 
-    WindowManager(uintptr_t pms);
     bool OnStart(std::any cookie) noexcept override;
     void OnStop() noexcept override;
     LoopState OnLoop() override;
-    void CreateNewWindow_(WindowHost_* host);
+protected:
+    std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
+
+    WindowManager(uintptr_t pms);
+    virtual void Initialize() = 0;
+    virtual void Terminate() noexcept = 0;
+    virtual void MessageLoop() = 0;
 public:
     common::mlog::MiniLogger<false> Logger;
 
     ~WindowManager() override;
-    void CreateNewWindow(WindowHost_* host);
-    void CloseWindow(WindowHost_* host);
-    void ReleaseWindow(WindowHost_* host);
+    virtual void CreateNewWindow(WindowHost_* host) = 0;
+    virtual void CloseWindow(WindowHost_* host) = 0;
+    virtual void ReleaseWindow(WindowHost_* host) = 0;
 
     static std::shared_ptr<WindowManager> Get();
     // void Invoke(std::function<void(WindowHost_&)> task);

@@ -29,6 +29,14 @@ static void WDHost()
     {
         log().info(u"resize to [{:4} x {:4}].\n", width, height);
     };
+    window->MouseMove   += [](const auto&, int32_t x, int32_t y, int32_t flags)
+    {
+        log().info(u"Mouse move to [{:4},{:4}]. flags[{}]\n", x, y, flags);
+    };
+    window->MouseWheel  += [](const auto&, int32_t x, int32_t y, float dz, int32_t flags)
+    {
+        log().info(u"Mouse wheel [{:6.3f}] at [{:4},{:4}]. flags[{}]\n", dz, x, y, flags);
+    };
     window->Show();
     getchar();
     window->Close();

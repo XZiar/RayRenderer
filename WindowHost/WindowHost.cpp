@@ -12,14 +12,9 @@ MAKE_ENABLER_IMPL(WindowHost_)
 
 WindowHost_::WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title) : 
     LoopBase(LoopBase::GetThreadedExecutor), 
-    Width(width), Height(height)
+    Title(std::u16string(title)), Width(width), Height(height)
 {
     Manager = detail::WindowManager::Get();
-#if COMMON_OS_WIN
-    Title = std::u16string(title);
-#else
-    Title = common::strchset::to_u8string(title, common::str::Charset::UTF16LE);
-#endif
 }
 
 WindowHost_::~WindowHost_()
@@ -88,9 +83,9 @@ void WindowHost_::OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept
     MouseMove(*this, dx, dy, flags);
 }
 
-void WindowHost_::OnMouseWheel(int32_t posx, int32_t posy, int32_t d, int32_t flags) noexcept
+void WindowHost_::OnMouseWheel(int32_t posx, int32_t posy, float dz, int32_t flags) noexcept
 {
-    MouseWheel(*this, posx, posy, d, flags);
+    MouseWheel(*this, posx, posy, dz, flags);
 }
 
 void WindowHost_::OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept

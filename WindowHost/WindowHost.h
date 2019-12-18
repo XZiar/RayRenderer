@@ -20,6 +20,8 @@ using WindowHost = std::shared_ptr<WindowHost_>;
 namespace detail
 {
 class WindowManager;
+class WindowManagerWin32;
+class WindowManagerXCB;
 }
 
 
@@ -28,6 +30,8 @@ class WDHOSTAPI WindowHost_ :
     public std::enable_shared_from_this<WindowHost_>
 {
     friend class detail::WindowManager;
+    friend class detail::WindowManagerWin32;
+    friend class detail::WindowManagerXCB;
 private:
     struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
@@ -39,12 +43,11 @@ private:
 #if COMMON_OS_WIN
     void* Handle = nullptr;
     void* DCHandle = nullptr;
-    std::u16string Title;
 #else
     uint32_t Handle = 0;
     void* DCHandle = nullptr;
-    std::string Title;
 #endif
+    std::u16string Title;
     std::shared_ptr<detail::WindowManager> Manager;
     std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
@@ -67,7 +70,7 @@ protected:
 
     virtual void OnResize(int32_t width, int32_t height) noexcept;
     virtual void OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept;
-    virtual void OnMouseWheel(int32_t posx, int32_t posy, int32_t d, int32_t flags) noexcept;
+    virtual void OnMouseWheel(int32_t posx, int32_t posy, float dz, int32_t flags) noexcept;
     virtual void OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept;
     virtual void OnKeyUp(int32_t posx, int32_t posy, int32_t key) noexcept;
     virtual void OnDropFile(std::u16string_view filePath) noexcept;
@@ -79,7 +82,7 @@ public:
     common::Delegate<WindowHost_&> Displaying;
     common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
     common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> MouseMove;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t, int32_t> MouseWheel;
+    common::Delegate<WindowHost_&, int32_t, int32_t, float, int32_t> MouseWheel;
     common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyDown;
     common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyUp;
     common::Delegate<WindowHost_&, std::u16string_view> DropFile;
