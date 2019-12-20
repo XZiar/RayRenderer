@@ -31,7 +31,7 @@ bool WindowHost_::OnStart(std::any cookie) noexcept
 
 void WindowHost_::OnStop() noexcept
 {
-    OnClose();
+    Closed(*this);
     Manager->ReleaseWindow(this);
 }
 
@@ -64,7 +64,10 @@ void WindowHost_::OnOpen() noexcept
 
 void WindowHost_::OnClose() noexcept
 {
-    Closing(*this);
+    bool shouldeClose = true;
+    Closing(*this, shouldeClose);
+    if (shouldeClose)
+        Manager->CloseWindow(this);
 }
 
 void WindowHost_::OnDisplay() noexcept

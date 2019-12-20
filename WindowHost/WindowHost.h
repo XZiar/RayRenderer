@@ -78,7 +78,8 @@ public:
     bool Deshake = true;
 
     common::Delegate<WindowHost_&> Openning;
-    common::Delegate<WindowHost_&> Closing;
+    common::Delegate<WindowHost_&, bool&> Closing;
+    common::Delegate<WindowHost_&> Closed;
     common::Delegate<WindowHost_&> Displaying;
     common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
     common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> MouseMove;

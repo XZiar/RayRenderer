@@ -11,23 +11,22 @@ namespace xziar::gui::detail
 {
 using common::loop::LoopBase;
 
-std::shared_ptr<WindowManager> CreateManagerImpl(uintptr_t pms);
+std::shared_ptr<WindowManager> CreateManagerImpl();
 
 
 std::shared_ptr<WindowManager> WindowManager::CreateManager()
 {
     std::promise<void> pms;
-    const auto manager = CreateManagerImpl(reinterpret_cast<uintptr_t>(&pms));
+    const auto manager = CreateManagerImpl();
+    manager->Start(&pms);
     pms.get_future().get();
     return manager;
 }
 
-WindowManager::WindowManager(uintptr_t pms) :
+WindowManager::WindowManager() :
     LoopBase(LoopBase::GetThreadedExecutor), 
     Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
-{
-    Start(reinterpret_cast<std::promise<void>*>(pms));
-}
+{ }
 
 WindowManager::~WindowManager()
 {

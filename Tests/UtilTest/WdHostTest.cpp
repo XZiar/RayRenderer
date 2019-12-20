@@ -18,7 +18,8 @@ static void WDHost()
 {
     const auto window = WindowHost_::Create();
     window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
-    window->Closing     += [](const auto&) { log().info(u"closed.\n"); };
+    window->Closing     += [](const auto&, bool& should) { should = true; };
+    window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
     window->Displaying  += [first = true](const auto&) mutable
     {
         if (first)

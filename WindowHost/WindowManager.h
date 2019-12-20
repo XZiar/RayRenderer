@@ -27,7 +27,7 @@ private:
 protected:
     std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
 
-    WindowManager(uintptr_t pms);
+    WindowManager();
     virtual void Initialize() = 0;
     virtual void Terminate() noexcept = 0;
     virtual void MessageLoop() = 0;

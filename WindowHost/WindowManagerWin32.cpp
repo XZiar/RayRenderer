@@ -28,7 +28,7 @@ private:
     uint32_t ThreadId = 0;
 
 public:
-    WindowManagerWin32(uintptr_t pms) : WindowManager(pms) { }
+    WindowManagerWin32() { }
     ~WindowManagerWin32() override { }
 
     void Initialize() override
@@ -100,7 +100,8 @@ public:
     }
     void CloseWindow(WindowHost_* host) override
     {
-        PostMessageW(reinterpret_cast<HWND>(host->Handle), WM_CLOSE, 0, 0);
+        DestroyWindow(reinterpret_cast<HWND>(host->Handle));
+        //PostMessageW(reinterpret_cast<HWND>(host->Handle), WM_CLOSE, 0, 0);
     }
     void ReleaseWindow(WindowHost_* host) override
     {
@@ -129,6 +130,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         {
             switch (msg)
             {
+            case WM_CLOSE:
+                host->OnClose();
+                return 0;
             case WM_DESTROY:
                 host->Stop();
                 return 0;
@@ -245,9 +249,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
 }
 
 
-std::shared_ptr<WindowManager> CreateManagerImpl(uintptr_t pms)
+std::shared_ptr<WindowManager> CreateManagerImpl()
 {
-    return std::make_shared<WindowManagerWin32>(pms);
+    return std::make_shared<WindowManagerWin32>();
 }
 
 
