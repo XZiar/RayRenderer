@@ -18,6 +18,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/Delegate.hpp"
+#include "common/EnumEx.hpp"
 #include <string>
 #include <functional>
 #include <memory>

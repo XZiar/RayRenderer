@@ -81,24 +81,53 @@ void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
     Width = width; Height = height;
 }
 
-void WindowHost_::OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept
+void WindowHost_::OnMouseEnter(event::Position pos) noexcept
 {
-    MouseMove(*this, dx, dy, flags);
+    event::MouseEvent evt(pos);
+    LastPos = pos;
+    MouseEnter(*this, evt);
+    MouseHasLeft = false;
 }
 
-void WindowHost_::OnMouseWheel(int32_t posx, int32_t posy, float dz, int32_t flags) noexcept
+void WindowHost_::OnMouseLeave() noexcept
 {
-    MouseWheel(*this, posx, posy, dz, flags);
+    event::MouseEvent evt(LastPos);
+    MouseLeave(*this, evt);
+    MouseHasLeft = true;
 }
 
-void WindowHost_::OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept
+void WindowHost_::OnMouseMove(event::Position pos) noexcept
 {
-    KeyDown(*this, posx, posy, key);
+    if (MouseHasLeft)
+    {
+        OnMouseEnter(pos);
+    }
+    else
+    {
+        event::MouseMoveEvent evt(LastPos, pos);
+        MouseMove(*this, evt);
+        LastPos = pos;
+    }
 }
 
-void WindowHost_::OnKeyUp(int32_t posx, int32_t posy, int32_t key) noexcept
+void WindowHost_::OnMouseWheel(event::Position pos, float dz) noexcept
 {
-    KeyUp(*this, posx, posy, key);
+    event::MouseWheelEvent evt(pos, dz);
+    MouseWheel(*this, evt);
+}
+
+void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
+{
+    Modifiers |= key.GetModifier();
+    event::KeyEvent evt(LastPos, Modifiers, key);
+    KeyDown(*this, evt);
+}
+
+void WindowHost_::OnKeyUp(event::CombinedKey key) noexcept
+{
+    Modifiers |= ~key.GetModifier();
+    event::KeyEvent evt(LastPos, Modifiers, key);
+    KeyUp(*this, evt);
 }
 
 void WindowHost_::OnDropFile(std::u16string_view filePath) noexcept

@@ -175,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Win32MsgName.hpp" />
+    <ClInclude Include="WindowEvent.h" />
     <ClInclude Include="WindowManager.h" />
     <ClInclude Include="WindowHost.h" />
     <ClInclude Include="WindowHostRely.h" />

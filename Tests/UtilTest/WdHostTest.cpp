@@ -30,13 +30,21 @@ static void WDHost()
     {
         log().info(u"resize to [{:4} x {:4}].\n", width, height);
     };
-    window->MouseMove   += [](const auto&, int32_t x, int32_t y, int32_t flags)
+    window->MouseEnter  += [](const auto&, const auto& evt)
     {
-        log().info(u"Mouse move to [{:4},{:4}]. flags[{}]\n", x, y, flags);
+        log().info(u"Mouse enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
     };
-    window->MouseWheel  += [](const auto&, int32_t x, int32_t y, float dz, int32_t flags)
+    window->MouseLeave  += [](const auto&, const auto& evt)
     {
-        log().info(u"Mouse wheel [{:6.3f}] at [{:4},{:4}]. flags[{}]\n", dz, x, y, flags);
+        log().info(u"Mouse leave at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
+    };
+    window->MouseMove   += [](const auto&, const auto& evt)
+    {
+        log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.DeltaX, evt.DeltaY);
+    };
+    window->MouseWheel  += [](const auto&, const auto& evt)
+    {
+        log().info(u"Mouse wheel [{:6.3f}] at [{:4},{:4}].\n", evt.Delta, evt.Pos.X, evt.Pos.Y);
     };
     window->Show();
     getchar();

@@ -185,6 +185,32 @@ public:
                     break;
                 }
             } break;
+            case XCB_MOTION_NOTIFY:
+            {
+                const auto& msg = *reinterpret_cast<xcb_motion_notify_event_t*>(event);
+                if (const auto host = GetWindow(msg.event); host)
+                {
+                    event::Position pos(msg.event_x, msg.event_y);
+                    host->OnMouseMove(pos);
+                }
+            } break;
+            case XCB_ENTER_NOTIFY:
+            {
+                const auto& msg = *reinterpret_cast<xcb_leave_notify_event_t*>(event);
+                if (const auto host = GetWindow(msg.event); host)
+                {
+                    event::Position pos(msg.event_x, msg.event_y);
+                    host->OnMouseEnter(pos);
+                }
+            } break;
+            case XCB_LEAVE_NOTIFY:
+            {
+                const auto& msg = *reinterpret_cast<xcb_leave_notify_event_t*>(event);
+                if (const auto host = GetWindow(msg.event); host)
+                {
+                    host->OnMouseLeave();
+                }
+            } break;
             case XCB_CONFIGURE_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_configure_notify_event_t*>(event);
@@ -224,7 +250,11 @@ public:
 
         /* Create window */
         const uint32_t valuemask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-        const uint32_t eventmask = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
+        const uint32_t eventmask = XCB_EVENT_MASK_EXPOSURE |
+            XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
+            XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
+            XCB_EVENT_MASK_POINTER_MOTION |
+            XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
             XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
         const uint32_t valuelist[] = { Screen->white_pixel, eventmask };
 

@@ -44,5 +44,8 @@
     <ClInclude Include="Win32MsgName.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="WindowEvent.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

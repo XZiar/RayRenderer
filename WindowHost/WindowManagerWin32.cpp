@@ -110,6 +110,41 @@ public:
 };
 
 
+static event::CombinedKey ProcessKey(WPARAM wParam)
+{
+    using event::CommonKeys;
+    switch (wParam)
+    {
+    case VK_F1:         return CommonKeys::F1;
+    case VK_F2:         return CommonKeys::F2;
+    case VK_F3:         return CommonKeys::F3;
+    case VK_F4:         return CommonKeys::F4;
+    case VK_F5:         return CommonKeys::F5;
+    case VK_F6:         return CommonKeys::F6;
+    case VK_F7:         return CommonKeys::F7;
+    case VK_F8:         return CommonKeys::F8;
+    case VK_F9:         return CommonKeys::F9;
+    case VK_F10:        return CommonKeys::F10;
+    case VK_F11:        return CommonKeys::F11;
+    case VK_F12:        return CommonKeys::F12;
+    case VK_PRIOR:      return CommonKeys::PageUp;
+    case VK_NEXT:       return CommonKeys::PageDown;
+    case VK_HOME:       return CommonKeys::Home;
+    case VK_END:        return CommonKeys::End;
+    case VK_LEFT:       return CommonKeys::Left;
+    case VK_RIGHT:      return CommonKeys::Right;
+    case VK_UP:         return CommonKeys::Up;
+    case VK_DOWN:       return CommonKeys::Down;
+    case VK_INSERT:     return CommonKeys::Insert;
+    case VK_LCONTROL:   return CommonKeys::LeftCtrl;
+    case VK_RCONTROL:   return CommonKeys::RightCtrl;
+    case VK_LSHIFT:     return CommonKeys::LeftShift;
+    case VK_RSHIFT:     return CommonKeys::RightShift;
+    case VK_LMENU:      return CommonKeys::LeftAlt;
+    case VK_RMENU:      return CommonKeys::RightAlt;
+    default:            return CommonKeys::UNDEFINE;
+    }
+}
 
 LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -165,19 +200,35 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                     EndPaint(hwnd, &ps);
                 }
             } return 0; // clear redraw flag
+
+            case WM_MOUSELEAVE:
+            {
+                host->OnMouseLeave();
+            } return 0;
             case WM_MOUSEMOVE:
             {
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
-                host->OnMouseMove(x, y, 0);
+                event::Position pos(static_cast<uint32_t>(x), static_cast<uint32_t>(y));
+                if (host->MouseHasLeft)
+                {
+                    TRACKMOUSEEVENT tme;
+                    tme.cbSize = sizeof(TRACKMOUSEEVENT);
+                    tme.dwFlags = TME_LEAVE;
+                    tme.hwndTrack = hwnd;
+                    tme.dwHoverTime = 100;
+                    TrackMouseEvent(&tme);
+                }
+                host->OnMouseMove(pos);
             } break;
             case WM_MOUSEWHEEL:
             {
-                const auto keys = GET_KEYSTATE_WPARAM(wParam);
+                // const auto keys = GET_KEYSTATE_WPARAM(wParam);
                 const auto dz = GET_WHEEL_DELTA_WPARAM(wParam);
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
                 POINT point{ x,y };
                 ScreenToClient(hwnd, &point);
-                host->OnMouseWheel(point.x, point.y, dz / 120.f, keys);
+                event::Position pos(static_cast<uint32_t>(point.x), static_cast<uint32_t>(point.y));
+                host->OnMouseWheel(pos, dz / 120.f);
             } break;
 
             case WM_LBUTTONDOWN:
@@ -191,16 +242,17 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 break;
 
             case WM_KEYDOWN:
+                host->OnKeyDown(ProcessKey(wParam));
+                return 0;
             case WM_SYSKEYDOWN:
-            {
-                host->OnKeyDown(0, 0, 0);
-            } return 0;
+                host->OnKeyDown(ProcessKey(wParam));
+                break;
             case WM_KEYUP:
+                host->OnKeyUp(ProcessKey(wParam));
+                return 0;
             case WM_SYSKEYUP:
-            {
-                host->OnKeyUp(0, 0, 0);
-            } return 0;
-
+                host->OnKeyUp(ProcessKey(wParam));
+                break;
 
             case WM_DROPFILES:
             {

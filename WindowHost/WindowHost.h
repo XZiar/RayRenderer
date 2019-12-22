@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WindowHostRely.h"
+#include "WindowEvent.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "common/TimeUtil.hpp"
@@ -53,9 +54,11 @@ private:
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     common::SimpleTimer DrawTimer;
     int32_t Width, Height;
-    int32_t sx = 0, sy = 0, lx = 0, ly = 0;//record x/y, last x/y
+    event::Position LastPos, RecordPos;
+    event::MouseButton PressedButton = event::MouseButton::None;
+    event::ModifierKeys Modifiers = event::ModifierKeys::None;
     uint8_t IsMovingMouse = 0;
-    bool HasMoved = false;
+    bool HasMoved = false, MouseHasLeft = true;
 
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
     ~WindowHost_() override;
@@ -69,28 +72,35 @@ protected:
     virtual void OnDisplay() noexcept;
 
     virtual void OnResize(int32_t width, int32_t height) noexcept;
-    virtual void OnMouseMove(int32_t dx, int32_t dy, int32_t flags) noexcept;
-    virtual void OnMouseWheel(int32_t posx, int32_t posy, float dz, int32_t flags) noexcept;
-    virtual void OnKeyDown(int32_t posx, int32_t posy, int32_t key) noexcept;
-    virtual void OnKeyUp(int32_t posx, int32_t posy, int32_t key) noexcept;
+    virtual void OnMouseEnter(event::Position pos) noexcept;
+    virtual void OnMouseLeave() noexcept;
+    virtual void OnMouseMove(event::Position pos) noexcept;
+    virtual void OnMouseWheel(event::Position pos, float dz) noexcept;
+    virtual void OnKeyDown(event::CombinedKey key) noexcept;
+    virtual void OnKeyUp(event::CombinedKey key) noexcept;
     virtual void OnDropFile(std::u16string_view filePath) noexcept;
 public:
     bool Deshake = true;
+
+    event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
+    event::Position     GetLastPosition() const noexcept { return LastPos; }
 
     common::Delegate<WindowHost_&> Openning;
     common::Delegate<WindowHost_&, bool&> Closing;
     common::Delegate<WindowHost_&> Closed;
     common::Delegate<WindowHost_&> Displaying;
     common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> MouseMove;
-    common::Delegate<WindowHost_&, int32_t, int32_t, float, int32_t> MouseWheel;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyDown;
-    common::Delegate<WindowHost_&, int32_t, int32_t, int32_t> KeyUp;
+    common::Delegate<WindowHost_&, const event::MouseEvent&> MouseEnter;
+    common::Delegate<WindowHost_&, const event::MouseEvent&> MouseLeave;
+    common::Delegate<WindowHost_&, const event::MouseMoveEvent&> MouseMove;
+    common::Delegate<WindowHost_&, const event::MouseWheelEvent&> MouseWheel;
+    common::Delegate<WindowHost_&, const event::KeyEvent&> KeyDown;
+    common::Delegate<WindowHost_&, const event::KeyEvent&> KeyUp;
     common::Delegate<WindowHost_&, std::u16string_view> DropFile;
 
     void Show();
     WindowHost GetSelf();
-    void SetTimerCallback(std::function<bool(WindowHost_&, uint32_t)> funTime, const uint16_t ms);
+    //void SetTimerCallback(std::function<bool(WindowHost_&, uint32_t)> funTime, const uint16_t ms);
     void SetTitle(const std::u16string_view title);
     void Invoke(std::function<void(WindowHost_&)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
