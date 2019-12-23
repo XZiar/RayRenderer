@@ -146,6 +146,18 @@ static event::CombinedKey ProcessKey(WPARAM wParam)
     }
 }
 
+static event::MouseButton TranslateButtonState(WPARAM wParam)
+{
+    event::MouseButton btn = event::MouseButton::None;
+    if (wParam & MK_LBUTTON)
+        btn |= event::MouseButton::Left;
+    if (wParam & MK_MBUTTON)
+        btn |= event::MouseButton::Middle;
+    if (wParam & MK_RBUTTON)
+        btn |= event::MouseButton::Right;
+    return btn;
+}
+
 LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     const auto handle = reinterpret_cast<uintptr_t>(hwnd);
@@ -208,9 +220,13 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_MOUSEMOVE:
             {
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
-                event::Position pos(static_cast<uint32_t>(x), static_cast<uint32_t>(y));
+                event::Position pos(std::max(x, 0), std::max(y, 0));
                 if (host->MouseHasLeft)
                 {
+                    const auto pressed = TranslateButtonState(wParam);
+                    host->RefreshMouseButton(pressed);
+                    host->OnMouseEnter(pos);
+
                     TRACKMOUSEEVENT tme;
                     tme.cbSize = sizeof(TRACKMOUSEEVENT);
                     tme.dwFlags = TME_LEAVE;
@@ -218,7 +234,8 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                     tme.dwHoverTime = 100;
                     TrackMouseEvent(&tme);
                 }
-                host->OnMouseMove(pos);
+                else
+                    host->OnMouseMove(pos);
             } break;
             case WM_MOUSEWHEEL:
             {
@@ -234,13 +251,16 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_LBUTTONDOWN:
             case WM_RBUTTONDOWN:
             case WM_MBUTTONDOWN:
-                break;
-
             case WM_LBUTTONUP:
             case WM_RBUTTONUP:
             case WM_MBUTTONUP:
-                break;
-
+            {
+                const auto pressed = TranslateButtonState(wParam);
+                /*const bool isPress = msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN;
+                TheManager->Logger.verbose(u"Btn state:[{}]\n", common::enum_cast(pressed));*/
+                host->OnMouseButtonChange(pressed);
+            } break;
+            
             case WM_KEYDOWN:
                 host->OnKeyDown(ProcessKey(wParam));
                 return 0;

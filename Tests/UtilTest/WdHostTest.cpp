@@ -14,6 +14,19 @@ static MiniLogger<false>& log()
 }
 
 
+constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
+{
+    using namespace std::string_view_literals;
+    using xziar::gui::event::MouseButton;
+    switch (btn)
+    {
+    case MouseButton::Left: return "L"sv;
+    case MouseButton::Middle: return "M"sv;
+    case MouseButton::Right: return "R"sv;
+    case MouseButton::Left | MouseButton::Right: return "LR"sv;
+    default: return "X"sv;
+    }
+};
 static void WDHost()
 {
     const auto window = WindowHost_::Create();
@@ -38,9 +51,22 @@ static void WDHost()
     {
         log().info(u"Mouse leave at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
     };
-    window->MouseMove   += [](const auto&, const auto& evt)
+    window->MouseButtonDown += [](const auto&, const auto& evt)
     {
-        log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.DeltaX, evt.DeltaY);
+        log().info(u"BtnDown: [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
+    };
+    window->MouseButtonUp   += [](const auto&, const auto& evt)
+    {
+        log().info(u"BtnUp  : [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
+    };
+    /*window->MouseMove   += [](const auto&, const auto& evt)
+    {
+        log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
+    };*/
+    window->MouseDrag   += [](const auto&, const auto& evt)
+    {
+        log().info(u"Mouse drag from [{:4},{:4}] to [{:4},{:4}], just moved [{:4},{:4}]\n", 
+            evt.BeginPos.X, evt.BeginPos.Y, evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
     };
     window->MouseWheel  += [](const auto&, const auto& evt)
     {

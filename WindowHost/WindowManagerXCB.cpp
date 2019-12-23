@@ -9,6 +9,7 @@
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
 #undef Always
+#undef None
 
 constexpr uint32_t MessageCreate = 1;
 
@@ -17,6 +18,18 @@ namespace xziar::gui::detail
 {
 
 static thread_local WindowManager* TheManager;
+
+
+static event::MouseButton TranslateButtonState(xcb_button_t xcbbtn)
+{
+    switch (xcbbtn)
+    {
+    case XCB_BUTTON_INDEX_1: return event::MouseButton::Left;
+    case XCB_BUTTON_INDEX_2: return event::MouseButton::Middle;
+    case XCB_BUTTON_INDEX_3: return event::MouseButton::Right;
+    default:                 return event::MouseButton::None;
+    }
+}
 
 class WindowManagerXCB : public WindowManager
 {
@@ -210,6 +223,18 @@ public:
                 {
                     host->OnMouseLeave();
                 }
+            } break;
+            case XCB_BUTTON_PRESS:
+            case XCB_BUTTON_RELEASE:
+            {
+                const auto& msg = *reinterpret_cast<xcb_button_press_event_t*>(event);
+                if (const auto host = GetWindow(msg.event); host)
+                {
+                    const bool isPress = (event->response_type & 0x7f) == XCB_BUTTON_PRESS;
+                    const auto btn = TranslateButtonState(msg.detail);
+                    host->OnMouseButton(btn, isPress);
+                }
+
             } break;
             case XCB_CONFIGURE_NOTIFY:
             {

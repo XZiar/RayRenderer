@@ -8,11 +8,23 @@ namespace xziar::gui::event
 {
 
 
+struct Distance
+{
+    int32_t X, Y;
+    constexpr Distance() noexcept : X(0), Y(0) { }
+    constexpr Distance(int32_t x, int32_t y) noexcept : X(x), Y(y) { }
+};
 struct Position
 {
     uint32_t X, Y;
     constexpr Position() noexcept : X(0), Y(0) { }
     constexpr Position(uint32_t x, uint32_t y) noexcept : X(x), Y(y) { }
+    constexpr Distance operator-(const Position other) const noexcept
+    {
+        const auto dx = static_cast<int32_t>(static_cast<int64_t>(X) - static_cast<int64_t>(other.X));
+        const auto dy = static_cast<int32_t>(static_cast<int64_t>(Y) - static_cast<int64_t>(other.Y));
+        return Distance(dx, dy);
+    }
 };
 
 
@@ -25,11 +37,22 @@ struct MouseEvent
 
 struct MouseMoveEvent : public MouseEvent
 {
-    int32_t DeltaX, DeltaY;
-    constexpr MouseMoveEvent(Position lastPos, Position curPos) noexcept : MouseEvent(curPos),
-        DeltaX(static_cast<int32_t>(curPos.X - lastPos.X)),
-        DeltaY(static_cast<int32_t>(curPos.Y - lastPos.Y))
-    { }
+    Distance Delta;
+    constexpr MouseMoveEvent(Position lastPos, Position curPos) noexcept : 
+        MouseEvent(curPos), Delta(curPos - lastPos) { }
+};
+
+
+struct MouseDragEvent : public MouseEvent
+{
+    Position BeginPos;
+    Distance Delta;
+    constexpr MouseDragEvent(Position beginPos, Position lastPos, Position curPos) noexcept :
+        MouseEvent(curPos), BeginPos(beginPos), Delta(curPos - lastPos) { }
+    constexpr Distance TotalDistance() const noexcept
+    {
+        return Pos - BeginPos;
+    }
 };
 
 
@@ -41,7 +64,7 @@ struct MouseWheelEvent : public MouseEvent
 };
 
 
-enum class MouseButton : uint8_t { None = 0x0, Left = 0x1, Middle = 0x2, Right = 0x3 };
+enum class MouseButton : uint8_t { None = 0x0, Left = 0x1, Middle = 0x2, Right = 0x4 };
 MAKE_ENUM_BITFIELD(MouseButton)
 
 struct MouseButtonEvent : public MouseEvent
@@ -50,6 +73,18 @@ struct MouseButtonEvent : public MouseEvent
     MouseButton ChangedButton;
     constexpr MouseButtonEvent(Position curPos, const MouseButton pressed, const MouseButton changed) noexcept :
         MouseEvent(curPos), PressedButton(pressed), ChangedButton(changed) { }
+    constexpr bool HasPressLeftButton() const noexcept
+    {
+        return HAS_FIELD(PressedButton, MouseButton::Left);
+    }
+    constexpr bool HasPressMiddleButton() const noexcept
+    {
+        return HAS_FIELD(PressedButton, MouseButton::Middle);
+    }
+    constexpr bool HasPressRightButton() const noexcept
+    {
+        return HAS_FIELD(PressedButton, MouseButton::Right);
+    }
 };
 
 

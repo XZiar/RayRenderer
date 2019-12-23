@@ -54,11 +54,10 @@ private:
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     common::SimpleTimer DrawTimer;
     int32_t Width, Height;
-    event::Position LastPos, RecordPos;
+    event::Position LastPos, LeftBtnPos;
     event::MouseButton PressedButton = event::MouseButton::None;
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
-    uint8_t IsMovingMouse = 0;
-    bool HasMoved = false, MouseHasLeft = true;
+    bool IsMouseDragging = false, MouseHasLeft = true;
 
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
     ~WindowHost_() override;
@@ -66,6 +65,7 @@ private:
     void OnStop() noexcept override final;
     LoopState OnLoop() override final;
     void Initialize();
+    void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
     virtual void OnOpen() noexcept;
     virtual void OnClose() noexcept;
@@ -74,13 +74,14 @@ protected:
     virtual void OnResize(int32_t width, int32_t height) noexcept;
     virtual void OnMouseEnter(event::Position pos) noexcept;
     virtual void OnMouseLeave() noexcept;
+    virtual void OnMouseButton(event::MouseButton changedBtn, bool isPress) noexcept;
+    virtual void OnMouseButtonChange(event::MouseButton btn) noexcept;
     virtual void OnMouseMove(event::Position pos) noexcept;
     virtual void OnMouseWheel(event::Position pos, float dz) noexcept;
     virtual void OnKeyDown(event::CombinedKey key) noexcept;
     virtual void OnKeyUp(event::CombinedKey key) noexcept;
     virtual void OnDropFile(std::u16string_view filePath) noexcept;
 public:
-    bool Deshake = true;
 
     event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
     event::Position     GetLastPosition() const noexcept { return LastPos; }
@@ -92,7 +93,10 @@ public:
     common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
     common::Delegate<WindowHost_&, const event::MouseEvent&> MouseEnter;
     common::Delegate<WindowHost_&, const event::MouseEvent&> MouseLeave;
+    common::Delegate<WindowHost_&, const event::MouseButtonEvent&> MouseButtonDown;
+    common::Delegate<WindowHost_&, const event::MouseButtonEvent&> MouseButtonUp;
     common::Delegate<WindowHost_&, const event::MouseMoveEvent&> MouseMove;
+    common::Delegate<WindowHost_&, const event::MouseDragEvent&> MouseDrag;
     common::Delegate<WindowHost_&, const event::MouseWheelEvent&> MouseWheel;
     common::Delegate<WindowHost_&, const event::KeyEvent&> KeyDown;
     common::Delegate<WindowHost_&, const event::KeyEvent&> KeyUp;

@@ -81,6 +81,11 @@ void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
     Width = width; Height = height;
 }
 
+void WindowHost_::RefreshMouseButton(event::MouseButton pressed) noexcept
+{
+    PressedButton = pressed;
+}
+
 void WindowHost_::OnMouseEnter(event::Position pos) noexcept
 {
     event::MouseEvent evt(pos);
@@ -96,18 +101,77 @@ void WindowHost_::OnMouseLeave() noexcept
     MouseHasLeft = true;
 }
 
-void WindowHost_::OnMouseMove(event::Position pos) noexcept
+void WindowHost_::OnMouseButton(event::MouseButton changedBtn, bool isPress) noexcept
 {
-    if (MouseHasLeft)
+    if (isPress)
     {
-        OnMouseEnter(pos);
+        PressedButton |= changedBtn;
+        if (changedBtn == event::MouseButton::Left)
+            LeftBtnPos = LastPos;
     }
     else
     {
-        event::MouseMoveEvent evt(LastPos, pos);
-        MouseMove(*this, evt);
-        LastPos = pos;
+        PressedButton &= ~changedBtn;
+        if (changedBtn == event::MouseButton::Left)
+            IsMouseDragging = false;
     }
+
+    event::MouseButtonEvent evt(LastPos, PressedButton, changedBtn);
+    
+    if (isPress)
+        MouseButtonDown(*this, evt);
+    else
+        MouseButtonUp(*this, evt);
+}
+
+void WindowHost_::OnMouseButtonChange(event::MouseButton btn) noexcept
+{
+    if (btn == PressedButton)
+        return;
+    const auto changed = btn ^ PressedButton;
+    const auto released = changed & PressedButton;
+    const auto pressed  = changed & btn;
+
+    if (HAS_FIELD(pressed, event::MouseButton::Left))
+        LeftBtnPos = LastPos;
+    else if (HAS_FIELD(released, event::MouseButton::Left))
+        IsMouseDragging = false;
+    
+    if (released != event::MouseButton::None) // already pressed button changed
+    {
+        event::MouseButtonEvent evt(LastPos, btn, released);
+        MouseButtonUp(*this, evt);
+    }
+    if (pressed != event::MouseButton::None) // not pressed button changed
+    {
+        event::MouseButtonEvent evt(LastPos, btn, pressed);
+        MouseButtonDown(*this, evt);
+    }
+
+    PressedButton = btn;
+}
+
+void WindowHost_::OnMouseMove(event::Position pos) noexcept
+{
+    event::MouseMoveEvent evt(LastPos, pos);
+    MouseMove(*this, evt);
+    if (HAS_FIELD(PressedButton, event::MouseButton::Left))
+    {
+        if (!IsMouseDragging)
+        {
+            const auto delta = pos - LeftBtnPos;
+            if (std::abs(delta.X * 500.f) > Width || std::abs(delta.Y * 500.f) > Height)
+                IsMouseDragging = true;
+            /*else
+                Manager->Logger.verbose(u"delta[{},{}] pending not drag\n", delta.X, delta.Y);*/
+        }
+        if (IsMouseDragging)
+        {
+            event::MouseDragEvent dragEvt(LeftBtnPos, LastPos, pos);
+            MouseDrag(*this, dragEvt);
+        }
+    }
+    LastPos = pos;
 }
 
 void WindowHost_::OnMouseWheel(event::Position pos, float dz) noexcept
@@ -125,7 +189,7 @@ void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
 
 void WindowHost_::OnKeyUp(event::CombinedKey key) noexcept
 {
-    Modifiers |= ~key.GetModifier();
+    Modifiers &= ~key.GetModifier();
     event::KeyEvent evt(LastPos, Modifiers, key);
     KeyUp(*this, evt);
 }
