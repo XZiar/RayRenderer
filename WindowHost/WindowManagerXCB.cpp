@@ -11,7 +11,8 @@
 #undef Always
 #undef None
 
-constexpr uint32_t MessageCreate = 1;
+constexpr uint32_t MessageCreate    = 1;
+constexpr uint32_t MessageTask      = 2;
 
 
 namespace xziar::gui::detail
@@ -75,6 +76,27 @@ private:
         xcb_atom_t atom = reply->atom;
         free(reply);
         return atom;
+    }
+    void SenqControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) noexcept
+    {
+        xcb_client_message_event_t event;
+        event.response_type = XCB_CLIENT_MESSAGE;
+        event.format = 32;
+        event.type = MsgAtom;
+        event.window = ControlWindow;
+        event.data.data32[0] = request;
+        event.data.data32[1] = data0;
+        event.data.data32[2] = data1;
+        event.data.data32[3] = data2;
+        event.data.data32[4] = data3;
+        xcb_send_event(
+            Connection,
+            False,
+            ControlWindow,
+            XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+            reinterpret_cast<const char*>(&event)
+        );
+        xcb_flush(Connection);
     }
 public:
     WindowManagerXCB() { }
@@ -151,6 +173,10 @@ public:
             const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
             const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
             CreateNewWindow_(host);
+        } break;
+        case MessageTask:
+        {
+            HandleTask();
         } break;
         }
     }
@@ -298,7 +324,7 @@ public:
         );
         GeneralHandleError(cookie0);
 
-        WindowList.emplace_back(static_cast<uintptr_t>(window), host);
+        RegisterHost(window, host);
 
         // set close
         xcb_change_property(
@@ -323,25 +349,16 @@ public:
         xcb_map_window(Connection, window);
         xcb_flush(Connection);
     }
+    void NotifyTask() noexcept override
+    {
+        SenqControlRequest(MessageTask);
+    }
     void CreateNewWindow(WindowHost_* host) override
     {
-        xcb_client_message_event_t event;
-        event.response_type = XCB_CLIENT_MESSAGE;
-        event.format = 32;
-        event.type = MsgAtom;
-        event.window = ControlWindow;
         const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
-        event.data.data32[0] = MessageCreate;
-        event.data.data32[1] = static_cast<uint32_t>(ptr & 0xffffffff);
-        event.data.data32[2] = static_cast<uint32_t>((ptr >> 32) & 0xffffffff);
-        xcb_send_event(
-            Connection,
-            False,
-            ControlWindow,
-            XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-            reinterpret_cast<const char*>(&event)
-        );
-        xcb_flush(Connection);
+        SenqControlRequest(MessageCreate, 
+            static_cast<uint32_t>( ptr        & 0xffffffff), 
+            static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }
     void CloseWindow(WindowHost_* host) override
     {
@@ -350,6 +367,7 @@ public:
     }
     void ReleaseWindow(WindowHost_* host) override
     {
+        UnregisterHost(host);
     }
 };
 

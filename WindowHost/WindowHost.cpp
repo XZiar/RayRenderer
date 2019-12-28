@@ -213,6 +213,11 @@ WindowHost WindowHost_::GetSelf()
 }
 
 
+void WindowHost_::Invoke(std::function<void(void)> task)
+{
+    Manager->AddInvoke(std::move(task));
+}
+
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
 {
     InvokeList.AppendNode(new InvokeNode(std::move(task)));

@@ -67,6 +67,7 @@ private:
     void Initialize();
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
+
     virtual void OnOpen() noexcept;
     virtual void OnClose() noexcept;
     virtual void OnDisplay() noexcept;
@@ -106,7 +107,7 @@ public:
     WindowHost GetSelf();
     //void SetTimerCallback(std::function<bool(WindowHost_&, uint32_t)> funTime, const uint16_t ms);
     void SetTitle(const std::u16string_view title);
-    void Invoke(std::function<void(WindowHost_&)> task);
+    void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
 
     void Invalidate();

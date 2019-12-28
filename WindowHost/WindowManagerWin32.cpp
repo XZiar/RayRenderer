@@ -11,7 +11,9 @@
 #include <Windows.h>
 #include <windowsx.h>
 #include <shellapi.h>
-constexpr uint32_t MessageCreate = WM_USER + 1;
+
+constexpr uint32_t MessageCreate    = WM_USER + 1;
+constexpr uint32_t MessageTask      = WM_USER + 2;
 
 
 namespace xziar::gui::detail
@@ -58,6 +60,12 @@ public:
     {
         TheManager = nullptr;
     }
+    void NotifyTask() noexcept override
+    {
+        PostThreadMessageW(ThreadId, MessageTask, NULL, NULL);
+        if (const auto err = GetLastError(); err != NO_ERROR)
+            Logger.error(u"Error when post thread message: {}\n", err);
+    }
 
     void MessageLoop() override
     {
@@ -72,6 +80,9 @@ public:
                 {
                 case MessageCreate:
                     CreateNewWindow_(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    continue;
+                case MessageTask:
+                    HandleTask();
                     continue;
                 }
             }
@@ -89,7 +100,7 @@ public:
             host->Width, host->Height, // width, height
             NULL, NULL, // parent window, menu
             reinterpret_cast<HINSTANCE>(InstanceHandle), host); // instance, param
-        WindowList.emplace_back(reinterpret_cast<uintptr_t>(hwnd), host);
+        RegisterHost(hwnd, host);
         ShowWindow(hwnd, SW_SHOW);
     }
     void CreateNewWindow(WindowHost_* host) override
@@ -105,12 +116,13 @@ public:
     }
     void ReleaseWindow(WindowHost_* host) override
     {
+        UnregisterHost(host);
         ReleaseDC(reinterpret_cast<HWND>(host->Handle), reinterpret_cast<HDC>(host->DCHandle));
     }
 };
 
 
-static event::CombinedKey ProcessKey(WPARAM wParam)
+static constexpr event::CombinedKey ProcessKey(WPARAM wParam) noexcept
 {
     using event::CommonKeys;
     switch (wParam)

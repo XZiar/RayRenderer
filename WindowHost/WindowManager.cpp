@@ -28,6 +28,29 @@ WindowManager::WindowManager() :
     Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
 { }
 
+bool WindowManager::UnregisterHost(WindowHost_* host)
+{
+    for (auto it = WindowList.begin(); it != WindowList.end(); ++it)
+    {
+        if (it->second == host)
+        {
+            WindowList.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
+void WindowManager::HandleTask()
+{
+    while (!InvokeList.IsEmpty())
+    {
+        auto task = InvokeList.Begin();
+        task->Task();
+        InvokeList.PopNode(task);
+    }
+}
+
 WindowManager::~WindowManager()
 {
     Stop();
@@ -66,6 +89,12 @@ LoopBase::LoopState WindowManager::OnLoop()
     return LoopBase::LoopState::Finish;
 }
 
+
+void WindowManager::AddInvoke(std::function<void(void)>&& task)
+{
+    InvokeList.AppendNode(new InvokeNode(std::move(task)));
+    NotifyTask();
+}
 
 std::shared_ptr<WindowManager> WindowManager::Get()
 {
