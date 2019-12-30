@@ -27,6 +27,7 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
     default: return "X"sv;
     }
 };
+
 static void WDHost()
 {
     const auto window = WindowHost_::Create();
@@ -71,7 +72,20 @@ static void WDHost()
     window->MouseWheel  += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse wheel [{:6.3f}] at [{:4},{:4}].\n", evt.Delta, evt.Pos.X, evt.Pos.Y);
+    }; 
+    const auto keyHandler = [](const auto&, const auto& evt)
+    {
+        using namespace std::string_view_literals;
+        const auto printKey = evt.ChangedKey.TryGetPrintable();
+        const auto ascii = printKey.value_or(' ');
+        const auto number = printKey.has_value() ? 0 : common::enum_cast(evt.ChangedKey.Key);
+        log().info(u"Key changed [{}][{:4}] when [{}|{}|{}].\n", ascii, number,
+            evt.HasCtrl()  ? "Ctrl"sv  : "    "sv,
+            evt.HasShift() ? "Shift"sv : "     "sv,
+            evt.HasAlt()   ? "Alt"sv   : "   "sv);
     };
+    window->KeyDown += keyHandler;
+    window->KeyUp   += keyHandler;
     window->Show();
     getchar();
     window->Close();

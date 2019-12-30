@@ -125,6 +125,12 @@ public:
 static constexpr event::CombinedKey ProcessKey(WPARAM wParam) noexcept
 {
     using event::CommonKeys;
+    if (wParam >= 'A' && wParam <= 'Z')
+        return static_cast<uint8_t>(wParam);
+    if (wParam >= '0' && wParam <= '9')
+        return static_cast<uint8_t>(wParam);
+    if (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
+        return static_cast<uint8_t>(wParam - VK_NUMPAD0 + '0');
     switch (wParam)
     {
     case VK_F1:         return CommonKeys::F1;
@@ -139,22 +145,35 @@ static constexpr event::CombinedKey ProcessKey(WPARAM wParam) noexcept
     case VK_F10:        return CommonKeys::F10;
     case VK_F11:        return CommonKeys::F11;
     case VK_F12:        return CommonKeys::F12;
-    case VK_PRIOR:      return CommonKeys::PageUp;
-    case VK_NEXT:       return CommonKeys::PageDown;
+    case VK_LEFT:       return CommonKeys::Left;
+    case VK_UP:         return CommonKeys::Up;
+    case VK_RIGHT:      return CommonKeys::Right;
+    case VK_DOWN:       return CommonKeys::Down;
     case VK_HOME:       return CommonKeys::Home;
     case VK_END:        return CommonKeys::End;
-    case VK_LEFT:       return CommonKeys::Left;
-    case VK_RIGHT:      return CommonKeys::Right;
-    case VK_UP:         return CommonKeys::Up;
-    case VK_DOWN:       return CommonKeys::Down;
+    case VK_PRIOR:      return CommonKeys::PageUp;
+    case VK_NEXT:       return CommonKeys::PageDown;
     case VK_INSERT:     return CommonKeys::Insert;
-    case VK_LCONTROL:   return CommonKeys::LeftCtrl;
-    case VK_RCONTROL:   return CommonKeys::RightCtrl;
-    case VK_LSHIFT:     return CommonKeys::LeftShift;
-    case VK_RSHIFT:     return CommonKeys::RightShift;
-    case VK_LMENU:      return CommonKeys::LeftAlt;
-    case VK_RMENU:      return CommonKeys::RightAlt;
-    default:            return CommonKeys::UNDEFINE;
+    case VK_CONTROL:    return CommonKeys::Ctrl;
+    case VK_SHIFT:      return CommonKeys::Shift;
+    case VK_MENU:       return CommonKeys::Alt;
+    case VK_ESCAPE:     return CommonKeys::Esc;
+    case VK_BACK:       return CommonKeys::Backspace;
+    case VK_DELETE:     return CommonKeys::Delete;
+    case VK_SPACE:      return CommonKeys::Space;
+    case VK_TAB:        return CommonKeys::Tab;
+    case VK_RETURN:     return CommonKeys::Enter;
+    case VK_ADD:
+    case VK_OEM_PLUS:   return '+';
+    case VK_SUBTRACT:
+    case VK_OEM_MINUS:  return '-';
+    case VK_MULTIPLY:   return '*';
+    case VK_DIVIDE:     return '/';
+    case VK_OEM_COMMA:  return ',';
+    case VK_DECIMAL:
+    case VK_OEM_PERIOD: return '.';
+    default:            
+        return CommonKeys::UNDEFINE;
     }
 }
 
@@ -232,7 +251,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_MOUSEMOVE:
             {
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
-                event::Position pos(std::max(x, 0), std::max(y, 0));
+                event::Position pos(x, y);
                 if (host->MouseHasLeft)
                 {
                     const auto pressed = TranslateButtonState(wParam);
@@ -256,7 +275,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
                 POINT point{ x,y };
                 ScreenToClient(hwnd, &point);
-                event::Position pos(static_cast<uint32_t>(point.x), static_cast<uint32_t>(point.y));
+                event::Position pos(point.x, point.y);
                 host->OnMouseWheel(pos, dz / 120.f);
             } break;
 
@@ -271,6 +290,10 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 /*const bool isPress = msg == WM_LBUTTONDOWN || msg == WM_MBUTTONDOWN || msg == WM_RBUTTONDOWN;
                 TheManager->Logger.verbose(u"Btn state:[{}]\n", common::enum_cast(pressed));*/
                 host->OnMouseButtonChange(pressed);
+                if (msg == WM_LBUTTONDOWN)
+                    SetCapture(hwnd);
+                else if (msg == WM_LBUTTONUP)
+                    ReleaseCapture();
             } break;
             
             case WM_KEYDOWN:

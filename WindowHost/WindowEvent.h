@@ -16,14 +16,12 @@ struct Distance
 };
 struct Position
 {
-    uint32_t X, Y;
+    int32_t X, Y;
     constexpr Position() noexcept : X(0), Y(0) { }
-    constexpr Position(uint32_t x, uint32_t y) noexcept : X(x), Y(y) { }
+    constexpr Position(int32_t x, int32_t y) noexcept : X(x), Y(y) { }
     constexpr Distance operator-(const Position other) const noexcept
     {
-        const auto dx = static_cast<int32_t>(static_cast<int64_t>(X) - static_cast<int64_t>(other.X));
-        const auto dy = static_cast<int32_t>(static_cast<int64_t>(Y) - static_cast<int64_t>(other.Y));
-        return Distance(dx, dy);
+        return Distance(X - other.X, Y - other.Y);
     }
 };
 
@@ -91,18 +89,22 @@ struct MouseButtonEvent : public MouseEvent
 enum class ModifierKeys : uint8_t
 {
     None = 0x0,
-    LeftCtrl = 0x1, RightCtrl = 0x2,
-    LeftShift = 0x4, RightShift = 0x8,
-    LeftAlt = 0x10, RightAlt = 0x20,
+    Ctrl = 0x1,
+    Shift = 0x2,
+    Alt = 0x4,
 };
 MAKE_ENUM_BITFIELD(ModifierKeys)
 
 enum class CommonKeys : uint8_t
 {
-    None = 0, Space = ' ', ESC = 27, Enter = 13, Delete = 127, Backspace = 8,
+    None = 0, Esc = 27, Delete = 127, Backspace = 8, 
+    Add = '+', Minus = '-', Multiple = '*', Divide = '/', Comma = ',', Dot = '.',
+    Space = ' ', Tab = '\t', Enter = '\r',
     F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-    Left, Up, Right, Down, Home, End, PageUp, PageDown, Insert,
-    LeftCtrl, RightCtrl, LeftShift, RightShift, LeftAlt, RightAlt,
+    Left, Up, Right, Down, 
+    Home, End, PageUp, PageDown, 
+    Insert,
+    Ctrl, Shift, Alt,
     UNDEFINE = 255
 };
 
@@ -123,17 +125,25 @@ struct CombinedKey
             return static_cast<char>(Key);
         return {};
     }
+    constexpr std::optional<char> TryGetPrintable() const noexcept
+    {
+        const auto ascii = common::enum_cast(Key);
+        if (ascii >= '0' && ascii <= '9')
+            return ascii;
+        if (ascii >= 'A' && ascii <= 'Z')
+            return ascii;
+        if (ascii >= 'a' && ascii <= 'z')
+            return ascii;
+        return {};
+    }
     constexpr ModifierKeys GetModifier() const noexcept
     {
         switch (Key)
         {
-        case CommonKeys::LeftCtrl:      return ModifierKeys::LeftCtrl;
-        case CommonKeys::RightCtrl:     return ModifierKeys::RightCtrl;
-        case CommonKeys::LeftShift:     return ModifierKeys::LeftShift;
-        case CommonKeys::RightShift:    return ModifierKeys::RightShift;
-        case CommonKeys::LeftAlt:       return ModifierKeys::LeftAlt;
-        case CommonKeys::RightAlt:      return ModifierKeys::RightAlt;
-        default:                        return ModifierKeys::None;
+        case CommonKeys::Ctrl:  return ModifierKeys::Ctrl;
+        case CommonKeys::Shift: return ModifierKeys::Shift;
+        case CommonKeys::Alt:   return ModifierKeys::Alt;
+        default:                return ModifierKeys::None;
         }
     }
 };
@@ -147,15 +157,15 @@ struct KeyEvent
         Pos(curPos), Modifiers(modifiers), ChangedKey(changed) { }
     constexpr bool HasCtrl() const noexcept
     {
-        return HAS_FIELD(Modifiers, ModifierKeys::LeftCtrl) || HAS_FIELD(Modifiers, ModifierKeys::RightCtrl);
+        return HAS_FIELD(Modifiers, ModifierKeys::Ctrl);
     }
     constexpr bool HasShift() const noexcept
     {
-        return HAS_FIELD(Modifiers, ModifierKeys::LeftShift) || HAS_FIELD(Modifiers, ModifierKeys::RightShift);
+        return HAS_FIELD(Modifiers, ModifierKeys::Shift);
     }
     constexpr bool HasAlt() const noexcept
     {
-        return HAS_FIELD(Modifiers, ModifierKeys::LeftAlt) || HAS_FIELD(Modifiers, ModifierKeys::RightAlt);
+        return HAS_FIELD(Modifiers, ModifierKeys::Alt);
     }
 };
 
