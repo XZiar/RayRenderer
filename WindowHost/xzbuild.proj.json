@@ -6,7 +6,7 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["X11", "X11-xcb"]
+        "dynamic": ["X11", "X11-xcb", "xkbcommon", "xkbcommon-x11"]
     },
     "targets":
     {

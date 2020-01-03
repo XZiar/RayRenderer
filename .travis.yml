@@ -22,6 +22,8 @@ matrix:
             - unzip
             - python3-pip
             - libx11-dev
+            - libxkbcommon-dev
+            - libxkbcommon-x11-dev
             - libgl1-mesa-dev
             - libglu1-mesa-dev
             - libxi-dev
@@ -46,6 +48,8 @@ matrix:
             - unzip
             - python3-pip
             - libx11-dev
+            - libxkbcommon-dev
+            - libxkbcommon-x11-dev
             - libgl1-mesa-dev
             - libglu1-mesa-dev
             - libxi-dev
@@ -74,6 +78,8 @@ matrix:
             - unzip
             - python3-pip
             - libx11-dev
+            - libxkbcommon-dev
+            - libxkbcommon-x11-dev
             - libgl1-mesa-dev
             - libglu1-mesa-dev
             - libxi-dev
@@ -102,6 +108,8 @@ matrix:
             - unzip
             - python3-pip
             - libx11-dev
+            - libxkbcommon-dev
+            - libxkbcommon-x11-dev
             - libgl1-mesa-dev
             - libglu1-mesa-dev
             - libxi-dev

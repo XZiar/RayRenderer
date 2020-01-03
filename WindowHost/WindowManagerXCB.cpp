@@ -8,11 +8,14 @@
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 #include <xcb/xcb.h>
+#include <xkbcommon/xkbcommon.h>
+#include <xkbcommon/xkbcommon-x11.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #undef Always
 #undef None
 
-constexpr uint32_t MessageCreate    = 1;
-constexpr uint32_t MessageTask      = 2;
+constexpr uint32_t MessageCreate = 1;
+constexpr uint32_t MessageTask = 2;
 
 
 namespace xziar::gui::detail
@@ -37,6 +40,9 @@ class WindowManagerXCB : public WindowManager
 private:
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
+    xkb_context* XKBContext = nullptr;
+    xkb_keymap* XKBKeymap = nullptr;
+    xkb_state* XKBState = nullptr;
     xcb_screen_t* Screen = nullptr;
     xcb_window_t ControlWindow = 0;
     xcb_atom_t MsgAtom;
@@ -123,6 +129,11 @@ public:
             COMMON_THROW(BaseException, u"Can't get xcb connection from display");
         }
 
+        XKBContext = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+        const auto kbId = xkb_x11_get_core_keyboard_device_id(Connection);
+        XKBKeymap = xkb_x11_keymap_new_from_device(XKBContext, Connection, kbId, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        XKBState = xkb_x11_state_new_from_device(XKBKeymap, Connection, kbId);
+
         // Find XCB screen
         auto screenIter = xcb_setup_roots_iterator(xcb_get_setup(Connection));
         for (auto screenCnt = defScreen; screenIter.rem && screenCnt--;)
@@ -161,6 +172,11 @@ public:
     {
         TheManager = nullptr;
         xcb_destroy_window(Connection, ControlWindow);
+
+        xkb_state_unref(XKBState);
+        xkb_keymap_unref(XKBKeymap);
+        xkb_context_unref(XKBContext);
+
         xcb_disconnect(Connection);
     }
 
@@ -192,6 +208,71 @@ public:
             }
         }
 
+    }
+
+    event::CombinedKey ProcessKey(xcb_keycode_t keycode) noexcept
+    {
+        using event::CommonKeys;
+        const auto keysym = xkb_state_key_get_one_sym(XKBState, keycode);
+        if (keysym >= XKB_KEY_A && keysym <= XKB_KEY_Z)
+            return static_cast<uint8_t>(keysym - XKB_KEY_A + 'A');
+        if (keysym >= XKB_KEY_a && keysym <= XKB_KEY_z)
+            return static_cast<uint8_t>(keysym - XKB_KEY_a + 'A');
+        if (keysym >= XKB_KEY_0 && keysym <= XKB_KEY_9)
+            return static_cast<uint8_t>(keysym - XKB_KEY_0 + '0');
+        if (keysym >= XKB_KEY_KP_0 && keysym <= XKB_KEY_KP_9)
+            return static_cast<uint8_t>(keysym - XKB_KEY_KP_0 + '0');
+        switch (keysym)
+        {
+        case XKB_KEY_F1:            return CommonKeys::F1;
+        case XKB_KEY_F2:            return CommonKeys::F2;
+        case XKB_KEY_F3:            return CommonKeys::F3;
+        case XKB_KEY_F4:            return CommonKeys::F4;
+        case XKB_KEY_F5:            return CommonKeys::F5;
+        case XKB_KEY_F6:            return CommonKeys::F6;
+        case XKB_KEY_F7:            return CommonKeys::F7;
+        case XKB_KEY_F8:            return CommonKeys::F8;
+        case XKB_KEY_F9:            return CommonKeys::F9;
+        case XKB_KEY_F10:           return CommonKeys::F10;
+        case XKB_KEY_F11:           return CommonKeys::F11;
+        case XKB_KEY_F12:           return CommonKeys::F12;
+        case XKB_KEY_KP_Left:
+        case XKB_KEY_Left:          return CommonKeys::Left;
+        case XKB_KEY_KP_Up:
+        case XKB_KEY_Up:            return CommonKeys::Up;
+        case XKB_KEY_KP_Right:
+        case XKB_KEY_Right:         return CommonKeys::Right;
+        case XKB_KEY_KP_Down:
+        case XKB_KEY_Down:          return CommonKeys::Down;
+        case XKB_KEY_Home:          return CommonKeys::Home;
+        case XKB_KEY_End:           return CommonKeys::End;
+        case XKB_KEY_Page_Up:       return CommonKeys::PageUp;
+        case XKB_KEY_Page_Down:     return CommonKeys::PageDown;
+        case XKB_KEY_Insert:        return CommonKeys::Insert;
+        case XKB_KEY_Control_L:     return CommonKeys::Ctrl;
+        case XKB_KEY_Control_R:     return CommonKeys::Ctrl;
+        case XKB_KEY_Shift_L:       return CommonKeys::Shift;
+        case XKB_KEY_Shift_R:       return CommonKeys::Shift;
+        case XKB_KEY_Alt_L:         return CommonKeys::Alt;
+        case XKB_KEY_Alt_R:         return CommonKeys::Alt;
+        case XKB_KEY_Escape:        return CommonKeys::Esc;
+        case XKB_KEY_BackSpace:     return CommonKeys::Backspace;
+        case XKB_KEY_Delete:        return CommonKeys::Delete;
+        case XKB_KEY_space:         return CommonKeys::Space;
+        case XKB_KEY_Tab:
+        case XKB_KEY_KP_Tab:        return CommonKeys::Tab;
+        case XKB_KEY_Return:
+        case XKB_KEY_KP_Enter:      return CommonKeys::Enter;
+        case XKB_KEY_KP_Add:        return '+';
+        case XKB_KEY_KP_Subtract:   return '-';
+        case XKB_KEY_KP_Multiply:   return '*';
+        case XKB_KEY_KP_Divide:     return '/';
+        case XKB_KEY_comma:
+        case XKB_KEY_KP_Separator:  return ',';
+        case XKB_KEY_period:        return '.';
+        default:
+            return CommonKeys::UNDEFINE;
+        }
     }
 
     void MessageLoop() override
@@ -261,6 +342,20 @@ public:
                     host->OnMouseButton(btn, isPress);
                 }
 
+            } break;
+            case XCB_KEY_PRESS:
+            case XCB_KEY_RELEASE:
+            {
+                const auto& msg = *reinterpret_cast<xcb_key_press_event_t*>(event);
+                if (const auto host = GetWindow(msg.event); host)
+                {
+                    const auto key = ProcessKey(msg.detail);
+                    // Logger.verbose(u"key: [{}] => [{}]\n", (uint32_t)msg.detail, common::enum_cast(key.Key));
+                    if ((event->response_type & 0x7f) == XCB_KEY_PRESS)
+                        host->OnKeyDown(key);
+                    else
+                        host->OnKeyUp(key);
+                }
             } break;
             case XCB_CONFIGURE_NOTIFY:
             {
@@ -356,8 +451,8 @@ public:
     void CreateNewWindow(WindowHost_* host) override
     {
         const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
-        SenqControlRequest(MessageCreate, 
-            static_cast<uint32_t>( ptr        & 0xffffffff), 
+        SenqControlRequest(MessageCreate,
+            static_cast<uint32_t>(ptr & 0xffffffff),
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }
     void CloseWindow(WindowHost_* host) override
