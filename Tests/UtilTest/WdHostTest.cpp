@@ -30,15 +30,14 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
 
 static void WDHost()
 {
-    const auto window = WindowHost_::Create();
+    const auto window = WindowHost_::CreateActive();
     window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
     window->Closing     += [](const auto&, bool& should) { should = true; };
     window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
-    window->Displaying  += [first = true](const auto&) mutable
+    window->Displaying  += [idx = 0u](const auto&) mutable
     {
-        if (first)
+        if (idx++ % 1000 == 0)
             log().info(u"display.\n"); 
-        first = false;
     };
     window->Resizing    += [](const auto&, int32_t width, int32_t height)
     {

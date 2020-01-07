@@ -2,6 +2,7 @@
 #include "Win32MsgName.hpp"
 #include "WindowHost.h"
 
+//#include "SystemCommon/SystemCommonRely.h"
 #include "common/ContainerEx.hpp"
 #include "common/PromiseTaskSTD.hpp"
 
@@ -33,6 +34,20 @@ public:
     WindowManagerWin32() { }
     ~WindowManagerWin32() override { }
 
+    static void SetDPIMode()
+    {
+        const auto dpimodes =
+        {
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE,
+            DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED,
+            DPI_AWARENESS_CONTEXT_UNAWARE
+        };
+        for (const auto mode : dpimodes)
+            if (SetThreadDpiAwarenessContext(mode) != NULL)
+                break;
+    }
+
     void Initialize() override
     {
         TheManager = this;
@@ -55,6 +70,8 @@ public:
 
         // register the window class
         RegisterClassEx(&wc);
+
+        SetDPIMode();
     }
     void Terminate() noexcept override
     {
@@ -108,6 +125,10 @@ public:
         PostThreadMessageW(ThreadId, MessageCreate, (uintptr_t)(host), NULL);
         if (const auto err = GetLastError(); err != NO_ERROR)
             Logger.error(u"Error when post thread message: {}\n", err);
+    }
+    void PrepareForWindow(WindowHost_*) const override
+    {
+        SetDPIMode();
     }
     void CloseWindow(WindowHost_* host) override
     {
@@ -201,6 +222,10 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         host->DCHandle = GetDC(hwnd);
         host->Initialize();
     }
+    else if (msg == WM_NCCREATE)
+    {
+        EnableNonClientDpiScaling(hwnd);
+    }
     else
     {
         const auto host = reinterpret_cast<WindowHost_*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
@@ -230,6 +255,19 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 const auto height = rect.bottom - rect.top;
                 host->OnResize(width, height);
             } break;
+            case WM_DPICHANGED:
+            {
+                const auto newdpi = HIWORD(wParam);
+
+                RECT* const prcNewWindow = reinterpret_cast<RECT*>(lParam);
+                SetWindowPos(hwnd,
+                    NULL,
+                    prcNewWindow->left,
+                    prcNewWindow->top,
+                    prcNewWindow->right - prcNewWindow->left,
+                    prcNewWindow->bottom - prcNewWindow->top,
+                    SWP_NOZORDER | SWP_NOACTIVATE);
+            } return 0;
 
             case WM_ERASEBKGND:
                 return 1; // just ignore

@@ -40,7 +40,6 @@ private:
         InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
     };
 
-    MAKE_ENABLER();
 #if COMMON_OS_WIN
     void* Handle = nullptr;
     void* DCHandle = nullptr;
@@ -52,21 +51,21 @@ private:
     std::shared_ptr<detail::WindowManager> Manager;
     std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
-    common::SimpleTimer DrawTimer;
     int32_t Width, Height;
     event::Position LastPos, LeftBtnPos;
     event::MouseButton PressedButton = event::MouseButton::None;
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
     bool IsMouseDragging = false, MouseHasLeft = true;
 
-    WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
-    ~WindowHost_() override;
     bool OnStart(std::any cookie) noexcept override final;
+    LoopBase::LoopState OnLoop() override final;
     void OnStop() noexcept override final;
-    LoopState OnLoop() override final;
     void Initialize();
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
+    WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
+    bool HandleInvoke() noexcept;
+    virtual bool OnLoopPass() = 0;
 
     virtual void OnOpen() noexcept;
     virtual void OnClose() noexcept;
@@ -83,6 +82,7 @@ protected:
     virtual void OnKeyUp(event::CombinedKey key) noexcept;
     virtual void OnDropFile(std::u16string_view filePath) noexcept;
 public:
+    ~WindowHost_() override;
 
     event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
     event::Position     GetLastPosition() const noexcept { return LastPos; }
@@ -109,11 +109,46 @@ public:
     void SetTitle(const std::u16string_view title);
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
+    virtual void Invalidate();
 
-    void Invalidate();
     void Close();
 
-    static WindowHost Create(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
+    static WindowHost CreatePassive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
+    static WindowHost CreateActive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
+};
+
+
+class WindowHostPassive : public WindowHost_
+{
+    friend class WindowHost_;
+private:
+    MAKE_ENABLER();
+    std::atomic_flag IsUptodate = ATOMIC_FLAG_INIT;
+
+    bool OnLoopPass() override final;
+protected:
+    WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title);
+public:
+    ~WindowHostPassive() override;
+    void Invalidate() override;
+};
+
+class WindowHostActive : public WindowHost_
+{
+    friend class WindowHost_;
+private:
+    MAKE_ENABLER();
+    common::SimpleTimer DrawTimer;
+    float TargetFPS = 60.0f;
+
+    bool OnLoopPass() override final;
+    void OnOpen() noexcept override;
+protected:
+    WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title);
+public:
+    ~WindowHostActive() override;
+
+    void SetTargetFPS(float fps) noexcept;
 };
 
 

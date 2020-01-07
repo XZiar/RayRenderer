@@ -7,7 +7,8 @@
 namespace xziar::gui
 {
 using common::loop::LoopBase;
-MAKE_ENABLER_IMPL(WindowHost_)
+MAKE_ENABLER_IMPL(WindowHostPassive)
+MAKE_ENABLER_IMPL(WindowHostActive)
 
 
 WindowHost_::WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title) : 
@@ -24,9 +25,14 @@ WindowHost_::~WindowHost_()
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
 {
+    Manager->PrepareForWindow(this);
     OnOpen();
-    DrawTimer.Start();
     return true;
+}
+
+LoopBase::LoopState WindowHost_::OnLoop()
+{
+    return OnLoopPass() ? LoopBase::LoopState::Continue : LoopBase::LoopState::Sleep;
 }
 
 void WindowHost_::OnStop() noexcept
@@ -35,26 +41,21 @@ void WindowHost_::OnStop() noexcept
     Manager->ReleaseWindow(this);
 }
 
-LoopBase::LoopState WindowHost_::OnLoop()
+void WindowHost_::Initialize()
 {
-    DrawTimer.Stop();
-    while (DrawTimer.ElapseMs() < 16 && !InvokeList.IsEmpty())
+    Start();
+}
+
+bool WindowHost_::HandleInvoke() noexcept
+{
+    if (!InvokeList.IsEmpty())
     {
         auto task = InvokeList.Begin();
         task->Task(*this);
         InvokeList.PopNode(task);
-        DrawTimer.Stop();
+        return true;
     }
-    if (DrawTimer.ElapseMs() < 16)
-        std::this_thread::sleep_for(std::chrono::milliseconds(16 - DrawTimer.ElapseMs()));
-    OnDisplay();
-    DrawTimer.Start();
-    return LoopState::Continue;
-}
-
-void WindowHost_::Initialize()
-{
-    Start();
+    return false;
 }
 
 void WindowHost_::OnOpen() noexcept
@@ -223,14 +224,85 @@ void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
     InvokeList.AppendNode(new InvokeNode(std::move(task)));
 }
 
+void WindowHost_::Invalidate()
+{
+}
+
 void WindowHost_::Close()
 {
     Manager->CloseWindow(this);
 }
 
-WindowHost WindowHost_::Create(const int32_t width, const int32_t height, const std::u16string_view title)
+WindowHost WindowHost_::CreatePassive(const int32_t width, const int32_t height, const std::u16string_view title)
 {
-    return MAKE_ENABLER_SHARED(WindowHost_, (width, height, title));
+    return MAKE_ENABLER_SHARED(WindowHostPassive, (width, height, title));
+}
+WindowHost WindowHost_::CreateActive(const int32_t width, const int32_t height, const std::u16string_view title)
+{
+    return MAKE_ENABLER_SHARED(WindowHostActive, (width, height, title));
+}
+
+
+WindowHostPassive::WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title)
+    : WindowHost_(width, height, title)
+{ }
+
+WindowHostPassive::~WindowHostPassive()
+{ }
+
+bool WindowHostPassive::OnLoopPass()
+{
+    if (!HandleInvoke())
+    {
+        if (!IsUptodate.test_and_set())
+            OnDisplay();
+        else
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return true;
+}
+
+void WindowHostPassive::Invalidate()
+{
+    IsUptodate.clear();
+}
+
+
+WindowHostActive::WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title)
+    : WindowHost_(width, height, title)
+{ }
+
+WindowHostActive::~WindowHostActive()
+{ }
+
+void WindowHostActive::SetTargetFPS(float fps) noexcept
+{
+    TargetFPS = fps;
+}
+
+bool WindowHostActive::OnLoopPass()
+{
+    const auto targetWaitTime = 1000.0f / TargetFPS;
+    DrawTimer.Stop();
+    if (DrawTimer.ElapseMs() < targetWaitTime)
+    {
+        if (HandleInvoke())
+            return true;
+        else
+        {
+            const auto waitTime = static_cast<int32_t>(targetWaitTime - DrawTimer.ElapseMs());
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+        }
+    }
+    OnDisplay();
+    DrawTimer.Start();
+    return true;
+}
+
+void WindowHostActive::OnOpen() noexcept
+{
+    WindowHost_::OnOpen();
+    DrawTimer.Start();
 }
 
 

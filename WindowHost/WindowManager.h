@@ -53,6 +53,7 @@ public:
 
     ~WindowManager() override;
     virtual void CreateNewWindow(WindowHost_* host) = 0;
+    virtual void PrepareForWindow(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;
     void AddInvoke(std::function<void(void)>&& task);
