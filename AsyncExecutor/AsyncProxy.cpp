@@ -5,10 +5,10 @@ namespace common::asyexe
 {
 
 
-common::loop::LoopBase::LoopState AsyncProxy::OnLoop()
+common::loop::LoopBase::LoopAction AsyncProxy::OnLoop()
 {
     if (TaskList.IsEmpty())
-        return LoopState::Sleep;
+        return LoopAction::Sleep();
     common::SimpleTimer timer;
     timer.Start();
     bool hasExecuted = false;
@@ -27,8 +27,8 @@ common::loop::LoopBase::LoopState AsyncProxy::OnLoop()
     }
     timer.Stop();
     if (!hasExecuted && timer.ElapseMs() < 10)
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    return LoopState::Continue;
+        return LoopAction::SleepFor(10);
+    return LoopAction::Continue();
 }
 
 bool AsyncProxy::SleepCheck() noexcept

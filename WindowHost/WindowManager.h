@@ -6,6 +6,7 @@
 #include "SystemCommon/LoopBase.h"
 #include "common/PromiseTask.hpp"
 #include <map>
+#include <thread>
 
 
 
@@ -16,10 +17,10 @@ class WindowHost_;
 namespace detail
 {
 
-class WindowManager : private common::loop::LoopBase
+class WindowManager
 {
 private:
-    struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
+    struct InvokeNode : public common::NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
         std::function<void(void)> Task;
         InvokeNode(std::function<void(void)>&& task) : Task(std::move(task)) { }
@@ -27,10 +28,10 @@ private:
     static std::shared_ptr<WindowManager> CreateManager();
 
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
+    std::thread MainThread;
 
-    bool OnStart(std::any cookie) noexcept override;
-    void OnStop() noexcept override;
-    LoopState OnLoop() override;
+    void Start();
+    void Stop();
 protected:
     std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
 
@@ -51,7 +52,7 @@ protected:
 public:
     common::mlog::MiniLogger<false> Logger;
 
-    ~WindowManager() override;
+    virtual ~WindowManager();
     virtual void CreateNewWindow(WindowHost_* host) = 0;
     virtual void PrepareForWindow(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) = 0;

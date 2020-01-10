@@ -58,14 +58,14 @@ private:
     bool IsMouseDragging = false, MouseHasLeft = true;
 
     bool OnStart(std::any cookie) noexcept override final;
-    LoopBase::LoopState OnLoop() override final;
+    LoopAction OnLoop() override final;
     void OnStop() noexcept override final;
     void Initialize();
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
     bool HandleInvoke() noexcept;
-    virtual bool OnLoopPass() = 0;
+    virtual LoopAction OnLoopPass() = 0;
 
     virtual void OnOpen() noexcept;
     virtual void OnClose() noexcept;
@@ -125,7 +125,7 @@ private:
     MAKE_ENABLER();
     std::atomic_flag IsUptodate = ATOMIC_FLAG_INIT;
 
-    bool OnLoopPass() override final;
+    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
 protected:
     WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title);
 public:
@@ -141,7 +141,7 @@ private:
     common::SimpleTimer DrawTimer;
     float TargetFPS = 60.0f;
 
-    bool OnLoopPass() override final;
+    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
     void OnOpen() noexcept override;
 protected:
     WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title);

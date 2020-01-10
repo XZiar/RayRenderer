@@ -36,7 +36,7 @@ static void WDHost()
     window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
     window->Displaying  += [idx = 0u](const auto&) mutable
     {
-        if (idx++ % 1000 == 0)
+        if (idx++ % 300 == 0)
             log().info(u"display.\n"); 
     };
     window->Resizing    += [](const auto&, int32_t width, int32_t height)

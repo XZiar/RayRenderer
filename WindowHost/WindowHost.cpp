@@ -30,9 +30,9 @@ bool WindowHost_::OnStart(std::any cookie) noexcept
     return true;
 }
 
-LoopBase::LoopState WindowHost_::OnLoop()
+LoopBase::LoopAction WindowHost_::OnLoop()
 {
-    return OnLoopPass() ? LoopBase::LoopState::Continue : LoopBase::LoopState::Sleep;
+    return OnLoopPass();
 }
 
 void WindowHost_::OnStop() noexcept
@@ -250,16 +250,16 @@ WindowHostPassive::WindowHostPassive(const int32_t width, const int32_t height, 
 WindowHostPassive::~WindowHostPassive()
 { }
 
-bool WindowHostPassive::OnLoopPass()
+LoopBase::LoopAction WindowHostPassive::OnLoopPass()
 {
     if (!HandleInvoke())
     {
         if (!IsUptodate.test_and_set())
             OnDisplay();
         else
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            return ::common::loop::LoopBase::LoopAction::SleepFor(10);
     }
-    return true;
+    return ::common::loop::LoopBase::LoopAction::Continue();
 }
 
 void WindowHostPassive::Invalidate()
@@ -280,23 +280,23 @@ void WindowHostActive::SetTargetFPS(float fps) noexcept
     TargetFPS = fps;
 }
 
-bool WindowHostActive::OnLoopPass()
+LoopBase::LoopAction WindowHostActive::OnLoopPass()
 {
     const auto targetWaitTime = 1000.0f / TargetFPS;
     DrawTimer.Stop();
     if (DrawTimer.ElapseMs() < targetWaitTime)
     {
         if (HandleInvoke())
-            return true;
+            return ::common::loop::LoopBase::LoopAction::Continue();
         else
         {
             const auto waitTime = static_cast<int32_t>(targetWaitTime - DrawTimer.ElapseMs());
-            std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
+            return ::common::loop::LoopBase::LoopAction::SleepFor(waitTime);
         }
     }
     OnDisplay();
     DrawTimer.Start();
-    return true;
+    return ::common::loop::LoopBase::LoopAction::Continue();
 }
 
 void WindowHostActive::OnOpen() noexcept

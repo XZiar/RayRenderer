@@ -85,7 +85,7 @@ private:
     std::atomic_uint32_t TaskUid{ 0 };
     AsyncProxy();
     virtual ~AsyncProxy() override {}
-    virtual LoopState OnLoop() override;
+    virtual LoopAction OnLoop() override;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep
     virtual bool OnStart(std::any cookie) noexcept override;
     void ASYEXEAPI AddNode(AsyncNodeBase* node);

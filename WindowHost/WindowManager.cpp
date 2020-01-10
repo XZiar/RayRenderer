@@ -16,17 +16,49 @@ std::shared_ptr<WindowManager> CreateManagerImpl();
 
 std::shared_ptr<WindowManager> WindowManager::CreateManager()
 {
-    std::promise<void> pms;
     const auto manager = CreateManagerImpl();
-    manager->Start(&pms);
-    pms.get_future().get();
+    manager->Start();
     return manager;
 }
 
-WindowManager::WindowManager() :
-    LoopBase(LoopBase::GetThreadedExecutor), 
-    Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
+WindowManager::WindowManager() : Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
 { }
+WindowManager::~WindowManager()
+{
+    Stop();
+}
+
+void WindowManager::Start()
+{
+    std::promise<void> pms;
+    MainThread = std::thread([&]()
+        {
+            common::SetThreadName(u"WindowManager");
+            try
+            {
+                Initialize();
+            }
+            catch (common::BaseException & be)
+            {
+                Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.message);
+                pms.set_exception(std::current_exception());
+            }
+            pms.set_value();
+
+            MessageLoop();
+
+            Terminate();
+        });
+    pms.get_future().get();
+}
+
+void WindowManager::Stop()
+{
+    if (MainThread.joinable()) // ensure MainThread invalid
+    {
+        MainThread.join();
+    }
+}
 
 bool WindowManager::UnregisterHost(WindowHost_* host)
 {
@@ -50,45 +82,6 @@ void WindowManager::HandleTask()
         InvokeList.PopNode(task);
     }
 }
-
-WindowManager::~WindowManager()
-{
-    Stop();
-}
-
-
-bool WindowManager::OnStart(std::any cookie) noexcept
-{
-    auto& pms = *std::any_cast<std::promise<void>*>(cookie);
-    common::SetThreadName(u"WindowManager");
-    try
-    {
-        Initialize();
-    }
-    catch (common::BaseException & be)
-    {
-        Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.message);
-        pms.set_exception(std::current_exception());
-        return false;
-    }
-    pms.set_value();
-    return true;
-}
-
-void WindowManager::OnStop() noexcept
-{
-    Terminate();
-}
-
-#if COMMON_OS_WIN
-#endif
-
-LoopBase::LoopState WindowManager::OnLoop()
-{
-    MessageLoop();
-    return LoopBase::LoopState::Finish;
-}
-
 
 void WindowManager::AddInvoke(std::function<void(void)>&& task)
 {

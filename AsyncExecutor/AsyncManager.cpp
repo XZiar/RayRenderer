@@ -51,10 +51,10 @@ void AsyncManager::Resume(detail::AsyncTaskStatus status)
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
 }
 
-common::loop::LoopBase::LoopState AsyncManager::OnLoop()
+common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
 {
     if (TaskList.IsEmpty())
-        return LoopState::Sleep;
+        return LoopAction::Sleep();
     common::SimpleTimer timer;
     timer.Start();
     bool hasExecuted = false;
@@ -103,8 +103,8 @@ common::loop::LoopBase::LoopState AsyncManager::OnLoop()
     }
     timer.Stop();
     if (!hasExecuted && timer.ElapseMs() < TimeSensitive) //not executing and not elapse enough time, sleep to conserve energy
-        std::this_thread::sleep_for(std::chrono::milliseconds(TimeYieldSleep));
-    return LoopState::Continue;
+        return LoopAction::SleepFor(TimeYieldSleep);
+    return LoopAction::Continue();
 }
 bool AsyncManager::SleepCheck() noexcept
 {

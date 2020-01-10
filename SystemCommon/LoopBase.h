@@ -34,7 +34,7 @@ private:
     bool Stop();
     void Wakeup();
     bool RequestStop();
-    virtual void DoSleep(void* runningLock) noexcept = 0; // executor request sleep
+    virtual void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept = 0; // executor request sleep
     virtual void DoWakeup() noexcept = 0; // other requst executor to wake up
     virtual void DoStart() = 0; // when executor is requested to start
     virtual void WaitUtilStop() = 0; // when executor is requested to stop
@@ -50,7 +50,7 @@ class SYSCOMMONAPI InplaceExecutor : public LoopExecutor
 {
     friend class LoopBase;
 protected:
-    virtual void DoSleep(void* runningLock) noexcept override;
+    virtual void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override;
     virtual void DoWakeup() noexcept override;
     virtual void DoStart() override;
     virtual void WaitUtilStop() override;
@@ -62,13 +62,36 @@ public:
 class SYSCOMMONAPI LoopBase : public NonCopyable, public NonMovable
 {
     friend void LoopExecutor::RunLoop() noexcept;
+public:
+    struct LoopAction
+    {
+        friend void LoopExecutor::RunLoop() noexcept;
+    private:
+        static constexpr uint32_t ValSleep    = 0x80000000;
+        static constexpr uint32_t ValContinue = 0x00000000;
+        static constexpr uint32_t ValFinish   = 0xffffffff;
+
+        uint32_t Val;
+        constexpr LoopAction(const uint32_t val) noexcept : Val(val) { }
+    public:
+        static constexpr uint32_t MaxSleepTime = 0x7fffffff;
+        constexpr bool operator==(const LoopAction other) const noexcept
+        {
+            return other.Val == Val;
+        }
+        constexpr uint32_t GetSleepTime() const noexcept { return Val; }
+
+        static constexpr LoopAction Sleep()     noexcept { return ValSleep; }
+        static constexpr LoopAction Continue()  noexcept { return ValContinue; }
+        static constexpr LoopAction Finish()    noexcept { return ValFinish; }
+        static constexpr LoopAction SleepFor(const uint32_t ms) noexcept { return std::min(ms, MaxSleepTime); }
+    };
 private:
     std::unique_ptr<LoopExecutor> Host;
 protected:
-    enum class LoopState : uint8_t { Continue, Finish, Sleep };
     [[nodiscard]] bool IsRunning() const;
     void Wakeup() const;
-    virtual LoopState OnLoop() = 0;
+    virtual LoopAction OnLoop() = 0;
     [[nodiscard]] virtual bool SleepCheck() noexcept { return true; }; // double check if should sleep
     virtual bool OnStart(std::any) noexcept { return true; }
     virtual void OnStop() noexcept {}
