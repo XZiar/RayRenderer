@@ -34,10 +34,18 @@ static void WDHost()
     window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
     window->Closing     += [](const auto&, bool& should) { should = true; };
     window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
-    window->Displaying  += [idx = 0u](const auto&) mutable
+    window->Displaying  += [idx = 0u, tm = common::SimpleTimer()](const auto&) mutable
     {
         if (idx++ % 300 == 0)
-            log().info(u"display.\n"); 
+        {
+            log().info(u"display.\n");
+            if (idx > 1)
+            {
+                tm.Stop();
+                log().info(u"Complete 5 seconds in [{}]s.\n", tm.ElapseMs() / 1000.f);
+            }
+            tm.Start();
+        }
     };
     window->Resizing    += [](const auto&, int32_t width, int32_t height)
     {

@@ -84,7 +84,7 @@ void LoopExecutor::RunLoop() noexcept
             if (const auto sleepTime = action.GetSleepTime(); sleepTime > 0)
             {
                 SleepState = SleepStates::Pending;
-                if (Loop.SleepCheck())
+                if (sleepTime < LoopBase::LoopAction::MaxSleepTime || Loop.SleepCheck())
                 {
                     auto desire = SleepStates::Pending;
                     if (SleepState.compare_exchange_strong(desire, SleepStates::Sleep))
@@ -153,8 +153,11 @@ public:
 };
 
 
-void InplaceExecutor::DoSleep(void*, const uint32_t) noexcept { } // do nothing
-void InplaceExecutor::DoWakeup() noexcept { } // do nothing
+void InplaceExecutor::DoSleep(void*, const uint32_t sleepTime) noexcept 
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+}
+void InplaceExecutor::DoWakeup() noexcept { } // do nothing, assume not able to wakeup
 void InplaceExecutor::DoStart() { }
 void InplaceExecutor::WaitUtilStop()
 {

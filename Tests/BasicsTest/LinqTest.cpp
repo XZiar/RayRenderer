@@ -114,6 +114,45 @@ TEST(Linq, Take)
     }
 }
 
+TEST(Linq, Where)
+{
+    EXPECT_THAT(
+        FromRange<int32_t>(0, 5, 1).Where([](const auto i) { return i % 2 == 0; }).ToVector(),
+        testing::ElementsAre(0, 2, 4));
+}
+
+TEST(Linq, MultiWhere)
+{
+    {
+        EXPECT_THAT(FromRange<int32_t>(0, 5, 1)
+            .Where([](const auto i) { return i % 2 == 0; })
+            .Where([](const auto i) { return i > 3; })
+            .ToVector(),
+            testing::ElementsAre(4));
+    }
+    {
+        int32_t src[] = { 0,1,2,3,4,5 };
+        EXPECT_THAT(FromIterable(src)
+            .Select([](auto& i) { i++; return i; })
+            .Where([](const auto i) { return i % 2 == 0; })
+            .Where([](const auto i) { return i > 3; })
+            .ToVector(),
+            testing::ElementsAre(4, 6));
+        EXPECT_THAT(src, testing::ElementsAre(1, 2, 3, 4, 5, 6));
+    }
+    {
+        int32_t src[] = { 0,1,2,3,4,5 };
+        EXPECT_THAT(FromIterable(src)
+            .Select([](auto& i) { i++; return i; })
+            .Where([](const auto i) { return i % 2 == 0; })
+            .Where([](const auto i) { return i > 3; })
+            .Where([](const auto i) { return i > 4; })
+            .ToVector(),
+            testing::ElementsAre(6));
+        EXPECT_THAT(src, testing::ElementsAre(1, 2, 3, 4, 5, 6));
+    }
+}
+
 TEST(Linq, Relation)
 {
     {

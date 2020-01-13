@@ -222,6 +222,7 @@ void WindowHost_::Invoke(std::function<void(void)> task)
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
 {
     InvokeList.AppendNode(new InvokeNode(std::move(task)));
+    Wakeup();
 }
 
 void WindowHost_::Invalidate()
@@ -284,18 +285,19 @@ LoopBase::LoopAction WindowHostActive::OnLoopPass()
 {
     const auto targetWaitTime = 1000.0f / TargetFPS;
     DrawTimer.Stop();
-    if (DrawTimer.ElapseMs() < targetWaitTime)
+    const auto deltaTime = targetWaitTime - DrawTimer.ElapseMs();
+    if (deltaTime > 1)
     {
         if (HandleInvoke())
             return ::common::loop::LoopBase::LoopAction::Continue();
         else
         {
-            const auto waitTime = static_cast<int32_t>(targetWaitTime - DrawTimer.ElapseMs());
+            const auto waitTime = static_cast<int32_t>(deltaTime);
             return ::common::loop::LoopBase::LoopAction::SleepFor(waitTime);
         }
     }
+    DrawTimer.Start(); // Reset timer before draw, so that elapse time will include drawing itself
     OnDisplay();
-    DrawTimer.Start();
     return ::common::loop::LoopBase::LoopAction::Continue();
 }
 

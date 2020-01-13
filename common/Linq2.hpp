@@ -19,6 +19,8 @@ namespace common
 namespace linq
 {
 
+template<typename T>
+class Enumerable;
 
 namespace detail
 {
@@ -182,6 +184,287 @@ public:
 
 
 template<typename P>
+struct LimitSource
+{
+private:
+    P Prev;
+    size_t Avaliable;
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    static constexpr bool InvolveCache      = P::InvolveCache;
+    static constexpr bool IsCountable       = P::IsCountable;
+    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
+
+    constexpr LimitSource(P&& prev, const size_t n) : Prev(std::move(prev)), Avaliable(n)
+    { }
+    [[nodiscard]] constexpr OutType GetCurrent() const
+    {
+        return Prev.GetCurrent();
+    }
+    constexpr void MoveNext()
+    {
+        if (Avaliable != 0)
+        {
+            Avaliable--; 
+            Prev.MoveNext();
+        }
+    }
+    [[nodiscard]] constexpr bool IsEnd() const
+    { 
+        return Avaliable == 0 || Prev.IsEnd();
+    }
+    [[nodiscard]] constexpr size_t Count() const
+    {
+        if constexpr (P::IsCountable)
+            return std::min(Avaliable, Prev.Count());
+        else
+            static_assert(!common::AlwaysTrue<P>(), "Not countable");
+    }
+    constexpr void MoveMultiple(const size_t count)
+    {
+        if constexpr (P::CanSkipMultiple)
+            Prev.MoveMultiple(count), Avaliable -= count;
+        else
+            static_assert(!common::AlwaysTrue<P>(), "Not movemultiple");
+    }
+};
+
+
+template<typename P, bool ShouldCache>
+struct FilteredSourceBase;
+template<typename P>
+struct FilteredSourceBase<P, false>
+{
+protected:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    
+    P Prev;
+
+    constexpr FilteredSourceBase(P&& prev) : Prev(std::move(prev)) { }
+
+    template<typename Filter>
+    constexpr bool CheckFor(InType& obj, Filter& filter)
+    {
+        return filter(obj);
+    }
+
+    [[nodiscard]] constexpr OutType GetCurrent() const
+    {
+        return Prev.GetCurrent();
+    }
+};
+template<typename P>
+struct FilteredSourceBase<P, true>
+{
+protected:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    using CacheType = std::conditional_t<std::is_reference_v<InType>,
+        std::reference_wrapper<std::remove_reference_t<InType>>,
+        PlainInType>;
+
+    P Prev;
+    mutable std::optional<CacheType> Temp;
+
+    constexpr FilteredSourceBase(P&& prev) : Prev(std::move(prev)) { }
+
+    template<typename Filter>
+    constexpr bool CheckFor(InType& obj, Filter& filter)
+    {
+        using ConstArg      = std::add_lvalue_reference_t<std::add_const_t<PlainInType>>;
+        using NonConstArg   = std::add_lvalue_reference_t<PlainInType>;
+        using ArgType       = std::conditional_t<std::is_invocable_v<Filter, ConstArg>, ConstArg, NonConstArg>; 
+        if (filter(static_cast<ArgType>(obj)))
+        {
+            Temp.emplace(std::move(obj));
+            return true;
+        }
+        return false;
+    }
+
+    [[nodiscard]] constexpr OutType GetCurrent() const
+    {
+        return *std::move(Temp);
+    }
+};
+
+
+template<typename P, typename... Filters>
+struct FilteredManySource;
+
+template<typename P, typename Filter>
+struct FilteredSource : public FilteredSourceBase<P, P::InvolveCache>
+{
+    template<typename, typename...> friend struct FilteredManySource;
+private:
+    using BaseType = FilteredSourceBase<P, P::InvolveCache>;
+    Filter Func;
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    using PrevType = P;
+    using FilterType = Filter;
+    static constexpr bool InvolveCache = P::InvolveCache;
+    static constexpr bool IsCountable = false;
+    static constexpr bool CanSkipMultiple = false;
+
+    constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
+    {
+        LoopUntilSatisfy();
+    }
+    constexpr void MoveNext()
+    {
+        this->Prev.MoveNext();
+        LoopUntilSatisfy();
+    }
+    [[nodiscard]] constexpr bool IsEnd() const
+    {
+        return this->Prev.IsEnd();
+    }
+
+    using BaseType::GetCurrent;
+private:
+    constexpr void LoopUntilSatisfy()
+    {
+        while (!this->Prev.IsEnd())
+        {
+            InType obj = this->Prev.GetCurrent();
+            if (this->CheckFor(obj, Func))
+                return;
+            this->Prev.MoveNext();
+        }
+    }
+};
+
+
+struct FilteredHelper
+{
+    /*template<typename P, typename Filter1, typename Filter2>
+    FilteredManySource<P, Filter1, Filter2> ConcatFilter(FilteredSource<P, Filter1>&& prev, Filter2&& filter)
+    {
+        return FilteredManySource<P, Filter1, Filter2>
+            (std::move(prev.Prev), std::move(prev.Func), std::move(filter));
+    }*/
+    template<typename T, typename... Ts>
+    struct FirstType
+    {
+        using Type = T;
+    };
+    template<typename... Ts>
+    struct LastType
+    {
+        using Type = typename decltype((FirstType<Ts>{}, ...))::Type;
+    };
+};
+template<typename P, bool ShouldCache>
+struct FilteredManySourceBase;
+template<typename P>
+struct FilteredManySourceBase<P, false> : public FilteredSourceBase<P, false>
+{
+private:
+    using BaseType = FilteredSourceBase<P, false>;
+protected:
+    constexpr FilteredManySourceBase(BaseType&& prev) : BaseType(std::move(prev)) { }
+
+    template<typename Filter>
+    constexpr bool CheckForLast(Filter& filter)
+    {
+        return filter(this->Prev.GetCurrent());
+    }
+
+    using BaseType::GetCurrent;
+};
+template<typename P>
+struct FilteredManySourceBase<P, true> : public FilteredSourceBase<P, true>
+{
+private:
+    using BaseType = FilteredSourceBase<P, true>;
+protected:
+    constexpr FilteredManySourceBase(BaseType&& prev) : BaseType(std::move(prev)) { }
+
+    template<typename Filter>
+    constexpr bool CheckForLast(Filter& filter)
+    {
+        if (filter(*this->Temp))
+            return true;
+        else
+        {
+            this->Temp.reset();
+            return false;
+        }
+    }   
+
+    using BaseType::GetCurrent;
+};
+
+
+template<typename P, typename... Filters>
+struct FilteredManySource : public FilteredManySourceBase<P, P::InvolveCache>
+{
+    friend struct FilteredHelper;
+private:
+    using BaseType = FilteredManySourceBase<P, P::InvolveCache>;
+    using FirstF = typename FilteredHelper::FirstType<Filters...>::Type;
+    using LastF  = typename FilteredHelper::LastType <Filters...>::Type;
+    static constexpr auto Indexes = std::make_index_sequence<sizeof...(Filters)>{};
+    std::tuple<Filters...> Funcs;
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    static constexpr bool InvolveCache = P::InvolveCache;
+    static constexpr bool IsCountable = false;
+    static constexpr bool CanSkipMultiple = false;
+    constexpr FilteredManySource(FilteredSource<P, FirstF>&& prev, LastF&& filter) :
+        BaseType(std::move(prev)), Funcs(std::move(prev.Func), std::move(filter))
+    {
+        if (!IsEnd())
+        {
+            auto& func = std::get<sizeof...(Filters) - 1>(Funcs);
+            if (!this->CheckForLast(func))
+            {
+                this->Prev.MoveNext();
+                LoopUntilSatisfy();
+            }
+        }
+    }
+    constexpr void MoveNext()
+    {
+        this->Prev.MoveNext();
+        LoopUntilSatisfy();
+    }
+    [[nodiscard]] constexpr bool IsEnd() const
+    {
+        return this->Prev.IsEnd();
+    }
+
+    using BaseType::GetCurrent;
+private:
+    template<size_t... I>
+    [[nodiscard]] constexpr bool CheckAll(InType& obj, std::index_sequence<I...>)
+    {
+        return (this->CheckFor(obj, std::get<I>(Funcs)) && ...);
+    }
+    constexpr void LoopUntilSatisfy()
+    {
+        while (!this->Prev.IsEnd())
+        {
+            InType obj = this->Prev.GetCurrent();
+            if (CheckAll(obj, Indexes))
+                return;
+            this->Prev.MoveNext();
+        }
+    }
+};
+
+
+template<typename P>
 struct NestedSource
 {
 private:
@@ -191,14 +474,6 @@ protected:
     P Prev;
     constexpr NestedSource(P&& prev) : Prev(std::move(prev)) { }
 
-    [[nodiscard]] constexpr InType GetCurrentFromPrev() const
-    {
-        return Prev.GetCurrent();
-    }
-    constexpr void MoveNextFromPrev()
-    {
-        Prev.MoveNext();
-    }
     [[nodiscard]] constexpr size_t Count() const
     {
         if constexpr (P::IsCountable)
@@ -212,121 +487,6 @@ protected:
             Prev.MoveMultiple(count);
         else
             static_assert(!common::AlwaysTrue<P>(), "Not movemultiple");
-    }
-};
-
-
-template<typename P>
-struct LimitSource : public NestedSource<P>
-{
-private:
-    using BaseType = NestedSource<P>;
-public:
-    using InType = typename P::OutType;
-    using PlainInType = std::remove_cv_t<InType>;
-    using OutType = InType;
-    static constexpr bool InvolveCache      = P::InvolveCache;
-    static constexpr bool IsCountable       = P::IsCountable;
-    static constexpr bool CanSkipMultiple   = P::CanSkipMultiple;
-
-    size_t Avaliable;
-
-    constexpr LimitSource(P&& prev, const size_t n) : BaseType(std::move(prev)), Avaliable(n)
-    { }
-    [[nodiscard]] constexpr OutType GetCurrent() const
-    {
-        return this->GetCurrentFromPrev();
-    }
-    constexpr void MoveNext()
-    {
-        if (Avaliable != 0)
-        {
-            Avaliable--; 
-            this->MoveNextFromPrev();
-        }
-    }
-    [[nodiscard]] constexpr bool IsEnd() const
-    { 
-        return Avaliable == 0 || this->Prev.IsEnd();
-    }
-    [[nodiscard]] constexpr size_t Count() const
-    {
-        return std::min(Avaliable, BaseType::Count());
-    }
-    constexpr void MoveMultiple(const size_t count)
-    {
-        BaseType::MoveMultiple(count);
-        Avaliable -= count;
-    }
-};
-
-
-template<typename P, typename Filter>
-struct FilteredSource : public NestedSource<P>
-{
-private:
-    using BaseType = NestedSource<P>;
-    mutable Filter Func;
-public:
-    using InType = typename P::OutType;
-    using PlainInType = std::remove_cv_t<InType>;
-    using OutType = InType;
-    static constexpr bool InvolveCache      = P::InvolveCache;
-    static constexpr bool IsCountable       = false;
-    static constexpr bool CanSkipMultiple   = false;
-
-    constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
-    {
-        LoopUntilSatisfy();
-    }
-    [[nodiscard]] constexpr OutType GetCurrent() const
-    {
-        if constexpr (P::InvolveCache)
-            return *std::move(Temp);
-        else
-            return this->GetCurrentFromPrev();
-    }
-    constexpr void MoveNext()
-    {
-        this->MoveNextFromPrev();
-        LoopUntilSatisfy();
-    }
-    [[nodiscard]] constexpr bool IsEnd() const
-    {
-        return this->Prev.IsEnd();
-    }
-private:
-    using CacheType = std::conditional_t<std::is_reference_v<InType>,
-        std::reference_wrapper<std::remove_reference_t<InType>>,
-        PlainInType>;
-    using TmpType = std::conditional_t<P::InvolveCache, std::optional<CacheType>, uint8_t>;
-    mutable TmpType Temp;
-    constexpr void LoopUntilSatisfy()
-    {
-        while (!this->Prev.IsEnd())
-        {
-            if constexpr (P::InvolveCache)
-            {
-                CacheType obj = this->GetCurrentFromPrev();
-                bool result = false;
-                constexpr bool AcceptConstRef = std::is_invocable_v<Filter, std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>;
-                if constexpr (AcceptConstRef)
-                    result = Func(static_cast<std::add_lvalue_reference_t<std::add_const_t<PlainInType>>>(obj));
-                else
-                    result = Func(static_cast<std::add_lvalue_reference_t<PlainInType>>(obj));
-                if (result)
-                {
-                    Temp.emplace(std::move(obj));
-                    return;
-                }
-            }
-            else
-            {
-                if (Func(this->GetCurrentFromPrev()))
-                    return;
-            }
-            this->MoveNextFromPrev();
-        }
     }
 };
 
@@ -349,11 +509,11 @@ public:
     { }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
-        return Func(this->GetCurrentFromPrev());
+        return Func(this->Prev.GetCurrent());
     }
     constexpr void MoveNext()
     {
-        this->MoveNextFromPrev();
+        this->Prev.MoveNext();
     }
     [[nodiscard]] constexpr bool IsEnd() const
     {
@@ -671,11 +831,11 @@ public:
     { }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
-        return static_cast<OutType>(this->GetCurrentFromPrev());
+        return static_cast<OutType>(this->Prev.GetCurrent());
     }
     constexpr void MoveNext()
     {
-        this->MoveNextFromPrev();
+        this->Prev.MoveNext();
     }
     [[nodiscard]] constexpr bool IsEnd() const
     {
@@ -704,11 +864,11 @@ public:
     { }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
-        return OutType(this->GetCurrentFromPrev());
+        return OutType(this->Prev.GetCurrent());
     }
     constexpr void MoveNext()
     {
-        this->MoveNextFromPrev();
+        this->Prev.MoveNext();
     }
     [[nodiscard]] constexpr bool IsEnd() const
     {
@@ -820,20 +980,23 @@ public:
         return *this;
     }
 
-    [[nodiscard]] constexpr Enumerable<detail::LimitSource<T>> Take(const size_t n)
+    [[nodiscard]] constexpr Enumerable<detail::LimitSource<T>> 
+        Take(const size_t n)
     {
         return detail::LimitSource<T>(std::move(Provider), n);
     }
 
     template<bool ForceCache, typename Mapper>
-    [[nodiscard]] constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> Select(Mapper&& mapper)
+    [[nodiscard]] constexpr Enumerable<detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>> 
+        Select(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         return detail::MappedSource<T, common::remove_cvref_t<Mapper>, ForceCache>(std::move(Provider), std::forward<Mapper>(mapper));
     }
 
     template<typename Mapper>
-    [[nodiscard]] constexpr decltype(auto) Select(Mapper&& mapper)
+    [[nodiscard]] constexpr decltype(auto) 
+        Select(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using OutType = std::invoke_result_t<Mapper, EleType>;
@@ -842,7 +1005,8 @@ public:
     }
 
     template<typename Mapper>
-    [[nodiscard]] constexpr Enumerable<detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>> SelectMany(Mapper&& mapper)
+    [[nodiscard]] constexpr Enumerable<detail::FlatMappedSource<T, common::remove_cvref_t<Mapper>>> 
+        SelectMany(Mapper&& mapper)
     {
         static_assert(std::is_invocable_v<Mapper, EleType>, "mapper does not accept EleType");
         using MidType = std::invoke_result_t<Mapper, EleType>;
@@ -851,28 +1015,55 @@ public:
     }
 
     template<typename Filter>
-    [[nodiscard]] constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> Where(Filter&& filter)
+    [[nodiscard]] constexpr decltype(auto)
+        Where(Filter&& filter)
+    {
+        static_assert(std::is_invocable_r_v<bool, Filter, EleType>
+            || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
+            "filter should accept EleType and return bool");
+        if constexpr (common::is_specialization<T, detail::FilteredSource>::value)
+        {
+            return ToEnumerable(
+                detail::FilteredManySource<typename T::PrevType, typename T::FilterType, common::remove_cvref_t<Filter>>
+                (std::move(Provider), std::forward<Filter>(filter))
+            );
+        }
+        else
+        {
+            return ToEnumerable(
+                detail::FilteredSource<T, common::remove_cvref_t<Filter>>
+                (std::move(Provider), std::forward<Filter>(filter))
+            );
+        }
+    }
+
+    /*template<typename Filter>
+    [[nodiscard]] constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> 
+        Where(Filter&& filter)
     {
         static_assert(std::is_invocable_r_v<bool, Filter, EleType>
             || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
             "filter should accept EleType and return bool");
         return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
-    }
+    }*/
 
     template<typename Other>
-    [[nodiscard]] constexpr Enumerable<detail::PairedSource<T, Other>> Pair(Enumerable<Other>&& other)
+    [[nodiscard]] constexpr Enumerable<detail::PairedSource<T, Other>> 
+        Pair(Enumerable<Other>&& other)
     {
         return detail::PairedSource<T, Other>(std::move(Provider), std::move(other.Provider));
     }
 
     template<typename... Others>
-    [[nodiscard]] constexpr Enumerable<detail::TupledSource<T, Others...>> Pairs(Enumerable<Others>&&... others)
+    [[nodiscard]] constexpr Enumerable<detail::TupledSource<T, Others...>> 
+        Pairs(Enumerable<Others>&&... others)
     {
         return detail::TupledSource<T, Others...>(std::move(Provider), std::move(others.Provider)...);
     }
 
     template<typename Other>
-    [[nodiscard]] constexpr Enumerable<detail::ConcatedSource<T, Other>> Concat(Enumerable<Other>&& other)
+    [[nodiscard]] constexpr Enumerable<detail::ConcatedSource<T, Other>> 
+        Concat(Enumerable<Other>&& other)
     {
         return detail::ConcatedSource<T, Other>(std::move(Provider), std::move(other.Provider));
     }
@@ -889,7 +1080,8 @@ public:
     }
 
     template<typename Func>
-    [[nodiscard]] Enumerable<detail::ContainedIteratorSource<std::vector<PlainEleType>>> OrderBy(Func&& comparator = {})
+    [[nodiscard]] Enumerable<detail::ContainedIteratorSource<std::vector<PlainEleType>>> 
+        OrderBy(Func&& comparator = {})
     {
         static_assert(std::is_invocable_r_v<bool, Func, const PlainEleType&, const PlainEleType&>, 
             "sort need a comparator that accepts two element and returns bool");
