@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <random>
+#include <tuple>
 
 namespace common
 {
@@ -309,12 +310,12 @@ public:
     using PlainInType = std::remove_cv_t<InType>;
     using OutType = InType;
     using PrevType = P;
-    using FilterType = Filter;
     static constexpr bool InvolveCache = P::InvolveCache;
     static constexpr bool IsCountable = false;
     static constexpr bool CanSkipMultiple = false;
 
-    constexpr FilteredSource(P&& prev, Filter&& filter) : BaseType(std::move(prev)), Func(std::move(filter))
+    constexpr FilteredSource(P&& prev, Filter&& filter) : 
+        BaseType(std::move(prev)), Func(std::forward<Filter>(filter))
     {
         LoopUntilSatisfy();
     }
@@ -343,25 +344,6 @@ private:
 };
 
 
-struct FilteredHelper
-{
-    /*template<typename P, typename Filter1, typename Filter2>
-    FilteredManySource<P, Filter1, Filter2> ConcatFilter(FilteredSource<P, Filter1>&& prev, Filter2&& filter)
-    {
-        return FilteredManySource<P, Filter1, Filter2>
-            (std::move(prev.Prev), std::move(prev.Func), std::move(filter));
-    }*/
-    template<typename T, typename... Ts>
-    struct FirstType
-    {
-        using Type = T;
-    };
-    template<typename... Ts>
-    struct LastType
-    {
-        using Type = typename decltype((FirstType<Ts>{}, ...))::Type;
-    };
-};
 template<typename P, bool ShouldCache>
 struct FilteredManySourceBase;
 template<typename P>
@@ -407,22 +389,17 @@ protected:
 template<typename P, typename... Filters>
 struct FilteredManySource : public FilteredManySourceBase<P, P::InvolveCache>
 {
-    friend struct FilteredHelper;
+    template<typename, typename...> friend struct FilteredManySource;
 private:
+    struct DummyTag {};
     using BaseType = FilteredManySourceBase<P, P::InvolveCache>;
-    using FirstF = typename FilteredHelper::FirstType<Filters...>::Type;
-    using LastF  = typename FilteredHelper::LastType <Filters...>::Type;
+
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(Filters)>{};
     std::tuple<Filters...> Funcs;
-public:
-    using InType = typename P::OutType;
-    using PlainInType = std::remove_cv_t<InType>;
-    using OutType = InType;
-    static constexpr bool InvolveCache = P::InvolveCache;
-    static constexpr bool IsCountable = false;
-    static constexpr bool CanSkipMultiple = false;
-    constexpr FilteredManySource(FilteredSource<P, FirstF>&& prev, LastF&& filter) :
-        BaseType(std::move(prev)), Funcs(std::move(prev.Func), std::move(filter))
+
+    template<typename T>
+    constexpr FilteredManySource(DummyTag, T&& prev, std::tuple<Filters...>&& filter) :
+        BaseType(std::move(prev)), Funcs(std::move(filter))
     {
         if (!IsEnd())
         {
@@ -434,6 +411,29 @@ public:
             }
         }
     }
+public:
+    using InType = typename P::OutType;
+    using PlainInType = std::remove_cv_t<InType>;
+    using OutType = InType;
+    static constexpr bool InvolveCache = P::InvolveCache;
+    static constexpr bool IsCountable = false;
+    static constexpr bool CanSkipMultiple = false;
+
+    template<typename T, typename F>
+    constexpr FilteredManySource(FilteredSource<P, T>&& prev, F&& filter) :
+        FilteredManySource(DummyTag{}, std::move(prev), 
+            std::tuple<Filters...>(std::move(prev.Func), std::forward<F>(filter)))
+    {
+        static_assert(std::is_same_v<std::tuple<Filters...>, std::tuple<T, F>>);
+    }
+    template<typename... Ts, typename F>
+    constexpr FilteredManySource(FilteredManySource<P, Ts...>&& prev, F&& filter) :
+        FilteredManySource(DummyTag{}, std::move(prev),
+            std::tuple<Filters...>(std::tuple_cat(std::move(prev.Funcs), std::make_tuple(std::forward<F>(filter)))))
+    {
+        static_assert(std::is_same_v<std::tuple<Filters...>, std::tuple<Ts..., F>>);
+    }
+
     constexpr void MoveNext()
     {
         this->Prev.MoveNext();
@@ -462,6 +462,10 @@ private:
         }
     }
 };
+template<typename P, typename T, typename F>
+FilteredManySource(FilteredSource<P, T>&&, F&&) -> FilteredManySource<P, T, F>;
+template<typename P, typename... Ts, typename F>
+FilteredManySource(FilteredManySource<P, Ts...>&&, F&&) -> FilteredManySource<P, Ts..., F>;
 
 
 template<typename P>
@@ -1021,11 +1025,11 @@ public:
         static_assert(std::is_invocable_r_v<bool, Filter, EleType>
             || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
             "filter should accept EleType and return bool");
-        if constexpr (common::is_specialization<T, detail::FilteredSource>::value)
+        if constexpr (common::is_specialization<T, detail::FilteredManySource>::value 
+            || common::is_specialization<T, detail::FilteredSource>::value)
         {
             return ToEnumerable(
-                detail::FilteredManySource<typename T::PrevType, typename T::FilterType, common::remove_cvref_t<Filter>>
-                (std::move(Provider), std::forward<Filter>(filter))
+                detail::FilteredManySource(std::move(Provider), std::forward<Filter>(filter))
             );
         }
         else
@@ -1036,16 +1040,6 @@ public:
             );
         }
     }
-
-    /*template<typename Filter>
-    [[nodiscard]] constexpr Enumerable<detail::FilteredSource<T, common::remove_cvref_t<Filter>>> 
-        Where(Filter&& filter)
-    {
-        static_assert(std::is_invocable_r_v<bool, Filter, EleType>
-            || std::is_invocable_r_v<bool, Filter, std::add_lvalue_reference_t<PlainEleType>>,
-            "filter should accept EleType and return bool");
-        return detail::FilteredSource<T, common::remove_cvref_t<Filter>>(std::move(Provider), std::forward<Filter>(filter));
-    }*/
 
     template<typename Other>
     [[nodiscard]] constexpr Enumerable<detail::PairedSource<T, Other>> 
