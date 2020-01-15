@@ -34,6 +34,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Windows & Linux |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Windows & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Windows & Linux |
+| [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Windows & Linux |
 | [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Windows & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Windows & Linux |
 | [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Windows & Linux |
@@ -73,13 +74,9 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) master@2019-10-09
+* [gsl](https://github.com/microsoft/GSL) 2.1.0
   
   [MIT License](./3rdParty/gsl/LICENSE)
-
-* [GLEW](http://glew.sourceforge.net/)  2.1.0
-
-  [Modified BSD & MIT License](./3rdParty/glew/license.txt)
 
 * [FreeGLUT](http://freeglut.sourceforge.net)  3.2.1
 
@@ -93,7 +90,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2019-02-10
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2019-12-02
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
@@ -105,27 +102,15 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/ispc_texcomp/license.txt)
 
-* [date](https://howardhinnant.github.io/date/date.html) 2.4.1
-
-  [MIT License](./3rdParty/date/LICENSE.txt)
-
 * [itoa](https://github.com/miloyip/itoa-benchmark)
 
 * [half](http://half.sourceforge.net/) 2.1.0
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2019-02-17
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2020-01-02
 
   [BSD License](./3rdParty/cpuid/COPYING)
-
-* [libressl](http://www.libressl.org/) 2.9.0
-  
-  [Apache License](./3rdParty/libressl/COPYING)
-
-* [curl](https://curl.haxx.se/libcurl/) 7.63.0
-  
-  [Modified MIT License](./3rdParty/curl/LICENSE-MIXING.md)
 
 ## License
 

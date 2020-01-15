@@ -66,7 +66,7 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
-* [OpenGL Header](../3rdParty/GL) 20191029
+* [OpenGL Header](../3rdParty/GL) 20191206
 
 * [KHR API Header](../3rdParty/KHR) 20190424
 

@@ -46,6 +46,7 @@ struct amd_code_and_bits_t {
 
 
 const struct match_entry_t cpudb_amd[] = {
+//     F   M   S  EF  EM  #cores  L2$   L3$  BC  ModelBits     ModelCode  Name
 	{ -1, -1, -1, -1,   -1,   1,    -1,    -1, NC, 0                   ,     0, "Unknown AMD CPU"               },
 	
 	/* 486 and the likes */
@@ -262,22 +263,41 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15,  0, -1, 22,   48,   2,    -1,    -1, FUSION_E, 0             ,     0, "Mullins X2"                    },
 	{ 15,  0, -1, 22,   48,   4,    -1,    -1, FUSION_A, 0             ,     0, "Mullins X4"                    },
 
-	/* Family 17h: Zen Architecture (2017) */
+	/* Family 17h: Zen Architecture (2017) => https://en.wikichip.org/wiki/amd/microarchitectures/zen */
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Naples)"                 },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Whitehaven)"     },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Summit Ridge)"        },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Summit Ridge)"        },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Summit Ridge)"        },
-	/* APUs */
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Raven Ridge)"         },
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Raven Ridge)"         },
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Raven Ridge)"         },
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Raven Ridge)"          },
-	/* 2nd-gen, Zen+ (2018): */
+	/* Zen+ (2018) => https://en.wikichip.org/wiki/amd/microarchitectures/zen%2B */
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Colfax)"         },
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Pinnacle Ridge)"      },
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Pinnacle Ridge)"      },
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Pinnacle Ridge)"      },
+	{ 15, -1, -1, 23,   24,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Picasso)"             },
+	{ 15, -1, -1, 23,   24,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Picasso)"             },
+	{ 15, -1, -1, 23,   24,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Picasso)"             },
+	{ 15, -1, -1, 23,   24,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Picasso)"              },
+	/* Zen 2 (2019) => https://en.wikichip.org/wiki/amd/microarchitectures/zen_2 */
+	{ 15, -1, -1, 23,  113,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Rome)"                   },
+	{ 15, -1, -1, 23,   49,  -1,    -1,    -1, NC,RYZEN_TR_            ,     0, "Threadripper (Castle Peak)"    },
+	{ 15, -1, -1, 23,  113,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Matisse)"             },
+	{ 15, -1, -1, 23,  113,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Matisse)"             },
+	{ 15, -1, -1, 23,  113,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Matisse)"             },
+	{ 15, -1, -1, 23,  113,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Matisse)"             },
+//     F   M   S  EF  EM  #cores  L2$   L3$  BC  ModelBits     ModelCode  Name
+	//{ 15, -1, -1, 23,   ??,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Renoir)"             }, //TBA
+	//{ 15, -1, -1, 23,   ??,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Renoir)"             }, //TBA
+	//{ 15, -1, -1, 23,   ??,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Renoir)"             }, //TBA
+	//{ 15, -1, -1, 23,   ??,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Renoir)"              }, //TBA
+
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_7              ,     0, "C86 7 (Dhyana)"               },
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_5              ,     0, "C86 5 (Dhyana)"               },
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_3              ,     0, "C86 3 (Dhyana)"               },
 
 
 	/* Newer Opterons: */
@@ -331,9 +351,18 @@ static void load_amd_features(struct cpu_raw_data_t* raw, struct cpu_id_t* data)
 	if (raw->ext_cpuid[0][0] >= 0x80000007)
 		match_features(matchtable_edx87, COUNT_OF(matchtable_edx87), raw->ext_cpuid[7][3], data);
 	if (raw->ext_cpuid[0][0] >= 0x8000001a) {
-		/* We have the extended info about SSE unit size */
+		/* We have the extended info about SSE unit size
+		Extracted from BKDG, about CPUID_Fn8000001A_EAX [Performance Optimization Identifiers] (Core::X86::Cpuid::PerfOptId):
+		- bit 2: FP256
+		- bit 1: MOVU
+		- bit 0: FP128 */
 		data->detection_hints[CPU_HINT_SSE_SIZE_AUTH] = 1;
-		data->sse_size = (raw->ext_cpuid[0x1a][0] & 1) ? 128 : 64;
+		if ((raw->ext_cpuid[0x1a][0] >> 2) & 1)
+			data->sse_size = 256;
+		else if ((raw->ext_cpuid[0x1a][0]) & 1)
+			data->sse_size = 128;
+		else
+			data->sse_size = 64;
 	}
 }
 
@@ -459,6 +488,7 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 		{ _APU_, " APU " },
 		{ EPYC_, "EPYC" },
 		{ RYZEN_TR_, "Ryzen Threadripper" },
+		{ C86_, "C86" },
 	};
 
 	for (i = 0; i < COUNT_OF(bit_matchtable); i++) {
@@ -468,8 +498,19 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 	if (amd_has_turion_modelname(bs)) {
 		bits |= TURION_;
 	}
-	if ((i = match_pattern(bs, "Ryzen [357]")) != 0) {
+	if ((i = match_pattern(bs, "Ryzen [3579]")) != 0) {
 		bits |= RYZEN_;
+		i--;
+		switch (bs[i + 6]) {
+			case '3': bits |= _3; break;
+			case '5': bits |= _5; break;
+			case '7': bits |= _7; break;
+			case '9': bits |= _9; break;
+		}
+	}
+
+	if ((i = match_pattern(bs, "C86 [357]")) != 0) {
+		bits |= C86_;
 		i--;
 		switch (bs[i + 6]) {
 			case '3': bits |= _3; break;

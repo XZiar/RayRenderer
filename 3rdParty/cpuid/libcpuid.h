@@ -110,6 +110,7 @@ typedef enum {
 	VENDOR_RISE,       /*!< x86 CPU by Rise Technology */
 	VENDOR_SIS,        /*!< x86 CPU by SiS */
 	VENDOR_NSC,        /*!< x86 CPU by National Semiconductor */
+	VENDOR_HYGON,	   /*!< Hygon CPU */
 	
 	NUM_CPU_VENDORS,   /*!< Valid CPU vendor ids: 0..NUM_CPU_VENDORS - 1 */
 	VENDOR_UNKNOWN = -1,
@@ -263,7 +264,7 @@ struct cpu_id_t {
 	
 	/**
 	 * The total number of logical processors.
-	 * The same value is availabe through \ref cpuid_get_total_cpus.
+	 * The same value is available through \ref cpuid_get_total_cpus.
 	 *
 	 * This is num_logical_cpus * {total physical processors in the system}
 	 * (but only on a real system, under a VM this number may be lower).
@@ -488,6 +489,7 @@ typedef enum {
 	CPU_FEATURE_SGX,	/*!< SGX extensions. Non-autoritative, check cpu_id_t::sgx::present to verify presence */
 	CPU_FEATURE_RDSEED,	/*!< RDSEED instruction */
 	CPU_FEATURE_ADX,	/*!< ADX extensions (arbitrary precision) */
+	CPU_FEATURE_AVX512VNNI, /*!< AVX-512 Vector Neural Network Instructions */
 	/* termination: */
 	NUM_CPU_FEATURES,
 } cpu_feature_t;
@@ -732,7 +734,7 @@ void cpu_tsc_mark(struct cpu_mark_t* mark);
 /**
  * @brief Calculate TSC and timing difference
  *
- * @param mark - input/output: a pointer to a cpu_mark_t sturcture, which has
+ * @param mark - input/output: a pointer to a cpu_mark_t structure, which has
  *               already been initialized by cpu_tsc_mark. The difference in
  *               TSC and time will be written here.
  *
