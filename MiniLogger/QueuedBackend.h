@@ -19,7 +19,7 @@ class MINILOGAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
 private:
     boost::lockfree::queue<LogMessage*> MsgQueue;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep
-    virtual LoopState OnLoop() override;
+    virtual LoopAction OnLoop() override;
 protected:
     using LoopBase::Stop;
     void EnsureRunning();

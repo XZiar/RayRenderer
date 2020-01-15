@@ -78,17 +78,17 @@ void LoopExecutor::RunLoop() noexcept
     {
         try
         {
-            const auto state = Loop.OnLoop();
-            if (state == LoopBase::LoopState::Finish)
+            const auto action = Loop.OnLoop();
+            if (action == LoopBase::LoopAction::ValFinish)
                 break;
-            if (state == LoopBase::LoopState::Sleep)
+            if (const auto sleepTime = action.GetSleepTime(); sleepTime > 0)
             {
                 SleepState = SleepStates::Pending;
-                if (Loop.SleepCheck())
+                if (sleepTime < LoopBase::LoopAction::MaxSleepTime || Loop.SleepCheck())
                 {
                     auto desire = SleepStates::Pending;
                     if (SleepState.compare_exchange_strong(desire, SleepStates::Sleep))
-                        DoSleep(&runningLock);
+                        DoSleep(&runningLock, sleepTime);
                 }
             }
             SleepState = SleepStates::Running;
@@ -116,9 +116,14 @@ class ThreadedExecutor : public LoopExecutor
     std::thread MainThread;
     std::condition_variable SleepCond;
 protected:
-    virtual void DoSleep(void* runningLock) noexcept override
+    virtual void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override
     {
-        SleepCond.wait(*reinterpret_cast<std::unique_lock<std::mutex>*>(runningLock));
+        auto& mtx = *reinterpret_cast<std::unique_lock<std::mutex>*>(runningLock);
+        if (sleepTime > LoopBase::LoopAction::MaxSleepTime)
+            SleepCond.wait(mtx);
+        else
+            SleepCond.wait_for(mtx, std::chrono::milliseconds(sleepTime));
+
     }
     virtual void DoWakeup() noexcept override
     {
@@ -148,8 +153,11 @@ public:
 };
 
 
-void InplaceExecutor::DoSleep(void*) noexcept { } // do nothing
-void InplaceExecutor::DoWakeup() noexcept { } // do nothing
+void InplaceExecutor::DoSleep(void*, const uint32_t sleepTime) noexcept 
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+}
+void InplaceExecutor::DoWakeup() noexcept { } // do nothing, assume not able to wakeup
 void InplaceExecutor::DoStart() { }
 void InplaceExecutor::WaitUtilStop()
 {

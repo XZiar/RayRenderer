@@ -9,7 +9,7 @@ bool LoggerQBackend::SleepCheck() noexcept
 {
     return MsgQueue.empty();
 }
-loop::LoopBase::LoopState LoggerQBackend::OnLoop()
+loop::LoopBase::LoopAction LoggerQBackend::OnLoop()
 {
     LogMessage* msg = nullptr;
     for (uint32_t i = 16; !MsgQueue.pop(msg) && i--;)
@@ -20,11 +20,11 @@ loop::LoopBase::LoopState LoggerQBackend::OnLoop()
     {
         OnPrint(*msg);
         LogMessage::Consume(msg);
-        return LoopState::Continue;
+        return LoopAction::Continue();
     }
     else
     {
-        return LoopState::Sleep;
+        return LoopAction::Sleep();
     }
 }
 

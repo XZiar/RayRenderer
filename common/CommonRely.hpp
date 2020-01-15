@@ -299,6 +299,52 @@ template<typename T>
 }
 
 
+
+/* param pack helper */
+
+#include <tuple>
+namespace common
+{
+struct ParamPack
+{
+    template<typename T, typename... Ts>
+    struct FirstType
+    {
+        using Type = T;
+    };
+
+#if COMMON_CPP_17
+    template<typename... Ts>
+    struct LastType
+    {
+        using Type = typename decltype((FirstType<Ts>{}, ...))::Type;
+    };
+#else
+    template <typename... Args>
+    struct LastType;
+    template <typename T>
+    struct LastType<T>
+    {
+        using Type = T;
+    };
+    template <typename T, typename... Args>
+    struct LastType<T, Args...>
+    {
+        using Type = typename LastType<Args...>::Type;
+    };
+#endif
+
+    template<size_t N, typename... Ts>
+    struct NthType
+    {
+        using Tuple = std::tuple<FirstType<Ts>...>;
+        using Type = typename std::tuple_element<N, Tuple>::type::Type;
+    };
+};
+}
+
+
+
 namespace common
 {
 

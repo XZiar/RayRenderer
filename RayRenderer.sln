@@ -319,6 +319,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GSL", "GSL", "{61EE5133-5D3
 		3rdParty\gsl\string_span = 3rdParty\gsl\string_span
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindowHost", "WindowHost\WindowHost.vcxproj", "{CE89232C-D25E-428E-BD6C-030729597C0A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -499,6 +501,10 @@ Global
 		{43B6E40D-793D-4224-897C-74DA6489619F}.Debug|x64.Build.0 = Debug|x64
 		{43B6E40D-793D-4224-897C-74DA6489619F}.Release|x64.ActiveCfg = Release|x64
 		{43B6E40D-793D-4224-897C-74DA6489619F}.Release|x64.Build.0 = Release|x64
+		{CE89232C-D25E-428E-BD6C-030729597C0A}.Debug|x64.ActiveCfg = Debug|x64
+		{CE89232C-D25E-428E-BD6C-030729597C0A}.Debug|x64.Build.0 = Debug|x64
+		{CE89232C-D25E-428E-BD6C-030729597C0A}.Release|x64.ActiveCfg = Release|x64
+		{CE89232C-D25E-428E-BD6C-030729597C0A}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -559,6 +565,7 @@ Global
 		{3EDD7EC9-C96D-45C0-AD8C-8A6E252833E5} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{43B6E40D-793D-4224-897C-74DA6489619F} = {533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}
 		{61EE5133-5D38-48AC-8149-D451AB914060} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{CE89232C-D25E-428E-BD6C-030729597C0A} = {B6204FB0-DC48-4C02-8453-BAEF3D033ACB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

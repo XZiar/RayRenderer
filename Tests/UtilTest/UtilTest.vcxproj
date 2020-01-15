@@ -178,6 +178,9 @@
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\WindowHost\WindowHost.vcxproj">
+      <Project>{ce89232c-d25e-428e-bd6c-030729597c0a}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AsyncTest.cpp">
@@ -219,6 +222,7 @@
     </ClCompile>
     <ClCompile Include="LogTest.cpp" />
     <ClCompile Include="UtilTest.cpp" />
+    <ClCompile Include="WdHostTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />

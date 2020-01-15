@@ -142,7 +142,7 @@ private:
     bool AddNode(detail::AsyncTaskNodeBase* node);
 
     void Resume(detail::AsyncTaskStatus status);
-    virtual LoopState OnLoop() override;
+    virtual LoopAction OnLoop() override;
     virtual bool OnStart(std::any cookie) noexcept override;
     virtual void OnStop() noexcept override;
     virtual bool SleepCheck() noexcept override; // double check if shoul sleep

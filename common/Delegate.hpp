@@ -44,6 +44,8 @@ public:
     }
     void operator()(const Args&... args) const
     {
+        if (CallbackList.IsEmpty()) // fast pass when no callback is registered
+            return;
         const auto lock = Lock.ReadScope();
         CallbackList.ForEachRead([&](CallbackNode* node) 
             {
@@ -62,7 +64,7 @@ public:
     bool operator-=(const CallbackToken& token)
     {
         auto node = reinterpret_cast<CallbackNode*>(token.CallbackPtr);
-        if (node == nullptr || node->UID != UID || token.ID != node->ID)
+        if (node == nullptr || node->UID != UID || token.ID != node->ID || CallbackList.IsEmpty())
             return false;
         else
         {
