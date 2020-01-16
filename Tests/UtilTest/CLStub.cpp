@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclException.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "StringCharset/Convert.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
@@ -11,6 +12,7 @@ using namespace common::mlog;
 using namespace oclu;
 using std::string;
 using std::u16string;
+using std::u16string_view;
 using std::cin;
 using xziar::img::TexFormatUtil;
 using common::strchset::to_u16string;
@@ -21,22 +23,54 @@ static MiniLogger<false>& log()
     return logger;
 }
 
+
+template<typename T>
+uint32_t SelectIdx(const T& container, u16string_view name)
+{
+    if (container.size() <= 1)
+        return 0;
+    log().info(u"Select {} to use:\n", name);
+    uint32_t idx = UINT32_MAX;
+    do
+    {
+        const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
+        if (ch >= '0' && ch <= '9')
+            idx = ch - '0';
+    } while (idx >= container.size());
+    return idx;
+}
+
 static void OCLStub()
 {
-    common::linq::FromIterable(oclUtil::GetPlatforms())
-        .ForEach([](const auto& plat, size_t idx) mutable 
-    { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
-    uint32_t platidx = 0;
-    std::cin >> platidx;
-    const auto plat = oclUtil::GetPlatforms()[platidx];
+    const auto& plats = oclUtil::GetPlatforms();
+    if (plats.size() == 0)
+    {
+        log().error(u"No OpenCL platform found!\n");
+        return;
+    }
+    common::linq::FromIterable(plats)
+        .ForEach([](const auto& plat, size_t idx) 
+            { log().info(FMT_STRING(u"option[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
+    const auto platidx = SelectIdx(plats, u"platform");
+    const auto plat = plats[platidx];
 
-    auto thedev = common::linq::FromContainer(plat->GetDevices())
-        .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
-        .TryGetFirst().value_or(plat->GetDefaultDevice());
-    const auto ctx = plat->CreateContext(thedev);
+    const auto devs = plat->GetDevices();
+    if (devs.size() == 0)
+    {
+        log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
+        return;
+    }
+    common::linq::FromIterable(devs)
+        .ForEach([](const auto& dev, size_t idx)
+            { log().info(FMT_STRING(u"option[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
+    const auto devidx = SelectIdx(devs, u"device");
+    const auto dev = devs[devidx];
+
+    const auto ctx = plat->CreateContext(dev);
     ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
-    auto que = oclCmdQue_::Create(ctx, thedev);
-    ClearReturn();
+    auto que = oclCmdQue_::Create(ctx, dev);
+    log().success(u"Create context with [{}] on [{}]!\n", dev->Name, plat->Name);
+    //ClearReturn();
     //SimpleTest(ctx);
     while (true)
     {
@@ -46,7 +80,7 @@ static void OCLStub()
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");
-            for (const auto& ext : thedev->Extensions)
+            for (const auto& ext : dev->Extensions)
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
             continue;
@@ -73,7 +107,7 @@ static void OCLStub()
         {
             const auto kertxt = common::file::ReadAllText(filepath);
             CLProgConfig config;
-            config.Defines["LOC_MEM_SIZE"] = thedev->LocalMemSize;
+            config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
             if (exConfig)
             {
                 string line;
@@ -99,12 +133,12 @@ static void OCLStub()
             log().success(u"loaded! kernels:\n");
             for (const auto& ker : clProg->GetKernels())
             {
-                const auto wgInfo = ker->GetWorkGroupInfo(thedev);
+                const auto wgInfo = ker->GetWorkGroupInfo(dev);
                 log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
                     wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
                     wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
-                const auto sgInfo = ker->GetSubgroupInfo(thedev, 3, wgInfo.CompiledWorkGroupSize);
+                const auto sgInfo = ker->GetSubgroupInfo(dev, 3, wgInfo.CompiledWorkGroupSize);
                 if (sgInfo.has_value())
                 {
                     const auto& info = sgInfo.value();

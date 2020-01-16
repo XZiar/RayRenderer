@@ -31,6 +31,10 @@ static Vendors JudgeBand(const u16string& name)
         return Vendors::AMD;
     else if (capName.find(u"INTEL") != u16string::npos)
         return Vendors::Intel;
+    else if (capName.find(u"ARM") != u16string::npos)
+        return Vendors::ARM;
+    else if (capName.find(u"QUALCOMM") != u16string::npos)
+        return Vendors::Qualcomm;
     else
         return Vendors::Other;
 }
@@ -56,11 +60,11 @@ oclPlatform_::oclPlatform_(const cl_platform_id pID)
     : PlatformID(pID), DefDevice(nullptr)
 {
     Extensions = common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false);
-    Name = GetUStr(pID, CL_PLATFORM_NAME);
-    Ver = GetUStr(pID, CL_PLATFORM_VERSION);
+    Name    = GetUStr(pID, CL_PLATFORM_NAME);
+    Ver     = GetUStr(pID, CL_PLATFORM_VERSION);
     {
-        const auto verPart = common::str::SplitStream(Ver, u' ', false).Skip(1).TryGetFirst().value();
-        Version = (verPart[0] - u'0') * 10 + (verPart[2] - u'0');
+        const auto version = ParseVersionString(Ver, 1);
+        Version = version.first * 10 + version.second;
     }
     PlatVendor = JudgeBand(Name);
 

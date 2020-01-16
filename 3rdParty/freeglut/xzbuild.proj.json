@@ -2,7 +2,7 @@
     "name": "freeglut",
     "type": "static",
     "description": "A GLUT replacement",
-    "version": "3.0.0",
+    "version": "3.2.1",
     "dependency": [],
     "library": 
     {

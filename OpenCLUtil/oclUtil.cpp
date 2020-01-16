@@ -24,7 +24,7 @@ void oclUtil::LogCLInfo()
         fmt::format_to(strBuffer, u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
         for (const auto dev : plat->GetDevices())
             fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
-                dev->Name, dev->Vendor, dev->Version);
+                dev->Name, dev->Vendor, dev->Ver);
         oclLog().verbose(strBuffer);
     }
 }
@@ -57,16 +57,16 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     switch (err)
     {
     // run-time and JIT compiler errors
-    case 0: return u"CL_SUCCESS"sv;
-    case -1: return u"CL_DEVICE_NOT_FOUND"sv;
-    case -2: return u"CL_DEVICE_NOT_AVAILABLE"sv;
-    case -3: return u"CL_COMPILER_NOT_AVAILABLE"sv;
-    case -4: return u"CL_MEM_OBJECT_ALLOCATION_FAILURE"sv;
-    case -5: return u"CL_OUT_OF_RESOURCES"sv;
-    case -6: return u"CL_OUT_OF_HOST_MEMORY"sv;
-    case -7: return u"CL_PROFILING_INFO_NOT_AVAILABLE"sv;
-    case -8: return u"CL_MEM_COPY_OVERLAP"sv;
-    case -9: return u"CL_IMAGE_FORMAT_MISMATCH"sv;
+    case   0: return u"CL_SUCCESS"sv;
+    case  -1: return u"CL_DEVICE_NOT_FOUND"sv;
+    case  -2: return u"CL_DEVICE_NOT_AVAILABLE"sv;
+    case  -3: return u"CL_COMPILER_NOT_AVAILABLE"sv;
+    case  -4: return u"CL_MEM_OBJECT_ALLOCATION_FAILURE"sv;
+    case  -5: return u"CL_OUT_OF_RESOURCES"sv;
+    case  -6: return u"CL_OUT_OF_HOST_MEMORY"sv;
+    case  -7: return u"CL_PROFILING_INFO_NOT_AVAILABLE"sv;
+    case  -8: return u"CL_MEM_COPY_OVERLAP"sv;
+    case  -9: return u"CL_IMAGE_FORMAT_MISMATCH"sv;
     case -10: return u"CL_IMAGE_FORMAT_NOT_SUPPORTED"sv;
     case -11: return u"CL_BUILD_PROGRAM_FAILURE"sv;
     case -12: return u"CL_MAP_FAILURE"sv;

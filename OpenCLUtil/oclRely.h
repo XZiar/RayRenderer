@@ -57,7 +57,7 @@ class oclUtil;
 class oclMapPtr_;
 class GLInterop;
 
-enum class Vendors { Other = 0, NVIDIA, Intel, AMD };
+enum class Vendors { Other = 0, NVIDIA, Intel, AMD, ARM, Qualcomm };
 
 
 }

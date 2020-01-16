@@ -2,7 +2,7 @@
     "name": "cpuid",
     "type": "static",
     "description": "A small C library for x86 CPU detection and feature extraction",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "dependency": [],
     "library": 
     {

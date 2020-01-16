@@ -13,7 +13,7 @@ namespace oclu
 class oclDevice_;
 using oclDevice = const oclDevice_*;
 
-enum class DeviceType : uint8_t { Default, CPU, GPU, Accelerator, Custom };
+enum class DeviceType : uint8_t { Other, CPU, GPU, Accelerator, Custom };
 
 
 class OCLUAPI oclDevice_ : public common::NonCopyable
@@ -29,10 +29,11 @@ private:
     cl_device_id DeviceID;
     oclDevice_(const cl_device_id dID);
 public:
-    std::u16string Name, Vendor, Version;
+    std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseSet<std::string> Extensions;
-    uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize, GlobalCacheLine;
-    uint32_t MemBaseAddrAlign;
+    uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize;
+    uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits;
+    uint32_t Version, CVersion;
     bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
     DeviceType Type;
 

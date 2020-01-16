@@ -36,36 +36,47 @@ static T GetNum(const cl_device_id DeviceID, const cl_device_info type)
     return num;
 }
 
-static DeviceType GetDevType(const cl_device_id DeviceID)
+oclDevice_::oclDevice_(const cl_device_id dID) : DeviceID(dID)
 {
     cl_device_type dtype;
     clGetDeviceInfo(DeviceID, CL_DEVICE_TYPE, sizeof(dtype), &dtype, nullptr);
     switch (dtype)
     {
-    case CL_DEVICE_TYPE_CPU:
-        return DeviceType::CPU;
-    case CL_DEVICE_TYPE_GPU:
-        return DeviceType::GPU;
-    case CL_DEVICE_TYPE_ACCELERATOR:
-        return DeviceType::Accelerator;
-    case CL_DEVICE_TYPE_CUSTOM:
-        return DeviceType::Custom;
-    default:
-        return DeviceType::Default;
+    case CL_DEVICE_TYPE_CPU:         Type = DeviceType::CPU; break;
+    case CL_DEVICE_TYPE_GPU:         Type = DeviceType::GPU; break;
+    case CL_DEVICE_TYPE_ACCELERATOR: Type = DeviceType::Accelerator; break;
+    case CL_DEVICE_TYPE_CUSTOM:      Type = DeviceType::Custom; break;
+    default:                         Type = DeviceType::Other; break;
     }
-}
 
-oclDevice_::oclDevice_(const cl_device_id dID) : DeviceID(dID),
-    Name(GetUStr(dID, CL_DEVICE_NAME)), Vendor(GetUStr(dID, CL_DEVICE_VENDOR)), Version(GetUStr(dID, CL_DEVICE_VERSION)),
-    Extensions(common::str::Split(GetStr(dID, CL_DEVICE_EXTENSIONS), ' ', false)),
-    ConstantBufSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE)), GlobalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_SIZE)),
-    LocalMemSize(GetNum<uint64_t>(dID, CL_DEVICE_LOCAL_MEM_SIZE)), MaxMemSize(GetNum<uint64_t>(dID, CL_DEVICE_MAX_MEM_ALLOC_SIZE)),
-    GlobalCacheSize(GetNum<uint64_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE)), GlobalCacheLine(GetNum<uint32_t>(dID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)),
-    MemBaseAddrAlign(GetNum<uint32_t>(dID, CL_DEVICE_MEM_BASE_ADDR_ALIGN)),
-    SupportProfiling((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_PROFILING_ENABLE) != 0),
-    SupportOutOfOrder((GetNum<cl_command_queue_properties>(dID, CL_DEVICE_QUEUE_PROPERTIES) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0),
-    SupportImplicitGLSync(Extensions.Has("cl_khr_gl_event")),
-    Type(GetDevType(DeviceID)) { }
+    Name    = GetUStr(DeviceID, CL_DEVICE_NAME);
+    Vendor  = GetUStr(DeviceID, CL_DEVICE_VENDOR);
+    Ver     = GetUStr(DeviceID, CL_DEVICE_VERSION);
+    CVer    = GetUStr(DeviceID, CL_DEVICE_OPENCL_C_VERSION);
+    {
+        const auto version = ParseVersionString(Ver, 1);
+        Version = version.first * 10 + version.second;
+        const auto cversion = ParseVersionString(CVer, 2);
+        CVersion = cversion.first * 10 + cversion.second;
+    }
+
+    Extensions = common::str::Split(GetStr(DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
+
+    ConstantBufSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE);
+    GlobalMemSize       = GetNum<uint64_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_SIZE);
+    LocalMemSize        = GetNum<uint64_t>(DeviceID, CL_DEVICE_LOCAL_MEM_SIZE);
+    MaxMemSize          = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
+    GlobalCacheSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE);
+    GlobalCacheLine     = GetNum<uint32_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE);
+    MemBaseAddrAlign    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MEM_BASE_ADDR_ALIGN);
+    ComputeUnits        = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
+
+    const auto props = GetNum<cl_command_queue_properties>(DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
+    SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;
+    SupportOutOfOrder       = (props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0;
+    SupportImplicitGLSync   = Extensions.Has("cl_khr_gl_event");
+
+}
 
 using namespace std::literals;
 
@@ -77,7 +88,7 @@ u16string_view oclDevice_::GetDeviceTypeName(const DeviceType type)
     case DeviceType::GPU:           return u"GPU"sv;
     case DeviceType::Accelerator:   return u"Accelerator"sv;
     case DeviceType::Custom:        return u"Custom"sv;
-    default:                        return u"Unknown"sv;
+    default:                        return u"Other"sv;
     }
 }
 
