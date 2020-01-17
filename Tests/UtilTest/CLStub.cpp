@@ -50,7 +50,7 @@ static void OCLStub()
     }
     common::linq::FromIterable(plats)
         .ForEach([](const auto& plat, size_t idx) 
-            { log().info(FMT_STRING(u"option[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
+            { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
     const auto platidx = SelectIdx(plats, u"platform");
     const auto plat = plats[platidx];
 
@@ -62,7 +62,7 @@ static void OCLStub()
     }
     common::linq::FromIterable(devs)
         .ForEach([](const auto& dev, size_t idx)
-            { log().info(FMT_STRING(u"option[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
+            { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
     const auto devidx = SelectIdx(devs, u"device");
     const auto dev = devs[devidx];
 

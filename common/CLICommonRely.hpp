@@ -5,8 +5,10 @@
 #endif
 
 #include "CommonRely.hpp"
-#include <msclr/marshal_cppstd.h>
 #include <string_view>
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <msclr/marshal_cppstd.h> // will include <windows.h>
 
 
 #define CLI_PUBLIC_PROPERTY(Type, Name, name) \

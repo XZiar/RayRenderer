@@ -30,7 +30,7 @@ void FontCreator::loadCL(const string& src)
         auto stub = oclProgram_::Create(clCtx, src);
         oclu::CLProgConfig config;
         config.Flags.insert("-cl-fast-relaxed-math");
-        config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
+        config.Defines["LOC_MEM_SIZE"] = clCtx->Devices[0]->LocalMemSize;
         stub.Build(config);
         clProg = stub.Finish();
     }
@@ -54,9 +54,9 @@ void FontCreator::loadDownSampler(const string& src)
         if (clCtx->GetVendor() == Vendors::NVIDIA)
         {
             config.Flags.insert({"-cl-kernel-arg-info", "-cl-nv-verbose"});
-            config.Defines.insert_or_assign("NVIDIA", std::monostate{});
+            config.Defines.Add("NVIDIA");
         }
-        config.Defines.insert_or_assign("LOC_MEM_SIZE", clCtx->Devices[0]->LocalMemSize);
+        config.Defines["LOC_MEM_SIZE"] = clCtx->Devices[0]->LocalMemSize;
         stub.Build(config);
         clProg = stub.Finish();
     }

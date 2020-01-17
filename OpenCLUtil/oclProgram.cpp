@@ -252,17 +252,17 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vect
     case Vendors::Intel:     options = "-DOCLU_INTEL "; break;
     default:                break;
     }
-    for (const auto& def : config.Defines)
+    for (const auto def : config.Defines)
     {
-        options.append("-D"sv).append(def.first);
-        std::visit([&](auto&& val)
+        options.append("-D"sv).append(def.Key);
+        std::visit([&](const auto val)
             {
                 using T = std::decay_t<decltype(val)>;
-                if constexpr (std::is_same_v<T, string>)
+                if constexpr (std::is_same_v<T, std::string_view>)
                     options.append("="sv).append(val);
                 else if constexpr (!std::is_same_v<T, std::monostate>)
                     options.append("="sv).append(std::to_string(val));
-            }, def.second);
+            }, def.Val);
         options.append(" "sv);
     }
     for (const auto& flag : config.Flags)

@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "common/CLikeConfig.hpp"
 #include "common/ContainerEx.hpp"
 
 
@@ -46,8 +47,7 @@ struct ShaderExtInfo
 
 struct ShaderConfig
 {
-    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, float, double, std::string>;
-    std::map<std::string, DefineVal> Defines;
+    common::CLikeDefines Defines;
     std::map<std::string, std::string> Routines;
 };
 

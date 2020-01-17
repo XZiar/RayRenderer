@@ -6,6 +6,7 @@
 #include "oclBuffer.h"
 #include "oclImage.h"
 #include "common/FileBase.hpp"
+#include "common/CLikeConfig.hpp"
 
 
 
@@ -169,8 +170,7 @@ public:
 
 struct CLProgConfig
 {
-    using DefineVal = std::variant<std::monostate, int32_t, uint32_t, int64_t, uint64_t, float, double, std::string>;
-    std::map<std::string, DefineVal> Defines;
+    common::CLikeDefines Defines;
     std::set<std::string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
 };
 

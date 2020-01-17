@@ -507,7 +507,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
                                     return flip ^ (CtxFunc->Version >= needVersion);
                                 }
                                 else
-                                    return flip ^ (config.Defines.find(string(ext)) != config.Defines.cend());
+                                    return flip ^ (config.Defines.Has(ext));
                             });
                     if (allmatch)
                         stypes.insert(ogluAttr.Params.cbegin() + 1, ogluAttr.Params.cend());
@@ -625,18 +625,18 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     }
 
     //apply defines
-    string defs;
-    for (const auto& def : config.Defines)
+    string defs = "\r\n// Below are defines injected by configs\r\n\r\n";
+    for (const auto def : config.Defines)
     {
-        defs.append("#define ").append(def.first).append(" ");
+        defs.append("#define ").append(def.Key).append(" ");
         std::visit([&](auto&& val)
         {
             using T = std::decay_t<decltype(val)>;
-            if constexpr (std::is_same_v<T, string>)
+            if constexpr (std::is_same_v<T, string_view>)
                 defs.append(val);
             else if constexpr (!std::is_same_v<T, std::monostate>)
                 defs.append(std::to_string(val));
-        }, def.second);
+        }, def.Val);
         defs.append("\r\n");
     }
 

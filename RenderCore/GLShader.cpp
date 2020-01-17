@@ -116,12 +116,11 @@ void GLShader::RegistControllable()
 }
 
 
-constexpr size_t DefineNone   = common::get_variant_index_v<std::monostate, oglu::ShaderConfig::DefineVal>();
-constexpr size_t DefineInt32  = common::get_variant_index_v<int32_t,        oglu::ShaderConfig::DefineVal>();
-constexpr size_t DefineUInt32 = common::get_variant_index_v<uint32_t,       oglu::ShaderConfig::DefineVal>();
-constexpr size_t DefineFloat  = common::get_variant_index_v<float,          oglu::ShaderConfig::DefineVal>();
-constexpr size_t DefineDouble = common::get_variant_index_v<double,         oglu::ShaderConfig::DefineVal>();
-constexpr size_t DefineString = common::get_variant_index_v<string,         oglu::ShaderConfig::DefineVal>();
+constexpr size_t DefineNone     = common::get_variant_index_v<std::monostate, common::CLikeDefines::ValType>();
+constexpr size_t DefineSigned   = common::get_variant_index_v<int64_t,        common::CLikeDefines::ValType>();
+constexpr size_t DefineUnsigned = common::get_variant_index_v<uint64_t,       common::CLikeDefines::ValType>();
+constexpr size_t DefineDouble   = common::get_variant_index_v<double,         common::CLikeDefines::ValType>();
+constexpr size_t DefineStr      = common::get_variant_index_v<string_view,    common::CLikeDefines::ValType>();
 void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     jself.Add("Name", common::strchset::to_u8string(Program->Name, Charset::UTF16LE));
@@ -204,22 +203,24 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
     {
         const auto jconfig = object.GetObject("config");
         common::linq::FromContainer(jconfig.GetObject("defines"))
-            .IntoMap(config.Defines,
-                [](const auto& kvpair) { return string(kvpair.first); },
-                [](const auto& kvpair) -> ShaderConfig::DefineVal
-        {
-            if (kvpair.second.IsNull()) return {};
-            xziar::ejson::JArrayRef<true> valarray(kvpair.second);
-            switch (valarray.Get<size_t>(0))
-            {
-            case DefineInt32:   return valarray.Get<int32_t>(1);
-            case DefineUInt32:  return valarray.Get<uint32_t>(1);
-            case DefineFloat:   return valarray.Get<float>(1);
-            case DefineDouble:  return valarray.Get<double>(1);
-            case DefineString:  return valarray.Get<string>(1);
-            default:            return {};
-            }
-        });
+            .ForEach([&](const auto& kvpair)
+                {
+                    auto val = config.Defines[kvpair.first];
+                    if (kvpair.second.IsNull())
+                        config.Defines.Add(kvpair.first);
+                    else
+                    {
+                        xziar::ejson::JArrayRef<true> valarray(kvpair.second);
+                        switch (valarray.Get<size_t>(0))
+                        {
+                        case DefineSigned:   config.Defines[kvpair.first] = valarray.Get<int64_t>(1);  break;
+                        case DefineUnsigned: config.Defines[kvpair.first] = valarray.Get<uint64_t>(1); break;
+                        case DefineDouble:   config.Defines[kvpair.first] = valarray.Get<double>(1);   break;
+                        case DefineStr:      config.Defines[kvpair.first] = valarray.Get<string>(1);   break;
+                        default:             break;
+                        }
+                    }
+                });
         common::linq::FromContainer(jconfig.GetObject("routines"))
             .IntoMap(config.Routines, 
                 [](const auto& kvpair) { return string(kvpair.first); },

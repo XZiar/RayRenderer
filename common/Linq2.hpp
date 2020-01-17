@@ -931,11 +931,11 @@ private:
         {
             return Source->Provider.GetCurrent();
         }
-        constexpr bool operator!=(const detail::EnumerableEnd&)
+        constexpr bool operator!=(const detail::EnumerableEnd&) const
         {
             return !Source->Provider.IsEnd();
         }
-        constexpr bool operator==(const detail::EnumerableEnd&)
+        constexpr bool operator==(const detail::EnumerableEnd&) const
         {
             return Source->Provider.IsEnd();
         }
