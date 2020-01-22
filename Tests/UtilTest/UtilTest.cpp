@@ -2,6 +2,7 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+#include "common/Linq2.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/StringEx.hpp"
 #include "common/AlignedContainer.hpp"
@@ -34,6 +35,18 @@ fs::path FindPath()
 {
     return BasePathHolder();
 }
+
+
+std::vector<std::string_view>& GetCmdArgs_()
+{
+    static std::vector<std::string_view> ARGS;
+    return ARGS;
+}
+const std::vector<std::string_view>& GetCmdArgs()
+{
+    return GetCmdArgs_();
+}
+
 
 static map<string, void(*)()>& GetTestMap()
 {
@@ -81,8 +94,18 @@ int main(int argc, char *argv[])
     common::ResourceHelper::Init(nullptr);
     log().info(u"UnitTest\n");
 
-    if (argc > 1)
-        BasePathHolder() = fs::absolute(argv[1]);
+    const auto args = common::linq::FromContainer(common::span<char*>(argv, argv + argc))
+        .Cast<std::string_view>()
+        .ToVector();
+    GetCmdArgs_() = common::linq::FromIterable(args)
+        .Where([](const auto sv) { return common::str::IsBeginWith(sv, "-"); })
+        .ToVector();
+    const auto left = common::linq::FromIterable(args)
+        .Where([](const auto sv) { return !common::str::IsBeginWith(sv, "-"); })
+        .ToVector();
+
+    if (left.size() >= 1)
+        BasePathHolder() = fs::absolute(left[0]);
     log().debug(FMT_STRING(u"Locate BasePath to [{}]\n"), BasePathHolder().u16string());
 
     uint32_t idx = 0;
@@ -95,8 +118,8 @@ int main(int argc, char *argv[])
     timer.Start();
     log().info(u"Select One To Execute...");
     timer.Stop();
-    if (argc > 2)
-        idx = (uint32_t)std::stoul(argv[2]);
+    if (left.size() >= 2)
+        idx = (uint32_t)std::stoul(left[1].data());
     else
     {
         std::cin >> idx;

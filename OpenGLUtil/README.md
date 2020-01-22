@@ -199,7 +199,9 @@ OpenGLUtil provides a wrapper `ogluDrawId` to support both situation. When prepa
 
 OpenGLUtil provides a wrapper `ogluLayer` in fragment stage to support both situation. To correctly get the layer data, `ogluSetLayer(int)` shoud be called to properly set layerID.
 
-When the extension [GL_AMD_vertex_shader_layer](https://www.khronos.org/registry/OpenGL/extensions/AMD/AMD_vertex_shader_layer.txt) exists, you can set layer in vertex shader without using GS. You should also uses `ogluSetLayer(int)`, since it may also set the layer information when extension is not avalibale, then you can get the layer information in GS using `ogluGetLayer()`;
+GS Shader can retrive information via `ogluLayerIn` or by function `ogluGetLayer(x)`.
+
+When the extension [GL_AMD_vertex_shader_layer](https://www.khronos.org/registry/OpenGL/extensions/AMD/AMD_vertex_shader_layer.txt) exists, you can set layer in vertex shader without using GS. You should still uses `ogluSetLayer(int)`, since it will also set the layer information in extra varying variable, so that you can always get the layer information in PS;
 
 
 > Example:
@@ -221,7 +223,7 @@ void main()
 {
     for(int i = 0; i < gl_in.length(); ++i)
     {
-        ogluSetLayer(ogluGetLayer());
+        ogluSetLayer(ogluLayerIn);
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
     }

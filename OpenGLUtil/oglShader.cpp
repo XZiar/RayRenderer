@@ -205,28 +205,32 @@ constexpr static string_view OGLU_EXT_REQS = R"(
 #   extension GL_ARB_geometry_shader4           : enable
 #endif
 
-#extension GL_ARB_explicit_uniform_location : enable
-#extension GL_ARB_bindless_texture          : enable
-#extension GL_NV_bindless_texture           : enable
-#extension GL_ARB_gpu_shader_int64          : enable
-#extension GL_AMD_gpu_shader_int64          : enable
-#extension GL_NV_gpu_shader5                : enable
-#extension GL_AMD_vertex_shader_layer       : enable
-#extension GL_ARB_draw_instanced            : enable
+#extension GL_ARB_explicit_uniform_location     : enable
 
-#if !defined(GL_ARB_draw_instanced) || !GL_ARB_draw_instanced
-#   extension GL_EXT_draw_instanced : enable
-#endif
+#extension GL_ARB_bindless_texture              : enable
+#extension GL_NV_bindless_texture               : enable
+
+#extension GL_ARB_gpu_shader_int64              : enable
+#extension GL_AMD_gpu_shader_int64              : enable
+#extension GL_NV_gpu_shader5                    : enable
+
+#extension GL_ARB_shader_viewport_layer_array   : enable
+#extension GL_AMD_vertex_shader_layer           : enable
+
+#extension GL_ARB_draw_instanced                : enable
+#extension GL_EXT_draw_instanced                : enable
 )";
 
 constexpr static string_view OGLU_DEFS = R"(
 #line 1 2 // OGLU_DEFS
 #if (!defined(GL_NV_bindless_texture) || !GL_NV_bindless_texture) && (defined(GL_ARB_bindless_texture) && GL_ARB_bindless_texture)
+#   define OGLU_bindless_tex 1
 #   define OGLU_TEX layout(bindless_sampler) 
 #   define OGLU_IMG layout(bindless_image) 
 #   define OGLU_TEX_LAYOUT ,bindless_sampler
 #   define OGLU_IMG_LAYOUT ,bindless_image
 #else
+#   define OGLU_bindless_tex 0
 #   define OGLU_TEX  
 #   define OGLU_IMG 
 #   define OGLU_TEX_LAYOUT
@@ -234,9 +238,17 @@ constexpr static string_view OGLU_DEFS = R"(
 #endif
 
 #if (defined(GL_ARB_gpu_shader_int64) && GL_ARB_gpu_shader_int64) || (defined(GL_AMD_gpu_shader_int64) && GL_AMD_gpu_shader_int64) || (defined(GL_NV_gpu_shader5) && GL_NV_gpu_shader5)
+#   define OGLU_int64 1
 #   define OGLU_HANDLE uint64_t
 #else
+#   define OGLU_int64 0
 #   define OGLU_HANDLE uvec2
+#endif
+
+#if (defined(GL_ARB_shader_viewport_layer_array) && GL_ARB_shader_viewport_layer_array) || (defined(GL_AMD_vertex_shader_layer) && GL_AMD_vertex_shader_layer)
+#   define OGLU_VS_layer 1
+#else
+#   define OGLU_VS_layer 0
 #endif
 
 #if defined(OGLU_VERT)
@@ -253,18 +265,23 @@ constexpr static string_view OGLU_DEFS = R"(
         uniform int ogluBaseInstance;
 #   endif
 
-    out ogluVertData
-    {
-        flat int ogluLayer;
-    } ogluData;
-#   if defined(GL_AMD_vertex_shader_layer) && GL_AMD_vertex_shader_layer
+#   if !(OGLU_VS_layer) || __VERSION__ < 430
+        out ogluVertData
+        {
+            flat int ogluLayer;
+        } ogluData;
+#       define OgluLayer ogluData.ogluLayer
+#   else
+#       define OgluLayer gl_Layer
+#   endif
+#   if OGLU_VS_layer
         void ogluSetLayer(const in  int layer)
         {
-            gl_Layer = ogluData.ogluLayer = layer;
+            gl_Layer = OgluLayer = layer;
         }
         void ogluSetLayer(const in uint layer)
         {
-            gl_Layer = ogluData.ogluLayer = int(layer);
+            gl_Layer = OgluLayer = int(layer);
         }
 #   else
         void ogluSetLayer(const in  int layer)
@@ -288,18 +305,9 @@ constexpr static string_view OGLU_DEFS = R"(
     {
         flat int ogluLayer;
     } ogluData;
-    int ogluGetLayer()
-    {
-        return ogluDataIn[0].ogluLayer;
-    }
-    int ogluGetLayer(const in  int idx)
-    {
-        return ogluDataIn[idx].ogluLayer;
-    }
-    int ogluGetLayer(const in uint idx)
-    {
-        return ogluDataIn[idx].ogluLayer;
-    }
+    // to please vmware which does not support varadic macro function
+#   define ogluLayerIn      ogluDataIn[0].ogluLayer
+#   define ogluGetLayer(x)  ogluDataIn[x].ogluLayer
 #   if __VERSION__ >= 430
         void ogluSetLayer(const in  int layer)
         {
@@ -326,10 +334,12 @@ constexpr static string_view OGLU_DEFS = R"(
 
 #   define GLVARY in
 
+#   if !(OGLU_VS_layer) || __VERSION__ < 430
     in  ogluVertData
     {
         flat int ogluLayer;
     } ogluDataIn;
+#   endif
 #   if __VERSION__ >= 430
 #       define ogluLayer gl_Layer
 #   else

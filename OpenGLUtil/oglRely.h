@@ -163,6 +163,9 @@ struct ContextCapability
     bool SupportSubroutine      = false;
     bool SupportIndirectDraw    = false;
     bool SupportBaseInstance    = false;
+    bool SupportVSMultiLayer    = false;
+
+    OGLUAPI std::string GenerateSupportLog() const;
 };
 
 

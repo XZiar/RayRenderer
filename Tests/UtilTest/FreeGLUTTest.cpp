@@ -1,4 +1,5 @@
 #include "TestRely.h"
+#include "common/Linq2.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "ImageUtil/ImageUtil.h"
 #include "OpenGLUtil/oglException.h"
@@ -57,17 +58,25 @@ struct Lutter
         //ctx->SetViewPort(0, 0, 64, 64);
         LutGenerator->Draw()
             .DrawInstance(VAOScreen, 64);
+
+        oglUtil::ForceSyncGL()->Wait();
+        const auto lutdata = LutTex->GetData(TextureFormat::RGBA8);
     }
 };
 
 static void FGTest()
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
+    if (!common::linq::FromIterable(GetCmdArgs())
+        .Where([](const auto arg) { return arg == "--renderdoc"; })
+        .Empty())
+        oglu::oglUtil::InJectRenderDoc("");
     FreeGLUTViewInit();
     auto window = std::make_shared<glutview::detail::_FreeGLUTView>();
     oglUtil::InitLatestVersion();
     const auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
     ctx->UseContext();
+    log().debug(u"{}\n", ctx->Capability->GenerateSupportLog());
     log().info(u"Def FBO is [{}]\n", oglu::oglDefaultFrameBuffer_::Get()->IsSrgb() ? "SRGB" : "Linear");
     window->SetTitle("FGTest");
     auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));

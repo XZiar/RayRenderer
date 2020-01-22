@@ -114,20 +114,50 @@ static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
 #endif
 
 
-static void ShowQuerySuc (const std::string_view tarName, const std::string_view name, void* ptr)
+static void ShowQuerySuc (const std::string_view tarName, const std::string_view ext, void* ptr)
 {
-    oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, name, (void*)ptr);
+    oglLog().verbose(FMT_STRING(u"Func [{}] uses [gl...{{{}}}] ({:p})\n"), tarName, ext, (void*)ptr);
 }
 static void ShowQueryFail(const std::string_view tarName)
 {
     oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
 }
+static void ShowQueryFall(const std::string_view tarName)
+{
+    oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
+}
 
-template<typename T>
-static void QueryFunc(T& target, const std::string_view tarName, 
-    const std::pair<bool, bool> shouldPrint, const std::initializer_list<std::string_view> names)
+//template<typename T, std::size_T N, std::size_t ...Ns>
+//std::array<T, N> make_array_impl(
+//    std::initializer_list<T> t,
+//    std::index_sequence<Ns...>)
+//{
+//    return std::array<T, N>{ *(t.begin() + Ns) ... };
+//}
+//
+//template<typename T, std::size_t N>
+//std::array<T, N> make_array(std::initializer_list<T> t) {
+//    if (N > t.size())
+//        throw std::out_of_range("that's crazy!");
+//    return make_array_impl<T, N>(t, std::make_index_sequence<N>());
+//}
+//
+//template<std::size_t... Idxes>
+//static constexpr auto CreateSVArray_(const std::initializer_list<std::string_view> txts, std::index_sequence<Idxes...>)
+//{
+//    return std::array<std::string_view, sizeof...(Idxes)>{ *(t.begin() + Idxes)... };
+//}
+//static constexpr auto CreateSVArray(const std::initializer_list<std::string_view> txts)
+//{
+//    return CreateSVArray_(txts, std::make_index_sequence<txts.size()>());
+//}
+
+template<typename T, size_t N>
+static void QueryFunc(T& target, const std::string_view tarName, const std::pair<bool, bool> shouldPrint, 
+    const std::array<std::string_view, N> names, const std::array<std::string_view, N> suffixes)
 {
     const auto [printSuc, printFail] = shouldPrint;
+    size_t idx = 0;
     for (const auto& name : names)
     {
 #if COMMON_OS_WIN
@@ -141,13 +171,40 @@ static void QueryFunc(T& target, const std::string_view tarName,
         {
             target = reinterpret_cast<T>(ptr);
             if (printSuc)
-                ShowQuerySuc(tarName, name, (void*)ptr);
+                ShowQuerySuc(tarName, suffixes[idx], (void*)ptr);
             return;
         }
+        idx++;
     }
     target = nullptr;
     if (printFail)
         ShowQueryFail(tarName);
+}
+
+template<typename T>
+static void QueryPlainFunc(T& target, const std::string_view tarName,
+    const std::pair<bool, bool> shouldPrint, const std::string_view name, void* fallback)
+{
+    const auto [printSuc, printFail] = shouldPrint;
+#if COMMON_OS_WIN
+    const auto ptr = wglGetProcAddress(name.data());
+#elif COMMON_OS_MACOS
+    const auto ptr = NSGLGetProcAddress(name.data());
+#else
+    const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
+#endif
+    if (ptr)
+    {
+        target = reinterpret_cast<T>(ptr);
+        if (printSuc)
+            ShowQuerySuc(tarName, "", (void*)ptr);
+    }
+    else
+    {
+        target = reinterpret_cast<T>(fallback);
+        if (printFail)
+            ShowQueryFall(tarName);
+    }
 }
 
 
@@ -200,11 +257,14 @@ PlatFuncs::PlatFuncs()
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
-#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) name sfx
-#define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
-#define QUERY_FUNC(name, ...)  QueryFunc(name,          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
-#define QUERY_FUNC_(name, ...) QueryFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
+#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) std::string_view(name sfx)
+#define WITH_SUFFIXS(name, ...) std::array{ BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
+#define QUERY_FUNC(name, ...)  QueryFunc(name,          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
+#define QUERY_FUNC_(name, ...) QueryFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
     
+    //constexpr std::array<std::string_view, 2> kk{ "xx", "yy" };
+    //constexpr auto kkk = CreateSVArray("xx", "yy");
+
 #if COMMON_OS_WIN
     QUERY_FUNC_(wglGetExtensionsStringARB,  "");
     QUERY_FUNC_(wglGetExtensionsStringEXT,  "");
@@ -491,12 +551,12 @@ CtxFuncs::CtxFuncs()
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
-#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) "gl" name sfx
-#define WITH_SUFFIXS(name, ...) { BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
-#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
-#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__))
-#define PLAIN_FUNC(name)  PPCAT(oglu, name)          = &PPCAT(gl, name)
-#define PLAIN_FUNC_(name) PPCAT(PPCAT(oglu, name),_) = &PPCAT(gl, name)
+#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) std::string_view("gl" name sfx)
+#define WITH_SUFFIXS(name, ...) std::array{ BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
+#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
+#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
+#define PLAIN_FUNC(name)   QueryPlainFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, STRINGIZE(PPCAT(gl, name)), (void*)&PPCAT(gl, name))
+#define PLAIN_FUNC_(name)  QueryPlainFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, STRINGIZE(PPCAT(gl, name)), (void*)&PPCAT(gl, name))
 
     // buffer related
     QUERY_FUNC (GenBuffers,             "", "ARB");
@@ -853,6 +913,7 @@ CtxFuncs::CtxFuncs()
     SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
     SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
+    SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     
     ogluGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
     ogluGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,    &MaxTextureUnits);
@@ -970,7 +1031,8 @@ void CtxFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, G
 
 void CtxFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
 {
-    CALL_EXISTS(ogluDrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
+    if (baseinstance != 0)
+        CALL_EXISTS(ogluDrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
     CALL_EXISTS(ogluDrawArraysInstanced_, mode, first, count, static_cast<GLsizei>(instancecount)) // baseInstance ignored
     {
         for (uint32_t i = 0; i < instancecount; i++)
@@ -981,7 +1043,8 @@ void CtxFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, 
 }
 void CtxFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
 {
-    CALL_EXISTS(ogluDrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
+    if (baseinstance != 0)
+        CALL_EXISTS(ogluDrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
     CALL_EXISTS(ogluDrawElementsInstanced_, mode, count, type, indices, static_cast<GLsizei>(instancecount)) // baseInstance ignored
     {
         for (uint32_t i = 0; i < instancecount; i++)

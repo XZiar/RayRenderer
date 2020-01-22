@@ -166,7 +166,7 @@ void main()
 {
     for(int i = 0; i < gl_in.length(); ++i)
     {
-        ogluSetLayer(ogluGetLayer());
+        ogluSetLayer(ogluLayerIn);
         gl_Position = gl_in[i].gl_Position;
         EmitVertex();
     }

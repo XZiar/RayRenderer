@@ -15,6 +15,7 @@
 
 
 common::fs::path FindPath();
+const std::vector<std::string_view>& GetCmdArgs();
 uint32_t RegistTest(const char *name, void(*func)());
 std::string LoadShaderFallback(const std::u16string& filename, int32_t id);
 
