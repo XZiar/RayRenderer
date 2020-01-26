@@ -906,6 +906,7 @@ CtxFuncs::CtxFuncs()
     SupportDebug            = ogluDebugMessageCallback != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ogluClipControl != nullptr;
+    SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
     SupportBindlessTexture  = Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
@@ -916,12 +917,13 @@ CtxFuncs::CtxFuncs()
     SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     
     ogluGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
-    ogluGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,    &MaxTextureUnits);
     ogluGetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);
     ogluGetIntegerv(GL_MAX_COLOR_ATTACHMENTS,               &MaxColorAttachment);
     ogluGetIntegerv(GL_MAX_DRAW_BUFFERS,                    &MaxDrawBuffers);
     ogluGetIntegerv(GL_MAX_LABEL_LENGTH,                    &MaxLabelLen);
     ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,            &MaxMessageLen);
+    if (SupportImageLoadStore)
+        ogluGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &MaxTextureUnits);
 
 #undef WITH_SUFFIX
 #undef WITH_SUFFIXS

@@ -156,6 +156,7 @@ struct ContextCapability
     bool SupportDebug           = false;
     bool SupportSRGB            = false;
     bool SupportClipControl     = false;
+    bool SupportGeometryShader  = false;
     bool SupportComputeShader   = false;
     bool SupportTessShader      = false;
     bool SupportBindlessTexture = false;

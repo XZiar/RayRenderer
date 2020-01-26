@@ -64,6 +64,12 @@ struct Lutter
     }
 };
 
+static void TestErr()
+{
+    if (const auto e = oglUtil::GetError(); e.has_value())
+        log().warning(u"Here occurs error due to {}.\n", e.value());
+}
+
 static void FGTest()
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
@@ -74,14 +80,20 @@ static void FGTest()
     FreeGLUTViewInit();
     auto window = std::make_shared<glutview::detail::_FreeGLUTView>();
     oglUtil::InitLatestVersion();
+    TestErr();
     const auto ctx = oglContext_::NewContext(oglContext_::CurrentContext(), false, oglu::oglContext_::GetLatestVersion());
+    TestErr();
     ctx->UseContext();
     log().debug(u"{}\n", ctx->Capability->GenerateSupportLog());
     log().info(u"Def FBO is [{}]\n", oglu::oglDefaultFrameBuffer_::Get()->IsSrgb() ? "SRGB" : "Linear");
     window->SetTitle("FGTest");
+    TestErr();
     auto drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+    TestErr();
     auto screenBox = oglArrayBuffer_::Create();
+    TestErr();
     auto basicVAO = oglVAO_::Create(VAODrawMode::Triangles);
+    TestErr();
     auto lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
     lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
     if (oglComputeProgram_::CheckSupport())

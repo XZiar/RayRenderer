@@ -45,6 +45,7 @@
   - [x] Emulate subroutine on unsupported platform
   - [x] Add bindless texture support
   - [ ] Add shader include support (file lookup management)
+  - [ ] Replace preprocessor-based ExtShader to custom DSL
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
   * TextureUtil
@@ -112,5 +113,6 @@
   - [ ] Add custom window host (for OGL/vulkan)
   - [ ] Seperate OGL/Vulkan backend
   - [ ] Add remote rendering backend (out-of-process or network-based)
+  - [ ] Add custom base DSL for OpenGL and OpenCL
 
 
