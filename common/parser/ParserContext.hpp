@@ -10,37 +10,28 @@ class ParserContext
 {
 private:
 public:
-    struct SingleChar
+    static constexpr char32_t CharLF = '\n';
+    static constexpr char32_t CharCR = '\r';
+    static constexpr char32_t CharEnd = static_cast<char32_t>(-1);
+    enum class CharType : uint8_t { End, NewLine, Digit, Blank, Special, Normal };
+    static constexpr CharType ParseType(const char32_t ch) noexcept
     {
-        friend class ParserContext;
-        static constexpr char32_t LF = '\n';
-        static constexpr char32_t CR = '\r';
-        static constexpr char32_t End = static_cast<char32_t>(-1);
-        enum class CharType : uint8_t { End, NewLine, Digit, WhiteSpace, Special, Normal };
-        static constexpr CharType ParseType(const char32_t ch) noexcept
+        switch (ch)
         {
-            switch (ch)
-            {
-            case LF:
-            case CR:
-                return CharType::NewLine;
-            case '\t':
-            case ' ':
-                return CharType::WhiteSpace;
-            default:
-                if (ch >= '0' && ch <= '9')
-                    return CharType::Digit;
-                return CharType::Normal;
-            }
+        case CharEnd:
+            return CharType::End;
+        case CharLF:
+        case CharCR:
+            return CharType::NewLine;
+        case '\t':
+        case ' ':
+            return CharType::Blank;
+        default:
+            if (ch >= '0' && ch <= '9')
+                return CharType::Digit;
+            return CharType::Normal;
         }
-        char32_t Val;
-        CharType Type;
-        constexpr SingleChar(const char32_t ch) noexcept : Val(ch), Type(ParseType(ch)) { }
-        forceinline static constexpr SingleChar EndChar() noexcept { return { End, CharType::End }; }
-        forceinline static constexpr SingleChar NewLineChar() noexcept { return { LF, CharType::NewLine }; }
-    private:
-        constexpr SingleChar(const char32_t ch, const CharType type) noexcept : Val(ch), Type(type) { }
-    };
+    }
 
     std::u16string SourceName;
     std::u32string_view Source;
@@ -51,13 +42,13 @@ public:
         SourceName(std::u16string(name)), Source(source)
     { }
 
-    constexpr SingleChar GetNext() noexcept
+    constexpr char32_t GetNext() noexcept
     {
         if (Index >= Source.size())
-            return SingleChar::EndChar();
+            return CharEnd;
         const auto ch = Source[Index++];
         if (HandlePosition(ch))
-            return SingleChar::NewLineChar();
+            return CharLF;
         return ch;
     }
 
@@ -67,7 +58,7 @@ public:
         while (Index < Source.size())
         {
             const auto ch = Source[Index++];
-            if (ch == SingleChar::CR || ch == SingleChar::LF)
+            if (ch == CharCR || ch == CharLF)
             {
                 const auto txt = Source.substr(start, Index - start - 1);
                 HandleNewLine(ch);
@@ -94,6 +85,43 @@ public:
         return GetUntil(target.size(), pos, allowMultiLine);
     }
 
+    template<bool AllowNewLine = true, typename Pred>
+    constexpr std::u32string_view TryGetWhile(Pred&& predictor)
+    {
+        static_assert(std::is_invocable_r_v<bool, Pred, char32_t>, "predictor should accept a char32_t and return if should continue");
+        const auto start = Index;
+        auto lineIdx = Index;
+        while (Index < Source.size())
+        {
+            const auto ch = Source[Index++];
+            if (ch == CharCR || ch == CharLF)
+            {
+                if constexpr (!AllowNewLine)
+                {
+                    Index = start;
+                    return {};
+                }
+                else
+                {
+                    if (!predictor(CharLF))
+                    {
+                        Index--;
+                        break;
+                    }
+                    HandleNewLine(ch);
+                    lineIdx = Index;
+                }
+            } 
+            else if (!predictor(ch))
+            {
+                Index--;
+                break;
+            }
+        }
+        Col += Index - lineIdx;
+        return Source.substr(start, Index - start);
+    }
+
     constexpr std::u32string_view TryGetUntilNot(const std::u32string_view target, const bool allowMultiLine = true)
     {
         if (target.size() == 0)
@@ -111,7 +139,7 @@ private:
         while (Index < end)
         {
             const auto ch = Source[Index++];
-            if (ch == SingleChar::CR || ch == SingleChar::LF)
+            if (ch == CharCR || ch == CharLF)
             {
                 if (!allowMultiLine)
                 {
@@ -127,9 +155,9 @@ private:
     }
     forceinline constexpr void HandleNewLine(const char32_t ch) noexcept
     {
-        if (ch == SingleChar::CR)
+        if (ch == CharCR)
         {
-            if (Index < Source.size() && Source[Index] == SingleChar::LF)
+            if (Index < Source.size() && Source[Index] == CharLF)
                 Index++;
         }
         Row++; Col = 0;
@@ -138,8 +166,8 @@ private:
     {
         switch (ch)
         {
-        case SingleChar::CR:
-        case SingleChar::LF:
+        case CharCR:
+        case CharLF:
             HandleNewLine(ch);
             return true;
         default:
