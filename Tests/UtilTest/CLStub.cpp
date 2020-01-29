@@ -98,6 +98,11 @@ static void OCLStub()
             log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
             continue;
         }
+        else if (fpath == "clear")
+        {
+            common::console::ConsoleEx::ClearConsole();
+            continue;
+        }
         bool exConfig = false;
         if (fpath.size() > 0 && fpath.back() == '#')
             fpath.pop_back(), exConfig = true;

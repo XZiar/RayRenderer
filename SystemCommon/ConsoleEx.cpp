@@ -37,7 +37,10 @@ std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize() noexc
 {
 #if defined(_WIN32)
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    if (const auto handle = GetStdHandle(STD_OUTPUT_HANDLE); handle == INVALID_HANDLE_VALUE)
+        return { 0,0 };
+    else if (!GetConsoleScreenBufferInfo(handle, &csbi))
+        return { 0,0 };
     const auto wdRow = csbi.srWindow.Right - csbi.srWindow.Left + 1;
     const auto wdCol = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 #else
@@ -47,4 +50,31 @@ std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize() noexc
     const auto wdCol = ws.ws_row;
 #endif
     return std::pair<uint32_t, uint32_t>(wdRow, wdCol);
+}
+
+
+bool common::console::ConsoleEx::ClearConsole() noexcept
+{
+#if defined(_WIN32)
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (const auto handle = GetStdHandle(STD_OUTPUT_HANDLE); handle == INVALID_HANDLE_VALUE)
+        return false;
+    else if (!GetConsoleScreenBufferInfo(handle, &csbi))
+        return false;
+    else
+    {
+        const DWORD wdSize = csbi.dwSize.X * csbi.dwSize.Y;
+        COORD origin = { 0,0 };
+        DWORD writtenChars;
+        if (!FillConsoleOutputCharacterW(handle, L' ', wdSize, origin, &writtenChars))
+            return false;
+        if (!FillConsoleOutputAttribute(handle, csbi.wAttributes, wdSize, origin, &writtenChars))
+            return false;
+        return SetConsoleCursorPosition(handle, origin) != 0;
+    }
+#else
+    printf("\033c");
+    printf("\x1b[3J");
+    return true;
+#endif
 }

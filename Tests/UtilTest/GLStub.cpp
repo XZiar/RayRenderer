@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenGLUtil/oglException.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "common/StringLinq.hpp"
 #include <algorithm>
 
@@ -152,6 +153,11 @@ static void OGLStub()
             for(const auto& ext : ctx->GetExtensions())
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
+            continue;
+        }
+        else if (fpath == "clear")
+        {
+            common::console::ConsoleEx::ClearConsole();
             continue;
         }
         bool exConfig = false;
