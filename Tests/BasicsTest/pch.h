@@ -26,6 +26,9 @@
 #include <random>
 #include <atomic>
 #include <boost/predef/other/endian.h>
+#include <boost/preprocessor/punctuation/comma_if.hpp>
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
 
 
 

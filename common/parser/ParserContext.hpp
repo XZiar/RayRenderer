@@ -52,6 +52,14 @@ public:
         return ch;
     }
 
+    constexpr char32_t PeekNext() const noexcept
+    {
+        if (Index >= Source.size())
+            return CharEnd;
+        const auto ch = Source[Index];
+        return (ch == CharCR || ch == CharLF) ? CharLF : ch;
+    }
+
     constexpr std::u32string_view GetLine() noexcept
     {
         const auto start = Index;
@@ -85,49 +93,51 @@ public:
         return GetUntil(target.size(), pos, allowMultiLine);
     }
 
-    template<bool AllowNewLine = true, typename Pred>
-    constexpr std::u32string_view TryGetWhile(Pred&& predictor)
-    {
-        static_assert(std::is_invocable_r_v<bool, Pred, char32_t>, "predictor should accept a char32_t and return if should continue");
-        const auto start = Index;
-        auto lineIdx = Index;
-        while (Index < Source.size())
-        {
-            const auto ch = Source[Index++];
-            if (ch == CharCR || ch == CharLF)
-            {
-                if constexpr (!AllowNewLine)
-                {
-                    Index = start;
-                    return {};
-                }
-                else
-                {
-                    if (!predictor(CharLF))
-                    {
-                        Index--;
-                        break;
-                    }
-                    HandleNewLine(ch);
-                    lineIdx = Index;
-                }
-            } 
-            else if (!predictor(ch))
-            {
-                Index--;
-                break;
-            }
-        }
-        Col += Index - lineIdx;
-        return Source.substr(start, Index - start);
-    }
-
     constexpr std::u32string_view TryGetUntilNot(const std::u32string_view target, const bool allowMultiLine = true)
     {
         if (target.size() == 0)
             return {};
         const auto pos = Source.find_first_not_of(target, Index);
         return GetUntil(target.size(), pos, allowMultiLine);
+    }
+
+    template<bool AllowNewLine = true, typename Pred>
+    constexpr std::u32string_view TryGetWhile(Pred&& predictor)
+    {
+        const auto start = Index;
+        auto lineIdx = Index;
+        while (Index < Source.size())
+        {
+            auto ch = Source[Index];
+            if (ch == CharCR)
+                ch = CharLF;
+            if constexpr (!AllowNewLine)
+            {
+                if (ch == CharLF)
+                {
+                    Index = start;
+                    return {};
+                }
+            }
+            bool shouldContinue = false;
+            if constexpr (std::is_invocable_r_v<bool, Pred, const char32_t>)
+                shouldContinue = predictor(ch);
+            else if constexpr (std::is_invocable_r_v<bool, Pred, const char32_t, size_t>)
+                shouldContinue = predictor(ch, Index);
+            else
+                static_assert(!common::AlwaysTrue<Pred>(), "predictor should accept a char32_t and return if should continue");
+            if (!shouldContinue)
+                break;
+            // should continue
+            Index++;
+            if (ch == CharLF)
+            {
+                HandleNewLine(ch);
+                lineIdx = Index;
+            } 
+        }
+        Col += Index - lineIdx;
+        return Source.substr(start, Index - start);
     }
 private:
     constexpr std::u32string_view GetUntil(const size_t targetSize, const size_t pos, const bool allowMultiLine = true)

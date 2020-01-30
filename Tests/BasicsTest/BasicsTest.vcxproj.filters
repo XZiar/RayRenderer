@@ -40,7 +40,10 @@
     <ClCompile Include="StrCharsetTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="ParserTest.cpp">
+    <ClCompile Include="ParserContextTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ParserBaseTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
