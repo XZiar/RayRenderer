@@ -328,6 +328,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "parser", "parser", "{10014A
 	ProjectSection(SolutionItems) = preProject
 		common\parser\ParserBase.hpp = common\parser\ParserBase.hpp
 		common\parser\ParserContext.hpp = common\parser\ParserContext.hpp
+		common\parser\ParserTokenizer.hpp = common\parser\ParserTokenizer.hpp
 	EndProjectSection
 EndProject
 Global

@@ -1,85 +1,12 @@
 #pragma once
 
 #include "ParserContext.hpp"
-#include "../EnumEx.hpp"
+#include "ParserTokenizer.hpp"
 #include <charconv>
 
 
 namespace common::parser
 {
-
-
-class ParserToken
-{
-private:
-    uint64_t Data1;
-    uintptr_t Data2;
-    uint16_t ID;
-    union IntWrapper
-    {
-        double FPVal;
-        uint64_t UINTVal;
-        IntWrapper(const uint64_t val) : UINTVal(val) {}
-        IntWrapper(const double val) : FPVal(val) {}
-    };
-    struct UINTTag {};
-    struct INTTag {};
-    struct FPTag {};
-    struct ErrorTag {};
-
-    template<typename T>
-    constexpr ParserToken(INTTag, uint16_t id, const T val) noexcept :
-        Data1(static_cast<std::make_unsigned_t<T>>(val)), Data2(1), ID(id)
-    { }
-    template<typename T>
-    constexpr ParserToken(UINTTag, uint16_t id, const T val) noexcept :
-        Data1(val), Data2(2), ID(id)
-    { }
-    template<typename T>
-    ParserToken(FPTag, uint16_t id, const T val) noexcept : 
-        Data1(IntWrapper(val).UINTVal), Data2(4), ID(id)
-    { }
-public:
-    constexpr ParserToken(uint16_t id) noexcept : 
-        Data1(0), Data2(0), ID(id)
-    { }
-    constexpr ParserToken(uint16_t id, char32_t val) noexcept : 
-        Data1(val), Data2(3), ID(id)
-    { }
-    ParserToken(uint16_t id, const std::u32string_view val) noexcept : 
-        Data1(val.size()), Data2(reinterpret_cast<uintptr_t>(val.data())), ID(id)
-    { }
-
-    template<typename T, typename Tag = std::conditional_t<
-        !std::is_floating_point_v<T>,
-        std::conditional_t<
-            std::is_integral_v<T>,
-            std::conditional_t<std::is_unsigned_v<T>, UINTTag, INTTag>,
-            ErrorTag>,
-        FPTag>>
-    ParserToken(uint16_t id, const T val) :
-        ParserToken(Tag{}, id, val) { }
-
-    constexpr int64_t               GetInt()    const noexcept { /*Expects(Data2 == 1);*/ return static_cast<int64_t>(Data1); }
-    constexpr uint64_t              GetUInt()   const noexcept { /*Expects(Data2 == 2);*/ return Data1; }
-    constexpr char32_t              GetChar()   const noexcept { /*Expects(Data2 == 3);*/ return static_cast<char32_t>(Data1); }
-              double                GetDouble() const noexcept { /*Expects(Data2 == 4);*/ return IntWrapper(Data1).FPVal;  }
-    template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    constexpr T                     GetIntNum() const noexcept { /*Expects(Data2 == std::is_signed_v<T> ? 1 : 2);*/ return static_cast<T>(Data1); }
-    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
-    constexpr T                     GetFPNum()  const noexcept { /*Expects(Data2 == 4);*/ return static_cast<T>(Data1); }
-              std::u32string_view   GetString() const noexcept { return std::u32string_view(reinterpret_cast<const char32_t*>(Data2), Data1); }
-              
-    constexpr uint16_t              GetID()     const noexcept { return ID; }
-    template<typename T>
-    constexpr T                     GetIDEnum() const noexcept 
-    {
-        if (ID <= common::enum_cast(T::__RangeMin)) return T::__RangeMin;
-        if (ID >= common::enum_cast(T::__RangeMax)) return T::__RangeMax;
-        return static_cast<T>(ID);
-    }
-};
-constexpr auto kk = sizeof(ParserToken);
 
 
 class ParserBase
@@ -91,7 +18,6 @@ protected:
         return ParserToken(common::enum_cast(enumval), std::forward<Args>(args)...);
     }
 public:
-    enum class BaseToken : uint16_t { End = 0, Error, Raw, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
     ParserBase(ParserContext& ctx) : Context(ctx) { }
 public:
     constexpr void IgnoreBlank() noexcept
@@ -214,10 +140,10 @@ public:
         {
             double val = 0;
             std::string tmp(data.cbegin(), data.cend());
-            auto ptr = tmp.data() + tmp.size();
 #if COMPILER_MSVC
             std::from_chars(tmp.data(), tmp.data() + tmp.size(), val);
 #else
+            auto ptr = tmp.data() + tmp.size();
             val = std::strtod(tmp.data(), &ptr);
 #endif
             return GenerateToken(BaseToken::FP, val);
@@ -226,6 +152,110 @@ public:
             break;
         }
         return common::enum_cast(BaseToken::End);
+    }
+private:
+    ParserContext& Context;
+};
+
+
+
+template<typename... TKs>
+class ParserBase2 : public tokenizer::TokenizerBase
+{
+private:
+    static constexpr auto TKCount = sizeof...(TKs);
+    static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
+    using ResultArray = std::array<tokenizer::TokenizerResult, TKCount>;
+
+    std::tuple<TKs...> Tokenizers;
+
+    template<size_t N>
+    bool InvokeTokenizer(ResultArray& results, const char32_t ch, const size_t idx, size_t& pendings) noexcept
+    {
+        auto& result = result[N];
+        if (result == tokenizer::TokenizerResult::Pending)
+        {
+            auto& tokenizer = std::get<N>(Tokenizers);
+            result = tokenizer.OnChar(ch, idx);
+            if (result == tokenizer::TokenizerResult::Match)
+                return true;
+            else if (result == tokenizer::TokenizerResult::Pending)
+                pendings++;
+        }
+        return false;
+    }
+    template<size_t... I>
+    std::pair<size_t, bool> InvokeTokenizers(ResultArray& results, const char32_t ch, const size_t idx, std::index_sequence<I...>) noexcept
+    {
+        size_t pendings = 0;
+        const auto anymatch = (InvokeTokenizer<I>(results, ch, idx, pendings) || ...);
+        return { pendings, anymatch };
+    }
+
+    template<size_t N>
+    void ProcessTokenizer(ResultArray& results, ParserContext& ctx, std::u32string_view tksv, ParserToken& token) noexcept
+    {
+        auto& result = result[N];
+        if (result == tokenizer::TokenizerResult::Pending || result == tokenizer::TokenizerResult::Match)
+        {
+            auto& tokenizer = std::get<N>(Tokenizers);
+            token = tokenizer.GetToken(ctx, tksv);
+        }
+    }
+    template<size_t... I>
+    ParserToken ProcessTokenizers(ResultArray& results, ParserContext& ctx, std::u32string_view tksv, std::index_sequence<I...>) noexcept
+    {
+        ParserToken token;
+        (InvokeTokenizer<I>(results, ctx, tksv, token), ...);
+        return token;
+    }
+public:
+    ParserBase2(ParserContext& ctx) : Context(ctx) { }
+    constexpr void IgnoreBlank() noexcept
+    {
+        Context.TryGetWhile([](const char32_t ch)
+            {
+                return ch == U' ' || ch == U'\t';
+            });
+    }
+    constexpr void IgnoreWhiteSpace() noexcept
+    {
+        Context.TryGetWhile([](const char32_t ch)
+            {
+                return ch == U' ' || ch == U'\t' || ch == '\r' || ch == '\n';
+            });
+    }
+    ParserToken GetToken(const std::u32string_view delim) noexcept
+    {
+        IgnoreBlank();
+
+        ResultArray status;
+        for (auto& res : status) 
+            res = tokenizer::TokenizerResult::Pending;
+
+        size_t idxBegin = Context.Index, idxEnd = idxBegin;
+        bool successful = false;
+        const auto tksv = Context.TryGetWhile<false>([&, count = 0](const char32_t ch, const size_t idx) mutable
+            {
+                if (delim.find_first_of(ch) != std::u32string_view::npos)
+                    return false;
+                const auto [pendings, anymatch] = InvokeTokenizers(status, ch, count, Indexes);
+                if (anymatch || pendings == 1)
+                {
+                    successful = true; return false;
+                }
+                if (pendings == 0)
+                    return false;
+                return true;
+            });
+        if (successful)
+        {
+            return ProcessTokenizers(status, Context, tksv, Indexes);
+        }
+        else
+        {
+            return GenerateToken(BaseToken::Error, tksv);
+        }
     }
 private:
     ParserContext& Context;

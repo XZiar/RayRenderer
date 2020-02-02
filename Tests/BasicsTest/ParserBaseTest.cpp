@@ -10,15 +10,15 @@ using CharType = common::parser::ParserContext::CharType;
 
 #define CHECK_POS(ctx, row, col) EXPECT_EQ(ctx.Row, row); EXPECT_EQ(ctx.Col, col)
 #define CHECK_CHTYPE(ch, type) EXPECT_EQ(ParserContext::ParseType(ch), CharType::type)
-#define CHECK_TK_TYPE(token, type) EXPECT_EQ(token.GetIDEnum<ParserBase::BaseToken>(), ParserBase::BaseToken::type)
+#define CHECK_TK_TYPE(token, type) EXPECT_EQ(token.GetIDEnum<BaseToken>(), BaseToken::type)
 
-#define TO_BASETOKN_TYPE(r, dummy, i, type) BOOST_PP_COMMA_IF(i) ParserBase::BaseToken::type
+#define TO_BASETOKN_TYPE(r, dummy, i, type) BOOST_PP_COMMA_IF(i) BaseToken::type
 #define EXPEND_TKTYPES(...) BOOST_PP_SEQ_FOR_EACH_I(TO_BASETOKN_TYPE, "", BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define CHECK_TKS_TYPE(types, ...) EXPECT_THAT(types, testing::ElementsAre(EXPEND_TKTYPES(__VA_ARGS__)))
 
 
 #define MAP_TOKENS(tokens, action) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.action; }).ToVector()
-#define MAP_TOKEN_TYPES(tokens) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.template GetIDEnum<ParserBase::BaseToken>(); }).ToVector()
+#define MAP_TOKEN_TYPES(tokens) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.template GetIDEnum<BaseToken>(); }).ToVector()
 
 static constexpr auto ParseTokenOne = [](const std::u32string_view src)
 {
@@ -102,7 +102,7 @@ TEST(ParserBase, Tokens)
         while (context.PeekNext() != ParserContext::CharEnd)
         {
             tokens.emplace_back(parser.GetToken(U","sv));
-            if (tokens.back().GetIDEnum<ParserBase::BaseToken>() == ParserBase::BaseToken::End)
+            if (tokens.back().GetIDEnum<BaseToken>() == BaseToken::End)
                 break;
             context.GetNext();
             parser.IgnoreWhiteSpace();
