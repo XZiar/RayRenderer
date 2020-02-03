@@ -109,6 +109,16 @@ public:
                     return false;
                 return true;
             });
+
+        constexpr auto ToU8Str = [](const std::u32string_view txt)
+        {
+            std::string str;
+            str.resize(txt.size());
+            for (size_t idx = 0; idx < txt.size(); ++idx)
+                str[idx] = static_cast<char>(txt[idx]);
+            return str;
+        };
+
         switch (state)
         {
         case States::STR:
@@ -125,21 +135,21 @@ public:
         case States::UINT:
         {
             uint64_t val = 0;
-            std::string tmp(data.cbegin(), data.cend());
+            const auto tmp = ToU8Str(data);
             std::from_chars(tmp.data(), tmp.data() + tmp.size(), val, 10);
             return GenerateToken(BaseToken::Uint, val);
         }
         case States::INT:
         {
             int64_t val = 0;
-            std::string tmp(data.cbegin(), data.cend());
+            const auto tmp = ToU8Str(data);
             std::from_chars(tmp.data(), tmp.data() + tmp.size(), val, 10);
             return GenerateToken(BaseToken::Int, val);
         }
         case States::FP:
         {
             double val = 0;
-            std::string tmp(data.cbegin(), data.cend());
+            const auto tmp = ToU8Str(data);
 #if COMPILER_MSVC
             std::from_chars(tmp.data(), tmp.data() + tmp.size(), val);
 #else
@@ -168,46 +178,60 @@ private:
     using ResultArray = std::array<tokenizer::TokenizerResult, TKCount>;
 
     std::tuple<TKs...> Tokenizers;
+    ResultArray Status;
 
-    template<size_t N>
-    bool InvokeTokenizer(ResultArray& results, const char32_t ch, const size_t idx, size_t& pendings) noexcept
+    template<size_t N = 0>
+    void InitTokenizer()
     {
-        auto& result = result[N];
-        if (result == tokenizer::TokenizerResult::Pending)
+        auto& tokenizer = std::get<N>(Tokenizers);
+        tokenizer.OnInitialize();
+        auto& result = Status[N];
+        result = tokenizer::TokenizerResult::Pending;
+
+        if constexpr (N + 1 < TKCount)
+            return InitTokenizer<N + 1>();
+    }
+
+    template<size_t N = 0>
+    bool InvokeTokenizer(const char32_t ch, const size_t idx, size_t& pendings, size_t& waitlist) noexcept
+    {
+        using tokenizer::TokenizerResult;
+        auto& result = Status[N];
+        if (result == TokenizerResult::Pending)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
             result = tokenizer.OnChar(ch, idx);
-            if (result == tokenizer::TokenizerResult::Match)
+            switch (result)
+            {
+            case TokenizerResult::FullMatch:
                 return true;
-            else if (result == tokenizer::TokenizerResult::Pending)
-                pendings++;
+            case TokenizerResult::Waitlist:
+                waitlist++; break;
+            case TokenizerResult::Pending:
+                pendings++; break;
+            default:
+                break;
+            }
         }
-        return false;
-    }
-    template<size_t... I>
-    std::pair<size_t, bool> InvokeTokenizers(ResultArray& results, const char32_t ch, const size_t idx, std::index_sequence<I...>) noexcept
-    {
-        size_t pendings = 0;
-        const auto anymatch = (InvokeTokenizer<I>(results, ch, idx, pendings) || ...);
-        return { pendings, anymatch };
+        if constexpr (N + 1 < TKCount)
+            return InvokeTokenizer<N + 1>(ch, idx, pendings, waitlist);
+        else
+            return false;
     }
 
-    template<size_t N>
-    void ProcessTokenizer(ResultArray& results, ParserContext& ctx, std::u32string_view tksv, ParserToken& token) noexcept
+    template<size_t N = 0>
+    ParserToken OutputToken(ParserContext& ctx, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
     {
-        auto& result = result[N];
-        if (result == tokenizer::TokenizerResult::Pending || result == tokenizer::TokenizerResult::Match)
+        const auto result = Status[N];
+        if (result == target)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            token = tokenizer.GetToken(ctx, tksv);
+            return tokenizer.GetToken(ctx, tksv);
         }
-    }
-    template<size_t... I>
-    ParserToken ProcessTokenizers(ResultArray& results, ParserContext& ctx, std::u32string_view tksv, std::index_sequence<I...>) noexcept
-    {
-        ParserToken token;
-        (InvokeTokenizer<I>(results, ctx, tksv, token), ...);
-        return token;
+        if constexpr (N + 1 < TKCount)
+            return OutputToken<N + 1>(ctx, tksv, target);
+        else
+            return GenerateToken(BaseToken::Error);
     }
 public:
     ParserBase2(ParserContext& ctx) : Context(ctx) { }
@@ -227,35 +251,36 @@ public:
     }
     ParserToken GetToken(const std::u32string_view delim) noexcept
     {
+        using tokenizer::TokenizerResult;
         IgnoreBlank();
 
-        ResultArray status;
-        for (auto& res : status) 
-            res = tokenizer::TokenizerResult::Pending;
+        InitTokenizer();
 
-        size_t idxBegin = Context.Index, idxEnd = idxBegin;
-        bool successful = false;
-        const auto tksv = Context.TryGetWhile<false>([&, count = 0](const char32_t ch, const size_t idx) mutable
-            {
-                if (delim.find_first_of(ch) != std::u32string_view::npos)
-                    return false;
-                const auto [pendings, anymatch] = InvokeTokenizers(status, ch, count, Indexes);
-                if (anymatch || pendings == 1)
-                {
-                    successful = true; return false;
-                }
-                if (pendings == 0)
-                    return false;
-                return true;
-            });
-        if (successful)
+        size_t pendings = 0, waitlist = 0, count = 0;
+        bool hasFullMatch = false;
+        const auto idxBegin = Context.Index;
+
+        while (true)
         {
-            return ProcessTokenizers(status, Context, tksv, Indexes);
+            const auto ch = Context.GetNext();
+            if (ch == ParserContext::CharEnd || ch == ParserContext::CharLF)
+                break;
+            if (delim.find_first_of(ch) != std::u32string_view::npos)
+                break;
+            pendings = waitlist = 0;
+            hasFullMatch = InvokeTokenizer(ch, count, pendings, waitlist);
+            if (hasFullMatch || pendings + waitlist == 0)
+                break;
+            count++;
         }
+        
+        const auto tokenTxt = Context.Source.substr(idxBegin, Context.Index - idxBegin);
+        if (hasFullMatch)
+            return OutputToken(Context, tokenTxt, TokenizerResult::FullMatch);
+        else if (waitlist > 0)
+            return OutputToken(Context, tokenTxt, TokenizerResult::Waitlist);
         else
-        {
-            return GenerateToken(BaseToken::Error, tksv);
-        }
+            return GenerateToken(BaseToken::Error, tokenTxt);
     }
 private:
     ParserContext& Context;

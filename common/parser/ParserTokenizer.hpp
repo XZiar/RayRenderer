@@ -87,7 +87,7 @@ namespace tokenizer
 {
 
 
-enum class TokenizerResult : uint8_t { NotMatch, Pending, Wrong, Match };
+enum class TokenizerResult : uint8_t { NotMatch, Pending, Waitlist, Wrong, FullMatch };
 
 class TokenizerBase
 {
@@ -127,12 +127,12 @@ public:
             if (ch == '/')
             {
                 State = States::Singleline;
-                return TokenizerResult::Match;
+                return TokenizerResult::FullMatch;
             }
             else if (ch == '*')
             {
                 State = States::Multiline;
-                return TokenizerResult::Match;
+                return TokenizerResult::FullMatch;
             }
             else
             {
@@ -166,7 +166,7 @@ public:
     constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
     {
         if (ch == '"')
-            return TokenizerResult::Match;
+            return TokenizerResult::FullMatch;
         else
             return TokenizerResult::NotMatch;
     }
