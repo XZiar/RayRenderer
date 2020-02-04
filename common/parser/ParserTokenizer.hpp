@@ -81,7 +81,7 @@ public:
 };
 constexpr auto kk = sizeof(ParserToken);
 
-enum class BaseToken : uint16_t { End = 0, Error, Comment, Raw, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
+enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
 
 
 
@@ -223,7 +223,7 @@ public:
 class IntTokenizer : public TokenizerBase
 {
 private:
-    enum class States { Waiting, Negative, Num0, Normal, Binary, Hex, NotMatch };
+    enum class States { Waiting, Num0, Normal, Binary, Hex, NotMatch };
     States State = States::Waiting;
     bool IsUnsigned = true;
 public:
@@ -234,12 +234,13 @@ public:
     }
     constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
     {
+        bool commonPath = true;
         switch (State)
         {
         case States::Waiting:
             if (ch == '-')
             {
-                State = States::Negative;
+                State = States::Normal;
                 IsUnsigned = false;
                 return TokenizerResult::Pending;
             }
@@ -248,8 +249,9 @@ public:
                 State = States::Num0;
                 return TokenizerResult::Waitlist;
             }
+            break; // Normal
         case States::Num0:
-            if (ch == 'x')
+            if (ch == 'x' || ch == 'X')
             {
                 State = States::Hex;
                 return TokenizerResult::Pending;
@@ -259,14 +261,7 @@ public:
                 State = States::Binary;
                 return TokenizerResult::Pending;
             }
-        case States::Negative:
-            if (ch >= '0' && ch <= '9')
-            {
-                State = States::Normal;
-                return TokenizerResult::Waitlist;
-            }
-            else
-                break;
+            break; // Normal
         case States::Hex:
             if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))
             {
@@ -274,7 +269,10 @@ public:
                 return TokenizerResult::Waitlist;
             }
             else
-                break;
+            {
+                commonPath = false;
+                break; // not match
+            }
         case States::Binary:
             if (ch == '0' || ch == '1')
             {
@@ -282,9 +280,20 @@ public:
                 return TokenizerResult::Waitlist;
             }
             else
-                break;
+            {
+                commonPath = false;
+                break; // not match
+            }
+        case States::Normal:
+            break; // Normal
         default:
-            break;
+            commonPath = false;
+            break; // not match
+        }
+        if (commonPath && ch >= '0' && ch <= '9')
+        {
+            State = States::Normal;
+            return TokenizerResult::Waitlist;
         }
         State = States::NotMatch;
         return TokenizerResult::NotMatch;
@@ -293,6 +302,8 @@ public:
     {
         switch (State)
         {
+        case States::Num0:
+            return GenerateToken(BaseToken::Uint, 0);
         case States::Binary:
         {
             Expects(txt.size() > 2);
@@ -300,10 +311,17 @@ public:
                 return GenerateToken(BaseToken::Error, txt);
             txt.remove_prefix(2);
             uint64_t bin = 0;
-            while (txt.size() > 0)
+            while (true)
             {
                 bin |= (txt.front() == '1' ? 0x1 : 0x0);
-                bin <<= 1;
+                txt.remove_prefix(1);
+                if (txt.size() > 0)
+                {
+                    bin <<= 1;
+                    continue;
+                }
+                else
+                    break;
             }
             return GenerateToken(BaseToken::Uint, bin);
         }
@@ -314,16 +332,23 @@ public:
                 return GenerateToken(BaseToken::Error, txt);
             txt.remove_prefix(2);
             uint64_t hex = 0;
-            while (txt.size() > 0)
+            while (true)
             {
                 const auto ch = txt.front();
                 if (ch >= 'a')
-                    hex |= (static_cast<uint64_t>(ch - 'a') + 10);
+                    hex |= (static_cast<uint64_t>(ch) - 'a' + 10);
                 else if (ch >= 'A')
-                    hex |= (static_cast<uint64_t>(ch - 'A') + 10);
+                    hex |= (static_cast<uint64_t>(ch) - 'A' + 10);
                 else
-                    hex |=  static_cast<uint64_t>(ch - '0');
-                hex <<= 4;
+                    hex |=  static_cast<uint64_t>(ch) - '0';
+                txt.remove_prefix(1);
+                if (txt.size() > 0)
+                {
+                    hex <<= 4;
+                    continue;
+                }
+                else
+                    break;
             }
             return GenerateToken(BaseToken::Uint, hex);
         }
@@ -333,16 +358,16 @@ public:
             if (IsUnsigned)
             {
                 uint64_t val = 0;
-                const bool valid = common::StrToInt(str, val).first;
+                const bool valid = common::StrToInt(str, val, 10).first;
                 if (valid)
                     return GenerateToken(BaseToken::Uint, val);
             }
             else
             {
                 int64_t val = 0;
-                const bool valid = common::StrToInt(str, val).first;
+                const bool valid = common::StrToInt(str, val, 10).first;
                 if (valid)
-                    return GenerateToken(BaseToken::Uint, val);
+                    return GenerateToken(BaseToken::Int, val);
             }
         } break;
         default:

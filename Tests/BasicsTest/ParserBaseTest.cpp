@@ -127,10 +127,13 @@ constexpr auto Parser2 = [](const std::u32string_view src)
     std::vector<ParserToken> tokens;
     while (context.PeekNext() != ParserContext::CharEnd)
     {
-        tokens.emplace_back(parser.GetToken(U" \t\r\n\v"sv));
-        if (tokens.back().GetIDEnum<BaseToken>() == BaseToken::End)
+        const auto token = parser.GetToken(U" \t\r\n\v"sv);
+        const auto type = token.GetIDEnum<BaseToken>();
+        if (type != BaseToken::End)
+            tokens.emplace_back(token);
+        if (type == BaseToken::Error || type == BaseToken::Unknown || type == BaseToken::End)
             break;
-        context.GetNext();
+        // context.GetNext();
         parser.IgnoreWhiteSpace();
     }
     return tokens;
@@ -217,6 +220,82 @@ TEST(ParserBase, ParserString)
         EXPECT_EQ(vals[0], U"hello"sv);
         EXPECT_EQ(vals[1], U" "sv);
         EXPECT_EQ(vals[2], U"there"sv);
+    }
+}
+
+
+TEST(ParserBase, ParserInt)
+{
+
+    {
+        const auto tokens = Parser2(U"123"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetUInt());
+        CHECK_TKS_TYPE(types, Uint);
+        EXPECT_EQ(vals[0], 123);
+    }
+    {
+        const auto tokens = Parser2(U"-123"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetInt());
+        CHECK_TKS_TYPE(types, Int);
+        EXPECT_EQ(vals[0], -123);
+    }
+    {
+        const auto tokens = Parser2(U"0x13579bdf"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetUInt());
+        CHECK_TKS_TYPE(types, Uint);
+        EXPECT_EQ(vals[0], 0x13579bdf);
+    }
+    {
+        const auto tokens = Parser2(U"0b1010010100111110"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetUInt());
+        CHECK_TKS_TYPE(types, Uint);
+        EXPECT_EQ(vals[0], 0b1010010100111110);
+    }
+    {
+        const auto tokens = Parser2(U"-0"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetInt());
+        CHECK_TKS_TYPE(types, Int);
+        EXPECT_EQ(vals[0], 0);
+    }
+    {
+        const auto tokens = Parser2(U"-0X12"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"-0X"sv);
+    }
+    {
+        const auto tokens = Parser2(U"0b123"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"0b12"sv);
+    }
+    {
+        const auto tokens = Parser2(U"0x1ax3"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"0x1ax"sv);
+    }
+    {
+        const auto tokens = Parser2(U"0x12345678901234567890"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Error);
+        EXPECT_EQ(vals[0], U"0x12345678901234567890"sv);
+    }
+    {
+        const auto tokens = Parser2(U"0b10101010101010101010101010101010101010101010101010101010101010101"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Error);
+        EXPECT_EQ(vals[0], U"0b10101010101010101010101010101010101010101010101010101010101010101"sv);
     }
 }
 

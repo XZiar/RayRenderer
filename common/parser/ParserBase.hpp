@@ -172,9 +172,6 @@ private:
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
     using ResultArray = std::array<tokenizer::TokenizerResult, TKCount>;
 
-    std::tuple<TKs...> Tokenizers;
-    ResultArray Status;
-
     template<size_t N = 0>
     void InitTokenizer()
     {
@@ -192,7 +189,7 @@ private:
     {
         using tokenizer::TokenizerResult;
         auto& result = Status[N];
-        if (result == TokenizerResult::Pending)
+        if (result == TokenizerResult::Pending || result == TokenizerResult::Waitlist)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
             result = tokenizer.OnChar(ch, idx);
@@ -229,7 +226,8 @@ private:
             return GenerateToken(BaseToken::Error);
     }
 public:
-    ParserBase2(ParserContext& ctx) : Context(ctx) { }
+    ParserBase2(ParserContext& ctx) : Context(ctx), Status({ tokenizer::TokenizerResult::Pending })
+    { }
     constexpr void IgnoreBlank() noexcept
     {
         Context.TryGetWhile([](const char32_t ch)
@@ -275,10 +273,12 @@ public:
         else if (waitlist > 0)
             return OutputToken(Context, tokenTxt, TokenizerResult::Waitlist);
         else
-            return GenerateToken(BaseToken::Error, tokenTxt);
+            return GenerateToken(BaseToken::Unknown, tokenTxt);
     }
 private:
     ParserContext& Context;
+    std::tuple<TKs...> Tokenizers;
+    ResultArray Status;
 };
 
 
