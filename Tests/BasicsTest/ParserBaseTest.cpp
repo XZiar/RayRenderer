@@ -119,30 +119,104 @@ TEST(ParserBase, Tokens)
 }
 
 
-TEST(ParserBase, Parser2)
+constexpr auto Parser2 = [](const std::u32string_view src)
 {
-    constexpr auto test = [](const std::u32string_view src)
+    using namespace common::parser::tokenizer;
+    ParserContext context(src);
+    ParserBase2<CommentTokenizer, StringTokenizer, IntTokenizer> parser(context);
+    std::vector<ParserToken> tokens;
+    while (context.PeekNext() != ParserContext::CharEnd)
     {
-        using namespace common::parser::tokenizer;
-        ParserContext context(src);
-        ParserBase2<CommentTokenizer, StringTokenizer> parser(context);
-        std::vector<ParserToken> tokens;
-        while (context.PeekNext() != ParserContext::CharEnd)
-        {
-            tokens.emplace_back(parser.GetToken(U" \t\r\n\v"sv));
-            if (tokens.back().GetIDEnum<BaseToken>() == BaseToken::End)
-                break;
-            context.GetNext();
-            parser.IgnoreWhiteSpace();
-        }
-        return tokens;
-    };
+        tokens.emplace_back(parser.GetToken(U" \t\r\n\v"sv));
+        if (tokens.back().GetIDEnum<BaseToken>() == BaseToken::End)
+            break;
+        context.GetNext();
+        parser.IgnoreWhiteSpace();
+    }
+    return tokens;
+};
+
+
+TEST(ParserBase, ParserComment)
+{
     {
-        const auto tokens = test(U"//hello"sv);
+        const auto tokens = Parser2(U"//hello"sv);
         const auto types = MAP_TOKEN_TYPES(tokens);
         const auto vals = MAP_TOKENS(tokens, GetString());
         CHECK_TKS_TYPE(types, Comment);
         EXPECT_EQ(vals[0], U"hello"sv);
+    }
+    {
+        const auto tokens = Parser2(U"/*hello*/"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Comment);
+        EXPECT_EQ(vals[0], U"hello"sv);
+    }
+    {
+        const auto tokens = Parser2(U"//hello there"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Comment);
+        EXPECT_EQ(vals[0], U"hello there"sv);
+    }
+    {
+        const auto tokens = Parser2(U"/*hello\nthere*/"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Comment);
+        EXPECT_EQ(vals[0], U"hello\nthere"sv);
+    }
+    {
+        const auto tokens = Parser2(U"/* hello\nthere */\n// hello"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Comment, Comment);
+        EXPECT_EQ(vals[0], U" hello\nthere "sv);
+        EXPECT_EQ(vals[1], U" hello"sv);
+    }
+}
+
+
+TEST(ParserBase, ParserString)
+{
+
+    {
+        const auto tokens = Parser2(UR"("hello")"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, String);
+        EXPECT_EQ(vals[0], U"hello"sv);
+    }
+    {
+        const auto tokens = Parser2(UR"("hello there")"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, String);
+        EXPECT_EQ(vals[0], U"hello there"sv);
+    }
+    {
+        const auto tokens = Parser2(UR"("hello\"there")"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, String);
+        EXPECT_EQ(vals[0], UR"(hello\"there)"sv);
+    }
+    {
+        const auto tokens = Parser2(UR"("hello)"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Error);
+        EXPECT_EQ(vals[0], U"hello"sv);
+    }
+    {
+        const auto tokens = Parser2(UR"("hello" " " "there")"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, String, String, String);
+        EXPECT_EQ(vals[0], U"hello"sv);
+        EXPECT_EQ(vals[1], U" "sv);
+        EXPECT_EQ(vals[2], U"there"sv);
     }
 }
 

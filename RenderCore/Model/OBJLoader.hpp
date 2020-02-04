@@ -1,9 +1,7 @@
 #pragma once
 #include "RenderCoreRely.h"
 #include "StringCharset/Detect.h"
-#if COMPILER_MSVC // 15.8 has implemented it both fp&int
-#   include <charconv>
-#endif
+#include "common/CharConvs.hpp"
 
 namespace rayr::detail
 {
@@ -63,44 +61,28 @@ public:
         {
             b3d::Coord2D ret;
             for (uint8_t i = 0; offset < Params.size() && i < 2; ++offset, ++i)
-#if COMPILER_MSVC
-                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
-#else
-                ret[i] = std::strtof(Params[offset].data(), nullptr);
-#endif
+                common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
         miniBLAS::Vec3 ParamsToFloat3(size_t offset) const
         {
             miniBLAS::Vec3 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 3; ++offset, ++i)
-#if COMPILER_MSVC
-                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
-#else
-                ret[i] = std::strtof(Params[offset].data(), nullptr);
-#endif
+                common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
         miniBLAS::Vec4 ParamsToFloat4(size_t offset) const
         {
             miniBLAS::Vec4 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
-#if COMPILER_MSVC
-                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
-#else
-                ret[i] = std::strtof(Params[offset].data(), nullptr);
-#endif
+                common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
         miniBLAS::VecI4 ParamsToInt4(size_t offset) const
         {
             miniBLAS::VecI4 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
-#if COMPILER_MSVC
-                std::from_chars(Params[offset].data(), Params[offset].data() + Params[offset].size(), ret[i]);
-#else
-                ret[i] = (int32_t)std::strtol(Params[offset].data(), nullptr, 10);
-#endif
+                common::StrToInt(Params[offset], ret[i]);
             return ret;
         }
 

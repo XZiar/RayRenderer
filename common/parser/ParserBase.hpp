@@ -2,7 +2,7 @@
 
 #include "ParserContext.hpp"
 #include "ParserTokenizer.hpp"
-#include <charconv>
+#include "../CharConvs.hpp"
 
 
 namespace common::parser
@@ -136,26 +136,21 @@ public:
         {
             uint64_t val = 0;
             const auto tmp = ToU8Str(data);
-            std::from_chars(tmp.data(), tmp.data() + tmp.size(), val, 10);
+            StrToInt(tmp, val, 10);
             return GenerateToken(BaseToken::Uint, val);
         }
         case States::INT:
         {
             int64_t val = 0;
             const auto tmp = ToU8Str(data);
-            std::from_chars(tmp.data(), tmp.data() + tmp.size(), val, 10);
+            StrToInt(tmp, val, 10);
             return GenerateToken(BaseToken::Int, val);
         }
         case States::FP:
         {
             double val = 0;
             const auto tmp = ToU8Str(data);
-#if COMPILER_MSVC
-            std::from_chars(tmp.data(), tmp.data() + tmp.size(), val);
-#else
-            auto ptr = tmp.data() + tmp.size();
-            val = std::strtod(tmp.data(), &ptr);
-#endif
+            StrToFP(tmp, val);
             return GenerateToken(BaseToken::FP, val);
         }
         default:

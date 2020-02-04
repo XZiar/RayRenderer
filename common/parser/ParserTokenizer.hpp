@@ -2,6 +2,8 @@
 
 #include "ParserContext.hpp"
 #include "../EnumEx.hpp"
+#include "../CharConvs.hpp"
+
 
 namespace common::parser
 {
@@ -97,6 +99,14 @@ protected:
     {
         return ParserToken(common::enum_cast(enumval), std::forward<Args>(args)...);
     }
+    static std::string ToU8Str(const std::u32string_view txt)
+    {
+        std::string str;
+        str.resize(txt.size());
+        for (size_t idx = 0; idx < txt.size(); ++idx)
+            str[idx] = static_cast<char>(txt[idx]);
+        return str;
+    };
 };
 
 class CommentTokenizer : public TokenizerBase
@@ -150,7 +160,10 @@ public:
         case States::Singleline:
             return GenerateToken(BaseToken::Comment, ctx.GetLine());
         case States::Multiline:
-            return GenerateToken(BaseToken::Comment, ctx.TryGetUntil(U"*/"));
+        {
+            auto txt = ctx.TryGetUntil(U"*/"); txt.remove_suffix(2);
+            return GenerateToken(BaseToken::Comment, txt);
+        }
         default:
             return GenerateToken(BaseToken::Error);
         }
@@ -172,31 +185,170 @@ public:
     }
     constexpr ParserToken GetToken(ParserContext& ctx, std::u32string_view) const noexcept
     {
-        bool successful = false;
-        const auto content = ctx.TryGetWhile<false>([&, inSlash = false](const char32_t ch) mutable
+        const auto idxBegin = ctx.Index;
+        bool successful = false, inSlash = false;
+        while (true)
         {
-            if (successful == true)
-                return false;
-            if (ch == ParserContext::CharEnd)
-                return false;
+            const auto ch = ctx.GetNext();
+            if (ch == ParserContext::CharEnd || ch == ParserContext::CharLF)
+                break;
             if (!inSlash)
             {
                 if (ch == '\\')
                     inSlash = true;
                 else if (ch == '"')
+                {
                     successful = true;
+                    break;
+                }
             }
             else
             {
                 inSlash = false;
             }
-            return true;
-        });
+        }
 
+        auto content = ctx.Source.substr(idxBegin, ctx.Index - idxBegin);
         if (successful)
+        {
+            content.remove_suffix(1);
             return GenerateToken(BaseToken::String, content);
+        }
         else
             return GenerateToken(BaseToken::Error, content);
+    }
+};
+
+
+class IntTokenizer : public TokenizerBase
+{
+private:
+    enum class States { Waiting, Negative, Num0, Normal, Binary, Hex, NotMatch };
+    States State = States::Waiting;
+    bool IsUnsigned = true;
+public:
+    constexpr void OnInitialize() noexcept
+    {
+        State = States::Waiting;
+        IsUnsigned = true;
+    }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
+    {
+        switch (State)
+        {
+        case States::Waiting:
+            if (ch == '-')
+            {
+                State = States::Negative;
+                IsUnsigned = false;
+                return TokenizerResult::Pending;
+            }
+            if (ch == '0')
+            {
+                State = States::Num0;
+                return TokenizerResult::Waitlist;
+            }
+        case States::Num0:
+            if (ch == 'x')
+            {
+                State = States::Hex;
+                return TokenizerResult::Pending;
+            }
+            if (ch == 'b')
+            {
+                State = States::Binary;
+                return TokenizerResult::Pending;
+            }
+        case States::Negative:
+            if (ch >= '0' && ch <= '9')
+            {
+                State = States::Normal;
+                return TokenizerResult::Waitlist;
+            }
+            else
+                break;
+        case States::Hex:
+            if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))
+            {
+                State = States::Hex;
+                return TokenizerResult::Waitlist;
+            }
+            else
+                break;
+        case States::Binary:
+            if (ch == '0' || ch == '1')
+            {
+                State = States::Binary;
+                return TokenizerResult::Waitlist;
+            }
+            else
+                break;
+        default:
+            break;
+        }
+        State = States::NotMatch;
+        return TokenizerResult::NotMatch;
+    }
+    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        switch (State)
+        {
+        case States::Binary:
+        {
+            Expects(txt.size() > 2);
+            if (txt.size() > 66)
+                return GenerateToken(BaseToken::Error, txt);
+            txt.remove_prefix(2);
+            uint64_t bin = 0;
+            while (txt.size() > 0)
+            {
+                bin |= (txt.front() == '1' ? 0x1 : 0x0);
+                bin <<= 1;
+            }
+            return GenerateToken(BaseToken::Uint, bin);
+        }
+        case States::Hex:
+        {
+            Expects(txt.size() > 2);
+            if (txt.size() > 18)
+                return GenerateToken(BaseToken::Error, txt);
+            txt.remove_prefix(2);
+            uint64_t hex = 0;
+            while (txt.size() > 0)
+            {
+                const auto ch = txt.front();
+                if (ch >= 'a')
+                    hex |= (static_cast<uint64_t>(ch - 'a') + 10);
+                else if (ch >= 'A')
+                    hex |= (static_cast<uint64_t>(ch - 'A') + 10);
+                else
+                    hex |=  static_cast<uint64_t>(ch - '0');
+                hex <<= 4;
+            }
+            return GenerateToken(BaseToken::Uint, hex);
+        }
+        case States::Normal:
+        {
+            const auto str = ToU8Str(txt);
+            if (IsUnsigned)
+            {
+                uint64_t val = 0;
+                const bool valid = common::StrToInt(str, val).first;
+                if (valid)
+                    return GenerateToken(BaseToken::Uint, val);
+            }
+            else
+            {
+                int64_t val = 0;
+                const bool valid = common::StrToInt(str, val).first;
+                if (valid)
+                    return GenerateToken(BaseToken::Uint, val);
+            }
+        } break;
+        default:
+            break;
+        }
+        return GenerateToken(BaseToken::Error, txt);
     }
 };
 
