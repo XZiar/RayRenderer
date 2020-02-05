@@ -223,80 +223,64 @@ public:
 class IntTokenizer : public TokenizerBase
 {
 private:
-    enum class States { Waiting, Num0, Normal, Binary, Hex, NotMatch };
-    States State = States::Waiting;
+    enum class States { Init, Num0, Normal, Binary, Hex, NotMatch };
+    States State = States::Init;
     bool IsUnsigned = true;
 public:
     constexpr void OnInitialize() noexcept
     {
-        State = States::Waiting;
+        State = States::Init;
         IsUnsigned = true;
     }
     constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
     {
-        bool commonPath = true;
+        constexpr auto NormalCheck = [](const char32_t ch_, States& state)
+        {
+            if (ch_ >= '0' && ch_ <= '9')
+            {
+                state = States::Normal;
+                return TokenizerResult::Waitlist;
+            }
+            state = States::NotMatch;
+            return TokenizerResult::NotMatch;
+        };
+
+#define RET(state, result) do { State = States::state; return TokenizerResult::result; } while(0)
         switch (State)
         {
-        case States::Waiting:
+        case States::Init:
             if (ch == '-')
             {
-                State = States::Normal;
                 IsUnsigned = false;
-                return TokenizerResult::Pending;
+                RET(Normal, Pending);
             }
-            if (ch == '0')
-            {
-                State = States::Num0;
-                return TokenizerResult::Waitlist;
-            }
-            break; // Normal
+            else if (ch == '0')
+                RET(Num0, Waitlist);
+            else
+                return NormalCheck(ch, State);
         case States::Num0:
             if (ch == 'x' || ch == 'X')
-            {
-                State = States::Hex;
-                return TokenizerResult::Pending;
-            }
-            if (ch == 'b')
-            {
-                State = States::Binary;
-                return TokenizerResult::Pending;
-            }
-            break; // Normal
+                RET(Hex, Pending);
+            else if (ch == 'b')
+                RET(Binary, Pending);
+            else
+                return NormalCheck(ch, State);
         case States::Hex:
             if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))
-            {
-                State = States::Hex;
-                return TokenizerResult::Waitlist;
-            }
+                RET(Hex, Waitlist);
             else
-            {
-                commonPath = false;
-                break; // not match
-            }
+                RET(NotMatch, NotMatch);
         case States::Binary:
             if (ch == '0' || ch == '1')
-            {
-                State = States::Binary;
-                return TokenizerResult::Waitlist;
-            }
+                RET(Binary, Waitlist);
             else
-            {
-                commonPath = false;
-                break; // not match
-            }
+                RET(NotMatch, NotMatch);
         case States::Normal:
-            break; // Normal
+            return NormalCheck(ch, State);
         default:
-            commonPath = false;
-            break; // not match
+            RET(NotMatch, NotMatch);
         }
-        if (commonPath && ch >= '0' && ch <= '9')
-        {
-            State = States::Normal;
-            return TokenizerResult::Waitlist;
-        }
-        State = States::NotMatch;
-        return TokenizerResult::NotMatch;
+#undef RET
     }
     ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
     {
@@ -377,6 +361,94 @@ public:
     }
 };
 
+
+class FPTokenizer : public TokenizerBase
+{
+private:
+    enum class States { Init, Negative, FirstNum, Dot, Normal, Scientific, NotMatch };
+    States State = States::Init;
+public:
+    constexpr void OnInitialize() noexcept
+    {
+        State = States::Init;
+    }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
+    {
+        constexpr auto NormalCheck = [](const char32_t ch_, States& state)
+        {
+            if (ch_ >= '0' && ch_ <= '9')
+            {
+                state = States::Normal;
+                return TokenizerResult::Waitlist;
+            }
+            state = States::NotMatch;
+            return TokenizerResult::NotMatch;
+        };
+
+#define RET(state, result) do { State = States::state; return TokenizerResult::result; } while(0)
+        switch (State)
+        {
+        case States::Init:
+            if (ch == '-')
+                RET(Negative, Pending);
+        case States::Negative:
+            if (ch == '.')
+                RET(Dot, Pending);
+            if (ch >= '0' && ch <= '9')
+                RET(FirstNum, Waitlist);
+            RET(NotMatch, NotMatch);
+        case States::FirstNum:
+            if (ch == '.')
+                RET(Dot, Pending);
+            if (ch == 'e' || ch == 'E')
+                RET(Scientific, Pending);
+            if (ch >= '0' && ch <= '9')
+                RET(FirstNum, Waitlist);
+            RET(NotMatch, NotMatch);
+        case States::Dot:
+            if (ch >= '0' && ch <= '9')
+                RET(Normal, Waitlist);
+            RET(NotMatch, NotMatch);
+        case States::Normal:
+            if (ch == 'e' || ch == 'E')
+                RET(Scientific, Pending);
+            if (ch >= '0' && ch <= '9')
+                RET(Normal, Waitlist);
+            RET(NotMatch, NotMatch);
+        case States::Scientific:
+            if (ch >= '0' && ch <= '9')
+                RET(Scientific, Waitlist);
+            RET(NotMatch, NotMatch);
+        default:
+            RET(NotMatch, NotMatch);
+        }
+#undef RET
+    }
+    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        switch (State)
+        {
+        case States::FirstNum:
+        case States::Normal:
+        {
+            const auto str = ToU8Str(txt);
+            double val = 0;
+            const bool valid = common::StrToFP(str, val, false).first;
+            if (valid)
+                return GenerateToken(BaseToken::FP, val);
+        } break;
+        case States::Scientific:
+        {
+            const auto str = ToU8Str(txt);
+            double val = 0;
+            const bool valid = common::StrToFP(str, val, true).first;
+            if (valid)
+                return GenerateToken(BaseToken::FP, val);
+        } break;
+        }
+        return GenerateToken(BaseToken::Error, txt);
+    }
+};
 
 
 }

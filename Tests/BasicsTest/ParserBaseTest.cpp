@@ -123,7 +123,7 @@ constexpr auto Parser2 = [](const std::u32string_view src)
 {
     using namespace common::parser::tokenizer;
     ParserContext context(src);
-    ParserBase2<CommentTokenizer, StringTokenizer, IntTokenizer> parser(context);
+    ParserBase2<CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer> parser(context);
     std::vector<ParserToken> tokens;
     while (context.PeekNext() != ParserContext::CharEnd)
     {
