@@ -365,7 +365,7 @@ public:
 class FPTokenizer : public TokenizerBase
 {
 private:
-    enum class States { Init, Negative, FirstNum, Dot, Normal, Scientific, NotMatch };
+    enum class States { Init, Negative, FirstNum, Dot, Normal, Exp, Scientific, NotMatch };
     States State = States::Init;
 public:
     constexpr void OnInitialize() noexcept
@@ -401,7 +401,7 @@ public:
             if (ch == '.')
                 RET(Dot, Pending);
             if (ch == 'e' || ch == 'E')
-                RET(Scientific, Pending);
+                RET(Exp, Pending);
             if (ch >= '0' && ch <= '9')
                 RET(FirstNum, Waitlist);
             RET(NotMatch, NotMatch);
@@ -411,10 +411,13 @@ public:
             RET(NotMatch, NotMatch);
         case States::Normal:
             if (ch == 'e' || ch == 'E')
-                RET(Scientific, Pending);
+                RET(Exp, Pending);
             if (ch >= '0' && ch <= '9')
                 RET(Normal, Waitlist);
             RET(NotMatch, NotMatch);
+        case States::Exp:
+            if (ch == '-')
+                RET(Scientific, Pending);
         case States::Scientific:
             if (ch >= '0' && ch <= '9')
                 RET(Scientific, Waitlist);

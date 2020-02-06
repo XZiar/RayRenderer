@@ -118,12 +118,11 @@ TEST(ParserBase, Tokens)
     }
 }
 
-
-constexpr auto Parser2 = [](const std::u32string_view src)
+template<typename... TKs>
+auto TKParser(const std::u32string_view src)
 {
-    using namespace common::parser::tokenizer;
     ParserContext context(src);
-    ParserBase2<CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer> parser(context);
+    ParserBase2<TKs...> parser(context);
     std::vector<ParserToken> tokens;
     while (context.PeekNext() != ParserContext::CharEnd)
     {
@@ -137,7 +136,12 @@ constexpr auto Parser2 = [](const std::u32string_view src)
         parser.IgnoreWhiteSpace();
     }
     return tokens;
-};
+}
+auto Parser2(const std::u32string_view src)
+{
+    using namespace common::parser::tokenizer;
+    return TKParser<CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer>(src);
+}
 
 
 TEST(ParserBase, ParserComment)
@@ -296,6 +300,82 @@ TEST(ParserBase, ParserInt)
         const auto vals = MAP_TOKENS(tokens, GetString());
         CHECK_TKS_TYPE(types, Error);
         EXPECT_EQ(vals[0], U"0b10101010101010101010101010101010101010101010101010101010101010101"sv);
+    }
+}
+
+
+TEST(ParserBase, ParserFP)
+{
+    using namespace common::parser::tokenizer;
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"123"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], 123.0);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"123.0"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], 123.0);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"-123.0"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], -123.0);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U".5"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], .5);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"-.5"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], -.5);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"1e5"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], 1e5);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"1.5E-2"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetDouble());
+        CHECK_TKS_TYPE(types, FP);
+        EXPECT_EQ(vals[0], 1.5e-2);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"."sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"."sv);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"--123"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"--"sv);
+    }
+    {
+        const auto tokens = TKParser<FPTokenizer>(U"1e.5"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"1e."sv);
     }
 }
 
