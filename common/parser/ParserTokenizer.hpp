@@ -60,6 +60,7 @@ public:
     ParserToken(uint16_t id, const T val) :
         ParserToken(Tag{}, id, val) { }
 
+    constexpr bool                  GetBool()   const noexcept { /*Expects(Data2 == std::is_signed_v<T> ? 1 : 2);*/ return Data1 != 0; }
     constexpr int64_t               GetInt()    const noexcept { /*Expects(Data2 == 1);*/ return static_cast<int64_t>(Data1); }
     constexpr uint64_t              GetUInt()   const noexcept { /*Expects(Data2 == 2);*/ return Data1; }
     constexpr char32_t              GetChar()   const noexcept { /*Expects(Data2 == 3);*/ return static_cast<char32_t>(Data1); }
@@ -69,7 +70,7 @@ public:
     template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
     constexpr T                     GetFPNum()  const noexcept { /*Expects(Data2 == 4);*/ return static_cast<T>(Data1); }
               std::u32string_view   GetString() const noexcept { return std::u32string_view(reinterpret_cast<const char32_t*>(Data2), Data1); }
-              
+
     constexpr uint16_t              GetID()     const noexcept { return ID; }
     template<typename T>
     constexpr T                     GetIDEnum() const noexcept 
@@ -81,7 +82,7 @@ public:
 };
 constexpr auto kk = sizeof(ParserToken);
 
-enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
+enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
 
 
 
@@ -449,6 +450,67 @@ public:
                 return GenerateToken(BaseToken::FP, val);
         } break;
         }
+        return GenerateToken(BaseToken::Error, txt);
+    }
+};
+
+
+class BoolTokenizer : public TokenizerBase
+{
+private:
+    enum class States { Init, T_T, T_TR, T_TRU, F_F, F_FA, F_FAL, F_FALS, Match, NotMatch };
+    States State = States::Init;
+public:
+    constexpr void OnInitialize() noexcept
+    {
+        State = States::Init;
+    }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
+    {
+#define RET(state, result) do { State = States::state; return TokenizerResult::result; } while(0)
+        switch (State)
+        {
+        case States::Init:
+            if (ch == 'T' || ch == 't')
+                RET(T_T, Pending);
+            if (ch == 'F' || ch == 'f')
+                RET(F_F, Pending);
+            break;
+        case States::T_T:
+            if (ch == 'R' || ch == 'r')
+                RET(T_TR, Pending);
+            break;
+        case States::T_TR:
+            if (ch == 'U' || ch == 'u')
+                RET(T_TRU, Pending);
+            break;
+        case States::F_F:
+            if (ch == 'A' || ch == 'a')
+                RET(F_FA, Pending);
+            break;
+        case States::F_FA:
+            if (ch == 'L' || ch == 'l')
+                RET(F_FAL, Pending);
+            break;
+        case States::F_FAL:
+            if (ch == 'S' || ch == 's')
+                RET(F_FALS, Pending);
+            break;
+        case States::T_TRU:
+        case States::F_FALS:
+            if (ch == 'E' || ch == 'e')
+                RET(Match, Waitlist);
+            break;
+        default:
+            break;
+        }
+        RET(NotMatch, NotMatch);
+#undef RET
+    }
+    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        if (State == States::Match)
+            return GenerateToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
         return GenerateToken(BaseToken::Error, txt);
     }
 };

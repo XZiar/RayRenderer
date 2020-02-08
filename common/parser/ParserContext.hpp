@@ -42,7 +42,7 @@ public:
         SourceName(std::u16string(name)), Source(source)
     { }
 
-    constexpr char32_t GetNext() noexcept
+    inline constexpr char32_t GetNext() noexcept
     {
         if (Index >= Source.size())
             return CharEnd;
@@ -52,7 +52,7 @@ public:
         return ch;
     }
 
-    constexpr char32_t PeekNext() const noexcept
+    inline constexpr char32_t PeekNext() const noexcept
     {
         if (Index >= Source.size())
             return CharEnd;
@@ -60,7 +60,20 @@ public:
         return (ch == CharCR || ch == CharLF) ? CharLF : ch;
     }
 
-    constexpr std::u32string_view GetLine() noexcept
+    template<typename Pred>
+    inline constexpr std::pair<char32_t, bool> GetNextIf(Pred&& pred) noexcept
+    {
+        const auto ch = PeekNext();
+        const auto shouldForward = pred(ch);
+        if (ch != CharEnd && shouldForward)
+        {
+            Index++;
+            HandlePosition(ch);
+        }
+        return { ch, shouldForward };
+    }
+
+    inline constexpr std::u32string_view GetLine() noexcept
     {
         const auto start = Index;
         while (Index < Source.size())
@@ -85,21 +98,21 @@ public:
         return GetUntil(target.size(), pos, allowMultiLine);
     }
 
-    constexpr std::u32string_view TryGetUntilAny(const std::u32string_view target, const bool allowMultiLine = true)
-    {
-        if (target.size() == 0)
-            return {};
-        const auto pos = Source.find_first_of(target, Index);
-        return GetUntil(target.size(), pos, allowMultiLine);
-    }
+    //constexpr std::u32string_view TryGetUntilAny(const std::u32string_view target, const bool allowMultiLine = true)
+    //{
+    //    if (target.size() == 0)
+    //        return {};
+    //    const auto pos = Source.find_first_of(target, Index);
+    //    return GetUntil(target.size(), pos, allowMultiLine);
+    //}
 
-    constexpr std::u32string_view TryGetUntilNot(const std::u32string_view target, const bool allowMultiLine = true)
-    {
-        if (target.size() == 0)
-            return {};
-        const auto pos = Source.find_first_not_of(target, Index);
-        return GetUntil(target.size(), pos, allowMultiLine);
-    }
+    //constexpr std::u32string_view TryGetUntilNot(const std::u32string_view target, const bool allowMultiLine = true)
+    //{
+    //    if (target.size() == 0)
+    //        return {};
+    //    const auto pos = Source.find_first_not_of(target, Index);
+    //    return GetUntil(target.size(), pos, allowMultiLine);
+    //}
 
     template<bool AllowNewLine = true, typename Pred>
     constexpr std::u32string_view TryGetWhile(Pred&& predictor)
