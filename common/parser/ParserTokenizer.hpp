@@ -9,6 +9,8 @@ namespace common::parser
 {
 
 
+enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
+
 class ParserToken
 {
 private:
@@ -72,7 +74,7 @@ public:
               std::u32string_view   GetString() const noexcept { return std::u32string_view(reinterpret_cast<const char32_t*>(Data2), Data1); }
 
     constexpr uint16_t              GetID()     const noexcept { return ID; }
-    template<typename T>
+    template<typename T = BaseToken>
     constexpr T                     GetIDEnum() const noexcept 
     {
         if (ID <= common::enum_cast(T::__RangeMin)) return T::__RangeMin;
@@ -82,7 +84,6 @@ public:
 };
 constexpr auto kk = sizeof(ParserToken);
 
-enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
 
 
 
@@ -375,17 +376,6 @@ public:
     }
     constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
     {
-        constexpr auto NormalCheck = [](const char32_t ch_, States& state)
-        {
-            if (ch_ >= '0' && ch_ <= '9')
-            {
-                state = States::Normal;
-                return TokenizerResult::Waitlist;
-            }
-            state = States::NotMatch;
-            return TokenizerResult::NotMatch;
-        };
-
 #define RET(state, result) do { State = States::state; return TokenizerResult::result; } while(0)
         switch (State)
         {
@@ -449,6 +439,8 @@ public:
             if (valid)
                 return GenerateToken(BaseToken::FP, val);
         } break;
+        default:
+            break;
         }
         return GenerateToken(BaseToken::Error, txt);
     }

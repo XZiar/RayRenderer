@@ -5,6 +5,7 @@
 #include "../CharConvs.hpp"
 
 
+
 namespace common::parser
 {
 
@@ -16,6 +17,47 @@ struct TokenResult
     constexpr TokenResult(ParserToken token, char32_t delim) 
         : Token(token), Delim(delim) { }
 };
+
+
+#if COMMON_OS_WIN && _MSC_VER <= 1914
+#   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
+#endif
+
+template<bool Result = true>
+struct ASCIIChecker
+{
+    std::array<uint32_t, 4> LUT = { 0 };
+    constexpr ASCIIChecker(const std::string_view str)
+    {
+        for (auto& ele : LUT)
+            ele = Result ? 0x0 : 0xffffffff;
+        for (const auto ch : str)
+        {
+            if (ch >= 0 && ch < 128)
+            {
+                auto& ele = LUT[ch / 32];
+                const uint32_t obj = 0x1u << (ch % 32);
+                if constexpr (Result)
+                    ele |= obj;
+                else
+                    ele &= (~obj);
+            }
+        }
+    }
+
+    constexpr bool operator()(const char32_t ch) const noexcept
+    {
+        if (ch >= 0 && ch < 128)
+        {
+            const auto ele = LUT[ch / 32];
+            const auto ret = ele >> (ch % 32);
+            return ret & 0x1 ? true : false;
+        }
+        else
+            return !Result;
+    }
+};
+
 
 template<typename... TKs>
 class ParserBase : public tokenizer::TokenizerBase
@@ -85,34 +127,42 @@ private:
             return GenerateToken(BaseToken::Error);
     }
 
+protected:
+    template<typename Char>
+    forceinline static auto ToChecker(const std::basic_string_view<Char> str) noexcept
+    {
+        if constexpr (std::is_same_v<Char, char>)
+        {
+            return ASCIIChecker(str);
+        }
+        else if constexpr (std::is_same_v<Char, char32_t>)
+        {
+            return [=](const char32_t ch) { return str.find_first_of(ch) != std::u32string_view::npos; };
+        }
+        else
+        {
+            static_assert(!AlwaysTrue<Char>, "only accept char and char32_t");
+        }
+    }
 public:
     ParserBase(ParserContext& ctx) : Context(ctx), Status({ tokenizer::TokenizerResult::Pending })
     { }
-    constexpr void IgnoreBlank() noexcept
+
+    template<typename Delim, typename Ignore>
+    forceinline TokenResult GetToken(Delim&& delim, Ignore&& ignore = std::string_view(" \t")) noexcept
     {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t';
-            });
+        return GetTokenBy(ToChecker(delim), ToChecker(ignore));
     }
-    constexpr void IgnoreWhiteSpace() noexcept
+
+    template<typename Delim, typename Ignore>
+    TokenResult GetTokenBy(Delim&& isDelim, Ignore&& isIgnore) noexcept
     {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t' || ch == '\r' || ch == '\n';
-            });
-    }
-    TokenResult GetToken(const std::u32string_view delim, const std::u32string_view ignore = U" \t") noexcept
-    {
+        static_assert(std::is_invocable_r_v<bool, Delim, char32_t>);
+        static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
         constexpr char32_t EmptyChar = '\0';
 
-        const auto checkIgnore = [=](const char32_t ch)
-        {
-            return ignore.find_first_of(ch) != std::u32string_view::npos;
-        };
-
-        Context.TryGetWhile(checkIgnore);
+        Context.TryGetWhile(isIgnore);
         InitTokenizer();
 
         size_t count = 0;
@@ -128,18 +178,18 @@ public:
             {
                 idxEnd = Context.Index; break;
             }
-            if (delim.find_first_of(ch) != std::u32string_view::npos)
+            if (isDelim(ch))
             {
                 idxEnd = Context.Index - 1; break;
             }
-            if (ignore.find_first_of(ch) != std::u32string_view::npos)
+            if (isIgnore(ch))
             {
                 idxEnd = Context.Index - 1;
-                Context.TryGetWhile(checkIgnore);
-                if (delim.find_first_of(Context.PeekNext()) == std::u32string_view::npos)
+                Context.TryGetWhile(isIgnore);
+                if (auto ch_ = Context.TryGetNext(); !isDelim(ch_))
                     mth = MatchResults::Wrong;
                 else
-                    Context.GetNext();
+                    ch_.Accept();
                 break;
             }
             
@@ -150,11 +200,11 @@ public:
                 const auto tokenTxt = Context.Source.substr(idxBegin, Context.Index - idxBegin);
                 const auto token = OutputToken(Context, tokenTxt, TokenizerResult::FullMatch);
                 
-                Context.TryGetWhile(checkIgnore);
-                if (delim.find_first_of(Context.PeekNext()) == std::u32string_view::npos)
+                Context.TryGetWhile(isIgnore);
+                if (auto ch_ = Context.TryGetNext(); !isDelim(ch_))
                     return { token, EmptyChar };
                 else
-                    return { token, Context.GetNext() };
+                    return { token, ch_.Accept() };
             }
             count++;
         }

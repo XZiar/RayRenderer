@@ -26,6 +26,37 @@ TEST(ParserCtx, CharType)
 }
 
 
+TEST(ParserCtx, TryGetNext)
+{
+    {
+        constexpr auto source = U"01234"sv;
+        ParserContext context(source);
+
+        CHECK_POS(context, 0, 0);
+        auto ch = context.TryGetNext();
+        CHECK_POS(context, 0, 0);
+        EXPECT_EQ(ch, U'0');
+        EXPECT_EQ(ch.Accept(), U'0');
+        CHECK_POS(context, 0, 1);
+        EXPECT_EQ(ch.Accept(), U'0');
+        CHECK_POS(context, 0, 1);
+    }
+    {
+        constexpr auto source = U"0"sv;
+        ParserContext context(source);
+
+        CHECK_POS(context, 0, 0);
+        auto ch = context.TryGetNext();
+        CHECK_POS(context, 0, 0);
+        EXPECT_EQ(ch, U'0');
+        EXPECT_EQ(ch.Accept(), U'0');
+        CHECK_POS(context, 0, 1);
+        EXPECT_EQ(ch.Accept(), U'0');
+        CHECK_POS(context, 0, 1);
+    }
+}
+
+
 TEST(ParserCtx, NewLine)
 {
     constexpr auto test = [](std::u32string_view src) 
