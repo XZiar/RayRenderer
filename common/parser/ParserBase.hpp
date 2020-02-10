@@ -9,6 +9,28 @@
 namespace common::parser
 {
 
+template<typename... Ts>
+struct RepeatTypeChecker;
+template<typename T1, typename T2, typename... Ts>
+struct RepeatTypeChecker<T1, T2, Ts...>
+{
+    static constexpr bool IsUnique = RepeatTypeChecker<T1, T2>::IsUnique && 
+        RepeatTypeChecker<T1, Ts...>::IsUnique && RepeatTypeChecker<T2, Ts...>::IsUnique;
+};
+template<typename T1, typename T2>
+struct RepeatTypeChecker<T1, T2>
+{
+    static constexpr bool IsUnique = !std::is_same_v<T1, T2>;
+};
+template<typename... Ts>
+inline constexpr bool CheckRepeatTypes() noexcept
+{
+    if constexpr (sizeof...(Ts) == 1)
+        return true;
+    else
+        return RepeatTypeChecker<Ts...>::IsUnique;
+}
+
 
 struct TokenResult
 {
@@ -19,49 +41,10 @@ struct TokenResult
 };
 
 
-#if COMMON_OS_WIN && _MSC_VER <= 1914
-#   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
-#endif
-
-template<bool Result = true>
-struct ASCIIChecker
-{
-    std::array<uint32_t, 4> LUT = { 0 };
-    constexpr ASCIIChecker(const std::string_view str)
-    {
-        for (auto& ele : LUT)
-            ele = Result ? 0x0 : 0xffffffff;
-        for (const auto ch : str)
-        {
-            if (ch >= 0 && ch < 128)
-            {
-                auto& ele = LUT[ch / 32];
-                const uint32_t obj = 0x1u << (ch % 32);
-                if constexpr (Result)
-                    ele |= obj;
-                else
-                    ele &= (~obj);
-            }
-        }
-    }
-
-    constexpr bool operator()(const char32_t ch) const noexcept
-    {
-        if (ch >= 0 && ch < 128)
-        {
-            const auto ele = LUT[ch / 32];
-            const auto ret = ele >> (ch % 32);
-            return ret & 0x1 ? true : false;
-        }
-        else
-            return !Result;
-    }
-};
-
-
 template<typename... TKs>
 class ParserBase : public tokenizer::TokenizerBase
 {
+    static_assert(CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
 private:
     enum class MatchResults { NotBegin, FullMatch, Waitlist, Pending, NoMatch, Wrong };
 
@@ -69,8 +52,26 @@ private:
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
     using ResultArray = std::array<tokenizer::TokenizerResult, TKCount>;
 
+    template<size_t N, typename T>
+    forceinline constexpr void SetTokenizer_(T&& val) noexcept
+    {
+        auto& tokenizer = std::get<N>(Tokenizers);
+        if constexpr (std::is_same_v<std::decay_t<decltype(tokenizer)>, std::decay_t<T>>)
+            tokenizer = val;
+    }
+    template<typename T, size_t... I>
+    forceinline constexpr void SetTokenizer(T&& val, std::index_sequence<I...>) noexcept
+    {
+        (SetTokenizer_<I>(std::forward<T>(val)), ...);
+    }
+    template<typename... Args, size_t... I>
+    forceinline constexpr void SetTokenizers(std::index_sequence<I...>, Args&&... args) noexcept
+    {
+        (SetTokenizer(std::forward<Args>(args), Indexes), ...);
+    }
+
     template<size_t N = 0>
-    void InitTokenizer()
+    forceinline constexpr void InitTokenizer()
     {
         auto& tokenizer = std::get<N>(Tokenizers);
         tokenizer.OnInitialize();
@@ -82,7 +83,7 @@ private:
     }
 
     template<size_t N = 0>
-    MatchResults InvokeTokenizer(const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) noexcept
+    forceinline constexpr MatchResults InvokeTokenizer(const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) noexcept
     {
         using tokenizer::TokenizerResult;
         auto& result = Status[N];
@@ -113,7 +114,7 @@ private:
     }
 
     template<size_t N = 0>
-    ParserToken OutputToken(ParserContext& ctx, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
+    inline constexpr ParserToken OutputToken(ParserContext& ctx, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
     {
         const auto result = Status[N];
         if (result == target)
@@ -129,7 +130,7 @@ private:
 
 protected:
     template<typename Char>
-    forceinline static auto ToChecker(const std::basic_string_view<Char> str) noexcept
+    forceinline constexpr static auto ToChecker(const std::basic_string_view<Char> str) noexcept
     {
         if constexpr (std::is_same_v<Char, char>)
         {
@@ -145,48 +146,52 @@ protected:
         }
     }
 public:
-    ParserBase(ParserContext& ctx) : Context(ctx), Status({ tokenizer::TokenizerResult::Pending })
-    { }
-
-    template<typename Delim, typename Ignore>
-    forceinline TokenResult GetToken(Delim&& delim, Ignore&& ignore = std::string_view(" \t")) noexcept
-    {
-        return GetTokenBy(ToChecker(delim), ToChecker(ignore));
+    template<typename... Args>
+    constexpr ParserBase(Args&&... args) 
+        : Status({ tokenizer::TokenizerResult::Pending })
+    { 
+        SetTokenizers(std::make_index_sequence<sizeof...(Args)>{}, std::forward<Args>(args)...);
     }
 
     template<typename Delim, typename Ignore>
-    TokenResult GetTokenBy(Delim&& isDelim, Ignore&& isIgnore) noexcept
+    forceinline constexpr TokenResult GetDelimToken(ParserContext& context, Delim&& delim, Ignore&& ignore = std::string_view(" \t")) noexcept
+    {
+        return GetDelimTokenBy(context, ToChecker(delim), ToChecker(ignore));
+    }
+
+    template<typename Delim, typename Ignore>
+    constexpr TokenResult GetDelimTokenBy(ParserContext& context, Delim&& isDelim, Ignore&& isIgnore) noexcept
     {
         static_assert(std::is_invocable_r_v<bool, Delim, char32_t>);
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
         constexpr char32_t EmptyChar = '\0';
 
-        Context.TryGetWhile(isIgnore);
+        context.TryGetWhile(isIgnore);
         InitTokenizer();
 
         size_t count = 0;
         MatchResults mth = MatchResults::NotBegin;
-        const auto idxBegin = Context.Index;
+        const auto idxBegin = context.Index;
         auto idxEnd = idxBegin;
         char32_t ch = '\0';
 
         while (true)
         {
-            ch = Context.GetNext();
+            ch = context.GetNext();
             if (ch == ParserContext::CharEnd)
             {
-                idxEnd = Context.Index; break;
+                idxEnd = context.Index; break;
             }
             if (isDelim(ch))
             {
-                idxEnd = Context.Index - 1; break;
+                idxEnd = context.Index - 1; break;
             }
             if (isIgnore(ch))
             {
-                idxEnd = Context.Index - 1;
-                Context.TryGetWhile(isIgnore);
-                if (auto ch_ = Context.TryGetNext(); !isDelim(ch_))
+                idxEnd = context.Index - 1;
+                context.TryGetWhile(isIgnore);
+                if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
                     mth = MatchResults::Wrong;
                 else
                     ch_.Accept();
@@ -197,11 +202,11 @@ public:
             
             if (mth == MatchResults::FullMatch)
             {
-                const auto tokenTxt = Context.Source.substr(idxBegin, Context.Index - idxBegin);
-                const auto token = OutputToken(Context, tokenTxt, TokenizerResult::FullMatch);
+                const auto tokenTxt = context.Source.substr(idxBegin, context.Index - idxBegin);
+                const auto token = OutputToken(context, tokenTxt, TokenizerResult::FullMatch);
                 
-                Context.TryGetWhile(isIgnore);
-                if (auto ch_ = Context.TryGetNext(); !isDelim(ch_))
+                context.TryGetWhile(isIgnore);
+                if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
                     return { token, EmptyChar };
                 else
                     return { token, ch_.Accept() };
@@ -209,12 +214,12 @@ public:
             count++;
         }
         
-        const auto tokenTxt = Context.Source.substr(idxBegin, idxEnd - idxBegin);
+        const auto tokenTxt = context.Source.substr(idxBegin, idxEnd - idxBegin);
 
         switch (mth)
         {
         case MatchResults::Waitlist: // always be terminated by delim/end
-            return { OutputToken(Context, tokenTxt, TokenizerResult::Waitlist), ch };
+            return { OutputToken(context, tokenTxt, TokenizerResult::Waitlist), ch };
         case MatchResults::NotBegin:
             return { GenerateToken(BaseToken::End), EmptyChar };
         case MatchResults::FullMatch: // should not be here
@@ -225,7 +230,6 @@ public:
         }
     }
 private:
-    ParserContext& Context;
     std::tuple<TKs...> Tokenizers;
     ResultArray Status;
 };

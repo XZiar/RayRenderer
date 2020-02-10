@@ -69,7 +69,7 @@ public:
         SourceName(std::u16string(name)), Source(source)
     { }
 
-    inline constexpr char32_t GetNext() noexcept
+    forceinline constexpr char32_t GetNext() noexcept
     {
         if (Index >= Source.size())
             return CharEnd;
@@ -79,7 +79,7 @@ public:
         return ch;
     }
 
-    inline constexpr char32_t PeekNext() const noexcept
+    forceinline constexpr char32_t PeekNext() const noexcept
     {
         if (Index >= Source.size())
             return CharEnd;
@@ -87,12 +87,12 @@ public:
         return (ch == CharCR || ch == CharLF) ? CharLF : ch;
     }
 
-    inline constexpr CharStub TryGetNext() noexcept
+    forceinline constexpr CharStub TryGetNext() noexcept
     {
         return { *this, PeekNext() };
     }
 
-    inline constexpr std::u32string_view GetLine() noexcept
+    forceinline constexpr std::u32string_view GetLine() noexcept
     {
         const auto start = Index;
         while (Index < Source.size())
@@ -188,7 +188,7 @@ private:
         }
         Row++; Col = 0;
     }
-    constexpr bool HandlePosition(const char32_t ch) noexcept
+    forceinline constexpr bool HandlePosition(const char32_t ch) noexcept
     {
         switch (ch)
         {

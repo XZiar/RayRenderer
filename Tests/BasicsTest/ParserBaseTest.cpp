@@ -28,12 +28,13 @@ template<typename... TKs>
 auto TKParse(const std::u32string_view src, ASCIIChecker<true> delim = " \t\r\n\v"sv)
 {
     constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+    constexpr ParserBase<TKs...> parser_;
+    auto parser = parser_;
     ParserContext context(src);
-    ParserBase<TKs...> parser(context);
     std::vector<ParserToken> tokens;
     while (true)
     {
-        const auto [token, dChar] = parser.GetTokenBy(delim, ignore);
+        const auto [token, dChar] = parser.GetDelimTokenBy(context, delim, ignore);
         const auto type = token.GetIDEnum();
         if (type != BaseToken::End)
             tokens.emplace_back(token);
@@ -297,7 +298,6 @@ TEST(ParserBase, ParserFP)
 
 TEST(ParserBase, ParserBool)
 {
-    using namespace common::parser::tokenizer;
     {
         const auto tokens = TKParse<BoolTokenizer>(U"TRUE"sv);
         const auto types = MAP_TOKEN_TYPES(tokens);
@@ -325,6 +325,72 @@ TEST(ParserBase, ParserBool)
         const auto vals = MAP_TOKENS(tokens, GetString());
         CHECK_TKS_TYPE(types, Unknown);
         EXPECT_EQ(vals[0], U"Fals3"sv);
+    }
+}
+
+
+TEST(ParserBase, ParserASCIIRaw)
+{
+    {
+        const auto tokens = TKParse<ASCIIRawTokenizer>(U"func"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"func"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCIIRawTokenizer>(U"fu1nc"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"fu1nc"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCIIRawTokenizer>(U"1func"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"1func"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCIIRawTokenizer>(U"fu_nc"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"fu_nc"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCIIRawTokenizer>(U"fu_nc("sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"fu_nc("sv);
+    }
+}
+
+
+TEST(ParserBase, ParserASCII2Part)
+{
+    {
+        const auto tokens = TKParse<ASCII2PartTokenizer>(U"func"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"func"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCII2PartTokenizer>(U"fu1nc"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Raw);
+        EXPECT_EQ(vals[0], U"fu1nc"sv);
+    }
+    {
+        const auto tokens = TKParse<ASCII2PartTokenizer>(U"1func"sv);
+        const auto types = MAP_TOKEN_TYPES(tokens);
+        const auto vals = MAP_TOKENS(tokens, GetString());
+        CHECK_TKS_TYPE(types, Unknown);
+        EXPECT_EQ(vals[0], U"1func"sv);
     }
 }
 
@@ -357,7 +423,37 @@ TEST(ParserBase, ParserArgs)
         CHECK_TK(tokens[2], FP, GetDouble, 3.5);
         CHECK_TK(tokens[3], Uint, GetUInt, 0xff);
     }
-
-
 }
+
+
+//TEST(ParserBase, ParserFunc)
+//{
+//    constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+//    constexpr ASCIIChecker<true> delim("(,)"sv);
+//    constexpr ASCII2PartTokenizer MetaFuncTK(BaseToken::Raw, 1, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_@"sv);
+//    constexpr ParserBase<ASCII2PartTokenizer> parser_(MetaFuncTK);
+//    {
+//        ParserContext context(UR"(func())"sv);
+//        auto parser = parser_;
+//        const auto tokens = ParseAll(UR"(123,456,789)"sv);
+//        const auto types = MAP_TOKEN_TYPES(tokens);
+//        const auto vals = MAP_TOKENS(tokens, GetUInt());
+//        CHECK_TKS_TYPE(types, Uint, Uint, Uint);
+//        EXPECT_THAT(vals, testing::ElementsAre(123, 456, 789));
+//    }
+//    {
+//        const auto tokens = ParseAll(UR"(-123,"hello",3.5,0xff)"sv);
+//        CHECK_TK(tokens[0], Int, GetInt, -123);
+//        CHECK_TK(tokens[1], String, GetString, U"hello"sv);
+//        CHECK_TK(tokens[2], FP, GetDouble, 3.5);
+//        CHECK_TK(tokens[3], Uint, GetUInt, 0xff);
+//    }
+//    {
+//        const auto tokens = ParseAll(UR"(-123, "hello",3.5 ,0xff)"sv);
+//        CHECK_TK(tokens[0], Int, GetInt, -123);
+//        CHECK_TK(tokens[1], String, GetString, U"hello"sv);
+//        CHECK_TK(tokens[2], FP, GetDouble, 3.5);
+//        CHECK_TK(tokens[3], Uint, GetUInt, 0xff);
+//    }
+//}
 

@@ -85,6 +85,44 @@ public:
 constexpr auto kk = sizeof(ParserToken);
 
 
+#if COMMON_OS_WIN && _MSC_VER <= 1914
+#   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
+#endif
+
+template<bool Result = true>
+struct ASCIIChecker
+{
+    std::array<uint32_t, 4> LUT = { 0 };
+    constexpr ASCIIChecker(const std::string_view str)
+    {
+        for (auto& ele : LUT)
+            ele = Result ? 0x0 : 0xffffffff;
+        for (const auto ch : str)
+        {
+            if (ch >= 0 && ch < 128)
+            {
+                auto& ele = LUT[ch / 32];
+                const uint32_t obj = 0x1u << (ch % 32);
+                if constexpr (Result)
+                    ele |= obj;
+                else
+                    ele &= (~obj);
+            }
+        }
+    }
+
+    constexpr bool operator()(const char32_t ch) const noexcept
+    {
+        if (ch >= 0 && ch < 128)
+        {
+            const auto ele = LUT[ch / 32];
+            const auto ret = ele >> (ch % 32);
+            return ret & 0x1 ? true : false;
+        }
+        else
+            return !Result;
+    }
+};
 
 
 namespace tokenizer
@@ -117,7 +155,7 @@ private:
     enum class States { Waiting, HasSlash, Singleline, Multiline };
     States State = States::Waiting;
 public:
-    constexpr void OnInitialize() noexcept
+    forceinline constexpr void OnInitialize() noexcept
     {
         State = States::Waiting;
     }
@@ -176,9 +214,9 @@ public:
 class StringTokenizer : public TokenizerBase
 {
 public:
-    constexpr void OnInitialize() noexcept
+    forceinline constexpr void OnInitialize() noexcept
     { }
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) noexcept
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
     {
         if (ch == '"')
             return TokenizerResult::FullMatch;
@@ -229,7 +267,7 @@ private:
     States State = States::Init;
     bool IsUnsigned = true;
 public:
-    constexpr void OnInitialize() noexcept
+    forceinline constexpr void OnInitialize() noexcept
     {
         State = States::Init;
         IsUnsigned = true;
@@ -370,7 +408,7 @@ private:
     enum class States { Init, Negative, FirstNum, Dot, Normal, Exp, Scientific, NotMatch };
     States State = States::Init;
 public:
-    constexpr void OnInitialize() noexcept
+    forceinline constexpr void OnInitialize() noexcept
     {
         State = States::Init;
     }
@@ -453,7 +491,7 @@ private:
     enum class States { Init, T_T, T_TR, T_TRU, F_F, F_FA, F_FAL, F_FALS, Match, NotMatch };
     States State = States::Init;
 public:
-    constexpr void OnInitialize() noexcept
+    forceinline constexpr void OnInitialize() noexcept
     {
         State = States::Init;
     }
@@ -504,6 +542,61 @@ public:
         if (State == States::Match)
             return GenerateToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
         return GenerateToken(BaseToken::Error, txt);
+    }
+};
+
+
+class ASCIIRawTokenizer : public TokenizerBase
+{
+private:
+    ASCIIChecker<true> Checker;
+public:
+    constexpr ASCIIRawTokenizer(std::string_view str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") 
+        : Checker(str) { }
+    forceinline constexpr void OnInitialize() noexcept
+    { }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
+    {
+        if (Checker(ch))
+            return TokenizerResult::Waitlist;
+        else
+            return TokenizerResult::NotMatch;
+    }
+    forceinline constexpr ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        return GenerateToken(BaseToken::Raw, txt);
+    }
+};
+
+
+class ASCII2PartTokenizer : public TokenizerBase
+{
+private:
+    ASCIIChecker<true> FirstChecker;
+    ASCIIChecker<true> SecondChecker;
+    uint16_t FirstPartLen;
+    uint16_t TokenID;
+public:
+    template<typename T = BaseToken>
+    constexpr ASCII2PartTokenizer(
+        const T tokenId = BaseToken::Raw, const uint16_t firstPartLen = 1,
+        std::string_view first  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        std::string_view second = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+        : FirstChecker(first), SecondChecker(second), FirstPartLen(firstPartLen), TokenID(enum_cast(tokenId)) 
+    { }
+    forceinline constexpr void OnInitialize() noexcept
+    { }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    {
+        const auto& checker = idx < FirstPartLen ? FirstChecker : SecondChecker;
+        if (checker(ch))
+            return TokenizerResult::Waitlist;
+        else
+            return TokenizerResult::NotMatch;
+    }
+    forceinline ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        return ParserToken(TokenID, txt);
     }
 };
 
