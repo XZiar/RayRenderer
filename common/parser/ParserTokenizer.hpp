@@ -9,7 +9,7 @@ namespace common::parser
 {
 
 
-enum class BaseToken : uint16_t { End = 0, Error, Unknown, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
+enum class BaseToken : uint16_t { End = 0, Error, Unknown, Delim, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
 
 class ParserToken
 {
@@ -230,7 +230,7 @@ public:
         while (true)
         {
             const auto ch = ctx.GetNext();
-            if (ch == ParserContext::CharEnd || ch == ParserContext::CharLF)
+            if (ch == special::CharEnd || ch == special::CharLF)
                 break;
             if (!inSlash)
             {

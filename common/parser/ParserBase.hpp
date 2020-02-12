@@ -46,7 +46,7 @@ class ParserBase : public tokenizer::TokenizerBase
 {
     static_assert(CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
 private:
-    enum class MatchResults { NotBegin, FullMatch, Waitlist, Pending, NoMatch, Wrong };
+    enum class MatchResults { NotBegin, Delim, FullMatch, Waitlist, Pending, NoMatch, Wrong };
 
     static constexpr auto TKCount = sizeof...(TKs);
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
@@ -154,81 +154,141 @@ public:
     }
 
     template<typename Delim, typename Ignore>
-    forceinline constexpr TokenResult GetDelimToken(ParserContext& context, Delim&& delim, Ignore&& ignore = std::string_view(" \t")) noexcept
+    forceinline constexpr ParserToken GetDelimToken(ParserContext& context, Delim&& delim, Ignore&& ignore = std::string_view(" \t")) noexcept
     {
         return GetDelimTokenBy(context, ToChecker(delim), ToChecker(ignore));
     }
 
+
     template<typename Delim, typename Ignore>
-    constexpr TokenResult GetDelimTokenBy(ParserContext& context, Delim&& isDelim, Ignore&& isIgnore) noexcept
+    constexpr ParserToken GetDelimTokenBy(ParserContext& context, Delim&& isDelim, Ignore&& isIgnore) noexcept
     {
         static_assert(std::is_invocable_r_v<bool, Delim, char32_t>);
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
-        constexpr char32_t EmptyChar = '\0';
 
         context.TryGetWhile(isIgnore);
         InitTokenizer();
 
+        ContextReader reader(context);
+
         size_t count = 0;
         MatchResults mth = MatchResults::NotBegin;
-        const auto idxBegin = context.Index;
-        auto idxEnd = idxBegin;
         char32_t ch = '\0';
 
         while (true)
         {
-            ch = context.GetNext();
-            if (ch == ParserContext::CharEnd)
-            {
-                idxEnd = context.Index; break;
-            }
+            ch = reader.PeekNext();
+            if (ch == special::CharEnd || isIgnore(ch)) // force stop checking
+                break;
             if (isDelim(ch))
             {
-                idxEnd = context.Index - 1; break;
-            }
-            if (isIgnore(ch))
-            {
-                idxEnd = context.Index - 1;
-                context.TryGetWhile(isIgnore);
-                if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
-                    mth = MatchResults::Wrong;
-                else
-                    ch_.Accept();
+                if (count == 0) // first element, result is delim
+                {
+                    mth = MatchResults::Delim;
+                    reader.MoveNext();
+                }
                 break;
             }
-            
+            reader.MoveNext();
+
             mth = InvokeTokenizer(ch, count);
-            
+
             if (mth == MatchResults::FullMatch)
-            {
-                const auto tokenTxt = context.Source.substr(idxBegin, context.Index - idxBegin);
-                const auto token = OutputToken(context, tokenTxt, TokenizerResult::FullMatch);
-                
-                context.TryGetWhile(isIgnore);
-                if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
-                    return { token, EmptyChar };
-                else
-                    return { token, ch_.Accept() };
-            }
+                break;
             count++;
         }
-        
-        const auto tokenTxt = context.Source.substr(idxBegin, idxEnd - idxBegin);
+
+        const auto tokenTxt = reader.GetReadContent();
+        reader.Commit();
 
         switch (mth)
         {
-        case MatchResults::Waitlist: // always be terminated by delim/end
-            return { OutputToken(context, tokenTxt, TokenizerResult::Waitlist), ch };
+        case MatchResults::FullMatch:
+            return OutputToken(context, tokenTxt, TokenizerResult::FullMatch);
+        case MatchResults::Waitlist:
+            return OutputToken(context, tokenTxt, TokenizerResult::Waitlist);
+        case MatchResults::Delim: 
+            return GenerateToken(BaseToken::Delim, ch);
         case MatchResults::NotBegin:
-            return { GenerateToken(BaseToken::End), EmptyChar };
-        case MatchResults::FullMatch: // should not be here
+            return GenerateToken(BaseToken::End);
         case MatchResults::Wrong:
-            return { GenerateToken(BaseToken::Error, tokenTxt), ch };
+            return GenerateToken(BaseToken::Error, tokenTxt);
         default:
-            return { GenerateToken(BaseToken::Unknown, tokenTxt), ch };
+            return GenerateToken(BaseToken::Unknown, tokenTxt);
         }
     }
+
+    //template<typename Delim, typename Ignore>
+    //constexpr TokenResult GetDelimTokenBy(ParserContext& context, Delim&& isDelim, Ignore&& isIgnore) noexcept
+    //{
+    //    static_assert(std::is_invocable_r_v<bool, Delim, char32_t>);
+    //    static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
+    //    using tokenizer::TokenizerResult;
+    //    constexpr char32_t EmptyChar = '\0';
+
+    //    context.TryGetWhile(isIgnore);
+    //    InitTokenizer();
+
+    //    size_t count = 0;
+    //    MatchResults mth = MatchResults::NotBegin;
+    //    const auto idxBegin = context.Index;
+    //    auto idxEnd = idxBegin;
+    //    char32_t ch = '\0';
+
+    //    while (true)
+    //    {
+    //        ch = context.GetNext();
+    //        if (ch == ParserContext::CharEnd)
+    //        {
+    //            idxEnd = context.Index; break;
+    //        }
+    //        if (isDelim(ch))
+    //        {
+    //            idxEnd = context.Index - 1; break;
+    //        }
+    //        if (isIgnore(ch))
+    //        {
+    //            idxEnd = context.Index - 1;
+    //            context.TryGetWhile(isIgnore);
+    //            if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
+    //                mth = MatchResults::Wrong;
+    //            else
+    //                ch_.Accept();
+    //            break;
+    //        }
+    //        
+    //        mth = InvokeTokenizer(ch, count);
+    //        
+    //        if (mth == MatchResults::FullMatch)
+    //        {
+    //            const auto tokenTxt = context.Source.substr(idxBegin, context.Index - idxBegin);
+    //            const auto token = OutputToken(context, tokenTxt, TokenizerResult::FullMatch);
+    //            
+    //            context.TryGetWhile(isIgnore);
+    //            if (auto ch_ = context.TryGetNext(); !isDelim(ch_))
+    //                return { token, EmptyChar };
+    //            else
+    //                return { token, ch_.Accept() };
+    //        }
+    //        count++;
+    //    }
+    //    
+    //    const auto tokenTxt = context.Source.substr(idxBegin, idxEnd - idxBegin);
+
+    //    switch (mth)
+    //    {
+    //    case MatchResults::Waitlist: // always be terminated by delim/end
+    //        return { OutputToken(context, tokenTxt, TokenizerResult::Waitlist), ch };
+    //    case MatchResults::NotBegin:
+    //        return { GenerateToken(BaseToken::End), EmptyChar };
+    //    case MatchResults::FullMatch: // should not be here
+    //    case MatchResults::Wrong:
+    //        return { GenerateToken(BaseToken::Error, tokenTxt), ch };
+    //    default:
+    //        return { GenerateToken(BaseToken::Unknown, tokenTxt), ch };
+    //    }
+    //}
 private:
     std::tuple<TKs...> Tokenizers;
     ResultArray Status;

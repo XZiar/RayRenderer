@@ -254,8 +254,8 @@ TEST(ParserCtx, ParseFunc)
                 case ',':
                     args.emplace_back(arg);
                     continue;
-                case ParserContext::CharEnd:
-                    EXPECT_NE(next, ParserContext::CharEnd);
+                case special::CharEnd:
+                    EXPECT_NE(next, special::CharEnd);
                     return { };
                 default:
                     EXPECT_TRUE(false);

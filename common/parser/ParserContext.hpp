@@ -6,6 +6,15 @@ namespace common::parser
 {
 
 
+namespace special
+{
+inline constexpr char32_t EmptyChar = '\0';
+inline constexpr char32_t CharLF    = '\n';
+inline constexpr char32_t CharCR    = '\r';
+inline constexpr char32_t CharEnd   = static_cast<char32_t>(-1);
+}
+
+
 class ParserContext
 {
 private:
@@ -23,7 +32,7 @@ private:
             if (!HasAccept)
             {
                 HasAccept = true;
-                if (Char != CharEnd)
+                if (Char != special::CharEnd)
                 {
                     Context.Index++;
                     Context.HandlePosition(Char);
@@ -37,18 +46,15 @@ private:
         }
     };
 public:
-    static constexpr char32_t CharLF = '\n';
-    static constexpr char32_t CharCR = '\r';
-    static constexpr char32_t CharEnd = static_cast<char32_t>(-1);
     enum class CharType : uint8_t { End, NewLine, Digit, Blank, Special, Normal };
     static constexpr CharType ParseType(const char32_t ch) noexcept
     {
         switch (ch)
         {
-        case CharEnd:
+        case special::CharEnd:
             return CharType::End;
-        case CharLF:
-        case CharCR:
+        case special::CharLF:
+        case special::CharCR:
             return CharType::NewLine;
         case '\t':
         case ' ':
@@ -72,19 +78,19 @@ public:
     forceinline constexpr char32_t GetNext() noexcept
     {
         if (Index >= Source.size())
-            return CharEnd;
+            return special::CharEnd;
         const auto ch = Source[Index++];
         if (HandlePosition(ch))
-            return CharLF;
+            return special::CharLF;
         return ch;
     }
 
     forceinline constexpr char32_t PeekNext() const noexcept
     {
         if (Index >= Source.size())
-            return CharEnd;
+            return special::CharEnd;
         const auto ch = Source[Index];
-        return (ch == CharCR || ch == CharLF) ? CharLF : ch;
+        return (ch == special::CharCR || ch == special::CharLF) ? special::CharLF : ch;
     }
 
     forceinline constexpr CharStub TryGetNext() noexcept
@@ -98,7 +104,7 @@ public:
         while (Index < Source.size())
         {
             const auto ch = Source[Index++];
-            if (ch == CharCR || ch == CharLF)
+            if (ch == special::CharCR || ch == special::CharLF)
             {
                 const auto txt = Source.substr(start, Index - start - 1);
                 HandleNewLine(ch);
@@ -125,11 +131,11 @@ public:
         while (Index < Source.size())
         {
             auto ch = Source[Index];
-            if (ch == CharCR)
-                ch = CharLF;
+            if (ch == special::CharCR)
+                ch = special::CharLF;
             if constexpr (!AllowNewLine)
             {
-                if (ch == CharLF)
+                if (ch == special::CharLF)
                 {
                     Index = start;
                     return {};
@@ -146,7 +152,7 @@ public:
                 break;
             // should continue
             Index++;
-            if (ch == CharLF)
+            if (ch == special::CharLF)
             {
                 HandleNewLine(ch);
                 lineIdx = Index;
@@ -165,7 +171,7 @@ private:
         while (Index < end)
         {
             const auto ch = Source[Index++];
-            if (ch == CharCR || ch == CharLF)
+            if (ch == special::CharCR || ch == special::CharLF)
             {
                 if (!allowMultiLine)
                 {
@@ -181,9 +187,9 @@ private:
     }
     forceinline constexpr void HandleNewLine(const char32_t ch) noexcept
     {
-        if (ch == CharCR)
+        if (ch == special::CharCR)
         {
-            if (Index < Source.size() && Source[Index] == CharLF)
+            if (Index < Source.size() && Source[Index] == special::CharLF)
                 Index++;
         }
         Row++; Col = 0;
@@ -192,14 +198,65 @@ private:
     {
         switch (ch)
         {
-        case CharCR:
-        case CharLF:
+        case special::CharCR:
+        case special::CharLF:
             HandleNewLine(ch);
             return true;
         default:
             Col++;
             return false;
         }
+    }
+};
+
+
+struct ContextReader
+{
+    ParserContext& Context;
+    size_t Index;
+    ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
+
+    forceinline constexpr char32_t PeekNext() const noexcept
+    {
+        if (Index >= Context.Source.size())
+            return special::CharEnd;
+        const auto ch = Context.Source[Index];
+        return (ch == special::CharCR || ch == special::CharLF) ? special::CharLF : ch;
+    }
+    forceinline constexpr void MoveNext() noexcept
+    {
+        const auto limit = Context.Source.size();
+        if (Index >= limit) return;
+        const auto ch = Context.Source[Index++];
+        if (Index < limit && ch == special::CharCR && Context.Source[Index] == special::CharLF)
+            Index++;
+    }
+    forceinline constexpr std::u32string_view GetReadContent() const noexcept
+    {
+        return Context.Source.substr(Context.Index, Index - Context.Index);
+    }
+    forceinline constexpr void Commit() const noexcept
+    {
+        const auto limit = Context.Source.size();
+        auto cur = Context.Index, lineIdx = cur;
+        while (cur < Index)
+        {
+            const auto ch = Context.Source[cur++];
+            switch (ch)
+            {
+            case special::CharCR:
+                if (cur < limit && Context.Source[cur] == special::CharLF)
+                    cur++;
+            case special::CharLF:
+                Context.Row++; Context.Col = 0;
+                lineIdx = cur;
+            default:
+                break;
+            }
+
+        }
+        Context.Col += cur - lineIdx;
+        Context.Index = cur;
     }
 };
 
