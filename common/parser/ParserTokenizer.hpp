@@ -82,7 +82,6 @@ public:
         return static_cast<T>(ID);
     }
 };
-constexpr auto kk = sizeof(ParserToken);
 
 
 #if COMMON_OS_WIN && _MSC_VER <= 1914
@@ -129,7 +128,7 @@ namespace tokenizer
 {
 
 
-enum class TokenizerResult : uint8_t { NotMatch, Pending, Waitlist, Wrong, FullMatch };
+enum class TokenizerResult : uint8_t { NotMatch, Pending, Waitlist, Wrong, FullMatch, Preempt };
 
 class TokenizerBase
 {
@@ -147,6 +146,29 @@ protected:
             str[idx] = static_cast<char>(txt[idx]);
         return str;
     };
+};
+
+class DelimTokenizer : public TokenizerBase
+{
+private:
+    ASCIIChecker<true> Checker;
+public:
+    constexpr DelimTokenizer(std::string_view delim = "(,)")
+        : Checker(delim) { }
+    forceinline constexpr void OnInitialize() noexcept
+    { }
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    {
+        if (Checker(ch))
+            return idx == 0 ? TokenizerResult::FullMatch : TokenizerResult::Preempt;
+        else
+            return TokenizerResult::Pending;
+    }
+    forceinline constexpr ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    {
+        Expects(txt.size() == 1);
+        return GenerateToken(BaseToken::Delim, txt[0]);
+    }
 };
 
 class CommentTokenizer : public TokenizerBase

@@ -214,7 +214,7 @@ struct ContextReader
 {
     ParserContext& Context;
     size_t Index;
-    ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
+    constexpr ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
 
     forceinline constexpr char32_t PeekNext() const noexcept
     {

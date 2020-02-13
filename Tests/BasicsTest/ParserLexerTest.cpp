@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "common/parser/ParserBase.hpp"
+#include "common/parser/ParserLexer.hpp"
 #include "common/Linq2.hpp"
 
 
@@ -23,18 +23,15 @@ using CharType = common::parser::ParserContext::CharType;
 #define MAP_TOKENS(tokens, action) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.action; }).ToVector()
 #define MAP_TOKEN_TYPES(tokens) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.GetIDEnum(); }).ToVector()
 
-
-template<typename... TKs>
-auto TKParse(const std::u32string_view src, ASCIIChecker<true> delim = " \t\r\n\v"sv)
+template<typename Lexer>
+auto TKParse_(const std::u32string_view src, Lexer lexer)
 {
     constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-    constexpr ParserBase<TKs...> parser_;
-    auto parser = parser_;
     ParserContext context(src);
     std::vector<ParserToken> tokens;
     while (true)
     {
-        const auto token = parser.GetDelimTokenBy(context, delim, ignore);
+        const auto token = lexer.GetTokenBy(context, ignore);
         const auto type = token.GetIDEnum();
         if (type != BaseToken::End)
             tokens.emplace_back(token);
@@ -44,9 +41,20 @@ auto TKParse(const std::u32string_view src, ASCIIChecker<true> delim = " \t\r\n\
     return tokens;
 }
 
+template<typename... TKs>
+auto TKParse(const std::u32string_view src)
+{
+    constexpr ParserLexerBase<TKs...> lexer;
+    return TKParse_(src, lexer);
+}
 
+template<typename... TKs, typename Tuple>
+auto TKParse2(const std::u32string_view src, Tuple&& args)
+{
+    return TKParse_(src, std::make_from_tuple<ParserLexerBase<TKs...>>(args));
+}
 
-TEST(ParserBase, ASCIIChecker)
+TEST(ParserLexer, ASCIIChecker)
 {
     std::string str;
     for (uint32_t i = 0; i < 128; i += 2)
@@ -61,7 +69,7 @@ TEST(ParserBase, ASCIIChecker)
 }
 
 
-TEST(ParserBase, ParserComment)
+TEST(ParserLexer, LexerComment)
 {
     {
         const auto tokens = TKParse<CommentTokenizer>(U"//hello"sv);
@@ -87,7 +95,7 @@ TEST(ParserBase, ParserComment)
 }
 
 
-TEST(ParserBase, ParserString)
+TEST(ParserLexer, LexerString)
 {
 
     {
@@ -107,17 +115,15 @@ TEST(ParserBase, ParserString)
         CHECK_TK(tokens[0], Error,  GetString, U"hello"sv);
     }
     {
-        const auto tokens = TKParse<StringTokenizer>(UR"("hello"," ","there")"sv, ","sv);
+        const auto tokens = TKParse<StringTokenizer>(UR"("hello" " " "there")"sv);
         CHECK_TK(tokens[0], String, GetString, U"hello"sv);
-        CHECK_TK(tokens[1], Delim,  GetChar,   U',');
-        CHECK_TK(tokens[2], String, GetString, U" "sv);
-        CHECK_TK(tokens[3], Delim,  GetChar,   U',');
-        CHECK_TK(tokens[4], String, GetString, U"there"sv);
+        CHECK_TK(tokens[1], String, GetString, U" "sv);
+        CHECK_TK(tokens[2], String, GetString, U"there"sv);
     }
 }
 
 
-TEST(ParserBase, ParserInt)
+TEST(ParserLexer, LexerInt)
 {
 
     {
@@ -163,7 +169,7 @@ TEST(ParserBase, ParserInt)
 }
 
 
-TEST(ParserBase, ParserFP)
+TEST(ParserLexer, LexerFP)
 {
     {
         const auto tokens = TKParse<FPTokenizer>(U"123"sv);
@@ -208,7 +214,7 @@ TEST(ParserBase, ParserFP)
 }
 
 
-TEST(ParserBase, ParserBool)
+TEST(ParserLexer, LexerBool)
 {
     {
         const auto tokens = TKParse<BoolTokenizer>(U"TRUE"sv);
@@ -229,7 +235,7 @@ TEST(ParserBase, ParserBool)
 }
 
 
-TEST(ParserBase, ParserASCIIRaw)
+TEST(ParserLexer, LexerASCIIRaw)
 {
     {
         const auto tokens = TKParse<ASCIIRawTokenizer>(U"func"sv);
@@ -254,7 +260,7 @@ TEST(ParserBase, ParserASCIIRaw)
 }
 
 
-TEST(ParserBase, ParserASCII2Part)
+TEST(ParserLexer, LexerASCII2Part)
 {
     {
         const auto tokens = TKParse<ASCII2PartTokenizer>(U"func"sv);
@@ -271,12 +277,35 @@ TEST(ParserBase, ParserASCII2Part)
 }
 
 
-TEST(ParserBase, ParserArgs)
+TEST(ParserLexer, LexerDelim)
+{
+    {
+        const auto tokens = TKParse<DelimTokenizer, ASCIIRawTokenizer>(U"func"sv);
+        CHECK_TK(tokens[0], Raw, GetString, U"func"sv);
+    }
+    {
+        const auto tokens = TKParse<DelimTokenizer, ASCIIRawTokenizer>(U"func,foo"sv);
+        CHECK_TK(tokens[0], Raw,    GetString,  U"func"sv);
+        CHECK_TK(tokens[1], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[2], Raw,    GetString,  U"foo"sv);
+    }
+    {
+        const auto tokens = TKParse<DelimTokenizer, ASCIIRawTokenizer>(U"func,foo,,bar"sv);
+        CHECK_TK(tokens[0], Raw,    GetString,  U"func"sv);
+        CHECK_TK(tokens[1], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[2], Raw,    GetString,  U"foo"sv);
+        CHECK_TK(tokens[3], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[4], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[5], Raw,    GetString,  U"bar"sv);
+    }
+}
+
+
+TEST(ParserLexer, LexerArgs)
 {
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
-        constexpr ASCIIChecker<true> DelimChecker(","sv);
-        return TKParse<CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer>(src, DelimChecker);
+        return TKParse<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer>(src);
     };
     {
         const auto tokens = ParseAll(UR"(123,456,789)"sv);
@@ -309,34 +338,29 @@ TEST(ParserBase, ParserArgs)
 }
 
 
-//TEST(ParserBase, ParserFunc)
-//{
-//    constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-//    constexpr ASCIIChecker<true> delim("(,)"sv);
-//    constexpr ASCII2PartTokenizer MetaFuncTK(BaseToken::Raw, 1, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_@"sv);
-//    constexpr ParserBase<ASCII2PartTokenizer> parser_(MetaFuncTK);
-//    {
-//        ParserContext context(UR"(func())"sv);
-//        auto parser = parser_;
-//        const auto tokens = ParseAll(UR"(123,456,789)"sv);
-//        const auto types = MAP_TOKEN_TYPES(tokens);
-//        const auto vals = MAP_TOKENS(tokens, GetUInt());
-//        CHECK_TKS_TYPE(types, Uint, Uint, Uint);
-//        EXPECT_THAT(vals, testing::ElementsAre(123, 456, 789));
-//    }
-//    {
-//        const auto tokens = ParseAll(UR"(-123,"hello",3.5,0xff)"sv);
-//        CHECK_TK(tokens[0], Int, GetInt, -123);
-//        CHECK_TK(tokens[1], String, GetString, U"hello"sv);
-//        CHECK_TK(tokens[2], FP, GetDouble, 3.5);
-//        CHECK_TK(tokens[3], Uint, GetUInt, 0xff);
-//    }
-//    {
-//        const auto tokens = ParseAll(UR"(-123, "hello",3.5 ,0xff)"sv);
-//        CHECK_TK(tokens[0], Int, GetInt, -123);
-//        CHECK_TK(tokens[1], String, GetString, U"hello"sv);
-//        CHECK_TK(tokens[2], FP, GetDouble, 3.5);
-//        CHECK_TK(tokens[3], Uint, GetUInt, 0xff);
-//    }
-//}
+TEST(ParserLexer, LexerFunc)
+{
+    constexpr auto ParseAll = [](const std::u32string_view src)
+    {
+        constexpr ASCII2PartTokenizer MetaFuncTK(BaseToken::Raw, 1,
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_@"sv,
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"sv);
+        constexpr auto args = std::make_tuple(MetaFuncTK);
+        return TKParse2<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer>(src, args);
+    };
+    
+    {
+        const auto tokens = ParseAll(UR"(func(-123, "hello",3.5 ,0xff))"sv);
+        CHECK_TK(tokens[0], Raw,    GetString,  U"func"sv);
+        CHECK_TK(tokens[1], Delim,  GetChar,    U'(');
+        CHECK_TK(tokens[2], Int,    GetInt,     -123);
+        CHECK_TK(tokens[3], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[4], String, GetString,  U"hello"sv);
+        CHECK_TK(tokens[5], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[6], FP,     GetDouble,  3.5);
+        CHECK_TK(tokens[7], Delim,  GetChar,    U',');
+        CHECK_TK(tokens[8], Uint,   GetUInt,    0xff);
+        CHECK_TK(tokens[9], Delim,  GetChar,    U')');
+    }
+}
 

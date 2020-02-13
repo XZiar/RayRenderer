@@ -43,7 +43,7 @@
     <ClCompile Include="ParserContextTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="ParserBaseTest.cpp">
+    <ClCompile Include="ParserLexerTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
