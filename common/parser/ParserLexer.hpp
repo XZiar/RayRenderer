@@ -112,16 +112,16 @@ private:
     }
 
     template<size_t N = 0>
-    inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ParserContext& ctx, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
+    inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
     {
         const auto result = status[N][offset];
         if (result == target)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            return tokenizer.GetToken(ctx, tksv);
+            return tokenizer.GetToken(reader, tksv);
         }
         if constexpr (N + 1 < TKCount)
-            return OutputToken<N + 1>(status, offset, ctx, tksv, target);
+            return OutputToken<N + 1>(status, offset, reader, tksv, target);
         else
             return GenerateToken(BaseToken::Error);
     }
@@ -163,11 +163,11 @@ public:
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
 
-        context.TryGetWhile(isIgnore);
+        ContextReader reader(context);
+        reader.ReadWhile(isIgnore);
 
         ResultArray status = { {} };
         status.fill({ {TokenizerResult::Pending, TokenizerResult::Pending} });
-        ContextReader reader(context);
         size_t count = 0;
         MatchResults mth = MatchResults::NotBegin;
         char32_t ch = '\0';
@@ -192,18 +192,16 @@ public:
                 break;
         }
 
-        const auto tokenTxt = reader.GetReadContent();
-        reader.Commit();
+        const auto tokenTxt = reader.CommitRead();
 
         const size_t offset = (count & 1) ? 0 : 1;
         switch (mth)
         {
         case MatchResults::FullMatch:
-            return OutputToken(status, offset, context, tokenTxt, TokenizerResult::FullMatch);
+            return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::FullMatch);
         case MatchResults::Waitlist:
-            return OutputToken(status, offset, context, tokenTxt, TokenizerResult::Waitlist);
-        case MatchResults::Preempt: 
-            return OutputToken(status, offset, context, tokenTxt, TokenizerResult::Waitlist);
+        case MatchResults::Preempt:
+            return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist);
         case MatchResults::NotBegin:
             return GenerateToken(BaseToken::End);
         case MatchResults::Wrong:

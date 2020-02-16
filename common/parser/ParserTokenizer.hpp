@@ -91,17 +91,23 @@ public:
 template<bool Result = true>
 struct ASCIIChecker
 {
-    std::array<uint32_t, 4> LUT = { 0 };
+#if COMMON_OSBIT == 32
+    using EleType = uint32_t;
+#elif COMMON_OSBIT == 64
+    using EleType = uint64_t;
+#endif
+    static constexpr uint8_t EleBits = sizeof(EleType) * 8;
+    std::array<EleType, 128 / EleBits> LUT = { 0 };
     constexpr ASCIIChecker(const std::string_view str)
     {
         for (auto& ele : LUT)
-            ele = Result ? 0x0 : 0xffffffff;
+            ele = Result ? std::numeric_limits<EleType>::min() : std::numeric_limits<EleType>::max();
         for (const auto ch : str)
         {
             if (ch >= 0 && ch < 128)
             {
-                auto& ele = LUT[ch / 32];
-                const uint32_t obj = 0x1u << (ch % 32);
+                auto& ele = LUT[ch / EleBits];
+                const auto obj = EleType(1) << (ch % EleBits);
                 if constexpr (Result)
                     ele |= obj;
                 else
@@ -114,8 +120,8 @@ struct ASCIIChecker
     {
         if (ch >= 0 && ch < 128)
         {
-            const auto ele = LUT[ch / 32];
-            const auto ret = ele >> (ch % 32);
+            const auto ele = LUT[ch / EleBits];
+            const auto ret = ele >> (ch % EleBits);
             return ret & 0x1 ? true : false;
         }
         else
@@ -164,7 +170,7 @@ public:
         else
             return TokenizerResult::Pending;
     }
-    forceinline constexpr ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
         return GenerateToken(BaseToken::Delim, txt[0]);
@@ -215,15 +221,15 @@ public:
             return TokenizerResult::Wrong;
         }
     }
-    constexpr ParserToken GetToken(ParserContext& ctx, std::u32string_view) const noexcept
+    constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view) const noexcept
     {
         switch (State)
         {
         case States::Singleline:
-            return GenerateToken(BaseToken::Comment, ctx.GetLine());
+            return GenerateToken(BaseToken::Comment, reader.ReadLine());
         case States::Multiline:
         {
-            auto txt = ctx.TryGetUntil(U"*/"); txt.remove_suffix(2);
+            auto txt = reader.ReadUntil(U"*/"); txt.remove_suffix(2);
             return GenerateToken(BaseToken::Comment, txt);
         }
         default:
@@ -245,35 +251,32 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    constexpr ParserToken GetToken(ParserContext& ctx, std::u32string_view) const noexcept
+    constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view) const noexcept
     {
-        const auto idxBegin = ctx.Index;
-        bool successful = false, inSlash = false;
-        while (true)
+        bool successful = false;
+        const auto content = reader.ReadWhile([&successful, inSlash = false](const char32_t ch) mutable
         {
-            const auto ch = ctx.GetNext();
             if (ch == special::CharEnd || ch == special::CharLF)
-                break;
-            if (!inSlash)
+                return false;
+            else if (!inSlash)
             {
                 if (ch == '\\')
                     inSlash = true;
                 else if (ch == '"')
                 {
                     successful = true;
-                    break;
+                    return false;
                 }
             }
             else
             {
                 inSlash = false;
             }
-        }
-
-        auto content = ctx.Source.substr(idxBegin, ctx.Index - idxBegin);
+            return true;
+        });
         if (successful)
         {
-            content.remove_suffix(1);
+            reader.ReadNext(); // will be End/LF/"
             return GenerateToken(BaseToken::String, content);
         }
         else
@@ -344,7 +347,7 @@ public:
         }
 #undef RET
     }
-    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         switch (State)
         {
@@ -478,7 +481,7 @@ public:
         }
 #undef RET
     }
-    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         switch (State)
         {
@@ -559,7 +562,7 @@ public:
         RET(NotMatch, NotMatch);
 #undef RET
     }
-    ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         if (State == States::Match)
             return GenerateToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
@@ -584,7 +587,7 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    forceinline constexpr ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         return GenerateToken(BaseToken::Raw, txt);
     }
@@ -616,7 +619,7 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    forceinline ParserToken GetToken(ParserContext&, std::u32string_view txt) const noexcept
+    forceinline ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         return ParserToken(TokenID, txt);
     }
