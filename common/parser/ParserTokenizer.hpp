@@ -24,29 +24,46 @@ private:
         IntWrapper(const uint64_t val) : UINTVal(val) {}
         IntWrapper(const double val) : FPVal(val) {}
     };
-    struct UINTTag {};
-    struct INTTag {};
-    struct FPTag {};
+    struct EmptyTag
+    {
+        static constexpr uintptr_t ID = UINTPTR_MAX - 0;
+    };
+    struct UINTTag 
+    {
+        static constexpr uintptr_t ID = UINTPTR_MAX - 1;
+    };
+    struct INTTag
+    {
+        static constexpr uintptr_t ID = UINTPTR_MAX - 2;
+    };
+    struct FPTag
+    {
+        static constexpr uintptr_t ID = UINTPTR_MAX - 3;
+    };
+    struct CharTag
+    {
+        static constexpr uintptr_t ID = UINTPTR_MAX - 4;
+    };
     struct ErrorTag {};
 
     template<typename T>
     constexpr ParserToken(INTTag, uint16_t id, const T val) noexcept :
-        Data1(static_cast<std::make_unsigned_t<T>>(val)), Data2(1), ID(id)
+        Data1(static_cast<std::make_unsigned_t<T>>(val)), Data2(INTTag::ID), ID(id)
     { }
     template<typename T>
     constexpr ParserToken(UINTTag, uint16_t id, const T val) noexcept :
-        Data1(val), Data2(2), ID(id)
+        Data1(val), Data2(UINTTag::ID), ID(id)
     { }
     template<typename T>
     ParserToken(FPTag, uint16_t id, const T val) noexcept : 
-        Data1(IntWrapper(val).UINTVal), Data2(4), ID(id)
+        Data1(IntWrapper(val).UINTVal), Data2(FPTag::ID), ID(id)
     { }
 public:
     constexpr ParserToken(uint16_t id) noexcept : 
-        Data1(0), Data2(0), ID(id)
+        Data1(0), Data2(EmptyTag::ID), ID(id)
     { }
     constexpr ParserToken(uint16_t id, char32_t val) noexcept : 
-        Data1(val), Data2(3), ID(id)
+        Data1(val), Data2(CharTag::ID), ID(id)
     { }
     ParserToken(uint16_t id, const std::u32string_view val) noexcept : 
         Data1(val.size()), Data2(reinterpret_cast<uintptr_t>(val.data())), ID(id)
@@ -80,6 +97,21 @@ public:
         if (ID <= common::enum_cast(T::__RangeMin)) return T::__RangeMin;
         if (ID >= common::enum_cast(T::__RangeMax)) return T::__RangeMax;
         return static_cast<T>(ID);
+    }
+
+    constexpr bool operator==(const ParserToken& token) const noexcept
+    {
+        if (this->ID == token.ID && this->Data1 == token.Data1)
+        {
+            if (this->Data2 != token.Data2)
+            {
+                if (this->Data2 >= CharTag::ID && token.Data2 >= CharTag::ID)
+                    return false;
+                // assume string_view
+                return GetString() == token.GetString();
+            }
+            return true;
+        }
     }
 };
 

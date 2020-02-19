@@ -82,6 +82,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ParserBaseTest.cpp" />
     <ClCompile Include="ParserLexerTest.cpp" />
     <ClCompile Include="ParserContextTest.cpp" />
     <ClCompile Include="RefObjTest.cpp" />
