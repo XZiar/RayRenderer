@@ -345,13 +345,15 @@ TEST(ParserLexer, LexerFunc)
         constexpr ASCII2PartTokenizer MetaFuncTK(BaseToken::Raw, 1,
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_@"sv,
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"sv);
-        constexpr auto args = std::make_tuple(MetaFuncTK);
-        return TKParse2<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer>(src, args);
+        constexpr ParserLexerBase<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer> Lexer(MetaFuncTK);
+        return TKParse_(src, Lexer);
+        //constexpr auto args = std::make_tuple(MetaFuncTK);
+        //return TKParse2<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer>(src, args);
     };
     
     {
-        const auto tokens = ParseAll(UR"(func(-123, "hello",3.5 ,0xff))"sv);
-        CHECK_TK(tokens[0], Raw,    GetString,  U"func"sv);
+        const auto tokens = ParseAll(UR"(@func(-123, "hello",3.5 ,0xff))"sv);
+        CHECK_TK(tokens[0], Raw,    GetString,  U"@func"sv);
         CHECK_TK(tokens[1], Delim,  GetChar,    U'(');
         CHECK_TK(tokens[2], Int,    GetInt,     -123);
         CHECK_TK(tokens[3], Delim,  GetChar,    U',');

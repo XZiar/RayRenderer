@@ -77,7 +77,6 @@ struct TokenMatcherHelper
     {
         constexpr auto IDCount = sizeof...(IDs);
         std::array<uint16_t, IDCount> idarray = { 0 };
-        constexpr auto idSetter = [](const auto id, uint16_t& slot) { slot = common::enum_cast(id); };
         SetId<0>(idarray, ids...);
         return idarray;
     }
@@ -135,6 +134,9 @@ protected:
     using TokenMatcher = detail::TokenMatcher<IDCount, TKCount>;
 
     ParserContext& Context;
+
+    constexpr ParserBase(ParserContext& context) : Context(context) 
+    { }
 
     virtual std::u32string DescribeTokenID(const ParserToken& token) const noexcept
     {

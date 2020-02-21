@@ -9,12 +9,15 @@
 namespace common::parser
 {
 
+namespace detail
+{
+
 template<typename... Ts>
 struct RepeatTypeChecker;
 template<typename T1, typename T2, typename... Ts>
 struct RepeatTypeChecker<T1, T2, Ts...>
 {
-    static constexpr bool IsUnique = RepeatTypeChecker<T1, T2>::IsUnique && 
+    static constexpr bool IsUnique = RepeatTypeChecker<T1, T2>::IsUnique &&
         RepeatTypeChecker<T1, Ts...>::IsUnique && RepeatTypeChecker<T2, Ts...>::IsUnique;
 };
 template<typename T1, typename T2>
@@ -32,11 +35,14 @@ inline constexpr bool CheckRepeatTypes() noexcept
 }
 
 
+}
+
+
 struct TokenResult
 {
     ParserToken Token;
     char32_t Delim;
-    constexpr TokenResult(ParserToken token, char32_t delim) 
+    constexpr TokenResult(ParserToken token, char32_t delim)
         : Token(token), Delim(delim) { }
 };
 
@@ -44,7 +50,7 @@ struct TokenResult
 template<typename... TKs>
 class ParserLexerBase : public tokenizer::TokenizerBase
 {
-    static_assert(CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
+    static_assert(detail::CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
 private:
     enum class MatchResults { NotBegin, Preempt, FullMatch, Waitlist, Pending, NoMatch, Wrong };
 
@@ -54,16 +60,23 @@ private:
     template<size_t N>
     using TKType = std::tuple_element_t<N, std::tuple<TKs...>>;
 
-    template<size_t N, typename T>
-    forceinline constexpr void SetTokenizer_([[maybe_unused]] T&& val) noexcept
+    template<typename TDst, typename TVal>
+    forceinline static constexpr void SetTokenizer_([[maybe_unused]] TDst& dst, [[maybe_unused]] TVal&& val) noexcept
     {
-        if constexpr (std::is_same_v<TKType<N>, std::decay_t<T>>)
-            std::get<N>(Tokenizers) = val;
+        if constexpr (std::is_same_v<TDst, std::decay_t<TVal>>)
+            dst = std::forward<TVal>(val);
     }
     template<typename T, size_t... I>
-    forceinline constexpr void SetTokenizer(T&& val, std::index_sequence<I...>) noexcept
+    forceinline static constexpr void SetTokenizer(std::tuple<TKs...>& tokenizers, T&& val, std::index_sequence<I...>) noexcept
     {
-        (SetTokenizer_<I>(std::forward<T>(val)), ...);
+        (SetTokenizer_(std::get<I>(tokenizers), std::forward<T>(val)), ...);
+    }
+    template<typename... Args>
+    forceinline static constexpr std::tuple<TKs...> GenerateTokenizerList(Args&&... args) noexcept
+    {
+        std::tuple<TKs...> tokenizers;
+        (SetTokenizer(tokenizers, std::forward<Args>(args), Indexes), ...);
+        return tokenizers;
     }
 
     template<size_t N = 0>
@@ -77,7 +90,7 @@ private:
     }
 
     template<size_t N = 0>
-    forceinline constexpr MatchResults InvokeTokenizer(ResultArray &status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) noexcept
+    forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) noexcept
     {
         using tokenizer::TokenizerResult;
         auto& result = status[N][idx & 1];
@@ -145,10 +158,8 @@ protected:
     }
 public:
     template<typename... Args>
-    constexpr ParserLexerBase(Args&&... args)
-    { 
-        (SetTokenizer(std::forward<Args>(args), Indexes), ...);
-    }
+    constexpr ParserLexerBase(Args&&... args) : Tokenizers(GenerateTokenizerList(std::forward<Args>(args)...))
+    { }
 
     template<typename Ignore>
     forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) noexcept
@@ -211,7 +222,7 @@ public:
         }
     }
 
-    
+
 private:
     std::tuple<TKs...> Tokenizers;
 };

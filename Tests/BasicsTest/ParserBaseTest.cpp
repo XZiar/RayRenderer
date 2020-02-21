@@ -19,4 +19,92 @@ using CharType = common::parser::ParserContext::CharType;
 #define CHECK_TKS_TYPE(types, ...) EXPECT_THAT(types, testing::ElementsAre(EXPEND_TKTYPES(__VA_ARGS__)))
 
 
+struct FuncParser : ParserBase
+{
+public:
+    FuncParser(ParserContext& context) : ParserBase(context) { }
+    std::pair<std::u32string_view, std::vector<ParserToken>> GetFunc()
+    {
+        return {};
+    }
+};
 
+struct DummyParser : ParserBase
+{
+    DummyParser(ParserContext& context) : ParserBase(context) { }
+    using ParserBase::GetNextToken;
+    using ParserBase::ExpectNextToken;
+    using ParserBase::IgnoreComment;
+};
+
+struct DummyTokenizer : TokenizerBase
+{
+    using TokenizerBase::GenerateToken;
+};
+
+
+TEST(ParserBase, GetNext)
+{
+    constexpr ParserLexerBase<CommentTokenizer, DelimTokenizer, ASCIIRawTokenizer> Lexer;
+    constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+    constexpr auto source = U"/*Empty*/Hello,There"sv;
+    {
+        ParserContext context(source);
+        DummyParser parser(context);
+        auto lexer = Lexer;
+
+        {
+            const auto token = parser.GetNextToken(lexer, ignore);
+            CHECK_TK(token, Comment, GetString, U"Empty"sv);
+        }
+        {
+            const auto token = parser.GetNextToken(lexer, ignore);
+            CHECK_TK(token, Raw, GetString, U"Hello"sv);
+        }
+    }
+    {
+        ParserContext context(source);
+        DummyParser parser(context);
+        auto lexer = Lexer;
+
+        {
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            CHECK_TK(token, Raw, GetString, U"Hello"sv);
+        }
+        {
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            CHECK_TK(token, Delim, GetChar, U',');
+        }
+        {
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            CHECK_TK(token, Raw, GetString, U"There"sv);
+        }
+    }
+    {
+        constexpr auto ExpectDelim = detail::TokenMatcherHelper::GetMatcher
+            (detail::EmptyTokenArray{}, BaseToken::Delim);
+        const auto TokenHello = DummyTokenizer::GenerateToken(BaseToken::Raw, U"Hello"sv);
+        const auto ExpectHello = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
+        const auto TokenThere = DummyTokenizer::GenerateToken(BaseToken::Raw, U"There"sv);
+        const auto ExpectThere = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
+        ParserContext context(source);
+        DummyParser parser(context);
+        auto lexer = Lexer;
+
+        {
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectHello);
+            CHECK_TK(token, Raw, GetString, U"Hello"sv);
+        }
+        {
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectDelim);
+            CHECK_TK(token, Delim, GetChar, U',');
+        }
+        {
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectThere);
+            CHECK_TK(token, Raw, GetString, U"There"sv);
+        }
+        {
+            EXPECT_THROW(parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectThere), detail::ParsingError);
+        }
+    }
+}
