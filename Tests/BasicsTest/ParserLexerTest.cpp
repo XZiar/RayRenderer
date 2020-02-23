@@ -24,7 +24,7 @@ using CharType = common::parser::ParserContext::CharType;
 #define MAP_TOKEN_TYPES(tokens) common::linq::FromIterable(tokens).Select([](const auto& token) { return token.GetIDEnum(); }).ToVector()
 
 template<typename Lexer>
-auto TKParse_(const std::u32string_view src, Lexer lexer)
+auto TKParse_(const std::u32string_view src, const Lexer& lexer)
 {
     constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
     ParserContext context(src);
@@ -48,11 +48,6 @@ auto TKParse(const std::u32string_view src)
     return TKParse_(src, lexer);
 }
 
-template<typename... TKs, typename Tuple>
-auto TKParse2(const std::u32string_view src, Tuple&& args)
-{
-    return TKParse_(src, std::make_from_tuple<ParserLexerBase<TKs...>>(args));
-}
 
 TEST(ParserLexer, ASCIIChecker)
 {
@@ -345,10 +340,9 @@ TEST(ParserLexer, LexerFunc)
         constexpr ASCII2PartTokenizer MetaFuncTK(BaseToken::Raw, 1,
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_@"sv,
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"sv);
+        
         constexpr ParserLexerBase<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer> Lexer(MetaFuncTK);
         return TKParse_(src, Lexer);
-        //constexpr auto args = std::make_tuple(MetaFuncTK);
-        //return TKParse2<DelimTokenizer, CommentTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, ASCII2PartTokenizer>(src, args);
     };
     
     {

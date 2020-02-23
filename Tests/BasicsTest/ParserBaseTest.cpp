@@ -45,14 +45,12 @@ struct DummyTokenizer : TokenizerBase
 
 TEST(ParserBase, GetNext)
 {
-    constexpr ParserLexerBase<CommentTokenizer, DelimTokenizer, ASCIIRawTokenizer> Lexer;
+    constexpr ParserLexerBase<CommentTokenizer, DelimTokenizer, ASCIIRawTokenizer> lexer;
     constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
     constexpr auto source = U"/*Empty*/Hello,There"sv;
     {
         ParserContext context(source);
         DummyParser parser(context);
-        auto lexer = Lexer;
-
         {
             const auto token = parser.GetNextToken(lexer, ignore);
             CHECK_TK(token, Comment, GetString, U"Empty"sv);
@@ -65,8 +63,6 @@ TEST(ParserBase, GetNext)
     {
         ParserContext context(source);
         DummyParser parser(context);
-        auto lexer = Lexer;
-
         {
             const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
             CHECK_TK(token, Raw, GetString, U"Hello"sv);
@@ -83,14 +79,12 @@ TEST(ParserBase, GetNext)
     {
         constexpr auto ExpectDelim = detail::TokenMatcherHelper::GetMatcher
             (detail::EmptyTokenArray{}, BaseToken::Delim);
-        const auto TokenHello = DummyTokenizer::GenerateToken(BaseToken::Raw, U"Hello"sv);
-        const auto ExpectHello = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
-        const auto TokenThere = DummyTokenizer::GenerateToken(BaseToken::Raw, U"There"sv);
-        const auto ExpectThere = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
+        constexpr auto TokenHello = DummyTokenizer::GenerateToken(BaseToken::Raw, U"Hello"sv);
+        constexpr auto ExpectHello = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
+        constexpr auto TokenThere = DummyTokenizer::GenerateToken(BaseToken::Raw, U"There"sv);
+        constexpr auto ExpectThere = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
         ParserContext context(source);
         DummyParser parser(context);
-        auto lexer = Lexer;
-
         {
             const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectHello);
             CHECK_TK(token, Raw, GetString, U"Hello"sv);

@@ -35,16 +35,14 @@ inline constexpr bool CheckRepeatTypes() noexcept
 }
 
 
-}
-
-
-struct TokenResult
+struct TokenizerData
 {
-    ParserToken Token;
-    char32_t Delim;
-    constexpr TokenResult(ParserToken token, char32_t delim)
-        : Token(token), Delim(delim) { }
+    tokenizer::StateData State;
+    std::array<tokenizer::TokenizerResult, 2> Result = { tokenizer::TokenizerResult::Pending, tokenizer::TokenizerResult::Pending };
+    std::array<uint8_t, 2> Dummy = { 0, 0 };
 };
+
+}
 
 
 template<typename... TKs>
@@ -56,7 +54,7 @@ private:
 
     static constexpr auto TKCount = sizeof...(TKs);
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
-    using ResultArray = std::array<std::array<tokenizer::TokenizerResult, 2>, TKCount>;
+    using ResultArray = std::array<detail::TokenizerData, TKCount>;
     template<size_t N>
     using TKType = std::tuple_element_t<N, std::tuple<TKs...>>;
 
@@ -80,24 +78,15 @@ private:
     }
 
     template<size_t N = 0>
-    forceinline constexpr void InitTokenizer() noexcept
-    {
-        auto& tokenizer = std::get<N>(Tokenizers);
-        tokenizer.OnInitialize();
-
-        if constexpr (N + 1 < TKCount)
-            return InitTokenizer<N + 1>();
-    }
-
-    template<size_t N = 0>
-    forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) noexcept
+    forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) const noexcept
     {
         using tokenizer::TokenizerResult;
-        auto& result = status[N][idx & 1];
-        if (const auto prev = status[N][(idx & 1) ? 0 : 1]; prev == TokenizerResult::Pending || prev == TokenizerResult::Waitlist)
+        auto& result = status[N].Result[idx & 1];
+        const auto prev = status[N].Result[(idx & 1) ? 0 : 1];
+        if (prev == TokenizerResult::Pending || prev == TokenizerResult::Waitlist)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            result = tokenizer.OnChar(ch, idx);
+            result = tokenizer.OnChar(status[N].State, ch, idx);
             switch (result)
             {
             case TokenizerResult::FullMatch:
@@ -125,13 +114,13 @@ private:
     }
 
     template<size_t N = 0>
-    inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
+    inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) const noexcept
     {
-        const auto result = status[N][offset];
+        const auto result = status[N].Result[offset];
         if (result == target)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            return tokenizer.GetToken(reader, tksv);
+            return tokenizer.GetToken(status[N].State, reader, tksv);
         }
         if constexpr (N + 1 < TKCount)
             return OutputToken<N + 1>(status, offset, reader, tksv, target);
@@ -162,14 +151,14 @@ public:
     { }
 
     template<typename Ignore>
-    forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) noexcept
+    forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) const noexcept
     {
         return GetTokenBy(context, ToChecker(ignore));
     }
 
 
     template<typename Ignore>
-    constexpr ParserToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) noexcept
+    constexpr ParserToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) const noexcept
     {
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
@@ -178,12 +167,10 @@ public:
         reader.ReadWhile(isIgnore);
 
         ResultArray status = { {} };
-        status.fill({ {TokenizerResult::Pending, TokenizerResult::Pending} });
+        status.fill({});
         size_t count = 0;
         MatchResults mth = MatchResults::NotBegin;
         char32_t ch = '\0';
-
-        InitTokenizer();
 
         while (true)
         {
