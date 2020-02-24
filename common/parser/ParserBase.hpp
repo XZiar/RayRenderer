@@ -168,9 +168,9 @@ protected:
         throw detail::ParsingError(Context, token, u"Unexpected token");
     }
     
-    static inline constexpr auto IgnoreComment = detail::TokenMatcherHelper::GetMatcher
+    static inline constexpr auto IgnoreCommentToken = detail::TokenMatcherHelper::GetMatcher
         (detail::EmptyTokenArray{}, BaseToken::Comment);
-    static inline constexpr TokenMatcher<0, 0> IgnoreNone = {};
+    static inline constexpr TokenMatcher<0, 0> IgnoreNoneToken = {};
 
     template<typename Lex, typename Ignore>
     constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore)

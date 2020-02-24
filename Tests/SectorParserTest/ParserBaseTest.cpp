@@ -14,10 +14,6 @@ using CharType = common::parser::ParserContext::CharType;
 
 #define CHECK_TK(token, type, action, val) do { CHECK_TK_TYPE(token, type); EXPECT_EQ(token.action(), val); } while(0)
 
-#define TO_BASETOKN_TYPE(r, dummy, i, type) BOOST_PP_COMMA_IF(i) BaseToken::type
-#define EXPEND_TKTYPES(...) BOOST_PP_SEQ_FOR_EACH_I(TO_BASETOKN_TYPE, "", BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-#define CHECK_TKS_TYPE(types, ...) EXPECT_THAT(types, testing::ElementsAre(EXPEND_TKTYPES(__VA_ARGS__)))
-
 
 struct FuncParser : ParserBase
 {
@@ -34,12 +30,7 @@ struct DummyParser : ParserBase
     DummyParser(ParserContext& context) : ParserBase(context) { }
     using ParserBase::GetNextToken;
     using ParserBase::ExpectNextToken;
-    using ParserBase::IgnoreComment;
-};
-
-struct DummyTokenizer : TokenizerBase
-{
-    using TokenizerBase::GenerateToken;
+    using ParserBase::IgnoreCommentToken;
 };
 
 
@@ -64,41 +55,41 @@ TEST(ParserBase, GetNext)
         ParserContext context(source);
         DummyParser parser(context);
         {
-            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreCommentToken);
             CHECK_TK(token, Raw, GetString, U"Hello"sv);
         }
         {
-            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreCommentToken);
             CHECK_TK(token, Delim, GetChar, U',');
         }
         {
-            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreComment);
+            const auto token = parser.GetNextToken(lexer, ignore, parser.IgnoreCommentToken);
             CHECK_TK(token, Raw, GetString, U"There"sv);
         }
     }
     {
         constexpr auto ExpectDelim = detail::TokenMatcherHelper::GetMatcher
             (detail::EmptyTokenArray{}, BaseToken::Delim);
-        constexpr auto TokenHello = DummyTokenizer::GenerateToken(BaseToken::Raw, U"Hello"sv);
+        constexpr ParserToken TokenHello(BaseToken::Raw, U"Hello"sv);
         constexpr auto ExpectHello = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
-        constexpr auto TokenThere = DummyTokenizer::GenerateToken(BaseToken::Raw, U"There"sv);
+        constexpr ParserToken TokenThere(BaseToken::Raw, U"There"sv);
         constexpr auto ExpectThere = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
         ParserContext context(source);
         DummyParser parser(context);
         {
-            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectHello);
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreCommentToken, ExpectHello);
             CHECK_TK(token, Raw, GetString, U"Hello"sv);
         }
         {
-            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectDelim);
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreCommentToken, ExpectDelim);
             CHECK_TK(token, Delim, GetChar, U',');
         }
         {
-            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectThere);
+            const auto token = parser.ExpectNextToken(lexer, ignore, parser.IgnoreCommentToken, ExpectThere);
             CHECK_TK(token, Raw, GetString, U"There"sv);
         }
         {
-            EXPECT_THROW(parser.ExpectNextToken(lexer, ignore, parser.IgnoreComment, ExpectThere), detail::ParsingError);
+            EXPECT_THROW(parser.ExpectNextToken(lexer, ignore, parser.IgnoreCommentToken, ExpectThere), detail::ParsingError);
         }
     }
 }

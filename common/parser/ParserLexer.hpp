@@ -46,7 +46,7 @@ struct TokenizerData
 
 
 template<typename... TKs>
-class ParserLexerBase : public tokenizer::TokenizerBase
+class ParserLexerBase
 {
     static_assert(detail::CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
 private:
@@ -125,7 +125,7 @@ private:
         if constexpr (N + 1 < TKCount)
             return OutputToken<N + 1>(status, offset, reader, tksv, target);
         else
-            return GenerateToken(BaseToken::Error);
+            return ParserToken(BaseToken::Error);
     }
 
 protected:
@@ -201,11 +201,11 @@ public:
         case MatchResults::Preempt:
             return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist);
         case MatchResults::NotBegin:
-            return GenerateToken(BaseToken::End);
+            return ParserToken(BaseToken::End);
         case MatchResults::Wrong:
-            return GenerateToken(BaseToken::Error, tokenTxt);
+            return ParserToken(BaseToken::Error, tokenTxt);
         default:
-            return GenerateToken(BaseToken::Unknown, tokenTxt);
+            return ParserToken(BaseToken::Unknown, tokenTxt);
         }
     }
 

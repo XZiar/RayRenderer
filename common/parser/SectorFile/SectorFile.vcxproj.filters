@@ -23,6 +23,9 @@
     <ClInclude Include="SectorsStruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="SectorsParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

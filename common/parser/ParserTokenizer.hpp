@@ -62,28 +62,32 @@ private:
     uint16_t ID;
     uint8_t ValType;
 public:
-    constexpr ParserToken(uint16_t id) noexcept :
-        Data(), ID(id), ValType(EmptyTag::ID)
+    template<typename E>
+    constexpr ParserToken(E id) noexcept :
+        Data(), ID(static_cast<uint16_t>(id)), ValType(EmptyTag::ID)
     { }
-    constexpr ParserToken(uint16_t id, bool val) noexcept :
-        Data(UINTTag{}, val ? 1 : 0), ID(id), ValType(UINTTag::ID)
+    template<typename E>
+    constexpr ParserToken(E id, bool val) noexcept :
+        Data(UINTTag{}, val ? 1 : 0), ID(static_cast<uint16_t>(id)), ValType(UINTTag::ID)
     { }
-    constexpr ParserToken(uint16_t id, char32_t val) noexcept :
-        Data(CharTag{}, val), ID(id), ValType(CharTag::ID)
+    template<typename E>
+    constexpr ParserToken(E id, char32_t val) noexcept :
+        Data(CharTag{}, val), ID(static_cast<uint16_t>(id)), ValType(CharTag::ID)
     { }
-    constexpr ParserToken(uint16_t id, const std::u32string_view val) noexcept :
-        Data(StrTag{}, val), ID(id), ValType(StrTag::ID)
+    template<typename E>
+    constexpr ParserToken(E id, const std::u32string_view val) noexcept :
+        Data(StrTag{}, val), ID(static_cast<uint16_t>(id)), ValType(StrTag::ID)
     { }
 
-    template<typename T, typename Tag = std::conditional_t<
+    template<typename E, typename T, typename Tag = std::conditional_t<
         !std::is_floating_point_v<T>,
         std::conditional_t<
         std::is_integral_v<T>,
         std::conditional_t<std::is_unsigned_v<T>, UINTTag, INTTag>,
         ErrorTag>,
         FPTag>>
-    constexpr ParserToken(uint16_t id, const T val) :
-        Data(Tag{}, val), ID(id), ValType(Tag::ID) 
+    constexpr ParserToken(E id, const T val) :
+        Data(Tag{}, val), ID(static_cast<uint16_t>(id)), ValType(Tag::ID)
     { }
 
     constexpr bool                  GetBool()   const noexcept { /*Expects(Data2 == std::is_signed_v<T> ? 1 : 2);*/ return Data.Uint != 0; }
@@ -202,11 +206,6 @@ struct StateData
 class TokenizerBase
 {
 protected:
-    template<typename T, typename... Args>
-    forceinline static constexpr ParserToken GenerateToken(T enumval, const Args... args)
-    {
-        return ParserToken(common::enum_cast(enumval), args...);
-    }
     static std::string ToU8Str(const std::u32string_view txt)
     {
         std::string str;
@@ -234,7 +233,7 @@ public:
     forceinline constexpr ParserToken GetToken(StateData, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
-        return GenerateToken(BaseToken::Delim, txt[0]);
+        return ParserToken(BaseToken::Delim, txt[0]);
     }
 };
 
@@ -282,14 +281,14 @@ public:
         switch (data.Data<States>())
         {
         case States::Singleline:
-            return GenerateToken(BaseToken::Comment, reader.ReadLine());
+            return ParserToken(BaseToken::Comment, reader.ReadLine());
         case States::Multiline:
         {
             auto txt = reader.ReadUntil(U"*/"); txt.remove_suffix(2);
-            return GenerateToken(BaseToken::Comment, txt);
+            return ParserToken(BaseToken::Comment, txt);
         }
         default:
-            return GenerateToken(BaseToken::Error);
+            return ParserToken(BaseToken::Error);
         }
     }
 };
@@ -331,10 +330,10 @@ public:
         if (successful)
         {
             reader.ReadNext(); // will be End/LF/"
-            return GenerateToken(BaseToken::String, content);
+            return ParserToken(BaseToken::String, content);
         }
         else
-            return GenerateToken(BaseToken::Error, content);
+            return ParserToken(BaseToken::Error, content);
     }
 };
 
@@ -394,12 +393,12 @@ public:
         switch (data.Data<States>())
         {
         case States::Num0:
-            return GenerateToken(BaseToken::Uint, 0);
+            return ParserToken(BaseToken::Uint, 0);
         case States::Binary:
         {
             Expects(txt.size() > 2);
             if (txt.size() > 66)
-                return GenerateToken(BaseToken::Error, txt);
+                return ParserToken(BaseToken::Error, txt);
             txt.remove_prefix(2);
             uint64_t bin = 0;
             while (true)
@@ -414,13 +413,13 @@ public:
                 else
                     break;
             }
-            return GenerateToken(BaseToken::Uint, bin);
+            return ParserToken(BaseToken::Uint, bin);
         }
         case States::Hex:
         {
             Expects(txt.size() > 2);
             if (txt.size() > 18)
-                return GenerateToken(BaseToken::Error, txt);
+                return ParserToken(BaseToken::Error, txt);
             txt.remove_prefix(2);
             uint64_t hex = 0;
             while (true)
@@ -441,7 +440,7 @@ public:
                 else
                     break;
             }
-            return GenerateToken(BaseToken::Uint, hex);
+            return ParserToken(BaseToken::Uint, hex);
         }
         case States::Normal:
         {
@@ -451,20 +450,20 @@ public:
                 int64_t val = 0;
                 const bool valid = common::StrToInt(str, val, 10).first;
                 if (valid)
-                    return GenerateToken(BaseToken::Int, val);
+                    return ParserToken(BaseToken::Int, val);
             }
             else
             {
                 uint64_t val = 0;
                 const bool valid = common::StrToInt(str, val, 10).first;
                 if (valid)
-                    return GenerateToken(BaseToken::Uint, val);
+                    return ParserToken(BaseToken::Uint, val);
             }
         } break;
         default:
             break;
         }
-        return GenerateToken(BaseToken::Error, txt);
+        return ParserToken(BaseToken::Error, txt);
     }
 };
 
@@ -529,7 +528,7 @@ public:
             double val = 0;
             const bool valid = common::StrToFP(str, val, false).first;
             if (valid)
-                return GenerateToken(BaseToken::FP, val);
+                return ParserToken(BaseToken::FP, val);
         } break;
         case States::Scientific:
         {
@@ -537,12 +536,12 @@ public:
             double val = 0;
             const bool valid = common::StrToFP(str, val, true).first;
             if (valid)
-                return GenerateToken(BaseToken::FP, val);
+                return ParserToken(BaseToken::FP, val);
         } break;
         default:
             break;
         }
-        return GenerateToken(BaseToken::Error, txt);
+        return ParserToken(BaseToken::Error, txt);
     }
 };
 
@@ -597,8 +596,8 @@ public:
     ParserToken GetToken(const StateData data, ContextReader&, std::u32string_view txt) const noexcept
     {
         if (data == States::Match)
-            return GenerateToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
-        return GenerateToken(BaseToken::Error, txt);
+            return ParserToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
+        return ParserToken(BaseToken::Error, txt);
     }
 };
 
@@ -619,7 +618,7 @@ public:
     }
     forceinline constexpr ParserToken GetToken(StateData, ContextReader&, std::u32string_view txt) const noexcept
     {
-        return GenerateToken(BaseToken::Raw, txt);
+        return ParserToken(BaseToken::Raw, txt);
     }
 };
 

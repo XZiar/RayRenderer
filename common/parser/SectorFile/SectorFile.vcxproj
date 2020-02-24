@@ -22,6 +22,7 @@
     <ClCompile Include="SectorsParser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="SectorsParser.h" />
     <ClInclude Include="SectorsStruct.h" />
   </ItemGroup>
   <ItemGroup>
