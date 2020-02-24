@@ -1,0 +1,18 @@
+{
+    "name": "SectorParserTest",
+    "type": "executable",
+    "description": "Sector Parser Test",
+    "dependency": ["SectorFile"],
+    "library": 
+    {
+        "static": ["gtest", "gmock", "gtest_main"],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        }
+    }
+}

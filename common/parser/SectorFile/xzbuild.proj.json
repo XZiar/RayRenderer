@@ -1,0 +1,17 @@
+{
+    "name": "SectorFile",
+    "type": "static",
+    "description": "Sector Based File Basic",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        }
+    }
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "StrBase.hpp"
 #include <optional>
 #include <cctype>
 #include <cwctype>
