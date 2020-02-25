@@ -1,74 +1,10 @@
 #include "SectorsParser.h"
-#include "common/parser/ParserBase.hpp"
-#include "common/StringEx.hpp"
+#include "ParserRely.h"
 
 namespace xziar::sectorlang
 {
-using namespace std::string_view_literals;
-using common::parser::tokenizer::TokenizerResult;
-using common::parser::tokenizer::StateData;
-using common::parser::tokenizer::ASCIIRawTokenizer;
-using common::parser::tokenizer::CommentTokenizer;
-using common::parser::tokenizer::DelimTokenizer;
-using common::parser::tokenizer::StringTokenizer;
-using common::parser::ASCIIChecker;
-using common::parser::BaseToken;
-using common::parser::ParserToken;
-using common::parser::ContextReader;
-using common::parser::ParserBase;
-using common::parser::ParserLexerBase;
 
 
-namespace tokenizer
-{
-
-enum class SectorLangToken : uint16_t 
-{
-    __RangeMin = common::enum_cast(BaseToken::__RangeMax), 
-    
-    Sector, Block, MetaFunc, Func,
-    
-    __RangeMax = 192
-};
-
-
-class BlockPrefixTokenizer : public common::parser::tokenizer::TokenizerBase
-{
-public:
-    constexpr TokenizerResult OnChar(StateData, const char32_t ch, const size_t idx) const noexcept
-    {
-        if (idx == 0 && ch == U'$')
-            return TokenizerResult::FullMatch;
-        return TokenizerResult::NotMatch;
-    }
-    
-    forceinline constexpr ParserToken GetToken(StateData, ContextReader& reader, std::u32string_view txt) const noexcept
-    {
-        constexpr auto FullnameMatcher = ASCIIChecker<false>("\r\n\v\t (");
-
-        Expects(txt.size() == 1);
-        const auto fullname = reader.ReadWhile(FullnameMatcher);
-
-        if (common::str::IsBeginWith(fullname, U"Sector."sv))
-        {
-            const auto typeName = fullname.substr(7);
-            if (typeName.size() > 0)
-                return ParserToken(SectorLangToken::Sector, typeName);
-        }
-        else if (common::str::IsBeginWith(fullname, U"Block."sv))
-        {
-            const auto typeName = fullname.substr(6);
-            if (typeName.size() > 0)
-                return ParserToken(SectorLangToken::Block, typeName);
-        }
-        return ParserToken(BaseToken::Error, fullname);
-    }
-};
-
-}
-
-
-constexpr static auto IgnoreBlank = ASCIIChecker("\r\n\v\t ");
 
 SectorRaw SectorsParser::ParseNextSector()
 {

@@ -1,5 +1,6 @@
 #include "rely.h"
 #include "common/parser/SectorFile/SectorsParser.h"
+#include "common/parser/SectorFile/MetaFuncParser.h"
 
 
 using namespace std::string_view_literals;
@@ -74,6 +75,39 @@ $Sector.Main("Hello")
         EXPECT_EQ(sector1.Type, U"Main"sv);
         EXPECT_EQ(sector1.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(sector1.Content), U"{Here}\n"sv);
+    }
+}
+
+
+TEST(SectorsParser, ParseMetaFunc)
+{
+    constexpr auto ParseFunc = [](const std::u32string_view src)
+    {
+        common::parser::ParserContext context(src);
+        return xziar::sectorlang::MetaFuncParser::ParseFuncBody(U"func"sv, context);
+    };
+    {
+        const auto func = ParseFunc(U"()"sv);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 0);
+    }
+    {
+        const auto func = ParseFunc(U"(123)"sv);
+        EXPECT_EQ(func.Args.size(), 1);
+        EXPECT_EQ(std::get<uint64_t>(func.Args[0]), 123);
+    }
+    {
+        const auto func = ParseFunc(U"(123, -4.5)"sv);
+        EXPECT_EQ(func.Args.size(), 2);
+        EXPECT_EQ(std::get<uint64_t>(func.Args[0]), 123);
+        EXPECT_EQ(std::get<double>  (func.Args[1]), -4.5);
+    }
+    {
+        const auto func = ParseFunc(U"(123, -4.5, k67)"sv);
+        EXPECT_EQ(func.Args.size(), 3);
+        EXPECT_EQ(std::get<uint64_t>(func.Args[0]), 123);
+        EXPECT_EQ(std::get<double>  (func.Args[1]), -4.5);
+        EXPECT_EQ(std::get<xziar::sectorlang::LateBindVar>(func.Args[2]).Name, U"k67"sv);
     }
 }
 

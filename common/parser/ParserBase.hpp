@@ -66,26 +66,20 @@ struct EmptyTokenArray {};
 struct TokenMatcherHelper
 {
     template<size_t I, size_t N, typename T, typename... Args>
-    forceinline static constexpr void SetId(std::array<uint16_t, N>& ids, T id, Args... args) noexcept
+    forceinline static constexpr std::array<uint16_t, N> GenerateIDArray(std::array<uint16_t, N> ids, const T id, const Args... args) noexcept
     {
         ids[I] = common::enum_cast(id);
         if constexpr (I + 1 < N)
-            return SetId<I + 1>(ids, args...);
-    }
-    template<typename... IDs>
-    static constexpr auto GenerateIDArray(IDs... ids) noexcept
-    {
-        constexpr auto IDCount = sizeof...(IDs);
-        std::array<uint16_t, IDCount> idarray = { 0 };
-        SetId<0>(idarray, ids...);
-        return idarray;
+            return GenerateIDArray<I + 1>(ids, args...);
+        else
+            return ids;
     }
     template<typename... IDs>
     static constexpr auto GetMatcher(EmptyTokenArray, IDs... ids) noexcept
     {
         constexpr auto IDCount = sizeof...(IDs);
         if constexpr (IDCount > 0)
-            return TokenMatcher<IDCount, 0>{ GenerateIDArray(ids...) };
+            return TokenMatcher<IDCount, 0>{ GenerateIDArray<0>(std::array<uint16_t, IDCount>{0}, ids...) };
         else
             return TokenMatcher<0, 0>{};
     }
@@ -96,7 +90,7 @@ struct TokenMatcherHelper
         constexpr auto IDCount = sizeof...(IDs);
         if constexpr (IDCount > 0)
         {
-            constexpr auto idarray = GenerateIDArray(ids...);
+            constexpr auto idarray = GenerateIDArray<0>(std::array<uint16_t, IDCount>{0}, ids...);
             if constexpr (TKCount > 0)
                 return TokenMatcher<IDCount, TKCount>{ idarray, tokens };
             else
