@@ -96,7 +96,9 @@ public:
 class VariableTokenizer : public ASCII2PartTokenizer
 {
 public:
-    constexpr VariableTokenizer() : ASCII2PartTokenizer(SectorLangToken::Var)
+    constexpr VariableTokenizer() : ASCII2PartTokenizer(SectorLangToken::Var, 1, 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_", 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.")
     { }
 };
 

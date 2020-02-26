@@ -27,9 +27,7 @@ struct SectorRaw
     std::u32string_view Type;
     std::u32string_view Name;
     std::u32string_view Content;
-
-    SectorRaw(std::u32string_view type, std::u32string_view name, std::u32string_view content)
-        : Type(type), Name(name), Content(content) { }
+    std::vector<MetaFunc> MetaFunctions;
 };
 
 struct Block
