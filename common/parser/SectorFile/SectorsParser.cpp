@@ -1,5 +1,5 @@
 #include "SectorsParser.h"
-#include "MetaFuncParser.h"
+#include "FuncParser.h"
 #include "ParserRely.h"
 
 namespace xziar::sectorlang
@@ -36,7 +36,7 @@ SectorRaw SectorsParser::ParseNextSector()
             break;
         }
         Expects(tkType == SectorLangToken::MetaFunc);
-        sector.MetaFunctions.emplace_back(MetaFuncParser::ParseFuncBody(token.GetString(), Context));
+        sector.MetaFunctions.emplace_back(FuncBodyParser::ParseFuncBody(token.GetString(), Context));
     }
         
     constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer>(BracketDelim);

@@ -1,17 +1,21 @@
 #include "rely.h"
+#include "common/parser/SectorFile/ParserRely.h"
 #include "common/parser/SectorFile/SectorsParser.h"
-#include "common/parser/SectorFile/MetaFuncParser.h"
+#include "common/parser/SectorFile/FuncParser.h"
 
 
 using namespace std::string_view_literals;
+using common::parser::ParserContext;
+using common::parser::ContextReader;
+using xziar::sectorlang::SectorsParser;
 
 
 static std::u32string ReplaceNewLine(std::u32string_view txt)
 {
     std::u32string ret;
     ret.reserve(txt.size());
-    common::parser::ParserContext context(txt);
-    common::parser::ContextReader reader(context);
+    ParserContext context(txt);
+    ContextReader reader(context);
     while (true)
     {
         const auto ch = reader.ReadNext();
@@ -27,8 +31,8 @@ TEST(SectorsParser, ParseSector)
 {
     {
         constexpr auto src = U"$Sector.Main(\"Hello\"){\r\n}"sv;
-        common::parser::ParserContext context(src);
-        xziar::sectorlang::SectorsParser Parser(context);
+        ParserContext context(src);
+        SectorsParser Parser(context);
         const auto sector = Parser.ParseNextSector();
         EXPECT_EQ(sector.Type, U"Main"sv);
         EXPECT_EQ(sector.Name, U"Hello"sv);
@@ -37,8 +41,8 @@ TEST(SectorsParser, ParseSector)
 
     {
         constexpr auto src = U"$Sector.Main(\"Hello\"){\r\n}\r\n$Sector.Main(\"Hello\"){\r\n}"sv;
-        common::parser::ParserContext context(src);
-        xziar::sectorlang::SectorsParser Parser(context);
+        ParserContext context(src);
+        SectorsParser Parser(context);
 
         const auto sector0 = Parser.ParseNextSector();
         EXPECT_EQ(sector0.Type, U"Main"sv);
@@ -63,8 +67,8 @@ $Sector.Main("Hello")
 {Here}
 ===+++}
 )"sv;
-        common::parser::ParserContext context(src);
-        xziar::sectorlang::SectorsParser Parser(context);
+        ParserContext context(src);
+        SectorsParser Parser(context);
 
         const auto sector0 = Parser.ParseNextSector();
         EXPECT_EQ(sector0.Type, U"Main"sv);
@@ -83,8 +87,8 @@ TEST(SectorsParser, ParseMetaFunc)
 {
     constexpr auto ParseFunc = [](const std::u32string_view src)
     {
-        common::parser::ParserContext context(src);
-        return xziar::sectorlang::MetaFuncParser::ParseFuncBody(U"func"sv, context);
+        ParserContext context(src);
+        return xziar::sectorlang::FuncBodyParser::ParseFuncBody(U"func"sv, context);
     };
     {
         const auto func = ParseFunc(U"()"sv);
@@ -123,8 +127,8 @@ $Sector.Main("Hello")
 Here
 }
 )"sv;
-        common::parser::ParserContext context(src);
-        xziar::sectorlang::SectorsParser Parser(context);
+        ParserContext context(src);
+        SectorsParser Parser(context);
 
         const auto sector = Parser.ParseNextSector();
         EXPECT_EQ(sector.Type, U"Main"sv);
@@ -149,8 +153,8 @@ $Sector.Main("Hello")
 Here
 }
 )"sv;
-        common::parser::ParserContext context(src);
-        xziar::sectorlang::SectorsParser Parser(context);
+        ParserContext context(src);
+        SectorsParser Parser(context);
 
         const auto sector = Parser.ParseNextSector();
         EXPECT_EQ(sector.Type, U"Main"sv);

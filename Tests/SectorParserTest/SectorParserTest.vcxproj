@@ -68,6 +68,7 @@
     <ClCompile Include="ParserBaseTest.cpp" />
     <ClCompile Include="ParserLexerTest.cpp" />
     <ClCompile Include="ParserContextTest.cpp" />
+    <ClCompile Include="SectorFileBaseTest.cpp" />
     <ClCompile Include="SectorsParserTest.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -18,7 +18,10 @@
     <ClCompile Include="SectorsParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MetaFuncParser.cpp">
+    <ClCompile Include="FuncParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SectorsStruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,10 +32,10 @@
     <ClInclude Include="SectorsParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MetaFuncParser.h">
+    <ClInclude Include="ParserRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ParserRely.h">
+    <ClInclude Include="FuncParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

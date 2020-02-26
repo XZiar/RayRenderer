@@ -14,12 +14,23 @@ struct LateBindVar
 {
     std::u32string_view Name;
 };
-using FuncArgRaw = std::variant<LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+
+enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
+
+using BasicFuncArgRaw = std::variant<LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+
+struct EmbedStatement
+{
+    BasicFuncArgRaw LeftOprend, RightOprend;
+    EmbedOps Operator;
+};
+
+using ComplexFuncArgRaw = std::variant<LateBindVar, EmbedStatement, std::u32string_view, uint64_t, int64_t, double, bool>;
 
 struct MetaFunc
 {
     std::u32string_view Name;
-    std::vector<FuncArgRaw> Args;
+    std::vector<BasicFuncArgRaw> Args;
 };
 
 struct SectorRaw

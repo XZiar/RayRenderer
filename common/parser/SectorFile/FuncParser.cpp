@@ -1,11 +1,11 @@
-#include "MetaFuncParser.h"
+#include "FuncParser.h"
 #include "ParserRely.h"
 
 namespace xziar::sectorlang
 {
 using tokenizer::SectorLangToken;
 
-void MetaFuncParser::FillFuncBody(MetaFunc& func)
+void FuncBodyParser::FillFuncBody(MetaFunc& func)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -51,13 +51,27 @@ void MetaFuncParser::FillFuncBody(MetaFunc& func)
 
 }
 
-MetaFunc MetaFuncParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
+MetaFunc FuncBodyParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
 {
-    MetaFuncParser parser(context);
+    FuncBodyParser parser(context);
     MetaFunc func{ funcName, {} };
     parser.FillFuncBody(func);
     return func;
 }
 
+
+template<typename StopDelimer>
+ComplexFuncArgRaw ComplexArgParser::ParseArg()
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+    
+    std::optional<BasicFuncArgRaw> oprend1, oprend2;
+    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer>(StopDelimer());
+    const auto token = GetNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken);
+
+
+    return ComplexFuncArgRaw();
+}
 
 }

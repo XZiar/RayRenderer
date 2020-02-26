@@ -2,6 +2,7 @@
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"
+#include "SectorsStruct.h"
 
 namespace xziar::sectorlang
 {
@@ -31,7 +32,7 @@ enum class SectorLangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Sector, Block, MetaFunc, Func, Var,
+    Sector, Block, MetaFunc, Func, Var, EmbedOp,
 
     __RangeMax = 192
 };
@@ -100,6 +101,71 @@ public:
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_", 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.")
     { }
+};
+
+class EmbedOpTokenizer
+{
+public:
+    constexpr TokenizerResult OnChar(StateData& prevChar, const char32_t ch, const size_t idx) const noexcept
+    {
+        Expects((idx == 0) == (prevChar.Val == 0));
+        switch (idx)
+        {
+        case 0: // just begin
+            prevChar.Val = ch;
+            switch (ch)
+            {
+            case U'=':  return TokenizerResult::Pending;
+            case U'!':  return TokenizerResult::Waitlist;
+            case U'<':  return TokenizerResult::Waitlist;
+            case U'>':  return TokenizerResult::Waitlist;
+            case U'&':  return TokenizerResult::Pending;
+            case U'|':  return TokenizerResult::Pending;
+            case U'+':  return TokenizerResult::Waitlist;
+            case U'-':  return TokenizerResult::Waitlist;
+            case U'*':  return TokenizerResult::Waitlist;
+            case U'/':  return TokenizerResult::Waitlist;
+            case U'%':  return TokenizerResult::Waitlist;
+            default:    return TokenizerResult::NotMatch;
+            }
+        case 1:
+            switch (prevChar.Val)
+            {
+            case U'=': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            case U'!': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            case U'<': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            case U'>': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            case U'&': return ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            case U'|': return ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+            default:   return TokenizerResult::NotMatch;
+            }
+        default:
+            return TokenizerResult::NotMatch;
+        }
+    }
+    forceinline constexpr ParserToken GetToken(StateData, ContextReader&, std::u32string_view txt) const noexcept
+    {
+        Expects(txt.size() == 1 || txt.size() == 2);
+#define RET_OP(str, op) case str ## _hash: return ParserToken(SectorLangToken::EmbedOp, common::enum_cast(EmbedOps::op))
+        switch (hash_(txt))
+        {
+        RET_OP("==", Equal);
+        RET_OP("!=", NotEqual);
+        RET_OP("<",  Less);
+        RET_OP("<=", LessEqual);
+        RET_OP(">",  Greater);
+        RET_OP(">=", GreaterEqual);
+        RET_OP("&&", And);
+        RET_OP("||", Or);
+        RET_OP("!",  Not);
+        RET_OP("+",  Add);
+        RET_OP("-",  Sub);
+        RET_OP("*",  Mul);
+        RET_OP("/",  Div);
+        RET_OP("%",  Rem);
+        default:     return ParserToken(BaseToken::Error, txt);
+        }
+    }
 };
 
 

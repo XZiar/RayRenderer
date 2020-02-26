@@ -19,6 +19,9 @@
     <ClCompile Include="SectorsParserTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="SectorFileBaseTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

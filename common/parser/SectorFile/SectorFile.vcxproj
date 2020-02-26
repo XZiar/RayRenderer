@@ -19,11 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MetaFuncParser.cpp" />
+    <ClCompile Include="FuncParser.cpp" />
     <ClCompile Include="SectorsParser.cpp" />
+    <ClCompile Include="SectorsStruct.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MetaFuncParser.h" />
+    <ClInclude Include="FuncParser.h" />
     <ClInclude Include="ParserRely.h" />
     <ClInclude Include="SectorsParser.h" />
     <ClInclude Include="SectorsStruct.h" />
