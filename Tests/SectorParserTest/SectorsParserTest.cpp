@@ -30,7 +30,7 @@ static std::u32string ReplaceNewLine(std::u32string_view txt)
 TEST(SectorsParser, ParseSector)
 {
     {
-        constexpr auto src = U"$Sector.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
         SectorsParser Parser(context);
         const auto sector = Parser.ParseNextSector();
@@ -40,7 +40,7 @@ TEST(SectorsParser, ParseSector)
     }
 
     {
-        constexpr auto src = U"$Sector.Main(\"Hello\"){\r\n}\r\n$Sector.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}\r\n#Sector.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
         SectorsParser Parser(context);
 
@@ -57,12 +57,12 @@ TEST(SectorsParser, ParseSector)
     {
         constexpr auto src = 
             UR"(
-$Sector.Main("Hello")
+#Sector.Main("Hello")
 {
 Here
 }
 
-$Sector.Main("Hello")
+#Sector.Main("Hello")
 {===+++
 {Here}
 ===+++}
@@ -122,7 +122,7 @@ TEST(SectorsParser, ParseMetaSector)
         constexpr auto src =
             UR"(
 @func()
-$Sector.Main("Hello")
+#Sector.Main("Hello")
 {
 Here
 }
@@ -144,11 +144,11 @@ Here
             UR"(
 @func(1)
 @func(abc, 0xff)
-$Sector.Main("Hello")
+#Sector.Main("Hello")
 {
 Here
 }
-$Sector.Main("Hello")
+#Sector.Main("Hello")
 {
 Here
 }

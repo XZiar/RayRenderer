@@ -61,17 +61,81 @@ MetaFunc FuncBodyParser::ParseFuncBody(std::u32string_view funcName, common::par
 
 
 template<typename StopDelimer>
-ComplexFuncArgRaw ComplexArgParser::ParseArg()
+std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
 {
+#define EID(id) case common::enum_cast(id)
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     
-    std::optional<BasicFuncArgRaw> oprend1, oprend2;
-    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer>(StopDelimer());
-    const auto token = GetNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken);
+    constexpr std::string_view StopDelim = StopDelimer();
+    constexpr DelimTokenizer Stopper(StopDelim);
+    constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, tokenizer::NormalFuncPrefixTokenizer,
+        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer>(Stopper);
+    
+    std::optional<FuncArgRaw> oprend1, oprend2;
+    std::optional<EmbedOps> op;
+    const auto handleToken = [&]()
+    {
+        const auto token = GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
 
+        {
+            const auto type = token.GetIDEnum();
+            if (type == BaseToken::Unknown || type == BaseToken::Error)
+                throw U"unknown or error token"sv;
+            if (type == BaseToken::Delim || type == BaseToken::End)
+                return false;
+        }
 
-    return ComplexFuncArgRaw();
+        if (token.GetIDEnum<SectorLangToken>() == SectorLangToken::EmbedOp)
+        {
+            if (op.has_value())
+                throw U"Already has op"sv;
+            const auto opval = static_cast<EmbedOps>(token.GetUInt());
+            const bool isUnary = EmbedOpHelper::IsUnaryOp(opval);
+            if (isUnary && oprend1.has_value())
+                throw U"Expect no operand before unary operator"sv;
+            if (!isUnary && !oprend1.has_value())
+                throw U"Expect operand before binary operator"sv;
+            op = opval;
+        }
+        else
+        {
+            auto& target = op.has_value() ? oprend1 : oprend2;
+            if (target.has_value())
+                throw U"Already has oprend"sv;
+            switch (token.GetID())
+            {
+            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };          break;
+            EID(BaseToken::String)      : target = token.GetString();                         break;
+            EID(BaseToken::Uint)        : target = token.GetUInt();                           break;
+            EID(BaseToken::Int)         : target = token.GetInt();                            break;
+            EID(BaseToken::FP)          : target = token.GetDouble();                         break;
+            EID(BaseToken::Bool)        : target = token.GetBool();                           break;
+            EID(SectorLangToken::Func)  : target = ParseFuncBody(token.GetString(), Context); break;
+            default                     : throw U"Unexpected token"sv;
+            }
+        }
+        return true;
+    };
+
+    while (handleToken()) { }
+    // exit from delim or end
+
+    if (!op.has_value())
+    {
+        Expects(!oprend2.has_value());
+        return oprend1;
+    }
+    else
+    {
+        Expects(oprend1.has_value());
+        if (!EmbedOpHelper::IsUnaryOp(op.value()))
+        {
+            if (!oprend2.has_value())
+                throw U"Lack 2nd oprend for binary operator"sv;
+        }
+        return std::make_unique<EmbedStatement>(oprend1.value(), oprend2.value(), op.value());
+    }
 }
 
 }

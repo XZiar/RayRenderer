@@ -1,6 +1,7 @@
 #pragma once
 #include "SectorsStruct.h"
 #include "common/parser/ParserBase.hpp"
+#include <optional>
 
 
 namespace xziar::sectorlang
@@ -12,8 +13,9 @@ private:
     ComplexArgParser(common::parser::ParserContext& context) :
         ParserBase(context) { }
     template<typename StopDelimer>
-    ComplexFuncArgRaw ParseArg();
+    std::optional<FuncArgRaw> ParseArg();
 public:
+    static FuncCall ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context);
 };
 
 class FuncBodyParser : public common::parser::ParserBase

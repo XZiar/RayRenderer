@@ -37,7 +37,6 @@ enum class SectorLangToken : uint16_t
     __RangeMax = 192
 };
 
-
 template<char32_t Pfx>
 class PrefixedTokenizer : public common::parser::tokenizer::TokenizerBase
 {
@@ -56,7 +55,7 @@ public:
     }
 };
 
-class BlockPrefixTokenizer : public PrefixedTokenizer<U'$'>
+class BlockPrefixTokenizer : public PrefixedTokenizer<U'#'>
 {
 public:
     forceinline constexpr ParserToken GetToken(StateData, ContextReader& reader, std::u32string_view txt) const noexcept
@@ -80,19 +79,26 @@ public:
     }
 };
 
-class MetaFuncPrefixTokenizer : public PrefixedTokenizer<U'@'>
+template<char32_t Pfx, SectorLangToken Type>
+class FuncPrefixTokenizer : public PrefixedTokenizer<Pfx>
 {
 public:
     forceinline constexpr ParserToken GetToken(StateData, ContextReader& reader, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
-        const auto funcname = ReadFullName(reader);
+        const auto funcname = PrefixedTokenizer<Pfx>::ReadFullName(reader);
         if (funcname.empty())
             return ParserToken(BaseToken::Error, funcname);
-        return ParserToken(SectorLangToken::MetaFunc, funcname);
-
+        return ParserToken(Type, funcname);
     }
 };
+
+class MetaFuncPrefixTokenizer : public FuncPrefixTokenizer<U'@', SectorLangToken::MetaFunc>
+{ };
+
+class NormalFuncPrefixTokenizer : public FuncPrefixTokenizer<U'$', SectorLangToken::Func>
+{ };
+
 
 class VariableTokenizer : public ASCII2PartTokenizer
 {
@@ -146,7 +152,7 @@ public:
     forceinline constexpr ParserToken GetToken(StateData, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken(SectorLangToken::EmbedOp, common::enum_cast(EmbedOps::op))
+#define RET_OP(str, op) case str ## _hash: return ParserToken( SectorLangToken::EmbedOp, common::enum_cast(EmbedOps::op))
         switch (hash_(txt))
         {
         RET_OP("==", Equal);
@@ -165,6 +171,7 @@ public:
         RET_OP("%",  Rem);
         default:     return ParserToken(BaseToken::Error, txt);
         }
+#undef RET_OP
     }
 };
 
