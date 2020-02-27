@@ -63,7 +63,6 @@ MetaFunc FuncBodyParser::ParseFuncBody(std::u32string_view funcName, common::par
 template<typename StopDelimer>
 std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
 {
-#define EID(id) case common::enum_cast(id)
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     
@@ -103,17 +102,20 @@ std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
             auto& target = op.has_value() ? oprend1 : oprend2;
             if (target.has_value())
                 throw U"Already has oprend"sv;
+#define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };          break;
-            EID(BaseToken::String)      : target = token.GetString();                         break;
-            EID(BaseToken::Uint)        : target = token.GetUInt();                           break;
-            EID(BaseToken::Int)         : target = token.GetInt();                            break;
-            EID(BaseToken::FP)          : target = token.GetDouble();                         break;
-            EID(BaseToken::Bool)        : target = token.GetBool();                           break;
-            EID(SectorLangToken::Func)  : target = ParseFuncBody(token.GetString(), Context); break;
+            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };            break;
+            EID(BaseToken::String)      : target = token.GetString();                           break;
+            EID(BaseToken::Uint)        : target = token.GetUInt();                             break;
+            EID(BaseToken::Int)         : target = token.GetInt();                              break;
+            EID(BaseToken::FP)          : target = token.GetDouble();                           break;
+            EID(BaseToken::Bool)        : target = token.GetBool();                             break;
+            EID(SectorLangToken::Func)  : 
+                target = std::make_unique<FuncCall>(ParseFuncBody(token.GetString(), Context)); break;
             default                     : throw U"Unexpected token"sv;
             }
+#undef EID
         }
         return true;
     };
@@ -128,14 +130,56 @@ std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
     }
     else
     {
-        Expects(oprend1.has_value());
-        if (!EmbedOpHelper::IsUnaryOp(op.value()))
+        if (EmbedOpHelper::IsUnaryOp(*op))
         {
+            Expects(!oprend1.has_value());
+            if (!oprend2.has_value())
+                throw U"Lack oprend for unary operator"sv;
+            return std::make_unique<UnaryStatement>(*op, std::move(*oprend2));
+
+        }
+        else
+        {
+            Expects(oprend1.has_value());
             if (!oprend2.has_value())
                 throw U"Lack 2nd oprend for binary operator"sv;
+            return std::make_unique<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2));
         }
-        return std::make_unique<EmbedStatement>(oprend1.value(), oprend2.value(), op.value());
     }
+}
+
+void ComplexArgParser::EatLeftBracket()
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+
+    constexpr ParserToken BracketL(BaseToken::Delim, U'(');
+    constexpr auto ExpectBracketL = TokenMatcherHelper::GetMatcher(std::array{ BracketL });
+
+    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer>();
+    ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
+}
+
+FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
+{
+    struct Delimer
+    {
+        constexpr operator std::string_view() noexcept
+        {
+            return ",)"sv;
+        }
+    };
+    ComplexArgParser parser(context);
+    parser.EatLeftBracket();
+    FuncCall func{ funcName,{} };
+    while (true)
+    {
+        auto arg = parser.ParseArg<Delimer>();
+        if (!arg.has_value())
+            break;
+        func.Args.emplace_back(std::move(*arg));
+    }
+    return func;
 }
 
 }

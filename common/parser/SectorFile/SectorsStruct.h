@@ -14,8 +14,9 @@ class MemoryPool
 {
 private:
     std::vector<std::tuple<std::byte*, size_t, size_t>> Trunks;
-    size_t TrunkSize = 0;
+    size_t TrunkSize;
 public:
+    MemoryPool(const size_t trunkSize = 2 * 1024 * 1024) : TrunkSize(trunkSize) { }
     common::span<std::byte> Alloc(const size_t size);
     template<typename T>
     forceinline common::span<std::byte> Alloc()
@@ -47,9 +48,10 @@ struct EmbedOpHelper
 
 
 struct FuncCall;
-struct EmbedStatement;
+struct UnaryStatement;
+struct BinaryStatement;
 
-using FuncArgRaw = std::variant<std::unique_ptr<FuncCall>, std::unique_ptr<EmbedStatement>, 
+using FuncArgRaw = std::variant<std::unique_ptr<FuncCall>, std::unique_ptr<UnaryStatement>, std::unique_ptr<BinaryStatement>,
     LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
 
 struct FuncCall
@@ -57,10 +59,19 @@ struct FuncCall
     std::u32string_view Name;
     std::vector<FuncArgRaw> Args;
 };
-struct EmbedStatement
+struct UnaryStatement
+{
+    FuncArgRaw Oprend;
+    EmbedOps Operator;
+    UnaryStatement(EmbedOps op, FuncArgRaw&& oprend) noexcept : 
+        Oprend(std::move(oprend)), Operator(std::move(op)) { }
+};
+struct BinaryStatement
 {
     FuncArgRaw LeftOprend, RightOprend;
     EmbedOps Operator;
+    BinaryStatement(EmbedOps op, FuncArgRaw&& left, FuncArgRaw&& right) noexcept :
+        LeftOprend(std::move(left)), RightOprend(std::move(right)), Operator(std::move(op)) { }
 };
 
 using BasicFuncArgRaw = std::variant<LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;

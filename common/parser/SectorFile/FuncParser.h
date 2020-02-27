@@ -14,6 +14,7 @@ private:
         ParserBase(context) { }
     template<typename StopDelimer>
     std::optional<FuncArgRaw> ParseArg();
+    void EatLeftBracket();
 public:
     static FuncCall ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context);
 };
