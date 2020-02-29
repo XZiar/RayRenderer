@@ -1,4 +1,5 @@
 #include "rely.h"
+#include <algorithm>
 #include "common/parser/SectorFile/ParserRely.h"
 #include "common/parser/SectorFile/SectorsParser.h"
 #include "common/parser/SectorFile/FuncParser.h"
@@ -13,6 +14,40 @@ using xziar::sectorlang::SectorsParser;
 
 #define CHECK_TK(token, etype, type, action, val) do { EXPECT_EQ(token.GetIDEnum<etype>(), etype::type); EXPECT_EQ(token.action(), val); } while(0)
 #define CHECK_BASE_TK(token, type, action, val) CHECK_TK(token, common::parser::BaseToken, type, action, val)
+
+
+TEST(SectorFileBase, MemoryPool)
+{
+    xziar::sectorlang::MemoryPool pool;
+    {
+        const auto space = pool.Alloc(10, 1);
+        std::generate(space.begin(), space.end(), [i = 0]() mutable { return std::byte(i++); });
+        {
+            int i = 0;
+            for (const auto dat : space)
+                EXPECT_EQ(dat, std::byte(i++));
+        }
+    }
+    {
+        const auto space = pool.Alloc(4, 128);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 128, 0);
+    }
+    {
+        const auto arr = pool.Create<std::array<double, 3>>(std::array{ 1.0,2.0,3.0 });
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(arr) % alignof(double), 0);
+        EXPECT_THAT(*arr, testing::ElementsAre(1.0, 2.0, 3.0));
+    }
+    {
+        const auto space = pool.Alloc(3 * 1024 * 1024, 4096);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0);
+        const auto space2 = pool.Alloc(128, 1);
+        EXPECT_EQ(space2.data() - space.data(), 3 * 1024 * 1024);
+    }
+    {
+        const auto space = pool.Alloc(36 * 1024 * 1024, 8192);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0);
+    }
+}
 
 TEST(SectorFileBase, EmbedOpTokenizer)
 {

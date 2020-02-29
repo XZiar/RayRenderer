@@ -1,32 +1,47 @@
 #include "SectorsStruct.h"
+#include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 
 
 namespace xziar::sectorlang
 {
 
-
-common::span<std::byte> MemoryPool::Alloc(const size_t size)
+MemoryPool::~MemoryPool()
 {
+    for ([[maybe_unused]] const auto& [ptr, offset, avaliable] : Trunks)
+    {
+        common::free_align(ptr);
+    }
+}
+
+common::span<std::byte> MemoryPool::Alloc(const size_t size, const size_t align)
+{
+    Expects(align > 0);
     for (auto& [ptr, offset, avaliable] : boost::adaptors::reverse(Trunks))
     {
         if (avaliable > size)
         {
-            const common::span<std::byte> ret(ptr + offset, size);
-            offset += size, avaliable -= size;
-            return ret;
+            const auto ptr_ = reinterpret_cast<uintptr_t>(ptr + offset + align - 1) / align * align;
+            const auto offset_ = reinterpret_cast<std::byte*>(ptr_) - ptr;
+            if (offset_ + size <= offset + avaliable)
+            {
+                const common::span<std::byte> ret(ptr + offset_, size);
+                avaliable -= (offset_ - offset) + size;
+                offset = offset_;
+                return ret;
+            }
         }
     }
     if (size > 16 * TrunkSize)
     {
-        auto ptr = reinterpret_cast<std::byte*>(malloc(size));
+        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(size, align));
         Trunks.emplace_back(ptr, size, 0);
         return common::span<std::byte>(ptr, size);
     }
     else
     {
         const auto total = (size + TrunkSize - 1) / TrunkSize * TrunkSize;
-        auto ptr = reinterpret_cast<std::byte*>(malloc(size));
+        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(size, align));
         Trunks.emplace_back(ptr, size, total - size);
         return common::span<std::byte>(ptr, size);
     }

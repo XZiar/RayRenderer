@@ -10,24 +10,27 @@
 namespace xziar::sectorlang
 {
 
-class MemoryPool
+class MemoryPool : public common::NonCopyable
 {
 private:
     std::vector<std::tuple<std::byte*, size_t, size_t>> Trunks;
     size_t TrunkSize;
 public:
     MemoryPool(const size_t trunkSize = 2 * 1024 * 1024) : TrunkSize(trunkSize) { }
-    common::span<std::byte> Alloc(const size_t size);
+    MemoryPool(MemoryPool&& other) noexcept = default;
+    ~MemoryPool();
+    common::span<std::byte> Alloc(const size_t size, const size_t align = 64);
     template<typename T>
     forceinline common::span<std::byte> Alloc()
     {
-        return Alloc(sizeof(T));
+        return Alloc(sizeof(T), alignof(T));
     }
     template<typename T, typename... Args>
     forceinline T* Create(Args&&... args)
     {
         const auto space = Alloc<T>();
         new (space.data()) T(std::forward<Args>(args)...);
+        return reinterpret_cast<T*>(space.data());
     }
 };
 
