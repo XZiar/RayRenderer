@@ -13,7 +13,7 @@ private:
     ComplexArgParser(common::parser::ParserContext& context) :
         ParserBase(context) { }
     template<typename StopDelimer>
-    std::optional<FuncArgRaw> ParseArg();
+    std::pair<std::optional<FuncArgRaw>, char32_t> ParseArg();
     void EatLeftBracket();
 public:
     static FuncCall ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context);

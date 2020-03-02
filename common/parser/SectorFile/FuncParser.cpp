@@ -17,7 +17,6 @@ void FuncBodyParser::FillFuncBody(MetaFunc& func)
     constexpr ParserToken Comma   (BaseToken::Delim, U',');
     constexpr auto ExpectBracketL        = TokenMatcherHelper::GetMatcher(std::array{ BracketL });
     constexpr auto ExpectCommaOrBracketR = TokenMatcherHelper::GetMatcher(std::array{ Comma, BracketR });
-    //constexpr auto ExpectArg = TokenMatcherHelper::GetMatcher(std::array{ BracketR }, BaseToken::String, BaseToken::Uint, BaseToken::Int, BaseToken::FP, BaseToken::Bool, SectorLangToken::Var);
 
     constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer>(BracketDelim);
     ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
@@ -37,7 +36,7 @@ void FuncBodyParser::FillFuncBody(MetaFunc& func)
                 return;
             else
                 throw U"Not ')' delim"sv;
-        default: // must be SectorLangToken::Var
+        default:
             if (token.GetIDEnum<SectorLangToken>() == SectorLangToken::Var)
             {
                 func.Args.emplace_back(LateBindVar{ token.GetString() }); break;
@@ -61,19 +60,20 @@ MetaFunc FuncBodyParser::ParseFuncBody(std::u32string_view funcName, common::par
 
 
 template<typename StopDelimer>
-std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
+std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     
-    constexpr std::string_view StopDelim = StopDelimer();
-    constexpr DelimTokenizer Stopper(StopDelim);
+    constexpr DelimTokenizer StopDelim = StopDelimer::Stopper;
     constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, tokenizer::NormalFuncPrefixTokenizer,
-        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer>(Stopper);
+        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
     
     std::optional<FuncArgRaw> oprend1, oprend2;
     std::optional<EmbedOps> op;
-    const auto handleToken = [&]()
+    char32_t stopChar = common::parser::special::CharEnd;
+
+    while (true) 
     {
         const auto token = GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
 
@@ -82,7 +82,10 @@ std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
             if (type == BaseToken::Unknown || type == BaseToken::Error)
                 throw U"unknown or error token"sv;
             if (type == BaseToken::Delim || type == BaseToken::End)
-                return false;
+            {
+                stopChar = token.GetChar();  
+                break;
+            }
         }
 
         if (token.GetIDEnum<SectorLangToken>() == SectorLangToken::EmbedOp)
@@ -99,7 +102,7 @@ std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
         }
         else
         {
-            auto& target = op.has_value() ? oprend1 : oprend2;
+            auto& target = op.has_value() ? oprend2 : oprend1;
             if (target.has_value())
                 throw U"Already has oprend"sv;
 #define EID(id) case common::enum_cast(id)
@@ -117,34 +120,28 @@ std::optional<FuncArgRaw> ComplexArgParser::ParseArg()
             }
 #undef EID
         }
-        return true;
-    };
-
-    while (handleToken()) { }
+    }
     // exit from delim or end
 
     if (!op.has_value())
     {
         Expects(!oprend2.has_value());
-        return oprend1;
+        return { std::move(oprend1), stopChar };
+    }
+    else if (EmbedOpHelper::IsUnaryOp(*op))
+    {
+        Expects(!oprend1.has_value());
+        if (!oprend2.has_value())
+            throw U"Lack oprend for unary operator"sv;
+        return { std::make_unique<UnaryStatement>(*op, std::move(*oprend2)), stopChar };
+
     }
     else
     {
-        if (EmbedOpHelper::IsUnaryOp(*op))
-        {
-            Expects(!oprend1.has_value());
-            if (!oprend2.has_value())
-                throw U"Lack oprend for unary operator"sv;
-            return std::make_unique<UnaryStatement>(*op, std::move(*oprend2));
-
-        }
-        else
-        {
-            Expects(oprend1.has_value());
-            if (!oprend2.has_value())
-                throw U"Lack 2nd oprend for binary operator"sv;
-            return std::make_unique<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2));
-        }
+        Expects(oprend1.has_value());
+        if (!oprend2.has_value())
+            throw U"Lack 2nd oprend for binary operator"sv;
+        return { std::make_unique<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
     }
 }
 
@@ -160,24 +157,24 @@ void ComplexArgParser::EatLeftBracket()
     ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
 }
 
+struct FuncDelimer
+{
+    static constexpr DelimTokenizer Stopper = ",)"sv;
+};
+
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
 {
-    struct Delimer
-    {
-        constexpr operator std::string_view() noexcept
-        {
-            return ",)"sv;
-        }
-    };
     ComplexArgParser parser(context);
     parser.EatLeftBracket();
     FuncCall func{ funcName,{} };
     while (true)
     {
-        auto arg = parser.ParseArg<Delimer>();
+        auto [arg, delim] = parser.ParseArg<FuncDelimer>();
         if (!arg.has_value())
             break;
         func.Args.emplace_back(std::move(*arg));
+        if (delim == U')' || delim == common::parser::special::CharEnd)
+            break;
     }
     return func;
 }

@@ -8,6 +8,16 @@ using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
 using xziar::sectorlang::SectorsParser;
+using xziar::sectorlang::ComplexArgParser;
+using xziar::sectorlang::EmbedOps;
+using xziar::sectorlang::LateBindVar;
+using xziar::sectorlang::BinaryStatement;
+using xziar::sectorlang::UnaryStatement;
+using xziar::sectorlang::FuncCall;
+
+
+#define CHECK_VAR_ARG(target, type, val) EXPECT_EQ(std::get<type>(target), val)
+#define CHECK_VAR_ARG_PROP(target, type, prop, val) EXPECT_EQ(std::get<type>(target).prop, val)
 
 
 static std::u32string ReplaceNewLine(std::u32string_view txt)
@@ -98,20 +108,20 @@ TEST(SectorsParser, ParseMetaFunc)
     {
         const auto func = ParseFunc(U"(123)"sv);
         EXPECT_EQ(func.Args.size(), 1);
-        EXPECT_EQ(std::get<uint64_t>(func.Args[0]), 123);
+        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
     }
     {
         const auto func = ParseFunc(U"(123, -4.5)"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        EXPECT_EQ(std::get<uint64_t>(func.Args[0]), 123);
-        EXPECT_EQ(std::get<double>  (func.Args[1]), -4.5);
+        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
+        CHECK_VAR_ARG(func.Args[1], double,   -4.5);
     }
     {
         const auto func = ParseFunc(U"(v3.1, -4.5, k67)"sv);
         EXPECT_EQ(func.Args.size(), 3);
-        EXPECT_EQ(std::get<xziar::sectorlang::LateBindVar>(func.Args[0]).Name, U"v3.1"sv);
-        EXPECT_EQ(std::get<double>  (func.Args[1]), -4.5);
-        EXPECT_EQ(std::get<xziar::sectorlang::LateBindVar>(func.Args[2]).Name, U"k67"sv);
+        CHECK_VAR_ARG_PROP(func.Args[0], LateBindVar, Name, U"v3.1"sv);
+        CHECK_VAR_ARG(func.Args[1], double,      -4.5);
+        CHECK_VAR_ARG_PROP(func.Args[2], LateBindVar, Name, U"k67"sv);
     }
 }
 
@@ -165,14 +175,14 @@ Here
             const auto& meta = sector.MetaFunctions[0];
             EXPECT_EQ(meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 1);
-            EXPECT_EQ(std::get<uint64_t>(meta.Args[0]), 1);
+            CHECK_VAR_ARG(meta.Args[0], uint64_t, 1);
         }
         {
             const auto& meta = sector.MetaFunctions[1];
             EXPECT_EQ(meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 2);
-            EXPECT_EQ(std::get<xziar::sectorlang::LateBindVar>(meta.Args[0]).Name, U"abc");
-            EXPECT_EQ(std::get<uint64_t>(meta.Args[1]), 0xff);
+            CHECK_VAR_ARG_PROP(meta.Args[0], LateBindVar, Name, U"abc");
+            CHECK_VAR_ARG(meta.Args[1], uint64_t,    0xff);
         }
         {
             const auto sector_ = Parser.ParseNextSector();
@@ -180,6 +190,88 @@ Here
             EXPECT_EQ(sector_.Name, U"Hello"sv);
             EXPECT_EQ(ReplaceNewLine(sector_.Content), U"Here\n"sv);
             EXPECT_EQ(sector_.MetaFunctions.size(), 0);
+        }
+    }
+}
+
+
+TEST(SectorsParser, ParseFuncBody)
+{
+    {
+        constexpr auto src = U"()"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 0);
+    }
+    {
+        constexpr auto src = U"(123, -456)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 2);
+        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
+        CHECK_VAR_ARG(func.Args[1], int64_t,  -456);
+    }
+    {
+        constexpr auto src = U"(1 + 2)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 1);
+        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[0]));
+        const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[0]);
+        CHECK_VAR_ARG(stmt.LeftOprend,  uint64_t, 1);
+        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
+        CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 2);
+    }
+    {
+        constexpr auto src = U"(! false, 3.5 + var)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 2);
+        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<UnaryStatement>> (func.Args[0]));
+        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[1]));
+        {
+            const auto& stmt = *std::get<std::unique_ptr<UnaryStatement>>(func.Args[0]);
+            EXPECT_EQ(stmt.Operator, EmbedOps::Not);
+            CHECK_VAR_ARG(stmt.Oprend, bool, false);
+        }
+        {
+            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[1]);
+            CHECK_VAR_ARG(stmt.LeftOprend, double, 3.5);
+            EXPECT_EQ(stmt.Operator, EmbedOps::Add);
+            CHECK_VAR_ARG_PROP(stmt.RightOprend, LateBindVar, Name, U"var");
+        }
+    }
+    {
+        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, 4 == 9))"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 2);
+        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[0]));
+        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<FuncCall>>(func.Args[1]));
+        {
+            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[0]);
+            CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 6);
+            EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
+            EXPECT_TRUE(std::holds_alternative<std::unique_ptr<FuncCall>>(stmt.RightOprend));
+            const auto& fcall = *std::get<std::unique_ptr<FuncCall>>(stmt.RightOprend);
+            EXPECT_EQ(fcall.Name, U"foo"sv);
+            EXPECT_EQ(fcall.Args.size(), 1);
+            CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"bar");
+        }
+        {
+            const auto& fcall = *std::get<std::unique_ptr<FuncCall>>(func.Args[1]);
+            EXPECT_EQ(fcall.Name, U"foo"sv);
+            EXPECT_EQ(fcall.Args.size(), 2);
+            CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"bar");
+            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(fcall.Args[1]);
+            CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 4);
+            EXPECT_EQ(stmt.Operator, EmbedOps::Equal);
+            CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 9);
         }
     }
 }
