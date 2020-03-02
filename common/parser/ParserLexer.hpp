@@ -37,7 +37,7 @@ inline constexpr bool CheckRepeatTypes() noexcept
 
 struct TokenizerData
 {
-    tokenizer::StateData State;
+    uint32_t State;
     std::array<tokenizer::TokenizerResult, 2> Result = { tokenizer::TokenizerResult::Pending, tokenizer::TokenizerResult::Pending };
     std::array<uint8_t, 2> Dummy = { 0, 0 };
 };
@@ -50,7 +50,7 @@ class ParserLexerBase
 {
     static_assert(detail::CheckRepeatTypes<TKs...>(), "tokenizer types should be unique");
 private:
-    enum class MatchResults { NotBegin, Preempt, FullMatch, Waitlist, Pending, NoMatch, Wrong };
+    enum class MatchResults { FullMatch, Waitlist, Pending, NoMatch };
 
     static constexpr auto TKCount = sizeof...(TKs);
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
@@ -86,18 +86,26 @@ private:
         if (prev == TokenizerResult::Pending || prev == TokenizerResult::Waitlist)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            result = tokenizer.OnChar(status[N].State, ch, idx);
+            using StateData = typename TKType<N>::StateData;
+            auto& state = status[N].State;
+            const auto oldState = state;
+            if constexpr (std::is_same_v<StateData, void>)
+                result = tokenizer.OnChar(ch, idx);
+            else
+            {
+                const auto ret = tokenizer.OnChar(static_cast<StateData>(status[N].State), ch, idx);
+                state = static_cast<uint32_t>(ret.first), result = ret.second;
+            }
             switch (result)
             {
             case TokenizerResult::FullMatch:
                 return MatchResults::FullMatch;
-            case TokenizerResult::Preempt:
-                return MatchResults::Preempt;
             case TokenizerResult::Waitlist:
                 waitlist++; break;
             case TokenizerResult::Pending:
                 pendings++; break;
             default:
+                state = oldState;
                 break;
             }
         }
@@ -120,7 +128,11 @@ private:
         if (result == target)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            return tokenizer.GetToken(status[N].State, reader, tksv);
+            using StateData = typename TKType<N>::StateData;
+            if constexpr (std::is_same_v<StateData, void>)
+                return tokenizer.GetToken(reader, tksv);
+            else
+                return tokenizer.GetToken(static_cast<StateData>(status[N].State), reader, tksv);
         }
         if constexpr (N + 1 < TKCount)
             return OutputToken<N + 1>(status, offset, reader, tksv, target);
@@ -169,43 +181,45 @@ public:
         ResultArray status = { {} };
         status.fill({});
         size_t count = 0;
-        MatchResults mth = MatchResults::NotBegin;
+        MatchResults prev = MatchResults::NoMatch, mth = prev;
         char32_t ch = '\0';
 
         while (true)
         {
             ch = reader.PeekNext();
-            if (ch == special::CharEnd || isIgnore(ch)) // force stop checking
+            if (count == 0)
+                Expects(!isIgnore(ch));
+            if (ch == special::CharEnd || isIgnore(ch))// force stop checking
                 break;
 
+            prev = mth;
             mth = InvokeTokenizer(status, ch, count);
 
-            if (mth == MatchResults::Preempt)
+            if (prev != MatchResults::NoMatch && mth == MatchResults::NoMatch) // max matched
                 break;
 
             reader.MoveNext();
             count++;
 
-            if (mth == MatchResults::FullMatch)
+            if (mth == MatchResults::FullMatch || mth == MatchResults::NoMatch)
                 break;
         }
 
         const auto tokenTxt = reader.CommitRead();
 
         const size_t offset = (count & 1) ? 0 : 1;
-        switch (mth)
+
+        switch (mth == MatchResults::NoMatch ? prev : mth)
         {
         case MatchResults::FullMatch:
             return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::FullMatch);
         case MatchResults::Waitlist:
-        case MatchResults::Preempt:
             return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist);
-        case MatchResults::NotBegin:
-            return ParserToken(BaseToken::End);
-        case MatchResults::Wrong:
-            return ParserToken(BaseToken::Error, tokenTxt);
         default:
-            return ParserToken(BaseToken::Unknown, tokenTxt);
+            if (count == 0 && ch == special::CharEnd)
+                return ParserToken(BaseToken::End);
+            else
+                return ParserToken(BaseToken::Unknown, tokenTxt);
         }
     }
 

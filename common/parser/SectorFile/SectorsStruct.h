@@ -5,6 +5,7 @@
 #include <variant>
 #include <string>
 #include <string_view>
+#include <cstdio>
 
 
 namespace xziar::sectorlang
@@ -12,7 +13,7 @@ namespace xziar::sectorlang
 
 class MemoryPool : public common::NonCopyable
 {
-private:
+public:
     std::vector<std::tuple<std::byte*, size_t, size_t>> Trunks;
     size_t TrunkSize;
 public:
@@ -25,6 +26,7 @@ public:
     {
         return Alloc(sizeof(T), alignof(T));
     }
+
     template<typename T, typename... Args>
     forceinline T* Create(Args&&... args)
     {

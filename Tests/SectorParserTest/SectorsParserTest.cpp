@@ -246,7 +246,7 @@ TEST(SectorsParser, ParseFuncBody)
         }
     }
     {
-        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, 4 == 9))"sv;
+        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, 4==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
         EXPECT_EQ(func.Name, U"func"sv);

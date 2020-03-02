@@ -8,7 +8,6 @@ namespace xziar::sectorlang
 {
 using namespace std::string_view_literals;
 using common::parser::tokenizer::TokenizerResult;
-using common::parser::tokenizer::StateData;
 using common::parser::tokenizer::ASCIIRawTokenizer;
 using common::parser::tokenizer::CommentTokenizer;
 using common::parser::tokenizer::DelimTokenizer;
@@ -47,7 +46,8 @@ protected:
         return reader.ReadWhile(FullnameMatcher);
     }
 public:
-    constexpr TokenizerResult OnChar(StateData, const char32_t ch, const size_t idx) const noexcept
+    using StateData = void;
+    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         if (idx == 0 && ch == Pfx)
             return TokenizerResult::FullMatch;
@@ -58,7 +58,7 @@ public:
 class BlockPrefixTokenizer : public PrefixedTokenizer<U'#'>
 {
 public:
-    forceinline constexpr ParserToken GetToken(StateData, ContextReader& reader, std::u32string_view txt) const noexcept
+    forceinline constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
         const auto fullname = ReadFullName(reader);
@@ -83,7 +83,7 @@ template<char32_t Pfx, SectorLangToken Type>
 class FuncPrefixTokenizer : public PrefixedTokenizer<Pfx>
 {
 public:
-    forceinline constexpr ParserToken GetToken(StateData, ContextReader& reader, std::u32string_view txt) const noexcept
+    forceinline constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
         const auto funcname = PrefixedTokenizer<Pfx>::ReadFullName(reader);
@@ -112,44 +112,44 @@ public:
 class EmbedOpTokenizer
 {
 public:
-    constexpr TokenizerResult OnChar(StateData& prevChar, const char32_t ch, const size_t idx) const noexcept
+    using StateData = char32_t;
+    constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
     {
-        Expects((idx == 0) == (prevChar.Val == 0));
+        Expects((idx == 0) == (prevChar == 0));
         switch (idx)
         {
         case 0: // just begin
-            prevChar.Val = ch;
             switch (ch)
             {
-            case U'=':  return TokenizerResult::Pending;
-            case U'!':  return TokenizerResult::Waitlist;
-            case U'<':  return TokenizerResult::Waitlist;
-            case U'>':  return TokenizerResult::Waitlist;
-            case U'&':  return TokenizerResult::Pending;
-            case U'|':  return TokenizerResult::Pending;
-            case U'+':  return TokenizerResult::Waitlist;
-            case U'-':  return TokenizerResult::Waitlist;
-            case U'*':  return TokenizerResult::Waitlist;
-            case U'/':  return TokenizerResult::Waitlist;
-            case U'%':  return TokenizerResult::Waitlist;
-            default:    return TokenizerResult::NotMatch;
+            case U'=':  return { ch, TokenizerResult::Pending  };
+            case U'!':  return { ch, TokenizerResult::Waitlist };
+            case U'<':  return { ch, TokenizerResult::Waitlist };
+            case U'>':  return { ch, TokenizerResult::Waitlist };
+            case U'&':  return { ch, TokenizerResult::Pending  };
+            case U'|':  return { ch, TokenizerResult::Pending  };
+            case U'+':  return { ch, TokenizerResult::Waitlist };
+            case U'-':  return { ch, TokenizerResult::Waitlist };
+            case U'*':  return { ch, TokenizerResult::Waitlist };
+            case U'/':  return { ch, TokenizerResult::Waitlist };
+            case U'%':  return { ch, TokenizerResult::Waitlist };
+            default:    return { ch, TokenizerResult::NotMatch };
             }
         case 1:
-            switch (prevChar.Val)
+            switch (prevChar)
             {
-            case U'=': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            case U'!': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            case U'<': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            case U'>': return ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            case U'&': return ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            case U'|': return ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
-            default:   return TokenizerResult::NotMatch;
+            case U'=': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'!': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'<': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'>': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'&': return { ch, ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'|': return { ch, ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            default:   return { ch, TokenizerResult::NotMatch };
             }
         default:
-            return TokenizerResult::NotMatch;
+            return { ch, TokenizerResult::NotMatch };
         }
     }
-    forceinline constexpr ParserToken GetToken(StateData, ContextReader&, std::u32string_view txt) const noexcept
+    forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
 #define RET_OP(str, op) case str ## _hash: return ParserToken( SectorLangToken::EmbedOp, common::enum_cast(EmbedOps::op))

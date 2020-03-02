@@ -2,7 +2,6 @@
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 
-
 namespace xziar::sectorlang
 {
 
@@ -27,7 +26,7 @@ common::span<std::byte> MemoryPool::Alloc(const size_t size, const size_t align)
             {
                 const common::span<std::byte> ret(ptr + offset_, size);
                 avaliable -= (offset_ - offset) + size;
-                offset = offset_;
+                offset = offset_ + size;
                 return ret;
             }
         }
@@ -41,7 +40,7 @@ common::span<std::byte> MemoryPool::Alloc(const size_t size, const size_t align)
     else
     {
         const auto total = (size + TrunkSize - 1) / TrunkSize * TrunkSize;
-        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(size, align));
+        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(total, align));
         Trunks.emplace_back(ptr, size, total - size);
         return common::span<std::byte>(ptr, size);
     }

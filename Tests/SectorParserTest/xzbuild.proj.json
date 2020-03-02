@@ -2,7 +2,7 @@
     "name": "SectorParserTest",
     "type": "executable",
     "description": "Sector Parser Test",
-    "dependency": ["SectorFile"],
+    "dependency": ["SectorFile", "fmt"],
     "library": 
     {
         "static": ["gtest", "gmock", "gtest_main"],

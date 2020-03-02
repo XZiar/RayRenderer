@@ -138,15 +138,15 @@ TEST(ParserLexer, LexerInt)
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"-0X12"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"-0X12"sv);
+        CHECK_TK(tokens[0], Int, GetInt, 0); // max-match
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0b123"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"0b123"sv);
+        CHECK_TK(tokens[0], Uint, GetUInt, 0b1); // max-match
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x1ax3"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"0x1ax3"sv);
+        CHECK_TK(tokens[0], Uint, GetUInt, 0x1a); // max-match
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x12345678901234567890"sv);
@@ -195,11 +195,11 @@ TEST(ParserLexer, LexerFP)
     }
     {
         const auto tokens = TKParse<FPTokenizer>(U"--123"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"--123"sv);
+        CHECK_TK(tokens[0], Unknown, GetString, U"-"sv); // fast-stop
     }
     {
         const auto tokens = TKParse<FPTokenizer>(U"1e.5"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"1e.5"sv);
+        CHECK_TK(tokens[0], Unknown, GetString, U"1e"sv); // fast-stop
     }
 }
 
@@ -220,7 +220,7 @@ TEST(ParserLexer, LexerBool)
     }
     {
         const auto tokens = TKParse<BoolTokenizer>(U"Fals3"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"Fals3"sv);
+        CHECK_TK(tokens[0], Unknown, GetString, U"Fals"sv); // fast-stop
     }
 }
 
@@ -245,7 +245,7 @@ TEST(ParserLexer, LexerASCIIRaw)
     }
     {
         const auto tokens = TKParse<ASCIIRawTokenizer>(U"fu_nc("sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"fu_nc("sv);
+        CHECK_TK(tokens[0], Raw, GetString, U"fu_nc"sv); // fast-stop
     }
 }
 
@@ -262,7 +262,7 @@ TEST(ParserLexer, LexerASCII2Part)
     }
     {
         const auto tokens = TKParse<ASCII2PartTokenizer>(U"1func"sv);
-        CHECK_TK(tokens[0], Unknown, GetString, U"1func"sv);
+        CHECK_TK(tokens[0], Unknown, GetString, U"1"sv);
     }
 }
 

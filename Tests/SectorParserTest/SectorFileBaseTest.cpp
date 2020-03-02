@@ -3,6 +3,7 @@
 #include "common/parser/SectorFile/ParserRely.h"
 #include "common/parser/SectorFile/SectorsParser.h"
 #include "common/parser/SectorFile/FuncParser.h"
+#include "3rdParty/fmt/utfext.h"
 
 
 using namespace std::string_view_literals;
@@ -15,6 +16,18 @@ using xziar::sectorlang::SectorsParser;
 #define CHECK_TK(token, etype, type, action, val) do { EXPECT_EQ(token.GetIDEnum<etype>(), etype::type); EXPECT_EQ(token.action(), val); } while(0)
 #define CHECK_BASE_TK(token, type, action, val) CHECK_TK(token, common::parser::BaseToken, type, action, val)
 
+
+static std::string PrintMemPool(const xziar::sectorlang::MemoryPool & pool) noexcept
+{
+    std::string txt = fmt::format("MemoryPool[{} trunks, default {} bytes]\n", pool.Trunks.size(), pool.TrunkSize);
+    auto ins = std::back_inserter(txt);
+    size_t i = 0;
+    for (const auto& [ptr, offset, avaliable] : pool.Trunks)
+    {
+        fmt::format_to(ins, "[{}] ptr[{}], offset[{}], avaliable[{}]\n", i++, (void*)ptr, offset, avaliable);
+    }
+    return txt;
+}
 
 TEST(SectorFileBase, MemoryPool)
 {
@@ -30,22 +43,22 @@ TEST(SectorFileBase, MemoryPool)
     }
     {
         const auto space = pool.Alloc(4, 128);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 128, 0);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 128, 0) << PrintMemPool(pool);
     }
     {
-        const auto arr = pool.Create<std::array<double, 3>>(std::array{ 1.0,2.0,3.0 });
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(arr) % alignof(double), 0);
-        EXPECT_THAT(*arr, testing::ElementsAre(1.0, 2.0, 3.0));
+        const auto& arr = *pool.Create<std::array<double, 3>>(std::array{ 1.0,2.0,3.0 });
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(&arr) % alignof(double), 0) << PrintMemPool(pool);
+        EXPECT_THAT(arr, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);
     }
     {
         const auto space = pool.Alloc(3 * 1024 * 1024, 4096);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0) << PrintMemPool(pool);
         const auto space2 = pool.Alloc(128, 1);
-        EXPECT_EQ(space2.data() - space.data(), 3 * 1024 * 1024);
+        EXPECT_EQ(space2.data() - space.data(), 3 * 1024 * 1024) << PrintMemPool(pool);
     }
     {
         const auto space = pool.Alloc(36 * 1024 * 1024, 8192);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0);
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0) << PrintMemPool(pool);
     }
 }
 
@@ -73,7 +86,7 @@ TEST(SectorFileBase, EmbedOpTokenizer)
 #define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
 #define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::sectorlang::tokenizer::SectorLangToken, EmbedOp, GetUInt, common::enum_cast(xziar::sectorlang::EmbedOps::type))
 
-#define CHECK_BIN_OP(src, type) do \
+#define CHECK_BIN_OP(src, type) do          \
     {                                       \
         const auto tokens = ParseAll(src);  \
         CHECK_BASE_UINT(tokens[0], 1);      \
@@ -82,6 +95,7 @@ TEST(SectorFileBase, EmbedOpTokenizer)
     } while(0)                              \
 
 
+    CHECK_BIN_OP(U"1==2"sv,   Equal);
     CHECK_BIN_OP(U"1 == 2"sv, Equal);
     CHECK_BIN_OP(U"1 != 2"sv, NotEqual);
     CHECK_BIN_OP(U"1 < 2"sv,  Less);
@@ -96,12 +110,12 @@ TEST(SectorFileBase, EmbedOpTokenizer)
     CHECK_BIN_OP(U"1 / 2"sv,  Div);
     CHECK_BIN_OP(U"1 % 2"sv,  Rem);
     {
-        const auto tokens = ParseAll(U"! 1"sv);
+        const auto tokens = ParseAll(U"!1"sv);
         CHECK_EMBED_OP(tokens[0], Not);
         CHECK_BASE_UINT(tokens[1], 1);
     }
     {
-        const auto tokens = ParseAll(U"1 += 2"sv);
+        const auto tokens = ParseAll(U"1+=2"sv);
         CHECK_BASE_UINT(tokens[0], 1);
         //CHECK_BASE_TK(tokens[1], Unknown, GetString, U"+="sv);
     }
