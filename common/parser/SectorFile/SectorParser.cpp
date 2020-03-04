@@ -12,16 +12,8 @@ SectorRaw SectorParser::ParseNextSector()
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
        
-    constexpr auto BracketDelim = DelimTokenizer("(){}");
-
     constexpr auto ExpectSectorOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Sector, SectorLangToken::MetaFunc);
-    constexpr ParserToken BracketL(BaseToken::Delim, U'(');
-    constexpr ParserToken BracketR(BaseToken::Delim, U')');
-    constexpr ParserToken CurlyBraceL(BaseToken::Delim, U'{');
-    constexpr auto ExpectBracketL = TokenMatcherHelper::GetMatcher(std::array{ BracketL });
-    constexpr auto ExpectBracketR = TokenMatcherHelper::GetMatcher(std::array{ BracketR });
-    constexpr auto ExpectString = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
-    constexpr auto ExpectCurlyBraceL = TokenMatcherHelper::GetMatcher(std::array{ CurlyBraceL });
+    constexpr auto ExpectString       = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
 
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
 
@@ -39,13 +31,14 @@ SectorRaw SectorParser::ParseNextSector()
         Expects(tkType == SectorLangToken::MetaFunc);
         metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
     }
-        
-    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer>(BracketDelim);
-    ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
+    
+    EatLeftParenthese();
+    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, StringTokenizer>();
     const auto sectorNameToken = ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectString);
     sector.Name = sectorNameToken.GetString();
-    ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketR);
-    ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectCurlyBraceL);
+    EatRightParenthese();
+
+    EatLeftCurlyBrace();
         
     ContextReader reader(Context);
     auto guardString = std::u32string(reader.ReadLine());

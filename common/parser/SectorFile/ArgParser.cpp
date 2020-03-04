@@ -110,22 +110,10 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
     }
 }
 
-void ComplexArgParser::EatLeftBracket()
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-
-    constexpr ParserToken BracketL(SectorLangToken::Parenthese, U'(');
-    constexpr auto ExpectBracketL = TokenMatcherHelper::GetMatcher(std::array{ BracketL });
-
-    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, tokenizer::ParentheseTokenizer>();
-    ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
-}
-
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
 {
     ComplexArgParser parser(pool, context);
-    parser.EatLeftBracket();
+    parser.EatLeftParenthese();
     std::vector<FuncArgRaw> args;
     while (true)
     {

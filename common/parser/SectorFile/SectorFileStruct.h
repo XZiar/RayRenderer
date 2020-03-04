@@ -45,8 +45,15 @@ public:
 
         if (data.size() == 0) return common::span<T>{};
         const auto space = Alloc(sizeof(T) * data.size(), alignof(T));
-        for (size_t i = 0; i < static_cast<size_t>(data.size()); ++i)
-            new (space.data() + sizeof(T) * i) T(data[i]);
+        if constexpr (std::is_trivially_copyable_v<T>)
+        {
+            memcpy_s(space.data(), space.size(), data.data(), sizeof(T) * data.size());
+        }
+        else
+        {
+            for (size_t i = 0; i < static_cast<size_t>(data.size()); ++i)
+                new (space.data() + sizeof(T) * i) T(data[i]);
+        }
         return common::span<T>(reinterpret_cast<T*>(space.data()), data.size());
     }
 };
@@ -83,15 +90,15 @@ struct UnaryStatement
 {
     FuncArgRaw Oprend;
     EmbedOps Operator;
-    UnaryStatement(EmbedOps op, FuncArgRaw&& oprend) noexcept : 
-        Oprend(std::move(oprend)), Operator(std::move(op)) { }
+    UnaryStatement(const EmbedOps op, const FuncArgRaw oprend) noexcept :
+        Oprend(oprend), Operator(op) { }
 };
 struct BinaryStatement
 {
     FuncArgRaw LeftOprend, RightOprend;
     EmbedOps Operator;
-    BinaryStatement(EmbedOps op, FuncArgRaw&& left, FuncArgRaw&& right) noexcept :
-        LeftOprend(std::move(left)), RightOprend(std::move(right)), Operator(std::move(op)) { }
+    BinaryStatement(const EmbedOps op, const FuncArgRaw left, const FuncArgRaw right) noexcept :
+        LeftOprend(left), RightOprend(right), Operator(op) { }
 };
 
 

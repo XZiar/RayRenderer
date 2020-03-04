@@ -31,19 +31,20 @@ enum class SectorLangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Sector, Block, MetaFunc, Func, Var, EmbedOp, Parenthese,
+    Sector, Block, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace,
 
     __RangeMax = 192
 };
 
-class ParentheseTokenizer : public common::parser::tokenizer::TokenizerBase
+template<auto Tid, char32_t... Char>
+class KeyCharTokenizer : public common::parser::tokenizer::TokenizerBase
 {
 public:
     using StateData = void;
     forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         Expects(idx == 0);
-        if (ch == U'(' || ch == U')')
+        if ((... || (ch == Char)))
             return TokenizerResult::FullMatch;
         else
             return TokenizerResult::NotMatch;
@@ -51,9 +52,14 @@ public:
     forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
-        return ParserToken(SectorLangToken::Parenthese, txt[0]);
+        return ParserToken(Tid, txt[0]);
     }
 };
+
+class ParentheseTokenizer : public KeyCharTokenizer<SectorLangToken::Parenthese, U'(', U')'>
+{ };
+class CurlyBraceTokenizer : public KeyCharTokenizer<SectorLangToken::CurlyBrace, U'{', U'}'>
+{ };
 
 template<char32_t Pfx>
 class PrefixedTokenizer : public common::parser::tokenizer::TokenizerBase

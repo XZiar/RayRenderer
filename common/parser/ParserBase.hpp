@@ -111,9 +111,9 @@ struct ParsingError : std::exception
 {
     std::pair<size_t, size_t> Position;
     ParserToken Token;
-    std::u16string_view Notice;
-    ParsingError(const ParserContext& context, const ParserToken token, const std::u16string_view notice) :
-        Position({ context.Row, context.Col }), Token(token), Notice(notice) { }
+    std::u16string Notice;
+    ParsingError(const ParserContext& context, const ParserToken token, std::u16string notice) :
+        Position({ context.Row, context.Col }), Token(token), Notice(std::move(notice)) { }
 };
 
 }
@@ -132,10 +132,10 @@ protected:
     constexpr ParserBase(ParserContext& context) : Context(context) 
     { }
 
-    virtual std::u32string DescribeTokenID(const ParserToken& token) const noexcept
+    virtual std::u16string DescribeTokenID(const uint16_t tid) const noexcept
     {
-#define RET_TK_ID(type) case BaseToken::type:        return U ## #type
-        switch (token.GetIDEnum())
+#define RET_TK_ID(type) case BaseToken::type:        return u ## #type
+        switch (static_cast<BaseToken>(tid))
         {
         RET_TK_ID(End);
         RET_TK_ID(Error);
@@ -151,15 +151,16 @@ protected:
         default:
         RET_TK_ID(Custom);
         }
+#undef RET_TK_ID
     }
-    virtual std::u32string DescribeToken(const ParserToken& token) const noexcept
+    virtual std::u16string DescribeToken(const ParserToken& token) const noexcept
     {
-        return DescribeTokenID(token);
+        return DescribeTokenID(token.GetID());
     }
 
     virtual ParserToken OnUnExpectedToken(const ParserToken& token) const
     {
-        throw detail::ParsingError(Context, token, u"Unexpected token");
+        throw detail::ParsingError(Context, token, u"Unexpected token [" + DescribeToken(token) + u"]");
     }
     
     static inline constexpr auto IgnoreCommentToken = detail::TokenMatcherHelper::GetMatcher

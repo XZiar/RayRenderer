@@ -20,11 +20,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ArgParser.cpp" />
+    <ClCompile Include="ParserBase.cpp" />
     <ClCompile Include="SectorParser.cpp" />
     <ClCompile Include="SectorFileStruct.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ArgParser.h" />
+    <ClInclude Include="ParserBase.h" />
     <ClInclude Include="ParserRely.h" />
     <ClInclude Include="SectorParser.h" />
     <ClInclude Include="SectorFileStruct.h" />
@@ -103,6 +105,7 @@
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -121,6 +124,7 @@
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -135,6 +139,7 @@
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -151,6 +156,7 @@
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

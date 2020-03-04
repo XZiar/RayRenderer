@@ -1,19 +1,17 @@
 #pragma once
 #include "SectorFileStruct.h"
-#include "common/parser/ParserBase.hpp"
+#include "ParserBase.h"
 
 
 namespace xziar::sectorlang
 {
 
 
-class SectorParser : public common::parser::ParserBase
+class SectorParser : public SectorFileParser
 {
-private:
-    MemoryPool& MemPool;
 public:
-    SectorParser(MemoryPool& pool, common::parser::ParserContext& context) :
-        ParserBase(context), MemPool(pool) { }
+    using SectorFileParser::SectorFileParser;
+    
     SectorRaw ParseNextSector();
     std::vector<SectorRaw> ParseAllSectors();
 };
