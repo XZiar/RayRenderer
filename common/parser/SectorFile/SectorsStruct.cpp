@@ -46,5 +46,13 @@ common::span<std::byte> MemoryPool::Alloc(const size_t size, const size_t align)
     }
 }
 
+std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
+{
+    size_t used = 0, unused = 0;
+    for (auto& [ptr, offset, avaliable] : Trunks)
+        used += offset, unused += avaliable;
+    return { used, used + unused };
+}
+
 
 }

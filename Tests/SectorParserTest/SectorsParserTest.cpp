@@ -92,7 +92,12 @@ Here
     }
 }
 
-
+//using BinStmt = std::unique_ptr<BinaryStatement>;
+//using UnStmt  = std::unique_ptr<UnaryStatement>;
+//using FCall   = std::unique_ptr<FuncCall>;
+using BinStmt = BinaryStatement*;
+using UnStmt  = UnaryStatement*;
+using FCall   = FuncCall*;
 TEST(SectorsParser, ParseMetaFunc)
 {
     constexpr auto ParseFunc = [](const std::u32string_view src)
@@ -197,31 +202,32 @@ Here
 
 TEST(SectorsParser, ParseFuncBody)
 {
+    xziar::sectorlang::MemoryPool pool;
     {
         constexpr auto src = U"()"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0);
     }
     {
         constexpr auto src = U"(())"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0);
     }
     {
         constexpr auto src = U"(((())))"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0);
     }
     {
         constexpr auto src = U"(123, -456)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
         CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
@@ -230,7 +236,7 @@ TEST(SectorsParser, ParseFuncBody)
     {
         constexpr auto src = U"((123), -456)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
         CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
@@ -239,11 +245,11 @@ TEST(SectorsParser, ParseFuncBody)
     {
         constexpr auto src = U"(1 + 2)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 1);
-        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[0]));
-        const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[0]);
+        EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[0]));
+        const auto& stmt = *std::get<BinStmt>(func.Args[0]);
         CHECK_VAR_ARG(stmt.LeftOprend,  uint64_t, 1);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
         CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 2);
@@ -251,18 +257,18 @@ TEST(SectorsParser, ParseFuncBody)
     {
         constexpr auto src = U"(!false, 3.5 + var)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<UnaryStatement>> (func.Args[0]));
-        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[1]));
+        EXPECT_TRUE(std::holds_alternative<UnStmt> (func.Args[0]));
+        EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[1]));
         {
-            const auto& stmt = *std::get<std::unique_ptr<UnaryStatement>>(func.Args[0]);
+            const auto& stmt = *std::get<UnStmt>(func.Args[0]);
             EXPECT_EQ(stmt.Operator, EmbedOps::Not);
             CHECK_VAR_ARG(stmt.Oprend, bool, false);
         }
         {
-            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[1]);
+            const auto& stmt = *std::get<BinStmt>(func.Args[1]);
             CHECK_VAR_ARG(stmt.LeftOprend, double, 3.5);
             EXPECT_EQ(stmt.Operator, EmbedOps::Add);
             CHECK_VAR_ARG_PROP(stmt.RightOprend, LateBindVar, Name, U"var");
@@ -271,30 +277,30 @@ TEST(SectorsParser, ParseFuncBody)
     {
         constexpr auto src = U"(6 >= $foo(bar), $foo(bar, (4+5)==9))"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(func.Args[0]));
-        EXPECT_TRUE(std::holds_alternative<std::unique_ptr<FuncCall>>(func.Args[1]));
+        EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[0]));
+        EXPECT_TRUE(std::holds_alternative<FCall>  (func.Args[1]));
         {
-            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(func.Args[0]);
+            const auto& stmt = *std::get<BinStmt>(func.Args[0]);
             CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 6);
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
-            EXPECT_TRUE(std::holds_alternative<std::unique_ptr<FuncCall>>(stmt.RightOprend));
-            const auto& fcall = *std::get<std::unique_ptr<FuncCall>>(stmt.RightOprend);
+            EXPECT_TRUE(std::holds_alternative<FCall>(stmt.RightOprend));
+            const auto& fcall = *std::get<FCall>(stmt.RightOprend);
             EXPECT_EQ(fcall.Name, U"foo"sv);
             EXPECT_EQ(fcall.Args.size(), 1);
             CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"bar");
         }
         {
-            const auto& fcall = *std::get<std::unique_ptr<FuncCall>>(func.Args[1]);
+            const auto& fcall = *std::get<FCall>(func.Args[1]);
             EXPECT_EQ(fcall.Name, U"foo"sv);
             EXPECT_EQ(fcall.Args.size(), 2);
             CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"bar");
-            const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(fcall.Args[1]);
-            EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(stmt.LeftOprend));
+            const auto& stmt = *std::get<BinStmt>(fcall.Args[1]);
+            EXPECT_TRUE(std::holds_alternative<BinStmt>(stmt.LeftOprend));
             {
-                const auto& stmt2 = *std::get<std::unique_ptr<BinaryStatement>>(stmt.LeftOprend);
+                const auto& stmt2 = *std::get<BinStmt>(stmt.LeftOprend);
                 CHECK_VAR_ARG(stmt2.LeftOprend, uint64_t, 4);
                 EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
                 CHECK_VAR_ARG(stmt2.RightOprend, uint64_t, 5);

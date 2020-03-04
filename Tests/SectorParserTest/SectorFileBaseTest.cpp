@@ -17,9 +17,11 @@ using xziar::sectorlang::SectorsParser;
 #define CHECK_BASE_TK(token, type, action, val) CHECK_TK(token, common::parser::BaseToken, type, action, val)
 
 
-static std::string PrintMemPool(const xziar::sectorlang::MemoryPool & pool) noexcept
+static std::string PrintMemPool(const xziar::sectorlang::MemoryPool& pool) noexcept
 {
-    std::string txt = fmt::format("MemoryPool[{} trunks, default {} bytes]\n", pool.Trunks.size(), pool.TrunkSize);
+    const auto [used, total] = pool.Usage();
+    std::string txt = fmt::format("MemoryPool[{} trunks(default {} bytes)]: [{}/{}]\n", 
+        pool.Trunks.size(), pool.TrunkSize, used, total);
     auto ins = std::back_inserter(txt);
     size_t i = 0;
     for (const auto& [ptr, offset, avaliable] : pool.Trunks)
@@ -49,6 +51,13 @@ TEST(SectorFileBase, MemoryPool)
         const auto& arr = *pool.Create<std::array<double, 3>>(std::array{ 1.0,2.0,3.0 });
         EXPECT_EQ(reinterpret_cast<uintptr_t>(&arr) % alignof(double), 0) << PrintMemPool(pool);
         EXPECT_THAT(arr, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);
+    }
+    {
+        const std::array arr{ 1.0,2.0,3.0 };
+        const auto sp = pool.CreateArray(common::to_span(arr));
+        EXPECT_EQ(reinterpret_cast<uintptr_t>(sp.data()) % alignof(double), 0) << PrintMemPool(pool);
+        std::vector<double> vec(sp.begin(), sp.end());
+        EXPECT_THAT(vec, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);
     }
     {
         const auto space = pool.Alloc(3 * 1024 * 1024, 4096);

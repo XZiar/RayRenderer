@@ -20,7 +20,10 @@ public:
     MemoryPool(const size_t trunkSize = 2 * 1024 * 1024) : TrunkSize(trunkSize) { }
     MemoryPool(MemoryPool&& other) noexcept = default;
     ~MemoryPool();
+
     common::span<std::byte> Alloc(const size_t size, const size_t align = 64);
+    std::pair<size_t, size_t> Usage() const noexcept;
+
     template<typename T>
     forceinline common::span<std::byte> Alloc()
     {
@@ -33,6 +36,15 @@ public:
         const auto space = Alloc<T>();
         new (space.data()) T(std::forward<Args>(args)...);
         return reinterpret_cast<T*>(space.data());
+    }
+    template<typename T, typename RealT = std::remove_const_t<T>>
+    forceinline common::span<RealT> CreateArray(common::span<T> data)
+    {
+        if (data.size() == 0) return {};
+        const auto space = Alloc(sizeof(T) * data.size(), alignof(T));
+        for (size_t i = 0; i < static_cast<size_t>(data.size()); ++i)
+            new (space.data() + sizeof(T) * i) T(data[i]);
+        return common::span<RealT>(reinterpret_cast<RealT*>(space.data()), data.size());
     }
 };
 
@@ -56,13 +68,13 @@ struct FuncCall;
 struct UnaryStatement;
 struct BinaryStatement;
 
-using FuncArgRaw = std::variant<std::unique_ptr<FuncCall>, std::unique_ptr<UnaryStatement>, std::unique_ptr<BinaryStatement>,
+using FuncArgRaw = std::variant<FuncCall*, UnaryStatement*, BinaryStatement*,
     LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
 
 struct FuncCall
 {
     std::u32string_view Name;
-    std::vector<FuncArgRaw> Args;
+    common::span<FuncArgRaw> Args;
 };
 struct UnaryStatement
 {

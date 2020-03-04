@@ -10,13 +10,14 @@ namespace xziar::sectorlang
 class ComplexArgParser : public common::parser::ParserBase
 {
 private:
-    ComplexArgParser(common::parser::ParserContext& context) :
-        ParserBase(context) { }
+    MemoryPool& MemPool;
+    ComplexArgParser(MemoryPool& pool, common::parser::ParserContext& context) :
+        ParserBase(context), MemPool(pool) { }
     template<typename StopDelimer>
     std::pair<std::optional<FuncArgRaw>, char32_t> ParseArg();
     void EatLeftBracket();
 public:
-    static FuncCall ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context);
+    static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
 };
 
 class FuncBodyParser : public common::parser::ParserBase

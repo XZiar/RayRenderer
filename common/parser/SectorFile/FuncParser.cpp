@@ -119,14 +119,16 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };            break;
-            EID(BaseToken::String)      : target = token.GetString();                           break;
-            EID(BaseToken::Uint)        : target = token.GetUInt();                             break;
-            EID(BaseToken::Int)         : target = token.GetInt();                              break;
-            EID(BaseToken::FP)          : target = token.GetDouble();                           break;
-            EID(BaseToken::Bool)        : target = token.GetBool();                             break;
+            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };    break;
+            EID(BaseToken::String)      : target = token.GetString();                   break;
+            EID(BaseToken::Uint)        : target = token.GetUInt();                     break;
+            EID(BaseToken::Int)         : target = token.GetInt();                      break;
+            EID(BaseToken::FP)          : target = token.GetDouble();                   break;
+            EID(BaseToken::Bool)        : target = token.GetBool();                     break;
             EID(SectorLangToken::Func)  : 
-                target = std::make_unique<FuncCall>(ParseFuncBody(token.GetString(), Context)); break;
+                target = MemPool.Create<FuncCall>(
+                    ParseFuncBody(token.GetString(), MemPool, Context));                
+                break;
             EID(SectorLangToken::Parenthese):
                 if (token.GetChar() == U'(')
                     target = ParseArg<GroupEndDelimer>().first;
@@ -150,7 +152,7 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
         Expects(!oprend1.has_value());
         if (!oprend2.has_value())
             throw U"Lack oprend for unary operator"sv;
-        return { std::make_unique<UnaryStatement>(*op, std::move(*oprend2)), stopChar };
+        return { MemPool.Create<UnaryStatement>(*op, std::move(*oprend2)), stopChar };
 
     }
     else
@@ -158,7 +160,7 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
         Expects(oprend1.has_value());
         if (!oprend2.has_value())
             throw U"Lack 2nd oprend for binary operator"sv;
-        return { std::make_unique<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
+        return { MemPool.Create<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
     }
 }
 
@@ -174,16 +176,16 @@ void ComplexArgParser::EatLeftBracket()
     ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
 }
 
-FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
+FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
 {
-    ComplexArgParser parser(context);
+    ComplexArgParser parser(pool, context);
     parser.EatLeftBracket();
-    FuncCall func{ funcName,{} };
+    std::vector<FuncArgRaw> args;
     while (true)
     {
         auto [arg, delim] = parser.ParseArg<FuncEndDelimer>();
         if (arg.has_value())
-            func.Args.emplace_back(std::move(*arg));
+            args.emplace_back(std::move(*arg));
         else
             if (delim != U')')
                 throw U"Does not allow empty argument"sv;
@@ -192,7 +194,8 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::p
         if (delim == common::parser::special::CharEnd)
             throw U"Expect ')' before reaching end"sv;
     }
-    return func;
+    const auto sp = pool.CreateArray(common::to_span(args));
+    return { funcName,sp };
 }
 
 }
