@@ -31,9 +31,28 @@ enum class SectorLangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Sector, Block, MetaFunc, Func, Var, EmbedOp,
+    Sector, Block, MetaFunc, Func, Var, EmbedOp, Parenthese,
 
     __RangeMax = 192
+};
+
+class ParentheseTokenizer : public common::parser::tokenizer::TokenizerBase
+{
+public:
+    using StateData = void;
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    {
+        Expects(idx == 0);
+        if (ch == U'(' || ch == U')')
+            return TokenizerResult::FullMatch;
+        else
+            return TokenizerResult::NotMatch;
+    }
+    forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
+    {
+        Expects(txt.size() == 1);
+        return ParserToken(SectorLangToken::Parenthese, txt[0]);
+    }
 };
 
 template<char32_t Pfx>
@@ -47,11 +66,13 @@ protected:
     }
 public:
     using StateData = void;
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
-        if (idx == 0 && ch == Pfx)
+        Expects(idx == 0);
+        if (ch == Pfx)
             return TokenizerResult::FullMatch;
-        return TokenizerResult::NotMatch;
+        else
+            return TokenizerResult::NotMatch;
     }
 };
 

@@ -59,6 +59,15 @@ MetaFunc FuncBodyParser::ParseFuncBody(std::u32string_view funcName, common::par
 }
 
 
+struct FuncEndDelimer
+{
+    static constexpr DelimTokenizer Stopper = ",)"sv;
+};
+struct GroupEndDelimer
+{
+    static constexpr DelimTokenizer Stopper = ")"sv;
+};
+
 template<typename StopDelimer>
 std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
 {
@@ -66,8 +75,10 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
     using common::parser::detail::EmptyTokenArray;
     
     constexpr DelimTokenizer StopDelim = StopDelimer::Stopper;
-    constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, tokenizer::NormalFuncPrefixTokenizer,
-        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
+    constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
+        tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
+        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
+        tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
     
     std::optional<FuncArgRaw> oprend1, oprend2;
     std::optional<EmbedOps> op;
@@ -116,6 +127,12 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
             EID(BaseToken::Bool)        : target = token.GetBool();                             break;
             EID(SectorLangToken::Func)  : 
                 target = std::make_unique<FuncCall>(ParseFuncBody(token.GetString(), Context)); break;
+            EID(SectorLangToken::Parenthese):
+                if (token.GetChar() == U'(')
+                    target = ParseArg<GroupEndDelimer>().first;
+                else
+                    throw U"Unexpected right parenthese"sv;
+                break; 
             default                     : throw U"Unexpected token"sv;
             }
 #undef EID
@@ -150,17 +167,12 @@ void ComplexArgParser::EatLeftBracket()
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
 
-    constexpr ParserToken BracketL(BaseToken::Delim, U'(');
+    constexpr ParserToken BracketL(SectorLangToken::Parenthese, U'(');
     constexpr auto ExpectBracketL = TokenMatcherHelper::GetMatcher(std::array{ BracketL });
 
-    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer>();
+    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, tokenizer::ParentheseTokenizer>();
     ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectBracketL);
 }
-
-struct FuncDelimer
-{
-    static constexpr DelimTokenizer Stopper = ",)"sv;
-};
 
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context)
 {
@@ -169,12 +181,16 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, common::p
     FuncCall func{ funcName,{} };
     while (true)
     {
-        auto [arg, delim] = parser.ParseArg<FuncDelimer>();
-        if (!arg.has_value())
+        auto [arg, delim] = parser.ParseArg<FuncEndDelimer>();
+        if (arg.has_value())
+            func.Args.emplace_back(std::move(*arg));
+        else
+            if (delim != U')')
+                throw U"Does not allow empty argument"sv;
+        if (delim == U')')
             break;
-        func.Args.emplace_back(std::move(*arg));
-        if (delim == U')' || delim == common::parser::special::CharEnd)
-            break;
+        if (delim == common::parser::special::CharEnd)
+            throw U"Expect ')' before reaching end"sv;
     }
     return func;
 }

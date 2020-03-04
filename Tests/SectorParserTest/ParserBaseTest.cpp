@@ -5,6 +5,7 @@
 using namespace common::parser;
 using namespace common::parser::tokenizer;
 using namespace std::string_view_literals;
+using common::parser::detail::TokenMatcherHelper;
 using CharType = common::parser::ParserContext::CharType;
 
 
@@ -68,12 +69,12 @@ TEST(ParserBase, GetNext)
         }
     }
     {
-        constexpr auto ExpectDelim = detail::TokenMatcherHelper::GetMatcher
+        constexpr auto ExpectDelim = TokenMatcherHelper::GetMatcher
             (detail::EmptyTokenArray{}, BaseToken::Delim);
         constexpr ParserToken TokenHello(BaseToken::Raw, U"Hello"sv);
-        constexpr auto ExpectHello = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
+        constexpr auto ExpectHello = TokenMatcherHelper::GetMatcher(std::array{ TokenHello });
         constexpr ParserToken TokenThere(BaseToken::Raw, U"There"sv);
-        constexpr auto ExpectThere = detail::TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
+        constexpr auto ExpectThere = TokenMatcherHelper::GetMatcher(std::array{ TokenThere });
         ParserContext context(source);
         DummyParser parser(context);
         {

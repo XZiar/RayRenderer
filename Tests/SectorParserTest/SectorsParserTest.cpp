@@ -205,6 +205,20 @@ TEST(SectorsParser, ParseFuncBody)
         EXPECT_EQ(func.Args.size(), 0);
     }
     {
+        constexpr auto src = U"(())"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 0);
+    }
+    {
+        constexpr auto src = U"(((())))"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 0);
+    }
+    {
         constexpr auto src = U"(123, -456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
@@ -212,6 +226,15 @@ TEST(SectorsParser, ParseFuncBody)
         EXPECT_EQ(func.Args.size(), 2);
         CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
         CHECK_VAR_ARG(func.Args[1], int64_t,  -456);
+    }
+    {
+        constexpr auto src = U"((123), -456)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(func.Args.size(), 2);
+        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
+        CHECK_VAR_ARG(func.Args[1], int64_t, -456);
     }
     {
         constexpr auto src = U"(1 + 2)"sv;
@@ -226,7 +249,7 @@ TEST(SectorsParser, ParseFuncBody)
         CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 2);
     }
     {
-        constexpr auto src = U"(! false, 3.5 + var)"sv;
+        constexpr auto src = U"(!false, 3.5 + var)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -246,7 +269,7 @@ TEST(SectorsParser, ParseFuncBody)
         }
     }
     {
-        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, 4==9))"sv;
+        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, (4+5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -269,7 +292,13 @@ TEST(SectorsParser, ParseFuncBody)
             EXPECT_EQ(fcall.Args.size(), 2);
             CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"bar");
             const auto& stmt = *std::get<std::unique_ptr<BinaryStatement>>(fcall.Args[1]);
-            CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 4);
+            EXPECT_TRUE(std::holds_alternative<std::unique_ptr<BinaryStatement>>(stmt.LeftOprend));
+            {
+                const auto& stmt2 = *std::get<std::unique_ptr<BinaryStatement>>(stmt.LeftOprend);
+                CHECK_VAR_ARG(stmt2.LeftOprend, uint64_t, 4);
+                EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
+                CHECK_VAR_ARG(stmt2.RightOprend, uint64_t, 5);
+            }
             EXPECT_EQ(stmt.Operator, EmbedOps::Equal);
             CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 9);
         }

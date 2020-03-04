@@ -8,6 +8,20 @@
 namespace common::parser
 {
 
+namespace detail
+{
+struct TokenizerHelper
+{
+    static forceinline std::string ToU8Str(const std::u32string_view txt) noexcept
+    {
+        std::string str;
+        str.resize(txt.size());
+        for (size_t idx = 0; idx < txt.size(); ++idx)
+            str[idx] = static_cast<char>(txt[idx]);
+        return str;
+    };
+};
+}
 
 enum class BaseToken : uint16_t { End = 0, Error, Unknown, Delim, Comment, Raw, Bool, Uint, Int, FP, String, Custom = 128, __RangeMin = End, __RangeMax = Custom };
 
@@ -177,22 +191,11 @@ struct ASCIIChecker
 namespace tokenizer
 {
 
-
 enum class TokenizerResult : uint8_t { Pending, Waitlist, NotMatch, Wrong, FullMatch };
 
 
-class TokenizerBase
-{
-protected:
-    static std::string ToU8Str(const std::u32string_view txt)
-    {
-        std::string str;
-        str.resize(txt.size());
-        for (size_t idx = 0; idx < txt.size(); ++idx)
-            str[idx] = static_cast<char>(txt[idx]);
-        return str;
-    };
-};
+class TokenizerBase {};
+
 
 class DelimTokenizer : public TokenizerBase
 {
@@ -200,12 +203,13 @@ private:
     ASCIIChecker<true> Checker;
 public:
     using StateData = void;
-    constexpr DelimTokenizer(std::string_view delim = "(,)")
+    constexpr DelimTokenizer(std::string_view delim = "(,)") noexcept
         : Checker(delim) { }
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
-        if (idx == 0 && Checker(ch))
-            return TokenizerResult::Waitlist;
+        Expects(idx == 0);
+        if (Checker(ch))
+            return TokenizerResult::FullMatch;
         else
             return TokenizerResult::NotMatch;
     }
@@ -241,7 +245,7 @@ public:
             return { state, TokenizerResult::Wrong };
         }
     }
-    constexpr ParserToken GetToken(const States state, ContextReader& reader, std::u32string_view) const noexcept
+    forceinline constexpr ParserToken GetToken(const States state, ContextReader& reader, std::u32string_view) const noexcept
     {
         switch (state)
         {
@@ -263,8 +267,9 @@ class StringTokenizer : public TokenizerBase
 {
 public:
     using StateData = void;
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
+        Expects(idx == 0);
         if (ch == '"')
             return TokenizerResult::FullMatch;
         else
@@ -412,7 +417,7 @@ public:
         }
         case States::Normal:
         {
-            const auto str = ToU8Str(txt);
+            const auto str = detail::TokenizerHelper::ToU8Str(txt);
             if (state & SignedFlag)
             {
                 int64_t val = 0;
@@ -492,7 +497,7 @@ public:
         case States::FirstNum:
         case States::Normal:
         {
-            const auto str = ToU8Str(txt);
+            const auto str = detail::TokenizerHelper::ToU8Str(txt);
             double val = 0;
             const bool valid = common::StrToFP(str, val, false).first;
             if (valid)
@@ -500,7 +505,7 @@ public:
         } break;
         case States::Scientific:
         {
-            const auto str = ToU8Str(txt);
+            const auto str = detail::TokenizerHelper::ToU8Str(txt);
             double val = 0;
             const bool valid = common::StrToFP(str, val, true).first;
             if (valid)
@@ -578,7 +583,7 @@ public:
     using StateData = void;
     constexpr ASCIIRawTokenizer(std::string_view str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
         : Checker(str) { }
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
     {
         if (Checker(ch))
             return TokenizerResult::Waitlist;
@@ -608,7 +613,7 @@ public:
         std::string_view second = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
         : FirstChecker(first), SecondChecker(second), FirstPartLen(firstPartLen), TokenID(enum_cast(tokenId))
     { }
-    constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         const auto& checker = idx < FirstPartLen ? FirstChecker : SecondChecker;
         if (checker(ch))
