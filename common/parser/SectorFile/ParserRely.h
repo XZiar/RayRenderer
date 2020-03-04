@@ -2,7 +2,7 @@
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"
-#include "SectorsStruct.h"
+#include "SectorFileStruct.h"
 
 namespace xziar::sectorlang
 {

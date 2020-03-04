@@ -19,15 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FuncParser.cpp" />
-    <ClCompile Include="SectorsParser.cpp" />
-    <ClCompile Include="SectorsStruct.cpp" />
+    <ClCompile Include="ArgParser.cpp" />
+    <ClCompile Include="SectorParser.cpp" />
+    <ClCompile Include="SectorFileStruct.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FuncParser.h" />
+    <ClInclude Include="ArgParser.h" />
     <ClInclude Include="ParserRely.h" />
-    <ClInclude Include="SectorsParser.h" />
-    <ClInclude Include="SectorsStruct.h" />
+    <ClInclude Include="SectorParser.h" />
+    <ClInclude Include="SectorFileStruct.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

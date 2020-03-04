@@ -1,4 +1,4 @@
-#include "SectorsStruct.h"
+#include "SectorFileStruct.h"
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 

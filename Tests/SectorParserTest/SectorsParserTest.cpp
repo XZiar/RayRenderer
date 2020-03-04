@@ -1,13 +1,13 @@
 #include "rely.h"
 #include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/SectorsParser.h"
-#include "common/parser/SectorFile/FuncParser.h"
+#include "common/parser/SectorFile/SectorParser.h"
+#include "common/parser/SectorFile/ArgParser.h"
 
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::sectorlang::SectorsParser;
+using xziar::sectorlang::SectorParser;
 using xziar::sectorlang::ComplexArgParser;
 using xziar::sectorlang::EmbedOps;
 using xziar::sectorlang::LateBindVar;
@@ -37,60 +37,6 @@ static std::u32string ReplaceNewLine(std::u32string_view txt)
     return ret;
 }
 
-TEST(SectorsParser, ParseSector)
-{
-    {
-        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}"sv;
-        ParserContext context(src);
-        SectorsParser Parser(context);
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(sector.Content, U""sv);
-    }
-
-    {
-        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}\r\n#Sector.Main(\"Hello\"){\r\n}"sv;
-        ParserContext context(src);
-        SectorsParser Parser(context);
-
-        const auto sector0 = Parser.ParseNextSector();
-        EXPECT_EQ(sector0.Type, U"Main"sv);
-        EXPECT_EQ(sector0.Name, U"Hello"sv);
-        EXPECT_EQ(sector0.Content, U""sv);
-
-        const auto sector1 = Parser.ParseNextSector();
-        EXPECT_EQ(sector1.Type, U"Main"sv);
-        EXPECT_EQ(sector1.Name, U"Hello"sv);
-        EXPECT_EQ(sector1.Content, U""sv);
-    }
-    {
-        constexpr auto src = 
-            UR"(
-#Sector.Main("Hello")
-{
-Here
-}
-
-#Sector.Main("Hello")
-{===+++
-{Here}
-===+++}
-)"sv;
-        ParserContext context(src);
-        SectorsParser Parser(context);
-
-        const auto sector0 = Parser.ParseNextSector();
-        EXPECT_EQ(sector0.Type, U"Main"sv);
-        EXPECT_EQ(sector0.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector0.Content), U"Here\n"sv);
-
-        const auto sector1 = Parser.ParseNextSector();
-        EXPECT_EQ(sector1.Type, U"Main"sv);
-        EXPECT_EQ(sector1.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector1.Content), U"{Here}\n"sv);
-    }
-}
 
 //using BinStmt = std::unique_ptr<BinaryStatement>;
 //using UnStmt  = std::unique_ptr<UnaryStatement>;
@@ -98,109 +44,8 @@ Here
 using BinStmt = BinaryStatement*;
 using UnStmt  = UnaryStatement*;
 using FCall   = FuncCall*;
-TEST(SectorsParser, ParseMetaFunc)
-{
-    constexpr auto ParseFunc = [](const std::u32string_view src)
-    {
-        ParserContext context(src);
-        return xziar::sectorlang::FuncBodyParser::ParseFuncBody(U"func"sv, context);
-    };
-    {
-        const auto func = ParseFunc(U"()"sv);
-        EXPECT_EQ(func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0);
-    }
-    {
-        const auto func = ParseFunc(U"(123)"sv);
-        EXPECT_EQ(func.Args.size(), 1);
-        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
-    }
-    {
-        const auto func = ParseFunc(U"(123, -4.5)"sv);
-        EXPECT_EQ(func.Args.size(), 2);
-        CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
-        CHECK_VAR_ARG(func.Args[1], double,   -4.5);
-    }
-    {
-        const auto func = ParseFunc(U"(v3.1, -4.5, k67)"sv);
-        EXPECT_EQ(func.Args.size(), 3);
-        CHECK_VAR_ARG_PROP(func.Args[0], LateBindVar, Name, U"v3.1"sv);
-        CHECK_VAR_ARG(func.Args[1], double,      -4.5);
-        CHECK_VAR_ARG_PROP(func.Args[2], LateBindVar, Name, U"k67"sv);
-    }
-}
 
-
-TEST(SectorsParser, ParseMetaSector)
-{
-    {
-        constexpr auto src =
-            UR"(
-@func()
-#Sector.Main("Hello")
-{
-Here
-}
-)"sv;
-        ParserContext context(src);
-        SectorsParser Parser(context);
-
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
-        EXPECT_EQ(sector.MetaFunctions.size(), 1);
-        const auto& meta = sector.MetaFunctions[0];
-        EXPECT_EQ(meta.Name, U"func"sv);
-        EXPECT_EQ(meta.Args.size(), 0);
-    }
-    {
-        constexpr auto src =
-            UR"(
-@func(1)
-@func(abc, 0xff)
-#Sector.Main("Hello")
-{
-Here
-}
-#Sector.Main("Hello")
-{
-Here
-}
-)"sv;
-        ParserContext context(src);
-        SectorsParser Parser(context);
-
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
-        EXPECT_EQ(sector.MetaFunctions.size(), 2);
-        {
-            const auto& meta = sector.MetaFunctions[0];
-            EXPECT_EQ(meta.Name, U"func"sv);
-            EXPECT_EQ(meta.Args.size(), 1);
-            CHECK_VAR_ARG(meta.Args[0], uint64_t, 1);
-        }
-        {
-            const auto& meta = sector.MetaFunctions[1];
-            EXPECT_EQ(meta.Name, U"func"sv);
-            EXPECT_EQ(meta.Args.size(), 2);
-            CHECK_VAR_ARG_PROP(meta.Args[0], LateBindVar, Name, U"abc");
-            CHECK_VAR_ARG(meta.Args[1], uint64_t,    0xff);
-        }
-        {
-            const auto sector_ = Parser.ParseNextSector();
-            EXPECT_EQ(sector_.Type, U"Main"sv);
-            EXPECT_EQ(sector_.Name, U"Hello"sv);
-            EXPECT_EQ(ReplaceNewLine(sector_.Content), U"Here\n"sv);
-            EXPECT_EQ(sector_.MetaFunctions.size(), 0);
-        }
-    }
-}
-
-
-TEST(SectorsParser, ParseFuncBody)
+TEST(SectorFileParser, ParseFuncBody)
 {
     xziar::sectorlang::MemoryPool pool;
     {
@@ -231,16 +76,16 @@ TEST(SectorsParser, ParseFuncBody)
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
         CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
-        CHECK_VAR_ARG(func.Args[1], int64_t,  -456);
+        CHECK_VAR_ARG(func.Args[1], int64_t, -456);
     }
     {
-        constexpr auto src = U"((123), -456)"sv;
+        constexpr auto src = U"((123), v.456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
         CHECK_VAR_ARG(func.Args[0], uint64_t, 123);
-        CHECK_VAR_ARG(func.Args[1], int64_t, -456);
+        CHECK_VAR_ARG_PROP(func.Args[1], LateBindVar, Name, U"v.456");
     }
     {
         constexpr auto src = U"(1 + 2)"sv;
@@ -250,7 +95,7 @@ TEST(SectorsParser, ParseFuncBody)
         EXPECT_EQ(func.Args.size(), 1);
         EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[0]));
         const auto& stmt = *std::get<BinStmt>(func.Args[0]);
-        CHECK_VAR_ARG(stmt.LeftOprend,  uint64_t, 1);
+        CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 1);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
         CHECK_VAR_ARG(stmt.RightOprend, uint64_t, 2);
     }
@@ -260,7 +105,7 @@ TEST(SectorsParser, ParseFuncBody)
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        EXPECT_TRUE(std::holds_alternative<UnStmt> (func.Args[0]));
+        EXPECT_TRUE(std::holds_alternative<UnStmt>(func.Args[0]));
         EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[1]));
         {
             const auto& stmt = *std::get<UnStmt>(func.Args[0]);
@@ -281,7 +126,7 @@ TEST(SectorsParser, ParseFuncBody)
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
         EXPECT_TRUE(std::holds_alternative<BinStmt>(func.Args[0]));
-        EXPECT_TRUE(std::holds_alternative<FCall>  (func.Args[1]));
+        EXPECT_TRUE(std::holds_alternative<FCall>(func.Args[1]));
         {
             const auto& stmt = *std::get<BinStmt>(func.Args[0]);
             CHECK_VAR_ARG(stmt.LeftOprend, uint64_t, 6);
@@ -310,4 +155,130 @@ TEST(SectorsParser, ParseFuncBody)
         }
     }
 }
+
+TEST(SectorFileParser, ParseSector)
+{
+    xziar::sectorlang::MemoryPool pool;
+    {
+        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}"sv;
+        ParserContext context(src);
+        SectorParser Parser(pool, context);
+        const auto sector = Parser.ParseNextSector();
+        EXPECT_EQ(sector.Type, U"Main"sv);
+        EXPECT_EQ(sector.Name, U"Hello"sv);
+        EXPECT_EQ(sector.Content, U""sv);
+    }
+
+    {
+        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}\r\n#Sector.Main(\"Hello\"){\r\n}"sv;
+        ParserContext context(src);
+        SectorParser Parser(pool, context);
+
+        const auto sector0 = Parser.ParseNextSector();
+        EXPECT_EQ(sector0.Type, U"Main"sv);
+        EXPECT_EQ(sector0.Name, U"Hello"sv);
+        EXPECT_EQ(sector0.Content, U""sv);
+
+        const auto sector1 = Parser.ParseNextSector();
+        EXPECT_EQ(sector1.Type, U"Main"sv);
+        EXPECT_EQ(sector1.Name, U"Hello"sv);
+        EXPECT_EQ(sector1.Content, U""sv);
+    }
+    {
+        constexpr auto src = 
+            UR"(
+#Sector.Main("Hello")
+{
+Here
+}
+
+#Sector.Main("Hello")
+{===+++
+{Here}
+===+++}
+)"sv;
+        ParserContext context(src);
+        SectorParser Parser(pool, context);
+
+        const auto sector0 = Parser.ParseNextSector();
+        EXPECT_EQ(sector0.Type, U"Main"sv);
+        EXPECT_EQ(sector0.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(sector0.Content), U"Here\n"sv);
+
+        const auto sector1 = Parser.ParseNextSector();
+        EXPECT_EQ(sector1.Type, U"Main"sv);
+        EXPECT_EQ(sector1.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(sector1.Content), U"{Here}\n"sv);
+    }
+}
+
+TEST(SectorFileParser, ParseMetaSector)
+{
+    xziar::sectorlang::MemoryPool pool;
+    {
+        constexpr auto src =
+            UR"(
+@func()
+#Sector.Main("Hello")
+{
+Here
+}
+)"sv;
+        ParserContext context(src);
+        SectorParser Parser(pool, context);
+
+        const auto sector = Parser.ParseNextSector();
+        EXPECT_EQ(sector.Type, U"Main"sv);
+        EXPECT_EQ(sector.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
+        EXPECT_EQ(sector.MetaFunctions.size(), 1);
+        const auto& meta = sector.MetaFunctions[0];
+        EXPECT_EQ(meta.Name, U"func"sv);
+        EXPECT_EQ(meta.Args.size(), 0);
+    }
+    {
+        constexpr auto src =
+            UR"(
+@func(1)
+@func(abc, 0xff)
+#Sector.Main("Hello")
+{
+Here
+}
+#Sector.Main("Hello")
+{
+Here
+}
+)"sv;
+        ParserContext context(src);
+        SectorParser Parser(pool, context);
+
+        const auto sector = Parser.ParseNextSector();
+        EXPECT_EQ(sector.Type, U"Main"sv);
+        EXPECT_EQ(sector.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
+        EXPECT_EQ(sector.MetaFunctions.size(), 2);
+        {
+            const auto& meta = sector.MetaFunctions[0];
+            EXPECT_EQ(meta.Name, U"func"sv);
+            EXPECT_EQ(meta.Args.size(), 1);
+            CHECK_VAR_ARG(meta.Args[0], uint64_t, 1);
+        }
+        {
+            const auto& meta = sector.MetaFunctions[1];
+            EXPECT_EQ(meta.Name, U"func"sv);
+            EXPECT_EQ(meta.Args.size(), 2);
+            CHECK_VAR_ARG_PROP(meta.Args[0], LateBindVar, Name, U"abc");
+            CHECK_VAR_ARG(meta.Args[1], uint64_t, 0xff);
+        }
+        {
+            const auto sector_ = Parser.ParseNextSector();
+            EXPECT_EQ(sector_.Type, U"Main"sv);
+            EXPECT_EQ(sector_.Name, U"Hello"sv);
+            EXPECT_EQ(ReplaceNewLine(sector_.Content), U"Here\n"sv);
+            EXPECT_EQ(sector_.MetaFunctions.size(), 0);
+        }
+    }
+}
+
 

@@ -15,27 +15,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SectorsParser.cpp">
+    <ClCompile Include="SectorParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FuncParser.cpp">
+    <ClCompile Include="SectorFileStruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="SectorsStruct.cpp">
+    <ClCompile Include="ArgParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SectorsStruct.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SectorsParser.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ParserRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FuncParser.h">
+    <ClInclude Include="SectorParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SectorFileStruct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ArgParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

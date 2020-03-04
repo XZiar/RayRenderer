@@ -1,5 +1,5 @@
 #pragma once
-#include "SectorsStruct.h"
+#include "SectorFileStruct.h"
 #include "common/parser/ParserBase.hpp"
 #include <optional>
 
@@ -18,17 +18,6 @@ private:
     void EatLeftBracket();
 public:
     static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
-};
-
-class FuncBodyParser : public common::parser::ParserBase
-{
-private:
-    FuncBodyParser(common::parser::ParserContext& context) :
-        ParserBase(context) { }
-    void FillFuncBody(MetaFunc& func);
-public:
-    static MetaFunc ParseFuncBody(std::u32string_view funcName, common::parser::ParserContext& context);
-
 };
 
 

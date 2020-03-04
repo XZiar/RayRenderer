@@ -1,5 +1,5 @@
-#include "SectorsParser.h"
-#include "FuncParser.h"
+#include "SectorParser.h"
+#include "ArgParser.h"
 #include "ParserRely.h"
 
 namespace xziar::sectorlang
@@ -7,7 +7,7 @@ namespace xziar::sectorlang
 using tokenizer::SectorLangToken;
 
 
-SectorRaw SectorsParser::ParseNextSector()
+SectorRaw SectorParser::ParseNextSector()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -26,6 +26,7 @@ SectorRaw SectorsParser::ParseNextSector()
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
 
     SectorRaw sector;
+    std::vector<FuncCall> metaFuncs;
     while (true)
     {
         const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectSectorOrMeta);
@@ -36,7 +37,7 @@ SectorRaw SectorsParser::ParseNextSector()
             break;
         }
         Expects(tkType == SectorLangToken::MetaFunc);
-        sector.MetaFunctions.emplace_back(FuncBodyParser::ParseFuncBody(token.GetString(), Context));
+        metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
     }
         
     constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, StringTokenizer>(BracketDelim);
@@ -52,10 +53,11 @@ SectorRaw SectorsParser::ParseNextSector()
     sector.Content = reader.ReadUntil(guardString);
     sector.Content.remove_suffix(guardString.size());
 
+    sector.MetaFunctions = MemPool.CreateArray(metaFuncs);
     return sector;
 }
 
-std::vector<SectorRaw> SectorsParser::ParseAllSectors()
+std::vector<SectorRaw> SectorParser::ParseAllSectors()
 {
     std::vector<SectorRaw> sectors;
     while (true)

@@ -1,15 +1,15 @@
 #include "rely.h"
 #include <algorithm>
 #include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/SectorsParser.h"
-#include "common/parser/SectorFile/FuncParser.h"
+#include "common/parser/SectorFile/SectorParser.h"
+#include "common/parser/SectorFile/ArgParser.h"
 #include "3rdParty/fmt/utfext.h"
 
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::sectorlang::SectorsParser;
+using xziar::sectorlang::SectorParser;
 
 
 
@@ -54,7 +54,7 @@ TEST(SectorFileBase, MemoryPool)
     }
     {
         const std::array arr{ 1.0,2.0,3.0 };
-        const auto sp = pool.CreateArray(common::to_span(arr));
+        const auto sp = pool.CreateArray(arr);
         EXPECT_EQ(reinterpret_cast<uintptr_t>(sp.data()) % alignof(double), 0) << PrintMemPool(pool);
         std::vector<double> vec(sp.begin(), sp.end());
         EXPECT_THAT(vec, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);

@@ -37,14 +37,17 @@ public:
         new (space.data()) T(std::forward<Args>(args)...);
         return reinterpret_cast<T*>(space.data());
     }
-    template<typename T, typename RealT = std::remove_const_t<T>>
-    forceinline common::span<RealT> CreateArray(common::span<T> data)
+    template<typename C>
+    forceinline auto CreateArray(C&& container)
     {
-        if (data.size() == 0) return {};
+        const auto data = common::to_span(container);
+        using T = std::remove_const_t<typename decltype(data)::element_type>;
+
+        if (data.size() == 0) return common::span<T>{};
         const auto space = Alloc(sizeof(T) * data.size(), alignof(T));
         for (size_t i = 0; i < static_cast<size_t>(data.size()); ++i)
             new (space.data() + sizeof(T) * i) T(data[i]);
-        return common::span<RealT>(reinterpret_cast<RealT*>(space.data()), data.size());
+        return common::span<T>(reinterpret_cast<T*>(space.data()), data.size());
     }
 };
 
@@ -91,21 +94,13 @@ struct BinaryStatement
         LeftOprend(std::move(left)), RightOprend(std::move(right)), Operator(std::move(op)) { }
 };
 
-using BasicFuncArgRaw = std::variant<LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
-
-
-struct MetaFunc
-{
-    std::u32string_view Name;
-    std::vector<BasicFuncArgRaw> Args;
-};
 
 struct SectorRaw
 {
     std::u32string_view Type;
     std::u32string_view Name;
     std::u32string_view Content;
-    std::vector<MetaFunc> MetaFunctions;
+    common::span<FuncCall> MetaFunctions;
 };
 
 struct Block
