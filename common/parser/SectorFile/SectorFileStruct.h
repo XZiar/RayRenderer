@@ -108,6 +108,8 @@ struct SectorRaw
     std::u32string_view Name;
     std::u32string_view Content;
     common::span<FuncCall> MetaFunctions;
+    std::u16string FileName;
+    std::pair<size_t, size_t> Position;
 };
 
 struct Block

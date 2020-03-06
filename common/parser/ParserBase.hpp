@@ -3,7 +3,8 @@
 #include "ParserContext.hpp"
 #include "ParserTokenizer.hpp"
 #include "ParserLexer.hpp"
-#include "../EnumEx.hpp"
+#include "common/EnumEx.hpp"
+#include "common/SharedString.hpp"
 
 
 namespace common::parser
@@ -28,6 +29,14 @@ struct TokenMatcher
                 return true;
         return false;
     }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return IDs;
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return TKs;
+    }
 };
 template<size_t IDCount>
 struct TokenMatcher<IDCount, 0>
@@ -39,6 +48,14 @@ struct TokenMatcher<IDCount, 0>
             if (token.GetID() == id)
                 return true;
         return false;
+    }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return IDs;
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return {};
     }
 };
 template<size_t TKCount>
@@ -52,6 +69,14 @@ struct TokenMatcher<0, TKCount>
                 return true;
         return false;
     }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return {};
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return TKs;
+    }
 };
 template<>
 struct TokenMatcher<0, 0>
@@ -59,6 +84,14 @@ struct TokenMatcher<0, 0>
     constexpr bool Match(const ParserToken) const noexcept
     {
         return false;
+    }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return {};
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return {};
     }
 };
 struct EmptyTokenArray {};
@@ -109,11 +142,16 @@ struct TokenMatcherHelper
 
 struct ParsingError : std::exception
 {
+    SharedString<char16_t> File;
     std::pair<size_t, size_t> Position;
     ParserToken Token;
-    std::u16string Notice;
-    ParsingError(const ParserContext& context, const ParserToken token, std::u16string notice) :
-        Position({ context.Row, context.Col }), Token(token), Notice(std::move(notice)) { }
+    SharedString<char16_t> Notice;
+    ParsingError(const ParserContext& context, const ParserToken token, std::u16string_view notice) :
+        File(context.SourceName), Position({ context.Row, context.Col }),
+        Token(token), Notice(notice) { }
+    ParsingError(const std::u16string_view file, const std::pair<size_t, size_t> pos, 
+        const ParserToken token, std::u16string_view notice) :
+        File(file), Position(pos), Token(token), Notice(notice) { }
 };
 
 }
@@ -122,7 +160,6 @@ struct ParsingError : std::exception
 class ParserBase
 {
 private:
-    
 protected:
     template<size_t IDCount, size_t TKCount>
     using TokenMatcher = detail::TokenMatcher<IDCount, TKCount>;
@@ -157,10 +194,38 @@ protected:
     {
         return DescribeTokenID(token.GetID());
     }
-
-    virtual ParserToken OnUnExpectedToken(const ParserToken& token) const
+    virtual std::u16string DescribeMatcher(common::span<const uint16_t> ids, common::span<const ParserToken> tokens) const noexcept
     {
-        throw detail::ParsingError(Context, token, u"Unexpected token [" + DescribeToken(token) + u"]");
+        using namespace std::string_view_literals;
+        std::u16string msg(u"expected: "sv);
+        for (const auto id : ids)
+        {
+            msg.append(u"["sv).append(DescribeTokenID(id)).append(u"], "sv);
+        }
+        for (const auto token : tokens)
+        {
+            msg.append(u"{"sv).append(DescribeToken(token)).append(u"}, "sv);
+        }
+        if (!ids.empty() || !tokens.empty())
+            msg.resize(msg.size() - 2);
+        return msg;
+    }
+    virtual std::u16string_view GetCurrentFileName() const noexcept
+    {
+        return Context.SourceName;
+    }
+    virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
+    {
+        return { Context.Row, Context.Col };
+    }
+
+    virtual ParserToken OnUnExpectedToken(const ParserToken& token, const std::u16string_view extraInfo = {}) const
+    {
+        using namespace std::string_view_literals;
+        std::u16string msg = u"Unexpected token [" + DescribeToken(token) + u"]";
+        if (!extraInfo.empty())
+            msg.append(u", ").append(extraInfo);
+        throw detail::ParsingError(GetCurrentFileName(), GetCurrentPosition(), token, msg);
     }
     
     static inline constexpr auto IgnoreCommentToken = detail::TokenMatcherHelper::GetMatcher
@@ -190,7 +255,7 @@ protected:
         if (expectMatcher.Match(token))
             return token;
         else
-            return OnUnExpectedToken(token);
+            return OnUnExpectedToken(token, DescribeMatcher(expectMatcher.GetIDSpan(), expectMatcher.GetTKSpan()));
     }
 public:
 

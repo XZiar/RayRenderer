@@ -7,7 +7,7 @@ namespace xziar::sectorlang
 using tokenizer::SectorLangToken;
 
 
-SectorRaw SectorParser::ParseNextSector()
+SectorRaw SectorsParser::ParseNextSector()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -43,14 +43,16 @@ SectorRaw SectorParser::ParseNextSector()
     ContextReader reader(Context);
     auto guardString = std::u32string(reader.ReadLine());
     guardString.append(U"}");
+    sector.Position = { Context.Row, Context.Col };
     sector.Content = reader.ReadUntil(guardString);
     sector.Content.remove_suffix(guardString.size());
 
     sector.MetaFunctions = MemPool.CreateArray(metaFuncs);
+    sector.FileName = Context.SourceName;
     return sector;
 }
 
-std::vector<SectorRaw> SectorParser::ParseAllSectors()
+std::vector<SectorRaw> SectorsParser::ParseAllSectors()
 {
     std::vector<SectorRaw> sectors;
     while (true)
@@ -62,6 +64,17 @@ std::vector<SectorRaw> SectorParser::ParseAllSectors()
         sectors.emplace_back(ParseNextSector());
     }
     return sectors;
+}
+
+void SectorParser::ParseSectorRaw()
+{
+}
+
+void SectorParser::ParseSector(const SectorRaw& sector, MemoryPool& pool)
+{
+    common::parser::ParserContext context(sector.Content, sector.FileName);
+    SectorParser parser(pool, context, sector);
+    return parser.ParseSectorRaw();
 }
 
 }

@@ -23,6 +23,7 @@ protected:
 public:
     SectorFileParser(MemoryPool& pool, common::parser::ParserContext& context) :
         ParserBase(context), MemPool(pool) { }
+    virtual ~SectorFileParser() { }
 };
 
 
