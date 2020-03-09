@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SectorParser.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="SectorFileStruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -27,12 +24,12 @@
     <ClCompile Include="ParserBase.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="BlockParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ParserRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SectorParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SectorFileStruct.h">
@@ -42,6 +39,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ParserBase.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BlockParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

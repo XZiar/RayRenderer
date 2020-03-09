@@ -41,7 +41,6 @@ std::u16string SectorFileParser::DescribeTokenID(const uint16_t tid) const noexc
 #define RET_TK_ID(type) case SectorLangToken::type:        return u ## #type
     switch (static_cast<SectorLangToken>(tid))
     {
-        RET_TK_ID(Sector);
         RET_TK_ID(Block);
         RET_TK_ID(MetaFunc);
         RET_TK_ID(Func);
@@ -53,6 +52,17 @@ std::u16string SectorFileParser::DescribeTokenID(const uint16_t tid) const noexc
     default:
         return ParserBase::DescribeTokenID(tid);
     }
+}
+
+common::SharedString<char16_t> SectorFileParser::GetCurrentFileName() const noexcept
+{
+    if (SubScopeName.empty())
+        return ParserBase::GetCurrentFileName();
+    
+    std::u16string fileName;
+    fileName.reserve(Context.SourceName.size() + SubScopeName.size() + 3);
+    fileName.append(Context.SourceName).append(u" ["sv).append(SubScopeName).append(u"]");
+    return fileName;
 }
 
 void SectorFileParser::EatLeftParenthese()

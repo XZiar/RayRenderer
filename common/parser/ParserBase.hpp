@@ -149,7 +149,7 @@ struct ParsingError : std::exception
     ParsingError(const ParserContext& context, const ParserToken token, std::u16string_view notice) :
         File(context.SourceName), Position({ context.Row, context.Col }),
         Token(token), Notice(notice) { }
-    ParsingError(const std::u16string_view file, const std::pair<size_t, size_t> pos, 
+    ParsingError(const SharedString<char16_t> file, const std::pair<size_t, size_t> pos,
         const ParserToken token, std::u16string_view notice) :
         File(file), Position(pos), Token(token), Notice(notice) { }
 };
@@ -210,7 +210,7 @@ protected:
             msg.resize(msg.size() - 2);
         return msg;
     }
-    virtual std::u16string_view GetCurrentFileName() const noexcept
+    virtual SharedString<char16_t> GetCurrentFileName() const noexcept
     {
         return Context.SourceName;
     }

@@ -1,7 +1,6 @@
 #include "rely.h"
 #include <algorithm>
 #include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/SectorParser.h"
 #include "common/parser/SectorFile/ArgParser.h"
 #include "3rdParty/fmt/utfext.h"
 
@@ -9,7 +8,6 @@
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::sectorlang::SectorParser;
 
 
 

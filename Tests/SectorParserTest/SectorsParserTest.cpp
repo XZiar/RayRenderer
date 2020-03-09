@@ -1,13 +1,13 @@
 #include "rely.h"
 #include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/SectorParser.h"
+#include "common/parser/SectorFile/BlockParser.h"
 #include "common/parser/SectorFile/ArgParser.h"
 
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::sectorlang::SectorsParser;
+using xziar::sectorlang::BlockParser;
 using xziar::sectorlang::ComplexArgParser;
 using xziar::sectorlang::EmbedOps;
 using xziar::sectorlang::LateBindVar;
@@ -160,65 +160,65 @@ TEST(SectorFileParser, ParseSector)
 {
     xziar::sectorlang::MemoryPool pool;
     {
-        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Block.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        SectorsParser Parser(pool, context);
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(sector.Content, U""sv);
-        EXPECT_EQ(sector.Position.first,  1);
-        EXPECT_EQ(sector.Position.second, 0);
+        BlockParser Parser(pool, context);
+        const auto block = Parser.GetNextBlock();
+        EXPECT_EQ(block.Type, U"Main"sv);
+        EXPECT_EQ(block.Name, U"Hello"sv);
+        EXPECT_EQ(block.Source, U""sv);
+        EXPECT_EQ(block.Position.first,  1);
+        EXPECT_EQ(block.Position.second, 0);
     }
 
     {
-        constexpr auto src = U"#Sector.Main(\"Hello\"){\r\n}\r\n#Sector.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Block.Main(\"Hello\"){\r\n}\r\n#Block.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        SectorsParser Parser(pool, context);
+        BlockParser Parser(pool, context);
 
-        const auto sector0 = Parser.ParseNextSector();
-        EXPECT_EQ(sector0.Type, U"Main"sv);
-        EXPECT_EQ(sector0.Name, U"Hello"sv);
-        EXPECT_EQ(sector0.Content, U""sv);
-        EXPECT_EQ(sector0.Position.first,  1);
-        EXPECT_EQ(sector0.Position.second, 0);
+        const auto block0 = Parser.GetNextBlock();
+        EXPECT_EQ(block0.Type, U"Main"sv);
+        EXPECT_EQ(block0.Name, U"Hello"sv);
+        EXPECT_EQ(block0.Source, U""sv);
+        EXPECT_EQ(block0.Position.first,  1);
+        EXPECT_EQ(block0.Position.second, 0);
 
-        const auto sector1 = Parser.ParseNextSector();
-        EXPECT_EQ(sector1.Type, U"Main"sv);
-        EXPECT_EQ(sector1.Name, U"Hello"sv);
-        EXPECT_EQ(sector1.Content, U""sv);
-        EXPECT_EQ(sector1.Position.first,  3);
-        EXPECT_EQ(sector1.Position.second, 0);
+        const auto block1 = Parser.GetNextBlock();
+        EXPECT_EQ(block1.Type, U"Main"sv);
+        EXPECT_EQ(block1.Name, U"Hello"sv);
+        EXPECT_EQ(block1.Source, U""sv);
+        EXPECT_EQ(block1.Position.first,  3);
+        EXPECT_EQ(block1.Position.second, 0);
     }
     {
         constexpr auto src = 
             UR"(
-#Sector.Main("Hello")
+#Block.Main("Hello")
 {
 Here
 }
 
-#Sector.Main("Hello")
+#Block.Main("Hello")
 {===+++
 {Here}
 ===+++}
 )"sv;
         ParserContext context(src);
-        SectorsParser Parser(pool, context);
+        BlockParser Parser(pool, context);
 
-        const auto sector0 = Parser.ParseNextSector();
-        EXPECT_EQ(sector0.Type, U"Main"sv);
-        EXPECT_EQ(sector0.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector0.Content), U"Here\n"sv);
-        EXPECT_EQ(sector0.Position.first,  3);
-        EXPECT_EQ(sector0.Position.second, 0);
+        const auto block0 = Parser.GetNextBlock();
+        EXPECT_EQ(block0.Type, U"Main"sv);
+        EXPECT_EQ(block0.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(block0.Source), U"Here\n"sv);
+        EXPECT_EQ(block0.Position.first,  3);
+        EXPECT_EQ(block0.Position.second, 0);
 
-        const auto sector1 = Parser.ParseNextSector();
-        EXPECT_EQ(sector1.Type, U"Main"sv);
-        EXPECT_EQ(sector1.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector1.Content), U"{Here}\n"sv);
-        EXPECT_EQ(sector1.Position.first,  8);
-        EXPECT_EQ(sector1.Position.second, 0);
+        const auto block1 = Parser.GetNextBlock();
+        EXPECT_EQ(block1.Type, U"Main"sv);
+        EXPECT_EQ(block1.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(block1.Source), U"{Here}\n"sv);
+        EXPECT_EQ(block1.Position.first,  8);
+        EXPECT_EQ(block1.Position.second, 0);
     }
 }
 
@@ -229,22 +229,22 @@ TEST(SectorFileParser, ParseMetaSector)
         constexpr auto src =
             UR"(
 @func()
-#Sector.Main("Hello")
+#Block.Main("Hello")
 {
 Here
 }
 )"sv;
         ParserContext context(src);
-        SectorsParser Parser(pool, context);
+        BlockParser Parser(pool, context);
 
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
-        EXPECT_EQ(sector.MetaFunctions.size(), 1);
-        EXPECT_EQ(sector.Position.first,  4);
-        EXPECT_EQ(sector.Position.second, 0);
-        const auto& meta = sector.MetaFunctions[0];
+        const auto block = Parser.GetNextBlock();
+        EXPECT_EQ(block.Type, U"Main"sv);
+        EXPECT_EQ(block.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
+        EXPECT_EQ(block.MetaFunctions.size(), 1);
+        EXPECT_EQ(block.Position.first,  4);
+        EXPECT_EQ(block.Position.second, 0);
+        const auto& meta = block.MetaFunctions[0];
         EXPECT_EQ(meta.Name, U"func"sv);
         EXPECT_EQ(meta.Args.size(), 0);
     }
@@ -253,46 +253,46 @@ Here
             UR"(
 @func(1)
 @func(abc, 0xff)
-#Sector.Main("Hello")
+#Block.Main("Hello")
 {
 Here
 }
-#Sector.Main("Hello")
+#Block.Main("Hello")
 {
 Here
 }
 )"sv;
         ParserContext context(src);
-        SectorsParser Parser(pool, context);
+        BlockParser Parser(pool, context);
 
-        const auto sector = Parser.ParseNextSector();
-        EXPECT_EQ(sector.Type, U"Main"sv);
-        EXPECT_EQ(sector.Name, U"Hello"sv);
-        EXPECT_EQ(ReplaceNewLine(sector.Content), U"Here\n"sv);
-        EXPECT_EQ(sector.Position.first,  5);
-        EXPECT_EQ(sector.Position.second, 0);
-        EXPECT_EQ(sector.MetaFunctions.size(), 2);
+        const auto block = Parser.GetNextBlock();
+        EXPECT_EQ(block.Type, U"Main"sv);
+        EXPECT_EQ(block.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
+        EXPECT_EQ(block.Position.first,  5);
+        EXPECT_EQ(block.Position.second, 0);
+        EXPECT_EQ(block.MetaFunctions.size(), 2);
         {
-            const auto& meta = sector.MetaFunctions[0];
+            const auto& meta = block.MetaFunctions[0];
             EXPECT_EQ(meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 1);
             CHECK_VAR_ARG(meta.Args[0], uint64_t, 1);
         }
         {
-            const auto& meta = sector.MetaFunctions[1];
+            const auto& meta = block.MetaFunctions[1];
             EXPECT_EQ(meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 2);
             CHECK_VAR_ARG_PROP(meta.Args[0], LateBindVar, Name, U"abc");
             CHECK_VAR_ARG(meta.Args[1], uint64_t, 0xff);
         }
         {
-            const auto sector_ = Parser.ParseNextSector();
-            EXPECT_EQ(sector_.Type, U"Main"sv);
-            EXPECT_EQ(sector_.Name, U"Hello"sv);
-            EXPECT_EQ(ReplaceNewLine(sector_.Content), U"Here\n"sv);
-            EXPECT_EQ(sector_.Position.first,  9);
-            EXPECT_EQ(sector_.Position.second, 0);
-            EXPECT_EQ(sector_.MetaFunctions.size(), 0);
+            const auto block_ = Parser.GetNextBlock();
+            EXPECT_EQ(block_.Type, U"Main"sv);
+            EXPECT_EQ(block_.Name, U"Hello"sv);
+            EXPECT_EQ(ReplaceNewLine(block_.Source), U"Here\n"sv);
+            EXPECT_EQ(block_.Position.first,  9);
+            EXPECT_EQ(block_.Position.second, 0);
+            EXPECT_EQ(block_.MetaFunctions.size(), 0);
         }
     }
 }

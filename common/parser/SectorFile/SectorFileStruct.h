@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/CommonRely.hpp"
+#include "common/EnumEx.hpp"
 #include <vector>
 #include <variant>
 #include <string>
@@ -102,26 +103,50 @@ struct BinaryStatement
 };
 
 
-struct SectorRaw
+struct RawBlock
 {
     std::u32string_view Type;
     std::u32string_view Name;
-    std::u32string_view Content;
+    std::u32string_view Source;
     common::span<FuncCall> MetaFunctions;
     std::u16string FileName;
     std::pair<size_t, size_t> Position;
 };
 
-struct Block
-{
-    std::u32string Type;
-    std::u32string Name;
-    std::u32string_view Content;
 
-    Block(std::u32string_view type, std::u32string_view name, std::u32string_view content)
-        : Type(type), Name(name), Content(content) { }
+struct Assignment
+{
+    LateBindVar Variable;
+    FuncArgRaw Statement;
 };
 
+struct BlockContent
+{
+    enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2 };
+    uintptr_t Pointer;
+    static BlockContent Generate(const Assignment* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
+    }
+    static BlockContent Generate(const FuncCall* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
+    }
+    static BlockContent Generate(const RawBlock* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
+    }
+};
+struct Block : RawBlock
+{
+    common::span<BlockContent> Content;
+};
 
 
 }
