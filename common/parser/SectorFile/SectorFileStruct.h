@@ -103,12 +103,17 @@ struct BinaryStatement
 };
 
 
+template<typename T>
+struct WithMeta : public T
+{
+    common::span<const FuncCall> MetaFunctions;
+};
+
 struct RawBlock
 {
     std::u32string_view Type;
     std::u32string_view Name;
     std::u32string_view Source;
-    common::span<FuncCall> MetaFunctions;
     std::u16string FileName;
     std::pair<size_t, size_t> Position;
 };
@@ -120,23 +125,54 @@ struct Assignment
     FuncArgRaw Statement;
 };
 
+using AssignmentWithMeta = WithMeta<Assignment>;
+using FuncCallWithMeta   = WithMeta<FuncCall>;
+using RawBlockWithMeta   = WithMeta<RawBlock>;
+
 struct BlockContent
 {
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2 };
     uintptr_t Pointer;
-    static BlockContent Generate(const Assignment* ptr)
+
+    constexpr Type GetType() const
+    {
+        const auto type = static_cast<Type>(Pointer & 0x7);
+        switch (type)
+        {
+        case Type::Assignment:
+        case Type::FuncCall:
+        case Type::RawBlock:
+            return type;
+        default:
+            Expects(false);
+            return type;
+        }
+    }
+    common::span<const FuncCall> GetMetaFunctions() const
+    {
+        switch (GetType())
+        {
+        case Type::Assignment:
+            return reinterpret_cast<const AssignmentWithMeta*>(Pointer)->MetaFunctions;
+        case Type::FuncCall:
+            return reinterpret_cast<const   FuncCallWithMeta*>(Pointer)->MetaFunctions;
+        case Type::RawBlock:
+            return reinterpret_cast<const   RawBlockWithMeta*>(Pointer)->MetaFunctions;
+        }
+    }
+    static BlockContent Generate(const AssignmentWithMeta* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
     }
-    static BlockContent Generate(const FuncCall* ptr)
+    static BlockContent Generate(const FuncCallWithMeta* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
     }
-    static BlockContent Generate(const RawBlock* ptr)
+    static BlockContent Generate(const RawBlockWithMeta* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned

@@ -7,13 +7,13 @@ namespace xziar::sectorlang
 using tokenizer::SectorLangToken;
 
 
-RawBlock BlockParser::FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs)
+RawBlockWithMeta BlockParser::FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     constexpr auto ExpectString = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
 
-    RawBlock block;
+    RawBlockWithMeta block;
     block.Type = name;
 
     EatLeftParenthese();
@@ -38,23 +38,69 @@ RawBlock BlockParser::FillBlock(const std::u32string_view name, const std::vecto
 
 Block BlockParser::ParseBlockContent()
 {
-    return Block();
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+
+    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, tokenizer::VariableTokenizer>();
+
+    Block block;
+    std::vector<BlockContent> contents;
+    std::vector<FuncCall> metaFuncs;
+    while (true)
+    {
+        const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
+        switch (token.GetIDEnum<SectorLangToken>())
+        {
+        case SectorLangToken::MetaFunc:
+        {
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
+        } continue;
+        case SectorLangToken::Block:
+        {
+            const auto target = MemPool.Create<RawBlockWithMeta>(FillBlock(token.GetString(), metaFuncs));
+            contents.push_back(BlockContent::Generate(target));
+            metaFuncs.clear();
+        } continue;
+        case SectorLangToken::Func:
+        {
+            FuncCallWithMeta funccall;
+            static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
+            funccall.MetaFunctions = MemPool.CreateArray(metaFuncs);
+            const auto target = MemPool.Create<FuncCallWithMeta>(funccall);
+            contents.push_back(BlockContent::Generate(target));
+            metaFuncs.clear();
+        } continue;
+        case SectorLangToken::Var:
+        {
+            // not implemented
+            metaFuncs.clear();
+        } continue;
+        default:
+            if (token.GetIDEnum() == BaseToken::End)
+            {
+                if (metaFuncs.size() > 0)
+                    OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
+                break;
+            }
+            else
+                OnUnExpectedToken(token, u"when parsing block contents"sv);
+        }
+    }
 }
 
-RawBlock BlockParser::GetNextBlock()
+RawBlockWithMeta BlockParser::GetNextBlock()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
        
-    constexpr auto ExpectSectorOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Block, SectorLangToken::MetaFunc);
+    constexpr auto ExpectBlockOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Block, SectorLangToken::MetaFunc);
 
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
 
-    RawBlock sector;
     std::vector<FuncCall> metaFuncs;
     while (true)
     {
-        const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectSectorOrMeta);
+        const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectBlockOrMeta);
         const auto tkType = token.GetIDEnum<SectorLangToken>();
         if (tkType == SectorLangToken::Block)
         {
@@ -65,9 +111,9 @@ RawBlock BlockParser::GetNextBlock()
     }
 }
 
-std::vector<RawBlock> BlockParser::GetAllBlocks()
+std::vector<RawBlockWithMeta> BlockParser::GetAllBlocks()
 {
-    std::vector<RawBlock> sectors;
+    std::vector<RawBlockWithMeta> sectors;
     while (true)
     {
         ContextReader reader(Context);

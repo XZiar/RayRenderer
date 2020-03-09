@@ -31,7 +31,7 @@ enum class SectorLangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Block, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace,
+    Block, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
@@ -190,6 +190,60 @@ public:
         RET_OP("*",  Mul);
         RET_OP("/",  Div);
         RET_OP("%",  Rem);
+        default:     return ParserToken(BaseToken::Error, txt);
+        }
+#undef RET_OP
+    }
+};
+
+
+enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign };
+class AssignOpTokenizer
+{
+public:
+    using StateData = char32_t;
+    constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
+    {
+        Expects((idx == 0) == (prevChar == 0));
+        switch (idx)
+        {
+        case 0: // just begin
+            switch (ch)
+            {
+            case U'=':  return { ch, TokenizerResult::Waitlist };
+            case U'&':  return { ch, TokenizerResult::Pending };
+            case U'|':  return { ch, TokenizerResult::Pending };
+            case U'+':  return { ch, TokenizerResult::Pending };
+            case U'-':  return { ch, TokenizerResult::Pending };
+            case U'*':  return { ch, TokenizerResult::Pending };
+            case U'/':  return { ch, TokenizerResult::Pending };
+            case U'%':  return { ch, TokenizerResult::Pending };
+            default:    return { ch, TokenizerResult::NotMatch };
+            }
+        case 1:
+            switch (prevChar)
+            {
+            case U'=': return { ch, TokenizerResult::NotMatch };
+            default  : return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            }
+        default:
+            return { ch, TokenizerResult::NotMatch };
+        }
+    }
+    forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
+    {
+        Expects(txt.size() == 1 || txt.size() == 2);
+#define RET_OP(str, op) case str ## _hash: return ParserToken( SectorLangToken::Assign, common::enum_cast(AssignOps::op))
+        switch (hash_(txt))
+        {
+        RET_OP("=",     Assign);
+        RET_OP("&=", AndAssign);
+        RET_OP("|=",  OrAssign);
+        RET_OP("+=", AddAssign);
+        RET_OP("-=", SubAssign);
+        RET_OP("*=", MulAssign);
+        RET_OP("/=", DivAssign);
+        RET_OP("%=", RemAssign);
         default:     return ParserToken(BaseToken::Error, txt);
         }
 #undef RET_OP
