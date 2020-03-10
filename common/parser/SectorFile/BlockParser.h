@@ -11,6 +11,8 @@ class BlockParser : public SectorFileParser
 {
 protected:
     RawBlockWithMeta FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs);
+
+    AssignmentWithMeta ParseAssignment(const std::u32string_view var);
     Block ParseBlockContent();
 public:
     using SectorFileParser::SectorFileParser;

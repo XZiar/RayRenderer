@@ -13,6 +13,10 @@ struct GroupEndDelimer
 {
     static constexpr DelimTokenizer Stopper = ")"sv;
 };
+struct StatementEndDelimer
+{
+    static constexpr DelimTokenizer Stopper = ";"sv;
+};
 
 template<typename StopDelimer>
 std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
@@ -130,6 +134,15 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
     }
     const auto sp = pool.CreateArray(args);
     return { funcName,sp };
+}
+
+std::optional<FuncArgRaw> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
+{
+    ComplexArgParser parser(pool, context);
+    auto [arg, delim] = parser.ParseArg<StatementEndDelimer>();
+    if (delim != U';')
+        throw U"Expected end with ;"sv;
+    return arg;
 }
 
 }

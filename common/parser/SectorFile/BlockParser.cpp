@@ -36,10 +36,57 @@ RawBlockWithMeta BlockParser::FillBlock(const std::u32string_view name, const st
     return block;
 }
 
+AssignmentWithMeta BlockParser::ParseAssignment(const std::u32string_view var)
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+    using tokenizer::AssignOps;
+
+    constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
+    constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
+
+    AssignmentWithMeta assign;
+    assign.Variable.Name = var;
+
+    const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
+    Expects(opToken.GetIDEnum<SectorLangToken>() == SectorLangToken::Assign);
+
+    std::optional<EmbedOps> selfOp;
+    switch (static_cast<AssignOps>(opToken.GetUInt()))
+    {
+    case AssignOps::   Assign:                         break;
+    case AssignOps::AndAssign: selfOp = EmbedOps::And; break;
+    case AssignOps:: OrAssign: selfOp = EmbedOps:: Or; break;
+    case AssignOps::AddAssign: selfOp = EmbedOps::Add; break;
+    case AssignOps::SubAssign: selfOp = EmbedOps::Sub; break;
+    case AssignOps::MulAssign: selfOp = EmbedOps::Mul; break;
+    case AssignOps::DivAssign: selfOp = EmbedOps::Div; break;
+    case AssignOps::RemAssign: selfOp = EmbedOps::Rem; break;
+    default: OnUnExpectedToken(opToken, u"expect assign op"sv); break;
+    }
+
+    const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
+    if (!stmt.has_value())
+        throw u"expect statement"sv;
+    const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
+
+    if (!selfOp.has_value())
+    {
+        assign.Statement = stmt_;
+    }
+    else
+    {
+        BinaryStatement statement(*selfOp, assign.Variable, stmt_);
+        assign.Statement = MemPool.Create<BinaryStatement>(statement);
+    }
+    return assign;
+}
+
 Block BlockParser::ParseBlockContent()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
+    using tokenizer::AssignOps;
 
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, tokenizer::VariableTokenizer>();
 
@@ -72,7 +119,10 @@ Block BlockParser::ParseBlockContent()
         } continue;
         case SectorLangToken::Var:
         {
-            // not implemented
+            AssignmentWithMeta assign = ParseAssignment(token.GetString());
+            assign.MetaFunctions = MemPool.CreateArray(metaFuncs);
+            const auto target = MemPool.Create<AssignmentWithMeta>(assign);
+            contents.push_back(BlockContent::Generate(target));
             metaFuncs.clear();
         } continue;
         default:
