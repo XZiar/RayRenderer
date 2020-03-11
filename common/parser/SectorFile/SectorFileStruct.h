@@ -173,7 +173,7 @@ struct BlockContent
         case Type::Assignment:  return visitor(Get<AssignmentWithMeta>());
         case Type::FuncCall:    return visitor(Get<  FuncCallWithMeta>());
         case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
-        default:Expects(false); return visitor(reinterpret_cast<const AssignmentWithMeta*>(nullptr));
+        default:Expects(false); return visitor(static_cast<const AssignmentWithMeta*>(nullptr));
         }
     }
     common::span<const FuncCall> GetMetaFunctions() const

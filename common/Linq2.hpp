@@ -1109,7 +1109,7 @@ public:
         [[maybe_unused]] size_t idx = 0;
         while (!Provider.IsEnd())
         {
-            if constexpr (std::is_invocable_v<U, Func, const U&, EleType, size_t>)
+            if constexpr (std::is_invocable_r_v<U, Func, const U&, EleType, size_t>)
                 data = func(data, Provider.GetCurrent(), idx++);
             else if constexpr (std::is_invocable_v<Func, U&, EleType, size_t>)
                 func(data, Provider.GetCurrent(), idx++);

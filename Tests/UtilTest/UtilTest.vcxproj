@@ -157,6 +157,9 @@
     <ProjectReference Include="..\..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\common\parser\SectorFile\SectorFile.vcxproj">
+      <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
@@ -221,6 +224,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="LogTest.cpp" />
+    <ClCompile Include="SectorFileTest.cpp" />
     <ClCompile Include="UtilTest.cpp" />
     <ClCompile Include="WdHostTest.cpp" />
   </ItemGroup>
