@@ -126,5 +126,55 @@ TEST(SectorFileBase, EmbedOpTokenizer)
         CHECK_BASE_UINT(tokens[0], 1);
         //CHECK_BASE_TK(tokens[1], Unknown, GetString, U"+="sv);
     }
+#undef CHECK_BIN_OP
+#undef CHECK_EMBED_OP
+#undef CHECK_BASE_UINT
 }
 
+
+TEST(SectorFileBase, AssignOpTokenizer)
+{
+    using common::parser::BaseToken;
+    constexpr auto ParseAll = [](const std::u32string_view src)
+    {
+        using namespace common::parser;
+        constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+        constexpr auto lexer = ParserLexerBase<xziar::sectorlang::tokenizer::AssignOpTokenizer, tokenizer::IntTokenizer>();
+        ParserContext context(src);
+        std::vector<ParserToken> tokens;
+        while (true)
+        {
+            const auto token = lexer.GetTokenBy(context, ignore);
+            const auto type = token.GetIDEnum();
+            if (type != BaseToken::End)
+                tokens.emplace_back(token);
+            if (type == BaseToken::Error || type == BaseToken::Unknown || type == BaseToken::End)
+                break;
+        }
+        return tokens;
+    };
+#define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
+#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::sectorlang::tokenizer::SectorLangToken, Assign, GetUInt, common::enum_cast(xziar::sectorlang::tokenizer::AssignOps::type))
+
+#define CHECK_ASSIGN(src, type) do          \
+    {                                       \
+        const auto tokens = ParseAll(src);  \
+        CHECK_BASE_UINT(tokens[0], 1);      \
+        CHECK_ASSIGN_OP(tokens[1], type);    \
+        CHECK_BASE_UINT(tokens[2], 2);      \
+    } while(0)                              \
+
+
+    CHECK_ASSIGN(U"1=2"sv,       Assign);
+    CHECK_ASSIGN(U"1 &= 2"sv, AndAssign);
+    CHECK_ASSIGN(U"1 |= 2"sv,  OrAssign);
+    CHECK_ASSIGN(U"1 += 2"sv, AddAssign);
+    CHECK_ASSIGN(U"1 -= 2"sv, SubAssign);
+    CHECK_ASSIGN(U"1 *= 2"sv, MulAssign);
+    CHECK_ASSIGN(U"1 /= 2"sv, DivAssign);
+    CHECK_ASSIGN(U"1 %= 2"sv, RemAssign);
+
+#undef CHECK_BIN_OP
+#undef CHECK_EMBED_OP
+#undef CHECK_BASE_UINT
+}

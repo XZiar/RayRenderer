@@ -10,10 +10,11 @@ namespace xziar::sectorlang
 class BlockParser : public SectorFileParser
 {
 protected:
+    void EatSemiColon();
     RawBlockWithMeta FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs);
 
     AssignmentWithMeta ParseAssignment(const std::u32string_view var);
-    Block ParseBlockContent();
+    std::vector<BlockContent> ParseBlockContent();
 public:
     using SectorFileParser::SectorFileParser;
     

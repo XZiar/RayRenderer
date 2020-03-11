@@ -134,6 +134,12 @@ struct BlockContent
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2 };
     uintptr_t Pointer;
 
+    template<typename T>
+    forceinline const T* Get() const noexcept
+    {
+        return reinterpret_cast<const T*>(Pointer & ~(uintptr_t)(0x7));
+    }
+
     constexpr Type GetType() const
     {
         const auto type = static_cast<Type>(Pointer & 0x7);
@@ -148,16 +154,36 @@ struct BlockContent
             return type;
         }
     }
+    std::variant<const AssignmentWithMeta*, const FuncCallWithMeta*, const RawBlockWithMeta*>
+        GetStatement() const
+    {
+        switch (GetType())
+        {
+        case Type::Assignment:  return Get<AssignmentWithMeta>();
+        case Type::FuncCall:    return Get<  FuncCallWithMeta>();
+        case Type::RawBlock:    return Get<  RawBlockWithMeta>();
+        default:                Expects(false); return {};
+        }
+    }
+    template<typename Visitor> 
+    auto Visit(Visitor&& visitor) const
+    {
+        switch (GetType())
+        {
+        case Type::Assignment:  return visitor(Get<AssignmentWithMeta>());
+        case Type::FuncCall:    return visitor(Get<  FuncCallWithMeta>());
+        case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
+        default:Expects(false); return visitor(reinterpret_cast<const AssignmentWithMeta*>(nullptr));
+        }
+    }
     common::span<const FuncCall> GetMetaFunctions() const
     {
         switch (GetType())
         {
-        case Type::Assignment:
-            return reinterpret_cast<const AssignmentWithMeta*>(Pointer)->MetaFunctions;
-        case Type::FuncCall:
-            return reinterpret_cast<const   FuncCallWithMeta*>(Pointer)->MetaFunctions;
-        case Type::RawBlock:
-            return reinterpret_cast<const   RawBlockWithMeta*>(Pointer)->MetaFunctions;
+        case Type::Assignment:  return Get<AssignmentWithMeta>()->MetaFunctions;
+        case Type::FuncCall:    return Get<  FuncCallWithMeta>()->MetaFunctions;
+        case Type::RawBlock:    return Get<  RawBlockWithMeta>()->MetaFunctions;
+        default:                Expects(false); return {};
         }
     }
     static BlockContent Generate(const AssignmentWithMeta* ptr)

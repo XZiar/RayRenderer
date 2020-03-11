@@ -7,6 +7,16 @@ namespace xziar::sectorlang
 using tokenizer::SectorLangToken;
 
 
+struct ExpectSemoColon
+{
+    static constexpr ParserToken Token = ParserToken(BaseToken::Delim, U';');
+};
+void BlockParser::EatSemiColon()
+{
+    using SemiColonTokenizer = tokenizer::KeyCharTokenizer<BaseToken::Delim, U';'>;
+    EatSingleToken<ExpectSemoColon, SemiColonTokenizer>();
+}
+
 RawBlockWithMeta BlockParser::FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs)
 {
     using common::parser::detail::TokenMatcherHelper;
@@ -68,21 +78,21 @@ AssignmentWithMeta BlockParser::ParseAssignment(const std::u32string_view var)
     const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
     if (!stmt.has_value())
         throw u"expect statement"sv;
-    const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
+    //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
 
     if (!selfOp.has_value())
     {
-        assign.Statement = stmt_;
+        assign.Statement = *stmt;
     }
     else
     {
-        BinaryStatement statement(*selfOp, assign.Variable, stmt_);
+        BinaryStatement statement(*selfOp, assign.Variable, *stmt);
         assign.Statement = MemPool.Create<BinaryStatement>(statement);
     }
     return assign;
 }
 
-Block BlockParser::ParseBlockContent()
+std::vector<BlockContent> BlockParser::ParseBlockContent()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -90,7 +100,6 @@ Block BlockParser::ParseBlockContent()
 
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, tokenizer::VariableTokenizer>();
 
-    Block block;
     std::vector<BlockContent> contents;
     std::vector<FuncCall> metaFuncs;
     while (true)
@@ -112,6 +121,7 @@ Block BlockParser::ParseBlockContent()
         {
             FuncCallWithMeta funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
+            EatSemiColon();
             funccall.MetaFunctions = MemPool.CreateArray(metaFuncs);
             const auto target = MemPool.Create<FuncCallWithMeta>(funccall);
             contents.push_back(BlockContent::Generate(target));
@@ -135,7 +145,9 @@ Block BlockParser::ParseBlockContent()
             else
                 OnUnExpectedToken(token, u"when parsing block contents"sv);
         }
+        break;
     }
+    return contents;
 }
 
 RawBlockWithMeta BlockParser::GetNextBlock()
@@ -182,7 +194,10 @@ Block BlockParser::ParseBlockRaw(const RawBlock& block, MemoryPool& pool)
     std::tie(context.Row, context.Col) = block.Position;
     BlockParser parser(pool, context);
 
-    return parser.ParseBlockContent();
+    Block ret;
+    static_cast<RawBlock&>(ret) = block;
+    ret.Content = pool.CreateArray(parser.ParseBlockContent());
+    return ret;
 }
 
 }

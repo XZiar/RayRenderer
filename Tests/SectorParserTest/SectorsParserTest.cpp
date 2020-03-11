@@ -156,6 +156,100 @@ TEST(SectorFileParser, ParseFuncBody)
     }
 }
 
+
+TEST(SectorFileParser, ParseBlockBody)
+{
+    xziar::sectorlang::MemoryPool pool;
+    const auto ParseAll = [&pool](std::u32string_view src)
+    {
+        xziar::sectorlang::RawBlock block;// { U""sv, U""sv, src, u"", { 0,0 } };
+        block.Source = src;
+        return xziar::sectorlang::BlockParser::ParseBlockRaw(block, pool);
+    };
+    {
+        constexpr auto src = UR"(
+$func(hey);
+)"sv;
+        const auto block = ParseAll(src);
+        EXPECT_EQ(block.Content.size(), 1);
+        const auto& stmt = block.Content[0];
+        EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::FuncCall);
+        EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+        const auto& fcall = *std::get<1>(stmt.GetStatement());
+        EXPECT_EQ(fcall.Name, U"func"sv);
+        EXPECT_EQ(fcall.Args.size(), 1);
+        CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"hey");
+    }
+    {
+        constexpr auto src = UR"(
+@meta()
+hey = 13;
+)"sv;
+        const auto block = ParseAll(src);
+        EXPECT_EQ(block.Content.size(), 1);
+        const auto& stmt = block.Content[0];
+        EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::Assignment);
+        EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
+        EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
+        EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
+        const auto& assign = *std::get<0>(stmt.GetStatement());
+        EXPECT_EQ(assign.Variable.Name, U"hey"sv);
+        CHECK_VAR_ARG(assign.Statement, uint64_t, 13u);
+    }
+    {
+        constexpr auto src = UR"(
+hey /= 9+1;
+$func(hey);
+@meta()
+#Block.Main("block")
+{
+empty
+}
+)"sv;
+        const auto block = ParseAll(src);
+        EXPECT_EQ(block.Content.size(), 3);
+        {
+            const auto& stmt = block.Content[0];
+            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+            const auto& assign = *std::get<0>(stmt.GetStatement());
+            EXPECT_EQ(assign.Variable.Name, U"hey"sv);
+            EXPECT_TRUE(std::holds_alternative<BinStmt>(assign.Statement));
+            {
+                const auto& stmt_ = *std::get<BinStmt>(assign.Statement);
+                CHECK_VAR_ARG_PROP(stmt_.LeftOprend, LateBindVar, Name, U"hey");
+                EXPECT_EQ(stmt_.Operator, EmbedOps::Div);
+                EXPECT_TRUE(std::holds_alternative<BinStmt>(stmt_.RightOprend));
+                {
+                    const auto& stmt2 = *std::get<BinStmt>(stmt_.RightOprend);
+                    CHECK_VAR_ARG(stmt2.LeftOprend, uint64_t, 9u);
+                    EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
+                    CHECK_VAR_ARG(stmt2.RightOprend, uint64_t, 1u);
+                }
+            }
+        }
+        {
+            const auto& stmt = block.Content[1];
+            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::FuncCall);
+            EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+            const auto& fcall = *std::get<1>(stmt.GetStatement());
+            EXPECT_EQ(fcall.Name, U"func"sv);
+            EXPECT_EQ(fcall.Args.size(), 1);
+            CHECK_VAR_ARG_PROP(fcall.Args[0], LateBindVar, Name, U"hey");
+        }
+        {
+            const auto& stmt = block.Content[2];
+            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::RawBlock);
+            EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
+            EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
+            EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
+            const auto& blk = *std::get<2>(stmt.GetStatement());
+            EXPECT_EQ(ReplaceNewLine(blk.Source), U"empty\n"sv);
+        }
+    }
+}
+
+
 TEST(SectorFileParser, ParseSector)
 {
     xziar::sectorlang::MemoryPool pool;

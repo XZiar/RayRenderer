@@ -5,18 +5,6 @@ namespace xziar::sectorlang
 {
 using tokenizer::SectorLangToken;
 
-template<typename ExpectBracket, typename... TKs>
-void SectorFileParser::EatBracket()
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-
-    constexpr ParserToken ExpectToken = ExpectBracket::Token;
-    constexpr auto ExpectMatcher = TokenMatcherHelper::GetMatcher(std::array{ ExpectToken });
-
-    constexpr auto Lexer = ParserLexerBase<CommentTokenizer, TKs...>();
-    ExpectNextToken(Lexer, IgnoreBlank, IgnoreCommentToken, ExpectMatcher);
-}
 
 struct ExpectParentheseL
 {
@@ -67,19 +55,19 @@ common::SharedString<char16_t> SectorFileParser::GetCurrentFileName() const noex
 
 void SectorFileParser::EatLeftParenthese()
 {
-    EatBracket<ExpectParentheseL, tokenizer::ParentheseTokenizer>();
+    EatSingleToken<ExpectParentheseL, tokenizer::ParentheseTokenizer>();
 }
 void SectorFileParser::EatRightParenthese()
 {
-    EatBracket<ExpectParentheseR, tokenizer::ParentheseTokenizer>();
+    EatSingleToken<ExpectParentheseR, tokenizer::ParentheseTokenizer>();
 }
 void SectorFileParser::EatLeftCurlyBrace()
 {
-    EatBracket<ExpectCurlyBraceL, tokenizer::CurlyBraceTokenizer>();
+    EatSingleToken<ExpectCurlyBraceL, tokenizer::CurlyBraceTokenizer>();
 }
 void SectorFileParser::EatRightCurlyBrace()
 {
-    EatBracket<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
+    EatSingleToken<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
 }
 
 
