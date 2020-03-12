@@ -1,13 +1,14 @@
 #include "TestRely.h"
-#include "common/parser/SectorFile/BlockParser.h"
-#include "common/linq2.hpp"
+#include "Nailang/BlockParser.h"
+#include "common/Linq2.hpp"
 #include "StringCharset/Detect.h"
 #include "StringCharset/Convert.h"
 #include <iostream>
 
 using namespace common::mlog;
 using namespace common;
-using namespace xziar::sectorlang;
+using namespace xziar::nailang;
+using namespace std::string_view_literals;
 using std::vector;
 using std::string;
 using std::string_view;
@@ -17,22 +18,19 @@ using std::cin;
 
 static MiniLogger<false>& log()
 {
-    static MiniLogger<false> log(u"SecFileTest", { GetConsoleBackend() });
+    static MiniLogger<false> log(u"Nailang", { GetConsoleBackend() });
     return log;
 }
 
 
-static void ShowMeta(const common::span<const FuncCall> metas, const size_t level)
+static void ShowMeta(const common::span<const FuncCall> metas, const string& indent)
 {
-    std::string ident(level * 2, ' ');
     size_t idx = 0;
     for (const auto& meta : metas)
     {
-        log().info(FMT_STRING(u"{}@meta[{}] func[{}], arg[{}]\n"), ident, idx, meta.Name, meta.Args.size());
+        log().info(FMT_STRING(u"{}@meta[{}] func[{}], arg[{}]\n"), indent, idx++, meta.Name, meta.Args.size());
     }
 }
-
-
 
 
 //case Type::Assignment:  return visitor(Get<AssignmentWithMeta>());
@@ -40,35 +38,41 @@ static void ShowMeta(const common::span<const FuncCall> metas, const size_t leve
 //case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
 //default:Expects(false); return visitor(static_cast<const AssignmentWithMeta*>(nullptr));
 
-static void ShowContent(MemoryPool& pool, const AssignmentWithMeta& content, const size_t level)
+static void ShowContent(MemoryPool& pool, const AssignmentWithMeta& content, const string& indent)
 {
-    std::string ident(level * 2, ' ');
-    ShowMeta(content.MetaFunctions, level);
-    log().info(FMT_STRING(u"{}assign [{}]\n"), ident, content.Variable.Name);
+    ShowMeta(content.MetaFunctions, indent);
+    log().info(FMT_STRING(u"{}assign [{}]\n"), indent, content.Variable.Name);
 }
-static void ShowContent(MemoryPool& pool, const FuncCallWithMeta& content, const size_t level)
+static void ShowContent(MemoryPool& pool, const FuncCallWithMeta& content, const string& indent)
 {
-    std::string ident(level * 2, ' ');
-    ShowMeta(content.MetaFunctions, level);
-    log().info(FMT_STRING(u"{}call func[{}], arg[{}]\n"), ident, content.Name, content.Args.size());
+    ShowMeta(content.MetaFunctions, indent);
+    log().info(FMT_STRING(u"{}call func[{}], arg[{}]\n"), indent, content.Name, content.Args.size());
 }
-static void ShowContent(MemoryPool& pool, const RawBlockWithMeta& content, const size_t level)
+static void ShowContent(MemoryPool& pool, const RawBlockWithMeta& content, const string& indent)
 {
-    std::string ident(level * 2, ' ');
-    ShowMeta(content.MetaFunctions, level);
-    log().info(FMT_STRING(u"{}block type[{}], name[{}]\n"), ident, content.Type, content.Name);
-    const auto block = BlockParser::ParseBlockRaw(content, pool);
-    for (const auto& content : block.Content)
+    ShowMeta(content.MetaFunctions, indent);
+    log().info(FMT_STRING(u"{}block type[{}], name[{}]\n"), indent, content.Type, content.Name);
+    if (common::linq::FromIterable(content.MetaFunctions)
+        .AllIf([](const FuncCall& call) { return call.Name != U"noparse"sv; }))
     {
-        content.Visit([&](const auto* content) 
-            {
-                ShowContent(pool, *content, level + 1);
-            });
+        const auto block = BlockParser::ParseBlockRaw(content, pool);
+        string indent2 = indent + "|   ";
+        log().info(u"{}\n", indent2);
+        for (const auto& content : block.Content)
+        {
+            content.Visit([&](const auto* content)
+                {
+                    ShowContent(pool, *content, indent2);
+                    log().info(u"{}\n", indent2);
+                });
+        }
     }
+    log().info(u"{}\n", indent);
 }
 
-static void TestSecFile()
+static void TestNailang()
 {
+    ClearReturn();
     while (true)
     {
         try
@@ -76,7 +80,6 @@ static void TestSecFile()
             log().info(u"\n\ninput sector file:");
             string fpath;
             std::getline(cin, fpath);
-            ClearReturn();
             const auto data = common::file::ReadAll<std::byte>(fpath);
             const auto chset = common::strchset::DetectEncoding(data);
             log().verbose(u"file has encoding [{}].\n", common::str::getCharsetName(chset));
@@ -89,7 +92,7 @@ static void TestSecFile()
             const auto sectors = parser.GetAllBlocks();
             for (const auto block : sectors)
             {
-                ShowContent(pool, block, 0);
+                ShowContent(pool, block, "  ");
             }
         }
         catch (common::BaseException & be)
@@ -108,4 +111,4 @@ static void TestSecFile()
 }
 
 
-const static uint32_t ID = RegistTest("SecFileTest", &TestSecFile);
+const static uint32_t ID = RegistTest("NailangTest", &TestNailang);

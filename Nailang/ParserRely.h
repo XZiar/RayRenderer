@@ -2,9 +2,9 @@
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"
-#include "SectorFileStruct.h"
+#include "NailangStruct.h"
 
-namespace xziar::sectorlang
+namespace xziar::nailang
 {
 using namespace std::string_view_literals;
 using common::parser::tokenizer::TokenizerResult;

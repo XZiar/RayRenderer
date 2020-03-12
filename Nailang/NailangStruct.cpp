@@ -1,8 +1,8 @@
-#include "SectorFileStruct.h"
+#include "NailangStruct.h"
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 
-namespace xziar::sectorlang
+namespace xziar::nailang
 {
 
 MemoryPool::~MemoryPool()

@@ -1,9 +1,9 @@
 #pragma once
-#include "SectorFileStruct.h"
+#include "NailangStruct.h"
 #include "common/parser/ParserBase.hpp"
 
 
-namespace xziar::sectorlang
+namespace xziar::nailang
 {
 
 

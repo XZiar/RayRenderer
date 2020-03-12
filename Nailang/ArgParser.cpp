@@ -1,7 +1,7 @@
 #include "ArgParser.h"
 #include "ParserRely.h"
 
-namespace xziar::sectorlang
+namespace xziar::nailang
 {
 using tokenizer::SectorLangToken;
 

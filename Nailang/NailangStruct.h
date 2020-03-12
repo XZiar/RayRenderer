@@ -9,7 +9,7 @@
 #include <cstdio>
 
 
-namespace xziar::sectorlang
+namespace xziar::nailang
 {
 
 class MemoryPool : public common::NonCopyable

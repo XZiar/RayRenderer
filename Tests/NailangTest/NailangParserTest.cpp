@@ -1,19 +1,19 @@
 #include "rely.h"
-#include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/BlockParser.h"
-#include "common/parser/SectorFile/ArgParser.h"
+#include "Nailang/ParserRely.h"
+#include "Nailang/BlockParser.h"
+#include "Nailang/ArgParser.h"
 
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::sectorlang::BlockParser;
-using xziar::sectorlang::ComplexArgParser;
-using xziar::sectorlang::EmbedOps;
-using xziar::sectorlang::LateBindVar;
-using xziar::sectorlang::BinaryStatement;
-using xziar::sectorlang::UnaryStatement;
-using xziar::sectorlang::FuncCall;
+using xziar::nailang::BlockParser;
+using xziar::nailang::ComplexArgParser;
+using xziar::nailang::EmbedOps;
+using xziar::nailang::LateBindVar;
+using xziar::nailang::BinaryStatement;
+using xziar::nailang::UnaryStatement;
+using xziar::nailang::FuncCall;
 
 
 #define CHECK_VAR_ARG(target, type, val) EXPECT_EQ(std::get<type>(target), val)
@@ -45,9 +45,9 @@ using BinStmt = BinaryStatement*;
 using UnStmt  = UnaryStatement*;
 using FCall   = FuncCall*;
 
-TEST(SectorFileParser, ParseFuncBody)
+TEST(NailangParser, ParseFuncBody)
 {
-    xziar::sectorlang::MemoryPool pool;
+    xziar::nailang::MemoryPool pool;
     {
         constexpr auto src = U"()"sv;
         ParserContext context(src);
@@ -157,14 +157,14 @@ TEST(SectorFileParser, ParseFuncBody)
 }
 
 
-TEST(SectorFileParser, ParseBlockBody)
+TEST(NailangParser, ParseBlockBody)
 {
-    xziar::sectorlang::MemoryPool pool;
+    xziar::nailang::MemoryPool pool;
     const auto ParseAll = [&pool](std::u32string_view src)
     {
-        xziar::sectorlang::RawBlock block;// { U""sv, U""sv, src, u"", { 0,0 } };
+        xziar::nailang::RawBlock block;// { U""sv, U""sv, src, u"", { 0,0 } };
         block.Source = src;
-        return xziar::sectorlang::BlockParser::ParseBlockRaw(block, pool);
+        return xziar::nailang::BlockParser::ParseBlockRaw(block, pool);
     };
     {
         constexpr auto src = UR"(
@@ -173,7 +173,7 @@ $func(hey);
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 1);
         const auto& stmt = block.Content[0];
-        EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::FuncCall);
+        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
         EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
         const auto& fcall = *std::get<1>(stmt.GetStatement());
         EXPECT_EQ(fcall.Name, U"func"sv);
@@ -188,7 +188,7 @@ hey = 13;
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 1);
         const auto& stmt = block.Content[0];
-        EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::Assignment);
+        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
         EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
         EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
         EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
@@ -210,7 +210,7 @@ empty
         EXPECT_EQ(block.Content.size(), 3);
         {
             const auto& stmt = block.Content[0];
-            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
             EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.Variable.Name, U"hey"sv);
@@ -230,7 +230,7 @@ empty
         }
         {
             const auto& stmt = block.Content[1];
-            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::FuncCall);
+            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
             EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
             EXPECT_EQ(fcall.Name, U"func"sv);
@@ -239,7 +239,7 @@ empty
         }
         {
             const auto& stmt = block.Content[2];
-            EXPECT_EQ(stmt.GetType(), xziar::sectorlang::BlockContent::Type::RawBlock);
+            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
             EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
             EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
             EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
@@ -250,9 +250,9 @@ empty
 }
 
 
-TEST(SectorFileParser, ParseSector)
+TEST(NailangParser, ParseBlock)
 {
-    xziar::sectorlang::MemoryPool pool;
+    xziar::nailang::MemoryPool pool;
     {
         constexpr auto src = U"#Block.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
@@ -316,9 +316,9 @@ Here
     }
 }
 
-TEST(SectorFileParser, ParseMetaSector)
+TEST(NailangParser, ParseMetaBlock)
 {
-    xziar::sectorlang::MemoryPool pool;
+    xziar::nailang::MemoryPool pool;
     {
         constexpr auto src =
             UR"(

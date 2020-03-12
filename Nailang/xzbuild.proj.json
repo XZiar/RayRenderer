@@ -1,7 +1,7 @@
 {
-    "name": "SectorFile",
+    "name": "Nailang",
     "type": "static",
-    "description": "Sector Based File Basic",
+    "description": "Nailang, not an intresting language",
     "library": 
     {
         "static": [],

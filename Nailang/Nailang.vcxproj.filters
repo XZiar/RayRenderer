@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SectorFileStruct.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ArgParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -27,12 +24,15 @@
     <ClCompile Include="BlockParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="NailangStruct.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="NailangRuntime.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ParserRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SectorFileStruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ArgParser.h">
@@ -44,8 +44,15 @@
     <ClInclude Include="BlockParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="NailangStruct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangRuntime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

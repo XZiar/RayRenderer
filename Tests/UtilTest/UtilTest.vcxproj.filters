@@ -45,7 +45,7 @@
     <ClCompile Include="WdHostTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="SectorFileTest.cpp">
+    <ClCompile Include="NailangTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

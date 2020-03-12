@@ -1,7 +1,7 @@
 #include "rely.h"
 #include <algorithm>
-#include "common/parser/SectorFile/ParserRely.h"
-#include "common/parser/SectorFile/ArgParser.h"
+#include "Nailang/ParserRely.h"
+#include "Nailang/ArgParser.h"
 #include "3rdParty/fmt/utfext.h"
 
 
@@ -15,7 +15,7 @@ using common::parser::ContextReader;
 #define CHECK_BASE_TK(token, type, action, val) CHECK_TK(token, common::parser::BaseToken, type, action, val)
 
 
-static std::string PrintMemPool(const xziar::sectorlang::MemoryPool& pool) noexcept
+static std::string PrintMemPool(const xziar::nailang::MemoryPool& pool) noexcept
 {
     const auto [used, total] = pool.Usage();
     std::string txt = fmt::format("MemoryPool[{} trunks(default {} bytes)]: [{}/{}]\n", 
@@ -29,9 +29,9 @@ static std::string PrintMemPool(const xziar::sectorlang::MemoryPool& pool) noexc
     return txt;
 }
 
-TEST(SectorFileBase, MemoryPool)
+TEST(NailangBase, MemoryPool)
 {
-    xziar::sectorlang::MemoryPool pool;
+    xziar::nailang::MemoryPool pool;
     {
         const auto space = pool.Alloc(10, 1);
         std::generate(space.begin(), space.end(), [i = 0]() mutable { return std::byte(i++); });
@@ -69,14 +69,14 @@ TEST(SectorFileBase, MemoryPool)
     }
 }
 
-TEST(SectorFileBase, EmbedOpTokenizer)
+TEST(NailangBase, EmbedOpTokenizer)
 {
     using common::parser::BaseToken;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
         using namespace common::parser;
         constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-        constexpr auto lexer = ParserLexerBase<xziar::sectorlang::tokenizer::EmbedOpTokenizer, tokenizer::IntTokenizer>();
+        constexpr auto lexer = ParserLexerBase<xziar::nailang::tokenizer::EmbedOpTokenizer, tokenizer::IntTokenizer>();
         ParserContext context(src);
         std::vector<ParserToken> tokens;
         while (true)
@@ -91,7 +91,7 @@ TEST(SectorFileBase, EmbedOpTokenizer)
         return tokens;
     };
 #define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
-#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::sectorlang::tokenizer::SectorLangToken, EmbedOp, GetUInt, common::enum_cast(xziar::sectorlang::EmbedOps::type))
+#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, EmbedOp, GetUInt, common::enum_cast(xziar::nailang::EmbedOps::type))
 
 #define CHECK_BIN_OP(src, type) do          \
     {                                       \
@@ -132,14 +132,14 @@ TEST(SectorFileBase, EmbedOpTokenizer)
 }
 
 
-TEST(SectorFileBase, AssignOpTokenizer)
+TEST(NailangBase, AssignOpTokenizer)
 {
     using common::parser::BaseToken;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
         using namespace common::parser;
         constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-        constexpr auto lexer = ParserLexerBase<xziar::sectorlang::tokenizer::AssignOpTokenizer, tokenizer::IntTokenizer>();
+        constexpr auto lexer = ParserLexerBase<xziar::nailang::tokenizer::AssignOpTokenizer, tokenizer::IntTokenizer>();
         ParserContext context(src);
         std::vector<ParserToken> tokens;
         while (true)
@@ -154,7 +154,7 @@ TEST(SectorFileBase, AssignOpTokenizer)
         return tokens;
     };
 #define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
-#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::sectorlang::tokenizer::SectorLangToken, Assign, GetUInt, common::enum_cast(xziar::sectorlang::tokenizer::AssignOps::type))
+#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, Assign, GetUInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
 
 #define CHECK_ASSIGN(src, type) do          \
     {                                       \

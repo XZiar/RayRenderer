@@ -20,24 +20,27 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ArgParser.cpp" />
+    <ClCompile Include="NailangRuntime.cpp" />
     <ClCompile Include="ParserBase.cpp" />
     <ClCompile Include="BlockParser.cpp" />
-    <ClCompile Include="SectorFileStruct.cpp" />
+    <ClCompile Include="NailangStruct.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ArgParser.h" />
+    <ClInclude Include="NailangRuntime.h" />
     <ClInclude Include="ParserBase.h" />
     <ClInclude Include="ParserRely.h" />
     <ClInclude Include="BlockParser.h" />
-    <ClInclude Include="SectorFileStruct.h" />
+    <ClInclude Include="NailangStruct.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}</ProjectGuid>
-    <RootNamespace>SectorFile</RootNamespace>
+    <RootNamespace>Nailang</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -73,21 +76,9 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
+    <Import Project="..\SolutionInclude.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />

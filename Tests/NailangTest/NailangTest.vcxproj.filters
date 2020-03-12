@@ -16,10 +16,10 @@
     <ClCompile Include="ParserBaseTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="SectorsParserTest.cpp">
+    <ClCompile Include="NailangBaseTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="SectorFileBaseTest.cpp">
+    <ClCompile Include="NailangParserTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>

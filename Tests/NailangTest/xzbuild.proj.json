@@ -1,8 +1,8 @@
 {
-    "name": "SectorParserTest",
+    "name": "NailangTest",
     "type": "executable",
     "description": "Sector Parser Test",
-    "dependency": ["SectorFile", "fmt"],
+    "dependency": ["Nailang", "fmt"],
     "library": 
     {
         "static": ["gtest", "gmock", "gtest_main"],
