@@ -19,7 +19,7 @@ struct StatementEndDelimer
 };
 
 template<typename StopDelimer>
-std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
+std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -30,7 +30,7 @@ std::pair<std::optional<FuncArgRaw>, char32_t> ComplexArgParser::ParseArg()
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
     
-    std::optional<FuncArgRaw> oprend1, oprend2;
+    std::optional<RawArg> oprend1, oprend2;
     std::optional<EmbedOps> op;
     char32_t stopChar = common::parser::special::CharEnd;
 
@@ -118,7 +118,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
 {
     ComplexArgParser parser(pool, context);
     parser.EatLeftParenthese();
-    std::vector<FuncArgRaw> args;
+    std::vector<RawArg> args;
     while (true)
     {
         auto [arg, delim] = parser.ParseArg<FuncEndDelimer>();
@@ -136,7 +136,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
     return { funcName,sp };
 }
 
-std::optional<FuncArgRaw> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
+std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
 {
     ComplexArgParser parser(pool, context);
     auto [arg, delim] = parser.ParseArg<StatementEndDelimer>();

@@ -28,31 +28,7 @@ enum class BaseToken : uint16_t { End = 0, Error, Unknown, Delim, Comment, Raw, 
 class ParserToken
 {
 private:
-    struct EmptyTag
-    {
-        static constexpr uint8_t ID = 0;
-    };
-    struct UINTTag
-    {
-        static constexpr uint8_t ID = 1;
-    };
-    struct INTTag
-    {
-        static constexpr uint8_t ID = 2;
-    };
-    struct FPTag
-    {
-        static constexpr uint8_t ID = 3;
-    };
-    struct CharTag
-    {
-        static constexpr uint8_t ID = 4;
-    };
-    struct StrTag
-    {
-        static constexpr uint8_t ID = 5;
-    };
-    struct ErrorTag {};
+    enum class Type : uint16_t { Empty, Bool, Char, Str, FP, Uint, Int };
     union DataUnion
     {
         uint8_t Dummy;
@@ -60,60 +36,68 @@ private:
         int64_t Int;
         double FP;
         char32_t Char;
-        std::u32string_view Str;
-        constexpr DataUnion()                     noexcept : Dummy(0) { }
-        template<typename T>
-        constexpr DataUnion(UINTTag, const T val) noexcept : Uint(static_cast<std::make_unsigned_t<T>>(val)) { }
-        template<typename T>
-        constexpr DataUnion(INTTag, const T val) noexcept : Int(static_cast<std::make_signed_t<T>>  (val)) { }
-        template<typename T>
-        constexpr DataUnion(FPTag, const T val) noexcept : FP(static_cast<double>                 (val)) { }
-        template<typename T>
-        constexpr DataUnion(CharTag, const T val) noexcept : Char(static_cast<char32_t>               (val)) { }
-        template<typename T>
-        constexpr DataUnion(StrTag, const T val) noexcept : Str(static_cast<std::u32string_view>    (val)) { }
+        bool Bool;
+        const char32_t* Ptr;
+        constexpr DataUnion()                    noexcept : Dummy(0)  { }
+        constexpr DataUnion(const uint64_t val)  noexcept : Uint(val) { }
+        constexpr DataUnion(const int64_t val)   noexcept : Int (val) { }
+        constexpr DataUnion(const double val)    noexcept : FP  (val) { }
+        constexpr DataUnion(const char32_t val)  noexcept : Char(val) { }
+        constexpr DataUnion(const bool val)      noexcept : Bool(val) { }
+        constexpr DataUnion(const char32_t* val) noexcept : Ptr (val) { }
     } Data;
+    uint32_t Data2;
     uint16_t ID;
-    uint8_t ValType;
+    Type ValType;
+    template<Type TE, typename TD>
+    struct DummyTag {};
+    template<typename TV>
+    static constexpr auto CastType() noexcept
+    {
+        using T = std::decay_t<TV>;
+        if constexpr (std::is_floating_point_v<T>)
+            return DummyTag<Type::FP, double>{};
+        else if constexpr (std::is_same_v<T, char32_t>)
+            return DummyTag<Type::Char, char32_t>{};
+        else if constexpr (std::is_unsigned_v<T>)
+            return DummyTag<Type::Uint, uint64_t>{};
+        else if constexpr (std::is_signed_v<T>)
+            return DummyTag<Type::Int, int64_t>{};
+        else
+            return DummyTag<Type::Empty, void>{};
+    }
+    template<Type TE, typename TD, typename T>
+    constexpr ParserToken(DummyTag<TE, TD>, const uint16_t id, const T val) noexcept :
+        Data(static_cast<TD>(val)), Data2(0), ID(id), ValType(TE) 
+    { }
 public:
     template<typename E>
     constexpr ParserToken(E id) noexcept :
-        Data(), ID(static_cast<uint16_t>(id)), ValType(EmptyTag::ID)
-    { }
-    template<typename E>
-    constexpr ParserToken(E id, bool val) noexcept :
-        Data(UINTTag{}, val ? 1 : 0), ID(static_cast<uint16_t>(id)), ValType(UINTTag::ID)
-    { }
-    template<typename E>
-    constexpr ParserToken(E id, char32_t val) noexcept :
-        Data(CharTag{}, val), ID(static_cast<uint16_t>(id)), ValType(CharTag::ID)
+        Data(), Data2(0), ID(static_cast<uint16_t>(id)), ValType(Type::Empty)
     { }
     template<typename E>
     constexpr ParserToken(E id, const std::u32string_view val) noexcept :
-        Data(StrTag{}, val), ID(static_cast<uint16_t>(id)), ValType(StrTag::ID)
+        Data(val.data()), Data2(gsl::narrow_cast<uint32_t>(val.size())), ID(static_cast<uint16_t>(id)), ValType(Type::Str)
+    { }
+    template<typename E>
+    constexpr ParserToken(E id, const bool val) noexcept :
+        Data(val), Data2(0), ID(static_cast<uint16_t>(id)), ValType(Type::Bool)
+    { }
+    template<typename E, typename T>
+    constexpr ParserToken(E id, const T val) noexcept : 
+        ParserToken(CastType<T>(), static_cast<uint16_t>(id), val)
     { }
 
-    template<typename E, typename T, typename Tag = std::conditional_t<
-        !std::is_floating_point_v<T>,
-        std::conditional_t<
-        std::is_integral_v<T>,
-        std::conditional_t<std::is_unsigned_v<T>, UINTTag, INTTag>,
-        ErrorTag>,
-        FPTag>>
-    constexpr ParserToken(E id, const T val) :
-        Data(Tag{}, val), ID(static_cast<uint16_t>(id)), ValType(Tag::ID)
-    { }
-
-    constexpr bool                  GetBool()   const noexcept { /*Expects(Data2 == std::is_signed_v<T> ? 1 : 2);*/ return Data.Uint != 0; }
-    constexpr int64_t               GetInt()    const noexcept { /*Expects(Data2 == 1);*/ return Data.Int; }
-    constexpr uint64_t              GetUInt()   const noexcept { /*Expects(Data2 == 2);*/ return Data.Uint; }
-    constexpr char32_t              GetChar()   const noexcept { /*Expects(Data2 == 3);*/ return Data.Char; }
-    double                GetDouble() const noexcept { /*Expects(Data2 == 4);*/ return Data.FP; }
+    constexpr bool                  GetBool()   const noexcept { return Data.Bool; }
+    constexpr int64_t               GetInt()    const noexcept { return Data.Int; }
+    constexpr uint64_t              GetUInt()   const noexcept { return Data.Uint; }
+    constexpr char32_t              GetChar()   const noexcept { return Data.Char; }
+    constexpr double                GetDouble() const noexcept { return Data.FP; }
     template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    constexpr T                     GetIntNum() const noexcept { /*Expects(Data2 == std::is_signed_v<T> ? 1 : 2);*/ return static_cast<T>(Data.Uint); }
+    constexpr T                     GetIntNum() const noexcept { return static_cast<T>(Data.Uint); }
     template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
-    constexpr T                     GetFPNum()  const noexcept { /*Expects(Data2 == 4);*/ return static_cast<T>(Data.FP); }
-    constexpr std::u32string_view   GetString() const noexcept { return Data.Str; }
+    constexpr T                     GetFPNum()  const noexcept { return static_cast<T>(Data.FP); }
+    constexpr std::u32string_view   GetString() const noexcept { return { Data.Ptr, Data2 }; }
 
     constexpr uint16_t              GetID()     const noexcept { return ID; }
     template<typename T = BaseToken>
@@ -130,11 +114,13 @@ public:
         {
             switch (this->ValType)
             {
-            case UINTTag::ID: return this->Data.Uint == token.Data.Uint;
-            case  INTTag::ID: return this->Data.Int == token.Data.Int;
-            case   FPTag::ID: return this->Data.FP == token.Data.FP;
-            case CharTag::ID: return this->Data.Char == token.Data.Char;
-            case  StrTag::ID: return this->Data.Str == token.Data.Str;
+            case Type::Uint:  return this->Data.Uint == token.Data.Uint;
+            case Type::Int:   return this->Data.Int  == token.Data.Int;
+            case Type::FP:    return this->Data.FP   == token.Data.FP;
+            case Type::Char:  return this->Data.Char == token.Data.Char;
+            case Type::Bool:  return this->Data.Bool == token.Data.Bool;
+            case Type::Str:   return GetString()     == token.GetString();
+            case Type::Empty: return true;
             }
         }
         return false;
