@@ -219,6 +219,7 @@ struct RawBlock
     std::u16string FileName;
     std::pair<size_t, size_t> Position;
 };
+using RawBlockWithMeta = WithMeta<RawBlock>;
 
 
 struct Assignment
@@ -227,14 +228,11 @@ struct Assignment
     RawArg Statement;
 };
 
-using AssignmentWithMeta = WithMeta<Assignment>;
-using FuncCallWithMeta   = WithMeta<FuncCall>;
-using RawBlockWithMeta   = WithMeta<RawBlock>;
-
 struct BlockContent
 {
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2 };
     uintptr_t Pointer;
+    uint32_t Offset, Count;
 
     template<typename T>
     forceinline const T* Get() const noexcept
@@ -256,14 +254,14 @@ struct BlockContent
             return type;
         }
     }
-    std::variant<const AssignmentWithMeta*, const FuncCallWithMeta*, const RawBlockWithMeta*>
+    std::variant<const Assignment*, const FuncCall*, const RawBlock*>
         GetStatement() const
     {
         switch (GetType())
         {
-        case Type::Assignment:  return Get<AssignmentWithMeta>();
-        case Type::FuncCall:    return Get<  FuncCallWithMeta>();
-        case Type::RawBlock:    return Get<  RawBlockWithMeta>();
+        case Type::Assignment:  return Get<Assignment>();
+        case Type::FuncCall:    return Get<  FuncCall>();
+        case Type::RawBlock:    return Get<  RawBlock>();
         default:                Expects(false); return {};
         }
     }
@@ -272,44 +270,98 @@ struct BlockContent
     {
         switch (GetType())
         {
-        case Type::Assignment:  return visitor(Get<AssignmentWithMeta>());
-        case Type::FuncCall:    return visitor(Get<  FuncCallWithMeta>());
-        case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
-        default:Expects(false); return visitor(static_cast<const AssignmentWithMeta*>(nullptr));
+        case Type::Assignment:  return visitor(Get<Assignment>());
+        case Type::FuncCall:    return visitor(Get<  FuncCall>());
+        case Type::RawBlock:    return visitor(Get<  RawBlock>());
+        default:Expects(false); return visitor(static_cast<const Assignment*>(nullptr));
         }
     }
-    common::span<const FuncCall> GetMetaFunctions() const
-    {
-        switch (GetType())
-        {
-        case Type::Assignment:  return Get<AssignmentWithMeta>()->MetaFunctions;
-        case Type::FuncCall:    return Get<  FuncCallWithMeta>()->MetaFunctions;
-        case Type::RawBlock:    return Get<  RawBlockWithMeta>()->MetaFunctions;
-        default:                Expects(false); return {};
-        }
-    }
-    static BlockContent Generate(const AssignmentWithMeta* ptr)
+    static BlockContent Generate(const Assignment* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
+        return BlockContent{ pointer | common::enum_cast(Type::Assignment), offset, count };
     }
-    static BlockContent Generate(const FuncCallWithMeta* ptr)
+    static BlockContent Generate(const FuncCall* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
+        return BlockContent{ pointer | common::enum_cast(Type::FuncCall), offset, count };
     }
-    static BlockContent Generate(const RawBlockWithMeta* ptr)
+    static BlockContent Generate(const RawBlock* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
+        return BlockContent{ pointer | common::enum_cast(Type::RawBlock), offset, count };
     }
 };
 struct Block : RawBlock
 {
-    common::span<BlockContent> Content;
+private:
+    using value_type = std::pair<common::span<const FuncCall>, BlockContent>;
+
+    class BlockIterator
+    {
+        friend struct Block;
+        const Block* Host;
+        size_t Idx;
+        constexpr BlockIterator(const Block* block, size_t idx) noexcept : Host(block), Idx(idx) {}
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = typename Block::value_type;
+        using difference_type = std::ptrdiff_t;
+
+        constexpr value_type operator*() const noexcept
+        {
+            return (*Host)[Idx];
+        }
+        constexpr bool operator!=(const BlockIterator& other) const noexcept
+        {
+            return Host != other.Host || Idx != other.Idx;
+        }
+        constexpr bool operator==(const BlockIterator& other) const noexcept
+        {
+            return Host == other.Host && Idx == other.Idx;
+        }
+        constexpr BlockIterator& operator++() noexcept
+        {
+            Idx++;
+            return *this;
+        }
+        constexpr BlockIterator& operator--() noexcept
+        {
+            Idx--;
+            return *this;
+        }
+        constexpr BlockIterator& operator+=(size_t n) noexcept
+        {
+            Idx += n;
+            return *this;
+        }
+        constexpr BlockIterator& operator-=(size_t n) noexcept
+        {
+            Idx -= n;
+            return *this;
+        }
+    };
+public:
+    common::span<const FuncCall> MetaFuncations;
+    common::span<const BlockContent> Content;
+
+    constexpr BlockIterator begin() const noexcept
+    {
+        return { this, 0 };
+    }
+    constexpr BlockIterator end() const noexcept
+    {
+        return { this, static_cast<size_t>(Content.size()) };
+    }
+    constexpr value_type operator[](size_t index) const noexcept
+    {
+        const auto& content = Content[index];
+        const auto metafuncs = MetaFuncations.subspan(content.Offset, content.Count);
+        return { metafuncs, content };
+    }
 };
 
 

@@ -17,13 +17,13 @@ void BlockParser::EatSemiColon()
     EatSingleToken<ExpectSemoColon, SemiColonTokenizer>();
 }
 
-RawBlockWithMeta BlockParser::FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs)
+RawBlock BlockParser::FillBlock(const std::u32string_view name)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     constexpr auto ExpectString = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
 
-    RawBlockWithMeta block;
+    RawBlock block;
     block.Type = name;
 
     EatLeftParenthese();
@@ -41,12 +41,11 @@ RawBlockWithMeta BlockParser::FillBlock(const std::u32string_view name, const st
     block.Source = reader.ReadUntil(guardString);
     block.Source.remove_suffix(guardString.size());
 
-    block.MetaFunctions = MemPool.CreateArray(metaFuncs);
     block.FileName = Context.SourceName;
     return block;
 }
 
-AssignmentWithMeta BlockParser::ParseAssignment(const std::u32string_view var)
+Assignment BlockParser::ParseAssignment(const std::u32string_view var)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -55,7 +54,7 @@ AssignmentWithMeta BlockParser::ParseAssignment(const std::u32string_view var)
     constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
     constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
 
-    AssignmentWithMeta assign;
+    Assignment assign;
     assign.Variable.Name = var;
 
     const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
@@ -92,7 +91,7 @@ AssignmentWithMeta BlockParser::ParseAssignment(const std::u32string_view var)
     return assign;
 }
 
-std::vector<BlockContent> BlockParser::ParseBlockContent()
+void BlockParser::ParseBlockContent(Block& block)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -101,7 +100,16 @@ std::vector<BlockContent> BlockParser::ParseBlockContent()
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, tokenizer::VariableTokenizer>();
 
     std::vector<BlockContent> contents;
+    std::vector<FuncCall> allMetaFuncs;
     std::vector<FuncCall> metaFuncs;
+    const auto AppendMetaFuncs = [&]() 
+    {
+        const auto offset = gsl::narrow_cast<uint32_t>(allMetaFuncs.size());
+        const auto count  = gsl::narrow_cast<uint32_t>(   metaFuncs.size());
+        allMetaFuncs.reserve(static_cast<size_t>(offset) + count);
+        std::move(metaFuncs.begin(), metaFuncs.end(), std::back_inserter(allMetaFuncs));
+        return std::pair{ offset, count };
+    };
     while (true)
     {
         const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
@@ -113,26 +121,27 @@ std::vector<BlockContent> BlockParser::ParseBlockContent()
         } continue;
         case SectorLangToken::Block:
         {
-            const auto target = MemPool.Create<RawBlockWithMeta>(FillBlock(token.GetString(), metaFuncs));
-            contents.push_back(BlockContent::Generate(target));
+            const auto target = MemPool.Create<RawBlock>(FillBlock(token.GetString()));
+            const auto [offset, count] = AppendMetaFuncs();
+            contents.push_back(BlockContent::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::Func:
         {
-            FuncCallWithMeta funccall;
+            FuncCall funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
             EatSemiColon();
-            funccall.MetaFunctions = MemPool.CreateArray(metaFuncs);
-            const auto target = MemPool.Create<FuncCallWithMeta>(funccall);
-            contents.push_back(BlockContent::Generate(target));
+            const auto target = MemPool.Create<FuncCall>(funccall);
+            const auto [offset, count] = AppendMetaFuncs();
+            contents.push_back(BlockContent::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::Var:
         {
-            AssignmentWithMeta assign = ParseAssignment(token.GetString());
-            assign.MetaFunctions = MemPool.CreateArray(metaFuncs);
-            const auto target = MemPool.Create<AssignmentWithMeta>(assign);
-            contents.push_back(BlockContent::Generate(target));
+            Assignment assign = ParseAssignment(token.GetString());
+            const auto target = MemPool.Create<Assignment>(assign);
+            const auto [offset, count] = AppendMetaFuncs();
+            contents.push_back(BlockContent::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         default:
@@ -147,7 +156,8 @@ std::vector<BlockContent> BlockParser::ParseBlockContent()
         }
         break;
     }
-    return contents;
+    block.Content = MemPool.CreateArray(contents);
+    block.MetaFuncations = MemPool.CreateArray(allMetaFuncs);
 }
 
 RawBlockWithMeta BlockParser::GetNextBlock()
@@ -166,7 +176,10 @@ RawBlockWithMeta BlockParser::GetNextBlock()
         const auto tkType = token.GetIDEnum<SectorLangToken>();
         if (tkType == SectorLangToken::Block)
         {
-            return FillBlock(token.GetString(), metaFuncs);
+            RawBlockWithMeta block;
+            static_cast<RawBlock&>(block) = FillBlock(token.GetString());
+            block.MetaFunctions = MemPool.CreateArray(metaFuncs);
+            return block;
         }
         Expects(tkType == SectorLangToken::MetaFunc);
         metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
@@ -196,7 +209,7 @@ Block BlockParser::ParseBlockRaw(const RawBlock& block, MemoryPool& pool)
 
     Block ret;
     static_cast<RawBlock&>(ret) = block;
-    ret.Content = pool.CreateArray(parser.ParseBlockContent());
+    parser.ParseBlockContent(ret);
     return ret;
 }
 

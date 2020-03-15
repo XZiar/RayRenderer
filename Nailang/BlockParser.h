@@ -11,10 +11,10 @@ class BlockParser : public SectorFileParser
 {
 protected:
     void EatSemiColon();
-    RawBlockWithMeta FillBlock(const std::u32string_view name, const std::vector<FuncCall>& metaFuncs);
+    RawBlock FillBlock(const std::u32string_view name);
 
-    AssignmentWithMeta ParseAssignment(const std::u32string_view var);
-    std::vector<BlockContent> ParseBlockContent();
+    Assignment ParseAssignment(const std::u32string_view var);
+    void ParseBlockContent(Block& block);
 public:
     using SectorFileParser::SectorFileParser;
     

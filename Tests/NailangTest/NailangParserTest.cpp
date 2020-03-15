@@ -178,9 +178,9 @@ $func(hey);
 )"sv;
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 1);
-        const auto& stmt = block.Content[0];
+        const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
-        EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+        EXPECT_EQ(meta.size(), 0);
         const auto& fcall = *std::get<1>(stmt.GetStatement());
         EXPECT_EQ(fcall.Name, U"func"sv);
         EXPECT_EQ(fcall.Args.size(), 1);
@@ -193,11 +193,11 @@ hey = 13;
 )"sv;
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 1);
-        const auto& stmt = block.Content[0];
+        const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
-        EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
-        EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
-        EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
+        EXPECT_EQ(meta.size(), 1);
+        EXPECT_EQ(meta[0].Name, U"meta"sv);
+        EXPECT_EQ(meta[0].Args.size(), 0);
         const auto& assign = *std::get<0>(stmt.GetStatement());
         EXPECT_EQ(assign.Variable.Name, U"hey"sv);
         CHECK_VAR_ARG(assign.Statement, Uint, 13u);
@@ -215,9 +215,9 @@ empty
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 3);
         {
-            const auto& stmt = block.Content[0];
+            const auto [meta, stmt] = block[0];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
-            EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+            EXPECT_EQ(meta.size(), 0);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.Variable.Name, U"hey"sv);
             EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
@@ -235,20 +235,20 @@ empty
             }
         }
         {
-            const auto& stmt = block.Content[1];
+            const auto [meta, stmt] = block[1];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
-            EXPECT_EQ(stmt.GetMetaFunctions().size(), 0);
+            EXPECT_EQ(meta.size(), 0);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
             EXPECT_EQ(fcall.Name, U"func"sv);
             EXPECT_EQ(fcall.Args.size(), 1);
             CHECK_VAR_ARG(fcall.Args[0], Var, U"hey");
         }
         {
-            const auto& stmt = block.Content[2];
+            const auto [meta, stmt] = block[2];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
-            EXPECT_EQ(stmt.GetMetaFunctions().size(), 1);
-            EXPECT_EQ(stmt.GetMetaFunctions()[0].Name, U"meta"sv);
-            EXPECT_EQ(stmt.GetMetaFunctions()[0].Args.size(), 0);
+            EXPECT_EQ(meta.size(), 1);
+            EXPECT_EQ(meta[0].Name, U"meta"sv);
+            EXPECT_EQ(meta[0].Args.size(), 0);
             const auto& blk = *std::get<2>(stmt.GetStatement());
             EXPECT_EQ(ReplaceNewLine(blk.Source), U"empty\n"sv);
         }

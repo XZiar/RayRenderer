@@ -38,31 +38,31 @@ static void ShowMeta(const common::span<const FuncCall> metas, const string& ind
 //case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
 //default:Expects(false); return visitor(static_cast<const AssignmentWithMeta*>(nullptr));
 
-static void ShowContent(MemoryPool& pool, const AssignmentWithMeta& content, const string& indent)
+static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const Assignment& content, const string& indent)
 {
-    ShowMeta(content.MetaFunctions, indent);
+    ShowMeta(metas, indent);
     log().info(FMT_STRING(u"{}assign [{}]\n"), indent, content.Variable.Name);
 }
-static void ShowContent(MemoryPool& pool, const FuncCallWithMeta& content, const string& indent)
+static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const FuncCall& content, const string& indent)
 {
-    ShowMeta(content.MetaFunctions, indent);
+    ShowMeta(metas, indent);
     log().info(FMT_STRING(u"{}call func[{}], arg[{}]\n"), indent, content.Name, content.Args.size());
 }
-static void ShowContent(MemoryPool& pool, const RawBlockWithMeta& content, const string& indent)
+static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const RawBlock& content, const string& indent)
 {
-    ShowMeta(content.MetaFunctions, indent);
+    ShowMeta(metas, indent);
     log().info(FMT_STRING(u"{}block type[{}], name[{}]\n"), indent, content.Type, content.Name);
-    if (common::linq::FromIterable(content.MetaFunctions)
+    if (common::linq::FromIterable(metas)
         .AllIf([](const FuncCall& call) { return call.Name != U"noparse"sv; }))
     {
         const auto block = BlockParser::ParseBlockRaw(content, pool);
         string indent2 = indent + "|   ";
         log().info(u"{}\n", indent2);
-        for (const auto& content : block.Content)
+        for (const auto [meta, content] : block)
         {
             content.Visit([&](const auto* content)
                 {
-                    ShowContent(pool, *content, indent2);
+                    ShowContent(pool, meta, *content, indent2);
                     log().info(u"{}\n", indent2);
                 });
         }
@@ -92,7 +92,7 @@ static void TestNailang()
             const auto sectors = parser.GetAllBlocks();
             for (const auto block : sectors)
             {
-                ShowContent(pool, block, "  ");
+                ShowContent(pool, block.MetaFunctions, block, "  ");
             }
         }
         catch (common::BaseException & be)
