@@ -204,6 +204,33 @@ hey = 13;
     }
     {
         constexpr auto src = UR"(
+@meta()
+#Inline("13")
+{
+abc = 0;
+}
+)"sv;
+        const auto block = ParseAll(src);
+        EXPECT_EQ(block.Content.size(), 1);
+        const auto [meta, stmt] = block[0];
+        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Block);
+        EXPECT_EQ(meta.size(), 1);
+        EXPECT_EQ(meta[0].Name, U"meta"sv);
+        EXPECT_EQ(meta[0].Args.size(), 0);
+        const auto& blk = *std::get<3>(stmt.GetStatement());
+        EXPECT_EQ(blk.Name, U"13"sv);
+        EXPECT_EQ(blk.Content.size(), 1);
+        {
+            const auto [meta_, stmt_] = blk[0];
+            EXPECT_EQ(stmt_.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            EXPECT_EQ(meta_.size(), 0);
+            const auto& assign = *std::get<0>(stmt_.GetStatement());
+            EXPECT_EQ(assign.Variable.Name, U"abc"sv);
+            CHECK_VAR_ARG(assign.Statement, Uint, 0u);
+        }
+    }
+    {
+        constexpr auto src = UR"(
 hey /= 9+1;
 $func(hey);
 @meta()

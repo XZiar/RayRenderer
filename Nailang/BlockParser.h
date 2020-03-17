@@ -7,16 +7,18 @@ namespace xziar::nailang
 {
 
 
-class BlockParser : public SectorFileParser
+class BlockParser : public NailangParser
 {
 protected:
     void EatSemiColon();
+    void FillBlockName(RawBlock& block);
+    void FillBlockInfo(RawBlock& block);
     RawBlock FillBlock(const std::u32string_view name);
 
     Assignment ParseAssignment(const std::u32string_view var);
-    void ParseBlockContent(Block& block);
+    void ParseBlockContent(Block& block, const bool tillTheEnd = true);
 public:
-    using SectorFileParser::SectorFileParser;
+    using NailangParser::NailangParser;
     
     RawBlockWithMeta GetNextBlock();
     std::vector<RawBlockWithMeta> GetAllBlocks();

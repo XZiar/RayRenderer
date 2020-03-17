@@ -12,7 +12,7 @@ matrix:
         - CPPCOMPILER=g++
         - DYNAMICLINKER=g++
         - APPLINKER=g++
-        - BUILDMODULES="all,-BasicsTest,-SectorParserTest"
+        - BUILDMODULES="all,-BasicsTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -37,7 +37,7 @@ matrix:
         - CPPCOMPILER=g++-8
         - DYNAMICLINKER=g++-8
         - APPLINKER=g++-8
-        - BUILDMODULES="all,-BasicsTest,-SectorParserTest"
+        - BUILDMODULES="all,-BasicsTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -63,7 +63,7 @@ matrix:
         - CPPCOMPILER=clang++
         - DYNAMICLINKER=clang++
         - APPLINKER=clang++
-        - BUILDMODULES="all,-BasicsTest,-SectorParserTest"
+        - BUILDMODULES="all,-BasicsTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -93,7 +93,7 @@ matrix:
         - CPPCOMPILER=clang++-8
         - DYNAMICLINKER=clang++-8
         - APPLINKER=clang++-8
-        - BUILDMODULES="all,-BasicsTest,-SectorParserTest"
+        - BUILDMODULES="all,-BasicsTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -154,6 +154,6 @@ before_script:
 
 script:
   - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5
-  - python3 xzbuild.py rebuildall "BasicsTest,SectorParserTest" Release /threads=x1.5
+  - python3 xzbuild.py rebuildall "BasicsTest,NailangTest" Release /threads=x1.5
   - ./x64/Release/BasicsTest
-  - ./x64/Release/SectorParserTest
+  - ./x64/Release/NailangTest

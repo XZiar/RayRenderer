@@ -7,10 +7,10 @@
 namespace xziar::nailang
 {
 
-class ComplexArgParser : public SectorFileParser
+class ComplexArgParser : public NailangParser
 {
 private:
-    using SectorFileParser::SectorFileParser;
+    using NailangParser::NailangParser;
 
     template<typename StopDelimer>
     std::pair<std::optional<RawArg>, char32_t> ParseArg();

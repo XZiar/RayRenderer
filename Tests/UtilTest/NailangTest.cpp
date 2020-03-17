@@ -48,6 +48,7 @@ static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> met
     ShowMeta(metas, indent);
     log().info(FMT_STRING(u"{}call func[{}], arg[{}]\n"), indent, content.Name, content.Args.size());
 }
+static void ShowBlock(MemoryPool& pool, const Block& block, const string& indent);
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const RawBlock& content, const string& indent)
 {
     ShowMeta(metas, indent);
@@ -55,19 +56,29 @@ static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> met
     if (common::linq::FromIterable(metas)
         .AllIf([](const FuncCall& call) { return call.Name != U"noparse"sv; }))
     {
-        const auto block = BlockParser::ParseBlockRaw(content, pool);
-        string indent2 = indent + "|   ";
-        log().info(u"{}\n", indent2);
-        for (const auto [meta, content] : block)
-        {
-            content.Visit([&](const auto* content)
-                {
-                    ShowContent(pool, meta, *content, indent2);
-                    log().info(u"{}\n", indent2);
-                });
-        }
+        ShowBlock(pool, BlockParser::ParseBlockRaw(content, pool), indent);
     }
     log().info(u"{}\n", indent);
+}
+static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const Block& content, const string& indent)
+{
+    ShowMeta(metas, indent);
+    log().info(FMT_STRING(u"{}block type[{}], name[{}]\n"), indent, content.Type, content.Name);
+    ShowBlock(pool, content, indent);
+    log().info(u"{}\n", indent);
+}
+static void ShowBlock(MemoryPool& pool, const Block& block, const string& indent)
+{
+    string indent2 = indent + "|   ";
+    log().info(u"{}\n", indent2);
+    for (const auto [meta, content] : block)
+    {
+        content.Visit([&](const auto* content)
+            {
+                ShowContent(pool, meta, *content, indent2);
+                log().info(u"{}\n", indent2);
+            });
+    }
 }
 
 static void TestNailang()

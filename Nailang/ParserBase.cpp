@@ -24,7 +24,7 @@ struct ExpectCurlyBraceR
 };
 
 
-std::u16string SectorFileParser::DescribeTokenID(const uint16_t tid) const noexcept
+std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
 #define RET_TK_ID(type) case SectorLangToken::type:        return u ## #type
     switch (static_cast<SectorLangToken>(tid))
@@ -42,7 +42,7 @@ std::u16string SectorFileParser::DescribeTokenID(const uint16_t tid) const noexc
     }
 }
 
-common::SharedString<char16_t> SectorFileParser::GetCurrentFileName() const noexcept
+common::SharedString<char16_t> NailangParser::GetCurrentFileName() const noexcept
 {
     if (SubScopeName.empty())
         return ParserBase::GetCurrentFileName();
@@ -53,19 +53,19 @@ common::SharedString<char16_t> SectorFileParser::GetCurrentFileName() const noex
     return fileName;
 }
 
-void SectorFileParser::EatLeftParenthese()
+void NailangParser::EatLeftParenthese()
 {
     EatSingleToken<ExpectParentheseL, tokenizer::ParentheseTokenizer>();
 }
-void SectorFileParser::EatRightParenthese()
+void NailangParser::EatRightParenthese()
 {
     EatSingleToken<ExpectParentheseR, tokenizer::ParentheseTokenizer>();
 }
-void SectorFileParser::EatLeftCurlyBrace()
+void NailangParser::EatLeftCurlyBrace()
 {
     EatSingleToken<ExpectCurlyBraceL, tokenizer::CurlyBraceTokenizer>();
 }
-void SectorFileParser::EatRightCurlyBrace()
+void NailangParser::EatRightCurlyBrace()
 {
     EatSingleToken<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
 }

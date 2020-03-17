@@ -220,7 +220,7 @@ struct RawBlock
     std::pair<size_t, size_t> Position;
 };
 using RawBlockWithMeta = WithMeta<RawBlock>;
-
+struct Block;
 
 struct Assignment
 {
@@ -230,31 +230,21 @@ struct Assignment
 
 struct BlockContent
 {
-    enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2 };
+    enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
     uintptr_t Pointer;
     uint32_t Offset, Count;
 
     template<typename T>
     forceinline const T* Get() const noexcept
     {
-        return reinterpret_cast<const T*>(Pointer & ~(uintptr_t)(0x7));
+        return reinterpret_cast<const T*>(Pointer & ~(uintptr_t)(0x3));
     }
 
-    constexpr Type GetType() const
+    forceinline constexpr Type GetType() const noexcept
     {
-        const auto type = static_cast<Type>(Pointer & 0x7);
-        switch (type)
-        {
-        case Type::Assignment:
-        case Type::FuncCall:
-        case Type::RawBlock:
-            return type;
-        default:
-            Expects(false);
-            return type;
-        }
+        return static_cast<Type>(Pointer & 0x3);
     }
-    std::variant<const Assignment*, const FuncCall*, const RawBlock*>
+    std::variant<const Assignment*, const FuncCall*, const RawBlock*, const Block*>
         GetStatement() const
     {
         switch (GetType())
@@ -262,6 +252,7 @@ struct BlockContent
         case Type::Assignment:  return Get<Assignment>();
         case Type::FuncCall:    return Get<  FuncCall>();
         case Type::RawBlock:    return Get<  RawBlock>();
+        case Type::   Block:    return Get<     Block>();
         default:                Expects(false); return {};
         }
     }
@@ -273,6 +264,7 @@ struct BlockContent
         case Type::Assignment:  return visitor(Get<Assignment>());
         case Type::FuncCall:    return visitor(Get<  FuncCall>());
         case Type::RawBlock:    return visitor(Get<  RawBlock>());
+        case Type::Block:       return visitor(Get<     Block>());
         default:Expects(false); return visitor(static_cast<const Assignment*>(nullptr));
         }
     }
@@ -294,7 +286,14 @@ struct BlockContent
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::RawBlock), offset, count };
     }
+    static BlockContent Generate(const Block* ptr, const uint32_t offset, const uint32_t count)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::Block), offset, count };
+    }
 };
+
 struct Block : RawBlock
 {
 private:

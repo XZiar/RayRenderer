@@ -7,7 +7,7 @@ namespace xziar::nailang
 {
 
 
-class SectorFileParser : public common::parser::ParserBase
+class NailangParser : public common::parser::ParserBase
 {
 private:
 protected:
@@ -32,9 +32,9 @@ protected:
     void EatLeftCurlyBrace();
     void EatRightCurlyBrace();
 public:
-    SectorFileParser(MemoryPool& pool, common::parser::ParserContext& context, std::u16string subScope = u"") :
+    NailangParser(MemoryPool& pool, common::parser::ParserContext& context, std::u16string subScope = u"") :
         ParserBase(context), MemPool(pool), SubScopeName(std::move(subScope)) { }
-    virtual ~SectorFileParser() { }
+    virtual ~NailangParser() { }
 };
 
 
