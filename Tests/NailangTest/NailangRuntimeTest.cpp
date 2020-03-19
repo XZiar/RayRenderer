@@ -8,6 +8,7 @@
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
+using xziar::nailang::MemoryPool;
 using xziar::nailang::BlockParser;
 using xziar::nailang::ComplexArgParser;
 using xziar::nailang::EmbedOps;
@@ -19,7 +20,6 @@ using xziar::nailang::RawArg;
 using xziar::nailang::Arg;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
-using xziar::nailang::ArgHelper;
 using xziar::nailang::EmbedOpEval;
 
 class EvalCtx : public EvaluateContext
@@ -40,9 +40,16 @@ public:
     {
         EvalContext = std::make_shared<EvalCtx>();
     }
+    using NailangRuntimeBase::EvaluateFunc;
+    using NailangRuntimeBase::EvaluateArg;
 };
 
 
+#define CHECK_ARG(arg, type, val) do                    \
+{                                                       \
+EXPECT_EQ(arg.TypeData, Arg::InternalType::type);       \
+EXPECT_EQ(arg.GetVar<Arg::InternalType::type>(), val);  \
+} while(0)                                              \
 
 TEST(NailangRuntime, EvalEmbedOp)
 {
@@ -51,16 +58,14 @@ TEST(NailangRuntime, EvalEmbedOp)
 {                                               \
 Arg left(l), right(r);                          \
 const auto ret = EmbedOpEval::op(left, right);  \
-EXPECT_EQ(ret.TypeData, Type::type);            \
-EXPECT_EQ(ret.GetVar<Type::type>(), ans);       \
+CHECK_ARG(ret, type, ans);                      \
 } while(0)                                      \
 
 #define TEST_UN(val, op, type, ans) do      \
 {                                           \
 Arg arg(val);                               \
 const auto ret = EmbedOpEval::op(arg);      \
-EXPECT_EQ(ret.TypeData, Type::type);        \
-EXPECT_EQ(ret.GetVar<Type::type>(), ans);   \
+CHECK_ARG(ret, type, ans);                  \
 } while(0)                                  \
 
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,       Bool, false);
@@ -83,6 +88,60 @@ EXPECT_EQ(ret.GetVar<Type::type>(), ans);   \
     TEST_BIN(true,        U""sv,       Or,          Bool, true);
     TEST_UN (-2.0,  Not, Bool, false);
     TEST_UN (U""sv, Not, Bool, true);
+#undef TEST_BIN
+#undef TEST_UN
+}
 
+
+TEST(NailangRuntime, ParseEvalEmbedOp)
+{
+    MemoryPool pool;
+    const auto ParseEval = [&](const std::u32string_view src) 
+    {
+        ParserContext context(src);
+        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        NailangRT runtime;
+        return runtime.EvaluateArg(*rawarg);
+    };
+    {
+        const auto arg = ParseEval(U"!false;"sv);
+        CHECK_ARG(arg, Bool, true);
+    }
+    {
+        const auto arg = ParseEval(U"!3.5;"sv);
+        CHECK_ARG(arg, Bool, false);
+    }
+    {
+        const auto arg = ParseEval(U"!\"hero\";"sv);
+        CHECK_ARG(arg, Bool, false);
+    }
+    {
+        const auto arg = ParseEval(U"1+2;"sv);
+        CHECK_ARG(arg, Int, 3);
+    }
+    {
+        const auto arg = ParseEval(U"4u-4.5;"sv);
+        CHECK_ARG(arg, FP, -0.5);
+    }
+    {
+        const auto arg = ParseEval(U"3*-3;"sv);
+        CHECK_ARG(arg, Int, -9);
+    }
+    {
+        const auto arg = ParseEval(U"5/6;"sv);
+        CHECK_ARG(arg, Int, 0);
+    }
+    {
+        const auto arg = ParseEval(U"7%3;"sv);
+        CHECK_ARG(arg, Int, 1);
+    }
+    {
+        const auto arg = ParseEval(U"12.5 % 6;"sv);
+        CHECK_ARG(arg, FP, 0.5);
+    }
+    {
+        const auto arg = ParseEval(U"\"abc\" + \"ABC\";"sv);
+        CHECK_ARG(arg, U32Str, U"abcABC"sv);
+    }
 }
 

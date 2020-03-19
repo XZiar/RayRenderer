@@ -125,7 +125,7 @@ TEST(NailangParser, ParseFuncBody)
         }
     }
     {
-        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, (4+5)==9))"sv;
+        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, (4-5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -153,7 +153,7 @@ TEST(NailangParser, ParseFuncBody)
             {
                 const auto& stmt2 = *stmt.LeftOprend.GetVar<RawArg::Type::Binary>();
                 CHECK_VAR_ARG(stmt2.LeftOprend, Int, 4);
-                EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
+                EXPECT_EQ(stmt2.Operator, EmbedOps::Sub);
                 CHECK_VAR_ARG(stmt2.RightOprend, Int, 5);
             }
             EXPECT_EQ(stmt.Operator, EmbedOps::Equal);

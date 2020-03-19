@@ -38,19 +38,19 @@ bool EvaluateContext::SetArg(std::u32string_view name, Arg arg)
 }
 
 
-#define LR_BOTH(left, right, func) ArgHelper::func(left) && ArgHelper::func(right)
+#define LR_BOTH(left, right, func) left.func() && right.func()
 Arg EmbedOpEval::Equal(const Arg& left, const Arg& right)
 {
     if (LR_BOTH(left, right, IsInteger))
-        return ArgHelper::GetUint(left) == ArgHelper::GetUint(right);
+        return left.GetUint() == right.GetUint();
     if (LR_BOTH(left, right, IsBool))
         return left.GetVar<Arg::InternalType::Bool>() == right.GetVar<Arg::InternalType::Bool>();
     if (LR_BOTH(left, right, IsStr))
-        return ArgHelper::GetStr(left) == ArgHelper::GetStr(right);
+        return left.GetStr() == right.GetStr();
     if (LR_BOTH(left, right, IsFloatPoint))
         return left.GetVar<Arg::InternalType::FP>() == right.GetVar<Arg::InternalType::FP>();
     if (LR_BOTH(left, right, IsNumber))
-        return ArgHelper::GetFP(left) == ArgHelper::GetFP(right);
+        return left.GetFP() == right.GetFP();
     return {};
 }
 Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right)
@@ -167,14 +167,14 @@ Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right)
 
 Arg EmbedOpEval::And(const Arg& left, const Arg& right)
 {
-    const auto left_ = ArgHelper::GetBool(left), right_ = ArgHelper::GetBool(right);
+    const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
         return *left_ && *right_;
     return {};
 }
 Arg EmbedOpEval::Or(const Arg& left, const Arg& right)
 {
-    const auto left_ = ArgHelper::GetBool(left), right_ = ArgHelper::GetBool(right);
+    const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
         return *left_ || *right_;
     return {};
@@ -184,8 +184,8 @@ Arg EmbedOpEval::Add(const Arg& left, const Arg& right)
 {
     if (LR_BOTH(left, right, IsStr))
     {
-        const auto left_  = *ArgHelper::GetStr(left);
-        const auto right_ = *ArgHelper::GetStr(right);
+        const auto left_  = * left.GetStr();
+        const auto right_ = *right.GetStr();
         std::u32string ret;
         ret.reserve(left_.size() + right_.size());
         ret.append(left_).append(right_);
@@ -218,11 +218,12 @@ Arg EmbedOpEval::Rem(const Arg& left, const Arg& right)
 
 Arg EmbedOpEval::Not(const Arg& arg)
 {
-    const auto arg_ = ArgHelper::GetBool(arg);
+    const auto arg_ = arg.GetBool();
     if (arg_.has_value())
         return !*arg_;
     return {};
 }
+#undef LR_BOTH
 
 std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::span<const Arg> args)
 {
@@ -246,9 +247,10 @@ std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::s
         CALL_UN_OP (Not);
     default:    return {};
     }
+#undef CALL_BIN_OP
+#undef CALL_UN_OP
 }
 
-#undef LR_BOTH
 
 
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, const BlockContent* target)
@@ -316,7 +318,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         FuncCall func;
         func.Name = OpToFuncName(stmt.Operator);
         func.Args = { &stmt.Oprend, 1 };
-        return EvaluateFunc(*arg.GetVar<Type::Func>());
+        return EvaluateFunc(func);
     }
     case Type::Binary:
     {
@@ -324,7 +326,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         FuncCall func;
         func.Name = OpToFuncName(stmt.Operator);
         func.Args = { &stmt.LeftOprend, 2 };
-        return EvaluateFunc(*arg.GetVar<Type::Func>());
+        return EvaluateFunc(func);
     }
     case Type::Var:
         return EvalContext->LookUpArg(arg.GetVar<Type::Var>().Name);

@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <cstdio>
+#include <optional>
 
 
 namespace xziar::nailang
@@ -263,6 +264,86 @@ struct Arg
         case InternalType::FP:      return visitor(GetVar<InternalType::FP>());
         case InternalType::Bool:    return visitor(GetVar<InternalType::Bool>());
         default:    Expects(false); return visitor(Data1);
+        }
+    }
+
+    forceinline constexpr bool IsEmpty() const noexcept
+    {
+        return TypeData == InternalType::Empty;
+    }
+    forceinline constexpr bool IsBool() const noexcept
+    {
+        return TypeData == InternalType::Bool;
+    }
+    forceinline constexpr bool IsInteger() const noexcept
+    {
+        return TypeData == InternalType::Uint || TypeData == InternalType::Int;
+    }
+    forceinline constexpr bool IsFloatPoint() const noexcept
+    {
+        return TypeData == InternalType::FP;
+    }
+    forceinline constexpr bool IsNumber() const noexcept
+    {
+        return IsFloatPoint() || IsInteger();
+    }
+    forceinline constexpr bool IsStr() const noexcept
+    {
+        return TypeData == InternalType::U32Str || TypeData == InternalType::U32Sv;
+    }
+    forceinline constexpr std::optional<bool> GetBool() const noexcept
+    {
+        switch (TypeData)
+        {
+        case InternalType::Uint:    return  GetVar<InternalType::Uint>() != 0;
+        case InternalType::Int:     return  GetVar<InternalType::Int>() != 0;
+        case InternalType::FP:      return  GetVar<InternalType::FP>() != 0;
+        case InternalType::Bool:    return  GetVar<InternalType::Bool>();
+        case InternalType::U32Str:  return !GetVar<InternalType::U32Str>().empty();
+        case InternalType::U32Sv:   return !GetVar<InternalType::U32Sv>().empty();
+        default:                    return {};
+        }
+    }
+    forceinline constexpr std::optional<uint64_t> GetUint() const noexcept
+    {
+        switch (TypeData)
+        {
+        case InternalType::Uint:    return GetVar<InternalType::Uint>();
+        case InternalType::Int:     return static_cast<uint64_t>(GetVar<InternalType::Int>());
+        case InternalType::FP:      return static_cast<uint64_t>(GetVar<InternalType::FP>());
+        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1 : 0;
+        default:                    return {};
+        }
+    }
+    forceinline constexpr std::optional<int64_t> GetInt() const noexcept
+    {
+        switch (TypeData)
+        {
+        case InternalType::Uint:    return static_cast<int64_t>(GetVar<InternalType::Uint>());
+        case InternalType::Int:     return GetVar<InternalType::Int>();
+        case InternalType::FP:      return static_cast<int64_t>(GetVar<InternalType::FP>());
+        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1 : 0;
+        default:                    return {};
+        }
+    }
+    forceinline constexpr std::optional<double> GetFP() const noexcept
+    {
+        switch (TypeData)
+        {
+        case InternalType::Uint:    return static_cast<double>(GetVar<InternalType::Uint>());
+        case InternalType::Int:     return static_cast<double>(GetVar<InternalType::Int>());
+        case InternalType::FP:      return GetVar<InternalType::FP>();
+        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1. : 0.;
+        default:                    return {};
+        }
+    }
+    forceinline constexpr std::optional<std::u32string_view> GetStr() const noexcept
+    {
+        switch (TypeData)
+        {
+        case InternalType::U32Str:  return GetVar<InternalType::U32Str>();
+        case InternalType::U32Sv:   return GetVar<InternalType::U32Sv>();
+        default:                    return {};
         }
     }
 };

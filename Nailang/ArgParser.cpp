@@ -29,6 +29,8 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
         tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
+    constexpr auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
+        tokenizer::EmbedOpTokenizer>(StopDelim);
     
     std::optional<RawArg> oprend1, oprend2;
     std::optional<EmbedOps> op;
@@ -36,15 +38,23 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
 
     while (true) 
     {
-        const auto token = GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
+        const bool isAtOp = oprend1.has_value() && !op.has_value() && !oprend2.has_value();
+        ParserToken token = isAtOp ?
+            GetNextToken(OpLexer,  IgnoreBlank, IgnoreCommentToken) :
+            GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
 
         {
             const auto type = token.GetIDEnum();
             if (type == BaseToken::Unknown || type == BaseToken::Error)
-                throw U"unknown or error token"sv;
+            {
+                if (isAtOp)
+                    throw U"expect an operator"sv;
+                else
+                    throw U"unknown or error token"sv;
+            }
             if (type == BaseToken::Delim || type == BaseToken::End)
             {
-                stopChar = token.GetChar();  
+                stopChar = token.GetChar();
                 break;
             }
         }
