@@ -90,15 +90,15 @@ TEST(NailangBase, EmbedOpTokenizer)
         }
         return tokens;
     };
-#define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
-#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, EmbedOp, GetUInt, common::enum_cast(xziar::nailang::EmbedOps::type))
+#define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
+#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, EmbedOp, GetInt, common::enum_cast(xziar::nailang::EmbedOps::type))
 
 #define CHECK_BIN_OP(src, type) do          \
     {                                       \
         const auto tokens = ParseAll(src);  \
-        CHECK_BASE_UINT(tokens[0], 1);      \
+        CHECK_BASE_INT(tokens[0], 1);       \
         CHECK_EMBED_OP(tokens[1], type);    \
-        CHECK_BASE_UINT(tokens[2], 2);      \
+        CHECK_BASE_INT(tokens[2], 2);       \
     } while(0)                              \
 
 
@@ -119,11 +119,11 @@ TEST(NailangBase, EmbedOpTokenizer)
     {
         const auto tokens = ParseAll(U"!1"sv);
         CHECK_EMBED_OP(tokens[0], Not);
-        CHECK_BASE_UINT(tokens[1], 1);
+        CHECK_BASE_INT(tokens[1], 1);
     }
     {
         const auto tokens = ParseAll(U"1+=2"sv);
-        CHECK_BASE_UINT(tokens[0], 1);
+        CHECK_BASE_INT(tokens[0], 1);
         //CHECK_BASE_TK(tokens[1], Unknown, GetString, U"+="sv);
     }
 #undef CHECK_BIN_OP
@@ -153,15 +153,15 @@ TEST(NailangBase, AssignOpTokenizer)
         }
         return tokens;
     };
-#define CHECK_BASE_UINT(token, val) CHECK_BASE_TK(token, Uint, GetUInt, val)
-#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, Assign, GetUInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
+#define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
+#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
 
 #define CHECK_ASSIGN(src, type) do          \
     {                                       \
         const auto tokens = ParseAll(src);  \
-        CHECK_BASE_UINT(tokens[0], 1);      \
-        CHECK_ASSIGN_OP(tokens[1], type);    \
-        CHECK_BASE_UINT(tokens[2], 2);      \
+        CHECK_BASE_INT(tokens[0], 1);       \
+        CHECK_ASSIGN_OP(tokens[1], type);   \
+        CHECK_BASE_INT(tokens[2], 2);       \
     } while(0)                              \
 
 

@@ -22,6 +22,9 @@
     <ClCompile Include="NailangParserTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="NailangRuntimeTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

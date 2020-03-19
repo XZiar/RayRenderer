@@ -39,7 +39,7 @@ bool EvaluateContext::SetArg(std::u32string_view name, Arg arg)
 
 
 #define LR_BOTH(left, right, func) ArgHelper::func(left) && ArgHelper::func(right)
-Arg NailangRuntimeBase::EmbedOpEval::Equal(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Equal(const Arg& left, const Arg& right)
 {
     if (LR_BOTH(left, right, IsInteger))
         return ArgHelper::GetUint(left) == ArgHelper::GetUint(right);
@@ -53,14 +53,14 @@ Arg NailangRuntimeBase::EmbedOpEval::Equal(const Arg& left, const Arg& right)
         return ArgHelper::GetFP(left) == ArgHelper::GetFP(right);
     return {};
 }
-Arg NailangRuntimeBase::EmbedOpEval::NotEqual(const Arg& left, const Arg& right)
+Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right)
 {
     const auto ret = Equal(left, right);
     if (ret.TypeData != Arg::InternalType::Empty)
         return !ret.GetVar<Arg::InternalType::Bool>();
     return ret;
 }
-//Arg NailangRuntimeBase::EmbedOpEval::Less(const Arg& left, const Arg& right)
+//Arg EmbedOpEval::Less(const Arg& left, const Arg& right)
 //{
 //    using Type = Arg::InternalType;
 //    if (left.TypeData == right.TypeData)
@@ -136,7 +136,7 @@ forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
     return {};
 }
 
-Arg NailangRuntimeBase::EmbedOpEval::Less(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Less(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -150,7 +150,7 @@ Arg NailangRuntimeBase::EmbedOpEval::Less(const Arg& left, const Arg& right)
                 return l < r; 
         });
 }
-Arg NailangRuntimeBase::EmbedOpEval::LessEqual(const Arg& left, const Arg& right)
+Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -165,14 +165,14 @@ Arg NailangRuntimeBase::EmbedOpEval::LessEqual(const Arg& left, const Arg& right
         });
 }
 
-Arg NailangRuntimeBase::EmbedOpEval::And(const Arg& left, const Arg& right)
+Arg EmbedOpEval::And(const Arg& left, const Arg& right)
 {
     const auto left_ = ArgHelper::GetBool(left), right_ = ArgHelper::GetBool(right);
     if (left_.has_value() && right_.has_value())
         return *left_ && *right_;
     return {};
 }
-Arg NailangRuntimeBase::EmbedOpEval::Or(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Or(const Arg& left, const Arg& right)
 {
     const auto left_ = ArgHelper::GetBool(left), right_ = ArgHelper::GetBool(right);
     if (left_.has_value() && right_.has_value())
@@ -180,7 +180,7 @@ Arg NailangRuntimeBase::EmbedOpEval::Or(const Arg& left, const Arg& right)
     return {};
 }
 
-Arg NailangRuntimeBase::EmbedOpEval::Add(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Add(const Arg& left, const Arg& right)
 {
     if (LR_BOTH(left, right, IsStr))
     {
@@ -193,19 +193,19 @@ Arg NailangRuntimeBase::EmbedOpEval::Add(const Arg& left, const Arg& right)
     }
     return NumOp(left, right, [](const auto l, const auto r) { return l + r; });
 }
-Arg NailangRuntimeBase::EmbedOpEval::Sub(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Sub(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l - r; });
 }
-Arg NailangRuntimeBase::EmbedOpEval::Mul(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Mul(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l * r; });
 }
-Arg NailangRuntimeBase::EmbedOpEval::Div(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Div(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l / r; });
 }
-Arg NailangRuntimeBase::EmbedOpEval::Rem(const Arg& left, const Arg& right)
+Arg EmbedOpEval::Rem(const Arg& left, const Arg& right)
 {
     return NumOp(left, right, [](const auto l, const auto r) 
         {
@@ -216,7 +216,7 @@ Arg NailangRuntimeBase::EmbedOpEval::Rem(const Arg& left, const Arg& right)
         });
 }
 
-Arg NailangRuntimeBase::EmbedOpEval::Not(const Arg& arg)
+Arg EmbedOpEval::Not(const Arg& arg)
 {
     const auto arg_ = ArgHelper::GetBool(arg);
     if (arg_.has_value())
@@ -224,7 +224,7 @@ Arg NailangRuntimeBase::EmbedOpEval::Not(const Arg& arg)
     return {};
 }
 
-std::optional<Arg> NailangRuntimeBase::EmbedOpEval::Eval(const std::u32string_view opname, common::span<const Arg> args)
+std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::span<const Arg> args)
 {
 #define CALL_BIN_OP(type) case #type ## _hash: return EmbedOpEval::type(args[0], args[1])
 #define CALL_UN_OP(type)  case #type ## _hash: return EmbedOpEval::type(args[0])

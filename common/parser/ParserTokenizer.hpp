@@ -298,20 +298,20 @@ public:
 class IntTokenizer : public TokenizerBase
 {
 private:
-    enum class States : uint16_t { Init, Num0, Normal, Binary, Hex, NotMatch };
-    static constexpr uint32_t SignedFlag = 0x80000000u;
+    enum class States : uint16_t { Init, Num0, Normal, Binary, Hex, NotMatch, UnsEnd };
+    static constexpr uint32_t SignedFlag   = 0x80000000u;
 public:
     using StateData = uint32_t;
     constexpr std::pair<uint32_t, TokenizerResult> OnChar(const uint32_t state, const char32_t ch, const size_t) const noexcept
     {
-        bool isSigned = state & SignedFlag;
-#define RET(state, result) return { (isSigned ? SignedFlag : 0u) | common::enum_cast(States::state), TokenizerResult::result }
+        bool forceSigned   = state & SignedFlag;
+#define RET(state, result) return { (forceSigned ? SignedFlag : 0u) | common::enum_cast(States::state), TokenizerResult::result }
         switch (static_cast<States>(state))
         {
         case States::Init:
             if (ch == '-')
             {
-                isSigned = true;
+                forceSigned = true;
                 RET(Normal, Pending);
             }
             else if (ch == '0')
@@ -323,6 +323,8 @@ public:
                 RET(Hex, Pending);
             else if (ch == 'b')
                 RET(Binary, Pending);
+            else if (ch == 'u')
+                RET(UnsEnd, Waitlist);
             else
                 break; // normal check
         case States::Hex:
@@ -343,13 +345,16 @@ public:
 
         if (ch >= '0' && ch <= '9')
             RET(Normal, Waitlist);
+        else if (ch == 'u')
+            RET(UnsEnd, Waitlist);
         else
             RET(NotMatch, NotMatch);
 #undef RET
     }
     ParserToken GetToken(const uint32_t state, ContextReader&, std::u32string_view txt) const noexcept
     {
-        switch (static_cast<States>(state))
+        const auto realState = static_cast<States>(state);
+        switch (realState)
         {
         case States::Num0:
             return ParserToken(BaseToken::Uint, 0);
@@ -401,22 +406,32 @@ public:
             }
             return ParserToken(BaseToken::Uint, hex);
         }
+        case States::UnsEnd:
         case States::Normal:
         {
-            const auto str = detail::TokenizerHelper::ToU8Str(txt);
+            const bool endWithU = realState == States::UnsEnd;
+            auto str = detail::TokenizerHelper::ToU8Str(txt);
+            if (endWithU) str.pop_back(); // remove 'u'
+            uint64_t val_ = 0;
+            bool valid = false;
             if (state & SignedFlag)
             {
                 int64_t val = 0;
-                const bool valid = common::StrToInt(str, val, 10).first;
-                if (valid)
-                    return ParserToken(BaseToken::Int, val);
+                valid = common::StrToInt(str, val, 10).first;
+                val_ = static_cast<uint64_t>(val);
             }
             else
             {
                 uint64_t val = 0;
-                const bool valid = common::StrToInt(str, val, 10).first;
-                if (valid)
-                    return ParserToken(BaseToken::Uint, val);
+                valid = common::StrToInt(str, val, 10).first;
+                val_ = val;
+            }
+            if (valid)
+            {
+                if (endWithU)
+                    return ParserToken(BaseToken::Uint, val_);
+                else
+                    return ParserToken(BaseToken::Int, static_cast<int64_t>(val_));
             }
         } break;
         default:

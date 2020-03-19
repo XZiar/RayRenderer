@@ -115,14 +115,21 @@ TEST(ParserLexer, LexerString)
 
 TEST(ParserLexer, LexerInt)
 {
-
     {
         const auto tokens = TKParse<IntTokenizer>(U"123"sv);
-        CHECK_TK(tokens[0], Uint, GetUInt, 123);
+        CHECK_TK(tokens[0], Int, GetInt, 123);
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"-123"sv);
         CHECK_TK(tokens[0], Int, GetInt, -123);
+    }
+    {
+        const auto tokens = TKParse<IntTokenizer>(U"123u"sv);
+        CHECK_TK(tokens[0], Uint, GetUInt, 123u);
+    }
+    {
+        const auto tokens = TKParse<IntTokenizer>(U"-123u"sv);
+        CHECK_TK(tokens[0], Uint, GetUInt, static_cast<uint64_t>(-123));
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x13579bdf"sv);
@@ -299,11 +306,11 @@ TEST(ParserLexer, LexerArgs)
     };
     {
         const auto tokens = ParseAll(UR"(123,456,789)"sv);
-        CHECK_TK(tokens[0], Uint,  GetUInt, 123);
+        CHECK_TK(tokens[0], Int,   GetInt,  123);
         CHECK_TK(tokens[1], Delim, GetChar, U',');
-        CHECK_TK(tokens[2], Uint,  GetUInt, 456);
+        CHECK_TK(tokens[2], Int,   GetInt,  456);
         CHECK_TK(tokens[3], Delim, GetChar, U',');
-        CHECK_TK(tokens[4], Uint,  GetUInt, 789);
+        CHECK_TK(tokens[4], Int,   GetInt,  789);
     }
     {
         const auto tokens = ParseAll(UR"(-123,"hello",3.5,0xff)"sv);

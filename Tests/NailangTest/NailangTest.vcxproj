@@ -65,6 +65,7 @@
     <ClInclude Include="rely.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="NailangRuntimeTest.cpp" />
     <ClCompile Include="ParserBaseTest.cpp" />
     <ClCompile Include="ParserLexerTest.cpp" />
     <ClCompile Include="ParserContextTest.cpp" />

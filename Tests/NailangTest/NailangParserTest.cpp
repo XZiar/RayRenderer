@@ -79,20 +79,20 @@ TEST(NailangParser, ParseFuncBody)
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        CHECK_VAR_ARG(func.Args[0], Uint, 123);
-        CHECK_VAR_ARG(func.Args[1],  Int, -456);
+        CHECK_VAR_ARG(func.Args[0], Int, 123);
+        CHECK_VAR_ARG(func.Args[1], Int, -456);
     }
     {
-        constexpr auto src = U"((123), v.456)"sv;
+        constexpr auto src = U"((123u), v.456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 2);
-        CHECK_VAR_ARG(func.Args[0], Uint, 123);
+        CHECK_VAR_ARG(func.Args[0], Uint, 123u);
         CHECK_VAR_ARG(func.Args[1], Var, U"v.456");
     }
     {
-        constexpr auto src = U"(1 + 2)"sv;
+        constexpr auto src = U"(1u + 2)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -102,7 +102,7 @@ TEST(NailangParser, ParseFuncBody)
         const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
         CHECK_VAR_ARG(stmt.LeftOprend, Uint, 1);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-        CHECK_VAR_ARG(stmt.RightOprend, Uint, 2);
+        CHECK_VAR_ARG(stmt.RightOprend, Int, 2);
     }
     {
         constexpr auto src = U"(!false, 3.5 + var)"sv;
@@ -134,7 +134,7 @@ TEST(NailangParser, ParseFuncBody)
         EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
         {
             const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
-            CHECK_VAR_ARG(stmt.LeftOprend, Uint, 6);
+            CHECK_VAR_ARG(stmt.LeftOprend, Int, 6);
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
             EXPECT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
@@ -152,12 +152,12 @@ TEST(NailangParser, ParseFuncBody)
             EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Binary);
             {
                 const auto& stmt2 = *stmt.LeftOprend.GetVar<RawArg::Type::Binary>();
-                CHECK_VAR_ARG(stmt2.LeftOprend, Uint, 4);
+                CHECK_VAR_ARG(stmt2.LeftOprend, Int, 4);
                 EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
-                CHECK_VAR_ARG(stmt2.RightOprend, Uint, 5);
+                CHECK_VAR_ARG(stmt2.RightOprend, Int, 5);
             }
             EXPECT_EQ(stmt.Operator, EmbedOps::Equal);
-            CHECK_VAR_ARG(stmt.RightOprend, Uint, 9);
+            CHECK_VAR_ARG(stmt.RightOprend, Int, 9);
         }
     }
 }
@@ -200,14 +200,14 @@ hey = 13;
         EXPECT_EQ(meta[0].Args.size(), 0);
         const auto& assign = *std::get<0>(stmt.GetStatement());
         EXPECT_EQ(assign.Variable.Name, U"hey"sv);
-        CHECK_VAR_ARG(assign.Statement, Uint, 13u);
+        CHECK_VAR_ARG(assign.Statement, Int, 13);
     }
     {
         constexpr auto src = UR"(
 @meta()
 #Inline("13")
 {
-abc = 0;
+abc = 0u;
 }
 )"sv;
         const auto block = ParseAll(src);
@@ -231,7 +231,7 @@ abc = 0;
     }
     {
         constexpr auto src = UR"(
-hey /= 9+1;
+hey /= 9u+1u;
 $func(hey);
 @meta()
 #Block.Main("block")
@@ -403,7 +403,7 @@ Here
             const auto& meta = block.MetaFunctions[0];
             EXPECT_EQ(meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 1);
-            CHECK_VAR_ARG(meta.Args[0], Uint, 1);
+            CHECK_VAR_ARG(meta.Args[0], Int, 1);
         }
         {
             const auto& meta = block.MetaFunctions[1];
