@@ -71,11 +71,12 @@ static void ShowBlock(MemoryPool& pool, const Block& block, const string& indent
 {
     string indent2 = indent + "|   ";
     log().info(u"{}\n", indent2);
-    for (const auto [meta, content] : block)
+    //for (const auto pp : block);
+    for (const auto [metas, content] : block)
     {
-        content.Visit([&](const auto* content)
+        content.Visit([&, meta = metas](const auto* ele)
             {
-                ShowContent(pool, meta, *content, indent2);
+                ShowContent(pool, meta, *ele, indent2);
                 log().info(u"{}\n", indent2);
             });
     }

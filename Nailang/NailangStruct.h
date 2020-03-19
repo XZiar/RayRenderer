@@ -183,11 +183,95 @@ struct RawArg
     }
 };
 
+struct CustomVar : LateBindVar
+{
+    uint64_t Meta1;
+    uint32_t Meta2;
+};
+//using Arg = std::variant<CustomVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+struct Arg
+{
+    enum class InternalType : uint32_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
+    std::u32string Str;
+    uint64_t Data1;
+    uint32_t Data2;
+    InternalType TypeData;
+
+    Arg() noexcept : Data1(0), Data2(0), TypeData(InternalType::Empty) 
+    { }
+    Arg(const CustomVar var) noexcept :
+        Str(var.Name), Data1(var.Meta1), Data2(var.Meta2), TypeData(InternalType::Var)
+    { }
+    /*Arg(const std::string& str) noexcept : Data1(0), Data2(static_cast<uint32_t>(str.size())), TypeData(InternalType::U8Str) 
+    {
+        const auto size4 = (str.size() + 3) / 4;
+        Str.reserve(size4);
+        memcpy_s(Str.data(), Str.size() * sizeof(char32_t), str.data(), str.size());
+    }*/
+    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), TypeData(InternalType::U32Str) 
+    { }
+    Arg(const std::u32string_view str) noexcept :
+        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), TypeData(InternalType::U32Sv)
+    {
+        Expects(str.size() <= UINT32_MAX);
+    }
+    Arg(const uint64_t num) noexcept :
+        Data1(num), Data2(6), TypeData(InternalType::Uint) 
+    { }
+    Arg(const int64_t num) noexcept :
+        Data1(static_cast<uint64_t>(num)), Data2(7), TypeData(InternalType::Int) 
+    { }
+    Arg(const double num) noexcept :
+        Data1(*reinterpret_cast<const uint64_t*>(&num)), Data2(8), TypeData(InternalType::FP) 
+    { }
+    Arg(const bool boolean) noexcept :
+        Data1(boolean ? 1 : 0), Data2(9), TypeData(InternalType::Bool) 
+    { }
+
+    template<InternalType T>
+    constexpr auto GetVar() const
+    {
+        Expects(TypeData == T);
+        if constexpr (T == InternalType::Var)
+            return CustomVar{ std::u32string_view(Str), Data1, Data2 };
+        else if constexpr (T == InternalType::U32Str)
+            return std::u32string_view{ Str };
+        else if constexpr (T == InternalType::U32Sv)
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1), Data2 };
+        else if constexpr (T == InternalType::Uint)
+            return Data1;
+        else if constexpr (T == InternalType::Int)
+            return static_cast<int64_t>(Data1);
+        else if constexpr (T == InternalType::FP)
+            return *reinterpret_cast<const double*>(&Data1);
+        else if constexpr (T == InternalType::Bool)
+            return Data1 == 1;
+        else
+            static_assert(!common::AlwaysTrue<decltype(T)>, "");
+    }
+
+    template<typename Visitor>
+    forceinline auto Visit(Visitor&& visitor) const
+    {
+        switch (TypeData)
+        {
+        case InternalType::Var:     return visitor(GetVar<InternalType::Var>());
+        case InternalType::U32Str:  return visitor(GetVar<InternalType::U32Str>());
+        case InternalType::U32Sv:   return visitor(GetVar<InternalType::U32Sv>());
+        case InternalType::Uint:    return visitor(GetVar<InternalType::Uint>());
+        case InternalType::Int:     return visitor(GetVar<InternalType::Int>());
+        case InternalType::FP:      return visitor(GetVar<InternalType::FP>());
+        case InternalType::Bool:    return visitor(GetVar<InternalType::Bool>());
+        default:    Expects(false); return visitor(Data1);
+        }
+    }
+};
+
 
 struct FuncCall
 {
     std::u32string_view Name;
-    common::span<RawArg> Args;
+    common::span<const RawArg> Args;
 };
 struct UnaryStatement
 {
