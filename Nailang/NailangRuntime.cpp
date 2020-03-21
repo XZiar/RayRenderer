@@ -7,7 +7,19 @@ namespace xziar::nailang
 {
 using namespace std::string_view_literals;
 
-Arg EvaluateContext::LookUpArg(std::u32string_view name) const
+
+EvaluateContext::~EvaluateContext()
+{ }
+
+bool EvaluateContext::ShouldContinue() const
+{
+    return true;
+}
+
+BasicEvaluateContext::~BasicEvaluateContext()
+{ }
+
+Arg BasicEvaluateContext::LookUpArg(std::u32string_view name) const
 {
     if (const auto it = ArgMap.find(name); it != ArgMap.end())
         return it->second;
@@ -16,7 +28,7 @@ Arg EvaluateContext::LookUpArg(std::u32string_view name) const
     return Arg{};
 }
 
-bool EvaluateContext::SetArg(std::u32string_view name, Arg arg)
+bool BasicEvaluateContext::SetArg(std::u32string_view name, Arg arg)
 {
     if (common::str::IsBeginWith(name, U"_."sv))
     {
@@ -25,16 +37,33 @@ bool EvaluateContext::SetArg(std::u32string_view name, Arg arg)
         else
             name.remove_prefix(2);
     }
-    if (auto it = ArgMap.find(name); it != ArgMap.end())
+    auto it = ArgMap.find(name);
+    const bool hasIt = it != ArgMap.end();
+    if (arg.IsEmpty())
     {
-        it->second = arg; 
+        if (!hasIt)
+            return false;
+        ArgMap.erase(it);
         return true;
     }
     else
     {
-        ArgMap.insert_or_assign(std::u32string(name), arg);
-        return false;
+        if (hasIt)
+        {
+            it->second = arg;
+            return true;
+        }
+        else
+        {
+            ArgMap.insert_or_assign(std::u32string(name), arg);
+            return false;
+        }
     }
+}
+
+bool BasicEvaluateContext::ShouldContinue() const
+{
+    return !ReturnArg.has_value();
 }
 
 
@@ -253,18 +282,80 @@ std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::s
 
 
 
-Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, const BlockContent* target)
+NailangRuntimeBase::~NailangRuntimeBase()
+{ }
+
+void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
+{
+    if (static_cast<size_t>(call.Args.size()) != count)
+        throw U"Expect Arg Count Not Match"sv;
+}
+
+void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::InternalType type) const
+{
+    if (arg.TypeData != type)
+        throw U"Arg type not xxx"sv;
+}
+
+bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const
+{
+    const auto ret = arg.GetBool();
+    if (!ret.has_value())
+        throw std::u32string(varName).append(U" should be bool-able"sv);
+    return ret.value();
+}
+
+bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent&)
+{
+    if (meta.Name == U"Skip"sv)
+    {
+        switch (meta.Args.size())
+        {
+        case 0:  return false;
+        case 1:  return !ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[Skip]"sv);
+        default: throw U"MetaFunc[Skip] accept 0 or 1 arg only."sv;
+        }
+    }
+    if (meta.Name == U"If"sv)
+    {
+        ThrowByArgCount(meta, 1);
+        return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[If]"sv);
+    }
+    return true;
+}
+
+bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target)
+{
+    for (const auto& meta : metas)
+    {
+        if (!HandleMetaFuncBefore(meta, target))
+            return false;
+    }
+    return true;
+}
+
+void NailangRuntimeBase::HandleRawBlock(const RawBlock&, common::span<const FuncCall>)
+{
+    return; // just skip
+}
+
+void NailangRuntimeBase::EvaluateAssignment(const Assignment& assign, common::span<const FuncCall>)
+{
+    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
+}
+
+Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas, const BlockContent* target)
 {
     if (func.Args.size() == 0)
-        return EvaluateFunc(func.Name, {});
+        return EvaluateFunc(func.Name, {}, metas, target);
     std::vector<Arg> args;
     args.reserve(func.Args.size());
     for (const auto& rawarg : func.Args)
         args.emplace_back(EvaluateArg(rawarg));
-    return EvaluateFunc(func.Name, args, target);
+    return EvaluateFunc(func.Name, args, metas, target);
 }
 
-Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, const BlockContent*)
+Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall>, const BlockContent*)
 {
     using Type = Arg::InternalType;
     if (common::str::IsBeginWith(func, U"EmbedOp."sv))
@@ -311,14 +402,14 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     switch (arg.TypeData)
     {
     case Type::Func:
-        return EvaluateFunc(*arg.GetVar<Type::Func>());
+        return EvaluateFunc(*arg.GetVar<Type::Func>(), {});
     case Type::Unary:
     {
         const auto& stmt = *arg.GetVar<Type::Unary>();
         FuncCall func;
         func.Name = OpToFuncName(stmt.Operator);
         func.Args = { &stmt.Oprend, 1 };
-        return EvaluateFunc(func);
+        return EvaluateFunc(func, {});
     }
     case Type::Binary:
     {
@@ -326,7 +417,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         FuncCall func;
         func.Name = OpToFuncName(stmt.Operator);
         func.Args = { &stmt.LeftOprend, 2 };
-        return EvaluateFunc(func);
+        return EvaluateFunc(func, {});
     }
     case Type::Var:
         return EvalContext->LookUpArg(arg.GetVar<Type::Var>().Name);
@@ -336,6 +427,43 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     case Type::FP:      return arg.GetVar<Type::FP>();
     case Type::Bool:    return arg.GetVar<Type::Bool>();
     default:            Expects(false); return {};
+    }
+}
+
+void NailangRuntimeBase::EvaluateContent(const BlockContent& content, common::span<const FuncCall> metas)
+{
+    const auto type = content.GetType();
+    if (type == BlockContent::Type::RawBlock)
+    {
+        HandleRawBlock(*content.Get<RawBlock>(), metas);
+    }
+    else if (HandleMetaFuncsBefore(metas, content))
+    {
+        switch (type)
+        {
+        case BlockContent::Type::Assignment:
+            EvaluateAssignment(*content.Get<Assignment>(), metas);
+            break;
+        case BlockContent::Type::Block:
+            ExecuteBlock(*content.Get<Block>(), metas);
+            break;
+        case BlockContent::Type::FuncCall:
+            EvaluateFunc(*content.Get<FuncCall>(), metas);
+            break;
+        default:
+            Expects(false);
+            break;
+        }
+    }
+}
+
+void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall>)
+{
+    for (const auto& [metas, content] : block)
+    {
+        EvaluateContent(content, metas);
+        if (EvalContext->ShouldContinue())
+            break;
     }
 }
 

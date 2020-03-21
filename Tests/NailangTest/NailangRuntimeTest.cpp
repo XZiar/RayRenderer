@@ -18,11 +18,13 @@ using xziar::nailang::UnaryStatement;
 using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
 using xziar::nailang::Arg;
+using xziar::nailang::Assignment;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
+using xziar::nailang::BasicEvaluateContext;
 using xziar::nailang::EmbedOpEval;
 
-class EvalCtx : public EvaluateContext
+class EvalCtx : public BasicEvaluateContext
 {
 public:
     EvalCtx()
@@ -32,6 +34,8 @@ public:
         ArgMap.insert_or_assign(U"valF64", Arg(3.0));
         ArgMap.insert_or_assign(U"valStr", Arg(U"txt"sv));
     }
+
+    using BasicEvaluateContext::ParentContext;
 };
 class NailangRT : public NailangRuntimeBase
 {
@@ -40,8 +44,13 @@ public:
     {
         EvalContext = std::make_shared<EvalCtx>();
     }
+
+    using NailangRuntimeBase::EvalContext;
+
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::EvaluateArg;
+    using NailangRuntimeBase::EvaluateAssignment;
+    using NailangRuntimeBase::EvaluateContent;
 };
 
 
@@ -145,3 +154,113 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
     }
 }
 
+
+
+#define LOOKUP_ARG(rt, name, type, val) do      \
+{                                               \
+    const LateBindVar var{ name };              \
+    const auto arg = runtime.EvaluateArg(var);  \
+    CHECK_ARG(arg, type, val);                  \
+} while(0)                                      \
+
+
+TEST(NailangRuntime, Variable)
+{
+    NailangRT runtime;
+
+    LOOKUP_ARG(runtime, U"valU64"sv, Uint,   1u);
+    LOOKUP_ARG(runtime, U"valI64"sv, Int,    2);
+    LOOKUP_ARG(runtime, U"valF64"sv, FP,     3.0);
+    LOOKUP_ARG(runtime, U"valStr"sv, U32Sv,  U"txt"sv);
+
+    {
+        const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
+        EXPECT_EQ(arg.TypeData, Arg::InternalType::Empty);
+    }
+    {
+        runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512)));
+        const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
+        CHECK_ARG(arg, Uint, 512);
+    }
+    const auto ctx2 = std::make_shared<EvalCtx>();
+    ctx2->ParentContext = runtime.EvalContext;
+    {
+        const auto arg = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg, Uint, 512);
+    }
+    {
+        ctx2->SetArg(U"test"sv, Arg(uint64_t(256)));
+        const auto arg1 = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg1, Uint, 256);
+        const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
+        CHECK_ARG(arg2, Uint, 512);
+    }
+    {
+        ctx2->SetArg(U"_.test"sv, Arg(uint64_t(128)));
+        const auto arg1 = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg1, Uint, 256);
+        const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
+        CHECK_ARG(arg2, Uint, 128);
+    }
+    const auto ctx3 = std::make_shared<EvalCtx>();
+    ctx3->ParentContext = ctx2;
+    {
+        const auto arg = ctx3->LookUpArg(U"test"sv);
+        CHECK_ARG(arg, Uint, 256);
+    }
+    {
+        ctx2->SetArg(U"_.test"sv, {});
+        const auto arg1 = ctx3->LookUpArg(U"test"sv);
+        CHECK_ARG(arg1, Uint, 256);
+        const auto arg2 = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg2, Uint, 256);
+        const auto arg3 = runtime.EvalContext->LookUpArg(U"test"sv);
+        EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
+    }
+}
+
+
+struct BlkParser : public BlockParser
+{
+    using BlockParser::BlockParser;
+    static Assignment GetAssignment(MemoryPool& pool, const std::u32string_view var, const std::u32string_view src)
+    {
+        ParserContext context(src);
+        BlkParser parser(pool, context);
+        return parser.ParseAssignment(var);
+    }
+};
+
+static void PEAssign(NailangRT& runtime, MemoryPool& pool, 
+    const std::u32string_view var, const std::u32string_view src,
+    const common::span<const FuncCall>& metas = {})
+{
+    const Assignment assign = BlkParser::GetAssignment(pool, var, src);
+    runtime.EvaluateAssignment(assign, metas);
+}
+TEST(NailangRuntime, Assign)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    {
+        PEAssign(runtime, pool, U"str"sv, U"=\"Hello \";"sv);
+        LOOKUP_ARG(runtime, U"str"sv, U32Sv, U"Hello "sv);
+    }
+    {
+        PEAssign(runtime, pool, U"str"sv, U"+= \"World\";"sv);
+        LOOKUP_ARG(runtime, U"str"sv, U32Str, U"Hello World"sv);
+    }
+    {
+        PEAssign(runtime, pool, U"ans"sv, U"= (63 % 4) * (3 + 5.0);"sv);
+        LOOKUP_ARG(runtime, U"ans"sv, FP, 24.0);
+    }
+    {
+        LOOKUP_ARG(runtime, U"valU64"sv, Uint, 1u);
+        LOOKUP_ARG(runtime, U"valI64"sv, Int, 2);
+        LOOKUP_ARG(runtime, U"valF64"sv, FP, 3.0);
+        LOOKUP_ARG(runtime, U"valStr"sv, U32Sv, U"txt"sv);
+
+        PEAssign(runtime, pool, U"ans"sv, U"%= (valI64 + valF64)/valI64;"sv);
+        LOOKUP_ARG(runtime, U"ans"sv, FP, 1.5);
+    }
+}
