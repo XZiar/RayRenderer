@@ -238,6 +238,7 @@ static void PEAssign(NailangRT& runtime, MemoryPool& pool,
     const Assignment assign = BlkParser::GetAssignment(pool, var, src);
     runtime.EvaluateAssignment(assign, metas);
 }
+
 TEST(NailangRuntime, Assign)
 {
     MemoryPool pool;
@@ -251,16 +252,13 @@ TEST(NailangRuntime, Assign)
         LOOKUP_ARG(runtime, U"str"sv, U32Str, U"Hello World"sv);
     }
     {
+        constexpr auto ans = (63 % 4) * (3 + 5.0);
         PEAssign(runtime, pool, U"ans"sv, U"= (63 % 4) * (3 + 5.0);"sv);
-        LOOKUP_ARG(runtime, U"ans"sv, FP, 24.0);
+        LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
     {
-        LOOKUP_ARG(runtime, U"valU64"sv, Uint, 1u);
-        LOOKUP_ARG(runtime, U"valI64"sv, Int, 2);
-        LOOKUP_ARG(runtime, U"valF64"sv, FP, 3.0);
-        LOOKUP_ARG(runtime, U"valStr"sv, U32Sv, U"txt"sv);
-
+        const auto ans = std::fmod(24.0, (2 + 3.0)/2);
         PEAssign(runtime, pool, U"ans"sv, U"%= (valI64 + valF64)/valI64;"sv);
-        LOOKUP_ARG(runtime, U"ans"sv, FP, 1.5);
+        LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
 }

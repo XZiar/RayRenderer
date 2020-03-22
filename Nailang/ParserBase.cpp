@@ -29,6 +29,7 @@ std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 #define RET_TK_ID(type) case SectorLangToken::type:        return u ## #type
     switch (static_cast<SectorLangToken>(tid))
     {
+        RET_TK_ID(Raw);
         RET_TK_ID(Block);
         RET_TK_ID(MetaFunc);
         RET_TK_ID(Func);
@@ -36,6 +37,7 @@ std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
         RET_TK_ID(EmbedOp);
         RET_TK_ID(Parenthese);
         RET_TK_ID(CurlyBrace);
+        RET_TK_ID(Assign);
 #undef RET_TK_ID
     default:
         return ParserBase::DescribeTokenID(tid);

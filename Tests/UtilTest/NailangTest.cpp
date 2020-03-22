@@ -33,11 +33,6 @@ static void ShowMeta(const common::span<const FuncCall> metas, const string& ind
 }
 
 
-//case Type::Assignment:  return visitor(Get<AssignmentWithMeta>());
-//case Type::FuncCall:    return visitor(Get<  FuncCallWithMeta>());
-//case Type::RawBlock:    return visitor(Get<  RawBlockWithMeta>());
-//default:Expects(false); return visitor(static_cast<const AssignmentWithMeta*>(nullptr));
-
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const Assignment& content, const string& indent)
 {
     ShowMeta(metas, indent);
@@ -52,11 +47,11 @@ static void ShowBlock(MemoryPool& pool, const Block& block, const string& indent
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const RawBlock& content, const string& indent)
 {
     ShowMeta(metas, indent);
-    log().info(FMT_STRING(u"{}block type[{}], name[{}]\n"), indent, content.Type, content.Name);
+    log().info(FMT_STRING(u"{}rawblock type[{}], name[{}]\n"), indent, content.Type, content.Name);
     if (common::linq::FromIterable(metas)
-        .AllIf([](const FuncCall& call) { return call.Name != U"noparse"sv; }))
+        .ContainsIf([](const FuncCall& call) { return call.Name == U"parse"sv; }))
     {
-        ShowBlock(pool, BlockParser::ParseBlockRaw(content, pool), indent);
+        ShowBlock(pool, BlockParser::ParseRawBlock(content, pool), indent);
     }
     log().info(u"{}\n", indent);
 }
@@ -100,11 +95,20 @@ static void TestNailang()
 
             common::parser::ParserContext context(u32str, u16fname);
             MemoryPool pool;
-            BlockParser parser(pool, context);
-            const auto sectors = parser.GetAllBlocks();
-            for (const auto block : sectors)
+            const auto all = BlockParser::ParseAllAsBlock(pool, context);
+            for (const auto [meta, content] : all)
             {
-                ShowContent(pool, block.MetaFunctions, block, "  ");
+                switch (content.GetType())
+                {
+                case xziar::nailang::BlockContent::Type::RawBlock:
+                    ShowContent(pool, meta, *content.Get<RawBlock>(), "  ");
+                    break;
+                case xziar::nailang::BlockContent::Type::Block:
+                    ShowContent(pool, meta, *content.Get<Block>(), "  ");
+                    break;
+                default:
+                    throw u"should not exist Non-Block content here"sv;
+                }
             }
         }
         catch (common::BaseException & be)

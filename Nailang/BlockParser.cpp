@@ -11,13 +11,13 @@ struct ExpectSemoColon
 {
     static constexpr ParserToken Token = ParserToken(BaseToken::Delim, U';');
 };
-void BlockParser::EatSemiColon()
+void RawBlockParser::EatSemiColon()
 {
     using SemiColonTokenizer = tokenizer::KeyCharTokenizer<BaseToken::Delim, U';'>;
     EatSingleToken<ExpectSemoColon, SemiColonTokenizer>();
 }
 
-void BlockParser::FillBlockName(RawBlock& block)
+void RawBlockParser::FillBlockName(RawBlock& block)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -30,13 +30,13 @@ void BlockParser::FillBlockName(RawBlock& block)
     EatRightParenthese();
 }
 
-void BlockParser::FillBlockInfo(RawBlock& block)
+void RawBlockParser::FillBlockInfo(RawBlock& block)
 {
     block.Position = { Context.Row, Context.Col };
     block.FileName = Context.SourceName;
 }
 
-RawBlock BlockParser::FillBlock(const std::u32string_view name)
+RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name)
 {
     RawBlock block;
     block.Type = name;
@@ -53,6 +53,52 @@ RawBlock BlockParser::FillBlock(const std::u32string_view name)
     block.Source = reader.ReadUntil(guardString);
     block.Source.remove_suffix(guardString.size());
     return block;
+}
+
+RawBlockWithMeta RawBlockParser::GetNextRawBlock()
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+       
+    constexpr auto ExpectRawOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Raw, SectorLangToken::MetaFunc);
+
+    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
+
+    std::vector<FuncCall> metaFuncs;
+    while (true)
+    {
+        const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectRawOrMeta);
+        const auto tkType = token.GetIDEnum<SectorLangToken>();
+        if (tkType == SectorLangToken::Raw)
+        {
+            RawBlockWithMeta block;
+            static_cast<RawBlock&>(block) = FillRawBlock(token.GetString());
+            block.MetaFunctions = MemPool.CreateArray(metaFuncs);
+            return block;
+        }
+        Expects(tkType == SectorLangToken::MetaFunc);
+        metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
+    }
+}
+
+std::vector<RawBlockWithMeta> RawBlockParser::GetAllRawBlocks()
+{
+    std::vector<RawBlockWithMeta> sectors;
+    while (true)
+    {
+        ContextReader reader(Context);
+        reader.ReadWhile(IgnoreBlank);
+        if (reader.PeekNext() == common::parser::special::CharEnd)
+            break;
+        sectors.emplace_back(GetNextRawBlock());
+    }
+    return sectors;
+}
+
+
+void BlockParser::ThrowNonSupport(ParserToken token, std::u16string_view detail)
+{
+    throw common::parser::detail::ParsingError(GetCurrentFileName(), GetCurrentPosition(), token, detail);
 }
 
 Assignment BlockParser::ParseAssignment(const std::u32string_view var)
@@ -101,7 +147,8 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     return assign;
 }
 
-void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
+template<bool AllowNonBlock>
+void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -132,14 +179,14 @@ void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
         {
             metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
         } continue;
-        case SectorLangToken::Block:
+        case SectorLangToken::Raw:
         {
-            const auto target = MemPool.Create<RawBlock>(FillBlock(token.GetString()));
+            const auto target = MemPool.Create<RawBlock>(FillRawBlock(token.GetString()));
             const auto [offset, count] = AppendMetaFuncs();
             contents.push_back(BlockContent::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
-        case SectorLangToken::Inline:
+        case SectorLangToken::Block:
         {
             Block inlineBlk;
             FillBlockName(inlineBlk);
@@ -151,7 +198,7 @@ void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
             FillBlockInfo(inlineBlk);
             {
                 const auto idxBegin = Context.Index;
-                ParseBlockContent(inlineBlk, false);
+                ParseContentIntoBlock<true>(inlineBlk, false);
                 const auto idxEnd = Context.Index;
                 inlineBlk.Source = Context.Source.substr(idxBegin, idxEnd - idxBegin - 1);
             }
@@ -162,6 +209,8 @@ void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
         } continue;
         case SectorLangToken::Func:
         {
+            if constexpr (!AllowNonBlock)
+                ThrowNonSupport(token, u"Function call not supportted here"sv);
             FuncCall funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
             EatSemiColon();
@@ -172,6 +221,8 @@ void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
         } continue;
         case SectorLangToken::Var:
         {
+            if constexpr (!AllowNonBlock)
+                ThrowNonSupport(token, u"Variable assignment not supportted here"sv);
             Assignment assign = ParseAssignment(token.GetString());
             const auto target = MemPool.Create<Assignment>(assign);
             const auto [offset, count] = AppendMetaFuncs();
@@ -201,48 +252,7 @@ void BlockParser::ParseBlockContent(Block& block, const bool tillTheEnd)
     block.MetaFuncations = MemPool.CreateArray(allMetaFuncs);
 }
 
-RawBlockWithMeta BlockParser::GetNextBlock()
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-       
-    constexpr auto ExpectBlockOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Block, SectorLangToken::MetaFunc);
-
-    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
-
-    std::vector<FuncCall> metaFuncs;
-    while (true)
-    {
-        const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectBlockOrMeta);
-        const auto tkType = token.GetIDEnum<SectorLangToken>();
-        if (tkType == SectorLangToken::Block)
-        {
-            RawBlockWithMeta block;
-            static_cast<RawBlock&>(block) = FillBlock(token.GetString());
-            block.MetaFunctions = MemPool.CreateArray(metaFuncs);
-            return block;
-        }
-        Expects(tkType == SectorLangToken::MetaFunc);
-        metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
-    }
-}
-
-std::vector<RawBlockWithMeta> BlockParser::GetAllBlocks()
-{
-    std::vector<RawBlockWithMeta> sectors;
-    while (true)
-    {
-        ContextReader reader(Context);
-        reader.ReadWhile(IgnoreBlank);
-        if (reader.PeekNext() == common::parser::special::CharEnd)
-            break;
-        sectors.emplace_back(GetNextBlock());
-    }
-    return sectors;
-}
-
-
-Block BlockParser::ParseBlockRaw(const RawBlock& block, MemoryPool& pool)
+Block BlockParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
 {
     common::parser::ParserContext context(block.Source, block.FileName);
     std::tie(context.Row, context.Col) = block.Position;
@@ -250,7 +260,17 @@ Block BlockParser::ParseBlockRaw(const RawBlock& block, MemoryPool& pool)
 
     Block ret;
     static_cast<RawBlock&>(ret) = block;
-    parser.ParseBlockContent(ret);
+    parser.ParseContentIntoBlock<true>(ret);
+    return ret;
+}
+
+Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context)
+{
+    BlockParser parser(pool, context);
+
+    Block ret;
+    parser.FillBlockInfo(ret);
+    parser.ParseContentIntoBlock<false>(ret);
     return ret;
 }
 

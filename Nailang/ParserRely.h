@@ -31,7 +31,7 @@ enum class SectorLangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Block, Inline, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace, Assign,
+    Raw, Block, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
@@ -89,15 +89,20 @@ public:
     {
         Expects(txt.size() == 1);
         const auto fullname = ReadFullName(reader);
-        if (fullname == U"Inline"sv)
+        constexpr auto GetTypeName = [](const auto name, const size_t prefix)
         {
-            return ParserToken(SectorLangToken::Inline);
+            return name.size() > prefix&& name[prefix] == U'.' ?
+                name.substr(prefix + 1) : U""sv;
+        };
+        if (common::str::IsBeginWith(fullname, U"Block"sv))
+        {
+            const auto typeName = GetTypeName(fullname, 5);
+            return ParserToken(SectorLangToken::Block, typeName);
         }
-        else if (common::str::IsBeginWith(fullname, U"Block."sv))
+        else if (common::str::IsBeginWith(fullname, U"Raw"sv))
         {
-            const auto typeName = fullname.substr(6);
-            if (typeName.size() > 0)
-                return ParserToken(SectorLangToken::Block, typeName);
+            const auto typeName = GetTypeName(fullname, 3);
+            return ParserToken(SectorLangToken::Raw, typeName);
         }
         return ParserToken(BaseToken::Error, fullname);
     }

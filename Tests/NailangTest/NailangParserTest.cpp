@@ -7,6 +7,7 @@
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
+using xziar::nailang::RawBlockParser;
 using xziar::nailang::BlockParser;
 using xziar::nailang::ComplexArgParser;
 using xziar::nailang::EmbedOps;
@@ -170,7 +171,7 @@ TEST(NailangParser, ParseBlockBody)
     {
         xziar::nailang::RawBlock block;// { U""sv, U""sv, src, u"", { 0,0 } };
         block.Source = src;
-        return xziar::nailang::BlockParser::ParseBlockRaw(block, pool);
+        return xziar::nailang::BlockParser::ParseRawBlock(block, pool);
     };
     {
         constexpr auto src = UR"(
@@ -205,7 +206,7 @@ hey = 13;
     {
         constexpr auto src = UR"(
 @meta()
-#Inline("13")
+#Block("13")
 {
 abc = 0u;
 }
@@ -234,7 +235,7 @@ abc = 0u;
 hey /= 9u+1u;
 $func(hey);
 @meta()
-#Block.Main("block")
+#Raw.Main("block")
 {
 empty
 }
@@ -287,10 +288,10 @@ TEST(NailangParser, ParseBlock)
 {
     xziar::nailang::MemoryPool pool;
     {
-        constexpr auto src = U"#Block.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Raw.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        BlockParser Parser(pool, context);
-        const auto block = Parser.GetNextBlock();
+        RawBlockParser Parser(pool, context);
+        const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(block.Source, U""sv);
@@ -299,18 +300,18 @@ TEST(NailangParser, ParseBlock)
     }
 
     {
-        constexpr auto src = U"#Block.Main(\"Hello\"){\r\n}\r\n#Block.Main(\"Hello\"){\r\n}"sv;
+        constexpr auto src = U"#Raw.Main(\"Hello\"){\r\n}\r\n#Raw.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        BlockParser Parser(pool, context);
+        RawBlockParser Parser(pool, context);
 
-        const auto block0 = Parser.GetNextBlock();
+        const auto block0 = Parser.GetNextRawBlock();
         EXPECT_EQ(block0.Type, U"Main"sv);
         EXPECT_EQ(block0.Name, U"Hello"sv);
         EXPECT_EQ(block0.Source, U""sv);
         EXPECT_EQ(block0.Position.first,  1);
         EXPECT_EQ(block0.Position.second, 0);
 
-        const auto block1 = Parser.GetNextBlock();
+        const auto block1 = Parser.GetNextRawBlock();
         EXPECT_EQ(block1.Type, U"Main"sv);
         EXPECT_EQ(block1.Name, U"Hello"sv);
         EXPECT_EQ(block1.Source, U""sv);
@@ -320,27 +321,27 @@ TEST(NailangParser, ParseBlock)
     {
         constexpr auto src = 
             UR"(
-#Block.Main("Hello")
+#Raw.Main("Hello")
 {
 Here
 }
 
-#Block.Main("Hello")
+#Raw.Main("Hello")
 {===+++
 {Here}
 ===+++}
 )"sv;
         ParserContext context(src);
-        BlockParser Parser(pool, context);
+        RawBlockParser Parser(pool, context);
 
-        const auto block0 = Parser.GetNextBlock();
+        const auto block0 = Parser.GetNextRawBlock();
         EXPECT_EQ(block0.Type, U"Main"sv);
         EXPECT_EQ(block0.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block0.Source), U"Here\n"sv);
         EXPECT_EQ(block0.Position.first,  3);
         EXPECT_EQ(block0.Position.second, 0);
 
-        const auto block1 = Parser.GetNextBlock();
+        const auto block1 = Parser.GetNextRawBlock();
         EXPECT_EQ(block1.Type, U"Main"sv);
         EXPECT_EQ(block1.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block1.Source), U"{Here}\n"sv);
@@ -356,15 +357,15 @@ TEST(NailangParser, ParseMetaBlock)
         constexpr auto src =
             UR"(
 @func()
-#Block.Main("Hello")
+#Raw.Main("Hello")
 {
 Here
 }
 )"sv;
         ParserContext context(src);
-        BlockParser Parser(pool, context);
+        RawBlockParser Parser(pool, context);
 
-        const auto block = Parser.GetNextBlock();
+        const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
@@ -380,19 +381,19 @@ Here
             UR"(
 @func(1)
 @func(abc, 0xff)
-#Block.Main("Hello")
+#Raw.Main("Hello")
 {
 Here
 }
-#Block.Main("Hello")
+#Raw.Main("Hello")
 {
 Here
 }
 )"sv;
         ParserContext context(src);
-        BlockParser Parser(pool, context);
+        RawBlockParser Parser(pool, context);
 
-        const auto block = Parser.GetNextBlock();
+        const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
@@ -412,15 +413,13 @@ Here
             CHECK_VAR_ARG(meta.Args[0], Var, U"abc");
             CHECK_VAR_ARG(meta.Args[1], Uint, 0xff);
         }
-        {
-            const auto block_ = Parser.GetNextBlock();
-            EXPECT_EQ(block_.Type, U"Main"sv);
-            EXPECT_EQ(block_.Name, U"Hello"sv);
-            EXPECT_EQ(ReplaceNewLine(block_.Source), U"Here\n"sv);
-            EXPECT_EQ(block_.Position.first,  9);
-            EXPECT_EQ(block_.Position.second, 0);
-            EXPECT_EQ(block_.MetaFunctions.size(), 0);
-        }
+        const auto block_ = Parser.GetNextRawBlock();
+        EXPECT_EQ(block_.Type, U"Main"sv);
+        EXPECT_EQ(block_.Name, U"Hello"sv);
+        EXPECT_EQ(ReplaceNewLine(block_.Source), U"Here\n"sv);
+        EXPECT_EQ(block_.Position.first,  9);
+        EXPECT_EQ(block_.Position.second, 0);
+        EXPECT_EQ(block_.MetaFunctions.size(), 0);
     }
 }
 
