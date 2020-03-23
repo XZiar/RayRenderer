@@ -526,6 +526,7 @@ public:
         const auto metafuncs = MetaFuncations.subspan(content.Offset, content.Count);
         return { metafuncs, content };
     }
+    constexpr size_t Size() const noexcept { return Content.size(); }
 };
 
 

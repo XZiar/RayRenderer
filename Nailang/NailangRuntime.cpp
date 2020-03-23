@@ -1,5 +1,6 @@
 #include "NailangRuntime.h"
 #include "common/StringEx.hpp"
+#include "common/linq2.hpp"
 #include <cmath>
 
 
@@ -282,6 +283,10 @@ std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::s
 
 
 
+NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
+    EvalContext(std::move(context))
+{ }
+
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
 
@@ -305,7 +310,7 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
     return ret.value();
 }
 
-bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent&)
+bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> metas)
 {
     if (meta.Name == U"Skip"sv)
     {
@@ -316,10 +321,21 @@ bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockC
         default: throw U"MetaFunc[Skip] accept 0 or 1 arg only."sv;
         }
     }
+    if (meta.Name == U"DefFunc"sv)
+        return false;
     if (meta.Name == U"If"sv)
     {
         ThrowByArgCount(meta, 1);
         return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[If]"sv);
+    }
+    if (meta.Name == U"While"sv)
+    {
+        ThrowByArgCount(meta, 1);
+        while (ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[While]"sv))
+        {
+            ExecuteContent(content, metas);
+        }
+        return false;
     }
     return true;
 }
@@ -328,7 +344,7 @@ bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> meta
 {
     for (const auto& meta : metas)
     {
-        if (!HandleMetaFuncBefore(meta, target))
+        if (!HandleMetaFuncBefore(meta, target, metas))
             return false;
     }
     return true;
@@ -337,11 +353,6 @@ bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> meta
 void NailangRuntimeBase::HandleRawBlock(const RawBlock&, common::span<const FuncCall>)
 {
     return; // just skip
-}
-
-void NailangRuntimeBase::EvaluateAssignment(const Assignment& assign, common::span<const FuncCall>)
-{
-    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
 }
 
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas, const BlockContent* target)
@@ -430,39 +441,45 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     }
 }
 
-void NailangRuntimeBase::EvaluateContent(const BlockContent& content, common::span<const FuncCall> metas)
+void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
-    const auto type = content.GetType();
-    if (type == BlockContent::Type::RawBlock)
+    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
+}
+
+void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas)
+{
+    switch (content.GetType())
     {
-        HandleRawBlock(*content.Get<RawBlock>(), metas);
-    }
-    else if (HandleMetaFuncsBefore(metas, content))
-    {
-        switch (type)
-        {
-        case BlockContent::Type::Assignment:
-            EvaluateAssignment(*content.Get<Assignment>(), metas);
-            break;
-        case BlockContent::Type::Block:
-            ExecuteBlock(*content.Get<Block>(), metas);
-            break;
-        case BlockContent::Type::FuncCall:
-            EvaluateFunc(*content.Get<FuncCall>(), metas);
-            break;
-        default:
-            Expects(false);
-            break;
-        }
+    case BlockContent::Type::Assignment:
+        ExecuteAssignment(*content.Get<Assignment>(), metas);
+        break;
+    case BlockContent::Type::Block:
+        ExecuteBlock(*content.Get<Block>(), metas);
+        break;
+    case BlockContent::Type::FuncCall:
+        EvaluateFunc(*content.Get<FuncCall>(), metas);
+        break;
+    default:
+        Expects(false);
+        break;
     }
 }
 
 void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall>)
 {
-    for (const auto& [metas, content] : block)
+    for (size_t idx = 0; idx < block.Size(); ++idx)
     {
-        EvaluateContent(content, metas);
-        if (EvalContext->ShouldContinue())
+        const auto& [metas, content] = block[idx];
+        const auto type = content.GetType();
+        if (type == BlockContent::Type::RawBlock)
+        {
+            HandleRawBlock(*content.Get<RawBlock>(), metas);
+        }
+        else if (HandleMetaFuncsBefore(metas, content))
+        {
+            ExecuteContent(content, metas);
+        }
+        if (!EvalContext->ShouldContinue())
             break;
     }
 }

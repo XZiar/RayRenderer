@@ -19,6 +19,7 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
 using xziar::nailang::Arg;
 using xziar::nailang::Assignment;
+using xziar::nailang::Block;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
 using xziar::nailang::BasicEvaluateContext;
@@ -40,17 +41,16 @@ public:
 class NailangRT : public NailangRuntimeBase
 {
 public:
-    NailangRT()
+    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>())
     {
-        EvalContext = std::make_shared<EvalCtx>();
     }
 
     using NailangRuntimeBase::EvalContext;
 
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::EvaluateArg;
-    using NailangRuntimeBase::EvaluateAssignment;
-    using NailangRuntimeBase::EvaluateContent;
+    using NailangRuntimeBase::ExecuteAssignment;
+    using NailangRuntimeBase::ExecuteContent;
 };
 
 
@@ -101,6 +101,15 @@ CHECK_ARG(ret, type, ans);                  \
 #undef TEST_UN
 }
 
+
+//class NailangRuntime : public ::testing::Test 
+//{
+//protected:
+//    MemoryPool Pool;
+//    NailangRT Runtime;
+//    void SetUp() override { }
+//    void TearDown() override { }
+//};
 
 TEST(NailangRuntime, ParseEvalEmbedOp)
 {
@@ -229,6 +238,14 @@ struct BlkParser : public BlockParser
         BlkParser parser(pool, context);
         return parser.ParseAssignment(var);
     }
+    static Block GetBlock(MemoryPool& pool, const std::u32string_view src)
+    {
+        common::parser::ParserContext context(src);
+        BlkParser parser(pool, context);
+        Block ret;
+        parser.ParseContentIntoBlock<true>(ret);
+        return ret;
+    }
 };
 
 static void PEAssign(NailangRT& runtime, MemoryPool& pool, 
@@ -236,7 +253,7 @@ static void PEAssign(NailangRT& runtime, MemoryPool& pool,
     const common::span<const FuncCall>& metas = {})
 {
     const Assignment assign = BlkParser::GetAssignment(pool, var, src);
-    runtime.EvaluateAssignment(assign, metas);
+    runtime.ExecuteAssignment(assign, metas);
 }
 
 TEST(NailangRuntime, Assign)
@@ -261,4 +278,37 @@ TEST(NailangRuntime, Assign)
         PEAssign(runtime, pool, U"ans"sv, U"%= (valI64 + valF64)/valI64;"sv);
         LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
+}
+
+
+TEST(NailangRuntime, gcd)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    constexpr auto gcdTxt = UR"(
+tmp = 1;
+@While(tmp != 0)
+#Block("")
+{
+    tmp = m % n;
+    m = n;
+    n = tmp;
+}
+)"sv;
+    const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
+
+    EXPECT_EQ(algoBlock.Size(), 2);
+
+    const auto gcd = [&](uint64_t m, uint64_t n)
+    {
+        runtime.EvalContext->SetArg(U"m"sv, m);
+        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.ExecuteBlock(algoBlock, {});
+        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        return *ans.GetUint();
+    };
+    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
+    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
 }

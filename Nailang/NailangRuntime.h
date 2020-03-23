@@ -62,16 +62,17 @@ protected:
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    virtual bool HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target);
+    virtual bool HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
             bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target);
     virtual void HandleRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
-    
-    virtual void EvaluateAssignment(const Assignment& assign, common::span<const FuncCall> metas);
+
             Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const BlockContent* target = nullptr);
     virtual Arg  EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const BlockContent* target = nullptr);
     virtual Arg  EvaluateArg(const RawArg& arg);
-    virtual void EvaluateContent(const BlockContent& content, common::span<const FuncCall> metas);
+    virtual void ExecuteAssignment(const Assignment& assign, common::span<const FuncCall> metas);
+    virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas);
 public:
+    NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     ~NailangRuntimeBase();
     virtual void ExecuteBlock(const Block& block, common::span<const FuncCall> metas);
 };
