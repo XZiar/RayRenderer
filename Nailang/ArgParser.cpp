@@ -7,15 +7,15 @@ using tokenizer::SectorLangToken;
 
 struct FuncEndDelimer
 {
-    static constexpr DelimTokenizer Stopper = ",)"sv;
+    static constexpr DelimTokenizer Stopper() noexcept { return ",)"sv; }
 };
 struct GroupEndDelimer
 {
-    static constexpr DelimTokenizer Stopper = ")"sv;
+    static constexpr DelimTokenizer Stopper() noexcept { return ")"sv; }
 };
 struct StatementEndDelimer
 {
-    static constexpr DelimTokenizer Stopper = ";"sv;
+    static constexpr DelimTokenizer Stopper() noexcept { return ";"sv; }
 };
 
 template<typename StopDelimer>
@@ -24,7 +24,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     
-    constexpr DelimTokenizer StopDelim = StopDelimer::Stopper;
+    constexpr DelimTokenizer StopDelim = StopDelimer::Stopper();
     constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
         tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 

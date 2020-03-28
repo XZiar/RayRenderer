@@ -281,10 +281,11 @@ TEST(NailangRuntime, Assign)
 }
 
 
-TEST(NailangRuntime, gcd)
+TEST(NailangRuntime, gcd1)
 {
     MemoryPool pool;
     NailangRT runtime;
+
     constexpr auto gcdTxt = UR"(
 tmp = 1;
 @While(tmp != 0)
@@ -295,9 +296,78 @@ tmp = 1;
     n = tmp;
 }
 )"sv;
+
+    constexpr auto refgcd = [](uint64_t m, uint64_t n)
+    {
+        uint64_t tmp = 1;
+        while (tmp != 0)
+        {
+            tmp = m % n;
+            m = n;
+            n = tmp;
+        }
+        return m;
+    };
+
+    EXPECT_EQ(refgcd(5, 5),  std::gcd(5, 5));
+    EXPECT_EQ(refgcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(refgcd(17, 5), std::gcd(17, 5));
+
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
     EXPECT_EQ(algoBlock.Size(), 2);
+
+    const auto gcd = [&](uint64_t m, uint64_t n)
+    {
+        runtime.EvalContext->SetArg(U"m"sv, m);
+        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.ExecuteBlock(algoBlock, {});
+        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        return *ans.GetUint();
+    };
+    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
+    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
+}
+
+TEST(NailangRuntime, gcd2)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+
+    constexpr auto gcdTxt = UR"(
+@While(true)
+#Block("")
+{
+    tmp = m % n;
+    m = n;
+    n = tmp;
+    @If(n==0)
+    $Break();
+}
+)"sv;
+
+    constexpr auto refgcd = [](auto m, auto n)
+    {
+        while (true)
+        {
+            const auto tmp = m % n;
+            m = n;
+            n = tmp;
+            if (n == 0)
+                break;
+        }
+        return m;
+    };
+
+    EXPECT_EQ(refgcd(5, 5),  std::gcd(5, 5));
+    EXPECT_EQ(refgcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(refgcd(17, 5), std::gcd(17, 5));
+
+    const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
+
+    EXPECT_EQ(algoBlock.Size(), 1);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
