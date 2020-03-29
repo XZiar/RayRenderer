@@ -12,11 +12,6 @@ using namespace std::string_view_literals;
 EvaluateContext::~EvaluateContext()
 { }
 
-bool EvaluateContext::ShouldContinue() const
-{
-    return true;
-}
-
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
@@ -84,11 +79,6 @@ bool BasicEvaluateContext::SetFunc(const Block& block, common::span<const RawArg
 Arg BasicEvaluateContext::GetReturnArg() const
 {
     return ReturnArg.value_or(Arg{});
-}
-
-bool BasicEvaluateContext::ShouldContinue() const
-{
-    return !ReturnArg.has_value();
 }
 
 

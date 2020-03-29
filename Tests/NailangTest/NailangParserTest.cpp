@@ -75,6 +75,15 @@ TEST(NailangParser, ParseFuncBody)
         EXPECT_EQ(func.Args.size(), 0);
     }
     {
+        constexpr auto src = U"(val.xxx.3.len)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1);
+        CHECK_VAR_ARG(func.Args[0], Var, U"val.xxx.3.len");
+        EXPECT_THAT(func.Args[0].GetVar<RawArg::Type::Var>().Parts(), testing::ElementsAre(U"val"sv, U"xxx"sv, U"3"sv, U"len"sv));
+    }
+    {
         constexpr auto src = U"(123, -456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);

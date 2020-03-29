@@ -55,4 +55,19 @@ std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
 }
 
 
+//LateBindVar LateBindVar::Generate(std::u32string_view name, MemoryPool& pool)
+//{
+//    const auto parts = common::str::SplitStream(name, U'.', true)
+//        .Select([=](const std::u32string_view part)
+//            {
+//                return std::pair{ gsl::narrow_cast<uint32_t>(part.data() - name.data()), gsl::narrow_cast<uint32_t>(part.size()) };
+//            })
+//        .ToVector();
+//    if (parts.size() == 1)
+//        return { name, {} };
+//    else
+//        return { name, pool.CreateArray(parts) };
+//}
+
+
 }

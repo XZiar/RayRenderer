@@ -27,6 +27,8 @@ namespace detail
 {
 class EnumerableChecker;
 
+template<typename T, bool IsConst>
+struct EnumerableIterator;
 struct EnumerableEnd
 {};
 
@@ -885,9 +887,11 @@ class Enumerable
     friend class detail::EnumerableChecker;
     template<typename> friend class Enumerable;
     template<typename, typename> friend struct detail::FlatMappedSource;
+    template<typename, bool> friend struct detail::EnumerableIterator;
 public:
     using ProviderType = T;
     using EleType = typename T::OutType;
+    using value_type = EleType;
     static_assert(!std::is_rvalue_reference_v<EleType>, "Output should never be r-value reference");
     using PlainEleType = common::remove_cvref_t<EleType>;
     //using HoldType = std::conditional_t<std::is_lvalue_reference_v<EleType>,
@@ -904,46 +908,12 @@ public:
     constexpr Enumerable& operator=(Enumerable&&) = default;
 
 private:
-    struct EnumerableIterator
-    {
-        using iterator_category = std::input_iterator_tag;
-        using value_type = EleType;
-        using difference_type = std::ptrdiff_t;
-        using pointer = std::add_pointer_t<EleType>;
-        using reference = EleType;
-
-        Enumerable<T>* Source;
-        constexpr EnumerableIterator(Enumerable<T>* source) noexcept : Source(source) {}
-        constexpr decltype(auto) operator*() const
-        {
-            return Source->Provider.GetCurrent();
-        }
-        constexpr bool operator!=(const detail::EnumerableEnd&) const
-        {
-            return !Source->Provider.IsEnd();
-        }
-        constexpr bool operator==(const detail::EnumerableEnd&) const
-        {
-            return Source->Provider.IsEnd();
-        }
-        constexpr EnumerableIterator& operator++()
-        {
-            Source->Provider.MoveNext();
-            return *this;
-        }
-        constexpr EnumerableIterator& operator+=(size_t n)
-        {
-            if (T::IsCountable && T::CanSkipMultiple)
-                Source->Skip(n);
-            return *this;
-        }
-    };
 public:
-    constexpr EnumerableIterator begin() noexcept
+    constexpr detail::EnumerableIterator<T, false> begin() noexcept
     {
         return this;
     }
-    constexpr EnumerableIterator begin() const noexcept
+    constexpr detail::EnumerableIterator<T, true> begin() const noexcept
     {
         return this;
     }
@@ -1285,6 +1255,9 @@ public:
         IntoMap<ShouldReplace>(themap, std::forward<KeyF>(keyMapper), std::forward<ValF>(valMapper));
         return themap;
     }
+
+    using       iterator = detail::EnumerableIterator<T, false>;
+    using const_iterator = detail::EnumerableIterator<T, true>;
 private:
     T Provider;
 };
@@ -1356,6 +1329,44 @@ FromRandomSource(Eng&& eng = {}, Gen&& gen = {})
 
 namespace detail
 {
+
+template<typename T, bool IsConst>
+struct EnumerableIterator
+{
+    using iterator_category = std::input_iterator_tag;
+    using value_type = std::conditional_t<IsConst, std::add_const_t<typename T::OutType>, typename T::OutType>;
+    using difference_type = std::ptrdiff_t;
+    using pointer = std::add_pointer_t<value_type>;
+    using reference = value_type;
+
+    Enumerable<T>* Source;
+    constexpr EnumerableIterator(Enumerable<T>* source) noexcept : Source(source) {}
+    constexpr EnumerableIterator(const Enumerable<T>* source) noexcept : 
+        Source(const_cast<Enumerable<T>*>(source)) {}
+    constexpr value_type operator*() const
+    {
+        return Source->Provider.GetCurrent();
+    }
+    constexpr bool operator!=(const detail::EnumerableEnd&) const
+    {
+        return !Source->Provider.IsEnd();
+    }
+    constexpr bool operator==(const detail::EnumerableEnd&) const
+    {
+        return Source->Provider.IsEnd();
+    }
+    constexpr EnumerableIterator& operator++()
+    {
+        Source->Provider.MoveNext();
+        return *this;
+    }
+    constexpr EnumerableIterator& operator+=(size_t n)
+    {
+        if (T::IsCountable && T::CanSkipMultiple)
+            Source->Skip(n);
+        return *this;
+    }
+};
 
 class EnumerableChecker
 {

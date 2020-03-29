@@ -2,6 +2,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
+#include "common/StringLinq.hpp"
 #include <vector>
 #include <variant>
 #include <string>
@@ -63,6 +64,9 @@ public:
 
 struct LateBindVar
 {
+    using value_type = std::u32string_view;
+public:
+
     std::u32string_view Name;
     constexpr bool operator==(const LateBindVar& other) const noexcept
     {
@@ -71,6 +75,15 @@ struct LateBindVar
     constexpr bool operator==(const std::u32string_view other) const noexcept
     {
         return Name == other;
+    }
+
+    constexpr auto Parts() const noexcept
+    {
+        return common::str::SplitStream(Name, U'.', true);
+    }
+    constexpr std::u32string_view operator[](size_t index) const noexcept
+    {
+        return common::str::SplitStream(Name, U'.', true).Skip(index).TryGetFirst().value();
     }
 };
 
@@ -186,47 +199,44 @@ struct RawArg
 
 struct CustomVar : LateBindVar
 {
-    uint64_t Meta1;
-    uint32_t Meta2;
+    uint64_t Meta0;
+    uint32_t Meta1;
+    uint16_t Meta2;
 };
 //using Arg = std::variant<CustomVar, std::u32string_view, uint64_t, int64_t, double, bool>;
 struct Arg
 {
-    enum class InternalType : uint32_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
+    enum class InternalType : uint16_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
     std::u32string Str;
     uint64_t Data1;
     uint32_t Data2;
+    uint16_t Data3;
     InternalType TypeData;
 
-    Arg() noexcept : Data1(0), Data2(0), TypeData(InternalType::Empty) 
+    Arg() noexcept : Data1(0), Data2(0), Data3(0), TypeData(InternalType::Empty)
     { }
     Arg(const CustomVar var) noexcept :
-        Str(var.Name), Data1(var.Meta1), Data2(var.Meta2), TypeData(InternalType::Var)
+        Str(var.Name), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(InternalType::Var)
     { }
-    /*Arg(const std::string& str) noexcept : Data1(0), Data2(static_cast<uint32_t>(str.size())), TypeData(InternalType::U8Str) 
-    {
-        const auto size4 = (str.size() + 3) / 4;
-        Str.reserve(size4);
-        memcpy_s(Str.data(), Str.size() * sizeof(char32_t), str.data(), str.size());
-    }*/
-    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), TypeData(InternalType::U32Str) 
+    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), Data3(0), TypeData(InternalType::U32Str)
     { }
     Arg(const std::u32string_view str) noexcept :
-        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), TypeData(InternalType::U32Sv)
+        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(gsl::narrow_cast<uint32_t>(str.size())),
+        Data3(0), TypeData(InternalType::U32Sv)
     {
         Expects(str.size() <= UINT32_MAX);
     }
     Arg(const uint64_t num) noexcept :
-        Data1(num), Data2(6), TypeData(InternalType::Uint) 
+        Data1(num), Data2(6), Data3(0), TypeData(InternalType::Uint)
     { }
     Arg(const int64_t num) noexcept :
-        Data1(static_cast<uint64_t>(num)), Data2(7), TypeData(InternalType::Int) 
+        Data1(static_cast<uint64_t>(num)), Data2(7), Data3(0), TypeData(InternalType::Int)
     { }
     Arg(const double num) noexcept :
-        Data1(*reinterpret_cast<const uint64_t*>(&num)), Data2(8), TypeData(InternalType::FP) 
+        Data1(*reinterpret_cast<const uint64_t*>(&num)), Data2(8), Data3(0), TypeData(InternalType::FP)
     { }
     Arg(const bool boolean) noexcept :
-        Data1(boolean ? 1 : 0), Data2(9), TypeData(InternalType::Bool) 
+        Data1(boolean ? 1 : 0), Data2(9), Data3(0), TypeData(InternalType::Bool)
     { }
 
     template<InternalType T>
@@ -234,7 +244,7 @@ struct Arg
     {
         Expects(TypeData == T);
         if constexpr (T == InternalType::Var)
-            return CustomVar{ std::u32string_view(Str), Data1, Data2 };
+            return CustomVar{ std::u32string_view(Str), Data1, Data2, Data3 };
         else if constexpr (T == InternalType::U32Str)
             return std::u32string_view{ Str };
         else if constexpr (T == InternalType::U32Sv)
@@ -518,7 +528,7 @@ public:
     }
     constexpr BlockIterator end() const noexcept
     {
-        return { this, static_cast<size_t>(Content.size()) };
+        return { this, Size() };
     }
     constexpr value_type operator[](size_t index) const noexcept
     {

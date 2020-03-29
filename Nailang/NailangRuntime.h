@@ -29,7 +29,6 @@ public:
     virtual bool SetArg(std::u32string_view name, Arg arg) = 0;
     virtual LocalFunc LookUpFunc(std::u32string_view name) = 0;
     virtual bool SetFunc(const Block& block, common::span<const RawArg> args) = 0;
-    virtual bool ShouldContinue() const;
 };
 
 class BasicEvaluateContext : public EvaluateContext, public LocalFuncContext
@@ -47,7 +46,6 @@ public:
     LocalFunc LookUpFunc(std::u32string_view name) override;
     bool SetFunc(const Block& block, common::span<const RawArg> args) override;
     Arg GetReturnArg() const override;
-    bool ShouldContinue() const override;
 };
 
 

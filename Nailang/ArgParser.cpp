@@ -79,13 +79,13 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };    break;
             EID(BaseToken::String)      : target = token.GetString();                   break;
             EID(BaseToken::Uint)        : target = token.GetUInt();                     break;
             EID(BaseToken::Int)         : target = token.GetInt();                      break;
             EID(BaseToken::FP)          : target = token.GetDouble();                   break;
             EID(BaseToken::Bool)        : target = token.GetBool();                     break;
-            EID(SectorLangToken::Func)  : 
+            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };    break;
+            EID(SectorLangToken::Func)  :
                 target = MemPool.Create<FuncCall>(
                     ParseFuncBody(token.GetString(), MemPool, Context));                
                 break;
