@@ -16,7 +16,12 @@ public:
 class EvaluateContext
 {
 protected:
+    static bool CheckIsLocal(LateBindVar& var) noexcept;
+
     std::shared_ptr<EvaluateContext> ParentContext;
+
+    virtual Arg LookUpArgInside(LateBindVar var) const = 0;
+    virtual bool SetArgInside(LateBindVar var, Arg arg, const bool force) = 0;
 public:
     struct LocalFunc
     {
@@ -25,8 +30,10 @@ public:
     };
     virtual ~EvaluateContext();
 
-    virtual Arg LookUpArg(std::u32string_view name) const = 0;
-    virtual bool SetArg(std::u32string_view name, Arg arg) = 0;
+    virtual Arg LookUpArg(LateBindVar var) const;
+    Arg LookUpArg(std::u32string_view var) const { return LookUpArg(LateBindVar{ var }); }
+    virtual bool SetArg(LateBindVar var, Arg arg);
+    bool SetArg(std::u32string_view var, Arg arg) { return SetArg(LateBindVar{ var }, arg); }
     virtual LocalFunc LookUpFunc(std::u32string_view name) = 0;
     virtual bool SetFunc(const Block& block, common::span<const RawArg> args) = 0;
 };
@@ -38,11 +45,12 @@ protected:
     std::map<std::u32string_view, std::tuple<const Block*, uint32_t, uint32_t>, std::less<>> LocalFuncMap;
     std::vector<std::u32string_view> LocalFuncArgNames;
     std::optional<Arg> ReturnArg;
+
+    Arg LookUpArgInside(LateBindVar var) const override;
+    bool SetArgInside(LateBindVar var, Arg arg, const bool force) override;
 public:
     ~BasicEvaluateContext() override;
 
-    Arg LookUpArg(std::u32string_view name) const override;
-    bool SetArg(std::u32string_view name, Arg arg) override;
     LocalFunc LookUpFunc(std::u32string_view name) override;
     bool SetFunc(const Block& block, common::span<const RawArg> args) override;
     Arg GetReturnArg() const override;

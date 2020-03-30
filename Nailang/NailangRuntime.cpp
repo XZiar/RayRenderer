@@ -9,31 +9,56 @@ namespace xziar::nailang
 using namespace std::string_view_literals;
 
 
+bool EvaluateContext::CheckIsLocal(LateBindVar& var) noexcept
+{
+    if (var.Name.size() > 0 && var.Name[0] == U'.')
+    {
+        var.Name.remove_prefix(1);
+        return true;
+    }
+    return false;
+}
+
 EvaluateContext::~EvaluateContext()
 { }
+
+Arg EvaluateContext::LookUpArg(LateBindVar var) const
+{
+    const bool isLocal = CheckIsLocal(var);
+    const auto arg = LookUpArgInside(var);
+    if (!isLocal && arg.TypeData == Arg::InternalType::Empty && ParentContext)
+        return ParentContext->LookUpArg(var);
+    else
+        return arg;
+}
+
+bool EvaluateContext::SetArg(LateBindVar var, Arg arg)
+{
+    if (!CheckIsLocal(var))
+    {
+        if (SetArgInside(var, arg, false))
+            return true;
+        if (ParentContext && ParentContext->SetArgInside(var, arg, false))
+                return true;
+    }
+    return SetArgInside(var, arg, true);
+}
+
 
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
-Arg BasicEvaluateContext::LookUpArg(std::u32string_view name) const
+
+Arg BasicEvaluateContext::LookUpArgInside(LateBindVar var) const
 {
-    if (const auto it = ArgMap.find(name); it != ArgMap.end())
+    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         return it->second;
-    if (ParentContext)
-        return ParentContext->LookUpArg(name);
     return Arg{};
 }
 
-bool BasicEvaluateContext::SetArg(std::u32string_view name, Arg arg)
+bool BasicEvaluateContext::SetArgInside(LateBindVar var, Arg arg, const bool force)
 {
-    if (common::str::IsBeginWith(name, U"_."sv))
-    {
-        if (ParentContext)
-            return ParentContext->SetArg(name, arg);
-        else
-            name.remove_prefix(2);
-    }
-    auto it = ArgMap.find(name);
+    auto it = ArgMap.find(var.Name);
     const bool hasIt = it != ArgMap.end();
     if (arg.IsEmpty())
     {
@@ -51,7 +76,8 @@ bool BasicEvaluateContext::SetArg(std::u32string_view name, Arg arg)
         }
         else
         {
-            ArgMap.insert_or_assign(std::u32string(name), arg);
+            if (force)
+                ArgMap.insert_or_assign(std::u32string(var.Name), arg);
             return false;
         }
     }
@@ -478,7 +504,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         return EvaluateFunc(func, {}, {});
     }
     case Type::Var:
-        return EvalContext->LookUpArg(arg.GetVar<Type::Var>().Name);
+        return EvalContext->LookUpArg(arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
@@ -490,7 +516,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 
 void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
-    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
+    EvalContext->SetArg(assign.Variable, EvaluateArg(assign.Statement));
 }
 
 void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx)

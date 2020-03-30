@@ -183,48 +183,73 @@ TEST(NailangRuntime, Variable)
     LOOKUP_ARG(runtime, U"valStr"sv, U32Sv,  U"txt"sv);
 
     {
+        // _
         const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
         EXPECT_EQ(arg.TypeData, Arg::InternalType::Empty);
     }
     {
-        runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512)));
+        EXPECT_EQ(runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512))), false);
+        // 512
         const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg, Uint, 512);
     }
     const auto ctx2 = std::make_shared<EvalCtx>();
     ctx2->ParentContext = runtime.EvalContext;
     {
-        const auto arg = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg, Uint, 512);
+        // 512, _
+        const auto arg1 = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg1, Uint, 512);
+        const auto arg2 = ctx2->LookUpArg(U".test"sv);
+        EXPECT_EQ(arg2.TypeData, Arg::InternalType::Empty);
     }
     {
-        ctx2->SetArg(U"test"sv, Arg(uint64_t(256)));
+        EXPECT_EQ(ctx2->SetArg(U"test"sv, Arg(uint64_t(256))), true);
+        // 256, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 256);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 512);
+        CHECK_ARG(arg2, Uint, 256);
+        const auto arg3 = ctx2->LookUpArg(U".test"sv);
+        EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
     }
     {
-        ctx2->SetArg(U"_.test"sv, Arg(uint64_t(128)));
+        EXPECT_EQ(ctx2->SetArg({ U".test"sv }, Arg(uint64_t(128))), false);
+        // 256, 128
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 256);
+        CHECK_ARG(arg1, Uint, 128);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 128);
+        CHECK_ARG(arg2, Uint, 256);
+        const auto arg3 = ctx2->LookUpArg(U".test"sv);
+        CHECK_ARG(arg3, Uint, 128);
     }
     const auto ctx3 = std::make_shared<EvalCtx>();
     ctx3->ParentContext = ctx2;
     {
+        // 256, 128, _
         const auto arg = ctx3->LookUpArg(U"test"sv);
-        CHECK_ARG(arg, Uint, 256);
+        CHECK_ARG(arg, Uint, 128);
     }
     {
-        ctx2->SetArg(U"_.test"sv, {});
+        EXPECT_EQ(ctx2->SetArg({ U".test"sv }, {}), true);
+        // 256, _, _
         const auto arg1 = ctx3->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 256);
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256);
         const auto arg3 = runtime.EvalContext->LookUpArg(U"test"sv);
+        CHECK_ARG(arg3, Uint, 256);
+    }
+    {
+        EXPECT_EQ(ctx3->SetArg({ U".test"sv }, Arg(uint64_t(64))), false);
+        // 256, _, 64
+        const auto arg1 = ctx3->LookUpArg(U"test"sv);
+        CHECK_ARG(arg1, Uint, 64);
+        const auto arg2 = ctx2->LookUpArg(U"test"sv);
+        CHECK_ARG(arg2, Uint, 256);
+        const auto arg3 = ctx2->LookUpArg(U".test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
+        const auto arg4 = runtime.EvalContext->LookUpArg(U"test"sv);
+        CHECK_ARG(arg4, Uint, 256);
     }
 }
 

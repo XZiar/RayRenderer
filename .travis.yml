@@ -123,7 +123,8 @@ before_install:
   - cd tmp
   - mkdir include
   - mkdir src
-  - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.72.0/source/boost_1_72_0.tar.bz2
+  # - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.72.0/source/boost_1_72_0.tar.bz2
+  - wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/1.72.0/boost_1_72_0.tar.bz2
   - tar xjf boost.tar.bz2
   - mv ./boost_1_72_0/boost ./include/
   - wget -O gtest.zip https://github.com/google/googletest/archive/release-1.10.0.zip
