@@ -111,6 +111,24 @@ CHECK_ARG(ret, type, ans);                  \
 //    void TearDown() override { }
 //};
 
+
+TEST(NailangRuntime, VarLookup)
+{
+    constexpr auto var = U"a.b..c"sv;
+    xziar::nailang::VarLookup lookup(var);
+    EXPECT_EQ(lookup.Name, var);
+    EXPECT_EQ(lookup.Part(), U"a"sv);
+    EXPECT_TRUE(lookup.Next());
+    EXPECT_EQ(lookup.Part(), U"b"sv);
+    EXPECT_TRUE(lookup.Next());
+    EXPECT_EQ(lookup.Part(), U""sv);
+    EXPECT_TRUE(lookup.Next());
+    EXPECT_EQ(lookup.Part(), U"c"sv);
+    EXPECT_FALSE(lookup.Next());
+    EXPECT_EQ(lookup.Part(), U""sv);
+}
+
+
 TEST(NailangRuntime, ParseEvalEmbedOp)
 {
     MemoryPool pool;

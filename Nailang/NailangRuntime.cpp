@@ -9,11 +9,11 @@ namespace xziar::nailang
 using namespace std::string_view_literals;
 
 
-bool EvaluateContext::CheckIsLocal(LateBindVar& var) noexcept
+bool EvaluateContext::CheckIsLocal(std::u32string_view& name) noexcept
 {
-    if (var.Name.size() > 0 && var.Name[0] == U'.')
+    if (name.size() > 0 && name[0] == U'.')
     {
-        var.Name.remove_prefix(1);
+        name.remove_prefix(1);
         return true;
     }
     return false;
@@ -22,26 +22,26 @@ bool EvaluateContext::CheckIsLocal(LateBindVar& var) noexcept
 EvaluateContext::~EvaluateContext()
 { }
 
-Arg EvaluateContext::LookUpArg(LateBindVar var) const
+Arg EvaluateContext::LookUpArg(std::u32string_view var) const
 {
     const bool isLocal = CheckIsLocal(var);
-    const auto arg = LookUpArgInside(var);
+    const auto arg = LookUpArgInside({ var });
     if (!isLocal && arg.TypeData == Arg::InternalType::Empty && ParentContext)
         return ParentContext->LookUpArg(var);
     else
         return arg;
 }
 
-bool EvaluateContext::SetArg(LateBindVar var, Arg arg)
+bool EvaluateContext::SetArg(std::u32string_view var, Arg arg)
 {
     if (!CheckIsLocal(var))
     {
-        if (SetArgInside(var, arg, false))
+        if (SetArgInside({ var }, arg, false))
             return true;
-        if (ParentContext && ParentContext->SetArgInside(var, arg, false))
+        if (ParentContext && ParentContext->SetArgInside({ var }, arg, false))
                 return true;
     }
-    return SetArgInside(var, arg, true);
+    return SetArgInside({ var }, arg, true);
 }
 
 
@@ -49,14 +49,14 @@ BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
 
-Arg BasicEvaluateContext::LookUpArgInside(LateBindVar var) const
+Arg BasicEvaluateContext::LookUpArgInside(VarLookup var) const
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
-bool BasicEvaluateContext::SetArgInside(LateBindVar var, Arg arg, const bool force)
+bool BasicEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
 {
     auto it = ArgMap.find(var.Name);
     const bool hasIt = it != ArgMap.end();
@@ -83,13 +83,13 @@ bool BasicEvaluateContext::SetArgInside(LateBindVar var, Arg arg, const bool for
     }
 }
 
-EvaluateContext::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name)
+BasicEvaluateContext::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name)
 {
     const auto it = LocalFuncMap.find(name);
     if (it == LocalFuncMap.end())
         return { nullptr, {} };
     const auto [ptr, offset, size] = it->second;
-    return { ptr, {&LocalFuncArgNames[offset], &LocalFuncArgNames[offset + size] } };
+    return { ptr, { &LocalFuncArgNames[offset], &LocalFuncArgNames[offset + size] } };
 }
 
 bool BasicEvaluateContext::SetFunc(const Block& block, common::span<const RawArg> args)
@@ -130,38 +130,6 @@ Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right)
         return !ret.GetVar<Arg::InternalType::Bool>();
     return ret;
 }
-//Arg EmbedOpEval::Less(const Arg& left, const Arg& right)
-//{
-//    using Type = Arg::InternalType;
-//    if (left.TypeData == right.TypeData)
-//    {
-//        switch (left.TypeData)
-//        {
-//        case Type::FP:      return left.GetVar<Type::FP>()   < right.GetVar<Type::FP>();
-//        case Type::Uint:    return left.GetVar<Type::Uint>() < right.GetVar<Type::Uint>();
-//        case Type::Int:     return left.GetVar<Type::Int>()  < right.GetVar<Type::Int>();
-//        default:            return {};
-//        }
-//    }
-//    if (LR_BOTH(left, right, IsInteger))
-//    {
-//        if (left.TypeData == Type::Int)
-//        {
-//            const auto left_ = left.GetVar<Type::Int>();
-//            return left_ < 0 ? true : static_cast<uint64_t>(left_) < right.GetVar<Type::Uint>();
-//        }
-//        else
-//        {
-//            const auto right_ = right.GetVar<Type::Int>();
-//            return right_ < 0 ? false : left.GetVar<Type::Uint>() < static_cast<uint64_t>(right_);
-//        }
-//    }
-//    if (LR_BOTH(left, right, IsNumber))
-//    {
-//        return ArgHelper::GetFP(left) < ArgHelper::GetFP(right);
-//    }
-//    return {};
-//}
 template<typename F>
 forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
 {
@@ -504,7 +472,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         return EvaluateFunc(func, {}, {});
     }
     case Type::Var:
-        return EvalContext->LookUpArg(arg.GetVar<Type::Var>());
+        return EvalContext->LookUpArg(arg.GetVar<Type::Var>().Name);
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
@@ -516,7 +484,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 
 void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
-    EvalContext->SetArg(assign.Variable, EvaluateArg(assign.Statement));
+    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
 }
 
 void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx)

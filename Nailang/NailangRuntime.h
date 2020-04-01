@@ -7,21 +7,47 @@
 namespace xziar::nailang
 {
 
-class LocalFuncContext
+struct VarLookup
 {
-public:
-    virtual Arg GetReturnArg() const = 0;
+    std::u32string_view Name;
+    constexpr VarLookup(std::u32string_view name) : Name(name), Offset(0), NextOffset(0)
+    {
+        FindNext();
+    }
+    constexpr VarLookup(const VarLookup& lookup) : Name(lookup.Name), Offset(0), NextOffset(0)
+    {
+        FindNext();
+    }
+    constexpr std::u32string_view Part() const noexcept
+    {
+        return Name.substr(Offset, NextOffset - Offset);
+    }
+    constexpr bool Next() noexcept
+    {
+        Offset = std::min(NextOffset + 1, Name.size());
+        return FindNext();
+    }
+private:
+    constexpr bool FindNext() noexcept
+    {
+        if (Offset >= Name.size())
+            return false;
+        const auto pos = Name.find(U'.', Offset);
+        NextOffset = pos == Name.npos ? Name.size() : pos;
+        return true;
+    }
+    size_t Offset, NextOffset;
 };
 
 class EvaluateContext
 {
 protected:
-    static bool CheckIsLocal(LateBindVar& var) noexcept;
+    static bool CheckIsLocal(std::u32string_view& name) noexcept;
 
     std::shared_ptr<EvaluateContext> ParentContext;
 
-    virtual Arg LookUpArgInside(LateBindVar var) const = 0;
-    virtual bool SetArgInside(LateBindVar var, Arg arg, const bool force) = 0;
+    virtual Arg LookUpArgInside(VarLookup var) const = 0;
+    virtual bool SetArgInside(VarLookup var, Arg arg, const bool force) = 0;
 public:
     struct LocalFunc
     {
@@ -30,15 +56,19 @@ public:
     };
     virtual ~EvaluateContext();
 
-    virtual Arg LookUpArg(LateBindVar var) const;
-    Arg LookUpArg(std::u32string_view var) const { return LookUpArg(LateBindVar{ var }); }
-    virtual bool SetArg(LateBindVar var, Arg arg);
-    bool SetArg(std::u32string_view var, Arg arg) { return SetArg(LateBindVar{ var }, arg); }
+    virtual Arg LookUpArg(std::u32string_view var) const;
+    virtual bool SetArg(std::u32string_view var, Arg arg);
     virtual LocalFunc LookUpFunc(std::u32string_view name) = 0;
     virtual bool SetFunc(const Block& block, common::span<const RawArg> args) = 0;
 };
 
-class BasicEvaluateContext : public EvaluateContext, public LocalFuncContext
+class LocalFuncContext : public EvaluateContext
+{
+public:
+    virtual Arg GetReturnArg() const = 0;
+};
+
+class BasicEvaluateContext : public LocalFuncContext
 {
 protected:
     std::map<std::u32string, Arg, std::less<>> ArgMap;
@@ -46,8 +76,8 @@ protected:
     std::vector<std::u32string_view> LocalFuncArgNames;
     std::optional<Arg> ReturnArg;
 
-    Arg LookUpArgInside(LateBindVar var) const override;
-    bool SetArgInside(LateBindVar var, Arg arg, const bool force) override;
+    Arg LookUpArgInside(VarLookup var) const override;
+    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
 public:
     ~BasicEvaluateContext() override;
 
