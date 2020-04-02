@@ -37,6 +37,7 @@ public:
     }
 
     using BasicEvaluateContext::ParentContext;
+    using BasicEvaluateContext::LocalFuncMap;
 };
 class NailangRT : public NailangRuntimeBase
 {
@@ -44,6 +45,8 @@ public:
     NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>())
     {
     }
+
+    auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(EvalContext); }
 
     using NailangRuntimeBase::EvalContext;
 
@@ -324,6 +327,47 @@ TEST(NailangRuntime, Assign)
 }
 
 
+TEST(NailangRuntime, DefFunc)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    const auto evalCtx = runtime.GetCtx();
+    const auto PEDefFunc = [&](const std::u32string_view src)
+    {
+        const auto block = BlkParser::GetBlock(pool, src);
+        runtime.ExecuteBlock(block, {});
+    };
+
+    {
+        constexpr auto txt = UR"(
+@DefFunc()
+#Block("abc")
+{
+}
+)"sv;
+        PEDefFunc(txt);
+        EXPECT_EQ(evalCtx->LocalFuncMap.size(), 1);
+        const auto func = evalCtx->LookUpFunc(U"abc"sv);
+        ASSERT_TRUE(func);
+        EXPECT_EQ(func.ArgNames.size(), 0);
+    }
+
+    {
+        constexpr auto txt = UR"(
+@DefFunc(num, length)
+#Block("func2")
+{
+}
+)"sv;
+        PEDefFunc(txt);
+        EXPECT_EQ(evalCtx->LocalFuncMap.size(), 2);
+        const auto func = evalCtx->LookUpFunc(U"func2"sv);
+        ASSERT_TRUE(func);
+        EXPECT_THAT(func.ArgNames, testing::ElementsAre(U"num"sv, U"length"sv));
+    }
+}
+
+
 TEST(NailangRuntime, gcd1)
 {
     MemoryPool pool;
@@ -411,6 +455,58 @@ TEST(NailangRuntime, gcd2)
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
     EXPECT_EQ(algoBlock.Size(), 1);
+
+    const auto gcd = [&](uint64_t m, uint64_t n)
+    {
+        runtime.EvalContext->SetArg(U"m"sv, m);
+        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.ExecuteBlock(algoBlock, {});
+        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        return *ans.GetUint();
+    };
+    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
+    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
+}
+
+
+TEST(NailangRuntime, gcd3)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+
+    constexpr auto gcdTxt = UR"(
+@DefFunc(m,n)
+#Block("gcd")
+{
+    tmp = m % n;
+    @If(tmp==0)
+    $Return(n);
+
+    $Return($gcd(n, tmp));
+}
+m = $gcd(m,n);
+)"sv;
+
+    struct Temp
+    {
+        static constexpr auto refgcd(int64_t m, int64_t n)
+        {
+            const uint64_t tmp = m % n;
+            if (tmp == 0)
+                return n;
+            return refgcd(n, tmp);
+        }
+    };
+
+    EXPECT_EQ(Temp::refgcd(5, 5), std::gcd(5, 5));
+    EXPECT_EQ(Temp::refgcd(15, 5), std::gcd(15, 5));
+    EXPECT_EQ(Temp::refgcd(17, 5), std::gcd(17, 5));
+
+    const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
+
+    EXPECT_EQ(algoBlock.Size(), 2);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {

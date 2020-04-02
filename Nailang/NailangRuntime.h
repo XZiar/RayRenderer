@@ -53,22 +53,22 @@ public:
     {
         const Block* Body;
         common::span<std::u32string_view> ArgNames;
+
+        constexpr operator bool() const noexcept { return Body != nullptr; }
     };
     virtual ~EvaluateContext();
 
     virtual Arg LookUpArg(std::u32string_view var) const;
     virtual bool SetArg(std::u32string_view var, Arg arg);
     virtual LocalFunc LookUpFunc(std::u32string_view name) = 0;
-    virtual bool SetFunc(const Block& block, common::span<const RawArg> args) = 0;
-};
-
-class LocalFuncContext : public EvaluateContext
-{
-public:
+    virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
+    virtual bool SetFunc(const LocalFunc& func) = 0;
+    virtual void SetReturnArg(Arg arg) = 0;
     virtual Arg GetReturnArg() const = 0;
 };
 
-class BasicEvaluateContext : public LocalFuncContext
+
+class BasicEvaluateContext : public EvaluateContext
 {
 protected:
     std::map<std::u32string, Arg, std::less<>> ArgMap;
@@ -82,7 +82,10 @@ public:
     ~BasicEvaluateContext() override;
 
     LocalFunc LookUpFunc(std::u32string_view name) override;
-    bool SetFunc(const Block& block, common::span<const RawArg> args) override;
+    bool SetFunc(const Block* block, common::span<const RawArg> args) override;
+    bool SetFunc(const LocalFunc& func) override;
+
+    void SetReturnArg(Arg arg) override;
     Arg GetReturnArg() const override;
 };
 
@@ -167,6 +170,7 @@ protected:
             Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
+    virtual Arg  ExecuteLocalFunc(const EvaluateContext::LocalFunc& func, common::span<const Arg> args);
     virtual void ExecuteAssignment(const Assignment& assign, common::span<const FuncCall> metas);
     virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
     virtual ProgramStatus ExecuteBlock(BlockContext ctx);

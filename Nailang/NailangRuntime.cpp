@@ -89,17 +89,32 @@ BasicEvaluateContext::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_
     if (it == LocalFuncMap.end())
         return { nullptr, {} };
     const auto [ptr, offset, size] = it->second;
-    return { ptr, { &LocalFuncArgNames[offset], &LocalFuncArgNames[offset + size] } };
+    return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
 }
 
-bool BasicEvaluateContext::SetFunc(const Block& block, common::span<const RawArg> args)
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
         size = gsl::narrow_cast<uint32_t>(args.size());
     LocalFuncArgNames.reserve(offset + size);
     for (const auto& arg : args)
         LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
-    return LocalFuncMap.insert_or_assign(block.Name, std::tuple{ &block, offset, size }).second;
+    return LocalFuncMap.insert_or_assign(block->Name, std::tuple{ block, offset, size }).second;
+}
+
+bool BasicEvaluateContext::SetFunc(const LocalFunc& func)
+{
+    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
+        size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
+    LocalFuncArgNames.reserve(offset + size);
+    for (const auto& name : func.ArgNames)
+        LocalFuncArgNames.emplace_back(name);
+    return LocalFuncMap.insert_or_assign(func.Body->Name, std::tuple{ func.Body, offset, size }).second;
+}
+
+void BasicEvaluateContext::SetReturnArg(Arg arg)
+{
+    ReturnArg = arg;
 }
 
 Arg BasicEvaluateContext::GetReturnArg() const
@@ -349,6 +364,10 @@ bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockC
     {
         if (content.GetType() != BlockContent::Type::Block)
             throw U"MetaFunc[DefFunc] can only be applied to [Block]"sv;
+        for (const auto& arg : meta.Args)
+            if (arg.TypeData != RawArg::Type::Var)
+                throw U"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv;
+        EvalContext->SetFunc(content.Get<Block>(), meta.Args);
         return false;
     }
     if (meta.Name == U"If"sv)
@@ -364,7 +383,11 @@ bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockC
             ctx.Status = ProgramStatus::Repeat;
             return true;
         }
-        return false;
+        else
+        {
+            ctx.Status = ProgramStatus::Next;
+            return false;
+        }
     }
     return true;
 }
@@ -398,6 +421,31 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, common::span<const Fu
 Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget target)
 {
     using Type = Arg::InternalType;
+    // only for block-scope
+    if (target.GetType() == FuncTarget::Type::Block)
+    {
+        auto& blkCtx = target.GetBlockContext();
+        if (func == U"Break"sv)
+        {
+            if (!common::linq::FromIterable(blkCtx.MetaScope)
+                .ContainsIf([](const FuncCall& meta) { return meta.Name == U"While"sv; }))
+                throw U"Break can only be used inside While"sv;
+            ThrowByArgCount(args, 0);
+            blkCtx.Status = ProgramStatus::Break;
+            return {};
+        }
+        else if (func == U"Return")
+        {
+            if (args.size() > 0)
+            {
+                ThrowByArgCount(args, 1);
+                EvalContext->SetReturnArg(args[0]);
+            }
+            blkCtx.Status = ProgramStatus::Return;
+            return {};
+        }
+    }
+    // suitable for all
     if (common::str::IsBeginWith(func, U"EmbedOp."sv))
     {
         ThrowByFuncContext(func, target, FuncTarget::Type::Empty);
@@ -410,16 +458,10 @@ Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::spa
             return *ret;
         }
     }
-    else if (func == U"Break"sv)
+    else if (const auto lcFunc = EvalContext->LookUpFunc(func); lcFunc)
     {
-        ThrowByFuncContext(func, target, FuncTarget::Type::Block);
-        auto& blkCtx = target.GetBlockContext();
-        if (!common::linq::FromIterable(blkCtx.MetaScope)
-            .ContainsIf([](const FuncCall& meta) { return meta.Name == U"While"sv; }))
-            throw U"Break can only be used inside While"sv;
-        ThrowByArgCount(args, 0);
-        blkCtx.Status = ProgramStatus::Break;
-        return {};
+        ThrowByArgCount(args, lcFunc.ArgNames.size());
+        return ExecuteLocalFunc(lcFunc, args);
     }
     throw U"Does not find correponding func"sv;
 }
@@ -482,6 +524,17 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     }
 }
 
+Arg NailangRuntimeBase::ExecuteLocalFunc(const EvaluateContext::LocalFunc& func, common::span<const Arg> args)
+{
+    const auto ctx = std::make_shared<BasicEvaluateContext>();
+    NailangRuntimeBase runtime(ctx);
+    for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
+        ctx->SetArg(var, val);
+    ctx->SetFunc(func);
+    runtime.ExecuteBlock({ *func.Body, {} });
+    return ctx->GetReturnArg();
+}
+
 void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
     EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
@@ -522,16 +575,15 @@ NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext 
         if (type == BlockContent::Type::RawBlock)
         {
             HandleRawBlock(*content.Get<RawBlock>(), metas);
-            idx++;
         }
         else if (HandleMetaFuncsBefore(metas, content, ctx))
         {
             ExecuteContent(content, metas, ctx);
         }
-        else
-        {
-            idx++;
-        }
+        //else
+        //{
+        //    idx++;
+        //}
         switch (ctx.Status)
         {
         case ProgramStatus::Return:
