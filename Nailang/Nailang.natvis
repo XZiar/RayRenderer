@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="xziar::nailang::tokenizer::KeyCharTokenizer&lt;*&gt;">
+    <DisplayString>KeyCharTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::ParentheseTokenizer">
+    <DisplayString>ParentheseTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::CurlyBraceTokenizer">
+    <DisplayString>CurlyBraceTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::PrefixedTokenizer&lt;*&gt;">
+    <DisplayString>PrefixedTokenizer [{$T1,c}]</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::BlockPrefixTokenizer">
+    <DisplayString>BlockPrefixTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::FuncPrefixTokenizer&lt;*,*&gt;">
+    <DisplayString>FuncPrefixTokenizer [{$T1,c}]</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::MetaFuncPrefixTokenizer">
+    <DisplayString>MetaFuncPrefixTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::NormalFuncPrefixTokenizer">
+    <DisplayString>NormalFuncPrefixTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::VariableTokenizer">
+    <DisplayString>VariableTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::EmbedOpTokenizer">
+    <DisplayString>EmbedOpTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::tokenizer::AssignOpTokenizer">
+    <DisplayString>AssignOpTokenizer</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::LateBindVar">
+    <DisplayString>{{ Var[{Name,s32}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::FuncCall">
+    <DisplayString>{{ FuncCall[{Name,s32}, {Args.storage_.size_} args] }}</DisplayString>
+    <Expand>
+      <Item Name="[FuncName]">Name</Item>
+      <ArrayItems>
+        <Size>Args.storage_.size_</Size>
+        <ValuePointer>Args.storage_.data_</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::UnaryStatement">
+    <DisplayString>{{ Unary[{Operator,en}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::BinaryStatement">
+    <DisplayString>{{ Binary[{Operator,en}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::Assignment">
+    <DisplayString>{{ Assignment[{Variable.Name,s32}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::RawArg" >
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Empty" >{{ Empty }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Func"  >{{ Func [{*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Unary" >{{ Unary }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Binary">{{ Binary }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Var"   >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1),[Data2]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Str"   >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1),[Data2]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Uint"  >{{ Uint [{Data1}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Int"   >{{ Int [{static_cast&lt;int64_t&gt;(Data1)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::FP"    >{{ FP [{*reinterpret_cast&lt;const double*&gt;(&amp;Data1)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Bool"  >{{ Bool [{Data1 == 1}] }}</DisplayString>
+    <Expand>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Func"   Name="[Func]"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1)</Item>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Unary"  Name="[Unary]" >*reinterpret_cast&lt;const xziar::nailang::UnaryStatement*&gt;(Data1)</Item>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Binary" Name="[Binary]">*reinterpret_cast&lt;const xziar::nailang::BinaryStatement*&gt;(Data1)</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::Arg" >
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::Empty" >{{ Empty }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::Var"   >{{ Var [{Str,s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::U32Str">{{ Str [{Str,s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::U32Sv" >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1),[Data2]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::Uint"  >{{ Uint [{Data1}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::Int"   >{{ Int [{static_cast&lt;int64_t&gt;(Data1)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::FP"    >{{ FP [{*reinterpret_cast&lt;const double*&gt;(&amp;Data1)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::InternalType::Bool"  >{{ Bool [{Data1 == 1}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::BlockContent">
+    <DisplayString Condition="(Pointer &amp; 0x3) == Type::Assignment" >{{ Assignment }}</DisplayString>
+    <DisplayString Condition="(Pointer &amp; 0x3) == Type::FuncCall"   >{{ FuncCall }}</DisplayString>
+    <DisplayString Condition="(Pointer &amp; 0x3) == Type::RawBlock"   >{{ RawBlock }}</DisplayString>
+    <DisplayString Condition="(Pointer &amp; 0x3) == Type::Block"      >{{ Block }}</DisplayString>
+    <Expand>
+      <Item Condition="(Pointer &amp; 0x3) == Type::Assignment" Name="[Assignment]">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
+      <Item Condition="(Pointer &amp; 0x3) == Type::FuncCall"   Name="[FuncCall]"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
+      <Item Condition="(Pointer &amp; 0x3) == Type::RawBlock"   Name="[RawBlock]"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
+      <Item Condition="(Pointer &amp; 0x3) == Type::Block"      Name="[Block]"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::RawBlock">
+    <DisplayString>{{ RawBlock[{Name,s32}] }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::Block">
+    <DisplayString>{{ Block[{Name,s32}] {Content.storage_.size_} insts }}</DisplayString>
+    <Expand>
+      <Synthetic Name="Insts">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Content.storage_.size_</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Content.storage_.size_" />
+              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Assignment">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
+              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::FuncCall"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
+              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::RawBlock"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
+              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Block"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="Metas">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Content.storage_.size_</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Content.storage_.size_" />
+              <Item>MetaFuncations.subspan(Content[idx].Offset, Content[idx].Count)</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::EvaluateContext::LocalFunc">
+    <DisplayString>{{ LocalFunc[{Body->Name,s32}, {ArgNames.storage_.size_} args] }}</DisplayString>
+    <Expand>
+      <Item Name="[FuncBlock]">*Body</Item>
+      <Item Name="[ArgNames]">ArgNames</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::NailangRuntimeBase::FuncTarget">
+    <DisplayString Condition="Pointer == 0"         >{{ Empty }}</DisplayString>
+    <DisplayString Condition="Pointer &amp; Flag"   >{{ Meta }}</DisplayString>
+    <DisplayString Condition="!(Pointer &amp; Flag)">{{ Block }}</DisplayString>
+    <Expand>
+      <Item Condition="Pointer &amp; Flag"    Name="[BlockContent]">*reinterpret_cast&lt;BlockContext*&gt;(Pointer &amp; InvFlag)</Item>
+      <Item Condition="!(Pointer &amp; Flag)" Name="[BlockScope]"  >*reinterpret_cast&lt;BlockContext*&gt;(Pointer)</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

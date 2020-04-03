@@ -37,6 +37,9 @@
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="Nailang.natvis" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}</ProjectGuid>

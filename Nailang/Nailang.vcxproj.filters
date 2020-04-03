@@ -55,4 +55,7 @@
     <None Include="xzbuild.proj.json" />
     <None Include="README.md" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="Nailang.natvis" />
+  </ItemGroup>
 </Project>

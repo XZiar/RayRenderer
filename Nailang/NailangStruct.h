@@ -104,7 +104,7 @@ struct BinaryStatement;
 
 struct RawArg
 {
-    enum class Type : uint32_t { Empty = 0, Func = 1, Unary = 2, Binary = 3, Var = 4, Str = 5, Uint = 6, Int = 7, FP = 8, Bool = 9 };
+    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Var, Str, Uint, Int, FP, Bool };
     using Variant = std::variant<const FuncCall*, const UnaryStatement*, const BinaryStatement*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
     uint64_t Data1;
     uint32_t Data2;
