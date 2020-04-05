@@ -23,21 +23,29 @@ using xziar::nailang::Block;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
 using xziar::nailang::BasicEvaluateContext;
+using xziar::nailang::LargeEvaluateContext;
+using xziar::nailang::CompactEvaluateContext;
 using xziar::nailang::EmbedOpEval;
 
-class EvalCtx : public BasicEvaluateContext
+class EvalCtx : public CompactEvaluateContext
 {
 public:
     EvalCtx()
     {
-        ArgMap.insert_or_assign(U"valU64", Arg(uint64_t(1)));
-        ArgMap.insert_or_assign(U"valI64", Arg(int64_t(2)));
-        ArgMap.insert_or_assign(U"valF64", Arg(3.0));
-        ArgMap.insert_or_assign(U"valStr", Arg(U"txt"sv));
+        SetArgInside(U"valU64"sv, Arg(uint64_t(1)), true);
+        SetArgInside(U"valI64"sv, Arg(int64_t(2)), true);
+        SetArgInside(U"valF64"sv, Arg(3.0), true);
+        SetArgInside(U"valStr"sv, Arg(U"txt"sv), true);
     }
 
-    using BasicEvaluateContext::ParentContext;
-    using BasicEvaluateContext::LocalFuncMap;
+    using CompactEvaluateContext::ParentContext;
+};
+class EvalCtx2 : public CompactEvaluateContext
+{
+public:
+    EvalCtx2() { }
+
+    using CompactEvaluateContext::ParentContext;
 };
 class NailangRT : public NailangRuntimeBase
 {
@@ -346,7 +354,7 @@ TEST(NailangRuntime, DefFunc)
 }
 )"sv;
         PEDefFunc(txt);
-        EXPECT_EQ(evalCtx->LocalFuncMap.size(), 1);
+        EXPECT_EQ(evalCtx->GetFuncCount(), 1);
         const auto func = evalCtx->LookUpFunc(U"abc"sv);
         ASSERT_TRUE(func);
         EXPECT_EQ(func.ArgNames.size(), 0);
@@ -360,7 +368,7 @@ TEST(NailangRuntime, DefFunc)
 }
 )"sv;
         PEDefFunc(txt);
-        EXPECT_EQ(evalCtx->LocalFuncMap.size(), 2);
+        EXPECT_EQ(evalCtx->GetFuncCount(), 2);
         const auto func = evalCtx->LookUpFunc(U"func2"sv);
         ASSERT_TRUE(func);
         EXPECT_THAT(func.ArgNames, testing::ElementsAre(U"num"sv, U"length"sv));

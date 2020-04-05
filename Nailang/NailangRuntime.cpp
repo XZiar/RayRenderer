@@ -48,15 +48,48 @@ bool EvaluateContext::SetArg(std::u32string_view var, Arg arg)
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
+{
+    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
+        size = gsl::narrow_cast<uint32_t>(args.size());
+    LocalFuncArgNames.reserve(offset + size);
+    for (const auto& arg : args)
+        LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+    return SetFuncInside(block->Name, { block, offset, size });
+}
 
-Arg BasicEvaluateContext::LookUpArgInside(VarLookup var) const
+bool BasicEvaluateContext::SetFunc(const LocalFunc & func)
+{
+    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
+        size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
+    LocalFuncArgNames.reserve(offset + size);
+    for (const auto& name : func.ArgNames)
+        LocalFuncArgNames.emplace_back(name);
+    return SetFuncInside(func.Body->Name, { func.Body, offset, size });
+}
+
+void BasicEvaluateContext::SetReturnArg(Arg arg)
+{
+    ReturnArg = arg;
+}
+
+Arg BasicEvaluateContext::GetReturnArg() const
+{
+    return ReturnArg.value_or(Arg{});
+}
+
+
+LargeEvaluateContext::~LargeEvaluateContext()
+{ }
+
+Arg LargeEvaluateContext::LookUpArgInside(VarLookup var) const
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
-bool BasicEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
+bool LargeEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
 {
     auto it = ArgMap.find(var.Name);
     const bool hasIt = it != ArgMap.end();
@@ -83,7 +116,12 @@ bool BasicEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force
     }
 }
 
-BasicEvaluateContext::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name)
+bool LargeEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
+{
+    return LocalFuncMap.insert_or_assign(name, func).second;
+}
+
+EvaluateContext::LocalFunc LargeEvaluateContext::LookUpFunc(std::u32string_view name)
 {
     const auto it = LocalFuncMap.find(name);
     if (it == LocalFuncMap.end())
@@ -92,35 +130,99 @@ BasicEvaluateContext::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_
     return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
 }
 
-bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
+size_t LargeEvaluateContext::GetArgCount() const noexcept
 {
-    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
-        size = gsl::narrow_cast<uint32_t>(args.size());
-    LocalFuncArgNames.reserve(offset + size);
-    for (const auto& arg : args)
-        LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
-    return LocalFuncMap.insert_or_assign(block->Name, std::tuple{ block, offset, size }).second;
+    return ArgMap.size();
 }
 
-bool BasicEvaluateContext::SetFunc(const LocalFunc& func)
+size_t LargeEvaluateContext::GetFuncCount() const noexcept
 {
-    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
-        size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
-    LocalFuncArgNames.reserve(offset + size);
-    for (const auto& name : func.ArgNames)
-        LocalFuncArgNames.emplace_back(name);
-    return LocalFuncMap.insert_or_assign(func.Body->Name, std::tuple{ func.Body, offset, size }).second;
+    return LocalFuncMap.size();
 }
 
-void BasicEvaluateContext::SetReturnArg(Arg arg)
+
+CompactEvaluateContext::~CompactEvaluateContext()
+{ }
+
+
+std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const uint32_t len) const noexcept
 {
-    ReturnArg = arg;
+    return { &StrPool[offset], len };
 }
 
-Arg BasicEvaluateContext::GetReturnArg() const
+Arg CompactEvaluateContext::LookUpArgInside(VarLookup var) const
 {
-    return ReturnArg.value_or(Arg{});
+    for (const auto& [off, len, val] : Args)
+        if (GetStr(off, len) == var.Name)
+            return val;
+    return Arg{};
 }
+
+bool CompactEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
+{
+    Arg* target = nullptr;
+    for (auto& [off, len, val] : Args)
+        if (GetStr(off, len) == var.Name)
+            target = &val;
+    const bool hasIt = target != nullptr;
+    if (hasIt)
+    {
+        *target = arg;
+        return true;
+    }
+    else
+    {
+        if (arg.IsEmpty())
+            return false;
+        if (force)
+        {
+
+            const uint32_t offset = gsl::narrow_cast<uint32_t>(StrPool.size()),
+                size = gsl::narrow_cast<uint32_t>(var.Name.size());
+            StrPool.insert(StrPool.end(), var.Name.cbegin(), var.Name.cend());
+            Args.emplace_back(offset, size, arg);
+        }
+        return false;
+    }
+}
+
+bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
+{
+    for (auto& [key, val] : LocalFuncs)
+    {
+        if (key == name)
+        {
+            val = func;
+            return false;
+        }
+    }
+    LocalFuncs.emplace_back(name, func);
+    return true;
+}
+
+EvaluateContext::LocalFunc CompactEvaluateContext::LookUpFunc(std::u32string_view name)
+{
+    for (auto& [key, val] : LocalFuncs)
+        if (key == name)
+        {
+            const auto [ptr, offset, size] = val;
+            return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
+        }
+    return { nullptr, {} };
+}
+
+size_t CompactEvaluateContext::GetArgCount() const noexcept
+{
+    return common::linq::FromIterable(Args)
+        .Where([](const auto& tuple) { return !std::get<2>(tuple).IsEmpty(); })
+        .Count();
+}
+
+size_t CompactEvaluateContext::GetFuncCount() const noexcept
+{
+    return LocalFuncs.size();
+}
+
 
 
 #define LR_BOTH(left, right, func) left.func() && right.func()
@@ -526,7 +628,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 
 Arg NailangRuntimeBase::ExecuteLocalFunc(const EvaluateContext::LocalFunc& func, common::span<const Arg> args)
 {
-    const auto ctx = std::make_shared<BasicEvaluateContext>();
+    const auto ctx = std::make_shared<CompactEvaluateContext>();
     NailangRuntimeBase runtime(ctx);
     for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
         ctx->SetArg(var, val);

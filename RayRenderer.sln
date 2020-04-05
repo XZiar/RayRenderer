@@ -88,6 +88,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\StringEx.hpp = common\StringEx.hpp
 		common\Stringify.hpp = common\Stringify.hpp
 		common\StringLinq.hpp = common\StringLinq.hpp
+		common\StringPool.hpp = common\StringPool.hpp
 		common\TimeUtil.hpp = common\TimeUtil.hpp
 		common\Wrapper.hpp = common\Wrapper.hpp
 	EndProjectSection
@@ -329,7 +330,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindowHost", "WindowHost\Wi
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "parser", "parser", "{10014ADB-5E92-4ADC-AB6B-5080C615CCEE}"
 	ProjectSection(SolutionItems) = preProject
-		common\parser\CommonParser.hpp = common\parser\CommonParser.hpp
 		common\parser\parser.natvis = common\parser\parser.natvis
 		common\parser\ParserBase.hpp = common\parser\ParserBase.hpp
 		common\parser\ParserContext.hpp = common\parser\ParserContext.hpp

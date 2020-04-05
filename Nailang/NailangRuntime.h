@@ -64,31 +64,66 @@ public:
     virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
     virtual bool SetFunc(const LocalFunc& func) = 0;
     virtual void SetReturnArg(Arg arg) = 0;
-    virtual Arg GetReturnArg() const = 0;
+    virtual Arg  GetReturnArg() const = 0;
+    virtual size_t GetArgCount() const noexcept = 0;
+    virtual size_t GetFuncCount() const noexcept = 0;
 };
-
 
 class BasicEvaluateContext : public EvaluateContext
 {
 protected:
-    std::map<std::u32string, Arg, std::less<>> ArgMap;
-    std::map<std::u32string_view, std::tuple<const Block*, uint32_t, uint32_t>, std::less<>> LocalFuncMap;
+    using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
     std::vector<std::u32string_view> LocalFuncArgNames;
     std::optional<Arg> ReturnArg;
-
-    Arg LookUpArgInside(VarLookup var) const override;
-    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
+    virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
 public:
     ~BasicEvaluateContext() override;
 
-    LocalFunc LookUpFunc(std::u32string_view name) override;
     bool SetFunc(const Block* block, common::span<const RawArg> args) override;
     bool SetFunc(const LocalFunc& func) override;
 
     void SetReturnArg(Arg arg) override;
     Arg GetReturnArg() const override;
 };
+class LargeEvaluateContext : public BasicEvaluateContext
+{
+protected:
+    std::map<std::u32string, Arg, std::less<>> ArgMap;
+    std::map<std::u32string_view, LocalFuncHolder, std::less<>> LocalFuncMap;
+    std::optional<Arg> ReturnArg;
 
+    Arg LookUpArgInside(VarLookup var) const override;
+    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
+    bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
+public:
+    ~LargeEvaluateContext() override;
+
+    EvaluateContext::LocalFunc LookUpFunc(std::u32string_view name) override;
+
+    size_t GetArgCount() const noexcept override;
+    size_t GetFuncCount() const noexcept override;
+};
+class CompactEvaluateContext : public BasicEvaluateContext
+{
+protected:
+    std::vector<std::tuple<uint32_t, uint32_t, Arg>> Args;
+    std::vector<std::pair<std::u32string_view, LocalFuncHolder>> LocalFuncs;
+    std::vector<char32_t> StrPool;
+    std::optional<Arg> ReturnArg;
+
+    std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
+
+    Arg LookUpArgInside(VarLookup var) const override;
+    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
+    bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
+public:
+    ~CompactEvaluateContext() override;
+
+    EvaluateContext::LocalFunc LookUpFunc(std::u32string_view name) override;
+
+    size_t GetArgCount() const noexcept override;
+    size_t GetFuncCount() const noexcept override;
+};
 
 struct EmbedOpEval
 {
