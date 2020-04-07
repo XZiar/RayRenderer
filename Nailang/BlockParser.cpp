@@ -141,8 +141,8 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     }
     else
     {
-        BinaryStatement statement(*selfOp, assign.Variable, *stmt);
-        assign.Statement = MemPool.Create<BinaryStatement>(statement);
+        BinaryExpr statement(*selfOp, assign.Variable, *stmt);
+        assign.Statement = MemPool.Create<BinaryExpr>(statement);
     }
     return assign;
 }

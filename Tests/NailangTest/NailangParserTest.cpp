@@ -12,8 +12,8 @@ using xziar::nailang::BlockParser;
 using xziar::nailang::ComplexArgParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::LateBindVar;
-using xziar::nailang::BinaryStatement;
-using xziar::nailang::UnaryStatement;
+using xziar::nailang::BinaryExpr;
+using xziar::nailang::UnaryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
 
@@ -43,12 +43,32 @@ static std::u32string ReplaceNewLine(std::u32string_view txt)
 }
 
 
-//using BinStmt = std::unique_ptr<BinaryStatement>;
-//using UnStmt  = std::unique_ptr<UnaryStatement>;
+//using BinStmt = std::unique_ptr<BinaryExpr>;
+//using UnStmt  = std::unique_ptr<UnaryExpr>;
 //using FCall   = std::unique_ptr<FuncCall>;
-using BinStmt = BinaryStatement*;
-using UnStmt  = UnaryStatement*;
+using BinStmt = BinaryExpr*;
+using UnStmt  = UnaryExpr*;
 using FCall   = FuncCall*;
+
+TEST(NailangParser, ProcStr)
+{
+    xziar::nailang::MemoryPool pool;
+    {
+        constexpr auto src = U"Hello"sv;
+        const auto dst = ComplexArgParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello"sv);
+    }
+    {
+        constexpr auto src = U"Hello\\tWorld"sv;
+        const auto dst = ComplexArgParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello\tWorld"sv);
+    }
+    {
+        constexpr auto src = U"Hello\tWorld\\0"sv;
+        const auto dst = ComplexArgParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello\tWorld\0"sv);
+    }
+}
 
 TEST(NailangParser, ParseFuncBody)
 {
@@ -73,6 +93,22 @@ TEST(NailangParser, ParseFuncBody)
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0);
+    }
+    {
+        constexpr auto src = U"(\"Hello\")"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1);
+        CHECK_VAR_ARG(func.Args[0], Str, U"Hello"sv);
+    }
+    {
+        constexpr auto src = UR"(("Hello\t\"World\""))"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1);
+        CHECK_VAR_ARG(func.Args[0], Str, U"Hello\t\"World\""sv);
     }
     {
         constexpr auto src = U"(val.xxx.3.len)"sv;
@@ -136,7 +172,7 @@ TEST(NailangParser, ParseFuncBody)
         }
     }
     {
-        constexpr auto src = U"(6 >= $foo(bar), $foo(bar, (4-5)==9))"sv;
+        constexpr auto src = U"(6 >= $foo(.bar), $foo(bar, (4-5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -151,7 +187,7 @@ TEST(NailangParser, ParseFuncBody)
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
             EXPECT_EQ(fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1);
-            CHECK_VAR_ARG(fcall.Args[0], Var, U"bar");
+            CHECK_VAR_ARG(fcall.Args[0], Var, U".bar");
         }
         {
             const auto& fcall = *func.Args[1].GetVar<RawArg::Type::Func>();

@@ -15,6 +15,7 @@ private:
     template<typename StopDelimer>
     std::pair<std::optional<RawArg>, char32_t> ParseArg();
 public:
+    static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
     static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
     static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context);
 };

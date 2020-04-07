@@ -98,14 +98,14 @@ struct EmbedOpHelper
 
 
 struct FuncCall;
-struct UnaryStatement;
-struct BinaryStatement;
+struct UnaryExpr;
+struct BinaryExpr;
 
 
 struct RawArg
 {
     enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Var, Str, Uint, Int, FP, Bool };
-    using Variant = std::variant<const FuncCall*, const UnaryStatement*, const BinaryStatement*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+    using Variant = std::variant<const FuncCall*, const UnaryExpr*, const BinaryExpr*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
     uint64_t Data1;
     uint32_t Data2;
     Type TypeData;
@@ -113,9 +113,9 @@ struct RawArg
     constexpr RawArg() noexcept : Data1(0), Data2(0), TypeData(Type::Empty) {}
     RawArg(const FuncCall* ptr) noexcept : 
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(1), TypeData(Type::Func) {}
-    RawArg(const UnaryStatement* ptr) noexcept :
+    RawArg(const UnaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(2), TypeData(Type::Unary) {}
-    RawArg(const BinaryStatement* ptr) noexcept :
+    RawArg(const BinaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Binary) {}
     RawArg(const LateBindVar var) noexcept :
         Data1(reinterpret_cast<uint64_t>(var.Name.data())), Data2(static_cast<uint32_t>(var.Name.size())), TypeData(Type::Var) 
@@ -143,9 +143,9 @@ struct RawArg
         if constexpr (T == Type::Func)
             return reinterpret_cast<const FuncCall*>(Data1);
         else if constexpr (T == Type::Unary)
-            return reinterpret_cast<const UnaryStatement*>(Data1);
+            return reinterpret_cast<const UnaryExpr*>(Data1);
         else if constexpr (T == Type::Binary)
-            return reinterpret_cast<const BinaryStatement*>(Data1);
+            return reinterpret_cast<const BinaryExpr*>(Data1);
         else if constexpr (T == Type::Var)
             return LateBindVar{ {reinterpret_cast<const char32_t*>(Data1), Data2} };
         else if constexpr (T == Type::Str)
@@ -364,18 +364,18 @@ struct FuncCall
     std::u32string_view Name;
     common::span<const RawArg> Args;
 };
-struct UnaryStatement
+struct UnaryExpr
 {
     RawArg Oprend;
     EmbedOps Operator;
-    UnaryStatement(const EmbedOps op, const RawArg oprend) noexcept :
+    UnaryExpr(const EmbedOps op, const RawArg oprend) noexcept :
         Oprend(oprend), Operator(op) { }
 };
-struct BinaryStatement
+struct BinaryExpr
 {
     RawArg LeftOprend, RightOprend;
     EmbedOps Operator;
-    BinaryStatement(const EmbedOps op, const RawArg left, const RawArg right) noexcept :
+    BinaryExpr(const EmbedOps op, const RawArg left, const RawArg right) noexcept :
         LeftOprend(left), RightOprend(right), Operator(op) { }
 };
 

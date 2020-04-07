@@ -46,10 +46,10 @@
       </ArrayItems>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::UnaryStatement">
+  <Type Name="xziar::nailang::UnaryExpr">
     <DisplayString>{{ Unary[{Operator,en}] }}</DisplayString>
   </Type>
-  <Type Name="xziar::nailang::BinaryStatement">
+  <Type Name="xziar::nailang::BinaryExpr">
     <DisplayString>{{ Binary[{Operator,en}] }}</DisplayString>
   </Type>
   <Type Name="xziar::nailang::Assignment">
@@ -68,8 +68,8 @@
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Bool"  >{{ Bool [{Data1 == 1}] }}</DisplayString>
     <Expand>
       <Item Condition="TypeData == xziar::nailang::RawArg::Func"   Name="[Func]"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Unary"  Name="[Unary]" >*reinterpret_cast&lt;const xziar::nailang::UnaryStatement*&gt;(Data1)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Binary" Name="[Binary]">*reinterpret_cast&lt;const xziar::nailang::BinaryStatement*&gt;(Data1)</Item>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Unary"  Name="[Unary]" >*reinterpret_cast&lt;const xziar::nailang::UnaryExpr*&gt;(Data1)</Item>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Binary" Name="[Binary]">*reinterpret_cast&lt;const xziar::nailang::BinaryExpr*&gt;(Data1)</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Arg" >

@@ -79,12 +79,14 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(BaseToken::String)      : target = token.GetString();                   break;
             EID(BaseToken::Uint)        : target = token.GetUInt();                     break;
             EID(BaseToken::Int)         : target = token.GetInt();                      break;
             EID(BaseToken::FP)          : target = token.GetDouble();                   break;
             EID(BaseToken::Bool)        : target = token.GetBool();                     break;
             EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };    break;
+            EID(BaseToken::String)      : 
+                target = ProcessString(token.GetString(), MemPool); 
+                break;
             EID(SectorLangToken::Func)  :
                 target = MemPool.Create<FuncCall>(
                     ParseFuncBody(token.GetString(), MemPool, Context));                
@@ -112,7 +114,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
         Expects(!oprend1.has_value());
         if (!oprend2.has_value())
             throw U"Lack oprend for unary operator"sv;
-        return { MemPool.Create<UnaryStatement>(*op, std::move(*oprend2)), stopChar };
+        return { MemPool.Create<UnaryExpr>(*op, std::move(*oprend2)), stopChar };
 
     }
     else
@@ -120,8 +122,39 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
         Expects(oprend1.has_value());
         if (!oprend2.has_value())
             throw U"Lack 2nd oprend for binary operator"sv;
-        return { MemPool.Create<BinaryStatement>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
+        return { MemPool.Create<BinaryExpr>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
     }
+}
+
+RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool& pool)
+{
+    Expects(str.size() == 0 || str.back() != U'\\');
+    const auto idx = str.find(U'\\');
+    if (idx == std::u32string_view::npos)
+        return str;
+    std::u32string output; output.reserve(str.size() - 1);
+    output.assign(str.data(), idx);
+
+    for (size_t i = idx; i < str.size(); ++i)
+    {
+        if (str[i] != U'\\')
+            output.push_back(str[i]);
+        else
+        {
+            switch (str[++i]) // promise '\' won't be last element.
+            {
+            case U'\\': output.push_back(U'\\');  break;
+            case U'0' : output.push_back(U'\0');  break;
+            case U'r' : output.push_back(U'\r');  break;
+            case U'n' : output.push_back(U'\n');  break;
+            case U't' : output.push_back(U'\t');  break;
+            case U'"' : output.push_back(U'"' );  break;
+            default   : output.push_back(str[i]); break;
+            }
+        }
+    }
+    const auto space = pool.CreateArray(output);
+    return std::u32string_view(space.data(), space.size());
 }
 
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
