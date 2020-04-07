@@ -27,6 +27,8 @@ namespace detail
 {
 class EnumerableChecker;
 
+template<typename T, bool IsConst>
+struct EnumerableIterator;
 struct EnumerableEnd
 {};
 
@@ -248,11 +250,20 @@ protected:
     constexpr FilteredSourceBase(P&& prev) : Prev(std::move(prev)) { }
 
     template<typename Filter>
-    constexpr bool CheckFor(InType& obj, Filter& filter)
+    constexpr void LoopUntilSatisfy_(Filter& filter)
     {
-        return filter(obj);
+        while (!this->Prev.IsEnd())
+        {
+            if (filter(this->Prev.GetCurrent()))
+                return;
+            this->Prev.MoveNext();
+        }
     }
 
+    [[nodiscard]] constexpr bool IsEnd() const
+    {
+        return Prev.IsEnd();
+    }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return Prev.GetCurrent();
@@ -275,19 +286,28 @@ protected:
     constexpr FilteredSourceBase(P&& prev) : Prev(std::move(prev)) { }
 
     template<typename Filter>
-    constexpr bool CheckFor(InType& obj, Filter& filter)
+    constexpr void LoopUntilSatisfy_(Filter& filter)
     {
-        using ConstArg      = std::add_lvalue_reference_t<std::add_const_t<PlainInType>>;
-        using NonConstArg   = std::add_lvalue_reference_t<PlainInType>;
-        using ArgType       = std::conditional_t<std::is_invocable_v<Filter, ConstArg>, ConstArg, NonConstArg>; 
-        if (filter(static_cast<ArgType>(obj)))
+        using ConstArg = std::add_lvalue_reference_t<std::add_const_t<PlainInType>>;
+        using NonConstArg = std::add_lvalue_reference_t<PlainInType>;
+        using ArgType = std::conditional_t<std::is_invocable_v<Filter, ConstArg>, ConstArg, NonConstArg>;
+        
+        while (!this->Prev.IsEnd())
         {
-            Temp.emplace(std::move(obj));
-            return true;
+            InType obj = this->Prev.GetCurrent();
+            if (filter(static_cast<ArgType>(obj)))
+            {
+                Temp.emplace(std::move(obj));
+                return;
+            }
+            this->Prev.MoveNext();
         }
-        return false;
     }
 
+    [[nodiscard]] constexpr bool IsEnd() const
+    {
+        return Prev.IsEnd();
+    }
     [[nodiscard]] constexpr OutType GetCurrent() const
     {
         return *std::move(Temp);
@@ -317,100 +337,61 @@ public:
     constexpr FilteredSource(P&& prev, Filter&& filter) : 
         BaseType(std::move(prev)), Func(std::forward<Filter>(filter))
     {
-        LoopUntilSatisfy();
+        this->LoopUntilSatisfy_(Func);
     }
     constexpr void MoveNext()
     {
         this->Prev.MoveNext();
-        LoopUntilSatisfy();
-    }
-    [[nodiscard]] constexpr bool IsEnd() const
-    {
-        return this->Prev.IsEnd();
+        this->LoopUntilSatisfy_(Func);
     }
 
+    using BaseType::IsEnd;
     using BaseType::GetCurrent;
-private:
-    constexpr void LoopUntilSatisfy()
-    {
-        while (!this->Prev.IsEnd())
-        {
-            InType obj = this->Prev.GetCurrent();
-            if (this->CheckFor(obj, Func))
-                return;
-            this->Prev.MoveNext();
-        }
-    }
 };
 
 
-template<typename P, bool ShouldCache>
-struct FilteredManySourceBase;
-template<typename P>
-struct FilteredManySourceBase<P, false> : public FilteredSourceBase<P, false>
+template<typename PlainInType, typename... Filters>
+struct FilteredManyFiler
 {
-private:
-    using BaseType = FilteredSourceBase<P, false>;
-protected:
-    constexpr FilteredManySourceBase(BaseType&& prev) : BaseType(std::move(prev)) { }
-
-    template<typename Filter>
-    constexpr bool CheckForLast(Filter& filter)
+    using ConstArg = std::add_lvalue_reference_t<std::add_const_t<PlainInType>>;
+    using NonConstArg = std::add_lvalue_reference_t<PlainInType>;
+    static constexpr auto Indexes = std::make_index_sequence<sizeof...(Filters)>{};
+    template<size_t... I>
+    [[nodiscard]] static constexpr bool CheckSupportConst(std::index_sequence<I...>)
     {
-        return filter(this->Prev.GetCurrent());
+        using Tuple = std::tuple<Filters...>;
+        return (std::is_invocable_v<std::tuple_element_t<I, Tuple>, ConstArg> && ...);
+    }
+    static constexpr bool IsAllConst = CheckSupportConst(Indexes);
+    using ArgType = std::conditional_t<IsAllConst, ConstArg, NonConstArg>;
+
+    constexpr FilteredManyFiler(std::tuple<Filters...>&& filter) : Funcs(std::move(filter))
+    { }
+
+    template<size_t... I>
+    [[nodiscard]] constexpr bool FilterAll(ArgType obj, std::index_sequence<I...>)
+    {
+        return (std::get<I>(Funcs)(obj) && ...);
     }
 
-    using BaseType::GetCurrent;
-};
-template<typename P>
-struct FilteredManySourceBase<P, true> : public FilteredSourceBase<P, true>
-{
-private:
-    using BaseType = FilteredSourceBase<P, true>;
-protected:
-    constexpr FilteredManySourceBase(BaseType&& prev) : BaseType(std::move(prev)) { }
-
-    template<typename Filter>
-    constexpr bool CheckForLast(Filter& filter)
+    [[nodiscard]] constexpr bool CheckForLast(ArgType obj)
     {
-        if (filter(*this->Temp))
-            return true;
-        else
-        {
-            this->Temp.reset();
-            return false;
-        }
-    }   
+        auto& filter = std::get<sizeof...(Filters) - 1>(Funcs);
+        return filter(obj);
+    }
 
-    using BaseType::GetCurrent;
+    [[nodiscard]] constexpr bool operator()(ArgType obj)
+    {
+        return FilterAll(obj, Indexes);
+    }
+
+    std::tuple<Filters...> Funcs;
 };
-
 
 template<typename P, typename... Filters>
-struct FilteredManySource : public FilteredManySourceBase<P, P::InvolveCache>
+struct FilteredManySource : public FilteredSourceBase<P, P::InvolveCache>
 {
     template<typename, typename...> friend struct FilteredManySource;
-private:
-    struct DummyTag {};
-    using BaseType = FilteredManySourceBase<P, P::InvolveCache>;
-
-    static constexpr auto Indexes = std::make_index_sequence<sizeof...(Filters)>{};
-    std::tuple<Filters...> Funcs;
-
-    template<typename T>
-    constexpr FilteredManySource(DummyTag, T&& prev, std::tuple<Filters...>&& filter) :
-        BaseType(std::move(prev)), Funcs(std::move(filter))
-    {
-        if (!IsEnd())
-        {
-            auto& func = std::get<sizeof...(Filters) - 1>(Funcs);
-            if (!this->CheckForLast(func))
-            {
-                this->Prev.MoveNext();
-                LoopUntilSatisfy();
-            }
-        }
-    }
 public:
     using InType = typename P::OutType;
     using PlainInType = std::remove_cv_t<InType>;
@@ -418,7 +399,34 @@ public:
     static constexpr bool InvolveCache = P::InvolveCache;
     static constexpr bool IsCountable = false;
     static constexpr bool CanSkipMultiple = false;
+private:
+    struct DummyTag {};
+    using BaseType = FilteredSourceBase<P, P::InvolveCache>;
 
+    FilteredManyFiler<PlainInType, Filters...> Func;
+
+    template<typename T>
+    constexpr FilteredManySource(DummyTag, T&& prev, std::tuple<Filters...>&& filter) :
+        BaseType(std::move(prev)), Func(std::move(filter))
+    {
+        if (!IsEnd())
+        {
+            if constexpr (P::InvolveCache)
+            {
+                if (Func.CheckForLast(*this->Temp))
+                    return;
+                else
+                    this->Temp.reset();
+            }
+            else
+            {
+                if (Func.CheckForLast(this->Prev.GetCurrent()))
+                    return;
+            }
+            MoveNext();
+        }
+    }
+public:
     template<typename T, typename F>
     constexpr FilteredManySource(FilteredSource<P, T>&& prev, F&& filter) :
         FilteredManySource(DummyTag{}, std::move(prev), 
@@ -429,7 +437,7 @@ public:
     template<typename... Ts, typename F>
     constexpr FilteredManySource(FilteredManySource<P, Ts...>&& prev, F&& filter) :
         FilteredManySource(DummyTag{}, std::move(prev),
-            std::tuple<Filters...>(std::tuple_cat(std::move(prev.Funcs), std::make_tuple(std::forward<F>(filter)))))
+            std::tuple<Filters...>(std::tuple_cat(std::move(prev.Func.Funcs), std::make_tuple(std::forward<F>(filter)))))
     {
         static_assert(std::is_same_v<std::tuple<Filters...>, std::tuple<Ts..., F>>);
     }
@@ -437,30 +445,11 @@ public:
     constexpr void MoveNext()
     {
         this->Prev.MoveNext();
-        LoopUntilSatisfy();
-    }
-    [[nodiscard]] constexpr bool IsEnd() const
-    {
-        return this->Prev.IsEnd();
+        this->LoopUntilSatisfy_(Func);
     }
 
+    using BaseType::IsEnd;
     using BaseType::GetCurrent;
-private:
-    template<size_t... I>
-    [[nodiscard]] constexpr bool CheckAll(InType& obj, std::index_sequence<I...>)
-    {
-        return (this->CheckFor(obj, std::get<I>(Funcs)) && ...);
-    }
-    constexpr void LoopUntilSatisfy()
-    {
-        while (!this->Prev.IsEnd())
-        {
-            InType obj = this->Prev.GetCurrent();
-            if (CheckAll(obj, Indexes))
-                return;
-            this->Prev.MoveNext();
-        }
-    }
 };
 template<typename P, typename T, typename F>
 FilteredManySource(FilteredSource<P, T>&&, F&&) -> FilteredManySource<P, T, F>;
@@ -898,9 +887,11 @@ class Enumerable
     friend class detail::EnumerableChecker;
     template<typename> friend class Enumerable;
     template<typename, typename> friend struct detail::FlatMappedSource;
+    template<typename, bool> friend struct detail::EnumerableIterator;
 public:
     using ProviderType = T;
     using EleType = typename T::OutType;
+    using value_type = EleType;
     static_assert(!std::is_rvalue_reference_v<EleType>, "Output should never be r-value reference");
     using PlainEleType = common::remove_cvref_t<EleType>;
     //using HoldType = std::conditional_t<std::is_lvalue_reference_v<EleType>,
@@ -917,46 +908,12 @@ public:
     constexpr Enumerable& operator=(Enumerable&&) = default;
 
 private:
-    struct EnumerableIterator
-    {
-        using iterator_category = std::input_iterator_tag;
-        using value_type = EleType;
-        using difference_type = std::ptrdiff_t;
-        using pointer = std::add_pointer_t<EleType>;
-        using reference = EleType;
-
-        Enumerable<T>* Source;
-        constexpr EnumerableIterator(Enumerable<T>* source) noexcept : Source(source) {}
-        constexpr decltype(auto) operator*() const
-        {
-            return Source->Provider.GetCurrent();
-        }
-        constexpr bool operator!=(const detail::EnumerableEnd&) const
-        {
-            return !Source->Provider.IsEnd();
-        }
-        constexpr bool operator==(const detail::EnumerableEnd&) const
-        {
-            return Source->Provider.IsEnd();
-        }
-        constexpr EnumerableIterator& operator++()
-        {
-            Source->Provider.MoveNext();
-            return *this;
-        }
-        constexpr EnumerableIterator& operator+=(size_t n)
-        {
-            if (T::IsCountable && T::CanSkipMultiple)
-                Source->Skip(n);
-            return *this;
-        }
-    };
 public:
-    constexpr EnumerableIterator begin() noexcept
+    constexpr detail::EnumerableIterator<T, false> begin() noexcept
     {
         return this;
     }
-    constexpr EnumerableIterator begin() const noexcept
+    constexpr detail::EnumerableIterator<T, true> begin() const noexcept
     {
         return this;
     }
@@ -1122,7 +1079,7 @@ public:
         [[maybe_unused]] size_t idx = 0;
         while (!Provider.IsEnd())
         {
-            if constexpr (std::is_invocable_v<U, Func, const U&, EleType, size_t>)
+            if constexpr (std::is_invocable_r_v<U, Func, const U&, EleType, size_t>)
                 data = func(data, Provider.GetCurrent(), idx++);
             else if constexpr (std::is_invocable_v<Func, U&, EleType, size_t>)
                 func(data, Provider.GetCurrent(), idx++);
@@ -1298,6 +1255,9 @@ public:
         IntoMap<ShouldReplace>(themap, std::forward<KeyF>(keyMapper), std::forward<ValF>(valMapper));
         return themap;
     }
+
+    using       iterator = detail::EnumerableIterator<T, false>;
+    using const_iterator = detail::EnumerableIterator<T, true>;
 private:
     T Provider;
 };
@@ -1369,6 +1329,44 @@ FromRandomSource(Eng&& eng = {}, Gen&& gen = {})
 
 namespace detail
 {
+
+template<typename T, bool IsConst>
+struct EnumerableIterator
+{
+    using iterator_category = std::input_iterator_tag;
+    using value_type = std::conditional_t<IsConst, std::add_const_t<typename T::OutType>, typename T::OutType>;
+    using difference_type = std::ptrdiff_t;
+    using pointer = std::add_pointer_t<value_type>;
+    using reference = value_type;
+
+    Enumerable<T>* Source;
+    constexpr EnumerableIterator(Enumerable<T>* source) noexcept : Source(source) {}
+    constexpr EnumerableIterator(const Enumerable<T>* source) noexcept : 
+        Source(const_cast<Enumerable<T>*>(source)) {}
+    constexpr value_type operator*() const
+    {
+        return Source->Provider.GetCurrent();
+    }
+    constexpr bool operator!=(const detail::EnumerableEnd&) const
+    {
+        return !Source->Provider.IsEnd();
+    }
+    constexpr bool operator==(const detail::EnumerableEnd&) const
+    {
+        return Source->Provider.IsEnd();
+    }
+    constexpr EnumerableIterator& operator++()
+    {
+        Source->Provider.MoveNext();
+        return *this;
+    }
+    constexpr EnumerableIterator& operator+=(size_t n)
+    {
+        if (T::IsCountable && T::CanSkipMultiple)
+            Source->Skip(n);
+        return *this;
+    }
+};
 
 class EnumerableChecker
 {

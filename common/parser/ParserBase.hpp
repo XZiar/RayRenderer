@@ -2,283 +2,263 @@
 
 #include "ParserContext.hpp"
 #include "ParserTokenizer.hpp"
-#include "../CharConvs.hpp"
+#include "ParserLexer.hpp"
+#include "common/EnumEx.hpp"
+#include "common/SharedString.hpp"
 
 
 namespace common::parser
 {
 
 
-class ParserBase
+namespace detail
 {
-protected:
-    template<typename T, typename... Args>
-    forceinline static constexpr ParserToken GenerateToken(T enumval, Args&&... args)
+
+template<size_t IDCount, size_t TKCount>
+struct TokenMatcher
+{
+    std::array<uint16_t, IDCount> IDs;
+    std::array<ParserToken, TKCount> TKs;
+    constexpr bool Match(const ParserToken token) const noexcept
     {
-        return ParserToken(common::enum_cast(enumval), std::forward<Args>(args)...);
-    }
-public:
-    ParserBase(ParserContext& ctx) : Context(ctx) { }
-public:
-    constexpr void IgnoreBlank() noexcept
-    {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t';
-            });
-    }
-    constexpr void IgnoreWhiteSpace() noexcept
-    {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t' || ch == '\r' || ch == '\n';
-            });
-    }
-    ParserToken GetToken(const std::u32string_view delim) noexcept
-    {
-        enum class States { RAW, NUM0, INT, UINT, FP, HEX, BIN, STR, STREND, ERROR };
-        auto state = States::RAW;
-        size_t idxBegin = Context.Index, idxEnd = idxBegin;
-        const auto data = Context.TryGetWhile<false>([&](const char32_t ch, const size_t idx)
-            {
-                if (state != States::STR && delim.find_first_of(ch) != std::u32string_view::npos)
-                    return false;
-                idxEnd = idx;
-                switch (state)
-                {
-                case States::RAW:
-                {
-                    if (ch == '"')
-                        state = States::STR;
-                    else if (ch == '-')
-                        state = States::INT;
-                    else if (ch == '.')
-                        state = States::FP;
-                    else if (ch == '0')
-                        state = States::NUM0;
-                    else if (ch > '0' && ch <= '9')
-                        state = States::UINT;
-                } break;
-                case States::STREND:
-                    state = States::ERROR; break;
-                case States::NUM0:
-                {
-                    if (ch == 'b' || ch == 'B')
-                        state = States::BIN;
-                    else if (ch == 'x' || ch == 'X' || ch == 'h' || ch == 'H')
-                        state = States::HEX;
-                    else if (ch >= '0' && ch <= '9')
-                        state = States::UINT;
-                    else if (ch == '.')
-                        state = States::FP;
-                    else
-                        state = States::ERROR;
-                } break;
-                case States::FP:
-                {
-                    if (!(ch >= '0' && ch <= '9'))
-                        state = States::ERROR;
-                } break;
-                case States::INT:
-                case States::UINT:
-                {
-                    if (ch == '.')
-                        state = States::FP;
-                    else if (ch < '0' || ch > '9')
-                        state = States::ERROR;
-                } break;
-                case States::BIN:
-                {
-                    if (!(ch == '0' || ch == '1'))
-                        state = States::ERROR;
-                } break;
-                case States::HEX:
-                {
-                    if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')))
-                        state = States::ERROR;
-                } break;
-                case States::STR:
-                {
-                    if (ch == '"')
-                        state = States::STREND;
-                } break;
-                default:
-                    break;
-                }
-                if (state == States::ERROR)
-                    return false;
+        for (const auto id : IDs)
+            if (token.GetID() == id)
                 return true;
-            });
-
-        constexpr auto ToU8Str = [](const std::u32string_view txt)
-        {
-            std::string str;
-            str.resize(txt.size());
-            for (size_t idx = 0; idx < txt.size(); ++idx)
-                str[idx] = static_cast<char>(txt[idx]);
-            return str;
-        };
-
-        switch (state)
-        {
-        case States::STR:
-        case States::ERROR:
-            return GenerateToken(BaseToken::Error, Context.Source.substr(idxBegin, idxEnd - idxBegin + 1));
-        case States::RAW:
-            return GenerateToken(BaseToken::Raw, data);
-        case States::STREND:
-            return GenerateToken(BaseToken::String, data.substr(1, data.size() - 2));
-        case States::NUM0:
-        {
-            return GenerateToken(BaseToken::Uint, 0u);
-        }
-        case States::UINT:
-        {
-            uint64_t val = 0;
-            const auto tmp = ToU8Str(data);
-            StrToInt(tmp, val, 10);
-            return GenerateToken(BaseToken::Uint, val);
-        }
-        case States::INT:
-        {
-            int64_t val = 0;
-            const auto tmp = ToU8Str(data);
-            StrToInt(tmp, val, 10);
-            return GenerateToken(BaseToken::Int, val);
-        }
-        case States::FP:
-        {
-            double val = 0;
-            const auto tmp = ToU8Str(data);
-            StrToFP(tmp, val);
-            return GenerateToken(BaseToken::FP, val);
-        }
-        default:
-            break;
-        }
-        return common::enum_cast(BaseToken::End);
+        for (const auto& tk : TKs)
+            if (token == tk)
+                return true;
+        return false;
     }
-private:
-    ParserContext& Context;
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return IDs;
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return TKs;
+    }
+};
+template<size_t IDCount>
+struct TokenMatcher<IDCount, 0>
+{
+    std::array<uint16_t, IDCount> IDs;
+    constexpr bool Match(const ParserToken token) const noexcept
+    {
+        for (const auto id : IDs)
+            if (token.GetID() == id)
+                return true;
+        return false;
+    }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return IDs;
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return {};
+    }
+};
+template<size_t TKCount>
+struct TokenMatcher<0, TKCount>
+{
+    std::array<ParserToken, TKCount> TKs;
+    constexpr bool Match(const ParserToken token) const noexcept
+    {
+        for (const auto& tk : TKs)
+            if (token == tk)
+                return true;
+        return false;
+    }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return {};
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return TKs;
+    }
+};
+template<>
+struct TokenMatcher<0, 0>
+{
+    constexpr bool Match(const ParserToken) const noexcept
+    {
+        return false;
+    }
+    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    {
+        return {};
+    }
+    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    {
+        return {};
+    }
+};
+struct EmptyTokenArray {};
+
+struct TokenMatcherHelper
+{
+    template<size_t I, size_t N, typename T, typename... Args>
+    forceinline static constexpr std::array<uint16_t, N> GenerateIDArray(std::array<uint16_t, N> ids, const T id, const Args... args) noexcept
+    {
+        ids[I] = common::enum_cast(id);
+        if constexpr (I + 1 < N)
+            return GenerateIDArray<I + 1>(ids, args...);
+        else
+            return ids;
+    }
+    template<typename... IDs>
+    static constexpr auto GetMatcher(EmptyTokenArray, IDs... ids) noexcept
+    {
+        constexpr auto IDCount = sizeof...(IDs);
+        if constexpr (IDCount > 0)
+            return TokenMatcher<IDCount, 0>{ GenerateIDArray<0>(std::array<uint16_t, IDCount>{0}, ids...) };
+        else
+            return TokenMatcher<0, 0>{};
+    }
+
+    template<size_t TKCount, typename... IDs>
+    static constexpr auto GetMatcher(std::array<ParserToken, TKCount> tokens, IDs... ids) noexcept
+    {
+        constexpr auto IDCount = sizeof...(IDs);
+        if constexpr (IDCount > 0)
+        {
+            constexpr auto idarray = GenerateIDArray<0>(std::array<uint16_t, IDCount>{0}, ids...);
+            if constexpr (TKCount > 0)
+                return TokenMatcher<IDCount, TKCount>{ idarray, tokens };
+            else
+                return TokenMatcher<IDCount, 0>{ idarray };
+        }
+        else
+        {
+            if constexpr (TKCount == 0)
+                return TokenMatcher<0, 0>{};
+            else
+                return TokenMatcher<0, TKCount>{tokens};
+        }
+    }
 };
 
 
+struct ParsingError : std::exception
+{
+    SharedString<char16_t> File;
+    std::pair<size_t, size_t> Position;
+    ParserToken Token;
+    SharedString<char16_t> Notice;
+    ParsingError(const ParserContext& context, const ParserToken token, std::u16string_view notice) :
+        File(context.SourceName), Position({ context.Row, context.Col }),
+        Token(token), Notice(notice) { }
+    ParsingError(const SharedString<char16_t> file, const std::pair<size_t, size_t> pos,
+        const ParserToken token, std::u16string_view notice) :
+        File(file), Position(pos), Token(token), Notice(notice) { }
+};
 
-template<typename... TKs>
-class ParserBase2 : public tokenizer::TokenizerBase
+}
+
+
+class ParserBase
 {
 private:
-    static constexpr auto TKCount = sizeof...(TKs);
-    static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
-    using ResultArray = std::array<tokenizer::TokenizerResult, TKCount>;
+protected:
+    template<size_t IDCount, size_t TKCount>
+    using TokenMatcher = detail::TokenMatcher<IDCount, TKCount>;
 
-    template<size_t N = 0>
-    void InitTokenizer()
-    {
-        auto& tokenizer = std::get<N>(Tokenizers);
-        tokenizer.OnInitialize();
-        auto& result = Status[N];
-        result = tokenizer::TokenizerResult::Pending;
+    ParserContext& Context;
 
-        if constexpr (N + 1 < TKCount)
-            return InitTokenizer<N + 1>();
-    }
-
-    template<size_t N = 0>
-    bool InvokeTokenizer(const char32_t ch, const size_t idx, size_t& pendings, size_t& waitlist) noexcept
-    {
-        using tokenizer::TokenizerResult;
-        auto& result = Status[N];
-        if (result == TokenizerResult::Pending || result == TokenizerResult::Waitlist)
-        {
-            auto& tokenizer = std::get<N>(Tokenizers);
-            result = tokenizer.OnChar(ch, idx);
-            switch (result)
-            {
-            case TokenizerResult::FullMatch:
-                return true;
-            case TokenizerResult::Waitlist:
-                waitlist++; break;
-            case TokenizerResult::Pending:
-                pendings++; break;
-            default:
-                break;
-            }
-        }
-        if constexpr (N + 1 < TKCount)
-            return InvokeTokenizer<N + 1>(ch, idx, pendings, waitlist);
-        else
-            return false;
-    }
-
-    template<size_t N = 0>
-    ParserToken OutputToken(ParserContext& ctx, std::u32string_view tksv, const tokenizer::TokenizerResult target) noexcept
-    {
-        const auto result = Status[N];
-        if (result == target)
-        {
-            auto& tokenizer = std::get<N>(Tokenizers);
-            return tokenizer.GetToken(ctx, tksv);
-        }
-        if constexpr (N + 1 < TKCount)
-            return OutputToken<N + 1>(ctx, tksv, target);
-        else
-            return GenerateToken(BaseToken::Error);
-    }
-public:
-    ParserBase2(ParserContext& ctx) : Context(ctx), Status({ tokenizer::TokenizerResult::Pending })
+    constexpr ParserBase(ParserContext& context) : Context(context) 
     { }
-    constexpr void IgnoreBlank() noexcept
+
+    virtual std::u16string DescribeTokenID(const uint16_t tid) const noexcept
     {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t';
-            });
+#define RET_TK_ID(type) case BaseToken::type:        return u ## #type
+        switch (static_cast<BaseToken>(tid))
+        {
+        RET_TK_ID(End);
+        RET_TK_ID(Error);
+        RET_TK_ID(Unknown);
+        RET_TK_ID(Delim);
+        RET_TK_ID(Comment);
+        RET_TK_ID(Raw);
+        RET_TK_ID(Bool);
+        RET_TK_ID(Uint);
+        RET_TK_ID(Int);
+        RET_TK_ID(FP);
+        RET_TK_ID(String);
+        default:
+        RET_TK_ID(Custom);
+        }
+#undef RET_TK_ID
     }
-    constexpr void IgnoreWhiteSpace() noexcept
+    virtual std::u16string DescribeToken(const ParserToken& token) const noexcept
     {
-        Context.TryGetWhile([](const char32_t ch)
-            {
-                return ch == U' ' || ch == U'\t' || ch == '\r' || ch == '\n';
-            });
+        return DescribeTokenID(token.GetID());
     }
-    ParserToken GetToken(const std::u32string_view delim) noexcept
+    virtual std::u16string DescribeMatcher(common::span<const uint16_t> ids, common::span<const ParserToken> tokens) const noexcept
     {
-        using tokenizer::TokenizerResult;
-        IgnoreBlank();
+        using namespace std::string_view_literals;
+        std::u16string msg(u"expected: "sv);
+        for (const auto id : ids)
+        {
+            msg.append(u"["sv).append(DescribeTokenID(id)).append(u"], "sv);
+        }
+        for (const auto token : tokens)
+        {
+            msg.append(u"{"sv).append(DescribeToken(token)).append(u"}, "sv);
+        }
+        if (!ids.empty() || !tokens.empty())
+            msg.resize(msg.size() - 2);
+        return msg;
+    }
+    virtual SharedString<char16_t> GetCurrentFileName() const noexcept
+    {
+        return Context.SourceName;
+    }
+    virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
+    {
+        return { Context.Row, Context.Col };
+    }
 
-        InitTokenizer();
+    virtual ParserToken OnUnExpectedToken(const ParserToken& token, const std::u16string_view extraInfo = {}) const
+    {
+        using namespace std::string_view_literals;
+        std::u16string msg = u"Unexpected token [" + DescribeToken(token) + u"]";
+        if (!extraInfo.empty())
+            msg.append(u", ").append(extraInfo);
+        throw detail::ParsingError(GetCurrentFileName(), GetCurrentPosition(), token, msg);
+    }
+    
+    static inline constexpr auto IgnoreCommentToken = detail::TokenMatcherHelper::GetMatcher
+        (detail::EmptyTokenArray{}, BaseToken::Comment);
+    static inline constexpr TokenMatcher<0, 0> IgnoreNoneToken = {};
 
-        size_t pendings = 0, waitlist = 0, count = 0;
-        bool hasFullMatch = false;
-        const auto idxBegin = Context.Index;
-
+    template<typename Lex, typename Ignore>
+    constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore)
+    {
+        return lexer.GetTokenBy(Context, ignore);
+    }
+    template<typename Lex, typename Ignore, size_t IDCount, size_t TKCount>
+    constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore, const TokenMatcher<IDCount, TKCount>& ignoreMatcher)
+    {
         while (true)
         {
-            const auto ch = Context.GetNext();
-            if (ch == ParserContext::CharEnd || ch == ParserContext::CharLF)
-                break;
-            if (delim.find_first_of(ch) != std::u32string_view::npos)
-                break;
-            pendings = waitlist = 0;
-            hasFullMatch = InvokeTokenizer(ch, count, pendings, waitlist);
-            if (hasFullMatch || pendings + waitlist == 0)
-                break;
-            count++;
+            const auto token = lexer.GetTokenBy(Context, ignore);
+            if (!ignoreMatcher.Match(token))
+                return token;
         }
-        
-        const auto tokenTxt = Context.Source.substr(idxBegin, Context.Index - idxBegin);
-        if (hasFullMatch)
-            return OutputToken(Context, tokenTxt, TokenizerResult::FullMatch);
-        else if (waitlist > 0)
-            return OutputToken(Context, tokenTxt, TokenizerResult::Waitlist);
-        else
-            return GenerateToken(BaseToken::Unknown, tokenTxt);
     }
-private:
-    ParserContext& Context;
-    std::tuple<TKs...> Tokenizers;
-    ResultArray Status;
+    template<typename Lex, typename Ignore, size_t IDCount1, size_t TKCount1, size_t IDCount2, size_t TKCount2>
+    ParserToken ExpectNextToken(Lex&& lexer, Ignore&& ignore, 
+        const TokenMatcher<IDCount1, TKCount1>& ignoreMatcher, const TokenMatcher<IDCount2, TKCount2>& expectMatcher)
+    {
+        const auto token = GetNextToken(lexer, ignore, ignoreMatcher);
+        if (expectMatcher.Match(token))
+            return token;
+        else
+            return OnUnExpectedToken(token, DescribeMatcher(expectMatcher.GetIDSpan(), expectMatcher.GetTKSpan()));
+    }
+public:
+
 };
 
 

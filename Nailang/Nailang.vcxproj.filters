@@ -15,59 +15,47 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ImageUtilTest.cpp">
+    <ClCompile Include="ArgParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="AsyncTest.cpp">
+    <ClCompile Include="ParserBase.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="UtilTest.cpp">
+    <ClCompile Include="BlockParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CLStub.cpp">
+    <ClCompile Include="NailangStruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CharsetTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="GLStub.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FreeGLUTTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="LogTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CURLTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="WdHostTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="NailangTest.cpp">
+    <ClCompile Include="NailangRuntime.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TestRely.h">
+    <ClInclude Include="ParserRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="ArgParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ParserBase.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BlockParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangStruct.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangRuntime.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="test.cl" />
     <None Include="xzbuild.proj.json" />
-    <None Include="ColorLUT.glsl" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Resource.rc">
-      <Filter>资源文件</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="fgTest.glsl" />
+    <Natvis Include="Nailang.natvis" />
   </ItemGroup>
 </Project>

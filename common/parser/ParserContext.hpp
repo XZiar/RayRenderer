@@ -6,22 +6,27 @@ namespace common::parser
 {
 
 
+namespace special
+{
+inline constexpr char32_t EmptyChar = '\0';
+inline constexpr char32_t CharLF    = '\n';
+inline constexpr char32_t CharCR    = '\r';
+inline constexpr char32_t CharEnd   = static_cast<char32_t>(-1);
+}
+
+
 class ParserContext
 {
-private:
 public:
-    static constexpr char32_t CharLF = '\n';
-    static constexpr char32_t CharCR = '\r';
-    static constexpr char32_t CharEnd = static_cast<char32_t>(-1);
     enum class CharType : uint8_t { End, NewLine, Digit, Blank, Special, Normal };
     static constexpr CharType ParseType(const char32_t ch) noexcept
     {
         switch (ch)
         {
-        case CharEnd:
+        case special::CharEnd:
             return CharType::End;
-        case CharLF:
-        case CharCR:
+        case special::CharLF:
+        case special::CharCR:
             return CharType::NewLine;
         case '\t':
         case ' ':
@@ -41,149 +46,129 @@ public:
     ParserContext(const std::u32string_view source, const std::u16string_view name = u"") noexcept :
         SourceName(std::u16string(name)), Source(source)
     { }
+};
 
-    constexpr char32_t GetNext() noexcept
+
+class ContextReader
+{
+private:
+    ParserContext& Context;
+    size_t Index;
+
+    forceinline constexpr char32_t HandleNextChar(size_t& index) noexcept
     {
-        if (Index >= Source.size())
-            return CharEnd;
-        const auto ch = Source[Index++];
-        if (HandlePosition(ch))
-            return CharLF;
+        const auto ch = Context.Source[index++];
+        switch (ch)
+        {
+        case special::CharCR:
+            if (index < Context.Source.size() && Context.Source[index] == special::CharLF)
+                index++;
+        case special::CharLF:
+            Context.Row++; Context.Col = 0;
+            return special::CharLF;
+        default:
+            return ch;
+        }
+    }
+public:
+    constexpr ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
+
+    forceinline constexpr char32_t PeekNext() const noexcept
+    {
+        if (Index >= Context.Source.size())
+            return special::CharEnd;
+        const auto ch = Context.Source[Index];
+        return (ch == special::CharCR || ch == special::CharLF) ? special::CharLF : ch;
+    }
+    forceinline constexpr void MoveNext() noexcept
+    {
+        const auto limit = Context.Source.size();
+        if (Index >= limit) return;
+        const auto ch = Context.Source[Index++];
+        if (Index < limit && ch == special::CharCR && Context.Source[Index] == special::CharLF)
+            Index++;
+    }
+
+    forceinline constexpr char32_t ReadNext() noexcept
+    {
+        if (Index >= Context.Source.size())
+            return special::CharEnd;
+
+        const auto ch = HandleNextChar(Index);
+        if (ch != special::CharLF)
+            Context.Col++;
+        Context.Index = Index;
         return ch;
     }
 
-    constexpr char32_t PeekNext() const noexcept
+    inline constexpr std::u32string_view CommitRead() noexcept
     {
-        if (Index >= Source.size())
-            return CharEnd;
-        const auto ch = Source[Index];
-        return (ch == CharCR || ch == CharLF) ? CharLF : ch;
+        const auto limit = Index, start = Context.Index;
+        auto lineIdx = Index = start;
+        while (Index < limit)
+        {
+            if (HandleNextChar(Index) == special::CharLF)
+                lineIdx = Index;
+        }
+        Context.Col += Index - lineIdx;
+        Context.Index = Index;
+        return Context.Source.substr(start, Index - start);
     }
 
-    constexpr std::u32string_view GetLine() noexcept
+    inline constexpr std::u32string_view ReadLine() noexcept
     {
-        const auto start = Index;
-        while (Index < Source.size())
+        const auto start = Index = Context.Index;
+        while (Index < Context.Source.size())
         {
-            const auto ch = Source[Index++];
-            if (ch == CharCR || ch == CharLF)
+            const auto cur = Index;
+            if (HandleNextChar(Index) == special::CharLF)
             {
-                const auto txt = Source.substr(start, Index - start - 1);
-                HandleNewLine(ch);
-                return txt;
+                Context.Index = Index;
+                return Context.Source.substr(start, cur - start);
             }
         }
-        Col += Index - start;
-        return Source.substr(start);
+        Context.Col += Index - start;
+        Context.Index = Index;
+        return Context.Source.substr(start);
     }
 
-    constexpr std::u32string_view TryGetUntil(const std::u32string_view target, const bool allowMultiLine = true)
+    inline constexpr std::u32string_view ReadUntil(const std::u32string_view target) noexcept
     {
         if (target.size() == 0)
             return {};
-        const auto pos = Source.find(target, Index);
-        return GetUntil(target.size(), pos, allowMultiLine);
-    }
-
-    constexpr std::u32string_view TryGetUntilAny(const std::u32string_view target, const bool allowMultiLine = true)
-    {
-        if (target.size() == 0)
+        const auto pos = Context.Source.find(target, Index);
+        if (pos == std::u32string_view::npos)
             return {};
-        const auto pos = Source.find_first_of(target, Index);
-        return GetUntil(target.size(), pos, allowMultiLine);
+        Index = pos + target.size();
+        return CommitRead();
     }
 
-    constexpr std::u32string_view TryGetUntilNot(const std::u32string_view target, const bool allowMultiLine = true)
+    template<typename Pred>
+    inline constexpr std::u32string_view ReadWhile(Pred&& predictor) noexcept
     {
-        if (target.size() == 0)
-            return {};
-        const auto pos = Source.find_first_not_of(target, Index);
-        return GetUntil(target.size(), pos, allowMultiLine);
-    }
-
-    template<bool AllowNewLine = true, typename Pred>
-    constexpr std::u32string_view TryGetWhile(Pred&& predictor)
-    {
-        const auto start = Index;
-        auto lineIdx = Index;
-        while (Index < Source.size())
+        const auto start = Index = Context.Index;
+        auto lineIdx = start;
+        for (size_t count = 0; Index < Context.Source.size(); count++)
         {
-            auto ch = Source[Index];
-            if (ch == CharCR)
-                ch = CharLF;
-            if constexpr (!AllowNewLine)
-            {
-                if (ch == CharLF)
-                {
-                    Index = start;
-                    return {};
-                }
-            }
+            auto ch = Context.Source[Index];
+            if (ch == special::CharCR)
+                ch = special::CharLF;
             bool shouldContinue = false;
             if constexpr (std::is_invocable_r_v<bool, Pred, const char32_t>)
                 shouldContinue = predictor(ch);
             else if constexpr (std::is_invocable_r_v<bool, Pred, const char32_t, size_t>)
-                shouldContinue = predictor(ch, Index);
+                shouldContinue = predictor(ch, count);
             else
                 static_assert(!common::AlwaysTrue<Pred>(), "predictor should accept a char32_t and return if should continue");
             if (!shouldContinue)
                 break;
             // should continue
-            Index++;
-            if (ch == CharLF)
-            {
-                HandleNewLine(ch);
+            if (HandleNextChar(Index) == special::CharLF)
                 lineIdx = Index;
-            } 
         }
-        Col += Index - lineIdx;
-        return Source.substr(start, Index - start);
-    }
-private:
-    constexpr std::u32string_view GetUntil(const size_t targetSize, const size_t pos, const bool allowMultiLine = true)
-    {
-        if (pos == std::u32string_view::npos)
-            return {};
-        const auto start = Index, end = pos + targetSize;
-        auto lineIdx = Index;
-        while (Index < end)
-        {
-            const auto ch = Source[Index++];
-            if (ch == CharCR || ch == CharLF)
-            {
-                if (!allowMultiLine)
-                {
-                    Index = start;
-                    return {};
-                }
-                HandleNewLine(ch);
-                lineIdx = Index;
-            }
-        }
-        Col += Index - lineIdx;
-        return Source.substr(start, end - start);
-    }
-    forceinline constexpr void HandleNewLine(const char32_t ch) noexcept
-    {
-        if (ch == CharCR)
-        {
-            if (Index < Source.size() && Source[Index] == CharLF)
-                Index++;
-        }
-        Row++; Col = 0;
-    }
-    constexpr bool HandlePosition(const char32_t ch) noexcept
-    {
-        switch (ch)
-        {
-        case CharCR:
-        case CharLF:
-            HandleNewLine(ch);
-            return true;
-        default:
-            Col++;
-            return false;
-        }
+        Context.Col += Index - lineIdx;
+        Context.Index = Index;
+        return Context.Source.substr(start, Index - start);
     }
 };
 

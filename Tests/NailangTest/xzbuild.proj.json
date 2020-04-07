@@ -1,0 +1,18 @@
+{
+    "name": "NailangTest",
+    "type": "executable",
+    "description": "Sector Parser Test",
+    "dependency": ["Nailang", "fmt"],
+    "library": 
+    {
+        "static": ["gtest", "gmock", "gtest_main"],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        }
+    }
+}

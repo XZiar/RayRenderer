@@ -461,7 +461,7 @@ public:
     template<bool R = IsConst, typename = std::enable_if_t<R>>
     explicit JDocRef(const JDoc& doc) : DocumentHandle(doc.MemPool), Val(&doc.Val) {}
     template<bool R = !IsConst, typename = std::enable_if_t<R>>
-    [[nodiscard]] explicit operator rapidjson::Value() { return std::move(Val); }
+    [[nodiscard]] explicit operator rapidjson::Value() { return std::move(*Val); }
     template<typename T, typename Convertor = JsonConvertor>
     [[nodiscard]] T AsValue(T val = {}) const
     {
@@ -734,6 +734,13 @@ public:
     {
         return TryGetMany<JsonConvertor>(offset, val...);
     }
+
+    [[nodiscard]] size_t Size() const noexcept
+    {
+        const auto valref = &static_cast<const Child*>(this)->ValRef();
+        return valref == nullptr ? 0 : valref->Size();
+    }
+
     [[nodiscard]] detail::JArrayIterator<true> begin() const
     {
         return detail::JArrayIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().Begin());
@@ -790,7 +797,13 @@ protected:
         auto value = Convertor::ToVal(std::forward<U>(val), self);
         self.ValRef().AddMember(key, value, mempool);
     }
-public:
+public: 
+    [[nodiscard]] size_t Size() const noexcept
+    {
+        const auto valref = &static_cast<const Child*>(this)->ValRef();
+        return valref == nullptr ? 0 : valref->MemberCount();
+    }
+
     [[nodiscard]] detail::JObjectIterator<true> begin() const
     {
         return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberBegin());

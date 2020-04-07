@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "rely.h"
 #include "common/parser/ParserContext.hpp"
 
 using namespace common::parser;
@@ -15,13 +15,57 @@ TEST(ParserCtx, CharType)
     {
         constexpr auto source = U"0 A\t\n"sv;
         ParserContext context(source);
-        CHECK_CHTYPE(context.GetNext(), Digit);
-        CHECK_CHTYPE(context.GetNext(), Blank);
-        CHECK_CHTYPE(context.GetNext(), Normal);
-        CHECK_CHTYPE(context.GetNext(), Blank);
-        CHECK_CHTYPE(context.GetNext(), NewLine);
-        CHECK_CHTYPE(context.GetNext(), End);
-        CHECK_CHTYPE(context.GetNext(), End);
+        ContextReader reader(context);
+
+        CHECK_CHTYPE(reader.ReadNext(), Digit);
+        CHECK_CHTYPE(reader.ReadNext(), Blank);
+        CHECK_CHTYPE(reader.ReadNext(), Normal);
+        CHECK_CHTYPE(reader.ReadNext(), Blank);
+        CHECK_CHTYPE(reader.ReadNext(), NewLine);
+        CHECK_CHTYPE(reader.ReadNext(), End);
+        CHECK_CHTYPE(reader.ReadNext(), End);
+    }
+}
+
+
+TEST(ParserCtx, Reader)
+{
+    {
+        constexpr auto source = U"01\n\r\n"sv;
+        ParserContext context(source);
+        CHECK_POS(context, 0, 0);
+        {
+            ContextReader reader(context);
+            EXPECT_EQ(reader.PeekNext(), U'0');
+            CHECK_POS(context, 0, 0);
+            EXPECT_EQ(reader.PeekNext(), U'0');
+            CHECK_POS(context, 0, 0);
+            reader.MoveNext();
+            EXPECT_EQ(reader.PeekNext(), U'1');
+            CHECK_POS(context, 0, 0);
+            reader.MoveNext();
+            EXPECT_EQ(reader.CommitRead(), U"01"sv);
+            CHECK_POS(context, 0, 2);
+            EXPECT_EQ(context.Index, 2);
+        }
+        {
+            ContextReader reader(context);
+            EXPECT_EQ(reader.PeekNext(), U'\n');
+            reader.MoveNext();
+            EXPECT_EQ(reader.PeekNext(), U'\n');
+            reader.MoveNext();
+            EXPECT_EQ(reader.CommitRead(), U"\n\r\n"sv);
+            CHECK_POS(context, 2, 0);
+            EXPECT_EQ(context.Index, 5);
+        }
+        {
+            ContextReader reader(context);
+            EXPECT_EQ(reader.PeekNext(), special::CharEnd);
+            reader.MoveNext();
+            reader.CommitRead();
+            CHECK_POS(context, 2, 0);
+            EXPECT_EQ(context.Index, 5);
+        }
     }
 }
 
@@ -31,22 +75,23 @@ TEST(ParserCtx, NewLine)
     constexpr auto test = [](std::u32string_view src) 
     {
         ParserContext context(src);
+        ContextReader reader(context);
 
         CHECK_POS(context, 0, 0);
-        CHECK_CHTYPE(context.GetNext(), Digit);
+        CHECK_CHTYPE(reader.ReadNext(), Digit);
         CHECK_POS(context, 0, 1);
-        CHECK_CHTYPE(context.GetNext(), NewLine);
+        CHECK_CHTYPE(reader.ReadNext(), NewLine);
 
         CHECK_POS(context, 1, 0);
-        CHECK_CHTYPE(context.GetNext(), Digit);
+        CHECK_CHTYPE(reader.ReadNext(), Digit);
         CHECK_POS(context, 1, 1);
-        CHECK_CHTYPE(context.GetNext(), Digit);
+        CHECK_CHTYPE(reader.ReadNext(), Digit);
         CHECK_POS(context, 1, 2);
-        CHECK_CHTYPE(context.GetNext(), NewLine);
+        CHECK_CHTYPE(reader.ReadNext(), NewLine);
 
 
         CHECK_POS(context, 2, 0);
-        CHECK_CHTYPE(context.GetNext(), End);
+        CHECK_CHTYPE(reader.ReadNext(), End);
         CHECK_POS(context, 2, 0);
     };
     test(U"0\n12\n"sv);
@@ -55,26 +100,27 @@ TEST(ParserCtx, NewLine)
 }
 
 
-TEST(ParserCtx, GetLine)
+TEST(ParserCtx, ReadLine)
 {
     constexpr auto test = [](std::u32string_view src)
     {
         ParserContext context(src);
+        ContextReader reader(context);
 
         CHECK_POS(context, 0, 0);
-        const auto line0 = context.GetLine();
+        const auto line0 = reader.ReadLine();
         EXPECT_EQ(line0, U"line0"sv);
 
         CHECK_POS(context, 1, 0);
-        const auto line1 = context.GetLine();
+        const auto line1 = reader.ReadLine();
         EXPECT_EQ(line1, U"line1"sv);
 
         CHECK_POS(context, 2, 0);
-        const auto line2 = context.GetLine();
+        const auto line2 = reader.ReadLine();
         EXPECT_EQ(line2, U"line2"sv);
        
         CHECK_POS(context, 2, 5);
-        CHECK_CHTYPE(context.GetNext(), End);
+        CHECK_CHTYPE(reader.ReadNext(), End);
         CHECK_POS(context, 2, 5);
     };
     test(U"line0\nline1\nline2"sv);
@@ -83,62 +129,26 @@ TEST(ParserCtx, GetLine)
 }
 
 
-TEST(ParserCtx, TryGetUntil)
+TEST(ParserCtx, ReadUntil)
 {
     const auto source = U"Here\nThere*/"sv;
     {
         ParserContext context(source);
+        ContextReader reader(context);
 
         CHECK_POS(context, 0, 0);
-        const auto result = context.TryGetUntil(U"*/", true);
+        const auto result = reader.ReadUntil(U"*/");
         EXPECT_EQ(result, U"Here\nThere*/"sv);
         CHECK_POS(context, 1, 7);
     }
     {
         ParserContext context(source);
+        ContextReader reader(context);
 
         CHECK_POS(context, 0, 0);
-        const auto result = context.TryGetUntil(U"xx", true);
+        const auto result = reader.ReadUntil(U"xx");
         EXPECT_EQ(result, U""sv);
         CHECK_POS(context, 0, 0);
-    }
-    {
-        ParserContext context(source);
-
-        CHECK_POS(context, 0, 0);
-        const auto result = context.TryGetUntil(U"*/", false);
-        EXPECT_EQ(result, U""sv);
-        CHECK_POS(context, 0, 0);
-    }
-    {
-        ParserContext context(source);
-
-        CHECK_POS(context, 0, 0);
-        const auto result0 = context.TryGetUntil(U"re", false);
-        EXPECT_EQ(result0, U"Here"sv);
-        CHECK_POS(context, 0, 4);
-
-        const auto result1 = context.TryGetUntil(U"re", false);
-        EXPECT_EQ(result1, U""sv);
-        CHECK_POS(context, 0, 4);
-
-        CHECK_CHTYPE(context.GetNext(), NewLine);
-        CHECK_POS(context, 1, 0);
-        const auto result2 = context.TryGetUntil(U"re", false);
-        EXPECT_EQ(result2, U"There"sv);
-        CHECK_POS(context, 1, 5);
-    }
-    {
-        ParserContext context(source);
-
-        CHECK_POS(context, 0, 0);
-        const auto result0 = context.TryGetUntil(U"re", false);
-        EXPECT_EQ(result0, U"Here"sv);
-        CHECK_POS(context, 0, 4);
-
-        const auto result1 = context.TryGetUntil(U"re", true);
-        EXPECT_EQ(result1, U"\nThere"sv);
-        CHECK_POS(context, 1, 5);
     }
 }
 
@@ -154,40 +164,48 @@ constexpr auto CheckIsNumber = [](const char32_t ch)
 {
     return (ch >= U'0' && ch <= U'9') || (ch == U'.' || ch == U'-');
 };
-TEST(ParserCtx, TryGetWhile)
+TEST(ParserCtx, ReadWhile)
 {
-    const auto source = U" 123\t456\n789"sv;
+    const auto source = U" 123\t456\n789\r\n"sv;
     {
         ParserContext context(source);
+        ContextReader reader(context);
 
         CHECK_POS(context, 0, 0);
-        const auto result0 = context.TryGetWhile(CheckIsBlank);
+        const auto result0 = reader.ReadWhile(CheckIsBlank);
         EXPECT_EQ(result0, U" "sv);
+        EXPECT_EQ(context.Index, 1);
         CHECK_POS(context, 0, 1);
 
-        const auto result1 = context.TryGetWhile(CheckIsNumber);
+        const auto result1 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result1, U"123"sv);
+        EXPECT_EQ(context.Index, 4);
         CHECK_POS(context, 0, 4);
 
-        const auto result2 = context.TryGetWhile(CheckIsBlank);
+        const auto result2 = reader.ReadWhile(CheckIsBlank);
         EXPECT_EQ(result2, U"\t"sv);
+        EXPECT_EQ(context.Index, 5);
         CHECK_POS(context, 0, 5);
 
-        const auto result3 = context.TryGetWhile(CheckIsNumber);
+        const auto result3 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result3, U"456"sv);
+        EXPECT_EQ(context.Index, 8);
         CHECK_POS(context, 0, 8);
 
-        const auto result4 = context.TryGetWhile<false>(CheckIsWhiteSpace);
-        EXPECT_EQ(result4, U""sv);
-        CHECK_POS(context, 0, 8);
-
-        const auto result5 = context.TryGetWhile<true>(CheckIsWhiteSpace);
+        const auto result5 = reader.ReadWhile(CheckIsWhiteSpace);
         EXPECT_EQ(result5, U"\n"sv);
+        EXPECT_EQ(context.Index, 9);
         CHECK_POS(context, 1, 0);
 
-        const auto result6 = context.TryGetWhile(CheckIsNumber);
+        const auto result6 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result6, U"789"sv);
+        EXPECT_EQ(context.Index, 12);
         CHECK_POS(context, 1, 3);
+
+        const auto result7 = reader.ReadWhile([](const char32_t ch) { return ch == U'\n'; });
+        EXPECT_EQ(result7, U"\r\n"sv);
+        EXPECT_EQ(context.Index, 14);
+        CHECK_POS(context, 2, 0);
     }
 }
 
@@ -198,23 +216,24 @@ TEST(ParserCtx, ParseFunc)
     {
         std::vector<std::u32string_view> args;
         ParserContext context(src);
-        context.TryGetWhile(CheckIsWhiteSpace);
-        const auto fname = context.TryGetWhile<false>([](const char32_t ch)
+        ContextReader reader(context);
+        reader.ReadWhile(CheckIsWhiteSpace);
+        const auto fname = reader.ReadWhile([](const char32_t ch)
             {
                 return !CheckIsWhiteSpace(ch) && U"()'\"<>[]{}/\\,.?|+-*=&^%$#@!~`"sv.find(ch) == std::u32string_view::npos;
             });
-        context.TryGetWhile([](const char32_t ch) { return ch != '('; });
-        if (context.GetNext() == '(')
+        reader.ReadWhile([](const char32_t ch) { return ch != '('; });
+        if (reader.ReadNext() == '(')
         {
             while (true)
             {
-                context.TryGetWhile(CheckIsWhiteSpace);
-                const auto arg = context.TryGetWhile<false>([](const char32_t ch)
+                reader.ReadWhile(CheckIsWhiteSpace);
+                const auto arg = reader.ReadWhile([](const char32_t ch)
                     {
                         return !CheckIsWhiteSpace(ch) && U"),"sv.find(ch) == std::u32string_view::npos;
                     });
-                context.TryGetWhile(CheckIsWhiteSpace);
-                const auto next = context.GetNext();
+                reader.ReadWhile(CheckIsWhiteSpace);
+                const auto next = reader.ReadNext();
                 switch (next)
                 {
                 case ')':
@@ -223,8 +242,8 @@ TEST(ParserCtx, ParseFunc)
                 case ',':
                     args.emplace_back(arg);
                     continue;
-                case ParserContext::CharEnd:
-                    EXPECT_NE(next, ParserContext::CharEnd);
+                case special::CharEnd:
+                    EXPECT_NE(next, special::CharEnd);
                     return { };
                 default:
                     EXPECT_TRUE(false);

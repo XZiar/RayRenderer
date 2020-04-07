@@ -1,0 +1,17 @@
+{
+    "name": "Nailang",
+    "type": "static",
+    "description": "Nailang, not an intresting language",
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"]
+        }
+    }
+}

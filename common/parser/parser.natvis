@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::parser::tokenizer::DelimTokenizer">
+    <DisplayString>DelimTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::CommentTokenizer">
+    <DisplayString>CommentTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::StringTokenizer">
+    <DisplayString>StringTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::IntTokenizer">
+    <DisplayString>IntTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::FPTokenizer">
+    <DisplayString>FPTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::BoolTokenizer">
+    <DisplayString>BoolTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::ASCIIRawTokenizer">
+    <DisplayString>ASCIIRawTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::tokenizer::ASCII2PartTokenizer">
+    <DisplayString>ASCII2PartTokenizer</DisplayString>
+  </Type>
+  <Type Name="common::parser::ParserToken">
+    <DisplayString Condition="ValType == Type::Empty">{{{ID}}} Empty</DisplayString>
+    <DisplayString Condition="ValType == Type::Bool" >{{{ID}}} [{Data.Bool}]</DisplayString>
+    <DisplayString Condition="ValType == Type::Char" >{{{ID}}} [{Data.Char,c}]</DisplayString>
+    <DisplayString Condition="ValType == Type::Str"  >{{{ID}}} [{Data.Ptr,[Data2]s32}]</DisplayString>
+    <DisplayString Condition="ValType == Type::FP"   >{{{ID}}} [{Data.FP}]</DisplayString>
+    <DisplayString Condition="ValType == Type::Uint" >{{{ID}}} [{Data.Uint}]</DisplayString>
+    <DisplayString Condition="ValType == Type::Int"  >{{{ID}}} [{Data.Int}]</DisplayString>
+    <Expand>
+      <Item Name="ID" Condition="ID &lt;  common::parser::BaseToken::__RangeMax">static_cast&lt;common::parser::BaseToken&gt;(ID)</Item>
+      <Item Name="ID" Condition="ID &gt;= common::parser::BaseToken::__RangeMax">ID</Item>
+      <Item Condition="ValType == Type::Bool"  Name="[Val]">Data.Bool</Item>
+      <Item Condition="ValType == Type::Char"  Name="[Val]">Data.Char</Item>
+      <Item Condition="ValType == Type::Str"   Name="[Val]">Data.Ptr,[Data2]s32</Item>
+      <Item Condition="ValType == Type::FP"    Name="[Val]">Data.FP</Item>
+      <Item Condition="ValType == Type::Uint"  Name="[Val]">Data.Uint</Item>
+      <Item Condition="ValType == Type::Int"   Name="[Val]">Data.Int</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::parser::detail::TokenizerData">
+    <DisplayString>{{ {Result[0],en},{Result[1],en} }}</DisplayString>
+  </Type>
+  <Type Name="std::array&lt;common::parser::detail::TokenizerData,*&gt;">
+    <DisplayString>{{ ResultArray, {$T1} results }}</DisplayString>
+    <Expand>
+      <Synthetic Name="Status0">
+        <Expand>
+          <IndexListItems>
+            <Size>$T1</Size>
+            <ValueNode>_Elems[$i].Result[0],en</ValueNode>
+          </IndexListItems>
+          <!--<CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>$T1</Size>
+            <Loop>
+              <Break Condition="idx &gt;= $T1" />
+              <Item>this->operator[](idx).Result[0],en</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>-->
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="Status1">
+        <Expand>
+          <IndexListItems>
+            <Size>$T1</Size>
+            <ValueNode>_Elems[$i].Result[1],en</ValueNode>
+          </IndexListItems>
+          <!--<CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>$T1</Size>
+            <Loop>
+              <Break Condition="idx &gt;= $T1" />
+              <Item>this->operator[](idx).Result[1],en</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>-->
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+</AutoVisualizer>
