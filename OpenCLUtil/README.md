@@ -50,7 +50,7 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 * [OpenCL Header](../3rdParty/CL) 20200109 [License](../3rdParty/CL/LICENSE)
 
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.5 [License](../3rdParty/OpenCL/LICENSE)
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.6 [License](../3rdParty/OpenCL/LICENSE)
 
   OpenCL ICD Loader.
 

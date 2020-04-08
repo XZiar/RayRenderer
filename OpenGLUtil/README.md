@@ -66,9 +66,9 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
 ## Dependency
 
-* [OpenGL Header](../3rdParty/GL) 20191206
+* [OpenGL Header](https://github.com/KhronosGroup/OpenGL-Registry/tree/master/api/GL) 20200407
 
-* [KHR API Header](../3rdParty/KHR) 20190424
+* [KHR API Header](https://github.com/KhronosGroup/EGL-Registry/tree/master/api/KHR) 20190424
 
 * [3DBasic](../3DBasic)
   * Basic component -- providing basic 3d data structure

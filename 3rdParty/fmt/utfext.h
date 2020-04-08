@@ -50,8 +50,10 @@ struct UTFMakeValueProxy
     { 
         if constexpr (std::is_same_v<T, char>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | CharTag);
+#ifdef __cpp_char8_t
         else if constexpr (std::is_same_v<T, char8_t>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | Char8Tag);
+#endif
         else if constexpr (std::is_same_v<T, char16_t>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | Char16Tag);
         else if constexpr (std::is_same_v<T, char32_t>)
@@ -86,8 +88,10 @@ struct UTFMakeValueProxy
             return ToStringValue(&val, 1);
         else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
             return map(static_cast<const std::string_view&>(val));
+#ifdef __cpp_char8_t
         else if constexpr (std::is_convertible_v<const T&, const std::basic_string_view<char8_t>&>)
             return map(static_cast<const std::basic_string_view<char8_t>&>(val));
+#endif
         else if constexpr (std::is_convertible_v<const T&, const std::u16string_view&>)
             return map(static_cast<const std::u16string_view&>(val));
         else if constexpr (std::is_convertible_v<const T&, const std::u32string_view&>)
@@ -96,8 +100,10 @@ struct UTFMakeValueProxy
             return map(static_cast<const std::wstring_view&>(val));
         else if constexpr (std::is_convertible_v<const T&, const std::string&>)
             return map(static_cast<const std::string&>(val));
+#ifdef __cpp_char8_t
         else if constexpr (std::is_convertible_v<const T&, const std::basic_string<char8_t>&>)
             return map(static_cast<const std::basic_string<char8_t>&>(val));
+#endif
         else if constexpr (std::is_convertible_v<const T&, const std::u16string&>)
             return map(static_cast<const std::u16string&>(val));
         else if constexpr (std::is_convertible_v<const T&, const std::u32string&>)

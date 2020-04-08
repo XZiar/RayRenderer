@@ -103,7 +103,7 @@ Raw block is a piece of content with unknown syntax. The syntax is
 ```
 #Raw.type("name")
 {guard
-
+    // content
 guard}
 ```
 It's similar to [Block](#block), while guard string is required between the pair of curly brace.

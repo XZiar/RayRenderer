@@ -55,13 +55,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="posix.cc">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="format.cc">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="utfext.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="os.cc">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

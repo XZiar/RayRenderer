@@ -83,11 +83,11 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.71.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.72.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) 6.1.2 (customized with utf-support)
+* [fmt](http://fmtlib.net) 6.2.0 (customized with utf-support)
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

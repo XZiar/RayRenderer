@@ -2,7 +2,7 @@
     "name": "OpenCL",
     "type": "dynamic",
     "description": "The OpenCL ICD Loader",
-    "version": "2.2.5",
+    "version": "2.2.6",
     "dependency": [],
     "library": 
     {
