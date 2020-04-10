@@ -1,5 +1,22 @@
 #pragma once
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+# ifdef NAILANG_EXPORT
+#   define NAILANGAPI _declspec(dllexport)
+#   define COMMON_EXPORT
+# else
+#   define NAILANGAPI _declspec(dllimport)
+# endif
+#else
+# ifdef NAILANG_EXPORT
+#   define NAILANGAPI __attribute__((visibility("default")))
+#   define COMMON_EXPORT
+# else
+#   define NAILANGAPI
+# endif
+#endif
+
+
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
 #include "common/StringLinq.hpp"
@@ -14,7 +31,12 @@
 namespace xziar::nailang
 {
 
-class MemoryPool : public common::NonCopyable
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
+class NAILANGAPI MemoryPool : public common::NonCopyable
 {
 public:
     std::vector<std::tuple<std::byte*, size_t, size_t>> Trunks;
@@ -60,6 +82,10 @@ public:
         return common::span<T>(reinterpret_cast<T*>(space.data()), data.size());
     }
 };
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 struct LateBindVar

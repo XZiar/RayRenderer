@@ -114,10 +114,6 @@ matrix:
             - libglu1-mesa-dev
             - libxi-dev
 
-cache:
-  directories:
-    - ./3rdParty # try to cache 3rdParty projects 
-
 before_install:
   - mkdir tmp
   - cd tmp

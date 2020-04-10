@@ -1,7 +1,7 @@
 #include "rely.h"
 #include <algorithm>
 #include "Nailang/ParserRely.h"
-#include "Nailang/ArgParser.h"
+#include "Nailang/NailangParser.h"
 #include "3rdParty/fmt/utfext.h"
 
 

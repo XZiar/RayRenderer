@@ -1,7 +1,6 @@
 #include "rely.h"
 #include "Nailang/ParserRely.h"
-#include "Nailang/BlockParser.h"
-#include "Nailang/ArgParser.h"
+#include "Nailang/NailangParser.h"
 
 
 using namespace std::string_view_literals;

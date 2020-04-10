@@ -27,13 +27,16 @@ protected:
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
     static void SentToGlobalOutputer(LogMessage* msg);
-    forceinline void AddRefCount(LogMessage& msg, const size_t count) { msg.RefCount += (uint32_t)count; }
+    forceinline void AddRefCount(LogMessage& msg, const size_t count) noexcept { msg.RefCount += (uint32_t)count; }
 public:
-    MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug)
-        : LeastLevel(level), Prefix(name), Outputer(std::move(outputer))
+    MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug) :
+        LeastLevel(level), Prefix(name), Outputer(std::move(outputer))
     { }
-    void SetLeastLevel(const LogLevel level) { LeastLevel = level; }
-    LogLevel GetLeastLevel() { return LeastLevel; }
+    MiniLoggerBase(MiniLoggerBase&& other) noexcept:
+        LeastLevel(other.LeastLevel.load()), Prefix(std::move(other.Prefix)), Outputer(std::move(other.Outputer)) 
+    { };
+    void SetLeastLevel(const LogLevel level) noexcept { LeastLevel = level; }
+    LogLevel GetLeastLevel() noexcept { return LeastLevel; }
 
 };
 
@@ -47,7 +50,11 @@ protected:
     common::WRSpinLock WRLock;
 public:
     using detail::MiniLoggerBase::MiniLoggerBase;
-   
+    template<bool T>
+    MiniLogger(MiniLogger<T>&& other) noexcept :
+        detail::MiniLoggerBase(std::move(other)), WRLock(std::move(other.WRLock))
+    { }
+
     template<typename T, typename... Args>
     forceinline void error(T&& formatter, Args&&... args)
     {
@@ -117,7 +124,7 @@ public:
         return Outputer.emplace(outputer).second;
     }
     template<bool R = DynamicBackend>
-    std::enable_if_t<R, bool> DelOutputer(const std::shared_ptr<LoggerBackend>& outputer)
+    std::enable_if_t<R, bool> DelOutputer(const std::shared_ptr<LoggerBackend>& outputer) noexcept
     {
         static_assert(DynamicBackend == R, "Should not override template arg");
         if (!outputer) return false;

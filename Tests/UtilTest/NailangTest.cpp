@@ -1,5 +1,5 @@
 #include "TestRely.h"
-#include "Nailang/BlockParser.h"
+#include "Nailang/NailangParser.h"
 #include "common/Linq2.hpp"
 #include "StringCharset/Detect.h"
 #include "StringCharset/Convert.h"

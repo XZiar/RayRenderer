@@ -15,19 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ArgParser.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ParserBase.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="BlockParser.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="NailangStruct.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="NailangRuntime.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="NailangParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,19 +29,13 @@
     <ClInclude Include="ParserRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ArgParser.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ParserBase.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="BlockParser.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="NailangStruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="NailangRuntime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

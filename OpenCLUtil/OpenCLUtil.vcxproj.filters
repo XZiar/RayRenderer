@@ -57,6 +57,12 @@
     <ClInclude Include="oclPch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="oclNLCL.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclNLCLRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">
@@ -87,6 +93,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclMem.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclNLCL.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -193,6 +193,8 @@
     <ClInclude Include="oclBuffer.h" />
     <ClInclude Include="oclImage.h" />
     <ClInclude Include="oclMem.h" />
+    <ClInclude Include="oclNLCL.h" />
+    <ClInclude Include="oclNLCLRely.h" />
     <ClInclude Include="oclPch.h" />
     <ClInclude Include="oclPlatform.h" />
     <ClInclude Include="oclProgram.h" />
@@ -213,6 +215,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="oclMem.cpp" />
+    <ClCompile Include="oclNLCL.cpp" />
     <ClCompile Include="oclPlatform.cpp" />
     <ClCompile Include="oclProgram.cpp" />
     <ClCompile Include="oclRely.cpp">
@@ -235,6 +238,9 @@
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Nailang\Nailang.vcxproj">
+      <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
     </ProjectReference>
     <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>

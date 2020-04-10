@@ -1,8 +1,14 @@
 #pragma once
 #include "NailangStruct.h"
-#include "BlockParser.h"
+#include "NailangParser.h"
 #include <map>
+#include <vector>
+#include <memory>
 
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
 
 namespace xziar::nailang
 {
@@ -39,7 +45,7 @@ private:
     size_t Offset, NextOffset;
 };
 
-class EvaluateContext
+class NAILANGAPI EvaluateContext
 {
 protected:
     static bool CheckIsLocal(std::u32string_view& name) noexcept;
@@ -69,7 +75,7 @@ public:
     virtual size_t GetFuncCount() const noexcept = 0;
 };
 
-class BasicEvaluateContext : public EvaluateContext
+class NAILANGAPI BasicEvaluateContext : public EvaluateContext
 {
 protected:
     using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
@@ -85,7 +91,7 @@ public:
     void SetReturnArg(Arg arg) override;
     Arg GetReturnArg() const override;
 };
-class LargeEvaluateContext : public BasicEvaluateContext
+class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
 {
 protected:
     std::map<std::u32string, Arg, std::less<>> ArgMap;
@@ -103,7 +109,7 @@ public:
     size_t GetArgCount() const noexcept override;
     size_t GetFuncCount() const noexcept override;
 };
-class CompactEvaluateContext : public BasicEvaluateContext
+class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
 {
 protected:
     std::vector<std::tuple<uint32_t, uint32_t, Arg>> Args;
@@ -125,7 +131,7 @@ public:
     size_t GetFuncCount() const noexcept override;
 };
 
-struct EmbedOpEval
+struct NAILANGAPI EmbedOpEval
 {
     static Arg Equal        (const Arg& left, const Arg& right);
     static Arg NotEqual     (const Arg& left, const Arg& right);
@@ -145,7 +151,7 @@ struct EmbedOpEval
     static std::optional<Arg> Eval(const std::u32string_view opname, common::span<const Arg> args);
 };
 
-class NailangRuntimeBase
+class NAILANGAPI NailangRuntimeBase
 {
 protected:
     enum class ProgramStatus { Next = 0, Repeat, Break, Return, End };
@@ -216,3 +222,7 @@ public:
 };
 
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

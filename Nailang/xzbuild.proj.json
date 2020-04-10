@@ -1,6 +1,6 @@
 {
     "name": "Nailang",
-    "type": "static",
+    "type": "dynamic",
     "description": "Nailang, not an intresting language",
     "library": 
     {
@@ -11,7 +11,8 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp"]
+            "sources": ["*.cpp"],
+            "defines": ["NAILANG_EXPORT"]
         }
     }
 }
