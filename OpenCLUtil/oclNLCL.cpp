@@ -6,57 +6,66 @@
 
 namespace oclu
 {
+using namespace std::string_view_literals;
 
-NLCLProcessor::NailangHolder::NailangHolder(common::mlog::MiniLogger<false>& logger) :
-    Logger(logger),
-    Context(std::make_shared<xziar::nailang::CompactEvaluateContext>()),
-    Runtime(std::make_unique<xziar::nailang::NailangRuntimeBase>(Context))
+
+NLCLProgram::NLCLProgram(std::u32string&& source) :
+    Source(std::move(source)) { }
+NLCLProgram::~NLCLProgram()
 { }
-NLCLProcessor::NailangHolder::~NailangHolder()
+
+NLCLProgStub::NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, 
+    const oclContext& context, std::unique_ptr<xziar::nailang::NailangRuntimeBase>&& runtime) :
+    Program(program), CLContext(context), Runtime(std::move(runtime))
+{ }
+NLCLProgStub::~NLCLProgStub()
 { }
 
-void NLCLProcessor::NailangHolder::Parse(std::u32string source)
-{
-    Source = std::move(source);
-    NLCLParser::GetBlock(MemPool, Source, Program);
-    Logger.verbose(u"Parse done, get [{}] Blocks.\n", Program.Size());
-}
 
-
-NLCLProcessor::NLCLProcessor(common::mlog::MiniLogger<false>&& logger, common::span<const std::byte> source):
-    Logger(std::move(logger))
-{
-    const auto encoding = common::strchset::DetectEncoding(source);
-    Logger.info(u"Detected encoding[{}].\n", common::str::getCharsetName(encoding));
-    auto u32src = common::strchset::to_u32string(source, encoding);
-    Logger.info(u"Translate into [utf32] for [{}] chars.\n", u32src.size());
-    
-    InitHolder();
-    Holder->Parse(std::move(u32src));
-}
-void NLCLProcessor::InitHolder()
-{
-    Holder = std::make_unique<NailangHolder>(Logger);
-}
-NLCLProcessor::NLCLProcessor(common::span<const std::byte> source) :
-    NLCLProcessor({ u"NLCLPorc", { common::mlog::GetConsoleBackend() } }, source)
-{
-}
+NLCLProcessor::NLCLProcessor() : TheLogger(&oclLog())
+{ }
+NLCLProcessor::NLCLProcessor(common::mlog::MiniLogger<false>&& logger) : TheLogger(std::move(logger)) 
+{ }
 NLCLProcessor::~NLCLProcessor()
+{ }
+
+
+void NLCLProcessor::ConfigureCL(NLCLProgStub& stub)
 {
+    using xziar::nailang::BlockContent;
+    for (const auto [meta, tmp] : stub.Program->Program)
+    {
+        if (tmp.GetType() != BlockContent::Type::Block)
+            continue;
+        const auto& block = *tmp.Get<xziar::nailang::Block>();
+        if (block.Type == U"oclu.prepare"sv)
+            continue;
+    }
 }
 
-void NLCLProcessor::ConfigureCL()
+std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source)
 {
+    auto& logger = Logger();
+    const auto encoding = common::strchset::DetectEncoding(source);
+    logger.info(u"Detected encoding[{}].\n", common::str::getCharsetName(encoding));
+    const auto prog = std::make_shared<NLCLProgram>(common::strchset::to_u32string(source, encoding));
+    logger.info(u"Translate into [utf32] for [{}] chars.\n", prog->Source.size());
+    NLCLParser::GetBlock(prog->MemPool, prog->Source, prog->Program);
+    logger.verbose(u"Parse done, get [{}] Blocks.\n", prog->Program.Size());
+    return prog;
 }
 
-std::u32string NLCLProcessor::GenerateCL()
+NLCLProgStub NLCLProcessor::ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx)
 {
-    return std::u32string();
+    NLCLProgStub stub(prog, ctx, {});
+    ConfigureCL(stub);
+    return stub;
 }
 
-oclProgram NLCLProcessor::CompileProgram()
+oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx)
 {
+    const auto stub = ConfigureCL(prog, ctx);
+    //TODO: 
     return oclProgram();
 }
 

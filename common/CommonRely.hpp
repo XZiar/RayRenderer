@@ -341,6 +341,13 @@ struct ParamPack
         using Type = typename std::tuple_element<N, Tuple>::type::Type;
     };
 };
+
+template<typename F>
+inline constexpr auto UnpackedFunc(F&& func) noexcept
+{
+    return[=](auto&& tuple) { return std::apply(func, tuple); };
+}
+
 }
 
 

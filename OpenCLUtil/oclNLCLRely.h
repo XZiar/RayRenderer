@@ -19,20 +19,33 @@ public:
     }
 };
 
-class OCLUAPI NLCLProcessor::NailangHolder
+
+class OCLUAPI NLCLProgram
 {
     friend class NLCLProcessor;
+    friend class NLCLProgStub;
 protected:
-    common::mlog::MiniLogger<false>& Logger;
     xziar::nailang::MemoryPool MemPool;
-    std::shared_ptr<xziar::nailang::EvaluateContext> Context;
-    std::unique_ptr<xziar::nailang::NailangRuntimeBase> Runtime;
     std::u32string Source;
     xziar::nailang::Block Program;
 public:
-    NailangHolder(common::mlog::MiniLogger<false>& logger);
-    virtual ~NailangHolder();
-    virtual void Parse(std::u32string source);
+    NLCLProgram(std::u32string&& source);
+    ~NLCLProgram();
+};
+
+
+class OCLUAPI NLCLProgStub
+{
+    friend class NLCLProcessor;
+protected:
+    xziar::nailang::MemoryPool MemPool;
+    std::shared_ptr<NLCLProgram> Program;
+    oclContext CLContext;
+    std::unique_ptr<xziar::nailang::NailangRuntimeBase> Runtime;
+public:
+    NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, const oclContext& context, std::unique_ptr<xziar::nailang::NailangRuntimeBase>&& runtime);
+    NLCLProgStub(NLCLProgStub&&) = default;
+    virtual ~NLCLProgStub();
 };
 
 

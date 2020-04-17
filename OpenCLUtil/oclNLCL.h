@@ -5,21 +5,28 @@
 namespace oclu
 {
 
+class NLCLProgram;
+class NLCLProgStub;
+
 class OCLUAPI NLCLProcessor
 {
-protected:
-    class NailangHolder;
-    std::unique_ptr<NailangHolder> Holder;
-    common::mlog::MiniLogger<false> Logger;
-    NLCLProcessor(common::mlog::MiniLogger<false>&& logger, common::span<const std::byte> source);
-    virtual void InitHolder();
 public:
-    NLCLProcessor(common::span<const std::byte> source);
+    using LoggerType = std::variant<common::mlog::MiniLogger<false>, common::mlog::MiniLogger<false>*>;
+protected:
+    mutable std::variant<common::mlog::MiniLogger<false>, common::mlog::MiniLogger<false>*> TheLogger;
+    common::mlog::MiniLogger<false>& Logger() 
+    { 
+        return TheLogger.index() == 0 ? std::get<0>(TheLogger) : *std::get<1>(TheLogger);
+    }
+    virtual void ConfigureCL(NLCLProgStub& stub);
+public:
+    NLCLProcessor();
+    NLCLProcessor(common::mlog::MiniLogger<false>&& logger);
     virtual ~NLCLProcessor();
 
-    virtual void ConfigureCL();
-    virtual std::u32string GenerateCL();
-    virtual oclProgram CompileProgram();
-};
+    virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source);
+    virtual NLCLProgStub ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx);
+    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx);
+}; 
 
 }

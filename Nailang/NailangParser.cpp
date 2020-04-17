@@ -317,16 +317,22 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
     while (true)
     {
         const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectRawOrMeta);
-        const auto tkType = token.GetIDEnum<SectorLangToken>();
-        if (tkType == SectorLangToken::Raw)
+        switch (const auto tkType = token.GetIDEnum<SectorLangToken>())
+        {
+        case SectorLangToken::Raw:
         {
             RawBlockWithMeta block;
             static_cast<RawBlock&>(block) = FillRawBlock(token.GetString());
             block.MetaFunctions = MemPool.CreateArray(metaFuncs);
             return block;
+        } break;
+        case SectorLangToken::MetaFunc:
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
+            break;
+        default:
+            Expects(false);
+            break;
         }
-        Expects(tkType == SectorLangToken::MetaFunc);
-        metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
     }
 }
 
@@ -407,7 +413,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, 
         tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();
 
-    std::vector<BlockContent> contents;
+    std::vector<BlockContentItem> contents;
     std::vector<FuncCall> allMetaFuncs;
     std::vector<FuncCall> metaFuncs;
     const auto AppendMetaFuncs = [&]() 
@@ -432,7 +438,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         {
             const auto target = MemPool.Create<RawBlock>(FillRawBlock(token.GetString()));
             const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContent::Generate(target, offset, count));
+            contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::Block:
@@ -453,7 +459,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             }
             const auto target = MemPool.Create<Block>(inlineBlk);
             const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContent::Generate(target, offset, count));
+            contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::Func:
@@ -465,7 +471,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             EatSemiColon();
             const auto target = MemPool.Create<FuncCall>(funccall);
             const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContent::Generate(target, offset, count));
+            contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::Var:
@@ -475,7 +481,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             Assignment assign = ParseAssignment(token.GetString());
             const auto target = MemPool.Create<Assignment>(assign);
             const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContent::Generate(target, offset, count));
+            contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
         case SectorLangToken::CurlyBrace:

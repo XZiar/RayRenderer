@@ -12,22 +12,22 @@ Nailang is a simplified customizable language.
 
 DataType is limited:
 
-### Uint - 64bit unsigned integer
+#### Uint - 64bit unsigned integer
 `123u`, `0x1ff`, `0b01010` are all `Uint`. 
-### Int - 64bit signed integer
+#### Int - 64bit signed integer
 `123`, `-456` are all `Int`.
-### FP - 64bit floating point
+#### FP - 64bit floating point
 `123.`, `-456.`, `7e8`, `9.0e-3` are all `FP`. Note that exponential cannot be FP.
-### Bool - boolean
+#### Bool - boolean
 `true`, `false`, `TruE` are all `Bool`. When calculated with numbers, `true`=`1` and `false`=`0`.
-### Str - string
+#### Str - string
 `"hello"`, `"\"world\""` are all `Str`. Escape character supported for `\r`,`\n`,`\0`,`\"`,`\t`,`\\`, others will simply keep later character.
-### Custom - cunstom type
+#### Custom - cunstom type
 You can extend Nailang to support custom type. Custom type cannot be directly parsed, but can be lookuped and used by name. Meta-data can also be provided.
 
 ### Literal
 
-Literal is parsed at parsing time, create an unnamed variable. It cannot be custom type.
+Literal is parsed at parsing time and it cannot be custom type.
 
 ### Variable
 
@@ -47,17 +47,38 @@ Function call calls a function with arguments, may result an arguemnt.
 
 `*Func(x,y)` is a function call, where `*` is the prefix for usage, `Func` is the name, `x` and `y` is the arguments.
 
-### Expression
+### Operator
 
-An expression is a combination of function calls. Operator is used for better readibility. Eg, `1+a`, `4 && false`, `!true`.
+Operator is used for better readibility, but currently they will be converted into function calls at runtime. Eg, `1+a`, `4 && false`, `!true`.
 
-**Expresson can have one or two leave**, which means there's `UnaryExpr` and `BinaryExpr`.
+**Operator can have one or two leaves**, which means there's `Unary Operator` and `Binary Operator`.
+
+[Function call](#function-call), [variable](#variable), [literal](#literal) can all be leaf of an operator. 
+
+| Operator | Type | FuncCall Name | Example |
+|:--------:|:----:|:--------------|--------:|
+|`==`|Binary|EmbedOp.Equal        |`1==3`|
+|`!=`|Binary|EmbedOp.NotEqual     |`1!=3`|
+|`<` |Binary|EmbedOp.Less         |`1<3`|
+|`<=`|Binary|EmbedOp.LessEqual    |`1<=3`|
+|`>` |Binary|EmbedOp.Greater      |`1>3`|
+|`>=`|Binary|EmbedOp.GreaterEqual |`1>=3`|
+|`&&`|Binary|EmbedOp.And          |`true && 3`|
+|`||`|Binary|EmbedOp.Or           |`1 || false`|
+|`+` |Binary|EmbedOp.Add          |`1 + 3`|
+|`-` |Binary|EmbedOp.Sub          |`1 - 3`|
+|`*` |Binary|EmbedOp.Mul          |`1 * 3`|
+|`/` |Binary|EmbedOp.Div          |`1 / 3`|
+|`%` |Binary|EmbedOp.Rem          |`1 % 3`|
+|`!` | Unary|EmbedOp.Not          |`!true`|
 
 **Operators have no precedence**, so you need to add a pair of parentheses manually. Eg, `(a*b)+c`, `(1+(2))`.
 
-[Function call](#function-call), [variable](#variable), [literal](#literal) are all leaves of a expression. An expression can also be a leave of another expression, which make expression a tree.
+### Expression
 
-An expression must be either **empty**(`()`), or **single element only**(`(x)`), or **leaef(ves) with an operator**(`1+x`).
+An expression is in fact an AST node, usually comes with an [operator](#operator). An expression can also be a leaf of another operator, which make expression set a tree.
+
+An expression must be either **empty**(`()`), or **single element only**(`(x)`), or **leaf(ves) with an operator**(`1+x`).
 
 ### Command
 
@@ -73,9 +94,19 @@ Meta-function is indeed a function call with prefix'`@`'. It must be used standa
 
 The return value of meta-function is discard. Runtime is required to evalute the function and modify the program states.
 
-### Assign 
+### Assignment
 
-Assign is a command, means assign a value to a variable. The syntax is `(var) = (statement);`.
+Assignment is a command, means assign a value to a variable. The syntax is `(var) (op) (statement);`.
+
+The `op` is usually `=`, but self-modifying operator is also introduced for better readibility.
+
+| op | Example | Actual |
+|:--:|:--------|:-------|
+|`=` |`a = 1`  |`a = 1`     |
+|`+=`|`a += 1` |`a = a + 1` |
+|`-=`|`a -= 1` |`a = a - 1` |
+|`/=`|`a /= 1` |`a = a / 1` |
+|`%=`|`a %= 1` |`a = a % 1` |
 
 ### FuncCall
 
@@ -116,7 +147,7 @@ Here's some examples for the [gcd]() algorithm:
 ### gcd version 1
 
 ```
-tmp = 1;
+tmp = 1u;
 @While(tmp != 0)
 #Block("")
 {
@@ -177,15 +208,46 @@ m = $gcd(m,n);
 ```
 is equivalent to C++ code below
 ```C++
-static constexpr auto refgcd(int64_t m, int64_t n)
+static constexpr auto refgcd(uint64_t m, uint64_t n)
 {
-    const uint64_t tmp = m % n;
+    const auto tmp = m % n;
     if (tmp == 0)
         return n;
     return refgcd(n, tmp);
 }
 m = refgcd(m, n);
 ```
+
+## Execute
+
+Nailang is aimed to be a extensible script language. Due to the demand of extensions, static type check is almost unavaliable so everything is dynamic.
+
+After parsing, Nailang source code will be converted into AST-like format and execution performed at AST level.
+
+### Memory Management
+
+#### MemPool
+
+In order to avoid memory fragments, `MemPool` is introduced. 
+
+It is a trunk-based storage with no de-allocation support. All AST info are stored compactly inside `MemPool`.
+
+#### EvaluateContext
+
+EvaluateContext is to store runtime information, including variables and local functions.
+
+### `RawArg` and `Arg`
+
+At AST level, literals and variables are stored inside `RawArg`. But actual function will accept `Arg`, so there will be a conversion.
+
+The main differences between `RawArg` and `Arg` are:
+
+ * `RawArg` support `LateBindVar`, which is simply the name of the variable. But `Arg` will evaluate all `LateBindVar`s into actual datatype. It is still possible to delay the evaluation by introducing `Custom Type`. 
+ * `Rawarg` is constant, so the name of variable will be stored at source itself, the string content will be stored at [MemPool](#mempool) if needed. But `Arg` is dynamic, so its content will be stored at heap individually.
+
+### Type Promotion
+
+Type promotion is similar to C++ since the implementation is C++ based.
 
 ## License
 

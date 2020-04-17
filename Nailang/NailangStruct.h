@@ -433,7 +433,6 @@ struct BlockContent
 {
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
     uintptr_t Pointer;
-    uint32_t Offset, Count;
 
     template<typename T>
     forceinline const T* Get() const noexcept
@@ -469,29 +468,33 @@ struct BlockContent
         default:Expects(false); return visitor(static_cast<const Assignment*>(nullptr));
         }
     }
-    static BlockContent Generate(const Assignment* ptr, const uint32_t offset, const uint32_t count)
+};
+struct BlockContentItem : public BlockContent
+{
+    uint32_t Offset, Count;
+    static BlockContentItem Generate(const Assignment* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::Assignment), offset, count };
+        return BlockContentItem{ pointer | common::enum_cast(Type::Assignment), offset, count };
     }
-    static BlockContent Generate(const FuncCall* ptr, const uint32_t offset, const uint32_t count)
+    static BlockContentItem Generate(const FuncCall* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::FuncCall), offset, count };
+        return BlockContentItem{ pointer | common::enum_cast(Type::FuncCall), offset, count };
     }
-    static BlockContent Generate(const RawBlock* ptr, const uint32_t offset, const uint32_t count)
+    static BlockContentItem Generate(const RawBlock* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::RawBlock), offset, count };
+        return BlockContentItem{ pointer | common::enum_cast(Type::RawBlock), offset, count };
     }
-    static BlockContent Generate(const Block* ptr, const uint32_t offset, const uint32_t count)
+    static BlockContentItem Generate(const Block* ptr, const uint32_t offset, const uint32_t count)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::Block), offset, count };
+        return BlockContentItem{ pointer | common::enum_cast(Type::Block), offset, count };
     }
 };
 
@@ -546,7 +549,7 @@ private:
     };
 public:
     common::span<const FuncCall> MetaFuncations;
-    common::span<const BlockContent> Content;
+    common::span<const BlockContentItem> Content;
 
     constexpr BlockIterator begin() const noexcept
     {
