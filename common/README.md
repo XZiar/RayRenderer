@@ -28,7 +28,7 @@ It also has experiemental compile-time reflection support based on `FUNCSIG` mac
 
 Custom Exception model, inherit from std::runtime_error, with support of nested-exception, strong-type, Unicode message, arbitrary extra data...
 
-### [Linq](./Linq.hpp) **Deprecated**
+### [Linq](./Linq.hpp) `**Deprecated**`
 
 C#-like Linq implementation. It is compile-time based.
 
@@ -66,7 +66,7 @@ An ateempt to combine intrusive refrence counting with pimpl. It natively suppor
 
 It is used by inherit so we can expose operations natively without using `->`. However, seperating data and operation makes it harder to decide which part need to be keep by others.
 
-### [Wrapper](./Wrapper.hpp) **Deprecated**
+### [Wrapper](./Wrapper.hpp) `**Deprecated**`
 
 Wrapper can be simply regarded as a combination of `shared_ptr` and `make_shared`. It is mostly my own taste and may not be recommended.
 

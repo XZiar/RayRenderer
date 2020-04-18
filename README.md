@@ -75,7 +75,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) 2.1.0
+* [gsl](https://github.com/microsoft/GSL) 3.0.0
   
   [MIT License](./3rdParty/gsl/LICENSE)
 

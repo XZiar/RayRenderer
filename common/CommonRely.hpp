@@ -562,13 +562,15 @@ template<typename T>
 inline constexpr bool is_span_v = detail::is_span<common::remove_cvref_t<T>>::value;
 }
 #else
+#   define GSL_USE_STD_BYTE 1
 #   include "3rdParty/gsl/span"
 namespace common
 {
 template <class ElementType, ptrdiff_t Extent = gsl::dynamic_extent>
 using span = gsl::span<ElementType, Extent>;
 using gsl::as_bytes;
-inline constexpr auto as_writable_bytes = [](auto&& t) constexpr -> decltype(auto) { return gsl::as_writeable_bytes(t); };
+using gsl::as_writable_bytes;
+//inline constexpr auto as_writable_bytes = [](auto&& t) constexpr -> decltype(auto) { return gsl::as_writeable_bytes(t); };
 template<typename T>
 using is_span = gsl::details::is_span<T>;
 template<typename T>

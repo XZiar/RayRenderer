@@ -417,13 +417,13 @@ NailangRuntimeBase::~NailangRuntimeBase()
 
 void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
 {
-    if (static_cast<size_t>(call.Args.size()) != count)
+    if (call.Args.size() != count)
         throw U"Expect Arg Count Not Match"sv;
 }
 
 void NailangRuntimeBase::ThrowByArgCount(common::span<const Arg> args, const size_t count) const
 {
-    if (static_cast<size_t>(args.size()) != count)
+    if (args.size() != count)
         throw U"Expect Arg Count Not Match"sv;
 }
 
