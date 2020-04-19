@@ -22,6 +22,7 @@ class OCLUAPI oclPlatform_ : public common::NonCopyable, public common::NonMovab
     friend class GLInterop;
     friend class oclKernel_;
 private:
+    MAKE_ENABLER();
     const cl_platform_id PlatformID;
     std::vector<oclDevice_> Devices;
     oclDevice DefDevice;
@@ -30,6 +31,7 @@ private:
     common::container::FrozenDenseSet<std::string> Extensions;
 
     oclPlatform_(const cl_platform_id pID);
+    void InitDevice();
     std::vector<cl_context_properties> GetCLProps() const;
     oclContext CreateContext(const std::vector<oclDevice>& devs, const std::vector<cl_context_properties>& props) const;
 public:

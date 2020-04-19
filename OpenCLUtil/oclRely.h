@@ -56,6 +56,7 @@ namespace oclu
 class oclUtil;
 class oclMapPtr_;
 class GLInterop;
+class NLCLEvalContext;
 
 enum class Vendors { Other = 0, NVIDIA, Intel, AMD, ARM, Qualcomm };
 

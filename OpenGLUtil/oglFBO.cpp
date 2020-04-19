@@ -163,7 +163,7 @@ bool oglFrameBuffer_::SetViewPort(const uint32_t width, const uint32_t height)
 
 void oglFrameBuffer_::BindDraws(const common::span<GLenum> bindings)
 {
-    Expects(bindings.size() < CtxFunc->MaxDrawBuffers); // cannot bind such many buffers at the same time
+    Expects(bindings.size() < static_cast<size_t>(CtxFunc->MaxDrawBuffers)); // cannot bind such many buffers at the same time
     const auto nochange = common::linq::FromIterable(DrawBindings)
         .Pair(common::linq::FromIterable(bindings))
         .AllIf([](const auto& pair) { return pair.first == pair.second; });

@@ -10,6 +10,8 @@ using std::string_view;
 using std::u16string_view;
 using std::vector;
 
+MAKE_ENABLER_IMPL(oclPlatform_)
+
 
 common::mlog::MiniLogger<false>& oclUtil::GetOCLLog()
 {
@@ -41,8 +43,9 @@ const vector<oclPlatform>& oclUtil::GetPlatforms()
         clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
         for (const auto& pID : platformIDs)
         {
-            auto plt = oclPlatform(new oclPlatform_(pID));
-            plats.push_back(plt);
+            auto plt = MAKE_ENABLER_SHARED(oclPlatform_, (pID));
+            plt->InitDevice();
+            plats.emplace_back(std::move(plt));
         }
         return plats;
     }();

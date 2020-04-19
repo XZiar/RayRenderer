@@ -10,6 +10,7 @@
 
 namespace oclu
 {
+class oclPlatform_;
 class oclDevice_;
 using oclDevice = const oclDevice_*;
 
@@ -26,8 +27,9 @@ class OCLUAPI oclDevice_ : public common::NonCopyable
     friend class oclKernel_;
     friend class oclCmdQue_;
 private:
+    std::weak_ptr<const oclPlatform_> Platform;
     cl_device_id DeviceID;
-    oclDevice_(const cl_device_id dID);
+    oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID);
 public:
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseSet<std::string> Extensions;
@@ -38,6 +40,7 @@ public:
     DeviceType Type;
 
     [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
+    [[nodiscard]] std::shared_ptr<const oclPlatform_> GetPlatform() const;
 
     [[nodiscard]] static std::u16string_view GetDeviceTypeName(const DeviceType type);
 };

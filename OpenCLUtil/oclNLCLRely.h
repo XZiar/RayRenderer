@@ -20,6 +20,29 @@ public:
 };
 
 
+class OCLUAPI NLCLEvalContext : public xziar::nailang::CompactEvaluateContext
+{
+protected:
+    const oclDevice Device;
+    xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
+public:
+    NLCLEvalContext(const oclDevice dev) : Device(dev) { }
+    xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
+
+};
+
+class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
+{
+public:
+    using xziar::nailang::NailangRuntimeBase::NailangRuntimeBase;
+    NLCLRuntime(const oclDevice dev);
+    ~NLCLRuntime() override;
+
+    void HandleRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
+    xziar::nailang::Arg EvaluateFunc(const std::u32string_view func, common::span<const xziar::nailang::Arg> args, 
+        common::span<const xziar::nailang::FuncCall> metas, const xziar::nailang::NailangRuntimeBase::FuncTarget target) override;
+};
+
 class OCLUAPI NLCLProgram
 {
     friend class NLCLProcessor;
@@ -40,10 +63,10 @@ class OCLUAPI NLCLProgStub
 protected:
     xziar::nailang::MemoryPool MemPool;
     std::shared_ptr<NLCLProgram> Program;
-    oclContext CLContext;
-    std::unique_ptr<xziar::nailang::NailangRuntimeBase> Runtime;
+    const oclDevice Device;
+    std::unique_ptr<NLCLRuntime> Runtime;
 public:
-    NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, const oclContext& context, std::unique_ptr<xziar::nailang::NailangRuntimeBase>&& runtime);
+    NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, const oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime);
     NLCLProgStub(NLCLProgStub&&) = default;
     virtual ~NLCLProgStub();
 };

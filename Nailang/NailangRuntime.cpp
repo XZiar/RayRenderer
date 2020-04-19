@@ -58,7 +58,7 @@ bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg
     return SetFuncInside(block->Name, { block, offset, size });
 }
 
-bool BasicEvaluateContext::SetFunc(const LocalFunc & func)
+bool BasicEvaluateContext::SetFunc(const detail::LocalFunc & func)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
         size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
@@ -82,14 +82,14 @@ Arg BasicEvaluateContext::GetReturnArg() const
 LargeEvaluateContext::~LargeEvaluateContext()
 { }
 
-Arg LargeEvaluateContext::LookUpArgInside(VarLookup var) const
+Arg LargeEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
-bool LargeEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
+bool LargeEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
 {
     auto it = ArgMap.find(var.Name);
     const bool hasIt = it != ArgMap.end();
@@ -121,7 +121,7 @@ bool LargeEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHold
     return LocalFuncMap.insert_or_assign(name, func).second;
 }
 
-EvaluateContext::LocalFunc LargeEvaluateContext::LookUpFunc(std::u32string_view name)
+detail::LocalFunc LargeEvaluateContext::LookUpFunc(std::u32string_view name)
 {
     const auto it = LocalFuncMap.find(name);
     if (it == LocalFuncMap.end())
@@ -150,7 +150,7 @@ std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const 
     return { &StrPool[offset], len };
 }
 
-Arg CompactEvaluateContext::LookUpArgInside(VarLookup var) const
+Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 {
     for (const auto& [off, len, val] : Args)
         if (GetStr(off, len) == var.Name)
@@ -158,7 +158,7 @@ Arg CompactEvaluateContext::LookUpArgInside(VarLookup var) const
     return Arg{};
 }
 
-bool CompactEvaluateContext::SetArgInside(VarLookup var, Arg arg, const bool force)
+bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
 {
     Arg* target = nullptr;
     for (auto& [off, len, val] : Args)
@@ -200,7 +200,7 @@ bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHo
     return true;
 }
 
-EvaluateContext::LocalFunc CompactEvaluateContext::LookUpFunc(std::u32string_view name)
+detail::LocalFunc CompactEvaluateContext::LookUpFunc(std::u32string_view name)
 {
     for (auto& [key, val] : LocalFuncs)
         if (key == name)
@@ -407,6 +407,16 @@ std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::s
 }
 
 
+NailangRuntimeBase::InnerContextScope::InnerContextScope(NailangRuntimeBase& host, std::shared_ptr<EvaluateContext>&& context) :
+    Host(host), Context(std::move(Host.EvalContext))
+{
+    context->ParentContext = Context;
+    Host.EvalContext = std::move(context);
+}
+NailangRuntimeBase::InnerContextScope::~InnerContextScope()
+{
+    Host.EvalContext = std::move(Context);
+}
 
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
     EvalContext(std::move(context))
@@ -626,7 +636,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     }
 }
 
-Arg NailangRuntimeBase::ExecuteLocalFunc(const EvaluateContext::LocalFunc& func, common::span<const Arg> args)
+Arg NailangRuntimeBase::ExecuteLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args)
 {
     const auto ctx = std::make_shared<CompactEvaluateContext>();
     NailangRuntimeBase runtime(ctx);
@@ -642,6 +652,13 @@ void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::spa
     EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
 }
 
+NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteInnerBlock(const Block& block, common::span<const FuncCall> metas)
+{
+    auto innerCtx = std::make_shared<CompactEvaluateContext>();
+    InnerContextScope scope(*this, innerCtx);
+    return ExecuteBlock({ block, metas });
+}
+
 void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx)
 {
     switch (content.GetType())
@@ -652,7 +669,7 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
     } break;
     case BlockContent::Type::Block:
     {
-        const auto blkStatus = ExecuteBlock({ *content.Get<Block>(), metas });
+        const auto blkStatus = ExecuteInnerBlock(*content.Get<Block>(), metas);
         if (blkStatus == ProgramStatus::Return)
             ctx.Status = ProgramStatus::Return;
         else if (ctx.Status == ProgramStatus::Repeat && blkStatus == ProgramStatus::Break)
@@ -670,9 +687,9 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
 
 NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext ctx)
 {
-    for (size_t idx = 0; idx < ctx.BlockScope.Size();)
+    for (size_t idx = 0; idx < ctx.BlockScope->Size();)
     {
-        const auto& [metas, content] = ctx.BlockScope[idx];
+        const auto& [metas, content] = (*ctx.BlockScope)[idx];
         const auto type = content.GetType();
         if (type == BlockContent::Type::RawBlock)
         {
@@ -682,10 +699,6 @@ NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext 
         {
             ExecuteContent(content, metas, ctx);
         }
-        //else
-        //{
-        //    idx++;
-        //}
         switch (ctx.Status)
         {
         case ProgramStatus::Return:
@@ -701,8 +714,16 @@ NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext 
     return ProgramStatus::End;
 }
 
-void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas)
+void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas)
 {
+    if (checkMetas)
+    {
+
+        BlockContext dummy;
+        auto target = BlockContentItem::Generate(&block, 0, 0);
+        if (!HandleMetaFuncsBefore(metas, target, dummy))
+            return;
+    }
     ExecuteBlock({ block, metas });
 }
 

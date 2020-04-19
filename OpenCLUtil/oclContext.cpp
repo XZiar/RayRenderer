@@ -124,4 +124,24 @@ bool oclContext_::ShouldDebugResurce() const
     return DebugResource;
 }
 
+bool oclContext_::CheckExtensionSupport(const std::string_view name) const
+{
+    if (Plat->GetExtensions().Has(name))
+    {
+        for (const auto& dev : Devices)
+            if (!dev->Extensions.Has(name))
+                return false;
+        return true;
+    }
+    return false;
+}
+
+bool oclContext_::CheckIncludeDevice(const oclDevice dev) const noexcept
+{
+    for (const auto d : Devices)
+        if (d == dev)
+            return true;
+    return false;
+}
+
 }

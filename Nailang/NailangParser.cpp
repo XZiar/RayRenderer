@@ -317,7 +317,7 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
     while (true)
     {
         const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectRawOrMeta);
-        switch (const auto tkType = token.GetIDEnum<SectorLangToken>())
+        switch (token.GetIDEnum<SectorLangToken>())
         {
         case SectorLangToken::Raw:
         {

@@ -13,6 +13,9 @@
 namespace xziar::nailang
 {
 
+
+namespace detail
+{
 struct VarLookup
 {
     std::u32string_view Name;
@@ -45,30 +48,34 @@ private:
     size_t Offset, NextOffset;
 };
 
+struct LocalFunc
+{
+    const Block* Body;
+    common::span<std::u32string_view> ArgNames;
+
+    constexpr operator bool() const noexcept { return Body != nullptr; }
+};
+}
+
+
 class NAILANGAPI EvaluateContext
 {
+    friend class NailangRuntimeBase;
 protected:
     static bool CheckIsLocal(std::u32string_view& name) noexcept;
 
     std::shared_ptr<EvaluateContext> ParentContext;
 
-    virtual Arg LookUpArgInside(VarLookup var) const = 0;
-    virtual bool SetArgInside(VarLookup var, Arg arg, const bool force) = 0;
+    virtual Arg LookUpArgInside(detail::VarLookup var) const = 0;
+    virtual bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) = 0;
 public:
-    struct LocalFunc
-    {
-        const Block* Body;
-        common::span<std::u32string_view> ArgNames;
-
-        constexpr operator bool() const noexcept { return Body != nullptr; }
-    };
     virtual ~EvaluateContext();
 
     virtual Arg LookUpArg(std::u32string_view var) const;
     virtual bool SetArg(std::u32string_view var, Arg arg);
-    virtual LocalFunc LookUpFunc(std::u32string_view name) = 0;
+    virtual detail::LocalFunc LookUpFunc(std::u32string_view name) = 0;
     virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
-    virtual bool SetFunc(const LocalFunc& func) = 0;
+    virtual bool SetFunc(const detail::LocalFunc& func) = 0;
     virtual void SetReturnArg(Arg arg) = 0;
     virtual Arg  GetReturnArg() const = 0;
     virtual size_t GetArgCount() const noexcept = 0;
@@ -86,7 +93,7 @@ public:
     ~BasicEvaluateContext() override;
 
     bool SetFunc(const Block* block, common::span<const RawArg> args) override;
-    bool SetFunc(const LocalFunc& func) override;
+    bool SetFunc(const detail::LocalFunc& func) override;
 
     void SetReturnArg(Arg arg) override;
     Arg GetReturnArg() const override;
@@ -98,13 +105,13 @@ protected:
     std::map<std::u32string_view, LocalFuncHolder, std::less<>> LocalFuncMap;
     std::optional<Arg> ReturnArg;
 
-    Arg LookUpArgInside(VarLookup var) const override;
-    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
+    Arg LookUpArgInside(detail::VarLookup var) const override;
+    bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~LargeEvaluateContext() override;
 
-    EvaluateContext::LocalFunc LookUpFunc(std::u32string_view name) override;
+    detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
     size_t GetArgCount() const noexcept override;
     size_t GetFuncCount() const noexcept override;
@@ -119,13 +126,13 @@ protected:
 
     std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
 
-    Arg LookUpArgInside(VarLookup var) const override;
-    bool SetArgInside(VarLookup var, Arg arg, const bool force) override;
+    Arg LookUpArgInside(detail::VarLookup var) const override;
+    bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
 
-    EvaluateContext::LocalFunc LookUpFunc(std::u32string_view name) override;
+    detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
     size_t GetArgCount() const noexcept override;
     size_t GetFuncCount() const noexcept override;
@@ -158,16 +165,18 @@ protected:
     struct BlockContext
     {
         common::span<const FuncCall> MetaScope;
-        const Block& BlockScope;
+        const Block* BlockScope;
         ProgramStatus Status = ProgramStatus::Next;
-        BlockContext(const Block& block, common::span<const FuncCall> metas) :
-            MetaScope(metas), BlockScope(block) { }
+        constexpr BlockContext() noexcept : 
+            MetaScope(), BlockScope(nullptr) {}
+        constexpr BlockContext(const Block& block, common::span<const FuncCall> metas) noexcept :
+            MetaScope(metas), BlockScope(&block) { }
     };
     struct ContentContext
     {
         common::span<const FuncCall> MetaScope;
         const BlockContent& ContentScope;
-        ContentContext(const BlockContent& content, common::span<const FuncCall> metas) :
+        constexpr ContentContext(const BlockContent& content, common::span<const FuncCall> metas) noexcept :
             MetaScope(metas), ContentScope(content) { }
     };
     struct FuncTarget
@@ -196,6 +205,14 @@ protected:
             return *reinterpret_cast<const ContentContext*>(Pointer & InvFlag);
         }
     };
+    struct InnerContextScope : public common::NonCopyable, public common::NonMovable
+    {
+        NailangRuntimeBase& Host;
+        std::shared_ptr<EvaluateContext> Context;
+        InnerContextScope(NailangRuntimeBase& host, std::shared_ptr<EvaluateContext>&& context);
+        ~InnerContextScope();
+    };
+
     std::shared_ptr<EvaluateContext> EvalContext;
     
     void ThrowByArgCount(const FuncCall& call, const size_t count) const;
@@ -211,14 +228,15 @@ protected:
             Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
-    virtual Arg  ExecuteLocalFunc(const EvaluateContext::LocalFunc& func, common::span<const Arg> args);
+    virtual Arg  ExecuteLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args);
     virtual void ExecuteAssignment(const Assignment& assign, common::span<const FuncCall> metas);
+    virtual ProgramStatus ExecuteInnerBlock(const Block& block, common::span<const FuncCall> metas);
     virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
     virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
-    ~NailangRuntimeBase();
-            void ExecuteBlock(const Block& block, common::span<const FuncCall> metas);
+    virtual ~NailangRuntimeBase();
+    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true);
 };
 
 }

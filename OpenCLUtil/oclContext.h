@@ -18,6 +18,7 @@ using oclContext = std::shared_ptr<const oclContext_>;
 class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovable
 {
     friend class GLInterop;
+    friend class NLCLEvalContext;
     friend class oclPlatform_;
     friend class oclCmdQue_;
     friend class oclProgram_;
@@ -33,6 +34,8 @@ public:
     [[nodiscard]] oclDevice GetGPUDevice() const;
     void SetDebugResource(const bool shouldEnable) const;
     [[nodiscard]] bool ShouldDebugResurce() const;
+    [[nodiscard]] bool CheckExtensionSupport(const std::string_view name) const;
+    [[nodiscard]] bool CheckIncludeDevice(const oclDevice dev) const noexcept;
 
 private:
     const std::shared_ptr<const oclPlatform_> Plat;

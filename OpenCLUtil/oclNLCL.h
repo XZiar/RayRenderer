@@ -25,8 +25,8 @@ public:
     virtual ~NLCLProcessor();
 
     virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source);
-    virtual NLCLProgStub ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx);
-    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx);
+    virtual NLCLProgStub ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev);
+    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev);
 }; 
 
 }

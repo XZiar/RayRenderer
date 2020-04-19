@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "oclDevice.h"
+#include "oclPlatform.h"
 
 
 namespace oclu
@@ -36,7 +37,8 @@ static T GetNum(const cl_device_id DeviceID, const cl_device_info type)
     return num;
 }
 
-oclDevice_::oclDevice_(const cl_device_id dID) : DeviceID(dID)
+oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID) :
+    Platform(plat), DeviceID(dID)
 {
     cl_device_type dtype;
     clGetDeviceInfo(DeviceID, CL_DEVICE_TYPE, sizeof(dtype), &dtype, nullptr);
@@ -79,6 +81,11 @@ oclDevice_::oclDevice_(const cl_device_id dID) : DeviceID(dID)
 }
 
 using namespace std::literals;
+
+std::shared_ptr<const oclPlatform_> oclDevice_::GetPlatform() const
+{
+    return Platform.lock();
+}
 
 u16string_view oclDevice_::GetDeviceTypeName(const DeviceType type)
 {

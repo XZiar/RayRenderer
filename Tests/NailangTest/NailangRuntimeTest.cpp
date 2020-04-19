@@ -125,7 +125,7 @@ CHECK_ARG(ret, type, ans);                  \
 TEST(NailangRuntime, VarLookup)
 {
     constexpr auto var = U"a.b..c"sv;
-    xziar::nailang::VarLookup lookup(var);
+    xziar::nailang::detail::VarLookup lookup(var);
     EXPECT_EQ(lookup.Name, var);
     EXPECT_EQ(lookup.Part(), U"a"sv);
     EXPECT_TRUE(lookup.Next());
