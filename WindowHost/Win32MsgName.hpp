@@ -1,4 +1,5 @@
 #pragma once
+#include "common/FrozenDenseSet.hpp"
 #include "common/ContainerEx.hpp"
 
 namespace xziar::gui::detail

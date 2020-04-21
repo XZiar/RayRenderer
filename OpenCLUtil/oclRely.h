@@ -22,6 +22,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/ContainerEx.hpp"
+#include "common/FrozenDenseSet.hpp"
 #include "common/Delegate.hpp"
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"

@@ -455,48 +455,4 @@ public:
 };
 
 
-template<typename T, typename Compare = std::less<>>
-class FrozenDenseSet
-{
-private:
-    std::vector<T> Data;
-public:
-    constexpr FrozenDenseSet() {}
-    template<typename T1, typename Alloc>
-    FrozenDenseSet(const std::set<T1, Compare, Alloc>& data)
-    {
-        Data.reserve(data.size());
-        for (const auto& dat : data)
-            Data.emplace_back(dat);
-    }
-    template<typename T1, typename Alloc>
-    FrozenDenseSet(const std::vector<T1, Alloc>& data)
-    {
-        Data.resize(data.size());
-        std::partial_sort_copy(data.cbegin(), data.cend(), Data.begin(), Data.end(), Compare());
-    }
-    FrozenDenseSet(std::vector<T>&& data) : Data(std::move(data))
-    {
-        std::sort(Data.begin(), Data.end(), Compare());
-    }
-    decltype(auto) begin() const noexcept { return Data.cbegin();}
-    decltype(auto) end() const noexcept { return Data.cend();}
-
-    constexpr const std::vector<T>& RawData() const noexcept { return Data; }
-    template<typename E>
-    constexpr bool Has(E&& element) const
-    {
-        return std::binary_search(Data.cbegin(), Data.cend(), element, Compare());
-    }
-    template<typename E>
-    constexpr const T* Find(E&& element) const
-    {
-        const auto ret = std::lower_bound(Data.cbegin(), Data.cend(), element, Compare());
-        if (ret != Data.cend() && !Compare()(element, *ret))
-            return &*ret;
-        else
-            return nullptr;
-    }
-};
-
 }

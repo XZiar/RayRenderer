@@ -22,6 +22,7 @@
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/ContainerEx.hpp"
+#include "common/FrozenDenseSet.hpp"
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"

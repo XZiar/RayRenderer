@@ -28,7 +28,7 @@ private:
     oclDevice DefDevice;
     clGetGLContextInfoKHR_fn FuncClGetGLContext = nullptr;
     clGetKernelSubGroupInfoKHR_fn FuncClGetKernelSubGroupInfo = nullptr;
-    common::container::FrozenDenseSet<std::string> Extensions;
+    common::container::FrozenDenseStringSet<char> Extensions;
 
     oclPlatform_(const cl_platform_id pID);
     void InitDevice();
@@ -39,7 +39,7 @@ public:
     uint32_t Version;
     Vendors PlatVendor;
     [[nodiscard]] std::vector<oclDevice> GetDevices() const;
-    [[nodiscard]] const common::container::FrozenDenseSet<std::string>& GetExtensions() const { return Extensions; }
+    [[nodiscard]] const common::container::FrozenDenseStringSet<char>& GetExtensions() const { return Extensions; }
     [[nodiscard]] oclDevice GetDefaultDevice() const { return DefDevice; }
     [[nodiscard]] oclContext CreateContext(const std::vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
     [[nodiscard]] oclContext CreateContext(oclDevice dev) const { return CreateContext(std::vector<oclDevice>{ dev }); }

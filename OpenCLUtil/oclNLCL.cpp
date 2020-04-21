@@ -9,6 +9,7 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
+using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
@@ -83,7 +84,9 @@ Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var
 }
 
 
-NLCLRuntime::NLCLRuntime(const oclDevice dev) : NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)) 
+NLCLRuntime::NLCLRuntime(oclDevice dev) : 
+    NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)),
+    Device(dev), EnabledExtensions(Device->Extensions.Size())
 { }
 NLCLRuntime::~NLCLRuntime()
 { }
@@ -101,10 +104,51 @@ Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const
         const auto subName = func.substr(5);
         switch (hash_(subName))
         {
+        case "EnableExtension"_hash:
+        {
+            ThrowByArgCount(args, 1);
+            if (const auto sv = args[0].GetStr(); sv.has_value())
+            {
+                EnableExtension(sv.value());
+            }
+            else
+                throw U"Arg of [EnableExtension] should be string"sv;
+        } return {};
         default: break;
         }
     }
     return NailangRuntimeBase::EvaluateFunc(func, args, metas, target);
+}
+
+void NLCLRuntime::EnableExtension(std::string_view ext)
+{
+    if (ext == "all"sv)
+        EnabledExtensions.assign(EnabledExtensions.size(), true);
+    else if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
+        EnabledExtensions[idx] = true;
+}
+
+void NLCLRuntime::EnableExtension(std::u32string_view ext)
+{
+    struct TmpSv : public common::container::PreHashedStringView<>
+    {
+        using Hasher = common::container::DJBHash;
+        std::u32string_view View;
+        constexpr TmpSv(std::u32string_view sv) noexcept : 
+            PreHashedStringView(Hasher()(sv)), View(sv) { }
+        constexpr bool operator==(std::string_view other) const noexcept
+        {
+            if (View.size() != other.size()) return false;
+            for (size_t i = 0; i < View.size(); ++i)
+                if (View[i] != static_cast<char32_t>(other[i]))
+                    return false;
+            return true;
+        }
+    };
+    if (ext == U"all"sv)
+        EnabledExtensions.assign(EnabledExtensions.size(), true);
+    else if (const auto idx = Device->Extensions.GetIndex(TmpSv{ext}); idx != SIZE_MAX)
+        EnabledExtensions[idx] = true;
 }
 
 
@@ -115,7 +159,7 @@ NLCLProgram::~NLCLProgram()
 
 
 NLCLProgStub::NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, 
-    const oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime) :
+    oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime) :
     Program(program), Device(dev), Runtime(std::move(runtime))
 { }
 NLCLProgStub::~NLCLProgStub()
@@ -132,16 +176,11 @@ NLCLProcessor::~NLCLProcessor()
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub)
 {
-    using xziar::nailang::BlockContent;
-    for (const auto [meta, tmp] : stub.Program->Program)
-    {
-        if (tmp.GetType() != BlockContent::Type::Block)
-            continue;
-        const auto& block = *tmp.Get<xziar::nailang::Block>();
-        if (block.Type != U"oclu.prepare"sv)
-            continue;
-        stub.Runtime->ExecuteBlock(block, meta);
-    }
+    stub.Program->ForEachBlockType(U"oclu.Prepare"sv,
+        [&](const Block& block, common::span<const FuncCall> metas) 
+        {
+            stub.Runtime->ExecuteBlock(block, metas);
+        });
 }
 
 std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source)
@@ -156,14 +195,14 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
     return prog;
 }
 
-NLCLProgStub NLCLProcessor::ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev)
+NLCLProgStub NLCLProcessor::ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, oclDevice dev)
 {
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(dev));
     ConfigureCL(stub);
     return stub;
 }
 
-oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev)
+oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev)
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);

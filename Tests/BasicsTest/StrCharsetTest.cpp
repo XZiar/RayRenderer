@@ -33,8 +33,16 @@ static auto ToByteSpan(T&& str) noexcept
     return common::as_bytes(common::span<const Char>(sv.data(), sv.size()));
 }
 
-#define CHK_STR_BYTE_EQ(src, ref) EXPECT_THAT(ToByteSpan(src), testing::ContainerEq(ToByteSpan(ref)))
-#define CHK_STR_UNIT_EQ(src, ref) EXPECT_THAT( ToIntSpan(src), testing::ContainerEq(ToIntSpan(ref)))
+template<typename T>
+static void CompareSpans(const common::span<T> l, const common::span<T> r) noexcept
+{
+    EXPECT_EQ(l.size(), r.size());
+    for (size_t i = 0; i < l.size(); ++i)
+        EXPECT_EQ(l[i], r[i]) << "element [" << i << "], mismatch with [" << l[i] << "] and [" << r[i] << "].\n";
+}
+
+#define CHK_STR_BYTE_EQ(src, ref) CompareSpans(ToByteSpan(src), ToByteSpan(ref))
+#define CHK_STR_UNIT_EQ(src, ref) CompareSpans( ToIntSpan(src),  ToIntSpan(ref))
 
 
 
