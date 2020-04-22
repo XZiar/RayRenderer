@@ -434,6 +434,31 @@ struct BlockContent
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
     uintptr_t Pointer;
 
+    static BlockContent Generate(const Assignment* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
+    }
+    static BlockContent Generate(const FuncCall* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
+    }
+    static BlockContent Generate(const RawBlock* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
+    }
+    static BlockContent Generate(const Block* ptr)
+    {
+        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
+        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
+        return BlockContent{ pointer | common::enum_cast(Type::Block) };
+    }
+
     template<typename T>
     forceinline const T* Get() const noexcept
     {
@@ -472,29 +497,10 @@ struct BlockContent
 struct BlockContentItem : public BlockContent
 {
     uint32_t Offset, Count;
-    static BlockContentItem Generate(const Assignment* ptr, const uint32_t offset, const uint32_t count)
+    template<typename T>
+    static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count)
     {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContentItem{ pointer | common::enum_cast(Type::Assignment), offset, count };
-    }
-    static BlockContentItem Generate(const FuncCall* ptr, const uint32_t offset, const uint32_t count)
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContentItem{ pointer | common::enum_cast(Type::FuncCall), offset, count };
-    }
-    static BlockContentItem Generate(const RawBlock* ptr, const uint32_t offset, const uint32_t count)
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContentItem{ pointer | common::enum_cast(Type::RawBlock), offset, count };
-    }
-    static BlockContentItem Generate(const Block* ptr, const uint32_t offset, const uint32_t count)
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContentItem{ pointer | common::enum_cast(Type::Block), offset, count };
+        return BlockContentItem{ BlockContent::Generate(ptr), offset, count };
     }
 };
 

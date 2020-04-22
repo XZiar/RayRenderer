@@ -105,7 +105,7 @@ protected:
     std::vector<Ch> Pool;
     std::vector<Piece> Pieces;
 
-    constexpr bool InnerSearch(SVType element, uint64_t hash) const noexcept
+    forceinline constexpr bool InnerSearch(SVType element, uint64_t hash) const noexcept
     {
         for (const auto piece : Pieces)
         {
@@ -120,7 +120,7 @@ protected:
     }
 
     template<typename C, typename F>
-    void FillFrom(const C& data, F func = NoOpTag{})
+    forceinline void FillFrom(const C& data, F func = NoOpTag{})
     {
         Expects(Pieces.empty());
         Expects(Pool.empty());

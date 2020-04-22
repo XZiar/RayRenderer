@@ -59,7 +59,7 @@ public:
 
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::EvaluateArg;
-    using NailangRuntimeBase::ExecuteAssignment;
+    using NailangRuntimeBase::OnAssignment;
     using NailangRuntimeBase::ExecuteContent;
 };
 
@@ -306,7 +306,7 @@ static void PEAssign(NailangRT& runtime, MemoryPool& pool,
     const common::span<const FuncCall>& metas = {})
 {
     const Assignment assign = BlkParser::GetAssignment(pool, var, src);
-    runtime.ExecuteAssignment(assign, metas);
+    runtime.OnAssignment(assign, metas);
 }
 
 TEST(NailangRuntime, Assign)

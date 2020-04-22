@@ -566,7 +566,7 @@ inline constexpr bool is_span_v = detail::is_span<common::remove_cvref_t<T>>::va
 #   include "3rdParty/gsl/span"
 namespace common
 {
-template <class ElementType, ptrdiff_t Extent = gsl::dynamic_extent>
+template <class ElementType, size_t Extent = gsl::dynamic_extent>
 using span = gsl::span<ElementType, Extent>;
 using gsl::as_bytes;
 using gsl::as_writable_bytes;

@@ -162,6 +162,7 @@ class NAILANGAPI NailangRuntimeBase
 {
 protected:
     enum class ProgramStatus { Next = 0, Repeat, Break, Return, End };
+    enum class MetaFuncResult { Unhandled = 0, Next, Repeat, Skip };
     struct BlockContext
     {
         common::span<const FuncCall> MetaScope;
@@ -184,6 +185,17 @@ protected:
         enum class Type { Empty, Block, Meta };
         constexpr static uintptr_t Flag     = 0x1;
         constexpr static uintptr_t InvFlag  = ~Flag;
+        static constexpr std::u32string_view FuncTargetName(const Type type) noexcept
+        {
+            using namespace std::string_view_literals;
+            switch (type)
+            {
+            case Type::Empty: return U"part of statement"sv;
+            case Type::Block: return U"funccall"sv;
+            case Type::Meta:  return U"metafunc"sv;
+            default:          return U"error"sv;
+            }
+        }
 
         uintptr_t Pointer;
         constexpr FuncTarget() noexcept : Pointer(0) {}
@@ -205,7 +217,7 @@ protected:
             return *reinterpret_cast<const ContentContext*>(Pointer & InvFlag);
         }
     };
-    struct InnerContextScope : public common::NonCopyable, public common::NonMovable
+    struct NAILANGAPI InnerContextScope : public common::NonCopyable, public common::NonMovable
     {
         NailangRuntimeBase& Host;
         std::shared_ptr<EvaluateContext> Context;
@@ -218,19 +230,32 @@ protected:
     void ThrowByArgCount(const FuncCall& call, const size_t count) const;
     void ThrowByArgCount(common::span<const Arg> args, const size_t count) const;
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
-    void ThrowByFuncContext(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
+    void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
+    void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
+    void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    virtual bool HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas, BlockContext& ctx);
+    virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
             bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
-    virtual void HandleRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
 
-            Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+    inline Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
+    {
+        if (call.Args.size() == 0)
+            return EvaluateFunc(call.Name, {}, metas, target);
+        std::vector<Arg> args;
+        args.reserve(call.Args.size());
+        for (const auto& rawarg : call.Args)
+            args.emplace_back(EvaluateArg(rawarg));
+        return EvaluateFunc(call.Name, args, metas, target);
+    }
     virtual Arg  EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
+    virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
+    virtual Arg  EvaluateUnknwonFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
-    virtual Arg  ExecuteLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args);
-    virtual void ExecuteAssignment(const Assignment& assign, common::span<const FuncCall> metas);
-    virtual ProgramStatus ExecuteInnerBlock(const Block& block, common::span<const FuncCall> metas);
+    virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
+    virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
+    virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
+    virtual ProgramStatus OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
     virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
     virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:

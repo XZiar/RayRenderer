@@ -84,20 +84,31 @@ Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var
 }
 
 
-NLCLRuntime::NLCLRuntime(oclDevice dev) : 
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev) :
     NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)),
-    Device(dev), EnabledExtensions(Device->Extensions.Size())
+    Logger(logger), Device(dev), EnabledExtensions(Device->Extensions.Size())
 { }
 NLCLRuntime::~NLCLRuntime()
 { }
 
 void NLCLRuntime::HandleRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
 {
+    if (IsBeginWith(block.Type, U"oglu."sv))
+    {
+        const auto subName = block.Type.substr(5);
+        switch(hash_(subName))
+        {
+        case "Global"_hash: GlobalBlocks.push_back(&block); break;
+        case "Struct"_hash: StructBlocks.push_back(&block); break;
+        case "Kernel"_hash: KernelBlocks.push_back(&block); break;
+        default: break;
+        }
+    }
     NailangRuntimeBase::HandleRawBlock(block, metas);
 }
 
 Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args,
-    common::span<const FuncCall> metas, const NailangRuntimeBase::FuncTarget target)
+    common::span<const FuncCall> metas, const FuncTarget target)
 {
     if (IsBeginWith(func, U"oglu."sv))
     {
@@ -106,10 +117,12 @@ Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const
         {
         case "EnableExtension"_hash:
         {
+            ThrowIfNotFuncTarget(func, target, FuncTarget::Type::Block);
             ThrowByArgCount(args, 1);
             if (const auto sv = args[0].GetStr(); sv.has_value())
             {
-                EnableExtension(sv.value());
+                if (!EnableExtension(sv.value()))
+                    Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
             }
             else
                 throw U"Arg of [EnableExtension] should be string"sv;
@@ -120,15 +133,18 @@ Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const
     return NailangRuntimeBase::EvaluateFunc(func, args, metas, target);
 }
 
-void NLCLRuntime::EnableExtension(std::string_view ext)
+bool NLCLRuntime::EnableExtension(std::string_view ext)
 {
     if (ext == "all"sv)
         EnabledExtensions.assign(EnabledExtensions.size(), true);
     else if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
         EnabledExtensions[idx] = true;
+    else
+        return false;
+    return true;
 }
 
-void NLCLRuntime::EnableExtension(std::u32string_view ext)
+bool NLCLRuntime::EnableExtension(std::u32string_view ext)
 {
     struct TmpSv : public common::container::PreHashedStringView<>
     {
@@ -149,6 +165,9 @@ void NLCLRuntime::EnableExtension(std::u32string_view ext)
         EnabledExtensions.assign(EnabledExtensions.size(), true);
     else if (const auto idx = Device->Extensions.GetIndex(TmpSv{ext}); idx != SIZE_MAX)
         EnabledExtensions[idx] = true;
+    else
+        return false;
+    return true;
 }
 
 
@@ -197,7 +216,7 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
 
 NLCLProgStub NLCLProcessor::ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, oclDevice dev)
 {
-    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(dev));
+    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev));
     ConfigureCL(stub);
     return stub;
 }

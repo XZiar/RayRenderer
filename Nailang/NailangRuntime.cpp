@@ -1,4 +1,5 @@
 #include "NailangRuntime.h"
+#include "3rdParty/fmt/utfext.h"
 #include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
 #include <cmath>
@@ -421,116 +422,144 @@ NailangRuntimeBase::InnerContextScope::~InnerContextScope()
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
     EvalContext(std::move(context))
 { }
-
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
+
+static constexpr auto ArgTypeName(const Arg::InternalType type) noexcept
+{
+    switch (type)
+    {
+    case Arg::InternalType::Empty:  return U"empty"sv;
+    case Arg::InternalType::Var:    return U"variable"sv;
+    case Arg::InternalType::U32Str:
+    case Arg::InternalType::U32Sv:  return U"string"sv;
+    case Arg::InternalType::Uint:   return U"uint"sv;
+    case Arg::InternalType::Int:    return U"int"sv;
+    case Arg::InternalType::FP:     return U"fp"sv;
+    case Arg::InternalType::Bool:   return U"bool"sv;
+    default:                        return U"error"sv;
+    }
+}
+
+static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
+{
+    switch (type)
+    {
+    case BlockContent::Type::Assignment: return U"assignment"sv;
+    case BlockContent::Type::FuncCall:   return U"funccall"sv;
+    case BlockContent::Type::RawBlock:   return U"rawblock"sv;
+    case BlockContent::Type::Block:      return U"block"sv;
+    default:                             return U"error"sv;
+    }
+}
 
 void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
 {
     if (call.Args.size() != count)
-        throw U"Expect Arg Count Not Match"sv;
+        throw fmt::format(FMT_STRING(U"Func [{}] requires [{}] args, which gives [{}]."), call.Name, call.Args.size(), count);
 }
 
 void NailangRuntimeBase::ThrowByArgCount(common::span<const Arg> args, const size_t count) const
 {
     if (args.size() != count)
-        throw U"Expect Arg Count Not Match"sv;
+        throw fmt::format(FMT_STRING(U"Expected [{}] args, which gives [{}]."), args.size(), count);
 }
 
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::InternalType type) const
 {
     if (arg.TypeData != type)
-        throw U"Arg type not xxx"sv;
+        throw fmt::format(FMT_STRING(U"Expected arg of [{}], which gives [{}]."), ArgTypeName(type), ArgTypeName(arg.TypeData));
 }
 
-void NailangRuntimeBase::ThrowByFuncContext(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const
+void NailangRuntimeBase::ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const
+{
+    if (target.GetType() != type)
+        throw fmt::format(FMT_STRING(U"Func [{}] only support as [{}]."), func, FuncTarget::FuncTargetName(type));
+}
+
+void NailangRuntimeBase::ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
+{
+    if (target.GetType() == type)
+    {
+        throw fmt::format(FMT_STRING(U"Metafunc [{}] cannot be appllied to [{}]."), meta.Name, ContentTypeName(type));
+    }
+}
+
+void NailangRuntimeBase::ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
 {
     if (target.GetType() != type)
     {
-        const auto name = type == FuncTarget::Type::Empty ? U"part of statement"sv : 
-            (type == FuncTarget::Type::Block ? U"funccall"sv : U"metafunc"sv);
-        throw std::u32string(func).append(U" only support as "sv).append(name);
+        throw fmt::format(FMT_STRING(U"Metafunc [{}] can only be appllied to [{}]."), meta.Name, ContentTypeName(type));
     }
 }
+
 
 bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const
 {
     const auto ret = arg.GetBool();
     if (!ret.has_value())
-        throw std::u32string(varName).append(U" should be bool-able"sv);
+        throw fmt::format(FMT_STRING(U"[{}] should be bool-able, which is [{}]."), varName, ArgTypeName(arg.TypeData));
     return ret.value();
 }
 
-bool NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall>, BlockContext& ctx)
+NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall>)
 {
     if (meta.Name == U"Skip"sv)
     {
         switch (meta.Args.size())
         {
-        case 0:  return false;
-        case 1:  return !ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[Skip]"sv);
+        case 0:  return MetaFuncResult::Skip;
+        case 1:  return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[Skip]"sv) ? MetaFuncResult::Skip : MetaFuncResult::Next;
         default: throw U"MetaFunc[Skip] accept 0 or 1 arg only."sv;
         }
     }
     if (meta.Name == U"DefFunc"sv)
     {
-        if (content.GetType() != BlockContent::Type::Block)
-            throw U"MetaFunc[DefFunc] can only be applied to [Block]"sv;
+        ThrowIfNotBlockContent(meta, content, BlockContent::Type::Block);
         for (const auto& arg : meta.Args)
             if (arg.TypeData != RawArg::Type::Var)
                 throw U"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv;
         EvalContext->SetFunc(content.Get<Block>(), meta.Args);
-        return false;
+        return MetaFuncResult::Skip;
     }
     if (meta.Name == U"If"sv)
     {
         ThrowByArgCount(meta, 1);
-        return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[If]"sv);
+        return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[If]"sv) ? MetaFuncResult::Next : MetaFuncResult::Skip;
     }
     if (meta.Name == U"While"sv)
     {
+        ThrowIfBlockContent(meta, content, BlockContent::Type::RawBlock);
+        if (content.GetType() == BlockContent::Type::RawBlock)
+            throw U"MetaFunc[While] cannot be applied to [RawBlock]"sv;
         ThrowByArgCount(meta, 1);
-        if (ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"arg of MetaFunc[While]"sv))
-        {
-            ctx.Status = ProgramStatus::Repeat;
-            return true;
-        }
+        if (ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[While]"sv))
+            return MetaFuncResult::Repeat;
         else
-        {
-            ctx.Status = ProgramStatus::Next;
-            return false;
-        }
+            return MetaFuncResult::Skip;
     }
-    return true;
+    return MetaFuncResult::Unhandled;
 }
 
 bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx)
 {
     for (const auto& meta : metas)
     {
-        if (!HandleMetaFuncBefore(meta, target, metas, ctx))
-            return false;
+        switch (HandleMetaFuncBefore(meta, target, metas))
+        {
+        case MetaFuncResult::Repeat:
+            ctx.Status = ProgramStatus::Repeat; return true;
+        case MetaFuncResult::Skip:
+            ctx.Status = ProgramStatus::Next;   return false;
+        case MetaFuncResult::Next:
+        default:
+            ctx.Status = ProgramStatus::Next;   break;
+        }
     }
     return true;
 }
 
-void NailangRuntimeBase::HandleRawBlock(const RawBlock&, common::span<const FuncCall>)
-{
-    return; // just skip
-}
-
-Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas, const FuncTarget target)
-{
-    if (func.Args.size() == 0)
-        return EvaluateFunc(func.Name, {}, metas, target);
-    std::vector<Arg> args;
-    args.reserve(func.Args.size());
-    for (const auto& rawarg : func.Args)
-        args.emplace_back(EvaluateArg(rawarg));
-    return EvaluateFunc(func.Name, args, metas, target);
-}
-
-Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget target)
+Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target)
 {
     using Type = Arg::InternalType;
     // only for block-scope
@@ -560,7 +589,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::spa
     // suitable for all
     if (common::str::IsBeginWith(func, U"EmbedOp."sv))
     {
-        ThrowByFuncContext(func, target, FuncTarget::Type::Empty);
+        ThrowIfNotFuncTarget(func, target, FuncTarget::Type::Empty);
         const auto opname = func.substr(8);
         const auto ret = EmbedOpEval::Eval(opname, args);
         if (ret.has_value())
@@ -573,9 +602,25 @@ Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::spa
     else if (const auto lcFunc = EvalContext->LookUpFunc(func); lcFunc)
     {
         ThrowByArgCount(args, lcFunc.ArgNames.size());
-        return ExecuteLocalFunc(lcFunc, args);
+        return EvaluateLocalFunc(lcFunc, args, metas, target);
     }
-    throw U"Does not find correponding func"sv;
+    return EvaluateUnknwonFunc(func, args, metas, target);
+}
+
+Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget)
+{
+    const auto ctx = std::make_shared<CompactEvaluateContext>();
+    NailangRuntimeBase runtime(ctx);
+    for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
+        ctx->SetArg(var, val);
+    ctx->SetFunc(func);
+    runtime.ExecuteBlock({ *func.Body, {} });
+    return ctx->GetReturnArg();
+}
+
+Arg NailangRuntimeBase::EvaluateUnknwonFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget target)
+{
+    throw fmt::format(FMT_STRING(U"Func [{}] with [{}] args cannot be resolved as [{}]."), func, args.size(), FuncTarget::FuncTargetName(target.GetType()));
 }
 
 static std::u32string_view OpToFuncName(EmbedOps op)
@@ -636,23 +681,22 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     }
 }
 
-Arg NailangRuntimeBase::ExecuteLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args)
-{
-    const auto ctx = std::make_shared<CompactEvaluateContext>();
-    NailangRuntimeBase runtime(ctx);
-    for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
-        ctx->SetArg(var, val);
-    ctx->SetFunc(func);
-    runtime.ExecuteBlock({ *func.Body, {} });
-    return ctx->GetReturnArg();
-}
-
-void NailangRuntimeBase::ExecuteAssignment(const Assignment& assign, common::span<const FuncCall>)
+void NailangRuntimeBase::OnAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
     EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
 }
 
-NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteInnerBlock(const Block& block, common::span<const FuncCall> metas)
+void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
+{
+    return; // just skip
+}
+
+void NailangRuntimeBase::OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx)
+{
+    EvaluateFunc(call, metas, ctx);
+}
+
+NailangRuntimeBase::ProgramStatus NailangRuntimeBase::OnInnerBlock(const Block& block, common::span<const FuncCall> metas)
 {
     auto innerCtx = std::make_shared<CompactEvaluateContext>();
     InnerContextScope scope(*this, innerCtx);
@@ -665,11 +709,11 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
     {
     case BlockContent::Type::Assignment:
     {
-        ExecuteAssignment(*content.Get<Assignment>(), metas);
+        OnAssignment(*content.Get<Assignment>(), metas);
     } break;
     case BlockContent::Type::Block:
     {
-        const auto blkStatus = ExecuteInnerBlock(*content.Get<Block>(), metas);
+        const auto blkStatus = OnInnerBlock(*content.Get<Block>(), metas);
         if (blkStatus == ProgramStatus::Return)
             ctx.Status = ProgramStatus::Return;
         else if (ctx.Status == ProgramStatus::Repeat && blkStatus == ProgramStatus::Break)
@@ -677,7 +721,11 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
     } break;
     case BlockContent::Type::FuncCall:
     {    
-        EvaluateFunc(*content.Get<FuncCall>(), metas, ctx);
+        OnFuncCall(*content.Get<FuncCall>(), metas, ctx);
+    } break; 
+    case BlockContent::Type::RawBlock:
+    {
+        OnRawBlock(*content.Get<RawBlock>(), metas);
     } break;
     default:
         Expects(false);
@@ -691,11 +739,7 @@ NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext 
     {
         const auto& [metas, content] = (*ctx.BlockScope)[idx];
         const auto type = content.GetType();
-        if (type == BlockContent::Type::RawBlock)
-        {
-            HandleRawBlock(*content.Get<RawBlock>(), metas);
-        }
-        else if (HandleMetaFuncsBefore(metas, content, ctx))
+        if (HandleMetaFuncsBefore(metas, content, ctx))
         {
             ExecuteContent(content, metas, ctx);
         }

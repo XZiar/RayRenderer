@@ -36,6 +36,11 @@
   <ItemGroup>
     <Natvis Include="Nailang.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
+      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}</ProjectGuid>

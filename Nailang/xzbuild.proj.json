@@ -2,6 +2,7 @@
     "name": "Nailang",
     "type": "dynamic",
     "description": "Nailang, not an intresting language",
+    "dependency": ["fmt"],
     "library": 
     {
         "static": [],

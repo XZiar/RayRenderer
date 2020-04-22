@@ -35,18 +35,22 @@ public:
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
 {
 protected:
+    common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
     std::vector<bool> EnabledExtensions;
+    std::vector<const xziar::nailang::RawBlock*> GlobalBlocks;
+    std::vector<const xziar::nailang::RawBlock*> StructBlocks;
+    std::vector<const xziar::nailang::RawBlock*> KernelBlocks;
+    std::vector<const xziar::nailang::RawBlock*> KernelTemplateBlocks;
     
     void HandleRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const std::u32string_view func, common::span<const xziar::nailang::Arg> args, 
-        common::span<const xziar::nailang::FuncCall> metas, const xziar::nailang::NailangRuntimeBase::FuncTarget target) override;
+        common::span<const xziar::nailang::FuncCall> metas, const FuncTarget target) override;
 public:
-    using xziar::nailang::NailangRuntimeBase::NailangRuntimeBase;
-    NLCLRuntime(oclDevice dev);
+    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev);
     ~NLCLRuntime() override;
-    void EnableExtension(std::string_view ext);
-    void EnableExtension(std::u32string_view ext);
+    bool EnableExtension(std::string_view ext);
+    bool EnableExtension(std::u32string_view ext);
 };
 
 class OCLUAPI NLCLProgram
