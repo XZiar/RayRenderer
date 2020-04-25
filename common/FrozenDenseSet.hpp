@@ -157,7 +157,7 @@ public:
     {
         using TmpType = std::conditional_t<std::is_base_of_v<PreHashedStringView<Hasher>, std::decay_t<E>>,
             std::decay_t<E>, SVType>;
-        uint64_t hash;
+        uint64_t hash = 0;
         const TmpType tmp(std::forward<E>(element));
         if constexpr (std::is_base_of_v<PreHashedStringView<Hasher>, TmpType>)
         {

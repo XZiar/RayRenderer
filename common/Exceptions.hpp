@@ -87,9 +87,9 @@ public:
 protected:
     std::shared_ptr<detail::AnyException> InnerException;
     std::vector<StackTraceItem> StackTrace;
-    static std::shared_ptr<detail::AnyException> getCurrentException();
+    static std::shared_ptr<detail::AnyException> GetCurrentException();
     BaseException(const char* const type, const std::u16string_view& msg, const std::any& data_)
-        : detail::AnyException(type), message(msg), data(data_), InnerException(getCurrentException())
+        : detail::AnyException(type), message(msg), data(data_), InnerException(GetCurrentException())
     { }
 private:
     void CollectStack(std::vector<StackTraceItem>& stks) const
@@ -114,9 +114,13 @@ public:
     BaseException(const BaseException& baseEx) = default;
     BaseException(BaseException&& baseEx) = default;
     ~BaseException() override {}
-    [[nodiscard]] virtual std::shared_ptr<BaseException> clone() const
+    [[nodiscard]] virtual std::shared_ptr<BaseException> Share() const
     {
         return std::make_shared<BaseException>(*this);
+    }
+    [[noreturn]]  virtual void ThrowSelf() const
+    {
+        throw *this;
     }
     [[nodiscard]] std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
     [[nodiscard]] constexpr const std::vector<StackTraceItem>& Stack() const
@@ -149,14 +153,18 @@ public:
 #define EXCEPTION_CLONE_EX(type)                                                    \
     static constexpr auto TYPENAME = #type;                                         \
     type(const type& ex) = default;                                                 \
-    [[nodiscard]] ::std::shared_ptr<::common::BaseException> clone() const override \
+    [[nodiscard]] ::std::shared_ptr<::common::BaseException> Share() const override \
     {                                                                               \
         return ::std::static_pointer_cast<::common::BaseException>                  \
             (::std::make_shared<type>(*this));                                      \
     }                                                                               \
+    [[noreturn]]  virtual void ThrowSelf() const override                           \
+    {                                                                               \
+        throw *this;                                                                \
+    }                                                                               \
 
 
-[[nodiscard]] inline std::shared_ptr<detail::AnyException> BaseException::getCurrentException()
+[[nodiscard]] inline std::shared_ptr<detail::AnyException> BaseException::GetCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)
@@ -167,7 +175,11 @@ public:
     }
     catch (const BaseException& be)
     {
-        return std::static_pointer_cast<detail::AnyException>(be.clone());
+        return std::static_pointer_cast<detail::AnyException>(be.Share());
+    }
+    catch (const std::shared_ptr<BaseException>& sbe)
+    {
+        return std::static_pointer_cast<detail::AnyException>(sbe);
     }
     catch (...)
     {
@@ -178,8 +190,10 @@ public:
 
 #if defined(_MSC_VER)
 #   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
+#   define CREATE_EXCEPTION(ex, ...) ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
 #else
 #   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
+#   define CREATE_EXCEPTION(ex, ...) ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
 #endif
 
 }

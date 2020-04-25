@@ -1,6 +1,6 @@
 #pragma once
 #include "NailangStruct.h"
-#include "NailangParser.h"
+#include "common/Exceptions.hpp"
 #include <map>
 #include <vector>
 #include <memory>
@@ -98,6 +98,7 @@ public:
     void SetReturnArg(Arg arg) override;
     Arg GetReturnArg() const override;
 };
+
 class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
 {
 protected:
@@ -116,6 +117,7 @@ public:
     size_t GetArgCount() const noexcept override;
     size_t GetFuncCount() const noexcept override;
 };
+
 class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
 {
 protected:
@@ -138,25 +140,112 @@ public:
     size_t GetFuncCount() const noexcept override;
 };
 
+
 struct NAILANGAPI EmbedOpEval
 {
-    static Arg Equal        (const Arg& left, const Arg& right);
-    static Arg NotEqual     (const Arg& left, const Arg& right);
-    static Arg Less         (const Arg& left, const Arg& right);
-    static Arg LessEqual    (const Arg& left, const Arg& right);
-    static Arg Greater      (const Arg& left, const Arg& right) { return Less(right, left); }
-    static Arg GreaterEqual (const Arg& left, const Arg& right) { return LessEqual(right, left); }
-    static Arg And          (const Arg& left, const Arg& right);
-    static Arg Or           (const Arg& left, const Arg& right);
-    static Arg Add          (const Arg& left, const Arg& right);
-    static Arg Sub          (const Arg& left, const Arg& right);
-    static Arg Mul          (const Arg& left, const Arg& right);
-    static Arg Div          (const Arg& left, const Arg& right);
-    static Arg Rem          (const Arg& left, const Arg& right);
-    static Arg Not          (const Arg& arg);
+    static Arg Equal        (const Arg& left, const Arg& right) noexcept;
+    static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
+    static Arg Less         (const Arg& left, const Arg& right) noexcept;
+    static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
+    static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
+    static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
+    static Arg And          (const Arg& left, const Arg& right) noexcept;
+    static Arg Or           (const Arg& left, const Arg& right) noexcept;
+    static Arg Add          (const Arg& left, const Arg& right) noexcept;
+    static Arg Sub          (const Arg& left, const Arg& right) noexcept;
+    static Arg Mul          (const Arg& left, const Arg& right) noexcept;
+    static Arg Div          (const Arg& left, const Arg& right) noexcept;
+    static Arg Rem          (const Arg& left, const Arg& right) noexcept;
+    static Arg Not          (const Arg& arg) noexcept;
 
-    static std::optional<Arg> Eval(const std::u32string_view opname, common::span<const Arg> args);
+    static std::optional<Arg> Eval(const std::u32string_view opname, common::span<const Arg> args) noexcept;
 };
+
+
+namespace detail
+{
+struct ExceptionTarget
+{
+    enum class Type { Empty, Arg, RawArg, Assignment, FuncCall, RawBlock, Block };
+    std::variant<std::monostate, Arg, RawArg, const FuncCall*, FuncCall, BlockContent> Target;
+
+    constexpr ExceptionTarget() noexcept {}
+    template<typename T>
+    constexpr ExceptionTarget(T&& arg) noexcept : Target(std::forward<T>(arg)) {}
+
+    constexpr Type GetType() const noexcept
+    {
+        switch (Target.index())
+        {
+        case 0:  return Type::Empty;
+        case 1:  return Type::Arg;
+        case 2:  return Type::RawArg;
+        case 3:  return Type::FuncCall;
+        case 4:  return Type::FuncCall;
+        case 5: 
+            switch (std::get<5>(Target).GetType())
+            {
+            case BlockContent::Type::Assignment: return Type::Assignment;
+            case BlockContent::Type::FuncCall:   return Type::FuncCall;
+            case BlockContent::Type::RawBlock:   return Type::RawBlock;
+            case BlockContent::Type::Block:      return Type::Block;
+            }
+            return Type::Empty;
+        default: return Type::Empty;
+        }
+    }
+    template<Type T>
+    constexpr auto GetVar() const
+    {
+        Expects(GetType() == T);
+        if constexpr (T == Type::Empty)
+            return {};
+        else if constexpr (T == Type::Arg)
+            return std::get<1>(Target);
+        else if constexpr (T == Type::RawArg)
+            return std::get<2>(Target);
+        else if constexpr (T == Type::Assignment)
+            return std::get<5>(Target).Get<Assignment>();
+        else if constexpr (T == Type::RawBlock)
+            return std::get<5>(Target).Get<RawBlock>();
+        else if constexpr (T == Type::Block)
+            return std::get<5>(Target).Get<Block>();
+        else if constexpr (T == Type::FuncCall)
+        {
+            switch (Target.index())
+            {
+            case 3:  return std::get<3>(Target);
+            case 4:  return &std::get<4>(Target);
+            case 5:  return std::get<5>(Target).Get<FuncCall>();
+            default: return nullptr;
+            }
+        }
+        else
+            static_assert(!common::AlwaysTrue<decltype(T)>, "");
+    }
+
+    static ExceptionTarget NewFuncCall(const std::u32string_view func) noexcept
+    {
+        return FuncCall{ func, {} };
+    }
+};
+}
+
+class NAILANGAPI NailangRuntimeException : public common::BaseException
+{
+    friend class NailangRuntimeBase;
+public:
+    EXCEPTION_CLONE_EX(NailangRuntimeException);
+    detail::ExceptionTarget Target;
+    detail::ExceptionTarget Scope;
+public:
+    NailangRuntimeException(const std::u16string_view& msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {}) :
+        BaseException(TYPENAME, msg, data), Target(std::move(target)), Scope(std::move(scope))
+    { }
+private:
+    mutable std::shared_ptr<EvaluateContext> EvalContext;
+}; 
+
 
 class NAILANGAPI NailangRuntimeBase
 {
@@ -172,6 +261,14 @@ protected:
             MetaScope(), BlockScope(nullptr) {}
         constexpr BlockContext(const Block& block, common::span<const FuncCall> metas) noexcept :
             MetaScope(metas), BlockScope(&block) { }
+
+        constexpr bool SearchMeta(const std::u32string_view name) const noexcept
+        {
+            for (const auto& meta : MetaScope)
+                if (meta.Name == name)
+                    return true;
+            return false;
+        }
     };
     struct ContentContext
     {
@@ -237,6 +334,7 @@ protected:
 
     virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
             bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
+    virtual void HandleException(const NailangRuntimeException& ex) const;
 
     inline Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
     {

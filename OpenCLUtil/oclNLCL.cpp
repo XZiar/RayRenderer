@@ -13,13 +13,15 @@ using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::detail::ExceptionTarget;
 using common::str::Charset;
 using common::str::IsBeginWith;
 
+#define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
 Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
-    if (IsBeginWith(var.Name, U"oglu."sv))
+    if (IsBeginWith(var.Name, U"oclu."sv))
     {
         const auto subName = var.Name.substr(5);
         const auto plat = Device->GetPlatform();
@@ -91,26 +93,29 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev)
 NLCLRuntime::~NLCLRuntime()
 { }
 
-void NLCLRuntime::HandleRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
+void NLCLRuntime::OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
 {
-    if (IsBeginWith(block.Type, U"oglu."sv))
+    if (IsBeginWith(block.Type, U"oclu."sv))
     {
         const auto subName = block.Type.substr(5);
+        bool output = false;
         switch(hash_(subName))
         {
-        case "Global"_hash: GlobalBlocks.push_back(&block); break;
-        case "Struct"_hash: StructBlocks.push_back(&block); break;
-        case "Kernel"_hash: KernelBlocks.push_back(&block); break;
+        case "Global"_hash: output = true; break;
+        case "Struct"_hash: output = true; StructBlocks.push_back(&block); break;
+        case "Kernel"_hash: output = true; KernelBlocks.push_back(&block); break;
         default: break;
         }
+        if (output)
+            OutputBlocks.push_back(&block);
     }
-    NailangRuntimeBase::HandleRawBlock(block, metas);
+    NailangRuntimeBase::OnRawBlock(block, metas);
 }
 
 Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args,
     common::span<const FuncCall> metas, const FuncTarget target)
 {
-    if (IsBeginWith(func, U"oglu."sv))
+    if (IsBeginWith(func, U"oclu."sv))
     {
         const auto subName = func.substr(5);
         switch (hash_(subName))
@@ -125,12 +130,19 @@ Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const
                     Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
             }
             else
-                throw U"Arg of [EnableExtension] should be string"sv;
+                NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv,
+                    ExceptionTarget::NewFuncCall(func));
         } return {};
         default: break;
         }
     }
     return NailangRuntimeBase::EvaluateFunc(func, args, metas, target);
+}
+
+void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
+{
+    Logger.error(u"{}", ex.message);
+    NailangRuntimeBase::HandleException(ex);
 }
 
 bool NLCLRuntime::EnableExtension(std::string_view ext)

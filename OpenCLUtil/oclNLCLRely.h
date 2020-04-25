@@ -1,6 +1,7 @@
 #pragma once
 #include "oclRely.h"
 #include "oclNLCL.h"
+#include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 
 namespace oclu
@@ -38,14 +39,16 @@ protected:
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
     std::vector<bool> EnabledExtensions;
-    std::vector<const xziar::nailang::RawBlock*> GlobalBlocks;
+    std::vector<const xziar::nailang::RawBlock*> OutputBlocks;
     std::vector<const xziar::nailang::RawBlock*> StructBlocks;
     std::vector<const xziar::nailang::RawBlock*> KernelBlocks;
+    std::vector<const xziar::nailang::RawBlock*> TemplateBlocks;
     std::vector<const xziar::nailang::RawBlock*> KernelTemplateBlocks;
     
-    void HandleRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
+    void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const std::u32string_view func, common::span<const xziar::nailang::Arg> args, 
         common::span<const xziar::nailang::FuncCall> metas, const FuncTarget target) override;
+    void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 public:
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev);
     ~NLCLRuntime() override;
