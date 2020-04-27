@@ -84,7 +84,7 @@ public:
     }
     static bool Consume(LogMessage* msg);
     std::u16string_view GetContent() const { return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length); }
-    const std::u16string_view& GetSource() const { return Source; }
+    std::u16string_view GetSource() const { return Source; }
     std::chrono::system_clock::time_point GetSysTime() const;
 };
 

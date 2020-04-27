@@ -1,4 +1,5 @@
 #include "NailangStruct.h"
+#include "3rdParty/fmt/utfext.h"
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 
@@ -55,19 +56,18 @@ std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
 }
 
 
-//LateBindVar LateBindVar::Generate(std::u32string_view name, MemoryPool& pool)
-//{
-//    const auto parts = common::str::SplitStream(name, U'.', true)
-//        .Select([=](const std::u32string_view part)
-//            {
-//                return std::pair{ gsl::narrow_cast<uint32_t>(part.data() - name.data()), gsl::narrow_cast<uint32_t>(part.size()) };
-//            })
-//        .ToVector();
-//    if (parts.size() == 1)
-//        return { name, {} };
-//    else
-//        return { name, pool.CreateArray(parts) };
-//}
-
+common::str::StrVariant<char32_t> Arg::ToString() const noexcept
+{
+    return Visit([](const auto val) -> common::str::StrVariant<char32_t>
+        {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, CustomVar>)
+                return {};
+            else if constexpr (std::is_same_v<T, std::u32string_view>)
+                return val;
+            else
+                return fmt::format(FMT_STRING(U"{}"), val);
+        });
+}
 
 }

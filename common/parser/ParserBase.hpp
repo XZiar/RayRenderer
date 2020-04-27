@@ -4,6 +4,7 @@
 #include "ParserTokenizer.hpp"
 #include "ParserLexer.hpp"
 #include "common/EnumEx.hpp"
+#include "common/StrBase.hpp"
 #include "common/SharedString.hpp"
 
 
@@ -19,7 +20,7 @@ struct TokenMatcher
 {
     std::array<uint16_t, IDCount> IDs;
     std::array<ParserToken, TKCount> TKs;
-    constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
     {
         for (const auto id : IDs)
             if (token.GetID() == id)
@@ -29,11 +30,11 @@ struct TokenMatcher
                 return true;
         return false;
     }
-    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
     {
         return IDs;
     }
-    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
     {
         return TKs;
     }
@@ -42,18 +43,18 @@ template<size_t IDCount>
 struct TokenMatcher<IDCount, 0>
 {
     std::array<uint16_t, IDCount> IDs;
-    constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
     {
         for (const auto id : IDs)
             if (token.GetID() == id)
                 return true;
         return false;
     }
-    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
     {
         return IDs;
     }
-    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
     {
         return {};
     }
@@ -62,18 +63,18 @@ template<size_t TKCount>
 struct TokenMatcher<0, TKCount>
 {
     std::array<ParserToken, TKCount> TKs;
-    constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
     {
         for (const auto& tk : TKs)
             if (token == tk)
                 return true;
         return false;
     }
-    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
     {
         return {};
     }
-    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
     {
         return TKs;
     }
@@ -81,15 +82,15 @@ struct TokenMatcher<0, TKCount>
 template<>
 struct TokenMatcher<0, 0>
 {
-    constexpr bool Match(const ParserToken) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken) const noexcept
     {
         return false;
     }
-    forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const uint16_t> GetIDSpan() const noexcept
     {
         return {};
     }
-    forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
+    [[nodiscard]] forceinline constexpr common::span<const ParserToken> GetTKSpan() const noexcept
     {
         return {};
     }
@@ -99,7 +100,7 @@ struct EmptyTokenArray {};
 struct TokenMatcherHelper
 {
     template<size_t I, size_t N, typename T, typename... Args>
-    forceinline static constexpr std::array<uint16_t, N> GenerateIDArray(std::array<uint16_t, N> ids, const T id, const Args... args) noexcept
+    [[nodiscard]] forceinline static constexpr std::array<uint16_t, N> GenerateIDArray(std::array<uint16_t, N> ids, const T id, const Args... args) noexcept
     {
         ids[I] = common::enum_cast(id);
         if constexpr (I + 1 < N)
@@ -108,7 +109,7 @@ struct TokenMatcherHelper
             return ids;
     }
     template<typename... IDs>
-    static constexpr auto GetMatcher(EmptyTokenArray, IDs... ids) noexcept
+    [[nodiscard]] static constexpr auto GetMatcher(EmptyTokenArray, IDs... ids) noexcept
     {
         constexpr auto IDCount = sizeof...(IDs);
         if constexpr (IDCount > 0)
@@ -118,7 +119,7 @@ struct TokenMatcherHelper
     }
 
     template<size_t TKCount, typename... IDs>
-    static constexpr auto GetMatcher(std::array<ParserToken, TKCount> tokens, IDs... ids) noexcept
+    [[nodiscard]] static constexpr auto GetMatcher(std::array<ParserToken, TKCount> tokens, IDs... ids) noexcept
     {
         constexpr auto IDCount = sizeof...(IDs);
         if constexpr (IDCount > 0)
@@ -149,9 +150,9 @@ struct ParsingError : std::exception
     ParsingError(const ParserContext& context, const ParserToken token, std::u16string_view notice) :
         File(context.SourceName), Position({ context.Row, context.Col }),
         Token(token), Notice(notice) { }
-    ParsingError(const SharedString<char16_t> file, const std::pair<size_t, size_t> pos,
+    ParsingError(const common::str::StrVariant<char16_t>& file, const std::pair<size_t, size_t> pos,
         const ParserToken token, std::u16string_view notice) :
-        File(file), Position(pos), Token(token), Notice(notice) { }
+        File(file.StrView()), Position(pos), Token(token), Notice(notice) { }
 };
 
 }
@@ -169,7 +170,7 @@ protected:
     constexpr ParserBase(ParserContext& context) : Context(context) 
     { }
 
-    virtual std::u16string DescribeTokenID(const uint16_t tid) const noexcept
+    [[nodiscard]] virtual std::u16string DescribeTokenID(const uint16_t tid) const noexcept
     {
 #define RET_TK_ID(type) case BaseToken::type:        return u ## #type
         switch (static_cast<BaseToken>(tid))
@@ -190,11 +191,11 @@ protected:
         }
 #undef RET_TK_ID
     }
-    virtual std::u16string DescribeToken(const ParserToken& token) const noexcept
+    [[nodiscard]] virtual std::u16string DescribeToken(const ParserToken& token) const noexcept
     {
         return DescribeTokenID(token.GetID());
     }
-    virtual std::u16string DescribeMatcher(common::span<const uint16_t> ids, common::span<const ParserToken> tokens) const noexcept
+    [[nodiscard]] virtual std::u16string DescribeMatcher(common::span<const uint16_t> ids, common::span<const ParserToken> tokens) const noexcept
     {
         using namespace std::string_view_literals;
         std::u16string msg(u"expected: "sv);
@@ -210,11 +211,11 @@ protected:
             msg.resize(msg.size() - 2);
         return msg;
     }
-    virtual SharedString<char16_t> GetCurrentFileName() const noexcept
+    [[nodiscard]] virtual common::str::StrVariant<char16_t> GetCurrentFileName() const noexcept
     {
         return Context.SourceName;
     }
-    virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
+    [[nodiscard]] virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
     {
         return { Context.Row, Context.Col };
     }
@@ -233,12 +234,12 @@ protected:
     static inline constexpr TokenMatcher<0, 0> IgnoreNoneToken = {};
 
     template<typename Lex, typename Ignore>
-    constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore)
+    [[nodiscard]] constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore)
     {
         return lexer.GetTokenBy(Context, ignore);
     }
     template<typename Lex, typename Ignore, size_t IDCount, size_t TKCount>
-    constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore, const TokenMatcher<IDCount, TKCount>& ignoreMatcher)
+    [[nodiscard]] constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore, const TokenMatcher<IDCount, TKCount>& ignoreMatcher)
     {
         while (true)
         {
@@ -248,7 +249,7 @@ protected:
         }
     }
     template<typename Lex, typename Ignore, size_t IDCount1, size_t TKCount1, size_t IDCount2, size_t TKCount2>
-    ParserToken ExpectNextToken(Lex&& lexer, Ignore&& ignore, 
+    ParserToken ExpectNextToken(Lex&& lexer, Ignore&& ignore,
         const TokenMatcher<IDCount1, TKCount1>& ignoreMatcher, const TokenMatcher<IDCount2, TKCount2>& expectMatcher)
     {
         const auto token = GetNextToken(lexer, ignore, ignoreMatcher);

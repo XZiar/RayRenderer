@@ -70,7 +70,7 @@ private:
         (SetTokenizer_(std::get<I>(tokenizers), std::forward<T>(val)), ...);
     }
     template<typename... Args>
-    forceinline static constexpr std::tuple<TKs...> GenerateTokenizerList(Args&&... args) noexcept
+    [[nodiscard]] forceinline static constexpr std::tuple<TKs...> GenerateTokenizerList(Args&&... args) noexcept
     {
         std::tuple<TKs...> tokenizers;
         (SetTokenizer(tokenizers, std::forward<Args>(args), Indexes), ...);
@@ -78,7 +78,7 @@ private:
     }
 
     template<size_t N = 0>
-    forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) const noexcept
+    [[nodiscard]] forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) const noexcept
     {
         using tokenizer::TokenizerResult;
         auto& result = status[N].Result[idx & 1];
@@ -122,7 +122,7 @@ private:
     }
 
     template<size_t N = 0>
-    inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) const noexcept
+    [[nodiscard]] inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) const noexcept
     {
         const auto result = status[N].Result[offset];
         if (result == target)
@@ -142,7 +142,7 @@ private:
 
 protected:
     template<typename Char>
-    forceinline constexpr static auto ToChecker(const std::basic_string_view<Char> str) noexcept
+    [[nodiscard]] forceinline constexpr static auto ToChecker(const std::basic_string_view<Char> str) noexcept
     {
         if constexpr (std::is_same_v<Char, char>)
         {
@@ -163,14 +163,14 @@ public:
     { }
 
     template<typename Ignore>
-    forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) const noexcept
+    [[nodiscard]] forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) const noexcept
     {
         return GetTokenBy(context, ToChecker(ignore));
     }
 
 
     template<typename Ignore>
-    constexpr ParserToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) const noexcept
+    [[nodiscard]] constexpr ParserToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) const noexcept
     {
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;

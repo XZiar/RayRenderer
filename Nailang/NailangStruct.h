@@ -19,6 +19,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
+#include "common/StrBase.hpp"
 #include "common/StringLinq.hpp"
 #include <vector>
 #include <variant>
@@ -46,24 +47,24 @@ public:
     MemoryPool(MemoryPool&& other) noexcept = default;
     ~MemoryPool();
 
-    common::span<std::byte> Alloc(const size_t size, const size_t align = 64);
-    std::pair<size_t, size_t> Usage() const noexcept;
+    [[nodiscard]] common::span<std::byte> Alloc(const size_t size, const size_t align = 64);
+    [[nodiscard]] std::pair<size_t, size_t> Usage() const noexcept;
 
     template<typename T>
-    forceinline common::span<std::byte> Alloc()
+    [[nodiscard]] forceinline common::span<std::byte> Alloc()
     {
         return Alloc(sizeof(T), alignof(T));
     }
 
     template<typename T, typename... Args>
-    forceinline T* Create(Args&&... args)
+    [[nodiscard]] forceinline T* Create(Args&&... args)
     {
         const auto space = Alloc<T>();
         new (space.data()) T(std::forward<Args>(args)...);
         return reinterpret_cast<T*>(space.data());
     }
     template<typename C>
-    forceinline auto CreateArray(C&& container)
+    [[nodiscard]] forceinline auto CreateArray(C&& container)
     {
         const auto data = common::to_span(container);
         using T = std::remove_const_t<typename decltype(data)::element_type>;
@@ -94,20 +95,20 @@ struct LateBindVar
 public:
 
     std::u32string_view Name;
-    constexpr bool operator==(const LateBindVar& other) const noexcept
+    [[nodiscard]] constexpr bool operator==(const LateBindVar& other) const noexcept
     {
         return Name == other.Name;
     }
-    constexpr bool operator==(const std::u32string_view other) const noexcept
+    [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
     {
         return Name == other;
     }
 
-    constexpr auto Parts() const noexcept
+    [[nodiscard]] constexpr auto Parts() const noexcept
     {
         return common::str::SplitStream(Name, U'.', true);
     }
-    constexpr std::u32string_view operator[](size_t index) const noexcept
+    [[nodiscard]] constexpr std::u32string_view operator[](size_t index) const noexcept
     {
         return common::str::SplitStream(Name, U'.', true).Skip(index).TryGetFirst().value();
     }
@@ -116,7 +117,7 @@ public:
 enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
 struct EmbedOpHelper
 {
-    static constexpr bool IsUnaryOp(EmbedOps op) noexcept
+    [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept
     {
         return op == EmbedOps::Not;
     }
@@ -163,7 +164,7 @@ struct RawArg
         Data1(boolean ? 1 : 0), Data2(9), TypeData(Type::Bool) {}
 
     template<Type T>
-    constexpr auto GetVar() const
+    [[nodiscard]] constexpr auto GetVar() const
     {
         Expects(TypeData == T);
         if constexpr (T == Type::Func)
@@ -188,7 +189,7 @@ struct RawArg
             static_assert(!common::AlwaysTrue<decltype(T)>, "");
     }
 
-    forceinline Variant GetVar() const
+    [[nodiscard]] forceinline Variant GetVar() const
     {
         switch (TypeData)
         {
@@ -205,7 +206,7 @@ struct RawArg
         }
     }
     template<typename Visitor>
-    forceinline auto Visit(Visitor&& visitor) const
+    [[nodiscard]] forceinline auto Visit(Visitor&& visitor) const
     {
         switch (TypeData)
         {
@@ -266,11 +267,11 @@ struct Arg
     { }
 
     template<InternalType T>
-    constexpr auto GetVar() const
+    [[nodiscard]] constexpr auto GetVar() const noexcept
     {
         Expects(TypeData == T);
         if constexpr (T == InternalType::Var)
-            return CustomVar{ std::u32string_view(Str), Data1, Data2, Data3 };
+            return CustomVar{ std::u32string_view{Str}, Data1, Data2, Data3 };
         else if constexpr (T == InternalType::U32Str)
             return std::u32string_view{ Str };
         else if constexpr (T == InternalType::U32Sv)
@@ -288,7 +289,7 @@ struct Arg
     }
 
     template<typename Visitor>
-    forceinline auto Visit(Visitor&& visitor) const
+    [[nodiscard]] forceinline auto Visit(Visitor&& visitor) const
     {
         switch (TypeData)
         {
@@ -303,31 +304,31 @@ struct Arg
         }
     }
 
-    forceinline constexpr bool IsEmpty() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsEmpty() const noexcept
     {
         return TypeData == InternalType::Empty;
     }
-    forceinline constexpr bool IsBool() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsBool() const noexcept
     {
         return TypeData == InternalType::Bool;
     }
-    forceinline constexpr bool IsInteger() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsInteger() const noexcept
     {
         return TypeData == InternalType::Uint || TypeData == InternalType::Int;
     }
-    forceinline constexpr bool IsFloatPoint() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsFloatPoint() const noexcept
     {
         return TypeData == InternalType::FP;
     }
-    forceinline constexpr bool IsNumber() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsNumber() const noexcept
     {
         return IsFloatPoint() || IsInteger();
     }
-    forceinline constexpr bool IsStr() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsStr() const noexcept
     {
         return TypeData == InternalType::U32Str || TypeData == InternalType::U32Sv;
     }
-    forceinline constexpr std::optional<bool> GetBool() const noexcept
+    [[nodiscard]] forceinline constexpr std::optional<bool> GetBool() const noexcept
     {
         switch (TypeData)
         {
@@ -340,7 +341,7 @@ struct Arg
         default:                    return {};
         }
     }
-    forceinline constexpr std::optional<uint64_t> GetUint() const noexcept
+    [[nodiscard]] forceinline constexpr std::optional<uint64_t> GetUint() const noexcept
     {
         switch (TypeData)
         {
@@ -351,7 +352,7 @@ struct Arg
         default:                    return {};
         }
     }
-    forceinline constexpr std::optional<int64_t> GetInt() const noexcept
+    [[nodiscard]] forceinline constexpr std::optional<int64_t> GetInt() const noexcept
     {
         switch (TypeData)
         {
@@ -362,7 +363,7 @@ struct Arg
         default:                    return {};
         }
     }
-    forceinline constexpr std::optional<double> GetFP() const noexcept
+    [[nodiscard]] forceinline constexpr std::optional<double> GetFP() const noexcept
     {
         switch (TypeData)
         {
@@ -373,7 +374,7 @@ struct Arg
         default:                    return {};
         }
     }
-    forceinline constexpr std::optional<std::u32string_view> GetStr() const noexcept
+    [[nodiscard]] forceinline constexpr std::optional<std::u32string_view> GetStr() const noexcept
     {
         switch (TypeData)
         {
@@ -382,6 +383,7 @@ struct Arg
         default:                    return {};
         }
     }
+    [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t> ToString() const noexcept;
 };
 
 
@@ -434,25 +436,25 @@ struct BlockContent
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
     uintptr_t Pointer;
 
-    static BlockContent Generate(const Assignment* ptr)
+    [[nodiscard]] static BlockContent Generate(const Assignment* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
     }
-    static BlockContent Generate(const FuncCall* ptr)
+    [[nodiscard]] static BlockContent Generate(const FuncCall* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
     }
-    static BlockContent Generate(const RawBlock* ptr)
+    [[nodiscard]] static BlockContent Generate(const RawBlock* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
     }
-    static BlockContent Generate(const Block* ptr)
+    [[nodiscard]] static BlockContent Generate(const Block* ptr)
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
@@ -460,16 +462,16 @@ struct BlockContent
     }
 
     template<typename T>
-    forceinline const T* Get() const noexcept
+    [[nodiscard]] forceinline const T* Get() const noexcept
     {
         return reinterpret_cast<const T*>(Pointer & ~(uintptr_t)(0x3));
     }
 
-    forceinline constexpr Type GetType() const noexcept
+    [[nodiscard]] forceinline constexpr Type GetType() const noexcept
     {
         return static_cast<Type>(Pointer & 0x3);
     }
-    std::variant<const Assignment*, const FuncCall*, const RawBlock*, const Block*>
+    [[nodiscard]] std::variant<const Assignment*, const FuncCall*, const RawBlock*, const Block*>
         GetStatement() const
     {
         switch (GetType())
@@ -498,7 +500,7 @@ struct BlockContentItem : public BlockContent
 {
     uint32_t Offset, Count;
     template<typename T>
-    static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count)
+    [[nodiscard]] static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count)
     {
         return BlockContentItem{ BlockContent::Generate(ptr), offset, count };
     }
@@ -565,13 +567,13 @@ public:
     {
         return { this, Size() };
     }
-    constexpr value_type operator[](size_t index) const noexcept
+    [[nodiscard]] constexpr value_type operator[](size_t index) const noexcept
     {
         const auto& content = Content[index];
         const auto metafuncs = MetaFuncations.subspan(content.Offset, content.Count);
         return { metafuncs, content };
     }
-    constexpr size_t Size() const noexcept { return Content.size(); }
+    [[nodiscard]] constexpr size_t Size() const noexcept { return Content.size(); }
 };
 
 

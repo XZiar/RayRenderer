@@ -19,8 +19,8 @@ protected:
     MemoryPool& MemPool;
     std::u16string SubScopeName;
 
-    std::u16string DescribeTokenID(const uint16_t tid) const noexcept override;
-    common::SharedString<char16_t> GetCurrentFileName() const noexcept override;
+    [[nodiscard]] std::u16string DescribeTokenID(const uint16_t tid) const noexcept override;
+    [[nodiscard]] common::str::StrVariant<char16_t> GetCurrentFileName() const noexcept override;
 
     template<typename ExpectHolder, typename... TKs>
     void EatSingleToken()
@@ -49,11 +49,11 @@ private:
     using NailangParser::NailangParser;
 
     template<typename StopDelimer>
-    std::pair<std::optional<RawArg>, char32_t> ParseArg();
+    [[nodiscard]] std::pair<std::optional<RawArg>, char32_t> ParseArg();
 public:
-    static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
-    static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
-    static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
+    [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context);
 };
 
 
@@ -63,12 +63,12 @@ protected:
     void EatSemiColon();
     void FillBlockName(RawBlock& block);
     void FillBlockInfo(RawBlock& block);
-    RawBlock FillRawBlock(const std::u32string_view name);
+    [[nodiscard]] RawBlock FillRawBlock(const std::u32string_view name);
 public:
     using NailangParser::NailangParser;
     
-    RawBlockWithMeta GetNextRawBlock();
-    std::vector<RawBlockWithMeta> GetAllRawBlocks();
+    [[nodiscard]] RawBlockWithMeta GetNextRawBlock();
+    [[nodiscard]] std::vector<RawBlockWithMeta> GetAllRawBlocks();
 };
 
 
@@ -76,13 +76,13 @@ class NAILANGAPI BlockParser : public RawBlockParser
 {
 protected:
     void ThrowNonSupport(common::parser::ParserToken token, std::u16string_view detail);
-    Assignment ParseAssignment(const std::u32string_view var);
+    [[nodiscard]] Assignment ParseAssignment(const std::u32string_view var);
     template<bool AllowNonBlock>
     void ParseContentIntoBlock(Block& block, const bool tillTheEnd = true);
     using RawBlockParser::RawBlockParser;
 public:
-    static Block ParseRawBlock(const RawBlock& block, MemoryPool& pool);
-    static Block ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static Block ParseRawBlock(const RawBlock& block, MemoryPool& pool);
+    [[nodiscard]] static Block ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context);
 };
 
 

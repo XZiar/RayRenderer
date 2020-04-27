@@ -19,7 +19,7 @@ class ParserContext
 {
 public:
     enum class CharType : uint8_t { End, NewLine, Digit, Blank, Special, Normal };
-    static constexpr CharType ParseType(const char32_t ch) noexcept
+    [[nodiscard]] static constexpr CharType ParseType(const char32_t ch) noexcept
     {
         switch (ch)
         {
@@ -73,7 +73,7 @@ private:
 public:
     constexpr ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
 
-    forceinline constexpr char32_t PeekNext() const noexcept
+    [[nodiscard]] forceinline constexpr char32_t PeekNext() const noexcept
     {
         if (Index >= Context.Source.size())
             return special::CharEnd;

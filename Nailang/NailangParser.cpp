@@ -43,7 +43,7 @@ std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
     }
 }
 
-common::SharedString<char16_t> NailangParser::GetCurrentFileName() const noexcept
+common::str::StrVariant<char16_t> NailangParser::GetCurrentFileName() const noexcept
 {
     if (SubScopeName.empty())
         return ParserBase::GetCurrentFileName();

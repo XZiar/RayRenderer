@@ -88,27 +88,27 @@ public:
         ParserToken(CastType<T>(), static_cast<uint16_t>(id), val)
     { }
 
-    constexpr bool                  GetBool()   const noexcept { return Data.Bool; }
-    constexpr int64_t               GetInt()    const noexcept { return Data.Int; }
-    constexpr uint64_t              GetUInt()   const noexcept { return Data.Uint; }
-    constexpr char32_t              GetChar()   const noexcept { return Data.Char; }
-    constexpr double                GetDouble() const noexcept { return Data.FP; }
+    [[nodiscard]] constexpr bool                  GetBool()   const noexcept { return Data.Bool; }
+    [[nodiscard]] constexpr int64_t               GetInt()    const noexcept { return Data.Int; }
+    [[nodiscard]] constexpr uint64_t              GetUInt()   const noexcept { return Data.Uint; }
+    [[nodiscard]] constexpr char32_t              GetChar()   const noexcept { return Data.Char; }
+    [[nodiscard]] constexpr double                GetDouble() const noexcept { return Data.FP; }
     template<typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-    constexpr T                     GetIntNum() const noexcept { return static_cast<T>(Data.Uint); }
+    [[nodiscard]] constexpr T                     GetIntNum() const noexcept { return static_cast<T>(Data.Uint); }
     template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
-    constexpr T                     GetFPNum()  const noexcept { return static_cast<T>(Data.FP); }
-    constexpr std::u32string_view   GetString() const noexcept { return { Data.Ptr, Data2 }; }
+    [[nodiscard]] constexpr T                     GetFPNum()  const noexcept { return static_cast<T>(Data.FP); }
+    [[nodiscard]] constexpr std::u32string_view   GetString() const noexcept { return { Data.Ptr, Data2 }; }
 
-    constexpr uint16_t              GetID()     const noexcept { return ID; }
+    [[nodiscard]] constexpr uint16_t              GetID()     const noexcept { return ID; }
     template<typename T = BaseToken>
-    constexpr T                     GetIDEnum() const noexcept
+    [[nodiscard]] constexpr T                     GetIDEnum() const noexcept
     {
         if (ID <= common::enum_cast(T::__RangeMin)) return T::__RangeMin;
         if (ID >= common::enum_cast(T::__RangeMax)) return T::__RangeMax;
         return static_cast<T>(ID);
     }
 
-    constexpr bool operator==(const ParserToken& token) const noexcept
+    [[nodiscard]] constexpr bool operator==(const ParserToken& token) const noexcept
     {
         if (this->ID == token.ID && this->ValType == token.ValType)
         {
@@ -160,7 +160,7 @@ struct ASCIIChecker
         }
     }
 
-    constexpr bool operator()(const char32_t ch) const noexcept
+    [[nodiscard]] constexpr bool operator()(const char32_t ch) const noexcept
     {
         if (ch >= 0 && ch < 128)
         {
@@ -191,7 +191,7 @@ public:
     using StateData = void;
     constexpr DelimTokenizer(std::string_view delim = "(,)") noexcept
         : Checker(delim) { }
-    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         Expects(idx == 0);
         if (Checker(ch))
@@ -199,7 +199,7 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1);
         return ParserToken(BaseToken::Delim, txt[0]);
@@ -211,7 +211,7 @@ class CommentTokenizer : public TokenizerBase
 public:
     enum class States : uint32_t { Waiting, HasSlash, Singleline, Multiline };
     using StateData = States;
-    constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
     {
         switch (state)
         {
@@ -231,7 +231,7 @@ public:
             return { state, TokenizerResult::Wrong };
         }
     }
-    forceinline constexpr ParserToken GetToken(const States state, ContextReader& reader, std::u32string_view) const noexcept
+    [[nodiscard]] forceinline constexpr ParserToken GetToken(const States state, ContextReader& reader, std::u32string_view) const noexcept
     {
         switch (state)
         {
@@ -253,7 +253,7 @@ class StringTokenizer : public TokenizerBase
 {
 public:
     using StateData = void;
-    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         Expects(idx == 0);
         if (ch == '"')
@@ -261,7 +261,7 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view) const noexcept
+    [[nodiscard]] constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view) const noexcept
     {
         bool successful = false;
         const auto content = reader.ReadWhile([&successful, inSlash = false](const char32_t ch) mutable
@@ -302,7 +302,7 @@ private:
     static constexpr uint32_t SignedFlag   = 0x80000000u;
 public:
     using StateData = uint32_t;
-    constexpr std::pair<uint32_t, TokenizerResult> OnChar(const uint32_t state, const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] constexpr std::pair<uint32_t, TokenizerResult> OnChar(const uint32_t state, const char32_t ch, const size_t) const noexcept
     {
         bool forceSigned   = state & SignedFlag;
 #define RET(state, result) return { (forceSigned ? SignedFlag : 0u) | common::enum_cast(States::state), TokenizerResult::result }
@@ -351,7 +351,7 @@ public:
             RET(NotMatch, NotMatch);
 #undef RET
     }
-    ParserToken GetToken(const uint32_t state, ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] ParserToken GetToken(const uint32_t state, ContextReader&, std::u32string_view txt) const noexcept
     {
         const auto realState = static_cast<States>(state);
         switch (realState)
@@ -447,7 +447,7 @@ class FPTokenizer : public TokenizerBase
 public:
     enum class States : uint32_t { Init, Negative, FirstNum, Dot, Normal, Exp, Scientific, NotMatch };
     using StateData = States;
-    constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
     {
 #define RET(state, result) return { States::state, TokenizerResult::result }
         switch (state)
@@ -491,7 +491,7 @@ public:
         }
 #undef RET
     }
-    ParserToken GetToken(const States state, ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] ParserToken GetToken(const States state, ContextReader&, std::u32string_view txt) const noexcept
     {
         switch (state)
         {
@@ -525,7 +525,7 @@ class BoolTokenizer : public TokenizerBase
 public:
     enum class States : uint32_t { Init, T_T, T_TR, T_TRU, F_F, F_FA, F_FAL, F_FALS, Match, NotMatch };
     using StateData = States;
-    constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
     {
 #define RET(state, result) return { States::state, TokenizerResult::result }
         switch (state)
@@ -567,7 +567,7 @@ public:
         RET(NotMatch, NotMatch);
 #undef RET
     }
-    ParserToken GetToken(const States state, ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] ParserToken GetToken(const States state, ContextReader&, std::u32string_view txt) const noexcept
     {
         if (state == States::Match)
             return ParserToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
@@ -584,14 +584,14 @@ public:
     using StateData = void;
     constexpr ASCIIRawTokenizer(std::string_view str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
         : Checker(str) { }
-    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
     {
         if (Checker(ch))
             return TokenizerResult::Waitlist;
         else
             return TokenizerResult::NotMatch;
     }
-    forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         return ParserToken(BaseToken::Raw, txt);
     }
@@ -614,7 +614,7 @@ public:
         std::string_view second = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
         : FirstChecker(first), SecondChecker(second), FirstPartLen(firstPartLen), TokenID(enum_cast(tokenId))
     { }
-    forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         const auto& checker = idx < FirstPartLen ? FirstChecker : SecondChecker;
         if (checker(ch))
@@ -622,7 +622,7 @@ public:
         else
             return TokenizerResult::NotMatch;
     }
-    forceinline ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
+    [[nodiscard]] forceinline ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
         return ParserToken(TokenID, txt);
     }

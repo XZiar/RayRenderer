@@ -82,11 +82,11 @@ public:
         }
         return *this;
     }
-    constexpr operator const std::basic_string_view<Char>&() const noexcept
+    constexpr operator std::basic_string_view<Char>() const noexcept
     {
         return StrView;
     }
-    constexpr operator const common::span<const Char>() const noexcept
+    constexpr operator common::span<const Char>() const noexcept
     {
         return common::span<const Char>(StrView.data(), StrView.size());
     }

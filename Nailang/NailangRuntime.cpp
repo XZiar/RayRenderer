@@ -1,4 +1,5 @@
 #include "NailangRuntime.h"
+#include "StringCharset/Convert.h"
 #include "3rdParty/fmt/utfext.h"
 #include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
@@ -410,6 +411,11 @@ std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::s
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 
+NaailangCodeException::NaailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
+    NailangRuntimeException(TYPENAME, common::strchset::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope), data)
+{ }
+
+
 NailangRuntimeBase::InnerContextScope::InnerContextScope(NailangRuntimeBase& host, std::shared_ptr<EvaluateContext>&& context) :
     Host(host), Context(std::move(Host.EvalContext))
 {
@@ -593,6 +599,13 @@ Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::spa
                 EvalContext->SetReturnArg(args[0]);
             }
             blkCtx.Status = ProgramStatus::Return;
+            return {};
+        }
+        else if (func == U"Throw"sv)
+        {
+            ThrowByArgCount(args, 1);
+
+            this->HandleException(CREATE_EXCEPTION(NaailangCodeException, args[0].ToString().StrView(), detail::ExceptionTarget::NewFuncCall(func)));
             return {};
         }
     }

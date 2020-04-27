@@ -1113,9 +1113,8 @@ template<typename T>
 namespace detail
 {
 template<typename Decoder>
-[[nodiscard]] inline bool CaseInsensitiveCompare(Decoder str, Decoder prefix)
+[[nodiscard]] inline constexpr bool CaseInsensitiveCompare(Decoder str, Decoder prefix) noexcept
 {
-    bool isEqual = true;
     while (true)
     {
         const auto strCp    =    str.Decode();

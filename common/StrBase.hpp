@@ -1,6 +1,7 @@
 #pragma once
 
-
+#include "CommonRely.hpp"
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -46,6 +47,50 @@ template<typename T>
     else
         static_assert(!common::AlwaysTrue<T>(), "unsupported type to be converted into string_view");
 }
+
+template<typename Ch>
+struct StrVariant
+{
+private:
+    std::basic_string<Ch> Str;
+    std::basic_string_view<Ch> View;
+public:
+    constexpr StrVariant() noexcept { }
+    StrVariant(std::basic_string<Ch>&& str) noexcept : Str(std::move(str)), View(Str) { }
+    constexpr StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
+    constexpr StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }
+
+    [[nodiscard]] constexpr std::basic_string_view<Ch> StrView() const noexcept
+    {
+        return View;
+    }
+    constexpr operator common::span<const Ch>() const noexcept
+    {
+        return common::span<const Ch>(View.data(), View.size());
+    }
+    constexpr bool operator==(const std::basic_string_view<Ch> str) const noexcept
+    {
+        return View == str;
+    }
+
+    decltype(auto) begin() const noexcept
+    {
+        return View.begin();
+    }
+    decltype(auto) end() const noexcept
+    {
+        return View.end();
+    }
+    decltype(auto) data() const noexcept
+    {
+        return View.data();
+    }
+    decltype(auto) size() const noexcept
+    {
+        return View.size();
+    }
+
+};
 
 
 enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32LE, UTF32BE };

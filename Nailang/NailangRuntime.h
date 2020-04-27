@@ -27,11 +27,11 @@ struct VarLookup
     {
         FindNext();
     }
-    constexpr std::u32string_view Part() const noexcept
+    [[nodiscard]] constexpr std::u32string_view Part() const noexcept
     {
         return Name.substr(Offset, NextOffset - Offset);
     }
-    constexpr bool Next() noexcept
+    [[nodiscard]] constexpr bool Next() noexcept
     {
         Offset = std::min(NextOffset + 1, Name.size());
         return FindNext();
@@ -53,7 +53,7 @@ struct LocalFunc
     const Block* Body;
     common::span<std::u32string_view> ArgNames;
 
-    constexpr operator bool() const noexcept { return Body != nullptr; }
+    [[nodiscard]] constexpr operator bool() const noexcept { return Body != nullptr; }
 };
 }
 
@@ -66,20 +66,20 @@ protected:
 
     std::shared_ptr<EvaluateContext> ParentContext;
 
-    virtual Arg LookUpArgInside(detail::VarLookup var) const = 0;
+    [[nodiscard]] virtual Arg LookUpArgInside(detail::VarLookup var) const = 0;
     virtual bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) = 0;
 public:
     virtual ~EvaluateContext();
 
-    virtual Arg LookUpArg(std::u32string_view var) const;
-    virtual bool SetArg(std::u32string_view var, Arg arg);
-    virtual detail::LocalFunc LookUpFunc(std::u32string_view name) = 0;
-    virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
-    virtual bool SetFunc(const detail::LocalFunc& func) = 0;
-    virtual void SetReturnArg(Arg arg) = 0;
-    virtual Arg  GetReturnArg() const = 0;
-    virtual size_t GetArgCount() const noexcept = 0;
-    virtual size_t GetFuncCount() const noexcept = 0;
+    [[nodiscard]] virtual Arg LookUpArg(std::u32string_view var) const;
+                  virtual bool SetArg(std::u32string_view var, Arg arg);
+    [[nodiscard]] virtual detail::LocalFunc LookUpFunc(std::u32string_view name) = 0;
+                  virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
+                  virtual bool SetFunc(const detail::LocalFunc& func) = 0;
+                  virtual void SetReturnArg(Arg arg) = 0;
+    [[nodiscard]] virtual Arg  GetReturnArg() const = 0;
+    [[nodiscard]] virtual size_t GetArgCount() const noexcept = 0;
+    [[nodiscard]] virtual size_t GetFuncCount() const noexcept = 0;
 };
 
 class NAILANGAPI BasicEvaluateContext : public EvaluateContext
@@ -96,7 +96,7 @@ public:
     bool SetFunc(const detail::LocalFunc& func) override;
 
     void SetReturnArg(Arg arg) override;
-    Arg GetReturnArg() const override;
+    [[nodiscard]] Arg GetReturnArg() const override;
 };
 
 class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
@@ -106,7 +106,7 @@ protected:
     std::map<std::u32string_view, LocalFuncHolder, std::less<>> LocalFuncMap;
     std::optional<Arg> ReturnArg;
 
-    Arg LookUpArgInside(detail::VarLookup var) const override;
+    [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
@@ -114,8 +114,8 @@ public:
 
     detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
-    size_t GetArgCount() const noexcept override;
-    size_t GetFuncCount() const noexcept override;
+    [[nodiscard]] size_t GetArgCount() const noexcept override;
+    [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
 
 class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
@@ -128,35 +128,35 @@ protected:
 
     std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
 
-    Arg LookUpArgInside(detail::VarLookup var) const override;
+    [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
 
-    detail::LocalFunc LookUpFunc(std::u32string_view name) override;
+    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
-    size_t GetArgCount() const noexcept override;
-    size_t GetFuncCount() const noexcept override;
+    [[nodiscard]] size_t GetArgCount() const noexcept override;
+    [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
 
 
 struct NAILANGAPI EmbedOpEval
 {
-    static Arg Equal        (const Arg& left, const Arg& right) noexcept;
-    static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
-    static Arg Less         (const Arg& left, const Arg& right) noexcept;
-    static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
-    static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
-    static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
-    static Arg And          (const Arg& left, const Arg& right) noexcept;
-    static Arg Or           (const Arg& left, const Arg& right) noexcept;
-    static Arg Add          (const Arg& left, const Arg& right) noexcept;
-    static Arg Sub          (const Arg& left, const Arg& right) noexcept;
-    static Arg Mul          (const Arg& left, const Arg& right) noexcept;
-    static Arg Div          (const Arg& left, const Arg& right) noexcept;
-    static Arg Rem          (const Arg& left, const Arg& right) noexcept;
-    static Arg Not          (const Arg& arg) noexcept;
+    [[nodiscard]] static Arg Equal        (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Less         (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
+    [[nodiscard]] static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
+    [[nodiscard]] static Arg And          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Or           (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Add          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Sub          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Mul          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Div          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
 
     static std::optional<Arg> Eval(const std::u32string_view opname, common::span<const Arg> args) noexcept;
 };
@@ -173,7 +173,7 @@ struct ExceptionTarget
     template<typename T>
     constexpr ExceptionTarget(T&& arg) noexcept : Target(std::forward<T>(arg)) {}
 
-    constexpr Type GetType() const noexcept
+    [[nodiscard]] constexpr Type GetType() const noexcept
     {
         switch (Target.index())
         {
@@ -195,11 +195,11 @@ struct ExceptionTarget
         }
     }
     template<Type T>
-    constexpr auto GetVar() const
+    [[nodiscard]] constexpr auto GetVar() const
     {
         Expects(GetType() == T);
         if constexpr (T == Type::Empty)
-            return {};
+            return;
         else if constexpr (T == Type::Arg)
             return std::get<1>(Target);
         else if constexpr (T == Type::RawArg)
@@ -224,7 +224,7 @@ struct ExceptionTarget
             static_assert(!common::AlwaysTrue<decltype(T)>, "");
     }
 
-    static ExceptionTarget NewFuncCall(const std::u32string_view func) noexcept
+    [[nodiscard]] static ExceptionTarget NewFuncCall(const std::u32string_view func) noexcept
     {
         return FuncCall{ func, {} };
     }
@@ -238,13 +238,23 @@ public:
     EXCEPTION_CLONE_EX(NailangRuntimeException);
     detail::ExceptionTarget Target;
     detail::ExceptionTarget Scope;
-public:
-    NailangRuntimeException(const std::u16string_view& msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {}) :
+    NailangRuntimeException(const std::u16string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {}) :
         BaseException(TYPENAME, msg, data), Target(std::move(target)), Scope(std::move(scope))
+    { }
+protected:
+    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data)
+        : BaseException(type, msg, data), Target(std::move(target)), Scope(std::move(scope))
     { }
 private:
     mutable std::shared_ptr<EvaluateContext> EvalContext;
 }; 
+
+class NAILANGAPI NaailangCodeException : public NailangRuntimeException
+{
+public:
+    EXCEPTION_CLONE_EX(NaailangCodeException);
+    NaailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {});
+};
 
 
 class NAILANGAPI NailangRuntimeBase
@@ -332,9 +342,9 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
-            bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
-    virtual void HandleException(const NailangRuntimeException& ex) const;
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
+    [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
+                  virtual void HandleException(const NailangRuntimeException& ex) const;
 
     inline Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
     {
@@ -353,7 +363,7 @@ protected:
     virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
     virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
-    virtual ProgramStatus OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual ProgramStatus OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
     virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
     virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:
