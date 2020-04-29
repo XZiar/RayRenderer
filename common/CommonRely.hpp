@@ -361,7 +361,11 @@ using remove_cvref_t = typename std::remove_cv_t<std::remove_reference_t<T>>;
 
 
 template<typename T>
-constexpr bool AlwaysTrue() { return true; }
+inline constexpr bool AlwaysTrue = true;
+//constexpr inline bool AlwaysTrue() noexcept { return true; }
+template<auto T>
+inline constexpr bool AlwaysTrue2 = true;
+//constexpr inline bool AlwaysTrue2() noexcept { return true; }
 
 
 template<typename T, typename... Args>
@@ -588,7 +592,7 @@ struct CannotToSpan
     template<typename T>
     constexpr auto operator()(T&& arg) noexcept
     {
-        static_assert(!common::AlwaysTrue<T>(), "unsupported");
+        static_assert(!common::AlwaysTrue<T>, "unsupported");
     }
 };
 struct SkipToSpan

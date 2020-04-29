@@ -22,6 +22,7 @@ jobs:
             - unzip
             - python3-pip
             - libx11-dev
+            - libx11-xcb-dev
             - libxkbcommon-dev
             - libxkbcommon-x11-dev
             - libgl1-mesa-dev
@@ -48,6 +49,34 @@ jobs:
             - unzip
             - python3-pip
             - libx11-dev
+            - libx11-xcb-dev
+            - libxkbcommon-dev
+            - libxkbcommon-x11-dev
+            - libgl1-mesa-dev
+            - libglu1-mesa-dev
+            - libxi-dev  
+
+    - name: "GCC9"
+      os: linux
+      compiler: gcc
+      env:
+        - CCOMPILER=gcc-9
+        - ASMCOMPILER=g++-9
+        - CPPCOMPILER=g++-9
+        - DYNAMICLINKER=g++-9
+        - APPLINKER=g++-9
+        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-9
+            - nasm
+            - unzip
+            - python3-pip
+            - libx11-dev
+            - libx11-xcb-dev
             - libxkbcommon-dev
             - libxkbcommon-x11-dev
             - libgl1-mesa-dev
@@ -78,6 +107,7 @@ jobs:
             - unzip
             - python3-pip
             - libx11-dev
+            - libx11-xcb-dev
             - libxkbcommon-dev
             - libxkbcommon-x11-dev
             - libgl1-mesa-dev
@@ -108,6 +138,7 @@ jobs:
             - unzip
             - python3-pip
             - libx11-dev
+            - libx11-xcb-dev
             - libxkbcommon-dev
             - libxkbcommon-x11-dev
             - libgl1-mesa-dev

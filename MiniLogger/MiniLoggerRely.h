@@ -127,7 +127,7 @@ private:
         else if constexpr (std::is_same_v<Char, char32_t>)
             return common::strchset::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF32LE);
         else
-            static_assert(!common::AlwaysTrue<Char>(), "unexpected Char type");
+            static_assert(!common::AlwaysTrue<Char>, "unexpected Char type");
     }
 public:
     template<typename Char>
@@ -191,11 +191,11 @@ public:
             else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
                 return ToU16Str(std::u32string_view(reinterpret_cast<const char32_t*>(wstr.data()), wstr.size()), std::forward<Args>(args)...);
             else
-                static_assert(!common::AlwaysTrue<T>(), "unexpected wchar_t size");
+                static_assert(!common::AlwaysTrue<T>, "unexpected wchar_t size");
         }
         else
         {
-            static_assert(!common::AlwaysTrue<T>(), "unknown formatter type");
+            static_assert(!common::AlwaysTrue<T>, "unknown formatter type");
         }
     }
 };

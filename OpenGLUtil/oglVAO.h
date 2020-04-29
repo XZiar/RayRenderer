@@ -52,7 +52,7 @@ inline constexpr VAValType ParseType()
     else if constexpr (std::is_same_v<Val, int16_t>)    return VAValType::I16;
     else if constexpr (std::is_same_v<Val, uint8_t>)    return VAValType::U8;
     else if constexpr (std::is_same_v<Val, int8_t>)     return VAValType::I8;
-    else static_assert(!common::AlwaysTrue<Val>(), "unsupported type");
+    else static_assert(!common::AlwaysTrue<Val>, "unsupported type");
 }
 template<typename T, bool IsNormalize_, uint8_t Size_, size_t Offset_>
 struct VAComponent : public VARawComponent<ParseType<T>(), IsNormalize_, IsNormalize_ ? false : std::is_integral_v<T>, Size_, Offset_>

@@ -80,7 +80,7 @@ template<typename Char, typename T, typename Judger>
         if constexpr (std::is_same_v<Char, std::decay_t<Judger>>)
             return ToSplitStream<Char>(std::forward<T>(source), [=](const Char ch) noexcept { return ch == judger; }, keepblank);
         else
-            static_assert(!common::AlwaysTrue<T>(), "Judger should be delim of Char or a callable that check if Char is a delim");
+            static_assert(!common::AlwaysTrue<T>, "Judger should be delim of Char or a callable that check if Char is a delim");
         //static_assert(std::is_invocable_r_v<bool, Judger, Char>, "Splitter should accept char and return (bool) if should split here.");
     }
     else
@@ -130,7 +130,7 @@ template<typename T, typename Judger>
     }
     else
     {
-        static_assert(!common::AlwaysTrue<T>(), "unsupportted Source type");
+        static_assert(!common::AlwaysTrue<T>, "unsupportted Source type");
     }
 }
 

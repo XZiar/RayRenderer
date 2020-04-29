@@ -850,7 +850,7 @@ template<typename T>
     }
     else
     {
-        static_assert(!common::AlwaysTrue<T>(), "wchar_t size unrecognized");
+        static_assert(!common::AlwaysTrue<T>, "wchar_t size unrecognized");
     }
 }
 

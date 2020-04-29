@@ -47,7 +47,7 @@ common::span<const std::byte> ToByteSpan(T&& arg)
     else if constexpr (std::is_pointer_v<U>)
         return ToByteSpan(std::basic_string_view(arg));
     else
-        static_assert(!common::AlwaysTrue<T>(), "unsupported");
+        static_assert(!common::AlwaysTrue<T>, "unsupported");
 }
 
 

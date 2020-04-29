@@ -61,7 +61,7 @@ struct UTFMakeValueProxy
         else if constexpr (std::is_same_v<T, wchar_t>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | WCharTag);
         else
-            static_assert(!temp::AlwaysTrue<T>(), "Non-char type enter here");
+            static_assert(!temp::AlwaysTrue<T>, "Non-char type enter here");
     }
     template<typename T>
     static constexpr auto ToStringValue(const T* ptr) { return ToStringValue(ptr, std::char_traits<T>::length(ptr)); }

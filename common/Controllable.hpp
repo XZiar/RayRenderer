@@ -193,7 +193,7 @@ private:
                 };
             }
             else
-                static_assert(!AlwaysTrue<D>(), "getter should accept (const D&, const std::string&) or (const D&)");
+                static_assert(!AlwaysTrue<D>, "getter should accept (const D&, const std::string&) or (const D&)");
             return *this;
         }
         template<typename D, typename Setter>
@@ -215,7 +215,7 @@ private:
                 };
             }
             else
-                static_assert(!AlwaysTrue<D>(), "setter should accept (D&, const std::string&, const T&) or (D&, const T&)");
+                static_assert(!AlwaysTrue<D>, "setter should accept (D&, const std::string&, const T&) or (D&, const T&)");
             return *this;
         }
         template<bool CanWrite = true, bool CanRead = true, typename V = T>
@@ -301,7 +301,7 @@ private:
                 Item.Notifier = [notifier](Controllable& obj, const std::string&) { notifier(dynamic_cast<D&>(obj)); };
             }
             else
-                static_assert(!AlwaysTrue<D>(), "notifier should accept (D&, const std::string&) or (D&)");
+                static_assert(!AlwaysTrue<D>, "notifier should accept (D&, const std::string&) or (D&)");
             return *this;
         }
         template<typename D, bool CanWrite = true, bool CanRead = true, typename P = T & (D&), typename Notify = void(D&)>

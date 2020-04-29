@@ -159,7 +159,7 @@ public:
             else if constexpr (std::is_invocable_r_v<bool, Pred, const char32_t, size_t>)
                 shouldContinue = predictor(ch, count);
             else
-                static_assert(!common::AlwaysTrue<Pred>(), "predictor should accept a char32_t and return if should continue");
+                static_assert(!common::AlwaysTrue<Pred>, "predictor should accept a char32_t and return if should continue");
             if (!shouldContinue)
                 break;
             // should continue

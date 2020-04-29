@@ -23,7 +23,7 @@ static auto ToIntSpan(T&& str) noexcept
     else if constexpr (CharSize == 4)
         return common::span<const uint32_t>(reinterpret_cast<const uint32_t*>(sv.data()), sv.size());
     else
-        static_assert(!common::AlwaysTrue<T>());
+        static_assert(!common::AlwaysTrue<T>;
 }
 template<typename T>
 static auto ToByteSpan(T&& str) noexcept

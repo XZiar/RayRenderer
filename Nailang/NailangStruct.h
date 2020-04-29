@@ -186,7 +186,7 @@ struct RawArg
         else if constexpr (T == Type::Bool)
             return Data1 == 1;
         else
-            static_assert(!common::AlwaysTrue<decltype(T)>, "");
+            static_assert(!common::AlwaysTrue2<T>(), "");
     }
 
     [[nodiscard]] forceinline Variant GetVar() const
@@ -285,7 +285,7 @@ struct Arg
         else if constexpr (T == InternalType::Bool)
             return Data1 == 1;
         else
-            static_assert(!common::AlwaysTrue<decltype(T)>, "");
+            static_assert(!common::AlwaysTrue2<T>(), "");
     }
 
     template<typename Visitor>

@@ -105,7 +105,7 @@ void Stringify(const T& data, std::string& dest)
     }
     else
     {
-        static_assert(!common::AlwaysTrue<T>(), "not support");
+        static_assert(!common::AlwaysTrue<T>, "not support");
     }
 }
 

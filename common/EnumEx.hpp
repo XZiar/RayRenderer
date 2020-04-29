@@ -86,13 +86,13 @@ struct Enumer
         constexpr size_t suffix = 3;
 #elif COMPILER_CLANG
 #  if __clang_major__ < 4
-        static_assert(!AlwaysTrue<E>(), "Requires at least Clang 4 to correctly reflect");
+        static_assert(!AlwaysTrue<E>, "Requires at least Clang 4 to correctly reflect");
 #  endif
         std::string_view funcName = __PRETTY_FUNCTION__;
         constexpr size_t suffix = 4;
 #elif COMPILER_GCC
 #  if __GNUC__ < 9
-        static_assert(!AlwaysTrue<E>(), "Requires at least GCC 9 to correctly reflect");
+        static_assert(!AlwaysTrue<E>, "Requires at least GCC 9 to correctly reflect");
 #  endif
         std::string_view funcName = __PRETTY_FUNCTION__;
         constexpr size_t suffix = 51;

@@ -42,10 +42,10 @@ template<typename T>
             return std::basic_string_view<Char>(space.data(), space.size());
         }
         else
-            static_assert(!common::AlwaysTrue<T>(), "with value_type, still not able to be converted into string_view");
+            static_assert(!common::AlwaysTrue<T>, "with value_type, still not able to be converted into string_view");
     }
     else
-        static_assert(!common::AlwaysTrue<T>(), "unsupported type to be converted into string_view");
+        static_assert(!common::AlwaysTrue<T>, "unsupported type to be converted into string_view");
 }
 
 template<typename Ch>
