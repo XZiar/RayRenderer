@@ -221,7 +221,7 @@ struct ExceptionTarget
             }
         }
         else
-            static_assert(!common::AlwaysTrue2<T>(), "");
+            static_assert(!common::AlwaysTrue2<T>, "");
     }
 
     [[nodiscard]] static ExceptionTarget NewFuncCall(const std::u32string_view func) noexcept

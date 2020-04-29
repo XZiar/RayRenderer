@@ -128,16 +128,30 @@ struct FuncCall;
 struct UnaryExpr;
 struct BinaryExpr;
 
+namespace detail
+{
+union IntFPUnion
+{
+    uint64_t Uint;
+    double FP;
+    constexpr IntFPUnion() noexcept : Uint(0) { }
+    template<typename T>
+    constexpr IntFPUnion(const T val, typename std::enable_if_t< std::is_floating_point_v<T>>* = 0) noexcept : FP(val) { }
+    template<typename T>
+    constexpr IntFPUnion(const T val, typename std::enable_if_t<!std::is_floating_point_v<T>>* = 0) noexcept : Uint(val) { }
+};
+}
 
 struct RawArg
 {
-    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Var, Str, Uint, Int, FP, Bool };
-    using Variant = std::variant<const FuncCall*, const UnaryExpr*, const BinaryExpr*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
-    uint64_t Data1;
+private:
+    detail::IntFPUnion Data1;
     uint32_t Data2;
+public:
+    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Var, Str, Uint, Int, FP, Bool };
     Type TypeData;
 
-    constexpr RawArg() noexcept : Data1(0), Data2(0), TypeData(Type::Empty) {}
+    constexpr RawArg() noexcept : Data1(), Data2(0), TypeData(Type::Empty) {}
     RawArg(const FuncCall* ptr) noexcept : 
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(1), TypeData(Type::Func) {}
     RawArg(const UnaryExpr* ptr) noexcept :
@@ -159,37 +173,38 @@ struct RawArg
     RawArg(const int64_t num) noexcept :
         Data1(static_cast<uint64_t>(num)), Data2(7), TypeData(Type::Int) {}
     RawArg(const double num) noexcept :
-        Data1(*reinterpret_cast<const uint64_t*>(&num)), Data2(8), TypeData(Type::FP) {}
+        Data1(num), Data2(8), TypeData(Type::FP) {}
     RawArg(const bool boolean) noexcept :
         Data1(boolean ? 1 : 0), Data2(9), TypeData(Type::Bool) {}
 
     template<Type T>
-    [[nodiscard]] constexpr auto GetVar() const
+    [[nodiscard]] constexpr auto GetVar() const noexcept
     {
         Expects(TypeData == T);
         if constexpr (T == Type::Func)
-            return reinterpret_cast<const FuncCall*>(Data1);
+            return reinterpret_cast<const FuncCall*>(Data1.Uint);
         else if constexpr (T == Type::Unary)
-            return reinterpret_cast<const UnaryExpr*>(Data1);
+            return reinterpret_cast<const UnaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Binary)
-            return reinterpret_cast<const BinaryExpr*>(Data1);
+            return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Var)
-            return LateBindVar{ {reinterpret_cast<const char32_t*>(Data1), Data2} };
+            return LateBindVar{ {reinterpret_cast<const char32_t*>(Data1.Uint), Data2} };
         else if constexpr (T == Type::Str)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1), Data2 };
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
         else if constexpr (T == Type::Uint)
-            return Data1;
+            return Data1.Uint;
         else if constexpr (T == Type::Int)
-            return static_cast<int64_t>(Data1);
+            return static_cast<int64_t>(Data1.Uint);
         else if constexpr (T == Type::FP)
-            return *reinterpret_cast<const double*>(&Data1);
+            return Data1.FP;
         else if constexpr (T == Type::Bool)
-            return Data1 == 1;
+            return Data1.Uint == 1;
         else
-            static_assert(!common::AlwaysTrue2<T>(), "");
+            static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }
 
-    [[nodiscard]] forceinline Variant GetVar() const
+    using Variant = std::variant<const FuncCall*, const UnaryExpr*, const BinaryExpr*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+    [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
         switch (TypeData)
         {
@@ -219,7 +234,7 @@ struct RawArg
         case Type::Int:     return visitor(GetVar<Type::Int>());
         case Type::FP:      return visitor(GetVar<Type::FP>());
         case Type::Bool:    return visitor(GetVar<Type::Bool>());
-        default:            Expects(false); return visitor(Data1);
+        default:            return visitor(std::optional<bool>{});
         }
     }
 };
@@ -230,14 +245,15 @@ struct CustomVar : LateBindVar
     uint32_t Meta1;
     uint16_t Meta2;
 };
-//using Arg = std::variant<CustomVar, std::u32string_view, uint64_t, int64_t, double, bool>;
 struct Arg
 {
-    enum class InternalType : uint16_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
+private:
     std::u32string Str;
-    uint64_t Data1;
+    detail::IntFPUnion Data1;
     uint32_t Data2;
     uint16_t Data3;
+public:
+    enum class InternalType : uint16_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
     InternalType TypeData;
 
     Arg() noexcept : Data1(0), Data2(0), Data3(0), TypeData(InternalType::Empty)
@@ -260,7 +276,7 @@ struct Arg
         Data1(static_cast<uint64_t>(num)), Data2(7), Data3(0), TypeData(InternalType::Int)
     { }
     Arg(const double num) noexcept :
-        Data1(*reinterpret_cast<const uint64_t*>(&num)), Data2(8), Data3(0), TypeData(InternalType::FP)
+        Data1(num), Data2(8), Data3(0), TypeData(InternalType::FP)
     { }
     Arg(const bool boolean) noexcept :
         Data1(boolean ? 1 : 0), Data2(9), Data3(0), TypeData(InternalType::Bool)
@@ -271,21 +287,21 @@ struct Arg
     {
         Expects(TypeData == T);
         if constexpr (T == InternalType::Var)
-            return CustomVar{ std::u32string_view{Str}, Data1, Data2, Data3 };
+            return CustomVar{ std::u32string_view{Str}, Data1.Uint, Data2, Data3 };
         else if constexpr (T == InternalType::U32Str)
             return std::u32string_view{ Str };
         else if constexpr (T == InternalType::U32Sv)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1), Data2 };
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
         else if constexpr (T == InternalType::Uint)
-            return Data1;
+            return Data1.Uint;
         else if constexpr (T == InternalType::Int)
-            return static_cast<int64_t>(Data1);
+            return static_cast<int64_t>(Data1.Uint);
         else if constexpr (T == InternalType::FP)
-            return *reinterpret_cast<const double*>(&Data1);
+            return Data1.FP;
         else if constexpr (T == InternalType::Bool)
-            return Data1 == 1;
+            return Data1.Uint == 1;
         else
-            static_assert(!common::AlwaysTrue2<T>(), "");
+            static_assert(!common::AlwaysTrue2<T>, "Unknown InternalType");
     }
 
     template<typename Visitor>
@@ -300,7 +316,7 @@ struct Arg
         case InternalType::Int:     return visitor(GetVar<InternalType::Int>());
         case InternalType::FP:      return visitor(GetVar<InternalType::FP>());
         case InternalType::Bool:    return visitor(GetVar<InternalType::Bool>());
-        default:    Expects(false); return visitor(Data1);
+        default:                    return visitor(std::optional<bool>{});
         }
     }
 
@@ -436,25 +452,25 @@ struct BlockContent
     enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
     uintptr_t Pointer;
 
-    [[nodiscard]] static BlockContent Generate(const Assignment* ptr)
+    [[nodiscard]] static BlockContent Generate(const Assignment* ptr) noexcept
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
     }
-    [[nodiscard]] static BlockContent Generate(const FuncCall* ptr)
+    [[nodiscard]] static BlockContent Generate(const FuncCall* ptr) noexcept
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
     }
-    [[nodiscard]] static BlockContent Generate(const RawBlock* ptr)
+    [[nodiscard]] static BlockContent Generate(const RawBlock* ptr) noexcept
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
         return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
     }
-    [[nodiscard]] static BlockContent Generate(const Block* ptr)
+    [[nodiscard]] static BlockContent Generate(const Block* ptr) noexcept
     {
         const auto pointer = reinterpret_cast<uintptr_t>(ptr);
         Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
@@ -472,7 +488,7 @@ struct BlockContent
         return static_cast<Type>(Pointer & 0x3);
     }
     [[nodiscard]] std::variant<const Assignment*, const FuncCall*, const RawBlock*, const Block*>
-        GetStatement() const
+        GetStatement() const noexcept
     {
         switch (GetType())
         {
@@ -500,7 +516,7 @@ struct BlockContentItem : public BlockContent
 {
     uint32_t Offset, Count;
     template<typename T>
-    [[nodiscard]] static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count)
+    [[nodiscard]] static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count) noexcept
     {
         return BlockContentItem{ BlockContent::Generate(ptr), offset, count };
     }
@@ -522,15 +538,15 @@ private:
         using value_type = typename Block::value_type;
         using difference_type = std::ptrdiff_t;
 
-        constexpr value_type operator*() const noexcept
+        [[nodiscard]] constexpr value_type operator*() const noexcept
         {
             return (*Host)[Idx];
         }
-        constexpr bool operator!=(const BlockIterator& other) const noexcept
+        [[nodiscard]] constexpr bool operator!=(const BlockIterator& other) const noexcept
         {
             return Host != other.Host || Idx != other.Idx;
         }
-        constexpr bool operator==(const BlockIterator& other) const noexcept
+        [[nodiscard]] constexpr bool operator==(const BlockIterator& other) const noexcept
         {
             return Host == other.Host && Idx == other.Idx;
         }
@@ -559,11 +575,11 @@ public:
     common::span<const FuncCall> MetaFuncations;
     common::span<const BlockContentItem> Content;
 
-    constexpr BlockIterator begin() const noexcept
+    [[nodiscard]] constexpr BlockIterator begin() const noexcept
     {
         return { this, 0 };
     }
-    constexpr BlockIterator end() const noexcept
+    [[nodiscard]] constexpr BlockIterator end() const noexcept
     {
         return { this, Size() };
     }

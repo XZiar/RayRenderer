@@ -16,6 +16,7 @@ using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
+using xziar::nailang::CustomVar;
 using xziar::nailang::Arg;
 using xziar::nailang::Assignment;
 using xziar::nailang::Block;
@@ -63,6 +64,20 @@ public:
     using NailangRuntimeBase::ExecuteContent;
 };
 
+
+TEST(NailangBase, ArgToString)
+{
+    constexpr auto ChkStr = [](const Arg arg, const std::u32string_view str)
+    {
+        EXPECT_EQ(arg.ToString().StrView(), str);
+    };
+    ChkStr(int64_t(-123), U"-123"sv);
+    ChkStr(uint64_t(123), U"123"sv);
+    ChkStr(1.5, U"1.5"sv);
+    ChkStr(U"Here"sv, U"Here"sv);
+    ChkStr({}, U""sv);
+    ChkStr(CustomVar{}, U""sv);
+}
 
 #define CHECK_ARG(arg, type, val) do                    \
 {                                                       \

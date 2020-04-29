@@ -142,7 +142,7 @@ struct ASCIIChecker
 #endif
     static constexpr uint8_t EleBits = sizeof(EleType) * 8;
     std::array<EleType, 128 / EleBits> LUT = { 0 };
-    constexpr ASCIIChecker(const std::string_view str)
+    constexpr ASCIIChecker(const std::string_view str) noexcept
     {
         for (auto& ele : LUT)
             ele = Result ? std::numeric_limits<EleType>::min() : std::numeric_limits<EleType>::max();
@@ -582,7 +582,7 @@ private:
     ASCIIChecker<true> Checker;
 public:
     using StateData = void;
-    constexpr ASCIIRawTokenizer(std::string_view str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+    constexpr ASCIIRawTokenizer(std::string_view str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") noexcept
         : Checker(str) { }
     [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t) const noexcept
     {
@@ -611,7 +611,7 @@ public:
     constexpr ASCII2PartTokenizer(
         const T tokenId = BaseToken::Raw, const uint16_t firstPartLen = 1,
         std::string_view first = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        std::string_view second = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
+        std::string_view second = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") noexcept
         : FirstChecker(first), SecondChecker(second), FirstPartLen(firstPartLen), TokenID(enum_cast(tokenId))
     { }
     [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
