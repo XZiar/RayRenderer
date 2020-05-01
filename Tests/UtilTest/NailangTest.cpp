@@ -79,7 +79,6 @@ static void ShowBlock(MemoryPool& pool, const Block& block, const string& indent
 
 static void TestNailang()
 {
-    ClearReturn();
     while (true)
     {
         try

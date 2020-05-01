@@ -154,8 +154,8 @@ std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const 
 
 Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 {
-    for (const auto& [off, len, val] : Args)
-        if (GetStr(off, len) == var.Name)
+    for (const auto& [pos, val] : Args)
+        if (GetStr(pos.first, pos.second) == var.Name)
             return val;
     return Arg{};
 }
@@ -163,8 +163,8 @@ Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
 {
     Arg* target = nullptr;
-    for (auto& [off, len, val] : Args)
-        if (GetStr(off, len) == var.Name)
+    for (auto& [pos, val] : Args)
+        if (GetStr(pos.first, pos.second) == var.Name)
             target = &val;
     const bool hasIt = target != nullptr;
     if (hasIt)
@@ -182,7 +182,7 @@ bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const 
             const uint32_t offset = gsl::narrow_cast<uint32_t>(StrPool.size()),
                 size = gsl::narrow_cast<uint32_t>(var.Name.size());
             StrPool.insert(StrPool.end(), var.Name.cbegin(), var.Name.cend());
-            Args.emplace_back(offset, size, arg);
+            Args.emplace_back(std::pair{ offset, size }, arg);
         }
         return false;
     }
@@ -216,7 +216,7 @@ detail::LocalFunc CompactEvaluateContext::LookUpFunc(std::u32string_view name)
 size_t CompactEvaluateContext::GetArgCount() const noexcept
 {
     return common::linq::FromIterable(Args)
-        .Where([](const auto& tuple) { return !std::get<2>(tuple).IsEmpty(); })
+        .Where([](const auto& arg) { return !arg.second.IsEmpty(); })
         .Count();
 }
 

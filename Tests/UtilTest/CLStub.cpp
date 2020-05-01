@@ -1,10 +1,12 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
+#include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclException.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringCharset/Convert.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
+#include "common/StringEx.hpp"
 
 
 using namespace common;
@@ -91,10 +93,10 @@ static void OCLStub()
             {
                 for (const auto& format : formats)
                     str.append(TexFormatUtil::GetFormatName(format)).append(u"\t")
-                       .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
+                    .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
                 return str;
             };
-            log().verbose(u"{}",   proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
+            log().verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
             log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
             continue;
         }
@@ -103,14 +105,16 @@ static void OCLStub()
             common::console::ConsoleEx::ClearConsole();
             continue;
         }
+        else if (fpath.empty())
+            continue;
         bool exConfig = false;
-        if (fpath.size() > 0 && fpath.back() == '#')
+        if (fpath.back() == '#')
             fpath.pop_back(), exConfig = true;
         common::fs::path filepath = FindPath() / fpath;
         log().debug(u"loading cl file [{}]\n", filepath.u16string());
         try
         {
-            const auto kertxt = common::file::ReadAllText(filepath);
+            auto kertxt = common::file::ReadAllText(filepath);
             CLProgConfig config;
             config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
             if (exConfig)
@@ -133,6 +137,14 @@ static void OCLStub()
                     }
                     break;
                 }
+            }
+            if (common::str::IsEndWith(fpath, ".nlcl"))
+            {
+                static const NLCLProcessor NLCLProc;
+                const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
+                auto result = NLCLProc.ProcessCL(prog, dev);
+                common::file::WriteAll(FindPath() / (fpath + ".cl"), result);
+                kertxt = result;
             }
             auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config);
             log().success(u"loaded! kernels:\n");

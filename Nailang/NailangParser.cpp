@@ -445,6 +445,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         {
             Block inlineBlk;
             FillBlockName(inlineBlk);
+            inlineBlk.Type = token.GetString();
             EatLeftCurlyBrace();
             {
                 ContextReader reader(Context);

@@ -87,6 +87,18 @@ inline constexpr bool IsBeginWith(const T1& src, const T2& prefix) noexcept
     return std::char_traits<Char>::compare(srcsv.data(), prefixsv.data(), prefixsv.length()) == 0;
 }
 
+template<typename T1, typename T2>
+inline constexpr bool IsEndWith(const T1& src, const T2& prefix) noexcept
+{
+    const auto srcsv = ToStringView(src);
+    const auto prefixsv = ToStringView(prefix);
+    static_assert(std::is_same_v<decltype(srcsv), decltype(prefixsv)>, "src and prefix has different char type");
+    using Char = typename decltype(srcsv)::value_type;
+    if (srcsv.length() < prefixsv.length())
+        return false;
+    return std::char_traits<Char>::compare(srcsv.data() + (srcsv.size() - prefixsv.size()), prefixsv.data(), prefixsv.length()) == 0;
+}
+
 
 inline char ToUpper(const char ch)
 {

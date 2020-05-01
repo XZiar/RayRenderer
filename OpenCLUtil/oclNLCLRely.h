@@ -33,27 +33,49 @@ public:
 
 };
 
+struct OutputBlock
+{
+    const xziar::nailang::RawBlock* Block;
+    const xziar::nailang::FuncCall* MetaPtr;
+    uint32_t MetaCount;
+    uint32_t ExtraInfo;
+    constexpr OutputBlock(const xziar::nailang::RawBlock* block, common::span<const xziar::nailang::FuncCall> meta, uint32_t extra = 0) noexcept :
+        Block(block), MetaPtr(meta.data()), MetaCount(gsl::narrow_cast<uint32_t>(meta.size())), ExtraInfo(extra) {}
+};
+
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
 {
 protected:
+    using RawBlock = xziar::nailang::RawBlock;
+    using MetaFuncs = common::span<const xziar::nailang::FuncCall>;
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
     std::vector<bool> EnabledExtensions;
-    std::vector<const xziar::nailang::RawBlock*> OutputBlocks;
-    std::vector<const xziar::nailang::RawBlock*> StructBlocks;
-    std::vector<const xziar::nailang::RawBlock*> KernelBlocks;
-    std::vector<const xziar::nailang::RawBlock*> TemplateBlocks;
-    std::vector<const xziar::nailang::RawBlock*> KernelTemplateBlocks;
+    std::vector<OutputBlock> OutputBlocks;
+    std::vector<OutputBlock> StructBlocks;
+    std::vector<OutputBlock> KernelBlocks;
+    std::vector<OutputBlock> TemplateBlocks;
+    std::vector<OutputBlock> KernelStubBlocks;
     
-    void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
+    //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const std::u32string_view func, common::span<const xziar::nailang::Arg> args, 
-        common::span<const xziar::nailang::FuncCall> metas, const FuncTarget target) override;
+        MetaFuncs metas, const FuncTarget target) override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
+
+    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+
+    virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+    virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+    virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+    virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst) const;
 public:
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext);
     bool EnableExtension(std::u32string_view ext);
+    void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
+
+    std::string GenerateOutput() const;
 };
 
 class OCLUAPI NLCLProgram
@@ -67,21 +89,22 @@ protected:
 public:
     NLCLProgram(std::u32string&& source);
     ~NLCLProgram();
-    template<typename F>
-    void ForEachBlockType(const std::u32string_view type, F&& func)
+    template<bool IsBlock, bool FullMatch, typename F>
+    void ForEachBlockType(const std::u32string_view type, F&& func) const
     {
-        using xziar::nailang::Block;
-        static_assert(std::is_invocable_v<F, const Block&, common::span<const xziar::nailang::FuncCall>>,
-            "nedd to accept block and meta.");
+        using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
+        static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
+            "nedd to accept block/rawblock and meta.");
         using xziar::nailang::BlockContent;
+        constexpr auto contentType = IsBlock ? BlockContent::Type::Block : BlockContent::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
         {
-            if (tmp.GetType() != BlockContent::Type::Block)
+            if (tmp.GetType() != contentType)
                 continue;
-            const auto& block = *tmp.template Get<Block>();
-            if (block.Type != type)
-                continue;
-            func(block, meta);
+            const auto& block = *tmp.template Get<Target>();
+            if ((FullMatch && block.Type == type) || 
+                (!FullMatch && common::str::IsBeginWith(block.Type, type)))
+                func(block, meta);
         }
     }
 };
@@ -92,12 +115,12 @@ class OCLUAPI NLCLProgStub
     friend class NLCLProcessor;
 protected:
     xziar::nailang::MemoryPool MemPool;
-    std::shared_ptr<NLCLProgram> Program;
+    std::shared_ptr<const NLCLProgram> Program;
     const oclDevice Device;
     std::unique_ptr<NLCLRuntime> Runtime;
 
 public:
-    NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime);
+    NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime);
     NLCLProgStub(NLCLProgStub&&) = default;
     virtual ~NLCLProgStub();
 };

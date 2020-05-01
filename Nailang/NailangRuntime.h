@@ -104,7 +104,6 @@ class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
 protected:
     std::map<std::u32string, Arg, std::less<>> ArgMap;
     std::map<std::u32string_view, LocalFuncHolder, std::less<>> LocalFuncMap;
-    std::optional<Arg> ReturnArg;
 
     [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
@@ -121,10 +120,9 @@ public:
 class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
 {
 protected:
-    std::vector<std::tuple<uint32_t, uint32_t, Arg>> Args;
+    std::vector<std::pair<std::pair<uint32_t, uint32_t>, Arg>> Args;
     std::vector<std::pair<std::u32string_view, LocalFuncHolder>> LocalFuncs;
     std::vector<char32_t> StrPool;
-    std::optional<Arg> ReturnArg;
 
     std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
 
@@ -167,7 +165,8 @@ namespace detail
 struct ExceptionTarget
 {
     enum class Type { Empty, Arg, RawArg, Assignment, FuncCall, RawBlock, Block };
-    std::variant<std::monostate, Arg, RawArg, const FuncCall*, FuncCall, BlockContent> Target;
+    std::variant<std::monostate, Arg, RawArg, const FuncCall*, FuncCall, const RawBlock*, const Block*, BlockContent> Target;
+    static constexpr size_t BlockContentIndex = common::get_variant_index_v<BlockContent, decltype(Target)>();
 
     constexpr ExceptionTarget() noexcept {}
     template<typename T>
@@ -182,8 +181,10 @@ struct ExceptionTarget
         case 2:  return Type::RawArg;
         case 3:  return Type::FuncCall;
         case 4:  return Type::FuncCall;
-        case 5: 
-            switch (std::get<5>(Target).GetType())
+        case 5:  return Type::RawBlock;
+        case 6:  return Type::Block;
+        case BlockContentIndex:
+            switch (std::get<BlockContentIndex>(Target).GetType())
             {
             case BlockContent::Type::Assignment: return Type::Assignment;
             case BlockContent::Type::FuncCall:   return Type::FuncCall;
@@ -205,18 +206,32 @@ struct ExceptionTarget
         else if constexpr (T == Type::RawArg)
             return std::get<2>(Target);
         else if constexpr (T == Type::Assignment)
-            return std::get<5>(Target).Get<Assignment>();
+            return std::get<BlockContentIndex>(Target).Get<Assignment>();
         else if constexpr (T == Type::RawBlock)
-            return std::get<5>(Target).Get<RawBlock>();
+        {
+            switch (Target.index())
+            {
+            case 5:  return  std::get<5>(Target);
+            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<RawBlock>();
+            default: return nullptr;
+            }
+        }
         else if constexpr (T == Type::Block)
-            return std::get<5>(Target).Get<Block>();
+        {
+            switch (Target.index())
+            {
+            case 6:  return  std::get<6>(Target);
+            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<Block>();
+            default: return nullptr;
+            }
+        }
         else if constexpr (T == Type::FuncCall)
         {
             switch (Target.index())
             {
-            case 3:  return std::get<3>(Target);
+            case 3:  return  std::get<3>(Target);
             case 4:  return &std::get<4>(Target);
-            case 5:  return std::get<5>(Target).Get<FuncCall>();
+            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<FuncCall>();
             default: return nullptr;
             }
         }

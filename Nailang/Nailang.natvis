@@ -102,23 +102,23 @@
     <Expand>
       <Synthetic Name="Insts">
         <Expand>
-          <CustomListItems MaxItemsPerView="100">
-            <Variable Name="idx" InitialValue="0" />
+          <IndexListItems>
             <Size>Content.storage_.size_</Size>
-            <Loop>
-              <Break Condition="idx &gt;= Content.storage_.size_" />
-              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Assignment">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
-              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::FuncCall"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
-              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::RawBlock"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
-              <Item Condition="(Content[idx].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Block"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Content[idx].Pointer &amp; ~(uintptr_t)(0x3))</Item>
-              <Exec>idx++</Exec>
-            </Loop>
-          </CustomListItems>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Assignment">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::FuncCall"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::RawBlock"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Block"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+          </IndexListItems>
         </Expand>
       </Synthetic>
       <Synthetic Name="Metas">
         <Expand>
-          <CustomListItems MaxItemsPerView="100">
+          <IndexListItems>
+            <Size>Content.storage_.size_</Size>
+            <ValueNode Condition="Content[$i].Count &gt; 0">&amp;MetaFuncations[Content[$i].Offset],[Content[$i].Count]</ValueNode>
+          </IndexListItems>
+          
+          <!--<CustomListItems MaxItemsPerView="100">
             <Variable Name="idx" InitialValue="0" />
             <Size>Content.storage_.size_</Size>
             <Loop>
@@ -126,7 +126,7 @@
               <Item>MetaFuncations.subspan(Content[idx].Offset, Content[idx].Count)</Item>
               <Exec>idx++</Exec>
             </Loop>
-          </CustomListItems>
+          </CustomListItems>-->
         </Expand>
       </Synthetic>
     </Expand>
@@ -138,6 +138,39 @@
       <Item Name="[ArgNames]">ArgNames</Item>
     </Expand>
   </Type>
+  <Type Name="xziar::nailang::CompactEvaluateContext" Inheritable="true">
+    <DisplayString>{{ {Args.size()} vars, {LocalFuncs.size()} funcs }}</DisplayString>
+    <Expand>
+      <Synthetic Name="Variables">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Args.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Args.size()" />
+              <Item Name="[{&amp;StrPool[0] + Args[idx].first.first,[Args[idx].first.second]s32}]">Args[idx].second</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="LocalFuncs">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>LocalFuncs.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= LocalFuncs.size()" />
+              <Item Name="[{LocalFuncs[idx].first}]">LocalFuncs[idx].second</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="Parent">ParentContext</Item>
+      <Item Name="ReturnArg">ReturnArg</Item>
+    </Expand>
+  </Type>
   <Type Name="xziar::nailang::NailangRuntimeBase::FuncTarget">
     <DisplayString Condition="Pointer == 0"         >{{ Empty }}</DisplayString>
     <DisplayString Condition="Pointer &amp; Flag"   >{{ Meta }}</DisplayString>
@@ -145,6 +178,11 @@
     <Expand>
       <Item Condition="Pointer &amp; Flag"    Name="[BlockContent]">*reinterpret_cast&lt;BlockContext*&gt;(Pointer &amp; InvFlag)</Item>
       <Item Condition="!(Pointer &amp; Flag)" Name="[BlockScope]"  >*reinterpret_cast&lt;BlockContext*&gt;(Pointer)</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::nailang::NailangRuntimeBase" Inheritable="true">
+    <Expand>
+      <Item Name="EvalContext">EvalContext</Item>
     </Expand>
   </Type>
 </AutoVisualizer>

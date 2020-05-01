@@ -11,6 +11,7 @@ using namespace std::string_view_literals;
 using xziar::nailang::Arg;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
+using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::detail::ExceptionTarget;
@@ -93,27 +94,7 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev)
 NLCLRuntime::~NLCLRuntime()
 { }
 
-void NLCLRuntime::OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
-{
-    if (IsBeginWith(block.Type, U"oclu."sv))
-    {
-        const auto subName = block.Type.substr(5);
-        bool output = false;
-        switch(hash_(subName))
-        {
-        case "Global"_hash: output = true; break;
-        case "Struct"_hash: output = true; StructBlocks.push_back(&block); break;
-        case "Kernel"_hash: output = true; KernelBlocks.push_back(&block); break;
-        default: break;
-        }
-        if (output)
-            OutputBlocks.push_back(&block);
-    }
-    NailangRuntimeBase::OnRawBlock(block, metas);
-}
-
-Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args,
-    common::span<const FuncCall> metas, const FuncTarget target)
+Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, MetaFuncs metas, const FuncTarget target)
 {
     if (IsBeginWith(func, U"oclu."sv))
     {
@@ -143,6 +124,37 @@ void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException&
 {
     Logger.error(u"{}", ex.message);
     NailangRuntimeBase::HandleException(ex);
+}
+
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs, std::u32string& dst) const
+{
+    dst.append(block.Source);
+}
+
+void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+{
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From GlobalBlock [{}] */\r\n"sv), block.Name);
+    DirectOutput(block, metas, dst);
+}
+
+void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+{
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From StructBlock [{}] */\r\n"sv), block.Name);
+    DirectOutput(block, metas, dst);
+}
+
+void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+{
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From KernelBlock [{}] */\r\n"sv), block.Name);
+    DirectOutput(block, metas, dst);
+}
+
+void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst) const
+{
+    // TODO:
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From TempalteKernel [{}] */\r\n"sv), block.Name);
+    NLRT_THROW_EX(u"TemplateKernel not supportted yet"sv,
+        &block);
 }
 
 bool NLCLRuntime::EnableExtension(std::string_view ext)
@@ -182,6 +194,57 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext)
     return true;
 }
 
+void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
+{
+    BlockContext ctx;
+    if (IsBeginWith(block.Type, U"oclu."sv) &&
+        HandleMetaFuncsBefore(metas, BlockContent::Generate(&block), ctx))
+    {
+        const auto subName = block.Type.substr(5);
+        bool output = false;
+        switch (hash_(subName))
+        {
+        case "Global"_hash:     output = true;  break;
+        case "Struct"_hash:     output = true;  StructBlocks.emplace_back(&block, metas); break;
+        case "Kernel"_hash:     output = true;  KernelBlocks.emplace_back(&block, metas); break;
+        case "Template"_hash:   output = false; TemplateBlocks.emplace_back(&block, metas); break;
+        case "KernelStub"_hash: output = false; KernelStubBlocks.emplace_back(&block, metas); break;
+        default: break;
+        }
+        if (output)
+            OutputBlocks.emplace_back(&block, metas);
+    }
+}
+
+std::string NLCLRuntime::GenerateOutput() const
+{
+    std::u32string output;
+
+    { // Output extentions
+        common::linq::FromIterable(EnabledExtensions).Pair(common::linq::FromIterable(Device->Extensions))
+            .ForEach([&](const auto& pair) 
+                {
+                    if (pair.first)
+                        fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\r"sv), pair.second);
+                });
+    }
+
+    for (const auto& item : OutputBlocks)
+    {
+        const MetaFuncs metas(item.MetaPtr, item.MetaCount);
+        switch (hash_(item.Block->Type))
+        {
+        case "oclu.Global"_hash:     OutputGlobal(*item.Block, metas, output); break;
+        case "oclu.Struct"_hash:     OutputStruct(*item.Block, metas, output); break;
+        case "oclu.Kernel"_hash:     OutputKernel(*item.Block, metas, output); break;
+        case "oclu.KernelStub"_hash: OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); break;
+        default: Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
+        }
+    }
+
+    return common::strchset::to_string(output, Charset::UTF8, Charset::UTF32LE);
+}
+
 
 NLCLProgram::NLCLProgram(std::u32string&& source) :
     Source(std::move(source)) { }
@@ -189,7 +252,7 @@ NLCLProgram::~NLCLProgram()
 { }
 
 
-NLCLProgStub::NLCLProgStub(const std::shared_ptr<NLCLProgram>& program, 
+NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program,
     oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime) :
     Program(program), Device(dev), Runtime(std::move(runtime))
 { }
@@ -205,16 +268,29 @@ NLCLProcessor::~NLCLProcessor()
 { }
 
 
-void NLCLProcessor::ConfigureCL(NLCLProgStub& stub)
+void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {
-    stub.Program->ForEachBlockType(U"oclu.Prepare"sv,
+    // Prepare
+    stub.Program->ForEachBlockType<true, true>(U"oclu.Prepare"sv,
         [&](const Block& block, common::span<const FuncCall> metas) 
+        {
+            stub.Runtime->ExecuteBlock(block, metas);
+        });
+    // Collect
+    stub.Program->ForEachBlockType<false, false>(U"oclu."sv,
+        [&](const RawBlock& block, common::span<const FuncCall> metas)
+        {
+            stub.Runtime->ProcessRawBlock(block, metas);
+        });
+    // PostAct
+    stub.Program->ForEachBlockType<true, true>(U"oclu.PostAct"sv,
+        [&](const Block& block, common::span<const FuncCall> metas)
         {
             stub.Runtime->ExecuteBlock(block, metas);
         });
 }
 
-std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source)
+std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source) const
 {
     auto& logger = Logger();
     const auto encoding = common::strchset::DetectEncoding(source);
@@ -226,18 +302,19 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
     return prog;
 }
 
-NLCLProgStub NLCLProcessor::ConfigureCL(const std::shared_ptr<NLCLProgram>& prog, oclDevice dev)
+std::string NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev) const
 {
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev));
     ConfigureCL(stub);
-    return stub;
+    return stub.Runtime->GenerateOutput();
 }
 
-oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev)
+oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev) const
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
-    const auto stub = ConfigureCL(prog, dev);
+    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev));
+    ConfigureCL(stub);
     //TODO: 
     return oclProgram();
 }
