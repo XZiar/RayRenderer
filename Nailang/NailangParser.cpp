@@ -1,5 +1,6 @@
 #include "NailangParser.h"
 #include "ParserRely.h"
+#include <boost/range/adaptor/reversed.hpp>
 
 namespace xziar::nailang
 {
@@ -530,6 +531,154 @@ Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserConte
     parser.FillBlockInfo(ret);
     parser.ParseContentIntoBlock<false>(ret);
     return ret;
+}
+
+
+std::u32string_view ReplaceEngine::TrimStrBlank(const std::u32string_view str) noexcept
+{
+    size_t len = str.size();
+    for (const auto ch : boost::adaptors::reverse(str))
+    {
+        if (!IgnoreBlank(ch))
+            break;
+        len--;
+    }
+    return str.substr(0, len);
+}
+
+void ReplaceEngine::ProcessVariable(const std::u32string_view prefix, const std::u32string_view suffix)
+{
+    if (prefix.empty() || suffix.empty())
+        throw U"Illegal prefix/suffix"sv;
+    ContextReader reader(Context);
+    while (true)
+    {
+        auto before = reader.ReadUntil(prefix);
+        if (before.empty()) // reaching end
+        {
+            Output.append(reader.ReadAll());
+            break;
+        }
+        {
+            before.remove_suffix(prefix.size());
+            Output.append(before);
+        }
+        reader.ReadWhile(IgnoreBlank);
+        auto var = reader.ReadUntil(suffix);
+        if (var.empty())
+        {
+            if (reader.IsEnd())
+                throw U"End before variable name"sv;
+            else
+                throw U"No suffix found!"sv;
+        }
+        var.remove_suffix(suffix.size());
+        // find a variable replacement
+        OnReplaceVariable(TrimStrBlank(var));
+    }
+}
+
+void ReplaceEngine::ProcessFunction(const std::u32string_view prefix, const std::u32string_view suffix)
+{
+    if (prefix.empty())
+        throw U"Illegal suffix"sv;
+    ContextReader reader(Context);
+    while (true)
+    {
+        auto before = reader.ReadUntil(prefix);
+        if (before.empty()) // reaching end
+        {
+            Output.append(reader.ReadAll());
+            break;
+        }
+        {
+            before.remove_suffix(prefix.size());
+            Output.append(before);
+        }
+        reader.ReadWhile(IgnoreBlank);
+        auto funcName = reader.ReadUntil(U"("sv);
+        if (funcName.empty())
+        {
+            if (reader.IsEnd())
+                throw U"End before func name"sv;
+            else
+                throw U"No '(' found!"sv;
+        }
+        funcName.remove_suffix(1);
+
+        std::vector<std::u32string_view> args;
+        enum class States : uint32_t { Init, Pending, InComma, InSlash, End };
+        States state = States::Init;
+        reader.ReadWhile(IgnoreBlank);
+        while (state != States::End)
+        {
+            const auto ch = reader.PeekNext();
+            if (ch == common::parser::special::CharEnd)
+                break;
+            reader.MoveNext();
+            switch (state)
+            {
+            case States::Init:
+            case States::Pending:
+                if (ch == U'"')
+                    state = States::InComma;
+                else if (ch == U',' || ch == U')')
+                {
+                    if (state == States::Init)
+                    {
+                        if (ch == U',')
+                            throw U"empty arg not allowed"sv;
+                        else
+                            reader.CommitRead();
+                    }
+                    else
+                    {
+                        auto part = reader.CommitRead();
+                        part.remove_suffix(1);
+                        args.push_back(TrimStrBlank(part));
+                    }
+                    if (ch == U',')
+                        state = States::Init, reader.ReadWhile(IgnoreBlank);
+                    else
+                        state = States::End;
+                }
+                else
+                    state = States::Pending;
+                break;
+            case States::InComma:
+                if (ch == U'"')
+                    state = States::Pending;
+                else if (ch == U'\\')
+                    state = States::InSlash;
+                break;
+            case States::InSlash:
+                state = States::InComma;
+                break;
+            case States::End:
+                Expects(false);
+                break;
+            }
+        }
+        if (state != States::End)
+            throw U"End before arg list finishes"sv;
+        if (!suffix.empty())
+        {
+            reader.ReadWhile(IgnoreBlank);
+            if (!reader.ReadMatch(suffix))
+            {
+                if (reader.IsEnd())
+                    throw U"End before suffix"sv;
+                else
+                    throw U"Unexpeccted char before suffix!"sv;
+            }
+        }
+        // find a function replacement
+        OnReplaceFunction(TrimStrBlank(funcName), args);
+    }
+}
+
+ReplaceEngine::~ReplaceEngine()
+{
 }
 
 }

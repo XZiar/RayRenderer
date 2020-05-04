@@ -83,7 +83,7 @@ static void TestNailang()
     {
         try
         {
-            log().info(u"\n\ninput sector file:");
+            log().info(u"\n\ninput nailang file:");
             string fpath;
             std::getline(cin, fpath);
             const auto data = common::file::ReadAll<std::byte>(fpath);

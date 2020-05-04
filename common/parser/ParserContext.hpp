@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../CommonRely.hpp"
+#include "../StringEx.hpp"
 
 namespace common::parser
 {
@@ -73,6 +74,15 @@ private:
 public:
     constexpr ContextReader(ParserContext& context) : Context(context), Index(context.Index) { }
 
+    [[nodiscard]] forceinline constexpr bool IsEnd() const noexcept 
+    {
+        return Index >= Context.Source.size();
+    }
+    constexpr void SyncPosition() noexcept
+    {
+        Index = Context.Index;
+    }
+
     [[nodiscard]] forceinline constexpr char32_t PeekNext() const noexcept
     {
         if (Index >= Context.Source.size())
@@ -115,6 +125,13 @@ public:
         return Context.Source.substr(start, Index - start);
     }
 
+    inline constexpr std::u32string_view ReadAll() noexcept
+    {
+        const auto rest = Context.Source.substr(Index);
+        Index = Context.Source.size();
+        return rest;
+    }
+
     inline constexpr std::u32string_view ReadLine() noexcept
     {
         const auto start = Index = Context.Index;
@@ -141,6 +158,17 @@ public:
             return {};
         Index = pos + target.size();
         return CommitRead();
+    }
+
+    inline constexpr bool ReadMatch(const std::u32string_view target) noexcept
+    {
+        if (target.size() == 0)
+            return false;
+        if (!str::IsBeginWith(Context.Source.substr(Context.Index), target))
+            return false;
+        Index += target.size();
+        CommitRead();
+        return true;
     }
 
     template<typename Pred>

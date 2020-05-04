@@ -42,9 +42,6 @@ static std::u32string ReplaceNewLine(std::u32string_view txt)
 }
 
 
-//using BinStmt = std::unique_ptr<BinaryExpr>;
-//using UnStmt  = std::unique_ptr<UnaryExpr>;
-//using FCall   = std::unique_ptr<FuncCall>;
 using BinStmt = BinaryExpr*;
 using UnStmt  = UnaryExpr*;
 using FCall   = FuncCall*;
@@ -468,4 +465,84 @@ Here
     }
 }
 
+
+class Replacer : public xziar::nailang::ReplaceEngine
+{
+public:
+    std::vector<std::u32string_view> Vars;
+    std::vector<std::pair<std::u32string_view, std::vector<std::u32string_view>>> Funcs;
+    std::u32string_view Target;
+    Replacer(std::u32string_view source, std::u32string_view target) : ReplaceEngine(source), Target(target) {}
+    ~Replacer() override {}
+    void OnReplaceVariable(const std::u32string_view var) override
+    {
+        Vars.push_back(var);
+        Output.append(Target);
+    }
+    void OnReplaceFunction(const std::u32string_view func, const common::span<std::u32string_view> args) override
+    {
+        std::vector arg(args.begin(), args.end());
+        Funcs.emplace_back(func, std::move(arg));
+        Output.append(Target);
+    }
+    using ReplaceEngine::ProcessVariable;
+    using ReplaceEngine::ProcessFunction;
+};
+TEST(NailangParser, ReplaceEngine)
+{
+    {
+        Replacer replacer(U"He{1}{2}o Wor{3}d"sv, U"l"sv);
+        replacer.ProcessVariable(U"{"sv, U"}"sv);
+        EXPECT_EQ(replacer.GetOutput(), U"Hello World"sv);
+        EXPECT_THAT(replacer.Vars, testing::ElementsAre(U"1"sv, U"2"sv, U"3"sv));
+    }
+    {
+        Replacer replacer(U"He$$!{ab}$$!{cd}o Wor$$!{ef}d"sv, U"l"sv);
+        replacer.ProcessVariable(U"$$!{"sv, U"}"sv);
+        EXPECT_EQ(replacer.GetOutput(), U"Hello World"sv);
+        EXPECT_THAT(replacer.Vars, testing::ElementsAre(U"ab"sv, U"cd"sv, U"ef"sv));
+    }
+    {
+        Replacer replacer(U"y = $$!x()"sv, U"func()"sv);
+        replacer.ProcessFunction(U"$$!"sv, U""sv);
+        EXPECT_EQ(replacer.GetOutput(), U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1);
+        EXPECT_EQ(replacer.Funcs[0].first, U"x"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre());
+    }
+    {
+        Replacer replacer(U"y = $$!xy(\"\")"sv, U"func()"sv);
+        replacer.ProcessFunction(U"$$!"sv, U""sv);
+        EXPECT_EQ(replacer.GetOutput(), U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(UR"("")"sv));
+    }
+    {
+        Replacer replacer(U"y = $$!xy(\"1+2\t,3\")"sv, U"func()"sv);
+        replacer.ProcessFunction(U"$$!"sv, U""sv);
+        EXPECT_EQ(replacer.GetOutput(), U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"\"1+2\t,3\""sv));
+    }
+    {
+        Replacer replacer(U"y = $$!xy(1,2)"sv, U"func()"sv);
+        replacer.ProcessFunction(U"$$!"sv, U""sv);
+        EXPECT_EQ(replacer.GetOutput(), U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"1"sv, U"2"sv));
+    }
+    {
+        Replacer replacer(U"y = $$!xy( 12, 34 )$ +$$!y(56 + \"\" / 7)$"sv, U"func()"sv);
+        replacer.ProcessFunction(U"$$!"sv, U"$"sv);
+        EXPECT_EQ(replacer.GetOutput(), U"y = func() +func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 2);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"12"sv, U"34"sv));
+        EXPECT_EQ(replacer.Funcs[1].first, U"y"sv);
+        EXPECT_THAT(replacer.Funcs[1].second, testing::ElementsAre(UR"(56 + "" / 7)"sv));
+    }
+}
 

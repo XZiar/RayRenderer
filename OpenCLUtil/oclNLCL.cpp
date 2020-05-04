@@ -225,7 +225,7 @@ std::string NLCLRuntime::GenerateOutput() const
             .ForEach([&](const auto& pair) 
                 {
                     if (pair.first)
-                        fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\r"sv), pair.second);
+                        fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
                 });
     }
 
