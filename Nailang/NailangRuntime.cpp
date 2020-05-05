@@ -9,41 +9,39 @@
 namespace xziar::nailang
 {
 using namespace std::string_view_literals;
+using VarType = detail::VarHolder::VarType;
 
-
-bool EvaluateContext::CheckIsLocal(std::u32string_view& name) noexcept
-{
-    if (name.size() > 0 && name[0] == U'.')
-    {
-        name.remove_prefix(1);
-        return true;
-    }
-    return false;
-}
 
 EvaluateContext::~EvaluateContext()
 { }
 
-Arg EvaluateContext::LookUpArg(std::u32string_view var) const
+Arg EvaluateContext::LookUpArg(detail::VarHolder var) const
 {
-    const bool isLocal = CheckIsLocal(var);
-    const auto arg = LookUpArgInside({ var });
-    if (!isLocal && arg.TypeData == Arg::InternalType::Empty && ParentContext)
+    if (var.GetType() == VarType::Root)
+        return FindRoot()->LookUpArgInside(var);
+    auto arg = LookUpArgInside(var);
+    if (var.GetType() != VarType::Local && arg.TypeData == Arg::InternalType::Empty && ParentContext)
         return ParentContext->LookUpArg(var);
     else
         return arg;
 }
 
-bool EvaluateContext::SetArg(std::u32string_view var, Arg arg)
+bool EvaluateContext::SetArg(detail::VarHolder var, Arg arg)
 {
-    if (!CheckIsLocal(var))
+    detail::VarLookup lookup(var);
+    switch (var.GetType())
     {
-        if (SetArgInside({ var }, arg, false))
+    case VarType::Local:    
+        return SetArgInside(lookup, arg, true);
+    case VarType::Normal:   
+        if (SetArgInside(lookup, arg, false) || (ParentContext && ParentContext->SetArg(var, arg)))
             return true;
-        if (ParentContext && ParentContext->SetArgInside({ var }, arg, false))
-                return true;
+        return SetArgInside(lookup, arg, true);
+    case VarType::Root: 
+        return FindRoot()->SetArgInside(lookup, arg, true);
     }
-    return SetArgInside({ var }, arg, true);
+    Expects(false);
+    return false;
 }
 
 
@@ -86,14 +84,14 @@ LargeEvaluateContext::~LargeEvaluateContext()
 
 Arg LargeEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 {
-    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
+    if (const auto it = ArgMap.find(var.GetFull()); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
 bool LargeEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
 {
-    auto it = ArgMap.find(var.Name);
+    auto it = ArgMap.find(var.GetFull());
     const bool hasIt = it != ArgMap.end();
     if (arg.IsEmpty())
     {
@@ -112,7 +110,7 @@ bool LargeEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bo
         else
         {
             if (force)
-                ArgMap.insert_or_assign(std::u32string(var.Name), arg);
+                ArgMap.insert_or_assign(std::u32string(var.GetFull()), arg);
             return false;
         }
     }
@@ -155,7 +153,7 @@ std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const 
 Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
 {
     for (const auto& [pos, val] : Args)
-        if (GetStr(pos.first, pos.second) == var.Name)
+        if (GetStr(pos.first, pos.second) == var.GetFull())
             return val;
     return Arg{};
 }
@@ -164,7 +162,7 @@ bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const 
 {
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
-        if (GetStr(pos.first, pos.second) == var.Name)
+        if (GetStr(pos.first, pos.second) == var.GetFull())
             target = &val;
     const bool hasIt = target != nullptr;
     if (hasIt)
@@ -178,10 +176,10 @@ bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const 
             return false;
         if (force)
         {
-
+            const auto name = var.GetFull();
             const uint32_t offset = gsl::narrow_cast<uint32_t>(StrPool.size()),
-                size = gsl::narrow_cast<uint32_t>(var.Name.size());
-            StrPool.insert(StrPool.end(), var.Name.cbegin(), var.Name.cend());
+                size = gsl::narrow_cast<uint32_t>(name.size());
+            StrPool.insert(StrPool.end(), name.cbegin(), name.cend());
             Args.emplace_back(std::pair{ offset, size }, arg);
         }
         return false;

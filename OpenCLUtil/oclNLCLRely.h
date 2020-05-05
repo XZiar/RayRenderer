@@ -29,7 +29,7 @@ protected:
     xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
 public:
     NLCLEvalContext(oclDevice dev) : Device(dev) { }
-    xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
+    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::detail::VarHolder var) const override;
 
 };
 
@@ -48,6 +48,19 @@ class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using MetaFuncs = common::span<const xziar::nailang::FuncCall>;
+
+    class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
+    {
+    public:
+        const NLCLRuntime& Runtime;
+        NLCLReplacer(std::u32string_view source, const NLCLRuntime& runtime) : ReplaceEngine(source), Runtime(runtime) { }
+        ~NLCLReplacer() override;
+        void OnReplaceVariable(const std::u32string_view var) override;
+        void OnReplaceFunction(const std::u32string_view func, const common::span<std::u32string_view> args) override;
+        using ReplaceEngine::ProcessVariable;
+        using ReplaceEngine::ProcessFunction;
+    };
+
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
     std::vector<bool> EnabledExtensions;
@@ -63,7 +76,8 @@ protected:
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-
+    virtual std::u32string DoReplaceVariable(const std::u32string_view src) const;
+    virtual std::u32string DoReplaceFunction(const std::u32string_view src) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;

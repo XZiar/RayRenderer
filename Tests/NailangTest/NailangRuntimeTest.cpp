@@ -141,7 +141,7 @@ TEST(NailangRuntime, VarLookup)
 {
     constexpr auto var = U"a.b..c"sv;
     xziar::nailang::detail::VarLookup lookup(var);
-    EXPECT_EQ(lookup.Name, var);
+    EXPECT_EQ(lookup.GetRawName(), var);
     EXPECT_EQ(lookup.Part(), U"a"sv);
     EXPECT_TRUE(lookup.Next());
     EXPECT_EQ(lookup.Part(), U"b"sv);
@@ -242,7 +242,7 @@ TEST(NailangRuntime, Variable)
         // 512, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 512);
-        const auto arg2 = ctx2->LookUpArg(U".test"sv);
+        const auto arg2 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg2.TypeData, Arg::InternalType::Empty);
     }
     {
@@ -252,17 +252,17 @@ TEST(NailangRuntime, Variable)
         CHECK_ARG(arg1, Uint, 256);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256);
-        const auto arg3 = ctx2->LookUpArg(U".test"sv);
+        const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
     }
     {
-        EXPECT_EQ(ctx2->SetArg({ U".test"sv }, Arg(uint64_t(128))), false);
+        EXPECT_EQ(ctx2->SetArg({ U":test"sv }, Arg(uint64_t(128))), false);
         // 256, 128
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 128);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256);
-        const auto arg3 = ctx2->LookUpArg(U".test"sv);
+        const auto arg3 = ctx2->LookUpArg(U":test"sv);
         CHECK_ARG(arg3, Uint, 128);
     }
     const auto ctx3 = std::make_shared<EvalCtx>();
@@ -273,7 +273,7 @@ TEST(NailangRuntime, Variable)
         CHECK_ARG(arg, Uint, 128);
     }
     {
-        EXPECT_EQ(ctx2->SetArg({ U".test"sv }, {}), true);
+        EXPECT_EQ(ctx2->SetArg({ U":test"sv }, {}), true);
         // 256, _, _
         const auto arg1 = ctx3->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 256);
@@ -283,13 +283,13 @@ TEST(NailangRuntime, Variable)
         CHECK_ARG(arg3, Uint, 256);
     }
     {
-        EXPECT_EQ(ctx3->SetArg({ U".test"sv }, Arg(uint64_t(64))), false);
+        EXPECT_EQ(ctx3->SetArg({ U":test"sv }, Arg(uint64_t(64))), false);
         // 256, _, 64
         const auto arg1 = ctx3->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 64);
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256);
-        const auto arg3 = ctx2->LookUpArg(U".test"sv);
+        const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
         const auto arg4 = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg4, Uint, 256);

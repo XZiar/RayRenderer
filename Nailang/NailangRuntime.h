@@ -16,36 +16,87 @@ namespace xziar::nailang
 
 namespace detail
 {
-struct VarLookup
+struct VarHolder
 {
-    std::u32string_view Name;
-    constexpr VarLookup(std::u32string_view name) : Name(name), Offset(0), NextOffset(0)
+    enum class VarType { Normal, Local, Root };
+    constexpr VarHolder(const std::u32string_view name) : 
+        Ptr(name.data()), Size(gsl::narrow_cast<uint32_t>(name.size())), Type(InitType(name))
+    { }
+    constexpr VarHolder(const VarHolder& other) = default;
+    template<typename T>
+    constexpr VarHolder(T&& val, std::enable_if_t<std::is_constructible_v<std::u32string_view, T>>* = nullptr) 
+        : VarHolder(common::str::ToStringView(val)) { }
+
+    constexpr std::u32string_view GetRawName() const noexcept { return { Ptr, Size }; }
+    constexpr std::u32string_view GetFull() const noexcept 
+    {
+        const uint32_t prefix = Type == VarType::Normal ? 0 : 1;
+        Expects(Size > prefix);
+        return { Ptr + prefix, static_cast<size_t>(Size) - prefix };
+    }
+    constexpr VarType GetType() const noexcept { return Type; }
+protected:
+    static constexpr VarType InitType(const std::u32string_view name) noexcept
+    {
+        if (name.size() > 0)
+        {
+            switch (name[0])
+            {
+            case U':':  return VarType::Local;
+            case U'`':  return VarType::Root;
+            default:    break;
+            }
+        }
+        return VarType::Normal;
+    }
+
+    const char32_t* Ptr;
+    uint32_t Size;
+    VarType Type;
+};
+struct VarLookup : public VarHolder
+{
+    constexpr VarLookup(const std::u32string_view name) : VarHolder(name), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
     {
         FindNext();
     }
-    constexpr VarLookup(const VarLookup& lookup) : Name(lookup.Name), Offset(0), NextOffset(0)
+    constexpr VarLookup(const VarHolder& other) : VarHolder(other), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
     {
         FindNext();
     }
+    constexpr VarLookup(const VarLookup& other) : VarHolder(other), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
+    {
+        if (Offset == other.Offset)
+            NextOffset = other.NextOffset;
+        else
+            FindNext();
+    }
+    
     [[nodiscard]] constexpr std::u32string_view Part() const noexcept
     {
-        return Name.substr(Offset, NextOffset - Offset);
+        return { Ptr + Offset, NextOffset - Offset };
+    }
+    [[nodiscard]] constexpr std::u32string_view Rest() const noexcept
+    {
+        const auto offset = std::min(NextOffset + 1, Size);
+        return { Ptr + offset, Size - offset };
     }
     [[nodiscard]] constexpr bool Next() noexcept
     {
-        Offset = std::min(NextOffset + 1, Name.size());
+        Offset = std::min(NextOffset + 1, Size);
         return FindNext();
     }
 private:
     constexpr bool FindNext() noexcept
     {
-        if (Offset >= Name.size())
+        if (Offset >= Size)
             return false;
-        const auto pos = Name.find(U'.', Offset);
-        NextOffset = pos == Name.npos ? Name.size() : pos;
+        const auto ptr = std::char_traits<char32_t>::find(Ptr + Offset, Size - Offset, U'.');
+        Ensures(ptr == nullptr || ptr >= Ptr);
+        NextOffset = ptr == nullptr ? Size : static_cast<uint32_t>(ptr - Ptr);
         return true;
     }
-    size_t Offset, NextOffset;
+    uint32_t Offset, NextOffset;
 };
 
 struct LocalFunc
@@ -62,17 +113,30 @@ class NAILANGAPI EvaluateContext
 {
     friend class NailangRuntimeBase;
 protected:
-    static bool CheckIsLocal(std::u32string_view& name) noexcept;
-
     std::shared_ptr<EvaluateContext> ParentContext;
+
+    EvaluateContext* FindRoot() noexcept
+    {
+        auto ptr = this;
+        while (ptr->ParentContext)
+            ptr = ptr->ParentContext.get();
+        return ptr;
+    }
+    const EvaluateContext* FindRoot() const noexcept
+    {
+        auto ptr = this;
+        while (ptr->ParentContext)
+            ptr = ptr->ParentContext.get();
+        return ptr;
+    }
 
     [[nodiscard]] virtual Arg LookUpArgInside(detail::VarLookup var) const = 0;
     virtual bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) = 0;
 public:
     virtual ~EvaluateContext();
 
-    [[nodiscard]] virtual Arg LookUpArg(std::u32string_view var) const;
-                  virtual bool SetArg(std::u32string_view var, Arg arg);
+    [[nodiscard]] virtual Arg LookUpArg(detail::VarHolder var) const;
+                  virtual bool SetArg(detail::VarHolder var, Arg arg);
     [[nodiscard]] virtual detail::LocalFunc LookUpFunc(std::u32string_view name) = 0;
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
                   virtual bool SetFunc(const detail::LocalFunc& func) = 0;

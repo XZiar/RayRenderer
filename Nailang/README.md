@@ -33,11 +33,11 @@ Literal is parsed at parsing time and it cannot be custom type.
 
 Variable is a memory unit to store data.
 
-Name of variable currently limited on ASCII words, the leading character can be `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.`, and other characters can be `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.`.
+Name of variable currently limited on ASCII words, the leading character can be ``:`ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_``, and other characters can be `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.`.
 
 `.` is used to seperate variable name into parts. Buitin types does not support parts, but custom types may need this.
 
-Specially, if `.` is the leading character, it means the variable should be at local.
+`:` and `` ` `` is the special leading character. `:` means the variable should be at local and `` ` `` means the variable should be at root.
 
 **Variable only specify the name, the datatype is decided at runtime.**
 

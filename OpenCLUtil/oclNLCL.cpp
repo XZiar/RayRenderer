@@ -22,68 +22,83 @@ using common::str::IsBeginWith;
 
 Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
-    if (IsBeginWith(var.Name, U"oclu."sv))
+    const auto plat = Device->GetPlatform();
+    if (var.Part() == U"Extension"sv)
     {
-        const auto subName = var.Name.substr(5);
-        const auto plat = Device->GetPlatform();
-        if (IsBeginWith(subName, U"Extension."sv))
+        const auto extName = common::strchset::to_string(var.Rest(), Charset::UTF8, Charset::UTF32LE);
+        return plat->GetExtensions().Has(extName);
+    }
+    if (var.Part() == U"Dev"sv)
+    {
+        const auto propName = var.Rest();
+        switch (hash_(propName))
         {
-            const auto extName = common::strchset::to_string(subName.substr(10), Charset::UTF8, Charset::UTF32LE);
-            return plat->GetExtensions().Has(extName);
-        }
-        if (IsBeginWith(var.Name, U"Dev."sv))
-        {
-            const auto propName = var.Name.substr(4);
-            switch (hash_(propName))
-            {
 #define U_PROP(name) case PPCAT(STRINGIZE(name),_hash): return static_cast<uint64_t>(Device->name)
-            U_PROP(LocalMemSize);
-            U_PROP(GlobalMemSize);
-            U_PROP(GlobalCacheSize);
-            U_PROP(GlobalCacheLine);
-            U_PROP(ConstantBufSize);
-            U_PROP(MaxMemSize);
-            U_PROP(ComputeUnits);
-            U_PROP(Version);
-            U_PROP(CVersion);
+        U_PROP(LocalMemSize);
+        U_PROP(GlobalMemSize);
+        U_PROP(GlobalCacheSize);
+        U_PROP(GlobalCacheLine);
+        U_PROP(ConstantBufSize);
+        U_PROP(MaxMemSize);
+        U_PROP(ComputeUnits);
+        U_PROP(Version);
+        U_PROP(CVersion);
 #undef U_PROP
-            case "type"_hash:
+        case "type"_hash:
+        {
+            switch (Device->Type)
             {
-                switch (Device->Type)
-                {
-                case DeviceType::Accelerator:   return U"accelerator"sv;
-                case DeviceType::CPU:           return U"cpu"sv;
-                case DeviceType::GPU:           return U"gpu"sv;
-                case DeviceType::Custom:        return U"custom"sv;
-                default:                        return U"other"sv;
-                }
+            case DeviceType::Accelerator:   return U"accelerator"sv;
+            case DeviceType::CPU:           return U"cpu"sv;
+            case DeviceType::GPU:           return U"gpu"sv;
+            case DeviceType::Custom:        return U"custom"sv;
+            default:                        return U"other"sv;
             }
-            case "vendor"_hash:
+        }
+        case "vendor"_hash:
+        {
+            switch (plat->PlatVendor)
             {
-                switch (plat->PlatVendor)
-                {
 #define U_VENDOR(name) case Vendors::name: return PPCAT(U, STRINGIZE(name))
-                U_VENDOR(AMD);
-                U_VENDOR(ARM);
-                U_VENDOR(Intel);
-                U_VENDOR(NVIDIA);
-                U_VENDOR(Qualcomm);
+            U_VENDOR(AMD);
+            U_VENDOR(ARM);
+            U_VENDOR(Intel);
+            U_VENDOR(NVIDIA);
+            U_VENDOR(Qualcomm);
 #undef U_VENDOR
-                default:    return U"Other"sv;
-                }
+            default:    return U"Other"sv;
             }
-            default: return {};
-            }
+        }
+        default: return {};
         }
     }
     return {};
 }
 
-Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var) const
+Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) const
 {
-    if (const auto arg = LookUpCLArg(var); arg.TypeData != Arg::InternalType::Empty)
-        return arg;
-    return CompactEvaluateContext::LookUpArgInside(var);
+    if (IsBeginWith(var.GetFull(), U"oclu."sv))
+        return LookUpCLArg(var.GetFull().substr(5));
+    return CompactEvaluateContext::LookUpArg(var);
+}
+
+
+
+NLCLRuntime::NLCLReplacer::~NLCLReplacer() { }
+
+void NLCLRuntime::NLCLReplacer::OnReplaceVariable(const std::u32string_view var)
+{
+    const auto ret = Runtime.EvalContext->LookUpArg(var);
+    if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, 
+            fmt::format(FMT_STRING(u"Arg [{}] not found when repace-variable"sv), var)));
+    Output.append(ret.ToString().StrView());
+}
+
+void NLCLRuntime::NLCLReplacer::OnReplaceFunction(const std::u32string_view, const common::span<std::u32string_view>)
+{
+    Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        u"replace-function not ready"sv));
 }
 
 
@@ -126,33 +141,52 @@ void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException&
     NailangRuntimeBase::HandleException(ex);
 }
 
-void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs, std::u32string& dst) const
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
-    dst.append(block.Source);
+    common::str::StrVariant<char32_t> source(block.Source);
+    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceVariable"sv; }))
+        source = DoReplaceVariable(source.StrView());
+    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceFunction"sv; }))
+        source = DoReplaceFunction(source.StrView());
+    dst.append(source.StrView());
+}
+
+std::u32string NLCLRuntime::DoReplaceVariable(const std::u32string_view src) const
+{
+    NLCLReplacer replacer(src, *this);
+    replacer.ProcessVariable(U"$$!{"sv, U"}"sv);
+    return replacer.ExtractOutput();
+}
+
+std::u32string NLCLRuntime::DoReplaceFunction(const std::u32string_view src) const
+{
+    NLCLReplacer replacer(src, *this);
+    replacer.ProcessFunction(U"$$!"sv, U""sv);
+    return replacer.ExtractOutput();
 }
 
 void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From GlobalBlock [{}] */\r\n"sv), block.Name);
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From GlobalBlock [{}] */\r\n"sv), block.Name);
     DirectOutput(block, metas, dst);
 }
 
 void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From StructBlock [{}] */\r\n"sv), block.Name);
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From StructBlock [{}] */\r\n"sv), block.Name);
     DirectOutput(block, metas, dst);
 }
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From KernelBlock [{}] */\r\n"sv), block.Name);
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
     DirectOutput(block, metas, dst);
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst) const
 {
     // TODO:
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"/* From TempalteKernel [{}] */\r\n"sv), block.Name);
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From TempalteKernel [{}] */\r\n"sv), block.Name);
     NLRT_THROW_EX(u"TemplateKernel not supportted yet"sv,
         &block);
 }
@@ -221,12 +255,21 @@ std::string NLCLRuntime::GenerateOutput() const
     std::u32string output;
 
     { // Output extentions
-        common::linq::FromIterable(EnabledExtensions).Pair(common::linq::FromIterable(Device->Extensions))
-            .ForEach([&](const auto& pair) 
-                {
-                    if (pair.first)
-                        fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
-                });
+        output.append(U"/* Extensions */\r\n"sv);
+        if (common::linq::FromIterable(EnabledExtensions).All(true))
+        {
+            output.append(U"#pragma OPENCL EXTENSION all : enable\r\n"sv);
+        }
+        else
+        {
+            common::linq::FromIterable(EnabledExtensions).Pair(common::linq::FromIterable(Device->Extensions))
+                .ForEach([&](const auto& pair)
+                    {
+                        if (pair.first)
+                            fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
+                    });
+        }
+        output.append(U"\r\n"sv);
     }
 
     for (const auto& item : OutputBlocks)

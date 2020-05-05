@@ -168,7 +168,7 @@ TEST(NailangParser, ParseFuncBody)
         }
     }
     {
-        constexpr auto src = U"(6 >= $foo(.bar), $foo(bar, (4-5)==9))"sv;
+        constexpr auto src = U"(6 >= $foo(:bar), $foo(`bar, (4-5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
@@ -183,13 +183,13 @@ TEST(NailangParser, ParseFuncBody)
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
             EXPECT_EQ(fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1);
-            CHECK_VAR_ARG(fcall.Args[0], Var, U".bar");
+            CHECK_VAR_ARG(fcall.Args[0], Var, U":bar");
         }
         {
             const auto& fcall = *func.Args[1].GetVar<RawArg::Type::Func>();
             EXPECT_EQ(fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 2);
-            CHECK_VAR_ARG(fcall.Args[0], Var, U"bar");
+            CHECK_VAR_ARG(fcall.Args[0], Var, U"`bar");
             EXPECT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
             const auto& stmt = *fcall.Args[1].GetVar<RawArg::Type::Binary>();
             EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Binary);
@@ -481,7 +481,7 @@ public:
     }
     void OnReplaceFunction(const std::u32string_view func, const common::span<std::u32string_view> args) override
     {
-        std::vector arg(args.begin(), args.end());
+        std::vector<std::u32string_view> arg(args.begin(), args.end());
         Funcs.emplace_back(func, std::move(arg));
         Output.append(Target);
     }

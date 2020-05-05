@@ -59,6 +59,31 @@ public:
     StrVariant(std::basic_string<Ch>&& str) noexcept : Str(std::move(str)), View(Str) { }
     constexpr StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
     constexpr StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }
+    StrVariant(const StrVariant<Ch>& other) noexcept :
+        Str(other.Str), View(Str.empty() ? other.View : Str) { }
+    constexpr StrVariant(StrVariant<Ch>&& other) noexcept : 
+        Str(std::move(other.Str)), View(Str.empty() ? other.View : Str) 
+    {
+        other.View = {};
+    }
+
+    StrVariant& operator=(const StrVariant<Ch>& other) noexcept
+    {
+        View = {};
+        Str = other.Str;
+        if (!Str.empty())
+            View = Str;
+        return *this;
+    }
+    StrVariant& operator=(StrVariant<Ch>&& other) noexcept
+    {
+        View = {};
+        Str = std::move(other.Str);
+        if (!Str.empty())
+            View = Str;
+        other.View = {};
+        return *this;
+    }
 
     [[nodiscard]] constexpr std::basic_string_view<Ch> StrView() const noexcept
     {
