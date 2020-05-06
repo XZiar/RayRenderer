@@ -75,7 +75,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) 3.0.0
+* [gsl](https://github.com/microsoft/GSL) 3.0.1
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
@@ -83,7 +83,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.72.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.73.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
@@ -91,7 +91,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2019-12-02
+* [rapidjson](http://rapidjson.org/) 1.1.0 master@2020-04-10
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 

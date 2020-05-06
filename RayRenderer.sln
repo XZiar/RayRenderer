@@ -215,6 +215,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "rapidjson", "rapidjson", "{
 		3rdParty\rapidjson\pointer.h = 3rdParty\rapidjson\pointer.h
 		3rdParty\rapidjson\prettywriter.h = 3rdParty\rapidjson\prettywriter.h
 		3rdParty\rapidjson\rapidjson.h = 3rdParty\rapidjson\rapidjson.h
+		3rdParty\rapidjson\rapidjson.natvis = 3rdParty\rapidjson\rapidjson.natvis
 		3rdParty\rapidjson\reader.h = 3rdParty\rapidjson\reader.h
 		3rdParty\rapidjson\readme.md = 3rdParty\rapidjson\readme.md
 		3rdParty\rapidjson\schema.h = 3rdParty\rapidjson\schema.h

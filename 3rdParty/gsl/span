@@ -19,7 +19,6 @@
 
 #include <gsl/gsl_assert> // for Expects
 #include <gsl/gsl_byte>   // for byte
-#include <gsl/gsl_util>   // for narrow_cast, narrow
 
 #include <array>       // for array
 #include <cstddef>     // for ptrdiff_t, size_t, nullptr_t
@@ -403,7 +402,6 @@ public:
     using difference_type = std::ptrdiff_t;
 
     using iterator = details::span_iterator<ElementType>;
-    using const_iterator = details::span_iterator<ElementType>;
     using reverse_iterator = std::reverse_iterator<iterator>;
 
 #if defined(GSL_USE_STATIC_CONSTEXPR_WORKAROUND)
@@ -583,12 +581,18 @@ public:
     constexpr iterator begin() const noexcept
     {
         const auto data = storage_.data();
+        // clang-format off
+        GSL_SUPPRESS(bounds.1) // NO-FORMAT: attribute
+        // clang-format on
         return {data, data + size(), data};
     }
 
     constexpr iterator end() const noexcept
     {
         const auto data = storage_.data();
+        // clang-format off
+        GSL_SUPPRESS(bounds.1) // NO-FORMAT: attribute
+        // clang-format on
         const auto endData = data + storage_.size();
         return {data, endData, endData};
     }

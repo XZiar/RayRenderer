@@ -171,6 +171,7 @@
 #include <numeric>
 #include <type_traits> 
 #include "3rdParty/gsl/gsl_assert"
+#include "3rdParty/gsl/gsl_util"
 
 #if UINTPTR_MAX == UINT64_MAX
 #   define COMMON_OSBIT 64

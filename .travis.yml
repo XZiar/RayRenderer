@@ -151,9 +151,9 @@ before_install:
   - mkdir include
   - mkdir src
   # - wget -O boost.tar.bz2 https://dl.bintray.com/boostorg/release/1.72.0/source/boost_1_72_0.tar.bz2
-  - wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/1.72.0/boost_1_72_0.tar.bz2
+  - wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/1.73.0/boost_1_73_0.tar.bz2
   - tar xjf boost.tar.bz2
-  - mv ./boost_1_72_0/boost ./include/
+  - mv ./boost_1_73_0/boost ./include/
   - wget -O gtest.zip https://github.com/google/googletest/archive/release-1.10.0.zip
   - unzip gtest.zip
   - cp -r ./googletest-release-1.10.0/googletest/include/gtest ./include/gtest
@@ -166,7 +166,7 @@ before_install:
   - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/lib
   - cd ../..
   - export CPP_DEPENDENCY_PATH=$(pwd)
-  - wget -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v1.12.0/ispc-v1.12.0b-linux.tar.gz
+  - wget -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v1.13.0/ispc-v1.13.0-linux.tar.gz
   - tar xzf ispc.tar.gz
   - export ISPCCOMPILER=$(find $(pwd) -type f -name ispc)
   - cd ..
