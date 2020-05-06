@@ -220,7 +220,7 @@ struct NAILANGAPI EmbedOpEval
     [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
     [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
 
-    static std::optional<Arg> Eval(const std::u32string_view opname, common::span<const Arg> args) noexcept;
+    static std::optional<Arg> Eval(const std::u32string_view opname, const std::array<Arg, 2>& args) noexcept;
 };
 
 
@@ -414,8 +414,8 @@ protected:
     std::shared_ptr<EvaluateContext> EvalContext;
     
     void ThrowByArgCount(const FuncCall& call, const size_t count) const;
-    void ThrowByArgCount(common::span<const Arg> args, const size_t count) const;
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
+    void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const;
     void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
     void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
@@ -425,19 +425,41 @@ protected:
     [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
                   virtual void HandleException(const NailangRuntimeException& ex) const;
 
-    inline Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
+    template<size_t N, bool ExactMatch = true>
+    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
-        if (call.Args.size() == 0)
-            return EvaluateFunc(call.Name, {}, metas, target);
-        std::vector<Arg> args;
-        args.reserve(call.Args.size());
+        if constexpr (ExactMatch)
+            ThrowByArgCount(call, N);
+        else if (call.Args.size() > N)
+            ThrowByArgCount(call, N);
+        std::array<Arg, N> args;
+        size_t i = 0;
         for (const auto& rawarg : call.Args)
-            args.emplace_back(EvaluateArg(rawarg));
-        return EvaluateFunc(call.Name, args, metas, target);
+            args[i++] = EvaluateArg(rawarg);
+        return args;
     }
-    virtual Arg  EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
-    virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
-    virtual Arg  EvaluateUnknwonFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target);
+
+    template<size_t N, bool ExactMatch = true>
+    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::InternalType, N>& types)
+    {
+        if constexpr (ExactMatch)
+            ThrowByArgCount(call, N);
+        else if (call.Args.size() > N)
+            ThrowByArgCount(call, N);
+        std::array<Arg, N> args;
+        size_t i = 0;
+        for (const auto& rawarg : call.Args)
+        {
+            args[i] = EvaluateArg(rawarg);
+            ThrowByArgType(call, args[i], types[i], i); 
+            ++i;
+        }
+        return args;
+    }
+
+    virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+    virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+    virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
     virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
     virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);

@@ -109,30 +109,29 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev)
 NLCLRuntime::~NLCLRuntime()
 { }
 
-Arg NLCLRuntime::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, MetaFuncs metas, const FuncTarget target)
+Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target)
 {
-    if (IsBeginWith(func, U"oclu."sv))
+    if (IsBeginWith(call.Name, U"oclu."sv))
     {
-        const auto subName = func.substr(5);
+        const auto subName = call.Name.substr(5);
         switch (hash_(subName))
         {
         case "EnableExtension"_hash:
         {
-            ThrowIfNotFuncTarget(func, target, FuncTarget::Type::Block);
-            ThrowByArgCount(args, 1);
-            if (const auto sv = args[0].GetStr(); sv.has_value())
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            const auto arg = EvaluateFuncArgs<1>(call)[0];
+            if (const auto sv = arg.GetStr(); sv.has_value())
             {
                 if (!EnableExtension(sv.value()))
                     Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
             }
             else
-                NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv,
-                    ExceptionTarget::NewFuncCall(func));
+                NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
         } return {};
         default: break;
         }
     }
-    return NailangRuntimeBase::EvaluateFunc(func, args, metas, target);
+    return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
 void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
@@ -165,25 +164,57 @@ std::u32string NLCLRuntime::DoReplaceFunction(const std::u32string_view src) con
     return replacer.ExtractOutput();
 }
 
-void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From GlobalBlock [{}] */\r\n"sv), block.Name);
     DirectOutput(block, metas, dst);
 }
 
-void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From StructBlock [{}] */\r\n"sv), block.Name);
+    dst.append(U"typedef struct \r\n{\r\n"sv);
     DirectOutput(block, metas, dst);
+    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"}} {};\r\n"sv), block.Name);
 }
 
-void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
+void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
+    for (const auto meta : metas)
+    {
+        switch (hash_(meta.Name))
+        {
+        case "oglu.RequestSubgroupSize"_hash:
+        {
+            ThrowByArgCount(meta, 1);
+            const auto sgSize = EvaluateArg(meta.Args[0]).GetUint();
+            if (sgSize)
+            {
+                if (!Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
+                    Logger.warning(u"Request Subggroup Size on unsupportted device.\n");
+                else if (!CheckExtensionEnabled("cl_intel_required_subgroup_size"sv))
+                    Logger.warning(u"Request Subggroup Size without enabling extenssion.\n");
+                fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize.value());
+            }
+        } break;
+        case "oglu.RequestWorkgroupSize"_hash:
+        {
+            const auto args = EvaluateFuncArgs<3>(meta);
+            const auto x = args[0].GetUint().value_or(1),
+                       y = args[1].GetUint().value_or(1),
+                       z = args[2].GetUint().value_or(1);
+            fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv),
+                x, y, z);
+        } break;
+        default:
+            break;
+        }
+    }
     DirectOutput(block, metas, dst);
 }
 
-void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst) const
+void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
 {
     // TODO:
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From TempalteKernel [{}] */\r\n"sv), block.Name);
@@ -228,6 +259,14 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext)
     return true;
 }
 
+bool NLCLRuntime::CheckExtensionEnabled(std::string_view ext) const
+{
+    if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
+        return EnabledExtensions[idx];
+    return false;
+}
+
+
 void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
     BlockContext ctx;
@@ -250,7 +289,7 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
     }
 }
 
-std::string NLCLRuntime::GenerateOutput() const
+std::string NLCLRuntime::GenerateOutput()
 {
     std::u32string output;
 

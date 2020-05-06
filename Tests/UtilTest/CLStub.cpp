@@ -147,8 +147,9 @@ static void OCLStub()
                 kertxt = result;
             }
             auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config);
-            log().success(u"loaded! kernels:\n");
-            for (const auto& ker : clProg->GetKernels())
+            const auto kernels = clProg->GetKernels();
+            log().success(u"loaded {} kernels:\n", kernels.Size());
+            for (const auto& ker : kernels)
             {
                 const auto wgInfo = ker->GetWorkGroupInfo(dev);
                 log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,

@@ -71,25 +71,25 @@ protected:
     std::vector<OutputBlock> KernelStubBlocks;
     
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
-    xziar::nailang::Arg EvaluateFunc(const std::u32string_view func, common::span<const xziar::nailang::Arg> args, 
-        MetaFuncs metas, const FuncTarget target) override;
+    xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual std::u32string DoReplaceVariable(const std::u32string_view src) const;
     virtual std::u32string DoReplaceFunction(const std::u32string_view src) const;
-    virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-    virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-    virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-    virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst) const;
+    virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
+    virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
+    virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
+    virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst);
 public:
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext);
     bool EnableExtension(std::u32string_view ext);
+    bool CheckExtensionEnabled(std::string_view ext) const;
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
-    std::string GenerateOutput() const;
+    std::string GenerateOutput();
 };
 
 class OCLUAPI NLCLProgram
@@ -104,7 +104,7 @@ public:
     NLCLProgram(std::u32string&& source);
     ~NLCLProgram();
     template<bool IsBlock, bool FullMatch, typename F>
-    void ForEachBlockType(const std::u32string_view type, F&& func) const
+    forceinline void ForEachBlockType(const std::u32string_view type, F&& func) const
     {
         using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
         static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,

@@ -74,6 +74,8 @@ Operator is used for better readibility, but currently they will be converted in
 
 **Operators have no precedence**, so you need to add a pair of parentheses manually. Eg, `(a*b)+c`, `(1+(2))`.
 
+**Short-circuit evaluation not supportted currently**, in order to simplify the code.
+
 ### Expression
 
 An expression is in fact an AST node, usually comes with an [operator](#operator). An expression can also be a leaf of another operator, which make expression set a tree.

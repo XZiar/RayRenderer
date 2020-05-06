@@ -444,6 +444,10 @@ public:
     {
         return SlaveEnumerableSource(Host);
     }
+    size_t Size() const noexcept
+    {
+        return Vec.size();
+    }
     operator std::vector<std::shared_ptr<const T>>() const
     {
         std::vector<std::shared_ptr<const T>> vec;

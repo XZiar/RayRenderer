@@ -380,7 +380,7 @@ Arg EmbedOpEval::Not(const Arg& arg) noexcept
 }
 #undef LR_BOTH
 
-std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, common::span<const Arg> args) noexcept
+std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, const std::array<Arg, 2>& args) noexcept
 {
 #define CALL_BIN_OP(type) case #type ## _hash: return EmbedOpEval::type(args[0], args[1])
 #define CALL_UN_OP(type)  case #type ## _hash: return EmbedOpEval::type(args[0])
@@ -466,16 +466,18 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
             detail::ExceptionTarget{}, &call);
 }
 
-void NailangRuntimeBase::ThrowByArgCount(common::span<const Arg> args, const size_t count) const
-{
-    if (args.size() != count)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] args, which gives [{}]."), args.size(), count));
-}
-
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::InternalType type) const
 {
     if (arg.TypeData != type)
         NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected arg of [{}], which gives [{}]."), ArgTypeName(type), ArgTypeName(arg.TypeData)),
+            arg);
+}
+
+void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const
+{
+    if (arg.TypeData != type)
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} arg, which gives [{}]."), 
+                ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData)),
             arg);
 }
 
@@ -500,7 +502,6 @@ void NailangRuntimeBase::ThrowIfNotBlockContent(const FuncCall& meta, const Bloc
             meta);
 }
 
-
 bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const
 {
     const auto ret = arg.GetBool();
@@ -514,12 +515,13 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(cons
 {
     if (meta.Name == U"Skip"sv)
     {
-        switch (meta.Args.size())
-        {
-        case 0:  return MetaFuncResult::Skip;
-        case 1:  return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[Skip]"sv) ? MetaFuncResult::Skip : MetaFuncResult::Next;
-        default: NLRT_THROW_EX(u"MetaFunc[Skip] accept 0 or 1 arg only."sv, &meta, content); return {};
-        }
+        const auto arg = EvaluateFuncArgs<1, false>(meta)[0];
+        return arg.IsEmpty() || ThrowIfNotBool(arg, U"Arg of MetaFunc[Skip]"sv) ? MetaFuncResult::Skip : MetaFuncResult::Next;
+    }
+    if (meta.Name == U"If"sv)
+    {
+        const auto arg = EvaluateFuncArgs<1>(meta)[0];
+        return ThrowIfNotBool(arg, U"Arg of MetaFunc[If]"sv) ? MetaFuncResult::Next : MetaFuncResult::Skip;
     }
     if (meta.Name == U"DefFunc"sv)
     {
@@ -530,21 +532,13 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(cons
         EvalContext->SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
     }
-    if (meta.Name == U"If"sv)
-    {
-        ThrowByArgCount(meta, 1);
-        return ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[If]"sv) ? MetaFuncResult::Next : MetaFuncResult::Skip;
-    }
     if (meta.Name == U"While"sv)
     {
         ThrowIfBlockContent(meta, content, BlockContent::Type::RawBlock);
         if (content.GetType() == BlockContent::Type::RawBlock)
             NLRT_THROW_EX(u"MetaFunc[While] cannot be applied to [RawBlock]"sv, &meta, content);
-        ThrowByArgCount(meta, 1);
-        if (ThrowIfNotBool(EvaluateArg(meta.Args[0]), U"Arg of MetaFunc[While]"sv))
-            return MetaFuncResult::Repeat;
-        else
-            return MetaFuncResult::Skip;
+        const auto arg = EvaluateFuncArgs<1>(meta)[0];
+        return ThrowIfNotBool(arg, U"Arg of MetaFunc[While]"sv) ? MetaFuncResult::Repeat : MetaFuncResult::Skip;
     }
     return MetaFuncResult::Unhandled;
 }
@@ -573,64 +567,63 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
     ex.ThrowSelf();
 }
 
-Arg NailangRuntimeBase::EvaluateFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall> metas, const FuncTarget target)
+Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
 {
     using Type = Arg::InternalType;
     // only for block-scope
     if (target.GetType() == FuncTarget::Type::Block)
     {
         auto& blkCtx = target.GetBlockContext();
-        if (func == U"Break"sv)
+        if (call.Name == U"Break"sv)
         {
-            ThrowByArgCount(args, 0);
+            ThrowByArgCount(call, 0);
             if (!blkCtx.SearchMeta(U"While"sv))
-                NLRT_THROW_EX(u"Break can only be used inside While"sv,
-                    detail::ExceptionTarget::NewFuncCall(func));
+                NLRT_THROW_EX(u"Break can only be used inside While"sv, call);
             blkCtx.Status = ProgramStatus::Break;
             return {};
         }
-        else if (func == U"Return")
+        else if (call.Name == U"Return")
         {
-            if (args.size() > 0)
-            {
-                ThrowByArgCount(args, 1);
-                EvalContext->SetReturnArg(args[0]);
-            }
+            EvalContext->SetReturnArg(EvaluateFuncArgs<1, false>(call)[0]);
             blkCtx.Status = ProgramStatus::Return;
             return {};
         }
-        else if (func == U"Throw"sv)
+        else if (call.Name == U"Throw"sv)
         {
-            ThrowByArgCount(args, 1);
-
-            this->HandleException(CREATE_EXCEPTION(NaailangCodeException, args[0].ToString().StrView(), detail::ExceptionTarget::NewFuncCall(func)));
+            const auto args = EvaluateFuncArgs<1>(call);
+            this->HandleException(CREATE_EXCEPTION(NaailangCodeException, args[0].ToString().StrView(), call));
             return {};
         }
     }
     // suitable for all
-    if (common::str::IsBeginWith(func, U"EmbedOp."sv))
+    if (common::str::IsBeginWith(call.Name, U"EmbedOp."sv))
     {
-        ThrowIfNotFuncTarget(func, target, FuncTarget::Type::Empty);
-        const auto opname = func.substr(8);
-        const auto ret = EmbedOpEval::Eval(opname, args);
+        ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Empty);
+        const auto opname = call.Name.substr(8);
+        const auto ret = EmbedOpEval::Eval(opname, EvaluateFuncArgs<2, false>(call));
         if (ret.has_value())
         {
             if (ret->TypeData == Type::Empty)
-                NLRT_THROW_EX(u"Emebd op's arg type does not match requirement"sv, 
-                    detail::ExceptionTarget::NewFuncCall(func));
+                NLRT_THROW_EX(u"Emebd op's arg type does not match requirement"sv, call);
             return *ret;
         }
+        // TODO: should explicitly handle unsolved EmbedOp
     }
-    else if (const auto lcFunc = EvalContext->LookUpFunc(func); lcFunc)
+    else if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
     {
-        ThrowByArgCount(args, lcFunc.ArgNames.size());
-        return EvaluateLocalFunc(lcFunc, args, metas, target);
+        return EvaluateLocalFunc(lcFunc, call, metas, target);
     }
-    return EvaluateUnknwonFunc(func, args, metas, target);
+    return EvaluateUnknwonFunc(call, metas, target);
 }
 
-Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget)
+Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall>, const FuncTarget)
 {
+    ThrowByArgCount(call, func.ArgNames.size());
+    std::vector<Arg> args;
+    args.reserve(call.Args.size());
+    for (const auto& rawarg : call.Args)
+        args.emplace_back(EvaluateArg(rawarg));
+
     const auto ctx = std::make_shared<CompactEvaluateContext>();
     NailangRuntimeBase runtime(ctx);
     for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
@@ -640,11 +633,10 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, common:
     return ctx->GetReturnArg();
 }
 
-Arg NailangRuntimeBase::EvaluateUnknwonFunc(const std::u32string_view func, common::span<const Arg> args, common::span<const FuncCall>, const FuncTarget target)
+Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>, const FuncTarget target)
 {
     NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] with [{}] args cannot be resolved as [{}]."), 
-        func, args.size(), FuncTarget::FuncTargetName(target.GetType())),
-        detail::ExceptionTarget::NewFuncCall(func));
+        call.Name, call.Args.size(), FuncTarget::FuncTargetName(target.GetType())), call);
     return {};
 }
 

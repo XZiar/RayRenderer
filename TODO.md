@@ -2,12 +2,14 @@
 
 * common
   - [x] Add linq (iterator-based)
-  - [ ] Move Contorllable into standalone project with better metadata management
-  - [ ] Add static control-item for Controllable
   - [ ] Implement new SIMD vector lib
   - [ ] Makes strcharset Linq-able
   - [x] Makes string split Linq-able
   - [ ] Use dict to store Exception's custom info
+  * Controllable
+    - [ ] Move Contorllable into standalone project with better metadata management
+    - [ ] Add static control-item for Controllable
+    - [ ] Remove unnecessary lambda func for direct access
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
@@ -25,6 +27,7 @@
   - [ ] Use TexFormat instead of ImageDataType
   - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
+  - [ ] Add external decoder/encoder (e.g, intel media sdk)
 
 * OpenGLUtil
   - [x] Implement FrameBuffer
@@ -48,15 +51,20 @@
   - [ ] Replace preprocessor-based ExtShader to custom DSL
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
+  - [ ] Add NLGL for extended shader
   * TextureUtil
     - [x] Add mipmap
+    - [ ] Add blur
     - [ ] Migate ISPC tex-compressor to OpenCL
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
   - [ ] Add compatibility for OpenCL verson less than 1.2.
-  - [ ] Add custom debug info output
+  - [ ] Add extended debugging output for NLCL
+
+* OpenCLInterop
+  - [ ] Add compatible layer for shader sharing between NLCL and NLGL
 
 * FontHelper
   - [ ] Implement proper text render
@@ -83,8 +91,12 @@
     - [ ] Add Deffered rendering
   * Model
     - [ ] Add skeleton animation
-    - [ ] Add more import support
+    - [ ] Add more import format support
 
+* Nailang
+  - [ ] Re-design operators handling to support `short-circuit evaluation` and `assign if null`.
+  - [ ] Make parser throw proper exception.
+  - [ ] Add python parser & runtime
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail
@@ -113,6 +125,6 @@
   - [ ] Add custom window host (for OGL/vulkan)
   - [ ] Seperate OGL/Vulkan backend
   - [ ] Add remote rendering backend (out-of-process or network-based)
-  - [ ] Add custom base DSL for OpenGL and OpenCL
+  - [x] Add custom base DSL for OpenGL and OpenCL
 
 
