@@ -61,7 +61,8 @@
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
   - [ ] Add compatibility for OpenCL verson less than 1.2.
-  - [ ] Add extended debugging output for NLCL
+  - [ ] Add extended debugging output using NLCL
+  - [ ] Make oclKernel associate with specific device
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL

@@ -1,3 +1,105 @@
 <?xml version="1.0" encoding="utf-8"?> 
-<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="oclu::oclDevice_">
+    <DisplayString>{{ oclDevice {{{Name,su}}} }}</DisplayString>
+  </Type>
+  <Type Name="oclu::oclPlatform_">
+    <DisplayString>{{ oclPlatform {{{Name,su}, {Devices.size()} devices}} }}</DisplayString>
+    <Expand>
+      <Item Name="Name">Name,su</Item>
+      <Item Name="Vendor">PlatVendor,en</Item>
+      <Item Name="Ver">Ver,su</Item>
+      <Item Name="Devices">Devices</Item>
+      <Item Name="[Default Device]">DefDevice,na</Item>
+      <Item Name="Extensions">Extensions</Item>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclContext_">
+    <DisplayString>{{ oclContext {{on {Plat._Ptr->Name,su}, {Devices.size()} devices}} }}</DisplayString>
+    <Expand>
+      <Item Name="Platform">Plat</Item>
+      <Item Name="Devices">Devices</Item>
+      <Synthetic Name="Support">
+        <Expand>
+          <Item Name="Img2D">Img2DFormatSupport</Item>
+          <Item Name="Img3D">Img3DFormatSupport</Item>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclCmdQue_">
+    <DisplayString>{{ oclCmdQue {{on {Device->Name,su}}} }}</DisplayString>
+    <Expand>
+      <Item Name="Context">*Context</Item>
+      <Item Name="Device">Device,na</Item>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclProgram_">
+    <DisplayString>{{ oclProgram {{{Kernels.size()} kernels}} }}</DisplayString>
+    <Expand>
+      <Item Name="Context">*Context</Item>
+      <Item Name="Source">Source</Item>
+      <Synthetic Name="Kernels">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Kernels.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Kernels.size()" />
+              <Item Name="[{(*(oclu::oclKernel_**)&amp;Kernels[idx])->Name}]">*(oclu::oclKernel_**)&amp;Kernels[idx],na</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclKernel_">
+    <DisplayString>{{ oclKernel {{{Name}}} }}</DisplayString>
+    <Expand>
+      <Item Name="Platform">Plat</Item>
+      <Item Name="Program">Prog</Item>
+      <Item Name="[ArgsInfo]">ArgsInfo</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="std::shared_ptr&lt;oclu::oclProgram_ const&gt;">
+    <DisplayString>{{ oclProgram {{{_Ptr->Kernels.size()} kernels}} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclKernel_ const&gt;">
+    <DisplayString>{{ oclKernel {{{_Ptr->Name,s}}} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclPlatform_ const&gt;">
+    <DisplayString>{{ oclPlatform {{{_Ptr->Name,su}, {_Ptr->Devices.size()} devices}} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclCmdQue_ const&gt;">
+    <DisplayString>{{ oclCmdQue {{on {_Ptr->Device->Name,su}}} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  
+  <Type Name="oclu::NLCLRuntime">
+    <Expand>
+      <Item Name="Device">Device,na</Item>
+      <Item Name="EvalContext">EvalContext</Item>
+    </Expand>
+  </Type>
+  <Type Name="oclu::NLCLProgStub">
+    <Expand>
+      <Item Name="Device">Device,na</Item>
+      <Item Name="[Runtime]">*Runtime</Item>
+      <Item Name="[Program]">Program->Program</Item>
+      <Item Name="[Source]">Program->Source</Item>
+    </Expand>
+  </Type>
 </AutoVisualizer>

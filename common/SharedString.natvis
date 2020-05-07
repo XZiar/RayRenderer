@@ -1,31 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
   <Type Name="common::SharedString&lt;char&gt;">
-    <DisplayString>{{{StrView,s}}}</DisplayString>
+    <DisplayString>{StrView.data(),[StrView.size()]s}</DisplayString>
     <Expand>
       <Item Name="[length]">StrView.length()</Item>
-      <Item Name="[reference]">*(uint32_t*)GetCountor()</Item>
+      <Item Name="[reference]" Condition="StrView.data() != nullptr">*(uint32_t*)((uintptr_t)(StrView.data()) - Offset)</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::SharedString&lt;char8_t&gt;">
+    <DisplayString>{StrView.data(),[StrView.size()]s8}</DisplayString>
+    <Expand>
+      <Item Name="[length]">StrView.length()</Item>
+      <Item Name="[reference]" Condition="StrView.data() != nullptr">*(uint32_t*)((uintptr_t)(StrView.data()) - Offset)</Item>
     </Expand>
   </Type>
   <Type Name="common::SharedString&lt;char16_t&gt;">
-    <DisplayString>{{{StrView,su}}}</DisplayString>
+    <DisplayString>{StrView.data(),[StrView.size()]su}</DisplayString>
     <Expand>
-      <Item Name="[length]">StrView.length()</Item>
-      <Item Name="[reference]">*(uint32_t*)GetCountor()</Item>
+      <Item Name="[length]">StrView.size()</Item>
+      <Item Name="[reference]" Condition="StrView.data() != nullptr">*(uint32_t*)((uintptr_t)(StrView.data()) - Offset)</Item>
     </Expand>
   </Type>
   <Type Name="common::SharedString&lt;wchar_t&gt;">
-    <DisplayString>{{{StrView,su}}}</DisplayString>
+    <DisplayString>{StrView.data(),[StrView.size()]su}</DisplayString>
     <Expand>
       <Item Name="[length]">StrView.length()</Item>
-      <Item Name="[reference]">*(uint32_t*)GetCountor()</Item>
+      <Item Name="[reference]" Condition="StrView.data() != nullptr">*(uint32_t*)((uintptr_t)(StrView.data()) - Offset)</Item>
     </Expand>
   </Type>
   <Type Name="common::SharedString&lt;char32_t&gt;">
-    <DisplayString>{{{StrView,s32}}}</DisplayString>
+    <DisplayString>{StrView.data(),[StrView.size()]s32}</DisplayString>
     <Expand>
       <Item Name="[length]">StrView.length()</Item>
-      <Item Name="[reference]">*(uint32_t*)GetCountor()</Item>
+      <Item Name="[reference]" Condition="StrView.data() != nullptr">*(uint32_t*)((uintptr_t)(StrView.data()) - Offset)</Item>
     </Expand>
   </Type>
 </AutoVisualizer>

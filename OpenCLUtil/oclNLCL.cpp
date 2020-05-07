@@ -140,14 +140,49 @@ void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException&
     NailangRuntimeBase::HandleException(ex);
 }
 
+bool NLCLRuntime::CheckExtension(std::string_view ext, std::u16string_view desc) const
+{
+    if (!Device->Extensions.Has(ext))
+    {
+        Logger.warning(FMT_STRING(u"{} on unsupportted device.\n"sv), desc);
+        return false;
+    }
+    else if (!CheckExtensionEnabled(ext))
+    {
+        Logger.warning(FMT_STRING(u"{} without enabling extenssion.\n"sv), desc);
+        return false;
+    }
+    return true;
+}
+
 void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
+    OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceVariable"sv; }))
         source = DoReplaceVariable(source.StrView());
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceFunction"sv; }))
         source = DoReplaceFunction(source.StrView());
     dst.append(source.StrView());
+}
+
+void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
+{
+    // std::set<std::u32string_view> lateVars;
+    for (const auto& meta : metas)
+    {
+        std::u32string_view prefix;
+        if (meta.Name == U"If"sv)
+            prefix = U"If"sv;
+        else if (meta.Name == U"Skip"sv)
+            prefix = U"Skip if"sv;
+        else
+            continue;
+        if (meta.Args.size() == 1)
+            fmt::format_to(std::back_inserter(dst),
+                FMT_STRING(U"/* {:7} :  {} */\r\n"sv), prefix,
+                xziar::nailang::Serializer::Stringify(meta.Args[0]));
+    }
 }
 
 std::u32string NLCLRuntime::DoReplaceVariable(const std::u32string_view src) const
@@ -191,12 +226,11 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto sgSize = EvaluateArg(meta.Args[0]).GetUint();
             if (sgSize)
             {
-                if (!Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
-                    Logger.warning(u"Request Subggroup Size on unsupportted device.\n");
-                else if (!CheckExtensionEnabled("cl_intel_required_subgroup_size"sv))
-                    Logger.warning(u"Request Subggroup Size without enabling extenssion.\n");
+                CheckExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
                 fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize.value());
             }
+            else
+                Logger.verbose(u"Skip subgroup size due to empty arg.\n"sv);
         } break;
         case "oglu.RequestWorkgroupSize"_hash:
         {

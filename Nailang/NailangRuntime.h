@@ -229,8 +229,7 @@ namespace detail
 struct ExceptionTarget
 {
     enum class Type { Empty, Arg, RawArg, Assignment, FuncCall, RawBlock, Block };
-    std::variant<std::monostate, Arg, RawArg, const FuncCall*, FuncCall, const RawBlock*, const Block*, BlockContent> Target;
-    static constexpr size_t BlockContentIndex = common::get_variant_index_v<BlockContent, decltype(Target)>();
+    std::variant<std::monostate, BlockContent, Arg, RawArg, const FuncCall*, FuncCall, const RawBlock*, const Block*> Target;
 
     constexpr ExceptionTarget() noexcept {}
     template<typename T>
@@ -241,14 +240,14 @@ struct ExceptionTarget
         switch (Target.index())
         {
         case 0:  return Type::Empty;
-        case 1:  return Type::Arg;
-        case 2:  return Type::RawArg;
-        case 3:  return Type::FuncCall;
+        case 2:  return Type::Arg;
+        case 3:  return Type::RawArg;
         case 4:  return Type::FuncCall;
-        case 5:  return Type::RawBlock;
-        case 6:  return Type::Block;
-        case BlockContentIndex:
-            switch (std::get<BlockContentIndex>(Target).GetType())
+        case 5:  return Type::FuncCall;
+        case 6:  return Type::RawBlock;
+        case 7:  return Type::Block;
+        case 1:
+            switch (std::get<1>(Target).GetType())
             {
             case BlockContent::Type::Assignment: return Type::Assignment;
             case BlockContent::Type::FuncCall:   return Type::FuncCall;
@@ -266,17 +265,17 @@ struct ExceptionTarget
         if constexpr (T == Type::Empty)
             return;
         else if constexpr (T == Type::Arg)
-            return std::get<1>(Target);
-        else if constexpr (T == Type::RawArg)
             return std::get<2>(Target);
+        else if constexpr (T == Type::RawArg)
+            return std::get<3>(Target);
         else if constexpr (T == Type::Assignment)
-            return std::get<BlockContentIndex>(Target).Get<Assignment>();
+            return std::get<1>(Target).Get<Assignment>();
         else if constexpr (T == Type::RawBlock)
         {
             switch (Target.index())
             {
-            case 5:  return  std::get<5>(Target);
-            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<RawBlock>();
+            case 6:  return std::get<6>(Target);
+            case 1:  return std::get<1>(Target).Get<RawBlock>();
             default: return nullptr;
             }
         }
@@ -284,8 +283,8 @@ struct ExceptionTarget
         {
             switch (Target.index())
             {
-            case 6:  return  std::get<6>(Target);
-            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<Block>();
+            case 7:  return std::get<7>(Target);
+            case 1:  return std::get<1>(Target).Get<Block>();
             default: return nullptr;
             }
         }
@@ -293,9 +292,9 @@ struct ExceptionTarget
         {
             switch (Target.index())
             {
-            case 3:  return  std::get<3>(Target);
-            case 4:  return &std::get<4>(Target);
-            case BlockContentIndex: return std::get<BlockContentIndex>(Target).Get<FuncCall>();
+            case 4:  return  std::get<4>(Target);
+            case 5:  return &std::get<5>(Target);
+            case 1:  return  std::get<1>(Target).Get<FuncCall>();
             default: return nullptr;
             }
         }

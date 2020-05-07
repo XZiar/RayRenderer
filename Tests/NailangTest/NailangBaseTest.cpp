@@ -178,3 +178,71 @@ TEST(NailangBase, AssignOpTokenizer)
 #undef CHECK_EMBED_OP
 #undef CHECK_BASE_UINT
 }
+
+
+TEST(NailangBase, Serializer)
+{
+    using xziar::nailang::Serializer;
+    using xziar::nailang::RawArg;
+    using xziar::nailang::LateBindVar;
+    using xziar::nailang::EmbedOps;
+    RawArg a1{ true };
+    RawArg a2{ false };
+    RawArg a3{ uint64_t(1234) };
+    RawArg a4{ int64_t(-5678) };
+    RawArg a5{ U"10ab"sv };
+    RawArg a6{ LateBindVar{U"`cd.ef"sv} };
+    EXPECT_EQ(Serializer::Stringify(a1), U"true"sv);
+    EXPECT_EQ(Serializer::Stringify(a2), U"false"sv);
+    EXPECT_EQ(Serializer::Stringify(a3), U"1234"sv);
+    EXPECT_EQ(Serializer::Stringify(a4), U"-5678"sv);
+    EXPECT_EQ(Serializer::Stringify(a5), U"\"10ab\""sv);
+    EXPECT_EQ(Serializer::Stringify(a6), U"`cd.ef"sv);
+    {
+        xziar::nailang::UnaryExpr expr(EmbedOps::Not, a1);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr(EmbedOps::Add, a1, a2);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"true + false"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr(EmbedOps::NotEqual, a2, a3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"false != 1234"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::Equal, a1, a2);
+        xziar::nailang::UnaryExpr expr(EmbedOps::Not, &expr0);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"!(true == false)"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
+        xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"(true || false) && 1234"sv);
+    }
+    {
+        std::vector<RawArg> args{ a1 };
+        xziar::nailang::FuncCall call{ U"Func"sv, args };
+        EXPECT_EQ(Serializer::Stringify(&call), U"Func(true)"sv);
+    }
+    {
+        std::vector<RawArg> args{ a2,a3,a4 };
+        xziar::nailang::FuncCall call{ U"Func2"sv, args };
+        EXPECT_EQ(Serializer::Stringify(&call), U"Func2(false, 1234, -5678)"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
+        xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
+        std::vector<RawArg> args{ &expr,a4 };
+        xziar::nailang::FuncCall call{ U"Func3"sv, args };
+        EXPECT_EQ(Serializer::Stringify(&call), U"Func3((true || false) && 1234, -5678)"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
+        xziar::nailang::BinaryExpr expr1(EmbedOps::And, &expr0, a3);
+        std::vector<RawArg> args{ &expr1,a4 };
+        xziar::nailang::FuncCall call{ U"Func4"sv, args };
+        xziar::nailang::BinaryExpr expr(EmbedOps::Div, a5, &call);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\" / Func4((true || false) && 1234, -5678)"sv);
+    }
+}

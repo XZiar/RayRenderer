@@ -74,7 +74,9 @@ protected:
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 
+    bool CheckExtension(std::string_view ext, std::u16string_view desc) const;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+    virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual std::u32string DoReplaceVariable(const std::u32string_view src) const;
     virtual std::u32string DoReplaceFunction(const std::u32string_view src) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
@@ -86,7 +88,7 @@ public:
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext);
     bool EnableExtension(std::u32string_view ext);
-    bool CheckExtensionEnabled(std::string_view ext) const;
+    [[nodiscard]] bool CheckExtensionEnabled(std::string_view ext) const;
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();

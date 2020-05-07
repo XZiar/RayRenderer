@@ -185,4 +185,25 @@
       <Item Name="EvalContext">EvalContext</Item>
     </Expand>
   </Type>
+  <Type Name="xziar::nailang::detail::ExceptionTarget">
+    <DisplayString Condition="Target.index() == 0">{{ Empty }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 2">{{ Arg [{Target._Tail._Tail._Head}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 3">{{ RawArg [{Target._Tail._Tail._Head}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 4">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 5">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Tail._Head.Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 6">{{ RawBlock [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 7">{{ Block [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::FuncCall">
+      {{ FuncCall [Target._Tail._Head.Get&lt;BlockContent::Type::FuncCall&gt;()->Name,s32] }}
+    </DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::Block">
+      {{ Block [Target._Tail._Head.Get&lt;BlockContent::Type::Block&gt;()->Name,s32] }}
+    </DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::RawBlock">
+      {{ RawBlock [Target._Tail._Head.Get&lt;BlockContent::Type::RawBlock&gt;()->Name,s32] }}
+    </DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::Assignment">
+      {{ Assignment [Target._Tail._Head.Get&lt;BlockContent::Type::Assignment&gt;()->Variable.Name,s32] }}
+    </DisplayString>
+  </Type>
 </AutoVisualizer>

@@ -593,4 +593,26 @@ public:
 };
 
 
+struct NAILANGAPI Serializer
+{
+    static void Stringify(std::u32string& output, const RawArg& arg, const bool requestParenthese = false);
+    static void Stringify(std::u32string& output, const FuncCall* call);
+    static void Stringify(std::u32string& output, const UnaryExpr* expr);
+    static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
+    static void Stringify(std::u32string& output, const LateBindVar var);
+    static void Stringify(std::u32string& output, const std::u32string_view str);
+    static void Stringify(std::u32string& output, const uint64_t u64);
+    static void Stringify(std::u32string& output, const int64_t i64);
+    static void Stringify(std::u32string& output, const double f64);
+    static void Stringify(std::u32string& output, const bool boolean);
+
+    template<typename T>
+    static std::u32string Stringify(const T& obj)
+    {
+        std::u32string result;
+        Stringify(result, obj);
+        return result;
+    }
+};
+
 }
