@@ -51,12 +51,16 @@ protected:
 
     class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
     {
-    public:
+    protected:
         const NLCLRuntime& Runtime;
-        NLCLReplacer(std::u32string_view source, const NLCLRuntime& runtime) : ReplaceEngine(source), Runtime(runtime) { }
+        const bool SupportFP16, SupportFP64;
+        void ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const;
+        void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;
+        void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) override;
+    public:
+        NLCLReplacer(const NLCLRuntime& runtime);
         ~NLCLReplacer() override;
-        void OnReplaceVariable(const std::u32string_view var) override;
-        void OnReplaceFunction(const std::u32string_view func, const common::span<std::u32string_view> args) override;
+
         using ReplaceEngine::ProcessVariable;
         using ReplaceEngine::ProcessFunction;
     };
@@ -69,6 +73,7 @@ protected:
     std::vector<OutputBlock> KernelBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
+    std::unique_ptr<NLCLReplacer> Replacer;
     
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
@@ -77,8 +82,6 @@ protected:
     bool CheckExtension(std::string_view ext, std::u16string_view desc) const;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
-    virtual std::u32string DoReplaceVariable(const std::u32string_view src) const;
-    virtual std::u32string DoReplaceFunction(const std::u32string_view src) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

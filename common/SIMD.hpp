@@ -93,8 +93,44 @@
 
 namespace common::simd
 {
-inline constexpr auto GetSIMDIntrin()
+inline constexpr auto GetSIMDIntrin() noexcept
 {
     return STRINGIZE(COMMON_SIMD_INTRIN);
 }
+
+struct VecDataInfo
+{
+    enum class DataTypes : uint8_t { Unsigned, Signed, Float, BFloat };
+    DataTypes Type;
+    uint8_t Bit;
+    uint8_t Dim0;
+    uint8_t Dim1;
+
+    constexpr operator uint32_t() const noexcept
+    {
+        return (static_cast<uint32_t>(Type) << 24) | (static_cast<uint32_t>(Bit) << 16) 
+            |  (static_cast<uint32_t>(Dim0) << 8)  | (static_cast<uint32_t>(Dim1) << 0);
+    }
+
+    template<typename T, uint8_t N>
+    static constexpr VecDataInfo GetVectorInfo() noexcept
+    {
+        auto type = DataTypes::Unsigned;
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            const auto bit = gsl::narrow_cast<uint8_t>(sizeof(T));
+            return { DataTypes::Float, bit, N, (uint8_t)0 };
+        }
+        else if constexpr (std::is_integral_v<T>)
+        {
+            const auto type = std::is_unsigned_v<T> ? DataTypes::Unsigned : DataTypes::Signed;
+            const auto bit = gsl::narrow_cast<uint8_t>(sizeof(T));
+            return { type, bit, N, (uint8_t)0 };
+        }
+        else
+        {
+            static_assert(!AlwaysTrue<T>, "only numeraic type allowed");
+        }
+    }
+};
 }

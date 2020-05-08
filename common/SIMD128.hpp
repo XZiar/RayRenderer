@@ -66,6 +66,7 @@ struct Int128Common : public CommonOperators<T>
 struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
 {
     static constexpr size_t Count = 2;
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,2,0 };
     union
     {
         __m128d Data;
@@ -178,6 +179,7 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
 struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
 {
     static constexpr size_t Count = 4;
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,4,0 };
     union
     {
         __m128 Data;
@@ -310,6 +312,7 @@ struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
 struct alignas(__m128i) I64x2 : public detail::Int128Common<I64x2, int64_t>
 {
     static constexpr size_t Count = 2;
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,64,2,0 };
     union
     {
         __m128i Data;
@@ -406,6 +409,7 @@ struct alignas(__m128i) I32Common4
 
 struct alignas(__m128i) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int128Common<I32x4, int32_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,32,4,0 };
     using I32Common4<I32x4, int32_t>::I32Common4;
 
     // arithmetic operations
@@ -424,6 +428,7 @@ struct alignas(__m128i) I32x4 : public I32Common4<I32x4, int32_t>, public detail
 
 struct alignas(__m128i) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::Int128Common<U32x4, uint32_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,32,4,0 };
     using I32Common4<U32x4, uint32_t>::I32Common4;
 
     // arithmetic operations
@@ -508,6 +513,7 @@ struct alignas(__m128i) I16Common8
 
 struct alignas(__m128i) I16x8 : public I16Common8<I16x8, int16_t>, public detail::Int128Common<I16x8, int16_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,16,8,0 };
     using I16Common8<I16x8, int16_t>::I16Common8;
 
     // arithmetic operations
@@ -524,6 +530,7 @@ struct alignas(__m128i) I16x8 : public I16Common8<I16x8, int16_t>, public detail
 
 struct alignas(__m128i) U16x8 : public I16Common8<U16x8, int16_t>, public detail::Int128Common<U16x8, uint16_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,8,0 };
     using I16Common8<U16x8, int16_t>::I16Common8;
 
     // arithmetic operations
@@ -599,6 +606,7 @@ struct alignas(__m128i) I8Common16
 
 struct alignas(__m128i) I8x16 : public I8Common16<I8x16, int8_t>, public detail::Int128Common<I8x16, int8_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,8,16,0 };
     using I8Common16<I8x16, int8_t>::I8Common16;
 
     // arithmetic operations
@@ -643,6 +651,7 @@ forceinline Pack<I16x8, 2> VECCALL I8x16::MulX(const I8x16& other) const
 
 struct alignas(__m128i) U8x16 : public I8Common16<U8x16, uint8_t>, public detail::Int128Common<U8x16, uint8_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,8,16,0 };
     using I8Common16<U8x16, uint8_t>::I8Common16;
 
     // arithmetic operations

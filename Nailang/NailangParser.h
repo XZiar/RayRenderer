@@ -88,21 +88,14 @@ public:
 
 class NAILANGAPI ReplaceEngine
 {
-private:
 protected:
-    common::parser::ParserContext Context;
-    std::u32string Output;
-
-    ReplaceEngine(std::u32string_view source) : Context(source) { }
     static std::u32string_view TrimStrBlank(const std::u32string_view str) noexcept;
-    virtual void OnReplaceVariable(const std::u32string_view var) = 0;
-    virtual void OnReplaceFunction(const std::u32string_view func, const common::span<std::u32string_view> args) = 0;
-    virtual void ProcessVariable(const std::u32string_view prefix, const std::u32string_view suffix);
-    virtual void ProcessFunction(const std::u32string_view prefix, const std::u32string_view suffix);
+    virtual void OnReplaceVariable(std::u32string& output, const std::u32string_view var) = 0;
+    virtual void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) = 0;
+    std::u32string ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix);
+    std::u32string ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix);
 public:
     virtual ~ReplaceEngine();
-    std::u32string_view GetOutput() const noexcept { return Output; }
-    std::u32string ExtractOutput() noexcept { return std::move(Output); }
 };
 
 

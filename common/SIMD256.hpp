@@ -69,6 +69,7 @@ struct Int256Common : public CommonOperators<T>
 
 struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,4,0 };
     static constexpr size_t Count = 4;
     union
     {
@@ -193,6 +194,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 
 struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,8,0 };
     static constexpr size_t Count = 8;
     union
     {
@@ -354,6 +356,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
 #if COMMON_SIMD_LV >= 200
 struct alignas(__m256i) I64x4 : public detail::Int256Common<I64x4, int64_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,64,4,0 };
     static constexpr size_t Count = 4;
     union
     {
@@ -446,6 +449,7 @@ struct alignas(__m256i) I32Common8
 
 struct alignas(__m256i) I32x8 : public I32Common8<I32x8, int32_t>, public detail::Int256Common<I32x8, int32_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,32,8,0 };
     using I32Common8<I32x8, int32_t>::I32Common8;
     I32x8(const Pack<I32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
@@ -463,6 +467,7 @@ struct alignas(__m256i) I32x8 : public I32Common8<I32x8, int32_t>, public detail
 
 struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>, public detail::Int256Common<U32x8, uint32_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,32,8,0 };
     using I32Common8<U32x8, uint32_t>::I32Common8;
     U32x8(const Pack<U32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
@@ -534,6 +539,7 @@ struct alignas(__m256i) I16Common16
 
 struct alignas(__m256i) I16x16 : public I16Common16<I16x16, int16_t>, public detail::Int256Common<I16x16, int16_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,16,16,0 };
     using I16Common16<I16x16, int16_t>::I16Common16;
     I16x16(const Pack<I16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
@@ -551,6 +557,7 @@ struct alignas(__m256i) I16x16 : public I16Common16<I16x16, int16_t>, public det
 
 struct alignas(__m256i) U16x16 : public I16Common16<U16x16, int16_t>, public detail::Int256Common<U16x16, uint16_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,16,0 };
     using I16Common16<U16x16, int16_t>::I16Common16;
     U16x16(const Pack<U16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
@@ -622,6 +629,7 @@ struct alignas(__m256i) I8Common32
 
 struct alignas(__m256i) I8x32 : public I8Common32<I8x32, int8_t>, public detail::Int256Common<I8x32, int8_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,8,32,0 };
     using I8Common32<I8x32, int8_t>::I8Common32;
     I8x32(const Pack<I8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
@@ -665,6 +673,7 @@ forceinline Pack<I16x16, 2> VECCALL I8x32::MulX(const I8x32& other) const
 
 struct alignas(__m256i) U8x32 : public I8Common32<U8x32, uint8_t>, public detail::Int256Common<U8x32, uint8_t>
 {
+    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,8,32,0 };
     using I8Common32<U8x32, uint8_t>::I8Common32;
     U8x32(const Pack<U8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 

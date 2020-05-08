@@ -546,22 +546,24 @@ std::u32string_view ReplaceEngine::TrimStrBlank(const std::u32string_view str) n
     return str.substr(0, len);
 }
 
-void ReplaceEngine::ProcessVariable(const std::u32string_view prefix, const std::u32string_view suffix)
+std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix)
 {
     if (prefix.empty() || suffix.empty())
         throw U"Illegal prefix/suffix"sv;
-    ContextReader reader(Context);
+    common::parser::ParserContext context(source);
+    ContextReader reader(context);
+    std::u32string output;
     while (true)
     {
         auto before = reader.ReadUntil(prefix);
         if (before.empty()) // reaching end
         {
-            Output.append(reader.ReadAll());
+            output.append(reader.ReadAll());
             break;
         }
         {
             before.remove_suffix(prefix.size());
-            Output.append(before);
+            output.append(before);
         }
         reader.ReadWhile(IgnoreBlank);
         auto var = reader.ReadUntil(suffix);
@@ -574,26 +576,29 @@ void ReplaceEngine::ProcessVariable(const std::u32string_view prefix, const std:
         }
         var.remove_suffix(suffix.size());
         // find a variable replacement
-        OnReplaceVariable(TrimStrBlank(var));
+        OnReplaceVariable(output, TrimStrBlank(var));
     }
+    return output;
 }
 
-void ReplaceEngine::ProcessFunction(const std::u32string_view prefix, const std::u32string_view suffix)
+std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix)
 {
     if (prefix.empty())
         throw U"Illegal suffix"sv;
-    ContextReader reader(Context);
+    common::parser::ParserContext context(source);
+    ContextReader reader(context);
+    std::u32string output;
     while (true)
     {
         auto before = reader.ReadUntil(prefix);
         if (before.empty()) // reaching end
         {
-            Output.append(reader.ReadAll());
+            output.append(reader.ReadAll());
             break;
         }
         {
             before.remove_suffix(prefix.size());
-            Output.append(before);
+            output.append(before);
         }
         reader.ReadWhile(IgnoreBlank);
         auto funcName = reader.ReadUntil(U"("sv);
@@ -673,8 +678,9 @@ void ReplaceEngine::ProcessFunction(const std::u32string_view prefix, const std:
             }
         }
         // find a function replacement
-        OnReplaceFunction(TrimStrBlank(funcName), args);
+        OnReplaceFunction(output, TrimStrBlank(funcName), args);
     }
+    return output;
 }
 
 ReplaceEngine::~ReplaceEngine()

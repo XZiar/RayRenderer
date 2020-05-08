@@ -4,6 +4,7 @@
 #include "oclException.h"
 #include "StringCharset/Convert.h"
 #include "StringCharset/Detect.h"
+#include "common/SIMD.hpp"
 
 namespace oclu
 {
@@ -17,6 +18,7 @@ using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::detail::ExceptionTarget;
 using common::str::Charset;
 using common::str::IsBeginWith;
+
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
@@ -83,20 +85,152 @@ Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) cons
 }
 
 
-
+NLCLRuntime::NLCLReplacer::NLCLReplacer(const NLCLRuntime& runtime) : 
+    Runtime(runtime), 
+    SupportFP16(Runtime.Device->Extensions.Has("cl_khr_fp16")),
+    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64"))
+{ }
 NLCLRuntime::NLCLReplacer::~NLCLReplacer() { }
 
-void NLCLRuntime::NLCLReplacer::OnReplaceVariable(const std::u32string_view var)
+void NLCLRuntime::NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const
 {
-    const auto ret = Runtime.EvalContext->LookUpArg(var);
-    if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, 
-            fmt::format(FMT_STRING(u"Arg [{}] not found when repace-variable"sv), var)));
-    Output.append(ret.ToString().StrView());
+    if (args.size() != count)
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            fmt::format(FMT_STRING(u"Repace-func [{}] requires [{}] args, which gives [{}]."), func, args.size(), count)));
 }
 
-void NLCLRuntime::NLCLReplacer::OnReplaceFunction(const std::u32string_view, const common::span<std::u32string_view>)
+static std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type)
 {
+#define CASE(str, type, bit, n, least) case PPCAT(str, _hash): return {{common::simd::VecDataInfo::DataTypes::type, bit, n, 0}, least}
+#define CASEV(pfx, type, bit, least) \
+    CASE(STRINGIZE(pfx),             type, bit, 1,  least); \
+    CASE(STRINGIZE(PPCAT(pfx, v2)),  type, bit, 2,  least); \
+    CASE(STRINGIZE(PPCAT(pfx, v3)),  type, bit, 3,  least); \
+    CASE(STRINGIZE(PPCAT(pfx, v4)),  type, bit, 4,  least); \
+    CASE(STRINGIZE(PPCAT(pfx, v8)),  type, bit, 8,  least); \
+    CASE(STRINGIZE(PPCAT(pfx, v16)), type, bit, 16, least); \
+
+#define CASE2(tstr, type, bit)                          \
+    CASEV(PPCAT(tstr, bit), type, bit, false)           \
+    CASEV(PPCAT(PPCAT(tstr, bit), +), type, bit, true)  \
+
+    switch (hash_(type))
+    {
+    CASE2(u, Unsigned, 8)
+    CASE2(u, Unsigned, 16)
+    CASE2(u, Unsigned, 32)
+    CASE2(u, Unsigned, 64)
+    CASE2(i, Signed,   8)
+    CASE2(i, Signed,   16)
+    CASE2(i, Signed,   32)
+    CASE2(i, Signed,   64)
+    CASE2(f, Float,    16)
+    CASE2(f, Float,    32)
+    CASE2(f, Float,    64)
+    default: return {{common::simd::VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false};
+    }
+
+#undef CASE2
+#undef CASEV
+#undef CASE
+}
+
+void NLCLRuntime::NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
+{
+    if (var.size() > 0 && var[0] == U'@')
+    {
+        using common::simd::VecDataInfo;
+        auto [info, least] = ParseVDataType(var.substr(1));
+        if (info.Bit == 0)
+        {
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+                fmt::format(FMT_STRING(u"Type [{}] not found when repace-variable"sv), var)));
+            return;
+        }
+        if (info.Type == VecDataInfo::DataTypes::Float) // FP ext handling
+        {
+            if (info.Bit == 16 && !SupportFP16) // FP16 check
+            {
+                if (least) // promotion
+                    info.Bit = 32;
+                else
+                    Runtime.Logger.warning(u"Potential use of unsupportted FP16 with [{}].\n"sv, var);
+            }
+            else if (info.Bit == 64 && !SupportFP64)
+            {
+                Runtime.Logger.warning(u"Potential use of unsupportted FP64 with [{}].\n"sv, var);
+            }
+        }
+
+        std::u32string_view str;
+
+#define CASE(s, type, bit, n) case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): str = PPCAT(PPCAT(U,s),sv); break;
+#define CASEV(pfx, type, bit) \
+    CASE(STRINGIZE(pfx),            type, bit, 1); \
+    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2); \
+    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3); \
+    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4); \
+    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8); \
+    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16);\
+
+        switch (static_cast<uint32_t>(info))
+        {
+        CASEV(uchar,  Unsigned, 8)
+        CASEV(ushort, Unsigned, 16)
+        CASEV(uint,   Unsigned, 32)
+        CASEV(ulong,  Unsigned, 64)
+        CASEV(char,   Signed,   8)
+        CASEV(short,  Signed,   16)
+        CASEV(int,    Signed,   32)
+        CASEV(long,   Signed,   64)
+        CASEV(half,   Float,    16)
+        CASEV(float,  Float,    32)
+        CASEV(double, Float,    64)
+        default:
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+                fmt::format(FMT_STRING(u"Type [{}] not found when repace-variable"sv), var)));
+            return;
+        }
+
+#undef CASEV
+#undef CASE
+
+        output.append(str);
+    }
+    else // '@' not allowed in var anyway
+    {
+        const auto ret = Runtime.EvalContext->LookUpArg(var);
+        if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
+        {
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+                fmt::format(FMT_STRING(u"Arg [{}] not found when repace-variable"sv), var)));
+            return;
+        }
+        output.append(ret.ToString().StrView());
+    }
+}
+
+void NLCLRuntime::NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args)
+{
+    if (func == U"unroll"sv)
+    {
+        switch (args.size())
+        {
+        case 0:  output.append(U"__attribute__((opencl_unroll_hint))"sv); break;
+        case 1:  fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]); break;
+        default: Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+                fmt::format(FMT_STRING(u"Repace-func [unroll] requires [0,1] args, which gives [{}]."), args.size())));
+        }
+        return;
+    }
+    if (IsBeginWith(func, U"oglu."sv))
+    {
+        const auto subName = func.substr(5);
+        switch (hash_(subName))
+        {
+        default: break;
+        }
+    }
     Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
         u"replace-function not ready"sv));
 }
@@ -160,9 +294,9 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
     OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceVariable"sv; }))
-        source = DoReplaceVariable(source.StrView());
+        source = Replacer->ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oglu.ReplaceFunction"sv; }))
-        source = DoReplaceFunction(source.StrView());
+        source = Replacer->ProcessFunction(source.StrView(), U"$$!"sv, U""sv);
     dst.append(source.StrView());
 }
 
@@ -183,20 +317,6 @@ void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
                 FMT_STRING(U"/* {:7} :  {} */\r\n"sv), prefix,
                 xziar::nailang::Serializer::Stringify(meta.Args[0]));
     }
-}
-
-std::u32string NLCLRuntime::DoReplaceVariable(const std::u32string_view src) const
-{
-    NLCLReplacer replacer(src, *this);
-    replacer.ProcessVariable(U"$$!{"sv, U"}"sv);
-    return replacer.ExtractOutput();
-}
-
-std::u32string NLCLRuntime::DoReplaceFunction(const std::u32string_view src) const
-{
-    NLCLReplacer replacer(src, *this);
-    replacer.ProcessFunction(U"$$!"sv, U""sv);
-    return replacer.ExtractOutput();
 }
 
 void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
@@ -326,6 +446,8 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 std::string NLCLRuntime::GenerateOutput()
 {
     std::u32string output;
+
+    Replacer = std::make_unique<NLCLReplacer>(*this);
 
     { // Output extentions
         output.append(U"/* Extensions */\r\n"sv);
