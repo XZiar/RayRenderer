@@ -81,6 +81,7 @@ protected:
 
     bool CheckExtension(std::string_view ext, std::u16string_view desc) const;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
+    virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer() const;
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

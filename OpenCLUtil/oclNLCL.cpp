@@ -101,18 +101,18 @@ void NLCLRuntime::NLCLReplacer::ThrowByArgCount(const std::u32string_view func, 
 
 static std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type)
 {
-#define CASE(str, type, bit, n, least) case PPCAT(str, _hash): return {{common::simd::VecDataInfo::DataTypes::type, bit, n, 0}, least}
+#define CASE(str, type, bit, n, least) case hash_(str): return {{common::simd::VecDataInfo::DataTypes::type, bit, n, 0}, least}
 #define CASEV(pfx, type, bit, least) \
-    CASE(STRINGIZE(pfx),             type, bit, 1,  least); \
-    CASE(STRINGIZE(PPCAT(pfx, v2)),  type, bit, 2,  least); \
-    CASE(STRINGIZE(PPCAT(pfx, v3)),  type, bit, 3,  least); \
-    CASE(STRINGIZE(PPCAT(pfx, v4)),  type, bit, 4,  least); \
-    CASE(STRINGIZE(PPCAT(pfx, v8)),  type, bit, 8,  least); \
-    CASE(STRINGIZE(PPCAT(pfx, v16)), type, bit, 16, least); \
+    CASE(STRINGIZE(pfx),      type, bit, 1,  least); \
+    CASE(STRINGIZE(pfx)"v2",  type, bit, 2,  least); \
+    CASE(STRINGIZE(pfx)"v3",  type, bit, 3,  least); \
+    CASE(STRINGIZE(pfx)"v4",  type, bit, 4,  least); \
+    CASE(STRINGIZE(pfx)"v8",  type, bit, 8,  least); \
+    CASE(STRINGIZE(pfx)"v16", type, bit, 16, least); \
 
-#define CASE2(tstr, type, bit)                          \
-    CASEV(PPCAT(tstr, bit), type, bit, false)           \
-    CASEV(PPCAT(PPCAT(tstr, bit), +), type, bit, true)  \
+#define CASE2(tstr, type, bit)                  \
+    CASEV(PPCAT(tstr, bit),  type, bit, false)  \
+    CASEV(PPCAT(tstr, bit+), type, bit, true)   \
 
     switch (hash_(type))
     {
@@ -300,6 +300,12 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
     dst.append(source.StrView());
 }
 
+std::unique_ptr<NLCLRuntime::NLCLReplacer> NLCLRuntime::PrepareRepalcer() const
+{
+    return std::make_unique<NLCLReplacer>(*this);
+}
+
+
 void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
 {
     // std::set<std::u32string_view> lateVars;
@@ -447,7 +453,7 @@ std::string NLCLRuntime::GenerateOutput()
 {
     std::u32string output;
 
-    Replacer = std::make_unique<NLCLReplacer>(*this);
+    Replacer = PrepareRepalcer();
 
     { // Output extentions
         output.append(U"/* Extensions */\r\n"sv);
