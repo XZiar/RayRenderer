@@ -99,16 +99,59 @@ void NLCLRuntime::NLCLReplacer::ThrowByArgCount(const std::u32string_view func, 
             fmt::format(FMT_STRING(u"Repace-func [{}] requires [{}] args, which gives [{}]."), func, args.size(), count)));
 }
 
-static std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type)
+template<typename T>
+forceinline bool FastCompare(const std::basic_string_view<T> src, const std::basic_string_view<T> target) noexcept
 {
-#define CASE(str, type, bit, n, least) case hash_(str): return {{common::simd::VecDataInfo::DataTypes::type, bit, n, 0}, least}
+    if (src.size() != target.size()) 
+        return false;
+    [[maybe_unused]] const auto targetSBytes = target.size() * sizeof(T);
+#if COMMON_SIMD_LV >= 20
+    if (targetSBytes <= 128u / 8u)
+    {
+        const auto mask = (1u << targetSBytes) - 1u;
+        const auto vecT = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()));
+        const auto vecS = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()));
+        const auto cmpbits = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS, vecT));
+        return (cmpbits & mask) == mask;
+    }
+#endif
+#if COMMON_SIMD_LV >= 200
+    if (targetSBytes <= 256u / 8u)
+    {
+        const auto mask = (1u << targetSBytes) - 1u;
+        const auto vecT = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target.data()));
+        const auto vecS = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src.data()));
+        const auto cmpbits = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS, vecT));
+        return (cmpbits & mask) == mask;
+    }
+#elif COMMON_SIMD_LV >= 20
+    if (targetSBytes <= 256u / 8u)
+    {
+        const auto mask = (1u << (targetSBytes - 128u / 8u)) - 1u;
+        const auto vecT0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()) + 0);
+        const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()) + 1);
+        const auto vecS0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()) + 0);
+        const auto vecS1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()) + 1);
+        const auto cmpbits0 = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS0, vecT0));
+        const auto cmpbits1 = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS1, vecT1));
+        return cmpbits0 == 0xffffu && (cmpbits1 & mask) == mask;
+    }
+#endif
+    return src == target;
+}
+
+static constexpr std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
+{
+#define CASE(str, dtype, bit, n, least) \
+    case hash_(str): if (FastCompare(type, PPCAT(U, str))) return {{common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least}; else break;
+
 #define CASEV(pfx, type, bit, least) \
-    CASE(STRINGIZE(pfx),      type, bit, 1,  least); \
-    CASE(STRINGIZE(pfx)"v2",  type, bit, 2,  least); \
-    CASE(STRINGIZE(pfx)"v3",  type, bit, 3,  least); \
-    CASE(STRINGIZE(pfx)"v4",  type, bit, 4,  least); \
-    CASE(STRINGIZE(pfx)"v8",  type, bit, 8,  least); \
-    CASE(STRINGIZE(pfx)"v16", type, bit, 16, least); \
+    CASE(STRINGIZE(pfx)""sv,    type, bit, 1,  least) \
+    CASE(STRINGIZE(pfx)"v2"sv,  type, bit, 2,  least) \
+    CASE(STRINGIZE(pfx)"v3"sv,  type, bit, 3,  least) \
+    CASE(STRINGIZE(pfx)"v4"sv,  type, bit, 4,  least) \
+    CASE(STRINGIZE(pfx)"v8"sv,  type, bit, 8,  least) \
+    CASE(STRINGIZE(pfx)"v16"sv, type, bit, 16, least) \
 
 #define CASE2(tstr, type, bit)                  \
     CASEV(PPCAT(tstr, bit),  type, bit, false)  \
@@ -127,8 +170,9 @@ static std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32s
     CASE2(f, Float,    16)
     CASE2(f, Float,    32)
     CASE2(f, Float,    64)
-    default: return {{common::simd::VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false};
+    default: break;
     }
+    return { {common::simd::VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false };
 
 #undef CASE2
 #undef CASEV

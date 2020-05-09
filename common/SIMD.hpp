@@ -108,8 +108,8 @@ struct VecDataInfo
 
     constexpr operator uint32_t() const noexcept
     {
-        return (static_cast<uint32_t>(Type) << 24) | (static_cast<uint32_t>(Bit) << 16) 
-            |  (static_cast<uint32_t>(Dim0) << 8)  | (static_cast<uint32_t>(Dim1) << 0);
+        return (static_cast<uint32_t>(Type) << 0)  | (static_cast<uint32_t>(Bit)  << 8) 
+            |  (static_cast<uint32_t>(Dim0) << 16) | (static_cast<uint32_t>(Dim1) << 24);
     }
 
     template<typename T, uint8_t N>

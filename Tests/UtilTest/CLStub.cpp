@@ -110,7 +110,7 @@ static void OCLStub()
         bool exConfig = false;
         if (fpath.back() == '#')
             fpath.pop_back(), exConfig = true;
-        common::fs::path filepath = FindPath() / fpath;
+        common::fs::path filepath = fpath;
         log().debug(u"loading cl file [{}]\n", filepath.u16string());
         try
         {
@@ -143,7 +143,7 @@ static void OCLStub()
                 static const NLCLProcessor NLCLProc;
                 const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
                 auto result = NLCLProc.ProcessCL(prog, dev);
-                common::file::WriteAll(FindPath() / (fpath + ".cl"), result);
+                common::file::WriteAll(fpath + ".cl", result);
                 kertxt = result;
             }
             auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config);
