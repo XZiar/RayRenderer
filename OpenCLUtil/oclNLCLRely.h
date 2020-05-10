@@ -43,27 +43,33 @@ struct OutputBlock
         Block(block), MetaPtr(meta.data()), MetaCount(gsl::narrow_cast<uint32_t>(meta.size())), ExtraInfo(extra) {}
 };
 
+class NLCLRuntime;
+class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
+{
+protected:
+    NLCLRuntime& Runtime;
+    const bool SupportFP16, SupportFP64, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup16Intel;
+    void ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const;
+    void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;
+    void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) override;
+public:
+    NLCLReplacer(NLCLRuntime& runtime);
+    ~NLCLReplacer() override;
+
+    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
+    static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
+    std::u32string GenerateSubgroupShuffle(const common::span<std::u32string_view> args, const bool needShuffle) const;
+
+    using ReplaceEngine::ProcessVariable;
+    using ReplaceEngine::ProcessFunction;
+};
+
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
 {
+    friend class NLCLReplacer;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using MetaFuncs = common::span<const xziar::nailang::FuncCall>;
-
-    class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
-    {
-    protected:
-        const NLCLRuntime& Runtime;
-        const bool SupportFP16, SupportFP64;
-        void ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const;
-        void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;
-        void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) override;
-    public:
-        NLCLReplacer(const NLCLRuntime& runtime);
-        ~NLCLReplacer() override;
-
-        using ReplaceEngine::ProcessVariable;
-        using ReplaceEngine::ProcessFunction;
-    };
 
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
@@ -73,15 +79,23 @@ protected:
     std::vector<OutputBlock> KernelBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
+    std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::unique_ptr<NLCLReplacer> Replacer;
     
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 
+    template<typename F, typename... Args>
+    void AddPatchedBlock(std::u32string_view id, F&& generator, Args&&... args)
+    {
+        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+            PatchedBlocks.insert_or_assign(std::u32string(id), generator(std::forward<Args>(args)...));
+    }
+
     bool CheckExtension(std::string_view ext, std::u16string_view desc) const;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-    virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer() const;
+    virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer();
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

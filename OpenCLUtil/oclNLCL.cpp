@@ -18,6 +18,7 @@ using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::detail::ExceptionTarget;
 using common::str::Charset;
 using common::str::IsBeginWith;
+using common::simd::VecDataInfo;
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
@@ -85,14 +86,17 @@ Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) cons
 }
 
 
-NLCLRuntime::NLCLReplacer::NLCLReplacer(const NLCLRuntime& runtime) : 
+NLCLReplacer::NLCLReplacer(NLCLRuntime& runtime) : 
     Runtime(runtime), 
     SupportFP16(Runtime.Device->Extensions.Has("cl_khr_fp16")),
-    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64"))
+    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64")),
+    SupportSubgroupKHR(Runtime.Device->Extensions.Has("cl_khr_subgroups")),
+    SupportSubgroupIntel(Runtime.Device->Extensions.Has("cl_intel_subgroups")),
+    SupportSubgroup16Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_short"))
 { }
-NLCLRuntime::NLCLReplacer::~NLCLReplacer() { }
+NLCLReplacer::~NLCLReplacer() { }
 
-void NLCLRuntime::NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const
+void NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const
 {
     if (args.size() != count)
         Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
@@ -179,66 +183,24 @@ static constexpr std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const
 #undef CASE
 }
 
-void NLCLRuntime::NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
+void NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
 {
     if (var.size() > 0 && var[0] == U'@')
     {
-        using common::simd::VecDataInfo;
-        auto [info, least] = ParseVDataType(var.substr(1));
-        if (info.Bit == 0)
+        const auto info = ParseVecType(var.substr(1));
+        if (!info.has_value())
         {
             Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Type [{}] not found when repace-variable"sv), var)));
+                fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
             return;
         }
-        if (info.Type == VecDataInfo::DataTypes::Float) // FP ext handling
+        const auto str = GetVecTypeName(info.value());
+        if (str.empty())
         {
-            if (info.Bit == 16 && !SupportFP16) // FP16 check
-            {
-                if (least) // promotion
-                    info.Bit = 32;
-                else
-                    Runtime.Logger.warning(u"Potential use of unsupportted FP16 with [{}].\n"sv, var);
-            }
-            else if (info.Bit == 64 && !SupportFP64)
-            {
-                Runtime.Logger.warning(u"Potential use of unsupportted FP64 with [{}].\n"sv, var);
-            }
-        }
-
-        std::u32string_view str;
-
-#define CASE(s, type, bit, n) case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): str = PPCAT(PPCAT(U,s),sv); break;
-#define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1); \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2); \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3); \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4); \
-    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8); \
-    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16);\
-
-        switch (static_cast<uint32_t>(info))
-        {
-        CASEV(uchar,  Unsigned, 8)
-        CASEV(ushort, Unsigned, 16)
-        CASEV(uint,   Unsigned, 32)
-        CASEV(ulong,  Unsigned, 64)
-        CASEV(char,   Signed,   8)
-        CASEV(short,  Signed,   16)
-        CASEV(int,    Signed,   32)
-        CASEV(long,   Signed,   64)
-        CASEV(half,   Float,    16)
-        CASEV(float,  Float,    32)
-        CASEV(double, Float,    64)
-        default:
             Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Type [{}] not found when repace-variable"sv), var)));
+                fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
             return;
         }
-
-#undef CASEV
-#undef CASE
-
         output.append(str);
     }
     else // '@' not allowed in var anyway
@@ -247,14 +209,14 @@ void NLCLRuntime::NLCLReplacer::OnReplaceVariable(std::u32string& output, const 
         if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
         {
             Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Arg [{}] not found when repace-variable"sv), var)));
+                fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var)));
             return;
         }
         output.append(ret.ToString().StrView());
     }
 }
 
-void NLCLRuntime::NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args)
+void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args)
 {
     if (func == U"unroll"sv)
     {
@@ -267,23 +229,232 @@ void NLCLRuntime::NLCLReplacer::OnReplaceFunction(std::u32string& output, const 
         }
         return;
     }
-    if (IsBeginWith(func, U"oglu."sv))
+    if (IsBeginWith(func, U"oclu."sv))
     {
         const auto subName = func.substr(5);
+
+#define EnsureCase(name) case hash_(name): if (!FastCompare(subName, PPCAT(U, name))) break;
+
         switch (hash_(subName))
         {
+        EnsureCase("SubgroupBroadcast"sv)
+        {
+            output.append(GenerateSubgroupShuffle(args, false)); return;
+        }
+        EnsureCase("SubgroupShuffle"sv)
+        {
+            output.append(GenerateSubgroupShuffle(args, true)); return;
+        }
         default: break;
         }
+
+#undef EnsureCase
+
     }
     Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
         u"replace-function not ready"sv));
+}
+
+std::optional<common::simd::VecDataInfo> NLCLReplacer::ParseVecType(const std::u32string_view type) const noexcept
+{
+    auto [info, least] = ParseVDataType(type);
+    if (info.Bit == 0)
+        return {};
+    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
+    {
+        if (info.Bit == 16 && !SupportFP16) // FP16 check
+        {
+            if (least) // promotion
+                info.Bit = 32;
+            else
+                Runtime.Logger.warning(u"Potential use of unsupported FP16 with [{}].\n"sv, type);
+        }
+        else if (info.Bit == 64 && !SupportFP64)
+        {
+            Runtime.Logger.warning(u"Potential use of unsupported FP64 with [{}].\n"sv, type);
+        }
+    }
+    return info;
+}
+
+std::u32string_view NLCLReplacer::GetVecTypeName(common::simd::VecDataInfo info) noexcept
+{
+#define CASE(s, type, bit, n) \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
+#define CASEV(pfx, type, bit) \
+    CASE(STRINGIZE(pfx),            type, bit, 1)  \
+    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
+    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
+    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
+    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
+    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
+
+    switch (static_cast<uint32_t>(info))
+    {
+    CASEV(uchar, Unsigned, 8)
+    CASEV(ushort, Unsigned, 16)
+    CASEV(uint, Unsigned, 32)
+    CASEV(ulong, Unsigned, 64)
+    CASEV(char, Signed, 8)
+    CASEV(short, Signed, 16)
+    CASEV(int, Signed, 32)
+    CASEV(long, Signed, 64)
+    CASEV(half, Float, 16)
+    CASEV(float, Float, 32)
+    CASEV(double, Float, 64)
+    default: return {};
+    }
+
+#undef CASEV
+#undef CASE
+}
+
+static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t unitBits) noexcept
+{
+    if (totalBits % unitBits != 0) return 0;
+    switch (const auto num = totalBits / unitBits; num)
+    {
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 8:
+    case 16:
+        return static_cast<uint8_t>(num);
+    default:
+        return 0;
+    }
+}
+static std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base, 
+    const uint8_t unitBits, const uint8_t dim, VecDataInfo::DataTypes dtype = VecDataInfo::DataTypes::Unsigned) noexcept
+{
+    Expects(dim > 0 && dim <= 16);
+    constexpr char32_t idxNames[] = U"0123456789abcdef";
+    const auto vecName = NLCLReplacer::GetVecTypeName({ dtype, unitBits, dim, 0 });
+    const auto scalarName = NLCLReplacer::GetVecTypeName({ dtype, unitBits, 1, 0 });
+    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n"sv),
+        vecName, funcName);
+    for (uint8_t i = 0; i < dim; ++i)
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"    const {} ele{} = {}(val.s{}, sgId);\r\n"sv),
+            scalarName, i, base, idxNames[i]);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"    return ({})("sv), vecName);
+    for (uint8_t i = 0; i < dim - 1; ++i)
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"ele{}, "sv), i);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"ele{});\r\n}}"sv), dim - 1);
+    return func;
+}
+std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32string_view> args, const bool needShuffle) const
+{
+    if (needShuffle && !SupportSubgroupIntel)
+    {
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            fmt::format(FMT_STRING(u"Subgroup shuffle require support of intel_subgroups."sv), args[0])));
+        return {};
+    }
+    const auto info = ParseVecType(args[0]);
+    if (!info.has_value())
+    {
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0])));
+        return {};
+    }
+    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
+    {
+        return fmt::format(FMT_STRING(U"as_{}({}(as_{}({}), {}))"sv),
+            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
+    };
+    const uint32_t totalBits = info->Bit * info->Dim0;
+    const bool isVec = info->Dim0 > 1;
+    if (!needShuffle && totalBits >= 32) // can be handled by khr_subgroups
+    {
+        if (totalBits == 32 || totalBits == 64) // native func
+        {
+            if (!isVec) // direct replace
+                return fmt::format(FMT_STRING(U"sub_group_broadcast({}, {})"sv), args[1], args[2]);
+            else // need type reinterpreting
+                return ReinterpretWrappedFunc(U"sub_group_broadcast"sv, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), 1, 0 });
+        }
+        else if (!SupportSubgroupIntel) // >64, need patched func
+        {
+            const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_broadcast_{}"sv), totalBits);
+            for (const auto targetBits : std::array<uint8_t, 2>{ 64u, 32u })
+            {
+                const auto vnum = CheckVecable(totalBits, targetBits);
+                if (vnum == 0) continue;
+                Runtime.AddPatchedBlock(funcName, SubgroupShufflePatch, 
+                    funcName, U"sub_group_broadcast"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+                return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), vnum, 0 });
+            }
+            // cannot handle right now
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+                fmt::format(FMT_STRING(u"Failed to generate patched broadcast for [{}]"sv), args[0])));
+            return {};
+        }
+    }
+    // require at least intel_subgroups
+    if (!SupportSubgroupIntel)
+    {
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            fmt::format(FMT_STRING(u"Failed to generate broadcast for [{}] without support of intel_subgroups."sv), args[0])));
+        return {};
+    }
+    if (info->Bit == 32) // direct replace
+        return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+    if (info->Bit == 16 && SupportSubgroup16Intel)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Float:
+            if (info->Dim0 != 1 || !SupportFP16) // need type reinterpreting
+                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 16, info->Dim0, 0 });
+            [[fallthrough]];
+        // direct replace
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
+    if (info->Bit == 64 && info->Dim0 == 1)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Float:
+            if (!SupportFP64) // need type reinterpreting
+                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 64, 1, 0 });
+            [[fallthrough]];
+        // direct replace
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
+    // patched func based on intel_sub_group_shuffle
+    {
+        const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_shuffle_{}"sv), totalBits);
+        for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
+        {
+            const auto vnum = CheckVecable(totalBits, targetBits);
+            if (vnum == 0) continue;
+            Runtime.AddPatchedBlock(funcName, SubgroupShufflePatch, 
+                funcName, U"intel_sub_group_shuffle"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+            return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
+        }
+        // cannot handle right now
+        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            fmt::format(FMT_STRING(u"Failed to generate patched shuffle for [{}]"sv), args[0])));
+        return {};
+    }
 }
 
 
 NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev) :
     NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)),
     Logger(logger), Device(dev), EnabledExtensions(Device->Extensions.Size())
-{ }
+{ 
+    Replacer = PrepareRepalcer();
+}
 NLCLRuntime::~NLCLRuntime()
 { }
 
@@ -292,9 +463,12 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     if (IsBeginWith(call.Name, U"oclu."sv))
     {
         const auto subName = call.Name.substr(5);
+
+#define EnsureCase(name) case hash_(name): if (!FastCompare(subName, PPCAT(U, name))) break;
+
         switch (hash_(subName))
         {
-        case "EnableExtension"_hash:
+        EnsureCase("EnableExtension"sv)
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto arg = EvaluateFuncArgs<1>(call)[0];
@@ -306,15 +480,28 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
             else
                 NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
         } return {};
+        EnsureCase("AddSubgroupPatch"sv)
+        {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            const auto args = EvaluateFuncArgs<2>(call);
+            const auto isShuffle = args[0].GetBool().value();
+            const auto vtype = args[1].GetStr().value();
+            std::array strs{ vtype,U"x"sv,U"y"sv };
+            const auto funcsrc = Replacer->GenerateSubgroupShuffle(strs, isShuffle);
+            AddPatchedBlock(fmt::format(U"AddSubgroupPatch_{}_{}"sv, vtype, isShuffle),
+                [&]() { return fmt::format(U"/* {} */\r\n"sv, funcsrc); });
+        } return {};
         default: break;
         }
+#undef EnsureCase
+
     }
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
 void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
 {
-    Logger.error(u"{}", ex.message);
+    Logger.error(u"{}\n", ex.message);
     NailangRuntimeBase::HandleException(ex);
 }
 
@@ -322,7 +509,7 @@ bool NLCLRuntime::CheckExtension(std::string_view ext, std::u16string_view desc)
 {
     if (!Device->Extensions.Has(ext))
     {
-        Logger.warning(FMT_STRING(u"{} on unsupportted device.\n"sv), desc);
+        Logger.warning(FMT_STRING(u"{} on unsupported device.\n"sv), desc);
         return false;
     }
     else if (!CheckExtensionEnabled(ext))
@@ -344,7 +531,7 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
     dst.append(source.StrView());
 }
 
-std::unique_ptr<NLCLRuntime::NLCLReplacer> NLCLRuntime::PrepareRepalcer() const
+std::unique_ptr<NLCLReplacer> NLCLRuntime::PrepareRepalcer()
 {
     return std::make_unique<NLCLReplacer>(*this);
 }
@@ -495,15 +682,13 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 
 std::string NLCLRuntime::GenerateOutput()
 {
-    std::u32string output;
-
-    Replacer = PrepareRepalcer();
+    std::u32string prefix, output;
 
     { // Output extentions
-        output.append(U"/* Extensions */\r\n"sv);
+        prefix.append(U"/* Extensions */\r\n"sv);
         if (common::linq::FromIterable(EnabledExtensions).All(true))
         {
-            output.append(U"#pragma OPENCL EXTENSION all : enable\r\n"sv);
+            prefix.append(U"#pragma OPENCL EXTENSION all : enable\r\n"sv);
         }
         else
         {
@@ -511,10 +696,10 @@ std::string NLCLRuntime::GenerateOutput()
                 .ForEach([&](const auto& pair)
                     {
                         if (pair.first)
-                            fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
+                            fmt::format_to(std::back_inserter(prefix), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
                     });
         }
-        output.append(U"\r\n"sv);
+        prefix.append(U"\r\n"sv);
     }
 
     for (const auto& item : OutputBlocks)
@@ -530,7 +715,16 @@ std::string NLCLRuntime::GenerateOutput()
         }
     }
 
-    return common::strchset::to_string(output, Charset::UTF8, Charset::UTF32LE);
+    { // Output patched blocks
+        for (const auto& [id, src] : PatchedBlocks)
+        {
+            fmt::format_to(std::back_inserter(prefix), FMT_STRING(U"/* Patched Block [{}] */\r\n\r\n"sv), id);
+            prefix.append(src);
+            prefix.append(U"\r\n"sv);
+        }
+    }
+
+    return common::strchset::to_string(prefix + output, Charset::UTF8, Charset::UTF32LE);
 }
 
 

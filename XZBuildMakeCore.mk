@@ -1,14 +1,3 @@
-CPPCOMPILER		?= g++
-CCOMPILER		?= gcc
-ASMCOMPILER		?= g++
-NASMCOMPILER	?= nasm
-ISPCCOMPILER	?= ispc
-CUDACOMPILER	?= nvcc
-STATICLINKER	?= ar
-DYNAMICLINKER	?= g++
-APPLINKER		?= g++
-
-VERBOSE			?= 0
 
 #ANSI Colors
 CLR_BLACK	:= \033[90m
@@ -27,6 +16,18 @@ endef
 
 include $(SOLPATH)/$(OBJPATH)/xzbuild.sol.mk # per solution xzbuild settings
 include ./$(OBJPATH)/xzbuild.proj.mk # per project xzbuild settings
+
+CPPCOMPILER		?= g++
+CCOMPILER		?= gcc
+ASMCOMPILER		?= g++
+NASMCOMPILER	?= nasm
+ISPCCOMPILER	?= ispc
+CUDACOMPILER	?= nvcc
+STATICLINKER	?= ar
+DYNAMICLINKER	?= g++
+APPLINKER		?= g++
+
+VERBOSE			?= 0
 
 LINKFLAGS	?= 
 cpp_srcs	?=

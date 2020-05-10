@@ -22,6 +22,15 @@ _intrinMap = \
     "__PCLMUL__": "pclmul",
 }
 
+def _checkExists(prog:str) -> bool:
+    FNULL = open(os.devnull, 'w')
+    try:
+        subprocess.call([prog], stdout=FNULL, stderr=FNULL)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return False
+    return True
+
 
 def collectEnv(paras:dict) -> dict:
     solDir = os.getcwd()
@@ -42,8 +51,12 @@ def collectEnv(paras:dict) -> dict:
         rawdefs = subprocess.check_output(f"{cppcompiler} -march={env['arch']} -dM -E - < /dev/null", shell=True)
         defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
-    env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
+    env["cppcompiler"] = cppcompiler
     env["compiler"] = "clang" if "__clang__" in defs else "gcc"
+    arlinker = "gcc-ar" if env["compiler"] == "gcc" else "ar"
+    if not _checkExists(arlinker): arlinker = "ar"
+    env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
+    env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
     env["cpuCount"] = os.cpu_count()
     threads = paras.get("threads", "x1")
     if threads.startswith('x'):
@@ -62,6 +75,7 @@ def writeEnv(env:dict):
                 file.write("xz_{}\t = {}\n".format(k, v))
         file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
         file.write("xz_libDir\t = {}\n".format(" ".join(env["libDirs"])))
+        file.write("STATICLINKER\t = {}\n".format(env["arlinker"]))
 
 def splitPaths(path:str):
     if path == None:
