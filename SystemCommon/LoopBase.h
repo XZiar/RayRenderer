@@ -50,11 +50,11 @@ class SYSCOMMONAPI InplaceExecutor : public LoopExecutor
 {
     friend class LoopBase;
 protected:
-    virtual void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override;
-    virtual void DoWakeup() noexcept override;
-    virtual void DoStart() override;
-    virtual void WaitUtilStop() override;
-public:    
+    void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override;
+    void DoWakeup() noexcept override;
+    void DoStart() override;
+    void WaitUtilStop() override;
+public:
     using LoopExecutor::LoopExecutor;
     bool RunInplace();
 };

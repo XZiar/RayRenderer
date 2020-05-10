@@ -103,6 +103,7 @@ public:
 using MLoggerCallback = std::function<void(const LogMessage& msg)>;
 
 MINILOGAPI std::shared_ptr<LoggerBackend> GetConsoleBackend();
+MINILOGAPI void SyncConsoleBackend();
 MINILOGAPI std::shared_ptr<LoggerBackend> GetDebuggerBackend();
 MINILOGAPI std::shared_ptr<LoggerBackend> GetFileBackend(const fs::path& path);
 

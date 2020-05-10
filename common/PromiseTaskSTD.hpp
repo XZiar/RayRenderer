@@ -15,11 +15,11 @@ private:
     using FutType = std::conditional_t<IsShared, std::shared_future<T>, std::future<T>>;
 protected:
     FutType Future;
-    T virtual WaitPms() override
+    T WaitPms() override
     {
         return Future.get();
     }
-    PromiseState virtual State() override
+    PromiseState State() override
     {
         if (!Future.valid())
             return PromiseState::Invalid;
@@ -43,7 +43,7 @@ public:
     template<bool R = IsShared, typename = std::enable_if_t<R>>
     PromiseResultSTD(std::shared_future<T>&& fut) : Future(std::move(fut))
     { }
-    virtual ~PromiseResultSTD() override { }
+    ~PromiseResultSTD() override { }
     template<typename U>
     static PromiseResult<T> Get(U&& data)
     {
@@ -56,18 +56,18 @@ class PromiseWrappedResultSTD : public detail::PromiseResult_<T>
 {
 private:
     PromiseResultSTD<std::unique_ptr<T>, IsShared> Inner;
-    T virtual WaitPms() override
+    T WaitPms() override
     {
         return *Inner.WaitPms().release();
     }
-    PromiseState virtual State() override
+    PromiseState State() override
     {
         return Inner.State();
     }
 public:
     PromiseWrappedResultSTD(std::promise<std::unique_ptr<T>>& pms) : Inner(pms)
     { }
-    virtual ~PromiseWrappedResultSTD() override { }
+    ~PromiseWrappedResultSTD() override { }
 };
 
 

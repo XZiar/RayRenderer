@@ -21,6 +21,8 @@ jobs:
             - nasm
             - unzip
             - python3-pip
+            - libreadline7
+            - libreadline-dev
             - libx11-dev
             - libx11-xcb-dev
             - libxkbcommon-dev
@@ -48,6 +50,8 @@ jobs:
             - nasm
             - unzip
             - python3-pip
+            - libreadline7
+            - libreadline-dev
             - libx11-dev
             - libx11-xcb-dev
             - libxkbcommon-dev
@@ -75,6 +79,8 @@ jobs:
             - nasm
             - unzip
             - python3-pip
+            - libreadline7
+            - libreadline-dev
             - libx11-dev
             - libx11-xcb-dev
             - libxkbcommon-dev
@@ -106,6 +112,8 @@ jobs:
             - nasm
             - unzip
             - python3-pip
+            - libreadline7
+            - libreadline-dev
             - libx11-dev
             - libx11-xcb-dev
             - libxkbcommon-dev
@@ -137,6 +145,8 @@ jobs:
             - nasm
             - unzip
             - python3-pip
+            - libreadline7
+            - libreadline-dev
             - libx11-dev
             - libx11-xcb-dev
             - libxkbcommon-dev

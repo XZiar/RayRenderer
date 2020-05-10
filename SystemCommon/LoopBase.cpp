@@ -116,7 +116,7 @@ class ThreadedExecutor : public LoopExecutor
     std::thread MainThread;
     std::condition_variable SleepCond;
 protected:
-    virtual void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override
+    void DoSleep(void* runningLock, const uint32_t sleepTime) noexcept override
     {
         auto& mtx = *reinterpret_cast<std::unique_lock<std::mutex>*>(runningLock);
         if (sleepTime > LoopBase::LoopAction::MaxSleepTime)
@@ -125,12 +125,12 @@ protected:
             SleepCond.wait_for(mtx, std::chrono::milliseconds(sleepTime));
 
     }
-    virtual void DoWakeup() noexcept override
+    void DoWakeup() noexcept override
     {
         auto lock = Control->AcquireRunningLock(); // ensure in the sleep
         SleepCond.notify_one();
     }
-    virtual void DoStart() override
+    void DoStart() override
     {
         if (MainThread.joinable()) // ensure MainThread invalid
             MainThread.join();
@@ -140,7 +140,7 @@ protected:
                     this->RunLoop();
             });
     }
-    virtual void WaitUtilStop() override
+    void WaitUtilStop() override
     {
         if (MainThread.joinable()) // ensure MainThread invalid
         {
@@ -149,7 +149,7 @@ protected:
     }
 public:
     ThreadedExecutor(LoopBase& loop) : LoopExecutor(loop) {}
-    virtual ~ThreadedExecutor() {}
+    ~ThreadedExecutor() override {}
 };
 
 

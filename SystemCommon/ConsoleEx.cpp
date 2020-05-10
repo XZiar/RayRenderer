@@ -1,10 +1,14 @@
 #include "SystemCommonPch.h"
 #include "ConsoleEx.h"
-
+#include <iostream>
+#if COMMON_OS_UNIX
+#   include <readline/readline.h>
+#   include <readline/history.h>
+#endif
 
 char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho) noexcept
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     const auto ret = ShouldEcho ? _getche() : _getch();
     return static_cast<char>(ret);
 #else
@@ -35,7 +39,7 @@ char common::console::ConsoleEx::ReadCharImmediate(bool ShouldEcho) noexcept
 
 std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize() noexcept
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (const auto handle = GetStdHandle(STD_OUTPUT_HANDLE); handle == INVALID_HANDLE_VALUE)
         return { 0,0 };
@@ -55,7 +59,7 @@ std::pair<uint32_t, uint32_t> common::console::ConsoleEx::GetConsoleSize() noexc
 
 bool common::console::ConsoleEx::ClearConsole() noexcept
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     if (const auto handle = GetStdHandle(STD_OUTPUT_HANDLE); handle == INVALID_HANDLE_VALUE)
         return false;
@@ -78,3 +82,32 @@ bool common::console::ConsoleEx::ClearConsole() noexcept
     return true;
 #endif
 }
+
+
+std::string common::console::ConsoleEx::ReadLine(const std::string& prompt)
+{
+    std::string result;
+#if COMMON_OS_WIN
+    if (!prompt.empty())
+        std::cout << prompt;
+    std::getline(std::cin, result);
+#else
+    const auto line = readline(prompt.c_str());
+    if (line)
+    {
+        if (*line)
+        {
+            add_history(line);
+            result.assign(line);
+        }
+        free(line);
+    }
+    else
+    {
+        std::cin.setstate(std::ios_base::failbit | std::ios_base::eofbit);
+    }
+#endif
+    return result;
+}
+
+

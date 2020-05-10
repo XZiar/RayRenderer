@@ -67,12 +67,12 @@ private:
     std::shared_ptr<PromiseResult_<MidType>> Stage1;
     PostExecute Stage2;
 protected:
-    RetType virtual WaitPms() override
+    RetType WaitPms() override
     {
         auto midArg = Stage1->Wait();
         return Stage2(std::move(midArg));
     }
-    PromiseState virtual State() override
+    PromiseState State() override
     { 
         const auto state = Stage1->GetState();
         if (state == PromiseState::Success)
@@ -83,7 +83,7 @@ public:
     StagedResult_(std::shared_ptr<PromiseResult_<MidType>>&& stage1, PostExecute&& stage2)
         : Stage1(std::move(stage1)), Stage2(std::move(stage2))
     { }
-    virtual ~StagedResult_() override {}
+    ~StagedResult_() override {}
 };
 
 }
@@ -104,17 +104,38 @@ private:
     private:
         T Data;
     protected:
-        PromiseState virtual State() override { return PromiseState::Executed; }
-        T virtual WaitPms() override { return std::move(Data); }
+        PromiseState State() override { return PromiseState::Executed; }
+        T WaitPms() override { return std::move(Data); }
     public:
         FinishedResult_(T&& data) : Data(data) {}
-        virtual ~FinishedResult_() override {}
+        ~FinishedResult_() override {}
     };
 public:
     template<typename U>
     static PromiseResult<T> Get(U&& data)
     {
         return std::make_shared<FinishedResult_>(std::forward<U>(data));
+    }
+};
+
+template<>
+class FinishedResult<void>
+{
+private:
+    class FinishedResult_ : public detail::PromiseResult_<void>
+    {
+        friend class FinishedResult<void>;
+    protected:
+        PromiseState State() override { return PromiseState::Executed; }
+        void WaitPms() override { return ; }
+    public:
+        FinishedResult_() {}
+        ~FinishedResult_() override {}
+    };
+public:
+    static PromiseResult<void> Get()
+    {
+        return std::make_shared<FinishedResult_>();
     }
 };
 

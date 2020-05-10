@@ -1,8 +1,9 @@
 #include "TestRely.h"
 #include "Nailang/NailangParser.h"
-#include "common/Linq2.hpp"
+#include "SystemCommon/ConsoleEx.h"
 #include "StringCharset/Detect.h"
 #include "StringCharset/Convert.h"
+#include "common/Linq2.hpp"
 #include <iostream>
 
 using namespace common::mlog;
@@ -83,9 +84,8 @@ static void TestNailang()
     {
         try
         {
-            log().info(u"\n\ninput nailang file:");
-            string fpath;
-            std::getline(cin, fpath);
+            common::mlog::SyncConsoleBackend();
+            string fpath = common::console::ConsoleEx::ReadLine("input nailang file:");
             const auto data = common::file::ReadAll<std::byte>(fpath);
             const auto chset = common::strchset::DetectEncoding(data);
             log().verbose(u"file has encoding [{}].\n", common::str::getCharsetName(chset));
@@ -122,6 +122,8 @@ static void TestNailang()
         {
             log().error(u"Exception: {}\n", sv);
         }
+        log().info(u"\n<=End of file=>\n\n");
+        ClearReturn();
     }
 }
 

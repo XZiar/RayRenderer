@@ -120,6 +120,12 @@ std::shared_ptr<LoggerBackend> GetConsoleBackend()
     static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<ConsoleBackend>();
     return backend;
 }
+void SyncConsoleBackend()
+{
+    const auto backend = std::dynamic_pointer_cast<ConsoleBackend>(GetConsoleBackend());
+    const auto pms = backend->Synchronize();
+    pms->Wait();
+}
 std::shared_ptr<LoggerBackend> GetDebuggerBackend()
 {
     static std::shared_ptr<LoggerBackend> backend = LoggerQBackend::InitialQBackend<DebuggerBackend>();

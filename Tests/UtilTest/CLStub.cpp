@@ -76,9 +76,8 @@ static void OCLStub()
     //SimpleTest(ctx);
     while (true)
     {
-        log().info(u"input opencl file:");
-        string fpath;
-        std::getline(cin, fpath);
+        common::mlog::SyncConsoleBackend();
+        string fpath = common::console::ConsoleEx::ReadLine("input opencl file:");
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");

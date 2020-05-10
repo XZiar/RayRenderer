@@ -144,9 +144,8 @@ static void OGLStub()
     log().info(u"{}\n", ctx->Capability->GenerateSupportLog());
     while (true)
     {
-        log().info(u"input opengl file:");
-        string fpath;
-        std::getline(cin, fpath);
+        common::mlog::SyncConsoleBackend();
+        string fpath = common::console::ConsoleEx::ReadLine("input opengl file:");
         if (fpath == "EXTENSION")
         {
             string exttxts("Extensions:\n");

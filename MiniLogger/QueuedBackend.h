@@ -1,6 +1,7 @@
 #pragma once
 #include "MiniLoggerRely.h"
 #include "SystemCommon/LoopBase.h"
+#include "common/PromiseTask.hpp"
 #if defined(_MSC_VER)
 #   define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #   pragma warning(disable:4996)
@@ -17,8 +18,8 @@ namespace common::mlog
 class MINILOGAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
 {
 private:
-    boost::lockfree::queue<LogMessage*> MsgQueue;
-    virtual bool SleepCheck() noexcept override; // double check if shoul sleep
+    boost::lockfree::queue<uintptr_t> MsgQueue;
+    virtual bool SleepCheck() noexcept override; // double check if should sleep
     virtual LoopAction OnLoop() override;
 protected:
     using LoopBase::Stop;
@@ -27,6 +28,8 @@ public:
     LoggerQBackend(const size_t initSize = 64);
     virtual ~LoggerQBackend() override;
     void virtual Print(LogMessage* msg) override final;
+    PromiseResult<void> Synchronize();
+
     template<class T, typename... Args>
     static std::unique_ptr<T> InitialQBackend(Args&&... args)
     {

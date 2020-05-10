@@ -25,6 +25,7 @@ LogMessage* LogMessage::MakeMessage(const SharedString<char16_t>& prefix, const 
     if (len >= UINT32_MAX)
         COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
     uint8_t* ptr = (uint8_t*)malloc(sizeof(LogMessage) + sizeof(char16_t) * len);
+    Ensures(reinterpret_cast<uintptr_t>(ptr) % 4 == 0);
     if (!ptr)
         return nullptr; //not throw an exception yet
     LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
