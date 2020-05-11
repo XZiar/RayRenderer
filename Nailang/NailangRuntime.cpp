@@ -226,7 +226,7 @@ size_t CompactEvaluateContext::GetFuncCount() const noexcept
 
 
 #define LR_BOTH(left, right, func) left.func() && right.func()
-Arg EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
 {
     if (LR_BOTH(left, right, IsInteger))
         return left.GetUint() == right.GetUint();
@@ -240,15 +240,15 @@ Arg EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
         return left.GetFP() == right.GetFP();
     return {};
 }
-Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noexcept
 {
     const auto ret = Equal(left, right);
-    if (ret.TypeData != Arg::InternalType::Empty)
-        return !ret.GetVar<Arg::InternalType::Bool>();
+    if (ret.has_value())
+        return !ret->GetVar<Arg::InternalType::Bool>();
     return ret;
 }
 template<typename F>
-forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
+forceinline static std::optional<Arg> NumOp(const Arg& left, const Arg& right, F func) noexcept
 {
     using Type = Arg::InternalType;
     switch (left.TypeData)
@@ -291,7 +291,7 @@ forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
     return {};
 }
 
-Arg EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -305,7 +305,7 @@ Arg EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
                 return l < r; 
         });
 }
-Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -320,14 +320,14 @@ Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
         });
 }
 
-Arg EmbedOpEval::And(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::And(const Arg& left, const Arg& right) noexcept
 {
     const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
         return *left_ && *right_;
     return {};
 }
-Arg EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
 {
     const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
@@ -335,7 +335,7 @@ Arg EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
     return {};
 }
 
-Arg EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
 {
     if (LR_BOTH(left, right, IsStr))
     {
@@ -348,19 +348,19 @@ Arg EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
     }
     return NumOp(left, right, [](const auto l, const auto r) { return l + r; });
 }
-Arg EmbedOpEval::Sub(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Sub(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l - r; });
 }
-Arg EmbedOpEval::Mul(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Mul(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l * r; });
 }
-Arg EmbedOpEval::Div(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Div(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l / r; });
 }
-Arg EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
+std::optional<Arg> EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) 
         {
@@ -371,7 +371,7 @@ Arg EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
         });
 }
 
-Arg EmbedOpEval::Not(const Arg& arg) noexcept
+std::optional<Arg> EmbedOpEval::Not(const Arg& arg) noexcept
 {
     const auto arg_ = arg.GetBool();
     if (arg_.has_value())
@@ -379,32 +379,6 @@ Arg EmbedOpEval::Not(const Arg& arg) noexcept
     return {};
 }
 #undef LR_BOTH
-
-std::optional<Arg> EmbedOpEval::Eval(const std::u32string_view opname, const std::array<Arg, 2>& args) noexcept
-{
-#define CALL_BIN_OP(type) case #type ## _hash: return EmbedOpEval::type(args[0], args[1])
-#define CALL_UN_OP(type)  case #type ## _hash: return EmbedOpEval::type(args[0])
-    switch (hash_(opname))
-    {
-        CALL_BIN_OP(Equal);
-        CALL_BIN_OP(NotEqual);
-        CALL_BIN_OP(Less);
-        CALL_BIN_OP(LessEqual);
-        CALL_BIN_OP(Greater);
-        CALL_BIN_OP(GreaterEqual);
-        CALL_BIN_OP(And);
-        CALL_BIN_OP(Or);
-        CALL_BIN_OP(Add);
-        CALL_BIN_OP(Sub);
-        CALL_BIN_OP(Mul);
-        CALL_BIN_OP(Div);
-        CALL_BIN_OP(Rem);
-        CALL_UN_OP (Not);
-    default:    return {};
-    }
-#undef CALL_BIN_OP
-#undef CALL_UN_OP
-}
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
@@ -596,20 +570,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
     }
     // suitable for all
-    if (common::str::IsBeginWith(call.Name, U"EmbedOp."sv))
-    {
-        ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Empty);
-        const auto opname = call.Name.substr(8);
-        const auto ret = EmbedOpEval::Eval(opname, EvaluateFuncArgs<2, false>(call));
-        if (ret.has_value())
-        {
-            if (ret->TypeData == Type::Empty)
-                NLRT_THROW_EX(u"Emebd op's arg type does not match requirement"sv, call);
-            return *ret;
-        }
-        // TODO: should explicitly handle unsolved EmbedOp
-    }
-    else if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
+    if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
     {
         return EvaluateLocalFunc(lcFunc, call, metas, target);
     }
@@ -640,30 +601,6 @@ Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<c
     return {};
 }
 
-static std::u32string_view OpToFuncName(EmbedOps op)
-{
-#define RET_NAME(x) case EmbedOps::x: return U ## "EmbedOp." #x ## sv
-    switch (op)
-    {
-        RET_NAME(Equal);
-        RET_NAME(NotEqual);
-        RET_NAME(Less);
-        RET_NAME(LessEqual);
-        RET_NAME(Greater);
-        RET_NAME(GreaterEqual);
-        RET_NAME(And);
-        RET_NAME(Or);
-        RET_NAME(Not);
-        RET_NAME(Add);
-        RET_NAME(Sub);
-        RET_NAME(Mul);
-        RET_NAME(Div);
-        RET_NAME(Rem);
-    default: return U"UnknownOp"sv;
-    }
-#undef RET_NAME
-}
-
 Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 {
     using Type = RawArg::Type;
@@ -672,21 +609,15 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     case Type::Func:
         return EvaluateFunc(*arg.GetVar<Type::Func>(), {}, {});
     case Type::Unary:
-    {
-        const auto& stmt = *arg.GetVar<Type::Unary>();
-        FuncCall func;
-        func.Name = OpToFuncName(stmt.Operator);
-        func.Args = { &stmt.Oprend, 1 };
-        return EvaluateFunc(func, {}, {});
-    }
+        if (auto ret = EvaluateUnaryExpr(*arg.GetVar<Type::Unary>()); ret.has_value())
+            return ret.value();
+        else
+            NLRT_THROW_EX(u"Unary expr's arg type does not match requirement"sv, arg);
     case Type::Binary:
-    {
-        const auto& stmt = *arg.GetVar<Type::Binary>();
-        FuncCall func;
-        func.Name = OpToFuncName(stmt.Operator);
-        func.Args = { &stmt.LeftOprend, 2 };
-        return EvaluateFunc(func, {}, {});
-    }
+        if (auto ret = EvaluateBinaryExpr(*arg.GetVar<Type::Binary>()); ret.has_value())
+            return ret.value();
+        else
+            NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
     case Type::Var:
         return EvalContext->LookUpArg(arg.GetVar<Type::Var>().Name);
     case Type::Str:     return arg.GetVar<Type::Str>();
@@ -698,9 +629,62 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     }
 }
 
+std::optional<Arg> NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
+{
+    if (expr.Operator == EmbedOps::Not)
+        return EmbedOpEval::Not(EvaluateArg(expr.Oprend));
+    NLRT_THROW_EX(u"Unexpected unary op"sv, RawArg(&expr));
+    return {};
+}
+
+std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)
+{
+    switch (expr.Operator)
+    {
+#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(EvaluateArg(expr.LeftOprend), EvaluateArg(expr.RightOprend))
+    EVAL_BIN_OP(Equal);
+    EVAL_BIN_OP(NotEqual);
+    EVAL_BIN_OP(Less);
+    EVAL_BIN_OP(LessEqual);
+    EVAL_BIN_OP(Greater);
+    EVAL_BIN_OP(GreaterEqual);
+    EVAL_BIN_OP(Add);
+    EVAL_BIN_OP(Sub);
+    EVAL_BIN_OP(Mul);
+    EVAL_BIN_OP(Div);
+    EVAL_BIN_OP(Rem);
+#undef EVAL_BIN_OP
+    case EmbedOps::And: 
+    {
+        const auto left = EvaluateArg(expr.LeftOprend).GetBool();
+        if (!left.has_value()) return {};
+        if (!left.value()) return false;
+        const auto right = EvaluateArg(expr.RightOprend).GetBool();
+        if (!right.has_value()) return {};
+        if (!right.value()) return false;
+        return true;
+    }
+    case EmbedOps::Or:
+    {
+        const auto left = EvaluateArg(expr.LeftOprend).GetBool();
+        if (!left.has_value()) return {};
+        if (left.value()) return true;
+        const auto right = EvaluateArg(expr.RightOprend).GetBool();
+        if (!right.has_value()) return {};
+        if (right.value()) return true;
+        return false;
+    }
+    default:
+        NLRT_THROW_EX(u"Unexpected binary op"sv, RawArg(&expr));
+        return {};
+    }
+}
+
 void NailangRuntimeBase::OnAssignment(const Assignment& assign, common::span<const FuncCall>)
 {
-    EvalContext->SetArg(assign.Variable.Name, EvaluateArg(assign.Statement));
+    if (assign.IsNilCheck() && !EvalContext->LookUpArg(assign.GetVar()).IsEmpty()) // non-null
+        return;
+    EvalContext->SetArg(assign.GetVar(), EvaluateArg(assign.Statement));
 }
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)

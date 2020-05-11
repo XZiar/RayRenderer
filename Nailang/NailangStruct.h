@@ -443,8 +443,16 @@ struct Block;
 
 struct Assignment
 {
-    LateBindVar Variable;
+    std::u32string_view Variable_;
     RawArg Statement;
+    constexpr std::u32string_view GetVar() const noexcept
+    { 
+        return { Variable_.data(), Variable_.size() / 2 };
+    }
+    constexpr bool IsNilCheck() const noexcept
+    {
+        return Variable_.size() % 2 == 1;
+    }
 };
 
 struct BlockContent

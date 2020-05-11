@@ -49,32 +49,32 @@ Function call calls a function with arguments, may result an arguemnt.
 
 ### Operator
 
-Operator is used for better readibility, but currently they will be converted into function calls at runtime. Eg, `1+a`, `4 && false`, `!true`.
+Operator is used for better readibility, eg, `1+a`, `4 && false`, `!true`.
 
 **Operator can have one or two leaves**, which means there's `Unary Operator` and `Binary Operator`.
 
 [Function call](#function-call), [variable](#variable), [literal](#literal) can all be leaf of an operator. 
 
-| Operator | Type | FuncCall Name | Example |
-|:--------:|:----:|:--------------|--------:|
-|`==`|Binary|EmbedOp.Equal        |`1==3`|
-|`!=`|Binary|EmbedOp.NotEqual     |`1!=3`|
-|`<` |Binary|EmbedOp.Less         |`1<3`|
-|`<=`|Binary|EmbedOp.LessEqual    |`1<=3`|
-|`>` |Binary|EmbedOp.Greater      |`1>3`|
-|`>=`|Binary|EmbedOp.GreaterEqual |`1>=3`|
-|`&&`|Binary|EmbedOp.And          |`true && 3`|
-|`||`|Binary|EmbedOp.Or           |`1 || false`|
-|`+` |Binary|EmbedOp.Add          |`1 + 3`|
-|`-` |Binary|EmbedOp.Sub          |`1 - 3`|
-|`*` |Binary|EmbedOp.Mul          |`1 * 3`|
-|`/` |Binary|EmbedOp.Div          |`1 / 3`|
-|`%` |Binary|EmbedOp.Rem          |`1 % 3`|
-|`!` | Unary|EmbedOp.Not          |`!true`|
-
 **Operators have no precedence**, so you need to add a pair of parentheses manually. Eg, `(a*b)+c`, `(1+(2))`.
 
-**Short-circuit evaluation not supportted currently**, in order to simplify the code.
+| Operator | Type | Argument | Return | Example |
+|:--------:|:----:|:--------:|:------:|--------:|
+|`==`| Binary | Num, Bool, Str | Bool     |`1==3`|
+|`!=`| Binary | Num, Bool, Str | Bool     |`1!=3`|
+|`<` | Binary | Num            | Bool     |`1<3`|
+|`<=`| Binary | Num            | Bool     |`1<=3`|
+|`>` | Binary | Num            | Bool     |`1>3`|
+|`>=`| Binary | Num            | Bool     |`1>=3`|
+|`&&`| Binary | Boolable       | Bool     |`true && 3`|
+|`||`| Binary | Boolable       | Bool     |`1 || false`|
+|`+` | Binary | Num, Str       | Num, Str |`1 + 3`|
+|`-` | Binary | Num            | Num      |`1 - 3`|
+|`*` | Binary | Num            | Num      |`1 * 3`|
+|`/` | Binary | Num            | Num      |`1 / 3`|
+|`%` | Binary | Num            | Num      |`1 % 3`|
+|`!` |  Unary | Boolable       | Bool     |`!true`|
+
+**`&&` and `||` support short-circuit evaluation**, but it's garuenteed by NailRuntime, whose behavior can be override.
 
 ### Expression
 
@@ -109,6 +109,8 @@ The `op` is usually `=`, but self-modifying operator is also introduced for bett
 |`-=`|`a -= 1` |`a = a - 1` |
 |`/=`|`a /= 1` |`a = a / 1` |
 |`%=`|`a %= 1` |`a = a % 1` |
+
+`?=` is a special assignment whose calculation and assignment happens only when variable is empty. Its AST format does not conflit with self-modified assignment like `+=`, but NailangParser disallows this combination.
 
 ### FuncCall
 

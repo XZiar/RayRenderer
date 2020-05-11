@@ -37,7 +37,7 @@ static void ShowMeta(const common::span<const FuncCall> metas, const string& ind
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const Assignment& content, const string& indent)
 {
     ShowMeta(metas, indent);
-    log().info(FMT_STRING(u"{}assign [{}]\n"), indent, content.Variable.Name);
+    log().info(FMT_STRING(u"{}assign [{}]\n"), indent, content.GetVar());
 }
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const FuncCall& content, const string& indent)
 {

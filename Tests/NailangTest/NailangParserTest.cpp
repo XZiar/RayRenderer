@@ -242,7 +242,7 @@ hey = 13;
         EXPECT_EQ(meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0);
         const auto& assign = *std::get<0>(stmt.GetStatement());
-        EXPECT_EQ(assign.Variable.Name, U"hey"sv);
+        EXPECT_EQ(assign.GetVar(), U"hey"sv);
         CHECK_VAR_ARG(assign.Statement, Int, 13);
     }
     {
@@ -268,7 +268,7 @@ abc = 0u;
             EXPECT_EQ(stmt_.GetType(), xziar::nailang::BlockContent::Type::Assignment);
             EXPECT_EQ(meta_.size(), 0);
             const auto& assign = *std::get<0>(stmt_.GetStatement());
-            EXPECT_EQ(assign.Variable.Name, U"abc"sv);
+            EXPECT_EQ(assign.GetVar(), U"abc"sv);
             CHECK_VAR_ARG(assign.Statement, Uint, 0u);
         }
     }
@@ -289,7 +289,7 @@ empty
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
             EXPECT_EQ(meta.size(), 0);
             const auto& assign = *std::get<0>(stmt.GetStatement());
-            EXPECT_EQ(assign.Variable.Name, U"hey"sv);
+            EXPECT_EQ(assign.GetVar(), U"hey"sv);
             EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
             {
                 const auto& stmt_ = *assign.Statement.GetVar<RawArg::Type::Binary>();

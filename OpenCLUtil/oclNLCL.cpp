@@ -37,7 +37,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         const auto propName = var.Rest();
         switch (hash_(propName))
         {
-#define U_PROP(name) case PPCAT(STRINGIZE(name),_hash): return static_cast<uint64_t>(Device->name)
+#define U_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
         U_PROP(LocalMemSize);
         U_PROP(GlobalMemSize);
         U_PROP(GlobalCacheSize);
@@ -49,7 +49,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         U_PROP(Version);
         U_PROP(CVersion);
 #undef U_PROP
-        case "type"_hash:
+        HashCase(propName, U"Type")
         {
             switch (Device->Type)
             {
@@ -60,7 +60,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
             default:                        return U"other"sv;
             }
         }
-        case "vendor"_hash:
+        HashCase(propName, U"Vendor")
         {
             switch (Device->PlatVendor)
             {
@@ -112,8 +112,7 @@ void NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common:
 static constexpr std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
 {
 #define CASE(str, dtype, bit, n, least) \
-    case hash_(str): if (ShortCompare(type, str)) return { {common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least }; else break;
-
+    HashCase(type, str) return { {common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least };
 #define CASEV(pfx, type, bit, least) \
     CASE(PPCAT(U, STRINGIZE(pfx)""),    type, bit, 1,  least) \
     CASE(PPCAT(U, STRINGIZE(pfx)"v2"),  type, bit, 2,  least) \

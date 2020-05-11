@@ -53,7 +53,11 @@
     <DisplayString>{{ Binary[{Operator,en}] }}</DisplayString>
   </Type>
   <Type Name="xziar::nailang::Assignment">
-    <DisplayString>{{ Assignment[{Variable.Name,s32}] }}</DisplayString>
+    <DisplayString>{{ Assignment[{&amp;Variable_[0],[Variable_._Mysize / 2]s32}] }}</DisplayString>
+    <Expand>
+      <Item Name="Variable">&amp;Variable_[0],[Variable_._Mysize / 2]s32</Item>
+      <Item Name="Statement">Statement</Item>
+    </Expand>
   </Type>
   <Type Name="xziar::nailang::RawArg" >
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Empty" >{{ Empty }}</DisplayString>

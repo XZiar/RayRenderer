@@ -366,8 +366,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
     constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
 
-    Assignment assign;
-    assign.Variable.Name = var;
+    auto varLen = var.size() * 2;
 
     const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
     Expects(opToken.GetIDEnum<SectorLangToken>() == SectorLangToken::Assign);
@@ -376,6 +375,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     switch (static_cast<AssignOps>(opToken.GetUInt()))
     {
     case AssignOps::   Assign:                         break;
+    case AssignOps::NilAssign: varLen += 1;            break;
     case AssignOps::AndAssign: selfOp = EmbedOps::And; break;
     case AssignOps:: OrAssign: selfOp = EmbedOps:: Or; break;
     case AssignOps::AddAssign: selfOp = EmbedOps::Add; break;
@@ -391,13 +391,15 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
         throw u"expect statement"sv;
     //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
 
+    Assignment assign;
+    assign.Variable_ = { var.data(), varLen };
     if (!selfOp.has_value())
     {
         assign.Statement = *stmt;
     }
     else
     {
-        BinaryExpr statement(*selfOp, assign.Variable, *stmt);
+        BinaryExpr statement(*selfOp, LateBindVar{ var }, *stmt);
         assign.Statement = MemPool.Create<BinaryExpr>(statement);
     }
     return assign;
@@ -467,7 +469,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         case SectorLangToken::Func:
         {
             if constexpr (!AllowNonBlock)
-                ThrowNonSupport(token, u"Function call not supportted here"sv);
+                ThrowNonSupport(token, u"Function call not supported here"sv);
             FuncCall funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
             EatSemiColon();
@@ -479,7 +481,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         case SectorLangToken::Var:
         {
             if constexpr (!AllowNonBlock)
-                ThrowNonSupport(token, u"Variable assignment not supportted here"sv);
+                ThrowNonSupport(token, u"Variable assignment not supported here"sv);
             Assignment assign = ParseAssignment(token.GetString());
             const auto target = MemPool.Create<Assignment>(assign);
             const auto [offset, count] = AppendMetaFuncs();

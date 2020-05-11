@@ -205,22 +205,20 @@ public:
 
 struct NAILANGAPI EmbedOpEval
 {
-    [[nodiscard]] static Arg Equal        (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Less         (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
-    [[nodiscard]] static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
-    [[nodiscard]] static Arg And          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Or           (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Add          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Sub          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Mul          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Div          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
-
-    static std::optional<Arg> Eval(const std::u32string_view opname, const std::array<Arg, 2>& args) noexcept;
+    [[nodiscard]] static std::optional<Arg> Equal        (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> NotEqual     (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Less         (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> LessEqual    (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
+    [[nodiscard]] static std::optional<Arg> GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
+    [[nodiscard]] static std::optional<Arg> And          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Or           (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Add          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Sub          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Mul          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Div          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Rem          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static std::optional<Arg> Not          (const Arg& arg) noexcept;
 };
 
 
@@ -460,6 +458,8 @@ protected:
     virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
+    virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
+    virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
     virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
     virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);

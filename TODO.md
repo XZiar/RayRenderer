@@ -95,7 +95,7 @@
     - [ ] Add more import format support
 
 * Nailang
-  - [ ] Re-design operators handling to support `short-circuit evaluation` and `assign if null`.
+  - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`.
   - [ ] Make parser throw proper exception.
   - [ ] Add python parser & runtime
 

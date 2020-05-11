@@ -92,14 +92,16 @@ TEST(NailangRuntime, EvalEmbedOp)
 {                                               \
 Arg left(l), right(r);                          \
 const auto ret = EmbedOpEval::op(left, right);  \
-CHECK_ARG(ret, type, ans);                      \
+ASSERT_TRUE(ret.has_value());                   \
+CHECK_ARG(ret.value(), type, ans);              \
 } while(0)                                      \
 
 #define TEST_UN(val, op, type, ans) do      \
 {                                           \
 Arg arg(val);                               \
 const auto ret = EmbedOpEval::op(arg);      \
-CHECK_ARG(ret, type, ans);                  \
+ASSERT_TRUE(ret.has_value());               \
+CHECK_ARG(ret.value(), type, ans);          \
 } while(0)                                  \
 
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,       Bool, false);

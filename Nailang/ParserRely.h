@@ -205,7 +205,7 @@ public:
 };
 
 
-enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign };
+enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign };
 class AssignOpTokenizer
 {
 public:
@@ -226,14 +226,13 @@ public:
             case U'*':  return { ch, TokenizerResult::Pending };
             case U'/':  return { ch, TokenizerResult::Pending };
             case U'%':  return { ch, TokenizerResult::Pending };
+            case U'?':  return { ch, TokenizerResult::Pending };
             default:    return { ch, TokenizerResult::NotMatch };
             }
         case 1:
-            switch (prevChar)
-            {
-            case U'=': return { ch, TokenizerResult::NotMatch };
-            default  : return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            }
+            if (prevChar != U'=' && ch == U'=')
+                return { ch, TokenizerResult::Waitlist };
+        [[fallthrough]];
         default:
             return { ch, TokenizerResult::NotMatch };
         }
@@ -252,6 +251,7 @@ public:
         RET_OP("*=", MulAssign);
         RET_OP("/=", DivAssign);
         RET_OP("%=", RemAssign);
+        RET_OP("?=", NilAssign);
         default:     return ParserToken(BaseToken::Error, txt);
         }
 #undef RET_OP
