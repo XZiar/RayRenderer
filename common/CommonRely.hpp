@@ -118,6 +118,16 @@
 
 
 
+/* char8_t fix */
+
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+using u8ch_t = char8_t;
+#else
+using u8ch_t = char;
+#endif
+
+
+
 /* c++ version compatible defines */
 
 
@@ -290,11 +300,22 @@ template<typename T>
         hash = hash * 33 + *str;
     return hash;
 }
+[[nodiscard]] inline constexpr uint64_t hash_(const char32_t* str) noexcept
+{
+    uint64_t hash = 0;
+    for (; *str != U'\0'; ++str)
+        hash = hash * 33 + *str;
+    return hash;
+}
 /**
 ** @brief calculate simple hash for string, used for switch-string
 ** @return uint64_t the hash
 **/
 [[nodiscard]] inline constexpr uint64_t operator "" _hash(const char *str, size_t) noexcept
+{
+    return hash_(str);
+}
+[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char32_t* str, size_t) noexcept
 {
     return hash_(str);
 }

@@ -65,9 +65,9 @@ std::u16string  to_u16string(const common::span<const std::byte> data, const Cha
 {
     return ConvertString<char16_t, common::str::detail::UTF16LE>(data, inchset);
 }
-u8string        to_u8string (const common::span<const std::byte> data, const Charset inchset)
+str::u8string   to_u8string (const common::span<const std::byte> data, const Charset inchset)
 {
-    return ConvertString<u8ch_t    , common::str::detail::UTF8   >(data, inchset);
+    return ConvertString<u8ch_t  , common::str::detail::UTF8   >(data, inchset);
 }
 
 

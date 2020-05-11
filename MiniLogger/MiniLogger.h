@@ -23,7 +23,7 @@ class MINILOGAPI MiniLoggerBase : public NonCopyable
     friend void common::mlog::DelGlobalCallback(const CallbackToken& id);
 protected:
     std::atomic<LogLevel> LeastLevel;
-    const SharedString<char16_t> Prefix;
+    SharedString<char16_t> Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
     static void SentToGlobalOutputer(LogMessage* msg);

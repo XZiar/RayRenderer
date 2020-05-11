@@ -52,7 +52,7 @@ bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
         size = gsl::narrow_cast<uint32_t>(args.size());
-    LocalFuncArgNames.reserve(offset + size);
+    LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
     for (const auto& arg : args)
         LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
     return SetFuncInside(block->Name, { block, offset, size });
@@ -62,7 +62,7 @@ bool BasicEvaluateContext::SetFunc(const detail::LocalFunc & func)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
         size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
-    LocalFuncArgNames.reserve(offset + size);
+    LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
     for (const auto& name : func.ArgNames)
         LocalFuncArgNames.emplace_back(name);
     return SetFuncInside(func.Body->Name, { func.Body, offset, size });

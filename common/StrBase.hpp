@@ -10,11 +10,9 @@ namespace common::str
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
 using u8string = std::u8string;
 using u8string_view = std::u8string_view;
-using u8ch_t = char8_t;
 #else
 using u8string = std::string;
 using u8string_view = std::string_view;
-using u8ch_t = char;
 #endif
 
 

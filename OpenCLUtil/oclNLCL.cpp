@@ -4,7 +4,7 @@
 #include "oclException.h"
 #include "StringCharset/Convert.h"
 #include "StringCharset/Detect.h"
-#include "common/SIMD.hpp"
+#include "common/StrSIMD.hpp"
 
 namespace oclu
 {
@@ -15,13 +15,15 @@ using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::str::Charset;
 using common::str::IsBeginWith;
+using common::str::ShortCompare;
 using common::simd::VecDataInfo;
 
 
-#define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 
 Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
@@ -102,63 +104,23 @@ NLCLReplacer::~NLCLReplacer() { }
 void NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const
 {
     if (args.size() != count)
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
             fmt::format(FMT_STRING(u"Repace-func [{}] requires [{}] args, which gives [{}]."), func, args.size(), count)));
 }
 
-template<typename T>
-forceinline bool FastCompare(const std::basic_string_view<T> src, const std::basic_string_view<T> target) noexcept
-{
-    if (src.size() != target.size()) 
-        return false;
-    [[maybe_unused]] const auto targetSBytes = target.size() * sizeof(T);
-#if COMMON_SIMD_LV >= 20
-    if (targetSBytes <= 128u / 8u)
-    {
-        const auto mask = (1u << targetSBytes) - 1u;
-        const auto vecT = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()));
-        const auto vecS = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()));
-        const auto cmpbits = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS, vecT));
-        return (cmpbits & mask) == mask;
-    }
-#endif
-#if COMMON_SIMD_LV >= 200
-    if (targetSBytes <= 256u / 8u)
-    {
-        const auto mask = (1u << targetSBytes) - 1u;
-        const auto vecT = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target.data()));
-        const auto vecS = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src.data()));
-        const auto cmpbits = (uint32_t)_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS, vecT));
-        return (cmpbits & mask) == mask;
-    }
-#elif COMMON_SIMD_LV >= 20
-    if (targetSBytes <= 256u / 8u)
-    {
-        const auto mask = (1u << (targetSBytes - 128u / 8u)) - 1u;
-        const auto vecT0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()) + 0);
-        const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target.data()) + 1);
-        const auto vecS0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()) + 0);
-        const auto vecS1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()) + 1);
-        const auto cmpbits0 = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS0, vecT0));
-        const auto cmpbits1 = (uint32_t)_mm_movemask_epi8(_mm_cmpeq_epi8(vecS1, vecT1));
-        return cmpbits0 == 0xffffu && (cmpbits1 & mask) == mask;
-    }
-#endif
-    return src == target;
-}
 
-static constexpr std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
+static constexpr std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
 {
 #define CASE(str, dtype, bit, n, least) \
-    case hash_(str): if (FastCompare(type, PPCAT(U, str))) return {{common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least}; else break;
+    case hash_(str): if (ShortCompare(type, str)) return { {common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least }; else break;
 
 #define CASEV(pfx, type, bit, least) \
-    CASE(STRINGIZE(pfx)""sv,    type, bit, 1,  least) \
-    CASE(STRINGIZE(pfx)"v2"sv,  type, bit, 2,  least) \
-    CASE(STRINGIZE(pfx)"v3"sv,  type, bit, 3,  least) \
-    CASE(STRINGIZE(pfx)"v4"sv,  type, bit, 4,  least) \
-    CASE(STRINGIZE(pfx)"v8"sv,  type, bit, 8,  least) \
-    CASE(STRINGIZE(pfx)"v16"sv, type, bit, 16, least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)""),    type, bit, 1,  least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)"v2"),  type, bit, 2,  least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)"v3"),  type, bit, 3,  least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)"v4"),  type, bit, 4,  least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)"v8"),  type, bit, 8,  least) \
+    CASE(PPCAT(U, STRINGIZE(pfx)"v16"), type, bit, 16, least) \
 
 #define CASE2(tstr, type, bit)                  \
     CASEV(PPCAT(tstr, bit),  type, bit, false)  \
@@ -179,7 +141,7 @@ static constexpr std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const
     CASE2(f, Float,    64)
     default: break;
     }
-    return { {common::simd::VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false };
+    return { {VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false };
 
 #undef CASE2
 #undef CASEV
@@ -193,14 +155,14 @@ void NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32strin
         const auto info = ParseVecType(var.substr(1));
         if (!info.has_value())
         {
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
             return;
         }
         const auto str = GetVecTypeName(info.value());
         if (str.empty())
         {
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
             return;
         }
@@ -211,7 +173,7 @@ void NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32strin
         const auto ret = Runtime.EvalContext->LookUpArg(var);
         if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
         {
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var)));
             return;
         }
@@ -225,7 +187,7 @@ void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32strin
     {
         if (args.size() > 1)
         {
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Repace-func [unroll] requires [0,1] args, which gives [{}]."), args.size())));
         }
         else if (EnableUnroll)
@@ -249,27 +211,20 @@ void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32strin
     }
     if (IsBeginWith(func, U"oclu."sv))
     {
-        const auto subName = func.substr(5);
-
-#define EnsureCase(name) case hash_(name): if (!FastCompare(subName, PPCAT(U, name))) break;
-
-        switch (hash_(subName))
+        switch (const auto subName = func.substr(5); hash_(subName))
         {
-        EnsureCase("SubgroupBroadcast"sv)
+        HashCase(subName, U"SubgroupBroadcast")
         {
             output.append(GenerateSubgroupShuffle(args, false)); return;
         }
-        EnsureCase("SubgroupShuffle"sv)
+        HashCase(subName, U"SubgroupShuffle")
         {
             output.append(GenerateSubgroupShuffle(args, true)); return;
         }
         default: break;
         }
-
-#undef EnsureCase
-
     }
-    Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+    Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
         u"replace-function not ready"sv));
 }
 
@@ -365,14 +320,14 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
 {
     if (needShuffle && !SupportSubgroupIntel)
     {
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
             fmt::format(FMT_STRING(u"Subgroup shuffle require support of intel_subgroups."sv), args[0])));
         return {};
     }
     const auto info = ParseVecType(args[0]);
     if (!info.has_value())
     {
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
             fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0])));
         return {};
     }
@@ -404,7 +359,7 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
                 return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), vnum, 0 });
             }
             // cannot handle right now
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Failed to generate patched broadcast for [{}]"sv), args[0])));
             return {};
         }
@@ -412,7 +367,7 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
     // require at least intel_subgroups
     if (!SupportSubgroupIntel)
     {
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
             fmt::format(FMT_STRING(u"Failed to generate broadcast for [{}] without support of intel_subgroups."sv), args[0])));
         return {};
     }
@@ -470,7 +425,7 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
             return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
         }
         // cannot handle right now
-        Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
             fmt::format(FMT_STRING(u"Failed to generate patched shuffle for [{}]"sv), args[0])));
         return {};
     }
@@ -490,13 +445,9 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
 {
     if (IsBeginWith(call.Name, U"oclu."sv))
     {
-        const auto subName = call.Name.substr(5);
-
-#define EnsureCase(name) case hash_(name): if (!FastCompare(subName, PPCAT(U, name))) break;
-
-        switch (hash_(subName))
+        switch (const auto subName = call.Name.substr(5); hash_(subName))
         {
-        EnsureCase("EnableExtension"sv)
+        HashCase(subName, U"EnableExtension")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto arg = EvaluateFuncArgs<1>(call)[0];
@@ -508,7 +459,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
             else
                 NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
         } return {};
-        EnsureCase("EnableUnroll"sv)
+        HashCase(subName, U"EnableUnroll")
         {
             if (!Replacer->EnableUnroll)
             {
@@ -516,7 +467,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 Replacer->EnableUnroll = true;
             }
         } return {};
-        EnsureCase("AddSubgroupPatch"sv)
+        HashCase(subName, U"AddSubgroupPatch")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto args = EvaluateFuncArgs<2>(call);
@@ -529,13 +480,11 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         default: break;
         }
-#undef EnsureCase
-
     }
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
-void NLCLRuntime::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
+void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
     Logger.error(u"{}\n", ex.message);
     NailangRuntimeBase::HandleException(ex);
@@ -580,9 +529,9 @@ void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
     {
         std::u32string_view prefix;
         if (meta.Name == U"If"sv)
-            prefix = U"If"sv;
+            prefix = U"If "sv;
         else if (meta.Name == U"Skip"sv)
-            prefix = U"Skip if"sv;
+            prefix = U"Skip if "sv;
         else
             continue;
         if (meta.Args.size() == 1)
@@ -611,10 +560,9 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
     for (const auto meta : metas)
     {
-#define EnsureCase(name) case hash_(name): if (!FastCompare(meta.Name, PPCAT(U, name))) break;
         switch (hash_(meta.Name))
         {
-        EnsureCase("oglu.RequestSubgroupSize"sv)
+        HashCase(meta.Name, U"oglu.RequestSubgroupSize")
         {
             if (Device->GetPlatform()->PlatVendor != oclu::Vendors::Intel)
             {
@@ -631,7 +579,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             else
                 Logger.verbose(u"Skip subgroup size due to empty arg.\n"sv);
         } break;
-        EnsureCase("oglu.RequestWorkgroupSize"sv)
+        HashCase(meta.Name, U"oglu.RequestWorkgroupSize")
         {
             const auto args = EvaluateFuncArgs<3>(meta);
             const auto x = args[0].GetUint().value_or(1),
@@ -643,7 +591,6 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         default:
             break;
         }
-#undef EnsureCase
     }
     DirectOutput(block, metas, dst);
 }
@@ -707,15 +654,14 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
     if (IsBeginWith(block.Type, U"oclu."sv) &&
         HandleMetaFuncsBefore(metas, BlockContent::Generate(&block), ctx))
     {
-        const auto subName = block.Type.substr(5);
         bool output = false;
-        switch (hash_(subName))
+        switch (const auto subName = block.Type.substr(5); hash_(subName))
         {
-        case "Global"_hash:     output = true;  break;
-        case "Struct"_hash:     output = true;  StructBlocks.emplace_back(&block, metas); break;
-        case "Kernel"_hash:     output = true;  KernelBlocks.emplace_back(&block, metas); break;
-        case "Template"_hash:   output = false; TemplateBlocks.emplace_back(&block, metas); break;
-        case "KernelStub"_hash: output = false; KernelStubBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Global")     output = true;  break;
+        HashCase(subName, U"Struct")     output = true;  StructBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Kernel")     output = true;  KernelBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Template")   output = false; TemplateBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"KernelStub") output = false; KernelStubBlocks.emplace_back(&block, metas); break;
         default: break;
         }
         if (output)
@@ -750,12 +696,13 @@ std::string NLCLRuntime::GenerateOutput()
         const MetaFuncs metas(item.MetaPtr, item.MetaCount);
         switch (hash_(item.Block->Type))
         {
-        case "oclu.Global"_hash:     OutputGlobal(*item.Block, metas, output); break;
-        case "oclu.Struct"_hash:     OutputStruct(*item.Block, metas, output); break;
-        case "oclu.Kernel"_hash:     OutputKernel(*item.Block, metas, output); break;
-        case "oclu.KernelStub"_hash: OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); break;
-        default: Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
+        HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.Struct")     OutputStruct(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.Kernel")     OutputKernel(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.KernelStub") OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); continue;
+        default: break;
         }
+        Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
     }
 
     { // Output patched blocks
