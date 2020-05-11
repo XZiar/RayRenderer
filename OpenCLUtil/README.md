@@ -28,17 +28,17 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 * **oclImage**  OpenCL Image Object
   
-  OpenCL Image uses OpenGL's Texture data format
+  OpenCL image (uses ImageUtil's Texture data format)
 
 * **oclProgram**  OpenCL Program
 
   Provide argument setting and multi-dimension execution. Kernel's infomation can also be retrieved.
 
-  Chained operation is partially supported (only single-link chain).
-
 * **oclKernel**  OpenCL Kernel
 
-  Actual object that can be invoke. It's part of oclProgram and will retain program object. Any build operation will invalid previous kernel.
+  Actual object that can be invoke. It's part of oclProgram and will retain program object.
+
+  Chained operation is partially supported (only single-link chain).
 
 * **oclPromise**  OpenCL Promise
 
@@ -48,19 +48,23 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 ## Dependency
 
-* [OpenCL Header](../3rdParty/CL) 20200109 [License](../3rdParty/CL/LICENSE)
+* [OpenCL Header](../3rdParty/CL) 20200504 [License](../3rdParty/CL/LICENSE)
 
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.6 [License](../3rdParty/OpenCL/LICENSE)
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.8 [License](../3rdParty/OpenCL/LICENSE)
 
   OpenCL ICD Loader.
 
-* [common](../common)
-  * Exception -- an exception model with support for nested-exception, strong-type, Unicode message, arbitrary extra data 
-  * StringEx -- some useful operation for string, including encoding-conversion
+* [ImageUtil](../ImageUtil)
+
+  Provide texture/image format support
+
+* [Nailang](../Nailang)
+
+  NLCL language support
 
 * [MiniLogger](../MiniLogger)
   
-  used for logging message and errors, with prefix `OpenCLUtil`
+  Log message and errors, with prefix `OpenCLUtil`
 
 ## Requirements
 

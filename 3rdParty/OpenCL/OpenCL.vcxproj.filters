@@ -36,6 +36,12 @@
     <ClInclude Include="icd_windows.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="icd_windows_apppackage.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="adapter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OpenCL.rc">
@@ -59,6 +65,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="icd_windows_envvars.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="icd_windows_apppackage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

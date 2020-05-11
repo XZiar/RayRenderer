@@ -21,6 +21,8 @@
 #define _GNU_SOURCE
 #endif
 
+//#include "icd_cmake_config.h"
+
 #include <stdlib.h>
 
 char *khrIcd_getenv(const char *name) {

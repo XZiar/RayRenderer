@@ -49,7 +49,7 @@ class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
     friend class NLCLRuntime;
 protected:
     NLCLRuntime& Runtime;
-    const bool SupportFP16, SupportFP64, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
+    const bool SupportFP16, SupportFP64, SupportNVUnroll, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
     bool EnableUnroll;
     void ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const;
     void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;

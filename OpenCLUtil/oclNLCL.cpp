@@ -25,11 +25,10 @@ using common::simd::VecDataInfo;
 
 Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
-    const auto plat = Device->GetPlatform();
     if (var.Part() == U"Extension"sv)
     {
         const auto extName = common::strchset::to_string(var.Rest(), Charset::UTF8, Charset::UTF32LE);
-        return plat->GetExtensions().Has(extName);
+        return Device->Extensions.Has(extName);
     }
     if (var.Part() == U"Dev"sv)
     {
@@ -44,6 +43,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         U_PROP(ConstantBufSize);
         U_PROP(MaxMemSize);
         U_PROP(ComputeUnits);
+        U_PROP(WaveSize);
         U_PROP(Version);
         U_PROP(CVersion);
 #undef U_PROP
@@ -60,9 +60,9 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         }
         case "vendor"_hash:
         {
-            switch (plat->PlatVendor)
+            switch (Device->PlatVendor)
             {
-#define U_VENDOR(name) case Vendors::name: return PPCAT(U, STRINGIZE(name))sv
+#define U_VENDOR(name) case Vendors::name: return PPCAT(PPCAT(U, STRINGIZE(name)), sv)
             U_VENDOR(AMD);
             U_VENDOR(ARM);
             U_VENDOR(Intel);
@@ -90,11 +90,12 @@ NLCLReplacer::NLCLReplacer(NLCLRuntime& runtime) :
     Runtime(runtime), 
     SupportFP16(Runtime.Device->Extensions.Has("cl_khr_fp16")),
     SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64") || Runtime.Device->Extensions.Has("cl_amd_fp64")),
+    SupportNVUnroll(Runtime.Device->Extensions.Has("cl_nv_pragma_unroll")),
     SupportSubgroupKHR(Runtime.Device->Extensions.Has("cl_khr_subgroups")),
     SupportSubgroupIntel(Runtime.Device->Extensions.Has("cl_intel_subgroups")),
     SupportSubgroup8Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_char")),
     SupportSubgroup16Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_short")),
-    EnableUnroll(Runtime.Device->CVersion >= 20)
+    EnableUnroll(Runtime.Device->CVersion >= 20 || SupportNVUnroll)
 { }
 NLCLReplacer::~NLCLReplacer() { }
 
@@ -222,14 +223,26 @@ void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32strin
 {
     if (func == U"unroll"sv)
     {
-        if (EnableUnroll)
+        if (args.size() > 1)
         {
-            switch (args.size())
-            {
-            case 0:  output.append(U"__attribute__((opencl_unroll_hint))"sv); break;
-            case 1:  fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]); break;
-            default: Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Repace-func [unroll] requires [0,1] args, which gives [{}]."), args.size())));
+        }
+        else if (EnableUnroll)
+        {
+            if (Runtime.Device->CVersion >= 20 || !SupportNVUnroll)
+            {
+                if (args.empty())
+                    output.append(U"__attribute__((opencl_unroll_hint))"sv);
+                else
+                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]);
+            }
+            else
+            {
+                if (args.empty())
+                    output.append(U"#pragma unroll"sv);
+                else
+                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma unroll {}"sv), args[0]);
             }
         }
         return;

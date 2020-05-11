@@ -37,6 +37,7 @@ public:
     uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits, WaveSize;
     uint32_t Version, CVersion;
     bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
+    Vendors PlatVendor;
     DeviceType Type;
 
     [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }

@@ -12,6 +12,7 @@
 using namespace common;
 using namespace common::mlog;
 using namespace oclu;
+using namespace std::string_view_literals;
 using std::string;
 using std::u16string;
 using std::u16string_view;
@@ -50,137 +51,165 @@ static void OCLStub()
         log().error(u"No OpenCL platform found!\n");
         return;
     }
-    common::linq::FromIterable(plats)
-        .ForEach([](const auto& plat, size_t idx) 
-            { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
-    const auto platidx = SelectIdx(plats, u"platform");
-    const auto plat = plats[platidx];
-
-    const auto devs = plat->GetDevices();
-    if (devs.size() == 0)
-    {
-        log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
-        return;
-    }
-    common::linq::FromIterable(devs)
-        .ForEach([](const auto& dev, size_t idx)
-            { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
-    const auto devidx = SelectIdx(devs, u"device");
-    const auto dev = devs[devidx];
-
-    const auto ctx = plat->CreateContext(dev);
-    ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
-    auto que = oclCmdQue_::Create(ctx, dev);
-    log().success(u"Create context with [{}] on [{}]!\n", dev->Name, plat->Name);
-    //ClearReturn();
-    //SimpleTest(ctx);
     while (true)
     {
-        common::mlog::SyncConsoleBackend();
-        string fpath = common::console::ConsoleEx::ReadLine("input opencl file:");
-        if (fpath == "EXTENSION")
+        common::linq::FromIterable(plats)
+            .ForEach([](const auto& plat, size_t idx)
+                { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
+        const auto platidx = SelectIdx(plats, u"platform");
+        const auto plat = plats[platidx];
+
+        const auto devs = plat->GetDevices();
+        if (devs.size() == 0)
         {
-            string exttxts("Extensions:\n");
-            for (const auto& ext : dev->Extensions)
-                exttxts.append(ext).append("\n");
-            log().verbose(u"{}\n", exttxts);
-            continue;
+            log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
+            return;
         }
-        else if (fpath == "IMAGE")
+        common::linq::FromIterable(devs)
+            .ForEach([](const auto& dev, size_t idx)
+                { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
+        const auto devidx = SelectIdx(devs, u"device");
+        const auto dev = devs[devidx];
+
+        const auto ctx = plat->CreateContext(dev);
+        ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+        auto que = oclCmdQue_::Create(ctx, dev);
+        log().success(u"Create context with [{}] on [{}]!\n", dev->Name, plat->Name);
+        //ClearReturn();
+        //SimpleTest(ctx);
+        while (true)
         {
-            const auto proc = [](u16string str, auto& formats)
+            common::mlog::SyncConsoleBackend();
+            string fpath = common::console::ConsoleEx::ReadLine("input opencl file:");
+            if (fpath == "BREAK")
+                break;
+            if (fpath == "EXTENSION")
             {
-                for (const auto& format : formats)
-                    str.append(TexFormatUtil::GetFormatName(format)).append(u"\t")
-                    .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
-                return str;
-            };
-            log().verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
-            log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
-            continue;
-        }
-        else if (fpath == "clear")
-        {
-            common::console::ConsoleEx::ClearConsole();
-            continue;
-        }
-        else if (fpath.empty())
-            continue;
-        bool exConfig = false;
-        if (fpath.back() == '#')
-            fpath.pop_back(), exConfig = true;
-        common::fs::path filepath = fpath;
-        log().debug(u"loading cl file [{}]\n", filepath.u16string());
-        try
-        {
-            auto kertxt = common::file::ReadAllText(filepath);
-            CLProgConfig config;
-            config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
-            if (exConfig)
+                string exttxts("Extensions:\n");
+                for (const auto& ext : dev->Extensions)
+                    exttxts.append(ext).append("\n");
+                log().verbose(u"{}\n", exttxts);
+                continue;
+            }
+            else if (fpath == "IMAGE")
             {
-                string line;
-                while (cin >> line)
+                const auto proc = [](u16string str, auto& formats)
                 {
-                    ClearReturn();
-                    if (line.size() == 0) break;
-                    const auto parts = common::str::Split(line, '=');
-                    string key(parts[0].substr(1));
-                    switch (line.front())
+                    for (const auto& format : formats)
+                        str.append(TexFormatUtil::GetFormatName(format)).append(u"\t")
+                        .append(to_u16string(TexFormatUtil::GetFormatDetail(format))).append(u"\n");
+                    return str;
+                };
+                log().verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
+                log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
+                continue;
+            }
+            else if (fpath == "INFO")
+            {
+                std::u16string infotxt;
+#define ADD_INFO(info) fmt::format_to(std::back_inserter(infotxt), u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
+                ADD_INFO(Name);
+                ADD_INFO(Vendor);
+                ADD_INFO(Ver);
+                ADD_INFO(CVer);
+                ADD_INFO(ConstantBufSize);
+                ADD_INFO(GlobalMemSize);
+                ADD_INFO(LocalMemSize);
+                ADD_INFO(MaxMemSize);
+                ADD_INFO(GlobalCacheSize);
+                ADD_INFO(GlobalCacheLine);
+                ADD_INFO(MemBaseAddrAlign);
+                ADD_INFO(ComputeUnits);
+                ADD_INFO(WaveSize);
+                ADD_INFO(SupportProfiling);
+                ADD_INFO(SupportOutOfOrder);
+                ADD_INFO(SupportImplicitGLSync);
+#undef ADD_INFO
+                log().verbose(u"Device Info:\n{}\n", infotxt);
+                continue;
+            }
+            else if (fpath == "clear")
+            {
+                common::console::ConsoleEx::ClearConsole();
+                continue;
+            }
+            else if (fpath.empty())
+                continue;
+            bool exConfig = false;
+            if (fpath.back() == '#')
+                fpath.pop_back(), exConfig = true;
+            common::fs::path filepath = fpath;
+            log().debug(u"loading cl file [{}]\n", filepath.u16string());
+            try
+            {
+                auto kertxt = common::file::ReadAllText(filepath);
+                CLProgConfig config;
+                config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
+                if (exConfig)
+                {
+                    string line;
+                    while (cin >> line)
                     {
-                    case '#':
-                        if (parts.size() > 1)
-                            config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
-                        else
-                            config.Defines[key] = std::monostate{};
-                        continue;
+                        ClearReturn();
+                        if (line.size() == 0) break;
+                        const auto parts = common::str::Split(line, '=');
+                        string key(parts[0].substr(1));
+                        switch (line.front())
+                        {
+                        case '#':
+                            if (parts.size() > 1)
+                                config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
+                            else
+                                config.Defines[key] = std::monostate{};
+                            continue;
+                        }
+                        break;
                     }
-                    break;
                 }
-            }
-            if (common::str::IsEndWith(fpath, ".nlcl"))
-            {
-                static const NLCLProcessor NLCLProc;
-                const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
-                auto result = NLCLProc.ProcessCL(prog, dev);
-                common::file::WriteAll(fpath + ".cl", result);
-                kertxt = result;
-            }
-            auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
-            const auto kernels = clProg->GetKernels();
-            log().success(u"loaded {} kernels:\n", kernels.Size());
-            for (const auto& ker : kernels)
-            {
-                const auto wgInfo = ker->GetWorkGroupInfo();
-                log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
-                    wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
-                    wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
-                    wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
-                const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize);
-                if (sgInfo.has_value())
+                if (common::str::IsEndWith(fpath, ".nlcl"))
                 {
-                    const auto& info = sgInfo.value();
-                    log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
+                    static const NLCLProcessor NLCLProc;
+                    const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
+                    auto result = NLCLProc.ProcessCL(prog, dev);
+                    common::file::WriteAll(fpath + ".cl", result);
+                    kertxt = result;
                 }
-                for (const auto& arg : ker->ArgsInfo)
+                auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
+                const auto kernels = clProg->GetKernels();
+                log().success(u"loaded {} kernels:\n", kernels.Size());
+                for (const auto& ker : kernels)
                 {
-                    log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                    const auto wgInfo = ker->GetWorkGroupInfo();
+                    log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
+                        wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
+                        wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
+                        wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+                    const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize);
+                    if (sgInfo.has_value())
+                    {
+                        const auto& info = sgInfo.value();
+                        log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
+                    }
+                    for (const auto& arg : ker->ArgsInfo)
+                    {
+                        log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                    }
                 }
+                log().info(u"\n\n");
             }
-            log().info(u"\n\n");
-        }
-        catch (OCLException& cle)
-        {
-            u16string buildLog;
-            if (cle.data.has_value())
-                buildLog = std::any_cast<u16string>(cle.data);
-            log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
-        }
-        catch (const BaseException& be)
-        {
-            log().error(u"Error here:\n{}\n\n", be.message);
+            catch (OCLException& cle)
+            {
+                u16string buildLog;
+                if (cle.data.has_value())
+                    buildLog = std::any_cast<u16string>(cle.data);
+                log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+            }
+            catch (const BaseException& be)
+            {
+                log().error(u"Error here:\n{}\n\n", be.message);
+            }
         }
     }
-
 }
 
 const static uint32_t ID = RegistTest("OCLStub", &OCLStub);
