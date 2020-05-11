@@ -72,11 +72,11 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             try
             {
                 oclu::CLProgConfig config;
-                auto clProg = oclProgram_::CreateAndBuild(CLContext, LoadShaderFromDLL(IDR_SHADER_CLRESIZER), config);
+                auto clProg = oclProgram_::CreateAndBuild(CLContext, LoadShaderFromDLL(IDR_SHADER_CLRESIZER), config, CLContext->Devices[0]);
                 KerToImg = clProg->GetKernel("ResizeToImg");
                 KerToDat3 = clProg->GetKernel("ResizeToDat3");
                 KerToDat4 = clProg->GetKernel("ResizeToDat4");
-                const auto wgInfo = KerToImg->GetWorkGroupInfo(CLContext->Devices[0]);
+                const auto wgInfo = KerToImg->GetWorkGroupInfo();
                 texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);
             }

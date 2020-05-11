@@ -72,6 +72,10 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     GlobalCacheLine     = GetNum<uint32_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE);
     MemBaseAddrAlign    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MEM_BASE_ADDR_ALIGN);
     ComputeUnits        = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
+    if (Extensions.Has("cl_nv_device_attribute_query"))
+        WaveSize        = GetNum<uint32_t>(DeviceID, CL_DEVICE_WARP_SIZE_NV);
+    /*else if (Extensions.Has("cl_amd_device_attribute_query"))
+        WaveSize = GetNum<uint32_t>(DeviceID, CL_DEVICE_WAVEFRONT_WIDTH_AMD);*/
 
     const auto props = GetNum<cl_command_queue_properties>(DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;

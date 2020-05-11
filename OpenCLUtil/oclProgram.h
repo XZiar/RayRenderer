@@ -147,13 +147,13 @@ public:
     std::vector<KernelArgInfo> ArgsInfo;
     ~oclKernel_();
 
-    [[nodiscard]] WorkGroupInfo GetWorkGroupInfo(const oclDevice& dev) const;
-    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize) const;
+    [[nodiscard]] WorkGroupInfo GetWorkGroupInfo() const;
+    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
     template<uint8_t N>
-    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const oclDevice& dev, const size_t(&localsize)[N]) const
+    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const size_t(&localsize)[N]) const
     {
         static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
-        return GetSubgroupInfo(dev, N, localsize);
+        return GetSubgroupInfo(N, localsize);
     }
     template<uint8_t N, typename... Args>
     [[nodiscard]] auto Call(Args&&... args) const
@@ -172,6 +172,7 @@ struct CLProgConfig
 {
     common::CLikeDefines Defines;
     std::set<std::string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
+    uint32_t Version = 0;
 };
 
 
@@ -182,28 +183,26 @@ class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, pu
 private:
     MAKE_ENABLER();
     const oclContext Context;
+    const oclDevice Device;
     const std::string Source;
     cl_program ProgID;
     std::vector<std::string> KernelNames;
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
-    common::container::FrozenDenseSet<cl_device_id> DeviceIDs;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
-    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs);
-    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const oclContext_& ctx, const common::container::FrozenDenseSet<cl_device_id>& dids);
     class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
     {
         friend class oclProgram_;
     private:
         oclContext Context;
+        oclDevice Device;
         std::string Source;
         cl_program ProgID;
     public:
-        oclProgStub(const oclContext& ctx, const std::string& str);
+        oclProgStub(const oclContext& ctx, const oclDevice& dev, const std::string& str);
         ~oclProgStub();
-        void Build(const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
-        void Build(const CLProgConfig& config, const oclDevice dev) { Build(config, std::vector<oclDevice>{ dev }); }
-        [[nodiscard]] std::u16string GetBuildLog(const oclDevice& dev) const { return GetProgBuildLog(ProgID, dev->DeviceID); }
+        void Build(const CLProgConfig& config);
+        [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
         [[nodiscard]] oclProgram Finish();
     };
     oclProgram_(oclProgStub* stub);
@@ -215,10 +214,10 @@ public:
         return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);
     }
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
-    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Context, DeviceIDs); }
+    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
 
-    [[nodiscard]] static oclProgStub Create(const oclContext& ctx, const std::string& str);
-    [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs = {});
+    [[nodiscard]] static oclProgStub Create(const oclContext& ctx, const std::string& str, const oclDevice& dev = {});
+    [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const oclDevice& dev = {});
 };
 
 

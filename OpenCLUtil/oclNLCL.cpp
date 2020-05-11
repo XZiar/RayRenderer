@@ -62,7 +62,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         {
             switch (plat->PlatVendor)
             {
-#define U_VENDOR(name) case Vendors::name: return PPCAT(U, STRINGIZE(name))
+#define U_VENDOR(name) case Vendors::name: return PPCAT(U, STRINGIZE(name))sv
             U_VENDOR(AMD);
             U_VENDOR(ARM);
             U_VENDOR(Intel);
@@ -89,10 +89,12 @@ Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) cons
 NLCLReplacer::NLCLReplacer(NLCLRuntime& runtime) : 
     Runtime(runtime), 
     SupportFP16(Runtime.Device->Extensions.Has("cl_khr_fp16")),
-    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64")),
+    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64") || Runtime.Device->Extensions.Has("cl_amd_fp64")),
     SupportSubgroupKHR(Runtime.Device->Extensions.Has("cl_khr_subgroups")),
     SupportSubgroupIntel(Runtime.Device->Extensions.Has("cl_intel_subgroups")),
-    SupportSubgroup16Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_short"))
+    SupportSubgroup8Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_char")),
+    SupportSubgroup16Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_short")),
+    EnableUnroll(Runtime.Device->CVersion >= 20)
 { }
 NLCLReplacer::~NLCLReplacer() { }
 
@@ -220,12 +222,15 @@ void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32strin
 {
     if (func == U"unroll"sv)
     {
-        switch (args.size())
+        if (EnableUnroll)
         {
-        case 0:  output.append(U"__attribute__((opencl_unroll_hint))"sv); break;
-        case 1:  fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]); break;
-        default: Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
+            switch (args.size())
+            {
+            case 0:  output.append(U"__attribute__((opencl_unroll_hint))"sv); break;
+            case 1:  fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]); break;
+            default: Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException,
                 fmt::format(FMT_STRING(u"Repace-func [unroll] requires [0,1] args, which gives [{}]."), args.size())));
+            }
         }
         return;
     }
@@ -415,6 +420,16 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
         default: Expects(false); return {};
         }
     }
+    if (info->Bit == 8 && SupportSubgroup8Intel)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
     if (info->Bit == 64 && info->Dim0 == 1)
     {
         switch (info->Type)
@@ -479,6 +494,14 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
             }
             else
                 NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
+        } return {};
+        EnsureCase("EnableUnroll"sv)
+        {
+            if (!Replacer->EnableUnroll)
+            {
+                Logger.warning(u"Manually enable unroll hint.\n");
+                Replacer->EnableUnroll = true;
+            }
         } return {};
         EnsureCase("AddSubgroupPatch"sv)
         {
@@ -575,10 +598,16 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
     for (const auto meta : metas)
     {
+#define EnsureCase(name) case hash_(name): if (!FastCompare(meta.Name, PPCAT(U, name))) break;
         switch (hash_(meta.Name))
         {
-        case "oglu.RequestSubgroupSize"_hash:
+        EnsureCase("oglu.RequestSubgroupSize"sv)
         {
+            if (Device->GetPlatform()->PlatVendor != oclu::Vendors::Intel)
+            {
+                Logger.verbose(u"Skip subgroup size due to non-intel platform.\n");
+                break;
+            }
             ThrowByArgCount(meta, 1);
             const auto sgSize = EvaluateArg(meta.Args[0]).GetUint();
             if (sgSize)
@@ -589,7 +618,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             else
                 Logger.verbose(u"Skip subgroup size due to empty arg.\n"sv);
         } break;
-        case "oglu.RequestWorkgroupSize"_hash:
+        EnsureCase("oglu.RequestWorkgroupSize"sv)
         {
             const auto args = EvaluateFuncArgs<3>(meta);
             const auto x = args[0].GetUint().value_or(1),
@@ -601,6 +630,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         default:
             break;
         }
+#undef EnsureCase
     }
     DirectOutput(block, metas, dst);
 }

@@ -124,35 +124,33 @@ oclKernel_::~oclKernel_()
     clReleaseKernel(KernelID);
 }
 
-WorkGroupInfo oclKernel_::GetWorkGroupInfo(const oclDevice& dev) const
+WorkGroupInfo oclKernel_::GetWorkGroupInfo() const
 {
-    const cl_device_id devid = dev->DeviceID;
+    const cl_device_id devid = Prog.Device->DeviceID;
     WorkGroupInfo info;
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &info.WorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &info.CompiledWorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
-    if (dev->Extensions.Has("cl_intel_required_subgroup_size"))
+    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"))
         clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_SPILL_MEM_SIZE_INTEL, sizeof(uint64_t), &info.SpillMemSize, nullptr);
     else
         info.SpillMemSize = 0;
     return info;
 }
 
-std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const oclDevice& dev, const uint8_t dim, const size_t* localsize) const
+std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const
 {
-    const cl_device_id devid = dev->DeviceID;
-    if (!Prog.DeviceIDs.Has(devid))
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"target device is not related to this kernel");
     if (!Plat.FuncClGetKernelSubGroupInfo)
         return {};
-    if (!dev->Extensions.Has("cl_khr_subgroups") && !dev->Extensions.Has("cl_intel_subgroups"))
+    if (!Prog.Device->Extensions.Has("cl_khr_subgroups") && !Prog.Device->Extensions.Has("cl_intel_subgroups"))
         return {};
     SubgroupInfo info;
+    const auto devid = Prog.Device->DeviceID;
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
-    if (dev->Extensions.Has("cl_intel_required_subgroup_size"))
+    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"))
         Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
     else
         info.CompiledSubgroupSize = 0;
@@ -197,6 +195,8 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
 PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
+    if (Kernel->Prog.Device != que->Device)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"queue's device is not the same as this kernel");
     cl_int ret;
     cl_event e;
     auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
@@ -208,22 +208,8 @@ PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const c
 }
 
 
-
-static vector<cl_device_id> GetProgDevs(cl_program progID)
-{
-    cl_int ret;
-    cl_uint devCount = 0;
-    ret = clGetProgramInfo(progID, CL_PROGRAM_NUM_DEVICES, sizeof(devCount), &devCount, nullptr);
-    vector<cl_device_id> devids(devCount);
-    ret = clGetProgramInfo(progID, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * devCount, devids.data(), nullptr);
-    if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"ANY ERROR in get devices from program");
-    return devids;
-}
-
-
-oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const string& str)
-    : Context(ctx), Source(str), ProgID(nullptr)
+oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, const string& str)
+    : Context(ctx), Device(dev), Source(str), ProgID(nullptr)
 {
     cl_int errcode;
     auto* ptr = Source.c_str();
@@ -242,8 +228,11 @@ oclProgram_::oclProgStub::~oclProgStub()
     }
 }
 
-void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vector<oclDevice>& devs)
+void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
 {
+    const auto cver = config.Version == 0 ? Device->CVersion : config.Version;
+    if (cver > Device->CVersion)
+        oclLog().warning(u"request cversion [{}] on [{}] device [{}]\n", cver, Device->CVersion, Device->Name);
     string options;
     switch (Context->GetVendor())
     {
@@ -265,34 +254,19 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config, const std::vect
             }, def.Val);
         options.append(" "sv);
     }
-    for (const auto& flag : config.Flags)
-        options.append(flag).append(" "sv);
-
     {
-        uint64_t lSize = UINT64_MAX;
-        for (const auto& dev : devs)
-            lSize = std::min(lSize, dev->LocalMemSize);
+        uint64_t lSize = Device->LocalMemSize;
         lSize = lSize == UINT64_MAX ? 0 : lSize; //default as zero
         options.append("-DOCLU_LOCAL_MEM_SIZE=").append(std::to_string(lSize));
     }
+    for (const auto& flag : config.Flags)
+        options.append(flag).append(" "sv);
+    fmt::format_to(std::back_inserter(options), "-cl-std=CL{}.{} ", cver / 10, cver % 10);
     
-    auto devids = common::linq::FromIterable(devs)
-        .Select([](const auto& dev) { return dev->DeviceID; })
-        .ToVector();
-    cl_int ret = clBuildProgram(ProgID, static_cast<cl_uint>(devids.size()), 
-        devids.empty() ? nullptr : devids.data(), options.c_str(), nullptr, nullptr);
+    cl_int ret = clBuildProgram(ProgID, 1, &Device->DeviceID, options.c_str(), nullptr, nullptr);
 
     std::vector<oclDevice> devs2;
-    if (devs.empty())
-    {
-        common::container::FrozenDenseSet<cl_device_id> devidset = GetProgDevs(ProgID);
-        devs2 = common::linq::FromIterable(Context->Devices)
-            .Where([&](const auto& dev) { return devidset.Has(dev->DeviceID); })
-            .ToVector();
-    }
-    u16string buildlog;
-    for (auto& thedev : devs.empty() ? devs2 : devs)
-        buildlog += thedev->Name + u":\n" + GetBuildLog(thedev) + u"\n";
+    u16string buildlog = Device->Name + u":\n" + GetBuildLog();
     if (ret == CL_SUCCESS)
     {
         oclLog().success(u"build program {:p} success:\n{}\n", (void*)ProgID, buildlog);
@@ -313,51 +287,30 @@ oclProgram oclProgram_::oclProgStub::Finish()
 
 u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev)
 {
+    u16string result;
     cl_build_status status;
     clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
     switch (status)
     {
-    case CL_BUILD_NONE:
-        return u"Not been built yet";
-    case CL_BUILD_SUCCESS:
-        return u"Build successfully";
-    case CL_BUILD_ERROR:
+    case CL_BUILD_NONE:     return u"Not been built yet";
+    case CL_BUILD_SUCCESS:  result = u"Build successfully:\n"; break;
+    case CL_BUILD_ERROR:    result = u"Build error:\n"; break;
+    default:                return u"";
+    }
+    size_t logsize;
+    clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
+    if (logsize > 0)
     {
-        size_t logsize;
-        clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
-        if (logsize > 0)
-        {
-            string logstr(logsize, '\0');
-            clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
-            logstr.pop_back();
-            return common::strchset::to_u16string(logstr, common::strchset::Charset::UTF8);
-        }
-        return u"";
+        string logstr(logsize, '\0');
+        clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
+        logstr.pop_back();
+        result.append(common::strchset::to_u16string(logstr, common::strchset::Charset::UTF8));
     }
-    default:
-        return u"";
-    }
+    return result;
 }
 
-u16string oclProgram_::GetProgBuildLog(cl_program progID, const std::vector<oclDevice>& devs)
-{
-    u16string buildlog;
-    for (auto& thedev : devs)
-        buildlog += thedev->Name + u":\n" + GetProgBuildLog(progID, thedev->DeviceID) + u"\n";
-    return buildlog;
-}
-
-u16string oclProgram_::GetProgBuildLog(cl_program progID, const oclContext_& ctx,
-    const common::container::FrozenDenseSet<cl_device_id>& dids)
-{
-    const auto devs = common::linq::FromIterable(ctx.Devices)
-        .Where([&](const auto& dev) { return dids.Has(dev->DeviceID); })
-        .ToVector();
-    return GetProgBuildLog(progID, devs);
-}
-
-oclProgram_::oclProgram_(oclProgStub* stub)
-    : Context(std::move(stub->Context)), Source(std::move(stub->Source)), ProgID(stub->ProgID)
+oclProgram_::oclProgram_(oclProgStub* stub) : 
+    Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID)
 {
     stub->ProgID = nullptr;
 
@@ -379,8 +332,6 @@ oclProgram_::oclProgram_(oclProgStub* stub)
         .ToVector();
     /*for (const auto& name : KernelNames)
         Kernels.emplace_back(Context->Plat.get(), this, name);*/
-
-    DeviceIDs = GetProgDevs(ProgID);
 }
 
 oclProgram_::~oclProgram_()
@@ -396,15 +347,15 @@ oclKernel oclProgram_::GetKernel(const string_view& name) const
     return {};
 }
 
-oclProgram_::oclProgStub oclProgram_::Create(const oclContext& ctx, const string& str)
+oclProgram_::oclProgStub oclProgram_::Create(const oclContext& ctx, const string& str, const oclDevice& dev)
 {
-    return oclProgStub(ctx, str);
+    return oclProgStub(ctx, dev ? dev : ctx->Devices[0], str);
 }
 
-oclProgram oclProgram_::CreateAndBuild(const oclContext& ctx, const string& str, const CLProgConfig& config, const std::vector<oclDevice>& devs)
+oclProgram oclProgram_::CreateAndBuild(const oclContext& ctx, const string& str, const CLProgConfig& config, const oclDevice& dev)
 {
-    auto stub = Create(ctx, str);
-    stub.Build(config, devs);
+    auto stub = Create(ctx, str, dev);
+    stub.Build(config);
     return stub.Finish();
 }
 

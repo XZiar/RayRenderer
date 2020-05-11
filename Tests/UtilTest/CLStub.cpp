@@ -145,17 +145,17 @@ static void OCLStub()
                 common::file::WriteAll(fpath + ".cl", result);
                 kertxt = result;
             }
-            auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config);
+            auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
             const auto kernels = clProg->GetKernels();
             log().success(u"loaded {} kernels:\n", kernels.Size());
             for (const auto& ker : kernels)
             {
-                const auto wgInfo = ker->GetWorkGroupInfo(dev);
+                const auto wgInfo = ker->GetWorkGroupInfo();
                 log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
                     wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
                     wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
-                const auto sgInfo = ker->GetSubgroupInfo(dev, 3, wgInfo.CompiledWorkGroupSize);
+                const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize);
                 if (sgInfo.has_value())
                 {
                     const auto& info = sgInfo.value();
