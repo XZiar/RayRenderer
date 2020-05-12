@@ -459,6 +459,7 @@ protected:
     virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     virtual Arg  EvaluateArg(const RawArg& arg);
+    virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
     virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
     virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
     virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);

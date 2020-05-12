@@ -2,6 +2,7 @@
 #include "3rdParty/fmt/utfext.h"
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
+#include <cassert>
 
 namespace xziar::nailang
 {
@@ -137,7 +138,7 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         SET_OP_STR(Div,         " / ");
         SET_OP_STR(Rem,         " % ");
     default:
-        Expects(false);
+        assert(false); // Expects(false);
         return;
     }
 #undef SET_OP_STR

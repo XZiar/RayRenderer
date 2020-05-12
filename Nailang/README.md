@@ -59,20 +59,20 @@ Operator is used for better readibility, eg, `1+a`, `4 && false`, `!true`.
 
 | Operator | Type | Argument | Return | Example |
 |:--------:|:----:|:--------:|:------:|--------:|
-|`==`| Binary | Num, Bool, Str | Bool     |`1==3`|
-|`!=`| Binary | Num, Bool, Str | Bool     |`1!=3`|
-|`<` | Binary | Num            | Bool     |`1<3`|
-|`<=`| Binary | Num            | Bool     |`1<=3`|
-|`>` | Binary | Num            | Bool     |`1>3`|
-|`>=`| Binary | Num            | Bool     |`1>=3`|
-|`&&`| Binary | Boolable       | Bool     |`true && 3`|
-|`||`| Binary | Boolable       | Bool     |`1 || false`|
-|`+` | Binary | Num, Str       | Num, Str |`1 + 3`|
-|`-` | Binary | Num            | Num      |`1 - 3`|
-|`*` | Binary | Num            | Num      |`1 * 3`|
-|`/` | Binary | Num            | Num      |`1 / 3`|
-|`%` | Binary | Num            | Num      |`1 % 3`|
-|`!` |  Unary | Boolable       | Bool     |`!true`|
+| `==` | Binary | Num, Bool, Str | Bool     |`1==3`|
+| `!=` | Binary | Num, Bool, Str | Bool     |`1!=3`|
+| `<`  | Binary | Num            | Bool     |`1<3`|
+| `<=` | Binary | Num            | Bool     |`1<=3`|
+| `>`  | Binary | Num            | Bool     |`1>3`|
+| `>=` | Binary | Num            | Bool     |`1>=3`|
+| `&&` | Binary | Boolable       | Bool     |`true && 3`|
+|`\|\|`| Binary | Boolable       | Bool     |`1 \|\| false`|
+| `+`  | Binary | Num, Str       | Num, Str |`1 + 3`|
+| `-`  | Binary | Num            | Num      |`1 - 3`|
+| `*`  | Binary | Num            | Num      |`1 * 3`|
+| `/`  | Binary | Num            | Num      |`1 / 3`|
+| `%`  | Binary | Num            | Num      |`1 % 3`|
+| `!`  |  Unary | Boolable       | Bool     |`!true`|
 
 **`&&` and `||` support short-circuit evaluation**, but it's garuenteed by NailRuntime, whose behavior can be override.
 
@@ -151,7 +151,7 @@ Here's some examples for the [gcd]() algorithm:
 ### gcd version 1
 
 ```
-tmp = 1u;
+:tmp = 1u;
 @While(tmp != 0)
 #Block("")
 {
@@ -177,7 +177,7 @@ while (tmp != 0)
 @While(true)
 #Block("")
 {
-    tmp = m % n;
+    :tmp = m % n;
     m = n;
     n = tmp;
     @If(n==0)

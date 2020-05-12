@@ -2,6 +2,7 @@
 #include "Nailang/ParserRely.h"
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
+#include <cmath>
 
 
 using namespace std::string_view_literals;
@@ -205,6 +206,87 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
     {
         const auto arg = ParseEval(U"\"abc\" + \"ABC\";"sv);
         CHECK_ARG(arg, U32Str, U"abcABC"sv);
+    }
+}
+
+
+TEST(NailangRuntime, MathFunc)
+{
+    MemoryPool pool;
+    const auto ParseEval = [&](const std::u32string_view src)
+    {
+        ParserContext context(src);
+        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        NailangRT runtime;
+        return runtime.EvaluateArg(*rawarg);
+    };
+    {
+        const auto arg = ParseEval(U"$Math.Max(1,2);"sv);
+        CHECK_ARG(arg, Int, 2);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Max(1,2,3);"sv);
+        CHECK_ARG(arg, Int, 3);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Max(3,2,4.5);"sv);
+        CHECK_ARG(arg, FP, 4.5);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Min(3,2,4.5);"sv);
+        CHECK_ARG(arg, Int, 2);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Sqrt(4.5);"sv);
+        CHECK_ARG(arg, FP, std::sqrt(4.5));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Ceil(4.5);"sv);
+        CHECK_ARG(arg, FP, std::ceil(4.5));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Floor(4.5);"sv);
+        CHECK_ARG(arg, FP, std::floor(4.5));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Round(4.25);"sv);
+        CHECK_ARG(arg, FP, std::round(4.25));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Log(4.25);"sv);
+        CHECK_ARG(arg, FP, std::log(4.25));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Log2(16384);"sv);
+        CHECK_ARG(arg, FP, std::log2(16384));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Log10(0.5);"sv);
+        CHECK_ARG(arg, FP, std::log10(0.5));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Lerp(0, 100, 0.25);"sv);
+        CHECK_ARG(arg, FP, std::lerp(0., 100., 0.25));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.Pow(3.5, 4);"sv);
+        CHECK_ARG(arg, FP, std::pow(3.5, 4));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.ToUint(-100);"sv);
+        CHECK_ARG(arg, Uint, static_cast<uint64_t>(-100));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.ToUint(5.6);"sv);
+        CHECK_ARG(arg, Uint, static_cast<uint64_t>(5.6));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.ToInt(-5.6);"sv);
+        CHECK_ARG(arg, Int, static_cast<int64_t>(-5.6));
+    }
+    {
+        const auto arg = ParseEval(U"$Select(1>2, 1, 2);"sv);
+        CHECK_ARG(arg, Int, 2);
     }
 }
 

@@ -5,6 +5,7 @@
 #include "common/Linq2.hpp"
 #include "common/StrSIMD.hpp"
 #include <cmath>
+#include <cassert>
 
 
 namespace xziar::nailang
@@ -551,7 +552,6 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
 
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
 {
-    using Type = Arg::InternalType;
     // only for block-scope
     if (target.GetType() == FuncTarget::Type::Block)
     {
@@ -580,43 +580,19 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     // suitable for all
     if (common::str::IsBeginWith(call.Name, U"Math."sv))
     {
-        switch (const auto subName = call.Name.substr(5); hash_(subName))
+        if (auto ret = EvaluateExtendMathFunc(call, call.Name.substr(5), metas); ret)
         {
-        HashCase(subName, U"Max")
-        {
-            ThrowByArgLeastCount(call, 1);
-            auto ret = EvaluateArg(call.Args[0]);
-            for (size_t i = 1; i < call.Args.size(); ++i)
-            {
-                auto ret2 = EvaluateArg(call.Args[i]);
-                const auto isLess = EmbedOpEval::Less(ret, ret2);
-                if (!isLess.has_value()) return {};
-                if (isLess) ret = std::move(ret2);
-            }
-            return ret;
+            if (!ret->IsEmpty())
+                return ret.value();
+            NLRT_THROW_EX(u"Math func's arg type does not match requirement"sv, call);
         }
-        HashCase(subName, U"Min")
-        {
-            ThrowByArgLeastCount(call, 1);
-            auto ret = EvaluateArg(call.Args[0]);
-            for (size_t i = 1; i < call.Args.size(); ++i)
-            {
-                auto ret2 = EvaluateArg(call.Args[i]);
-                const auto isLess = EmbedOpEval::Less(ret2, ret);
-                if (!isLess.has_value()) return {};
-                if (isLess) ret = std::move(ret2);
-            }
-            return ret;
-        }
-        HashCase(subName, U"Select")
-        {
-            ThrowByArgCount(call, 3);
-            const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ?
-                call.Args[1] : call.Args[2];
-            return EvaluateArg(selected);
-        }
-        default: break;
-        }
+    }
+    if (call.Name == U"Select"sv)
+    {
+        ThrowByArgCount(call, 3);
+        const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ?
+            call.Args[1] : call.Args[2];
+        return EvaluateArg(selected);
     }
     if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
     {
@@ -649,6 +625,160 @@ Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<c
     return {};
 }
 
+std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall>)
+{
+    using Type = Arg::InternalType;
+    switch (hash_(mathName))
+    {
+    HashCase(mathName, U"Max")
+    {
+        ThrowByArgLeastCount(call, 1);
+        auto ret = EvaluateArg(call.Args[0]);
+        for (size_t i = 1; i < call.Args.size(); ++i)
+        {
+            auto ret2 = EvaluateArg(call.Args[i]);
+            const auto isLess = EmbedOpEval::Less(ret, ret2);
+            if (!isLess.has_value()) return Arg{};
+            if (isLess->GetBool().value()) ret = std::move(ret2);
+        }
+        return ret;
+    }
+    HashCase(mathName, U"Min")
+    {
+        ThrowByArgLeastCount(call, 1);
+        auto ret = EvaluateArg(call.Args[0]);
+        for (size_t i = 1; i < call.Args.size(); ++i)
+        {
+            auto ret2 = EvaluateArg(call.Args[i]);
+            const auto isLess = EmbedOpEval::Less(ret2, ret);
+            if (!isLess.has_value()) return Arg{};
+            if (isLess->GetBool().value()) ret = std::move(ret2);
+        }
+        return ret;
+    }
+    HashCase(mathName, U"Sqrt")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::sqrt(arg.GetVar<Type::FP>());
+        case Type::Uint:    return std::sqrt(arg.GetVar<Type::Uint>());
+        case Type::Int:     return std::sqrt(arg.GetVar<Type::Int>());
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Ceil")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::ceil(arg.GetVar<Type::FP>());
+        case Type::Uint:
+        case Type::Int:     return arg;
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Floor")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::floor(arg.GetVar<Type::FP>());
+        case Type::Uint:
+        case Type::Int:     return arg;
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Round")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::round(arg.GetVar<Type::FP>());
+        case Type::Uint:
+        case Type::Int:     return arg;
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Log")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::log(arg.GetVar<Type::FP>());
+        case Type::Uint:    return std::log(arg.GetVar<Type::Uint>());
+        case Type::Int:     return std::log(arg.GetVar<Type::Int>());
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Log2")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::log2(arg.GetVar<Type::FP>());
+        case Type::Uint:    return std::log2(arg.GetVar<Type::Uint>());
+        case Type::Int:     return std::log2(arg.GetVar<Type::Int>());
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Log10")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::FP:      return std::log10(arg.GetVar<Type::FP>());
+        case Type::Uint:    return std::log10(arg.GetVar<Type::Uint>());
+        case Type::Int:     return std::log10(arg.GetVar<Type::Int>());
+        default:            break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"Lerp")
+    {
+        const auto args = EvaluateFuncArgs<3>(call);
+        const auto x = args[0].GetFP();
+        const auto y = args[1].GetFP();
+        const auto a = args[2].GetFP();
+        if (x && y && a)
+            // return x.value() * (1. - a.value()) + y.value() * a.value();
+            return std::lerp(x.value(), y.value(), a.value());
+        return Arg{};
+    }
+    HashCase(mathName, U"Pow")
+    {
+        const auto args = EvaluateFuncArgs<2>(call);
+        const auto x = args[0].GetFP();
+        const auto y = args[1].GetFP();
+        if (x && y)
+            return std::pow(x.value(), y.value());
+        return Arg{};
+    }
+    HashCase(mathName, U"ToUint")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0].GetUint();
+        if (arg)
+            return arg;
+        return Arg{};
+    }
+    HashCase(mathName, U"ToInt")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0].GetInt();
+        if (arg)
+            return arg;
+        return Arg{};
+    }
+    default: break;
+    }
+    return {};
+}
+
 Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 {
     using Type = RawArg::Type;
@@ -673,7 +803,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     case Type::Int:     return arg.GetVar<Type::Int>();
     case Type::FP:      return arg.GetVar<Type::FP>();
     case Type::Bool:    return arg.GetVar<Type::Bool>();
-    default:            Expects(false); return {};
+    default:            assert(false); /*Expects(false);*/ return {};
     }
 }
 
@@ -777,7 +907,7 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
         OnRawBlock(*content.Get<RawBlock>(), metas);
     } break;
     default:
-        Expects(false);
+        assert(false); /*Expects(false);*/
         break;
     }
 }

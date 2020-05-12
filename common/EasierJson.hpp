@@ -427,11 +427,11 @@ protected:
     [[nodiscard]] const rapidjson::Value& GetValRef() const { return Val; }
 public:
     [[nodiscard]] explicit operator rapidjson::Value() { return std::move(Val); }
-    [[nodiscard]] static JDoc Parse(const string& json)
+    [[nodiscard]] static JDoc Parse(const string_view& json)
     {
         JDoc doc(rapidjson::kNullType);
         rapidjson::Document rawdoc(doc.MemPool.get());
-        rawdoc.Parse(json.data());
+        rawdoc.Parse(json.data(), json.size());
         doc.Val.Swap(rawdoc);
         return doc;
     }
