@@ -3,6 +3,7 @@
 #include "3rdParty/fmt/utfext.h"
 #include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
+#include "common/StrSIMD.hpp"
 #include <cmath>
 
 
@@ -433,6 +434,13 @@ static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
     }
 }
 
+void NailangRuntimeBase::ThrowByArgLeastCount(const FuncCall& call, const size_t count) const
+{
+    if (call.Args.size() < count)
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires at least [{}] args, which gives [{}]."), call.Name, call.Args.size(), count),
+            detail::ExceptionTarget{}, &call);
+}
+
 void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
 {
     if (call.Args.size() != count)
@@ -570,6 +578,46 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
     }
     // suitable for all
+    if (common::str::IsBeginWith(call.Name, U"Math."sv))
+    {
+        switch (const auto subName = call.Name.substr(5); hash_(subName))
+        {
+        HashCase(subName, U"Max")
+        {
+            ThrowByArgLeastCount(call, 1);
+            auto ret = EvaluateArg(call.Args[0]);
+            for (size_t i = 1; i < call.Args.size(); ++i)
+            {
+                auto ret2 = EvaluateArg(call.Args[i]);
+                const auto isLess = EmbedOpEval::Less(ret, ret2);
+                if (!isLess.has_value()) return {};
+                if (isLess) ret = std::move(ret2);
+            }
+            return ret;
+        }
+        HashCase(subName, U"Min")
+        {
+            ThrowByArgLeastCount(call, 1);
+            auto ret = EvaluateArg(call.Args[0]);
+            for (size_t i = 1; i < call.Args.size(); ++i)
+            {
+                auto ret2 = EvaluateArg(call.Args[i]);
+                const auto isLess = EmbedOpEval::Less(ret2, ret);
+                if (!isLess.has_value()) return {};
+                if (isLess) ret = std::move(ret2);
+            }
+            return ret;
+        }
+        HashCase(subName, U"Select")
+        {
+            ThrowByArgCount(call, 3);
+            const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ?
+                call.Args[1] : call.Args[2];
+            return EvaluateArg(selected);
+        }
+        default: break;
+        }
+    }
     if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
     {
         return EvaluateLocalFunc(lcFunc, call, metas, target);

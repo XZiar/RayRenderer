@@ -410,6 +410,7 @@ protected:
 
     std::shared_ptr<EvaluateContext> EvalContext;
     
+    void ThrowByArgLeastCount(const FuncCall& call, const size_t count) const;
     void ThrowByArgCount(const FuncCall& call, const size_t count) const;
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const;

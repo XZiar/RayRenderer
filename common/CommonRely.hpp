@@ -284,7 +284,7 @@ template<typename T>
 [[nodiscard]] inline constexpr uint64_t hash_(const T& str) noexcept
 {
     uint64_t hash = 0;
-    for (size_t a = 0, len = str.length(); a < len; ++a)
+    for (size_t a = 0, len = str.size(); a < len; ++a)
         hash = hash * 33 + str[a];
     return hash;
 }
