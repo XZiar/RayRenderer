@@ -39,6 +39,9 @@
     <ClCompile Include="SystemCommonRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MiscIntrins.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -66,6 +69,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SystemCommonPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MiscIntrins.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

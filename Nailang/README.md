@@ -1,5 +1,7 @@
 # Nailang
 
+![LOGO](./Nailang.ico)
+
 **Nailang(Nail), not an intresting language.**
 
 ---

@@ -46,4 +46,9 @@
   <ItemGroup>
     <Natvis Include="Nailang.natvis" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="Nailang.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

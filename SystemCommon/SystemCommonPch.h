@@ -48,7 +48,11 @@
 
 namespace common
 {
-#if defined(_WIN32)
+
+#if COMMON_OS_WIN
 uint32_t GetWinBuildNumber();
 #endif
+
+uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
+
 }

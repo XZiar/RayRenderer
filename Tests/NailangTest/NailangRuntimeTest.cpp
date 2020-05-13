@@ -266,11 +266,36 @@ TEST(NailangRuntime, MathFunc)
     }
     {
         const auto arg = ParseEval(U"$Math.Lerp(0, 100, 0.25);"sv);
-        CHECK_ARG(arg, FP, std::lerp(0., 100., 0.25));
+#if defined(__cpp_lib_interpolate) && __cpp_lib_interpolate >= 201902L
+        const auto ref = std::lerp(0., 100., 0.25);
+#else
+        const auto ref = 0. * (1. - 0.25) + 100. * 0.25;
+#endif
+        CHECK_ARG(arg, FP, ref);
     }
     {
         const auto arg = ParseEval(U"$Math.Pow(3.5, 4);"sv);
         CHECK_ARG(arg, FP, std::pow(3.5, 4));
+    }
+    {
+        const auto arg = ParseEval(U"$Math.LeadZero(0b0001111);"sv);
+        CHECK_ARG(arg, Uint, 3);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.LeadZero(0b0);"sv);
+        CHECK_ARG(arg, Uint, 64);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.TailZero(0b110000);"sv);
+        CHECK_ARG(arg, Uint, 4);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.TailZero(0b0);"sv);
+        CHECK_ARG(arg, Uint, 64);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.PopCount(0b10101010);"sv);
+        CHECK_ARG(arg, Uint, 4);
     }
     {
         const auto arg = ParseEval(U"$Math.ToUint(-100);"sv);

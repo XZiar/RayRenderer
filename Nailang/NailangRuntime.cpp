@@ -1,4 +1,5 @@
 #include "NailangRuntime.h"
+#include "SystemCommon/MiscIntrins.h"
 #include "StringCharset/Convert.h"
 #include "3rdParty/fmt/utfext.h"
 #include "common/StringEx.hpp"
@@ -747,8 +748,11 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto y = args[1].GetFP();
         const auto a = args[2].GetFP();
         if (x && y && a)
-            // return x.value() * (1. - a.value()) + y.value() * a.value();
+#if defined(__cpp_lib_interpolate) && __cpp_lib_interpolate >= 201902L
             return std::lerp(x.value(), y.value(), a.value());
+#else
+            return x.value() * (1. - a.value()) + y.value() * a.value();
+#endif
         return Arg{};
     }
     HashCase(mathName, U"Pow")
@@ -758,6 +762,39 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto y = args[1].GetFP();
         if (x && y)
             return std::pow(x.value(), y.value());
+        return Arg{};
+    }
+    HashCase(mathName, U"LeadZero")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::LeadZero(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::LeadZero(arg.GetVar<Type::Int>()));
+        default:         break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"TailZero")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::TailZero(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::TailZero(arg.GetVar<Type::Int>()));
+        default:         break;
+        }
+        return Arg{};
+    }
+    HashCase(mathName, U"PopCount")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        switch (arg.TypeData)
+        {
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::PopCount(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::PopCount(arg.GetVar<Type::Int>()));
+        default:         break;
+        }
         return Arg{};
     }
     HashCase(mathName, U"ToUint")

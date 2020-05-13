@@ -527,41 +527,6 @@ struct NonMovable
 };
 
 
-[[nodiscard]] inline uint32_t TailZero(const uint32_t num) noexcept
-{
-#if COMPILER_MSVC
-    unsigned long idx = 0;
-    return _BitScanReverse(&idx, num) ? idx : UINT32_MAX;
-#else
-    return num == 0 ? UINT32_MAX : __builtin_ctz(num);
-#endif
-}
-
-[[nodiscard]] inline uint32_t TailZero(const uint64_t num) noexcept
-{
-#if COMPILER_MSVC
-    unsigned long idx = 0;
-#   if COMMON_OSBIT == 64
-    return _BitScanReverse64(&idx, num) ? idx : UINT32_MAX;
-#   else
-    if (!_BitScanReverse(&idx, static_cast<uint32_t>(num)))
-    {
-        return _BitScanReverse(&idx, static_cast<uint32_t>(num >> 32)) ? idx + 32 : UINT32_MAX;
-    }
-    return idx;
-#   endif
-#else
-#   if COMMON_OSBIT == 64
-    return num == 0 ? UINT32_MAX : __builtin_ctzl(num);
-#   else
-    if (num == 0) return UINT32_MAX;
-    const auto loCnt = TailZero(static_cast<uint32_t>(num));
-    return loCnt == UINT32_MAX ? TailZero(static_cast<uint32_t>(num >> 32)) + 32 : loCnt;
-#   endif
-#endif
-}
-
-
 }
 
 
