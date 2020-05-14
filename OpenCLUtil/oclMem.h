@@ -26,12 +26,26 @@ enum class MemFlag : cl_mem_flags
 };
 MAKE_ENUM_BITFIELD(MemFlag)
 
-[[nodiscard]] constexpr MemFlag AddMemHostCopyFlag(const MemFlag flag, const void* ptr)
+[[nodiscard]] constexpr bool CheckMemFlagDevAccess(const MemFlag flag) noexcept
 {
-    if (ptr != nullptr && (flag & MemFlag::UseHost) == MemFlag::Empty)
-        return flag | MemFlag::HostCopy;
+    const auto isReadOnly = HAS_FIELD(flag, MemFlag::ReadOnly)  ? 1 : 0,
+              isWriteOnly = HAS_FIELD(flag, MemFlag::WriteOnly) ? 1 : 0,
+              isReadWrite = HAS_FIELD(flag, MemFlag::ReadWrite) ? 1 : 0;
+    return isReadOnly + isWriteOnly + isReadWrite == 1;
+}
+[[nodiscard]] constexpr bool CheckMemFlagHostAccess(const MemFlag flag) noexcept
+{
+    const auto isReadOnly = HAS_FIELD(flag, MemFlag::HostReadOnly)  ? 1 : 0,
+              isWriteOnly = HAS_FIELD(flag, MemFlag::HostWriteOnly) ? 1 : 0,
+               isNoAccess = HAS_FIELD(flag, MemFlag::HostNoAccess)  ? 1 : 0;
+    return isReadOnly + isWriteOnly + isNoAccess <= 1;
+}
+[[nodiscard]] constexpr bool CheckMemFlagHostInit(const MemFlag flag) noexcept
+{
+    if (HAS_FIELD(flag, MemFlag::UseHost))
+        return (flag & MemFlag::HostInitMask) == MemFlag::UseHost;
     else
-        return flag;
+       return true;
 }
 
 enum class MapFlag : cl_map_flags
@@ -72,6 +86,7 @@ public:
     virtual ~oclMem_();
     [[nodiscard]] oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);
     void Flush(const oclCmdQue& que);
+    static MemFlag ProcessMemFlag(const oclContext_& context, MemFlag flag, const void* ptr);
 };
 
 

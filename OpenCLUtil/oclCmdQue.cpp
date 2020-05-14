@@ -9,14 +9,15 @@ MAKE_ENABLER_IMPL(oclCmdQue_)
 
 
 
-oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) 
-    : Context(ctx), Device(dev), CmdQue(nullptr)
+oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder) : 
+    Context(ctx), Device(dev), CmdQue(nullptr), 
+    IsProfiling(enableProfiling&& Device->SupportProfiling), IsOutOfOrder(enableOutOfOrder&& Device->SupportOutOfOrder)
 {
     cl_int errcode;
     cl_command_queue_properties props = 0;
-    if (enableProfiling && Device->SupportProfiling)
+    if (IsProfiling)
         props |= CL_QUEUE_PROFILING_ENABLE;
-    if (enableOutOfOrder && Device->SupportOutOfOrder)
+    if (IsOutOfOrder)
         props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
 
     CmdQue = clCreateCommandQueue(Context->Context, Device->DeviceID, props, &errcode);
@@ -31,6 +32,15 @@ oclCmdQue_::~oclCmdQue_()
     clReleaseCommandQueue(CmdQue);
 }
 
+void oclCmdQue_::AddBarrier(const bool force) const
+{
+    if (IsOutOfOrder || force)
+    {
+        const auto errcode = clEnqueueBarrier(CmdQue);
+        if (errcode != CL_SUCCESS)
+            COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"error when adding barrier to command queue");
+    }
+}
 
 void oclCmdQue_::Flush() const
 {

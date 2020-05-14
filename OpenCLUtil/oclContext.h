@@ -22,6 +22,7 @@ class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovabl
     friend class oclPlatform_;
     friend class oclCmdQue_;
     friend class oclProgram_;
+    friend class oclMem_;
     friend class oclBuffer_;
     friend class oclImage_;
 private:
@@ -41,7 +42,8 @@ private:
     const std::shared_ptr<const oclPlatform_> Plat;
     cl_context Context = nullptr;
 public:
-    std::vector<oclDevice> Devices;
+    const std::vector<oclDevice> Devices;
+    const uint32_t Version;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
     mutable common::Delegate<const std::u16string&> OnMessage;

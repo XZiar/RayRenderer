@@ -2,7 +2,19 @@
 #include "Nailang/ParserRely.h"
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
+#include "SystemCommon/MiscIntrins.h"
 #include <cmath>
+
+
+class TestCout : public std::stringstream
+{
+public:
+    ~TestCout()
+    {
+        testing::internal::ColoredPrintf(testing::internal::COLOR_GREEN, "[          ] "); 
+        testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s", str().c_str());
+    }
+};
 
 
 using namespace std::string_view_literals;
@@ -278,26 +290,6 @@ TEST(NailangRuntime, MathFunc)
         CHECK_ARG(arg, FP, std::pow(3.5, 4));
     }
     {
-        const auto arg = ParseEval(U"$Math.LeadZero(0b0001111);"sv);
-        CHECK_ARG(arg, Uint, 3);
-    }
-    {
-        const auto arg = ParseEval(U"$Math.LeadZero(0b0);"sv);
-        CHECK_ARG(arg, Uint, 64);
-    }
-    {
-        const auto arg = ParseEval(U"$Math.TailZero(0b110000);"sv);
-        CHECK_ARG(arg, Uint, 4);
-    }
-    {
-        const auto arg = ParseEval(U"$Math.TailZero(0b0);"sv);
-        CHECK_ARG(arg, Uint, 64);
-    }
-    {
-        const auto arg = ParseEval(U"$Math.PopCount(0b10101010);"sv);
-        CHECK_ARG(arg, Uint, 4);
-    }
-    {
         const auto arg = ParseEval(U"$Math.ToUint(-100);"sv);
         CHECK_ARG(arg, Uint, static_cast<uint64_t>(-100));
     }
@@ -315,6 +307,42 @@ TEST(NailangRuntime, MathFunc)
     }
 }
 
+
+TEST(NailangRuntime, MathIntrinFunc)
+{
+    MemoryPool pool;
+    const auto ParseEval = [&](const std::u32string_view src)
+    {
+        ParserContext context(src);
+        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        NailangRT runtime;
+        return runtime.EvaluateArg(*rawarg);
+    };
+    for (const auto& [inst, var] : common::MiscIntrins::GetIntrinMap())
+    {
+        TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
+    }
+    {
+        const auto arg = ParseEval(U"$Math.LeadZero(0b0001111);"sv);
+        CHECK_ARG(arg, Uint, 60);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.LeadZero(0b0);"sv);
+        CHECK_ARG(arg, Uint, 64);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.TailZero(0b110000);"sv);
+        CHECK_ARG(arg, Uint, 4);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.TailZero(0b0);"sv);
+        CHECK_ARG(arg, Uint, 64);
+    }
+    {
+        const auto arg = ParseEval(U"$Math.PopCount(0b10101010);"sv);
+        CHECK_ARG(arg, Uint, 4);
+    }
+}
 
 
 #define LOOKUP_ARG(rt, name, type, val) do      \

@@ -23,7 +23,7 @@ class OCLUAPI oclCmdQue_ : public common::NonCopyable
     friend class oclContext_;
     friend class oclMem_;
     friend class oclMapPtr_;
-    friend class oclBuffer_;
+    friend class oclSubBuffer_;
     friend class oclImage_;
     friend class oclProgram_;
     friend class oclKernel_;
@@ -32,9 +32,11 @@ private:
     const oclContext Context;
     const oclDevice Device;
     cl_command_queue CmdQue;
+    const bool IsProfiling, IsOutOfOrder;
     oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder);
 public:
     ~oclCmdQue_();
+    void AddBarrier(const bool force = false) const;
     void Flush() const;
     void Finish() const;
     [[nodiscard]] bool SupportImplicitGLSync() const { return Device->SupportImplicitGLSync; }

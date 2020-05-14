@@ -13,21 +13,21 @@
 namespace oclu
 {
 class oclBuffer_;
+class oclSubBuffer_;
 using oclBuffer = std::shared_ptr<oclBuffer_>;
+using oclSubBuffer = std::shared_ptr<oclSubBuffer_>;
 
-class OCLUAPI oclBuffer_ : public oclMem_
+class OCLUAPI oclSubBuffer_ : public oclMem_
 {
     friend class oclKernel_;
     friend class oclContext_;
-private:
-    MAKE_ENABLER();
 protected:
-    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
-    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
+    MAKE_ENABLER();
+    oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
     virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
 public:
     const size_t Size;
-    virtual ~oclBuffer_();
+    virtual ~oclSubBuffer_();
     [[nodiscard]] common::PromiseResult<void> ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0) const;
     [[nodiscard]] common::PromiseResult<void> ReadSpan(const oclCmdQue& que, common::span<std::byte> buf, const size_t offset = 0) const
     {
@@ -85,6 +85,24 @@ public:
         return WriteSpan({}, que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
     }
 
+};
+
+
+class OCLUAPI oclBuffer_ : public oclSubBuffer_
+{
+    friend class oclKernel_;
+    friend class oclContext_;
+private:
+    MAKE_ENABLER();
+protected:
+    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
+    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
+public:
+    [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size, MemFlag flag) const;
+    [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size) const
+    { 
+        return CreateSubBuffer(offset, size, Flag);
+    }
     [[nodiscard]] static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };
 

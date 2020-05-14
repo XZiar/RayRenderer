@@ -9,6 +9,7 @@ namespace oclu
 {
 using common::BaseException;
 using common::PromiseResult;
+MAKE_ENABLER_IMPL(oclSubBuffer_)
 MAKE_ENABLER_IMPL(oclBuffer_)
 
 
@@ -21,23 +22,18 @@ static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t s
     return id;
 }
 
-oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
+oclSubBuffer_::oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
     : oclMem_(ctx, id, flag), Size(size)
 {
 }
 
-oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
-    : oclBuffer_(ctx, flag, size, CreateMem(ctx->Context, flag, size, ptr))
-{
-}
-
-oclBuffer_::~oclBuffer_()
+oclSubBuffer_::~oclSubBuffer_()
 { 
     if (Context->ShouldDebugResurce())
         oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
 }
 
-common::span<std::byte> oclBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
+common::span<std::byte> oclSubBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
 {
     cl_event e;
     cl_int ret;
@@ -47,7 +43,7 @@ common::span<std::byte> oclBuffer_::MapObject(const cl_command_queue& que, const
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Size);
 }
 
-PromiseResult<void> oclBuffer_::ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf, const size_t offset) const
+PromiseResult<void> oclSubBuffer_::ReadSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<std::byte> buf, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // read size overflow
@@ -60,7 +56,7 @@ PromiseResult<void> oclBuffer_::ReadSpan(const common::PromiseStub& pmss, const 
     return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
-common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const common::PromiseStub& pmss, const oclCmdQue& que, const size_t offset) const
+common::PromiseResult<common::AlignedBuffer> oclSubBuffer_::Read(const common::PromiseStub& pmss, const oclCmdQue& que, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     const auto size = Size - offset;
@@ -74,7 +70,7 @@ common::PromiseResult<common::AlignedBuffer> oclBuffer_::Read(const common::Prom
     return oclPromise<common::AlignedBuffer>::Create(std::move(clpmss), e, que, std::move(buf));
 }
 
-PromiseResult<void> oclBuffer_::WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
+PromiseResult<void> oclSubBuffer_::WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
 {
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // write size overflow
@@ -87,9 +83,57 @@ PromiseResult<void> oclBuffer_::WriteSpan(const common::PromiseStub& pmss, const
     return oclPromise<void>::Create(std::move(clpmss), e, que);
 }
 
+
+oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
+    : oclSubBuffer_(ctx, flag, size, id)
+{
+}
+
+oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
+    : oclSubBuffer_(ctx, flag, size, CreateMem(ctx->Context, flag, size, ptr))
+{
+}
+
+oclSubBuffer oclBuffer_::CreateSubBuffer(const size_t offset, const size_t size, MemFlag flag) const
+{
+    if (Context->Version < 11)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer not supported on pre 1.1");
+
+    if (offset >= Size || (offset + size) >= Size)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer region overflow");
+    if (size == 0)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Cannot create sub-buffer of 0");
+
+    flag = oclMem_::ProcessMemFlag(*Context, flag, nullptr);
+
+    if (HAS_FIELD(flag, MemFlag::HostInitMask))
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer does not support initMask");
+
+    if (const auto devAccess = flag & MemFlag::DeviceAccessMask, parentFlag = Flag & MemFlag::DeviceAccessMask;
+        devAccess == MemFlag::Empty)
+        flag |= Flag & MemFlag::DeviceAccessMask;
+    else if (!HAS_FIELD(Flag, MemFlag::ReadWrite) && devAccess != parentFlag)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer conflicts parent's DeviceAccess");
+
+    if (const auto hostAccess = flag & MemFlag::HostAccessMask, parentFlag = Flag & MemFlag::HostAccessMask;
+        hostAccess == MemFlag::Empty)
+        flag |= parentFlag;
+    else if (parentFlag != MemFlag::Empty && hostAccess != parentFlag)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer conflicts parent's HostAccess");
+
+    cl_buffer_region region{ offset, size };
+    cl_int errcode;
+    const auto id = clCreateSubBuffer(MemID, common::enum_cast(flag), CL_BUFFER_CREATE_TYPE_REGION, &region, &errcode);
+
+    if (errcode != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create sub-buffer");
+
+    return MAKE_ENABLER_SHARED(oclSubBuffer_, (Context, flag, size, id));
+}
+
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
 {
-    return MAKE_ENABLER_SHARED(oclBuffer_, (ctx, AddMemHostCopyFlag(flag, ptr), size, ptr));
+    return MAKE_ENABLER_SHARED(oclBuffer_, (ctx, oclMem_::ProcessMemFlag(*ctx, flag, ptr), size, ptr));
 }
 
 

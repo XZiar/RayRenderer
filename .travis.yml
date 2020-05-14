@@ -19,6 +19,7 @@ jobs:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - util-linux
             - nasm
             - unzip
             - python3-pip
@@ -49,6 +50,7 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-8
+            - util-linux
             - nasm
             - unzip
             - python3-pip
@@ -79,6 +81,7 @@ jobs:
             - ubuntu-toolchain-r-test
           packages:
             - g++-9
+            - util-linux
             - nasm
             - unzip
             - python3-pip
@@ -112,6 +115,7 @@ jobs:
             - clang-7
             - lld-7
             #- binutils-dev
+            - util-linux
             - nasm
             - unzip
             - python3-pip
@@ -145,6 +149,7 @@ jobs:
             - clang-8
             - lld-8
             #- binutils-dev
+            - util-linux
             - nasm
             - unzip
             - python3-pip
@@ -192,6 +197,7 @@ before_script:
   - python3 -m pip install pip
   - python3 -m pip install chardet
   - nasm -v
+  - lacpu
 
 script:
   - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5

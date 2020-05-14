@@ -13,7 +13,7 @@ uint32_t LeadZero32_OS(const uint32_t num) noexcept
 {
 #if COMPILER_MSVC
     unsigned long idx = 0;
-    return _BitScanReverse(&idx, num) ? idx : 32;
+    return _BitScanReverse(&idx, num) ? 31 - idx : 32;
 #else
     return num == 0 ? 32 : __builtin_clz(num);
 #endif
@@ -23,13 +23,13 @@ uint32_t LeadZero64_OS(const uint64_t num) noexcept
 #if COMPILER_MSVC
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
-    return _BitScanReverse64(&idx, num) ? idx : 64;
+    return _BitScanReverse64(&idx, num) ? 63 - idx : 64;
 #   else
     const auto lo = static_cast<uint32_t>(num), hi = static_cast<uint32_t>(num >> 32);
     if (!_BitScanReverse(&idx, hi))
-        return _BitScanReverse(&idx, lo) ? idx + 32 : 64;
+        return _BitScanReverse(&idx, lo) ? 63 - idx : 64;
     else
-        return idx;
+        return 31 - idx;
 #   endif
 #else
     return num == 0 ? 64 : __builtin_clzll(num);

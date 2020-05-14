@@ -293,7 +293,7 @@ PromiseResult<void> oclImage_::Write(const common::PromiseStub& pmss, const oclC
 }
 
 oclImage2D_::oclImage2D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const TextureFormat format, const void* ptr)
-    : oclImage_(ctx, AddMemHostCopyFlag(flag, ptr), width, height, 1, format, CL_MEM_OBJECT_IMAGE2D, ptr)
+    : oclImage_(ctx, oclMem_::ProcessMemFlag(*ctx, flag, ptr), width, height, 1, format, CL_MEM_OBJECT_IMAGE2D, ptr)
 { }
 
 oclImg2D oclImage2D_::Create(const oclContext & ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const void* ptr)
@@ -303,7 +303,7 @@ oclImg2D oclImage2D_::Create(const oclContext & ctx, const MemFlag flag, const u
 
 
 oclImage3D_::oclImage3D_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const void* ptr)
-    : oclImage_(ctx, AddMemHostCopyFlag(flag, ptr), width, height, depth, format, CL_MEM_OBJECT_IMAGE3D, ptr)
+    : oclImage_(ctx, oclMem_::ProcessMemFlag(*ctx, flag, ptr), width, height, depth, format, CL_MEM_OBJECT_IMAGE3D, ptr)
 { }
 oclImg3D oclImage3D_::Create(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const void* ptr)
 {

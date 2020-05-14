@@ -83,6 +83,9 @@
     <ProjectReference Include="..\..\Nailang\Nailang.vcxproj">
       <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
+      <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
