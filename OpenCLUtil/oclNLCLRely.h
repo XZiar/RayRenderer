@@ -83,6 +83,7 @@ protected:
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::unique_ptr<NLCLReplacer> Replacer;
+    std::vector<std::pair<std::string, std::vector<KernelArgInfo>>> CompiledKernels;
     
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;

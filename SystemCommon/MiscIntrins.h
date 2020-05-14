@@ -23,9 +23,13 @@ public:
     [[nodiscard]] static forceinline uint32_t LeadZero(const T num) noexcept
     {
         static_assert(std::is_integral_v<T>, "only integer allowed");
-        if constexpr (sizeof(T) <= 4)
+        if constexpr (sizeof(T) == 1)
+            return LeadZero32(static_cast<uint8_t>(num));
+        else if constexpr (sizeof(T) == 2)
+            return LeadZero32(static_cast<uint16_t>(num));
+        else if constexpr (sizeof(T) == 4)
             return LeadZero32(static_cast<uint32_t>(num));
-        else if constexpr (sizeof(T) <= 8)
+        else if constexpr (sizeof(T) == 8)
             return LeadZero64(static_cast<uint64_t>(num));
         else
             static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
@@ -34,9 +38,13 @@ public:
     [[nodiscard]] static forceinline uint32_t TailZero(const T num) noexcept
     {
         static_assert(std::is_integral_v<T>, "only integer allowed");
-        if constexpr (sizeof(T) <= 4)
+        if constexpr (sizeof(T) == 1)
+            return TailZero32(static_cast<uint8_t>(num));
+        else if constexpr (sizeof(T) == 2)
+            return TailZero32(static_cast<uint16_t>(num));
+        else if constexpr (sizeof(T) == 4)
             return TailZero32(static_cast<uint32_t>(num));
-        else if constexpr (sizeof(T) <= 8)
+        else if constexpr (sizeof(T) == 8)
             return TailZero64(static_cast<uint64_t>(num));
         else
             static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
@@ -45,9 +53,13 @@ public:
     [[nodiscard]] static forceinline uint32_t PopCount(const T num) noexcept
     {
         static_assert(std::is_integral_v<T>, "only integer allowed");
-        if constexpr (sizeof(T) <= 4)
+        if constexpr (sizeof(T) == 1)
+            return PopCount32(static_cast<uint8_t>(num));
+        else if constexpr (sizeof(T) == 2)
+            return PopCount32(static_cast<uint16_t>(num));
+        else if constexpr (sizeof(T) == 4)
             return PopCount32(static_cast<uint32_t>(num));
-        else if constexpr (sizeof(T) <= 8)
+        else if constexpr (sizeof(T) == 8)
             return PopCount64(static_cast<uint64_t>(num));
         else
             static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");

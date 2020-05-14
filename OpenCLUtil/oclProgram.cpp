@@ -62,14 +62,16 @@ static uint32_t GetKernelInfoInt(cl_kernel kernel, cl_kernel_info param)
     clGetKernelInfo(kernel, param, sizeof(uint32_t), &ret, &dummy);
     return ret;
 }
-static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
+static std::unique_ptr<KernelArgInfo[]> GerKernelArgsInfo(cl_kernel kernel, uint32_t& count)
 {
-    vector<KernelArgInfo> infos;
-    const uint32_t count = GetKernelInfoInt(kernel, CL_KERNEL_NUM_ARGS);
+    count = GetKernelInfoInt(kernel, CL_KERNEL_NUM_ARGS);
+    if (count == 0) return {};
+
+    std::unique_ptr<KernelArgInfo[]> infos(new KernelArgInfo[count]);
     for (uint32_t i = 0; i < count; ++i)
     {
+        auto& info = infos[i];
         size_t size = 0;
-        KernelArgInfo info;
 
         cl_kernel_arg_address_qualifier space;
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &size);
@@ -104,8 +106,6 @@ static vector<KernelArgInfo> GerKernelArgsInfo(cl_kernel kernel)
         info.Type.resize(size, '\0');
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, size, info.Type.data(), &size);
         if (size > 0) info.Type.pop_back();
-
-        infos.push_back(info);
     }
     return infos;
 }
@@ -116,7 +116,10 @@ oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string
     KernelID = clCreateKernel(Prog.ProgID, Name.data(), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"canot create kernel from program");
-    ArgsInfo = GerKernelArgsInfo(KernelID);
+    if (this->Prog.Context->Version >= 12)
+        ArgsInfo = GerKernelArgsInfo(KernelID, ArgCount);
+    else
+        ArgCount = 0;
 }
 
 oclKernel_::~oclKernel_()
@@ -133,7 +136,7 @@ WorkGroupInfo oclKernel_::GetWorkGroupInfo() const
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &info.WorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &info.CompiledWorkGroupSize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
-    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"))
+    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
         clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_SPILL_MEM_SIZE_INTEL, sizeof(uint64_t), &info.SpillMemSize, nullptr);
     else
         info.SpillMemSize = 0;
@@ -144,13 +147,13 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const
 {
     if (!Plat.FuncClGetKernelSubGroupInfo)
         return {};
-    if (!Prog.Device->Extensions.Has("cl_khr_subgroups") && !Prog.Device->Extensions.Has("cl_intel_subgroups"))
+    if (!Prog.Device->Extensions.Has("cl_khr_subgroups"sv) && !Prog.Device->Extensions.Has("cl_intel_subgroups"sv))
         return {};
     SubgroupInfo info;
     const auto devid = Prog.Device->DeviceID;
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
-    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"))
+    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
         Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
     else
         info.CompiledSubgroupSize = 0;
@@ -163,14 +166,22 @@ oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
     Kernel(kernel->Prog.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
 { }
 
-void oclKernel_::CallSiteInternal::CheckArgIdx(const uint32_t idx) const
+const KernelArgInfo* oclKernel_::CallSiteInternal::CheckArgIdx(const uint32_t idx) const
 {
-    if (idx >= Kernel->ArgsInfo.size())
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
+    if (Kernel->ArgsInfo)
+    {
+        if (idx >= Kernel->ArgCount)
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
+        else
+            return &Kernel->ArgsInfo[idx];
+    }
+    return nullptr;
 }
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
 {
+    if (const auto info = CheckArgIdx(idx); info && info->IsImage())
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"non-image is set to an image kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
@@ -178,7 +189,8 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ &
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & img) const
 {
-    CheckArgIdx(idx);
+    if (const auto info = CheckArgIdx(idx); info && !info->IsImage())
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"image is set to an non-image kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");

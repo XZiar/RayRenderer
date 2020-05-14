@@ -55,6 +55,7 @@ struct OCLUAPI KernelArgInfo
     std::string_view GetSpace() const;
     std::string_view GetImgAccess() const;
     std::string GetQualifier() const;
+    constexpr bool IsImage() const noexcept { return Access != ImgAccess::None; }
 };
 
 
@@ -67,6 +68,8 @@ private:
     const oclProgram_& Prog;
     cl_kernel KernelID;
     mutable common::SpinLocker ArgLock;
+    std::unique_ptr<KernelArgInfo[]> ArgsInfo;
+    uint32_t ArgCount;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
     template<size_t N>
     [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
@@ -82,7 +85,7 @@ private:
         common::SpinLocker::ScopeType KernelLock;
 
         CallSiteInternal(const oclKernel_* kernel);
-        void CheckArgIdx(const uint32_t idx) const;
+        const KernelArgInfo* CheckArgIdx(const uint32_t idx) const;
         void SetArg(const uint32_t idx, const oclBuffer_& buf) const;
         void SetArg(const uint32_t idx, const oclImage_& img) const;
         void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
@@ -144,11 +147,11 @@ private:
     };
 public:
     std::string Name;
-    std::vector<KernelArgInfo> ArgsInfo;
     ~oclKernel_();
 
     [[nodiscard]] WorkGroupInfo GetWorkGroupInfo() const;
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
+    [[nodiscard]] common::span<const KernelArgInfo> GetArgInfos() const noexcept { return { ArgsInfo.get(), ArgCount }; }
     template<uint8_t N>
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const size_t(&localsize)[N]) const
     {
@@ -159,8 +162,6 @@ public:
     [[nodiscard]] auto Call(Args&&... args) const
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
-        if (sizeof...(Args) != ArgsInfo.size())
-            COMMON_THROW(common::BaseException, u"Argument parameter provided does not match parameter needed.");
         return KernelCallSite<N, Args...>(this, std::forward<Args>(args)...);
     }
 

@@ -197,7 +197,7 @@ before_script:
   - python3 -m pip install pip
   - python3 -m pip install chardet
   - nasm -v
-  - lacpu
+  - lscpu
 
 script:
   - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5

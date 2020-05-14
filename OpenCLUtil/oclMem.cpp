@@ -90,7 +90,7 @@ MemFlag oclMem_::ProcessMemFlag(const oclContext_& context, MemFlag flag, const 
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"MemFlag's HostAccess conflict");
     if (!CheckMemFlagHostInit(flag))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"MemFlag's HostInit conflict");
-    if (HAS_FIELD(flag, MemFlag::UseHost) && ptr != nullptr)
+    if (!HAS_FIELD(flag, MemFlag::UseHost) && ptr != nullptr)
         flag |= MemFlag::HostCopy;
     if (context.Version < 12)
         flag = REMOVE_MASK(flag, MemFlag::HostAccessMask);

@@ -1,5 +1,5 @@
 
-const sampler_t defsampler = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_NONE | CLK_FILTER_LINEAR;
+constant sampler_t defsampler = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_NONE | CLK_FILTER_LINEAR;
 
 typedef struct Info
 {

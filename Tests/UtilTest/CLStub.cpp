@@ -190,7 +190,7 @@ static void OCLStub()
                         const auto& info = sgInfo.value();
                         log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
                     }
-                    for (const auto& arg : ker->ArgsInfo)
+                    for (const auto& arg : ker->GetArgInfos())
                     {
                         log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
                     }

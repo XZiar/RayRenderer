@@ -89,7 +89,7 @@ uint32_t PopCount64_NAIVE(const uint64_t num) noexcept
 }
 
 
-#if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && defined(__LZCNT__))
+#if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
 #   define VAR_HAS_LZCNT 1
 uint32_t LeadZero32_LZCNT(const uint32_t num) noexcept
 {
@@ -195,6 +195,8 @@ void MiscIntrins::InitIntrins() noexcept
 #define UseIfExist(func, variant, feat) PPCAT(SetFunc, PPCAT(VAR_HAS_, variant))(func, variant, TestFeature(feat))
 #define FallbackTo(func, variant) PPCAT(SetFunc, PPCAT(VAR_HAS_, variant))(func, variant, true)
 
+    UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_BMI1);
+    UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_BMI1);
     UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_ABM);
     UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_ABM);
     FallbackTo(LeadZero32, OS);

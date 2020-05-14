@@ -649,6 +649,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     dst.append(U")\r\n{\r\n"sv);
     DirectOutput(block, metas, dst);
     dst.append(U"}\r\n"sv);
+    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32LE), argInfos);
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
