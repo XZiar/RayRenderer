@@ -318,7 +318,7 @@ TEST(NailangRuntime, MathIntrinFunc)
         NailangRT runtime;
         return runtime.EvaluateArg(*rawarg);
     };
-    for (const auto& [inst, var] : common::MiscIntrins::GetIntrinMap())
+    for (const auto& [inst, var] : common::MiscIntrin.GetIntrinMap())
     {
         TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
     }

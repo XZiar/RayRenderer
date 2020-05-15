@@ -769,8 +769,8 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto arg = EvaluateFuncArgs<1>(call)[0];
         switch (arg.TypeData)
         {
-        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::LeadZero(arg.GetVar<Type::Uint>()));
-        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::LeadZero(arg.GetVar<Type::Int>()));
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Int>()));
         default:         break;
         }
         return Arg{};
@@ -780,8 +780,8 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto arg = EvaluateFuncArgs<1>(call)[0];
         switch (arg.TypeData)
         {
-        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::TailZero(arg.GetVar<Type::Uint>()));
-        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::TailZero(arg.GetVar<Type::Int>()));
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Int>()));
         default:         break;
         }
         return Arg{};
@@ -791,8 +791,8 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto arg = EvaluateFuncArgs<1>(call)[0];
         switch (arg.TypeData)
         {
-        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrins::PopCount(arg.GetVar<Type::Uint>()));
-        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrins::PopCount(arg.GetVar<Type::Int>()));
+        case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Uint>()));
+        case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Int>()));
         default:         break;
         }
         return Arg{};

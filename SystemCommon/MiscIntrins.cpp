@@ -3,24 +3,62 @@
 #include "common/SIMD.hpp"
 #include "cpuid/libcpuid.h"
 
+#pragma message("Compiling MiscIntrins with " STRINGIZE(COMMON_SIMD_INTRIN) )
+
 namespace common
 {
-
-#define VAR_HAS_OS 1
-#define VAR_HAS_NAIVE 1
-
-uint32_t LeadZero32_OS(const uint32_t num) noexcept
+namespace intrin
 {
+struct LeadZero32 { using RetType = uint32_t; };
+struct LeadZero64 { using RetType = uint32_t; };
+struct TailZero32 { using RetType = uint32_t; };
+struct TailZero64 { using RetType = uint32_t; };
+struct PopCount32 { using RetType = uint32_t; };
+struct PopCount64 { using RetType = uint32_t; };
+struct ByteSwap16 { using RetType = uint16_t; };
+struct ByteSwap32 { using RetType = uint32_t; };
+struct ByteSwap64 { using RetType = uint64_t; };
+
+struct NAIVE {};
+struct OS {};
+struct LZCNT {};
+struct TZCNT {};
+struct POPCNT {};
+struct BMI1 {};
+}
+template<typename Intrin, typename Method>
+constexpr bool CheckExists() noexcept 
+{
+    return false;
+}
+template<typename Intrin, typename Method, typename F>
+constexpr void InjectFunc(F& func) noexcept
+{
+    func = nullptr;
+}
+
+
+#define DEFINE_INTRIN_METHOD(func, var, ...) \
+template<> \
+constexpr bool CheckExists<intrin::func, intrin::var>() noexcept \
+{ return true; } \
+static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept; \
+template<> \
+constexpr void InjectFunc<intrin::func, intrin::var>(decltype(&func##_##var)& f) noexcept \
+{ f = func##_##var; } \
+static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept \
+
+
+
 #if COMPILER_MSVC
+
+DEFINE_INTRIN_METHOD(LeadZero32, OS, const uint32_t num)
+{
     unsigned long idx = 0;
     return _BitScanReverse(&idx, num) ? 31 - idx : 32;
-#else
-    return num == 0 ? 32 : __builtin_clz(num);
-#endif
 }
-uint32_t LeadZero64_OS(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(LeadZero64, OS, const uint64_t num)
 {
-#if COMPILER_MSVC
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
     return _BitScanReverse64(&idx, num) ? 63 - idx : 64;
@@ -31,23 +69,15 @@ uint32_t LeadZero64_OS(const uint64_t num) noexcept
     else
         return 31 - idx;
 #   endif
-#else
-    return num == 0 ? 64 : __builtin_clzll(num);
-#endif
 }
 
-uint32_t TailZero32_OS(const uint32_t num) noexcept
+DEFINE_INTRIN_METHOD(TailZero32, OS, const uint32_t num)
 {
-#if COMPILER_MSVC
     unsigned long idx = 0;
     return _BitScanForward(&idx, num) ? idx : 32;
-#else
-    return num == 0 ? 32 : __builtin_ctz(num);
-#endif
 }
-uint32_t TailZero64_OS(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(TailZero64, OS, const uint64_t num)
 {
-#if COMPILER_MSVC
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
     return _BitScanForward64(&idx, num) ? idx : 64;
@@ -57,30 +87,63 @@ uint32_t TailZero64_OS(const uint64_t num) noexcept
         return _BitScanForward(&idx, hi) ? idx + 32 : 64;
     else
         return idx;
-#   endif
-#else
-    return num == 0 ? 64 : __builtin_ctzll(num);
 #endif
 }
 
-#if !COMPILER_MSVC
-uint32_t PopCount32_OS(const uint32_t num) noexcept
+#elif COMPILER_GCC || COMPILER_CLANG
+
+DEFINE_INTRIN_METHOD(LeadZero32, OS, const uint32_t num)
+{
+    return num == 0 ? 32 : __builtin_clz(num);
+}
+DEFINE_INTRIN_METHOD(LeadZero64, OS, const uint64_t num)
+{
+    return num == 0 ? 64 : __builtin_clzll(num);
+}
+
+DEFINE_INTRIN_METHOD(TailZero32, OS, const uint32_t num)
+{
+    return num == 0 ? 32 : __builtin_ctz(num);
+}
+DEFINE_INTRIN_METHOD(TailZero64, OS, const uint64_t num)
+{
+    return num == 0 ? 64 : __builtin_ctzll(num);
+}
+
+DEFINE_INTRIN_METHOD(PopCount32, OS, const uint32_t num)
 {
     return __builtin_popcount(num);
 }
-uint32_t PopCount64_OS(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(PopCount64, OS, const uint64_t num)
 {
     return __builtin_popcountll(num);
 }
+
 #endif
-uint32_t PopCount32_NAIVE(const uint32_t num) noexcept
+
+
+//DEFINE_INTRIN_METHOD(LeadZero32, NAIVE, const uint32_t num)
+//{
+//}
+//DEFINE_INTRIN_METHOD(LeadZero64, NAIVE, const uint64_t num)
+//{
+//}
+
+//DEFINE_INTRIN_METHOD(TailZero32, NAIVE, const uint32_t num)
+//{
+//}
+//DEFINE_INTRIN_METHOD(TailZero64, NAIVE, const uint64_t num)
+//{
+//}
+
+DEFINE_INTRIN_METHOD(PopCount32, NAIVE, const uint32_t num)
 {
     auto tmp = num - ((num >> 1) & 0x55555555u);
     tmp = (tmp & 0x33333333u) + ((tmp >> 2) & 0x33333333u);
     tmp = (tmp + (tmp >> 4)) & 0x0f0f0f0fu;
     return (tmp * 0x01010101u) >> 24;
 }
-uint32_t PopCount64_NAIVE(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(PopCount64, NAIVE, const uint64_t num)
 {
     auto tmp = num - ((num >> 1) & 0x5555555555555555u);
     tmp = (tmp & 0x3333333333333333u) + ((tmp >> 2) & 0x3333333333333333u);
@@ -90,12 +153,12 @@ uint32_t PopCount64_NAIVE(const uint64_t num) noexcept
 
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
-#   define VAR_HAS_LZCNT 1
-uint32_t LeadZero32_LZCNT(const uint32_t num) noexcept
+
+DEFINE_INTRIN_METHOD(LeadZero32, LZCNT, const uint32_t num)
 {
     return _lzcnt_u32(num);
 }
-uint32_t LeadZero64_LZCNT(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(LeadZero64, LZCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_lzcnt_u64(num));
@@ -105,18 +168,17 @@ uint32_t LeadZero64_LZCNT(const uint64_t num) noexcept
     return hiCnt == 32 ? _lzcnt_u32(lo) + 32 : hiCnt;
 #   endif
 }
-#else
-#   define VAR_HAS_LZCNT 0
+
 #endif
 
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && defined(__BMI__))
-#   define VAR_HAS_BMI1 1
-uint32_t TailZero32_BMI1(const uint32_t num) noexcept
+
+DEFINE_INTRIN_METHOD(TailZero32, TZCNT, const uint32_t num)
 {
     return _tzcnt_u32(num);
 }
-uint32_t TailZero64_BMI1(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(TailZero64, TZCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_tzcnt_u64(num));
@@ -126,18 +188,17 @@ uint32_t TailZero64_BMI1(const uint64_t num) noexcept
     return loCnt == 32 ? _tzcnt_u32(hi) + 32 : loCnt;
 #   endif
 }
-#else
-#   define VAR_HAS_BMI1 0
+
 #endif
 
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 42*/) || (!COMPILER_MSVC && defined(__POPCNT__))
-#   define VAR_HAS_POPCNT 1
-uint32_t PopCount32_POPCNT(const uint32_t num) noexcept
+
+DEFINE_INTRIN_METHOD(PopCount32, POPCNT, const uint32_t num)
 {
     return _mm_popcnt_u32(num);
 }
-uint32_t PopCount64_POPCNT(const uint64_t num) noexcept
+DEFINE_INTRIN_METHOD(PopCount64, POPCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_mm_popcnt_u64(num));
@@ -146,54 +207,28 @@ uint32_t PopCount64_POPCNT(const uint64_t num) noexcept
     return _mm_popcnt_u32(lo) + _mm_popcnt_u32(hi);
 #   endif
 }
-#else
-#   define VAR_HAS_POPCNT 0
+
 #endif
 
 
-uint32_t (*MiscIntrins::LeadZero32)(const uint32_t) noexcept = nullptr;
-uint32_t (*MiscIntrins::LeadZero64)(const uint64_t) noexcept = nullptr;
-uint32_t (*MiscIntrins::TailZero32)(const uint32_t) noexcept = nullptr;
-uint32_t (*MiscIntrins::TailZero64)(const uint64_t) noexcept = nullptr;
-uint32_t (*MiscIntrins::PopCount32)(const uint32_t) noexcept = nullptr;
-uint32_t (*MiscIntrins::PopCount64)(const uint64_t) noexcept = nullptr;
-
-
-static std::vector<std::pair<std::string_view, std::string_view>>& GetVariantMap()
+MiscIntrins::MiscIntrins() noexcept
 {
-    static std::vector<std::pair<std::string_view, std::string_view>> variantMap;
-    return variantMap;
-}
+    const auto& data = GetCPUInfo();
 
-void MiscIntrins::InitIntrins() noexcept
-{
-    struct cpu_id_t data;
-    bool cpuidOK = false;
-    if (cpuid_present())
-    {
-        struct cpu_raw_data_t raw;
-        if (cpuid_get_raw_data(&raw) >= 0)
-        {
-            if (cpu_identify(&raw, &data) >= 0)
-                cpuidOK = true;
-        }
-    }
-    auto& variantMap = GetVariantMap();
-
-#define TestFeature(feat) (cpuidOK && data.flags[feat])
-#define SetFunc0(func, variant, test) ((void)0)
-#define SetFunc1(func, variant, test) \
-    do \
+#define TestFeature(feat) (data.has_value() && data->flags[feat])
+#define SetFunc(func, variant, test) do \
     { \
-        if (func == nullptr && test) \
+        if constexpr (CheckExists<intrin::func, intrin::variant>()) \
         { \
-            func = func##_##variant; \
-            variantMap.emplace_back(STRINGIZE(func), STRINGIZE(variant)); \
+            if (func == nullptr && test) \
+            { \
+                InjectFunc<intrin::func, intrin::variant>(func); \
+                VariantMap.emplace_back(STRINGIZE(func), STRINGIZE(variant)); \
+            } \
         } \
     } while(0)
-
-#define UseIfExist(func, variant, feat) PPCAT(SetFunc, PPCAT(VAR_HAS_, variant))(func, variant, TestFeature(feat))
-#define FallbackTo(func, variant) PPCAT(SetFunc, PPCAT(VAR_HAS_, variant))(func, variant, true)
+#define UseIfExist(func, variant, feat) SetFunc(func, variant, TestFeature(feat))
+#define FallbackTo(func, variant) SetFunc(func, variant, true)
 
     UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_BMI1);
     UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_BMI1);
@@ -202,38 +237,24 @@ void MiscIntrins::InitIntrins() noexcept
     FallbackTo(LeadZero32, OS);
     FallbackTo(LeadZero64, OS);
 
-    UseIfExist(TailZero32, BMI1, CPU_FEATURE_BMI1);
-    UseIfExist(TailZero64, BMI1, CPU_FEATURE_BMI1);
+    UseIfExist(TailZero32, TZCNT, CPU_FEATURE_BMI1);
+    UseIfExist(TailZero64, TZCNT, CPU_FEATURE_BMI1);
     FallbackTo(TailZero32, OS);
     FallbackTo(TailZero64, OS);
 
     UseIfExist(PopCount32, POPCNT, CPU_FEATURE_POPCNT);
     UseIfExist(PopCount64, POPCNT, CPU_FEATURE_POPCNT);
-#if !COMPILER_MSVC
     FallbackTo(PopCount32, OS);
     FallbackTo(PopCount64, OS);
-#endif
     FallbackTo(PopCount32, NAIVE);
     FallbackTo(PopCount64, NAIVE);
 
 #undef TestFeature
-#undef SetFunc0
-#undef SetFunc1
+#undef SetFunc
 #undef UseIfExist
 #undef FallbackTo
 }
 
-common::span<std::pair<std::string_view, std::string_view>> MiscIntrins::GetIntrinMap() noexcept
-{
-    return GetVariantMap();
-}
-
-uint32_t InnerInject() noexcept
-{
-    // printf("==[BulitinMisc]==\tRegister here.\n");
-    return RegisterInitializer(&MiscIntrins::InitIntrins);
-}
-
-static uint32_t Dummy = InnerInject();
+const MiscIntrins MiscIntrin;
 
 }

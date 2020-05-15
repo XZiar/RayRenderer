@@ -22,57 +22,78 @@ static uint32_t GetWinBuildImpl()
     return 0;
 }
 
-uint32_t GetWinBuildNumber()
+uint32_t GetWinBuildNumber() noexcept
 {
     static uint32_t verNum = GetWinBuildImpl();
     return verNum;
 }
 #endif
 
-static std::vector<void(*)()noexcept>& GetInitializerMap() noexcept
-{
-    static std::vector<void(*)()noexcept> initializers;
-    return initializers;
-}
 
-uint32_t RegisterInitializer(void(*func)()noexcept) noexcept
+[[nodiscard]] const std::optional<cpu_id_t>& GetCPUInfo() noexcept
 {
-    GetInitializerMap().emplace_back(func);
-    return 0;
-}
-
-#if COMMON_OS_UNIX
-__attribute__((constructor))
-#endif
-static void ExecuteInitializers() noexcept
-{
-    // printf("==[SystemCommon]==\tInit here.\n");
-    for (const auto func : GetInitializerMap())
+    static const auto info = []() -> std::optional<cpu_id_t>
     {
-        func();
-    }
+        cpu_id_t data;
+        if (cpuid_present())
+        {
+            struct cpu_raw_data_t raw;
+            if (cpuid_get_raw_data(&raw) >= 0)
+            {
+                if (cpu_identify(&raw, &data) >= 0)
+                    return data;
+            }
+        }
+        return {};
+    }();
+    return info;
 }
+
+
+//static std::vector<void(*)()noexcept>& GetInitializerMap() noexcept
+//{
+//    static std::vector<void(*)()noexcept> initializers;
+//    return initializers;
+//}
+//
+//uint32_t RegisterInitializer(void(*func)()noexcept) noexcept
+//{
+//    GetInitializerMap().emplace_back(func);
+//    return 0;
+//}
+//
+//#if COMMON_OS_UNIX
+//__attribute__((constructor))
+//#endif
+//static void ExecuteInitializers() noexcept
+//{
+//    // printf("==[SystemCommon]==\tInit here.\n");
+//    for (const auto func : GetInitializerMap())
+//    {
+//        func();
+//    }
+//}
 
 }
 
 
 #if COMMON_OS_WIN
 
-BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
-{
-    switch (fdwReason)
-    {
-    case DLL_PROCESS_ATTACH:
-        common::ExecuteInitializers();
-        break;
-    case DLL_PROCESS_DETACH:
-        break;
-    case DLL_THREAD_ATTACH:
-        break;
-    case DLL_THREAD_DETACH:
-        break;
-    }
-    return TRUE;
-}
+//BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
+//{
+//    switch (fdwReason)
+//    {
+//    case DLL_PROCESS_ATTACH:
+//        common::ExecuteInitializers();
+//        break;
+//    case DLL_PROCESS_DETACH:
+//        break;
+//    case DLL_THREAD_ATTACH:
+//        break;
+//    case DLL_THREAD_DETACH:
+//        break;
+//    }
+//    return TRUE;
+//}
 
 #endif

@@ -6,6 +6,7 @@
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
 #include "gsl/gsl_assert"
+#include "cpuid/libcpuid.h"
 
 #include <cassert>
 #include <thread>
@@ -50,9 +51,11 @@ namespace common
 {
 
 #if COMMON_OS_WIN
-uint32_t GetWinBuildNumber();
+[[nodiscard]] uint32_t GetWinBuildNumber() noexcept;
 #endif
 
-uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
+[[nodiscard]] const std::optional<cpu_id_t>& GetCPUInfo() noexcept;
+// follow initializer may not work
+// uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
 
 }
