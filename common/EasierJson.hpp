@@ -615,19 +615,20 @@ public:
 };
 
 template<bool IsConst>
-class JObjectIterator : protected DocumentHandle
+class JObjectIterator
 {
     template<typename, bool> friend class JObjectLike;
 private:
     using InnerValType = rapidjson::GenericMemberIterator<IsConst, rapidjson::UTF8<>, rapidjson::MemoryPoolAllocator<>>;
+    const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>* MemPool = nullptr;
     InnerValType InnerIterator;
 public: // gcc&clang need constructor to be public, although I've already make it friend to JObjectLike
     using iterator_category = std::forward_iterator_tag;
     using value_type = std::pair<std::string_view, JDocRef<IsConst>>;
     using difference_type = std::ptrdiff_t;
 
-    JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>& mempool, InnerValType val) 
-        : DocumentHandle(mempool), InnerIterator(val) {}
+    JObjectIterator(const std::shared_ptr<rapidjson::MemoryPoolAllocator<>>* mempool, InnerValType val) 
+        : MemPool(mempool), InnerIterator(val) {}
     JObjectIterator<IsConst>& operator++()
     {
         InnerIterator++; return *this;
@@ -643,7 +644,7 @@ public: // gcc&clang need constructor to be public, although I've already make i
     std::pair<std::string_view, JDocRef<IsConst>> operator*() const
     {
         std::string_view name(InnerIterator->name.GetString(), InnerIterator->name.GetStringLength());
-        JDocRef<IsConst> doc(MemPool, &InnerIterator->value);
+        JDocRef<IsConst> doc(*MemPool, &InnerIterator->value);
         return { name, doc };
     }
 };
@@ -806,11 +807,11 @@ public:
 
     [[nodiscard]] detail::JObjectIterator<true> begin() const
     {
-        return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberBegin());
+        return detail::JObjectIterator<true>(&Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberBegin());
     }
     [[nodiscard]] detail::JObjectIterator<true> end() const
     {
-        return detail::JObjectIterator<true>(Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberEnd());
+        return detail::JObjectIterator<true>(&Parent::InnerMemPool(), static_cast<const Child*>(this)->ValRef().MemberEnd());
     }
     [[nodiscard]] detail::JObjectEnumerableSource<true> GetEnumerator() const
     {
@@ -821,11 +822,11 @@ public:
     }
     [[nodiscard]] detail::JObjectIterator<IsConst> begin()
     {
-        return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberBegin());
+        return detail::JObjectIterator<IsConst>(&Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberBegin());
     }
     [[nodiscard]] detail::JObjectIterator<IsConst> end()
     {
-        return detail::JObjectIterator<IsConst>(Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberEnd());
+        return detail::JObjectIterator<IsConst>(&Parent::InnerMemPool(), static_cast<std::conditional_t<IsConst, const Child*, Child*>>(this)->ValRef().MemberEnd());
     }
     [[nodiscard]] detail::JObjectEnumerableSource<IsConst> GetEnumerator()
     {

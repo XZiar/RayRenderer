@@ -83,7 +83,7 @@ bool Scene::DelObject(const boost::uuids::uuid& uid)
     return true;
 }
 
-bool Scene::DelLight(const std::shared_ptr<Light>& light)
+bool Scene::DelLight(const std::shared_ptr<Light>&)
 {
     return false;
 }

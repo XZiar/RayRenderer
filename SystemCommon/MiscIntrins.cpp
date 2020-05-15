@@ -32,9 +32,9 @@ constexpr bool CheckExists() noexcept
     return false;
 }
 template<typename Intrin, typename Method, typename F>
-constexpr void InjectFunc(F& func) noexcept
+constexpr void InjectFunc(F&) noexcept
 {
-    func = nullptr;
+    static_assert(AlwaysTrue<F>, "Should not pass CheckExists");
 }
 
 

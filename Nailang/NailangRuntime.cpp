@@ -4,7 +4,7 @@
 #include "3rdParty/fmt/utfext.h"
 #include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
-#include "common/StrSIMD.hpp"
+#include "common/StrParsePack.hpp"
 #include <cmath>
 #include <cassert>
 
@@ -977,7 +977,6 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
 {
     if (checkMetas)
     {
-
         BlockContext dummy;
         auto target = BlockContentItem::Generate(&block, 0, 0);
         if (!HandleMetaFuncsBefore(metas, target, dummy))

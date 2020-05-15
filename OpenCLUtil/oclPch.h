@@ -6,7 +6,7 @@
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
 #include "common/StringEx.hpp"
-#include "common/StrSIMD.hpp"
+#include "common/StrParsePack.hpp"
 #include "common/ContainerHelper.hpp"
 
 

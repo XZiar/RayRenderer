@@ -202,25 +202,23 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
     ShaderConfig config;
     {
         const auto jconfig = object.GetObject("config");
-        common::linq::FromContainer(jconfig.GetObject("defines"))
-            .ForEach([&](const auto& kvpair)
+        for (const auto& [key, val] : jconfig.GetObject("defines"))
+        {
+            if (val.IsNull())
+                config.Defines.Add(key);
+            else
+            {
+                xziar::ejson::JArrayRef<true> valarray(val);
+                switch (valarray.Get<size_t>(0))
                 {
-                    auto val = config.Defines[kvpair.first];
-                    if (kvpair.second.IsNull())
-                        config.Defines.Add(kvpair.first);
-                    else
-                    {
-                        xziar::ejson::JArrayRef<true> valarray(kvpair.second);
-                        switch (valarray.Get<size_t>(0))
-                        {
-                        case DefineSigned:   config.Defines[kvpair.first] = valarray.Get<int64_t>(1);  break;
-                        case DefineUnsigned: config.Defines[kvpair.first] = valarray.Get<uint64_t>(1); break;
-                        case DefineDouble:   config.Defines[kvpair.first] = valarray.Get<double>(1);   break;
-                        case DefineStr:      config.Defines[kvpair.first] = valarray.Get<string>(1);   break;
-                        default:             break;
-                        }
-                    }
-                });
+                case DefineSigned:   config.Defines[key] = valarray.Get<int64_t>(1);  break;
+                case DefineUnsigned: config.Defines[key] = valarray.Get<uint64_t>(1); break;
+                case DefineDouble:   config.Defines[key] = valarray.Get<double>(1);   break;
+                case DefineStr:      config.Defines[key] = valarray.Get<string>(1);   break;
+                default:             break;
+                }
+            }
+        }
         common::linq::FromContainer(jconfig.GetObject("routines"))
             .IntoMap(config.Routines, 
                 [](const auto& kvpair) { return string(kvpair.first); },

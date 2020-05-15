@@ -4,7 +4,6 @@
 #include "oclException.h"
 #include "StringCharset/Convert.h"
 #include "StringCharset/Detect.h"
-#include "common/StrSIMD.hpp"
 #include "common/StrParsePack.hpp"
 
 namespace oclu
@@ -20,7 +19,6 @@ using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::str::Charset;
 using common::str::IsBeginWith;
-using common::str::ShortCompare;
 using common::simd::VecDataInfo;
 
 

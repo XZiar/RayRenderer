@@ -156,11 +156,31 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
     return desc;
 }
 
-static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
+static cl_mem CreateMem(const uint32_t version, const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
 {
     cl_int errcode;
     const auto clFormat = ParseTextureFormat(format);
-    const auto id = clCreateImage(ctx, common::enum_cast(flag), &clFormat, &desc, const_cast<void*>(ptr), &errcode);
+    cl_mem id = nullptr;
+    if (version >= 12)
+    {
+        id = clCreateImage(ctx, common::enum_cast(flag), &clFormat, &desc, const_cast<void*>(ptr), &errcode);
+    }
+    else
+    {
+        switch (desc.image_type)
+        {
+        case CL_MEM_OBJECT_IMAGE2D:
+            id = clCreateImage2D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height, 
+                desc.image_row_pitch, const_cast<void*>(ptr), &errcode);
+            break;
+        case CL_MEM_OBJECT_IMAGE3D:
+            id = clCreateImage3D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height, desc.image_depth,
+                desc.image_row_pitch, desc.image_slice_pitch, const_cast<void*>(ptr), &errcode);
+            break;
+        default:
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"unsupported image type");
+        }
+    }
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create image");
     return id;
@@ -183,7 +203,9 @@ oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t w
     :oclMem_(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(format)
 { }
 oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type, const void* ptr)
-    :oclImage_(ctx, flag, width, height, depth, format, CreateMem(ctx->Context, flag, CreateImageDesc(type, width, height, depth), format, ptr))
+    :oclImage_(ctx, flag, width, height, depth, format, 
+        CreateMem(ctx->Version, ctx->Context, flag, 
+            CreateImageDesc(type, width, height, depth), format, ptr))
 { }
 
 

@@ -7,6 +7,8 @@
   - [x] Makes string split Linq-able
   - [ ] Use dict to store Exception's custom info
   - [ ] Add enhanced enum (macro-based, string typing, parsing/stringify support, switchable, bitfield aseemble)
+  * Parser
+    - [ ] Parser should accept template for ContextReader, allowing custom reading strategy
   * Controllable
     - [ ] Move Contorllable into standalone project with better metadata management
     - [ ] Add static control-item for Controllable
@@ -15,6 +17,8 @@
 * StringCharset
   - [ ] Add general charset default value
   - [ ] Add compile-time LE/BE decision
+  - [ ] Applying SIMD acceleration 
+  - [ ] Merge fmt with better format-context support
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
