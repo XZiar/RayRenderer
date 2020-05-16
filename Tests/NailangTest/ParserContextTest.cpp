@@ -6,7 +6,7 @@ using namespace std::string_view_literals;
 using CharType = common::parser::ParserContext::CharType;
 
 
-#define CHECK_POS(ctx, row, col) EXPECT_EQ(ctx.Row, row); EXPECT_EQ(ctx.Col, col)
+#define CHECK_POS(ctx, row, col) EXPECT_EQ(ctx.Row, row##u); EXPECT_EQ(ctx.Col, col##u)
 #define CHECK_CHTYPE(ch, type) EXPECT_EQ(ParserContext::ParseType(ch), CharType::type)
 
 

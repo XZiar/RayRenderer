@@ -74,28 +74,28 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0);
+        EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(())"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0);
+        EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(((())))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0);
+        EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(\"Hello\")"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1);
+        ASSERT_EQ(func.Args.size(), 1u);
         CHECK_VAR_ARG(func.Args[0], Str, U"Hello"sv);
     }
     {
@@ -103,7 +103,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1);
+        ASSERT_EQ(func.Args.size(), 1u);
         CHECK_VAR_ARG(func.Args[0], Str, U"Hello\t\"World\""sv);
     }
     {
@@ -111,7 +111,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1);
+        ASSERT_EQ(func.Args.size(), 1u);
         CHECK_VAR_ARG(func.Args[0], Var, U"val.xxx.3.len");
         const auto var = func.Args[0].GetVar<RawArg::Type::Var>();
         EXPECT_THAT(var.Parts(), testing::ElementsAre(U"val"sv, U"xxx"sv, U"3"sv, U"len"sv));
@@ -121,7 +121,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 2);
+        ASSERT_EQ(func.Args.size(), 2u);
         CHECK_VAR_ARG(func.Args[0], Int, 123);
         CHECK_VAR_ARG(func.Args[1], Int, -456);
     }
@@ -130,7 +130,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 2);
+        ASSERT_EQ(func.Args.size(), 2u);
         CHECK_VAR_ARG(func.Args[0], Uint, 123u);
         CHECK_VAR_ARG(func.Args[1], Var, U"v.456");
     }
@@ -139,11 +139,11 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1);
+        ASSERT_EQ(func.Args.size(), 1u);
 
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
         const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
-        CHECK_VAR_ARG(stmt.LeftOprend, Uint, 1);
+        CHECK_VAR_ARG(stmt.LeftOprend, Uint, 1u);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
         CHECK_VAR_ARG(stmt.RightOprend, Int, 2);
     }
@@ -152,7 +152,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 2);
+        ASSERT_EQ(func.Args.size(), 2u);
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
         EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Binary);
         {
@@ -172,7 +172,7 @@ TEST(NailangParser, ParseFuncBody)
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 2);
+        ASSERT_EQ(func.Args.size(), 2u);
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
         EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
         {
@@ -182,13 +182,13 @@ TEST(NailangParser, ParseFuncBody)
             EXPECT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
             EXPECT_EQ(fcall.Name, U"foo"sv);
-            ASSERT_EQ(fcall.Args.size(), 1);
+            ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], Var, U":bar");
         }
         {
             const auto& fcall = *func.Args[1].GetVar<RawArg::Type::Func>();
             EXPECT_EQ(fcall.Name, U"foo"sv);
-            ASSERT_EQ(fcall.Args.size(), 2);
+            ASSERT_EQ(fcall.Args.size(), 2u);
             CHECK_VAR_ARG(fcall.Args[0], Var, U"`bar");
             EXPECT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
             const auto& stmt = *fcall.Args[1].GetVar<RawArg::Type::Binary>();
@@ -220,13 +220,13 @@ TEST(NailangParser, ParseBlockBody)
 $func(hey);
 )"sv;
         const auto block = ParseAll(src);
-        ASSERT_EQ(block.Content.size(), 1);
+        ASSERT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
-        EXPECT_EQ(meta.size(), 0);
+        EXPECT_EQ(meta.size(), 0u);
         const auto& fcall = *std::get<1>(stmt.GetStatement());
         EXPECT_EQ(fcall.Name, U"func"sv);
-        ASSERT_EQ(fcall.Args.size(), 1);
+        ASSERT_EQ(fcall.Args.size(), 1u);
         CHECK_VAR_ARG(fcall.Args[0], Var, U"hey");
     }
     {
@@ -235,12 +235,12 @@ $func(hey);
 hey = 13;
 )"sv;
         const auto block = ParseAll(src);
-        EXPECT_EQ(block.Content.size(), 1);
+        EXPECT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
-        ASSERT_EQ(meta.size(), 1);
+        ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(meta[0].Name, U"meta"sv);
-        EXPECT_EQ(meta[0].Args.size(), 0);
+        EXPECT_EQ(meta[0].Args.size(), 0u);
         const auto& assign = *std::get<0>(stmt.GetStatement());
         EXPECT_EQ(assign.GetVar(), U"hey"sv);
         CHECK_VAR_ARG(assign.Statement, Int, 13);
@@ -257,12 +257,12 @@ abc = 0u;
         ASSERT_EQ(block.Content.size(), 1);
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Block);
-        ASSERT_EQ(meta.size(), 1);
+        ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(meta[0].Name, U"meta"sv);
-        EXPECT_EQ(meta[0].Args.size(), 0);
+        EXPECT_EQ(meta[0].Args.size(), 0u);
         const auto& blk = *std::get<3>(stmt.GetStatement());
         EXPECT_EQ(blk.Name, U"13"sv);
-        ASSERT_EQ(blk.Content.size(), 1);
+        ASSERT_EQ(blk.Content.size(), 1u);
         {
             const auto [meta_, stmt_] = blk[0];
             EXPECT_EQ(stmt_.GetType(), xziar::nailang::BlockContent::Type::Assignment);
@@ -310,7 +310,7 @@ empty
             EXPECT_EQ(meta.size(), 0);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
             EXPECT_EQ(fcall.Name, U"func"sv);
-            ASSERT_EQ(fcall.Args.size(), 1);
+            ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], Var, U"hey");
         }
         {
@@ -318,7 +318,7 @@ empty
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
             ASSERT_EQ(meta.size(), 1);
             EXPECT_EQ(meta[0].Name, U"meta"sv);
-            EXPECT_EQ(meta[0].Args.size(), 0);
+            EXPECT_EQ(meta[0].Args.size(), 0u);
             const auto& blk = *std::get<2>(stmt.GetStatement());
             EXPECT_EQ(ReplaceNewLine(blk.Source), U"empty\n"sv);
         }
@@ -337,8 +337,8 @@ TEST(NailangParser, ParseBlock)
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(block.Source, U""sv);
-        EXPECT_EQ(block.Position.first,  1);
-        EXPECT_EQ(block.Position.second, 0);
+        EXPECT_EQ(block.Position.first,  1u);
+        EXPECT_EQ(block.Position.second, 0u);
     }
 
     {
@@ -350,15 +350,15 @@ TEST(NailangParser, ParseBlock)
         EXPECT_EQ(block0.Type, U"Main"sv);
         EXPECT_EQ(block0.Name, U"Hello"sv);
         EXPECT_EQ(block0.Source, U""sv);
-        EXPECT_EQ(block0.Position.first,  1);
-        EXPECT_EQ(block0.Position.second, 0);
+        EXPECT_EQ(block0.Position.first,  1u);
+        EXPECT_EQ(block0.Position.second, 0u);
 
         const auto block1 = Parser.GetNextRawBlock();
         EXPECT_EQ(block1.Type, U"Main"sv);
         EXPECT_EQ(block1.Name, U"Hello"sv);
         EXPECT_EQ(block1.Source, U""sv);
-        EXPECT_EQ(block1.Position.first,  3);
-        EXPECT_EQ(block1.Position.second, 0);
+        EXPECT_EQ(block1.Position.first,  3u);
+        EXPECT_EQ(block1.Position.second, 0u);
     }
     {
         constexpr auto src = 
@@ -380,15 +380,15 @@ Here
         EXPECT_EQ(block0.Type, U"Main"sv);
         EXPECT_EQ(block0.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block0.Source), U"Here\n"sv);
-        EXPECT_EQ(block0.Position.first,  3);
-        EXPECT_EQ(block0.Position.second, 0);
+        EXPECT_EQ(block0.Position.first,  3u);
+        EXPECT_EQ(block0.Position.second, 0u);
 
         const auto block1 = Parser.GetNextRawBlock();
         EXPECT_EQ(block1.Type, U"Main"sv);
         EXPECT_EQ(block1.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block1.Source), U"{Here}\n"sv);
-        EXPECT_EQ(block1.Position.first,  8);
-        EXPECT_EQ(block1.Position.second, 0);
+        EXPECT_EQ(block1.Position.first,  8u);
+        EXPECT_EQ(block1.Position.second, 0u);
     }
 }
 
@@ -411,9 +411,9 @@ Here
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
-        EXPECT_EQ(block.Position.first,  4);
-        EXPECT_EQ(block.Position.second, 0);
-        ASSERT_EQ(block.MetaFunctions.size(), 1);
+        EXPECT_EQ(block.Position.first,  4u);
+        EXPECT_EQ(block.Position.second, 0u);
+        ASSERT_EQ(block.MetaFunctions.size(), 1u);
         const auto& meta = block.MetaFunctions[0];
         EXPECT_EQ(meta.Name, U"func"sv);
         EXPECT_EQ(meta.Args.size(), 0);
@@ -439,29 +439,29 @@ Here
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
-        EXPECT_EQ(block.Position.first,  5);
-        EXPECT_EQ(block.Position.second, 0);
-        ASSERT_EQ(block.MetaFunctions.size(), 2);
+        EXPECT_EQ(block.Position.first,  5u);
+        EXPECT_EQ(block.Position.second, 0u);
+        ASSERT_EQ(block.MetaFunctions.size(), 2u);
         {
             const auto& meta = block.MetaFunctions[0];
             EXPECT_EQ(meta.Name, U"func"sv);
-            ASSERT_EQ(meta.Args.size(), 1);
+            ASSERT_EQ(meta.Args.size(), 1u);
             CHECK_VAR_ARG(meta.Args[0], Int, 1);
         }
         {
             const auto& meta = block.MetaFunctions[1];
             EXPECT_EQ(meta.Name, U"func"sv);
-            EXPECT_EQ(meta.Args.size(), 2);
+            EXPECT_EQ(meta.Args.size(), 2u);
             CHECK_VAR_ARG(meta.Args[0], Var, U"abc");
-            CHECK_VAR_ARG(meta.Args[1], Uint, 0xff);
+            CHECK_VAR_ARG(meta.Args[1], Uint, 0xffu);
         }
         const auto block_ = Parser.GetNextRawBlock();
         EXPECT_EQ(block_.Type, U"Main"sv);
         EXPECT_EQ(block_.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block_.Source), U"Here\n"sv);
-        EXPECT_EQ(block_.Position.first,  9);
-        EXPECT_EQ(block_.Position.second, 0);
-        EXPECT_EQ(block_.MetaFunctions.size(), 0);
+        EXPECT_EQ(block_.Position.first,  9u);
+        EXPECT_EQ(block_.Position.second, 0u);
+        EXPECT_EQ(block_.MetaFunctions.size(), 0u);
     }
 }
 
@@ -506,7 +506,7 @@ TEST(NailangParser, ReplaceEngine)
         Replacer replacer(U"func()"sv);
         const auto result = replacer.ProcessFunction(U"y = $$!x()"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
-        ASSERT_EQ(replacer.Funcs.size(), 1);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"x"sv);
         EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre());
     }
@@ -514,7 +514,7 @@ TEST(NailangParser, ReplaceEngine)
         Replacer replacer(U"func()"sv);
         const auto result = replacer.ProcessFunction(U"y = $$!xy(\"\")"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
-        ASSERT_EQ(replacer.Funcs.size(), 1);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
         EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(UR"("")"sv));
     }
@@ -522,7 +522,7 @@ TEST(NailangParser, ReplaceEngine)
         Replacer replacer(U"func()"sv);
         const auto result = replacer.ProcessFunction(U"y = $$!xy(\"1+2\t,3\")"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
-        ASSERT_EQ(replacer.Funcs.size(), 1);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
         EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"\"1+2\t,3\""sv));
     }
@@ -530,7 +530,7 @@ TEST(NailangParser, ReplaceEngine)
         Replacer replacer(U"func()"sv);
         const auto result = replacer.ProcessFunction(U"y = $$!xy(1,2)"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
-        ASSERT_EQ(replacer.Funcs.size(), 1);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
         EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"1"sv, U"2"sv));
     }
@@ -538,7 +538,7 @@ TEST(NailangParser, ReplaceEngine)
         Replacer replacer(U"func()"sv);
         const auto result = replacer.ProcessFunction(U"y = $$!xy( 12, 34 )$ +$$!y(56 + \"\" / 7)$"sv, U"$$!"sv, U"$"sv);
         EXPECT_EQ(result, U"y = func() +func()"sv);
-        ASSERT_EQ(replacer.Funcs.size(), 2);
+        ASSERT_EQ(replacer.Funcs.size(), 2u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
         EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"12"sv, U"34"sv));
         EXPECT_EQ(replacer.Funcs[1].first, U"y"sv);

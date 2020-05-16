@@ -133,7 +133,7 @@ TEST(ParserLexer, LexerInt)
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x13579bdf"sv);
-        CHECK_TK(tokens[0], Uint, GetUInt, 0x13579bdf);
+        CHECK_TK(tokens[0], Uint, GetUInt, 0x13579bdfu);
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0b1010010100111110"sv);

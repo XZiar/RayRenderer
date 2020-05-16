@@ -222,12 +222,12 @@ TEST(Linq, Repeat)
 {
     {
         const auto ret = FromRepeat<Repeater>({}, 3).ToVector();
-        EXPECT_EQ(Repeater::CopyConstCnt, 3);
+        EXPECT_EQ(Repeater::CopyConstCnt, 3u);
         Repeater::Reset();
     }
     {
         const auto ret = FromRepeat<Repeater>({}, 10).Skip(5).ToVector();
-        EXPECT_EQ(Repeater::CopyConstCnt, 5);
+        EXPECT_EQ(Repeater::CopyConstCnt, 5u);
         Repeater::Reset();
     }
 }
@@ -273,8 +273,8 @@ TEST(Linq, FlatMap)
             .Where([&](const auto i) { whereCnt++; return i > 0; })
             .ToVector(),
             testing::ElementsAre(1, 1, 2));
-        EXPECT_EQ(selectCnt, 4);
-        EXPECT_EQ(whereCnt, 6);
+        EXPECT_EQ(selectCnt, 4u);
+        EXPECT_EQ(whereCnt, 6u);
     }
 }
 

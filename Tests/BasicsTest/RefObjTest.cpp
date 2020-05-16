@@ -55,15 +55,15 @@ TEST(RefObj, Init)
 {
     A a(1);
     EXPECT_EQ(a.GetIt(), 1);
-    EXPECT_EQ(AData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
     B b(2);
     EXPECT_EQ(b.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 2);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 2u);
+    EXPECT_EQ(BData::Alive, 1u);
     auto c = a.Child(3);
     EXPECT_EQ(c.GetIt(), 3);
-    EXPECT_EQ(AData::Alive, 3);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 3u);
+    EXPECT_EQ(BData::Alive, 1u);
 }
 
 TEST(RefObj, Assign)
@@ -72,13 +72,13 @@ TEST(RefObj, Assign)
     B b(2);
     EXPECT_EQ(a.GetIt(), 1);
     EXPECT_EQ(b.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 2);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 2u);
+    EXPECT_EQ(BData::Alive, 1u);
     a = b;
     EXPECT_EQ(a.GetIt(), 2);
     EXPECT_EQ(b.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 1);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
+    EXPECT_EQ(BData::Alive, 1u);
 }
 
 TEST(RefObj, Move)
@@ -87,13 +87,13 @@ TEST(RefObj, Move)
     B b(2);
     EXPECT_EQ(a.GetIt(), 1);
     EXPECT_EQ(b.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 2);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 2u);
+    EXPECT_EQ(BData::Alive, 1u);
     a = std::move(b);
     EXPECT_EQ(a.GetIt(), 2);
     EXPECT_FALSE(b);
-    EXPECT_EQ(AData::Alive, 1);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
+    EXPECT_EQ(BData::Alive, 1u);
 }
 
 TEST(RefObj, RefLink)
@@ -104,17 +104,17 @@ TEST(RefObj, RefLink)
     EXPECT_EQ(a1.GetIt(), 1);
     EXPECT_EQ(a2.GetIt(), 2);
     EXPECT_EQ(a3.GetIt(), 3);
-    EXPECT_EQ(AData::Alive, 3);
+    EXPECT_EQ(AData::Alive, 3u);
     a1 = std::move(a2);
     EXPECT_EQ(a1.GetIt(), 2);
     EXPECT_FALSE(a2);
     EXPECT_EQ(a3.GetIt(), 3);
-    EXPECT_EQ(AData::Alive, 3);
+    EXPECT_EQ(AData::Alive, 3u);
     a3 = a1;
     EXPECT_EQ(a1.GetIt(), 2);
     EXPECT_FALSE(a2);
     EXPECT_EQ(a3.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
 }
 
 TEST(RefObj, RefCast)
@@ -124,13 +124,13 @@ TEST(RefObj, RefCast)
     a = std::move(b);
     EXPECT_EQ(a.GetIt(), 2);
     EXPECT_FALSE(b);
-    EXPECT_EQ(AData::Alive, 1);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
+    EXPECT_EQ(BData::Alive, 1u);
     b = common::RefCast<B>(a);
     EXPECT_EQ(a.GetIt(), 2);
     EXPECT_EQ(b.GetIt(), 2);
-    EXPECT_EQ(AData::Alive, 1);
-    EXPECT_EQ(BData::Alive, 1);
+    EXPECT_EQ(AData::Alive, 1u);
+    EXPECT_EQ(BData::Alive, 1u);
 }
 
 

@@ -119,13 +119,13 @@ CHECK_ARG(ret.value(), type, ans);          \
 
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,       Bool, false);
     TEST_BIN(uint64_t(0), uint64_t(0), NotEqual,    Bool, false);
-    TEST_BIN(uint64_t(1), uint64_t(2), Add,         Uint, 3);
-    TEST_BIN(uint64_t(1), int64_t(-1), Add,         Uint, 0);
+    TEST_BIN(uint64_t(1), uint64_t(2), Add,         Uint, 3u);
+    TEST_BIN(uint64_t(1), int64_t(-1), Add,         Uint, 0u);
     TEST_BIN(uint64_t(1), 0.5,         Sub,         FP,   0.5);
     TEST_BIN(int64_t(5),  int64_t(-1), Mul,         Int,  -5);
-    TEST_BIN(uint64_t(3), uint64_t(2), Div,         Uint, 1);
+    TEST_BIN(uint64_t(3), uint64_t(2), Div,         Uint, 1u);
     TEST_BIN(uint64_t(3), 0.5,         Div,         FP,   6);
-    TEST_BIN(uint64_t(3), uint64_t(2), Rem,         Uint, 1);
+    TEST_BIN(uint64_t(3), uint64_t(2), Rem,         Uint, 1u);
     TEST_BIN(2.5,         2.0,         Rem,         FP,   0.5);
     TEST_BIN(U"abc"sv,    U"ABC"sv,    Add,         U32Str, U"abcABC"sv);
     TEST_BIN(uint64_t(1), uint64_t(2), Less,        Bool, true);
@@ -324,23 +324,23 @@ TEST(NailangRuntime, MathIntrinFunc)
     }
     {
         const auto arg = ParseEval(U"$Math.LeadZero(0b0001111);"sv);
-        CHECK_ARG(arg, Uint, 60);
+        CHECK_ARG(arg, Uint, 60u);
     }
     {
         const auto arg = ParseEval(U"$Math.LeadZero(0b0);"sv);
-        CHECK_ARG(arg, Uint, 64);
+        CHECK_ARG(arg, Uint, 64u);
     }
     {
         const auto arg = ParseEval(U"$Math.TailZero(0b110000);"sv);
-        CHECK_ARG(arg, Uint, 4);
+        CHECK_ARG(arg, Uint, 4u);
     }
     {
         const auto arg = ParseEval(U"$Math.TailZero(0b0);"sv);
-        CHECK_ARG(arg, Uint, 64);
+        CHECK_ARG(arg, Uint, 64u);
     }
     {
         const auto arg = ParseEval(U"$Math.PopCount(0b10101010);"sv);
-        CHECK_ARG(arg, Uint, 4);
+        CHECK_ARG(arg, Uint, 4u);
     }
 }
 
@@ -371,14 +371,14 @@ TEST(NailangRuntime, Variable)
         EXPECT_EQ(runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512))), false);
         // 512
         const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg, Uint, 512);
+        CHECK_ARG(arg, Uint, 512u);
     }
     const auto ctx2 = std::make_shared<EvalCtx>();
     ctx2->ParentContext = runtime.EvalContext;
     {
         // 512, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 512);
+        CHECK_ARG(arg1, Uint, 512u);
         const auto arg2 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg2.TypeData, Arg::InternalType::Empty);
     }
@@ -386,9 +386,9 @@ TEST(NailangRuntime, Variable)
         EXPECT_EQ(ctx2->SetArg(U"test"sv, Arg(uint64_t(256))), true);
         // 256, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 256);
+        CHECK_ARG(arg1, Uint, 256u);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 256);
+        CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
     }
@@ -396,40 +396,40 @@ TEST(NailangRuntime, Variable)
         EXPECT_EQ(ctx2->SetArg({ U":test"sv }, Arg(uint64_t(128))), false);
         // 256, 128
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 128);
+        CHECK_ARG(arg1, Uint, 128u);
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 256);
+        CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
-        CHECK_ARG(arg3, Uint, 128);
+        CHECK_ARG(arg3, Uint, 128u);
     }
     const auto ctx3 = std::make_shared<EvalCtx>();
     ctx3->ParentContext = ctx2;
     {
         // 256, 128, _
         const auto arg = ctx3->LookUpArg(U"test"sv);
-        CHECK_ARG(arg, Uint, 128);
+        CHECK_ARG(arg, Uint, 128u);
     }
     {
         EXPECT_EQ(ctx2->SetArg({ U":test"sv }, {}), true);
         // 256, _, _
         const auto arg1 = ctx3->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 256);
+        CHECK_ARG(arg1, Uint, 256u);
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 256);
+        CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg3, Uint, 256);
+        CHECK_ARG(arg3, Uint, 256u);
     }
     {
         EXPECT_EQ(ctx3->SetArg({ U":test"sv }, Arg(uint64_t(64))), false);
         // 256, _, 64
         const auto arg1 = ctx3->LookUpArg(U"test"sv);
-        CHECK_ARG(arg1, Uint, 64);
+        CHECK_ARG(arg1, Uint, 64u);
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
-        CHECK_ARG(arg2, Uint, 256);
+        CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
         const auto arg4 = runtime.EvalContext->LookUpArg(U"test"sv);
-        CHECK_ARG(arg4, Uint, 256);
+        CHECK_ARG(arg4, Uint, 256u);
     }
 }
 
@@ -505,10 +505,10 @@ TEST(NailangRuntime, DefFunc)
 }
 )"sv;
         PEDefFunc(txt);
-        EXPECT_EQ(evalCtx->GetFuncCount(), 1);
+        ASSERT_EQ(evalCtx->GetFuncCount(), 1u);
         const auto func = evalCtx->LookUpFunc(U"abc"sv);
         ASSERT_TRUE(func);
-        EXPECT_EQ(func.ArgNames.size(), 0);
+        EXPECT_EQ(func.ArgNames.size(), 0u);
     }
 
     {
@@ -519,7 +519,7 @@ TEST(NailangRuntime, DefFunc)
 }
 )"sv;
         PEDefFunc(txt);
-        EXPECT_EQ(evalCtx->GetFuncCount(), 2);
+        ASSERT_EQ(evalCtx->GetFuncCount(), 2u);
         const auto func = evalCtx->LookUpFunc(U"func2"sv);
         ASSERT_TRUE(func);
         EXPECT_THAT(func.ArgNames, testing::ElementsAre(U"num"sv, U"length"sv));
@@ -561,7 +561,7 @@ tmp = 1;
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
-    EXPECT_EQ(algoBlock.Size(), 2);
+    ASSERT_EQ(algoBlock.Size(), 2u);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
@@ -613,7 +613,7 @@ TEST(NailangRuntime, gcd2)
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
-    EXPECT_EQ(algoBlock.Size(), 1);
+    ASSERT_EQ(algoBlock.Size(), 1u);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
@@ -665,7 +665,7 @@ m = $gcd(m,n);
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
-    EXPECT_EQ(algoBlock.Size(), 2);
+    ASSERT_EQ(algoBlock.Size(), 2u);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {

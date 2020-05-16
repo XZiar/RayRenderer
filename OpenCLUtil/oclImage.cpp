@@ -152,7 +152,7 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
     desc.image_slice_pitch = 0;
     desc.num_mip_levels = 0;
     desc.num_samples = 0;
-    desc.buffer = 0;
+    desc.buffer = nullptr;
     return desc;
 }
 
