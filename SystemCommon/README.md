@@ -35,6 +35,14 @@ Others wakeup prevent sleeping    -> | Forbid | --|
      |--------------------------------------------|
 ```
 
+### [MiscIntrins](./MiscIntrins.h)
+
+A wrapper of some basic operations that may be supported by using CPU intrins. Multiple implementations are provided depending on compiler flags, and the actual implementation to use is statically constructed according to cpuid.
+
+### [DigestFuncs](./MiscIntrins.h)
+
+A wrapper of some digest functions that may be supported by using CPU intrins. Multiple implementations are provided depending on compiler flags, and the actual implementation to use is statically constructed according to cpuid.
+
 ## System Components
 
 Some utilities aims to provide equal functionality on different OSs.
@@ -68,6 +76,24 @@ Provide color support for console. For Win32 which doesn't support VT mode, it e
 ### [ThreadEx](./ThreadEx.h)
 
 A wrapper to support setting or getting thread's information. It's designed to be cross-platform but not fully tested.
+
+## Dependency
+
+* `readline` a GNU Readline library provides a set of functions for use by applications that allow users to edit command lines as they are typed in.
+
+  `ConsoleEx`'s `ReadLine` depends on it when on *nix.
+
+  The library dynamically link to it, so you need to install `readline` on both the Dev OS and Host OS. E.g, `libreadline-dev` and `libreadlineX` on ubuntu, where `X` depends on dist version (`7` for 18.04 and `8` for 20.04).
+
+* `termios` the newer Unix API for terminal I/O.
+  
+  `ConsoleEx`'s `ReadCharImmediate` depends on it when on *nix.
+  
+  Most *nix dist should be able to use it in box.
+
+* [`digestpp`](../3rdParty/digestpp) [C++11 header-only message digest library](https://github.com/kerukuro/digestpp) ([Public Domain](../3rdParty/digestpp/LICENSE))
+
+  `DigestFuncs` depens on it to provide NAIVE implementation.
 
 ## License
 

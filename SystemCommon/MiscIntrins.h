@@ -49,11 +49,14 @@ private:
 #else
 #endif
 public:
-
     MiscIntrins() noexcept;
     [[nodiscard]] common::span<const std::pair<std::string_view, std::string_view>> GetIntrinMap() const noexcept
     {
         return VariantMap;
+    }
+    [[nodiscard]] bool IsComplete() const noexcept
+    {
+        return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64;
     }
 
     template<typename T>
@@ -116,6 +119,37 @@ public:
 };
 
 SYSCOMMONAPI extern const MiscIntrins MiscIntrin;
+
+
+class SYSCOMMONAPI DigestFuncs
+{
+public:
+    template<size_t N>
+    using bytearray = std::array<std::byte, N>;
+private:
+    bytearray<32>(*Sha256)(const std::byte*, const size_t) noexcept = nullptr;
+    std::vector<std::pair<std::string_view, std::string_view>> VariantMap;
+public:
+    DigestFuncs() noexcept;
+    [[nodiscard]] common::span<const std::pair<std::string_view, std::string_view>> GetIntrinMap() const noexcept
+    {
+        return VariantMap;
+    }
+    [[nodiscard]] bool IsComplete() const noexcept
+    {
+        return Sha256;
+    }
+
+    template<typename T>
+    bytearray<32> SHA256(const common::span<const T> data)
+    {
+        const auto bytes = common::as_bytes(data);
+        return Sha256(bytes.data(), bytes.size());
+    }
+};
+
+SYSCOMMONAPI extern const DigestFuncs DigestFunc;
+
 
 #if COMPILER_MSVC
 #   pragma warning(pop)

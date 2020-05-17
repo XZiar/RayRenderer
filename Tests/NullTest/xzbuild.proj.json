@@ -2,7 +2,7 @@
     "name": "NullTest",
     "type": "executable",
     "description": "minimized test",
-    "dependency": ["fmt", "boost.stacktrace", "StringCharset", "SystemCommon"],
+    "dependency": ["fmt", "StringCharset"],
     "library": 
     {
         "static": [],

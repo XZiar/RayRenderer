@@ -343,6 +343,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "parser", "parser", "{10014A
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Nailang", "Nailang\Nailang.vcxproj", "{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "digestpp", "digestpp", "{4FD39CB8-7B50-4DF3-AA8D-AF83B83A7955}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\digestpp\digestpp.hpp = 3rdParty\digestpp\digestpp.hpp
+		3rdParty\digestpp\hasher.hpp = 3rdParty\digestpp\hasher.hpp
+		3rdParty\digestpp\LICENSE = 3rdParty\digestpp\LICENSE
+		3rdParty\digestpp\README.md = 3rdParty\digestpp\README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -600,6 +608,7 @@ Global
 		{CE89232C-D25E-428E-BD6C-030729597C0A} = {B6204FB0-DC48-4C02-8453-BAEF3D033ACB}
 		{10014ADB-5E92-4ADC-AB6B-5080C615CCEE} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
+		{4FD39CB8-7B50-4DF3-AA8D-AF83B83A7955} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

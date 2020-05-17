@@ -322,6 +322,7 @@ TEST(NailangRuntime, MathIntrinFunc)
     {
         TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
     }
+    ASSERT_TRUE(common::MiscIntrin.IsComplete());
     {
         const auto arg = ParseEval(U"$Math.LeadZero(0b0001111);"sv);
         CHECK_ARG(arg, Uint, 60u);

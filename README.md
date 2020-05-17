@@ -95,6 +95,10 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
+* [digestpp](https://github.com/kerukuro/digestpp) master@2020-02-04
+  
+  [Public Domain](3rdParty/digestpp/LICENSE)
+
 * [FreeType2](https://www.freetype.org/) 2.10.1
 
   [The FreeType License](./3rdParty/freetype2/license.txt)

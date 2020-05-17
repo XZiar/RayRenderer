@@ -1,7 +1,8 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
 #include "common/SIMD.hpp"
-#include "cpuid/libcpuid.h"
+#include "3rdParty/digestpp/algorithm/sha2.hpp"
+#include "3rdParty/cpuid/libcpuid.h"
 
 #pragma message("Compiling MiscIntrins with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
@@ -18,13 +19,16 @@ struct PopCount64 { using RetType = uint32_t; };
 struct ByteSwap16 { using RetType = uint16_t; };
 struct ByteSwap32 { using RetType = uint32_t; };
 struct ByteSwap64 { using RetType = uint64_t; };
+struct Sha256     { using RetType = std::array<std::byte, 32>; };
 
 struct NAIVE {};
+struct COMPILER {};
 struct OS {};
 struct LZCNT {};
 struct TZCNT {};
 struct POPCNT {};
 struct BMI1 {};
+struct SHANI {};
 }
 template<typename Intrin, typename Method>
 constexpr bool CheckExists() noexcept 
@@ -52,12 +56,12 @@ static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept \
 
 #if COMPILER_MSVC
 
-DEFINE_INTRIN_METHOD(LeadZero32, OS, const uint32_t num)
+DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
     unsigned long idx = 0;
     return _BitScanReverse(&idx, num) ? 31 - idx : 32;
 }
-DEFINE_INTRIN_METHOD(LeadZero64, OS, const uint64_t num)
+DEFINE_INTRIN_METHOD(LeadZero64, COMPILER, const uint64_t num)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -71,12 +75,12 @@ DEFINE_INTRIN_METHOD(LeadZero64, OS, const uint64_t num)
 #   endif
 }
 
-DEFINE_INTRIN_METHOD(TailZero32, OS, const uint32_t num)
+DEFINE_INTRIN_METHOD(TailZero32, COMPILER, const uint32_t num)
 {
     unsigned long idx = 0;
     return _BitScanForward(&idx, num) ? idx : 32;
 }
-DEFINE_INTRIN_METHOD(TailZero64, OS, const uint64_t num)
+DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -92,29 +96,29 @@ DEFINE_INTRIN_METHOD(TailZero64, OS, const uint64_t num)
 
 #elif COMPILER_GCC || COMPILER_CLANG
 
-DEFINE_INTRIN_METHOD(LeadZero32, OS, const uint32_t num)
+DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
     return num == 0 ? 32 : __builtin_clz(num);
 }
-DEFINE_INTRIN_METHOD(LeadZero64, OS, const uint64_t num)
+DEFINE_INTRIN_METHOD(LeadZero64, COMPILER, const uint64_t num)
 {
     return num == 0 ? 64 : __builtin_clzll(num);
 }
 
-DEFINE_INTRIN_METHOD(TailZero32, OS, const uint32_t num)
+DEFINE_INTRIN_METHOD(TailZero32, COMPILER, const uint32_t num)
 {
     return num == 0 ? 32 : __builtin_ctz(num);
 }
-DEFINE_INTRIN_METHOD(TailZero64, OS, const uint64_t num)
+DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
 {
     return num == 0 ? 64 : __builtin_ctzll(num);
 }
 
-DEFINE_INTRIN_METHOD(PopCount32, OS, const uint32_t num)
+DEFINE_INTRIN_METHOD(PopCount32, COMPILER, const uint32_t num)
 {
     return __builtin_popcount(num);
 }
-DEFINE_INTRIN_METHOD(PopCount64, OS, const uint64_t num)
+DEFINE_INTRIN_METHOD(PopCount64, COMPILER, const uint64_t num)
 {
     return __builtin_popcountll(num);
 }
@@ -151,8 +155,17 @@ DEFINE_INTRIN_METHOD(PopCount64, NAIVE, const uint64_t num)
     return (tmp * 0x0101010101010101u) >> 56;
 }
 
+DEFINE_INTRIN_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
+{
+    std::array<std::byte, 32> output;
+    digestpp::sha256().absorb(reinterpret_cast<const char*>(data), size)
+        .digest(reinterpret_cast<unsigned char*>(output.data()), 32);
+    return output;
+}
+
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
+#pragma message("Compiling MiscIntrins with LZCNT")
 
 DEFINE_INTRIN_METHOD(LeadZero32, LZCNT, const uint32_t num)
 {
@@ -173,6 +186,7 @@ DEFINE_INTRIN_METHOD(LeadZero64, LZCNT, const uint64_t num)
 
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && defined(__BMI__))
+#pragma message("Compiling MiscIntrins with TZCNT")
 
 DEFINE_INTRIN_METHOD(TailZero32, TZCNT, const uint32_t num)
 {
@@ -193,6 +207,7 @@ DEFINE_INTRIN_METHOD(TailZero64, TZCNT, const uint64_t num)
 
 
 #if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 42*/) || (!COMPILER_MSVC && defined(__POPCNT__))
+#pragma message("Compiling MiscIntrins with POPCNT")
 
 DEFINE_INTRIN_METHOD(PopCount32, POPCNT, const uint32_t num)
 {
@@ -211,9 +226,262 @@ DEFINE_INTRIN_METHOD(PopCount64, POPCNT, const uint64_t num)
 #endif
 
 
-MiscIntrins::MiscIntrins() noexcept
+#if COMMON_SIMD_LV >= 31
+forceinline static __m128i Load128BitPadded(const __m128i* data, const size_t size, const size_t sizeOffset = 0) noexcept
 {
-    const auto& data = GetCPUInfo();
+    if (size <= sizeOffset)
+        return _mm_setzero_si128();
+    auto val = _mm_loadu_si128(data);
+    if (size - sizeOffset < 16)
+    {
+        const __m128i IdxMask = _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        const __m128i SizeMask = _mm_set1_epi8(static_cast<char>(size - sizeOffset - 1)); // x,x,x,x
+        const __m128i KeepMask = _mm_cmpgt_epi8(IdxMask, SizeMask); // 00,00,ff,ff
+        const __m128i SignMask = _mm_set1_epi8(static_cast<char>(0x80)); // 00,00,80,80
+        const __m128i ShufMask = _mm_or_si128(_mm_and_si128(SignMask, KeepMask), IdxMask); // x,x,8x,8x
+        val = _mm_shuffle_epi8(val, ShufMask); // 1,2,0,0
+    }
+    return val;
+}
+#endif
+
+
+#if (COMPILER_MSVC && COMMON_SIMD_LV >= 41) || (!COMPILER_MSVC && COMMON_SIMD_LV >= 41 && defined(__SHA__))
+#pragma message("Compiling DigestFuncs with SHA_NI")
+
+// From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
+// From  code previously on https://github.com/mitls/hacl-star/tree/master/experimental/hash with BSD license.
+template<bool Is64Len>
+static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, const __m128i* data, size_t size)
+{
+    const __m128i mask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
+    while (size >= (Is64Len ? 64 : 1))
+    {
+        /* Save current state */
+        const __m128i abef_save = state0;
+        const __m128i cdgh_save = state1;
+        __m128i msg, msg0, msg1, msg2, msg3;
+
+        /* Rounds 0-3 */
+        if constexpr (Is64Len)
+            msg = _mm_loadu_si128(data++);
+        else
+            msg = Load128BitPadded(data++, size, 0);
+        msg0 = _mm_shuffle_epi8(msg, mask);
+        msg = _mm_add_epi32(msg0, _mm_set_epi64x(0xE9B5DBA5B5C0FBCFULL, 0x71374491428A2F98ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+
+        /* Rounds 4-7 */
+        if constexpr (Is64Len)
+            msg1 = _mm_loadu_si128(data++);
+        else
+            msg1 = Load128BitPadded(data++, size, 16);
+        msg1 = _mm_shuffle_epi8(msg1, mask);
+        msg = _mm_add_epi32(msg1, _mm_set_epi64x(0xAB1C5ED5923F82A4ULL, 0x59F111F13956C25BULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg0 = _mm_sha256msg1_epu32(msg0, msg1);
+
+        /* Rounds 8-11 */
+        if constexpr (Is64Len)
+            msg2 = _mm_loadu_si128(data++);
+        else
+            msg2 = Load128BitPadded(data++, size, 32);
+        msg2 = _mm_shuffle_epi8(msg2, mask);
+        msg = _mm_add_epi32(msg2, _mm_set_epi64x(0x550C7DC3243185BEULL, 0x12835B01D807AA98ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg1 = _mm_sha256msg1_epu32(msg1, msg2);
+
+        /* Rounds 12-15 */
+        if constexpr (Is64Len)
+            msg3 = _mm_loadu_si128(data++);
+        else
+            msg3 = Load128BitPadded(data++, size, 48);
+        msg3 = _mm_shuffle_epi8(msg3, mask);
+        msg = _mm_add_epi32(msg3, _mm_set_epi64x(0xC19BF1749BDC06A7ULL, 0x80DEB1FE72BE5D74ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        __m128i tmp = _mm_alignr_epi8(msg3, msg2, 4);
+        msg0 = _mm_add_epi32(msg0, tmp);
+        msg0 = _mm_sha256msg2_epu32(msg0, msg3);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg2 = _mm_sha256msg1_epu32(msg2, msg3);
+
+        /* Rounds 16-19 */
+        msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x240CA1CC0FC19DC6ULL, 0xEFBE4786E49B69C1ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg0, msg3, 4);
+        msg1 = _mm_add_epi32(msg1, tmp);
+        msg1 = _mm_sha256msg2_epu32(msg1, msg0);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg3 = _mm_sha256msg1_epu32(msg3, msg0);
+
+        /* Rounds 20-23 */
+        msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x76F988DA5CB0A9DCULL, 0x4A7484AA2DE92C6FULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg1, msg0, 4);
+        msg2 = _mm_add_epi32(msg2, tmp);
+        msg2 = _mm_sha256msg2_epu32(msg2, msg1);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg0 = _mm_sha256msg1_epu32(msg0, msg1);
+
+        /* Rounds 24-27 */
+        msg = _mm_add_epi32(msg2, _mm_set_epi64x(0xBF597FC7B00327C8ULL, 0xA831C66D983E5152ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg2, msg1, 4);
+        msg3 = _mm_add_epi32(msg3, tmp);
+        msg3 = _mm_sha256msg2_epu32(msg3, msg2);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg1 = _mm_sha256msg1_epu32(msg1, msg2);
+
+        /* Rounds 28-31 */
+        msg = _mm_add_epi32(msg3, _mm_set_epi64x(0x1429296706CA6351ULL, 0xD5A79147C6E00BF3ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg3, msg2, 4);
+        msg0 = _mm_add_epi32(msg0, tmp);
+        msg0 = _mm_sha256msg2_epu32(msg0, msg3);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg2 = _mm_sha256msg1_epu32(msg2, msg3);
+
+        /* Rounds 32-35 */
+        msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x53380D134D2C6DFCULL, 0x2E1B213827B70A85ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg0, msg3, 4);
+        msg1 = _mm_add_epi32(msg1, tmp);
+        msg1 = _mm_sha256msg2_epu32(msg1, msg0);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg3 = _mm_sha256msg1_epu32(msg3, msg0);
+
+        /* Rounds 36-39 */
+        msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x92722C8581C2C92EULL, 0x766A0ABB650A7354ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg1, msg0, 4);
+        msg2 = _mm_add_epi32(msg2, tmp);
+        msg2 = _mm_sha256msg2_epu32(msg2, msg1);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg0 = _mm_sha256msg1_epu32(msg0, msg1);
+
+        /* Rounds 40-43 */
+        msg = _mm_add_epi32(msg2, _mm_set_epi64x(0xC76C51A3C24B8B70ULL, 0xA81A664BA2BFE8A1ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg2, msg1, 4);
+        msg3 = _mm_add_epi32(msg3, tmp);
+        msg3 = _mm_sha256msg2_epu32(msg3, msg2);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg1 = _mm_sha256msg1_epu32(msg1, msg2);
+
+        /* Rounds 44-47 */
+        msg = _mm_add_epi32(msg3, _mm_set_epi64x(0x106AA070F40E3585ULL, 0xD6990624D192E819ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg3, msg2, 4);
+        msg0 = _mm_add_epi32(msg0, tmp);
+        msg0 = _mm_sha256msg2_epu32(msg0, msg3);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg2 = _mm_sha256msg1_epu32(msg2, msg3);
+
+        /* Rounds 48-51 */
+        msg = _mm_add_epi32(msg0, _mm_set_epi64x(0x34B0BCB52748774CULL, 0x1E376C0819A4C116ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg0, msg3, 4);
+        msg1 = _mm_add_epi32(msg1, tmp);
+        msg1 = _mm_sha256msg2_epu32(msg1, msg0);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+        msg3 = _mm_sha256msg1_epu32(msg3, msg0);
+
+        /* Rounds 52-55 */
+        msg = _mm_add_epi32(msg1, _mm_set_epi64x(0x682E6FF35B9CCA4FULL, 0x4ED8AA4A391C0CB3ULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg1, msg0, 4);
+        msg2 = _mm_add_epi32(msg2, tmp);
+        msg2 = _mm_sha256msg2_epu32(msg2, msg1);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+
+        /* Rounds 56-59 */
+        msg = _mm_add_epi32(msg2, _mm_set_epi64x(0x8CC7020884C87814ULL, 0x78A5636F748F82EEULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        tmp = _mm_alignr_epi8(msg2, msg1, 4);
+        msg3 = _mm_add_epi32(msg3, tmp);
+        msg3 = _mm_sha256msg2_epu32(msg3, msg2);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+
+        /* Rounds 60-63 */
+        msg = _mm_add_epi32(msg3, _mm_set_epi64x(0xC67178F2BEF9A3F7ULL, 0xA4506CEB90BEFFFAULL));
+        state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
+        msg = _mm_shuffle_epi32(msg, 0x0E);
+        state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
+
+        /* Combine state  */
+        state0 = _mm_add_epi32(state0, abef_save);
+        state1 = _mm_add_epi32(state1, cdgh_save);
+        if constexpr (Is64Len)
+            size -= 64;
+        else
+            break;
+    }
+}
+
+DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
+{
+
+    /* Load initial values */
+    __m128i state0 = _mm_set_epi32(0xa54ff53a, 0x3c6ef372, 0xbb67ae85, 0x6a09e667);
+    __m128i state1 = _mm_set_epi32(0x5be0cd19, 0x1f83d9ab, 0x9b05688c, 0x510e527f);
+    /*alignas(32) constexpr uint32_t InitialVector[8] =
+    {
+        0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
+        0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u,
+    };*/
+    //__m128i state0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&InitialVector[0]));
+    //__m128i state1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&InitialVector[4]));
+
+    {
+        __m128i tmp = _mm_shuffle_epi32(state0, 0xB1);    /* CDAB */
+             state1 = _mm_shuffle_epi32(state1, 0x1B);    /* EFGH */
+             state0 = _mm_alignr_epi8(tmp, state1, 8);    /* ABEF */
+             state1 = _mm_blend_epi16(state1, tmp, 0xF0); /* CDGH */
+    }
+
+    if (size >= 64)
+    {
+        Sha256DoBlocks_SHANI<true>(state0, state1, reinterpret_cast<const __m128i*>(data), size);
+    }
+    if (size % 64)
+    {
+        Sha256DoBlocks_SHANI<false>(state0, state1, reinterpret_cast<const __m128i*>(data), size);
+    }
+
+    {
+        __m128i tmp = _mm_shuffle_epi32(state0, 0x1B);    /* FEBA */
+             state1 = _mm_shuffle_epi32(state1, 0xB1);    /* DCHG */
+             state0 = _mm_blend_epi16(tmp, state1, 0xF0); /* DCBA */
+             state1 = _mm_alignr_epi8(state1, tmp, 8);    /* ABEF */
+    }
+
+    /* Save state */
+    std::array<std::byte, 32> output;
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[ 0]), state0);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[16]), state1);
+    return output;
+}
+
+#endif
+
 
 #define TestFeature(feat) (data.has_value() && data->flags[feat])
 #define SetFunc(func, variant, test) do \
@@ -230,31 +498,43 @@ MiscIntrins::MiscIntrins() noexcept
 #define UseIfExist(func, variant, feat) SetFunc(func, variant, TestFeature(feat))
 #define FallbackTo(func, variant) SetFunc(func, variant, true)
 
+MiscIntrins::MiscIntrins() noexcept
+{
+    const auto& data = GetCPUInfo();
+
     UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_BMI1);
     UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_BMI1);
     UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_ABM);
     UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_ABM);
-    FallbackTo(LeadZero32, OS);
-    FallbackTo(LeadZero64, OS);
+    FallbackTo(LeadZero32, COMPILER);
+    FallbackTo(LeadZero64, COMPILER);
 
     UseIfExist(TailZero32, TZCNT, CPU_FEATURE_BMI1);
     UseIfExist(TailZero64, TZCNT, CPU_FEATURE_BMI1);
-    FallbackTo(TailZero32, OS);
-    FallbackTo(TailZero64, OS);
+    FallbackTo(TailZero32, COMPILER);
+    FallbackTo(TailZero64, COMPILER);
 
     UseIfExist(PopCount32, POPCNT, CPU_FEATURE_POPCNT);
     UseIfExist(PopCount64, POPCNT, CPU_FEATURE_POPCNT);
-    FallbackTo(PopCount32, OS);
-    FallbackTo(PopCount64, OS);
+    FallbackTo(PopCount32, COMPILER);
+    FallbackTo(PopCount64, COMPILER);
     FallbackTo(PopCount32, NAIVE);
     FallbackTo(PopCount64, NAIVE);
+}
+
+const MiscIntrins MiscIntrin;
+
+DigestFuncs::DigestFuncs() noexcept
+{
+    const auto& data = GetCPUInfo();
+
+    UseIfExist(Sha256, SHANI, CPU_FEATURE_SHA_NI);
+    FallbackTo(Sha256, NAIVE);
+}
 
 #undef TestFeature
 #undef SetFunc
 #undef UseIfExist
 #undef FallbackTo
-}
-
-const MiscIntrins MiscIntrin;
 
 }
