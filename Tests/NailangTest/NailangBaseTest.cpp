@@ -31,6 +31,7 @@ static std::string PrintMemPool(const xziar::nailang::MemoryPool& pool) noexcept
 
 TEST(NailangBase, MemoryPool)
 {
+#define EXPECT_ALIGN(ptr, align) EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % align, 0u)
     xziar::nailang::MemoryPool pool;
     {
         const auto space = pool.Alloc(10, 1);
@@ -43,30 +44,31 @@ TEST(NailangBase, MemoryPool)
     }
     {
         const auto space = pool.Alloc(4, 128);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 128, 0) << PrintMemPool(pool);
+        EXPECT_ALIGN(space.data(), 128) << PrintMemPool(pool);
     }
     {
         const auto& arr = *pool.Create<std::array<double, 3>>(std::array{ 1.0,2.0,3.0 });
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(&arr) % alignof(double), 0) << PrintMemPool(pool);
+        EXPECT_ALIGN(&arr, alignof(double)) << PrintMemPool(pool);
         EXPECT_THAT(arr, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);
     }
     {
         const std::array arr{ 1.0,2.0,3.0 };
         const auto sp = pool.CreateArray(arr);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(sp.data()) % alignof(double), 0) << PrintMemPool(pool);
+        EXPECT_ALIGN(sp.data(), alignof(double)) << PrintMemPool(pool);
         std::vector<double> vec(sp.begin(), sp.end());
         EXPECT_THAT(vec, testing::ElementsAre(1.0, 2.0, 3.0)) << PrintMemPool(pool);
     }
     {
         const auto space = pool.Alloc(3 * 1024 * 1024, 4096);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0) << PrintMemPool(pool);
+        EXPECT_ALIGN(space.data(), 4096) << PrintMemPool(pool);
         const auto space2 = pool.Alloc(128, 1);
         EXPECT_EQ(space2.data() - space.data(), 3 * 1024 * 1024) << PrintMemPool(pool);
     }
     {
         const auto space = pool.Alloc(36 * 1024 * 1024, 8192);
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(space.data()) % 4096, 0) << PrintMemPool(pool);
+        EXPECT_ALIGN(space.data(), 4096) << PrintMemPool(pool);
     }
+#undef EXPECT_ALIGN
 }
 
 TEST(NailangBase, EmbedOpTokenizer)

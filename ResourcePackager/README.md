@@ -153,12 +153,6 @@ Serializable provide serialize and deserialize support for the object.
 
 `RESPAK_DECL_COMP_DESERIALIZE(typestr)` and `RESPAK_IMPL_COMP_DESERIALIZE(type, ...)` is used to quick declare & implement deserialize support. It is used when no default-constructor can be found. Constructor argument should be explicit listed at the end of impl-macro, and **a function-body should be follow by the impl-macro, which returns an `std::any` containing the `tuple`**.
 
-## Dependency
-
-* [crypto++](https://www.cryptopp.com) 8.2.0
-
-  [Boost Software License](./3rdParty/cryptopp/license.txt)
-
 ## License
 
 ResourcePackager (including its component) is licensed under the [MIT license](../../License.txt).

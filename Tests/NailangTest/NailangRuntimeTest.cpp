@@ -556,9 +556,9 @@ tmp = 1;
         return m;
     };
 
-    EXPECT_EQ(refgcd(5, 5),  std::gcd(5, 5));
-    EXPECT_EQ(refgcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(refgcd(17, 5), std::gcd(17, 5));
+    EXPECT_EQ(refgcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(refgcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(refgcd(17u, 5u), std::gcd(17u, 5u));
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
@@ -573,9 +573,9 @@ tmp = 1;
         EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
         return *ans.GetUint();
     };
-    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
-    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
+    EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(gcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(gcd(17u, 5u), std::gcd(17u, 5u));
 }
 
 TEST(NailangRuntime, gcd2)
@@ -587,7 +587,7 @@ TEST(NailangRuntime, gcd2)
 @While(true)
 #Block("")
 {
-    tmp = m % n;
+    :tmp = m % n;
     m = n;
     n = tmp;
     @If(n==0)
@@ -608,9 +608,9 @@ TEST(NailangRuntime, gcd2)
         return m;
     };
 
-    EXPECT_EQ(refgcd(5, 5),  std::gcd(5, 5));
-    EXPECT_EQ(refgcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(refgcd(17, 5), std::gcd(17, 5));
+    EXPECT_EQ(refgcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(refgcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(refgcd(17u, 5u), std::gcd(17u, 5u));
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
@@ -625,9 +625,9 @@ TEST(NailangRuntime, gcd2)
         EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
         return *ans.GetUint();
     };
-    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
-    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
+    EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(gcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(gcd(17u, 5u), std::gcd(17u, 5u));
 }
 
 
@@ -659,10 +659,10 @@ m = $gcd(m,n);
             return refgcd(n, tmp);
         }
     };
-
-    EXPECT_EQ(Temp::refgcd(5, 5), std::gcd(5, 5));
-    EXPECT_EQ(Temp::refgcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(Temp::refgcd(17, 5), std::gcd(17, 5));
+    
+    EXPECT_EQ(Temp::refgcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(Temp::refgcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(Temp::refgcd(17u, 5u), std::gcd(17u, 5u));
 
     const auto algoBlock = BlkParser::GetBlock(pool, gcdTxt);
 
@@ -677,7 +677,7 @@ m = $gcd(m,n);
         EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
         return *ans.GetUint();
     };
-    EXPECT_EQ(gcd(5, 5), std::gcd(5, 5));
-    EXPECT_EQ(gcd(15, 5), std::gcd(15, 5));
-    EXPECT_EQ(gcd(17, 5), std::gcd(17, 5));
+    EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(gcd(15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(gcd(17u, 5u), std::gcd(17u, 5u));
 }

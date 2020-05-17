@@ -141,7 +141,7 @@ public:
     }
 
     template<typename T>
-    bytearray<32> SHA256(const common::span<const T> data)
+    bytearray<32> SHA256(const common::span<const T> data) const noexcept
     {
         const auto bytes = common::as_bytes(data);
         return Sha256(bytes.data(), bytes.size());

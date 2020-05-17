@@ -137,7 +137,7 @@ TEST(ParserLexer, LexerInt)
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0b1010010100111110"sv);
-        CHECK_TK(tokens[0], Uint, GetUInt, 0b1010010100111110);
+        CHECK_TK(tokens[0], Uint, GetUInt, 0b1010010100111110u);
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"-0"sv);
@@ -149,11 +149,11 @@ TEST(ParserLexer, LexerInt)
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0b123"sv);
-        CHECK_TK(tokens[0], Uint, GetUInt, 0b1); // max-match
+        CHECK_TK(tokens[0], Uint, GetUInt, 0b1u); // max-match
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x1ax3"sv);
-        CHECK_TK(tokens[0], Uint, GetUInt, 0x1a); // max-match
+        CHECK_TK(tokens[0], Uint, GetUInt, 0x1au); // max-match
     }
     {
         const auto tokens = TKParse<IntTokenizer>(U"0x12345678901234567890"sv);

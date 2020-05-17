@@ -158,7 +158,7 @@ DEFINE_INTRIN_METHOD(PopCount64, NAIVE, const uint64_t num)
 DEFINE_INTRIN_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
 {
     std::array<std::byte, 32> output;
-    digestpp::sha256().absorb(reinterpret_cast<const char*>(data), size)
+    digestpp::sha256().absorb(data, size)
         .digest(reinterpret_cast<unsigned char*>(output.data()), 32);
     return output;
 }
@@ -531,6 +531,9 @@ DigestFuncs::DigestFuncs() noexcept
     UseIfExist(Sha256, SHANI, CPU_FEATURE_SHA_NI);
     FallbackTo(Sha256, NAIVE);
 }
+
+const DigestFuncs DigestFunc;
+
 
 #undef TestFeature
 #undef SetFunc

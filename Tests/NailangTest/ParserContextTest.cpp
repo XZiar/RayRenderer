@@ -46,7 +46,7 @@ TEST(ParserCtx, Reader)
             reader.MoveNext();
             EXPECT_EQ(reader.CommitRead(), U"01"sv);
             CHECK_POS(context, 0, 2);
-            EXPECT_EQ(context.Index, 2);
+            EXPECT_EQ(context.Index, 2u);
         }
         {
             ContextReader reader(context);
@@ -56,7 +56,7 @@ TEST(ParserCtx, Reader)
             reader.MoveNext();
             EXPECT_EQ(reader.CommitRead(), U"\n\r\n"sv);
             CHECK_POS(context, 2, 0);
-            EXPECT_EQ(context.Index, 5);
+            EXPECT_EQ(context.Index, 5u);
         }
         {
             ContextReader reader(context);
@@ -64,7 +64,7 @@ TEST(ParserCtx, Reader)
             reader.MoveNext();
             reader.CommitRead();
             CHECK_POS(context, 2, 0);
-            EXPECT_EQ(context.Index, 5);
+            EXPECT_EQ(context.Index, 5u);
         }
     }
 }
@@ -174,37 +174,37 @@ TEST(ParserCtx, ReadWhile)
         CHECK_POS(context, 0, 0);
         const auto result0 = reader.ReadWhile(CheckIsBlank);
         EXPECT_EQ(result0, U" "sv);
-        EXPECT_EQ(context.Index, 1);
+        EXPECT_EQ(context.Index, 1u);
         CHECK_POS(context, 0, 1);
 
         const auto result1 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result1, U"123"sv);
-        EXPECT_EQ(context.Index, 4);
+        EXPECT_EQ(context.Index, 4u);
         CHECK_POS(context, 0, 4);
 
         const auto result2 = reader.ReadWhile(CheckIsBlank);
         EXPECT_EQ(result2, U"\t"sv);
-        EXPECT_EQ(context.Index, 5);
+        EXPECT_EQ(context.Index, 5u);
         CHECK_POS(context, 0, 5);
 
         const auto result3 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result3, U"456"sv);
-        EXPECT_EQ(context.Index, 8);
+        EXPECT_EQ(context.Index, 8u);
         CHECK_POS(context, 0, 8);
 
         const auto result5 = reader.ReadWhile(CheckIsWhiteSpace);
         EXPECT_EQ(result5, U"\n"sv);
-        EXPECT_EQ(context.Index, 9);
+        EXPECT_EQ(context.Index, 9u);
         CHECK_POS(context, 1, 0);
 
         const auto result6 = reader.ReadWhile(CheckIsNumber);
         EXPECT_EQ(result6, U"789"sv);
-        EXPECT_EQ(context.Index, 12);
+        EXPECT_EQ(context.Index, 12u);
         CHECK_POS(context, 1, 3);
 
         const auto result7 = reader.ReadWhile([](const char32_t ch) { return ch == U'\n'; });
         EXPECT_EQ(result7, U"\r\n"sv);
-        EXPECT_EQ(context.Index, 14);
+        EXPECT_EQ(context.Index, 14u);
         CHECK_POS(context, 2, 0);
     }
 }

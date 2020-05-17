@@ -489,7 +489,7 @@ TEST(Linq, Pairs)
     {
         EXPECT_EQ(FromRange<int32_t>(0, 4, 1)
             .Pairs(FromRange<int32_t>(1, 4, 1))
-            .Count(), 3);
+            .Count(), 3u);
     }
     {
         std::vector<int32_t> data1{ 1,2,3 };

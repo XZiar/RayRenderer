@@ -138,5 +138,5 @@
   - [ ] Add remote rendering backend (out-of-process or network-based)
   - [x] Add custom base DSL for OpenGL and OpenCL
   - [ ] Switch to github actions for CI?
-  - [ ] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
+  - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
 

@@ -254,7 +254,7 @@ abc = 0u;
 }
 )"sv;
         const auto block = ParseAll(src);
-        ASSERT_EQ(block.Content.size(), 1);
+        ASSERT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Block);
         ASSERT_EQ(meta.size(), 1u);
@@ -266,7 +266,7 @@ abc = 0u;
         {
             const auto [meta_, stmt_] = blk[0];
             EXPECT_EQ(stmt_.GetType(), xziar::nailang::BlockContent::Type::Assignment);
-            EXPECT_EQ(meta_.size(), 0);
+            EXPECT_EQ(meta_.size(), 0u);
             const auto& assign = *std::get<0>(stmt_.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"abc"sv);
             CHECK_VAR_ARG(assign.Statement, Uint, 0u);
@@ -283,11 +283,11 @@ empty
 }
 )"sv;
         const auto block = ParseAll(src);
-        ASSERT_EQ(block.Content.size(), 3);
+        ASSERT_EQ(block.Content.size(), 3u);
         {
             const auto [meta, stmt] = block[0];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
-            EXPECT_EQ(meta.size(), 0);
+            EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"hey"sv);
             EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
@@ -307,7 +307,7 @@ empty
         {
             const auto [meta, stmt] = block[1];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
-            EXPECT_EQ(meta.size(), 0);
+            EXPECT_EQ(meta.size(), 0u);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
             EXPECT_EQ(fcall.Name, U"func"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
@@ -316,7 +316,7 @@ empty
         {
             const auto [meta, stmt] = block[2];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
-            ASSERT_EQ(meta.size(), 1);
+            ASSERT_EQ(meta.size(), 1u);
             EXPECT_EQ(meta[0].Name, U"meta"sv);
             EXPECT_EQ(meta[0].Args.size(), 0u);
             const auto& blk = *std::get<2>(stmt.GetStatement());
@@ -416,7 +416,7 @@ Here
         ASSERT_EQ(block.MetaFunctions.size(), 1u);
         const auto& meta = block.MetaFunctions[0];
         EXPECT_EQ(meta.Name, U"func"sv);
-        EXPECT_EQ(meta.Args.size(), 0);
+        EXPECT_EQ(meta.Args.size(), 0u);
     }
     {
         constexpr auto src =
