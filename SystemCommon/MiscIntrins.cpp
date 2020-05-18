@@ -1,8 +1,11 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
 #include "common/SIMD.hpp"
+#include "common/StrParsePack.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 #include "3rdParty/cpuid/libcpuid.h"
+#include <boost/preprocessor/tuple/enum.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
 
 #pragma message("Compiling MiscIntrins with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
@@ -21,14 +24,48 @@ struct ByteSwap32 { using RetType = uint32_t; };
 struct ByteSwap64 { using RetType = uint64_t; };
 struct Sha256     { using RetType = std::array<std::byte, 32>; };
 
-struct NAIVE {};
-struct COMPILER {};
-struct OS {};
-struct LZCNT {};
-struct TZCNT {};
-struct POPCNT {};
-struct BMI1 {};
-struct SHANI {};
+struct FuncVarBase 
+{ 
+    static bool RuntimeCheck(const std::optional<cpu_id_t>&) noexcept { return true; }
+};
+struct NAIVE : FuncVarBase {};
+struct COMPILER : FuncVarBase {};
+struct OS : FuncVarBase {};
+struct LZCNT 
+{ 
+    static bool RuntimeCheck(const std::optional<cpu_id_t>& data) noexcept 
+    { 
+        return data.has_value() && (data->flags[CPU_FEATURE_BMI1] || data->flags[CPU_FEATURE_ABM]);
+    }
+};
+struct TZCNT
+{
+    static bool RuntimeCheck(const std::optional<cpu_id_t>& data) noexcept
+    {
+        return data.has_value() && data->flags[CPU_FEATURE_BMI1];
+    }
+};
+struct POPCNT
+{
+    static bool RuntimeCheck(const std::optional<cpu_id_t>& data) noexcept
+    {
+        return data.has_value() && data->flags[CPU_FEATURE_POPCNT];
+    }
+};
+struct BMI1
+{
+    static bool RuntimeCheck(const std::optional<cpu_id_t>& data) noexcept
+    {
+        return data.has_value() && data->flags[CPU_FEATURE_BMI1];
+    }
+};
+struct SHANI
+{
+    static bool RuntimeCheck(const std::optional<cpu_id_t>& data) noexcept
+    {
+        return data.has_value() && data->flags[CPU_FEATURE_SHA_NI];
+    }
+};
 }
 template<typename Intrin, typename Method>
 constexpr bool CheckExists() noexcept 
@@ -42,15 +79,15 @@ constexpr void InjectFunc(F&) noexcept
 }
 
 
-#define DEFINE_INTRIN_METHOD(func, var, ...) \
-template<> \
-constexpr bool CheckExists<intrin::func, intrin::var>() noexcept \
-{ return true; } \
-static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept; \
-template<> \
-constexpr void InjectFunc<intrin::func, intrin::var>(decltype(&func##_##var)& f) noexcept \
-{ f = func##_##var; } \
-static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept \
+#define DEFINE_INTRIN_METHOD(func, var, ...)                                                \
+template<>                                                                                  \
+constexpr bool CheckExists<intrin::func, intrin::var>() noexcept                            \
+{ return true; }                                                                            \
+static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept;                   \
+template<>                                                                                  \
+constexpr void InjectFunc<intrin::func, intrin::var>(decltype(&func##_##var)& f) noexcept   \
+{ f = func##_##var; }                                                                       \
+static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept                    \
 
 
 
@@ -483,55 +520,96 @@ DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
 #endif
 
 
-#define TestFeature(feat) (data.has_value() && data->flags[feat])
-#define SetFunc(func, variant, test) do \
-    { \
-        if constexpr (CheckExists<intrin::func, intrin::variant>()) \
-        { \
-            if (func == nullptr && test) \
-            { \
-                InjectFunc<intrin::func, intrin::variant>(func); \
-                VariantMap.emplace_back(STRINGIZE(func), STRINGIZE(variant)); \
-            } \
-        } \
-    } while(0)
-#define UseIfExist(func, variant, feat) SetFunc(func, variant, TestFeature(feat))
-#define FallbackTo(func, variant) SetFunc(func, variant, true)
+#define RegistFuncVar(r, func, var)                         \
+if constexpr (CheckExists<intrin::func, intrin::var>())     \
+{                                                           \
+    if (intrin::var::RuntimeCheck(info))                    \
+        ret.emplace_back(STRINGIZE(func), STRINGIZE(var));  \
+}                                                           \
 
-MiscIntrins::MiscIntrins() noexcept
+#define RegistFuncVars(func, ...) do                                                \
+{                                                                                   \
+BOOST_PP_SEQ_FOR_EACH(RegistFuncVar, func, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))   \
+} while(0)                                                                          \
+
+
+#define SWITCH_VAR_CASE(v, func, var)                               \
+HashCase(v, STRINGIZE(var))                                         \
+if constexpr (CheckExists<intrin::func, intrin::var>())             \
+{                                                                   \
+    if (func == nullptr)                                            \
+    {                                                               \
+        InjectFunc<intrin::func, intrin::var>(func);                \
+        VariantMap.emplace_back(STRINGIZE(func), STRINGIZE(var));   \
+    }                                                               \
+}                                                                   \
+break;                                                              \
+
+#define SWITCH_VAR_CASE_(r, vf, var) SWITCH_VAR_CASE(BOOST_PP_TUPLE_ELEM(0, vf), BOOST_PP_TUPLE_ELEM(1, vf), var)
+#define SWITCH_VAR_CASES(vf, vars) BOOST_PP_SEQ_FOR_EACH(SWITCH_VAR_CASE_, vf, vars)
+#define CHECK_FUNC_VARS(f, v, func, ...)                            \
+HashCase(f, STRINGIZE(func))                                        \
+switch (hash_(v))                                                   \
+{                                                                   \
+SWITCH_VAR_CASES((v, func), BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))  \
+} break                                                             \
+
+
+common::span<const MiscIntrins::VarItem> MiscIntrins::GetSupportMap() noexcept
 {
-    const auto& data = GetCPUInfo();
-
-    UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_BMI1);
-    UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_BMI1);
-    UseIfExist(LeadZero32, LZCNT, CPU_FEATURE_ABM);
-    UseIfExist(LeadZero64, LZCNT, CPU_FEATURE_ABM);
-    FallbackTo(LeadZero32, COMPILER);
-    FallbackTo(LeadZero64, COMPILER);
-
-    UseIfExist(TailZero32, TZCNT, CPU_FEATURE_BMI1);
-    UseIfExist(TailZero64, TZCNT, CPU_FEATURE_BMI1);
-    FallbackTo(TailZero32, COMPILER);
-    FallbackTo(TailZero64, COMPILER);
-
-    UseIfExist(PopCount32, POPCNT, CPU_FEATURE_POPCNT);
-    UseIfExist(PopCount64, POPCNT, CPU_FEATURE_POPCNT);
-    FallbackTo(PopCount32, COMPILER);
-    FallbackTo(PopCount64, COMPILER);
-    FallbackTo(PopCount32, NAIVE);
-    FallbackTo(PopCount64, NAIVE);
+    static auto list = []() 
+    {
+        const auto& info = GetCPUInfo();
+        std::vector<VarItem> ret;
+        RegistFuncVars(LeadZero32, LZCNT, COMPILER);
+        RegistFuncVars(LeadZero64, LZCNT, COMPILER);
+        RegistFuncVars(TailZero32, TZCNT, COMPILER);
+        RegistFuncVars(TailZero64, TZCNT, COMPILER);
+        RegistFuncVars(PopCount32, POPCNT, COMPILER, NAIVE);
+        RegistFuncVars(PopCount64, POPCNT, COMPILER, NAIVE);
+        return ret;
+    }();
+    return list;
 }
-
+MiscIntrins::MiscIntrins(common::span<const MiscIntrins::VarItem> requests) noexcept
+{
+    for (const auto [func, var] : requests)
+    {
+        switch (hash_(func))
+        {
+        CHECK_FUNC_VARS(func, var, LeadZero32, LZCNT, COMPILER);
+        CHECK_FUNC_VARS(func, var, LeadZero64, LZCNT, COMPILER);
+        CHECK_FUNC_VARS(func, var, TailZero32, TZCNT, COMPILER);
+        CHECK_FUNC_VARS(func, var, TailZero64, TZCNT, COMPILER);
+        CHECK_FUNC_VARS(func, var, PopCount32, POPCNT, COMPILER, NAIVE);
+        CHECK_FUNC_VARS(func, var, PopCount64, POPCNT, COMPILER, NAIVE);
+        }
+    }
+}
 const MiscIntrins MiscIntrin;
 
-DigestFuncs::DigestFuncs() noexcept
+
+common::span<const DigestFuncs::VarItem> DigestFuncs::GetSupportMap() noexcept
 {
-    const auto& data = GetCPUInfo();
-
-    UseIfExist(Sha256, SHANI, CPU_FEATURE_SHA_NI);
-    FallbackTo(Sha256, NAIVE);
+    static auto list = []()
+    {
+        const auto& info = GetCPUInfo();
+        std::vector<VarItem> ret;
+        RegistFuncVars(Sha256, SHANI, NAIVE);
+        return ret;
+    }();
+    return list;
 }
-
+DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noexcept
+{
+    for (const auto [func, var] : requests)
+    {
+        switch (hash_(func))
+        {
+        CHECK_FUNC_VARS(func, var, Sha256, SHANI, NAIVE);
+        }
+    }
+}
 const DigestFuncs DigestFunc;
 
 

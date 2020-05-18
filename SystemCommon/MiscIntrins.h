@@ -13,13 +13,14 @@ namespace common
 class SYSCOMMONAPI MiscIntrins
 {
 private:
+    using VarItem = std::pair<std::string_view, std::string_view>;
     uint32_t (*LeadZero32)(const uint32_t) noexcept = nullptr;
     uint32_t (*LeadZero64)(const uint64_t) noexcept = nullptr;
     uint32_t (*TailZero32)(const uint32_t) noexcept = nullptr;
     uint32_t (*TailZero64)(const uint64_t) noexcept = nullptr;
     uint32_t (*PopCount32)(const uint32_t) noexcept = nullptr;
     uint32_t (*PopCount64)(const uint64_t) noexcept = nullptr;
-    std::vector<std::pair<std::string_view, std::string_view>> VariantMap;
+    std::vector<VarItem> VariantMap;
 #if COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
@@ -49,8 +50,10 @@ private:
 #else
 #endif
 public:
-    MiscIntrins() noexcept;
-    [[nodiscard]] common::span<const std::pair<std::string_view, std::string_view>> GetIntrinMap() const noexcept
+    [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
+    MiscIntrins(common::span<const VarItem> requests) noexcept;
+    MiscIntrins() noexcept : MiscIntrins(GetSupportMap()) { }
+    [[nodiscard]] common::span<const VarItem> GetIntrinMap() const noexcept
     {
         return VariantMap;
     }
@@ -124,14 +127,17 @@ SYSCOMMONAPI extern const MiscIntrins MiscIntrin;
 class SYSCOMMONAPI DigestFuncs
 {
 public:
+    using VarItem = std::pair<std::string_view, std::string_view>;
     template<size_t N>
     using bytearray = std::array<std::byte, N>;
 private:
     bytearray<32>(*Sha256)(const std::byte*, const size_t) noexcept = nullptr;
-    std::vector<std::pair<std::string_view, std::string_view>> VariantMap;
+    std::vector<VarItem> VariantMap;
 public:
-    DigestFuncs() noexcept;
-    [[nodiscard]] common::span<const std::pair<std::string_view, std::string_view>> GetIntrinMap() const noexcept
+    [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
+    DigestFuncs(common::span<const VarItem> requests) noexcept;
+    DigestFuncs() noexcept : DigestFuncs(GetSupportMap()) { }
+    [[nodiscard]] common::span<const VarItem> GetIntrinMap() const noexcept
     {
         return VariantMap;
     }
@@ -141,9 +147,9 @@ public:
     }
 
     template<typename T>
-    bytearray<32> SHA256(const common::span<const T> data) const noexcept
+    bytearray<32> SHA256(const common::span<T> data) const noexcept
     {
-        const auto bytes = common::as_bytes(data);
+        const common::span<const std::byte> bytes = common::as_bytes(data);
         return Sha256(bytes.data(), bytes.size());
     }
 };

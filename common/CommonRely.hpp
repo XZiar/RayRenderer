@@ -574,6 +574,12 @@ namespace detail
 {
 template<typename T>
 using CanAsSpan = decltype(std::declval<T&>().AsSpan());
+template<typename T>
+using HasData = decltype(std::declval<T&>().data());
+template<typename T>
+using HasSize = decltype(std::declval<T&>().size());
+template<typename T>
+inline constexpr bool IsContainerLike = is_detected_v<HasData, T> && is_detected_v<HasSize, T>;
 struct CannotToSpan
 {
     template<typename T>
@@ -609,6 +615,8 @@ template <typename T, typename Fallback = detail::CannotToSpan>
             return common::span<EleType>(std::forward<T>(arg));
         else if constexpr (std::is_convertible_v<T, common::span<EleType>>)
             return (common::span<EleType>)arg;
+        else if constexpr (detail::IsContainerLike<T>)
+            return common::span<std::remove_reference_t<decltype(*arg.data())>>(arg.data(), arg.size());
         else
             return Fallback()(std::forward<T>(arg));
     }

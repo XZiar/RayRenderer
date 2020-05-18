@@ -13,7 +13,7 @@ jobs:
         - STATICLINKER=gcc-ar-7
         - DYNAMICLINKER=g++
         - APPLINKER=g++
-        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+        - BUILDMODULES="all,-BasicsTest,-SystemCommonTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -43,7 +43,7 @@ jobs:
         - STATICLINKER=gcc-ar-8
         - DYNAMICLINKER=g++-8
         - APPLINKER=g++-8
-        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+        - BUILDMODULES="all,-BasicsTest,-SystemCommonTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -74,7 +74,7 @@ jobs:
         - STATICLINKER=gcc-ar-9
         - DYNAMICLINKER=g++-9
         - APPLINKER=g++-9
-        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+        - BUILDMODULES="all,-BasicsTest,-SystemCommonTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -104,7 +104,7 @@ jobs:
         - CPPCOMPILER=clang++
         - DYNAMICLINKER=clang++
         - APPLINKER=clang++
-        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+        - BUILDMODULES="all,-BasicsTest,-SystemCommonTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -138,7 +138,7 @@ jobs:
         - CPPCOMPILER=clang++-8
         - DYNAMICLINKER=clang++-8
         - APPLINKER=clang++-8
-        - BUILDMODULES="all,-BasicsTest,-NailangTest"
+        - BUILDMODULES="all,-BasicsTest,-SystemCommonTest,-NailangTest"
       addons:
         apt:
           sources:
@@ -201,6 +201,7 @@ before_script:
 
 script:
   - python3 xzbuild.py rebuild $BUILDMODULES /threads=x1.5
-  - python3 xzbuild.py rebuildall "BasicsTest,NailangTest" Release /threads=x1.5
+  - python3 xzbuild.py rebuildall "BasicsTest,SystemCommonTest,NailangTest" Release /threads=x1.5
   - ./x64/Release/BasicsTest
+  - ./x64/Release/SystemCommonTest
   - ./x64/Release/NailangTest

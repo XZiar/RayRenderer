@@ -4,8 +4,8 @@
 #include "StrBase.hpp"
 #include "SIMD.hpp"
 
-#include <boost/preprocessor/punctuation/comma_if.hpp>
-#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
 
 #if defined(__cpp_lib_constexpr_algorithms) && __cpp_lib_constexpr_algorithms >= 201806L
@@ -174,8 +174,8 @@ constexpr inline auto BuildPack(const STORE wrapper) noexcept
 #define PARSE_PACK(...) ::common::str::parsepack::BuildPack(STR_PARSE_PACK_BUILD_STORE(__VA_ARGS__))
 
 
-#define STR_SWITCH_PACK_CASE(r, ctype, i, tp) ctype##Case(arg, BOOST_PP_TUPLE_ELEM(2, 0, tp)) return BOOST_PP_TUPLE_ELEM(2, 1, tp);
-#define STR_SWITCH_PACK_CASES(ctype, ...) BOOST_PP_SEQ_FOR_EACH_I(STR_SWITCH_PACK_CASE, ctype, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define STR_SWITCH_PACK_CASE(r, ctype, tp) ctype##Case(arg, BOOST_PP_TUPLE_ELEM(2, 0, tp)) return BOOST_PP_TUPLE_ELEM(2, 1, tp);
+#define STR_SWITCH_PACK_CASES(ctype, ...) BOOST_PP_SEQ_FOR_EACH(STR_SWITCH_PACK_CASE, ctype, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 #define SWITCH_PACK(ctype, tp, ...) [](){               \
     constexpr auto sv = ::common::str::ToStringView(BOOST_PP_TUPLE_ELEM(2, 0, tp)); \
