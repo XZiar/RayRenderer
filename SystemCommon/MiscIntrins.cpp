@@ -263,59 +263,102 @@ DEFINE_INTRIN_METHOD(PopCount64, POPCNT, const uint64_t num)
 #endif
 
 
-#if COMMON_SIMD_LV >= 31
-forceinline static __m128i Load128BitPadded(const __m128i* data, const size_t size, const size_t sizeOffset = 0) noexcept
-{
-    if (size <= sizeOffset)
-        return _mm_setzero_si128();
-    auto val = _mm_loadu_si128(data);
-    if (size - sizeOffset < 16)
-    {
-        const __m128i IdxMask = _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-        const __m128i SizeMask = _mm_set1_epi8(static_cast<char>(size - sizeOffset - 1)); // x,x,x,x
-        const __m128i KeepMask = _mm_cmpgt_epi8(IdxMask, SizeMask); // 00,00,ff,ff
-        const __m128i SignMask = _mm_set1_epi8(static_cast<char>(0x80)); // 00,00,80,80
-        const __m128i ShufMask = _mm_or_si128(_mm_and_si128(SignMask, KeepMask), IdxMask); // x,x,8x,8x
-        val = _mm_shuffle_epi8(val, ShufMask); // 1,2,0,0
-    }
-    return val;
-}
-#endif
-
-
 #if (COMPILER_MSVC && COMMON_SIMD_LV >= 41) || (!COMPILER_MSVC && COMMON_SIMD_LV >= 41 && defined(__SHA__))
 #pragma message("Compiling DigestFuncs with SHA_NI")
 
+forceinline __m128i Load128Ext(const __m128i* data, const size_t size, const size_t sizeOffset = 0) noexcept
+{
+    if (size < sizeOffset)
+        return _mm_setzero_si128();
+    else if (size == sizeOffset)
+        return _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<char>(0x80));
+    const auto len = size - sizeOffset;
+    auto val = _mm_loadu_si128(data);
+    if (len < 16)
+    {
+        const __m128i IdxConst  = _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        const __m128i SignConst = _mm_set1_epi8(static_cast<char>(0x80));   // 80,80,80,80
+        const __m128i SizeMask  = _mm_set1_epi8(static_cast<char>(len));    //  x, x, x, x
+        const __m128i EndMask   = _mm_cmpeq_epi8(IdxConst, SizeMask);       // 00,00,ff,00
+        const __m128i SuffixBit = _mm_and_si128(SignConst, EndMask);        // 00,00,80,00
+        const __m128i Size1Mask = _mm_sub_epi8(SizeMask, _mm_set1_epi8(1)); //  y, y, y, y
+        const __m128i KeepMask  = _mm_cmpgt_epi8(IdxConst, Size1Mask);      // 00,00,ff,ff
+        const __m128i KeepBit   = _mm_and_si128(SignConst, KeepMask);       // 00,00,80,80
+        const __m128i ShufMask  = _mm_or_si128(KeepBit, IdxConst);          //  4, 5,86,87
+        val = _mm_shuffle_epi8(val, ShufMask);                              // z4,z5, 0, 0
+        val = _mm_or_si128(val, SuffixBit);                                 // z4,z5,80, 0
+    }
+    return val;
+}
+
+enum class SHA256BlockMode { WholeBlock, PaddedBlock/*finish inside*/, ZeroedBlock/*need tail*/, TailBlock };
 // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
 // From  code previously on https://github.com/mitls/hacl-star/tree/master/experimental/hash with BSD license.
-template<bool Is64Len>
-static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, const __m128i* data, size_t size)
+template<SHA256BlockMode Mode>
+static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, [[maybe_unused]] const __m128i* data, const size_t size, size_t offset)
 {
     const __m128i mask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
-    while (size >= (Is64Len ? 64 : 1))
+    while (Mode == SHA256BlockMode::WholeBlock ? (size > offset && size - offset >= 64) : true)
     {
         /* Save current state */
         const __m128i abef_save = state0;
         const __m128i cdgh_save = state1;
         __m128i msg, msg0, msg1, msg2, msg3;
 
+        if constexpr (Mode == SHA256BlockMode::WholeBlock)
+        {
+            msg0 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg1 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg2 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg3 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+        }
+        else if constexpr (Mode == SHA256BlockMode::PaddedBlock)
+        {
+            msg0 = _mm_shuffle_epi8(Load128Ext(data++, size, offset +  0), mask);
+            msg1 = _mm_shuffle_epi8(Load128Ext(data++, size, offset + 16), mask);
+            msg2 = _mm_shuffle_epi8(Load128Ext(data++, size, offset + 32), mask);
+            msg3 = Load128Ext(data++, size, offset + 48);
+            const auto bits = static_cast<uint64_t>(size) * 8;
+#if COMPILER_MSVC
+            const auto bitsBE = _byteswap_uint64(bits);
+#elif COMPILER_GCC || COMPILER_CLANG
+            const auto bitsBE = __builtin_bswap64(bits);
+#endif
+            msg3 = _mm_insert_epi64(msg3, static_cast<int64_t>(bitsBE), 1);
+            msg3 = _mm_shuffle_epi8(msg3, mask);
+        }
+        else if constexpr (Mode == SHA256BlockMode::ZeroedBlock)
+        {
+            msg0 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg1 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg2 = _mm_shuffle_epi8(_mm_loadu_si128(data++), mask);
+            msg3 = _mm_shuffle_epi8(Load128Ext(data++, size, offset + 48), mask);
+        }
+        else // SHA256BlockMode::TailBlock
+        {
+            if (size == offset)
+                msg0 = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<char>(0x80), 0, 0, 0);
+            else
+                msg0 = _mm_setzero_si128();
+            msg1 = _mm_setzero_si128();
+            msg2 = _mm_setzero_si128();
+            const auto bits = static_cast<uint64_t>(size) * 8;
+#if COMPILER_MSVC
+            const auto bitsBE = _byteswap_uint64(bits);
+#elif COMPILER_GCC || COMPILER_CLANG
+            const auto bitsBE = __builtin_bswap64(bits);
+#endif
+            msg3 = _mm_set_epi64x(static_cast<int64_t>(bitsBE), 0);
+            msg3 = _mm_shuffle_epi8(msg3, mask);
+        }
+
         /* Rounds 0-3 */
-        if constexpr (Is64Len)
-            msg = _mm_loadu_si128(data++);
-        else
-            msg = Load128BitPadded(data++, size, 0);
-        msg0 = _mm_shuffle_epi8(msg, mask);
         msg = _mm_add_epi32(msg0, _mm_set_epi64x(0xE9B5DBA5B5C0FBCFULL, 0x71374491428A2F98ULL));
         state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
         msg = _mm_shuffle_epi32(msg, 0x0E);
         state0 = _mm_sha256rnds2_epu32(state0, state1, msg);
 
         /* Rounds 4-7 */
-        if constexpr (Is64Len)
-            msg1 = _mm_loadu_si128(data++);
-        else
-            msg1 = Load128BitPadded(data++, size, 16);
-        msg1 = _mm_shuffle_epi8(msg1, mask);
         msg = _mm_add_epi32(msg1, _mm_set_epi64x(0xAB1C5ED5923F82A4ULL, 0x59F111F13956C25BULL));
         state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
         msg = _mm_shuffle_epi32(msg, 0x0E);
@@ -323,11 +366,6 @@ static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, const __m128i
         msg0 = _mm_sha256msg1_epu32(msg0, msg1);
 
         /* Rounds 8-11 */
-        if constexpr (Is64Len)
-            msg2 = _mm_loadu_si128(data++);
-        else
-            msg2 = Load128BitPadded(data++, size, 32);
-        msg2 = _mm_shuffle_epi8(msg2, mask);
         msg = _mm_add_epi32(msg2, _mm_set_epi64x(0x550C7DC3243185BEULL, 0x12835B01D807AA98ULL));
         state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
         msg = _mm_shuffle_epi32(msg, 0x0E);
@@ -335,11 +373,6 @@ static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, const __m128i
         msg1 = _mm_sha256msg1_epu32(msg1, msg2);
 
         /* Rounds 12-15 */
-        if constexpr (Is64Len)
-            msg3 = _mm_loadu_si128(data++);
-        else
-            msg3 = Load128BitPadded(data++, size, 48);
-        msg3 = _mm_shuffle_epi8(msg3, mask);
         msg = _mm_add_epi32(msg3, _mm_set_epi64x(0xC19BF1749BDC06A7ULL, 0x80DEB1FE72BE5D74ULL));
         state1 = _mm_sha256rnds2_epu32(state1, state0, msg);
         __m128i tmp = _mm_alignr_epi8(msg3, msg2, 4);
@@ -466,11 +499,11 @@ static void Sha256DoBlocks_SHANI(__m128i& state0, __m128i& state1, const __m128i
         /* Combine state  */
         state0 = _mm_add_epi32(state0, abef_save);
         state1 = _mm_add_epi32(state1, cdgh_save);
-        if constexpr (Is64Len)
-            size -= 64;
+        if constexpr (Mode == SHA256BlockMode::WholeBlock)
+            offset += 64;
         else
             break;
-    }
+    } 
 }
 
 DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
@@ -479,13 +512,6 @@ DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
     /* Load initial values */
     __m128i state0 = _mm_set_epi32(0xa54ff53a, 0x3c6ef372, 0xbb67ae85, 0x6a09e667);
     __m128i state1 = _mm_set_epi32(0x5be0cd19, 0x1f83d9ab, 0x9b05688c, 0x510e527f);
-    /*alignas(32) constexpr uint32_t InitialVector[8] =
-    {
-        0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
-        0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u,
-    };*/
-    //__m128i state0 = _mm_load_si128(reinterpret_cast<const __m128i*>(&InitialVector[0]));
-    //__m128i state1 = _mm_load_si128(reinterpret_cast<const __m128i*>(&InitialVector[4]));
 
     {
         __m128i tmp = _mm_shuffle_epi32(state0, 0xB1);    /* CDAB */
@@ -496,24 +522,31 @@ DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
 
     if (size >= 64)
     {
-        Sha256DoBlocks_SHANI<true>(state0, state1, reinterpret_cast<const __m128i*>(data), size);
+        Sha256DoBlocks_SHANI<SHA256BlockMode::WholeBlock>(state0, state1, reinterpret_cast<const __m128i*>(data), size, 0);
     }
-    if (size % 64)
+    const auto tail = size % 64, offset = size - tail;
+    if (tail > 55) // need tailing
     {
-        Sha256DoBlocks_SHANI<false>(state0, state1, reinterpret_cast<const __m128i*>(data), size);
+        Sha256DoBlocks_SHANI<SHA256BlockMode::ZeroedBlock>(state0, state1, reinterpret_cast<const __m128i*>(data + offset), size, offset);
+        Sha256DoBlocks_SHANI<SHA256BlockMode::TailBlock>  (state0, state1, reinterpret_cast<const __m128i*>(data + offset + 64), size, offset + 64);
     }
+    else if (tail > 0)
+        Sha256DoBlocks_SHANI<SHA256BlockMode::PaddedBlock>(state0, state1, reinterpret_cast<const __m128i*>(data + offset), size, offset);
+    else
+        Sha256DoBlocks_SHANI<SHA256BlockMode::TailBlock>(state0, state1, reinterpret_cast<const __m128i*>(data + offset), size, offset);
 
-    {
-        __m128i tmp = _mm_shuffle_epi32(state0, 0x1B);    /* FEBA */
-             state1 = _mm_shuffle_epi32(state1, 0xB1);    /* DCHG */
-             state0 = _mm_blend_epi16(tmp, state1, 0xF0); /* DCBA */
-             state1 = _mm_alignr_epi8(state1, tmp, 8);    /* ABEF */
-    }
-
+    // state0: feba
+    // state1: hgdc
     /* Save state */
     std::array<std::byte, 32> output;
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[ 0]), state0);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[16]), state1);
+    const __m128i ShuffleMask = _mm_setr_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    const __m128i abef = _mm_shuffle_epi8(state0, ShuffleMask);
+    const __m128i cdgh = _mm_shuffle_epi8(state1, ShuffleMask);
+    const __m128i abcd = _mm_unpacklo_epi64(abef, cdgh);
+    const __m128i efgh = _mm_unpackhi_epi64(abef, cdgh);
+
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[0]), abcd);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[16]), efgh);
     return output;
 }
 

@@ -30,6 +30,9 @@
  * for the workings of the internal library infrastructure.
  */
 
+#define EXTRACTS_BIT(reg, bit)              ((reg >> bit)    & 0x1)
+#define EXTRACTS_BITS(reg, highbit, lowbit) ((reg >> lowbit) & ((1ULL << (highbit - lowbit + 1)) - 1))
+
 enum _common_codes_t {
 	NA = 0,
 	NC, /* No code */
@@ -105,7 +108,7 @@ typedef enum _amd_bits_t amd_bits_t;
 
 
 
-int cpu_ident_internal(struct cpu_raw_data_t* raw, struct cpu_id_t* data, 
+int cpu_ident_internal(struct cpu_raw_data_t* raw, struct cpu_id_t* data,
 		       struct internal_id_info_t* internal);
 
 #endif /* __LIBCPUID_INTERNAL_H__ */
