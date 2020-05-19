@@ -317,7 +317,7 @@ static void load_amd_features(struct cpu_raw_data_t* raw, struct cpu_id_t* data)
 	const struct feature_map_t matchtable_ecx81[] = {
 		{  1, CPU_FEATURE_CMP_LEGACY },
 		{  2, CPU_FEATURE_SVM },
-		{  5, CPU_FEATURE_ABM },
+		/* id 5 is handled in common */
 		{  6, CPU_FEATURE_SSE4A },
 		{  7, CPU_FEATURE_MISALIGNSSE },
 		{  8, CPU_FEATURE_3DNOWPREFETCH },
@@ -344,15 +344,6 @@ static void load_amd_features(struct cpu_raw_data_t* raw, struct cpu_id_t* data)
 		{ 11, CPU_FEATURE_PFI },
 		{ 12, CPU_FEATURE_PA },
 	};
-	// +++HACK+++ 
-	const struct feature_map_t matchtable_ebx7[] = {
-		{ 18, CPU_FEATURE_RDSEED },
-		{ 29, CPU_FEATURE_SHA_NI },
-	};
-	// detect RDSEED/SHA-NI:
-	if (raw->basic_cpuid[0][EAX] >= 7) {
-		match_features(matchtable_ebx7, COUNT_OF(matchtable_ebx7), raw->basic_cpuid[7][EBX], data);
-	}
 	if (raw->ext_cpuid[0][EAX] >= 0x80000001) {
 		match_features(matchtable_edx81, COUNT_OF(matchtable_edx81), raw->ext_cpuid[1][EDX], data);
 		match_features(matchtable_ecx81, COUNT_OF(matchtable_ecx81), raw->ext_cpuid[1][ECX], data);

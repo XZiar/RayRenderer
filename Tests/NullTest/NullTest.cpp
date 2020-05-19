@@ -94,9 +94,42 @@ static __m128i CopyY(const uint8_t(&src)[16], const size_t size)
     }
     return val;
 }
+static __m128i CopyZ(const uint8_t(&src)[16], const size_t size)
+{
+    if (size == 0)
+        return _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (char)0x80);
+    auto val = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src));
+    if (size < 16)
+    {
+        const __m128i IdxConst  = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+        const __m128i SignConst = _mm_set1_epi8(static_cast<char>(0x80));   // 80,80,80,80
+        const __m128i SizeMask  = _mm_set1_epi8(static_cast<char>(size));   //  x, x, x, x
+        const __m128i EndMask   = _mm_cmpeq_epi8(IdxConst, SizeMask);       // 00,00,ff,00
+        const __m128i SuffixBit = _mm_and_si128(SignConst, EndMask);        // 00,00,80,00
+        const __m128i Size1Mask = _mm_sub_epi8(SizeMask, _mm_set1_epi8(1)); //  y, y, y, y
+        const __m128i KeepMask  = _mm_cmpgt_epi8(IdxConst, Size1Mask);      // 00,00,ff,ff
+        const __m128i KeepBit   = _mm_and_si128(SignConst, KeepMask);       // 00,00,80,80
+        const __m128i ShufMask  = _mm_or_si128(KeepBit, IdxConst);          //  4, 5,86,87
+        val = _mm_shuffle_epi8(val, ShufMask);                              // z4,z5, 0, 0
+        val = _mm_or_si128(val, SuffixBit);                                 // z4,z5,80, 0
+    }
+    return val;
+}
 
 void TestSSERead()
 {
+    //const __m128i mask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
+    const __m128i mask = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
+
+    const uint64_t s = 0x0807060504030201ull;
+    const auto s1 = _byteswap_uint64(s);
+    const auto s2 = _mm_set1_epi8(0x00);
+    const auto s3 = _mm_insert_epi64(s2, static_cast<int64_t>(s1), 1);
+    const auto s4 = _mm_shuffle_epi8(s3, mask);
+    const auto s5 = _mm_set1_epi64x(static_cast<int64_t>(s));
+    const auto s6 = _mm_shuffle_epi8(s5, _mm_set_epi8(3, 2, 1, 0, 7, 6, 5, 4, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80));
+    const auto s7 = _mm_or_si128(s2, s6);
+
     for (uint8_t i = 0; i <= 16; ++i)
     {
         uint8_t src[16] = { 0 };
@@ -107,7 +140,8 @@ void TestSSERead()
             src[j] = 0xcc;
         for (uint8_t j = 0; j < 16; ++j)
             dst[j] = 0xff;
-        const auto val = CopyY(src, i);
+        auto val = CopyZ(src, i);
+        //val = _mm_shuffle_epi8(val, mask);
         _mm_store_si128(reinterpret_cast<__m128i*>(dst), val);
         printf("Test idx[%d]:\nsrc:\t", i);
         for (uint8_t j = 0; j < 16; ++j)

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2009  Veselin Georgiev,
  * anrieffNOSPAM @ mgail_DOT.com (convert to gmail)
  *

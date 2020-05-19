@@ -95,7 +95,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/rapidjson/license.txt)
 
-* [digestpp](https://github.com/kerukuro/digestpp) master@2020-02-04
+* [digestpp](https://github.com/kerukuro/digestpp) master@2020-05-17
   
   [Public Domain](3rdParty/digestpp/LICENSE)
 
@@ -113,7 +113,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2020-01-02
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2020-05-18
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

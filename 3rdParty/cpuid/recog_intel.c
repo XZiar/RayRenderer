@@ -415,7 +415,6 @@ static void load_intel_features(struct cpu_raw_data_t* raw, struct cpu_id_t* dat
 		{ 21, CPU_FEATURE_X2APIC },
 	};
 	const struct feature_map_t matchtable_edx81[] = {
-		{  5, CPU_FEATURE_ABM }, // +++HACK+++
 		{ 20, CPU_FEATURE_XD },
 	};
 	const struct feature_map_t matchtable_ebx7[] = {
@@ -424,16 +423,17 @@ static void load_intel_features(struct cpu_raw_data_t* raw, struct cpu_id_t* dat
 		{ 11, CPU_FEATURE_RTM },
 		{ 16, CPU_FEATURE_AVX512F },
 		{ 17, CPU_FEATURE_AVX512DQ },
-		{ 18, CPU_FEATURE_RDSEED },
-		{ 19, CPU_FEATURE_ADX },
+		/* id 18 and 19 are handled in common */
 		{ 26, CPU_FEATURE_AVX512PF },
 		{ 27, CPU_FEATURE_AVX512ER },
 		{ 28, CPU_FEATURE_AVX512CD },
-		{ 29, CPU_FEATURE_SHA_NI },
+		/* id 29 is handled in common */
 		{ 30, CPU_FEATURE_AVX512BW },
 		{ 31, CPU_FEATURE_AVX512VL },
 	};
 	const struct feature_map_t matchtable_ecx7[] = {
+		{  1, CPU_FEATURE_AVX512VBMI },
+		{  6, CPU_FEATURE_AVX512VBMI2 },
 		{ 11, CPU_FEATURE_AVX512VNNI },
 	};
 	if (raw->basic_cpuid[0][EAX] >= 1) {

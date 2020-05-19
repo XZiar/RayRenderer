@@ -110,7 +110,7 @@
 
 /* vectorcall fix */
 
-#if COMMON_OS_WIN && !defined(_MANAGED) && !defined(_M_CEE)
+#if (COMPILER_MSVC || COMPILER_CLANG) && !defined(_MANAGED) && !defined(_M_CEE)
 #   define VECCALL __vectorcall
 #else
 #   define VECCALL 

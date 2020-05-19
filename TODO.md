@@ -37,6 +37,8 @@
   - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
   - [ ] Add external decoder/encoder (e.g, intel media sdk)
+  - [ ] Move DataTypeConvertor to cpp, with runtime path selection
+  - [ ] Add test for DataTypeConvertor
 
 * OpenGLUtil
   - [x] Implement FrameBuffer
