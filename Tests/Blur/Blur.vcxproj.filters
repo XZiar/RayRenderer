@@ -22,5 +22,6 @@
   <ItemGroup>
     <None Include="iirblur.cl" />
     <None Include="xzbuild.proj.json" />
+    <None Include="iirblur.nlcl" />
   </ItemGroup>
 </Project>

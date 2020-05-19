@@ -1,7 +1,14 @@
 #pragma once
 
-#include "oclPch.h"
+#include "oclRely.h"
 #include "oclCmdQue.h"
+
+
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
 
 namespace oclu
 {
@@ -10,8 +17,7 @@ class oclImage_;
 class oclKernel_;
 
 
-
-class oclPromiseCore
+class OCLUAPI oclPromiseCore
 {
     friend class oclBuffer_;
     friend class oclImage_;
@@ -47,89 +53,20 @@ protected:
     const cl_event Event;
     const oclCmdQue Queue;
     PrevType Prev;
-    oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que)
-        : Event(e), Queue(std::move(que)), Prev(std::move(prev)) { }
-    ~oclPromiseCore()
-    {
-        if (Event)
-            clReleaseEvent(Event);
-    }
-    void Flush()
-    {
-        if (Queue)
-            clFlush(Queue->CmdQue);
-    }
-    [[nodiscard]] common::PromiseState State()
-    {
-        using common::PromiseState;
-        cl_int status;
-        const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
-        if (ret != CL_SUCCESS)
-        {
-            oclLog().warning(u"Error in reading cl_event's status: {}\n", oclUtil::GetErrorString(ret));
-            return PromiseState::Invalid;
-        }
-        if (status < 0)
-        {
-            oclLog().warning(u"cl_event's status shows an error: {}\n", oclUtil::GetErrorString(status));
-            return PromiseState::Error;
-        }
-        switch (status)
-        {
-        case CL_QUEUED:     return PromiseState::Unissued;
-        case CL_SUBMITTED:  return PromiseState::Issued;
-        case CL_RUNNING:    return PromiseState::Executing;
-        case CL_COMPLETE:   return PromiseState::Success;
-        default:            return PromiseState::Invalid;
-        }
-    }
-    void Wait()
-    {
-        if (Event)
-            clWaitForEvents(1, &Event);
-    }
-    [[nodiscard]] uint64_t ElapseNs()
-    {
-        if (Event)
-        {
-            uint64_t from = 0, to = 0;
-            clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &from, nullptr);
-            clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &to, nullptr);
-            return to - from;
-        }
-        return 0;
-    }
-    [[nodiscard]] uint64_t ChainedElapseNs()
-    {
-        auto time = ElapseNs();
-        switch (Prev.index())
-        {
-        case 2: return time + std::get<2>(Prev)->ChainedElapseNs();
-        case 1:
-            for (const auto& prev : std::get<1>(Prev))
-            {
-                time += prev->ChainedElapseNs();
-            }
-            return time;
-        default:
-        case 0: return time;
-        }
-    }
+    oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que);
+    ~oclPromiseCore();
+    void Flush();
+    [[nodiscard]] common::PromiseState State();
+    void Wait();
+    [[nodiscard]] uint64_t ElapseNs();
+    [[nodiscard]] uint64_t ChainedElapseNs();
     [[nodiscard]] const cl_event& GetEvent() { return Event; }
 public:
     [[nodiscard]] static std::pair<std::vector<std::shared_ptr<oclPromiseCore>>, oclEvents>
-        ParsePms(const common::PromiseStub& pmss) noexcept
-    {
-        auto clpmss = pmss.FilterOut<oclPromiseCore>();
-        auto evts = common::linq::FromIterable(clpmss)
-            .Select([](const auto& clpms) { return clpms->GetEvent(); })
-            .Where([](const auto& evt) { return evt != nullptr; })
-            .ToVector();
-        if (evts.size() > 0)
-            return { std::move(clpmss), std::move(evts) };
-        else
-            return { std::move(clpmss), {} };
-    }
+        ParsePms(const common::PromiseStub& pmss) noexcept;
+
+    enum class TimeType { Queued, Submit, Start, End };
+    uint64_t QueryTime(TimeType type) const noexcept;
 };
 
 
@@ -208,5 +145,8 @@ public:
 };
 
 
-
 }
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif

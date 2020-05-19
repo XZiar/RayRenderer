@@ -1,8 +1,11 @@
 #include "OpenCLUtil/OpenCLUtil.h"
+#include "OpenCLUtil/oclNLCL.h"
+#include "OpenCLUtil/oclPromise.h"
 #include "ImageUtil/ImageUtil.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/RawFileEx.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "common/MemoryStream.hpp"
 #include "common/Linq2.hpp"
 #include <thread>
@@ -67,7 +70,9 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     oclProgram prog;
     try
     {
-        prog = oclProgram_::CreateAndBuild(ctx, kernel, {}, { thedev });
+        NLCLProcessor proc;
+        auto stub = proc.Parse(common::as_bytes(common::to_span(kernel)));
+        prog = proc.CompileProgram(stub, ctx, thedev);
     }
     catch (OCLException& cle)
     {
@@ -103,6 +108,20 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     pms->Wait();
     const auto time4 = pms->ElapseNs() / 1e6f;
     log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
+    
+    const auto pcX = std::dynamic_pointer_cast<oclu::oclPromiseCore>(pmsX);
+    log().info(u"BLURX:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n", 
+        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Queued),
+        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Submit),
+        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Start),
+        pcX->QueryTime(oclu::oclPromiseCore::TimeType::End)); 
+    const auto pcY = std::dynamic_pointer_cast<oclu::oclPromiseCore>(pmsY);
+    log().info(u"BLURY:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n",
+        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Queued),
+        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Submit),
+        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Start),
+        pcY->QueryTime(oclu::oclPromiseCore::TimeType::End));
+
     return img2;
 }
 catch (common::BaseException& be)
@@ -115,21 +134,20 @@ catch (common::BaseException& be)
 int main()
 {
     static const common::fs::path basepath(UTF16ER(__FILE__));
-    const auto kernelPath = common::fs::path(basepath).replace_filename("iirblur.cl");
-    log().verbose(u"cl path:{}\n", kernelPath.u16string());
+    const auto kernelPath = common::fs::path(basepath).replace_filename("iirblur.nlcl");
+    log().verbose(u"nlcl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
-    string fname;
-    std::getline(std::cin, fname);
+    const string fname = common::console::ConsoleEx::ReadLine("image path:");
     common::fs::path fpath = fname;
 
-    {
+    /*{
         auto rf = common::file::RawFileObject::OpenThrow(fpath, common::file::OpenFlag::ReadBinary);
         common::file::RawFileInputStream stream(rf);
         stream.Skip(10);
         common::io::BufferedRandomInputStream bs(std::move(stream), 65536);
         bs.Skip(20);
-    }
+    }*/
     /*auto data = common::file::ReadAll<std::byte>(fpath);
     common::io::ContainerInputStream<std::vector<std::byte>> stream(data);
     auto img1 = xziar::img::ReadImage(stream, u"JPG");*/

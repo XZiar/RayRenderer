@@ -105,7 +105,7 @@ protected:
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst);
 public:
-    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev);
+    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext);
     bool EnableExtension(std::u32string_view ext);

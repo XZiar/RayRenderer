@@ -2,7 +2,7 @@
 #include "oclBuffer.h"
 #include "oclException.h"
 #include "oclUtil.h"
-#include "oclPromise.hpp"
+#include "oclPromise.h"
 
 
 namespace oclu

@@ -430,11 +430,26 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
 }
 
 
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev) :
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info) :
     NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)),
     Logger(logger), Device(dev), EnabledExtensions(Device->Extensions.Size())
 { 
     Replacer = PrepareRepalcer();
+    for (const auto [key, val] : info)
+    {
+        const auto varName = common::strchset::to_u32string(key, Charset::UTF8);
+        switch (val.index())
+        {
+        case 1: EvalContext->SetArg(varName, std::get<1>(val)); break;
+        case 2: EvalContext->SetArg(varName, std::get<2>(val)); break;
+        case 3: EvalContext->SetArg(varName, std::get<3>(val)); break;
+        case 4: EvalContext->SetArg(varName, 
+            common::strchset::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+        case 0: 
+        default:
+            break;
+        }
+    }
 }
 NLCLRuntime::~NLCLRuntime()
 { }
@@ -829,21 +844,24 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
     return prog;
 }
 
-std::string NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev) const
+std::string NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info) const
 {
-    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev));
+    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
     return stub.Runtime->GenerateOutput();
 }
 
-oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev) const
+oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
-    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev));
+    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    //TODO: 
-    return oclProgram();
+    const auto str = stub.Runtime->GenerateOutput();
+    auto progStub = oclProgram_::Create(ctx, str, dev);
+    // if (ctx->Version < 12)
+    progStub.Build(config);
+    return progStub.Finish();
 }
 
 

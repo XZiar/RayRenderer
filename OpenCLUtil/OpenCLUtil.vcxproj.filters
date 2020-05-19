@@ -48,9 +48,6 @@
     <ClInclude Include="oclImage.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oclPromise.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oclMem.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -61,6 +58,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="oclNLCLRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclPromise.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -96,6 +96,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclNLCL.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="oclPromise.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

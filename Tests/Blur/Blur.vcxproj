@@ -80,6 +80,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="iirblur.cl" />
+    <None Include="iirblur.nlcl" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>

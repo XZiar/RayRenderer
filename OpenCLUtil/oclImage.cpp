@@ -1,7 +1,7 @@
 #include "oclPch.h"
 #include "oclImage.h"
 #include "oclUtil.h"
-#include "oclPromise.hpp"
+#include "oclPromise.h"
 
 
 namespace oclu

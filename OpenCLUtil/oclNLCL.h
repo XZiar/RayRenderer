@@ -8,6 +8,12 @@ namespace oclu
 class NLCLProgram;
 class NLCLProgStub;
 
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
 class OCLUAPI NLCLProcessor
 {
 public:
@@ -25,8 +31,13 @@ public:
     virtual ~NLCLProcessor();
 
     virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source) const;
-    virtual std::string ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev) const;
-    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev) const;
-}; 
+    virtual std::string ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
+    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const oclu::CLProgConfig& config = {}) const;
+};
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 
 }

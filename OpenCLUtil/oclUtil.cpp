@@ -1,6 +1,6 @@
 #include "oclPch.h"
 #include "oclUtil.h"
-#include "oclPromise.hpp"
+#include "oclPromise.h"
 
 namespace oclu
 {
@@ -130,6 +130,15 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     default: return u"Unknown OpenCL error"sv;
     }
 }
+
+namespace detail
+{
+std::u16string_view GetCLErrorString(const cl_int err)
+{
+    return oclUtil::GetErrorString(err);
+}
+}
+
 
 void oclUtil::WaitMany(common::PromiseStub promises)
 {
