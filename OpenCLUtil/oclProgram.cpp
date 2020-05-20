@@ -16,10 +16,10 @@ using namespace std::literals::string_view_literals;
 
 
 MAKE_ENABLER_IMPL(oclProgram_)
-//MAKE_ENABLER_IMPL(oclKernel_)
+MAKE_ENABLER_IMPL(oclKernel_)
 
 
-string_view KernelArgInfo::GetSpace() const
+string_view ArgFlags::GetSpace() const
 {
     switch (Space)
     {
@@ -29,7 +29,7 @@ string_view KernelArgInfo::GetSpace() const
     default:                    return "Private"sv;
     }
 }
-string_view KernelArgInfo::GetImgAccess() const
+string_view ArgFlags::GetImgAccess() const
 {
     switch (Access)
     {
@@ -39,7 +39,7 @@ string_view KernelArgInfo::GetImgAccess() const
     default:                    return "NotImage"sv;
     }
 }
-string KernelArgInfo::GetQualifier() const
+string ArgFlags::GetQualifier() const
 {
     string ret;
     if (HAS_FIELD(Qualifier, KerArgFlag::Const))
@@ -55,71 +55,107 @@ string KernelArgInfo::GetQualifier() const
     return ret;
 }
 
-static uint32_t GetKernelInfoInt(cl_kernel kernel, cl_kernel_info param)
+KernelArgStore::KernelArgStore(cl_kernel kernel) : HasInfo(true), HasDebug(false)
 {
-    uint32_t ret = 0;
-    size_t dummy;
-    clGetKernelInfo(kernel, param, sizeof(uint32_t), &ret, &dummy);
-    return ret;
-}
-static std::unique_ptr<KernelArgInfo[]> GerKernelArgsInfo(cl_kernel kernel, uint32_t& count)
-{
-    count = GetKernelInfoInt(kernel, CL_KERNEL_NUM_ARGS);
-    if (count == 0) return {};
-
-    std::unique_ptr<KernelArgInfo[]> infos(new KernelArgInfo[count]);
-    for (uint32_t i = 0; i < count; ++i)
+    uint32_t size = 0;
     {
-        auto& info = infos[i];
-        size_t size = 0;
+        size_t dummy;
+        clGetKernelInfo(kernel, CL_KERNEL_NUM_ARGS, sizeof(uint32_t), &size, &dummy);
+        ArgsInfo.reserve(size);
+    }
+    std::string tmp;
+    for (uint32_t i = 0; i < size; ++i)
+    {
+        ArgInfo info;
 
+        size_t dummy = 0;
         cl_kernel_arg_address_qualifier space;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &size);
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
         switch (space)
         {
-        case CL_KERNEL_ARG_ADDRESS_GLOBAL:      info.Space = KerArgSpace::Global; break;
+        case CL_KERNEL_ARG_ADDRESS_GLOBAL:      info.Space = KerArgSpace::Global;   break;
         case CL_KERNEL_ARG_ADDRESS_CONSTANT:    info.Space = KerArgSpace::Constant; break;
-        case CL_KERNEL_ARG_ADDRESS_LOCAL:       info.Space = KerArgSpace::Local; break;
-        default:                                info.Space = KerArgSpace::Private; break;
+        case CL_KERNEL_ARG_ADDRESS_LOCAL:       info.Space = KerArgSpace::Local;    break;
+        default:                                info.Space = KerArgSpace::Private;  break;
         }
 
         cl_kernel_arg_access_qualifier access;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &size);
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
         switch (access)
         {
-        case CL_KERNEL_ARG_ACCESS_READ_ONLY:    info.Access = ImgAccess::ReadOnly; break;
+        case CL_KERNEL_ARG_ACCESS_READ_ONLY:    info.Access = ImgAccess::ReadOnly;  break;
         case CL_KERNEL_ARG_ACCESS_WRITE_ONLY:   info.Access = ImgAccess::WriteOnly; break;
         case CL_KERNEL_ARG_ACCESS_READ_WRITE:   info.Access = ImgAccess::ReadWrite; break;
-        default:                                info.Access = ImgAccess::None; break;
+        default:                                info.Access = ImgAccess::None;      break;
         }
 
         cl_kernel_arg_type_qualifier qualifier;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &size);
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
         info.Qualifier = static_cast<KerArgFlag>(qualifier);
 
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, 0, nullptr, &size);
-        info.Name.resize(size, '\0');
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, size, info.Name.data(), &size);
-        if (size > 0) info.Name.pop_back();
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, 0, nullptr, &dummy);
+        tmp.resize(dummy, '\0');
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, dummy, tmp.data(), &dummy);
+        if (dummy > 0) tmp.pop_back();
+        info.Name = AllocateString(tmp);
 
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, 0, nullptr, &size);
-        info.Type.resize(size, '\0');
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, size, info.Type.data(), &size);
-        if (size > 0) info.Type.pop_back();
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, 0, nullptr, &dummy);
+        tmp.resize(dummy, '\0');
+        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, dummy, tmp.data(), &dummy);
+        if (dummy > 0) tmp.pop_back();
+        info.Type = AllocateString(tmp);
+
+        ArgsInfo.emplace_back(info);
     }
-    return infos;
 }
-oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name) :
-    Plat(*plat), Prog(*prog), KernelID(nullptr), Name(std::move(name))
+
+KernelArgInfo KernelArgStore::GetObjectFromIndex(const size_t idx) const noexcept
+{
+    const auto info = GetArg(idx);
+    return { info->Space, info->Access, info->Qualifier, GetStringView(info->Name), GetStringView(info->Type) };
+}
+
+const KernelArgStore::ArgInfo* KernelArgStore::GetArg(const size_t idx, const bool check) const
+{
+    if (HasInfo)
+    {
+        if (idx >= ArgsInfo.size())
+        {
+            if (check)
+                COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
+        }
+        else
+            return &ArgsInfo[idx];
+    }
+    return nullptr;
+}
+
+void KernelArgStore::AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
+    const std::string_view name, const std::string_view type)
+{
+    ArgInfo info;
+    info.Space     = space;
+    info.Access    = access;
+    info.Qualifier = qualifier;
+    info.Name      = AllocateString(name);
+    info.Type      = AllocateString(type);
+    ArgsInfo.emplace_back(info);
+    HasInfo = true;
+}
+
+
+oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name, KernelArgStore&& argStore) :
+    Plat(*plat), Prog(*prog), KernelID(nullptr), Name(std::move(name)), ArgStore(std::move(argStore))
 {
     cl_int errcode;
     KernelID = clCreateKernel(Prog.ProgID, Name.data(), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"canot create kernel from program");
-    if (this->Prog.Context->Version >= 12)
-        ArgsInfo = GerKernelArgsInfo(KernelID, ArgCount);
-    else
-        ArgCount = 0;
+
+    if (ArgStore.HasInfo)
+        oclLog().verbose(u"use external arg-info for kernel [{}].\n", Name);
+    else if (Prog.Context->Version >= 12)
+        ArgStore = KernelID;
 }
 
 oclKernel_::~oclKernel_()
@@ -166,21 +202,9 @@ oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
     Kernel(kernel->Prog.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
 { }
 
-const KernelArgInfo* oclKernel_::CallSiteInternal::CheckArgIdx(const uint32_t idx) const
-{
-    if (Kernel->ArgsInfo)
-    {
-        if (idx >= Kernel->ArgCount)
-            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"kernel argument index exceed limit");
-        else
-            return &Kernel->ArgsInfo[idx];
-    }
-    return nullptr;
-}
-
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
 {
-    if (const auto info = CheckArgIdx(idx); info && info->IsImage())
+    if (const auto info = Kernel->ArgStore.GetArg(idx); info && info->IsImage())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"non-image is set to an image kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
@@ -189,7 +213,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ &
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & img) const
 {
-    if (const auto info = CheckArgIdx(idx); info && !info->IsImage())
+    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsImage())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"image is set to an non-image kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
@@ -198,7 +222,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & 
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, const size_t size) const
 {
-    CheckArgIdx(idx);
+    Kernel->ArgStore.GetArg(idx);
     auto ret = clSetKernelArg(Kernel->KernelID, idx, size, dat);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
@@ -326,24 +350,36 @@ oclProgram_::oclProgram_(oclProgStub* stub) :
 {
     stub->ProgID = nullptr;
 
-    cl_int ret;
-    size_t len = 0;
-    ret = clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, 0, nullptr, &len);
-    if (ret != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot find kernels");
-    vector<char> buf(len, '\0');
-    clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
-    if (len > 0)
-        buf.pop_back(); //null-terminated
-    const auto names = common::str::Split(buf, ';', false);
-    KernelNames.assign(names.cbegin(), names.cend());
+    if (Context->Version >= 12)
+    {
+        cl_int ret;
+        size_t len = 0;
+        ret = clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, 0, nullptr, &len);
+        if (ret != CL_SUCCESS)
+            COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot find kernels");
+        vector<char> buf(len, '\0');
+        clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
+        if (len > 0)
+            buf.pop_back(); //null-terminated
+        const auto names = common::str::Split(buf, ';', false);
+        KernelNames.assign(names.cbegin(), names.cend());
+    }
+    else
+    {
+        for (const auto& [name, info] : stub->ImportedKernelInfo)
+            KernelNames.push_back(name);
+    }
 
     Kernels = common::linq::FromIterable(KernelNames)
-        .Select([&](const auto& name) 
-            { return std::unique_ptr<oclKernel_>(new oclKernel_(Context->Plat.get(), this, name)); })
+        .Select([&](const auto& name)
+            {
+                KernelArgStore argInfo;
+                for (const auto& [name_, info] : stub->ImportedKernelInfo)
+                    if (name == name_)
+                        argInfo = info;
+                return MAKE_ENABLER_UNIQUE(oclKernel_, (Context->Plat.get(), this, name, std::move(argInfo)));
+            })
         .ToVector();
-    /*for (const auto& name : KernelNames)
-        Kernels.emplace_back(Context->Plat.get(), this, name);*/
 }
 
 oclProgram_::~oclProgram_()
@@ -370,6 +406,7 @@ oclProgram oclProgram_::CreateAndBuild(const oclContext& ctx, const string& str,
     stub.Build(config);
     return stub.Finish();
 }
+
 
 
 }

@@ -28,16 +28,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="*.ispc" />
-    <CustomBuild Include="*.ispc" />
-    <CustomBuild Include="*.ispc" />
-    <CustomBuild Include="*.ispc" />
-    <CustomBuild Include="*.ispc" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="license.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="kernel.ispc" />
+    <CustomBuild Include="kernel_astc.ispc" />
   </ItemGroup>
 </Project>

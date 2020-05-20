@@ -66,9 +66,11 @@ public:
     using ReplaceEngine::ProcessFunction;
 };
 
+
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
 {
     friend class NLCLReplacer;
+    friend class NLCLProcessor;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using MetaFuncs = common::span<const xziar::nailang::FuncCall>;
@@ -83,7 +85,7 @@ protected:
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::unique_ptr<NLCLReplacer> Replacer;
-    std::vector<std::pair<std::string, std::vector<KernelArgInfo>>> CompiledKernels;
+    std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
@@ -114,6 +116,18 @@ public:
 
     std::string GenerateOutput();
 };
+
+
+class OCLUAPI NLCLDefaultResult : public NLCLResult
+{
+protected:
+    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
+public:
+    NLCLDefaultResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx);
+    ~NLCLDefaultResult() override;
+    NLCLResult::ResultType QueryResult(std::u32string_view name) const override;
+};
+
 
 class OCLUAPI NLCLProgram
 {

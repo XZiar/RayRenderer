@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 #include <array>
+#include <stdexcept>
 #include <exception>
 #include <memory>
 #include <any>

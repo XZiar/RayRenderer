@@ -269,7 +269,7 @@ struct clz::make_enabler : public clz           \
 
 
 #define MAKE_ENABLER_SHARED(clz, arg)       std::static_pointer_cast<clz>(std::make_shared<std::decay_t<clz>::make_enabler>arg)
-#define MAKE_ENABLER_UNIQUE(clz, arg)       std::make_unique<std::decay_t<clz>::make_enabler>arg
+#define MAKE_ENABLER_UNIQUE(clz, arg)       std::unique_ptr<clz>(std::make_unique<std::decay_t<clz>::make_enabler>arg)
 
 
 

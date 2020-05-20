@@ -14,6 +14,15 @@ class NLCLProgStub;
 #   pragma warning(disable:4275 4251)
 #endif
 
+class OCLUAPI NLCLResult
+{
+public:
+    virtual ~NLCLResult();
+    using ResultType = std::variant<std::monostate, bool, int64_t, uint64_t, double, std::any>;
+    virtual ResultType QueryResult(std::u32string_view) const = 0;
+};
+
+
 class OCLUAPI NLCLProcessor
 {
 public:
@@ -32,7 +41,7 @@ public:
 
     virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source) const;
     virtual std::string ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
-    virtual oclProgram CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const oclu::CLProgConfig& config = {}) const;
+    virtual std::pair<oclProgram, std::unique_ptr<NLCLResult>> CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const oclu::CLProgConfig& config = {}) const;
 };
 
 #if COMPILER_MSVC

@@ -570,16 +570,16 @@ void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32s
 
 
 constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
-    (U"global", KerArgSpace::Global), 
+    (U"global",   KerArgSpace::Global), 
     (U"constant", KerArgSpace::Constant), 
-    (U"local", KerArgSpace::Local), 
-    (U"private", KerArgSpace::Private),
-    (U"", KerArgSpace::Private));
+    (U"local",    KerArgSpace::Local), 
+    (U"private",  KerArgSpace::Private),
+    (U"",         KerArgSpace::Private));
 
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
-    std::vector<KernelArgInfo> argInfos;
+    KernelArgStore argInfos;
     std::vector<std::u32string> argTexts;
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
     for (const auto meta : metas)
@@ -638,12 +638,9 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 argType,
                 HAS_FIELD(flags, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
                 name));
-            argInfos.emplace_back(KernelArgInfo{
+            argInfos.AddArg(space.value(), ImgAccess::None, flags,
                 common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32LE),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE),
-                space.value(),
-                ImgAccess::None,
-                flags });
+                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE));
         } break;
         /*HashCase(meta.Name, U"oclu.ImgArg")
         {
@@ -662,7 +659,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     dst.append(U")\r\n{\r\n"sv);
     DirectOutput(block, metas, dst);
     dst.append(U"}\r\n"sv);
-    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32LE), argInfos);
+    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32LE), std::move(argInfos));
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
@@ -788,6 +785,28 @@ std::string NLCLRuntime::GenerateOutput()
 }
 
 
+NLCLDefaultResult::NLCLDefaultResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx) :
+    EvalContext(evalCtx)
+{ }
+NLCLDefaultResult::~NLCLDefaultResult()
+{ }
+NLCLResult::ResultType NLCLDefaultResult::QueryResult(std::u32string_view name) const
+{
+    auto result = EvalContext->LookUpArg(name);
+    return result.Visit([](auto val) -> NLCLResult::ResultType
+        {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>
+                || std::is_same_v<T, double> || std::is_same_v<T, std::u32string_view>)
+                return val;
+            else if constexpr (std::is_same_v<T, std::optional<bool>>)
+                return {};
+            else // var
+                return std::any{};
+        });
+}
+
+
 NLCLProgram::NLCLProgram(std::u32string&& source) :
     Source(std::move(source)) { }
 NLCLProgram::~NLCLProgram()
@@ -799,6 +818,10 @@ NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program,
     Program(program), Device(dev), Runtime(std::move(runtime))
 { }
 NLCLProgStub::~NLCLProgStub()
+{ }
+
+
+NLCLResult::~NLCLResult()
 { }
 
 
@@ -851,7 +874,7 @@ std::string NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, c
     return stub.Runtime->GenerateOutput();
 }
 
-oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
+std::pair<oclProgram, std::unique_ptr<NLCLResult>> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
@@ -859,9 +882,10 @@ oclProgram NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& pro
     ConfigureCL(stub);
     const auto str = stub.Runtime->GenerateOutput();
     auto progStub = oclProgram_::Create(ctx, str, dev);
+    progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
     // if (ctx->Version < 12)
     progStub.Build(config);
-    return progStub.Finish();
+    return { progStub.Finish(), std::make_unique<NLCLDefaultResult>(std::move(stub.Runtime->EvalContext)) };
 }
 
 

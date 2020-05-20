@@ -459,4 +459,66 @@ public:
 };
 
 
+template<typename T, typename V>
+class IndirectIterable
+{
+private:
+    class Iterator
+    {
+        friend class IndirectIterable;
+        const T* Host;
+        size_t Idx;
+        constexpr Iterator(const T* host, size_t idx) noexcept : Host(host), Idx(idx) {}
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using value_type = V;
+        using difference_type = std::ptrdiff_t;
+
+        [[nodiscard]] value_type operator*() const noexcept
+        {
+            return Host->GetObjectFromIndex(Idx);
+        }
+        [[nodiscard]] constexpr bool operator!=(const Iterator& other) const noexcept
+        {
+            return Host != other.Host || Idx != other.Idx;
+        }
+        [[nodiscard]] constexpr bool operator==(const Iterator& other) const noexcept
+        {
+            return Host == other.Host && Idx == other.Idx;
+        }
+        constexpr Iterator& operator++() noexcept
+        {
+            Idx++;
+            return *this;
+        }
+        constexpr Iterator& operator--() noexcept
+        {
+            Idx--;
+            return *this;
+        }
+        constexpr Iterator& operator+=(size_t n) noexcept
+        {
+            Idx += n;
+            return *this;
+        }
+        constexpr Iterator& operator-=(size_t n) noexcept
+        {
+            Idx -= n;
+            return *this;
+        }
+    };
+public:
+    [[nodiscard]] constexpr Iterator begin() const noexcept
+    {
+        const auto it = static_cast<const T*>(this);
+        return { it, 0 };
+    }
+    [[nodiscard]] constexpr Iterator end() const noexcept
+    {
+        const auto it = static_cast<const T*>(this);
+        return { it, it->GetSize() };
+    }
+};
+
+
 }

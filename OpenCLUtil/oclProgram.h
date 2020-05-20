@@ -7,6 +7,7 @@
 #include "oclImage.h"
 #include "common/FileBase.hpp"
 #include "common/CLikeConfig.hpp"
+#include "common/StringPool.hpp"
 
 
 
@@ -45,32 +46,60 @@ enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
 enum class KerArgFlag : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
 MAKE_ENUM_BITFIELD(KerArgFlag)
 
-struct OCLUAPI KernelArgInfo
+
+struct OCLUAPI ArgFlags
 {
-    std::string Name;
-    std::string Type;
     KerArgSpace Space;
-    ImgAccess Access;
-    KerArgFlag Qualifier;
+    ImgAccess   Access;
+    KerArgFlag  Qualifier;
     std::string_view GetSpace() const;
     std::string_view GetImgAccess() const;
     std::string GetQualifier() const;
     constexpr bool IsImage() const noexcept { return Access != ImgAccess::None; }
 };
 
+struct KernelArgInfo : public ArgFlags
+{
+    std::string_view Name;
+    std::string_view Type;
+};
+
+struct OCLUAPI KernelArgStore : public common::StringPool<char>,
+    public common::container::IndirectIterable<KernelArgStore, KernelArgInfo>
+{
+    friend class oclKernel_;
+    friend class NLCLRuntime;
+    friend class common::container::IndirectIterable<KernelArgStore, KernelArgInfo>;
+private:
+    struct ArgInfo : public ArgFlags
+    {
+        common::StringPiece<char> Name;
+        common::StringPiece<char> Type;
+    };
+    std::vector<ArgInfo> ArgsInfo;
+    bool HasInfo, HasDebug;
+    KernelArgStore(cl_kernel kernel);
+    KernelArgInfo GetObjectFromIndex(const size_t idx) const noexcept;
+    size_t GetSize() const noexcept { return ArgsInfo.size(); }
+    const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
+    void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier, 
+        const std::string_view name, const std::string_view type);
+public:
+    KernelArgStore() : HasInfo(false), HasDebug(false) {}
+};
 
 class OCLUAPI oclKernel_ : public common::NonCopyable
 {
     friend class oclProgram_;
 private:
     MAKE_ENABLER();
+
     const oclPlatform_& Plat;
     const oclProgram_& Prog;
     cl_kernel KernelID;
     mutable common::SpinLocker ArgLock;
-    std::unique_ptr<KernelArgInfo[]> ArgsInfo;
-    uint32_t ArgCount;
-    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name);
+    KernelArgStore ArgStore;
+    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name, KernelArgStore&& argStore);
     template<size_t N>
     [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
     {
@@ -85,7 +114,6 @@ private:
         common::SpinLocker::ScopeType KernelLock;
 
         CallSiteInternal(const oclKernel_* kernel);
-        const KernelArgInfo* CheckArgIdx(const uint32_t idx) const;
         void SetArg(const uint32_t idx, const oclBuffer_& buf) const;
         void SetArg(const uint32_t idx, const oclImage_& img) const;
         void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
@@ -116,7 +144,6 @@ private:
         template<size_t Idx>
         forceinline void InitArg() const
         {
-            CheckArgIdx(Idx);
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
             if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
                 SetArg(Idx, *std::get<Idx>(Paras));
@@ -151,7 +178,7 @@ public:
 
     [[nodiscard]] WorkGroupInfo GetWorkGroupInfo() const;
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
-    [[nodiscard]] common::span<const KernelArgInfo> GetArgInfos() const noexcept { return { ArgsInfo.get(), ArgCount }; }
+    [[nodiscard]] const KernelArgStore& GetArgInfos() const noexcept { return ArgStore; }
     template<uint8_t N>
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const size_t(&localsize)[N]) const
     {
@@ -194,11 +221,13 @@ private:
     class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
     {
         friend class oclProgram_;
+        friend class NLCLProcessor;
     private:
         oclContext Context;
         oclDevice Device;
         std::string Source;
         cl_program ProgID;
+        std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
     public:
         oclProgStub(const oclContext& ctx, const oclDevice& dev, const std::string& str);
         ~oclProgStub();

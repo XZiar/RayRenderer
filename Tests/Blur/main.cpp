@@ -72,7 +72,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     {
         NLCLProcessor proc;
         auto stub = proc.Parse(common::as_bytes(common::to_span(kernel)));
-        prog = proc.CompileProgram(stub, ctx, thedev);
+        prog = proc.CompileProgram(stub, ctx, thedev).first;
     }
     catch (OCLException& cle)
     {

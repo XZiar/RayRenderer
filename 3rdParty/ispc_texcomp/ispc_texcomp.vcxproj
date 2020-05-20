@@ -139,15 +139,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="*.ispc">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Platform)'=='Win32'">ispc -g -O2 "%(Filename).ispc" -o "$(Configuration)\(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86 --target=sse4,avx2 --opt=fast-math</Command>
-      <Outputs Condition="'$(Platform)'=='Win32'">$(Configuration)\(Filename).obj;$(Configuration)\(Filename)_sse4.obj;$(Configuration)\(Filename)_avx2.obj;</Outputs>
-      <Command Condition="'$(Platform)'=='x64'">ispc -g -O2 "%(Filename).ispc" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
-      <Outputs Condition="'$(Platform)'=='x64'">$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="ispc_texcomp.cpp" />
     <ClCompile Include="ispc_texcomp_astc.cpp" />
   </ItemGroup>
@@ -159,6 +150,18 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="license.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="kernel.ispc">
+      <FileType>Document</FileType>
+      <Command>ispc -g -O2 "%(Filename).ispc" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="kernel_astc.ispc">
+      <FileType>Document</FileType>
+      <Command>ispc -g -O2 "%(Filename).ispc" -o "$(Platform)\$(Configuration)\%(Filename).obj" -h "$(ProjectDir)%(Filename)_ispc.h" --arch=x86-64 --target=sse4,avx2 --opt=fast-math</Command>
+      <Outputs>$(Platform)\$(Configuration)\%(Filename).obj;$(Platform)\$(Configuration)\%(Filename)_sse4.obj;$(Platform)\$(Configuration)\%(Filename)_avx2.obj;</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
