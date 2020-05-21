@@ -98,7 +98,6 @@ protected:
             PatchedBlocks.insert_or_assign(std::u32string(id), generator(std::forward<Args>(args)...));
     }
 
-    bool CheckExtension(std::string_view ext, std::u16string_view desc) const;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer();
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
@@ -109,8 +108,8 @@ protected:
 public:
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info);
     ~NLCLRuntime() override;
-    bool EnableExtension(std::string_view ext);
-    bool EnableExtension(std::u32string_view ext);
+    bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
+    bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
     [[nodiscard]] bool CheckExtensionEnabled(std::string_view ext) const;
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
@@ -118,14 +117,49 @@ public:
 };
 
 
-class OCLUAPI NLCLDefaultResult : public NLCLResult
+class OCLUAPI NLCLBaseResult : public NLCLResult
 {
 protected:
     std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
 public:
-    NLCLDefaultResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx);
-    ~NLCLDefaultResult() override;
+    NLCLBaseResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx);
+    ~NLCLBaseResult() override;
     NLCLResult::ResultType QueryResult(std::u32string_view name) const override;
+};
+
+class OCLUAPI NLCLUnBuildResult : public NLCLBaseResult
+{
+protected:
+    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
+    std::string Source;
+public:
+    NLCLUnBuildResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source);
+    ~NLCLUnBuildResult() override;
+    std::string_view GetNewSource() const noexcept override;
+    oclProgram GetProgram() const override;
+};
+
+class OCLUAPI NLCLBuiltResult : public NLCLBaseResult
+{
+protected:
+    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
+    oclProgram Prog;
+public:
+    NLCLBuiltResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, oclProgram prog);
+    ~NLCLBuiltResult() override;
+    std::string_view GetNewSource() const noexcept override;
+    oclProgram GetProgram() const override;
+};
+
+class OCLUAPI NLCLBuildFailResult : public NLCLUnBuildResult
+{
+protected:
+    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
+    std::shared_ptr<common::BaseException> Exception;
+public:
+    NLCLBuildFailResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source, std::shared_ptr<common::BaseException> ex);
+    ~NLCLBuildFailResult() override;
+    oclProgram GetProgram() const override;
 };
 
 

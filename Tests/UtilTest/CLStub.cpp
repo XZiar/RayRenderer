@@ -142,7 +142,7 @@ static void OCLStub()
             log().debug(u"loading cl file [{}]\n", filepath.u16string());
             try
             {
-                auto kertxt = common::file::ReadAllText(filepath);
+                const auto kertxt = common::file::ReadAllText(filepath);
                 CLProgConfig config;
                 config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
                 if (exConfig)
@@ -166,15 +166,19 @@ static void OCLStub()
                         break;
                     }
                 }
+                oclu::oclProgram clProg;
                 if (common::str::IsEndWith(fpath, ".nlcl"))
                 {
                     static const NLCLProcessor NLCLProc;
                     const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
-                    auto result = NLCLProc.ProcessCL(prog, dev);
-                    common::file::WriteAll(fpath + ".cl", result);
-                    kertxt = result;
+                    auto result = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
+                    common::file::WriteAll(fpath + ".cl", result->GetNewSource());
+                    clProg = result->GetProgram();
                 }
-                auto clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
+                else
+                {
+                    clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
+                }
                 const auto kernels = clProg->GetKernels();
                 log().success(u"loaded {} kernels:\n", kernels.Size());
                 for (const auto& ker : kernels)

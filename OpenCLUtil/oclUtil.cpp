@@ -120,6 +120,10 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -66: return u"CL_INVALID_COMPILER_OPTIONS"sv;
     case -67: return u"CL_INVALID_LINKER_OPTIONS"sv;
     case -68: return u"CL_INVALID_DEVICE_PARTITION_COUNT"sv;
+    case -69: return u"CL_INVALID_PIPE_SIZE"sv;
+    case -70: return u"CL_INVALID_DEVICE_QUEUE"sv;
+    case -71: return u"CL_INVALID_SPEC_ID"sv;
+    case -72: return u"CL_MAX_SIZE_RESTRICTION_EXCEEDED"sv;
     // extension errors
     case -1000: return u"CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR"sv;
     case -1001: return u"CL_PLATFORM_NOT_FOUND_KHR"sv;
@@ -127,6 +131,14 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -1003: return u"CL_INVALID_D3D10_RESOURCE_KHR"sv;
     case -1004: return u"CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR"sv;
     case -1005: return u"CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR"sv;
+    case -1006: return u"CL_INVALID_D3D11_DEVICE_KHR"sv;
+    case -1007: return u"CL_INVALID_D3D11_RESOURCE_KHR"sv;
+    case -1008: return u"CL_D3D11_RESOURCE_ALREADY_ACQUIRED_KHR"sv;
+    case -1009: return u"CL_D3D11_RESOURCE_NOT_ACQUIRED_KHR"sv;
+    case -1010: return u"CL_INVALID_DX9_MEDIA_ADAPTER_KHR"sv;
+    case -1011: return u"CL_INVALID_DX9_MEDIA_SURFACE_KHR"sv;
+    case -1012: return u"CL_DX9_MEDIA_SURFACE_ALREADY_ACQUIRED_KHR"sv;
+    case -1013: return u"CL_DX9_MEDIA_SURFACE_NOT_ACQUIRED_KHR"sv;
     default: return u"Unknown OpenCL error"sv;
     }
 }

@@ -89,7 +89,7 @@ private:
     void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier, 
         const std::string_view name, const std::string_view type);
 public:
-    KernelArgStore() : HasInfo(false), DebugBuffer(0) {}
+    KernelArgStore() : DebugBuffer(0), HasInfo(false) {}
 };
 
 class OCLUAPI oclKernel_ : public common::NonCopyable
@@ -233,7 +233,7 @@ private:
         cl_program ProgID;
         std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
     public:
-        oclProgStub(const oclContext& ctx, const oclDevice& dev, const std::string& str);
+        oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
         ~oclProgStub();
         void Build(const CLProgConfig& config);
         [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
@@ -242,6 +242,7 @@ private:
     oclProgram_(oclProgStub* stub);
 public:
     ~oclProgram_();
+    [[nodiscard]] std::string_view GetSource() const noexcept { return Source; }
     [[nodiscard]] oclKernel GetKernel(const std::string_view& name) const;
     [[nodiscard]] auto GetKernels() const
     {
@@ -250,8 +251,8 @@ public:
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
     [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
 
-    [[nodiscard]] static oclProgStub Create(const oclContext& ctx, const std::string& str, const oclDevice& dev = {});
-    [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, const std::string& str, const CLProgConfig& config, const oclDevice& dev = {});
+    [[nodiscard]] static oclProgStub Create(const oclContext& ctx, std::string str, const oclDevice& dev = {});
+    [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, std::string str, const CLProgConfig& config, const oclDevice& dev = {});
 };
 
 

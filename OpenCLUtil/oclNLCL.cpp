@@ -503,21 +503,6 @@ void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
     NailangRuntimeBase::HandleException(ex);
 }
 
-bool NLCLRuntime::CheckExtension(std::string_view ext, std::u16string_view desc) const
-{
-    if (!Device->Extensions.Has(ext))
-    {
-        Logger.warning(FMT_STRING(u"{} on unsupported device.\n"sv), desc);
-        return false;
-    }
-    else if (!CheckExtensionEnabled(ext))
-    {
-        Logger.warning(FMT_STRING(u"{} without enabling extenssion.\n"sv), desc);
-        return false;
-    }
-    return true;
-}
-
 void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
 {
     OutputConditions(metas, dst);
@@ -609,7 +594,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto sgSize = EvaluateArg(meta.Args[0]).GetUint();
             if (sgSize)
             {
-                CheckExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
+                EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
                 fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize.value());
             }
             else
@@ -674,9 +659,9 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         } break;
         HashCase(subName, U"DebugOutput")
         {
+            EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
                 EvaluateFuncArgs<1, false>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
-            CheckExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput "sv);
         }
         default:
             break;
@@ -698,10 +683,15 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         dst.append(UR"(    // below injected by oclu_debug
     const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1);
+    if (_oclu_debug_buffer_info[0] > 0)
     {
+#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
         const ushort sgid  = get_sub_group_id();
         const ushort sglid = get_sub_group_local_id();
         const uint sginfo  = sgid * 65536u + sglid;
+#else
+        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1);
+#endif
         _oclu_debug_buffer_data[_oclu_thread_id + 1] = sginfo;
     }
 
@@ -721,18 +711,22 @@ void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] M
         &block);
 }
 
-bool NLCLRuntime::EnableExtension(std::string_view ext)
+bool NLCLRuntime::EnableExtension(std::string_view ext, std::u16string_view desc)
 {
     if (ext == "all"sv)
         EnabledExtensions.assign(EnabledExtensions.size(), true);
     else if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
         EnabledExtensions[idx] = true;
     else
+    {
+        if (!desc.empty())
+            Logger.warning(FMT_STRING(u"{} on unsupported device without [{}].\n"sv), desc, ext);
         return false;
+    }
     return true;
 }
 
-bool NLCLRuntime::EnableExtension(std::u32string_view ext)
+bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view desc)
 {
     struct TmpSv : public common::container::PreHashedStringView<>
     {
@@ -754,7 +748,11 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext)
     else if (const auto idx = Device->Extensions.GetIndex(TmpSv{ext}); idx != SIZE_MAX)
         EnabledExtensions[idx] = true;
     else
+    {
+        if (!desc.empty())
+            Logger.warning(FMT_STRING(u"{} on unsupported device without [{}].\n"sv), desc, ext);
         return false;
+    }
     return true;
 }
 
@@ -791,6 +789,20 @@ std::string NLCLRuntime::GenerateOutput()
 {
     std::u32string prefix, output;
 
+    for (const auto& item : OutputBlocks)
+    {
+        const MetaFuncs metas(item.MetaPtr, item.MetaCount);
+        switch (hash_(item.Block->Type))
+        {
+        HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.Struct")     OutputStruct(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.Kernel")     OutputKernel(*item.Block, metas, output); continue;
+        HashCase(item.Block->Type, U"oclu.KernelStub") OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); continue;
+        default: break;
+        }
+        Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
+    }
+
     { // Output extentions
         prefix.append(U"/* Extensions */\r\n"sv);
         if (common::linq::FromIterable(EnabledExtensions).All(true))
@@ -809,20 +821,6 @@ std::string NLCLRuntime::GenerateOutput()
         prefix.append(U"\r\n"sv);
     }
 
-    for (const auto& item : OutputBlocks)
-    {
-        const MetaFuncs metas(item.MetaPtr, item.MetaCount);
-        switch (hash_(item.Block->Type))
-        {
-        HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.Struct")     OutputStruct(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.Kernel")     OutputKernel(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.KernelStub") OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); continue;
-        default: break;
-        }
-        Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
-    }
-
     { // Output patched blocks
         for (const auto& [id, src] : PatchedBlocks)
         {
@@ -836,12 +834,12 @@ std::string NLCLRuntime::GenerateOutput()
 }
 
 
-NLCLDefaultResult::NLCLDefaultResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx) :
-    EvalContext(evalCtx)
+NLCLBaseResult::NLCLBaseResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx) :
+    EvalContext(std::move(evalCtx))
 { }
-NLCLDefaultResult::~NLCLDefaultResult()
+NLCLBaseResult::~NLCLBaseResult()
 { }
-NLCLResult::ResultType NLCLDefaultResult::QueryResult(std::u32string_view name) const
+NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
     auto result = EvalContext->LookUpArg(name);
     return result.Visit([](auto val) -> NLCLResult::ResultType
@@ -855,6 +853,46 @@ NLCLResult::ResultType NLCLDefaultResult::QueryResult(std::u32string_view name) 
             else // var
                 return std::any{};
         });
+}
+
+NLCLUnBuildResult::NLCLUnBuildResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source) :
+    NLCLBaseResult(std::move(evalCtx)), Source(std::move(source))
+{ }
+NLCLUnBuildResult::~NLCLUnBuildResult()
+{ }
+std::string_view NLCLUnBuildResult::GetNewSource() const noexcept
+{
+    return Source;
+}
+oclProgram NLCLUnBuildResult::GetProgram() const
+{
+    COMMON_THROW(common::BaseException, u"Program has not been built!");
+}
+
+NLCLBuiltResult::NLCLBuiltResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, oclProgram prog) :
+    NLCLBaseResult(std::move(evalCtx)), Prog(std::move(prog))
+{ }
+NLCLBuiltResult::~NLCLBuiltResult()
+{ }
+std::string_view NLCLBuiltResult::GetNewSource() const noexcept
+{
+    return Prog->GetSource();
+}
+oclProgram NLCLBuiltResult::GetProgram() const
+{
+    return Prog;
+}
+
+NLCLBuildFailResult::NLCLBuildFailResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source, 
+    std::shared_ptr<common::BaseException> ex) : 
+    NLCLUnBuildResult(std::move(evalCtx), std::move(source)), Exception(std::move(ex))
+{ }
+NLCLBuildFailResult::~NLCLBuildFailResult()
+{ }
+oclProgram NLCLBuildFailResult::GetProgram() const
+{
+    Exception->ThrowSelf();
+    return {};
 }
 
 
@@ -918,25 +956,32 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
     return prog;
 }
 
-std::string NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info) const
+std::unique_ptr<NLCLResult> NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info) const
 {
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    return stub.Runtime->GenerateOutput();
+    return std::make_unique<NLCLUnBuildResult>(std::move(stub.Runtime->EvalContext), stub.Runtime->GenerateOutput());
 }
 
-std::pair<oclProgram, std::unique_ptr<NLCLResult>> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
+std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    const auto str = stub.Runtime->GenerateOutput();
-    auto progStub = oclProgram_::Create(ctx, str, dev);
-    progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
-    // if (ctx->Version < 12)
-    progStub.Build(config);
-    return { progStub.Finish(), std::make_unique<NLCLDefaultResult>(std::move(stub.Runtime->EvalContext)) };
+    auto str = stub.Runtime->GenerateOutput();
+    try
+    {
+        auto progStub = oclProgram_::Create(ctx, str, dev);
+        progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
+        // if (ctx->Version < 12)
+        progStub.Build(config);
+        return std::make_unique<NLCLBuiltResult>(std::move(stub.Runtime->EvalContext), progStub.Finish());
+    }
+    catch (const common::BaseException& be)
+    {
+        return std::make_unique<NLCLBuildFailResult>(std::move(stub.Runtime->EvalContext), std::move(str), be.Share());
+    }
 }
 
 

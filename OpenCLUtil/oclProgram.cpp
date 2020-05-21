@@ -74,7 +74,7 @@ string ArgFlags::GetQualifier() const noexcept
     return ret;
 }
 
-KernelArgStore::KernelArgStore(cl_kernel kernel) : HasInfo(true), DebugBuffer(0)
+KernelArgStore::KernelArgStore(cl_kernel kernel) : DebugBuffer(0), HasInfo(true)
 {
     uint32_t size = 0;
     {
@@ -164,7 +164,7 @@ void KernelArgStore::AddArg(const KerArgSpace space, const ImgAccess access, con
 
 
 oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name, KernelArgStore&& argStore) :
-    Plat(*plat), Prog(*prog), KernelID(nullptr), Name(std::move(name)), ArgStore(std::move(argStore))
+    Plat(*plat), Prog(*prog), KernelID(nullptr), ArgStore(std::move(argStore)), Name(std::move(name))
 {
     cl_int errcode;
     KernelID = clCreateKernel(Prog.ProgID, Name.data(), &errcode);
@@ -263,8 +263,8 @@ PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const c
 }
 
 
-oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, const string& str)
-    : Context(ctx), Device(dev), Source(str), ProgID(nullptr)
+oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
+    : Context(ctx), Device(dev), Source(std::move(str)), ProgID(nullptr)
 {
     cl_int errcode;
     auto* ptr = Source.c_str();
@@ -414,14 +414,14 @@ oclKernel oclProgram_::GetKernel(const string_view& name) const
     return {};
 }
 
-oclProgram_::oclProgStub oclProgram_::Create(const oclContext& ctx, const string& str, const oclDevice& dev)
+oclProgram_::oclProgStub oclProgram_::Create(const oclContext& ctx, string str, const oclDevice& dev)
 {
-    return oclProgStub(ctx, dev ? dev : ctx->Devices[0], str);
+    return oclProgStub(ctx, dev ? dev : ctx->Devices[0], std::move(str));
 }
 
-oclProgram oclProgram_::CreateAndBuild(const oclContext& ctx, const string& str, const CLProgConfig& config, const oclDevice& dev)
+oclProgram oclProgram_::CreateAndBuild(const oclContext& ctx, string str, const CLProgConfig& config, const oclDevice& dev)
 {
-    auto stub = Create(ctx, str, dev);
+    auto stub = Create(ctx, std::move(str), dev);
     stub.Build(config);
     return stub.Finish();
 }
