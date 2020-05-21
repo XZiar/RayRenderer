@@ -570,11 +570,22 @@ void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32s
 
 
 constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
-    (U"global",   KerArgSpace::Global), 
-    (U"constant", KerArgSpace::Constant), 
-    (U"local",    KerArgSpace::Local), 
-    (U"private",  KerArgSpace::Private),
-    (U"",         KerArgSpace::Private));
+    (U"global",     KerArgSpace::Global), 
+    (U"__global",   KerArgSpace::Global), 
+    (U"constant",   KerArgSpace::Constant),
+    (U"__constant", KerArgSpace::Constant),
+    (U"local",      KerArgSpace::Local), 
+    (U"__local",    KerArgSpace::Local), 
+    (U"private",    KerArgSpace::Private),
+    (U"__private",  KerArgSpace::Private),
+    (U"",           KerArgSpace::Private));
+constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash, 
+    (U"read_only",    ImgAccess::ReadOnly),
+    (U"__read_only",  ImgAccess::ReadOnly),
+    (U"write_only",   ImgAccess::WriteOnly),
+    (U"__write_only", ImgAccess::WriteOnly),
+    (U"read_write",   ImgAccess::ReadWrite),
+    (U"",             ImgAccess::ReadWrite));
 
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
@@ -584,9 +595,10 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
     for (const auto meta : metas)
     {
-        switch (hash_(meta.Name))
+        if (!IsBeginWith(meta.Name, U"oclu.")) continue;
+        switch (const auto subName = meta.Name.substr(5); hash_(subName))
         {
-        HashCase(meta.Name, U"oclu.RequestSubgroupSize")
+        HashCase(subName, U"RequestSubgroupSize")
         {
             if (Device->GetPlatform()->PlatVendor != oclu::Vendors::Intel)
             {
@@ -603,7 +615,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             else
                 Logger.verbose(u"Skip subgroup size due to empty arg.\n"sv);
         } break;
-        HashCase(meta.Name, U"oclu.RequestWorkgroupSize")
+        HashCase(subName, U"RequestWorkgroupSize")
         {
             const auto args = EvaluateFuncArgs<3>(meta);
             const auto x = args[0].GetUint().value_or(1),
@@ -612,7 +624,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv),
                 x, y, z);
         } break;
-        HashCase(meta.Name, U"oclu.NormalArg")
+        HashCase(subName, U"NormalArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv });
             KernelArgInfo info;
@@ -632,7 +644,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                         return flag;
                     }, KerArgFlag::None);
             argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {} {} {}"sv),
-                space_,
+                ArgFlags::ToCLString(space.value()),
                 HAS_FIELD(flags, KerArgFlag::Const) ? U"const"sv : U""sv,
                 HAS_FIELD(flags, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
                 argType,
@@ -642,10 +654,30 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32LE),
                 common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE));
         } break;
-        /*HashCase(meta.Name, U"oclu.ImgArg")
+        HashCase(subName, U"ImgArg")
         {
-        } break;*/
-        
+            const auto args = EvaluateFuncArgs<3>(meta, { Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv });
+            KernelArgInfo info;
+            const auto access_ = args[0].GetStr().value();
+            const auto access = ImgArgAccessParser(access_);
+            if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), &meta);
+            const auto argType = args[1].GetStr().value();
+            const auto name = args[2].GetStr().value();
+            KerArgFlag::None;
+            argTexts.emplace_back(fmt::format(FMT_STRING(U"{:10} {} {}"sv),
+                ArgFlags::ToCLString(access.value()),
+                argType,
+                name));
+            argInfos.AddArg(KerArgSpace::Global, access.value(), KerArgFlag::None,
+                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32LE),
+                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE));
+        } break;
+        HashCase(subName, U"DebugOutput")
+        {
+            argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
+                EvaluateFuncArgs<1, false>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
+            CheckExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput "sv);
+        }
         default:
             break;
         }
@@ -655,8 +687,27 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         dst.append(U"\r\n    "sv).append(argText).append(U","sv);
     }
+    if (argInfos.DebugBuffer > 0)
+    {
+        dst .append(U"\r\n    global uint* restrict _oclu_debug_buffer_info,"sv)
+            .append(U"\r\n    global uint* restrict _oclu_debug_buffer_data,"sv);
+    }
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
+    if (argInfos.DebugBuffer > 0)
+    {
+        dst.append(UR"(    // below injected by oclu_debug
+    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1);
+    {
+        const ushort sgid  = get_sub_group_id();
+        const ushort sglid = get_sub_group_local_id();
+        const uint sginfo  = sgid * 65536u + sglid;
+        _oclu_debug_buffer_data[_oclu_thread_id + 1] = sginfo;
+    }
+
+
+)"sv);
+    }
     DirectOutput(block, metas, dst);
     dst.append(U"}\r\n"sv);
     CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32LE), std::move(argInfos));

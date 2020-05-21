@@ -67,6 +67,7 @@ public:
 
     enum class TimeType { Queued, Submit, Start, End };
     uint64_t QueryTime(TimeType type) const noexcept;
+    std::string_view GetEventName() const noexcept;
 };
 
 

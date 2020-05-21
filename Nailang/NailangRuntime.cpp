@@ -439,14 +439,14 @@ static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
 void NailangRuntimeBase::ThrowByArgLeastCount(const FuncCall& call, const size_t count) const
 {
     if (call.Args.size() < count)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires at least [{}] args, which gives [{}]."), call.Name, call.Args.size(), count),
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires at least [{}] args, which gives [{}]."), call.Name, count, call.Args.size()),
             detail::ExceptionTarget{}, &call);
 }
 
 void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
 {
     if (call.Args.size() != count)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires [{}] args, which gives [{}]."), call.Name, call.Args.size(), count),
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires [{}] args, which gives [{}]."), call.Name, count, call.Args.size()),
             detail::ExceptionTarget{}, &call);
 }
 

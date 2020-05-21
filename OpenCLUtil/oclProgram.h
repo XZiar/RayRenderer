@@ -42,8 +42,8 @@ struct SubgroupInfo
 };
 
 enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
-enum class ImgAccess : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
-enum class KerArgFlag : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
+enum class ImgAccess   : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
+enum class KerArgFlag  : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
 MAKE_ENUM_BITFIELD(KerArgFlag)
 
 
@@ -52,10 +52,13 @@ struct OCLUAPI ArgFlags
     KerArgSpace Space;
     ImgAccess   Access;
     KerArgFlag  Qualifier;
-    std::string_view GetSpace() const;
-    std::string_view GetImgAccess() const;
-    std::string GetQualifier() const;
-    constexpr bool IsImage() const noexcept { return Access != ImgAccess::None; }
+    [[nodiscard]] std::string_view GetSpace() const noexcept;
+    [[nodiscard]] std::string_view GetImgAccess() const noexcept;
+    [[nodiscard]] std::string GetQualifier() const noexcept;
+    [[nodiscard]] constexpr bool IsImage() const noexcept { return Access != ImgAccess::None; }
+
+    [[nodiscard]] static std::string_view ToCLString(const KerArgSpace space) noexcept;
+    [[nodiscard]] static std::string_view ToCLString(const ImgAccess access) noexcept;
 };
 
 struct KernelArgInfo : public ArgFlags
@@ -77,7 +80,8 @@ private:
         common::StringPiece<char> Type;
     };
     std::vector<ArgInfo> ArgsInfo;
-    bool HasInfo, HasDebug;
+    std::uint32_t DebugBuffer;
+    bool HasInfo;
     KernelArgStore(cl_kernel kernel);
     KernelArgInfo GetObjectFromIndex(const size_t idx) const noexcept;
     size_t GetSize() const noexcept { return ArgsInfo.size(); }
@@ -85,7 +89,7 @@ private:
     void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier, 
         const std::string_view name, const std::string_view type);
 public:
-    KernelArgStore() : HasInfo(false), HasDebug(false) {}
+    KernelArgStore() : HasInfo(false), DebugBuffer(0) {}
 };
 
 class OCLUAPI oclKernel_ : public common::NonCopyable

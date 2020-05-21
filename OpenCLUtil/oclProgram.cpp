@@ -19,7 +19,7 @@ MAKE_ENABLER_IMPL(oclProgram_)
 MAKE_ENABLER_IMPL(oclKernel_)
 
 
-string_view ArgFlags::GetSpace() const
+string_view ArgFlags::GetSpace() const noexcept
 {
     switch (Space)
     {
@@ -29,7 +29,7 @@ string_view ArgFlags::GetSpace() const
     default:                    return "Private"sv;
     }
 }
-string_view ArgFlags::GetImgAccess() const
+string_view ArgFlags::GetImgAccess() const noexcept
 {
     switch (Access)
     {
@@ -39,7 +39,26 @@ string_view ArgFlags::GetImgAccess() const
     default:                    return "NotImage"sv;
     }
 }
-string ArgFlags::GetQualifier() const
+string_view ArgFlags::ToCLString(const KerArgSpace space) noexcept
+{
+    switch (space)
+    {
+    case KerArgSpace::Global:   return "global"sv;
+    case KerArgSpace::Constant: return "constant"sv;
+    case KerArgSpace::Local:    return "local"sv;
+    default:                    return "private"sv;
+    }
+}
+string_view ArgFlags::ToCLString(const ImgAccess access) noexcept
+{
+    switch (access)
+    {
+    case ImgAccess::ReadOnly:   return "read_only"sv;
+    case ImgAccess::WriteOnly:  return "write_only"sv;
+    default:                    return ""sv;
+    }
+}
+string ArgFlags::GetQualifier() const noexcept
 {
     string ret;
     if (HAS_FIELD(Qualifier, KerArgFlag::Const))
@@ -55,7 +74,7 @@ string ArgFlags::GetQualifier() const
     return ret;
 }
 
-KernelArgStore::KernelArgStore(cl_kernel kernel) : HasInfo(true), HasDebug(false)
+KernelArgStore::KernelArgStore(cl_kernel kernel) : HasInfo(true), DebugBuffer(0)
 {
     uint32_t size = 0;
     {
