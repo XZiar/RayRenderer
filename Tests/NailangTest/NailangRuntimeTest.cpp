@@ -301,9 +301,53 @@ TEST(NailangRuntime, MathFunc)
         const auto arg = ParseEval(U"$Math.ToInt(-5.6);"sv);
         CHECK_ARG(arg, Int, static_cast<int64_t>(-5.6));
     }
+}
+
+
+TEST(NailangRuntime, CommonFunc)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    runtime.GetCtx()->SetArg(U"tmp0", true);
+    runtime.GetCtx()->SetArg(U"tmp1", int64_t(-512));
+    runtime.GetCtx()->SetArg(U"tmp2", U"Error"sv);
+    const auto ParseEval = [&](const std::u32string_view src)
+    {
+        ParserContext context(src);
+        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        return runtime.EvaluateArg(*rawarg);
+    };
     {
         const auto arg = ParseEval(U"$Select(1>2, 1, 2);"sv);
         CHECK_ARG(arg, Int, 2);
+    }
+    {
+        const auto arg1 = ParseEval(U"$Exists(notexist);"sv);
+        CHECK_ARG(arg1, Bool, false);
+        runtime.GetCtx()->SetArg(U"notexist", false);
+        const auto arg2 = ParseEval(U"$Exists(notexist);"sv);
+        CHECK_ARG(arg2, Bool, true);
+    }
+    {
+        const auto arg1 = ParseEval(U"$Exists(\"notexist\");"sv);
+        CHECK_ARG(arg1, Bool, true);
+        runtime.GetCtx()->SetArg(U"notexist", {});
+        const auto arg2 = ParseEval(U"$Exists(\"notexist\");"sv);
+        CHECK_ARG(arg2, Bool, false);
+    }
+    {
+        const auto arg1 = ParseEval(U"$ExistsDynamic(\"tmp\" + \"1\");"sv);
+        CHECK_ARG(arg1, Bool, true);
+        const auto arg2 = ParseEval(U"$ExistsDynamic(\"tmp\" + \"3\");"sv);
+        CHECK_ARG(arg2, Bool, false);
+    }
+    {
+        const auto arg = ParseEval(UR"($Format("Hello {}", "World");)"sv);
+        CHECK_ARG(arg, U32Str, U"Hello World"sv);
+    }
+    {
+        const auto arg = ParseEval(UR"($Format("tmp0 = [{}], tmp1 = [{}], tmp2 = [{}]", tmp0, tmp1, tmp2);)"sv);
+        CHECK_ARG(arg, U32Str, U"tmp0 = [true], tmp1 = [-512], tmp2 = [Error]"sv);
     }
 }
 

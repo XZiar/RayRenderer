@@ -386,7 +386,18 @@ std::optional<Arg> EmbedOpEval::Not(const Arg& arg) noexcept
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 
-NaailangCodeException::NaailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
+NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err) :
+    NailangRuntimeException(fmt::format(FMT_STRING(u"Error when formating string: {}"sv), err.what())),
+    Formatter(formatter)
+{ }
+NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason) :
+    NailangRuntimeException(fmt::format(FMT_STRING(u"Error when formating string: {}"sv), reason), arg),
+    Formatter(formatter)
+{ }
+NailangFormatException::~NailangFormatException()
+{ }
+
+NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
     NailangRuntimeException(TYPENAME, common::strchset::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope), data)
 { }
 
@@ -421,6 +432,24 @@ static constexpr auto ArgTypeName(const Arg::InternalType type) noexcept
     case Arg::InternalType::FP:     return U"fp"sv;
     case Arg::InternalType::Bool:   return U"bool"sv;
     default:                        return U"error"sv;
+    }
+}
+
+static constexpr auto ArgTypeName(const RawArg::Type type) noexcept
+{
+    switch (type)
+    {
+    case RawArg::Type::Empty:  return U"empty"sv;
+    case RawArg::Type::Func:   return U"func-call"sv;
+    case RawArg::Type::Unary:  return U"unary-expr"sv;
+    case RawArg::Type::Binary: return U"binary-expr"sv;
+    case RawArg::Type::Var:    return U"variable"sv;
+    case RawArg::Type::Str:    return U"string"sv;
+    case RawArg::Type::Uint:   return U"uint"sv;
+    case RawArg::Type::Int:    return U"int"sv;
+    case RawArg::Type::FP:     return U"fp"sv;
+    case RawArg::Type::Bool:   return U"bool"sv;
+    default:                   return U"error"sv;
     }
 }
 
@@ -495,6 +524,65 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
     return ret.value();
 }
 
+bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx)
+{
+    for (const auto& meta : metas)
+    {
+        switch (HandleMetaFuncBefore(meta, target, metas))
+        {
+        case MetaFuncResult::Repeat:
+            ctx.Status = ProgramStatus::Repeat; return true;
+        case MetaFuncResult::Skip:
+            ctx.Status = ProgramStatus::Next;   return false;
+        case MetaFuncResult::Next:
+        default:
+            ctx.Status = ProgramStatus::Next;   break;
+        }
+    }
+    return true;
+}
+
+std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const RawArg> args)
+{
+    std::vector<Arg> results;
+    results.reserve(args.size());
+    for (const auto& arg : args)
+        results.emplace_back(EvaluateArg(arg));
+    return FormatString(formatter, results);
+}
+std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
+{
+    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
+    for (const auto& arg : args)
+    {
+        switch (arg.TypeData)
+        {
+        case Arg::InternalType::Bool:   store.push_back(arg.GetVar<Arg::InternalType::Bool >()); break;
+        case Arg::InternalType::Uint:   store.push_back(arg.GetVar<Arg::InternalType::Uint >()); break;
+        case Arg::InternalType::Int:    store.push_back(arg.GetVar<Arg::InternalType::Int  >()); break;
+        case Arg::InternalType::FP:     store.push_back(arg.GetVar<Arg::InternalType::FP   >()); break;
+        case Arg::InternalType::U32Sv:  store.push_back(arg.GetVar<Arg::InternalType::U32Sv>()); break;
+        case Arg::InternalType::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::InternalType::U32Str>())); break;
+        default: HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
+        }
+    }
+    try
+    {
+        return fmt::vformat(formatter, store);
+    }
+    catch (const fmt::format_error& err)
+    {
+        HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, err));
+        return {};
+    }
+}
+
+void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
+{
+    ex.EvalContext = EvalContext;
+    ex.ThrowSelf();
+}
+
 NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall>)
 {
     if (meta.Name == U"Skip"sv)
@@ -527,30 +615,6 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(cons
     return MetaFuncResult::Unhandled;
 }
 
-bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx)
-{
-    for (const auto& meta : metas)
-    {
-        switch (HandleMetaFuncBefore(meta, target, metas))
-        {
-        case MetaFuncResult::Repeat:
-            ctx.Status = ProgramStatus::Repeat; return true;
-        case MetaFuncResult::Skip:
-            ctx.Status = ProgramStatus::Next;   return false;
-        case MetaFuncResult::Next:
-        default:
-            ctx.Status = ProgramStatus::Next;   break;
-        }
-    }
-    return true;
-}
-
-void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
-{
-    ex.EvalContext = EvalContext;
-    ex.ThrowSelf();
-}
-
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target)
 {
     // only for block-scope
@@ -574,7 +638,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         else if (call.Name == U"Throw"sv)
         {
             const auto args = EvaluateFuncArgs<1>(call);
-            this->HandleException(CREATE_EXCEPTION(NaailangCodeException, args[0].ToString().StrView(), call));
+            this->HandleException(CREATE_EXCEPTION(NailangCodeException, args[0].ToString().StrView(), call));
             return {};
         }
     }
@@ -588,12 +652,50 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             NLRT_THROW_EX(u"Math func's arg type does not match requirement"sv, call);
         }
     }
-    if (call.Name == U"Select"sv)
+    switch (hash_(call.Name))
+    {
+    HashCase(call.Name, U"Select")
     {
         ThrowByArgCount(call, 3);
         const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ?
             call.Args[1] : call.Args[2];
         return EvaluateArg(selected);
+    }
+    HashCase(call.Name, U"Exists")
+    {
+        ThrowByArgCount(call, 1);
+        std::u32string_view varName;
+        switch (call.Args[0].TypeData)
+        {
+        case RawArg::Type::Var: varName = call.Args[0].GetVar<RawArg::Type::Var>().Name; break;
+        case RawArg::Type::Str: varName = call.Args[0].GetVar<RawArg::Type::Str>();      break;
+        default:
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[Exists] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
+                call.Args[0]);
+            return {};
+        }
+        return !EvalContext->LookUpArg(varName).IsEmpty();
+    }
+    HashCase(call.Name, U"ExistsDynamic")
+    {
+        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        if (!arg.IsStr())
+        {
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[Exists] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
+                call.Args[0]);
+            return {};
+        }
+        return !EvalContext->LookUpArg(arg.GetStr().value()).IsEmpty();
+    }
+    HashCase(call.Name, U"Format")
+    {
+        ThrowByArgLeastCount(call, 2);
+        const auto fmtStr = EvaluateArg(call.Args[0]).GetStr();
+        if (!fmtStr)
+            NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
+        return FormatString(fmtStr.value(), call.Args.subspan(1));
+    }
+    default: break;
     }
     if (const auto lcFunc = EvalContext->LookUpFunc(call.Name); lcFunc)
     {

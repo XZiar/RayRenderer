@@ -24,6 +24,12 @@ using common::simd::VecDataInfo;
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 
+
+NLCLEvalContext::NLCLEvalContext(oclDevice dev) : Device(dev) 
+{ }
+NLCLEvalContext::~NLCLEvalContext() 
+{ }
+
 Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
     if (var.Part() == U"Extension"sv)
@@ -146,6 +152,11 @@ static constexpr std::pair<VecDataInfo, bool> ParseVDataType(const std::u32strin
 #undef CASE
 }
 
+static std::u32string SkipDebug() noexcept
+{
+    return U"inline void oclu_SkipDebug() {}";
+}
+
 void NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
 {
     if (var.size() > 0 && var[0] == U'@')
@@ -219,6 +230,19 @@ void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32strin
         {
             output.append(GenerateSubgroupShuffle(args, true)); return;
         }
+        HashCase(subName, U"DebugString")
+        {
+            if (!Runtime.AllowDebug)
+            {
+                Runtime.AddPatchedBlock(U"SkipDebug"sv, SkipDebug);
+                output.append(U"oclu_SkipDebug()"sv); 
+            }
+            else
+            {
+                output.append(GenerateDebugString(args));
+            }
+            return;
+        }
         default: break;
         }
     }
@@ -262,17 +286,17 @@ std::u32string_view NLCLReplacer::GetVecTypeName(common::simd::VecDataInfo info)
 
     switch (static_cast<uint32_t>(info))
     {
-    CASEV(uchar, Unsigned, 8)
+    CASEV(uchar,  Unsigned, 8)
     CASEV(ushort, Unsigned, 16)
-    CASEV(uint, Unsigned, 32)
-    CASEV(ulong, Unsigned, 64)
-    CASEV(char, Signed, 8)
-    CASEV(short, Signed, 16)
-    CASEV(int, Signed, 32)
-    CASEV(long, Signed, 64)
-    CASEV(half, Float, 16)
-    CASEV(float, Float, 32)
-    CASEV(double, Float, 64)
+    CASEV(uint,   Unsigned, 32)
+    CASEV(ulong,  Unsigned, 64)
+    CASEV(char,   Signed,   8)
+    CASEV(short,  Signed,   16)
+    CASEV(int,    Signed,   32)
+    CASEV(long,   Signed,   64)
+    CASEV(half,   Float,    16)
+    CASEV(float,  Float,    32)
+    CASEV(double, Float,    64)
     default: return {};
     }
 
@@ -429,12 +453,24 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
     }
 }
 
+static std::u32string DebugStringPatch(const std::u32string_view funcName) noexcept
+{
+    return U"";
+}
+std::u32string NLCLReplacer::GenerateDebugString(const common::span<std::u32string_view> args) const
+{
+    Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"Not implemented"sv));
+    return U"";
+}
 
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info) :
-    NailangRuntimeBase(std::make_shared<NLCLEvalContext>(dev)),
-    Logger(logger), Device(dev), EnabledExtensions(Device->Extensions.Size())
+
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, 
+    std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info) :
+    NailangRuntimeBase(std::move(evalCtx)), Logger(logger), Device(dev), 
+    EnabledExtensions(Device->Extensions.Size()), AllowDebug(false)
 { 
     Replacer = PrepareRepalcer();
+    AllowDebug = info["debug"].has_value();
     for (const auto [key, val] : info)
     {
         const auto varName = common::strchset::to_u32string(key, Charset::UTF8);
@@ -451,9 +487,27 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
         }
     }
 }
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
+    const common::CLikeDefines& info) : 
+    NLCLRuntime(logger, dev, std::make_shared<NLCLEvalContext>(dev), info)
+{ }
 NLCLRuntime::~NLCLRuntime()
 { }
 
+constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
+    (U"error",   common::mlog::LogLevel::Error), 
+    (U"success", common::mlog::LogLevel::Success),
+    (U"warning", common::mlog::LogLevel::Warning),
+    (U"info",    common::mlog::LogLevel::Info),
+    (U"verbose", common::mlog::LogLevel::Verbose), 
+    (U"debug",   common::mlog::LogLevel::Debug));
+std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
+{
+    const auto str = arg.GetStr();
+    if (str)
+        return LogLevelParser(str.value());
+    return {};
+}
 Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target)
 {
     if (IsBeginWith(call.Name, U"oclu."sv))
@@ -480,6 +534,35 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 Replacer->EnableUnroll = true;
             }
         } return {};
+        HashCase(subName, U"EnableDebug")
+        {
+            Logger.verbose(u"Manually enable debug.\n");
+            AllowDebug = true;
+        } return {};
+        HashCase(subName, U"Log")
+        {
+            ThrowByArgLeastCount(call, 2);
+            const auto logLevel = ParseLogLevel(EvaluateArg(call.Args[0]));
+            if (!logLevel) 
+                NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
+            const auto fmtStr = EvaluateArg(call.Args[1]).GetStr();
+            if (!fmtStr)
+                NLRT_THROW_EX(u"Arg[1] of [Log] should be string-able"sv, call);
+            if (call.Args.size() == 2)
+                InnerLog(logLevel.value(), fmtStr.value());
+            else
+            {
+                try
+                {
+                    const auto str = FormatString(fmtStr.value(), call.Args.subspan(2));
+                    InnerLog(logLevel.value(), str);
+                }
+                catch (const xziar::nailang::NailangFormatException& nfe)
+                {
+                    Logger.error(u"Error when formating inner log: {}\n", nfe.message);
+                }
+            }
+        } return {};
         HashCase(subName, U"AddSubgroupPatch")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
@@ -501,6 +584,11 @@ void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
     Logger.error(u"{}\n", ex.message);
     NailangRuntimeBase::HandleException(ex);
+}
+
+void NLCLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
+{
+    Logger.log(level, u"[NLCL]{}\n", str);
 }
 
 void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
@@ -648,7 +736,6 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), &meta);
             const auto argType = args[1].GetStr().value();
             const auto name = args[2].GetStr().value();
-            KerArgFlag::None;
             argTexts.emplace_back(fmt::format(FMT_STRING(U"{:10} {} {}"sv),
                 ArgFlags::ToCLString(access.value()),
                 argType,
@@ -659,6 +746,11 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         } break;
         HashCase(subName, U"DebugOutput")
         {
+            if (!AllowDebug)
+            {
+                Logger.info(u"DebugOutput is disabled and ignored.\n");
+                break;
+            }
             EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
                 EvaluateFuncArgs<1, false>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
@@ -674,7 +766,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     if (argInfos.DebugBuffer > 0)
     {
-        dst .append(U"\r\n    global uint* restrict _oclu_debug_buffer_info,"sv)
+        dst .append(U"\r\n    const  uint           _oclu_debug_buffer_size,"sv)
+            .append(U"\r\n    global uint* restrict _oclu_debug_buffer_info,"sv)
             .append(U"\r\n    global uint* restrict _oclu_debug_buffer_data,"sv);
     }
     dst.pop_back(); // remove additional ','
@@ -692,7 +785,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
 #else
         const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1);
 #endif
-        _oclu_debug_buffer_data[_oclu_thread_id + 1] = sginfo;
+        _oclu_debug_buffer_info[_oclu_thread_id + 1] = sginfo;
     }
 
 

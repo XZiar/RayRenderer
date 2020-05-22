@@ -243,7 +243,7 @@ TEST(ParserCtx, ParseFunc)
                     args.emplace_back(arg);
                     continue;
                 case special::CharEnd:
-                    EXPECT_NE(next, special::CharEnd);
+                    EXPECT_NE((uint32_t)next, (uint32_t)special::CharEnd);
                     return { };
                 default:
                     EXPECT_TRUE(false);

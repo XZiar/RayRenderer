@@ -318,18 +318,28 @@ public:
         BaseException(TYPENAME, msg, data), Target(std::move(target)), Scope(std::move(scope))
     { }
 protected:
-    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data)
-        : BaseException(type, msg, data), Target(std::move(target)), Scope(std::move(scope))
+    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
+        BaseException(type, msg, data), Target(std::move(target)), Scope(std::move(scope))
     { }
 private:
     mutable std::shared_ptr<EvaluateContext> EvalContext;
-}; 
+};
 
-class NAILANGAPI NaailangCodeException : public NailangRuntimeException
+class NAILANGAPI NailangFormatException : public NailangRuntimeException
+{
+    common::SharedString<char32_t> Formatter;
+public:
+    EXCEPTION_CLONE_EX(NailangFormatException);
+    NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err);
+    NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason = u"");
+    ~NailangFormatException() override;
+};
+
+class NAILANGAPI NailangCodeException : public NailangRuntimeException
 {
 public:
-    EXCEPTION_CLONE_EX(NaailangCodeException);
-    NaailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {});
+    EXCEPTION_CLONE_EX(NailangCodeException);
+    NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {});
 };
 
 
@@ -419,10 +429,6 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    [[nodiscard]] virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
-    [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
-                  virtual void HandleException(const NailangRuntimeException& ex) const;
-
     template<size_t N, bool ExactMatch = true>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
@@ -455,19 +461,25 @@ protected:
         return args;
     }
 
-    virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-    virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-    virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-    virtual Arg  EvaluateArg(const RawArg& arg);
-    virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
-    virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
-    virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
-    virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
-    virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
-    virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
+    [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
+    [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
+    [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
+
+                  virtual void HandleException(const NailangRuntimeException& ex) const;
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
+                  virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
+                  virtual Arg  EvaluateArg(const RawArg& arg);
+    [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
+    [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
+                  virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
+                  virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
+                  virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
     [[nodiscard]] virtual ProgramStatus OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
-    virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
-    virtual ProgramStatus ExecuteBlock(BlockContext ctx);
+                  virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
+                  virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();

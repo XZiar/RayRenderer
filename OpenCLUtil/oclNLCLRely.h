@@ -6,7 +6,10 @@
 
 namespace oclu
 {
-
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
 
 class OCLUAPI NLCLParser : xziar::nailang::BlockParser
 {
@@ -28,7 +31,8 @@ protected:
     oclDevice Device;
     xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
 public:
-    NLCLEvalContext(oclDevice dev) : Device(dev) { }
+    NLCLEvalContext(oclDevice dev);
+    ~NLCLEvalContext() override;
     [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::detail::VarHolder var) const override;
 
 };
@@ -61,6 +65,7 @@ public:
     std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
     static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
     std::u32string GenerateSubgroupShuffle(const common::span<std::u32string_view> args, const bool needShuffle) const;
+    std::u32string GenerateDebugString(const common::span<std::u32string_view> args) const;
 
     using ReplaceEngine::ProcessVariable;
     using ReplaceEngine::ProcessFunction;
@@ -84,9 +89,11 @@ protected:
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
-    std::unique_ptr<NLCLReplacer> Replacer;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
-    
+    std::unique_ptr<NLCLReplacer> Replacer;
+    bool AllowDebug = false;
+
+    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info);
     //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
@@ -98,6 +105,7 @@ protected:
             PatchedBlocks.insert_or_assign(std::u32string(id), generator(std::forward<Args>(args)...));
     }
 
+    void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
     virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer();
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
@@ -179,7 +187,7 @@ public:
     {
         using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
         static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
-            "nedd to accept block/rawblock and meta.");
+            "need to accept block/rawblock and meta.");
         using xziar::nailang::BlockContent;
         constexpr auto contentType = IsBlock ? BlockContent::Type::Block : BlockContent::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
@@ -211,4 +219,7 @@ public:
 };
 
 
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 }
