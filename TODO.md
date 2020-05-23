@@ -109,7 +109,8 @@
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [ ] Add genenral datatype for `Arg` for type-checking
   - [ ] Add array type
-  - [ ] Make parser throw proper exception.
+  - [ ] Make parser throw proper exception
+  - [ ] Add `include` support
   - [ ] Add python parser & runtime
 
 * WPFTest

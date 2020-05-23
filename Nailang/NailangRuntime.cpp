@@ -419,7 +419,7 @@ NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context)
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
 
-static constexpr auto ArgTypeName(const Arg::InternalType type) noexcept
+std::u32string_view NailangRuntimeBase::ArgTypeName(const Arg::InternalType type) noexcept
 {
     switch (type)
     {
@@ -435,7 +435,7 @@ static constexpr auto ArgTypeName(const Arg::InternalType type) noexcept
     }
 }
 
-static constexpr auto ArgTypeName(const RawArg::Type type) noexcept
+std::u32string_view NailangRuntimeBase::ArgTypeName(const RawArg::Type type) noexcept
 {
     switch (type)
     {
@@ -465,18 +465,23 @@ static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
     }
 }
 
-void NailangRuntimeBase::ThrowByArgLeastCount(const FuncCall& call, const size_t count) const
+void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit) const
 {
-    if (call.Args.size() < count)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires at least [{}] args, which gives [{}]."), call.Name, count, call.Args.size()),
-            detail::ExceptionTarget{}, &call);
-}
-
-void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t count) const
-{
-    if (call.Args.size() != count)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires [{}] args, which gives [{}]."), call.Name, count, call.Args.size()),
-            detail::ExceptionTarget{}, &call);
+    std::u32string_view prefix;
+    switch (limit)
+    {
+    case ArgLimits::Extract:
+        if (call.Args.size() == count) return;
+        prefix = U""; break;
+    case ArgLimits::AtMost:
+        if (call.Args.size() <= count) return;
+        prefix = U"at most"; break;
+    case ArgLimits::AtLeast:
+        if (call.Args.size() >= count) return;
+        prefix = U"at least"; break;
+    }
+    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires {} [{}] args, which gives [{}]."), call.Name, prefix, count, call.Args.size()),
+        detail::ExceptionTarget{}, &call);
 }
 
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::InternalType type) const
@@ -587,7 +592,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(cons
 {
     if (meta.Name == U"Skip"sv)
     {
-        const auto arg = EvaluateFuncArgs<1, false>(meta)[0];
+        const auto arg = EvaluateFuncArgs<1, ArgLimits::AtMost>(meta)[0];
         return arg.IsEmpty() || ThrowIfNotBool(arg, U"Arg of MetaFunc[Skip]"sv) ? MetaFuncResult::Skip : MetaFuncResult::Next;
     }
     if (meta.Name == U"If"sv)
@@ -631,7 +636,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
         else if (call.Name == U"Return")
         {
-            EvalContext->SetReturnArg(EvaluateFuncArgs<1, false>(call)[0]);
+            EvalContext->SetReturnArg(EvaluateFuncArgs<1, ArgLimits::AtMost>(call)[0]);
             blkCtx.Status = ProgramStatus::Return;
             return {};
         }
@@ -689,7 +694,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     }
     HashCase(call.Name, U"Format")
     {
-        ThrowByArgLeastCount(call, 2);
+        ThrowByArgCount(call, 2, ArgLimits::AtLeast);
         const auto fmtStr = EvaluateArg(call.Args[0]).GetStr();
         if (!fmtStr)
             NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
@@ -735,7 +740,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     {
     HashCase(mathName, U"Max")
     {
-        ThrowByArgLeastCount(call, 1);
+        ThrowByArgCount(call, 1, ArgLimits::AtLeast);
         auto ret = EvaluateArg(call.Args[0]);
         for (size_t i = 1; i < call.Args.size(); ++i)
         {
@@ -748,7 +753,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Min")
     {
-        ThrowByArgLeastCount(call, 1);
+        ThrowByArgCount(call, 1, ArgLimits::AtLeast);
         auto ret = EvaluateArg(call.Args[0]);
         for (size_t i = 1; i < call.Args.size(); ++i)
         {

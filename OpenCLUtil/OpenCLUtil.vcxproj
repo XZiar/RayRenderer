@@ -192,6 +192,7 @@
     <ClInclude Include="oclException.h" />
     <ClInclude Include="oclBuffer.h" />
     <ClInclude Include="oclImage.h" />
+    <ClInclude Include="oclKernelDebug.h" />
     <ClInclude Include="oclMem.h" />
     <ClInclude Include="oclNLCL.h" />
     <ClInclude Include="oclNLCLRely.h" />
@@ -214,6 +215,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="oclKernelDebug.cpp" />
     <ClCompile Include="oclMem.cpp" />
     <ClCompile Include="oclNLCL.cpp" />
     <ClCompile Include="oclPlatform.cpp" />

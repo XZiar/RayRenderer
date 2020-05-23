@@ -453,9 +453,28 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
     }
 }
 
-static std::u32string DebugStringPatch(const std::u32string_view funcName) noexcept
+/*static*/ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
-    return U"";
+    // prepare arg layout
+    oclDebugBlock dbgBlock(args, formatter, 4);
+
+    std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
+    func.append(U"\r\n    const  uint           uid,"sv)
+        .append(U"\r\n    const  uint           total,"sv)
+        .append(U"\r\n    global uint* restrict counter,"sv)
+        .append(U"\r\n    global uint* restrict data,"sv);
+    for (size_t i = 0; i < args.size(); ++i)
+    {
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), NLCLReplacer::GetVecTypeName(args[i]), i);
+    }
+    func.pop_back();
+    func.append(U")\r\n{"sv);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint size = {};"), dbgBlock.TotalSize / 4);
+    func.append(U"\r\n    if (counter[0] + size > total) return;");
+    func.append(U"\r\n    const uint old = atom_add (counter, size);");
+    func.append(U"\r\n    if (old + size > total) return;");
+    func.append(U"\r\n}\r\n"sv);
+    return func;
 }
 std::u32string NLCLReplacer::GenerateDebugString(const common::span<std::u32string_view> args) const
 {
@@ -541,11 +560,11 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"Log")
         {
-            ThrowByArgLeastCount(call, 2);
-            const auto logLevel = ParseLogLevel(EvaluateArg(call.Args[0]));
+            const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
+            const auto logLevel = ParseLogLevel(args2[0]);
             if (!logLevel) 
                 NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
-            const auto fmtStr = EvaluateArg(call.Args[1]).GetStr();
+            const auto fmtStr = args2[1].GetStr();
             if (!fmtStr)
                 NLRT_THROW_EX(u"Arg[1] of [Log] should be string-able"sv, call);
             if (call.Args.size() == 2)
@@ -562,6 +581,33 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                     Logger.error(u"Error when formating inner log: {}\n", nfe.message);
                 }
             }
+        } return {};
+        HashCase(subName, U"DefineDebugString")
+        {
+            ThrowByArgCount(call, 3, ArgLimits::AtLeast);
+            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
+            if (!arg2[0].IsStr() || !arg2[1].IsStr())
+                NLRT_THROW_EX(u"Arg[0][1] of [DefineDebugString] should all be string-able"sv, call);
+            const auto id = arg2[0].GetStr().value();
+            const auto formatter = arg2[1].GetStr().value();
+            std::vector<common::simd::VecDataInfo> argInfos;
+            argInfos.reserve(call.Args.size() - 2);
+            size_t i = 2;
+            for (const auto& rawarg : call.Args.subspan(2))
+            {
+                const auto arg = EvaluateArg(rawarg);
+                if (!arg.IsStr())
+                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]"sv, i, ArgTypeName(arg.TypeData)), call);
+                const auto vtype = Replacer->ParseVecType(arg.GetStr().value());
+                if (!vtype.has_value())
+                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString], [{}] is not a recognized type"sv, i, arg.GetStr().value()), call);
+                argInfos.push_back(vtype.value());
+            }
+            if (!AddPatchedBlock(id, [&]()
+                {
+                    return DebugStringPatch(id, formatter, argInfos);
+                }))
+                NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
         } return {};
         HashCase(subName, U"AddSubgroupPatch")
         {
@@ -753,7 +799,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             }
             EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
-                EvaluateFuncArgs<1, false>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
+                EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
         }
         default:
             break;

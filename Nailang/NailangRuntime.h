@@ -346,6 +346,8 @@ public:
 class NAILANGAPI NailangRuntimeBase
 {
 protected:
+    static std::u32string_view ArgTypeName(const Arg::InternalType type) noexcept;
+    static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
     enum class ProgramStatus { Next = 0, Repeat, Break, Return, End };
     enum class MetaFuncResult { Unhandled = 0, Next, Repeat, Skip };
     struct BlockContext
@@ -420,8 +422,8 @@ protected:
 
     std::shared_ptr<EvaluateContext> EvalContext;
     
-    void ThrowByArgLeastCount(const FuncCall& call, const size_t count) const;
-    void ThrowByArgCount(const FuncCall& call, const size_t count) const;
+    enum class ArgLimits { Extract, AtMost, AtLeast };
+    void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Extract) const;
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const;
     void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
@@ -429,34 +431,47 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    template<size_t N, bool ExactMatch = true>
+    template<size_t N, ArgLimits Limit = ArgLimits::Extract>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
-        if constexpr (ExactMatch)
-            ThrowByArgCount(call, N);
-        else if (call.Args.size() > N)
-            ThrowByArgCount(call, N);
+        ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        size_t i = 0;
-        for (const auto& rawarg : call.Args)
-            args[i++] = EvaluateArg(rawarg);
+        if constexpr (Limit == ArgLimits::AtLeast)
+        {
+            for (size_t i = 0; i < N; ++i)
+                args[i] = EvaluateArg(call.Args[i]);
+        }
+        else
+        {
+            size_t i = 0;
+            for (const auto& rawarg : call.Args)
+                args[i++] = EvaluateArg(rawarg);
+        }
         return args;
     }
 
-    template<size_t N, bool ExactMatch = true>
+    template<size_t N, ArgLimits Limit = ArgLimits::Extract>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::InternalType, N>& types)
     {
-        if constexpr (ExactMatch)
-            ThrowByArgCount(call, N);
-        else if (call.Args.size() > N)
-            ThrowByArgCount(call, N);
+        ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        size_t i = 0;
-        for (const auto& rawarg : call.Args)
+        if constexpr (Limit == ArgLimits::AtLeast)
         {
-            args[i] = EvaluateArg(rawarg);
-            ThrowByArgType(call, args[i], types[i], i); 
-            ++i;
+            for (size_t i = 0; i < N; ++i)
+            {
+                args[i] = EvaluateArg(call.Args[i]);
+                ThrowByArgType(call, args[i], types[i], i);
+            }
+        }
+        else
+        {
+            size_t i = 0;
+            for (const auto& rawarg : call.Args)
+            {
+                args[i] = EvaluateArg(rawarg);
+                ThrowByArgType(call, args[i], types[i], i);
+                i++;
+            }
         }
         return args;
     }

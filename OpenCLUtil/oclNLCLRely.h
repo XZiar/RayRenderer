@@ -1,6 +1,7 @@
 #pragma once
 #include "oclRely.h"
 #include "oclNLCL.h"
+#include "oclKernelDebug.h"
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 
@@ -90,6 +91,7 @@ protected:
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
+    std::map<std::u32string, oclDebugBlock> DebugBlocks;
     std::unique_ptr<NLCLReplacer> Replacer;
     bool AllowDebug = false;
 
@@ -99,11 +101,18 @@ protected:
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
 
     template<typename F, typename... Args>
-    void AddPatchedBlock(std::u32string_view id, F&& generator, Args&&... args)
+    bool AddPatchedBlock(std::u32string_view id, F&& generator, Args&&... args)
     {
         if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+        {
             PatchedBlocks.insert_or_assign(std::u32string(id), generator(std::forward<Args>(args)...));
+            return true;
+        }
+        return false;
     }
+
+    std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
+        common::span<const common::simd::VecDataInfo> args) noexcept;
 
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
