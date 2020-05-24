@@ -128,7 +128,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel) : DebugBuffer(0), HasInfo(true)
     }
 }
 
-KernelArgInfo KernelArgStore::GetObjectFromIndex(const size_t idx) const noexcept
+KernelArgInfo KernelArgStore::GetArgInfo(const size_t idx) const noexcept
 {
     const auto info = GetArg(idx);
     return { info->Space, info->Access, info->Qualifier, GetStringView(info->Name), GetStringView(info->Type) };

@@ -459,64 +459,52 @@ public:
 };
 
 
-template<typename T, typename V>
-class IndirectIterable
+template<typename T, typename V, V(T::*F)(size_t) const>
+class IndirectIterator
 {
+    friend T;
 private:
-    class Iterator
-    {
-        friend class IndirectIterable;
-        const T* Host;
-        size_t Idx;
-        constexpr Iterator(const T* host, size_t idx) noexcept : Host(host), Idx(idx) {}
-    public:
-        using iterator_category = std::random_access_iterator_tag;
-        using value_type = V;
-        using difference_type = std::ptrdiff_t;
-
-        [[nodiscard]] value_type operator*() const noexcept
-        {
-            return Host->GetObjectFromIndex(Idx);
-        }
-        [[nodiscard]] constexpr bool operator!=(const Iterator& other) const noexcept
-        {
-            return Host != other.Host || Idx != other.Idx;
-        }
-        [[nodiscard]] constexpr bool operator==(const Iterator& other) const noexcept
-        {
-            return Host == other.Host && Idx == other.Idx;
-        }
-        constexpr Iterator& operator++() noexcept
-        {
-            Idx++;
-            return *this;
-        }
-        constexpr Iterator& operator--() noexcept
-        {
-            Idx--;
-            return *this;
-        }
-        constexpr Iterator& operator+=(size_t n) noexcept
-        {
-            Idx += n;
-            return *this;
-        }
-        constexpr Iterator& operator-=(size_t n) noexcept
-        {
-            Idx -= n;
-            return *this;
-        }
-    };
+    const T* Host;
+    size_t Idx;
+    constexpr IndirectIterator(const T* host, size_t idx) noexcept : Host(host), Idx(idx) {}
 public:
-    [[nodiscard]] constexpr Iterator begin() const noexcept
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = V;
+    using difference_type = std::ptrdiff_t;
+
+    [[nodiscard]] value_type operator*() const noexcept
     {
-        const auto it = static_cast<const T*>(this);
-        return { it, 0 };
+        return (Host->*F)(Idx);
     }
-    [[nodiscard]] constexpr Iterator end() const noexcept
+    [[nodiscard]] constexpr bool operator!=(const IndirectIterator& other) const noexcept
     {
-        const auto it = static_cast<const T*>(this);
-        return { it, it->GetSize() };
+        return Host != other.Host || Idx != other.Idx;
+    }
+    [[nodiscard]] constexpr bool operator==(const IndirectIterator& other) const noexcept
+    {
+        return Host == other.Host && Idx == other.Idx;
+    }
+    constexpr IndirectIterator& operator++() noexcept
+    {
+        Idx++;
+        return *this;
+    }
+    constexpr IndirectIterator& operator--() noexcept
+    {
+        Expects(Idx >= 1);
+        Idx--;
+        return *this;
+    }
+    constexpr IndirectIterator& operator+=(size_t n) noexcept
+    {
+        Idx += n;
+        return *this;
+    }
+    constexpr IndirectIterator& operator-=(size_t n) noexcept
+    {
+        Expects(Idx >= n);
+        Idx -= n;
+        return *this;
     }
 };
 

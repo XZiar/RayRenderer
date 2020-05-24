@@ -67,13 +67,11 @@ struct KernelArgInfo : public ArgFlags
     std::string_view Type;
 };
 
-struct OCLUAPI KernelArgStore : public common::StringPool<char>,
-    public common::container::IndirectIterable<KernelArgStore, KernelArgInfo>
+class OCLUAPI KernelArgStore : public common::StringPool<char>
 {
     friend class oclKernel_;
     friend class NLCLRuntime;
-    friend class common::container::IndirectIterable<KernelArgStore, KernelArgInfo>;
-private:
+protected:
     struct ArgInfo : public ArgFlags
     {
         common::StringPiece<char> Name;
@@ -83,13 +81,17 @@ private:
     std::uint32_t DebugBuffer;
     bool HasInfo;
     KernelArgStore(cl_kernel kernel);
-    KernelArgInfo GetObjectFromIndex(const size_t idx) const noexcept;
     size_t GetSize() const noexcept { return ArgsInfo.size(); }
     const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
-    void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier, 
+    void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
+    KernelArgInfo GetArgInfo(const size_t idx) const noexcept;
+    using ItType = common::container::IndirectIterator<KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
+    friend ItType;
 public:
     KernelArgStore() : DebugBuffer(0), HasInfo(false) {}
+    ItType begin() const noexcept { return { this, 0 }; }
+    ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };
 
 class OCLUAPI oclKernel_ : public common::NonCopyable

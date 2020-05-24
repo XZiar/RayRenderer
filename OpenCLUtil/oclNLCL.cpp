@@ -113,45 +113,6 @@ void NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common:
             fmt::format(FMT_STRING(u"Repace-func [{}] requires [{}] args, which gives [{}]."), func, args.size(), count)));
 }
 
-
-static constexpr std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
-{
-#define CASE(str, dtype, bit, n, least) \
-    HashCase(type, str) return { {common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least };
-#define CASEV(pfx, type, bit, least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)""),    type, bit, 1,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v2"),  type, bit, 2,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v3"),  type, bit, 3,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v4"),  type, bit, 4,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v8"),  type, bit, 8,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v16"), type, bit, 16, least) \
-
-#define CASE2(tstr, type, bit)                  \
-    CASEV(PPCAT(tstr, bit),  type, bit, false)  \
-    CASEV(PPCAT(tstr, bit+), type, bit, true)   \
-
-    switch (hash_(type))
-    {
-    CASE2(u, Unsigned, 8)
-    CASE2(u, Unsigned, 16)
-    CASE2(u, Unsigned, 32)
-    CASE2(u, Unsigned, 64)
-    CASE2(i, Signed,   8)
-    CASE2(i, Signed,   16)
-    CASE2(i, Signed,   32)
-    CASE2(i, Signed,   64)
-    CASE2(f, Float,    16)
-    CASE2(f, Float,    32)
-    CASE2(f, Float,    64)
-    default: break;
-    }
-    return { {VecDataInfo::DataTypes::Unsigned, 0, 0, 0}, false };
-
-#undef CASE2
-#undef CASEV
-#undef CASE
-}
-
 static std::u32string SkipDebug() noexcept
 {
     return U"inline void oclu_SkipDebug() {}";
@@ -452,30 +413,6 @@ std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32
         return {};
     }
 }
-
-/*static*/ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
-{
-    // prepare arg layout
-    oclDebugBlock dbgBlock(args, formatter, 4);
-
-    std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
-    func.append(U"\r\n    const  uint           uid,"sv)
-        .append(U"\r\n    const  uint           total,"sv)
-        .append(U"\r\n    global uint* restrict counter,"sv)
-        .append(U"\r\n    global uint* restrict data,"sv);
-    for (size_t i = 0; i < args.size(); ++i)
-    {
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), NLCLReplacer::GetVecTypeName(args[i]), i);
-    }
-    func.pop_back();
-    func.append(U")\r\n{"sv);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint size = {};"), dbgBlock.TotalSize / 4);
-    func.append(U"\r\n    if (counter[0] + size > total) return;");
-    func.append(U"\r\n    const uint old = atom_add (counter, size);");
-    func.append(U"\r\n    if (old + size > total) return;");
-    func.append(U"\r\n}\r\n"sv);
-    return func;
-}
 std::u32string NLCLReplacer::GenerateDebugString(const common::span<std::u32string_view> args) const
 {
     Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"Not implemented"sv));
@@ -653,6 +590,107 @@ std::unique_ptr<NLCLReplacer> NLCLRuntime::PrepareRepalcer()
     return std::make_unique<NLCLReplacer>(*this);
 }
 
+std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
+{
+    // prepare arg layout
+    const auto dbgIdx = DebugBlocks.size();
+    if (dbgIdx >= 256u)
+        NLRT_THROW_EX(u"Too many DebugString defined, maximum 256");
+    const auto& dbgData = DebugBlocks.insert_or_assign(std::u32string(dbgId), 
+        oclDebugBlock{ static_cast<uint8_t>(dbgIdx), args, formatter, static_cast<uint16_t>(4u) })
+        .first->second.Layout;
+
+    std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
+    func.append(U"\r\n    const  uint           uid,"sv)
+        .append(U"\r\n    const  uint           total,"sv)
+        .append(U"\r\n    global uint* restrict counter,"sv)
+        .append(U"\r\n    global uint* restrict data,"sv);
+    for (size_t i = 0; i < args.size(); ++i)
+    {
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), NLCLReplacer::GetVecTypeName(args[i]), i);
+    }
+    func.pop_back();
+    func.append(U")\r\n{"sv);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint size = {} + 1;"), dbgData.TotalSize / 4);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]"), dbgIdx);
+    func.append(U"\r\n    if (counter[0] + size > total) return;");
+    func.append(U"\r\n    const uint old = atom_add (counter, size);");
+    func.append(U"\r\n    if (old + size > total) return;");
+    func.append(U"\r\n    data[old] = (uid & 0x00ffffffu) | dbgId;");
+    func.append(U"\r\n    global uint* const restrict ptr = data + old + 1;");
+    const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
+    {
+        auto dst = std::back_inserter(func);
+        const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
+        const auto dstTypeStr  = Replacer->GetVecTypeName(dtype);
+        std::u32string getData = needConv ?
+            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), Replacer->GetVecTypeName(vtype), argIdx, argAccess) :
+            fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
+        if (vsize == 1)
+        {
+            fmt::format_to(dst, FMT_STRING(U"\r\n    ((global {}*)(ptr))[{}] = {};"sv),
+                    dstTypeStr, offset / (dtype.Bit / 8), getData);
+        }
+        else
+        {
+            fmt::format_to(dst, FMT_STRING(U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv),
+                vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
+        }
+    };
+    for (const auto& [info, offset, idx] : dbgData.ByLayout())
+    {
+        const auto size = info.Bit * info.Dim0;
+        fmt::format_to(std::back_inserter(func),
+            FMT_STRING(U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv),
+            idx, offset, size / 8, StringifyVDataType(info));
+        for (const auto eleBit : std::array<uint8_t, 3>{ 32u,16u,8u })
+        {
+            const auto eleByte = eleBit / 8;
+            if (size % eleBit == 0)
+            {
+                VecDataInfo dstType{ VecDataInfo::DataTypes::Unsigned, eleBit, 1, 0 };
+                const bool needConv = info.Bit != dstType.Bit || info.Type != VecDataInfo::DataTypes::Unsigned;
+                const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
+                // For 32bit:
+                // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
+                // 32bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                // 16bit: 2,4,8,16     -> 1,2,4,8
+                //  8bit: 4,8,16       -> 1,2,4
+                // For 16bit:
+                // 16bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                //  8bit: 2,4,8,16     -> 1,2,4,8
+                // For 8bit:
+                //  8bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                if (cnt == 32u)
+                {
+                    Expects(info.Bit == 64 && info.Dim0 == 16);
+                    WriteOne(offset + eleByte * 0 , idx, 16, dstType, U".s01234567"sv, needConv);
+                    WriteOne(offset + eleByte * 16, idx, 16, dstType, U".s89abcdef"sv, needConv);
+                }
+                else if (cnt == 6u)
+                {
+                    Expects(info.Bit == 64 && info.Dim0 == 3);
+                    WriteOne(offset + eleByte * 0, idx, 4, dstType, U".s01"sv, needConv);
+                    WriteOne(offset + eleByte * 4, idx, 2, dstType, U".s2"sv,  needConv);
+                }
+                else if (cnt == 3u)
+                {
+                    Expects(info.Bit == dstType.Bit && info.Dim0 == 3);
+                    WriteOne(offset + eleByte * 0, idx, 2, dstType, U".s01"sv, needConv);
+                    WriteOne(offset + eleByte * 2, idx, 1, dstType, U".s2"sv,  needConv);
+                }
+                else
+                {
+                    Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
+                    WriteOne(offset, idx, cnt, dstType, {}, needConv);
+                }
+                break;
+            }
+        }
+    }
+    func.append(U"\r\n}\r\n"sv);
+    return func;
+}
 
 void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
 {
@@ -798,6 +836,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 break;
             }
             EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
+            EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
                 EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
         }
