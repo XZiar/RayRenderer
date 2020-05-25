@@ -422,8 +422,8 @@ protected:
 
     std::shared_ptr<EvaluateContext> EvalContext;
     
-    enum class ArgLimits { Extract, AtMost, AtLeast };
-    void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Extract) const;
+    enum class ArgLimits { Exact, AtMost, AtLeast };
+    void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const;
     void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
@@ -431,7 +431,7 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    template<size_t N, ArgLimits Limit = ArgLimits::Extract>
+    template<size_t N, ArgLimits Limit = ArgLimits::Exact>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
         ThrowByArgCount(call, N, Limit);
@@ -450,7 +450,7 @@ protected:
         return args;
     }
 
-    template<size_t N, ArgLimits Limit = ArgLimits::Extract>
+    template<size_t N, ArgLimits Limit = ArgLimits::Exact>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::InternalType, N>& types)
     {
         ThrowByArgCount(call, N, Limit);

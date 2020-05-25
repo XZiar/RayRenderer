@@ -64,6 +64,7 @@ public:
     uint32_t ArgCount;
 
     DebugDataLayout(common::span<const common::simd::VecDataInfo> infos, const std::u32string_view formatter, const uint16_t align = 4);
+    DebugDataLayout(const DebugDataLayout& other);
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
 };

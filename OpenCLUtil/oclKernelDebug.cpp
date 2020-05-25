@@ -124,5 +124,13 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const st
     TotalSize = (offset + (align - 1)) / align * align;
 }
 
+DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) : 
+    Blocks(std::make_unique<DataBlock[]>(other.ArgCount)), ArgLayout(std::make_unique<uint16_t[]>(other.ArgCount)),
+    Formatter(other.Formatter), TotalSize(other.TotalSize), ArgCount(other.ArgCount)
+{
+    memcpy_s(Blocks.get(), sizeof(DataBlock) * ArgCount, other.Blocks.get(), sizeof(DataBlock) * ArgCount);
+    memcpy_s(ArgLayout.get(), sizeof(uint16_t) * ArgCount, other.ArgLayout.get(), sizeof(uint16_t) * ArgCount);
+}
+
 
 }

@@ -470,7 +470,7 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
     std::u32string_view prefix;
     switch (limit)
     {
-    case ArgLimits::Extract:
+    case ArgLimits::Exact:
         if (call.Args.size() == count) return;
         prefix = U""; break;
     case ArgLimits::AtMost:

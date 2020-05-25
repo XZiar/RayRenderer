@@ -479,7 +479,7 @@ public:
         Vars.push_back(var);
         output.append(Target);
     }
-    void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) override
+    void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<const std::u32string_view> args) override
     {
         std::vector<std::u32string_view> arg(args.begin(), args.end());
         Funcs.emplace_back(func, std::move(arg));

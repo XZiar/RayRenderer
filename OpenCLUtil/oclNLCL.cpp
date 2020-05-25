@@ -93,125 +93,75 @@ Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) cons
 }
 
 
-NLCLReplacer::NLCLReplacer(NLCLRuntime& runtime) : 
-    Runtime(runtime), 
-    SupportFP16(Runtime.Device->Extensions.Has("cl_khr_fp16")),
-    SupportFP64(Runtime.Device->Extensions.Has("cl_khr_fp64") || Runtime.Device->Extensions.Has("cl_amd_fp64")),
-    SupportNVUnroll(Runtime.Device->Extensions.Has("cl_nv_pragma_unroll")),
-    SupportSubgroupKHR(Runtime.Device->Extensions.Has("cl_khr_subgroups")),
-    SupportSubgroupIntel(Runtime.Device->Extensions.Has("cl_intel_subgroups")),
-    SupportSubgroup8Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_char")),
-    SupportSubgroup16Intel(SupportSubgroupIntel && Runtime.Device->Extensions.Has("cl_intel_subgroups_short")),
-    EnableUnroll(Runtime.Device->CVersion >= 20 || SupportNVUnroll)
+
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, 
+    std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info) :
+    NailangRuntimeBase(std::move(evalCtx)), Logger(logger), Device(dev), 
+    EnabledExtensions(Device->Extensions.Size()),
+    SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
+    SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
+    SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
+    SupportSubgroupKHR(Device->Extensions.Has("cl_khr_subgroups")),
+    SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
+    SupportSubgroup8Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_char")),
+    SupportSubgroup16Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_short")),
+    EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false)
+{ 
+    AllowDebug = info["debug"].has_value();
+    for (const auto [key, val] : info)
+    {
+        const auto varName = common::strchset::to_u32string(key, Charset::UTF8);
+        switch (val.index())
+        {
+        case 1: EvalContext->SetArg(varName, std::get<1>(val)); break;
+        case 2: EvalContext->SetArg(varName, std::get<2>(val)); break;
+        case 3: EvalContext->SetArg(varName, std::get<3>(val)); break;
+        case 4: EvalContext->SetArg(varName, 
+            common::strchset::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+        case 0: 
+        default:
+            break;
+        }
+    }
+}
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
+    const common::CLikeDefines& info) : 
+    NLCLRuntime(logger, dev, std::make_shared<NLCLEvalContext>(dev), info)
 { }
-NLCLReplacer::~NLCLReplacer() { }
+NLCLRuntime::~NLCLRuntime()
+{ }
 
-void NLCLReplacer::ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const
+void NLCLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
 {
-    if (args.size() != count)
-        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-            fmt::format(FMT_STRING(u"Repace-func [{}] requires [{}] args, which gives [{}]."), func, args.size(), count)));
+    Logger.log(level, u"[NLCL]{}\n", str);
 }
 
-static std::u32string SkipDebug() noexcept
+void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
-    return U"inline void oclu_SkipDebug() {}";
+    Logger.error(u"{}\n", ex.message);
+    NailangRuntimeBase::HandleException(ex);
 }
 
-void NLCLReplacer::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
+void NLCLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
+    const size_t count, const ArgLimits limit) const
 {
-    if (var.size() > 0 && var[0] == U'@')
+    std::u32string_view prefix;
+    switch (limit)
     {
-        const auto info = ParseVecType(var.substr(1));
-        if (!info.has_value())
-        {
-            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
-            return;
-        }
-        const auto str = GetVecTypeName(info.value());
-        if (str.empty())
-        {
-            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var)));
-            return;
-        }
-        output.append(str);
+    case ArgLimits::Exact:
+        if (args.size() == count) return;
+        prefix = U""; break;
+    case ArgLimits::AtMost:
+        if (args.size() <= count) return;
+        prefix = U"at most"; break;
+    case ArgLimits::AtLeast:
+        if (args.size() >= count) return;
+        prefix = U"at least"; break;
     }
-    else // '@' not allowed in var anyway
-    {
-        const auto ret = Runtime.EvalContext->LookUpArg(var);
-        if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
-        {
-            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var)));
-            return;
-        }
-        output.append(ret.ToString().StrView());
-    }
+    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."), call, prefix, count, args.size()));
 }
 
-void NLCLReplacer::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args)
-{
-    if (func == U"unroll"sv)
-    {
-        if (args.size() > 1)
-        {
-            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Repace-func [unroll] requires [0,1] args, which gives [{}]."), args.size())));
-        }
-        else if (EnableUnroll)
-        {
-            if (Runtime.Device->CVersion >= 20 || !SupportNVUnroll)
-            {
-                if (args.empty())
-                    output.append(U"__attribute__((opencl_unroll_hint))"sv);
-                else
-                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]);
-            }
-            else
-            {
-                if (args.empty())
-                    output.append(U"#pragma unroll"sv);
-                else
-                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma unroll {}"sv), args[0]);
-            }
-        }
-        return;
-    }
-    if (IsBeginWith(func, U"oclu."sv))
-    {
-        switch (const auto subName = func.substr(5); hash_(subName))
-        {
-        HashCase(subName, U"SubgroupBroadcast")
-        {
-            output.append(GenerateSubgroupShuffle(args, false)); return;
-        }
-        HashCase(subName, U"SubgroupShuffle")
-        {
-            output.append(GenerateSubgroupShuffle(args, true)); return;
-        }
-        HashCase(subName, U"DebugString")
-        {
-            if (!Runtime.AllowDebug)
-            {
-                Runtime.AddPatchedBlock(U"SkipDebug"sv, SkipDebug);
-                output.append(U"oclu_SkipDebug()"sv); 
-            }
-            else
-            {
-                output.append(GenerateDebugString(args));
-            }
-            return;
-        }
-        default: break;
-        }
-    }
-    Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-        u"replace-function not ready"sv));
-}
-
-std::optional<common::simd::VecDataInfo> NLCLReplacer::ParseVecType(const std::u32string_view type) const noexcept
+std::optional<common::simd::VecDataInfo> NLCLRuntime::ParseVecType(const std::u32string_view type) const noexcept
 {
     auto [info, least] = ParseVDataType(type);
     if (info.Bit == 0)
@@ -223,17 +173,17 @@ std::optional<common::simd::VecDataInfo> NLCLReplacer::ParseVecType(const std::u
             if (least) // promotion
                 info.Bit = 32;
             else
-                Runtime.Logger.warning(u"Potential use of unsupported FP16 with [{}].\n"sv, type);
+                Logger.warning(u"Potential use of unsupported FP16 with [{}].\n"sv, type);
         }
         else if (info.Bit == 64 && !SupportFP64)
         {
-            Runtime.Logger.warning(u"Potential use of unsupported FP64 with [{}].\n"sv, type);
+            Logger.warning(u"Potential use of unsupported FP64 with [{}].\n"sv, type);
         }
     }
     return info;
 }
 
-std::u32string_view NLCLReplacer::GetVecTypeName(common::simd::VecDataInfo info) noexcept
+std::u32string_view NLCLRuntime::GetVecTypeName(common::simd::VecDataInfo info) noexcept
 {
 #define CASE(s, type, bit, n) \
     case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
@@ -281,13 +231,19 @@ static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t u
         return 0;
     }
 }
-static std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base, 
-    const uint8_t unitBits, const uint8_t dim, VecDataInfo::DataTypes dtype = VecDataInfo::DataTypes::Unsigned) noexcept
+
+std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
+{
+    return U"inline void oclu_SkipDebug() {}";
+}
+
+std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
+    const uint8_t unitBits, const uint8_t dim, VecDataInfo::DataTypes dtype) noexcept
 {
     Expects(dim > 0 && dim <= 16);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = NLCLReplacer::GetVecTypeName({ dtype, unitBits, dim, 0 });
-    const auto scalarName = NLCLReplacer::GetVecTypeName({ dtype, unitBits, 1, 0 });
+    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
+    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n"sv),
         vecName, funcName);
     for (uint8_t i = 0; i < dim; ++i)
@@ -299,296 +255,6 @@ static std::u32string SubgroupShufflePatch(const std::u32string_view funcName, c
     fmt::format_to(std::back_inserter(func), FMT_STRING(U"ele{});\r\n}}"sv), dim - 1);
     return func;
 }
-std::u32string NLCLReplacer::GenerateSubgroupShuffle(const common::span<std::u32string_view> args, const bool needShuffle) const
-{
-    if (needShuffle && !SupportSubgroupIntel)
-    {
-        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-            fmt::format(FMT_STRING(u"Subgroup shuffle require support of intel_subgroups."sv), args[0])));
-        return {};
-    }
-    const auto info = ParseVecType(args[0]);
-    if (!info.has_value())
-    {
-        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-            fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0])));
-        return {};
-    }
-    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
-    {
-        return fmt::format(FMT_STRING(U"as_{}({}(as_{}({}), {}))"sv),
-            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
-    };
-    const uint32_t totalBits = info->Bit * info->Dim0;
-    const bool isVec = info->Dim0 > 1;
-    if (!needShuffle && totalBits >= 32) // can be handled by khr_subgroups
-    {
-        if (totalBits == 32 || totalBits == 64) // native func
-        {
-            if (!isVec) // direct replace
-                return fmt::format(FMT_STRING(U"sub_group_broadcast({}, {})"sv), args[1], args[2]);
-            else // need type reinterpreting
-                return ReinterpretWrappedFunc(U"sub_group_broadcast"sv, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), 1, 0 });
-        }
-        else if (!SupportSubgroupIntel) // >64, need patched func
-        {
-            const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_broadcast_{}"sv), totalBits);
-            for (const auto targetBits : std::array<uint8_t, 2>{ 64u, 32u })
-            {
-                const auto vnum = CheckVecable(totalBits, targetBits);
-                if (vnum == 0) continue;
-                Runtime.AddPatchedBlock(funcName, SubgroupShufflePatch, 
-                    funcName, U"sub_group_broadcast"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-                return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), vnum, 0 });
-            }
-            // cannot handle right now
-            Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-                fmt::format(FMT_STRING(u"Failed to generate patched broadcast for [{}]"sv), args[0])));
-            return {};
-        }
-    }
-    // require at least intel_subgroups
-    if (!SupportSubgroupIntel)
-    {
-        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-            fmt::format(FMT_STRING(u"Failed to generate broadcast for [{}] without support of intel_subgroups."sv), args[0])));
-        return {};
-    }
-    if (info->Bit == 32) // direct replace
-        return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-    if (info->Bit == 16 && SupportSubgroup16Intel)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Float:
-            if (info->Dim0 != 1 || !SupportFP16) // need type reinterpreting
-                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 16, info->Dim0, 0 });
-            [[fallthrough]];
-        // direct replace
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    if (info->Bit == 8 && SupportSubgroup8Intel)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    if (info->Bit == 64 && info->Dim0 == 1)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Float:
-            if (!SupportFP64) // need type reinterpreting
-                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 64, 1, 0 });
-            [[fallthrough]];
-        // direct replace
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    // patched func based on intel_sub_group_shuffle
-    {
-        const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_shuffle_{}"sv), totalBits);
-        for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
-        {
-            const auto vnum = CheckVecable(totalBits, targetBits);
-            if (vnum == 0) continue;
-            Runtime.AddPatchedBlock(funcName, SubgroupShufflePatch, 
-                funcName, U"intel_sub_group_shuffle"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-            return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
-        }
-        // cannot handle right now
-        Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException,
-            fmt::format(FMT_STRING(u"Failed to generate patched shuffle for [{}]"sv), args[0])));
-        return {};
-    }
-}
-std::u32string NLCLReplacer::GenerateDebugString(const common::span<std::u32string_view> args) const
-{
-    Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"Not implemented"sv));
-    return U"";
-}
-
-
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, 
-    std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info) :
-    NailangRuntimeBase(std::move(evalCtx)), Logger(logger), Device(dev), 
-    EnabledExtensions(Device->Extensions.Size()), AllowDebug(false)
-{ 
-    Replacer = PrepareRepalcer();
-    AllowDebug = info["debug"].has_value();
-    for (const auto [key, val] : info)
-    {
-        const auto varName = common::strchset::to_u32string(key, Charset::UTF8);
-        switch (val.index())
-        {
-        case 1: EvalContext->SetArg(varName, std::get<1>(val)); break;
-        case 2: EvalContext->SetArg(varName, std::get<2>(val)); break;
-        case 3: EvalContext->SetArg(varName, std::get<3>(val)); break;
-        case 4: EvalContext->SetArg(varName, 
-            common::strchset::to_u32string(std::get<4>(val), Charset::UTF8)); break;
-        case 0: 
-        default:
-            break;
-        }
-    }
-}
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
-    const common::CLikeDefines& info) : 
-    NLCLRuntime(logger, dev, std::make_shared<NLCLEvalContext>(dev), info)
-{ }
-NLCLRuntime::~NLCLRuntime()
-{ }
-
-constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
-    (U"error",   common::mlog::LogLevel::Error), 
-    (U"success", common::mlog::LogLevel::Success),
-    (U"warning", common::mlog::LogLevel::Warning),
-    (U"info",    common::mlog::LogLevel::Info),
-    (U"verbose", common::mlog::LogLevel::Verbose), 
-    (U"debug",   common::mlog::LogLevel::Debug));
-std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
-{
-    const auto str = arg.GetStr();
-    if (str)
-        return LogLevelParser(str.value());
-    return {};
-}
-Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target)
-{
-    if (IsBeginWith(call.Name, U"oclu."sv))
-    {
-        switch (const auto subName = call.Name.substr(5); hash_(subName))
-        {
-        HashCase(subName, U"EnableExtension")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto arg = EvaluateFuncArgs<1>(call)[0];
-            if (const auto sv = arg.GetStr(); sv.has_value())
-            {
-                if (!EnableExtension(sv.value()))
-                    Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
-            }
-            else
-                NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
-        } return {};
-        HashCase(subName, U"EnableUnroll")
-        {
-            if (!Replacer->EnableUnroll)
-            {
-                Logger.warning(u"Manually enable unroll hint.\n");
-                Replacer->EnableUnroll = true;
-            }
-        } return {};
-        HashCase(subName, U"EnableDebug")
-        {
-            Logger.verbose(u"Manually enable debug.\n");
-            AllowDebug = true;
-        } return {};
-        HashCase(subName, U"Log")
-        {
-            const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
-            const auto logLevel = ParseLogLevel(args2[0]);
-            if (!logLevel) 
-                NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
-            const auto fmtStr = args2[1].GetStr();
-            if (!fmtStr)
-                NLRT_THROW_EX(u"Arg[1] of [Log] should be string-able"sv, call);
-            if (call.Args.size() == 2)
-                InnerLog(logLevel.value(), fmtStr.value());
-            else
-            {
-                try
-                {
-                    const auto str = FormatString(fmtStr.value(), call.Args.subspan(2));
-                    InnerLog(logLevel.value(), str);
-                }
-                catch (const xziar::nailang::NailangFormatException& nfe)
-                {
-                    Logger.error(u"Error when formating inner log: {}\n", nfe.message);
-                }
-            }
-        } return {};
-        HashCase(subName, U"DefineDebugString")
-        {
-            ThrowByArgCount(call, 3, ArgLimits::AtLeast);
-            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
-            if (!arg2[0].IsStr() || !arg2[1].IsStr())
-                NLRT_THROW_EX(u"Arg[0][1] of [DefineDebugString] should all be string-able"sv, call);
-            const auto id = arg2[0].GetStr().value();
-            const auto formatter = arg2[1].GetStr().value();
-            std::vector<common::simd::VecDataInfo> argInfos;
-            argInfos.reserve(call.Args.size() - 2);
-            size_t i = 2;
-            for (const auto& rawarg : call.Args.subspan(2))
-            {
-                const auto arg = EvaluateArg(rawarg);
-                if (!arg.IsStr())
-                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]"sv, i, ArgTypeName(arg.TypeData)), call);
-                const auto vtype = Replacer->ParseVecType(arg.GetStr().value());
-                if (!vtype.has_value())
-                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString], [{}] is not a recognized type"sv, i, arg.GetStr().value()), call);
-                argInfos.push_back(vtype.value());
-            }
-            if (!AddPatchedBlock(id, [&]()
-                {
-                    return DebugStringPatch(id, formatter, argInfos);
-                }))
-                NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
-        } return {};
-        HashCase(subName, U"AddSubgroupPatch")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto args = EvaluateFuncArgs<2>(call);
-            const auto isShuffle = args[0].GetBool().value();
-            const auto vtype = args[1].GetStr().value();
-            std::array strs{ vtype,U"x"sv,U"y"sv };
-            const auto funcsrc = Replacer->GenerateSubgroupShuffle(strs, isShuffle);
-            AddPatchedBlock(fmt::format(U"AddSubgroupPatch_{}_{}"sv, vtype, isShuffle),
-                [&]() { return fmt::format(U"/* {} */\r\n"sv, funcsrc); });
-        } return {};
-        default: break;
-        }
-    }
-    return NailangRuntimeBase::EvaluateFunc(call, metas, target);
-}
-
-void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
-{
-    Logger.error(u"{}\n", ex.message);
-    NailangRuntimeBase::HandleException(ex);
-}
-
-void NLCLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
-{
-    Logger.log(level, u"[NLCL]{}\n", str);
-}
-
-void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const
-{
-    OutputConditions(metas, dst);
-    common::str::StrVariant<char32_t> source(block.Source);
-    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceVariable"sv; }))
-        source = Replacer->ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
-    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceFunction"sv; }))
-        source = Replacer->ProcessFunction(source.StrView(), U"$$!"sv, U""sv);
-    dst.append(source.StrView());
-}
-
-std::unique_ptr<NLCLReplacer> NLCLRuntime::PrepareRepalcer()
-{
-    return std::make_unique<NLCLReplacer>(*this);
-}
 
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
@@ -596,7 +262,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     const auto dbgIdx = DebugBlocks.size();
     if (dbgIdx >= 256u)
         NLRT_THROW_EX(u"Too many DebugString defined, maximum 256");
-    const auto& dbgData = DebugBlocks.insert_or_assign(std::u32string(dbgId), 
+    const auto& dbgData = DebugBlocks.emplace(std::u32string(dbgId), 
         oclDebugBlock{ static_cast<uint8_t>(dbgIdx), args, formatter, static_cast<uint16_t>(4u) })
         .first->second.Layout;
 
@@ -607,7 +273,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
         .append(U"\r\n    global uint* restrict data,"sv);
     for (size_t i = 0; i < args.size(); ++i)
     {
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), NLCLReplacer::GetVecTypeName(args[i]), i);
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), GetVecTypeName(args[i]), i);
     }
     func.pop_back();
     func.append(U")\r\n{"sv);
@@ -622,9 +288,9 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     {
         auto dst = std::back_inserter(func);
         const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
-        const auto dstTypeStr  = Replacer->GetVecTypeName(dtype);
+        const auto dstTypeStr  = GetVecTypeName(dtype);
         std::u32string getData = needConv ?
-            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), Replacer->GetVecTypeName(vtype), argIdx, argAccess) :
+            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), GetVecTypeName(vtype), argIdx, argAccess) :
             fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
         if (vsize == 1)
         {
@@ -690,6 +356,343 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     }
     func.append(U"\r\n}\r\n"sv);
     return func;
+}
+
+std::u32string NLCLRuntime::GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle)
+{
+    Expects(args.size() == 3);
+    if (needShuffle && !SupportSubgroupIntel)
+    {
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Subgroup shuffle require support of intel_subgroups."sv), args[0]));
+        return {};
+    }
+    const auto info = ParseVecType(args[0]);
+    if (!info.has_value())
+    {
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0]));
+        return {};
+    }
+    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
+    {
+        return fmt::format(FMT_STRING(U"as_{}({}(as_{}({}), {}))"sv),
+            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
+    };
+    const uint32_t totalBits = info->Bit * info->Dim0;
+    const bool isVec = info->Dim0 > 1;
+    if (!needShuffle && totalBits >= 32) // can be handled by khr_subgroups
+    {
+        if (totalBits == 32 || totalBits == 64) // native func
+        {
+            if (!isVec) // direct replace
+                return fmt::format(FMT_STRING(U"sub_group_broadcast({}, {})"sv), args[1], args[2]);
+            else // need type reinterpreting
+                return ReinterpretWrappedFunc(U"sub_group_broadcast"sv, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), 1, 0 });
+        }
+        else if (!SupportSubgroupIntel) // >64, need patched func
+        {
+            const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_broadcast_{}"sv), totalBits);
+            for (const auto targetBits : std::array<uint8_t, 2>{ 64u, 32u })
+            {
+                const auto vnum = CheckVecable(totalBits, targetBits);
+                if (vnum == 0) continue;
+                AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShufflePatch,
+                    funcName, U"sub_group_broadcast"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+                return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), vnum, 0 });
+            }
+            // cannot handle right now
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched broadcast for [{}]"sv), args[0]));
+            return {};
+        }
+    }
+    // require at least intel_subgroups
+    if (!SupportSubgroupIntel)
+    {
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate broadcast for [{}] without support of intel_subgroups."sv), args[0]));
+        return {};
+    }
+    if (info->Bit == 32) // direct replace
+        return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+    if (info->Bit == 16 && SupportSubgroup16Intel)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Float:
+            if (info->Dim0 != 1 || !SupportFP16) // need type reinterpreting
+                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 16, info->Dim0, 0 });
+            [[fallthrough]];
+        // direct replace
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
+    if (info->Bit == 8 && SupportSubgroup8Intel)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
+    if (info->Bit == 64 && info->Dim0 == 1)
+    {
+        switch (info->Type)
+        {
+        case VecDataInfo::DataTypes::Float:
+            if (!SupportFP64) // need type reinterpreting
+                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 64, 1, 0 });
+            [[fallthrough]];
+        // direct replace
+        case VecDataInfo::DataTypes::Unsigned:
+        case VecDataInfo::DataTypes::Signed:
+            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
+        default: Expects(false); return {};
+        }
+    }
+    // patched func based on intel_sub_group_shuffle
+    {
+        const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_shuffle_{}"sv), totalBits);
+        for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
+        {
+            const auto vnum = CheckVecable(totalBits, targetBits);
+            if (vnum == 0) continue;
+            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShufflePatch,
+                funcName, U"intel_sub_group_shuffle"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+            return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
+        }
+        // cannot handle right now
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched shuffle for [{}]"sv), args[0]));
+        return {};
+    }
+}
+
+std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u32string_view> args) const
+{
+    Expects(args.size() >= 1);
+
+    std::u32string func = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), args[0]);
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        fmt::format_to(std::back_inserter(func), FMT_STRING(U"{}, "sv), args[i]);
+    }
+    func.pop_back();
+    func.back() = U')';
+
+    return func;
+}
+
+void NLCLRuntime::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
+{
+    if (var.size() > 0 && var[0] == U'@')
+    {
+        const auto info = ParseVecType(var.substr(1));
+        if (!info.has_value())
+        {
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var));
+            return;
+        }
+        const auto str = GetVecTypeName(info.value());
+        if (str.empty())
+        {
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var));
+            return;
+        }
+        output.append(str);
+    }
+    else // '@' not allowed in var anyway
+    {
+        const auto ret = EvalContext->LookUpArg(var);
+        if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
+        {
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var));
+            return;
+        }
+        output.append(ret.ToString().StrView());
+    }
+}
+
+void NLCLRuntime::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<const std::u32string_view> args)
+{
+    if (func == U"unroll"sv)
+    {
+        ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtMost);
+        if (EnableUnroll)
+        {
+            if (Device->CVersion >= 20 || !SupportNVUnroll)
+            {
+                if (args.empty())
+                    output.append(U"__attribute__((opencl_unroll_hint))"sv);
+                else
+                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]);
+            }
+            else
+            {
+                if (args.empty())
+                    output.append(U"#pragma unroll"sv);
+                else
+                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma unroll {}"sv), args[0]);
+            }
+        }
+        return;
+    }
+    if (IsBeginWith(func, U"oclu."sv))
+    {
+        switch (const auto subName = func.substr(5); hash_(subName))
+        {
+        HashCase(subName, U"SubgroupBroadcast")
+        {
+            ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+            output.append(GenerateSubgroupShuffle(args, false)); 
+            return;
+        }
+        HashCase(subName, U"SubgroupShuffle")
+        {
+            ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+            output.append(GenerateSubgroupShuffle(args, true));
+            return;
+        }
+        HashCase(subName, U"DebugString")
+        {
+            ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
+            if (!AllowDebug)
+            {
+                AddPatchedBlock(*this, U"SkipDebug"sv, &NLCLRuntime::SkipDebugPatch);
+                output.append(U"oclu_SkipDebug()"sv); 
+            }
+            else
+            {
+                output.append(GenerateDebugString(args));
+            }
+            return;
+        }
+        default: break;
+        }
+    }
+    NLRT_THROW_EX(u"replace-function not ready"sv);
+}
+
+constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
+    (U"error",   common::mlog::LogLevel::Error), 
+    (U"success", common::mlog::LogLevel::Success),
+    (U"warning", common::mlog::LogLevel::Warning),
+    (U"info",    common::mlog::LogLevel::Info),
+    (U"verbose", common::mlog::LogLevel::Verbose), 
+    (U"debug",   common::mlog::LogLevel::Debug));
+std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
+{
+    const auto str = arg.GetStr();
+    if (str)
+        return LogLevelParser(str.value());
+    return {};
+}
+Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target)
+{
+    if (IsBeginWith(call.Name, U"oclu."sv))
+    {
+        switch (const auto subName = call.Name.substr(5); hash_(subName))
+        {
+        HashCase(subName, U"EnableExtension")
+        {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            const auto arg = EvaluateFuncArgs<1>(call)[0];
+            if (const auto sv = arg.GetStr(); sv.has_value())
+            {
+                if (!EnableExtension(sv.value()))
+                    Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
+            }
+            else
+                NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
+        } return {};
+        HashCase(subName, U"EnableUnroll")
+        {
+            if (!EnableUnroll)
+            {
+                Logger.warning(u"Manually enable unroll hint.\n");
+                EnableUnroll = true;
+            }
+        } return {};
+        HashCase(subName, U"EnableDebug")
+        {
+            Logger.verbose(u"Manually enable debug.\n");
+            AllowDebug = true;
+        } return {};
+        HashCase(subName, U"Log")
+        {
+            const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
+            const auto logLevel = ParseLogLevel(args2[0]);
+            if (!logLevel) 
+                NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
+            const auto fmtStr = args2[1].GetStr();
+            if (!fmtStr)
+                NLRT_THROW_EX(u"Arg[1] of [Log] should be string-able"sv, call);
+            if (call.Args.size() == 2)
+                InnerLog(logLevel.value(), fmtStr.value());
+            else
+            {
+                try
+                {
+                    const auto str = FormatString(fmtStr.value(), call.Args.subspan(2));
+                    InnerLog(logLevel.value(), str);
+                }
+                catch (const xziar::nailang::NailangFormatException& nfe)
+                {
+                    Logger.error(u"Error when formating inner log: {}\n", nfe.message);
+                }
+            }
+        } return {};
+        HashCase(subName, U"DefineDebugString")
+        {
+            ThrowByArgCount(call, 3, ArgLimits::AtLeast);
+            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
+            if (!arg2[0].IsStr() || !arg2[1].IsStr())
+                NLRT_THROW_EX(u"Arg[0][1] of [DefineDebugString] should all be string-able"sv, call);
+            const auto id = arg2[0].GetStr().value();
+            const auto formatter = arg2[1].GetStr().value();
+            std::vector<common::simd::VecDataInfo> argInfos;
+            argInfos.reserve(call.Args.size() - 2);
+            size_t i = 2;
+            for (const auto& rawarg : call.Args.subspan(2))
+            {
+                const auto arg = EvaluateArg(rawarg);
+                if (!arg.IsStr())
+                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]"sv, i, ArgTypeName(arg.TypeData)), call);
+                const auto vtype = ParseVecType(arg.GetStr().value());
+                if (!vtype.has_value())
+                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString], [{}] is not a recognized type"sv, i, arg.GetStr().value()), call);
+                argInfos.push_back(vtype.value());
+            }
+            if (!AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, formatter, argInfos))
+                NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
+        } return {};
+        HashCase(subName, U"AddSubgroupPatch")
+        {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            const auto args = EvaluateFuncArgs<2>(call);
+            const auto isShuffle = args[0].GetBool().value();
+            const auto vtype = args[1].GetStr().value();
+            std::array strs{ vtype,U"x"sv,U"y"sv };
+            const auto funcsrc = GenerateSubgroupShuffle(strs, isShuffle);
+            AddPatchedBlock(fmt::format(U"AddSubgroupPatch_{}_{}"sv, vtype, isShuffle),
+                [&]() { return fmt::format(U"/* {} */\r\n"sv, funcsrc); });
+        } return {};
+        default: break;
+        }
+    }
+    return NailangRuntimeBase::EvaluateFunc(call, metas, target);
+}
+
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
+{
+    OutputConditions(metas, dst);
+    common::str::StrVariant<char32_t> source(block.Source);
+    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceVariable"sv; }))
+        source = ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
+    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceFunction"sv; }))
+        source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv);
+    dst.append(source.StrView());
 }
 
 void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
@@ -934,14 +937,6 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
     return true;
 }
 
-bool NLCLRuntime::CheckExtensionEnabled(std::string_view ext) const
-{
-    if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
-        return EnabledExtensions[idx];
-    return false;
-}
-
-
 void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
     BlockContext ctx;
@@ -1012,6 +1007,7 @@ std::string NLCLRuntime::GenerateOutput()
 }
 
 
+
 NLCLBaseResult::NLCLBaseResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx) :
     EvalContext(std::move(evalCtx))
 { }
@@ -1074,6 +1070,7 @@ oclProgram NLCLBuildFailResult::GetProgram() const
 }
 
 
+
 NLCLProgram::NLCLProgram(std::u32string&& source) :
     Source(std::move(source)) { }
 NLCLProgram::~NLCLProgram()
@@ -1092,13 +1089,13 @@ NLCLResult::~NLCLResult()
 { }
 
 
+
 NLCLProcessor::NLCLProcessor() : TheLogger(&oclLog())
 { }
 NLCLProcessor::NLCLProcessor(common::mlog::MiniLogger<false>&& logger) : TheLogger(std::move(logger)) 
 { }
 NLCLProcessor::~NLCLProcessor()
 { }
-
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {

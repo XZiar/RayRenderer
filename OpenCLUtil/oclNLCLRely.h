@@ -48,32 +48,8 @@ struct OutputBlock
         Block(block), MetaPtr(meta.data()), MetaCount(gsl::narrow_cast<uint32_t>(meta.size())), ExtraInfo(extra) {}
 };
 
-class NLCLRuntime;
-class OCLUAPI NLCLReplacer : public xziar::nailang::ReplaceEngine
-{
-    friend class NLCLRuntime;
-protected:
-    NLCLRuntime& Runtime;
-    const bool SupportFP16, SupportFP64, SupportNVUnroll, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
-    bool EnableUnroll;
-    void ThrowByArgCount(const std::u32string_view func, const common::span<std::u32string_view> args, const size_t count) const;
-    void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;
-    void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<std::u32string_view> args) override;
-public:
-    NLCLReplacer(NLCLRuntime& runtime);
-    ~NLCLReplacer() override;
 
-    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
-    static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
-    std::u32string GenerateSubgroupShuffle(const common::span<std::u32string_view> args, const bool needShuffle) const;
-    std::u32string GenerateDebugString(const common::span<std::u32string_view> args) const;
-
-    using ReplaceEngine::ProcessVariable;
-    using ReplaceEngine::ProcessFunction;
-};
-
-
-class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase
+class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, protected xziar::nailang::ReplaceEngine
 {
     friend class NLCLReplacer;
     friend class NLCLProcessor;
@@ -92,31 +68,53 @@ protected:
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     std::map<std::u32string, oclDebugBlock> DebugBlocks;
-    std::unique_ptr<NLCLReplacer> Replacer;
-    bool AllowDebug = false;
+    const bool SupportFP16, SupportFP64, SupportNVUnroll, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
+    bool EnableUnroll, AllowDebug = false;
 
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info);
-    //void OnRawBlock(const xziar::nailang::RawBlock& block, common::span<const xziar::nailang::FuncCall> metas) override;
-    xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
+    void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
-
-    template<typename F, typename... Args>
-    bool AddPatchedBlock(std::u32string_view id, F&& generator, Args&&... args)
+    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
+    
+    template<typename T, typename F, typename... Args>
+    bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
     {
+        static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
         if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
         {
-            PatchedBlocks.insert_or_assign(std::u32string(id), generator(std::forward<Args>(args)...));
+            PatchedBlocks.insert_or_assign(std::u32string(id), 
+                (obj.*generator)(std::forward<Args>(args)...));
+            return true;
+        }
+        return false;
+    }
+    template<typename F>
+    bool AddPatchedBlock(std::u32string_view id, F&& generator)
+    {
+        static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
+        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+        {
+            PatchedBlocks.insert_or_assign(std::u32string(id), generator());
             return true;
         }
         return false;
     }
 
-    std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
+    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
+    [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
+    [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
+    [[nodiscard]] std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
+        const uint8_t unitBits, const uint8_t dim, 
+        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
+    [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
+    [[nodiscard]] std::u32string GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle);
+    [[nodiscard]] std::u32string GenerateDebugString(const common::span<const std::u32string_view> args) const;
+    void OnReplaceVariable(std::u32string& output, const std::u32string_view var) override;
+    void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
-    void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
-    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst) const;
-    virtual std::unique_ptr<NLCLReplacer> PrepareRepalcer();
+    xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
+    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
@@ -127,7 +125,6 @@ public:
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
-    [[nodiscard]] bool CheckExtensionEnabled(std::string_view ext) const;
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();

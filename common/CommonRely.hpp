@@ -532,7 +532,7 @@ struct NonMovable
 
 
 /* span compatible include */
-#if (defined(__cplusplus) && (__cplusplus >= 201709L)) && false
+#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMPILER_MSVC // gtest's incompatibility with C++20
 #   include <span>
 namespace common
 {
@@ -553,7 +553,6 @@ template<typename T>
 inline constexpr bool is_span_v = detail::is_span<common::remove_cvref_t<T>>::value;
 }
 #else
-#   define GSL_USE_STD_BYTE 1
 #   include "3rdParty/gsl/span"
 namespace common
 {
