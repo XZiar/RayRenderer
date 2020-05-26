@@ -5,6 +5,7 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclImage.h"
+#include "oclKernelDebug.h"
 #include "common/FileBase.hpp"
 #include "common/CLikeConfig.hpp"
 #include "common/StringPool.hpp"
@@ -79,8 +80,8 @@ protected:
     };
     std::vector<ArgInfo> ArgsInfo;
     std::uint32_t DebugBuffer;
-    bool HasInfo;
-    KernelArgStore(cl_kernel kernel);
+    bool HasInfo, HasDebug;
+    KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
     size_t GetSize() const noexcept { return ArgsInfo.size(); }
     const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
     void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
@@ -89,7 +90,7 @@ protected:
     using ItType = common::container::IndirectIterator<KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
     friend ItType;
 public:
-    KernelArgStore() : DebugBuffer(0), HasInfo(false) {}
+    KernelArgStore() : DebugBuffer(0), HasInfo(false), HasDebug(false) {}
     ItType begin() const noexcept { return { this, 0 }; }
     ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };
@@ -105,6 +106,7 @@ private:
     cl_kernel KernelID;
     mutable common::SpinLocker ArgLock;
     KernelArgStore ArgStore;
+    uint32_t ReqDbgBufSize;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name, KernelArgStore&& argStore);
     template<size_t N>
     [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
@@ -114,6 +116,14 @@ private:
                 return localsize;
         return nullptr;
     }
+
+    struct OCLUAPI CallResult
+    {
+        std::shared_ptr<oclDebugManager> DebugManager;
+        oclBuffer InfoBuf;
+        oclBuffer DebugBuf;
+    };
+
     struct OCLUAPI CallSiteInternal
     {
         oclKernel Kernel;
@@ -135,7 +145,7 @@ private:
             static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
             return SetArg(idx, &dat, sizeof(T));
         }
-        [[nodiscard]] common::PromiseResult<void> Run(const uint8_t dim, const common::PromiseStub& pmss,
+        [[nodiscard]] common::PromiseResult<CallResult> Run(const uint8_t dim, const common::PromiseStub& pmss,
             const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
     };
 
@@ -167,12 +177,12 @@ private:
             InitArg<sizeof...(Args) - 1>();
         }
     public:
-        [[nodiscard]] common::PromiseResult<void> operator()(const common::PromiseStub& pmss,
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss,
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
             return Run(N, pmss, que, worksize, workoffset, CheckLocalSize(localsize));
         }
-        [[nodiscard]] common::PromiseResult<void> operator()(
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(
             const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
         {
             return Run(N, {}, que, worksize, workoffset, CheckLocalSize(localsize));
@@ -185,6 +195,7 @@ public:
     [[nodiscard]] WorkGroupInfo GetWorkGroupInfo() const;
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
     [[nodiscard]] const KernelArgStore& GetArgInfos() const noexcept { return ArgStore; }
+    [[nodiscard]] bool HasOCLUDebug() const noexcept { return ArgStore.HasDebug; }
     template<uint8_t N>
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const size_t(&localsize)[N]) const
     {
@@ -222,6 +233,7 @@ private:
     cl_program ProgID;
     std::vector<std::string> KernelNames;
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
+    std::shared_ptr<oclDebugManager> DebugManager;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
     class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
@@ -234,6 +246,7 @@ private:
         std::string Source;
         cl_program ProgID;
         std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
+        oclDebugManager DebugManager;
     public:
         oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
         ~oclProgStub();

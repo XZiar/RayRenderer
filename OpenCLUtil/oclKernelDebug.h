@@ -113,22 +113,55 @@ public:
     uint32_t ArgCount;
 
     DebugDataLayout(common::span<const common::simd::VecDataInfo> infos, const uint16_t align = 4);
-    DebugDataLayout(const DebugDataLayout& other);
+    //DebugDataLayout(const DebugDataLayout& other);
+    DebugDataLayout(DebugDataLayout&& other) = default;
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
     const DataBlock& operator[](size_t idx) const noexcept { return Blocks[idx]; }
 };
 
+
 struct oclDebugBlock
 {
     DebugDataLayout Layout;
+    std::u32string Name;
     std::u32string Formatter;
     uint8_t DebugId;
     template<typename... Args>
-    oclDebugBlock(const uint8_t idx, const std::u32string_view formatter, Args&&... args) : 
-        Layout(std::forward<Args>(args)...), Formatter(formatter), DebugId(idx) {}
+    oclDebugBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter, Args&&... args) :
+        Layout(std::forward<Args>(args)...), Name(name), Formatter(formatter), DebugId(idx) {}
     
     common::str::u8string GetString(common::span<const std::byte> data) const;
+};
+
+
+class oclDebugManager
+{
+    friend class NLCLRuntime;
+    friend class oclKernel_;
+private:
+    std::vector<oclDebugBlock> Blocks;
+    void CheckNewBlock(const std::u32string_view name) const;
+    template<typename... Args>
+    const oclDebugBlock& AppendBlock(const std::u32string_view name, const std::u32string_view formatter, Args&&... args)
+    {
+        CheckNewBlock(name);
+        return Blocks.emplace_back(static_cast<uint8_t>(Blocks.size()), name, formatter, std::forward<Args>(args)...);
+    }
+    std::pair<const oclDebugBlock*, uint32_t> RetriveMessage(common::span<const uint32_t> data);
+public:
+    template<typename F>
+    void VisitData(common::span<const std::byte> space, F&& func) const
+    {
+        common::span<const uint32_t> data(reinterpret_cast<const uint32_t*>(space.data()), space.size() / sizeof(uint32_t));
+        while (data.size() > 0)
+        {
+            const auto [block, tid] = RetriveMessage(data);
+            const auto u32cnt = block->Layout.TotalSize / sizeof(uint32_t);
+            func(tid, *block, data.subspan(1, u32cnt));
+            data = data.subspan(1 + u32cnt);
+        }
+    }
 };
 
 }

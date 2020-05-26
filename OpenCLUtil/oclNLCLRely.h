@@ -49,7 +49,7 @@ struct OutputBlock
 };
 
 
-class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, protected xziar::nailang::ReplaceEngine
+class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
 {
     friend class NLCLReplacer;
     friend class NLCLProcessor;
@@ -67,7 +67,7 @@ protected:
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
-    std::map<std::u32string, oclDebugBlock> DebugBlocks;
+    oclDebugManager DebugManager;
     const bool SupportFP16, SupportFP64, SupportNVUnroll, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
     bool EnableUnroll, AllowDebug = false;
 

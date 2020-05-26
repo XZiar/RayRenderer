@@ -259,12 +259,7 @@ std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcN
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
     // prepare arg layout
-    const auto dbgIdx = DebugBlocks.size();
-    if (dbgIdx >= 256u)
-        NLRT_THROW_EX(u"Too many DebugString defined, maximum 256");
-    const auto& dbgBlock = DebugBlocks.emplace(std::u32string(dbgId), 
-        oclDebugBlock{ static_cast<uint8_t>(dbgIdx), formatter, args, static_cast<uint16_t>(4u) })
-        .first->second;
+    const auto& dbgBlock = DebugManager.AppendBlock(dbgId, formatter, args, static_cast<uint16_t>(4u));
     const auto& dbgData = dbgBlock.Layout;
     // test format
     try
@@ -290,7 +285,8 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     func.pop_back();
     func.append(U")\r\n{"sv);
     fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint size = {} + 1;"), dbgData.TotalSize / 4);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]"), dbgIdx);
+    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]"), dbgBlock.DebugId);
+    func.append(U"\r\n    if (total == 0) return;");
     func.append(U"\r\n    if (counter[0] + size > total) return;");
     func.append(U"\r\n    const uint old = atom_add (counter, size);");
     func.append(U"\r\n    if (old + size > total) return;");
@@ -798,6 +794,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto space   = KerArgSpaceParser(space_);
             if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
             const auto argType = args[1].GetStr().value();
+            const bool isPointer = !argType.empty() && argType.back() == U'*';
             const auto name    = args[2].GetStr().value();
             const auto flags   = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
                 .Reduce([&](KerArgFlag flag, std::u32string_view part) 
@@ -846,6 +843,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             }
             EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
+            argInfos.HasDebug = true;
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
                 EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint().value_or(512));
         }
@@ -870,7 +868,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         dst.append(UR"(    // below injected by oclu_debug
     const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1);
-    if (_oclu_debug_buffer_info[0] > 0)
+    if (_oclu_debug_buffer_size > 0)
     {
 #if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
         const ushort sgid  = get_sub_group_id();
@@ -1155,7 +1153,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<
     {
         auto progStub = oclProgram_::Create(ctx, str, dev);
         progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
-        // if (ctx->Version < 12)
+        progStub.DebugManager = std::move(stub.Runtime->DebugManager);
         progStub.Build(config);
         return std::make_unique<NLCLBuiltResult>(std::move(stub.Runtime->EvalContext), progStub.Finish());
     }

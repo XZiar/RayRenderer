@@ -74,7 +74,7 @@ string ArgFlags::GetQualifier() const noexcept
     return ret;
 }
 
-KernelArgStore::KernelArgStore(cl_kernel kernel) : DebugBuffer(0), HasInfo(true)
+KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : DebugBuffer(0), HasInfo(true)
 {
     uint32_t size = 0;
     {
@@ -126,6 +126,47 @@ KernelArgStore::KernelArgStore(cl_kernel kernel) : DebugBuffer(0), HasInfo(true)
 
         ArgsInfo.emplace_back(info);
     }
+    // post-process
+    if (ArgsInfo.size() >= 3)
+    {
+        const auto& arg0 = ArgsInfo[ArgsInfo.size() - 3];
+        const auto& arg1 = ArgsInfo[ArgsInfo.size() - 2];
+        const auto& arg2 = ArgsInfo[ArgsInfo.size() - 1];
+        if (GetStringView(arg0.Name) == "_oclu_debug_buffer_size" && GetStringView(arg0.Type) == "uint"  &&
+            GetStringView(arg1.Name) == "_oclu_debug_buffer_info" && GetStringView(arg1.Type) == "uint*" &&
+            GetStringView(arg2.Name) == "_oclu_debug_buffer_data" && GetStringView(arg2.Type) == "uint*")
+        {
+            HasDebug = true;
+            ArgsInfo.resize(ArgsInfo.size() - 3);
+            DebugBuffer = reference.HasInfo ? reference.DebugBuffer : 512;
+        }
+    }
+    // check with reference
+    if (reference.HasInfo)
+    {
+        if (reference.GetSize() != GetSize())
+            oclLog().debug(u"KerArgStore, clAPI reports [{}] arg while provided [{}].\n", GetSize(), reference.GetSize());
+        else
+        {
+            for (size_t i = 0; i < GetSize(); ++i)
+            {
+                const auto& ref = reference.GetArgInfo(i);
+                const auto& cur = GetArgInfo(i);
+                if (ref.Name != cur.Name)
+                    oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                        i, ref.Name, cur.Name);
+                if (ref.Space != cur.Space)
+                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n", 
+                        i, ref.Name, ref.GetSpace(), cur.GetSpace());
+                if (ref.Access != cur.Access)
+                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
+                        i, ref.Name, ref.GetImgAccess(), cur.GetImgAccess());
+                if (ref.Qualifier != cur.Qualifier)
+                    oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
+                        i, ref.Name, ref.GetQualifier(), cur.GetQualifier());
+            }
+        }
+    }
 }
 
 KernelArgInfo KernelArgStore::GetArgInfo(const size_t idx) const noexcept
@@ -164,17 +205,21 @@ void KernelArgStore::AddArg(const KerArgSpace space, const ImgAccess access, con
 
 
 oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name, KernelArgStore&& argStore) :
-    Plat(*plat), Prog(*prog), KernelID(nullptr), ArgStore(std::move(argStore)), Name(std::move(name))
+    Plat(*plat), Prog(*prog), KernelID(nullptr), Name(std::move(name))
 {
     cl_int errcode;
     KernelID = clCreateKernel(Prog.ProgID, Name.data(), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"canot create kernel from program");
 
-    if (ArgStore.HasInfo)
+    if (Prog.Context->Version >= 12)
+        ArgStore = KernelArgStore(KernelID, argStore);
+    else if (argStore.HasInfo)
+    {
         oclLog().verbose(u"use external arg-info for kernel [{}].\n", Name);
-    else if (Prog.Context->Version >= 12)
-        ArgStore = KernelID;
+        ArgStore = std::move(argStore);
+    }
+    ReqDbgBufSize = ArgStore.DebugBuffer;
 }
 
 oclKernel_::~oclKernel_()
@@ -219,7 +264,8 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const
 
 oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
     Kernel(kernel->Prog.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
-{ }
+{
+}
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
 {
@@ -247,11 +293,25 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
+PromiseResult<oclKernel_::CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     if (Kernel->Prog.Device != que->Device)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"queue's device is not the same as this kernel");
+
+    CallResult result;
+    if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
+    {
+        result.DebugManager = Kernel->Prog.DebugManager;
+        const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
+        std::vector<uint32_t> tmp(dim == 1 ? worksize[0] : (dim == 2 ? worksize[0] * worksize[1] : worksize[0] * worksize[1] * worksize[2]));;
+        result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, sizeof(uint32_t) * tmp.size(), tmp.data());
+        result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, Kernel->ReqDbgBufSize);
+        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &Kernel->ReqDbgBufSize);
+        clSetKernelArg(Kernel->KernelID, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
+        clSetKernelArg(Kernel->KernelID, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
+    }
+
     cl_int ret;
     cl_event e;
     auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
@@ -259,7 +319,7 @@ PromiseResult<void> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const c
     ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
-    return oclPromise<void>::Create(std::move(clpmss), e, que);
+    return oclPromise<CallResult>::Create(std::move(clpmss), e, que, std::move(result));
 }
 
 
@@ -365,7 +425,8 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev
 }
 
 oclProgram_::oclProgram_(oclProgStub* stub) : 
-    Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID)
+    Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID),
+    DebugManager(std::make_shared<oclDebugManager>(std::move(stub->DebugManager)))
 {
     stub->ProgID = nullptr;
 

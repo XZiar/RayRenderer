@@ -63,10 +63,6 @@
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
   - [ ] Add NLGL for extended shader
-  * TextureUtil
-    - [x] Add mipmap
-    - [ ] Add blur
-    - [ ] Migate ISPC tex-compressor to OpenCL
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
@@ -76,9 +72,15 @@
   - [x] Make oclKernel associate with specific device
   - [ ] Mimic subgroup shuffle on non-intel
   - [ ] Mimic subgroup on unsupported platform (nv)
+  - [ ] Add better pattern for argument type in NLCL
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
+
+* TextureUtil
+    - [x] Add mipmap
+    - [ ] Add blur
+    - [ ] Migate ISPC tex-compressor to OpenCL
 
 * FontHelper
   - [ ] Implement proper text render

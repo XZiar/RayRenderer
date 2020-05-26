@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "oclKernelDebug.h"
+#include "oclException.h"
 #include "fmt/ranges.h"
 
 namespace oclu
@@ -125,13 +126,13 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const ui
     TotalSize = (offset + (align - 1)) / align * align;
 }
 
-DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) : 
-    Blocks(std::make_unique<DataBlock[]>(other.ArgCount)), ArgLayout(std::make_unique<uint16_t[]>(other.ArgCount)),
-    TotalSize(other.TotalSize), ArgCount(other.ArgCount)
-{
-    memcpy_s(Blocks.get(), sizeof(DataBlock) * ArgCount, other.Blocks.get(), sizeof(DataBlock) * ArgCount);
-    memcpy_s(ArgLayout.get(), sizeof(uint16_t) * ArgCount, other.ArgLayout.get(), sizeof(uint16_t) * ArgCount);
-}
+//DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) : 
+//    Blocks(std::make_unique<DataBlock[]>(other.ArgCount)), ArgLayout(std::make_unique<uint16_t[]>(other.ArgCount)),
+//    TotalSize(other.TotalSize), ArgCount(other.ArgCount)
+//{
+//    memcpy_s(Blocks.get(), sizeof(DataBlock) * ArgCount, other.Blocks.get(), sizeof(DataBlock) * ArgCount);
+//    memcpy_s(ArgLayout.get(), sizeof(uint16_t) * ArgCount, other.ArgLayout.get(), sizeof(uint16_t) * ArgCount);
+//}
 
 
 template<typename T>
@@ -175,6 +176,30 @@ common::str::u8string oclDebugBlock::GetString(common::span<const std::byte> dat
     }
     auto str = fmt::vformat(Formatter, store);
     return common::strchset::to_u8string(str, common::str::Charset::UTF32LE);
+}
+
+
+void oclDebugManager::CheckNewBlock(const std::u32string_view name) const
+{
+    const auto idx = Blocks.size();
+    if (idx >= 256u)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Too many DebugString defined, maximum 256");
+    for (const auto& block : Blocks)
+        if (block.Name == name)
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"DebugString re-defiend");
+}
+
+std::pair<const oclDebugBlock*, uint32_t> oclDebugManager::RetriveMessage(common::span<const uint32_t> data)
+{
+    const auto uid = data[0];
+    const auto dbgIdx = uid >> 24;
+    const auto tid = uid & 0x00ffffffu;
+    if (dbgIdx >= Blocks.size())
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with idx overflow");
+    const auto& block = Blocks[dbgIdx];
+    if (data.size_bytes() >= block.Layout.TotalSize)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with insufficiant buffer space");
+    return { &block, tid };
 }
 
 }
