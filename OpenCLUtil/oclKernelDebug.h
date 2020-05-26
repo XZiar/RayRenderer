@@ -45,35 +45,35 @@ private:
             case VecDataInfo::DataTypes::Float:
                 switch (Info.Bit)
                 {
-                case 16: return F(VisitT<  half>(data));
-                case 32: return F(VisitT< float>(data));
-                case 64: return F(VisitT<double>(data));
+                case 16: return func(VisitT<  half>(data));
+                case 32: return func(VisitT< float>(data));
+                case 64: return func(VisitT<double>(data));
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Unsigned:
                 switch (Info.Bit)
                 {
-                case  8: return F(VisitT< uint8_t>(data));
-                case 16: return F(VisitT<uint16_t>(data));
-                case 32: return F(VisitT<uint32_t>(data));
-                case 64: return F(VisitT<uint64_t>(data));
+                case  8: return func(VisitT< uint8_t>(data));
+                case 16: return func(VisitT<uint16_t>(data));
+                case 32: return func(VisitT<uint32_t>(data));
+                case 64: return func(VisitT<uint64_t>(data));
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Signed:
                 switch (Info.Bit)
                 {
-                case  8: return F(VisitT< int8_t>(data));
-                case 16: return F(VisitT<int16_t>(data));
-                case 32: return F(VisitT<int32_t>(data));
-                case 64: return F(VisitT<int64_t>(data));
+                case  8: return func(VisitT< int8_t>(data));
+                case 16: return func(VisitT<int16_t>(data));
+                case 32: return func(VisitT<int32_t>(data));
+                case 64: return func(VisitT<int64_t>(data));
                 default: break;
                 }
                 break;
             default: break;
             }
-            return F(std::nullopt);
+            return func(std::nullopt);
         }
     };
     const DataBlock& GetByIndex(const size_t idx) const noexcept
@@ -121,15 +121,14 @@ public:
 
 struct oclDebugBlock
 {
-private:
-    static common::str::u8string ConvFormatter(const std::u32string_view formatter);
-public:
     DebugDataLayout Layout;
-    common::str::u8string Formatter;
+    std::u32string Formatter;
     uint8_t DebugId;
     template<typename... Args>
     oclDebugBlock(const uint8_t idx, const std::u32string_view formatter, Args&&... args) : 
-        Layout(std::forward<Args>(args)...), Formatter(ConvFormatter(formatter)), DebugId(idx) {}
+        Layout(std::forward<Args>(args)...), Formatter(formatter), DebugId(idx) {}
+    
+    common::str::u8string GetString(common::span<const std::byte> data) const;
 };
 
 }

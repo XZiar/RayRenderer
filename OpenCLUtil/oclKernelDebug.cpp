@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "oclKernelDebug.h"
+#include "fmt/ranges.h"
 
 namespace oclu
 {
@@ -133,9 +134,47 @@ DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) :
 }
 
 
-common::str::u8string oclDebugBlock::ConvFormatter(const std::u32string_view formatter)
+template<typename T>
+static void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, common::span<const T> data)
 {
-    return common::strchset::to_u8string(formatter, common::str::Charset::UTF32LE);
+    if (data.size() == 1)
+    {
+        if constexpr (std::is_same_v<T, half_float::half>)
+            store.push_back(static_cast<float>(data[0]));
+        else
+            store.push_back(data[0]);
+    }
+    else
+    {
+        if constexpr (std::is_same_v<T, half_float::half>)
+        {
+            Expects(data.size() <= 16);
+            std::array<float, 16> tmp;
+            size_t idx = 0;
+            for (const auto val : data)
+                tmp[idx++] = val;
+            const auto datspan = common::to_span(tmp).subspan(0, data.size());
+            store.push_back(fmt::format(FMT_STRING("{}"sv), datspan));
+        }
+        else
+        {
+            store.push_back(fmt::format(FMT_STRING("{}"sv), data));
+        }
+    }
+}
+static void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, std::nullopt_t)
+{
+    store.push_back(U"Unknown"sv);
+}
+common::str::u8string oclDebugBlock::GetString(common::span<const std::byte> data) const
+{
+    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
+    for (const auto& arg : Layout.ByIndex())
+    {
+        arg.VisitData(data, [&](auto ele) { Insert(store, ele); });
+    }
+    auto str = fmt::vformat(Formatter, store);
+    return common::strchset::to_u8string(str, common::str::Charset::UTF32LE);
 }
 
 }

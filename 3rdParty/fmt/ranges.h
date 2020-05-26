@@ -185,6 +185,21 @@ FMT_CONSTEXPR const wchar_t* format_str_quoted(bool add_space, const wchar_t) {
   return add_space ? L" '{}'" : L"'{}'";
 }
 
+
+// ++UTF++
+FMT_CONSTEXPR const char16_t* format_str_quoted(bool add_space, const char16_t*) {
+    return add_space ? u" \"{}\"" : u"\"{}\"";
+}
+FMT_CONSTEXPR const char32_t* format_str_quoted(bool add_space, const char32_t*) {
+    return add_space ? U" \"{}\"" : U"\"{}\"";
+}
+FMT_CONSTEXPR const char16_t* format_str_quoted(bool add_space, const char16_t) {
+    return add_space ? u" '{}'" : u"'{}'";
+}
+FMT_CONSTEXPR const char32_t* format_str_quoted(bool add_space, const char32_t) {
+    return add_space ? U" '{}'" : U"'{}'";
+}
+
 }  // namespace internal
 
 template <typename T> struct is_tuple_like {
@@ -380,6 +395,28 @@ template <typename T>
 arg_join<internal::iterator_t<const std::initializer_list<T>>, wchar_t> join(
     std::initializer_list<T> list, wstring_view sep) {
   return join(std::begin(list), std::end(list), sep);
+}
+
+// ++UTF++
+template <typename... T>
+FMT_CONSTEXPR tuple_arg_join<char16_t, T...> join(const std::tuple<T...>& tuple,
+    basic_string_view<char16_t> sep) {
+    return { tuple, sep };
+}
+template <typename... T>
+FMT_CONSTEXPR tuple_arg_join<char32_t, T...> join(const std::tuple<T...>& tuple,
+    basic_string_view<char32_t> sep) {
+    return { tuple, sep };
+}
+template <typename T>
+arg_join<internal::iterator_t<const std::initializer_list<T>>, char16_t> join(
+    std::initializer_list<T> list, basic_string_view<char16_t> sep) {
+    return join(std::begin(list), std::end(list), sep);
+}
+template <typename T>
+arg_join<internal::iterator_t<const std::initializer_list<T>>, char32_t> join(
+    std::initializer_list<T> list, basic_string_view<char32_t> sep) {
+    return join(std::begin(list), std::end(list), sep);
 }
 
 FMT_END_NAMESPACE

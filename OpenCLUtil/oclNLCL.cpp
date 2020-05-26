@@ -262,9 +262,21 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     const auto dbgIdx = DebugBlocks.size();
     if (dbgIdx >= 256u)
         NLRT_THROW_EX(u"Too many DebugString defined, maximum 256");
-    const auto& dbgData = DebugBlocks.emplace(std::u32string(dbgId), 
+    const auto& dbgBlock = DebugBlocks.emplace(std::u32string(dbgId), 
         oclDebugBlock{ static_cast<uint8_t>(dbgIdx), formatter, args, static_cast<uint16_t>(4u) })
-        .first->second.Layout;
+        .first->second;
+    const auto& dbgData = dbgBlock.Layout;
+    // test format
+    try
+    {
+        std::vector<std::byte> test(dbgData.TotalSize);
+        Logger.debug(FMT_STRING(u"DebugString:\n{}\ntest output:\n{}\n"sv), formatter, dbgBlock.GetString(test));
+    }
+    catch (fmt::format_error fe)
+    {
+        HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
+        return U"// Formatter not match the datatype provided\r\n";
+    }
 
     std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
     func.append(U"\r\n    const  uint           uid,"sv)

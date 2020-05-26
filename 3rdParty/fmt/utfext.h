@@ -6,6 +6,7 @@
 #ifndef FMT_EXPORT
 #  define FMT_SHARED
 #endif
+#include "ranges.h"
 #include "format.h"
 
 

@@ -1035,7 +1035,7 @@ template<typename Context>
 struct MakeValueProxy
 {
     template<typename T>
-    static FMT_CONSTEXPR auto map(const T& val)
+    static FMT_CONSTEXPR decltype(auto) map(const T& val)
     {
         return arg_mapper<Context>().map(val);
     }
@@ -1434,9 +1434,19 @@ class dynamic_format_arg_store
     };
   };
 
+  // template <typename T>
+  // using stored_type = conditional_t<internal::is_string<T>::value,
+  //                                   std::basic_string<char_type>, T>;
+  // ++UTF++
+  template <typename T, typename = void> struct stored_type_impl {
+      using type = T;
+  };
+  template <typename T> struct stored_type_impl<T, enable_if_t<internal::is_string<T>::value>> {
+      using result = decltype(internal::to_string_view(std::declval<T>()));
+      using type = std::basic_string<typename result::value_type>;
+  };
   template <typename T>
-  using stored_type = conditional_t<internal::is_string<T>::value,
-                                    std::basic_string<char_type>, T>;
+  using stored_type = typename stored_type_impl<T>::type;
 
   // Storage of basic_format_arg must be contiguous.
   std::vector<basic_format_arg<Context>> data_;
