@@ -78,9 +78,9 @@ std::u32string_view StringifyVDataType(const VecDataInfo vtype) noexcept
 }
 
 
-DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const std::u32string_view formatter, const uint16_t align) :
+DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const uint16_t align) :
     Blocks(std::make_unique<DataBlock[]>(infos.size())), ArgLayout(std::make_unique<uint16_t[]>(infos.size())),
-    Formatter(formatter), TotalSize(0), ArgCount(gsl::narrow_cast<uint32_t>(infos.size()))
+    TotalSize(0), ArgCount(gsl::narrow_cast<uint32_t>(infos.size()))
 {
     Expects(ArgCount <= UINT8_MAX);
     std::vector<DataBlock> tmp;
@@ -126,11 +126,16 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const st
 
 DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) : 
     Blocks(std::make_unique<DataBlock[]>(other.ArgCount)), ArgLayout(std::make_unique<uint16_t[]>(other.ArgCount)),
-    Formatter(other.Formatter), TotalSize(other.TotalSize), ArgCount(other.ArgCount)
+    TotalSize(other.TotalSize), ArgCount(other.ArgCount)
 {
     memcpy_s(Blocks.get(), sizeof(DataBlock) * ArgCount, other.Blocks.get(), sizeof(DataBlock) * ArgCount);
     memcpy_s(ArgLayout.get(), sizeof(uint16_t) * ArgCount, other.ArgLayout.get(), sizeof(uint16_t) * ArgCount);
 }
 
+
+common::str::u8string oclDebugBlock::ConvFormatter(const std::u32string_view formatter)
+{
+    return common::strchset::to_u8string(formatter, common::str::Charset::UTF32LE);
+}
 
 }

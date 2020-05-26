@@ -263,7 +263,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     if (dbgIdx >= 256u)
         NLRT_THROW_EX(u"Too many DebugString defined, maximum 256");
     const auto& dbgData = DebugBlocks.emplace(std::u32string(dbgId), 
-        oclDebugBlock{ static_cast<uint8_t>(dbgIdx), args, formatter, static_cast<uint16_t>(4u) })
+        oclDebugBlock{ static_cast<uint8_t>(dbgIdx), formatter, args, static_cast<uint16_t>(4u) })
         .first->second.Layout;
 
     std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
@@ -505,7 +505,7 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, const std::u32string
     else // '@' not allowed in var anyway
     {
         const auto ret = EvalContext->LookUpArg(var);
-        if (ret.IsEmpty() || ret.TypeData == Arg::InternalType::Var)
+        if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
         {
             NLRT_THROW_EX(fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var));
             return;
@@ -597,7 +597,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         HashCase(subName, U"EnableExtension")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto arg = EvaluateFuncArgs<1>(call)[0];
+            const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
             if (const auto sv = arg.GetStr(); sv.has_value())
             {
                 if (!EnableExtension(sv.value()))
@@ -608,6 +608,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"EnableUnroll")
         {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             if (!EnableUnroll)
             {
                 Logger.warning(u"Manually enable unroll hint.\n");
@@ -616,25 +617,25 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"EnableDebug")
         {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             Logger.verbose(u"Manually enable debug.\n");
             AllowDebug = true;
         } return {};
         HashCase(subName, U"Log")
         {
-            const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto logLevel = ParseLogLevel(args2[0]);
             if (!logLevel) 
                 NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
-            const auto fmtStr = args2[1].GetStr();
-            if (!fmtStr)
-                NLRT_THROW_EX(u"Arg[1] of [Log] should be string-able"sv, call);
+            const auto fmtStr = args2[1].GetStr().value();
             if (call.Args.size() == 2)
-                InnerLog(logLevel.value(), fmtStr.value());
+                InnerLog(logLevel.value(), fmtStr);
             else
             {
                 try
                 {
-                    const auto str = FormatString(fmtStr.value(), call.Args.subspan(2));
+                    const auto str = FormatString(fmtStr, call.Args.subspan(2));
                     InnerLog(logLevel.value(), str);
                 }
                 catch (const xziar::nailang::NailangFormatException& nfe)
@@ -645,10 +646,9 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"DefineDebugString")
         {
+            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             ThrowByArgCount(call, 3, ArgLimits::AtLeast);
-            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call);
-            if (!arg2[0].IsStr() || !arg2[1].IsStr())
-                NLRT_THROW_EX(u"Arg[0][1] of [DefineDebugString] should all be string-able"sv, call);
+            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto id = arg2[0].GetStr().value();
             const auto formatter = arg2[1].GetStr().value();
             std::vector<common::simd::VecDataInfo> argInfos;
@@ -670,7 +670,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         HashCase(subName, U"AddSubgroupPatch")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto args = EvaluateFuncArgs<2>(call);
+            const auto args = EvaluateFuncArgs<2>(call, { Arg::Type::Boolable, Arg::Type::String });
             const auto isShuffle = args[0].GetBool().value();
             const auto vtype = args[1].GetStr().value();
             std::array strs{ vtype,U"x"sv,U"y"sv };
@@ -760,24 +760,18 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         {
         HashCase(subName, U"RequestSubgroupSize")
         {
+            const auto sgSize = EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
             if (Device->GetPlatform()->PlatVendor != oclu::Vendors::Intel)
             {
                 Logger.verbose(u"Skip subgroup size due to non-intel platform.\n");
                 break;
             }
-            ThrowByArgCount(meta, 1);
-            const auto sgSize = EvaluateArg(meta.Args[0]).GetUint();
-            if (sgSize)
-            {
-                EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
-                fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize.value());
-            }
-            else
-                Logger.verbose(u"Skip subgroup size due to empty arg.\n"sv);
+            EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
+            fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize);
         } break;
         HashCase(subName, U"RequestWorkgroupSize")
         {
-            const auto args = EvaluateFuncArgs<3>(meta);
+            const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
             const auto x = args[0].GetUint().value_or(1),
                        y = args[1].GetUint().value_or(1),
                        z = args[2].GetUint().value_or(1);
@@ -786,7 +780,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         } break;
         HashCase(subName, U"NormalArg")
         {
-            const auto args = EvaluateFuncArgs<4>(meta, { Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv });
+            const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             KernelArgInfo info;
             const auto space_  = args[0].GetStr().value();
             const auto space   = KerArgSpaceParser(space_);
@@ -816,7 +810,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         } break;
         HashCase(subName, U"ImgArg")
         {
-            const auto args = EvaluateFuncArgs<3>(meta, { Arg::InternalType::U32Sv, Arg::InternalType::U32Sv, Arg::InternalType::U32Sv });
+            const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
             KernelArgInfo info;
             const auto access_ = args[0].GetStr().value();
             const auto access = ImgArgAccessParser(access_);
@@ -841,7 +835,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
             argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
-                EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::InternalType::Uint })[0].GetUint().value_or(512));
+                EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint().value_or(512));
         }
         default:
             break;
@@ -1022,7 +1016,7 @@ NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) con
             if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>
                 || std::is_same_v<T, double> || std::is_same_v<T, std::u32string_view>)
                 return val;
-            else if constexpr (std::is_same_v<T, std::optional<bool>>)
+            else if constexpr (std::is_same_v<T, std::nullopt_t>)
                 return {};
             else // var
                 return std::any{};

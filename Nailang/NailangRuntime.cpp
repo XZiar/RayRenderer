@@ -23,7 +23,7 @@ Arg EvaluateContext::LookUpArg(detail::VarHolder var) const
     if (var.GetType() == VarType::Root)
         return FindRoot()->LookUpArgInside(var);
     auto arg = LookUpArgInside(var);
-    if (var.GetType() != VarType::Local && arg.TypeData == Arg::InternalType::Empty && ParentContext)
+    if (var.GetType() != VarType::Local && arg.TypeData == Arg::Type::Empty && ParentContext)
         return ParentContext->LookUpArg(var);
     else
         return arg;
@@ -234,11 +234,11 @@ std::optional<Arg> EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcep
     if (LR_BOTH(left, right, IsInteger))
         return left.GetUint() == right.GetUint();
     if (LR_BOTH(left, right, IsBool))
-        return left.GetVar<Arg::InternalType::Bool>() == right.GetVar<Arg::InternalType::Bool>();
+        return left.GetVar<Arg::Type::Bool>() == right.GetVar<Arg::Type::Bool>();
     if (LR_BOTH(left, right, IsStr))
         return left.GetStr() == right.GetStr();
     if (LR_BOTH(left, right, IsFloatPoint))
-        return left.GetVar<Arg::InternalType::FP>() == right.GetVar<Arg::InternalType::FP>();
+        return left.GetVar<Arg::Type::FP>() == right.GetVar<Arg::Type::FP>();
     if (LR_BOTH(left, right, IsNumber))
         return left.GetFP() == right.GetFP();
     return {};
@@ -247,13 +247,13 @@ std::optional<Arg> EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noex
 {
     const auto ret = Equal(left, right);
     if (ret.has_value())
-        return !ret->GetVar<Arg::InternalType::Bool>();
+        return !ret->GetVar<Arg::Type::Bool>();
     return ret;
 }
 template<typename F>
 forceinline static std::optional<Arg> NumOp(const Arg& left, const Arg& right, F func) noexcept
 {
-    using Type = Arg::InternalType;
+    using Type = Arg::Type;
     switch (left.TypeData)
     {
     case Type::FP:
@@ -419,19 +419,24 @@ NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context)
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
 
-std::u32string_view NailangRuntimeBase::ArgTypeName(const Arg::InternalType type) noexcept
+std::u32string_view NailangRuntimeBase::ArgTypeName(const Arg::Type type) noexcept
 {
     switch (type)
     {
-    case Arg::InternalType::Empty:  return U"empty"sv;
-    case Arg::InternalType::Var:    return U"variable"sv;
-    case Arg::InternalType::U32Str:
-    case Arg::InternalType::U32Sv:  return U"string"sv;
-    case Arg::InternalType::Uint:   return U"uint"sv;
-    case Arg::InternalType::Int:    return U"int"sv;
-    case Arg::InternalType::FP:     return U"fp"sv;
-    case Arg::InternalType::Bool:   return U"bool"sv;
-    default:                        return U"error"sv;
+    case Arg::Type::Empty:    return U"empty"sv;
+    case Arg::Type::Var:      return U"variable"sv;
+    case Arg::Type::U32Str:   return U"string"sv;
+    case Arg::Type::U32Sv:    return U"string_view"sv;
+    case Arg::Type::Uint:     return U"uint"sv;
+    case Arg::Type::Int:      return U"int"sv;
+    case Arg::Type::FP:       return U"fp"sv;
+    case Arg::Type::Bool:     return U"bool"sv;
+    case Arg::Type::Custom:   return U"custom"sv;
+    case Arg::Type::Boolable: return U"boolable"sv;
+    case Arg::Type::String:   return U"string-ish"sv;
+    case Arg::Type::Number:   return U"number"sv;
+    case Arg::Type::Integer:  return U"integer"sv;
+    default:                  return U"error"sv;
     }
 }
 
@@ -484,16 +489,16 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         detail::ExceptionTarget{}, &call);
 }
 
-void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::InternalType type) const
+void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::Type type) const
 {
-    if (arg.TypeData != type)
+    if ((arg.TypeData & type) != type)
         NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected arg of [{}], which gives [{}]."), ArgTypeName(type), ArgTypeName(arg.TypeData)),
             arg);
 }
 
-void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const
+void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const
 {
-    if (arg.TypeData != type)
+    if ((arg.TypeData & type) != type)
         NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} arg, which gives [{}]."), 
                 ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData)),
             arg);
@@ -562,12 +567,12 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
     {
         switch (arg.TypeData)
         {
-        case Arg::InternalType::Bool:   store.push_back(arg.GetVar<Arg::InternalType::Bool >()); break;
-        case Arg::InternalType::Uint:   store.push_back(arg.GetVar<Arg::InternalType::Uint >()); break;
-        case Arg::InternalType::Int:    store.push_back(arg.GetVar<Arg::InternalType::Int  >()); break;
-        case Arg::InternalType::FP:     store.push_back(arg.GetVar<Arg::InternalType::FP   >()); break;
-        case Arg::InternalType::U32Sv:  store.push_back(arg.GetVar<Arg::InternalType::U32Sv>()); break;
-        case Arg::InternalType::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::InternalType::U32Str>())); break;
+        case Arg::Type::Bool:   store.push_back(arg.GetVar<Arg::Type::Bool >()); break;
+        case Arg::Type::Uint:   store.push_back(arg.GetVar<Arg::Type::Uint >()); break;
+        case Arg::Type::Int:    store.push_back(arg.GetVar<Arg::Type::Int  >()); break;
+        case Arg::Type::FP:     store.push_back(arg.GetVar<Arg::Type::FP   >()); break;
+        case Arg::Type::U32Sv:  store.push_back(arg.GetVar<Arg::Type::U32Sv>()); break;
+        case Arg::Type::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::Type::U32Str>())); break;
         default: HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
         }
     }
@@ -588,17 +593,27 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
     ex.ThrowSelf();
 }
 
-NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall>)
+NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> allMetas)
 {
     if (meta.Name == U"Skip"sv)
     {
-        const auto arg = EvaluateFuncArgs<1, ArgLimits::AtMost>(meta)[0];
-        return arg.IsEmpty() || ThrowIfNotBool(arg, U"Arg of MetaFunc[Skip]"sv) ? MetaFuncResult::Skip : MetaFuncResult::Next;
+        const auto arg = EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Boolable })[0];
+        return arg.IsEmpty() || arg.GetBool().value() ? MetaFuncResult::Skip : MetaFuncResult::Next;
     }
     if (meta.Name == U"If"sv)
     {
-        const auto arg = EvaluateFuncArgs<1>(meta)[0];
-        return ThrowIfNotBool(arg, U"Arg of MetaFunc[If]"sv) ? MetaFuncResult::Next : MetaFuncResult::Skip;
+        const auto arg = EvaluateFuncArgs<1>(meta, { Arg::Type::Boolable })[0];
+        return arg.GetBool().value() ? MetaFuncResult::Next : MetaFuncResult::Skip;
+    }
+    if (meta.Name == U"MetaIf")
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
+        if (args[0].GetBool().value())
+        {
+            const auto metaName = args[1].GetStr();
+            return HandleMetaFuncBefore({ metaName.value(), meta.Args.subspan(2) }, content, allMetas);
+        }
+        return MetaFuncResult::Unhandled;
     }
     if (meta.Name == U"DefFunc"sv)
     {
@@ -683,13 +698,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     }
     HashCase(call.Name, U"ExistsDynamic")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
-        if (!arg.IsStr())
-        {
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[Exists] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
-                call.Args[0]);
-            return {};
-        }
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
         return !EvalContext->LookUpArg(arg.GetStr().value()).IsEmpty();
     }
     HashCase(call.Name, U"Format")
@@ -735,7 +744,7 @@ Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<c
 
 std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall>)
 {
-    using Type = Arg::InternalType;
+    using Type = Arg::Type;
     switch (hash_(mathName))
     {
     HashCase(mathName, U"Max")
@@ -766,7 +775,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Sqrt")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::sqrt(arg.GetVar<Type::FP>());
@@ -778,7 +787,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Ceil")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::ceil(arg.GetVar<Type::FP>());
@@ -790,7 +799,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Floor")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::floor(arg.GetVar<Type::FP>());
@@ -802,7 +811,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Round")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::round(arg.GetVar<Type::FP>());
@@ -814,7 +823,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Log")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::log(arg.GetVar<Type::FP>());
@@ -826,7 +835,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Log2")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::log2(arg.GetVar<Type::FP>());
@@ -838,7 +847,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Log10")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Number })[0];
         switch (arg.TypeData)
         {
         case Type::FP:      return std::log10(arg.GetVar<Type::FP>());
@@ -850,7 +859,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Lerp")
     {
-        const auto args = EvaluateFuncArgs<3>(call);
+        const auto args = EvaluateFuncArgs<3>(call, { Arg::Type::Number, Arg::Type::Number, Arg::Type::Number });
         const auto x = args[0].GetFP();
         const auto y = args[1].GetFP();
         const auto a = args[2].GetFP();
@@ -864,7 +873,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"Pow")
     {
-        const auto args = EvaluateFuncArgs<2>(call);
+        const auto args = EvaluateFuncArgs<2>(call, { Arg::Type::Number, Arg::Type::Number });
         const auto x = args[0].GetFP();
         const auto y = args[1].GetFP();
         if (x && y)
@@ -873,7 +882,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"LeadZero")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Integer })[0];
         switch (arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Uint>()));
@@ -884,7 +893,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"TailZero")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Integer })[0];
         switch (arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Uint>()));
@@ -895,7 +904,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     }
     HashCase(mathName, U"PopCount")
     {
-        const auto arg = EvaluateFuncArgs<1>(call)[0];
+        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::Integer })[0];
         switch (arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Uint>()));

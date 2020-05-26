@@ -65,7 +65,7 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
             using T = std::decay_t<decltype(val)>;
             if constexpr (std::is_same_v<T, CustomVar>)
                 return {};
-            else if constexpr (std::is_same_v<T, std::optional<bool>>)
+            else if constexpr (std::is_same_v<T, std::nullopt_t>)
                 return {};
             else if constexpr (std::is_same_v<T, std::u32string_view>)
                 return val;
@@ -80,7 +80,7 @@ void Serializer::Stringify(std::u32string& output, const RawArg& arg, const bool
     arg.Visit([&](const auto& data)
         {
             using T = std::decay_t<decltype(data)>;
-            if constexpr (std::is_same_v<T, std::optional<bool>>)
+            if constexpr (std::is_same_v<T, std::nullopt_t>)
                 Expects(false);
             else if constexpr (std::is_same_v<T, const BinaryExpr*>)
                 Stringify(output, data, requestParenthese);

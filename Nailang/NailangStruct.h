@@ -234,7 +234,7 @@ public:
         case Type::Int:     return visitor(GetVar<Type::Int>());
         case Type::FP:      return visitor(GetVar<Type::FP>());
         case Type::Bool:    return visitor(GetVar<Type::Bool>());
-        default:            return visitor(std::optional<bool>{});
+        default:            return visitor(std::nullopt);
         }
     }
 };
@@ -253,55 +253,66 @@ private:
     uint32_t Data2;
     uint16_t Data3;
 public:
-    enum class InternalType : uint16_t { Empty = 0, Var, U32Str, U32Sv, Uint, Int, FP, Bool };
-    InternalType TypeData;
+    enum class Type : uint16_t
+    { 
+        Empty = 0, RealType = 0x8000, 
+        Custom = 0b10000000, Boolable = 0b1, String = 0b11, Number = 0b101, Integer = 0b1101, 
+        Bool   = RealType | Boolable,
+        U32Sv  = RealType | String   | 0x000,
+        U32Str = RealType | String   | 0x100,
+        FP     = RealType | Number   | 0x000,
+        Uint   = RealType | Integer  | 0x100,
+        Int    = RealType | Integer  | 0x000,
+        Var    = RealType | Custom,
+    };
+    Type TypeData;
 
-    Arg() noexcept : Data1(0), Data2(0), Data3(0), TypeData(InternalType::Empty)
+    Arg() noexcept : Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
     Arg(const CustomVar var) noexcept :
-        Str(var.Name), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(InternalType::Var)
+        Str(var.Name), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
     { }
-    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), Data3(0), TypeData(InternalType::U32Str)
+    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), Data3(0), TypeData(Type::U32Str)
     { }
     Arg(const std::u32string_view str) noexcept :
         Data1(reinterpret_cast<uint64_t>(str.data())), Data2(gsl::narrow_cast<uint32_t>(str.size())),
-        Data3(0), TypeData(InternalType::U32Sv)
+        Data3(0), TypeData(Type::U32Sv)
     {
         Expects(str.size() <= UINT32_MAX);
     }
     Arg(const uint64_t num) noexcept :
-        Data1(num), Data2(6), Data3(0), TypeData(InternalType::Uint)
+        Data1(num), Data2(6), Data3(0), TypeData(Type::Uint)
     { }
     Arg(const int64_t num) noexcept :
-        Data1(static_cast<uint64_t>(num)), Data2(7), Data3(0), TypeData(InternalType::Int)
+        Data1(static_cast<uint64_t>(num)), Data2(7), Data3(0), TypeData(Type::Int)
     { }
     Arg(const double num) noexcept :
-        Data1(num), Data2(8), Data3(0), TypeData(InternalType::FP)
+        Data1(num), Data2(8), Data3(0), TypeData(Type::FP)
     { }
     Arg(const bool boolean) noexcept :
-        Data1(boolean ? 1 : 0), Data2(9), Data3(0), TypeData(InternalType::Bool)
+        Data1(boolean ? 1 : 0), Data2(9), Data3(0), TypeData(Type::Bool)
     { }
 
-    template<InternalType T>
+    template<Type T>
     [[nodiscard]] constexpr auto GetVar() const noexcept
     {
         Expects(TypeData == T);
-        if constexpr (T == InternalType::Var)
+        if constexpr (T == Type::Var)
             return CustomVar{ std::u32string_view{Str}, Data1.Uint, Data2, Data3 };
-        else if constexpr (T == InternalType::U32Str)
+        else if constexpr (T == Type::U32Str)
             return std::u32string_view{ Str };
-        else if constexpr (T == InternalType::U32Sv)
+        else if constexpr (T == Type::U32Sv)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
-        else if constexpr (T == InternalType::Uint)
+        else if constexpr (T == Type::Uint)
             return Data1.Uint;
-        else if constexpr (T == InternalType::Int)
+        else if constexpr (T == Type::Int)
             return static_cast<int64_t>(Data1.Uint);
-        else if constexpr (T == InternalType::FP)
+        else if constexpr (T == Type::FP)
             return Data1.FP;
-        else if constexpr (T == InternalType::Bool)
+        else if constexpr (T == Type::Bool)
             return Data1.Uint == 1;
         else
-            static_assert(!common::AlwaysTrue2<T>, "Unknown InternalType");
+            static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }
 
     template<typename Visitor>
@@ -309,32 +320,32 @@ public:
     {
         switch (TypeData)
         {
-        case InternalType::Var:     return visitor(GetVar<InternalType::Var>());
-        case InternalType::U32Str:  return visitor(GetVar<InternalType::U32Str>());
-        case InternalType::U32Sv:   return visitor(GetVar<InternalType::U32Sv>());
-        case InternalType::Uint:    return visitor(GetVar<InternalType::Uint>());
-        case InternalType::Int:     return visitor(GetVar<InternalType::Int>());
-        case InternalType::FP:      return visitor(GetVar<InternalType::FP>());
-        case InternalType::Bool:    return visitor(GetVar<InternalType::Bool>());
-        default:                    return visitor(std::optional<bool>{});
+        case Type::Var:     return visitor(GetVar<Type::Var>());
+        case Type::U32Str:  return visitor(GetVar<Type::U32Str>());
+        case Type::U32Sv:   return visitor(GetVar<Type::U32Sv>());
+        case Type::Uint:    return visitor(GetVar<Type::Uint>());
+        case Type::Int:     return visitor(GetVar<Type::Int>());
+        case Type::FP:      return visitor(GetVar<Type::FP>());
+        case Type::Bool:    return visitor(GetVar<Type::Bool>());
+        default:            return visitor(std::nullopt);
         }
     }
 
     [[nodiscard]] forceinline constexpr bool IsEmpty() const noexcept
     {
-        return TypeData == InternalType::Empty;
+        return TypeData == Type::Empty;
     }
     [[nodiscard]] forceinline constexpr bool IsBool() const noexcept
     {
-        return TypeData == InternalType::Bool;
+        return TypeData == Type::Bool;
     }
     [[nodiscard]] forceinline constexpr bool IsInteger() const noexcept
     {
-        return TypeData == InternalType::Uint || TypeData == InternalType::Int;
+        return TypeData == Type::Uint || TypeData == Type::Int;
     }
     [[nodiscard]] forceinline constexpr bool IsFloatPoint() const noexcept
     {
-        return TypeData == InternalType::FP;
+        return TypeData == Type::FP;
     }
     [[nodiscard]] forceinline constexpr bool IsNumber() const noexcept
     {
@@ -342,18 +353,18 @@ public:
     }
     [[nodiscard]] forceinline constexpr bool IsStr() const noexcept
     {
-        return TypeData == InternalType::U32Str || TypeData == InternalType::U32Sv;
+        return TypeData == Type::U32Str || TypeData == Type::U32Sv;
     }
     [[nodiscard]] forceinline constexpr std::optional<bool> GetBool() const noexcept
     {
         switch (TypeData)
         {
-        case InternalType::Uint:    return  GetVar<InternalType::Uint>() != 0;
-        case InternalType::Int:     return  GetVar<InternalType::Int>() != 0;
-        case InternalType::FP:      return  GetVar<InternalType::FP>() != 0;
-        case InternalType::Bool:    return  GetVar<InternalType::Bool>();
-        case InternalType::U32Str:  return !GetVar<InternalType::U32Str>().empty();
-        case InternalType::U32Sv:   return !GetVar<InternalType::U32Sv>().empty();
+        case Type::Uint:    return  GetVar<Type::Uint>() != 0;
+        case Type::Int:     return  GetVar<Type::Int>() != 0;
+        case Type::FP:      return  GetVar<Type::FP>() != 0;
+        case Type::Bool:    return  GetVar<Type::Bool>();
+        case Type::U32Str:  return !GetVar<Type::U32Str>().empty();
+        case Type::U32Sv:   return !GetVar<Type::U32Sv>().empty();
         default:                    return {};
         }
     }
@@ -361,10 +372,10 @@ public:
     {
         switch (TypeData)
         {
-        case InternalType::Uint:    return GetVar<InternalType::Uint>();
-        case InternalType::Int:     return static_cast<uint64_t>(GetVar<InternalType::Int>());
-        case InternalType::FP:      return static_cast<uint64_t>(GetVar<InternalType::FP>());
-        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1 : 0;
+        case Type::Uint:    return GetVar<Type::Uint>();
+        case Type::Int:     return static_cast<uint64_t>(GetVar<Type::Int>());
+        case Type::FP:      return static_cast<uint64_t>(GetVar<Type::FP>());
+        case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
         default:                    return {};
         }
     }
@@ -372,10 +383,10 @@ public:
     {
         switch (TypeData)
         {
-        case InternalType::Uint:    return static_cast<int64_t>(GetVar<InternalType::Uint>());
-        case InternalType::Int:     return GetVar<InternalType::Int>();
-        case InternalType::FP:      return static_cast<int64_t>(GetVar<InternalType::FP>());
-        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1 : 0;
+        case Type::Uint:    return static_cast<int64_t>(GetVar<Type::Uint>());
+        case Type::Int:     return GetVar<Type::Int>();
+        case Type::FP:      return static_cast<int64_t>(GetVar<Type::FP>());
+        case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
         default:                    return {};
         }
     }
@@ -383,10 +394,10 @@ public:
     {
         switch (TypeData)
         {
-        case InternalType::Uint:    return static_cast<double>(GetVar<InternalType::Uint>());
-        case InternalType::Int:     return static_cast<double>(GetVar<InternalType::Int>());
-        case InternalType::FP:      return GetVar<InternalType::FP>();
-        case InternalType::Bool:    return GetVar<InternalType::Bool>() ? 1. : 0.;
+        case Type::Uint:    return static_cast<double>(GetVar<Type::Uint>());
+        case Type::Int:     return static_cast<double>(GetVar<Type::Int>());
+        case Type::FP:      return GetVar<Type::FP>();
+        case Type::Bool:    return GetVar<Type::Bool>() ? 1. : 0.;
         default:                    return {};
         }
     }
@@ -394,13 +405,14 @@ public:
     {
         switch (TypeData)
         {
-        case InternalType::U32Str:  return GetVar<InternalType::U32Str>();
-        case InternalType::U32Sv:   return GetVar<InternalType::U32Sv>();
+        case Type::U32Str:  return GetVar<Type::U32Str>();
+        case Type::U32Sv:   return GetVar<Type::U32Sv>();
         default:                    return {};
         }
     }
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t> ToString() const noexcept;
 };
+MAKE_ENUM_BITFIELD(Arg::Type)
 
 
 struct FuncCall

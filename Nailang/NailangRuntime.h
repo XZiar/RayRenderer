@@ -346,7 +346,7 @@ public:
 class NAILANGAPI NailangRuntimeBase
 {
 protected:
-    static std::u32string_view ArgTypeName(const Arg::InternalType type) noexcept;
+    static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
     static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
     enum class ProgramStatus { Next = 0, Repeat, Break, Return, End };
     enum class MetaFuncResult { Unhandled = 0, Next, Repeat, Skip };
@@ -424,8 +424,8 @@ protected:
     
     enum class ArgLimits { Exact, AtMost, AtLeast };
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
-    void ThrowByArgType(const Arg& arg, const Arg::InternalType type) const;
-    void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::InternalType type, size_t idx) const;
+    void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
+    void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
     void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
     void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
@@ -451,7 +451,7 @@ protected:
     }
 
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::InternalType, N>& types)
+    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::Type, N>& types)
     {
         ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;

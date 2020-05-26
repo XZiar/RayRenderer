@@ -2,6 +2,7 @@
 
 #include "oclRely.h"
 #include "common/SIMD.hpp"
+#include "3rdParty/half/half.hpp"
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -19,12 +20,61 @@ class DebugDataLayout
 private:
     struct DataBlock
     {
+    private:
+        template<typename T>
+        constexpr common::span<const T> VisitT(common::span<const std::byte> data) const noexcept
+        {
+            return common::span<const T>(reinterpret_cast<const T*>(data.data()), Info.Dim0);
+        }
+    public:
+        struct 
         common::simd::VecDataInfo Info;
         uint16_t Offset;
         uint16_t ArgIdx;
         constexpr DataBlock() noexcept : Info({}), Offset(0), ArgIdx(0) { }
         constexpr DataBlock(common::simd::VecDataInfo info, uint16_t offset, uint16_t idx) noexcept :
             Info(info), Offset(offset), ArgIdx(idx) { }
+        template<typename F>
+        auto VisitData(common::span<const std::byte> space, F&& func) const
+        {
+            using common::simd::VecDataInfo;
+            using half_float::half;
+            const auto data = space.subspan(Offset, Info.Bit * Info.Dim0 / 8);
+            switch (Info.Type)
+            {
+            case VecDataInfo::DataTypes::Float:
+                switch (Info.Bit)
+                {
+                case 16: return F(VisitT<  half>(data));
+                case 32: return F(VisitT< float>(data));
+                case 64: return F(VisitT<double>(data));
+                default: break;
+                }
+                break;
+            case VecDataInfo::DataTypes::Unsigned:
+                switch (Info.Bit)
+                {
+                case  8: return F(VisitT< uint8_t>(data));
+                case 16: return F(VisitT<uint16_t>(data));
+                case 32: return F(VisitT<uint32_t>(data));
+                case 64: return F(VisitT<uint64_t>(data));
+                default: break;
+                }
+                break;
+            case VecDataInfo::DataTypes::Signed:
+                switch (Info.Bit)
+                {
+                case  8: return F(VisitT< int8_t>(data));
+                case 16: return F(VisitT<int16_t>(data));
+                case 32: return F(VisitT<int32_t>(data));
+                case 64: return F(VisitT<int64_t>(data));
+                default: break;
+                }
+                break;
+            default: break;
+            }
+            return F(std::nullopt);
+        }
     };
     const DataBlock& GetByIndex(const size_t idx) const noexcept
     {
@@ -59,22 +109,27 @@ private:
     std::unique_ptr<DataBlock[]> Blocks;
     std::unique_ptr<uint16_t[]> ArgLayout;
 public:
-    std::u32string Formatter;
     uint32_t TotalSize;
     uint32_t ArgCount;
 
-    DebugDataLayout(common::span<const common::simd::VecDataInfo> infos, const std::u32string_view formatter, const uint16_t align = 4);
+    DebugDataLayout(common::span<const common::simd::VecDataInfo> infos, const uint16_t align = 4);
     DebugDataLayout(const DebugDataLayout& other);
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
+    const DataBlock& operator[](size_t idx) const noexcept { return Blocks[idx]; }
 };
 
 struct oclDebugBlock
 {
+private:
+    static common::str::u8string ConvFormatter(const std::u32string_view formatter);
+public:
     DebugDataLayout Layout;
+    common::str::u8string Formatter;
     uint8_t DebugId;
     template<typename... Args>
-    oclDebugBlock(const uint8_t idx, Args&&... args) : Layout(std::forward<Args>(args)...), DebugId(idx) {}
+    oclDebugBlock(const uint8_t idx, const std::u32string_view formatter, Args&&... args) : 
+        Layout(std::forward<Args>(args)...), Formatter(ConvFormatter(formatter)), DebugId(idx) {}
 };
 
 }

@@ -92,15 +92,15 @@ TEST(NailangBase, ArgToString)
     ChkStr(CustomVar{}, U""sv);
 }
 
-#define CHECK_ARG(arg, type, val) do                    \
-{                                                       \
-EXPECT_EQ(arg.TypeData, Arg::InternalType::type);       \
-EXPECT_EQ(arg.GetVar<Arg::InternalType::type>(), val);  \
-} while(0)                                              \
+#define CHECK_ARG(arg, type, val) do            \
+{                                               \
+EXPECT_EQ(arg.TypeData, Arg::Type::type);       \
+EXPECT_EQ(arg.GetVar<Arg::Type::type>(), val);  \
+} while(0)                                      \
 
 TEST(NailangRuntime, EvalEmbedOp)
 {
-    using Type = Arg::InternalType;
+    using Type = Arg::Type;
 #define TEST_BIN(l, r, op, type, ans) do        \
 {                                               \
 Arg left(l), right(r);                          \
@@ -410,7 +410,7 @@ TEST(NailangRuntime, Variable)
     {
         // _
         const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
-        EXPECT_EQ(arg.TypeData, Arg::InternalType::Empty);
+        EXPECT_EQ(arg.TypeData, Arg::Type::Empty);
     }
     {
         EXPECT_EQ(runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512))), false);
@@ -425,7 +425,7 @@ TEST(NailangRuntime, Variable)
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 512u);
         const auto arg2 = ctx2->LookUpArg(U":test"sv);
-        EXPECT_EQ(arg2.TypeData, Arg::InternalType::Empty);
+        EXPECT_EQ(arg2.TypeData, Arg::Type::Empty);
     }
     {
         EXPECT_EQ(ctx2->SetArg(U"test"sv, Arg(uint64_t(256))), true);
@@ -435,7 +435,7 @@ TEST(NailangRuntime, Variable)
         const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
-        EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
+        EXPECT_EQ(arg3.TypeData, Arg::Type::Empty);
     }
     {
         EXPECT_EQ(ctx2->SetArg({ U":test"sv }, Arg(uint64_t(128))), false);
@@ -472,7 +472,7 @@ TEST(NailangRuntime, Variable)
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
-        EXPECT_EQ(arg3.TypeData, Arg::InternalType::Empty);
+        EXPECT_EQ(arg3.TypeData, Arg::Type::Empty);
         const auto arg4 = runtime.EvalContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg4, Uint, 256u);
     }
@@ -614,7 +614,7 @@ tmp = 1;
         runtime.EvalContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
         const auto ans = runtime.EvalContext->LookUpArg(U"m");
-        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
     EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));
@@ -666,7 +666,7 @@ TEST(NailangRuntime, gcd2)
         runtime.EvalContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
         const auto ans = runtime.EvalContext->LookUpArg(U"m");
-        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
     EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));
@@ -718,7 +718,7 @@ m = $gcd(m,n);
         runtime.EvalContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
         const auto ans = runtime.EvalContext->LookUpArg(U"m");
-        EXPECT_EQ(ans.TypeData, Arg::InternalType::Uint);
+        EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
     EXPECT_EQ(gcd( 5u, 5u), std::gcd( 5u, 5u));

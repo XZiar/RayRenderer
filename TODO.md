@@ -74,6 +74,8 @@
   - [ ] Add compatibility for OpenCL verson less than 1.2.
   - [ ] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
+  - [ ] Mimic subgroup shuffle on non-intel
+  - [ ] Mimic subgroup on unsupported platform (nv)
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
@@ -107,7 +109,7 @@
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
-  - [ ] Add genenral datatype for `Arg` for type-checking
+  - [x] Add genenral datatype for `Arg` for type-checking
   - [ ] Add array type
   - [ ] Make parser throw proper exception
   - [ ] Add `include` support
