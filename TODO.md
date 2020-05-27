@@ -72,6 +72,7 @@
   - [x] Make oclKernel associate with specific device
   - [ ] Mimic subgroup shuffle on non-intel
   - [ ] Mimic subgroup on unsupported platform (nv)
+  - [ ] Mimic FillBuffer using embeded kernel for pre-1.2
   - [ ] Add better pattern for argument type in NLCL
 
 * OpenCLInterop

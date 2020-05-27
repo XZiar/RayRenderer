@@ -95,6 +95,14 @@ public:
     ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };
 
+
+struct OCLUAPI CallResult
+{
+    std::shared_ptr<oclDebugManager> DebugManager;
+    oclBuffer InfoBuf;
+    oclBuffer DebugBuf;
+};
+
 class OCLUAPI oclKernel_ : public common::NonCopyable
 {
     friend class oclProgram_;
@@ -116,13 +124,6 @@ private:
                 return localsize;
         return nullptr;
     }
-
-    struct OCLUAPI CallResult
-    {
-        std::shared_ptr<oclDebugManager> DebugManager;
-        oclBuffer InfoBuf;
-        oclBuffer DebugBuf;
-    };
 
     struct OCLUAPI CallSiteInternal
     {

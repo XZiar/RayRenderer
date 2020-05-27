@@ -126,13 +126,43 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const ui
     TotalSize = (offset + (align - 1)) / align * align;
 }
 
-//DebugDataLayout::DebugDataLayout(const DebugDataLayout& other) : 
-//    Blocks(std::make_unique<DataBlock[]>(other.ArgCount)), ArgLayout(std::make_unique<uint16_t[]>(other.ArgCount)),
-//    TotalSize(other.TotalSize), ArgCount(other.ArgCount)
-//{
-//    memcpy_s(Blocks.get(), sizeof(DataBlock) * ArgCount, other.Blocks.get(), sizeof(DataBlock) * ArgCount);
-//    memcpy_s(ArgLayout.get(), sizeof(uint16_t) * ArgCount, other.ArgLayout.get(), sizeof(uint16_t) * ArgCount);
-//}
+
+
+oclDebugInfoMan::~oclDebugInfoMan()
+{
+}
+
+uint32_t oclDebugInfoMan::GetInfoBufferSize(const size_t* worksize, const uint32_t dims) const noexcept
+{
+    size_t size = 1;
+    for (uint32_t i = 0; i < dims; ++i)
+        size *= worksize[i];
+    Expects(size < 0x00ffffffu);
+    return static_cast<uint32_t>(sizeof(uint32_t) * (size + 7));
+}
+
+oclThreadInfo NonSubgroupInfoMan::GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept
+{
+    const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
+    const auto& lsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 4);
+    auto info = BasicInfo(gsize, lsize, tid);
+    info.SubgroupId = info.SubgroupLocalId = 0;
+    const auto infodata = space[tid + 7];
+    const auto lid = info.LocalId[0] + info.LocalId[1] * lsize[0] + info.LocalId[2] * lsize[1] * lsize[0];
+    Expects(infodata == lid);
+    return info;
+}
+
+oclThreadInfo SubgroupInfoMan::GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept
+{
+    const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
+    const auto& lsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 4);
+    auto info = BasicInfo(gsize, lsize, tid);
+    const auto infodata = space[tid + 7];
+    info.SubgroupId = static_cast<uint16_t>(infodata / 65536u);
+    info.SubgroupLocalId = static_cast<uint16_t>(infodata % 65536u);
+    return info;
+}
 
 
 template<typename T>
@@ -182,22 +212,23 @@ common::str::u8string oclDebugBlock::GetString(common::span<const std::byte> dat
 void oclDebugManager::CheckNewBlock(const std::u32string_view name) const
 {
     const auto idx = Blocks.size();
-    if (idx >= 256u)
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Too many DebugString defined, maximum 256");
+    if (idx >= 250u)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Too many DebugString defined, maximum 250");
     for (const auto& block : Blocks)
         if (block.Name == name)
             COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"DebugString re-defiend");
 }
 
-std::pair<const oclDebugBlock*, uint32_t> oclDebugManager::RetriveMessage(common::span<const uint32_t> data)
+std::pair<const oclDebugBlock*, uint32_t> oclDebugManager::RetriveMessage(common::span<const uint32_t> data) const
 {
     const auto uid = data[0];
     const auto dbgIdx = uid >> 24;
     const auto tid = uid & 0x00ffffffu;
+    if (dbgIdx == 0xff) return { nullptr, 0 };
     if (dbgIdx >= Blocks.size())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with idx overflow");
     const auto& block = Blocks[dbgIdx];
-    if (data.size_bytes() >= block.Layout.TotalSize)
+    if (data.size_bytes() < block.Layout.TotalSize)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with insufficiant buffer space");
     return { &block, tid };
 }

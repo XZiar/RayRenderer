@@ -121,7 +121,47 @@ public:
 };
 
 
-struct oclDebugBlock
+struct oclThreadInfo
+{
+    uint32_t GlobalId[3];
+    uint32_t GroupId[3];
+    uint32_t LocalId[3];
+    uint16_t SubgroupId, SubgroupLocalId;
+};
+class oclDebugInfoMan
+{
+protected:
+    oclThreadInfo BasicInfo(const uint32_t(&gsize)[3], const uint32_t(&lsize)[3], const uint32_t tid) const noexcept
+    {
+        oclThreadInfo info;
+        const auto gs0 = gsize[0] * gsize[1];
+        info.GlobalId[2] = tid / gs0;
+        info.GlobalId[1] = (tid % gs0) / gsize[0];
+        info.GlobalId[0] = tid % gsize[0];
+        info.GroupId[2] = info.GlobalId[2] / lsize[2];
+        info.GroupId[1] = info.GlobalId[1] / lsize[1];
+        info.GroupId[0] = info.GlobalId[0] / lsize[0];
+        info.LocalId[2] = info.GlobalId[2] % lsize[2];
+        info.LocalId[1] = info.GlobalId[1] % lsize[1];
+        info.LocalId[0] = info.GlobalId[0] % lsize[0];
+        return info;
+    }
+public:
+    virtual ~oclDebugInfoMan();
+
+    virtual uint32_t GetInfoBufferSize(const size_t* worksize, const uint32_t dims) const noexcept;
+    virtual oclThreadInfo GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
+};
+class NonSubgroupInfoMan : public oclDebugInfoMan
+{
+    oclThreadInfo GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override;
+};
+class SubgroupInfoMan : public oclDebugInfoMan
+{
+    oclThreadInfo GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override;
+};
+
+struct OCLUAPI oclDebugBlock
 {
     DebugDataLayout Layout;
     std::u32string Name;
@@ -135,12 +175,13 @@ struct oclDebugBlock
 };
 
 
-class oclDebugManager
+class OCLUAPI oclDebugManager
 {
     friend class NLCLRuntime;
     friend class oclKernel_;
 private:
     std::vector<oclDebugBlock> Blocks;
+    std::unique_ptr<oclDebugInfoMan> InfoMan;
     void CheckNewBlock(const std::u32string_view name) const;
     template<typename... Args>
     const oclDebugBlock& AppendBlock(const std::u32string_view name, const std::u32string_view formatter, Args&&... args)
@@ -148,8 +189,11 @@ private:
         CheckNewBlock(name);
         return Blocks.emplace_back(static_cast<uint8_t>(Blocks.size()), name, formatter, std::forward<Args>(args)...);
     }
-    std::pair<const oclDebugBlock*, uint32_t> RetriveMessage(common::span<const uint32_t> data);
+    std::pair<const oclDebugBlock*, uint32_t> RetriveMessage(common::span<const uint32_t> data) const;
 public:
+    common::span<const oclDebugBlock> GetBlocks() const noexcept { return Blocks; }
+    const oclDebugInfoMan& GetInfoMan() const noexcept { return *InfoMan; }
+
     template<typename F>
     void VisitData(common::span<const std::byte> space, F&& func) const
     {
@@ -157,8 +201,9 @@ public:
         while (data.size() > 0)
         {
             const auto [block, tid] = RetriveMessage(data);
+            if (block == nullptr) break;
             const auto u32cnt = block->Layout.TotalSize / sizeof(uint32_t);
-            func(tid, *block, data.subspan(1, u32cnt));
+            func(tid, *InfoMan, *block, data.subspan(1, u32cnt));
             data = data.subspan(1 + u32cnt);
         }
     }

@@ -267,7 +267,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
         std::vector<std::byte> test(dbgData.TotalSize);
         Logger.debug(FMT_STRING(u"DebugString:\n{}\ntest output:\n{}\n"sv), formatter, dbgBlock.GetString(test));
     }
-    catch (fmt::format_error fe)
+    catch (const fmt::format_error& fe)
     {
         HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
         return U"// Formatter not match the datatype provided\r\n";
@@ -289,7 +289,8 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     func.append(U"\r\n    if (total == 0) return;");
     func.append(U"\r\n    if (counter[0] + size > total) return;");
     func.append(U"\r\n    const uint old = atom_add (counter, size);");
-    func.append(U"\r\n    if (old + size > total) return;");
+    func.append(U"\r\n    if (old >= total) return;");
+    func.append(U"\r\n    if (old + size > total) { data[old] = 0xff000000u; return; }");
     func.append(U"\r\n    data[old] = (uid & 0x00ffffffu) | dbgId;");
     func.append(U"\r\n    global uint* const restrict ptr = data + old + 1;");
     const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
@@ -794,7 +795,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto space   = KerArgSpaceParser(space_);
             if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
             const auto argType = args[1].GetStr().value();
-            const bool isPointer = !argType.empty() && argType.back() == U'*';
+            // const bool isPointer = !argType.empty() && argType.back() == U'*';
             const auto name    = args[2].GetStr().value();
             const auto flags   = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
                 .Reduce([&](KerArgFlag flag, std::u32string_view part) 
@@ -856,7 +857,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         dst.append(U"\r\n    "sv).append(argText).append(U","sv);
     }
-    if (argInfos.DebugBuffer > 0)
+    if (argInfos.HasDebug)
     {
         dst .append(U"\r\n    const  uint           _oclu_debug_buffer_size,"sv)
             .append(U"\r\n    global uint* restrict _oclu_debug_buffer_info,"sv)
@@ -864,20 +865,30 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
-    if (argInfos.DebugBuffer > 0)
+    if (argInfos.HasDebug)
     {
         dst.append(UR"(    // below injected by oclu_debug
-    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1);
+    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
     if (_oclu_debug_buffer_size > 0)
     {
+        if (_oclu_thread_id == 0)
+        {
+            _oclu_debug_buffer_info[1] = get_global_size(0);
+            _oclu_debug_buffer_info[2] = get_global_size(1);
+            _oclu_debug_buffer_info[3] = get_global_size(2);
+            _oclu_debug_buffer_info[4] = get_local_size(0);
+            _oclu_debug_buffer_info[5] = get_local_size(1);
+            _oclu_debug_buffer_info[6] = get_local_size(2);
+        }
+
 #if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
         const ushort sgid  = get_sub_group_id();
         const ushort sglid = get_sub_group_local_id();
         const uint sginfo  = sgid * 65536u + sglid;
 #else
-        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1);
+        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
 #endif
-        _oclu_debug_buffer_info[_oclu_thread_id + 1] = sginfo;
+        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 
 
@@ -964,6 +975,9 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 
 std::string NLCLRuntime::GenerateOutput()
 {
+    DebugManager.InfoMan = SupportSubgroupKHR || SupportSubgroupIntel ?
+        static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<SubgroupInfoMan>()) : 
+        static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<NonSubgroupInfoMan>());
     std::u32string prefix, output;
 
     for (const auto& item : OutputBlocks)

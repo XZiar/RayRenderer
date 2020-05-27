@@ -219,7 +219,7 @@ oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string
         oclLog().verbose(u"use external arg-info for kernel [{}].\n", Name);
         ArgStore = std::move(argStore);
     }
-    ReqDbgBufSize = ArgStore.DebugBuffer;
+    ReqDbgBufSize = ArgStore.DebugBuffer == 0 ? 512 : ArgStore.DebugBuffer;
 }
 
 oclKernel_::~oclKernel_()
@@ -293,7 +293,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<oclKernel_::CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
+PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     if (Kernel->Prog.Device != que->Device)
@@ -302,12 +302,14 @@ PromiseResult<oclKernel_::CallResult> oclKernel_::CallSiteInternal::Run(const ui
     CallResult result;
     if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
     {
+        const auto infosize = Kernel->Prog.DebugManager->GetInfoMan().GetInfoBufferSize(worksize, dim);
         result.DebugManager = Kernel->Prog.DebugManager;
         const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
-        std::vector<uint32_t> tmp(dim == 1 ? worksize[0] : (dim == 2 ? worksize[0] * worksize[1] : worksize[0] * worksize[1] * worksize[2]));;
-        result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, sizeof(uint32_t) * tmp.size(), tmp.data());
-        result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, Kernel->ReqDbgBufSize);
-        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &Kernel->ReqDbgBufSize);
+        std::vector<std::byte> tmp(infosize);
+        const uint32_t dbgBufSize = Kernel->ReqDbgBufSize * 1024u;
+        result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, tmp.size(), tmp.data());
+        result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, dbgBufSize);
+        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &dbgBufSize);
         clSetKernelArg(Kernel->KernelID, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
         clSetKernelArg(Kernel->KernelID, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
     }
