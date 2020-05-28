@@ -93,7 +93,7 @@ ModelMesh _ModelMesh::GetModel(const u16string& fname, const std::shared_ptr<Tex
 void _ModelMesh::ReleaseModel(const u16string& fname)
 {
     if (auto md = FindInMap(MODEL_CACHE, fname))
-        if (md->unique())
+        if (md->use_count() == 1)
             MODEL_CACHE.erase(fname);
 }
 #pragma warning(default:4996)

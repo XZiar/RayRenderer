@@ -68,7 +68,7 @@
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
   - [ ] Add compatibility for OpenCL verson less than 1.2.
-  - [ ] Add extended debugging output using NLCL
+  - [x] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
   - [ ] Mimic subgroup shuffle on non-intel
   - [ ] Mimic subgroup on unsupported platform (nv)
@@ -114,6 +114,7 @@
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [x] Add genenral datatype for `Arg` for type-checking
   - [ ] Add array type
+  - [ ] Shrink memory usage of Arg
   - [ ] Make parser throw proper exception
   - [ ] Add `include` support
   - [ ] Add python parser & runtime

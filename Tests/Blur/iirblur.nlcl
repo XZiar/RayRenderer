@@ -28,7 +28,11 @@
             get_global_id(0), get_global_id(1), get_global_id(2), 
             get_group_id(0), get_group_id(1), get_group_id(2), 
             get_local_id(0), get_local_id(1), get_local_id(2), 
+#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
             get_sub_group_id(), get_sub_group_local_id(),
+#else
+            0, 0,
+#endif
             ptrIn - src);
 
         tmp = (float16)(in4.s0123, in4.s0123, in4.s0123, in4.s0123);

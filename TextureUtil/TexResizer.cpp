@@ -286,7 +286,7 @@ TEXUTILAPI PromiseResult<Image> TexResizer::ResizeToImg<ResizeMethod::OpenCL>(co
 
         const size_t worksize[] = { width, height };
         auto pms = ker->Call<2>(img, outBuf, 1u, info)(CmdQue, worksize);
-        agent.Await(common::PromiseResult<void>(pms));
+        agent.Await(pms);
         texLog().success(u"CLTexResizer Kernel runs {}us.\n", pms->ElapseNs() / 1000);
         outBuf->Flush(CmdQue);
         outBuf.reset();

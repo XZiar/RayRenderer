@@ -259,7 +259,7 @@ std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcN
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
     // prepare arg layout
-    const auto& dbgBlock = DebugManager.AppendBlock(dbgId, formatter, args, static_cast<uint16_t>(4u));
+    const auto& dbgBlock = DebugManager.AppendBlock(dbgId, formatter, args);
     const auto& dbgData = dbgBlock.Layout;
     // test format
     try
@@ -1137,6 +1137,23 @@ void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
         });
 }
 
+std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, const oclu::CLProgConfig& config) const
+{
+    auto str = stub.Runtime->GenerateOutput();
+    try
+    {
+        auto progStub = oclProgram_::Create(ctx, str, stub.Device);
+        progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
+        progStub.DebugManager = std::move(stub.Runtime->DebugManager);
+        progStub.Build(config);
+        return std::make_unique<NLCLBuiltResult>(std::move(stub.Runtime->EvalContext), progStub.Finish());
+    }
+    catch (const common::BaseException& be)
+    {
+        return std::make_unique<NLCLBuildFailResult>(std::move(stub.Runtime->EvalContext), std::move(str), be.Share());
+    }
+}
+
 std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source) const
 {
     auto& logger = Logger();
@@ -1162,19 +1179,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    auto str = stub.Runtime->GenerateOutput();
-    try
-    {
-        auto progStub = oclProgram_::Create(ctx, str, dev);
-        progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
-        progStub.DebugManager = std::move(stub.Runtime->DebugManager);
-        progStub.Build(config);
-        return std::make_unique<NLCLBuiltResult>(std::move(stub.Runtime->EvalContext), progStub.Finish());
-    }
-    catch (const common::BaseException& be)
-    {
-        return std::make_unique<NLCLBuildFailResult>(std::move(stub.Runtime->EvalContext), std::move(str), be.Share());
-    }
+    return CompileIntoProgram(stub, ctx, config);
 }
 
 

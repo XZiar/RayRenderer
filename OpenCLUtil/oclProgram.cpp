@@ -302,8 +302,9 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, c
     CallResult result;
     if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
     {
-        const auto infosize = Kernel->Prog.DebugManager->GetInfoMan().GetInfoBufferSize(worksize, dim);
         result.DebugManager = Kernel->Prog.DebugManager;
+        result.Queue = que;
+        const auto infosize = Kernel->Prog.DebugManager->GetInfoMan().GetInfoBufferSize(worksize, dim);
         const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
         std::vector<std::byte> tmp(infosize);
         const uint32_t dbgBufSize = Kernel->ReqDbgBufSize * 1024u;

@@ -48,28 +48,18 @@ std::array<float, 4> ComputeCoeff(const float sigma)
     return coeff;
 }
 
-void PrintDebugMsg(const oclu::oclCmdQue& que, const oclu::CallResult& result)
+void PrintDebugMsg(const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, 
+    const common::span<const uint32_t> infoData, const common::span<const uint32_t> dat)
 {
-    if (!result.DebugManager) return;
-    const auto info = result.InfoBuf->Map(que, oclu::MapFlag::Read);
-    const auto data = result.DebugBuf->Map(que, oclu::MapFlag::Read);
-    const auto infoData = info.AsType<uint32_t>();
-    const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), result.DebugBuf->Size);
-    const auto dbgData = data.Get().subspan(0, dbgSize);
     auto& logger = log();
-    logger.info(u"DebugBuf uses[{}/{}], with InfoBuf [{}].\n", dbgSize, result.DebugBuf->Size, result.InfoBuf->Size);
-    result.DebugManager->VisitData(dbgData, 
-        [&](const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, const auto& dat)
-        {
-            const auto msg = block.GetString(common::as_bytes(dat));
-            const auto tinfo = infoMan.GetThreadInfo(infoData, tid);
-            logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"), 
-                tid, tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2], 
-                tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
-                tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
-                tinfo.SubgroupId, tinfo.SubgroupLocalId,
-                msg);
-        });
+    const auto msg = block.GetString(common::as_bytes(dat));
+    const auto tinfo = infoMan.GetThreadInfo(infoData, tid);
+    logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"), 
+        tid, tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2], 
+        tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
+        tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
+        tinfo.SubgroupId, tinfo.SubgroupLocalId,
+        msg);
 }
 
 Image ProcessImg(const string kernel, const Image& image, float sigma) try
@@ -145,7 +135,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
         pcY->QueryTime(oclu::oclPromiseCore::TimeType::Start),
         pcY->QueryTime(oclu::oclPromiseCore::TimeType::End));
 
-    PrintDebugMsg(cmdque, pmsX->Wait());
+    pmsX->Wait().VisitData(PrintDebugMsg);
 
     return img2;
 }

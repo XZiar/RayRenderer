@@ -39,6 +39,7 @@
     <Expand>
       <Item Name="Context">*Context</Item>
       <Item Name="Source">Source</Item>
+      <Item Name="DebugManager">*DebugManager</Item>
       <Synthetic Name="Kernels">
         <Expand>
           <CustomListItems MaxItemsPerView="100">
@@ -59,7 +60,76 @@
     <Expand>
       <Item Name="Platform">Plat</Item>
       <Item Name="Program">Prog</Item>
-      <Item Name="[ArgsInfo]">ArgsInfo</Item>
+      <Item Name="[ArgsInfo]">ArgStore</Item>
+    </Expand>
+  </Type>
+
+
+  <Type Name="oclu::ArgFlags">
+    <DisplayString Condition="Access != ImgAccess::None">{{ Image {{{Access,en}}} }}</DisplayString>
+    <DisplayString Condition="Access == ImgAccess::None">{{ NonImage {{{Space,en}, {Qualifier,en}}} }}</DisplayString>
+  </Type>
+  <Type Name="oclu::KernelArgStore">
+    <DisplayString Condition="HasInfo" >{{ {{{ArgsInfo.size()}}} args }}</DisplayString>
+    <DisplayString Condition="!HasInfo">{{ invalid argstore }}</DisplayString>
+    <Expand>
+      <Item Name="HasDebug">HasDebug</Item>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>ArgsInfo.size()</Size>
+        <Loop>
+          <Break Condition="idx &gt;= ArgsInfo.size()" />
+          <Item Name="[{&amp;Pool[ArgsInfo[idx].Name.Offset],[ArgsInfo[idx].Name.Length]s}]">(oclu::ArgFlags*)&amp;ArgsInfo[idx],na</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
+
+  <Type Name="oclu::DebugDataLayout">
+    <DisplayString>{{ {{{ArgCount}}} data }}</DisplayString>
+    <Expand>
+      <Synthetic Name="ByIndex">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>ArgCount</Size>
+            <Loop>
+              <Break Condition="idx &gt;= ArgCount" />
+              <Item>((DataBlock*)&amp;*Blocks)[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="ByLayout">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>ArgCount</Size>
+            <Loop>
+              <Break Condition="idx &gt;= ArgCount" />
+              <Item>((DataBlock*)&amp;*Blocks)[((uint16_t*)&amp;*ArgLayout)[idx]]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclDebugManager">
+    <DisplayString>{{ {{{Blocks.size()}}} block }}</DisplayString>
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>Blocks.size()</Size>
+        <Loop>
+          <Break Condition="idx &gt;= Blocks.size()" />
+          <Item Name="[{Blocks[idx].Name,s32b}]">Blocks[idx]</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
     </Expand>
   </Type>
 

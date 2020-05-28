@@ -171,7 +171,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
             auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::WriteOnly | MemFlag::HostReadOnly | MemFlag::UseHost , mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
-            PromiseResult<void> pms;
+            PromiseResult<oclu::CallResult> pms;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
@@ -208,7 +208,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
             auto outBuf  = oclBuffer_::Create(CLContext, MemFlag::ReadWrite | MemFlag::HostReadOnly | MemFlag::UseHost,  mainBuf.GetSize(), mainBuf.GetRawPtr());
 
             size_t offset = 0;
-            PromiseResult<void> pms;
+            PromiseResult<oclu::CallResult> pms;
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];

@@ -99,8 +99,26 @@ public:
 struct OCLUAPI CallResult
 {
     std::shared_ptr<oclDebugManager> DebugManager;
+    oclCmdQue Queue;
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;
+
+    template<typename F>
+    void VisitData(F&& func) const
+    {
+        if (!DebugManager) return;
+        const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
+        const auto data = DebugBuf->Map(Queue, oclu::MapFlag::Read);
+        const auto infoData = info.AsType<uint32_t>();
+        const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
+        const auto dbgData = data.Get().subspan(0, dbgSize);
+        
+        DebugManager->VisitData(dbgData,
+            [&](const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, const auto& dat)
+            {
+                func(tid, infoMan, block, infoData, dat);
+            });
+    }
 };
 
 class OCLUAPI oclKernel_ : public common::NonCopyable

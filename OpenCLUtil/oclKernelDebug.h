@@ -168,10 +168,15 @@ struct OCLUAPI oclDebugBlock
     std::u32string Formatter;
     uint8_t DebugId;
     template<typename... Args>
-    oclDebugBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter, Args&&... args) :
-        Layout(std::forward<Args>(args)...), Name(name), Formatter(formatter), DebugId(idx) {}
+    oclDebugBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> infos) :
+        Layout(infos, 4), Name(name), Formatter(formatter), DebugId(idx) {}
     
     common::str::u8string GetString(common::span<const std::byte> data) const;
+    template<typename T>
+    common::str::u8string GetString(common::span<T> data) const
+    {
+        return GetString(common::as_bytes(data));
+    }
 };
 
 

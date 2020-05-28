@@ -36,6 +36,7 @@ protected:
         return TheLogger.index() == 0 ? std::get<0>(TheLogger) : *std::get<1>(TheLogger);
     }
     virtual void ConfigureCL(NLCLProgStub& stub) const;
+    std::unique_ptr<NLCLResult> CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, const oclu::CLProgConfig& config = {}) const;
 public:
     NLCLProcessor();
     NLCLProcessor(common::mlog::MiniLogger<false>&& logger);

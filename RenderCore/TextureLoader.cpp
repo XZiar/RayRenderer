@@ -202,7 +202,7 @@ void TextureLoader::Shrink()
     auto it = TexCache.cbegin();
     while (it != TexCache.end())
     {
-        if (it->second.unique()) //deprecated, may lead to bug
+        if (it->second.use_count() == 1) //deprecated, may lead to bug
             it = TexCache.erase(it);
         else
             ++it;
