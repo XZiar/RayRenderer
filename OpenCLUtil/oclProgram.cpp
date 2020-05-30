@@ -348,9 +348,10 @@ oclProgram_::oclProgStub::~oclProgStub()
 
 void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
 {
-    const auto cver = config.Version == 0 ? Device->CVersion : config.Version;
-    if (cver > Device->CVersion)
-        oclLog().warning(u"request cversion [{}] on [{}] device [{}]\n", cver, Device->CVersion, Device->Name);
+    const auto minVer = std::min(Device->CVersion, Device->Version);
+    const auto cver = config.Version == 0 ? minVer : config.Version;
+    if (cver > minVer)
+        oclLog().warning(u"request cversion [{}] on device [{}] (Ver[{}], CVer[{}])\n", cver, Device->Name, Device->Version, Device->CVersion);
     string options;
     switch (Context->GetVendor())
     {
@@ -358,6 +359,10 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     case Vendors::AMD:       options = "-DOCLU_AMD "; break;
     case Vendors::Intel:     options = "-DOCLU_INTEL "; break;
     default:                break;
+    }
+    if (cver >= 12)
+    {
+        options.append("-cl-kernel-arg-info ");
     }
     for (const auto def : config.Defines)
     {
@@ -391,7 +396,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     }
     else
     {
-        oclLog().error(u"build program {:p} failed:\n{}\n", (void*)ProgID, buildlog);
+        oclLog().error(u"build program {:p} failed:\nwith option:{}\n{}\n", (void*)ProgID, options, buildlog);
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed", buildlog);
     }
 

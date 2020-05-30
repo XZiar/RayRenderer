@@ -162,6 +162,10 @@ static void OCLStub()
                             else
                                 config.Defines[key] = std::monostate{};
                             continue;
+                        case '@':
+                            if (key == "version")
+                                config.Version = (parts[1][0] - '0') * 10 + (parts[1][1] - '0');
+                            continue;
                         }
                         break;
                     }

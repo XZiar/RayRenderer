@@ -1,4 +1,5 @@
 #include "NailangRuntime.h"
+#include "NailangParser.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "StringCharset/Convert.h"
 #include "3rdParty/fmt/utfext.h"
@@ -78,7 +79,7 @@ void BasicEvaluateContext::SetReturnArg(Arg arg)
 
 Arg BasicEvaluateContext::GetReturnArg() const
 {
-    return ReturnArg.value_or(Arg{});
+    return ReturnArg;
 }
 
 
@@ -701,6 +702,24 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
         return !EvalContext->LookUpArg(arg.GetStr().value()).IsEmpty();
     }
+    HashCase(call.Name, U"ValueOr")
+    {
+        ThrowByArgCount(call, 2);
+        std::u32string_view varName;
+        switch (call.Args[0].TypeData)
+        {
+        case RawArg::Type::Var: varName = call.Args[0].GetVar<RawArg::Type::Var>().Name; break;
+        case RawArg::Type::Str: varName = call.Args[0].GetVar<RawArg::Type::Str>();      break;
+        default:
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[ValueOr] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
+                call.Args[0]);
+            return {};
+        }
+        if (auto ret = EvalContext->LookUpArg(varName); !ret.IsEmpty())
+            return ret;
+        else
+            return EvaluateArg(call.Args[1]);
+    }
     HashCase(call.Name, U"Format")
     {
         ThrowByArgCount(call, 2, ArgLimits::AtLeast);
@@ -1028,11 +1047,12 @@ void NailangRuntimeBase::OnFuncCall(const FuncCall& call, common::span<const Fun
     EvaluateFunc(call, metas, ctx);
 }
 
-NailangRuntimeBase::ProgramStatus NailangRuntimeBase::OnInnerBlock(const Block& block, common::span<const FuncCall> metas)
+std::pair<NailangRuntimeBase::ProgramStatus, Arg> NailangRuntimeBase::OnInnerBlock(const Block& block, common::span<const FuncCall> metas)
 {
     auto innerCtx = std::make_shared<CompactEvaluateContext>();
     InnerContextScope scope(*this, innerCtx);
-    return ExecuteBlock({ block, metas });
+    const auto status = ExecuteBlock({ block, metas });
+    return { status, innerCtx->GetReturnArg() };
 }
 
 void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx)
@@ -1045,9 +1065,12 @@ void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::spa
     } break;
     case BlockContent::Type::Block:
     {
-        const auto blkStatus = OnInnerBlock(*content.Get<Block>(), metas);
+        const auto [blkStatus, retVal] = OnInnerBlock(*content.Get<Block>(), metas);
         if (blkStatus == ProgramStatus::Return)
-            ctx.Status = ProgramStatus::Return;
+        {
+            ctx.Status = ProgramStatus::Return; 
+            EvalContext->SetReturnArg(retVal);
+        }
         else if (ctx.Status == ProgramStatus::Repeat && blkStatus == ProgramStatus::Break)
             ctx.Status = ProgramStatus::Next;
     } break;
@@ -1099,6 +1122,52 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
             return;
     }
     ExecuteBlock({ block, metas });
+}
+
+Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const bool innerScope)
+{
+    common::parser::ParserContext context(content);
+    const auto rawarg = ComplexArgParser::ParseSingleStatement(MemPool, context);
+    if (rawarg.has_value())
+    {
+        std::optional<InnerContextScope> scope;
+        if (innerScope)
+            scope.emplace(*this, std::make_shared<CompactEvaluateContext>());
+        auto arg = EvaluateArg(rawarg.value());
+        if (!innerScope && !arg.IsEmpty())
+            EvalContext->SetReturnArg({});
+        return arg;
+    }
+    else
+        return {};
+}
+
+Arg NailangRuntimeBase::EvaluateRawStatements(std::u32string_view content, const bool innerScope)
+{
+    struct EmbedBlkParser : public BlockParser
+    {
+        using BlockParser::BlockParser;
+        static Block GetBlock(MemoryPool& pool, const std::u32string_view src)
+        {
+            common::parser::ParserContext context(src);
+            EmbedBlkParser parser(pool, context);
+            Block ret;
+            parser.ParseContentIntoBlock<true>(ret);
+            return ret;
+        }
+    };
+
+    common::parser::ParserContext context(content);
+    const auto blk = EmbedBlkParser::GetBlock(MemPool, content);
+
+    std::optional<InnerContextScope> scope;
+    if (innerScope)
+        scope.emplace(*this, std::make_shared<CompactEvaluateContext>());
+    ExecuteBlock({ blk, {} });
+    auto arg = EvalContext->GetReturnArg();
+    if (!innerScope && !arg.IsEmpty())
+        EvalContext->SetReturnArg({});
+    return arg;
 }
 
 

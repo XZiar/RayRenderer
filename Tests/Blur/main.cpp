@@ -146,10 +146,14 @@ catch (common::BaseException& be)
 }
 
 
-int main()
+int main() try
 {
     static const common::fs::path basepath(UTF16ER(__FILE__));
-    const auto kernelPath = common::fs::path(basepath).replace_filename("iirblur.nlcl");
+    auto kernelPath = common::fs::path(basepath).replace_filename("iirblur.nlcl");
+    if (!common::fs::exists(kernelPath))
+    {
+        kernelPath = common::fs::path("iirblur.nlcl");
+    }
     log().verbose(u"nlcl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
@@ -185,4 +189,8 @@ int main()
     xziar::img::WriteImage(img2, stream2, u"jpg");*/
 
     getchar();
+}
+catch (common::BaseException& be)
+{
+    log().error(u"{}\n", be.message);
 }

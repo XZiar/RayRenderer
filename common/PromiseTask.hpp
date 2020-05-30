@@ -198,6 +198,7 @@ public:
         std::vector<std::shared_ptr<detail::PromiseResultCore>> pmss;
         pmss.reserve(sizeof...(Args));
         (pmss.push_back(promises), ...);
+        Promises = std::move(pmss);
     }
 
     constexpr size_t size() const noexcept

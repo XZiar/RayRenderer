@@ -1146,11 +1146,11 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
         progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
         progStub.DebugManager = std::move(stub.Runtime->DebugManager);
         progStub.Build(config);
-        return std::make_unique<NLCLBuiltResult>(std::move(stub.Runtime->EvalContext), progStub.Finish());
+        return std::make_unique<NLCLBuiltResult>(stub.Runtime->EvalContext, progStub.Finish());
     }
     catch (const common::BaseException& be)
     {
-        return std::make_unique<NLCLBuildFailResult>(std::move(stub.Runtime->EvalContext), std::move(str), be.Share());
+        return std::make_unique<NLCLBuildFailResult>(stub.Runtime->EvalContext, std::move(str), be.Share());
     }
 }
 
@@ -1170,7 +1170,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLP
 {
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    return std::make_unique<NLCLUnBuildResult>(std::move(stub.Runtime->EvalContext), stub.Runtime->GenerateOutput());
+    return std::make_unique<NLCLUnBuildResult>(stub.Runtime->EvalContext, stub.Runtime->GenerateOutput());
 }
 
 std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const

@@ -17,11 +17,29 @@ class oclImage_;
 class oclKernel_;
 
 
+class OCLUAPI DependEvents : public common::NonCopyable
+{
+private:
+    std::vector<cl_event> Events;
+    DependEvents(std::vector<cl_event>&& event);
+public:
+    ~DependEvents();
+    std::pair<const cl_event*, cl_uint> Get() const noexcept
+    {
+        if (Events.empty())
+            return { nullptr, 0 };
+        else
+            return { Events.data(), static_cast<cl_uint>(Events.size()) };
+    }
+    static DependEvents Create(const common::PromiseStub& pmss) noexcept;
+};
+
 class OCLUAPI oclPromiseCore
 {
     friend class oclBuffer_;
     friend class oclImage_;
     friend class oclKernel_;
+    friend class DependEvents;
 private:
     struct oclEvents
     {

@@ -7,6 +7,28 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 
+
+DependEvents::DependEvents(std::vector<cl_event>&& events) : Events(std::move(events))
+{
+    for (const auto evt : Events)
+        clRetainEvent(evt);
+}
+DependEvents::~DependEvents()
+{
+    for (const auto evt : Events)
+        clReleaseEvent(evt);
+}
+DependEvents DependEvents::Create(const common::PromiseStub& pmss) noexcept
+{
+    auto clpmss = pmss.FilterOut<oclPromiseCore>();
+    auto evts = common::linq::FromIterable(clpmss)
+        .Select([](const auto& clpms) { return clpms->GetEvent(); })
+        .Where([](const auto& evt) { return evt != nullptr; })
+        .ToVector();
+    return std::move(evts);
+}
+
+
 oclPromiseCore::oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que)
     : Event(e), Queue(std::move(que)), Prev(std::move(prev)) { }
 oclPromiseCore::~oclPromiseCore()

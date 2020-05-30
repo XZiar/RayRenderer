@@ -151,7 +151,7 @@ class NAILANGAPI BasicEvaluateContext : public EvaluateContext
 protected:
     using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
     std::vector<std::u32string_view> LocalFuncArgNames;
-    std::optional<Arg> ReturnArg;
+    Arg ReturnArg;
     virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
 public:
     ~BasicEvaluateContext() override;
@@ -421,6 +421,7 @@ protected:
     };
 
     std::shared_ptr<EvaluateContext> EvalContext;
+    MemoryPool MemPool;
     
     enum class ArgLimits { Exact, AtMost, AtLeast };
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
@@ -492,13 +493,15 @@ protected:
                   virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
                   virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
                   virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
-    [[nodiscard]] virtual ProgramStatus OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual std::pair<ProgramStatus, Arg> OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
                   virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
                   virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();
     void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true);
+    Arg EvaluateRawStatement(std::u32string_view content, const bool innerScope = true);
+    Arg EvaluateRawStatements(std::u32string_view content, const bool innerScope = true);
 };
 
 }

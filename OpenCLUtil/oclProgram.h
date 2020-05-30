@@ -235,7 +235,7 @@ public:
 struct CLProgConfig
 {
     common::CLikeDefines Defines;
-    std::set<std::string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable", "-cl-kernel-arg-info" };
+    std::set<std::string> Flags{ "-cl-fast-relaxed-math", "-cl-mad-enable" };
     uint32_t Version = 0;
 };
 
