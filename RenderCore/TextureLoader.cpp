@@ -3,7 +3,6 @@
 #include "TextureUtil/TexCompressor.h"
 #include "TextureUtil/TexMipmap.h"
 #include "AsyncExecutor/AsyncManager.h"
-#include "common/PromiseTaskSTD.hpp"
 #include <thread>
 
 namespace rayr

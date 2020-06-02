@@ -124,7 +124,7 @@ void SyncConsoleBackend()
 {
     const auto backend = std::dynamic_pointer_cast<ConsoleBackend>(GetConsoleBackend());
     const auto pms = backend->Synchronize();
-    pms->Wait();
+    pms->WaitFinish();
 }
 std::shared_ptr<LoggerBackend> GetDebuggerBackend()
 {

@@ -74,7 +74,7 @@ string ArgFlags::GetQualifier() const noexcept
     return ret;
 }
 
-KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : DebugBuffer(0), HasInfo(true)
+KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : DebugBuffer(0), HasInfo(true), HasDebug(false)
 {
     uint32_t size = 0;
     {

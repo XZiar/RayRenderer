@@ -19,6 +19,7 @@
 #include "MiniLogger/MiniLogger.h"
 #include "ImageUtil/ImageCore.h"
 #include "ImageUtil/TexFormat.h"
+#include "SystemCommon/PromiseTask.h"
 
 #include "common/CommonRely.hpp"
 #include "common/ContainerEx.hpp"
@@ -26,7 +27,6 @@
 #include "common/Delegate.hpp"
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.hpp"
 #include "gsl/gsl_assert"
 
 #include <cstdio>

@@ -3,7 +3,6 @@
 #include "AsyncAgent.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
-#include "common/PromiseTaskSTD.hpp"
 #include "common/IntToString.hpp"
 #include <atomic>
 #define BOOST_CONTEXT_STATIC_LINK 1
@@ -31,14 +30,13 @@ protected:
 };
 
 template<typename T>
-class AsyncTaskResult : public PromiseResultSTD<T>, public AsyncTaskTime
+class AsyncTaskResult : public ::common::detail::BasicResult_<T>, public AsyncTaskTime
 {
     friend class ::common::asyexe::AsyncManager;
     friend class ::common::asyexe::AsyncAgent;
 public:
-    AsyncTaskResult(std::promise<T>& pms) : PromiseResultSTD<T>(pms) { }
-    virtual ~AsyncTaskResult() override { }
-    virtual uint64_t ElapseNs() override { return ElapseTime; }
+    ~AsyncTaskResult() override { }
+    uint64_t ElapseNs() override { return ElapseTime; }
 };
 
 enum class AsyncTaskStatus : uint8_t
@@ -54,7 +52,7 @@ struct ASYEXEAPI AsyncTaskNodeBase : public common::container::IntrusiveDoubleLi
 private:
     boost::context::continuation Context;
     std::u16string Name;
-    PmsCore Promise = nullptr; // current waiting promise
+    ::common::detail::PmsCore Promise = nullptr; // current waiting promise
     virtual void operator()(const AsyncAgent& agent) = 0;
     virtual void OnException(std::exception_ptr e) = 0;
 protected:
@@ -77,11 +75,10 @@ struct AsyncTaskNode : public AsyncTaskNodeBase
     friend class ::common::asyexe::AsyncManager;
 private:
     std::function<RetType(const AsyncAgent&)> Func;
-    std::promise<RetType> InnerPms;
-    std::shared_ptr<AsyncTaskResult<RetType>> OutterPms;
+    BasicPromise<RetType, AsyncTaskResult<RetType>> InnerPms;
     template<typename F>
     AsyncTaskNode(const std::u16string name, uint32_t stackSize, F&& func) : AsyncTaskNodeBase(name, stackSize),
-        Func(std::forward<F>(func)), InnerPms(), OutterPms(std::make_shared<AsyncTaskResult<RetType>>(InnerPms))
+        Func(std::forward<F>(func)), InnerPms()
     { }
     virtual void operator()(const AsyncAgent& agent) override
     {
@@ -91,14 +88,14 @@ private:
             if constexpr (std::is_same_v<RetType, void>)
             {
                 Func(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, *OutterPms);
-                InnerPms.set_value();
+                FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
+                InnerPms.SetData();
             }
             else
             {
                 auto ret = Func(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, *OutterPms);
-                InnerPms.set_value(std::move(ret));
+                FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
+                InnerPms.SetData(std::move(ret));
             }
         }
         catch (boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
@@ -112,8 +109,8 @@ private:
     }
     virtual void OnException(std::exception_ptr e) override 
     { 
-        FinishTask(detail::AsyncTaskStatus::Error, *OutterPms);
-        InnerPms.set_exception(e);
+        FinishTask(detail::AsyncTaskStatus::Error, *InnerPms.GetRawPromise());
+        InnerPms.SetException(e);
     }
 public:
     virtual ~AsyncTaskNode() override {}
@@ -171,7 +168,7 @@ public:
         auto node = new detail::AsyncTaskNode<Ret>(taskname, stackSize, std::forward<Func>(task));
         AddNode(node);
         Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), tuid, node->Name);
-        return node->OutterPms;
+        return node->InnerPms.GetPromiseResult();
     }
 };
 

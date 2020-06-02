@@ -1,7 +1,6 @@
 #include "TestRely.h"
 #include "AsyncExecutor/AsyncAgent.h"
 #include "AsyncExecutor/AsyncManager.h"
-#include "AsyncExecutor/AsyncProxy.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
@@ -72,7 +71,10 @@ static void AsyncTest()
                     agent.Sleep(3000);
                     //return 1;
                 });
-            AsyncProxy::OnComplete(pms, [&]() { printf("Recieved one [%d]\n", 1); });
+            pms->OnComplete([]() 
+                { 
+                    printf("Recieved one [%d]\n", 1);
+                });
         }
         else if (key == 'q')
         {

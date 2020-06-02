@@ -41,7 +41,7 @@ void oclPromiseCore::Flush()
     if (Queue)
         clFlush(Queue->CmdQue);
 }
-[[nodiscard]] common::PromiseState oclPromiseCore::State()
+[[nodiscard]] common::PromiseState oclPromiseCore::QueryState() noexcept
 {
     using common::PromiseState;
     cl_int status;

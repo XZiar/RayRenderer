@@ -1,6 +1,7 @@
 #include "oglPch.h"
 #include "oglWorker.h"
 #include "oglUtil.h"
+#include <future>
 
 
 namespace oglu

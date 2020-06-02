@@ -42,6 +42,9 @@
     <ClCompile Include="MiscIntrins.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="PromiseTask.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -72,6 +75,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MiscIntrins.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PromiseTask.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PromiseTaskSTD.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

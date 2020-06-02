@@ -100,9 +100,9 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
 
 
 
-static gcroot<Drawable^> __cdecl ConvDrawable(std::shared_ptr<rayr::Model>& theModel)
+static gcroot<Drawable^> __cdecl ConvDrawable(std::shared_ptr<rayr::Model> theModel)
 {
-    return gcnew Drawable(theModel);
+    return gcnew Drawable(std::move(theModel));
 }
 
 Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
@@ -110,9 +110,9 @@ Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
     return NewDoAsync<&rayr::RenderCore::LoadModelAsync2, ConvDrawable>(*Core, ToU16Str(fname));
 }
 
-static gcroot<RenderPass^> ConvRenderPass(std::shared_ptr<rayr::DefaultRenderPass>& pass)
+static gcroot<RenderPass^> ConvRenderPass(std::shared_ptr<rayr::DefaultRenderPass> pass)
 {
-    return gcnew RenderPass(pass);
+    return gcnew RenderPass(std::move(pass));
 }
 Task<RenderPass^>^ RenderCore::LoadShaderAsync(String^ fname, String^ shaderName)
 {

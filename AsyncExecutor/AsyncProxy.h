@@ -3,6 +3,7 @@
 #include "AsyncExecutorRely.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
+#include "common/PromiseTask.hpp"
 #include <functional>
 #include <optional>
 
@@ -11,6 +12,7 @@ namespace common
 {
 namespace asyexe
 {
+using PmsCore = std::shared_ptr<::common::detail::PromiseResultCore>;
 
 namespace detail
 {

@@ -108,6 +108,15 @@
 
 
 
+/* empty base fix */
+
+#if COMPILER_MSVC && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
+#   define COMMON_EMPTY_BASES __declspec(empty_bases)
+#else
+#   define COMMON_EMPTY_BASES 
+#endif
+
+
 /* vectorcall fix */
 
 #if (COMPILER_MSVC /*|| COMPILER_CLANG*/) && !defined(_MANAGED) && !defined(_M_CEE)

@@ -1,7 +1,6 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
-#include "common/PromiseTaskSTD.hpp"
 #include <chrono>
 
 namespace common::asyexe
@@ -15,10 +14,12 @@ class AsyncSleeper : public ::common::detail::PromiseResultCore
     friend class common::asyexe::AsyncAgent;
 protected:
     std::chrono::high_resolution_clock::time_point Target;
-    PromiseState virtual State() override
+    PromiseState virtual GetState() noexcept override
     {
         return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
     }
+    void WaitPms() noexcept override {}
+    void ExecuteCallback() override {}
 public:
     AsyncSleeper(const uint32_t sleepTimeMs)
     {
@@ -35,11 +36,11 @@ const AsyncAgent*& AsyncAgent::GetRawAsyncAgent()
     return agent;
 }
 
-void AsyncAgent::AddPms(const PmsCore& pmscore) const
+void AsyncAgent::AddPms(::common::detail::PmsCore pmscore) const
 {
     pmscore->Prepare();
 
-    Manager.Current->Promise = pmscore;
+    Manager.Current->Promise = std::move(pmscore);
     Manager.Resume(detail::AsyncTaskStatus::Wait);
     Manager.Current->Promise = nullptr; //don't hold pms
 }

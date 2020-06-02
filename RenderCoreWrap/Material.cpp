@@ -46,7 +46,7 @@ TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailMan
         description = ToStr(strBuffer);
         if (thumbman)
         {
-            const auto timg = thumbman->GetThumbnail(holder)->Wait();
+            const auto timg = thumbman->GetThumbnail(holder)->Get();
             if (timg.has_value())
                 thumbnail = ThumbnailContainer::GetThumbnail(timg.value(), holder);
         }

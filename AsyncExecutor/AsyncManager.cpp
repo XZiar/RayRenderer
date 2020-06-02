@@ -73,7 +73,7 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
             break;
         case detail::AsyncTaskStatus::Wait:
         {
-            if (Current->Promise->GetState() < PromiseState::Executed) // not ready for execution
+            if (Current->Promise->State() < PromiseState::Executed) // not ready for execution
                 break;
             Current->Status = detail::AsyncTaskStatus::Ready;
         }

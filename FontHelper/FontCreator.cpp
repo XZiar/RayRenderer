@@ -167,7 +167,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         size_t localsize[] = { fontsizelim / 4 }, worksize[] = { fontsizelim / 4 * count };
 
         auto pms = kerSdfGray4->Call<1>(infoBuf, inputBuf, outputBuf)(clQue, worksize, localsize);
-        pms->Wait();
+        pms->WaitFinish();
         timer.Stop();
         fntLog().verbose(u"OpenCl [sdfGray4] cost {}us ({}us by OCL)\n", timer.ElapseUs(), pms->ElapseNs() / 1000);
         outputBuf->Flush(clQue);
@@ -204,7 +204,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
         timer.Start();
         size_t localsize[] = { fontsizelim }, worksize[] = { fontsizelim * count };
 
-        kerSdfGray->Call<1>(infoBuf, inputBuf, middleBuf)(clQue, worksize, localsize)->Wait();
+        kerSdfGray->Call<1>(infoBuf, inputBuf, middleBuf)(clQue, worksize, localsize)->WaitFinish();
         timer.Stop();
         fntLog().verbose(u"OpenCl cost {} us\n", timer.ElapseUs());
         if (false)
@@ -212,7 +212,7 @@ Image FontCreator::clgraysdfs(char32_t ch, uint32_t count) const
             fntLog().verbose(u"clDownSampler start at {:%H:%M:%S}\n", SimpleTimer::getCurLocalTime());
             timer.Start();
             localsize[0] /= 4, worksize[0] /= 4;
-            kerDownSamp->Call<1>(infoBuf, middleBuf, outputBuf)(clQue, worksize, localsize)->Wait();
+            kerDownSamp->Call<1>(infoBuf, middleBuf, outputBuf)(clQue, worksize, localsize)->WaitFinish();
             timer.Stop();
             fntLog().verbose(u"OpenCl[clDownSampler] cost {} us\n", timer.ElapseUs());
             outputBuf->Flush(clQue);

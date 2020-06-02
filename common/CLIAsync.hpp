@@ -6,7 +6,7 @@
 
 #include "CLICommonRely.hpp"
 #include "CLIException.hpp"
-#include "AsyncExecutor/AsyncProxy.h"
+#include "SystemCommon/PromiseTask.h"
 #include <functional>
 
 #include <vcclr.h>
@@ -46,9 +46,9 @@ inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>
 template<auto Convertor, typename NativeT, typename ManagedT, typename Arg>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, const common::PromiseResult<NativeT>& pms, gcroot<Arg> cookie)
 {
-    common::asyexe::AsyncProxy::OnComplete(pms, [=](NativeT obj)
+    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
-            auto obj2 = Convertor(obj, cookie);
+            auto obj2 = Convertor(pms_->Get(), cookie);
             SetTcsResult(tcs, obj2);
         });
 }
@@ -56,9 +56,9 @@ inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, const 
 template<auto Convertor, typename NativeT, typename ManagedT>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, const common::PromiseResult<NativeT>& pms)
 {
-    common::asyexe::AsyncProxy::OnComplete(pms, [=](NativeT obj)
+    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
-            auto obj2 = Convertor(obj);
+            auto obj2 = Convertor(pms_->Get());
             SetTcsResult(tcs, obj2);
         });
 }
@@ -78,8 +78,8 @@ inline auto NewDoAsync(C& self, Args... args)
     static_assert(std::is_invocable_v<decltype(Caller), C, Args...>, "invalid caller");
     using TaskPtr = std::invoke_result_t<decltype(Caller), C, Args...>;
     using NativeT = typename common::PromiseChecker<TaskPtr>::TaskRet;
-    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&>, "convertor should accept a reference of ResultType");
-    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&>;
+    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&&>, "convertor should accept a reference of ResultType");
+    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&&>;
     using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
 
     gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();
@@ -91,8 +91,8 @@ template<auto Convertor, typename Pms>
 inline auto ReturnTask(Pms&& pms)
 {
     using NativeT = typename common::PromiseChecker<Pms>::TaskRet;
-    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&>, "convertor should accept a reference of ResultType");
-    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&>;
+    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&&>, "convertor should accept a reference of ResultType");
+    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&&>;
     using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
 
     gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();
@@ -104,8 +104,8 @@ template<auto Convertor, typename Pms, typename Arg>
 inline auto ReturnTask(Pms&& pms, Arg cookie)
 {
     using NativeT = typename common::PromiseChecker<Pms>::TaskRet;
-    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&, gcroot<Arg>>, "convertor should accept a reference of ResultType");
-    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&, gcroot<Arg>>;
+    static_assert(std::is_invocable_v<decltype(Convertor), NativeT&&, gcroot<Arg>>, "convertor should accept a reference of ResultType");
+    using ManagedT2 = std::invoke_result_t<decltype(Convertor), NativeT&&, gcroot<Arg>>;
     using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
 
     gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();

@@ -94,7 +94,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         {
             texLog().warning(u"OpenCL Kernel is disabled");
         }
-    })->Wait();
+    })->Get();
 }
 
 TexResizer::~TexResizer()
@@ -108,7 +108,7 @@ TexResizer::~TexResizer()
         ScreenBox.reset();
         NormalVAO.reset();
         FlipYVAO.reset();
-    })->Wait();
+    })->Get();
 }
 
 struct ImageInfo
@@ -136,7 +136,7 @@ static void FilterFormat(const TextureFormat format)
     if (TexFormatUtil::IsCompressType(format))
         COMMON_THROW(OGLException, OGLException::GLComponent::Tex, u"not support to resize to a compressed format");
 }
-static string_view GetSubroutine(const TextureFormat input, const TextureFormat output)
+static string_view GetSubroutine(const TextureFormat, const TextureFormat output)
 {
     //if ((output & TextureFormat::MASK_CHANNEL) == (input & TextureFormat::MASK_CHANNEL))
     //    return "PlainCopy"sv;

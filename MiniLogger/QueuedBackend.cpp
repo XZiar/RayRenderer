@@ -1,6 +1,5 @@
 #include "MiniLoggerRely.h"
 #include "QueuedBackend.h"
-#include "common/PromiseTaskSTD.hpp"
 #include <thread>
 
 namespace common::mlog
@@ -30,8 +29,8 @@ loop::LoopBase::LoopAction LoggerQBackend::OnLoop()
     }
     case 1:
     {
-        const auto pms = reinterpret_cast<std::promise<void>*>(ptr - 1);
-        pms->set_value();
+        const auto pms = reinterpret_cast<common::BasicPromise<void>*>(ptr - 1);
+        pms->SetData();
         return LoopAction::Continue();
     }
     default:
@@ -75,12 +74,12 @@ PromiseResult<void> LoggerQBackend::Synchronize()
 {
     if (!IsRunning())
         return common::FinishedResult<void>::Get();
-    const auto pms = new std::promise<void>();
+    const auto pms = new common::BasicPromise<void>();
     const auto ptr = reinterpret_cast<uintptr_t>(pms);
     Ensures(ptr % 4 == 0);
     MsgQueue.push(ptr + 1);
     Wakeup();
-    return common::PromiseResultSTD<void, false>::Get(*pms);
+    return pms->GetPromiseResult();
 }
 
 

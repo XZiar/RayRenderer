@@ -17,10 +17,11 @@ class oclImage_;
 class oclKernel_;
 
 
-class OCLUAPI DependEvents : public common::NonCopyable
+class OCLUAPI COMMON_EMPTY_BASES DependEvents : public common::NonCopyable
 {
 private:
     std::vector<cl_event> Events;
+    uint32_t DirectCount;
     DependEvents(std::vector<cl_event>&& event);
 public:
     ~DependEvents();
@@ -74,7 +75,7 @@ protected:
     oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que);
     ~oclPromiseCore();
     void Flush();
-    [[nodiscard]] common::PromiseState State();
+    [[nodiscard]] common::PromiseState QueryState() noexcept;
     void Wait();
     [[nodiscard]] uint64_t ElapseNs();
     [[nodiscard]] uint64_t ChainedElapseNs();
@@ -90,39 +91,44 @@ public:
 
 
 template<typename T>
-class oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore
+class COMMON_EMPTY_BASES oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore, protected common::detail::ResultExHolder<T>
 {
 private:
-    using RDataType = std::conditional_t<std::is_same_v<T, void>, uint32_t, T>;
-    std::variant<std::monostate, std::exception_ptr, RDataType> Result;
-    virtual void PreparePms() override
+    using RH = common::detail::ResultExHolder<T>;
+    void PreparePms() override
     {
-        Flush();
-        if (Result.index() == 1)
-            std::rethrow_exception(std::get<1>(Result));
+        if (!this->IsException())
+            Flush();
     }
-    [[nodiscard]] common::PromiseState virtual State() override
+    [[nodiscard]] common::PromiseState GetState() noexcept override
     {
-        if (Result.index() == 1)
+        if (this->IsException())
             return common::PromiseState::Error;
-        return oclPromiseCore::State();
+        return oclPromiseCore::QueryState();
     }
-    [[nodiscard]] T WaitPms() override
+    void WaitPms() noexcept override
     {
-        if (Result.index() == 1)
-            std::rethrow_exception(std::get<1>(Result));
         oclPromiseCore::Wait();
-        if constexpr(!std::is_same_v<T, void>)
-            return std::move(std::get<2>(Result));
     }
-
+    [[nodiscard]] T GetResult() override
+    {
+        if constexpr (!std::is_same_v<T, void>)
+        {
+            this->CheckResultExtracted();
+            return this->ExtraResult();
+        }
+    }
 public:
-    oclPromise(std::exception_ptr ex)
-        : oclPromiseCore(std::monostate{}, nullptr, {}), Result(ex) { }
+    oclPromise(common::detail::ExceptionResult<std::exception_ptr> ex)
+        : oclPromiseCore(std::monostate{}, nullptr, {}), RH(ex) { }
     oclPromise(PrevType&& prev, const cl_event e, const oclCmdQue& que)
         : oclPromiseCore(std::move(prev), e, que) { }
-    oclPromise(PrevType&& prev, const cl_event e, const oclCmdQue& que, RDataType&& data)
-        : oclPromiseCore(std::move(prev), e, que), Result(std::move(data)) { }
+    template<typename U>
+    oclPromise(PrevType&& prev, const cl_event e, const oclCmdQue& que, U&& data)
+        : oclPromiseCore(std::move(prev), e, que)
+    {
+        this->Result = std::forward<U>(data);
+    }
 
     ~oclPromise() override { }
     [[nodiscard]] uint64_t ElapseNs() override
@@ -137,7 +143,7 @@ public:
 
     [[nodiscard]] static std::shared_ptr<oclPromise> CreateError(std::exception_ptr ex)
     {
-        return std::make_shared<oclPromise>(std::monostate{}, nullptr, {});
+        return std::make_shared<oclPromise>(common::detail::ExceptionResult<std::exception_ptr>(ex));
     }
     [[nodiscard]] static std::shared_ptr<oclPromise> Create(const cl_event e, oclCmdQue que)
     {

@@ -59,7 +59,7 @@ struct Lutter
         LutGenerator->Draw()
             .DrawInstance(VAOScreen, 64);
 
-        oglUtil::ForceSyncGL()->Wait();
+        oglUtil::ForceSyncGL()->Get();
         const auto lutdata = LutTex->GetData(TextureFormat::RGBA8);
     }
 };
@@ -109,7 +109,7 @@ static void FGTest()
             lutGenerator->SetVal("step", 1.0f / 64);
             lutGenerator->SetVal("exposure", 1.0f);
             lutGenerator->Run(64, 64, 64);
-            oglUtil::ForceSyncGL()->Wait();
+            oglUtil::ForceSyncGL()->Get();
             const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
             Image img(ImageDataType::RGBA);
             img.SetSize(64, 64 * 64);

@@ -12,7 +12,6 @@
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexUtilWorker.h"
 #include "TextureUtil/TexMipmap.h"
-#include "common/PromiseTaskSTD.hpp"
 #include <thread>
 #include <future>
 
@@ -286,7 +285,7 @@ void RenderCore::LoadShaderAsync(const u16string & fname, const u16string & shdN
         common::SetThreadName(u"AsyncLoader for Shader");
         try
         {
-            auto shader = pms->Wait();
+            auto shader = pms->Get();
             onFinish(shader);
         }
         catch (const BaseException& be)

@@ -74,7 +74,7 @@ TextureLoader::!TextureLoader()
 //{
 //    return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
 //}
-static gcroot<TexHolder^> ConvTexHolder(rayr::FakeTex& tex)
+static gcroot<TexHolder^> ConvTexHolder(const rayr::FakeTex& tex)
 {
     return TexHolder::CreateTexHolder(tex);
 }
@@ -163,13 +163,13 @@ BitmapSource^ ThumbnailMan::GetThumbnail(const xziar::img::ImageView& img)
 
 BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
 {
-    auto img = ThumbMan->lock()->GetThumbnail(holder)->Wait();
+    auto img = ThumbMan->lock()->GetThumbnail(holder)->Get();
     if (!img.has_value())
         return nullptr;
     return GetThumbnail(img.value());
 }
 
-static gcroot<BitmapSource^> ConvThumbnail(std::optional<xziar::img::ImageView>& img, gcroot<ThumbnailMan^> self)
+static gcroot<BitmapSource^> ConvThumbnail(std::optional<xziar::img::ImageView>&& img, gcroot<ThumbnailMan^> self)
 {
     if (img.has_value())
         return self->GetThumbnail(img.value());

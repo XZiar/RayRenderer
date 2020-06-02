@@ -19,6 +19,7 @@
 
 
 #include "ImageUtil/ImageCore.h"
+#include "SystemCommon/PromiseTask.h"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/ContainerEx.hpp"
@@ -27,7 +28,6 @@
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.hpp"
 #include "common/CommonRely.hpp"
 
 #if COMPILER_CLANG

@@ -10,7 +10,6 @@
 #include "common/ContainerEx.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/Linq2.hpp"
-#include "common/PromiseTaskSTD.hpp"
 
 
 namespace oglu::texutil

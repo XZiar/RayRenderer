@@ -1,6 +1,5 @@
 #include "RenderCorePch.h"
 #include "ThumbnailManager.h"
-#include "common/PromiseTaskSTD.hpp"
 #include "OpenGLUtil/oglWorker.h"
 #include "TextureUtil/TexResizer.h"
 

@@ -4,7 +4,7 @@
 #include "SystemCommon/ThreadEx.h"
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
-#include "common/PromiseTaskSTD.hpp"
+#include <future>
 
 
 namespace xziar::gui::detail

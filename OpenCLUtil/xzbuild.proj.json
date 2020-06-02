@@ -2,7 +2,7 @@
     "name": "OpenCLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenCL Utility",
-    "dependency": ["fmt", "MiniLogger", "ImageUtil", "OpenCL", "StringCharset", "Nailang"],
+    "dependency": ["fmt", "MiniLogger", "SystemCommon", "ImageUtil", "OpenCL", "StringCharset", "Nailang"],
     "library": 
     {
         "static": [],

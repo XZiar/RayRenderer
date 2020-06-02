@@ -2,7 +2,7 @@
     "name": "FontHelper",
     "type": "dynamic",
     "description": "Font Utility",
-    "dependency": ["fmt", "OpenGLUtil", "MiniLogger", "freetype2", "ImageUtil", "OpenCLUtil", "StringCharset"],
+    "dependency": ["fmt", "OpenGLUtil", "MiniLogger", "SystemCommon", "freetype2", "ImageUtil", "OpenCLUtil", "StringCharset"],
     "library": 
     {
         "static": [],

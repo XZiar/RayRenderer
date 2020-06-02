@@ -546,7 +546,7 @@ void _FreeGLUTView::Invoke(const std::function<void(const FreeGLUTView&)>& task)
     FreeGLUTManager::Executor().AddTask([self = GetSelf(), task = task](const AsyncAgent&)
     {
         task(self);
-    })->Wait();
+    })->WaitFinish();
     return;
 }
 

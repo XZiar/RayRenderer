@@ -274,6 +274,9 @@
     <ProjectReference Include="..\RenderCore\RenderCore.vcxproj">
       <Project>{2c2fbe4d-b211-473e-9a93-3393c5e3bc4f}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
+      <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />

@@ -178,6 +178,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PromiseTask.cpp" />
     <ClCompile Include="RawFileEx.cpp" />
     <ClCompile Include="SystemCommonRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -194,6 +195,8 @@
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="LoopBase.h" />
+    <ClInclude Include="PromiseTask.h" />
+    <ClInclude Include="PromiseTaskSTD.h" />
     <ClInclude Include="RawFileEx.h" />
     <ClInclude Include="SystemCommonPch.h" />
     <ClInclude Include="SystemCommonRely.h" />

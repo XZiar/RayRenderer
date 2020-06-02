@@ -13,7 +13,7 @@ class ASYEXEAPI AsyncAgent
     friend class AsyncManager;
 private:
     AsyncManager &Manager;
-    void AddPms(const PmsCore& pmscore) const;
+    void AddPms(::common::detail::PmsCore pmscore) const;
     AsyncAgent(AsyncManager& manager) : Manager(manager) {}
     static const AsyncAgent*& GetRawAsyncAgent();
 public:
@@ -22,16 +22,14 @@ public:
     template<typename T>
     T Await(const PromiseResult<T>& pms) const
     {
-        auto pmscore = std::static_pointer_cast<common::detail::PromiseResultCore>(pms);
-        AddPms(pmscore);
-        return pms->Wait();
+        AddPms(std::static_pointer_cast<common::detail::PromiseResultCore>(pms));
+        return pms->Get();
     }
     template<typename T>
     T Await(const AsyncResult<T>& pms) const
     {
-        auto pmscore = std::static_pointer_cast<common::detail::PromiseResultCore>(pms);
-        AddPms(pmscore);
-        return pms->Wait();
+        AddPms(std::static_pointer_cast<common::detail::PromiseResultCore>(pms));
+        return pms->Get();
     }
     static const AsyncAgent* GetAsyncAgent();
     ///<summary>Safe wait, in case you are waiting for a task posted into the same thread, which may cause dead-lock</summary>  
@@ -44,7 +42,7 @@ public:
         if (agent)
             return agent->Await(pms);
         else
-            return pms->Wait();
+            return pms->Get();
     }
 };
 

@@ -41,8 +41,16 @@ struct AtomicBitfield : protected std::atomic<std::underlying_type_t<T>>
 public:
     constexpr AtomicBitfield() : std::atomic<std::underlying_type_t<T>>(0) {}
     constexpr AtomicBitfield(const T field) : std::atomic<std::underlying_type_t<T>>((DT)field) {}
-    void Add(const T field) { *this |= (DT)field; }
-    bool Extract(const T field)
+    bool Add(const T field) noexcept
+    { 
+        const auto oldVal = this->fetch_or(static_cast<DT>(field));
+        return HAS_FIELD(static_cast<T>(oldVal), field);
+    }
+    [[nodiscard]] bool Check(const T field) const noexcept
+    {
+        return HAS_FIELD(static_cast<T>(this->load()), field);
+    }
+    bool Extract(const T field) noexcept
     {
         const auto val = (DT)field;
         const auto prev = this->fetch_and(~val);

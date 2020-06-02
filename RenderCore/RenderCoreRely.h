@@ -22,13 +22,13 @@
 #include "OpenCLUtil/oclCmdQue.h"
 #include "ImageUtil/ImageCore.h"
 #include "ResourcePackager/SerializeUtil.h"
+#include "SystemCommon/PromiseTask.h"
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/Controllable.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.hpp"
 #include <cstdint>
 #include <cstring>
 #include <string>

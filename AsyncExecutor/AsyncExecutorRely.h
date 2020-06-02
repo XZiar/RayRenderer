@@ -17,9 +17,9 @@
 #endif
 
 
+#include "SystemCommon/PromiseTask.h"
 #include "common/CommonRely.hpp"
 #include "common/Exceptions.hpp"
-#include "common/PromiseTask.hpp"
 #include "common/IntrusiveDoubleLinkList.hpp"
 #include "common/TimeUtil.hpp"
 #include <cstdint>
@@ -36,7 +36,7 @@ namespace asyexe
 class AsyncAgent;
 class AsyncManager;
 
-using PmsCore = std::shared_ptr<::common::detail::PromiseResultCore>;
+//using PmsCore = std::shared_ptr<::common::detail::PromiseResultCore>;
 
 class AsyncTaskException : public BaseException
 {

@@ -53,7 +53,7 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
                 texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
             }
         }
-    })->Wait();
+    })->Get();
 }
 
 TexMipmap::~TexMipmap()
@@ -95,10 +95,10 @@ void TexMipmap::Test()
     auto pmsInfo = infoBuf->Write(CmdQue, info);
     const auto pms = DownsampleSrc->Call<2>(inBuf, infoBuf, (uint8_t)0, midBuf, outBuf)
         ({ pmsIn, pmsInfo }, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
-    pms->Wait();
+    pms->WaitFinish();
     const auto time = pms->ElapseNs();
     Image dst(ImageDataType::RGBA); dst.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->ReadSpan(CmdQue, dst.AsSpan())->Wait();
+    outBuf->ReadSpan(CmdQue, dst.AsSpan())->Get();
     WriteImage(dst, common::fs::temp_directory_path() / u"dst.png");
 
 
@@ -115,10 +115,10 @@ void TexMipmap::Test()
 
     const auto pms3 = DownsampleRaw->Call<2>(inBuf, infoBuf, (uint8_t)0, outBuf)
         (pms, CmdQue, { src.GetWidth() / 4,src.GetHeight() / 4 }, { GroupX,GroupY });
-    pms3->Wait();
+    pms3->WaitFinish();
     const auto time3 = pms3->ElapseNs();
     Image dst3(ImageDataType::RGBA); dst3.SetSize(src.GetWidth() / 2, src.GetHeight() / 2);
-    outBuf->ReadSpan(CmdQue, dst3.AsSpan())->Wait();
+    outBuf->ReadSpan(CmdQue, dst3.AsSpan())->Get();
     WriteImage(dst3, common::fs::temp_directory_path() / u"dst_.png");
     //getchar();
 }
@@ -127,7 +127,7 @@ void TexMipmap::Test2()
     //Test();
     Image src = xziar::img::ReadImage(common::fs::temp_directory_path() / u"src.png");
     const auto pms = GenerateMipmaps(src, false);
-    const auto mipmaps = pms->Wait();
+    const auto mipmaps = pms->Get();
     uint32_t i = 1;
     xziar::img::WriteImage(src, common::fs::temp_directory_path() / ("mip_0.jpg"));
     for (const auto& mm : mipmaps)

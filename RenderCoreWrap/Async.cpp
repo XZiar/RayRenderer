@@ -14,7 +14,7 @@ AsyncWaiter::AsyncTaskBase::!AsyncTaskBase()
 bool AsyncWaiter::AsyncTaskBase::IsComplete()
 {
     WRAPPER_NATIVE_PTR(PmsCore, ptr);
-    return static_cast<uint8_t>((*ptr)->GetState()) >= CompleteState;
+    return static_cast<uint8_t>((*ptr)->State()) >= CompleteState;
 }
 
 static void PerformAction(Object^ action)

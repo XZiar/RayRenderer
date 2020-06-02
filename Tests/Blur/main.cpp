@@ -103,7 +103,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     const auto coeff = ComputeCoeff(sigma);
     auto rawBuf = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize());
     pms = rawBuf->WriteSpan(cmdque, image.AsSpan<uint32_t>());
-    pms->Wait();
+    pms->WaitFinish();
     const auto time1 = pms->ElapseNs() / 1e6f;
     auto midBuf1 = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
     auto midBuf2 = oclBuffer_::Create(ctx, MemFlag::ReadWrite, image.GetSize() *sizeof(float));
@@ -112,13 +112,13 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
     const auto w4 = width - width % 4, h4 = height - height % 4;
     auto pmsX = blurX->Call<1>(rawBuf, midBuf1, midBuf2, w4, h4, width, coeff)(cmdque, { h4 });
     auto pmsY = blurY->Call<1>(midBuf2, midBuf1, rawBuf, w4, h4, width, coeff)(pmsX, cmdque, { w4 });
-    pmsY->Wait();
+    pmsY->WaitFinish();
     const auto time2 = pmsX->ElapseNs() / 1e6f;
     const auto time3 = pmsY->ElapseNs() / 1e6f;
     xziar::img::Image img2(xziar::img::ImageDataType::RGBA);
     img2.SetSize(image.GetWidth(), image.GetHeight());
     pms = rawBuf->ReadSpan(cmdque, img2.AsSpan());
-    pms->Wait();
+    pms->WaitFinish();
     const auto time4 = pms->ElapseNs() / 1e6f;
     log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
     
@@ -135,7 +135,7 @@ Image ProcessImg(const string kernel, const Image& image, float sigma) try
         pcY->QueryTime(oclu::oclPromiseCore::TimeType::Start),
         pcY->QueryTime(oclu::oclPromiseCore::TimeType::End));
 
-    pmsX->Wait().VisitData(PrintDebugMsg);
+    pmsX->Get().VisitData(PrintDebugMsg);
 
     return img2;
 }
