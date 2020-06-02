@@ -55,7 +55,7 @@ class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseResultCore : public NonCopyable
 protected:
     virtual PromiseState GetState() noexcept;
     virtual void PreparePms();
-    virtual void EnsureActive(PmsCore&& pms);
+    virtual void MakeActive(PmsCore&& pms);
     virtual void WaitPms() noexcept = 0;
     virtual void ExecuteCallback() = 0;
 public:
@@ -63,8 +63,8 @@ public:
     void Prepare();
     PromiseState State();
     void WaitFinish();
-    virtual uint64_t ElapseNs() { return 0; };
-    virtual uint64_t ChainedElapseNs() { return ElapseNs(); };
+    virtual uint64_t ElapseNs() noexcept { return 0; };
+    virtual uint64_t ChainedElapseNs() noexcept { return ElapseNs(); };
 protected:
     RWSpinLock PromiseLock;
     AtomicBitfield<PromiseFlags> Flags = PromiseFlags::None;
@@ -136,11 +136,12 @@ public:
             if (!Flags.Check(PromiseFlags::CallbackExecuted))
             {
                 auto token = Callback += callback;
-                EnsureActive(GetSelf());
+                if (!Flags.Add(PromiseFlags::Attached))
+                    MakeActive(GetSelf());
                 return token;
             }
         }
-        if constexpr (std::is_invocable_v<U, const PromiseResult_<T>&>)
+        if constexpr (std::is_invocable_v<U, const PromiseResult<T>&>)
         {
             callback(GetSelf());
         }
@@ -148,6 +149,8 @@ public:
         {
             callback();
         }
+        else
+            static_assert(!AlwaysTrue<U>, "callback type unsupported");
         return {};
     }
 };
@@ -166,19 +169,23 @@ private:
 protected:
     PromiseState GetState() noexcept override
     {
-        const auto state = Stage1->GetState();
+        const auto state = Stage1->State();
         if (state == PromiseState::Success)
             return PromiseState::Executed;
         return state;
     }
     void WaitPms() noexcept override 
     { 
-        Stage1->WaitPms();
+        Stage1->WaitFinish();
     }
     RetType GetResult() override
     {
-        return Stage2(Stage1->GetResult());
+        return Stage2(Stage1->Get());
     }
+    uint64_t ElapseNs() noexcept override 
+    { 
+        return Stage1->ElapseNs();
+    };
 public:
     StagedResult_(PromiseResult<MidType>&& stage1, PostExecute&& stage2)
         : Stage1(std::move(stage1)), Stage2(std::move(stage2))
@@ -305,9 +312,9 @@ private:
             return this->ExtraResult();
         }
     }
-    void EnsureActive(detail::PmsCore&&) override
+    void MakeActive(PmsCore&&) override
     { }
-    uint64_t ElapseNs() override { return this->Timer.ElapseNs(); };
+    uint64_t ElapseNs() noexcept override { return this->Timer.ElapseNs(); };
     template<typename U>
     forceinline void SetResult(U&& data)
     {

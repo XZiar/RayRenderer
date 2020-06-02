@@ -94,10 +94,9 @@ PromiseState PromiseResultCore::GetState() noexcept
 void PromiseResultCore::PreparePms()
 { }
 
-void PromiseResultCore::EnsureActive(PmsCore&& pms)
+void PromiseResultCore::MakeActive(PmsCore&& pms)
 {
-    if (!Flags.Add(PromiseFlags::Attached))
-        PromiseActiveProxy::Attach(std::move(pms));
+    PromiseActiveProxy::Attach(std::move(pms));
 }
 
 void PromiseResultCore::Prepare()
@@ -131,8 +130,7 @@ public:
 };
 
 BasicPromiseResult_::BasicPromiseResult_() : Ptr(new Waitable())
-{
-}
+{ }
 
 BasicPromiseResult_::~BasicPromiseResult_()
 {

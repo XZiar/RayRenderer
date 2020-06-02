@@ -22,15 +22,15 @@ class OCLUAPI COMMON_EMPTY_BASES DependEvents : public common::NonCopyable
 private:
     std::vector<cl_event> Events;
     uint32_t DirectCount;
-    DependEvents(std::vector<cl_event>&& event);
+    DependEvents(std::vector<cl_event>&& event, uint32_t direct);
 public:
     ~DependEvents();
-    std::pair<const cl_event*, cl_uint> Get() const noexcept
+    std::pair<const cl_event*, cl_uint> GetCLWait() const noexcept
     {
         if (Events.empty())
             return { nullptr, 0 };
         else
-            return { Events.data(), static_cast<cl_uint>(Events.size()) };
+            return { Events.data(), DirectCount };
     }
     static DependEvents Create(const common::PromiseStub& pmss) noexcept;
 };
@@ -57,6 +57,7 @@ private:
                 return { nullptr, 0 };
         }
     };
+    static void CL_CALLBACK EventCallback(cl_event event, cl_int event_command_exec_status, void* user_data);
 protected:
     using PrevType = std::variant<std::monostate, std::vector<std::shared_ptr<oclPromiseCore>>, std::shared_ptr<oclPromiseCore>>;
     [[nodiscard]] static PrevType TrimPms(std::vector<std::shared_ptr<oclPromiseCore>>&& pmss) noexcept
@@ -77,9 +78,11 @@ protected:
     void Flush();
     [[nodiscard]] common::PromiseState QueryState() noexcept;
     void Wait();
-    [[nodiscard]] uint64_t ElapseNs();
-    [[nodiscard]] uint64_t ChainedElapseNs();
+    bool RegisterCallback(const common::detail::PmsCore& pms);
+    [[nodiscard]] uint64_t ElapseNs() noexcept;
+    [[nodiscard]] uint64_t ChainedElapseNs() noexcept;
     [[nodiscard]] const cl_event& GetEvent() { return Event; }
+    virtual void ExecutePmsCallbacks() = 0;
 public:
     [[nodiscard]] static std::pair<std::vector<std::shared_ptr<oclPromiseCore>>, oclEvents>
         ParsePms(const common::PromiseStub& pmss) noexcept;
@@ -93,6 +96,7 @@ public:
 template<typename T>
 class COMMON_EMPTY_BASES oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore, protected common::detail::ResultExHolder<T>
 {
+    friend class oclPromiseCore;
 private:
     using RH = common::detail::ResultExHolder<T>;
     void PreparePms() override
@@ -106,6 +110,12 @@ private:
             return common::PromiseState::Error;
         return oclPromiseCore::QueryState();
     }
+    void MakeActive(common::detail::PmsCore&& pms) override
+    {
+        if (RegisterCallback(pms))
+            return;
+        common::detail::PromiseResultCore::MakeActive(std::move(pms));
+    }
     void WaitPms() noexcept override
     {
         oclPromiseCore::Wait();
@@ -117,6 +127,10 @@ private:
             this->CheckResultExtracted();
             return this->ExtraResult();
         }
+    }
+    void ExecutePmsCallbacks() override 
+    {
+        this->ExecuteCallback();
     }
 public:
     oclPromise(common::detail::ExceptionResult<std::exception_ptr> ex)
@@ -131,11 +145,11 @@ public:
     }
 
     ~oclPromise() override { }
-    [[nodiscard]] uint64_t ElapseNs() override
+    [[nodiscard]] uint64_t ElapseNs() noexcept override
     { 
         return oclPromiseCore::ElapseNs();
     }
-    [[nodiscard]] uint64_t ChainedElapseNs() override
+    [[nodiscard]] uint64_t ChainedElapseNs() noexcept override
     { 
         return oclPromiseCore::ChainedElapseNs();
     };

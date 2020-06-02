@@ -35,8 +35,9 @@ class AsyncTaskResult : public ::common::detail::BasicResult_<T>, public AsyncTa
     friend class ::common::asyexe::AsyncManager;
     friend class ::common::asyexe::AsyncAgent;
 public:
+    AsyncTaskResult() { }
     ~AsyncTaskResult() override { }
-    uint64_t ElapseNs() override { return ElapseTime; }
+    uint64_t ElapseNs() noexcept override { return ElapseTime; }
 };
 
 enum class AsyncTaskStatus : uint8_t
@@ -69,31 +70,39 @@ public:
     virtual ~AsyncTaskNodeBase();
 };
 
-template<typename RetType>
+template<typename RetType, bool AcceptAgent>
 struct AsyncTaskNode : public AsyncTaskNodeBase
 {
     friend class ::common::asyexe::AsyncManager;
 private:
-    std::function<RetType(const AsyncAgent&)> Func;
+    using FuncType = std::conditional_t<AcceptAgent, std::function<RetType(const AsyncAgent&)>, std::function<RetType()>>;
+    FuncType Func;
     BasicPromise<RetType, AsyncTaskResult<RetType>> InnerPms;
     template<typename F>
-    AsyncTaskNode(const std::u16string name, uint32_t stackSize, F&& func) : AsyncTaskNodeBase(name, stackSize),
-        Func(std::forward<F>(func)), InnerPms()
+    AsyncTaskNode(const std::u16string name, uint32_t stackSize, F&& func) : 
+        AsyncTaskNodeBase(name, stackSize), Func(std::forward<F>(func))
     { }
-    virtual void operator()(const AsyncAgent& agent) override
+    forceinline RetType InnerCall([[maybe_unused]] const AsyncAgent& agent)
+    {
+        if constexpr (AcceptAgent)
+            return Func(agent);
+        else
+            return Func();
+    }
+    virtual void operator()([[maybe_unused]]const AsyncAgent& agent) override
     {
         BeginTask();
         try
         {
             if constexpr (std::is_same_v<RetType, void>)
             {
-                Func(agent);
+                InnerCall(agent);
                 FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
                 InnerPms.SetData();
             }
             else
             {
-                auto ret = Func(agent);
+                auto ret = InnerCall(agent);
                 FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
                 InnerPms.SetData(std::move(ret));
             }
@@ -114,6 +123,20 @@ private:
     }
 public:
     virtual ~AsyncTaskNode() override {}
+};
+
+
+template<typename F, bool AcceptAgent>
+struct RetTypeGetter;
+template<typename F>
+struct RetTypeGetter<F, true>
+{
+    using Type = std::invoke_result_t<F, const AsyncAgent&>;
+};
+template<typename F>
+struct RetTypeGetter<F, false>
+{
+    using Type = std::invoke_result_t<F>;
 };
 
 }
@@ -153,10 +176,12 @@ public:
     bool RequestStop();
     common::loop::LoopExecutor& GetHost();
 
-    template<typename Func, typename Ret = std::invoke_result_t<Func, const AsyncAgent&>>
-    PromiseResult<Ret> AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)
+    template<typename Func>
+    auto AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)
     {
-        static_assert(std::is_invocable_v<Func, const AsyncAgent&>, "Unsupported Task Func Type");
+        constexpr bool AcceptAgent = std::is_invocable_v<Func, const AsyncAgent&>;
+        static_assert(AcceptAgent || std::is_invocable_v<Func>, "Unsupported Task Func Type");
+        using Ret = typename detail::RetTypeGetter<Func, AcceptAgent>::Type;
         const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
         if (taskname == u"")
             taskname = u"task" + common::str::to_u16string(tuid);
@@ -165,7 +190,7 @@ public:
             Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, taskname);
             COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Executor was terminated when adding task.");
         }
-        auto node = new detail::AsyncTaskNode<Ret>(taskname, stackSize, std::forward<Func>(task));
+        auto node = new detail::AsyncTaskNode<Ret, AcceptAgent>(taskname, stackSize, std::forward<Func>(task));
         AddNode(node);
         Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), tuid, node->Name);
         return node->InnerPms.GetPromiseResult();

@@ -12,11 +12,7 @@
     {
         "cpp":
         {
-            "sources": 
-            [
-                "*.cpp",
-                {"-": ["AsyncProxy.cpp"]}
-            ],
+            "sources": [ "*.cpp" ],
             "defines": ["ASYEXE_EXPORT"]
         }
     }

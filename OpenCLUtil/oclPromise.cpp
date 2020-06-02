@@ -8,8 +8,9 @@ namespace oclu
 using namespace std::string_view_literals;
 
 
-DependEvents::DependEvents(std::vector<cl_event>&& events) : Events(std::move(events))
+DependEvents::DependEvents(std::vector<cl_event>&& events, uint32_t direct) : Events(std::move(events)), DirectCount(direct)
 {
+    Expects(DirectCount <= Events.size());
     for (const auto evt : Events)
         clRetainEvent(evt);
 }
@@ -25,9 +26,17 @@ DependEvents DependEvents::Create(const common::PromiseStub& pmss) noexcept
         .Select([](const auto& clpms) { return clpms->GetEvent(); })
         .Where([](const auto& evt) { return evt != nullptr; })
         .ToVector();
-    return std::move(evts);
+    return { std::move(evts), gsl::narrow_cast<uint32_t>(evts.size()) };
 }
 
+
+void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
+{
+    auto& self = *reinterpret_cast<std::shared_ptr<oclPromiseCore>*>(user_data);
+    Expects(event == self->Event);
+    self->ExecutePmsCallbacks();
+    delete &self;
+}
 
 oclPromiseCore::oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que)
     : Event(e), Queue(std::move(que)), Prev(std::move(prev)) { }
@@ -70,7 +79,16 @@ void oclPromiseCore::Wait()
     if (Event)
         clWaitForEvents(1, &Event);
 }
-[[nodiscard]] uint64_t oclPromiseCore::ElapseNs()
+bool oclPromiseCore::RegisterCallback(const common::detail::PmsCore& pms)
+{
+    if (Queue->Context->Version < 11)
+        return false;
+    auto core = std::dynamic_pointer_cast<oclPromiseCore>(pms);
+    const auto ptr = new std::shared_ptr<oclPromiseCore>(std::move(core));
+    const auto ret = clSetEventCallback(Event, CL_COMPLETE, &EventCallback, ptr);
+    return ret == CL_SUCCESS;
+}
+[[nodiscard]] uint64_t oclPromiseCore::ElapseNs() noexcept
 {
     if (Event)
     {
@@ -82,7 +100,7 @@ void oclPromiseCore::Wait()
     }
     return 0;
 }
-[[nodiscard]] uint64_t oclPromiseCore::ChainedElapseNs()
+[[nodiscard]] uint64_t oclPromiseCore::ChainedElapseNs() noexcept
 {
     auto time = ElapseNs();
     switch (Prev.index())

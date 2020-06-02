@@ -44,23 +44,38 @@ inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>
 #pragma managed(push, off)
 
 template<auto Convertor, typename NativeT, typename ManagedT, typename Arg>
-inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, const common::PromiseResult<NativeT>& pms, gcroot<Arg> cookie)
+inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms, gcroot<Arg> cookie)
 {
-    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
+    const auto proxyPms = std::make_shared<common::detail::StagedResult_<gcroot<ManagedT>, NativeT>>(
+        std::move(pms),
+        [=](NativeT&& obj) { return Convertor(std::move(obj), cookie); });
+    proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
+        {
+            SetTcsResult(tcs, pms_->Get());
+        });
+    /*pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
             auto obj2 = Convertor(pms_->Get(), cookie);
             SetTcsResult(tcs, obj2);
-        });
+        });*/
 }
 
 template<auto Convertor, typename NativeT, typename ManagedT>
-inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, const common::PromiseResult<NativeT>& pms)
+inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms)
 {
-    pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
+    const auto proxyPms = std::make_shared<common::detail::StagedResult_<gcroot<ManagedT>, NativeT>>(
+        std::move(pms),
+        [](NativeT&& obj) { return Convertor(std::move(obj)); });
+    proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
+        {
+            SetTcsResult(tcs, pms_->Get());
+        });
+
+    /*pms->OnComplete([=](const common::PromiseResult<NativeT>& pms_)
         {
             auto obj2 = Convertor(pms_->Get());
             SetTcsResult(tcs, obj2);
-        });
+        });*/
 }
 
 template<auto Caller, auto Convertor, typename NativeT, typename ManagedT, typename C, typename... Args>
@@ -68,7 +83,7 @@ inline void NewDoAsyncNative(C& self, gcroot<TaskCompletionSource<ManagedT>^> tc
 {
     //common::PromiseResult<NativeT> pms = self.*Caller(std::forward<Args>(args)...);
     common::PromiseResult<NativeT> pms = std::invoke(Caller, self, std::forward<Args>(args)...);
-    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, pms);
+    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, std::move(pms));
 }
 #pragma managed(pop)
 
@@ -96,7 +111,7 @@ inline auto ReturnTask(Pms&& pms)
     using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
 
     gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();
-    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, pms);
+    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, std::move(pms));
     return tcs->Task;
 }
 
@@ -109,7 +124,7 @@ inline auto ReturnTask(Pms&& pms, Arg cookie)
     using ManagedT = decltype(std::declval<ManagedT2&>().operator->());
 
     gcroot<TaskCompletionSource<ManagedT>^> tcs = gcnew TaskCompletionSource<ManagedT>();
-    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, pms, gcroot<Arg>(cookie));
+    ReturnTaskNative<Convertor, NativeT, ManagedT>(tcs, std::move(pms), gcroot<Arg>(cookie));
     return tcs->Task;
 }
 

@@ -52,7 +52,7 @@ protected:
         while (CtxFunc->ogluClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
         { }
     }
-    uint64_t ElapseNs()
+    uint64_t ElapseNs() noexcept
     {
         if (TimeEnd == 0)
         {
@@ -90,7 +90,7 @@ public:
     template<typename U>
     oglPromise(U&& data) : Result(std::forward<U>(data)) { }
     ~oglPromise() override { }
-    uint64_t ElapseNs() override 
+    uint64_t ElapseNs() noexcept override
     { 
         return oglPromiseCore::ElapseNs();
     }
@@ -114,7 +114,7 @@ protected:
 public:
     oglPromiseVoid() { }
     ~oglPromiseVoid() override { }
-    uint64_t ElapseNs() override 
+    uint64_t ElapseNs() noexcept override
     { 
         return oglPromiseCore::ElapseNs();
     }
