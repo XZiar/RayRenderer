@@ -1,17 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <!--<Type Name="common::detail::PromiseResult_&lt;*&gt;">
-    <DisplayString>{{PromiseResult}}</DisplayString>
-    <Expand>
-      <Item Name="HasPrepared">*(bool*)(&amp;this->HasPrepared)</Item>
-      <Item Name="[State]">this->State()</Item>
-    </Expand>
-  </Type>-->
   <Type Name="common::detail::PromiseResultCore">
     <DisplayString>{{PromiseResult}}</DisplayString>
     <Expand>
-      <Item Name="HasPrepared">*(bool*)(&amp;this->HasPrepared)</Item>
-      <Item Name="[State]">this->State()</Item>
+      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Flags),en</Item>
+      <Item Name="[State]">this->GetState()</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::detail::PromiseResult_&lt;*&gt;">
+    <DisplayString>{{PromiseResult}}</DisplayString>
+    <Expand>
+      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Flags),en</Item>
+      <Item Name="[State]">this->GetState()</Item>
+      <Item Name="CallBacks">Callback</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::FinishedResult&lt;*&gt;::FinishedResult_">
+    <DisplayString>{{ FinishedResult }}</DisplayString>
+    <Expand>
+      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Flags),en</Item>
+      <Item Name="[State]">this->GetState()</Item>
+      <Item Name="Result" Condition="!std::is_same&lt;$T1,void&gt;::value">Result</Item>
+      <Item Name="CallBacks">Callback</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="std::shared_ptr&lt;common::detail::PromiseResult_&lt;*&gt;&gt;">
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
 </AutoVisualizer>

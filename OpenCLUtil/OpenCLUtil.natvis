@@ -132,27 +132,83 @@
       </CustomListItems>
     </Expand>
   </Type>
+  
+  <Type Name="oclu::DependEvents">
+    <DisplayString>{{ {Events.size()} events, {Queues.size()} queues }}</DisplayString>
+    <Expand>
+      <Synthetic Name="Events">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Events.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Events.size()" />
+              <Item>Events[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="Queues">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Queues.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Queues.size()" />
+              <Item>Queues[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  <Type Name="oclu::oclPromise&lt;*&gt;">
+    <DisplayString>{{ oclPromise }}</DisplayString>
+    <Expand>
+      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Flags),en</Item>
+      <Item Name="[State]">this->GetState()</Item>
+      <Item Name="Result" Condition="!std::is_same&lt;$T1,void&gt;::value">Result</Item>
+      <Item Name="CallBacks">Callback</Item>
+      <Item Name="Dependents">Depends</Item>
+      <Item Name="Event">Event</Item>
+      <Item Name="Queue">Queue</Item>
+    </Expand>
+  </Type>
 
   <Type Name="std::shared_ptr&lt;oclu::oclProgram_ const&gt;">
-    <DisplayString>{{ oclProgram {{{_Ptr->Kernels.size()} kernels}} }}</DisplayString>
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclKernel_ const&gt;">
-    <DisplayString>{{ oclKernel {{{_Ptr->Name,s}}} }}</DisplayString>
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclPlatform_ const&gt;">
-    <DisplayString>{{ oclPlatform {{{_Ptr->Name,su}, {_Ptr->Devices.size()} devices}} }}</DisplayString>
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclCmdQue_ const&gt;">
-    <DisplayString>{{ oclCmdQue {{on {_Ptr->Device->Name,su}}} }}</DisplayString>
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclBuffer_&gt;">
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclImage&gt;">
+    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>

@@ -70,7 +70,7 @@
   - [ ] Add compatibility for OpenCL verson less than 1.2.
   - [x] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
-  - [ ] Make oclPromise directly use cl_event for better management
+  - [x] Make oclPromise directly use cl_event for better management
   - [ ] Mimic subgroup shuffle on non-intel
   - [ ] Mimic subgroup on unsupported platform (nv)
   - [ ] Mimic FillBuffer using embeded kernel for pre-1.2

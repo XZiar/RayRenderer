@@ -6,6 +6,7 @@
 #include "oclBuffer.h"
 #include "oclImage.h"
 #include "oclKernelDebug.h"
+#include "oclPromise.h"
 #include "common/FileBase.hpp"
 #include "common/CLikeConfig.hpp"
 #include "common/StringPool.hpp"
@@ -164,7 +165,7 @@ private:
             static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
             return SetArg(idx, &dat, sizeof(T));
         }
-        [[nodiscard]] common::PromiseResult<CallResult> Run(const uint8_t dim, const common::PromiseStub& pmss,
+        [[nodiscard]] common::PromiseResult<CallResult> Run(const uint8_t dim, DependEvents depend,
             const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
     };
 

@@ -2,7 +2,6 @@
 #include "oclProgram.h"
 #include "oclException.h"
 #include "oclUtil.h"
-#include "oclPromise.h"
 
 namespace oclu
 {
@@ -293,7 +292,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
-PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, const common::PromiseStub& pmss,
+PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, DependEvents depend,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
     if (Kernel->Prog.Device != que->Device)
@@ -317,12 +316,11 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, c
 
     cl_int ret;
     cl_event e;
-    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
-    const auto [evtPtr, evtCnt] = evts.Get();
+    const auto [evtPtr, evtCnt] = depend.GetWaitList();
     ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
-    return oclPromise<CallResult>::Create(std::move(clpmss), e, que, std::move(result));
+    return oclPromise<CallResult>::Create(std::move(depend), e, que, std::move(result));
 }
 
 

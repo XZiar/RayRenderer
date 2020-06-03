@@ -216,6 +216,7 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="FileStream.natvis" />
+    <Natvis Include="PromiseTask.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

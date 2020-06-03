@@ -172,6 +172,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
 
             size_t offset = 0;
             PromiseResult<oclu::CallResult> pms;
+            std::vector<PromiseResult<oclu::CallResult>> pmss; pmss.reserve(infos.size());
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
@@ -187,9 +188,11 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
                     pms = DownsampleMid->Call<2>((idx & 1) == 0 ? inBuf : midBuf, infoBuf, idx, (idx & 1) == 0 ? midBuf : inBuf, outBuf)
                         (pms, CmdQue, { (size_t)info.SrcWidth / 4, (size_t)info.SrcHeight / 4 }, { GroupX,GroupY });
                 }
+                pmss.push_back(pms);
             }
             agent.Await(pms);
-            const uint64_t totalTime = pms->ChainedElapseNs();
+            const uint64_t totalTime = common::linq::FromIterable(pmss)
+                .Reduce<uint64_t>([](uint64_t& time, const auto& pms) { time += pms->ElapseNs(); }, 0); 
             outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;
@@ -209,6 +212,7 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
 
             size_t offset = 0;
             PromiseResult<oclu::CallResult> pms;
+            std::vector<PromiseResult<oclu::CallResult>> pmss; pmss.reserve(infos.size());
             for (uint8_t idx = 0; idx < infos.size(); ++idx)
             {
                 const auto& info = infos[idx];
@@ -218,7 +222,8 @@ PromiseResult<vector<Image>> TexMipmap::GenerateMipmapsCL(const ImageView src, c
                     (pms, CmdQue, { (size_t)infos[idx].SrcWidth / 4, (size_t)infos[idx].SrcHeight / 4 }, { GroupX,GroupY });
             }
             agent.Await(pms);
-            const uint64_t totalTime = pms->ChainedElapseNs();
+            const uint64_t totalTime = common::linq::FromIterable(pmss)
+                .Reduce<uint64_t>([](uint64_t& time, const auto& pms) { time += pms->ElapseNs(); }, 0);
             outBuf->Flush(CmdQue);
             texLog().debug(u"Mipmap from [{}x{}] generate [{}] level within {}us.\n", src.GetWidth(), src.GetHeight(), images.size(), totalTime / 1000);
             return images;

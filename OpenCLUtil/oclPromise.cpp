@@ -1,33 +1,37 @@
 #include "oclPch.h"
 #include "oclPromise.h"
 #include "oclUtil.h"
+#include "common/ContainerEx.hpp"
 #include "common/Linq2.hpp"
+#include <algorithm>
 
 namespace oclu
 {
 using namespace std::string_view_literals;
 
 
-DependEvents::DependEvents(std::vector<cl_event>&& events, uint32_t direct) : Events(std::move(events)), DirectCount(direct)
-{
-    Expects(DirectCount <= Events.size());
-    for (const auto evt : Events)
-        clRetainEvent(evt);
-}
-DependEvents::~DependEvents()
-{
-    for (const auto evt : Events)
-        clReleaseEvent(evt);
-}
-DependEvents DependEvents::Create(const common::PromiseStub& pmss) noexcept
+DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
 {
     auto clpmss = pmss.FilterOut<oclPromiseCore>();
-    auto evts = common::linq::FromIterable(clpmss)
-        .Select([](const auto& clpms) { return clpms->GetEvent(); })
-        .Where([](const auto& evt) { return evt != nullptr; })
-        .ToVector();
-    return { std::move(evts), gsl::narrow_cast<uint32_t>(evts.size()) };
+    for (const auto& clpms : clpmss)
+    {
+        for (const auto& que : clpms->Depends.Queues)
+        {
+            if (!common::container::ContainInVec(Queues, que))
+                Queues.push_back(que);
+        }
+        if (clpms->Event != nullptr)
+        {
+            Events.push_back(clpms->Event);
+            const auto& que = clpms->Queue;
+            if (!common::container::ContainInVec(Queues, que))
+                Queues.push_back(que);
+        }
+    }
+    Events.shrink_to_fit();
 }
+DependEvents::DependEvents() noexcept
+{ }
 
 
 void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
@@ -38,15 +42,27 @@ void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]c
     delete &self;
 }
 
-oclPromiseCore::oclPromiseCore(PrevType&& prev, const cl_event e, oclCmdQue que)
-    : Event(e), Queue(std::move(que)), Prev(std::move(prev)) { }
+oclPromiseCore::oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que) : 
+    Depends(std::move(depend)), Event(e), Queue(std::move(que))
+{
+    if (const auto it = std::find(Depends.Queues.begin(), Depends.Queues.end(), Queue); it != Depends.Queues.end())
+    {
+        Depends.Queues.erase(it);
+    }
+    for (const auto evt : Depends.Events)
+        clRetainEvent(evt);
+}
 oclPromiseCore::~oclPromiseCore()
 {
+    for (const auto evt : Depends.Events)
+        clReleaseEvent(evt);
     if (Event)
         clReleaseEvent(Event);
 }
 void oclPromiseCore::Flush()
 {
+    for (const auto& que : Depends.Queues)
+        clFlush(que->CmdQue);
     if (Queue)
         clFlush(Queue->CmdQue);
 }
@@ -99,35 +115,6 @@ bool oclPromiseCore::RegisterCallback(const common::detail::PmsCore& pms)
             return to - from;
     }
     return 0;
-}
-[[nodiscard]] uint64_t oclPromiseCore::ChainedElapseNs() noexcept
-{
-    auto time = ElapseNs();
-    switch (Prev.index())
-    {
-    case 2: return time + std::get<2>(Prev)->ChainedElapseNs();
-    case 1:
-        for (const auto& prev : std::get<1>(Prev))
-        {
-            time += prev->ChainedElapseNs();
-        }
-        return time;
-    default:
-    case 0: return time;
-    }
-}
-[[nodiscard]] std::pair<std::vector<std::shared_ptr<oclPromiseCore>>, oclPromiseCore::oclEvents>
-oclPromiseCore::ParsePms(const common::PromiseStub& pmss) noexcept
-{
-    auto clpmss = pmss.FilterOut<oclPromiseCore>();
-    auto evts = common::linq::FromIterable(clpmss)
-        .Select([](const auto& clpms) { return clpms->GetEvent(); })
-        .Where([](const auto& evt) { return evt != nullptr; })
-        .ToVector();
-    if (evts.size() > 0)
-        return { std::move(clpmss), std::move(evts) };
-    else
-        return { std::move(clpmss), {} };
 }
 
 uint64_t oclPromiseCore::QueryTime(oclPromiseCore::TimeType type) const noexcept

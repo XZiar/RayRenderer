@@ -90,5 +90,6 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="FileStream.natvis" />
+    <Natvis Include="PromiseTask.natvis" />
   </ItemGroup>
 </Project>

@@ -64,7 +64,6 @@ public:
     PromiseState State();
     void WaitFinish();
     virtual uint64_t ElapseNs() noexcept { return 0; };
-    virtual uint64_t ChainedElapseNs() noexcept { return ElapseNs(); };
 protected:
     RWSpinLock PromiseLock;
     AtomicBitfield<PromiseFlags> Flags = PromiseFlags::None;

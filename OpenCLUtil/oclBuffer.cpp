@@ -48,12 +48,12 @@ PromiseResult<void> oclSubBuffer_::ReadSpan(const common::PromiseStub& pmss, con
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // read size overflow
     cl_event e;
-    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
-    const auto [evtPtr, evtCnt] = evts.Get();
+    DependEvents evts(pmss);
+    const auto [evtPtr, evtCnt] = evts.GetWaitList();
     auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
-    return oclPromise<void>::Create(std::move(clpmss), e, que);
+    return oclPromise<void>::Create(std::move(evts), e, que);
 }
 
 common::PromiseResult<common::AlignedBuffer> oclSubBuffer_::Read(const common::PromiseStub& pmss, const oclCmdQue& que, const size_t offset) const
@@ -62,12 +62,12 @@ common::PromiseResult<common::AlignedBuffer> oclSubBuffer_::Read(const common::P
     const auto size = Size - offset;
     common::AlignedBuffer buf(size);
     cl_event e;
-    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
-    const auto [evtPtr, evtCnt] = evts.Get();
+    DependEvents evts(pmss);
+    const auto [evtPtr, evtCnt] = evts.GetWaitList();
     auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, size, buf.GetRawPtr(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
-    return oclPromise<common::AlignedBuffer>::Create(std::move(clpmss), e, que, std::move(buf));
+    return oclPromise<common::AlignedBuffer>::Create(std::move(evts), e, que, std::move(buf));
 }
 
 PromiseResult<void> oclSubBuffer_::WriteSpan(const common::PromiseStub& pmss, const oclCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
@@ -75,12 +75,12 @@ PromiseResult<void> oclSubBuffer_::WriteSpan(const common::PromiseStub& pmss, co
     Expects(offset < Size); // offset overflow
     Expects(offset + buf.size() <= Size); // write size overflow
     cl_event e;
-    auto [clpmss, evts] = oclPromiseCore::ParsePms(pmss);
-    const auto [evtPtr, evtCnt] = evts.Get();
+    DependEvents evts(pmss);
+    const auto [evtPtr, evtCnt] = evts.GetWaitList();
     const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
-    return oclPromise<void>::Create(std::move(clpmss), e, que);
+    return oclPromise<void>::Create(std::move(evts), e, que);
 }
 
 

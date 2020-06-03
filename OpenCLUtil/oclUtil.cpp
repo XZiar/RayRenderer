@@ -154,8 +154,8 @@ std::u16string_view GetCLErrorString(const cl_int err)
 
 void oclUtil::WaitMany(common::PromiseStub promises)
 {
-    const auto [clpmss, evts] = oclPromiseCore::ParsePms(promises);
-    const auto [evtPtr, evtCnt] = evts.Get();
+    DependEvents evts(promises);
+    const auto [evtPtr, evtCnt] = evts.GetWaitList();
     clWaitForEvents(evtCnt, evtPtr);
 }
 
