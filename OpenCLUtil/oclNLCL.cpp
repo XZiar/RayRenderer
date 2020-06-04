@@ -42,18 +42,22 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
         const auto propName = var.Rest();
         switch (hash_(propName))
         {
-#define U_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
-        U_PROP(LocalMemSize);
-        U_PROP(GlobalMemSize);
-        U_PROP(GlobalCacheSize);
-        U_PROP(GlobalCacheLine);
-        U_PROP(ConstantBufSize);
-        U_PROP(MaxMemSize);
-        U_PROP(ComputeUnits);
-        U_PROP(WaveSize);
-        U_PROP(Version);
-        U_PROP(CVersion);
-#undef U_PROP
+#define UINT_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
+        UINT_PROP(LocalMemSize);
+        UINT_PROP(GlobalMemSize);
+        UINT_PROP(GlobalCacheSize);
+        UINT_PROP(GlobalCacheLine);
+        UINT_PROP(ConstantBufSize);
+        UINT_PROP(MaxMemAllocSize);
+        UINT_PROP(ComputeUnits);
+        UINT_PROP(WaveSize);
+        UINT_PROP(Version);
+        UINT_PROP(CVersion);
+#undef UINT_PROP
+#define BOOL_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
+        BOOL_PROP(SupportImage);
+        BOOL_PROP(LittleEndian);
+#undef BOOL_PROP
         HashCase(propName, U"Type")
         {
             switch (Device->Type)

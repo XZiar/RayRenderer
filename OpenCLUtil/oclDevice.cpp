@@ -27,7 +27,12 @@ static u16string GetUStr(const cl_device_id DeviceID, const cl_device_info type)
     const auto u8str = GetStr(DeviceID, type);
     return u16string(u8str.cbegin(), u8str.cend());
 }
-
+static bool GetBool(const cl_device_id DeviceID, const cl_device_info type)
+{
+    cl_bool ret = CL_FALSE;
+    clGetDeviceInfo(DeviceID, type, sizeof(cl_bool), &ret, nullptr);
+    return ret == CL_TRUE;
+}
 template<typename T>
 static T GetNum(const cl_device_id DeviceID, const cl_device_info type)
 {
@@ -35,6 +40,12 @@ static T GetNum(const cl_device_id DeviceID, const cl_device_info type)
     T num = 0;
     clGetDeviceInfo(DeviceID, type, sizeof(T), &num, nullptr);
     return num;
+}
+template<typename T, size_t N>
+static void GetNums(const cl_device_id DeviceID, const cl_device_info type, T (&ret)[N])
+{
+    static_assert(std::is_integral_v<T>, "T should be numeric type");
+    clGetDeviceInfo(DeviceID, type, sizeof(T) * N, &ret, nullptr);
 }
 
 oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID) :
@@ -67,8 +78,10 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     ConstantBufSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE);
     GlobalMemSize       = GetNum<uint64_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_SIZE);
     LocalMemSize        = GetNum<uint64_t>(DeviceID, CL_DEVICE_LOCAL_MEM_SIZE);
-    MaxMemSize          = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
+    MaxMemAllocSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
     GlobalCacheSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE);
+    GetNums(DeviceID, CL_DEVICE_MAX_WORK_ITEM_SIZES, MaxWorkItemSize);
+    MaxWorkGroupSize    = GetNum<  size_t>(DeviceID, CL_DEVICE_MAX_WORK_GROUP_SIZE);
     GlobalCacheLine     = GetNum<uint32_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE);
     MemBaseAddrAlign    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MEM_BASE_ADDR_ALIGN);
     ComputeUnits        = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
@@ -79,12 +92,13 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     else if (PlatVendor == Vendors::Intel && Type == DeviceType::GPU)
         WaveSize = 16;
 
-
-    const auto props = GetNum<cl_command_queue_properties>(DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
+    const auto props        = GetNum<cl_command_queue_properties>(DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;
     SupportOutOfOrder       = (props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0;
     SupportImplicitGLSync   = Extensions.Has("cl_khr_gl_event");
-
+    SupportImage            = GetBool(DeviceID, CL_DEVICE_IMAGE_SUPPORT);
+    LittleEndian            = GetBool(DeviceID, CL_DEVICE_ENDIAN_LITTLE);
+    HasCompiler             = GetBool(DeviceID, CL_DEVICE_COMPILER_AVAILABLE);
 }
 
 using namespace std::literals;

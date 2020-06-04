@@ -5,11 +5,11 @@
 #include "oclPlatform.h"
 #include "oclUtil.h"
 #include "oclImage.h"
+#include "oclPromise.h"
 
 
 namespace oclu
 {
-MAKE_ENABLER_IMPL(oclCustomEvent)
 using std::string;
 using std::u16string;
 using std::string_view;
@@ -17,6 +17,9 @@ using std::u16string_view;
 using std::vector;
 using std::set;
 using common::container::FindInVec;
+
+
+MAKE_ENABLER_IMPL(oclCustomEvent)
 
 
 static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const void * private_info, size_t, void *user_data)
@@ -145,8 +148,15 @@ bool oclContext_::CheckIncludeDevice(const oclDevice dev) const noexcept
     return false;
 }
 
-common::PromiseResult<void> oclContext_::CreateUserEvent_(common::PmsCore pms)
+common::PromiseResult<void> oclContext_::CreateUserEvent(common::PmsCore pms)
 {
+    if (const auto clEvt = std::dynamic_pointer_cast<oclPromiseCore>(pms); clEvt)
+    {
+        if (const auto voidEvt = std::dynamic_pointer_cast<oclPromise<void>>(clEvt); voidEvt)
+            return voidEvt;
+        else
+            oclLog().warning(u"creating user-event from cl-event with result.");
+    }
     if (Version < 11)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"clUserEvent requires version at least 1.1");
     cl_int err;

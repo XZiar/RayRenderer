@@ -33,10 +33,12 @@ private:
 public:
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseStringSet<char> Extensions;
-    uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemSize, GlobalCacheSize;
+    uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemAllocSize, GlobalCacheSize;
+    size_t MaxWorkItemSize[3], MaxWorkGroupSize;
     uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits, WaveSize;
     uint32_t Version, CVersion;
-    bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync;
+    bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync, SupportImage;
+    bool LittleEndian, HasCompiler;
     Vendors PlatVendor;
     DeviceType Type;
 

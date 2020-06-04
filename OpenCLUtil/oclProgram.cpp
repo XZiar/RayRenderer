@@ -203,14 +203,9 @@ void KernelArgStore::AddArg(const KerArgSpace space, const ImgAccess access, con
 }
 
 
-oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, string name, KernelArgStore&& argStore) :
-    Plat(*plat), Prog(*prog), KernelID(nullptr), Name(std::move(name))
+oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, string name, KernelArgStore&& argStore) :
+    Plat(*plat), Prog(*prog), KernelID(kerID), Name(std::move(name))
 {
-    cl_int errcode;
-    KernelID = clCreateKernel(Prog.ProgID, Name.data(), &errcode);
-    if (errcode != CL_SUCCESS)
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"canot create kernel from program");
-
     if (Prog.Context->Version >= 12)
         ArgStore = KernelArgStore(KernelID, argStore);
     else if (argStore.HasInfo)
@@ -353,11 +348,13 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     string options;
     switch (Context->GetVendor())
     {
-    case Vendors::NVIDIA:    options = "-DOCLU_NVIDIA -cl-nv-verbose "; break;
-    case Vendors::AMD:       options = "-DOCLU_AMD "; break;
-    case Vendors::Intel:     options = "-DOCLU_INTEL "; break;
+    case Vendors::NVIDIA:    options += "-DOCLU_NVIDIA "; break;
+    case Vendors::AMD:       options += "-DOCLU_AMD "; break;
+    case Vendors::Intel:     options += "-DOCLU_INTEL "; break;
     default:                break;
     }
+    if (Device->Extensions.Has("cl_nv_compiler_options"))
+        options += "-cl-nv-verbose ";
     if (cver >= 12)
     {
         options.append("-cl-kernel-arg-info ");
@@ -436,36 +433,34 @@ oclProgram_::oclProgram_(oclProgStub* stub) :
 {
     stub->ProgID = nullptr;
 
-    if (Context->Version >= 12)
-    {
-        cl_int ret;
-        size_t len = 0;
-        ret = clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, 0, nullptr, &len);
-        if (ret != CL_SUCCESS)
-            COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot find kernels");
-        vector<char> buf(len, '\0');
-        clGetProgramInfo(ProgID, CL_PROGRAM_KERNEL_NAMES, len, buf.data(), &len);
-        if (len > 0)
-            buf.pop_back(); //null-terminated
-        const auto names = common::str::Split(buf, ';', false);
-        KernelNames.assign(names.cbegin(), names.cend());
-    }
-    else
-    {
-        for (const auto& [name, info] : stub->ImportedKernelInfo)
-            KernelNames.push_back(name);
-    }
+    cl_uint numKernels;
+    clCreateKernelsInProgram(ProgID, 0, nullptr, &numKernels);
+    std::vector<cl_kernel> kernelIDs;
+    kernelIDs.resize(numKernels);
+    clCreateKernelsInProgram(ProgID, numKernels, kernelIDs.data(), &numKernels);
+    KernelNames.reserve(numKernels);
 
-    Kernels = common::linq::FromIterable(KernelNames)
-        .Select([&](const auto& name)
+    for (const auto kerID : kernelIDs)
+    {
+        size_t strSize = 0;
+        clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, 0, nullptr, &strSize);
+        std::string name; name.resize(strSize, '\0');
+        clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, strSize, name.data(), &strSize);
+        if (strSize > 0 && name.back() == '\0') 
+            name.pop_back();
+
+        KernelArgStore argInfo;
+        for (const auto& [name_, info] : stub->ImportedKernelInfo)
+        {
+            if (name == name_)
             {
-                KernelArgStore argInfo;
-                for (const auto& [name_, info] : stub->ImportedKernelInfo)
-                    if (name == name_)
-                        argInfo = info;
-                return MAKE_ENABLER_UNIQUE(oclKernel_, (Context->Plat.get(), this, name, std::move(argInfo)));
-            })
-        .ToVector();
+                argInfo = info;
+                break;
+            }
+        }
+        Kernels.emplace_back(MAKE_ENABLER_UNIQUE(oclKernel_, (Context->Plat.get(), this, kerID, name, std::move(argInfo))));
+        KernelNames.emplace_back(std::move(name));
+    }
 }
 
 oclProgram_::~oclProgram_()

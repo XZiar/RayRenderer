@@ -219,13 +219,12 @@ common::span<std::byte> oclImage_::MapObject(const cl_command_queue& que, const 
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
-    cl_event e;
     cl_int ret;
     size_t image_row_pitch = 0, image_slice_pitch = 0;
     const auto size = Width * Height * Depth * TexFormatUtil::BitPerPixel(Format) / 8;
     const auto ptr = clEnqueueMapImage(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 
         origin, region, &image_row_pitch, &image_slice_pitch,
-        0, nullptr, &e, &ret);
+        0, nullptr, nullptr, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clImage");
     oclLog().info(u"Mapped clImage [{}x{}x{}] with row pitch [{}] and slice pitch [{}].\n", Width, Height, Depth, image_row_pitch, image_slice_pitch);

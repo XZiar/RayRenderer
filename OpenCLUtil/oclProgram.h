@@ -134,7 +134,7 @@ private:
     mutable common::SpinLocker ArgLock;
     KernelArgStore ArgStore;
     uint32_t ReqDbgBufSize;
-    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, std::string name, KernelArgStore&& argStore);
+    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, std::string name, KernelArgStore&& argStore);
     template<size_t N>
     [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
     {

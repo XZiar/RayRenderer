@@ -43,7 +43,7 @@ protected:
     const xziar::img::TextureFormat Format;
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
     oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr = nullptr);
-    virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
+    common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
     [[nodiscard]] size_t CalculateSize() const;
 public:
     virtual ~oclImage_();

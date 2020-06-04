@@ -111,11 +111,11 @@ private:
     {
         if (this->IsException())
             return common::PromiseState::Error;
-        return oclPromiseCore::QueryState();
+        return this->QueryState();
     }
     void MakeActive(common::PmsCore&& pms) override
     {
-        if (RegisterCallback(pms))
+        if (this->RegisterCallback(pms))
             return;
         common::detail::PromiseResultCore::MakeActive(std::move(pms));
     }
@@ -137,9 +137,9 @@ private:
     }
 public:
     oclPromise(std::exception_ptr ex) : 
-        oclPromiseCore(std::monostate{}, nullptr, {})
+        oclPromiseCore({}, nullptr, {})
     {
-        this->Result = common::detail::ExceptionResult<std::exception_ptr>(ex);
+        this->Result = common::detail::ExceptionResult<std::exception_ptr>{ ex };
     }
     oclPromise(DependEvents&& depend, const cl_event e, const oclCmdQue& que) : 
         oclPromiseCore(std::move(depend), e, que) 

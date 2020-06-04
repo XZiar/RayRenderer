@@ -101,7 +101,6 @@ protected:
     }
 
     std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
-    [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
     [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
     [[nodiscard]] std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
         const uint8_t unitBits, const uint8_t dim, 
@@ -121,6 +120,8 @@ protected:
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst);
 public:
+    [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
+
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});

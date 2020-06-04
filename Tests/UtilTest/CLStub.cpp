@@ -115,7 +115,7 @@ static void OCLStub()
                 ADD_INFO(ConstantBufSize);
                 ADD_INFO(GlobalMemSize);
                 ADD_INFO(LocalMemSize);
-                ADD_INFO(MaxMemSize);
+                ADD_INFO(MaxMemAllocSize);
                 ADD_INFO(GlobalCacheSize);
                 ADD_INFO(GlobalCacheLine);
                 ADD_INFO(MemBaseAddrAlign);
@@ -124,6 +124,11 @@ static void OCLStub()
                 ADD_INFO(SupportProfiling);
                 ADD_INFO(SupportOutOfOrder);
                 ADD_INFO(SupportImplicitGLSync);
+                ADD_INFO(SupportImage);
+                ADD_INFO(LittleEndian);
+                ADD_INFO(HasCompiler);
+                fmt::format_to(std::back_inserter(infotxt), u"{}: [{}x{}x{}]\n"sv, "MaxWorkItemSize", dev->MaxWorkItemSize[0], dev->MaxWorkItemSize[1], dev->MaxWorkItemSize[2]);
+                ADD_INFO(MaxWorkGroupSize);
 #undef ADD_INFO
                 log().verbose(u"Device Info:\n{}\n", infotxt);
                 continue;

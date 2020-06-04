@@ -35,9 +35,8 @@ oclSubBuffer_::~oclSubBuffer_()
 
 common::span<std::byte> oclSubBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
 {
-    cl_event e;
     cl_int ret;
-    const auto ptr = clEnqueueMapBuffer(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, &e, &ret);
+    const auto ptr = clEnqueueMapBuffer(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, nullptr, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clBuffer");
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Size);
