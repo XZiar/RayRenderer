@@ -62,6 +62,9 @@ class NLCLRuntime;
 class NLCLEvalContext;
 class NLCLProcessor;
 
+class oclCmdQue_;
+using oclCmdQue = std::shared_ptr<const oclCmdQue_>;
+
 enum class Vendors { Other = 0, NVIDIA, Intel, AMD, ARM, Qualcomm };
 
 

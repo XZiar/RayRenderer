@@ -21,12 +21,12 @@ namespace detail
 {
 class PromiseResultCore;
 class PromiseActiveProxy;
-using PmsCore = std::shared_ptr<PromiseResultCore>;
 template<typename T>
 class PromiseResult_;
 template<typename RetType, typename MidType>
 class StagedResult_;
 }
+using PmsCore = std::shared_ptr<detail::PromiseResultCore>;
 template<typename T>
 using PromiseResult = std::shared_ptr<detail::PromiseResult_<T>>;
 template<typename R, typename M>
@@ -53,18 +53,6 @@ class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseResultCore : public NonCopyable
 {
     friend class PromiseActiveProxy;
 protected:
-    virtual PromiseState GetState() noexcept;
-    virtual void PreparePms();
-    virtual void MakeActive(PmsCore&& pms);
-    virtual void WaitPms() noexcept = 0;
-    virtual void ExecuteCallback() = 0;
-public:
-    virtual ~PromiseResultCore();
-    void Prepare();
-    PromiseState State();
-    void WaitFinish();
-    virtual uint64_t ElapseNs() noexcept { return 0; };
-protected:
     RWSpinLock PromiseLock;
     AtomicBitfield<PromiseFlags> Flags = PromiseFlags::None;
     forceinline void CheckResultAssigned()
@@ -77,8 +65,21 @@ protected:
         if (Flags.Add(PromiseFlags::ResultExtracted))
             COMMON_THROW(BaseException, u"Result already extracted");
     }
+    virtual PromiseState GetState() noexcept;
+    virtual void PreparePms();
+    virtual void MakeActive(PmsCore&& pms);
+    virtual void WaitPms() noexcept = 0;
+    virtual void ExecuteCallback() = 0;
 private:
     PromiseState CachedState = PromiseState::Invalid;
+public:
+    virtual ~PromiseResultCore();
+    void Prepare();
+    PromiseState State();
+    void WaitFinish();
+    virtual uint64_t ElapseNs() noexcept { return 0; };
+    virtual void AddCallback(std::function<void()> func) = 0;
+    virtual void AddCallback(std::function<void(const PmsCore&)> func) = 0;
 };
 
 
@@ -117,6 +118,14 @@ protected:
         }
         Callback(GetSelf());
         Callback.Clear();
+    }
+    void AddCallback(std::function<void()> func) override
+    {
+        OnComplete(std::move(func));
+    }
+    void AddCallback(std::function<void(const PmsCore&)> func) override
+    {
+        OnComplete(std::move(func));
     }
 public:
     using ResultType = T;

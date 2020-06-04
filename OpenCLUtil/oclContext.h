@@ -2,6 +2,7 @@
 
 #include "oclRely.h"
 #include "oclDevice.h"
+#include "oclPromise.h"
 
 
 #if COMPILER_MSVC
@@ -28,6 +29,7 @@ class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovabl
 private:
     MAKE_ENABLER();
     oclContext_(std::shared_ptr<const oclPlatform_> plat, std::vector<cl_context_properties> props, const std::vector<oclDevice>& devices);
+    common::PromiseResult<void> CreateUserEvent_(common::PmsCore pms);
 public:
     ~oclContext_();
     [[nodiscard]] std::u16string GetPlatformName() const;
@@ -47,6 +49,15 @@ public:
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
     mutable common::Delegate<const std::u16string&> OnMessage;
+
+    template<typename T>
+    static common::PromiseResult<void> CreateUserEvent(const common::PromiseResult<T>& evt)
+    {
+        if (const auto clEvt = std::dynamic_pointer_cast<oclPromiseCore>(evt); clEvt)
+            return evt;
+        return CreateUserEvent_(evt);
+
+    }
 private:
     mutable std::atomic_bool DebugResource = false;
 };

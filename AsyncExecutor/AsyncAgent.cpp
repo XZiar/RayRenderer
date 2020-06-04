@@ -14,18 +14,20 @@ class AsyncSleeper : public ::common::detail::PromiseResultCore
     friend class common::asyexe::AsyncAgent;
 protected:
     std::chrono::high_resolution_clock::time_point Target;
-    PromiseState virtual GetState() noexcept override
+    PromiseState GetState() noexcept override
     {
         return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
     }
-    void WaitPms() noexcept override {}
-    void ExecuteCallback() override {}
+    void WaitPms() noexcept override { }
+    void ExecuteCallback() override { }
+    void AddCallback(std::function<void()> func) override { assert(false); }
+    void AddCallback(std::function<void(const PmsCore&)> func) override { assert(false); }
 public:
     AsyncSleeper(const uint32_t sleepTimeMs)
     {
         Target = std::chrono::high_resolution_clock::now() + std::chrono::milliseconds(sleepTimeMs);
     }
-    virtual ~AsyncSleeper() {}
+    ~AsyncSleeper() override { }
 };
 
 }
@@ -36,7 +38,7 @@ const AsyncAgent*& AsyncAgent::GetRawAsyncAgent()
     return agent;
 }
 
-void AsyncAgent::AddPms(::common::detail::PmsCore pmscore) const
+void AsyncAgent::AddPms(::common::PmsCore pmscore) const
 {
     pmscore->Prepare();
 

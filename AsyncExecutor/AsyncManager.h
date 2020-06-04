@@ -53,7 +53,7 @@ struct ASYEXEAPI AsyncTaskNodeBase : public common::container::IntrusiveDoubleLi
 private:
     boost::context::continuation Context;
     std::u16string Name;
-    ::common::detail::PmsCore Promise = nullptr; // current waiting promise
+    ::common::PmsCore Promise = nullptr; // current waiting promise
     virtual void operator()(const AsyncAgent& agent) = 0;
     virtual void OnException(std::exception_ptr e) = 0;
 protected:

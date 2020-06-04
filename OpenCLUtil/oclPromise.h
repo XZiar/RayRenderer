@@ -1,7 +1,6 @@
 #pragma once
 
 #include "oclRely.h"
-#include "oclCmdQue.h"
 
 
 
@@ -12,9 +11,12 @@
 
 namespace oclu
 {
+class oclContext_;
 class oclBuffer_;
 class oclImage_;
 class oclKernel_;
+template<typename T>
+class oclPromise;
 
 
 class OCLUAPI COMMON_EMPTY_BASES DependEvents : public common::NonCopyable
@@ -31,6 +33,7 @@ public:
     {
         return { Events.data(), gsl::narrow_cast<uint32_t>(Events.size()) };
     }
+    void FlushAllQueues() const;
 };
 
 class OCLUAPI oclPromiseCore
@@ -50,7 +53,7 @@ protected:
     void Flush();
     [[nodiscard]] common::PromiseState QueryState() noexcept;
     void Wait();
-    bool RegisterCallback(const common::detail::PmsCore& pms);
+    bool RegisterCallback(const common::PmsCore& pms);
     [[nodiscard]] uint64_t ElapseNs() noexcept;
     [[nodiscard]] const cl_event& GetEvent() { return Event; }
     virtual void ExecutePmsCallbacks() = 0;
@@ -58,6 +61,38 @@ public:
     enum class TimeType { Queued, Submit, Start, End };
     uint64_t QueryTime(TimeType type) const noexcept;
     std::string_view GetEventName() const noexcept;
+};
+
+class oclCustomEvent : public ::common::detail::PromiseResult_<void>, public oclPromiseCore
+{
+    friend class oclContext_;
+private:
+    MAKE_ENABLER();
+    common::PmsCore Pms;
+    void PreparePms() override
+    {
+        Pms->Prepare();
+    }
+    [[nodiscard]] common::PromiseState GetState() noexcept override
+    {
+        return Pms->State();
+    }
+    void MakeActive(common::PmsCore&&) override
+    { }
+    void WaitPms() noexcept override
+    {
+        Pms->WaitFinish();
+    }
+    void GetResult() override
+    { }
+    void ExecutePmsCallbacks() override
+    {
+        this->ExecuteCallback();
+    }
+    oclCustomEvent(common::PmsCore&& pms, cl_event evt);
+    void Init();
+public:
+    ~oclCustomEvent() override;
 };
 
 
@@ -78,7 +113,7 @@ private:
             return common::PromiseState::Error;
         return oclPromiseCore::QueryState();
     }
-    void MakeActive(common::detail::PmsCore&& pms) override
+    void MakeActive(common::PmsCore&& pms) override
     {
         if (RegisterCallback(pms))
             return;

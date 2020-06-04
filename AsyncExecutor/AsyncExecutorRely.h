@@ -50,29 +50,6 @@ public:
     virtual ~AsyncTaskException() {}
 };
 
-namespace detail
-{
-
-template<class T>
-class AsyncResult_ : public common::detail::PromiseResultCore, public std::enable_shared_from_this<AsyncResult_<T>>
-{
-    friend class common::asyexe::AsyncAgent;
-private:
-    T Wait()
-    {
-        Prepare();
-        return WaitPms();
-    }
-protected:
-    AsyncResult_()
-    { }
-    T virtual WaitPms() = 0;
-};
-
-}
-// for the results which should only be waited inside executor thread
-template<typename T>
-using AsyncResult = std::shared_ptr<detail::AsyncResult_<T>>;
 
 struct StackSize 
 {

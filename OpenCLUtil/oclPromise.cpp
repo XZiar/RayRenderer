@@ -1,5 +1,7 @@
 #include "oclPch.h"
 #include "oclPromise.h"
+#include "oclException.h"
+#include "oclCmdQue.h"
 #include "oclUtil.h"
 #include "common/ContainerEx.hpp"
 #include "common/Linq2.hpp"
@@ -13,11 +15,13 @@ using namespace std::string_view_literals;
 DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
 {
     auto clpmss = pmss.FilterOut<oclPromiseCore>();
+    if (clpmss.size() < pmss.size())
+        oclLog().warning(u"Some non-ocl promise detected as dependent events, will be ignored!");
     for (const auto& clpms : clpmss)
     {
         for (const auto& que : clpms->Depends.Queues)
         {
-            if (!common::container::ContainInVec(Queues, que))
+            if (que && !common::container::ContainInVec(Queues, que))
                 Queues.push_back(que);
         }
         if (clpms->Event != nullptr)
@@ -32,6 +36,12 @@ DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
 }
 DependEvents::DependEvents() noexcept
 { }
+
+void DependEvents::FlushAllQueues() const
+{
+    for (const auto& que : Queues)
+        que->Flush();
+}
 
 
 void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
@@ -59,13 +69,14 @@ oclPromiseCore::~oclPromiseCore()
     if (Event)
         clReleaseEvent(Event);
 }
+
 void oclPromiseCore::Flush()
 {
-    for (const auto& que : Depends.Queues)
-        clFlush(que->CmdQue);
+    Depends.FlushAllQueues();
     if (Queue)
         clFlush(Queue->CmdQue);
 }
+
 [[nodiscard]] common::PromiseState oclPromiseCore::QueryState() noexcept
 {
     using common::PromiseState;
@@ -90,12 +101,14 @@ void oclPromiseCore::Flush()
     default:            return PromiseState::Invalid;
     }
 }
+
 void oclPromiseCore::Wait()
 {
     if (Event)
         clWaitForEvents(1, &Event);
 }
-bool oclPromiseCore::RegisterCallback(const common::detail::PmsCore& pms)
+
+bool oclPromiseCore::RegisterCallback(const common::PmsCore& pms)
 {
     if (Queue->Context->Version < 11)
         return false;
@@ -104,6 +117,7 @@ bool oclPromiseCore::RegisterCallback(const common::detail::PmsCore& pms)
     const auto ret = clSetEventCallback(Event, CL_COMPLETE, &EventCallback, ptr);
     return ret == CL_SUCCESS;
 }
+
 [[nodiscard]] uint64_t oclPromiseCore::ElapseNs() noexcept
 {
     if (Event)
@@ -189,5 +203,21 @@ std::string_view oclPromiseCore::GetEventName() const noexcept
     }
     return ""sv;
 }
+
+
+oclCustomEvent::oclCustomEvent(common::PmsCore&& pms, cl_event evt) : oclPromiseCore({}, evt, {}), Pms(std::move(pms))
+{ }
+oclCustomEvent::~oclCustomEvent()
+{ }
+
+void oclCustomEvent::Init()
+{
+    Pms->AddCallback([self = std::static_pointer_cast<oclCustomEvent>(shared_from_this())]()
+        {
+        clSetUserEventStatus(self->Event, CL_COMPLETE);
+        self->ExecuteCallback();
+        });
+}
+
 
 }

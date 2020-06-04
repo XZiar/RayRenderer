@@ -9,6 +9,7 @@
 
 namespace oclu
 {
+MAKE_ENABLER_IMPL(oclCustomEvent)
 using std::string;
 using std::u16string;
 using std::string_view;
@@ -143,5 +144,19 @@ bool oclContext_::CheckIncludeDevice(const oclDevice dev) const noexcept
             return true;
     return false;
 }
+
+common::PromiseResult<void> oclContext_::CreateUserEvent_(common::PmsCore pms)
+{
+    if (Version < 11)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"clUserEvent requires version at least 1.1");
+    cl_int err;
+    const auto evt = clCreateUserEvent(Context, &err);
+    if (err != CL_SUCCESS)
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, err, u"cannot create user-event");
+    auto ret = MAKE_ENABLER_SHARED(oclCustomEvent, (std::move(pms), evt));
+    ret->Init();
+    return ret;
+}
+
 
 }
