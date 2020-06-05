@@ -502,18 +502,16 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, const std::u32string
     if (var.size() > 0 && var[0] == U'@')
     {
         const auto info = ParseVecType(var.substr(1));
-        if (!info.has_value())
+        if (info.has_value())
         {
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var));
-            return;
+            const auto str = GetVecTypeName(info.value());
+            if (!str.empty())
+                output.append(str);
+            else
+                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported when replace-variable"sv), var));
         }
-        const auto str = GetVecTypeName(info.value());
-        if (str.empty())
-        {
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), var));
-            return;
-        }
-        output.append(str);
+        else
+            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType when replace-variable"sv), var));
     }
     else // '@' not allowed in var anyway
     {
@@ -607,18 +605,36 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     {
         switch (const auto subName = call.Name.substr(5); hash_(subName))
         {
+        HashCase(subName, U"GetVecTypeName")
+        {
+            const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto vname = arg.GetStr().value();
+            const auto info = ParseVecType(vname);
+            if (info.has_value())
+            {
+                const auto str = GetVecTypeName(info.value());
+                if (!str.empty())
+                    return str;
+                else
+                    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported"sv), vname));
+            }
+            else
+                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType"sv), vname));
+        } return {};
         HashCase(subName, U"EnableExtension")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
             if (const auto sv = arg.GetStr(); sv.has_value())
             {
-                if (!EnableExtension(sv.value()))
+                if (EnableExtension(sv.value()))
+                    return true;
+                else
                     Logger.warning(u"Extension [{}] not found in support list, skipped.\n", sv.value());
             }
             else
                 NLRT_THROW_EX(u"Arg of [EnableExtension] should be string"sv, call);
-        } return {};
+        } return false;
         HashCase(subName, U"EnableUnroll")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
@@ -791,15 +807,42 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv),
                 x, y, z);
         } break;
-        HashCase(subName, U"NormalArg")
+        HashCase(subName, U"SimpleArg")
+        {
+            const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+            KernelArgInfo info;
+            const auto space_ = args[0].GetStr().value();
+            const auto space = KerArgSpaceParser(space_);
+            if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
+            const auto argType = args[1].GetStr().value();
+            // const bool isPointer = !argType.empty() && argType.back() == U'*';
+            const auto name = args[2].GetStr().value();
+            const auto flags = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
+                .Reduce([&](KerArgFlag flag, std::u32string_view part)
+                    {
+                        if (part == U"const"sv)     return flag | KerArgFlag::Const;
+                        NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgFlag [{}]"sv, part),
+                            &meta);
+                        return flag;
+                    }, KerArgFlag::None);
+            argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {}"sv),
+                ArgFlags::ToCLString(space.value()),
+                HAS_FIELD(flags, KerArgFlag::Const) ? U"const"sv : U""sv,
+                argType,
+                name));
+            argInfos.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, KerArgFlag::None, // const will be ignored for simple arg
+                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32),
+                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
+        } break;
+        HashCase(subName, U"BufArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             KernelArgInfo info;
             const auto space_  = args[0].GetStr().value();
             const auto space   = KerArgSpaceParser(space_);
-            if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
-            const auto argType = args[1].GetStr().value();
-            // const bool isPointer = !argType.empty() && argType.back() == U'*';
+            if (!space) 
+                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Unrecognized KerArgSpace [{}]"sv), space_), &meta);
+            const auto argType = std::u32string(args[1].GetStr().value()) + U'*';
             const auto name    = args[2].GetStr().value();
             const auto flags   = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
                 .Reduce([&](KerArgFlag flag, std::u32string_view part) 
@@ -807,18 +850,20 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                         if (part == U"const"sv)     return flag | KerArgFlag::Const;
                         if (part == U"restrict"sv)  return flag | KerArgFlag::Restrict;
                         if (part == U"volatile"sv)  return flag | KerArgFlag::Volatile;
-                        NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgFlag [{}]"sv, part),
+                        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Unrecognized KerArgFlag [{}]"sv), part),
                             &meta);
                         return flag;
                     }, KerArgFlag::None);
+            if (space.value() == KerArgSpace::Private)
+                NLRT_THROW_EX(fmt::format(FMT_STRING(u"BufArg [{}] cannot be in private space: [{}]"sv), name, space_), &meta);
             argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {} {} {}"sv),
                 ArgFlags::ToCLString(space.value()),
-                HAS_FIELD(flags, KerArgFlag::Const) ? U"const"sv : U""sv,
+                HAS_FIELD(flags, KerArgFlag::Const)    ? U"const"sv    : U""sv,
                 HAS_FIELD(flags, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
                 argType,
                 HAS_FIELD(flags, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
                 name));
-            argInfos.AddArg(space.value(), ImgAccess::None, flags,
+            argInfos.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
                 common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32),
                 common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
@@ -835,7 +880,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 ArgFlags::ToCLString(access.value()),
                 argType,
                 name));
-            argInfos.AddArg(KerArgSpace::Global, access.value(), KerArgFlag::None,
+            argInfos.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
                 common::strchset::to_string(name, Charset::UTF8, Charset::UTF32),
                 common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;

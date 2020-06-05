@@ -18,7 +18,17 @@ MAKE_ENABLER_IMPL(oclProgram_)
 MAKE_ENABLER_IMPL(oclKernel_)
 
 
-string_view ArgFlags::GetSpace() const noexcept
+string_view ArgFlags::GetArgTypeName() const noexcept
+{
+    switch (ArgType)
+    {
+    case KerArgType::Buffer:    return "Buffer"sv;
+    case KerArgType::Image:     return "Image"sv;
+    case KerArgType::Simple:    return "Simple"sv;
+    default:                    return "Any"sv;
+    }
+}
+string_view ArgFlags::GetSpaceName() const noexcept
 {
     switch (Space)
     {
@@ -28,7 +38,7 @@ string_view ArgFlags::GetSpace() const noexcept
     default:                    return "Private"sv;
     }
 }
-string_view ArgFlags::GetImgAccess() const noexcept
+string_view ArgFlags::GetImgAccessName() const noexcept
 {
     switch (Access)
     {
@@ -57,21 +67,58 @@ string_view ArgFlags::ToCLString(const ImgAccess access) noexcept
     default:                    return ""sv;
     }
 }
-string ArgFlags::GetQualifier() const noexcept
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4063)
+#elif COMPILER_GCC | COMPILER_CLANG
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"
+#endif
+string_view ArgFlags::GetQualifierName() const noexcept
 {
-    string ret;
-    if (HAS_FIELD(Qualifier, KerArgFlag::Const))
-        ret.append("Const "sv);
-    if (HAS_FIELD(Qualifier, KerArgFlag::Volatile))
-        ret.append("Volatile "sv);
-    if (HAS_FIELD(Qualifier, KerArgFlag::Restrict))
-        ret.append("Restrict "sv);
-    if (HAS_FIELD(Qualifier, KerArgFlag::Pipe))
-        ret.append("Pipe "sv);
-    if (!ret.empty())
-        ret.pop_back();
-    return ret;
+    switch (Qualifier)
+    {
+    case KerArgFlag::None:
+        return ""sv;
+    case KerArgFlag::Const:
+        return "Const"sv;
+    case KerArgFlag::Volatile:
+        return "Volatile"sv;
+    case KerArgFlag::Restrict:
+        return "Restrict"sv;
+    case KerArgFlag::Pipe:
+        return "Pipe"sv;
+    case KerArgFlag::Const    | KerArgFlag::Volatile:
+        return "Const Volatile"sv;
+    case KerArgFlag::Const    | KerArgFlag::Restrict:
+        return "Const Restrict"sv;
+    case KerArgFlag::Const    | KerArgFlag::Pipe:
+        return "Const Pipe"sv;
+    case KerArgFlag::Volatile | KerArgFlag::Restrict:
+        return "Volatile Restrict"sv;
+    case KerArgFlag::Volatile | KerArgFlag::Pipe:
+        return "Volatile Pipe"sv;
+    case KerArgFlag::Restrict | KerArgFlag::Pipe:
+        return "Restrict Pipe"sv;
+    case KerArgFlag::Const    | KerArgFlag::Volatile | KerArgFlag::Restrict:
+        return "Const Volatile Restrict"sv;
+    case KerArgFlag::Const    | KerArgFlag::Volatile | KerArgFlag::Pipe:
+        return "Const Volatile Pipe"sv;
+    case KerArgFlag::Const    | KerArgFlag::Restrict | KerArgFlag::Pipe:
+        return "Const Restrict Pipe"sv;
+    case KerArgFlag::Volatile | KerArgFlag::Restrict | KerArgFlag::Pipe:
+        return "Volatile Restrict Pipe"sv;
+    case KerArgFlag::Const    | KerArgFlag::Volatile | KerArgFlag::Restrict | KerArgFlag::Pipe:
+        return "Const Volatile Restrict Pipe"sv;
+    default:
+        return "Unknown"sv;
+    }
 }
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#elif COMPILER_GCC | COMPILER_CLANG
+#pragma GCC diagnostic pop
+#endif
 
 KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : DebugBuffer(0), HasInfo(true), HasDebug(false)
 {
@@ -106,6 +153,8 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         case CL_KERNEL_ARG_ACCESS_READ_WRITE:   info.Access = ImgAccess::ReadWrite; break;
         default:                                info.Access = ImgAccess::None;      break;
         }
+        if (info.Access != ImgAccess::None)
+            info.ArgType = KerArgType::Image;
 
         cl_kernel_arg_type_qualifier qualifier;
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
@@ -156,13 +205,21 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
                         i, ref.Name, cur.Name);
                 if (ref.Space != cur.Space)
                     oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n", 
-                        i, ref.Name, ref.GetSpace(), cur.GetSpace());
+                        i, ref.Name, ref.GetSpaceName(), cur.GetSpaceName());
                 if (ref.Access != cur.Access)
                     oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
-                        i, ref.Name, ref.GetImgAccess(), cur.GetImgAccess());
+                        i, ref.Name, ref.GetImgAccessName(), cur.GetImgAccessName());
                 if (ref.Qualifier != cur.Qualifier)
                     oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n",
-                        i, ref.Name, ref.GetQualifier(), cur.GetQualifier());
+                        i, ref.Name, ref.GetQualifierName(), cur.GetQualifierName());
+                if (ref.ArgType != cur.ArgType)
+                {
+                    if (cur.ArgType == KerArgType::Any)
+                        ArgsInfo[i].ArgType = ref.ArgType;
+                    else if (ref.ArgType != KerArgType::Any)
+                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                            i, ref.ArgType, cur.ArgType);
+                }
             }
         }
     }
@@ -171,7 +228,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
 KernelArgInfo KernelArgStore::GetArgInfo(const size_t idx) const noexcept
 {
     const auto info = GetArg(idx);
-    return { info->Space, info->Access, info->Qualifier, GetStringView(info->Name), GetStringView(info->Type) };
+    return { info->ArgType, info->Space, info->Access, info->Qualifier, GetStringView(info->Name), GetStringView(info->Type) };
 }
 
 const KernelArgStore::ArgInfo* KernelArgStore::GetArg(const size_t idx, const bool check) const
@@ -189,10 +246,11 @@ const KernelArgStore::ArgInfo* KernelArgStore::GetArg(const size_t idx, const bo
     return nullptr;
 }
 
-void KernelArgStore::AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
+void KernelArgStore::AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
     const std::string_view name, const std::string_view type)
 {
     ArgInfo info;
+    info.ArgType   = argType;
     info.Space     = space;
     info.Access    = access;
     info.Qualifier = qualifier;
@@ -263,8 +321,8 @@ oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
 {
-    if (const auto info = Kernel->ArgStore.GetArg(idx); info && info->IsImage())
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"non-image is set to an image kernel argument slot");
+    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Buffer))
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"buffer is set to a non-buffer kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
@@ -272,7 +330,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ &
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & img) const
 {
-    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsImage())
+    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Image))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"image is set to an non-image kernel argument slot");
     auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
@@ -281,6 +339,8 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & 
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, const size_t size) const
 {
+    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Simple))
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"simple is set to an non-simple kernel argument slot");
     Kernel->ArgStore.GetArg(idx);
     auto ret = clSetKernelArg(Kernel->KernelID, idx, size, dat);
     if (ret != CL_SUCCESS)
@@ -356,9 +416,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     if (Device->Extensions.Has("cl_nv_compiler_options"))
         options += "-cl-nv-verbose ";
     if (cver >= 12)
-    {
         options.append("-cl-kernel-arg-info ");
-    }
     for (const auto def : config.Defines)
     {
         options.append("-D"sv).append(def.Key);
@@ -391,7 +449,7 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     }
     else
     {
-        oclLog().error(u"build program {:p} failed:\nwith option:{}\n{}\n", (void*)ProgID, options, buildlog);
+        oclLog().error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)ProgID, options, buildlog);
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed", buildlog);
     }
 

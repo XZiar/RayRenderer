@@ -320,7 +320,7 @@ TEST(ParserLexer, LexerArgs)
         CHECK_TK(tokens[3], Delim,  GetChar,    U',');
         CHECK_TK(tokens[4], FP,     GetDouble,  3.5);
         CHECK_TK(tokens[5], Delim,  GetChar,    U',');
-        CHECK_TK(tokens[6], Uint,   GetUInt,    0xff);
+        CHECK_TK(tokens[6], Uint,   GetUInt,    0xffu);
     }
     {
         const auto tokens = ParseAll(UR"(-123, "hello",3.5 ,0xff)"sv);
@@ -330,7 +330,7 @@ TEST(ParserLexer, LexerArgs)
         CHECK_TK(tokens[3], Delim,  GetChar,    U',');
         CHECK_TK(tokens[4], FP,     GetDouble,  3.5);
         CHECK_TK(tokens[5], Delim,  GetChar,    U',');
-        CHECK_TK(tokens[6], Uint,   GetUInt,    0xff);
+        CHECK_TK(tokens[6], Uint,   GetUInt,    0xffu);
     }
 }
 
@@ -357,7 +357,7 @@ TEST(ParserLexer, LexerFunc)
         CHECK_TK(tokens[5], Delim,  GetChar,    U',');
         CHECK_TK(tokens[6], FP,     GetDouble,  3.5);
         CHECK_TK(tokens[7], Delim,  GetChar,    U',');
-        CHECK_TK(tokens[8], Uint,   GetUInt,    0xff);
+        CHECK_TK(tokens[8], Uint,   GetUInt,    0xffu);
         CHECK_TK(tokens[9], Delim,  GetChar,    U')');
     }
 }

@@ -153,4 +153,5 @@
   - [x] Add custom base DSL for OpenGL and OpenCL
   - [ ] Switch to github actions for CI?
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
+  - [ ] Embed gtest for latest fixes for C++20
 

@@ -205,7 +205,12 @@ static void OCLStub()
                     }
                     for (const auto& arg : ker->GetArgInfos())
                     {
-                        log().verbose(u"---[{:8}][{:9}]({:12})[{:12}][{}]\n", arg.GetSpace(), arg.GetImgAccess(), arg.Type, arg.Name, arg.GetQualifier());
+                        if (arg.ArgType == KerArgType::Image)
+                            log().verbose(FMT_STRING(u"---[Image ][{:9}]({:12})[{:12}][{}]\n"), 
+                                arg.GetImgAccessName(), arg.Type, arg.Name, arg.GetQualifierName());
+                        else
+                            log().verbose(FMT_STRING(u"---[{:6}][{:9}]({:12})[{:12}][{}]\n"), 
+                                arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
                     }
                 }
                 log().info(u"\n\n");

@@ -62,39 +62,8 @@ void PrintDebugMsg(const uint32_t tid, const oclDebugInfoMan& infoMan, const ocl
         msg);
 }
 
-Image ProcessImg(const string kernel, const Image& image, float sigma) try
+Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue& cmdque, const Image& image, float sigma) try
 {
-    const auto& plats = oclUtil::GetPlatforms();
-    if (plats.size() == 0)
-        return {};
-
-    common::linq::FromIterable(plats)
-        .ForEach([](const auto& plat, size_t idx) mutable 
-        { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
-    const auto plat = plats[1];
-
-    auto thedev = common::linq::FromContainer(plat->GetDevices())
-        .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
-        .TryGetFirst().value_or(plat->GetDefaultDevice());
-    const auto ctx = plat->CreateContext(thedev);
-    //ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
-
-    auto cmdque = oclCmdQue_::Create(ctx, thedev);
-    oclProgram prog;
-    try
-    {
-        NLCLProcessor proc;
-        auto stub = proc.Parse(common::as_bytes(common::to_span(kernel)));
-        prog = proc.CompileProgram(stub, ctx, thedev)->GetProgram();
-    }
-    catch (OCLException& cle)
-    {
-        u16string buildLog;
-        if (cle.data.has_value())
-            buildLog = std::any_cast<u16string>(cle.data);
-        log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
-        return {};
-    }
     oclKernel blurX = prog->GetKernel("blurX");
     oclKernel blurY = prog->GetKernel("blurY");
 
@@ -145,6 +114,21 @@ catch (common::BaseException& be)
     return {};
 }
 
+template<typename T>
+uint32_t SelectIdx(const T& container, std::u16string_view name)
+{
+    if (container.size() <= 1)
+        return 0;
+    log().info(u"Select {} to use:\n", name);
+    uint32_t idx = UINT32_MAX;
+    do
+    {
+        const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
+        if (ch >= '0' && ch <= '9')
+            idx = ch - '0';
+    } while (idx >= container.size());
+    return idx;
+}
 
 int main() try
 {
@@ -157,6 +141,41 @@ int main() try
     log().verbose(u"nlcl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
+    const auto& plats = oclUtil::GetPlatforms();
+    if (plats.size() == 0)
+        return {};
+
+    common::linq::FromIterable(plats)
+        .ForEach([](const auto& plat, size_t idx) mutable
+            { log().info(u"option[{}] {}\t{}\n", idx, plat->Name, plat->Ver); });
+    const auto platidx = SelectIdx(plats, u"platform");
+    const auto plat = plats[platidx];
+
+    auto thedev = common::linq::FromContainer(plat->GetDevices())
+        .Where([](const auto& dev) { return dev->Type == DeviceType::GPU; })
+        .TryGetFirst().value_or(plat->GetDefaultDevice());
+    const auto ctx = plat->CreateContext(thedev);
+    //ctx->onMessage = [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
+
+    auto cmdque = oclCmdQue_::Create(ctx, thedev);
+    oclProgram prog;
+    try
+    {
+        NLCLProcessor proc;
+        auto stub = proc.Parse(common::as_bytes(common::to_span(str)));
+        prog = proc.CompileProgram(stub, ctx, thedev)->GetProgram();
+    }
+    catch (OCLException& cle)
+    {
+        u16string buildLog;
+        if (cle.data.has_value())
+            buildLog = std::any_cast<u16string>(cle.data);
+        log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+        return 0;
+    }
+
+    
+    common::mlog::SyncConsoleBackend();
     const string fname = common::console::ConsoleEx::ReadLine("image path:");
     common::fs::path fpath = fname;
 
@@ -179,7 +198,10 @@ int main() try
     fpath2.replace_extension(".bmp");
     xziar::img::WriteImage(img1, fpath2);
 
-    auto img2 = ProcessImg(str, img1, 2.0f);
+    auto img2 = ProcessImg(prog, ctx, cmdque, img1, 2.0f);
+
+
+
     auto fpath3 = fpath;
     fpath3.replace_extension(".blur.jpg");
     xziar::img::WriteImage(img2, fpath3);

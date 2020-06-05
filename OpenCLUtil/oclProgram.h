@@ -43,21 +43,25 @@ struct SubgroupInfo
     size_t CompiledSubgroupSize;
 };
 
-enum class KerArgSpace : uint8_t { Global, Constant, Local, Private };
-enum class ImgAccess   : uint8_t { ReadOnly, WriteOnly, ReadWrite, None };
+enum class KerArgType  : uint8_t { Any, Buffer, Image, Simple };
+enum class KerArgSpace : uint8_t { Private, Global, Constant, Local };
+enum class ImgAccess   : uint8_t { None, ReadOnly, WriteOnly, ReadWrite };
 enum class KerArgFlag  : uint8_t { None = 0, Const = 0x1, Restrict = 0x2, Volatile = 0x4, Pipe = 0x8 };
 MAKE_ENUM_BITFIELD(KerArgFlag)
 
 
 struct OCLUAPI ArgFlags
 {
-    KerArgSpace Space;
-    ImgAccess   Access;
-    KerArgFlag  Qualifier;
-    [[nodiscard]] std::string_view GetSpace() const noexcept;
-    [[nodiscard]] std::string_view GetImgAccess() const noexcept;
-    [[nodiscard]] std::string GetQualifier() const noexcept;
-    [[nodiscard]] constexpr bool IsImage() const noexcept { return Access != ImgAccess::None; }
+    KerArgType  ArgType   = KerArgType::Any;
+    KerArgSpace Space     = KerArgSpace::Private;
+    ImgAccess   Access    = ImgAccess::None;
+    KerArgFlag  Qualifier = KerArgFlag::None;
+    [[nodiscard]] std::string_view GetArgTypeName() const noexcept;
+    [[nodiscard]] std::string_view GetSpaceName() const noexcept;
+    [[nodiscard]] std::string_view GetImgAccessName() const noexcept;
+    [[nodiscard]] std::string_view GetQualifierName() const noexcept;
+    [[nodiscard]] constexpr bool IsType(const KerArgType type) const noexcept 
+    { return ArgType == type || ArgType == KerArgType::Any; }
 
     [[nodiscard]] static std::string_view ToCLString(const KerArgSpace space) noexcept;
     [[nodiscard]] static std::string_view ToCLString(const ImgAccess access) noexcept;
@@ -85,7 +89,7 @@ protected:
     KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
     size_t GetSize() const noexcept { return ArgsInfo.size(); }
     const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
-    void AddArg(const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
+    void AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
     KernelArgInfo GetArgInfo(const size_t idx) const noexcept;
     using ItType = common::container::IndirectIterator<KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
