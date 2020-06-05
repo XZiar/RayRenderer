@@ -75,7 +75,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) 3.0.1
+* [gsl](https://github.com/microsoft/GSL) 3.1.0
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
@@ -113,7 +113,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.4.1 master@2020-05-18
+* [libcpuid](http://libcpuid.sourceforge.net/) 0.5.0 master@2020-05-28
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

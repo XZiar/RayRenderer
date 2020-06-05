@@ -36,7 +36,6 @@ namespace asyexe
 class AsyncAgent;
 class AsyncManager;
 
-//using PmsCore = std::shared_ptr<::common::detail::PromiseResultCore>;
 
 class AsyncTaskException : public BaseException
 {

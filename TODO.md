@@ -19,10 +19,13 @@
   - [ ] Add compile-time LE/BE decision
   - [ ] Applying SIMD acceleration 
   - [ ] Merge fmt with better format-context support
+  - [ ] Add BOM detection
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
+  - [ ] Add SpinLock implementation
+  - [ ] Add 
 
 * AsyncExecutor
   - [x] Add support for returning value

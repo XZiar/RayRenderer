@@ -10,10 +10,6 @@ Also, I am tired to find out the difference among "submodule", "subtree", etc...
 
 Some libraries are previously used but still remian in the repo:
 
-* [GLEW](http://glew.sourceforge.net/)  2.1.0
-
-  [Modified BSD & MIT License](./glew/license.txt)
-
 * [date](https://howardhinnant.github.io/date/date.html) 2.4.1
 
   [MIT License](./date/LICENSE.txt)

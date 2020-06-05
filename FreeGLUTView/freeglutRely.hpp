@@ -112,8 +112,8 @@ private:
     }
     static void initExtension()
     {
-        auto wglewGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
-        const auto exts = wglewGetExtensionsStringEXT();
+        auto wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+        const auto exts = wglGetExtensionsStringEXT();
         if(strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
         {
             auto wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
