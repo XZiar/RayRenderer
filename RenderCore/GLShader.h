@@ -7,7 +7,7 @@ namespace rayr
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 struct RAYCOREAPI GLShader : public virtual common::Controllable, public virtual xziar::respak::Serializable
 {

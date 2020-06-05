@@ -12,8 +12,8 @@
 namespace oclu
 {
 
-std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept;
-std::u32string_view StringifyVDataType(const common::simd::VecDataInfo vtype) noexcept;
+std::pair<common::simd::VecDataInfo, bool> OCLUAPI ParseVDataType(const std::u32string_view type) noexcept;
+std::u32string_view OCLUAPI StringifyVDataType(const common::simd::VecDataInfo vtype) noexcept;
 
 class DebugDataLayout
 {

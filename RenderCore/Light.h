@@ -42,7 +42,7 @@ public:
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable, public common::Controllable
 {

@@ -99,7 +99,7 @@ void RenderPass::Draw(RenderPassContext & context)
 
 void RenderPass::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", common::strchset::to_u8string(GetName(), Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(GetName()));
     auto jdrawables = context.NewArray();
     for (const auto& d : Drawables)
     {

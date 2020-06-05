@@ -150,7 +150,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
     if (holder.index() != 1 && holder.index() != 2)
         return {};
     auto jtex = context.NewObject();
-    jtex.Add("name", common::strchset::to_u8string(holder.GetName(), Charset::UTF16LE));
+    jtex.Add("name", common::strchset::to_u8string(holder.GetName()));
     jtex.Add("format", (uint16_t)holder.GetInnerFormat());
     const auto[w, h] = holder.GetSize();
     jtex.Add("width", w);
@@ -193,7 +193,7 @@ static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& val
 }
 void PBRMaterial::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("name", common::strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("name", common::strchset::to_u8string(Name));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
     jself.Add(EJ_FIELD(Metalness))
          .Add(EJ_FIELD(Roughness))

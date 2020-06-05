@@ -9,7 +9,7 @@ namespace rayr
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 class RAYCOREAPI Drawable : public common::NonCopyable,
     public xziar::respak::Serializable, public common::Controllable

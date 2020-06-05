@@ -4,7 +4,7 @@
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 
 namespace rayr
@@ -68,10 +68,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
     uintptr_t GetRawPtr() const;
 };
 
-#if COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275)
-#endif
+
 struct RAYCOREAPI PBRMaterial : public xziar::respak::Serializable, public common::Controllable
 {
 protected:
@@ -98,9 +95,6 @@ public:
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
-#if COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 
 namespace detail

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include <boost/predef/other/endian.h>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -116,9 +117,70 @@ public:
 };
 
 
-enum class Charset { ASCII, UTF7 = ASCII, GB18030, UTF8, UTF16LE, UTF16BE, UTF32LE, UTF32BE };
+enum class Charset 
+{ 
+    ASCII, 
+    UTF7 = ASCII, 
+    GB18030, 
+    UTF8, 
+    UTF16LE, 
+    UTF16BE, 
+    UTF32LE, 
+    UTF32BE,
+#if BOOST_ENDIAN_LITTLE_BYTE
+    UTF16 = UTF16LE,
+    UTF32 = UTF32LE,
+#elif BOOST_ENDIAN_BIG_BYTE
+    UTF16 = UTF16BE,
+    UTF32 = UTF32BE,
+#endif
+};
 
-inline constexpr Charset toCharset(const std::string_view chset)
+
+namespace detail
+{
+template<typename T>
+struct DefCharset
+{
+    static constexpr Charset Val = Charset::ASCII;
+};
+template<> struct DefCharset<char>
+{
+    static constexpr Charset Val = Charset::ASCII;
+};
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template<> struct DefCharset<char8_t>
+{
+    static constexpr Charset Val = Charset::UTF8;
+};
+#endif
+#if BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
+template<> struct DefCharset<char16_t>
+{
+    static constexpr Charset Val = Charset::UTF16;
+};
+template<> struct DefCharset<char32_t>
+{
+    static constexpr Charset Val = Charset::UTF32;
+};
+#endif
+#if COMPILER_MSVC
+template<> struct DefCharset<wchar_t>
+{
+    static constexpr Charset Val = Charset::UTF16LE;
+};
+#elif BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
+template<> struct DefCharset<wchar_t>
+{
+    static constexpr Charset Val = sizeof(wchar_t) == 4 ? Charset::UTF32 : Charset::UTF16;
+};
+#endif
+}
+template<typename T>
+inline constexpr Charset DefaultCharset = detail::DefCharset<std::decay_t<T>>::Val;
+
+
+inline constexpr Charset toCharset(const std::string_view chset) noexcept
 {
     switch (hash_(chset))
     {
@@ -141,7 +203,7 @@ inline constexpr Charset toCharset(const std::string_view chset)
     }
 }
 
-inline constexpr std::string_view getCharsetName(const Charset chset)
+inline constexpr std::string_view getCharsetName(const Charset chset) noexcept
 {
     using namespace std::string_view_literals;
     switch (chset)

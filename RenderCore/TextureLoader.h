@@ -16,7 +16,7 @@ enum class TexProcType : uint8_t { CompressBC7, CompressBC5, Plain };
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 class RAYCOREAPI TextureLoader : public common::NonCopyable, public common::NonMovable, public common::Controllable
 {

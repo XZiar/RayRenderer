@@ -10,7 +10,7 @@ MAKE_ENUM_BITFIELD(FontUpdate)
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 class RAYCOREAPI FontTester : public common::NonCopyable, public RenderPass
 {

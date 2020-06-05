@@ -284,7 +284,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
 }
 void _ModelMesh::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("mfname", common::strchset::to_u8string(mfname, Charset::UTF16LE));
+    jself.Add("mfname", common::strchset::to_u8string(mfname));
     jself.Add("size", ToJArray(context, size));
     jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
     jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));

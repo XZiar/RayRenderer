@@ -24,7 +24,7 @@ vector<cl_context_properties> oclPlatform_::GetCLProps() const
 
 static Vendors JudgeBand(const u16string& name)
 {
-    const auto capName = common::strchset::ToUpperEng(name, Charset::UTF16LE);
+    const auto capName = common::strchset::ToUpperEng(name);
     if (capName.find(u"NVIDIA") != u16string::npos)
         return Vendors::NVIDIA;
     else if (capName.find(u"AMD") != u16string::npos)

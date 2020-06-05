@@ -37,7 +37,7 @@ Camera::Camera() noexcept
 void Camera::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 {
     using detail::JsonConv;
-    jself.Add("Name", common::strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Name));
     jself.Add<JsonConv>(EJ_FIELD(Position))
          .Add<JsonConv>(EJ_FIELD(Rotation))
          .Add<JsonConv>("Right", CamMat.x)

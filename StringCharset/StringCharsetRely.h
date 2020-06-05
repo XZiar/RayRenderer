@@ -35,7 +35,7 @@ namespace detail
 {
 
 template <typename T>
-common::span<const std::byte> ToByteSpan(T&& arg)
+inline common::span<const std::byte> ToByteSpan(T&& arg)
 {
     using U = common::remove_cvref_t<T>;
     if constexpr (common::is_span_v<T>)
@@ -48,6 +48,21 @@ common::span<const std::byte> ToByteSpan(T&& arg)
         return ToByteSpan(std::basic_string_view(arg));
     else
         static_assert(!common::AlwaysTrue<T>, "unsupported");
+}
+template <typename T>
+inline constexpr common::str::Charset GetDefaultCharset() noexcept
+{
+    using U = common::remove_cvref_t<T>;
+    if constexpr (common::is_span_v<T>)
+        return common::str::DefaultCharset<typename T::value_type>;
+    else if constexpr (common::has_valuetype_v<U>)
+        return common::str::DefaultCharset<typename U::value_type>;
+    else if constexpr (std::is_pointer_v<U>)
+        return common::str::DefaultCharset<std::remove_pointer_t<U>>;
+    else if constexpr (std::is_convertible_v<T, common::span<const std::byte>>)
+        return common::str::DefaultCharset<std::byte>;
+    else
+        return common::str::DefaultCharset<T>;
 }
 
 

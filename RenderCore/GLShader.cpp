@@ -123,7 +123,7 @@ constexpr size_t DefineDouble   = common::get_variant_index_v<double,         co
 constexpr size_t DefineStr      = common::get_variant_index_v<string_view,    common::CLikeDefines::ValType>();
 void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", common::strchset::to_u8string(Program->Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Program->Name));
     jself.Add("source", context.PutResource(Source.data(), Source.size()));
     auto config = context.NewObject();
     {

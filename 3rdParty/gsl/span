@@ -403,6 +403,7 @@ public:
     using difference_type = std::ptrdiff_t;
 
     using iterator = details::span_iterator<ElementType>;
+    using const_iterator = details::span_iterator<ElementType>; 
     using reverse_iterator = std::reverse_iterator<iterator>;
 
 #if defined(GSL_USE_STATIC_CONSTEXPR_WORKAROUND)

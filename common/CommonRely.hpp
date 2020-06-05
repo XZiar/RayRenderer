@@ -292,7 +292,7 @@ struct clz::make_enabler : public clz           \
 template<typename T>
 [[nodiscard]] inline constexpr uint64_t hash_(const T& str) noexcept
 {
-    uint64_t hash = 0;
+    uint64_t hash = 5381;
     for (size_t a = 0, len = str.size(); a < len; ++a)
         hash = hash * 33 + str[a];
     return hash;
@@ -304,14 +304,14 @@ template<typename T>
 **/
 [[nodiscard]] inline constexpr uint64_t hash_(const char *str) noexcept
 {
-    uint64_t hash = 0;
+    uint64_t hash = 5381;
     for (; *str != '\0'; ++str)
         hash = hash * 33 + *str;
     return hash;
 }
 [[nodiscard]] inline constexpr uint64_t hash_(const char32_t* str) noexcept
 {
-    uint64_t hash = 0;
+    uint64_t hash = 5381;
     for (; *str != U'\0'; ++str)
         hash = hash * 33 + *str;
     return hash;

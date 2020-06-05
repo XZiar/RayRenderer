@@ -63,7 +63,7 @@ void Light::RegistControllable()
 
 void Light::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", common::strchset::to_u8string(Name, Charset::UTF16LE));
+    jself.Add("Name", common::strchset::to_u8string(Name));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Direction", detail::ToJArray(context, Direction));
     jself.Add("Color", detail::ToJArray(context, Color));

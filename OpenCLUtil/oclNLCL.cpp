@@ -34,7 +34,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
     if (var.Part() == U"Extension"sv)
     {
-        const auto extName = common::strchset::to_string(var.Rest(), Charset::UTF8, Charset::UTF32LE);
+        const auto extName = common::strchset::to_string(var.Rest(), Charset::UTF8, Charset::UTF32);
         return Device->Extensions.Has(extName);
     }
     if (var.Part() == U"Dev"sv)
@@ -819,8 +819,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 HAS_FIELD(flags, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
                 name));
             argInfos.AddArg(space.value(), ImgAccess::None, flags,
-                common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32LE),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE));
+                common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32),
+                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
         HashCase(subName, U"ImgArg")
         {
@@ -836,8 +836,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 argType,
                 name));
             argInfos.AddArg(KerArgSpace::Global, access.value(), KerArgFlag::None,
-                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32LE),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32LE));
+                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32),
+                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
         HashCase(subName, U"DebugOutput")
         {
@@ -900,7 +900,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     DirectOutput(block, metas, dst);
     dst.append(U"}\r\n"sv);
-    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32LE), std::move(argInfos));
+    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
@@ -1025,7 +1025,7 @@ std::string NLCLRuntime::GenerateOutput()
         }
     }
 
-    return common::strchset::to_string(prefix + output, Charset::UTF8, Charset::UTF32LE);
+    return common::strchset::to_string(prefix + output, Charset::UTF8, Charset::UTF32);
 }
 
 

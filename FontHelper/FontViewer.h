@@ -7,7 +7,7 @@ namespace oglu
 
 #if COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4275)
+#   pragma warning(disable:4275 4251)
 #endif
 class FONTHELPAPI FontViewer : public common::NonCopyable, public common::Controllable
 {
