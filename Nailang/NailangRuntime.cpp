@@ -611,8 +611,8 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(cons
         const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
         if (args[0].GetBool().value())
         {
-            const auto metaName = args[1].GetStr();
-            return HandleMetaFuncBefore({ metaName.value(), meta.Args.subspan(2) }, content, allMetas);
+            const auto metaName = args[1].GetStr().value();
+            return HandleMetaFuncBefore({ metaName, meta.Args.subspan(2) }, content, allMetas);
         }
         return MetaFuncResult::Unhandled;
     }

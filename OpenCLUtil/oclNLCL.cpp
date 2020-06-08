@@ -10,6 +10,7 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
+using xziar::nailang::RawArg;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
@@ -23,6 +24,7 @@ using common::simd::VecDataInfo;
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 NLCLEvalContext::NLCLEvalContext(oclDevice dev) : Device(dev) 
@@ -236,6 +238,13 @@ static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t u
     }
 }
 
+struct KernelCookie
+{
+    uint32_t WorkgroupSize = 0;
+    uint8_t SubgroupSize = 0, MimicSubgroupSize = 0;
+    bool MimicSubgroup = false;
+};
+
 std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
 {
     return U"inline void oclu_SkipDebug() {}";
@@ -244,19 +253,72 @@ std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
 std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
     const uint8_t unitBits, const uint8_t dim, VecDataInfo::DataTypes dtype) noexcept
 {
-    Expects(dim > 0 && dim <= 16);
+    Expects(dim > 1 && dim <= 16);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
     const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
     const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n"sv),
         vecName, funcName);
     for (uint8_t i = 0; i < dim; ++i)
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"    const {} ele{} = {}(val.s{}, sgId);\r\n"sv),
-            scalarName, i, base, idxNames[i]);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"    return ({})("sv), vecName);
+        APPEND_FMT(func, U"    const {} ele{} = {}(val.s{}, sgId);\r\n"sv, scalarName, i, base, idxNames[i]);
+    APPEND_FMT(func, U"    return ({})("sv, vecName);
     for (uint8_t i = 0; i < dim - 1; ++i)
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"ele{}, "sv), i);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"ele{});\r\n}}"sv), dim - 1);
+        APPEND_FMT(func, U"ele{}, "sv, i);
+    APPEND_FMT(func, U"ele{});\r\n}}"sv, dim - 1);
+    return func;
+}
+
+std::u32string NLCLRuntime::SubgroupShuffleMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
+    VecDataInfo::DataTypes dtype) noexcept
+{
+    Expects(dim > 0 && dim <= 16);
+    constexpr char32_t idxNames[] = U"0123456789abcdef";
+    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
+    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
+    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
+        vecName, funcName);
+    func.append(U"\r\n{\r\n    const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);");
+    APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
+    if (dim == 1)
+    {
+        APPEND_FMT(func, U"\r\n    ptr[lid] = val; const {} ele0 = ptr[sgId];"sv, scalarName);
+    }
+    else
+    {
+        for (uint8_t i = 0; i < dim; ++i)
+            APPEND_FMT(func, U"\r\n    ptr[lid] = val.s{}; const {} ele{} = ptr[sgId];"sv, idxNames[i], scalarName, i);
+    }
+    APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
+    for (uint8_t i = 0; i < dim - 1; ++i)
+        APPEND_FMT(func, U"ele{}, "sv, i);
+    APPEND_FMT(func, U"ele{});\r\n}}"sv, dim - 1);
+    return func;
+}
+
+std::u32string NLCLRuntime::SubgroupBroadcastMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
+    VecDataInfo::DataTypes dtype) noexcept
+{
+    Expects(dim > 0 && dim <= 16);
+    constexpr char32_t idxNames[] = U"0123456789abcdef";
+    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
+    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
+    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
+        vecName, funcName);
+    func.append(U"\r\n{\r\n    const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);");
+    APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
+    if (dim == 1)
+    {
+        APPEND_FMT(func, U"\r\n    if (lid == sgId) ptr[0] = val;\r\n    const {} ele0 = ptr[sgId];"sv, scalarName);
+    }
+    else
+    {
+        for (uint8_t i = 0; i < dim; ++i)
+            APPEND_FMT(func, U"\r\n    if (lid == sgId) ptr[0] = val.s{};\r\n    const {} ele{} = ptr[sgId];"sv, idxNames[i], scalarName, i);
+    }
+    APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
+    for (uint8_t i = 0; i < dim - 1; ++i)
+        APPEND_FMT(func, U"ele{}, "sv, i);
+    APPEND_FMT(func, U"ele{});\r\n}}"sv, dim - 1);
     return func;
 }
 
@@ -284,12 +346,12 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
         .append(U"\r\n    global uint* restrict data,"sv);
     for (size_t i = 0; i < args.size(); ++i)
     {
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const  {:7} arg{},"sv), GetVecTypeName(args[i]), i);
+        APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, GetVecTypeName(args[i]), i);
     }
     func.pop_back();
     func.append(U")\r\n{"sv);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint size = {} + 1;"), dbgData.TotalSize / 4);
-    fmt::format_to(std::back_inserter(func), FMT_STRING(U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]"), dbgBlock.DebugId);
+    APPEND_FMT(func, U"\r\n    const uint size = {} + 1;", dbgData.TotalSize / 4);
+    APPEND_FMT(func, U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]", dbgBlock.DebugId);
     func.append(U"\r\n    if (total == 0) return;");
     func.append(U"\r\n    if (counter[0] + size > total) return;");
     func.append(U"\r\n    const uint old = atom_add (counter, size);");
@@ -299,7 +361,6 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     func.append(U"\r\n    global uint* const restrict ptr = data + old + 1;");
     const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
     {
-        auto dst = std::back_inserter(func);
         const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
         const auto dstTypeStr  = GetVecTypeName(dtype);
         std::u32string getData = needConv ?
@@ -307,20 +368,17 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
             fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
         if (vsize == 1)
         {
-            fmt::format_to(dst, FMT_STRING(U"\r\n    ((global {}*)(ptr))[{}] = {};"sv),
-                    dstTypeStr, offset / (dtype.Bit / 8), getData);
+            APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / (dtype.Bit / 8), getData);
         }
         else
         {
-            fmt::format_to(dst, FMT_STRING(U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv),
-                vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
+            APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
         }
     };
     for (const auto& [info, offset, idx] : dbgData.ByLayout())
     {
         const auto size = info.Bit * info.Dim0;
-        fmt::format_to(std::back_inserter(func),
-            FMT_STRING(U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv),
+        APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv,
             idx, offset, size / 8, StringifyVDataType(info));
         for (const auto eleBit : std::array<uint8_t, 3>{ 32u,16u,8u })
         {
@@ -371,12 +429,53 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     return func;
 }
 
-std::u32string NLCLRuntime::GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle)
+std::u32string NLCLRuntime::GenerateSubgroupShuffleMimic(const common::span<const std::u32string_view> args, const bool needShuffle)
+{
+    const auto info = ParseVecType(args[0]);
+    if (!info.has_value())
+    {
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0]));
+        return {};
+    }
+    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
+    {
+        return fmt::format(FMT_STRING(U"as_{}({}(_oclu_subgroup_mimic, as_{}({}), {}))"sv),
+            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
+    };
+    const uint32_t totalBits = info->Bit * info->Dim0;
+    const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_mimic_{}_{}"sv), needShuffle ? U"shuffle"sv : U"broadcast"sv, totalBits);
+    for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
+    {
+        const auto vnum = CheckVecable(totalBits, targetBits);
+        if (vnum == 0) continue;
+        if (needShuffle)
+            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShuffleMimicPatch,
+                funcName, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+        else
+            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupBroadcastMimicPatch,
+                funcName, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
+        return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
+    }
+    // cannot handle right now
+    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched shuffle_mimic for [{}]"sv), args[0]));
+    return {};
+}
+
+std::u32string NLCLRuntime::GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle, const bool allowMimic)
 {
     Expects(args.size() == 3);
     if (needShuffle && !SupportSubgroupIntel)
     {
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Subgroup shuffle require support of intel_subgroups."sv), args[0]));
+        if (allowMimic)
+            return GenerateSubgroupShuffleMimic(args, needShuffle);
+        NLRT_THROW_EX(u"Subgroup shuffle require support of intel_subgroups."sv);
+        return {};
+    }
+    if (!SupportSubgroupKHR && !SupportSubgroupIntel)
+    {
+        if (allowMimic)
+            return GenerateSubgroupShuffleMimic(args, needShuffle);
+        NLRT_THROW_EX(u"Subgroup require support of intel_subgroups or khr_subgroups."sv);
         return {};
     }
     const auto info = ParseVecType(args[0]);
@@ -489,7 +588,7 @@ std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u3
     std::u32string func = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), args[0]);
     for (size_t i = 1; i < args.size(); ++i)
     {
-        fmt::format_to(std::back_inserter(func), FMT_STRING(U"{}, "sv), args[i]);
+        APPEND_FMT(func, U"{}, "sv, args[i]);
     }
     func.pop_back();
     func.back() = U')';
@@ -497,7 +596,7 @@ std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u3
     return func;
 }
 
-void NLCLRuntime::OnReplaceVariable(std::u32string& output, const std::u32string_view var)
+void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] const std::any* cookie, const std::u32string_view var)
 {
     if (var.size() > 0 && var[0] == U'@')
     {
@@ -525,7 +624,7 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, const std::u32string
     }
 }
 
-void NLCLRuntime::OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<const std::u32string_view> args)
+void NLCLRuntime::OnReplaceFunction(std::u32string& output, [[maybe_unused]] const std::any* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args)
 {
     if (func == U"unroll"sv)
     {
@@ -537,14 +636,14 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, const std::u32string
                 if (args.empty())
                     output.append(U"__attribute__((opencl_unroll_hint))"sv);
                 else
-                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"__attribute__((opencl_unroll_hint({})))"sv), args[0]);
+                    APPEND_FMT(output, U"__attribute__((opencl_unroll_hint({})))"sv, args[0]);
             }
             else
             {
                 if (args.empty())
                     output.append(U"#pragma unroll"sv);
                 else
-                    fmt::format_to(std::back_inserter(output), FMT_STRING(U"#pragma unroll {}"sv), args[0]);
+                    APPEND_FMT(output, U"#pragma unroll {}"sv, args[0]);
             }
         }
         return;
@@ -556,13 +655,36 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, const std::u32string
         HashCase(subName, U"SubgroupBroadcast")
         {
             ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-            output.append(GenerateSubgroupShuffle(args, false)); 
+            bool allowMimic = false;
+            if (const auto ck = std::any_cast<KernelCookie>(cookie); ck)
+                allowMimic = ck->MimicSubgroup;
+            output.append(GenerateSubgroupShuffle(args, false, allowMimic));
             return;
         }
         HashCase(subName, U"SubgroupShuffle")
         {
             ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-            output.append(GenerateSubgroupShuffle(args, true));
+            bool allowMimic = false;
+            if (const auto ck = std::any_cast<KernelCookie>(cookie); ck)
+                allowMimic = ck->MimicSubgroup;
+            output.append(GenerateSubgroupShuffle(args, true, allowMimic));
+            return;
+        }
+        HashCase(subName, U"GetSubgroupLocalId")
+        {
+            ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+            if (SupportSubgroupKHR || SupportSubgroupIntel)
+                output.append(U"get_sub_group_local_id()"sv);
+            else
+            {
+                bool allowMimic = false;
+                if (const auto ck = std::any_cast<KernelCookie>(cookie); ck)
+                    allowMimic = ck->MimicSubgroup;
+                if (allowMimic)
+                    output.append(U"_oclu_subgroup_mimic"sv);
+                else
+                    NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupLocalId] requires subgroup support or subgroup mimic.");
+            }
             return;
         }
         HashCase(subName, U"DebugString")
@@ -623,7 +745,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"EnableExtension")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            // ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
             if (const auto sv = arg.GetStr(); sv.has_value())
             {
@@ -703,7 +825,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
             const auto isShuffle = args[0].GetBool().value();
             const auto vtype = args[1].GetStr().value();
             std::array strs{ vtype,U"x"sv,U"y"sv };
-            const auto funcsrc = GenerateSubgroupShuffle(strs, isShuffle);
+            const auto funcsrc = GenerateSubgroupShuffle(strs, isShuffle, true);
             AddPatchedBlock(fmt::format(U"AddSubgroupPatch_{}_{}"sv, vtype, isShuffle),
                 [&]() { return fmt::format(U"/* {} */\r\n"sv, funcsrc); });
         } return {};
@@ -713,14 +835,14 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
-void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, const std::any* cookie)
 {
     OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceVariable"sv; }))
         source = ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
     if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceFunction"sv; }))
-        source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv);
+        source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv, cookie);
     dst.append(source.StrView());
 }
 
@@ -737,24 +859,22 @@ void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
         else
             continue;
         if (meta.Args.size() == 1)
-            fmt::format_to(std::back_inserter(dst),
-                FMT_STRING(U"/* {:7} :  {} */\r\n"sv), prefix,
-                xziar::nailang::Serializer::Stringify(meta.Args[0]));
+            APPEND_FMT(dst, U"/* {:7} :  {} */\r\n"sv, prefix, xziar::nailang::Serializer::Stringify(meta.Args[0]));
     }
 }
 
 void NLCLRuntime::OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From GlobalBlock [{}] */\r\n"sv), block.Name);
+    APPEND_FMT(dst, U"\r\n/* From GlobalBlock [{}] */\r\n"sv, block.Name);
     DirectOutput(block, metas, dst);
 }
 
 void NLCLRuntime::OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From StructBlock [{}] */\r\n"sv), block.Name);
+    APPEND_FMT(dst, U"\r\n/* From StructBlock [{}] */\r\n"sv, block.Name);
     dst.append(U"typedef struct \r\n{\r\n"sv);
     DirectOutput(block, metas, dst);
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"}} {};\r\n"sv), block.Name);
+    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Name);
 }
 
 
@@ -779,24 +899,34 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
+    KernelCookie cookie;
     KernelArgStore argInfos;
     std::vector<std::u32string> argTexts;
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From KernelBlock [{}] */\r\n"sv), block.Name);
-    for (const auto meta : metas)
+    APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
+    for (auto meta : metas)
     {
+        if (meta.Name == U"MetaIf")
+        {
+            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
+            if (!args[0].GetBool().value())
+                continue;
+            meta.Name = args[1].GetStr().value();
+            meta.Args = meta.Args.subspan(2);
+        }
         if (!IsBeginWith(meta.Name, U"oclu.")) continue;
         switch (const auto subName = meta.Name.substr(5); hash_(subName))
         {
         HashCase(subName, U"RequestSubgroupSize")
         {
             const auto sgSize = EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
+            cookie.SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
             if (Device->GetPlatform()->PlatVendor != oclu::Vendors::Intel)
             {
                 Logger.verbose(u"Skip subgroup size due to non-intel platform.\n");
                 break;
             }
             EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
-            fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv), sgSize);
+            APPEND_FMT(dst, U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv, sgSize);
         } break;
         HashCase(subName, U"RequestWorkgroupSize")
         {
@@ -804,8 +934,14 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto x = args[0].GetUint().value_or(1),
                        y = args[1].GetUint().value_or(1),
                        z = args[2].GetUint().value_or(1);
-            fmt::format_to(std::back_inserter(dst), FMT_STRING(U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv),
-                x, y, z);
+            cookie.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
+            APPEND_FMT(dst, U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv, x, y, z);
+        } break;
+        HashCase(subName, U"MimicSubgroup")
+        {
+            const auto arg = EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
+            cookie.MimicSubgroupSize = gsl::narrow_cast<uint8_t>(arg.value_or(0));
+            cookie.MimicSubgroup = true;
         } break;
         HashCase(subName, U"SimpleArg")
         {
@@ -901,7 +1037,28 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             break;
         }
     }
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"kernel void {} ("sv), block.Name);
+    if (cookie.MimicSubgroup)
+    {
+        const bool specifiedSgSize = cookie.SubgroupSize != 0;
+        if (cookie.SubgroupSize == 0)
+            cookie.SubgroupSize = gsl::narrow_cast<uint8_t>(cookie.WorkgroupSize);
+        if (cookie.MimicSubgroupSize == 0)
+            cookie.MimicSubgroupSize = cookie.SubgroupSize;
+        if (cookie.MimicSubgroupSize != cookie.SubgroupSize)
+            NLRT_THROW_EX(fmt::format(u"Provided MimicSubgroup size [{}] does not match given SubgroupSize [{}]."sv,
+                cookie.MimicSubgroupSize, cookie.SubgroupSize));
+        if (cookie.WorkgroupSize != cookie.SubgroupSize && cookie.WorkgroupSize != 0)
+            NLRT_THROW_EX(fmt::format(u"MimicSubgroup requires only 1 subgroup for an workgroup, now have subgroup[{}] and workgroup [{}]."sv,
+                cookie.SubgroupSize, cookie.WorkgroupSize));
+        if (cookie.MimicSubgroupSize == 0) // means SubgroupSize == 0, WorkgroupSize == 0
+            NLRT_THROW_EX(u"MimicSubgroup without knowing subgroupSize."sv);
+        if (!specifiedSgSize && Device->GetPlatform()->PlatVendor == oclu::Vendors::Intel)
+        {
+            EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
+            APPEND_FMT(dst, U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv, cookie.SubgroupSize);
+        }
+    }
+    APPEND_FMT(dst, U"kernel void {} ("sv, block.Name);
     for (const auto& argText : argTexts)
     {
         dst.append(U"\r\n    "sv).append(argText).append(U","sv);
@@ -940,10 +1097,16 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 
-
 )"sv);
     }
-    DirectOutput(block, metas, dst);
+    if (cookie.MimicSubgroup)
+    {
+        dst.append(U"    // below injected by oclu_subgroup_mimic\r\n"sv);
+        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    const uint  _oclu_subgroup_size = {};\r\n\r\n"sv), cookie.MimicSubgroupSize);
+        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    local ulong _oclu_subgroup_mimic[{}];\r\n"sv), cookie.MimicSubgroupSize);
+    }
+    std::any ck(cookie);
+    DirectOutput(block, metas, dst, &ck);
     dst.append(U"}\r\n"sv);
     CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
 }
@@ -951,7 +1114,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
 {
     // TODO:
-    fmt::format_to(std::back_inserter(dst), FMT_STRING(U"\r\n/* From TempalteKernel [{}] */\r\n"sv), block.Name);
+    APPEND_FMT(dst, U"\r\n/* From TempalteKernel [{}] */\r\n"sv, block.Name);
     NLRT_THROW_EX(u"TemplateKernel not supportted yet"sv,
         &block);
 }
@@ -1055,7 +1218,7 @@ std::string NLCLRuntime::GenerateOutput()
                 .ForEach([&](const auto& pair)
                     {
                         if (pair.first)
-                            fmt::format_to(std::back_inserter(prefix), FMT_STRING(U"#pragma OPENCL EXTENSION {} : enable\r\n"sv), pair.second);
+                            APPEND_FMT(prefix, U"#pragma OPENCL EXTENSION {} : enable\r\n"sv, pair.second);
                     });
         }
         prefix.append(U"\r\n"sv);
@@ -1064,7 +1227,7 @@ std::string NLCLRuntime::GenerateOutput()
     { // Output patched blocks
         for (const auto& [id, src] : PatchedBlocks)
         {
-            fmt::format_to(std::back_inserter(prefix), FMT_STRING(U"/* Patched Block [{}] */\r\n\r\n"sv), id);
+            APPEND_FMT(prefix, U"/* Patched Block [{}] */\r\n\r\n"sv, id);
             prefix.append(src);
             prefix.append(U"\r\n"sv);
         }

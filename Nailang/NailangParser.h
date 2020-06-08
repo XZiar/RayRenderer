@@ -2,6 +2,7 @@
 #include "NailangStruct.h"
 #include "common/parser/ParserBase.hpp"
 #include <optional>
+#include <any>
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -90,10 +91,10 @@ class NAILANGAPI ReplaceEngine
 {
 protected:
     static std::u32string_view TrimStrBlank(const std::u32string_view str) noexcept;
-    virtual void OnReplaceVariable(std::u32string& output, const std::u32string_view var) = 0;
-    virtual void OnReplaceFunction(std::u32string& output, const std::u32string_view func, const common::span<const std::u32string_view> args) = 0;
-    std::u32string ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix);
-    std::u32string ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix);
+    virtual void OnReplaceVariable(std::u32string& output, const std::any* cookie, const std::u32string_view var) = 0;
+    virtual void OnReplaceFunction(std::u32string& output, const std::any* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) = 0;
+    std::u32string ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie = nullptr);
+    std::u32string ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie = nullptr);
 public:
     virtual ~ReplaceEngine();
 };

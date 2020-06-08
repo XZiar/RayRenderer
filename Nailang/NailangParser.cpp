@@ -548,7 +548,7 @@ std::u32string_view ReplaceEngine::TrimStrBlank(const std::u32string_view str) n
     return str.substr(0, len);
 }
 
-std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix)
+std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
 {
     if (prefix.empty() || suffix.empty())
         throw U"Illegal prefix/suffix"sv;
@@ -578,12 +578,12 @@ std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, 
         }
         var.remove_suffix(suffix.size());
         // find a variable replacement
-        OnReplaceVariable(output, TrimStrBlank(var));
+        OnReplaceVariable(output, cookie, TrimStrBlank(var));
     }
     return output;
 }
 
-std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix)
+std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
 {
     if (prefix.empty())
         throw U"Illegal suffix"sv;
@@ -680,7 +680,7 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
             }
         }
         // find a function replacement
-        OnReplaceFunction(output, TrimStrBlank(funcName), args);
+        OnReplaceFunction(output, cookie, TrimStrBlank(funcName), args);
     }
     return output;
 }

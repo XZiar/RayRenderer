@@ -432,8 +432,8 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
     }
     {
         uint64_t lSize = Device->LocalMemSize;
-        lSize = lSize == UINT64_MAX ? 0 : lSize; //default as zero
-        options.append("-DOCLU_LOCAL_MEM_SIZE=").append(std::to_string(lSize));
+        lSize = (lSize == UINT64_MAX) ? 0 : lSize; //default as zero
+        fmt::format_to(std::back_inserter(options), "-DOCLU_LOCAL_MEM_SIZE={} ", lSize);
     }
     for (const auto& flag : config.Flags)
         options.append(flag).append(" "sv);
