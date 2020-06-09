@@ -91,11 +91,11 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
     return {};
 }
 
-Arg oclu::NLCLEvalContext::LookUpArg(xziar::nailang::detail::VarHolder var) const
+Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var) const
 {
-    if (IsBeginWith(var.GetFull(), U"oclu."sv))
-        return LookUpCLArg(var.GetFull().substr(5));
-    return CompactEvaluateContext::LookUpArg(var);
+    if (var.Part() == U"oclu"sv)
+        return LookUpCLArg(var.Rest());
+    return CompactEvaluateContext::LookUpArgInside(var);
 }
 
 
@@ -1101,6 +1101,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     if (cookie.MimicSubgroup)
     {
+        Logger.debug(u"Subgroup mimic is enabled for kernel [{}].\n", block.Name);
         dst.append(U"    // below injected by oclu_subgroup_mimic\r\n"sv);
         fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    const uint  _oclu_subgroup_size = {};\r\n\r\n"sv), cookie.MimicSubgroupSize);
         fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    local ulong _oclu_subgroup_mimic[{}];\r\n"sv), cookie.MimicSubgroupSize);

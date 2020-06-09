@@ -432,22 +432,13 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
+    void EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const ArgLimits limit, const FuncCall& call);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
     forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
         ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        if constexpr (Limit == ArgLimits::AtLeast)
-        {
-            for (size_t i = 0; i < N; ++i)
-                args[i] = EvaluateArg(call.Args[i]);
-        }
-        else
-        {
-            size_t i = 0;
-            for (const auto& rawarg : call.Args)
-                args[i++] = EvaluateArg(rawarg);
-        }
+        EvaluateFuncArgs(args.data(), nullptr, N, Limit, call);
         return args;
     }
 
@@ -456,24 +447,7 @@ protected:
     {
         ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        if constexpr (Limit == ArgLimits::AtLeast)
-        {
-            for (size_t i = 0; i < N; ++i)
-            {
-                args[i] = EvaluateArg(call.Args[i]);
-                ThrowByArgType(call, args[i], types[i], i);
-            }
-        }
-        else
-        {
-            size_t i = 0;
-            for (const auto& rawarg : call.Args)
-            {
-                args[i] = EvaluateArg(rawarg);
-                ThrowByArgType(call, args[i], types[i], i);
-                i++;
-            }
-        }
+        EvaluateFuncArgs(args.data(), types.data(), N, Limit, call);
         return args;
     }
 

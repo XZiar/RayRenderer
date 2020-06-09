@@ -535,6 +535,30 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
     return ret.value();
 }
 
+void NailangRuntimeBase::EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const ArgLimits limit, const FuncCall& call)
+{
+    if (limit == ArgLimits::AtLeast)
+    {
+        for (size_t i = 0; i < size; ++i)
+        {
+            args[i] = EvaluateArg(call.Args[i]);
+            if (types != nullptr)
+                ThrowByArgType(call, args[i], types[i], i);
+        }
+    }
+    else
+    {
+        size_t i = 0;
+        for (const auto& rawarg : call.Args)
+        {
+            args[i] = EvaluateArg(rawarg);
+            if (types != nullptr)
+                ThrowByArgType(call, args[i], types[i], i);
+            i++;
+        }
+    }
+}
+
 bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx)
 {
     for (const auto& meta : metas)

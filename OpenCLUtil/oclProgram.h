@@ -140,11 +140,11 @@ private:
     uint32_t ReqDbgBufSize;
     oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, std::string name, KernelArgStore&& argStore);
     template<size_t N>
-    [[nodiscard]] constexpr static const size_t* CheckLocalSize(const size_t(&localsize)[N])
+    [[nodiscard]] constexpr static const size_t* CheckLocalSize(const std::array<size_t, N>& localsize)
     {
         for (size_t i = 0; i < N; ++i)
             if (localsize[i] != 0)
-                return localsize;
+                return localsize.data();
         return nullptr;
     }
 
@@ -178,6 +178,7 @@ private:
     {
         friend class oclKernel_;
     private:
+        using SizeN = std::array<size_t, N>;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
 
@@ -201,15 +202,15 @@ private:
             InitArg<sizeof...(Args) - 1>();
         }
     public:
-        [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss,
-            const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que, 
+            const SizeN& worksize, const SizeN& localsize = { 0 }, const SizeN& workoffset = { 0 })
         {
-            return Run(N, pmss, que, worksize, workoffset, CheckLocalSize(localsize));
+            return Run(N, pmss, que, worksize.data(), workoffset.data(), CheckLocalSize(localsize));
         }
-        [[nodiscard]] common::PromiseResult<CallResult> operator()(
-            const oclCmdQue& que, const size_t(&worksize)[N], const size_t(&localsize)[N] = { 0 }, const size_t(&workoffset)[N] = { 0 })
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(const oclCmdQue& que, 
+            const SizeN& worksize, const SizeN& localsize = { 0 }, const SizeN& workoffset = { 0 })
         {
-            return Run(N, {}, que, worksize, workoffset, CheckLocalSize(localsize));
+            return Run(N, {}, que, worksize.data(), workoffset.data(), CheckLocalSize(localsize));
         }
     };
 public:
@@ -221,10 +222,10 @@ public:
     [[nodiscard]] const KernelArgStore& GetArgInfos() const noexcept { return ArgStore; }
     [[nodiscard]] bool HasOCLUDebug() const noexcept { return ArgStore.HasDebug; }
     template<uint8_t N>
-    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const size_t(&localsize)[N]) const
+    [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const std::array<size_t, N>& localsize) const
     {
         static_assert(N > 0 && N < 4, "local dim should be in [1,3]");
-        return GetSubgroupInfo(N, localsize);
+        return GetSubgroupInfo(N, localsize.data());
     }
     template<uint8_t N, typename... Args>
     [[nodiscard]] auto Call(Args&&... args) const

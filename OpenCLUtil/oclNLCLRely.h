@@ -31,10 +31,10 @@ class OCLUAPI NLCLEvalContext : public xziar::nailang::CompactEvaluateContext
 protected:
     oclDevice Device;
     xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
+    [[nodiscard]] xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
 public:
     NLCLEvalContext(oclDevice dev);
     ~NLCLEvalContext() override;
-    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::detail::VarHolder var) const override;
 
 };
 
@@ -100,7 +100,6 @@ protected:
         return false;
     }
 
-    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
     [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
     [[nodiscard]] std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
         const uint8_t unitBits, const uint8_t dim, 
@@ -132,6 +131,7 @@ public:
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
+    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
 
     std::string GenerateOutput();
 };
