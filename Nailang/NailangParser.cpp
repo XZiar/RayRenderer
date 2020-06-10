@@ -1,5 +1,6 @@
 #include "NailangParser.h"
 #include "ParserRely.h"
+#include "3rdParty/fmt/utfext.h"
 #include <boost/range/adaptor/reversed.hpp>
 
 namespace xziar::nailang
@@ -53,6 +54,22 @@ common::str::StrVariant<char16_t> NailangParser::GetCurrentFileName() const noex
     fileName.reserve(Context.SourceName.size() + SubScopeName.size() + 3);
     fileName.append(Context.SourceName).append(u" ["sv).append(SubScopeName).append(u"]");
     return fileName;
+}
+
+void NailangParser::HandleException(const NailangParseException& ex) const
+{
+    ex.File = GetCurrentFileName().StrView();
+    ex.Position = GetCurrentPosition();
+    ex.ThrowSelf();
+}
+
+#define NLPS_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangParseException, __VA_ARGS__))
+
+common::parser::ParserToken NailangParser::OnUnExpectedToken(const common::parser::ParserToken& token, const std::u16string_view extraInfo) const
+{
+    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}]{}{}"sv), DescribeToken(token), extraInfo.empty() ? u' ' : u',', extraInfo);
+    HandleException(UnexpectedTokenException(msg, token));
+    return token;
 }
 
 void NailangParser::EatLeftParenthese()
@@ -116,9 +133,9 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
             if (type == BaseToken::Unknown || type == BaseToken::Error)
             {
                 if (isAtOp)
-                    throw U"expect an operator"sv;
+                    OnUnExpectedToken(token, u"expect an operator"sv);
                 else
-                    throw U"unknown or error token"sv;
+                    OnUnExpectedToken(token, u"unknown or error token"sv);
             }
             if (type == BaseToken::Delim || type == BaseToken::End)
             {
@@ -130,20 +147,20 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
         if (token.GetIDEnum<SectorLangToken>() == SectorLangToken::EmbedOp)
         {
             if (op.has_value())
-                throw U"Already has op"sv;
+                OnUnExpectedToken(token, u"already has op"sv);
             const auto opval = static_cast<EmbedOps>(token.GetUInt());
             const bool isUnary = EmbedOpHelper::IsUnaryOp(opval);
             if (isUnary && oprend1.has_value())
-                throw U"Expect no operand before unary operator"sv;
+                OnUnExpectedToken(token, u"expect no operand before unary operator"sv);
             if (!isUnary && !oprend1.has_value())
-                throw U"Expect operand before binary operator"sv;
+                OnUnExpectedToken(token, u"expect operand before binary operator"sv);
             op = opval;
         }
         else
         {
             auto& target = op.has_value() ? oprend2 : oprend1;
             if (target.has_value())
-                throw U"Already has oprend"sv;
+                OnUnExpectedToken(token, u"already has oprend"sv);
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
@@ -163,9 +180,9 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
                 if (token.GetChar() == U'(')
                     target = ParseArg<GroupEndDelimer>().first;
                 else
-                    throw U"Unexpected right parenthese"sv;
+                    OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
                 break; 
-            default                     : throw U"Unexpected token"sv;
+            default                     : OnUnExpectedToken(token, u"Unexpected token"sv);
             }
 #undef EID
         }
@@ -181,7 +198,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
     {
         Expects(!oprend1.has_value());
         if (!oprend2.has_value())
-            throw U"Lack oprend for unary operator"sv;
+            NLPS_THROW_EX(u"Lack oprend for unary operator"sv);
         return { MemPool.Create<UnaryExpr>(*op, std::move(*oprend2)), stopChar };
 
     }
@@ -189,7 +206,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
     {
         Expects(oprend1.has_value());
         if (!oprend2.has_value())
-            throw U"Lack 2nd oprend for binary operator"sv;
+            NLPS_THROW_EX(u"Lack 2nd oprend for binary operator"sv);
         return { MemPool.Create<BinaryExpr>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
     }
 }
@@ -237,11 +254,11 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
             args.emplace_back(std::move(*arg));
         else
             if (delim != U')')
-                throw U"Does not allow empty argument"sv;
+                parser.NLPS_THROW_EX(u"Does not allow empty argument"sv);
         if (delim == U')')
             break;
         if (delim == common::parser::special::CharEnd)
-            throw U"Expect ')' before reaching end"sv;
+            parser.NLPS_THROW_EX(u"Expect ')' before reaching end"sv);
     }
     const auto sp = pool.CreateArray(args);
     return { funcName,sp };
@@ -252,7 +269,7 @@ std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, c
     ComplexArgParser parser(pool, context);
     auto [arg, delim] = parser.ParseArg<StatementEndDelimer>();
     if (delim != U';')
-        throw U"Expected end with ;"sv;
+        parser.NLPS_THROW_EX(u"Expected end with ';'"sv);
     return arg;
 }
 
@@ -352,11 +369,6 @@ std::vector<RawBlockWithMeta> RawBlockParser::GetAllRawBlocks()
 }
 
 
-void BlockParser::ThrowNonSupport(ParserToken token, std::u16string_view detail)
-{
-    throw common::parser::detail::ParsingError(GetCurrentFileName(), GetCurrentPosition(), token, detail);
-}
-
 Assignment BlockParser::ParseAssignment(const std::u32string_view var)
 {
     using common::parser::detail::TokenMatcherHelper;
@@ -388,7 +400,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
 
     const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
     if (!stmt.has_value())
-        throw u"expect statement"sv;
+        NLPS_THROW_EX(u"expect statement"sv);
     //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
 
     Assignment assign;
@@ -469,7 +481,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         case SectorLangToken::Func:
         {
             if constexpr (!AllowNonBlock)
-                ThrowNonSupport(token, u"Function call not supported here"sv);
+                OnUnExpectedToken(token, u"Function call not supported here"sv);
             FuncCall funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
             EatSemiColon();
@@ -481,7 +493,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         case SectorLangToken::Var:
         {
             if constexpr (!AllowNonBlock)
-                ThrowNonSupport(token, u"Variable assignment not supported here"sv);
+                OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
             Assignment assign = ParseAssignment(token.GetString());
             const auto target = MemPool.Create<Assignment>(assign);
             const auto [offset, count] = AppendMetaFuncs();
@@ -548,10 +560,16 @@ std::u32string_view ReplaceEngine::TrimStrBlank(const std::u32string_view str) n
     return str.substr(0, len);
 }
 
+void ReplaceEngine::HandleException(const NailangParseException& ex) const
+{
+    /*ex.File = GetCurrentFileName().StrView();
+    ex.Position = GetCurrentPosition();*/
+    ex.ThrowSelf();
+}
+
 std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
 {
-    if (prefix.empty() || suffix.empty())
-        throw U"Illegal prefix/suffix"sv;
+    Expects(!prefix.empty() && !suffix.empty()); // Illegal prefix/suffix
     common::parser::ParserContext context(source);
     ContextReader reader(context);
     std::u32string output;
@@ -572,9 +590,9 @@ std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, 
         if (var.empty())
         {
             if (reader.IsEnd())
-                throw U"End before variable name"sv;
+                NLPS_THROW_EX(u"End before variable name"sv);
             else
-                throw U"No suffix found!"sv;
+                NLPS_THROW_EX(u"No suffix found!"sv);
         }
         var.remove_suffix(suffix.size());
         // find a variable replacement
@@ -585,8 +603,7 @@ std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, 
 
 std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
 {
-    if (prefix.empty())
-        throw U"Illegal suffix"sv;
+    Expects(!prefix.empty()); // Illegal suffix
     common::parser::ParserContext context(source);
     ContextReader reader(context);
     std::u32string output;
@@ -607,9 +624,9 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
         if (funcName.empty())
         {
             if (reader.IsEnd())
-                throw U"End before func name"sv;
+                NLPS_THROW_EX(u"End before func name"sv);
             else
-                throw U"No '(' found!"sv;
+                NLPS_THROW_EX(u"No '(' found!"sv);
         }
         funcName.remove_suffix(1);
 
@@ -634,7 +651,7 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
                     if (state == States::Init)
                     {
                         if (ch == U',')
-                            throw U"empty arg not allowed"sv;
+                            NLPS_THROW_EX(u"empty arg not allowed"sv);
                         else
                             reader.CommitRead();
                     }
@@ -667,16 +684,16 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
             }
         }
         if (state != States::End)
-            throw U"End before arg list finishes"sv;
+            NLPS_THROW_EX(u"End before arg list finishes"sv);
         if (!suffix.empty())
         {
             reader.ReadWhile(IgnoreBlank);
             if (!reader.ReadMatch(suffix))
             {
                 if (reader.IsEnd())
-                    throw U"End before suffix"sv;
+                    NLPS_THROW_EX(u"End before suffix"sv);
                 else
-                    throw U"Unexpeccted char before suffix!"sv;
+                    NLPS_THROW_EX(u"Unexpeccted char before suffix!"sv);
             }
         }
         // find a function replacement

@@ -57,26 +57,25 @@
   - [x] Re-design object creation
   - [x] Replace glew since it lacks support for multi-thread & multi-contxt
   - [x] Re-design ResourceMappingManager
-  - [ ] Add proper drawstate setting
   - [x] Emulate subroutine on unsupported platform
   - [x] Add bindless texture support
+  - [ ] Replace preprocessor-based ExtShader to NLGL-based
+  - [ ] Add proper drawstate setting with NLGL
   - [ ] Add shader include support (file lookup management)
-  - [ ] Replace preprocessor-based ExtShader to custom DSL
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
-  - [ ] Add NLGL for extended shader
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
-  - [ ] Add compatibility for OpenCL verson less than 1.2.
+  - [x] Add compatibility for OpenCL verson less than 1.2.
   - [x] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
   - [x] Make oclPromise directly use cl_event for better management
   - [ ] Mimic subgroup shuffle on non-intel
   - [ ] Mimic subgroup on unsupported platform (nv)
   - [ ] Mimic FillBuffer using embeded kernel for pre-1.2
-  - [ ] Add better pattern for argument type in NLCL
+  - [ ] Add better kernel argument info parsing in NLCL
   - [ ] Add support for Intel's accelerator
 
 * OpenCLInterop
@@ -119,7 +118,8 @@
   - [x] Add genenral datatype for `Arg` for type-checking
   - [ ] Add array type
   - [ ] Shrink memory usage of Arg
-  - [ ] Make parser throw proper exception
+  - [x] Make parser throw proper exception
+  - [ ] Embed position information in token
   - [ ] Add `include` support
   - [ ] Add python parser & runtime
 

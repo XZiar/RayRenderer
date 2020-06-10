@@ -1,5 +1,6 @@
 #pragma once
 #include "NailangStruct.h"
+#include "common/Exceptions.hpp"
 #include "common/parser/ParserBase.hpp"
 #include <optional>
 #include <any>
@@ -13,6 +14,40 @@ namespace xziar::nailang
 {
 
 
+class NAILANGAPI NailangParseException : public common::BaseException
+{
+    friend class NailangParser;
+public:
+    EXCEPTION_CLONE_EX(NailangParseException);
+    NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 },
+        const std::any& data = {}) : BaseException(TYPENAME, msg, data), File(file), Position(pos)
+    { }
+    ~NailangParseException() override {}
+    std::u16string_view GetFileName() const noexcept { return File; }
+    std::pair<size_t, size_t> GetPosition() const noexcept { return Position; }
+protected:
+    NailangParseException(const char* const type, const std::u16string_view file, std::pair<size_t, size_t> pos,
+        const std::u16string_view msg, const std::any& data = {}) :
+        BaseException(type, msg, data), File(file), Position(pos)
+    { }
+private:
+    mutable common::SharedString<char16_t> File;
+    mutable std::pair<size_t, size_t> Position;
+};
+class NAILANGAPI UnexpectedTokenException : public NailangParseException
+{
+    friend class NailangParser;
+public:
+    common::parser::ParserToken Token;
+    EXCEPTION_CLONE_EX(UnexpectedTokenException);
+    UnexpectedTokenException(const std::u16string_view msg, common::parser::ParserToken token,
+        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }, const std::any& data = {}) :
+        NailangParseException(TYPENAME, file, pos, msg, data), Token(token)
+    { }
+    ~UnexpectedTokenException() override {}
+};
+
+
 class NAILANGAPI NailangParser : public common::parser::ParserBase
 {
 private:
@@ -22,6 +57,8 @@ protected:
 
     [[nodiscard]] std::u16string DescribeTokenID(const uint16_t tid) const noexcept override;
     [[nodiscard]] common::str::StrVariant<char16_t> GetCurrentFileName() const noexcept override;
+    virtual void HandleException(const NailangParseException& ex) const;
+    common::parser::ParserToken OnUnExpectedToken(const common::parser::ParserToken& token, const std::u16string_view extraInfo = {}) const override;
 
     template<typename ExpectHolder, typename... TKs>
     void EatSingleToken()
@@ -76,7 +113,6 @@ public:
 class NAILANGAPI BlockParser : public RawBlockParser
 {
 protected:
-    void ThrowNonSupport(common::parser::ParserToken token, std::u16string_view detail);
     [[nodiscard]] Assignment ParseAssignment(const std::u32string_view var);
     template<bool AllowNonBlock>
     void ParseContentIntoBlock(Block& block, const bool tillTheEnd = true);
@@ -91,6 +127,7 @@ class NAILANGAPI ReplaceEngine
 {
 protected:
     static std::u32string_view TrimStrBlank(const std::u32string_view str) noexcept;
+    virtual void HandleException(const NailangParseException& ex) const;
     virtual void OnReplaceVariable(std::u32string& output, const std::any* cookie, const std::u32string_view var) = 0;
     virtual void OnReplaceFunction(std::u32string& output, const std::any* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) = 0;
     std::u32string ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie = nullptr);

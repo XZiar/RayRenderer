@@ -319,7 +319,7 @@ oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
 {
 }
 
-void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclBuffer_ & buf) const
+void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclSubBuffer_& buf) const
 {
     if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Buffer))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"buffer is set to a non-buffer kernel argument slot");

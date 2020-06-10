@@ -154,7 +154,7 @@ private:
         common::SpinLocker::ScopeType KernelLock;
 
         CallSiteInternal(const oclKernel_* kernel);
-        void SetArg(const uint32_t idx, const oclBuffer_& buf) const;
+        void SetArg(const uint32_t idx, const oclSubBuffer_& buf) const;
         void SetArg(const uint32_t idx, const oclImage_& img) const;
         void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
         template<typename T>
@@ -178,7 +178,45 @@ private:
     {
         friend class oclKernel_;
     private:
-        using SizeN = std::array<size_t, N>;
+        struct SizeN
+        {
+            size_t Data[N];
+            constexpr SizeN() noexcept
+            {
+                for (size_t i = 0; i < N; ++i)
+                    Data[i] = 0;
+            }
+            constexpr SizeN(const size_t(&data)[N]) noexcept
+            {
+                for (size_t i = 0; i < N; ++i)
+                    Data[i] = data[i];
+            }
+            constexpr SizeN(const std::array<size_t, N>& data) noexcept
+            {
+                for (size_t i = 0; i < N; ++i)
+                    Data[i] = data[i];
+            }
+            constexpr SizeN(const std::initializer_list<size_t>& data) noexcept
+            {
+                Expects(data.size() == N);
+                size_t i = 0;
+                for (const auto dat : data)
+                    Data[i++] = dat;
+            }
+            constexpr const size_t* GetData(const bool zeroToNull = false) const noexcept
+            {
+                if (zeroToNull)
+                {
+                    for (size_t i = 0; i < N; ++i)
+                        if (Data[i] != 0)
+                            return Data;
+                    return nullptr;
+                }
+                else
+                    return Data;
+            }
+        };
+        //using SizeN = std::array<size_t, N>;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
 
@@ -186,7 +224,7 @@ private:
         forceinline void InitArg() const
         {
             using ArgType = common::remove_cvref_t<std::tuple_element_t<Idx, std::tuple<Args...>>>;
-            if constexpr (std::is_same_v<ArgType, oclBuffer> || std::is_same_v<ArgType, oclImage>)
+            if constexpr (std::is_convertible_v<ArgType, oclSubBuffer> || std::is_convertible_v<ArgType, oclImage>)
                 SetArg(Idx, *std::get<Idx>(Paras));
             else if constexpr (common::CanToSpan<ArgType>)
                 SetSpanArg(Idx, std::get<Idx>(Paras));
@@ -203,14 +241,14 @@ private:
         }
     public:
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que, 
-            const SizeN& worksize, const SizeN& localsize = { 0 }, const SizeN& workoffset = { 0 })
+            const SizeN worksize, const SizeN localsize = { 0 }, const SizeN workoffset = { 0 })
         {
-            return Run(N, pmss, que, worksize.data(), workoffset.data(), CheckLocalSize(localsize));
+            return Run(N, pmss, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const oclCmdQue& que, 
-            const SizeN& worksize, const SizeN& localsize = { 0 }, const SizeN& workoffset = { 0 })
+            const SizeN worksize, const SizeN localsize = { 0 }, const SizeN workoffset = { 0 })
         {
-            return Run(N, {}, que, worksize.data(), workoffset.data(), CheckLocalSize(localsize));
+            return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
     };
 public:

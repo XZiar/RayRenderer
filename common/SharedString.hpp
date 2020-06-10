@@ -35,6 +35,7 @@ private:
     }
 public:
     using value_type = const Char;
+    constexpr SharedString() noexcept { }
     SharedString(const Char* const str, const size_t length) noexcept
     {
         if (length > 0 && str != nullptr)
@@ -48,7 +49,6 @@ public:
                 return;
             }
         }
-        StrView = std::basic_string_view<Char>(nullptr, 0);
     }
     SharedString(const Char* const str) noexcept : SharedString(str, std::char_traits<Char>::length(str)) {}
     SharedString(const std::basic_string<Char>& str) noexcept : SharedString(str.data(), str.size()) {}
@@ -59,7 +59,7 @@ public:
     }
     SharedString(SharedString<Char>&& other) noexcept : StrView(other.StrView)
     {
-        other.StrView = std::basic_string_view<Char>(nullptr, 0);
+        other.StrView = {};
     }
     ~SharedString()
     {
@@ -78,7 +78,7 @@ public:
         {
             Decrease();
             StrView = other.StrView;
-            other.StrView = std::basic_string_view<Char>(nullptr, 0);
+            other.StrView = {};
         }
         return *this;
     }

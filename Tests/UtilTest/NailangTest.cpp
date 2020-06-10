@@ -106,21 +106,13 @@ static void TestNailang()
                     ShowContent(pool, meta, *content.Get<Block>(), "  ");
                     break;
                 default:
-                    throw u"should not exist Non-Block content here"sv;
+                    COMMON_THROW(common::BaseException, u"should not exist Non-Block content here"sv);
                 }
             }
         }
-        catch (common::BaseException & be)
+        catch (const common::BaseException& be)
         {
             log().error(u"Exception: \n{}\n", (u16string_view)be.message);
-        }
-        catch (std::u32string_view & sv)
-        {
-            log().error(u"Exception: {}\n", sv);
-        }
-        catch (std::u16string_view & sv)
-        {
-            log().error(u"Exception: {}\n", sv);
         }
         log().info(u"\n<=End of file=>\n\n");
         ClearReturn();
