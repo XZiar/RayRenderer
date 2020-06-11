@@ -101,7 +101,7 @@ public:
     [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size, MemFlag flag) const;
     [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size) const
     { 
-        return CreateSubBuffer(offset, size, Flag);
+        return CreateSubBuffer(offset, size, REMOVE_MASK(Flag, MemFlag::HostInitMask));
     }
     [[nodiscard]] static oclBuffer Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr = nullptr);
 };

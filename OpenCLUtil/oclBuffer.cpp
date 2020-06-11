@@ -98,11 +98,11 @@ oclSubBuffer oclBuffer_::CreateSubBuffer(const size_t offset, const size_t size,
     if (Context->Version < 11)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer not supported on pre 1.1");
 
-    if (offset >= Size || (offset + size) >= Size)
-        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer region overflow");
     if (size == 0)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Cannot create sub-buffer of 0");
-
+    if (offset >= Size || (offset + size) > Size)
+        COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Sub-buffer region overflow");
+    
     flag = oclMem_::ProcessMemFlag(*Context, flag, nullptr);
 
     if (HAS_FIELD(flag, MemFlag::HostInitMask))

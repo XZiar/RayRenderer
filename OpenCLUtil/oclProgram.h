@@ -181,22 +181,19 @@ private:
         struct SizeN
         {
             size_t Data[N];
-            constexpr SizeN() noexcept
-            {
-                for (size_t i = 0; i < N; ++i)
-                    Data[i] = 0;
-            }
-            constexpr SizeN(const size_t(&data)[N]) noexcept
+            constexpr SizeN() noexcept : Data{0}
+            { }
+            constexpr SizeN(const size_t(&data)[N]) noexcept : Data{0}
             {
                 for (size_t i = 0; i < N; ++i)
                     Data[i] = data[i];
             }
-            constexpr SizeN(const std::array<size_t, N>& data) noexcept
+            constexpr SizeN(const std::array<size_t, N>& data) noexcept : Data{0}
             {
                 for (size_t i = 0; i < N; ++i)
                     Data[i] = data[i];
             }
-            constexpr SizeN(const std::initializer_list<size_t>& data) noexcept
+            constexpr SizeN(const std::initializer_list<size_t>& data) noexcept : Data{0}
             {
                 Expects(data.size() == N);
                 size_t i = 0;
@@ -241,12 +238,12 @@ private:
         }
     public:
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que, 
-            const SizeN worksize, const SizeN localsize = { 0 }, const SizeN workoffset = { 0 })
+            const SizeN worksize, const SizeN localsize = {}, const SizeN workoffset = {})
         {
             return Run(N, pmss, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const oclCmdQue& que, 
-            const SizeN worksize, const SizeN localsize = { 0 }, const SizeN workoffset = { 0 })
+            const SizeN worksize, const SizeN localsize = {}, const SizeN workoffset = {})
         {
             return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }

@@ -247,7 +247,7 @@ struct KernelCookie
 
 std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
 {
-    return U"inline void oclu_SkipDebug() {}";
+    return U"inline void oclu_SkipDebug() {}\r\n";
 }
 
 std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
@@ -281,17 +281,18 @@ std::u32string NLCLRuntime::SubgroupShuffleMimicPatch(const std::u32string_view 
     APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
     if (dim == 1)
     {
-        APPEND_FMT(func, U"\r\n    ptr[lid] = val; const {} ele0 = ptr[sgId];"sv, scalarName);
+        func.append(U"\r\n    ptr[lid] = val;\r\n    barrier(CLK_LOCAL_MEM_FENCE); return ptr[sgId];");
     }
     else
     {
         for (uint8_t i = 0; i < dim; ++i)
-            APPEND_FMT(func, U"\r\n    ptr[lid] = val.s{}; const {} ele{} = ptr[sgId];"sv, idxNames[i], scalarName, i);
+            APPEND_FMT(func, U"\r\n    ptr[lid] = val.s{}; barrier(CLK_LOCAL_MEM_FENCE);\r\n   const {} ele{} = ptr[sgId]; barrier(CLK_LOCAL_MEM_FENCE);"sv, idxNames[i], scalarName, i);
+        APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
+        for (uint8_t i = 0; i < dim - 1; ++i)
+            APPEND_FMT(func, U"ele{}, "sv, i);
+        APPEND_FMT(func, U"ele{});"sv, dim - 1);
     }
-    APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
-    for (uint8_t i = 0; i < dim - 1; ++i)
-        APPEND_FMT(func, U"ele{}, "sv, i);
-    APPEND_FMT(func, U"ele{});\r\n}}"sv, dim - 1);
+    func.append(U"\r\n}"sv);
     return func;
 }
 
@@ -299,7 +300,6 @@ std::u32string NLCLRuntime::SubgroupBroadcastMimicPatch(const std::u32string_vie
     VecDataInfo::DataTypes dtype) noexcept
 {
     Expects(dim > 0 && dim <= 16);
-    constexpr char32_t idxNames[] = U"0123456789abcdef";
     const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
     const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
@@ -308,17 +308,18 @@ std::u32string NLCLRuntime::SubgroupBroadcastMimicPatch(const std::u32string_vie
     APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
     if (dim == 1)
     {
-        APPEND_FMT(func, U"\r\n    if (lid == sgId) ptr[0] = val;\r\n    const {} ele0 = ptr[sgId];"sv, scalarName);
+        func.append(UR"(
+    if (lid == sgId) ptr[0] = val;
+    barrier(CLK_LOCAL_MEM_FENCE); 
+    return ptr[0];)"sv);
     }
     else
     {
-        for (uint8_t i = 0; i < dim; ++i)
-            APPEND_FMT(func, U"\r\n    if (lid == sgId) ptr[0] = val.s{};\r\n    const {} ele{} = ptr[sgId];"sv, idxNames[i], scalarName, i);
+        // at least 16 x ulong, nedd only one store/load
+        APPEND_FMT(func, U"\r\n    if (lid == sgId) vstore{0}(val, 0, ptr);\r\n    barrier(CLK_LOCAL_MEM_FENCE);\r\n    return vload{0}(0, ptr);"sv,
+            dim);
     }
-    APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
-    for (uint8_t i = 0; i < dim - 1; ++i)
-        APPEND_FMT(func, U"ele{}, "sv, i);
-    APPEND_FMT(func, U"ele{});\r\n}}"sv, dim - 1);
+    func.append(U"\r\n}"sv);
     return func;
 }
 
@@ -444,7 +445,7 @@ std::u32string NLCLRuntime::GenerateSubgroupShuffleMimic(const common::span<cons
     };
     const uint32_t totalBits = info->Bit * info->Dim0;
     const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_mimic_{}_{}"sv), needShuffle ? U"shuffle"sv : U"broadcast"sv, totalBits);
-    for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
+    for (const auto targetBits : std::array<uint8_t, 4>{ 64u, 32u, 16u, 8u })
     {
         const auto vnum = CheckVecable(totalBits, targetBits);
         if (vnum == 0) continue;
@@ -681,9 +682,26 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, [[maybe_unused]] con
                 if (const auto ck = std::any_cast<KernelCookie>(cookie); ck)
                     allowMimic = ck->MimicSubgroup;
                 if (allowMimic)
-                    output.append(U"_oclu_subgroup_mimic"sv);
+                    output.append(U"(get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0))"sv);
                 else
                     NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupLocalId] requires subgroup support or subgroup mimic.");
+            }
+            return;
+        }
+        HashCase(subName, U"GetSubgroupSize")
+        {
+            ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+            if (SupportSubgroupKHR || SupportSubgroupIntel)
+                output.append(U"get_sub_group_size()"sv);
+            else
+            {
+                bool allowMimic = false;
+                if (const auto ck = std::any_cast<KernelCookie>(cookie); ck)
+                    allowMimic = ck->MimicSubgroup;
+                if (allowMimic)
+                    output.append(U"_oclu_subgroup_size"sv);
+                else
+                    NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupSize] requires subgroup support or subgroup mimic.");
             }
             return;
         }
@@ -1103,8 +1121,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         Logger.debug(u"Subgroup mimic is enabled for kernel [{}].\n", block.Name);
         dst.append(U"    // below injected by oclu_subgroup_mimic\r\n"sv);
-        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    const uint  _oclu_subgroup_size = {};\r\n\r\n"sv), cookie.MimicSubgroupSize);
-        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    local ulong _oclu_subgroup_mimic[{}];\r\n"sv), cookie.MimicSubgroupSize);
+        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    const uint  _oclu_subgroup_size = {};\r\n"sv), cookie.MimicSubgroupSize);
+        fmt::format_to(std::back_inserter(dst), FMT_STRING(U"    local ulong _oclu_subgroup_mimic[{}];\r\n\r\n"sv), std::max<uint32_t>(cookie.MimicSubgroupSize, 16));
     }
     std::any ck(cookie);
     DirectOutput(block, metas, dst, &ck);
