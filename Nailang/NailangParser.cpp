@@ -567,7 +567,7 @@ void ReplaceEngine::HandleException(const NailangParseException& ex) const
     ex.ThrowSelf();
 }
 
-std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
+std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie)
 {
     Expects(!prefix.empty() && !suffix.empty()); // Illegal prefix/suffix
     common::parser::ParserContext context(source);
@@ -601,7 +601,7 @@ std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, 
     return output;
 }
 
-std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, const std::any* cookie)
+std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie)
 {
     Expects(!prefix.empty()); // Illegal suffix
     common::parser::ParserContext context(source);

@@ -55,7 +55,36 @@ class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public co
     friend class NLCLProcessor;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
-    using MetaFuncs = common::span<const xziar::nailang::FuncCall>;
+    using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
+
+    struct BlockCookie 
+    {
+        uint32_t Type;
+        constexpr BlockCookie() noexcept : Type(0) { }
+        constexpr BlockCookie(const uint32_t type) noexcept : Type(type) { }
+        template<typename T>
+        static T* Get(void* ptr) noexcept
+        {
+            static_assert(std::is_base_of_v<BlockCookie, T>);
+            if (ptr != nullptr)
+            {
+                const auto ret = reinterpret_cast<T*>(ptr);
+                if (ret->Type == T::TYPE)
+                    return ret;
+            }
+            return nullptr;
+        }
+    };
+    struct KernelCookie : public BlockCookie 
+    {
+        static constexpr uint32_t TYPE = 1;
+        uint32_t WorkgroupSize = 0;
+        uint8_t  SubgroupSize  = 0;
+        bool MimicSubgroup = false;
+        bool InvokeSgBroadcast = false, InvokeSgShuffle = false;
+        bool NeedLocalSgMimic = false,  NeedDebugInfo = false;
+        constexpr KernelCookie() noexcept : BlockCookie(TYPE) { }
+    };
 
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
@@ -68,7 +97,8 @@ protected:
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     oclDebugManager DebugManager;
-    const bool SupportFP16, SupportFP64, SupportNVUnroll, SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel;
+    const bool SupportFP16, SupportFP64, SupportNVUnroll, 
+        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     bool EnableUnroll, AllowDebug;
 
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info);
@@ -103,7 +133,9 @@ protected:
     [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
     [[nodiscard]] std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
         const uint8_t unitBits, const uint8_t dim, 
-        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
+        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept; 
+    [[nodiscard]] std::u32string SubgroupShufflePtxPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
+            common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
     [[nodiscard]] std::u32string SubgroupShuffleMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
         common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
     [[nodiscard]] std::u32string SubgroupBroadcastMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
@@ -111,13 +143,14 @@ protected:
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
     [[nodiscard]] std::u32string GenerateSubgroupShuffleMimic(const common::span<const std::u32string_view> args, const bool needShuffle);
-    [[nodiscard]] std::u32string GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle, const bool allowMimic);
+    [[nodiscard]] std::u32string GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle, 
+        const bool allowMimic, bool* useMimic = nullptr);
     [[nodiscard]] std::u32string GenerateDebugString(const common::span<const std::u32string_view> args) const;
-    void OnReplaceVariable(std::u32string& output, const std::any* cookie, const std::u32string_view var) override;
-    void OnReplaceFunction(std::u32string& output, const std::any* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
+    void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
+    void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
-    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, const std::any* cookie = nullptr);
+    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr);
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
