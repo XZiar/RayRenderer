@@ -1,6 +1,7 @@
 #include "oclPch.h"
 #include "oclNLCL.h"
 #include "oclNLCLRely.h"
+#include "NLCLSubgroup.h"
 #include "oclException.h"
 #include "StringCharset/Convert.h"
 #include "StringCharset/Detect.h"
@@ -15,6 +16,7 @@ using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
+using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
@@ -104,6 +106,7 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
     std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info) :
     NailangRuntimeBase(std::move(evalCtx)), Logger(logger), Device(dev), 
     EnabledExtensions(Device->Extensions.Size()),
+    EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false),
     SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
     SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
     SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
@@ -111,8 +114,7 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
     SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
     SupportSubgroup8Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_char")),
     SupportSubgroup16Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_short")),
-    SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel),
-    EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false)
+    SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel)
 { 
     AllowDebug = info["debug"].has_value();
     for (const auto [key, val] : info)
@@ -668,10 +670,21 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
     }
     if (IsBeginWith(func, U"oclu."sv))
     {
+        const auto subName = func.substr(5);
         const auto kerCk = BlockCookie::Get<KernelCookie>(cookie);
-        switch (const auto subName = func.substr(5); hash_(subName))
+        if (kerCk && kerCk->SubgroupSolver)
         {
-        HashCase(subName, U"SubgroupBroadcast")
+            const auto ret = kerCk->SubgroupSolver->ReplaceFunc(subName, args, kerCk);
+            if (!ret.empty())
+            {
+                output.append(ret);
+                return;
+            }
+        }
+
+        switch (hash_(subName))
+        {
+        /*HashCase(subName, U"SubgroupBroadcast")
         {
             ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
             bool allowMimic = kerCk && kerCk->MimicSubgroup;
@@ -710,7 +723,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             else
                 NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupSize] requires subgroup support or subgroup mimic.");
             return;
-        }
+        }*/
         HashCase(subName, U"DebugString")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
@@ -931,12 +944,19 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"__write_only", ImgAccess::WriteOnly),
     (U"read_write",   ImgAccess::ReadWrite),
     (U"",             ImgAccess::ReadWrite));
+constexpr auto SubgroupMimicParser = SWITCH_PACK(Hash,
+    (U"local",  SubgroupAttributes::MimicType::Local),
+    (U"ptx",    SubgroupAttributes::MimicType::Ptx),
+    (U"auto",   SubgroupAttributes::MimicType::Auto),
+    (U"none",   SubgroupAttributes::MimicType::None),
+    (U"",       SubgroupAttributes::MimicType::None));
 
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
 {
     KernelCookie cookie;
     KernelArgStore argInfos;
+    SubgroupAttributes sgAttr;
     std::vector<std::u32string> argTexts;
     APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
     for (auto meta : metas)
@@ -966,9 +986,12 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto sgSize = EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
             cookie.SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
         } break;
-        HashCase(subName, U"MimicSubgroup")
+        HashCase(subName, U"SubgroupExt")
         {
-            cookie.MimicSubgroup = true;
+            const auto args = EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+            sgAttr.Mimic = SubgroupMimicParser(args[0].GetStr().value_or(std::u32string_view{}))
+                .value_or(SubgroupAttributes::MimicType::Auto);
+            sgAttr.Args = common::strchset::to_string(args[1].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
         } break;
         HashCase(subName, U"SimpleArg")
         {
@@ -1064,7 +1087,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             break;
         }
     }
-    if (cookie.MimicSubgroup)
+    if (sgAttr.Mimic != SubgroupAttributes::MimicType::None)
     {
         const bool specifiedSgSize = cookie.SubgroupSize != 0;
         if (cookie.SubgroupSize == 0)
@@ -1100,11 +1123,17 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
-    std::u32string inject, content;
+    std::u32string content;
+
+    sgAttr.SubgroupSize = cookie.SubgroupSize;
+    cookie.SubgroupSolver = NLCLSubgroup::Generate(this, sgAttr);
+
     DirectOutput(block, metas, content, &cookie);
+    cookie.SubgroupSolver->Finish(&cookie);
+
     if (cookie.NeedDebugInfo)
     {
-        inject.append(UR"(    // below injected by oclu_debug
+        cookie.Injects.insert_or_assign(U"oclu_debug", UR"(
     const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
     if (_oclu_debug_buffer_size > 0)
     {
@@ -1128,19 +1157,14 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 )"sv);
-        inject.append(U"\r\n"sv);
     }
-    if (cookie.MimicSubgroup)
+
+    for (const auto& [key, val] : cookie.Injects)
     {
-        Logger.debug(u"Subgroup mimic is enabled for kernel [{}].\n", block.Name);
-        inject.append(U"    // below injected by oclu_subgroup_mimic\r\n"sv);
-        if (!SupportSubgroupKHR && !SupportSubgroupIntel)
-            fmt::format_to(std::back_inserter(inject), FMT_STRING(U"    const uint  _oclu_subgroup_size = {};\r\n"sv), cookie.SubgroupSize);
-        if (cookie.NeedLocalSgMimic)
-            fmt::format_to(std::back_inserter(inject), FMT_STRING(U"    local ulong _oclu_subgroup_mimic[{}];\r\n"sv), std::max<uint32_t>(cookie.SubgroupSize, 16));
-        inject.append(U"\r\n"sv);
+        APPEND_FMT(dst, U"// below injected by {}\r\n"sv, key);
+        dst.append(val);
+        dst.append(U"\r\n"sv);
     }
-    dst.append(inject);
     dst.append(content);
     dst.append(U"}\r\n"sv);
     CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));

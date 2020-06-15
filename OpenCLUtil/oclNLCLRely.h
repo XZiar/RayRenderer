@@ -48,43 +48,51 @@ struct OutputBlock
         Block(block), MetaPtr(meta.data()), MetaCount(gsl::narrow_cast<uint32_t>(meta.size())), ExtraInfo(extra) {}
 };
 
+class ReplaceExtension
+{
+public:
+    virtual ~ReplaceExtension() { }
+    virtual std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args, void* cookie) = 0;
+    virtual void Finish(void*) { }
+};
+struct BlockCookie
+{
+    uint32_t Type;
+    constexpr BlockCookie() noexcept : Type(0) { }
+    constexpr BlockCookie(const uint32_t type) noexcept : Type(type) { }
+    template<typename T>
+    static T* Get(void* ptr) noexcept
+    {
+        static_assert(std::is_base_of_v<BlockCookie, T>);
+        if (ptr != nullptr)
+        {
+            const auto ret = reinterpret_cast<T*>(ptr);
+            if (ret->Type == T::TYPE)
+                return ret;
+        }
+        return nullptr;
+    }
+};
+struct KernelCookie : public BlockCookie
+{
+    static constexpr uint32_t TYPE = 1;
+    std::map<std::u32string, std::u32string, std::less<>> Injects;
+    std::unique_ptr<ReplaceExtension> SubgroupSolver;
+    uint32_t WorkgroupSize = 0;
+    uint8_t  SubgroupSize = 0;
+    bool NeedDebugInfo = false;
+    KernelCookie() noexcept : BlockCookie(TYPE) { }
+};
+
 
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
 {
     friend class NLCLReplacer;
     friend class NLCLProcessor;
+    friend class NLCLSubgroup;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
-
-    struct BlockCookie 
-    {
-        uint32_t Type;
-        constexpr BlockCookie() noexcept : Type(0) { }
-        constexpr BlockCookie(const uint32_t type) noexcept : Type(type) { }
-        template<typename T>
-        static T* Get(void* ptr) noexcept
-        {
-            static_assert(std::is_base_of_v<BlockCookie, T>);
-            if (ptr != nullptr)
-            {
-                const auto ret = reinterpret_cast<T*>(ptr);
-                if (ret->Type == T::TYPE)
-                    return ret;
-            }
-            return nullptr;
-        }
-    };
-    struct KernelCookie : public BlockCookie 
-    {
-        static constexpr uint32_t TYPE = 1;
-        uint32_t WorkgroupSize = 0;
-        uint8_t  SubgroupSize  = 0;
-        bool MimicSubgroup = false;
-        bool InvokeSgBroadcast = false, InvokeSgShuffle = false;
-        bool NeedLocalSgMimic = false,  NeedDebugInfo = false;
-        constexpr KernelCookie() noexcept : BlockCookie(TYPE) { }
-    };
 
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
@@ -97,14 +105,13 @@ protected:
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     oclDebugManager DebugManager;
-    const bool SupportFP16, SupportFP64, SupportNVUnroll, 
-        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     bool EnableUnroll, AllowDebug;
 
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info);
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
-    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
+    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args, 
+        const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     
     template<typename T, typename F, typename... Args>
     bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
@@ -159,6 +166,8 @@ protected:
 public:
     [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
 
+    const bool SupportFP16, SupportFP64, SupportNVUnroll,
+        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});

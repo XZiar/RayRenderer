@@ -1,0 +1,145 @@
+#pragma once
+#include "oclNLCLRely.h"
+
+namespace oclu
+{
+
+struct SubgroupAttributes
+{
+    enum class MimicType { None, Auto, Local, Ptx };
+    std::string Args;
+    MimicType Mimic = MimicType::None;
+    uint8_t SubgroupSize = 0;
+};
+class NLCLSubgroup : public ReplaceExtension
+{
+    friend class NLCLRuntime;
+protected:
+    struct SubgroupCapbility
+    {
+        uint8_t SubgroupSize = 0;
+        bool SupportSubgroupKHR = false, SupportSubgroupIntel = false, SupportSubgroup8Intel = false, SupportSubgroup16Intel = false,
+            SupportFP16 = false, SupportFP64 = false,
+            SupportBasicSubgroup = false;
+    };
+    NLCLRuntime& Runtime;
+    const SubgroupCapbility Cap;
+    std::map<std::u32string, std::u32string, std::less<>> Injects;
+    KernelCookie* Cookie = nullptr;
+    bool EnableSubgroup = false;
+
+    void ThrowByReplacerArgCount(const std::u32string_view func, const common::span<const std::u32string_view> args,
+        const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
+    void HandleException(const xziar::nailang::NailangRuntimeException& ex) const;
+    void AddArg(std::u32string id, std::u32string content);
+    void AddInject(std::u32string id, std::u32string content);
+    template<typename T, typename F, typename... Args>
+    forceinline bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
+    {
+        return Runtime.AddPatchedBlock(id, [&]() { return (obj.*generator)(std::forward<Args>(args)...); });
+        //return Runtime.AddPatchedBlock(obj, id, generator, std::forward<Args>(args)...);
+    }
+    forceinline common::mlog::MiniLogger<false>& Logger() const noexcept
+    {
+        return Runtime.Logger;
+    }
+    [[nodiscard]] std::u32string ScalarPatch(const std::u32string_view funcName, const std::u32string_view base, common::simd::VecDataInfo vtype) noexcept;
+    [[nodiscard]] std::optional<common::simd::VecDataInfo> DecideVtype(common::simd::VecDataInfo vtype, common::span<const common::simd::VecDataInfo> scalars) noexcept;
+    
+    virtual void OnFinish() {}
+public:
+    NLCLSubgroup(NLCLRuntime* runtime, SubgroupCapbility cap);
+    ~NLCLSubgroup() override { }
+
+    virtual std::u32string GetSubgroupLocalId() = 0;
+    virtual std::u32string GetSubgroupSize() = 0;
+    virtual std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) = 0;
+    virtual std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) = 0;
+
+    std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args, void* cookie) override;
+    void Finish(void* cookie) override;
+
+    static SubgroupCapbility GenerateCapabiity(NLCLRuntime* runtime, const SubgroupAttributes& attr);
+    static std::unique_ptr<NLCLSubgroup> Generate(NLCLRuntime* runtime, const SubgroupAttributes& attr);
+};
+
+class NLCLSubgroupNon : public NLCLSubgroup
+{
+protected:
+public:
+    using NLCLSubgroup::NLCLSubgroup;
+    ~NLCLSubgroupNon() override { }
+
+    std::u32string GetSubgroupLocalId() override;
+    std::u32string GetSubgroupSize() override;
+    std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+
+};
+
+class NLCLSubgroupKHR : public NLCLSubgroup
+{
+protected:
+    bool EnableFP16 = false, EnableFP64 = false;
+    void OnFinish() override;
+public:
+    using NLCLSubgroup::NLCLSubgroup;
+    ~NLCLSubgroupKHR() override { }
+
+    std::u32string GetSubgroupLocalId() override;
+    std::u32string GetSubgroupSize() override;
+    std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+
+};
+
+class NLCLSubgroupIntel : public NLCLSubgroupKHR
+{
+protected:
+    bool EnableSubgroupIntel = false, EnableSubgroup16Intel = false, EnableSubgroup8Intel = false;
+    [[nodiscard]] std::u32string VectorPatch(const std::u32string_view funcName, const std::u32string_view base, 
+        common::simd::VecDataInfo vtype, common::simd::VecDataInfo mid) noexcept;
+    std::u32string DirectShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx);
+    void OnFinish() override;
+public:
+    using NLCLSubgroupKHR::NLCLSubgroupKHR;
+    ~NLCLSubgroupIntel() override { }
+
+    std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+
+};
+
+class NLCLSubgroupLocal : public NLCLSubgroupKHR
+{
+protected:
+    bool NeedLocalTemp = false;
+    void OnFinish() override;
+public:
+    using NLCLSubgroupKHR::NLCLSubgroupKHR;
+    ~NLCLSubgroupLocal() override { }
+
+    std::u32string GetSubgroupLocalId() override;
+    std::u32string GetSubgroupSize() override;
+    std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+
+};
+
+class NLCLSubgroupPtx : public NLCLSubgroup
+{
+protected:
+
+public:
+    using NLCLSubgroup::NLCLSubgroup;
+    ~NLCLSubgroupPtx() override { }
+
+    std::u32string GetSubgroupLocalId() override;
+    std::u32string GetSubgroupSize() override;
+    std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+
+};
+
+
+}

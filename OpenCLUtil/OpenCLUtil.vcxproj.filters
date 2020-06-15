@@ -66,6 +66,9 @@
     <ClInclude Include="oclKernelDebug.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="NLCLSubgroup.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="oclRely.cpp">
@@ -105,6 +108,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="oclKernelDebug.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="NLCLSubgroup.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

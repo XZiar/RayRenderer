@@ -343,6 +343,7 @@ public:
 };
 
 
+enum class ArgLimits { Exact, AtMost, AtLeast };
 class NAILANGAPI NailangRuntimeBase
 {
 protected:
@@ -423,7 +424,6 @@ protected:
     std::shared_ptr<EvaluateContext> EvalContext;
     MemoryPool MemPool;
     
-    enum class ArgLimits { Exact, AtMost, AtLeast };
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
