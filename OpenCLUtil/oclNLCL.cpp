@@ -112,8 +112,8 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
     SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
     SupportSubgroupKHR(Device->Extensions.Has("cl_khr_subgroups")),
     SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
-    SupportSubgroup8Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_char")),
-    SupportSubgroup16Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_short")),
+    SupportSubgroup8Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_char")),
+    SupportSubgroup16Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_short")),
     SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel)
 { 
     AllowDebug = info["debug"].has_value();
@@ -246,95 +246,6 @@ std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
     return U"inline void oclu_SkipDebug() {}\r\n";
 }
 
-std::u32string NLCLRuntime::SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
-    const uint8_t unitBits, const uint8_t dim, VecDataInfo::DataTypes dtype) noexcept
-{
-    Expects(dim > 1 && dim <= 16);
-    constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
-    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
-    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
-        vecName, funcName);
-    for (uint8_t i = 0; i < dim; ++i)
-        APPEND_FMT(func, U"\r\n    ret.s{0} = {1}(val.s{0}, sgId);"sv, idxNames[i], base);
-    func.append(U"\r\n    return ret;\r\n}"sv);
-    return func;
-}
-
-std::u32string NLCLRuntime::SubgroupShufflePtxPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim, 
-    common::simd::VecDataInfo::DataTypes dtype) noexcept
-{
-    Expects(dim > 0 && dim <= 16);
-    constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
-    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
-    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
-        vecName, funcName);
-    // func.append(U"\r\n    const uint warp = 32;"sv);
-    for (uint8_t i = 0; i < dim; ++i)
-    {
-        func.append(U"\r\n    "sv);
-        APPEND_FMT(func, UR"(asm("{{shfl.idx.u32 %0, %1, %2, 0x1f;}}" : "=r"(ret.s{0}) : "r"(val.s{0}), "r"(sgId));)"sv, idxNames[i]);
-    }
-    func.append(U"\r\n    return ret;\r\n}"sv);
-    return func;
-}
-
-std::u32string NLCLRuntime::SubgroupShuffleMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
-    VecDataInfo::DataTypes dtype) noexcept
-{
-    Expects(dim > 0 && dim <= 16);
-    constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
-    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
-    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
-        vecName, funcName);
-    func.append(U"\r\n{\r\n    const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);");
-    APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
-    if (dim == 1)
-    {
-        func.append(U"\r\n    ptr[lid] = val;\r\n    barrier(CLK_LOCAL_MEM_FENCE); return ptr[sgId];");
-    }
-    else
-    {
-        for (uint8_t i = 0; i < dim; ++i)
-            APPEND_FMT(func, U"\r\n    ptr[lid] = val.s{}; barrier(CLK_LOCAL_MEM_FENCE);\r\n   const {} ele{} = ptr[sgId]; barrier(CLK_LOCAL_MEM_FENCE);"sv, idxNames[i], scalarName, i);
-        APPEND_FMT(func, U"\r\n    return ({})("sv, vecName);
-        for (uint8_t i = 0; i < dim - 1; ++i)
-            APPEND_FMT(func, U"ele{}, "sv, i);
-        APPEND_FMT(func, U"ele{});"sv, dim - 1);
-    }
-    func.append(U"\r\n}"sv);
-    return func;
-}
-
-std::u32string NLCLRuntime::SubgroupBroadcastMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
-    VecDataInfo::DataTypes dtype) noexcept
-{
-    Expects(dim > 0 && dim <= 16);
-    const auto vecName = GetVecTypeName({ dtype, unitBits, dim, 0 });
-    const auto scalarName = GetVecTypeName({ dtype, unitBits, 1, 0 });
-    std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
-        vecName, funcName);
-    func.append(U"\r\n{\r\n    const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);");
-    APPEND_FMT(func, U"\r\n    local {0}* restrict ptr = (local {0}*)(tmp);"sv, scalarName);
-    if (dim == 1)
-    {
-        func.append(UR"(
-    if (lid == sgId) ptr[0] = val;
-    barrier(CLK_LOCAL_MEM_FENCE); 
-    return ptr[0];)"sv);
-    }
-    else
-    {
-        // at least 16 x ulong, nedd only one store/load
-        APPEND_FMT(func, U"\r\n    if (lid == sgId) vstore{0}(val, 0, ptr);\r\n    barrier(CLK_LOCAL_MEM_FENCE);\r\n    return vload{0}(0, ptr);"sv,
-            dim);
-    }
-    func.append(U"\r\n}"sv);
-    return func;
-}
-
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
     // prepare arg layout
@@ -442,165 +353,6 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     return func;
 }
 
-std::u32string NLCLRuntime::GenerateSubgroupShuffleMimic(const common::span<const std::u32string_view> args, const bool needShuffle)
-{
-    const auto info = ParseVecType(args[0]);
-    if (!info.has_value())
-    {
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0]));
-        return {};
-    }
-    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
-    {
-        return fmt::format(FMT_STRING(U"as_{}({}(_oclu_subgroup_mimic, as_{}({}), {}))"sv),
-            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
-    };
-    const uint32_t totalBits = info->Bit * info->Dim0;
-    const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_mimic_{}_{}"sv), needShuffle ? U"shuffle"sv : U"broadcast"sv, totalBits);
-    for (const auto targetBits : std::array<uint8_t, 4>{ 64u, 32u, 16u, 8u })
-    {
-        const auto vnum = CheckVecable(totalBits, targetBits);
-        if (vnum == 0) continue;
-        if (needShuffle)
-            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShuffleMimicPatch,
-                funcName, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-        else
-            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupBroadcastMimicPatch,
-                funcName, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-        return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
-    }
-    // cannot handle right now
-    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched shuffle_mimic for [{}]"sv), args[0]));
-    return {};
-}
-
-std::u32string NLCLRuntime::GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle, 
-    const bool allowMimic, bool* useMimic)
-{
-    Expects(args.size() == 3);
-    if (needShuffle && !SupportSubgroupIntel)
-    {
-        if (allowMimic)
-        {
-            if (useMimic) *useMimic = true;
-            return GenerateSubgroupShuffleMimic(args, needShuffle);
-        }
-        NLRT_THROW_EX(u"Subgroup shuffle require support of intel_subgroups."sv);
-        return {};
-    }
-    if (!SupportBasicSubgroup)
-    {
-        if (allowMimic)
-        {
-            if (useMimic) *useMimic = true;
-            return GenerateSubgroupShuffleMimic(args, needShuffle);
-        }
-        NLRT_THROW_EX(u"Subgroup require support of intel_subgroups or khr_subgroups."sv);
-        return {};
-    }
-    const auto info = ParseVecType(args[0]);
-    if (!info.has_value())
-    {
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not found when replace-variable"sv), args[0]));
-        return {};
-    }
-    const auto ReinterpretWrappedFunc = [&](const std::u32string_view func, const VecDataInfo middle)
-    {
-        return fmt::format(FMT_STRING(U"as_{}({}(as_{}({}), {}))"sv),
-            GetVecTypeName(info.value()), func, GetVecTypeName(middle), args[1], args[2]);
-    };
-    const uint32_t totalBits = info->Bit * info->Dim0;
-    const bool isVec = info->Dim0 > 1;
-    if (!needShuffle && totalBits >= 32) // can be handled by khr_subgroups
-    {
-        if (totalBits == 32 || totalBits == 64) // native func
-        {
-            if (!isVec) // direct replace
-                return fmt::format(FMT_STRING(U"sub_group_broadcast({}, {})"sv), args[1], args[2]);
-            else // need type reinterpreting
-                return ReinterpretWrappedFunc(U"sub_group_broadcast"sv, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(totalBits), 1, 0 });
-        }
-        else if (!SupportSubgroupIntel) // >64, need patched func
-        {
-            const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_broadcast_{}"sv), totalBits);
-            for (const auto targetBits : std::array<uint8_t, 2>{ 64u, 32u })
-            {
-                const auto vnum = CheckVecable(totalBits, targetBits);
-                if (vnum == 0) continue;
-                AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShufflePatch,
-                    funcName, U"sub_group_broadcast"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-                return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, targetBits, vnum, 0 });
-            }
-            // cannot handle right now
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched broadcast for [{}]"sv), args[0]));
-            return {};
-        }
-    }
-    // require at least intel_subgroups
-    if (!SupportSubgroupIntel)
-    {
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate broadcast for [{}] without support of intel_subgroups."sv), args[0]));
-        return {};
-    }
-    if (info->Bit == 32) // direct replace
-        return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-    if (info->Bit == 16 && SupportSubgroup16Intel)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Float:
-            if (info->Dim0 != 1 || !SupportFP16) // need type reinterpreting
-                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 16, info->Dim0, 0 });
-            [[fallthrough]];
-        // direct replace
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    if (info->Bit == 8 && SupportSubgroup8Intel)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    if (info->Bit == 64 && info->Dim0 == 1)
-    {
-        switch (info->Type)
-        {
-        case VecDataInfo::DataTypes::Float:
-            if (!SupportFP64) // need type reinterpreting
-                return ReinterpretWrappedFunc(U"intel_sub_group_shuffle"sv, { VecDataInfo::DataTypes::Unsigned, 64, 1, 0 });
-            [[fallthrough]];
-        // direct replace
-        case VecDataInfo::DataTypes::Unsigned:
-        case VecDataInfo::DataTypes::Signed:
-            return fmt::format(FMT_STRING(U"intel_sub_group_shuffle({}, {})"sv), args[1], args[2]);
-        default: Expects(false); return {};
-        }
-    }
-    // patched func based on intel_sub_group_shuffle
-    {
-        const auto funcName = fmt::format(FMT_STRING(U"oclu_subgroup_shuffle_{}"sv), totalBits);
-        for (const auto targetBits : std::array<uint8_t, 3>{ 32u, 64u, 16u })
-        {
-            const auto vnum = CheckVecable(totalBits, targetBits);
-            if (vnum == 0) continue;
-            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShufflePatch,
-                funcName, U"intel_sub_group_shuffle"sv, targetBits, vnum, VecDataInfo::DataTypes::Unsigned);
-            return ReinterpretWrappedFunc(funcName, { VecDataInfo::DataTypes::Unsigned, static_cast<uint8_t>(targetBits), vnum, 0 });
-        }
-        // cannot handle right now
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Failed to generate patched shuffle for [{}]"sv), args[0]));
-        return {};
-    }
-}
-
 std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u32string_view> args) const
 {
     Expects(args.size() >= 1);
@@ -684,46 +436,6 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 
         switch (hash_(subName))
         {
-        /*HashCase(subName, U"SubgroupBroadcast")
-        {
-            ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-            bool allowMimic = kerCk && kerCk->MimicSubgroup;
-            bool* useMimic = kerCk ? &(kerCk->NeedLocalSgMimic) : nullptr;
-            output.append(GenerateSubgroupShuffle(args, false, allowMimic, useMimic));
-            if (kerCk) kerCk->InvokeSgBroadcast = true;
-            return;
-        }
-        HashCase(subName, U"SubgroupShuffle")
-        {
-            ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-            bool allowMimic = kerCk && kerCk->MimicSubgroup;
-            bool* useMimic = kerCk ? &(kerCk->NeedLocalSgMimic) : nullptr;
-            output.append(GenerateSubgroupShuffle(args, true, allowMimic, useMimic));
-            if (kerCk) kerCk->InvokeSgShuffle = true;
-            return;
-        }
-        HashCase(subName, U"GetSubgroupLocalId")
-        {
-            ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-            if (SupportBasicSubgroup)
-                output.append(U"get_sub_group_local_id()"sv);
-            else if (kerCk && kerCk->MimicSubgroup)
-                output.append(U"(get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0))"sv);
-            else
-                NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupLocalId] requires subgroup support or subgroup mimic.");
-            return;
-        }
-        HashCase(subName, U"GetSubgroupSize")
-        {
-            ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-            if (SupportBasicSubgroup)
-                output.append(U"get_sub_group_size()"sv);
-            else if (kerCk && kerCk->MimicSubgroup)
-                output.append(U"_oclu_subgroup_size"sv);
-            else
-                NLRT_THROW_EX(u"Repalcer-Func [GetSubgroupSize] requires subgroup support or subgroup mimic.");
-            return;
-        }*/
         HashCase(subName, U"DebugString")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
@@ -735,7 +447,30 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             else if (kerCk)
             {
                 output.append(GenerateDebugString(args));
-                kerCk->NeedDebugInfo = true;
+                kerCk->Injects.insert_or_assign(U"oclu_debug", UR"(
+    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
+    if (_oclu_debug_buffer_size > 0)
+    {
+        if (_oclu_thread_id == 0)
+        {
+            _oclu_debug_buffer_info[1] = get_global_size(0);
+            _oclu_debug_buffer_info[2] = get_global_size(1);
+            _oclu_debug_buffer_info[3] = get_global_size(2);
+            _oclu_debug_buffer_info[4] = get_local_size(0);
+            _oclu_debug_buffer_info[5] = get_local_size(1);
+            _oclu_debug_buffer_info[6] = get_local_size(2);
+        }
+
+#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
+        const ushort sgid  = get_sub_group_id();
+        const ushort sglid = get_sub_group_local_id();
+        const uint sginfo  = sgid * 65536u + sglid;
+#else
+        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
+#endif
+        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
+    }
+)"sv);
             }
             else
                 NLRT_THROW_EX(u"Repalcer-Func [DebugString] only support inside kernel.");
@@ -861,22 +596,20 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         HashCase(subName, U"AddSubgroupPatch")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto args = EvaluateFuncArgs<2>(call, { Arg::Type::Boolable, Arg::Type::String });
+            ThrowByArgCount(call, 2, ArgLimits::AtLeast);
+            const auto args = EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             const auto isShuffle = args[0].GetBool().value();
             const auto vtype = args[1].GetStr().value();
-            std::array strs{ vtype,U"x"sv,U"y"sv };
-            const auto funcsrc = GenerateSubgroupShuffle(strs, isShuffle, true);
-            AddPatchedBlock(fmt::format(U"AddSubgroupPatch_{}_{}"sv, vtype, isShuffle),
-                [&]() { return fmt::format(U"/* {} */\r\n"sv, funcsrc); });
-        } return {};
-        HashCase(subName, U"AddSubgroupPtxPatch")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
-            const auto args = EvaluateFuncArgs<1>(call, { Arg::Type::Integer });
-            const auto vnum = args[0].GetUint().value();
-            const auto funcName = fmt::format(U"AddSubgroupPtxPatch{}"sv, vnum);
-            AddPatchedBlock(*this, funcName, &NLCLRuntime::SubgroupShufflePtxPatch,
-                funcName, 32, vnum, VecDataInfo::DataTypes::Unsigned);
+
+            SubgroupAttributes sgAttr;
+            sgAttr.Mimic = SubgroupMimicParser(args[2].GetStr().value_or(std::u32string_view{}))
+                .value_or(SubgroupAttributes::MimicType::Auto);
+            sgAttr.Args = common::strchset::to_string(args[3].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
+            const auto solver = NLCLSubgroup::Generate(this, sgAttr);
+            std::array strs{ vtype, U"x"sv, U"y"sv };
+
+            solver->ReplaceFunc(isShuffle ? U"SubgroupShuffle"sv : U"SubgroupBroadcast"sv, strs, nullptr);
+            solver->Finish(nullptr);
         } return {};
         default: break;
         }
@@ -944,12 +677,6 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"__write_only", ImgAccess::WriteOnly),
     (U"read_write",   ImgAccess::ReadWrite),
     (U"",             ImgAccess::ReadWrite));
-constexpr auto SubgroupMimicParser = SWITCH_PACK(Hash,
-    (U"local",  SubgroupAttributes::MimicType::Local),
-    (U"ptx",    SubgroupAttributes::MimicType::Ptx),
-    (U"auto",   SubgroupAttributes::MimicType::Auto),
-    (U"none",   SubgroupAttributes::MimicType::None),
-    (U"",       SubgroupAttributes::MimicType::None));
 
 
 void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
@@ -1131,37 +858,9 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     DirectOutput(block, metas, content, &cookie);
     cookie.SubgroupSolver->Finish(&cookie);
 
-    if (cookie.NeedDebugInfo)
-    {
-        cookie.Injects.insert_or_assign(U"oclu_debug", UR"(
-    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
-    if (_oclu_debug_buffer_size > 0)
-    {
-        if (_oclu_thread_id == 0)
-        {
-            _oclu_debug_buffer_info[1] = get_global_size(0);
-            _oclu_debug_buffer_info[2] = get_global_size(1);
-            _oclu_debug_buffer_info[3] = get_global_size(2);
-            _oclu_debug_buffer_info[4] = get_local_size(0);
-            _oclu_debug_buffer_info[5] = get_local_size(1);
-            _oclu_debug_buffer_info[6] = get_local_size(2);
-        }
-
-#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
-        const ushort sgid  = get_sub_group_id();
-        const ushort sglid = get_sub_group_local_id();
-        const uint sginfo  = sgid * 65536u + sglid;
-#else
-        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
-#endif
-        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
-    }
-)"sv);
-    }
-
     for (const auto& [key, val] : cookie.Injects)
     {
-        APPEND_FMT(dst, U"// below injected by {}\r\n"sv, key);
+        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, key);
         dst.append(val);
         dst.append(U"\r\n"sv);
     }
@@ -1286,9 +985,9 @@ std::string NLCLRuntime::GenerateOutput()
     { // Output patched blocks
         for (const auto& [id, src] : PatchedBlocks)
         {
-            APPEND_FMT(prefix, U"/* Patched Block [{}] */\r\n\r\n"sv, id);
+            APPEND_FMT(prefix, U"/* Patched Block [{}] */\r\n"sv, id);
             prefix.append(src);
-            prefix.append(U"\r\n"sv);
+            prefix.append(U"\r\n\r\n"sv);
         }
     }
 

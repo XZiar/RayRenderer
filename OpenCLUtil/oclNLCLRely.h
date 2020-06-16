@@ -80,7 +80,6 @@ struct KernelCookie : public BlockCookie
     std::unique_ptr<ReplaceExtension> SubgroupSolver;
     uint32_t WorkgroupSize = 0;
     uint8_t  SubgroupSize = 0;
-    bool NeedDebugInfo = false;
     KernelCookie() noexcept : BlockCookie(TYPE) { }
 };
 
@@ -138,20 +137,8 @@ protected:
     }
 
     [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
-    [[nodiscard]] std::u32string SubgroupShufflePatch(const std::u32string_view funcName, const std::u32string_view base,
-        const uint8_t unitBits, const uint8_t dim, 
-        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept; 
-    [[nodiscard]] std::u32string SubgroupShufflePtxPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
-            common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
-    [[nodiscard]] std::u32string SubgroupShuffleMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
-        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
-    [[nodiscard]] std::u32string SubgroupBroadcastMimicPatch(const std::u32string_view funcName, const uint8_t unitBits, const uint8_t dim,
-        common::simd::VecDataInfo::DataTypes dtype = common::simd::VecDataInfo::DataTypes::Unsigned) noexcept;
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
-    [[nodiscard]] std::u32string GenerateSubgroupShuffleMimic(const common::span<const std::u32string_view> args, const bool needShuffle);
-    [[nodiscard]] std::u32string GenerateSubgroupShuffle(const common::span<const std::u32string_view> args, const bool needShuffle, 
-        const bool allowMimic, bool* useMimic = nullptr);
     [[nodiscard]] std::u32string GenerateDebugString(const common::span<const std::u32string_view> args) const;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
