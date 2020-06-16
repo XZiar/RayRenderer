@@ -281,7 +281,7 @@ oclKernel_::~oclKernel_()
 
 WorkGroupInfo oclKernel_::GetWorkGroupInfo() const
 {
-    const cl_device_id devid = Prog.Device->DeviceID;
+    const cl_device_id devid = *Prog.Device;
     WorkGroupInfo info;
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, nullptr);
     clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, nullptr);
@@ -302,7 +302,7 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const
     if (!Prog.Device->Extensions.Has("cl_khr_subgroups"sv) && !Prog.Device->Extensions.Has("cl_intel_subgroups"sv))
         return {};
     SubgroupInfo info;
-    const auto devid = Prog.Device->DeviceID;
+    const cl_device_id devid = *Prog.Device;
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
     Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
     if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
@@ -439,7 +439,8 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
         options.append(flag).append(" "sv);
     fmt::format_to(std::back_inserter(options), "-cl-std=CL{}.{} ", cver / 10, cver % 10);
     
-    cl_int ret = clBuildProgram(ProgID, 1, &Device->DeviceID, options.c_str(), nullptr, nullptr);
+    const cl_device_id devid = *Device;
+    cl_int ret = clBuildProgram(ProgID, 1, &devid, options.c_str(), nullptr, nullptr);
 
     std::vector<oclDevice> devs2;
     u16string buildlog = Device->Name + u":\n" + GetBuildLog();

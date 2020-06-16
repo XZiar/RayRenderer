@@ -25,6 +25,7 @@
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
   - [ ] Add SpinLock implementation
+  - [ ] Seperate PromiseTask's functionalities of task-info and ret-value
 
 * AsyncExecutor
   - [x] Add support for returning value
@@ -72,11 +73,12 @@
   - [x] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
   - [x] Make oclPromise directly use cl_event for better management
-  - [ ] Mimic subgroup shuffle on non-intel
-  - [ ] Mimic subgroup on unsupported platform (nv)
+  - [x] Mimic subgroup shuffle on non-intel
+  - [x] Mimic subgroup on unsupported platform (nv)
   - [ ] Mimic FillBuffer using embeded kernel for pre-1.2
   - [ ] Add better kernel argument info parsing in NLCL
   - [ ] Add support for Intel's accelerator
+  - [ ] Make device inherit with extra information
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL

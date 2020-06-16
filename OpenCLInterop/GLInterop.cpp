@@ -98,7 +98,7 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_contex
         size_t retSize = 0;
         const auto ret = plat->FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
         if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& d) { return d.DeviceID == dID; }); dev)
+            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& dev) { return dev == dID; }); dev)
                 return dev;
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
@@ -109,7 +109,7 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_contex
         size_t retSize = 0;
         const auto ret = plat->FuncClGetGLContext(props.data(), CL_DEVICES_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id) * plat->Devices.size(), dIDs.data(), &retSize);
         if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& d) { return d.DeviceID == dIDs[0]; }); dev)
+            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& dev) { return dev == dIDs[0]; }); dev)
                 return oclDevice(plat, dev);
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get associate device for glContext: [{}]\n", oclUtil::GetErrorString(ret));

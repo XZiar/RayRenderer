@@ -20,7 +20,7 @@ oclCmdQue_::oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool e
     if (IsOutOfOrder)
         props |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
 
-    CmdQue = clCreateCommandQueue(Context->Context, Device->DeviceID, props, &errcode);
+    CmdQue = clCreateCommandQueue(Context->Context, *Device, props, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create command queue");
 }

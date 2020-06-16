@@ -52,7 +52,7 @@ protected:
     ~oclPromiseCore();
     void Flush();
     [[nodiscard]] common::PromiseState QueryState() noexcept;
-    void Wait();
+    [[nodiscard]] std::optional<common::BaseException> Wait() noexcept;
     bool RegisterCallback(const common::PmsCore& pms);
     [[nodiscard]] uint64_t ElapseNs() noexcept;
     [[nodiscard]] const cl_event& GetEvent() { return Event; }
@@ -79,9 +79,10 @@ private:
     }
     void MakeActive(common::PmsCore&&) override
     { }
-    void WaitPms() noexcept override
+    common::PromiseState WaitPms() noexcept override
     {
         Pms->WaitFinish();
+        return GetState();
     }
     void GetResult() override
     { }
@@ -119,9 +120,12 @@ private:
             return;
         common::detail::PromiseResultCore::MakeActive(std::move(pms));
     }
-    void WaitPms() noexcept override
+    common::PromiseState WaitPms() noexcept override
     {
-        oclPromiseCore::Wait();
+        auto ret = oclPromiseCore::Wait();
+        if (ret.has_value())
+            this->Result = common::detail::ExceptionResult<std::shared_ptr<common::BaseException>>{ ret.value().Share() };
+        return this->QueryState();
     }
     [[nodiscard]] T GetResult() override
     {

@@ -311,7 +311,7 @@ private:
         oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
         ~oclProgStub();
         void Build(const CLProgConfig& config);
-        [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
+        [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
         [[nodiscard]] oclProgram Finish();
     };
     oclProgram_(oclProgStub* stub);
@@ -324,7 +324,7 @@ public:
         return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);
     }
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
-    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, Device->DeviceID); }
+    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
 
     [[nodiscard]] static oclProgStub Create(const oclContext& ctx, std::string str, const oclDevice& dev = {});
     [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, std::string str, const CLProgConfig& config, const oclDevice& dev = {});

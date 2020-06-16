@@ -117,14 +117,14 @@ PromiseState PromiseResultCore::State()
 void PromiseResultCore::WaitFinish()
 {
     Prepare();
-    WaitPms();
+    CachedState = WaitPms();
 }
 
 
 struct BasicPromiseResult_::Waitable
 {
-    std::promise<void> Pms;
-    std::future<void> Future;
+    std::promise<PromiseState> Pms;
+    std::future<PromiseState> Future;
 public:
     Waitable() : Future(Pms.get_future()) {}
 };
@@ -137,9 +137,9 @@ BasicPromiseResult_::~BasicPromiseResult_()
     delete Ptr;
 }
 
-void BasicPromiseResult_::Wait() noexcept
+PromiseState BasicPromiseResult_::Wait() noexcept
 {
-    Ptr->Future.wait();
+    return Ptr->Future.get();
 }
 
 void BasicPromiseResult_::NotifyState(PromiseState state)
@@ -147,7 +147,7 @@ void BasicPromiseResult_::NotifyState(PromiseState state)
     const auto prev = TheState.exchange(state);
     Expects(prev < PromiseState::Executed);
     //COMMON_THROW(BaseException, u"Set result repeatedly");
-    Ptr->Pms.set_value();
+    Ptr->Pms.set_value(state);
 }
 
 }

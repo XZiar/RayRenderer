@@ -19,13 +19,7 @@ enum class DeviceType : uint8_t { Other, CPU, GPU, Accelerator, Custom };
 
 class OCLUAPI oclDevice_ : public common::NonCopyable
 {
-    friend class oclUtil;
-    friend class GLInterop;
-    friend class oclContext_;
     friend class oclPlatform_;
-    friend class oclProgram_;
-    friend class oclKernel_;
-    friend class oclCmdQue_;
 private:
     std::weak_ptr<const oclPlatform_> Platform;
     cl_device_id DeviceID;
@@ -44,6 +38,9 @@ public:
 
     [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
     [[nodiscard]] std::shared_ptr<const oclPlatform_> GetPlatform() const;
+
+    constexpr operator cl_device_id() const noexcept { return DeviceID; }
+    constexpr bool operator== (const cl_device_id other) const noexcept { return DeviceID == other; }
 
     [[nodiscard]] static std::u16string_view GetDeviceTypeName(const DeviceType type);
 };

@@ -130,10 +130,11 @@ public:
 class NLCLSubgroupPtx : public NLCLSubgroup
 {
 protected:
+    std::u32string_view ShufFunc, ExtraMask;
     std::u32string Shuffle64Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string Shuffle32Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
 public:
-    using NLCLSubgroup::NLCLSubgroup;
+    NLCLSubgroupPtx(NLCLRuntime* runtime, SubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
 
     std::u32string GetSubgroupLocalId() override;

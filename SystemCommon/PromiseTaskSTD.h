@@ -15,9 +15,10 @@ private:
     using FutType = std::conditional_t<IsShared, std::shared_future<T>, std::future<T>>;
 protected:
     FutType Future;
-    void WaitPms() noexcept override
+    PromiseState WaitPms() noexcept override
     {
         Future.wait();
+        return GetState();
     }
     T GetResult() override
     {
@@ -60,9 +61,9 @@ class PromiseWrappedResultSTD : public detail::PromiseResult_<T>
 {
 private:
     PromiseResultSTD<std::unique_ptr<T>, IsShared> Inner;
-    void WaitPms() noexcept override
+    PromiseState WaitPms() noexcept override
     {
-        return *Inner.WaitPms().release();
+        return Inner.WaitPms();
     }
     T GetResult() override
     {

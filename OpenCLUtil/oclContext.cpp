@@ -61,7 +61,7 @@ oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, 
     bool supportIntelDiag = true;
     for (const auto& dev : Devices)
     {
-        DeviceIDs.push_back(dev->DeviceID);
+        DeviceIDs.push_back(*dev);
         supportIntelDiag &= dev->Extensions.Has("cl_intel_driver_diagnostics");
     }
     constexpr cl_context_properties intelDiagnostics = CL_CONTEXT_DIAGNOSTICS_LEVEL_BAD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_GOOD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_NEUTRAL_INTEL;
@@ -74,12 +74,6 @@ oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, 
     Img2DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE2D);
     Img3DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE3D);
 }
-
-//oclDevice oclContext_::GetDevice(const cl_device_id devid) const
-//{
-//    const auto it = FindInVec(Devices, [=](const oclDevice& dev) {return dev->DeviceID == devid; });
-//    return it ? *it : oclDevice{};
-//}
 
 oclContext_::~oclContext_()
 {

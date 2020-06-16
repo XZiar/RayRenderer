@@ -18,7 +18,7 @@ protected:
     {
         return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;
     }
-    void WaitPms() noexcept override { }
+    PromiseState WaitPms() noexcept override { return GetState(); }
     void ExecuteCallback() override { }
     void AddCallback(std::function<void()> func) override { assert(false); }
     void AddCallback(std::function<void(const PmsCore&)> func) override { assert(false); }

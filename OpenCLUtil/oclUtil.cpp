@@ -1,6 +1,11 @@
 #include "oclPch.h"
 #include "oclUtil.h"
 #include "oclPromise.h"
+//#include "3rdParty/CL/cl_dx9_media_sharing.h"
+//#include "3rdParty/CL/cl_d3d10.h"
+//#include "3rdParty/CL/cl_d3d11.h"
+#include "3rdParty/CL/cl_egl.h"
+//#include "3rdParty/CL/cl_va_api_media_sharing_intel.h"
 
 namespace oclu
 {
@@ -59,74 +64,75 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
 {
     switch (err)
     {
+#define RET_ERR(err) case err: return u ## #err ## sv
     // run-time and JIT compiler errors
-    case   0: return u"CL_SUCCESS"sv;
-    case  -1: return u"CL_DEVICE_NOT_FOUND"sv;
-    case  -2: return u"CL_DEVICE_NOT_AVAILABLE"sv;
-    case  -3: return u"CL_COMPILER_NOT_AVAILABLE"sv;
-    case  -4: return u"CL_MEM_OBJECT_ALLOCATION_FAILURE"sv;
-    case  -5: return u"CL_OUT_OF_RESOURCES"sv;
-    case  -6: return u"CL_OUT_OF_HOST_MEMORY"sv;
-    case  -7: return u"CL_PROFILING_INFO_NOT_AVAILABLE"sv;
-    case  -8: return u"CL_MEM_COPY_OVERLAP"sv;
-    case  -9: return u"CL_IMAGE_FORMAT_MISMATCH"sv;
-    case -10: return u"CL_IMAGE_FORMAT_NOT_SUPPORTED"sv;
-    case -11: return u"CL_BUILD_PROGRAM_FAILURE"sv;
-    case -12: return u"CL_MAP_FAILURE"sv;
-    case -13: return u"CL_MISALIGNED_SUB_BUFFER_OFFSET"sv;
-    case -14: return u"CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST"sv;
-    case -15: return u"CL_COMPILE_PROGRAM_FAILURE"sv;
-    case -16: return u"CL_LINKER_NOT_AVAILABLE"sv;
-    case -17: return u"CL_LINK_PROGRAM_FAILURE"sv;
-    case -18: return u"CL_DEVICE_PARTITION_FAILED"sv;
-    case -19: return u"CL_KERNEL_ARG_INFO_NOT_AVAILABLE"sv;
+    RET_ERR(CL_SUCCESS);
+    RET_ERR(CL_DEVICE_NOT_FOUND);
+    RET_ERR(CL_DEVICE_NOT_AVAILABLE);
+    RET_ERR(CL_COMPILER_NOT_AVAILABLE);
+    RET_ERR(CL_MEM_OBJECT_ALLOCATION_FAILURE);
+    RET_ERR(CL_OUT_OF_RESOURCES);
+    RET_ERR(CL_OUT_OF_HOST_MEMORY);
+    RET_ERR(CL_PROFILING_INFO_NOT_AVAILABLE);
+    RET_ERR(CL_MEM_COPY_OVERLAP);
+    RET_ERR(CL_IMAGE_FORMAT_MISMATCH);
+    RET_ERR(CL_IMAGE_FORMAT_NOT_SUPPORTED);
+    RET_ERR(CL_BUILD_PROGRAM_FAILURE);
+    RET_ERR(CL_MAP_FAILURE);
+    RET_ERR(CL_MISALIGNED_SUB_BUFFER_OFFSET);
+    RET_ERR(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+    RET_ERR(CL_COMPILE_PROGRAM_FAILURE);
+    RET_ERR(CL_LINKER_NOT_AVAILABLE);
+    RET_ERR(CL_LINK_PROGRAM_FAILURE);
+    RET_ERR(CL_DEVICE_PARTITION_FAILED);
+    RET_ERR(CL_KERNEL_ARG_INFO_NOT_AVAILABLE);
     // compile-time errors
-    case -30: return u"CL_INVALID_VALUE"sv;
-    case -31: return u"CL_INVALID_DEVICE_TYPE"sv;
-    case -32: return u"CL_INVALID_PLATFORM"sv;
-    case -33: return u"CL_INVALID_DEVICE"sv;
-    case -34: return u"CL_INVALID_CONTEXT"sv;
-    case -35: return u"CL_INVALID_QUEUE_PROPERTIES"sv;
-    case -36: return u"CL_INVALID_COMMAND_QUEUE"sv;
-    case -37: return u"CL_INVALID_HOST_PTR"sv;
-    case -38: return u"CL_INVALID_MEM_OBJECT"sv;
-    case -39: return u"CL_INVALID_IMAGE_FORMAT_DESCRIPTOR"sv;
-    case -40: return u"CL_INVALID_IMAGE_SIZE"sv;
-    case -41: return u"CL_INVALID_SAMPLER"sv;
-    case -42: return u"CL_INVALID_BINARY"sv;
-    case -43: return u"CL_INVALID_BUILD_OPTIONS"sv;
-    case -44: return u"CL_INVALID_PROGRAM"sv;
-    case -45: return u"CL_INVALID_PROGRAM_EXECUTABLE"sv;
-    case -46: return u"CL_INVALID_KERNEL_NAME"sv;
-    case -47: return u"CL_INVALID_KERNEL_DEFINITION"sv;
-    case -48: return u"CL_INVALID_KERNEu"sv;
-    case -49: return u"CL_INVALID_ARG_INDEX"sv;
-    case -50: return u"CL_INVALID_ARG_VALUE"sv;
-    case -51: return u"CL_INVALID_ARG_SIZE"sv;
-    case -52: return u"CL_INVALID_KERNEL_ARGS"sv;
-    case -53: return u"CL_INVALID_WORK_DIMENSION"sv;
-    case -54: return u"CL_INVALID_WORK_GROUP_SIZE"sv;
-    case -55: return u"CL_INVALID_WORK_ITEM_SIZE"sv;
-    case -56: return u"CL_INVALID_GLOBAL_OFFSET"sv;
-    case -57: return u"CL_INVALID_EVENT_WAIT_LIST"sv;
-    case -58: return u"CL_INVALID_EVENT"sv;
-    case -59: return u"CL_INVALID_OPERATION"sv;
-    case -60: return u"CL_INVALID_GL_OBJECT"sv;
-    case -61: return u"CL_INVALID_BUFFER_SIZE"sv;
-    case -62: return u"CL_INVALID_MIP_LEVEu"sv;
-    case -63: return u"CL_INVALID_GLOBAL_WORK_SIZE"sv;
-    case -64: return u"CL_INVALID_PROPERTY"sv;
-    case -65: return u"CL_INVALID_IMAGE_DESCRIPTOR"sv;
-    case -66: return u"CL_INVALID_COMPILER_OPTIONS"sv;
-    case -67: return u"CL_INVALID_LINKER_OPTIONS"sv;
-    case -68: return u"CL_INVALID_DEVICE_PARTITION_COUNT"sv;
-    case -69: return u"CL_INVALID_PIPE_SIZE"sv;
-    case -70: return u"CL_INVALID_DEVICE_QUEUE"sv;
-    case -71: return u"CL_INVALID_SPEC_ID"sv;
-    case -72: return u"CL_MAX_SIZE_RESTRICTION_EXCEEDED"sv;
+    RET_ERR(CL_INVALID_VALUE);
+    RET_ERR(CL_INVALID_DEVICE_TYPE);
+    RET_ERR(CL_INVALID_PLATFORM);
+    RET_ERR(CL_INVALID_DEVICE);
+    RET_ERR(CL_INVALID_CONTEXT);
+    RET_ERR(CL_INVALID_QUEUE_PROPERTIES);
+    RET_ERR(CL_INVALID_COMMAND_QUEUE);
+    RET_ERR(CL_INVALID_HOST_PTR);
+    RET_ERR(CL_INVALID_MEM_OBJECT);
+    RET_ERR(CL_INVALID_IMAGE_FORMAT_DESCRIPTOR);
+    RET_ERR(CL_INVALID_IMAGE_SIZE);
+    RET_ERR(CL_INVALID_SAMPLER);
+    RET_ERR(CL_INVALID_BINARY);
+    RET_ERR(CL_INVALID_BUILD_OPTIONS);
+    RET_ERR(CL_INVALID_PROGRAM);
+    RET_ERR(CL_INVALID_PROGRAM_EXECUTABLE);
+    RET_ERR(CL_INVALID_KERNEL_NAME);
+    RET_ERR(CL_INVALID_KERNEL_DEFINITION);
+    RET_ERR(CL_INVALID_KERNEL);
+    RET_ERR(CL_INVALID_ARG_INDEX);
+    RET_ERR(CL_INVALID_ARG_VALUE);
+    RET_ERR(CL_INVALID_ARG_SIZE);
+    RET_ERR(CL_INVALID_KERNEL_ARGS);
+    RET_ERR(CL_INVALID_WORK_DIMENSION);
+    RET_ERR(CL_INVALID_WORK_GROUP_SIZE);
+    RET_ERR(CL_INVALID_WORK_ITEM_SIZE);
+    RET_ERR(CL_INVALID_GLOBAL_OFFSET);
+    RET_ERR(CL_INVALID_EVENT_WAIT_LIST);
+    RET_ERR(CL_INVALID_EVENT);
+    RET_ERR(CL_INVALID_OPERATION);
+    RET_ERR(CL_INVALID_GL_OBJECT);
+    RET_ERR(CL_INVALID_BUFFER_SIZE);
+    RET_ERR(CL_INVALID_MIP_LEVEL);
+    RET_ERR(CL_INVALID_GLOBAL_WORK_SIZE);
+    RET_ERR(CL_INVALID_PROPERTY);
+    RET_ERR(CL_INVALID_IMAGE_DESCRIPTOR);
+    RET_ERR(CL_INVALID_COMPILER_OPTIONS);
+    RET_ERR(CL_INVALID_LINKER_OPTIONS);
+    RET_ERR(CL_INVALID_DEVICE_PARTITION_COUNT);
+    RET_ERR(CL_INVALID_PIPE_SIZE);
+    RET_ERR(CL_INVALID_DEVICE_QUEUE);
+    RET_ERR(CL_INVALID_SPEC_ID);
+    RET_ERR(CL_MAX_SIZE_RESTRICTION_EXCEEDED);
     // extension errors
-    case -1000: return u"CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR"sv;
-    case -1001: return u"CL_PLATFORM_NOT_FOUND_KHR"sv;
+    RET_ERR(CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR);
+    RET_ERR(CL_PLATFORM_NOT_FOUND_KHR);
     case -1002: return u"CL_INVALID_D3D10_DEVICE_KHR"sv;
     case -1003: return u"CL_INVALID_D3D10_RESOURCE_KHR"sv;
     case -1004: return u"CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR"sv;
@@ -139,7 +145,20 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -1011: return u"CL_INVALID_DX9_MEDIA_SURFACE_KHR"sv;
     case -1012: return u"CL_DX9_MEDIA_SURFACE_ALREADY_ACQUIRED_KHR"sv;
     case -1013: return u"CL_DX9_MEDIA_SURFACE_NOT_ACQUIRED_KHR"sv;
-    default: return u"Unknown OpenCL error"sv;
+    RET_ERR(CL_EGL_RESOURCE_NOT_ACQUIRED_KHR);
+    RET_ERR(CL_INVALID_EGL_OBJECT_KHR);
+    RET_ERR(CL_INVALID_ACCELERATOR_INTEL);
+    RET_ERR(CL_INVALID_ACCELERATOR_TYPE_INTEL);
+    RET_ERR(CL_INVALID_ACCELERATOR_DESCRIPTOR_INTEL);
+    RET_ERR(CL_ACCELERATOR_TYPE_NOT_SUPPORTED_INTEL);
+    case -1098: return u"CL_INVALID_VA_API_MEDIA_ADAPTER_INTEL"sv;
+    case -1099: return u"CL_INVALID_VA_API_MEDIA_SURFACE_INTEL"sv;
+    case -1100: return u"CL_VA_API_MEDIA_SURFACE_ALREADY_ACQUIRED_INTEL"sv;
+    case -1101: return u"CL_VA_API_MEDIA_SURFACE_NOT_ACQUIRED_INTEL"sv;
+    // vendor errors
+    case -9999: return u"Illegal read or write to a buffer"sv;
+    default:    return u"Unknown OpenCL error"sv;
+#undef RET_ERR
     }
 }
 

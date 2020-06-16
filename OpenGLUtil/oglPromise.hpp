@@ -46,11 +46,28 @@ protected:
             return common::PromiseState::Invalid;
         }
     }
-    void Wait() noexcept
+    common::PromiseState Wait() noexcept
     {
         CheckCurrent();
-        while (CtxFunc->ogluClientWaitSync(SyncObj, 0, 1000'000'000) == GL_TIMEOUT_EXPIRED)
-        { }
+        do
+        {
+            switch (CtxFunc->ogluClientWaitSync(SyncObj, 0, 1000'000'000))
+            {
+            case GL_TIMEOUT_EXPIRED:
+                continue;
+            case GL_ALREADY_SIGNALED:
+                return common::PromiseState::Success;
+            case GL_WAIT_FAILED:
+                return common::PromiseState::Error;
+            case GL_CONDITION_SATISFIED:
+                return common::PromiseState::Executed;
+            case GL_INVALID_VALUE:
+                [[fallthrough]];
+            default:
+                return common::PromiseState::Invalid;
+            }
+        } while (true);
+        return common::PromiseState::Invalid;
     }
     uint64_t ElapseNs() noexcept
     {
@@ -76,9 +93,9 @@ protected:
     { 
         return oglPromiseCore::State();
     }
-    void WaitPms() noexcept override
+    common::PromiseState WaitPms() noexcept override
     {
-        oglPromiseCore::Wait();
+        return oglPromiseCore::Wait();
     }
     T GetResult() override
     {
@@ -105,9 +122,9 @@ protected:
     { 
         return oglPromiseCore::State();
     }
-    void WaitPms() noexcept override
+    common::PromiseState WaitPms() noexcept override
     { 
-        oglPromiseCore::Wait();
+        return oglPromiseCore::Wait();
     }
     void GetResult() override
     { }
@@ -132,8 +149,10 @@ protected:
     { 
         glFinish();
     }
-    void WaitPms() noexcept override
-    { }
+    common::PromiseState WaitPms() noexcept override
+    {
+        return common::PromiseState::Executed;
+    }
     void GetResult() override
     { }
 public:

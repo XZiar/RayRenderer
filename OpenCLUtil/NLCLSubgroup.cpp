@@ -44,6 +44,7 @@ NLCLSubgroup::SubgroupCapbility NLCLSubgroup::GenerateCapabiity(NLCLRuntime* run
         Mod(SupportSubgroup16Intel, "sg_intel16");
         Mod(SupportFP16,            "fp16");
         Mod(SupportFP64,            "fp64");
+#undef Mod
         default: break;
         }
     }
@@ -746,6 +747,21 @@ std::u32string NLCLSubgroupLocal::SubgroupShuffle(VecDataInfo vtype, const std::
 }
 
 
+// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-shfl
+
+NLCLSubgroupPtx::NLCLSubgroupPtx(NLCLRuntime* runtime, SubgroupCapbility cap, const uint32_t smVersion) :
+    NLCLSubgroup(runtime, cap)
+{
+    if (smVersion == 30)
+        Logger().warning(u"Trying to use PtxSubgroup on non-NV platform.\n");
+    else if (smVersion < 30)
+        Logger().warning(u"Trying to use PtxSubgroup on sm{}, shuf is introduced since sm30.\n", smVersion);
+    if (smVersion < 60)
+        ShufFunc = U"shfl"sv;
+    else
+        ShufFunc = U"shfl.sync"sv, ExtraMask = U", 0x1f"sv;
+}
+
 std::u32string NLCLSubgroupPtx::Shuffle64Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept
 {
     Expects(vtype.Bit == 64 && vtype.Type == VecDataInfo::DataTypes::Unsigned);
@@ -758,13 +774,13 @@ std::u32string NLCLSubgroupPtx::Shuffle64Patch(const std::u32string_view funcNam
     for (uint8_t i = 0; i < vtype.Dim0; ++i)
     {
         static constexpr auto temp = UR"(
-    const uint2 val_{0} = as_uint2(val.s{1});
-    uint2 ret_{0};
-    asm volatile("{{ shfl.idx.b32 %0, %2, %4, 0x1f; shfl.idx.b32 %1, %3, %4, 0x1f; }}" 
-    : "=r"(ret_{0}.s0), "=r"(ret_{0}.s1) : "r"(val_{0}.s0), "r"(val_{0}.s1), "r"(sgId));
-    ret.s{1} = as_ulong(ret_{0});
+    const uint2 val_{3} = as_uint2(val.s{2});
+    uint2 ret_{3};
+    asm volatile("{0}.idx.b32 %0, %2, %4, 0x1f{1}; {0}.idx.b32 %1, %3, %4, 0x1f{1};" 
+        : "=r"(ret_{3}.s0), "=r"(ret_{3}.s1) : "r"(val_{3}.s0), "r"(val_{3}.s1), "r"(sgId));
+    ret.s{2} = as_ulong(ret_{3});
     )"sv;
-        APPEND_FMT(func, temp, i, idxNames[i]);
+        APPEND_FMT(func, temp, ShufFunc, ExtraMask, idxNames[i], i);
     }
     func.append(U"\r\n    return ret;\r\n}"sv);
     return func;
@@ -780,16 +796,17 @@ std::u32string NLCLSubgroupPtx::Shuffle32Patch(const std::u32string_view funcNam
         vecName, funcName);
     if (vtype.Dim0 == 1)
     {
-        func.append(UR"(
-    asm volatile("{{ shfl.idx.b32 %0, %1, %2, 0x1f; }}" : "=r"(ret) : "r"(val), "r"(sgId));)"sv);
+        static constexpr auto temp = UR"(
+    asm volatile("{0}.idx.b32 %0, %1, %2, 0x1f{1};" : "=r"(ret) : "r"(val), "r"(sgId));)"sv;
+        APPEND_FMT(func, temp, ShufFunc, ExtraMask);
     }
     else
     {
         for (uint8_t i = 0; i < vtype.Dim0; ++i)
         {
             static constexpr auto temp = UR"(
-    asm volatile("{{ shfl.idx.b32 %0, %1, %2, 0x1f; }}" : "=r"(ret.s{0}) : "r"(val.s{0}), "r"(sgId));)"sv;
-            APPEND_FMT(func, temp, idxNames[i]);
+    asm volatile("{0}.idx.b32 %0, %1, %2, 0x1f{1};" : "=r"(ret.s{2}) : "r"(val.s{2}), "r"(sgId));)"sv;
+            APPEND_FMT(func, temp, ShufFunc, ExtraMask, idxNames[i]);
         }
     }
     func.append(U"\r\n    return ret;\r\n}"sv);
@@ -803,7 +820,7 @@ std::u32string NLCLSubgroupPtx::GetSubgroupLocalId()
             return UR"(inline uint oclu_subgroup_ptx_get_local_id()
 {
     uint ret;
-    asm volatile("{ mov.u32 %0, %%laneid; }" : "=r"(ret));
+    asm volatile("mov.u32 %0, %%laneid;" : "=r"(ret));
     return ret;
 })"s; 
         });
@@ -858,7 +875,17 @@ std::unique_ptr<NLCLSubgroup> NLCLSubgroup::Generate(NLCLRuntime* runtime, const
     if (cap.SupportSubgroupIntel)
         return std::make_unique<NLCLSubgroupIntel>(runtime, cap);
     else if (mType == SubgroupAttributes::MimicType::Ptx)
-        return std::make_unique<NLCLSubgroupPtx>(runtime, cap);
+    {
+        uint32_t smVer = 0;
+        if (runtime->Device->Extensions.Has("cl_nv_device_attribute_query"sv))
+        {
+            uint32_t major = 0, minor = 0;
+            clGetDeviceInfo(*runtime->Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
+            clGetDeviceInfo(*runtime->Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
+            smVer = major * 10 + minor;
+        }
+        return std::make_unique<NLCLSubgroupPtx>(runtime, cap, smVer);
+    }
     else if (mType == SubgroupAttributes::MimicType::Local)
         return std::make_unique<NLCLSubgroupLocal>(runtime, cap);
     else if (cap.SupportBasicSubgroup)

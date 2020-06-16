@@ -68,7 +68,7 @@ protected:
     virtual PromiseState GetState() noexcept;
     virtual void PreparePms();
     virtual void MakeActive(PmsCore&& pms);
-    virtual void WaitPms() noexcept = 0;
+    virtual PromiseState WaitPms() noexcept = 0;
     virtual void ExecuteCallback() = 0;
 private:
     PromiseState CachedState = PromiseState::Invalid;
@@ -182,9 +182,10 @@ protected:
             return PromiseState::Executed;
         return state;
     }
-    void WaitPms() noexcept override 
+    PromiseState WaitPms() noexcept override
     { 
         Stage1->WaitFinish();
+        return Stage1->State();
     }
     RetType GetResult() override
     {
@@ -212,7 +213,7 @@ private:
     class COMMON_EMPTY_BASES FinishedResult_ final : protected detail::ResultHolder<T>, public detail::PromiseResult_<T>
     {
         PromiseState GetState() noexcept override { return PromiseState::Executed; }
-        void WaitPms() noexcept override { }
+        PromiseState WaitPms() noexcept override { return PromiseState::Executed; }
         T GetResult() override 
         { 
             if constexpr (std::is_same_v<T, void>)
@@ -297,7 +298,7 @@ protected:
     std::atomic<PromiseState> TheState = PromiseState::Executing;
     BasicPromiseResult_();
     ~BasicPromiseResult_();
-    void Wait() noexcept;
+    PromiseState Wait() noexcept;
     void NotifyState(PromiseState state);
 };
 
@@ -308,7 +309,7 @@ class COMMON_EMPTY_BASES BasicResult_ : public PromiseResult_<T>, public BasicPr
 private:
     SimpleTimer Timer;
     PromiseState GetState() noexcept override { return this->TheState; }
-    void WaitPms() noexcept override { return this->Wait(); }
+    PromiseState WaitPms() noexcept override { return this->Wait(); }
     T GetResult() override
     {
         if constexpr (std::is_same_v<T, void>)
