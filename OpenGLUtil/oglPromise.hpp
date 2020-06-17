@@ -5,9 +5,9 @@
 namespace oglu
 {
 
-class COMMON_EMPTY_BASES oglPromiseCore : public detail::oglCtxObject<true>
+class COMMON_EMPTY_BASES oglPromiseCore : public detail::oglCtxObject<true>, public common::PromiseProvider
 {
-protected:
+public:
     GLsync SyncObj;
     uint64_t TimeBegin = 0, TimeEnd = 0;
     GLuint Query;
@@ -27,7 +27,7 @@ protected:
             CtxFunc->ogluDeleteQueries(1, &Query);
         }
     }
-    common::PromiseState State() noexcept
+    common::PromiseState GetState() noexcept override
     {
         CheckCurrent();
         switch (CtxFunc->ogluClientWaitSync(SyncObj, 0, 0))
@@ -46,7 +46,7 @@ protected:
             return common::PromiseState::Invalid;
         }
     }
-    common::PromiseState Wait() noexcept
+    common::PromiseState WaitPms() noexcept override
     {
         CheckCurrent();
         do
@@ -69,7 +69,7 @@ protected:
         } while (true);
         return common::PromiseState::Invalid;
     }
-    uint64_t ElapseNs() noexcept
+    uint64_t ElapseNs() noexcept override
     {
         if (TimeEnd == 0)
         {
@@ -85,60 +85,28 @@ protected:
 
 
 template<typename T>
-class COMMON_EMPTY_BASES oglPromise : public common::detail::PromiseResult_<T>, public oglPromiseCore
+class COMMON_EMPTY_BASES oglPromise : protected common::detail::ResultHolder<T>, public common::detail::PromiseResult_<T>
 {
     friend class oglUtil;
 protected:
-    common::PromiseState State() noexcept override
-    { 
-        return oglPromiseCore::State();
-    }
-    common::PromiseState WaitPms() noexcept override
-    {
-        return oglPromiseCore::Wait();
-    }
+    common::CachedPromiseProvider<oglPromiseCore> Promise;
+    common::PromiseProvider& GetPromise() noexcept override { return Promise; }
     T GetResult() override
     {
         this->CheckResultExtracted();
-        return std::move(Result);
+        if constexpr (std::is_same_v<T, void>)
+            return;
+        else
+            return std::move(this->Result);
     }
 public:
-    T Result;
     template<typename U>
-    oglPromise(U&& data) : Result(std::forward<U>(data)) { }
+    oglPromise(U&& data) : common::detail::ResultHolder<T>(std::forward<U>(data)) { }
     ~oglPromise() override { }
-    uint64_t ElapseNs() noexcept override
-    { 
-        return oglPromiseCore::ElapseNs();
-    }
 };
 
 
-class COMMON_EMPTY_BASES oglPromiseVoid : public common::detail::PromiseResult_<void>, public oglPromiseCore
-{
-    friend class oglUtil;
-protected:
-    common::PromiseState GetState() noexcept override 
-    { 
-        return oglPromiseCore::State();
-    }
-    common::PromiseState WaitPms() noexcept override
-    { 
-        return oglPromiseCore::Wait();
-    }
-    void GetResult() override
-    { }
-public:
-    oglPromiseVoid() { }
-    ~oglPromiseVoid() override { }
-    uint64_t ElapseNs() noexcept override
-    { 
-        return oglPromiseCore::ElapseNs();
-    }
-};
-
-
-class COMMON_EMPTY_BASES oglPromiseVoid2 : public common::detail::PromiseResult_<void>
+class COMMON_EMPTY_BASES oglFinishPromise : public common::detail::PromiseResult_<void>, protected common::PromiseProvider
 {
 protected:
     common::PromiseState GetState() noexcept override
@@ -152,6 +120,10 @@ protected:
     common::PromiseState WaitPms() noexcept override
     {
         return common::PromiseState::Executed;
+    }
+    common::PromiseProvider& GetPromise() noexcept override 
+    { 
+        return *this;
     }
     void GetResult() override
     { }

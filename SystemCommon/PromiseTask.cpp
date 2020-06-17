@@ -5,7 +5,7 @@
 #include <future>
 
 
-namespace common::detail
+namespace common
 {
 
 
@@ -16,9 +16,10 @@ public:
 private:
     struct COMMON_EMPTY_BASES ProxyNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<ProxyNode>
     {
-        const PmsCore Promise;
+        const PmsCore Core;
+        PromiseProvider& Promise;
         uint32_t Id = 0;
-        ProxyNode(PmsCore&& promise, uint32_t id) : Promise(std::move(promise)), Id(id)
+        ProxyNode(PmsCore&& promise, uint32_t id) : Core(std::move(promise)), Promise(Core->GetPromise()), Id(id)
         { }
     };
 
@@ -58,10 +59,10 @@ private:
         bool hasExecuted = false;
         for (auto Current = TaskList.Begin(); Current != nullptr;)
         {
-            if (Current->Promise->GetState() >= PromiseState::Executed) // ready for callback
+            if (Current->Promise.GetState() >= PromiseState::Executed) // ready for callback
             {
                 hasExecuted = true;
-                Current->Promise->ExecuteCallback();
+                Current->Core->ExecuteCallback();
                 Current = TaskList.PopNode(Current);
             }
             else
@@ -83,45 +84,46 @@ public:
 
 
 
-PromiseResultCore::~PromiseResultCore()
+PromiseProvider::~PromiseProvider()
 { }
 
-PromiseState PromiseResultCore::GetState() noexcept
+PromiseState PromiseProvider::GetState() noexcept
 {
     return PromiseState::Invalid;
 }
 
-void PromiseResultCore::PreparePms()
+void PromiseProvider::PreparePms()
 { }
 
-void PromiseResultCore::MakeActive(PmsCore&& pms)
+void PromiseProvider::MakeActive(PmsCore && pms)
 {
     PromiseActiveProxy::Attach(std::move(pms));
 }
 
+
+PromiseResultCore::~PromiseResultCore()
+{ }
+
 void PromiseResultCore::Prepare()
 {
-    if (!Flags.Add(PromiseFlags::Prepared))
-        PreparePms();
+    if (!GetPromise().Flags.Add(PromiseFlags::Prepared))
+        GetPromise().PreparePms();
 }
 
 PromiseState PromiseResultCore::State()
 {
     Prepare();
-    if (CachedState >= PromiseState::Executed)
-        return CachedState;
-    else
-        return CachedState = GetState();
+    return GetPromise().GetState();
 }
 
 void PromiseResultCore::WaitFinish()
 {
     Prepare();
-    CachedState = WaitPms();
+    GetPromise().WaitPms();
 }
 
 
-struct BasicPromiseResult_::Waitable
+struct BasicPromiseProvider::Waitable
 {
     std::promise<PromiseState> Pms;
     std::future<PromiseState> Future;
@@ -129,20 +131,20 @@ public:
     Waitable() : Future(Pms.get_future()) {}
 };
 
-BasicPromiseResult_::BasicPromiseResult_() : Ptr(new Waitable())
+BasicPromiseProvider::BasicPromiseProvider() : Ptr(new Waitable())
 { }
 
-BasicPromiseResult_::~BasicPromiseResult_()
+BasicPromiseProvider::~BasicPromiseProvider()
 {
     delete Ptr;
 }
 
-PromiseState BasicPromiseResult_::Wait() noexcept
+PromiseState BasicPromiseProvider::WaitPms() noexcept
 {
     return Ptr->Future.get();
 }
 
-void BasicPromiseResult_::NotifyState(PromiseState state)
+void BasicPromiseProvider::NotifyState(PromiseState state)
 {
     const auto prev = TheState.exchange(state);
     Expects(prev < PromiseState::Executed);

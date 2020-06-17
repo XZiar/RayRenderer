@@ -36,7 +36,7 @@ public:
     void FlushAllQueues() const;
 };
 
-class OCLUAPI oclPromiseCore
+class OCLUAPI oclPromiseCore : public common::PromiseProvider
 {
     friend class oclBuffer_;
     friend class oclImage_;
@@ -48,19 +48,21 @@ protected:
     DependEvents Depends;
     const cl_event Event;
     const oclCmdQue Queue;
-    oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que);
-    ~oclPromiseCore();
-    void Flush();
-    [[nodiscard]] common::PromiseState QueryState() noexcept;
-    [[nodiscard]] std::optional<common::BaseException> Wait() noexcept;
-    bool RegisterCallback(const common::PmsCore& pms);
-    [[nodiscard]] uint64_t ElapseNs() noexcept;
-    [[nodiscard]] const cl_event& GetEvent() { return Event; }
-    virtual void ExecutePmsCallbacks() = 0;
+    std::shared_ptr<common::BaseException> WaitException;
+    bool IsException;
+    [[nodiscard]] common::PromiseState GetState() noexcept override;
+    void PreparePms() override;
+    void MakeActive(common::PmsCore&& pms) override;
+    [[nodiscard]] common::PromiseState WaitPms() noexcept override;
+    [[nodiscard]] uint64_t ElapseNs() noexcept override;
 public:
+    oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que, const bool isException = false);
+    ~oclPromiseCore();
     enum class TimeType { Queued, Submit, Start, End };
     uint64_t QueryTime(TimeType type) const noexcept;
+    bool RegisterCallback(const common::PmsCore& pms);
     std::string_view GetEventName() const noexcept;
+    std::shared_ptr<common::BaseException> GetException() const { return WaitException; }
 };
 
 class oclCustomEvent : public ::common::detail::PromiseResult_<void>, public oclPromiseCore
@@ -69,13 +71,13 @@ class oclCustomEvent : public ::common::detail::PromiseResult_<void>, public ocl
 private:
     MAKE_ENABLER();
     common::PmsCore Pms;
-    void PreparePms() override
-    {
-        Pms->Prepare();
-    }
     [[nodiscard]] common::PromiseState GetState() noexcept override
     {
         return Pms->State();
+    }
+    void PreparePms() override
+    {
+        Pms->Prepare();
     }
     void MakeActive(common::PmsCore&&) override
     { }
@@ -84,12 +86,12 @@ private:
         Pms->WaitFinish();
         return GetState();
     }
-    void GetResult() override
-    { }
-    void ExecutePmsCallbacks() override
-    {
-        this->ExecuteCallback();
+    common::PromiseProvider& GetPromise() noexcept override 
+    { 
+        return *this;
     }
+    void GetResult() override 
+    { }
     oclCustomEvent(common::PmsCore&& pms, cl_event evt);
     void Init();
 public:
@@ -98,69 +100,39 @@ public:
 
 
 template<typename T>
-class COMMON_EMPTY_BASES oclPromise : public ::common::detail::PromiseResult_<T>, public oclPromiseCore, protected common::detail::ResultExHolder<T>
+class COMMON_EMPTY_BASES oclPromise : public common::detail::PromiseResult_<T>
 {
     friend class oclPromiseCore;
 private:
-    using RH = common::detail::ResultExHolder<T>;
-    void PreparePms() override
-    {
-        if (!this->IsException())
-            Flush();
-    }
-    [[nodiscard]] common::PromiseState GetState() noexcept override
-    {
-        if (this->IsException())
-            return common::PromiseState::Error;
-        return this->QueryState();
-    }
-    void MakeActive(common::PmsCore&& pms) override
-    {
-        if (this->RegisterCallback(pms))
-            return;
-        common::detail::PromiseResultCore::MakeActive(std::move(pms));
-    }
-    common::PromiseState WaitPms() noexcept override
-    {
-        auto ret = oclPromiseCore::Wait();
-        if (ret.has_value())
-            this->Result = common::detail::ExceptionResult<std::shared_ptr<common::BaseException>>{ ret.value().Share() };
-        return this->QueryState();
-    }
+    common::CachedPromiseProvider<oclPromiseCore> Promise;
+    common::detail::ResultExHolder<T> Holder;
     [[nodiscard]] T GetResult() override
     {
-        if constexpr (!std::is_same_v<T, void>)
-        {
-            this->CheckResultExtracted();
-            return this->ExtraResult();
-        }
-    }
-    void ExecutePmsCallbacks() override 
-    {
-        this->ExecuteCallback();
+        this->CheckResultExtracted();
+        if (auto ex = Promise.GetException())
+            Holder.SetException(std::move(ex));
+        return Holder.ExtraResult();
     }
 public:
-    oclPromise(std::exception_ptr ex) : 
-        oclPromiseCore({}, nullptr, {})
+    common::PromiseProvider& GetPromise() noexcept override 
+    { 
+        return Promise;
+    }
+    oclPromise(std::exception_ptr ex) :
+        Promise({}, nullptr, {}, true)
     {
-        this->Result = common::detail::ExceptionResult<std::exception_ptr>{ ex };
+        Holder.SetException(ex);
     }
     oclPromise(DependEvents&& depend, const cl_event e, const oclCmdQue& que) : 
-        oclPromiseCore(std::move(depend), e, que) 
+        Promise(std::move(depend), e, que)
     { }
     template<typename U>
     oclPromise(DependEvents&& depend, const cl_event e, const oclCmdQue& que, U&& data) : 
-        oclPromiseCore(std::move(depend), e, que)
+        Promise(std::move(depend), e, que)
     {
-        this->Result = std::forward<U>(data);
+        Holder.Result = std::forward<U>(data);
     }
     ~oclPromise() override { }
-
-    [[nodiscard]] uint64_t ElapseNs() noexcept override
-    { 
-        return oclPromiseCore::ElapseNs();
-    }
-
 
     [[nodiscard]] static std::shared_ptr<oclPromise> CreateError(std::exception_ptr ex)
     {

@@ -46,14 +46,14 @@ void DependEvents::FlushAllQueues() const
 
 void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
 {
-    auto& self = *reinterpret_cast<std::shared_ptr<oclPromiseCore>*>(user_data);
-    Expects(event == self->Event);
-    self->ExecutePmsCallbacks();
+    auto& self = *reinterpret_cast<common::PmsCore*>(user_data);
+    Expects(event == static_cast<oclPromiseCore&>(self->GetPromise()).Event);
+    self->ExecuteCallback();
     delete &self;
 }
 
-oclPromiseCore::oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que) : 
-    Depends(std::move(depend)), Event(e), Queue(std::move(que))
+oclPromiseCore::oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que, const bool isException) :
+    Depends(std::move(depend)), Event(e), Queue(std::move(que)), IsException(isException)
 {
     if (const auto it = std::find(Depends.Queues.begin(), Depends.Queues.end(), Queue); it != Depends.Queues.end())
     {
@@ -70,16 +70,25 @@ oclPromiseCore::~oclPromiseCore()
         clReleaseEvent(Event);
 }
 
-void oclPromiseCore::Flush()
+void oclPromiseCore::PreparePms()
 {
     Depends.FlushAllQueues();
     if (Queue)
         clFlush(Queue->CmdQue);
 }
 
-[[nodiscard]] common::PromiseState oclPromiseCore::QueryState() noexcept
+inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
+{
+    if (RegisterCallback(pms))
+        return;
+    common::PromiseProvider::MakeActive(std::move(pms));
+}
+
+[[nodiscard]] common::PromiseState oclPromiseCore::GetState() noexcept
 {
     using common::PromiseState;
+    if (IsException)
+        return PromiseState::Error;
     cl_int status;
     const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
     if (ret != CL_SUCCESS)
@@ -102,25 +111,27 @@ void oclPromiseCore::Flush()
     }
 }
 
-std::optional<common::BaseException> oclPromiseCore::Wait() noexcept
+common::PromiseState oclPromiseCore::WaitPms() noexcept
 {
     if (!Event)
-        return {};
+        return common::PromiseState::Invalid;
+    if (WaitException)
+        return common::PromiseState::Error;
     const auto ret = clWaitForEvents(1, &Event);
     if (ret != CL_SUCCESS)
     {
         if (Queue) Queue->Finish();
-        return CREATE_EXCEPTION(OCLException, OCLException::CLComponent::Driver, ret, u"wait for event error");
+        WaitException = CREATE_EXCEPTION(OCLException, OCLException::CLComponent::Driver, ret, u"wait for event error").Share();
+        return common::PromiseState::Error;
     }
-    return {};
+    return common::PromiseState::Executed;
 }
 
 bool oclPromiseCore::RegisterCallback(const common::PmsCore& pms)
 {
     if (Queue->Context->Version < 11)
         return false;
-    auto core = std::dynamic_pointer_cast<oclPromiseCore>(pms);
-    const auto ptr = new std::shared_ptr<oclPromiseCore>(std::move(core));
+    const auto ptr = new common::PmsCore(pms);
     const auto ret = clSetEventCallback(Event, CL_COMPLETE, &EventCallback, ptr);
     return ret == CL_SUCCESS;
 }

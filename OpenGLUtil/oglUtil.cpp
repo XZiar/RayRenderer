@@ -113,12 +113,12 @@ optional<string_view> oglUtil::GetError()
 
 PromiseResult<void> oglUtil::SyncGL()
 {
-    return std::make_shared<oglPromiseVoid>();
+    return std::make_shared<oglPromise<void>>(common::detail::EmptyDummy{});
 }
 
 PromiseResult<void> oglUtil::ForceSyncGL()
 {
-    return std::make_shared<oglPromiseVoid2>();
+    return std::make_shared<oglFinishPromise>();
 }
 
 

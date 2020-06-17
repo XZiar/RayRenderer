@@ -21,7 +21,7 @@ private:
     ref class AsyncTaskBase abstract
     {
     protected:
-        Common::NativeWrapper<std::shared_ptr<common::detail::PromiseResultCore>> PmsCore;
+        Common::NativeWrapper<std::shared_ptr<common::PromiseResultCore>> PmsCore;
     public:
         ~AsyncTaskBase() { this->!AsyncTaskBase(); }
         !AsyncTaskBase();

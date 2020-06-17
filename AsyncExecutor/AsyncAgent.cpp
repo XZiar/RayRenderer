@@ -9,11 +9,12 @@ namespace common::asyexe
 namespace detail
 {
 
-class AsyncSleeper : public ::common::detail::PromiseResultCore
+class AsyncSleeper : public ::common::PromiseResultCore, public ::common::PromiseProvider
 {
     friend class common::asyexe::AsyncAgent;
 protected:
     std::chrono::high_resolution_clock::time_point Target;
+    ::common::PromiseProvider& GetPromise() noexcept override { return *this; }
     PromiseState GetState() noexcept override
     {
         return std::chrono::high_resolution_clock::now() < Target ? common::PromiseState::Executing : common::PromiseState::Success;

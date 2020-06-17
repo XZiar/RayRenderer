@@ -22,7 +22,7 @@ public:
     template<typename T>
     T Await(const PromiseResult<T>& pms) const
     {
-        AddPms(std::static_pointer_cast<common::detail::PromiseResultCore>(pms));
+        AddPms(std::static_pointer_cast<common::PromiseResultCore>(pms));
         return pms->Get();
     }
     /*template<typename T>

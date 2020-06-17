@@ -63,6 +63,14 @@
       <Item Name="[ArgsInfo]">ArgStore</Item>
     </Expand>
   </Type>
+  <Type Name="oclu::oclSubBuffer_">
+    <DisplayString>{{ oclBuffer }}</DisplayString>
+    <Expand>
+      <Item Name="Context">*Context</Item>
+      <Item Name="MemFlag">Flag,en</Item>
+      <Item Name="Size">Size</Item>
+    </Expand>
+  </Type>
 
 
   <Type Name="oclu::ArgFlags">
@@ -167,48 +175,48 @@
   <Type Name="oclu::oclPromise&lt;*&gt;">
     <DisplayString>{{ oclPromise }}</DisplayString>
     <Expand>
-      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Flags),en</Item>
-      <Item Name="[State]">this->GetState()</Item>
-      <Item Name="Result" Condition="!std::is_same&lt;$T1,void&gt;::value">Result</Item>
+      <Item Name="Flags">*(common::PromiseFlags*)(&amp;Promise.Flags),en</Item>
+      <Item Name="[State]">Promise.GetState()</Item>
+      <Item Name="Result" Condition="!std::is_same&lt;$T1,void&gt;::value">Holder.Result</Item>
       <Item Name="CallBacks">Callback</Item>
-      <Item Name="Dependents">Depends</Item>
-      <Item Name="Event">Event</Item>
-      <Item Name="Queue">Queue</Item>
+      <Item Name="Dependents">Promise.Depends</Item>
+      <Item Name="Event">Promise.Event</Item>
+      <Item Name="Queue">Promise.Queue</Item>
     </Expand>
   </Type>
 
   <Type Name="std::shared_ptr&lt;oclu::oclProgram_ const&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclKernel_ const&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclPlatform_ const&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclCmdQue_ const&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclBuffer_&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclImage&gt;">
-    <DisplayString>{{ {_Ptr,na} }}</DisplayString>
+    <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>

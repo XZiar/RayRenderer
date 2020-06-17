@@ -8,57 +8,85 @@
     </Expand>
   </Type>-->
   <Type Name="xziar::ejson::JNode&lt;*&gt;">
-    <DisplayString Condition="IsNull() != true">{{JNode}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JNode [Null] }}</DisplayString>
+    <DisplayString>{{ JNode }}</DisplayString>
     <Expand>
       <Item Name="[Value]">ValRef()</Item>
     </Expand>
   </Type>
   <Type Name="xziar::ejson::JDoc">
-    <DisplayString Condition="IsNull() != true">{{JDoc}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JDoc [Null] }}</DisplayString>
+    <Intrinsic Name="IsNull" Expression="(Val.data_.f.flags &amp; 0x07) == rapidjson::Type::kNullType"/>
+    <DisplayString Condition="IsNull() != true">{{ JDoc }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JDoc [Null] }}</DisplayString>
     <Expand>
-      <Item Name="[Value]">Val</Item>
+      <Item Name="Value">Val</Item>
+    </Expand>
+  </Type>
+  <Type Name="xziar::ejson::JDocRef&lt;*&gt;">
+    <Intrinsic Name="IsNull" Expression="Val == nullptr || (Val->data_.f.flags &amp; 0x07) == rapidjson::Type::kNullType"/>
+    <DisplayString Condition="IsNull() != true">{{ JDocRef }}</DisplayString>
+    <DisplayString Condition="IsNull() != true &amp;&amp; T1">{{ cosnt JDocRef }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JDocRef [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() == true &amp;&amp; T1">{{ cosnt JDocRef [Null] }}</DisplayString>
+    <Expand>
+      <Item Name="Value">*Val</Item>
     </Expand>
   </Type>
   <Type Name="xziar::ejson::JArrayRef&lt;*&gt;">
-    <DisplayString Condition="IsNull() != true">{{JArrayRef}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JArrayRef [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() != true">{{ JArrayRef }}</DisplayString>
+    <DisplayString Condition="IsNull() != true &amp;&amp; T1">{{ const JArrayRef }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JArrayRef [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() == true &amp;&amp; T1">{{ const JArrayRef [Null] }}</DisplayString>
     <Expand>
-      <Item Name="[Value]">ValRef()</Item>
-      <Item Name="[Count]">ValRef().Size()</Item>
+      <Item Name="Value">*Val</Item>
+      <Item Name="Count">Val->data_.a.size</Item>
       <ArrayItems ExcludeView="simple" Condition="IsNull() == false">
-        <Size>ValRef().Size()</Size>
-        <ValuePointer>(const rapidjson::Value*)ValRef().Begin()</ValuePointer>
+        <Size>Val->data_.a.size</Size>
+        <ValuePointer>(const rapidjson::Value*)((size_t)Val->data_.a.elements &amp; 0x0000FFFFFFFFFFFF)</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
   <Type Name="xziar::ejson::JArray">
-    <DisplayString Condition="IsNull() != true">{{JArray}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JArray [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() != true">{{ JArray {Val.data_.a.size} element }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JArray [Null] }}</DisplayString>
     <Expand>
-      <Item Name="[Value]">ValRef()</Item>
-      <Item Name="[Count]">ValRef().Size()</Item>
+      <Item Name="Value">Val</Item>
+      <Item Name="Count">Val.data_.a.size</Item>
       <ArrayItems ExcludeView="simple" Condition="IsNull() == false">
-        <Size>ValRef().Size()</Size>
-        <ValuePointer>(const rapidjson::Value*)ValRef().Begin()</ValuePointer>
+        <Size>Val.data_.a.size</Size>
+        <ValuePointer>(const rapidjson::Value*)((size_t)Val.data_.a.elements &amp; 0x0000FFFFFFFFFFFF)</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>
   <Type Name="xziar::ejson::JObjectRef&lt;*&gt;">
-    <DisplayString Condition="IsNull() != true">{{JObjectRef}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JObjectRef [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() != true">{{ JObjectRef }}</DisplayString>
+    <DisplayString Condition="IsNull() != true &amp;&amp; T1">{{ const JObjectRef }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JObjectRef [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() == true &amp;&amp; T1">{{ const JObjectRef [Null] }}</DisplayString>
     <Expand>
-      <Item Name="[Value]">ValRef()</Item>
-      <Item Name="[Count]">ValRef().MemberCount()</Item>
+      <Item Name="Value">*Val</Item>
+      <Item Name="Count">Val->data_.o.size</Item>
     </Expand>
   </Type>
   <Type Name="xziar::ejson::JObject">
-    <DisplayString Condition="IsNull() != true">{{JObject}}</DisplayString>
-    <DisplayString Condition="IsNull() == true">{{JObject [Null] }}</DisplayString>
+    <DisplayString Condition="IsNull() != true">{{ JObject {Val.data_.o.size} member }}</DisplayString>
+    <DisplayString Condition="IsNull() == true">{{ JObject [Null] }}</DisplayString>
     <Expand>
-      <Item Name="[Value]">ValRef()</Item>
-      <Item Name="[Count]">ValRef().MemberCount()</Item>
+      <Item Name="Value">Val</Item>
+      <Item Name="Count">Val.data_.o.size</Item>
+      <Synthetic Name="[Members]">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Variable Name="ptr" InitialValue="(rapidjson::Value::Member *)((size_t)Val.data_.o.members &amp; 0x0000FFFFFFFFFFFF)"/>
+            <Size>Val.data_.o.size</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Val.data_.o.size" />
+              <Item Name="[{ptr[idx].name}]">ptr[idx].value</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
     </Expand>
   </Type>
 </AutoVisualizer>

@@ -9,21 +9,12 @@ namespace common
 
 
 template<typename T, bool IsShared = false>
-class PromiseResultSTD : public detail::PromiseResult_<T>
+class PromiseResultSTD : public detail::PromiseResult_<T>, protected PromiseProvider
 {
 private:
     using FutType = std::conditional_t<IsShared, std::shared_future<T>, std::future<T>>;
 protected:
     FutType Future;
-    PromiseState WaitPms() noexcept override
-    {
-        Future.wait();
-        return GetState();
-    }
-    T GetResult() override
-    {
-        return Future.get();
-    }
     PromiseState GetState() noexcept override
     {
         if (!Future.valid())
@@ -39,6 +30,19 @@ protected:
         default:
             return PromiseState::Invalid;
         }
+    }
+    PromiseState WaitPms() noexcept override
+    {
+        Future.wait();
+        return GetState();
+    }
+    PromiseProvider& GetPromise() noexcept override
+    {
+        return *this;
+    }
+    T GetResult() override
+    {
+        return Future.get();
     }
 public:
     PromiseResultSTD(std::promise<T>& pms) : Future(pms.get_future())
