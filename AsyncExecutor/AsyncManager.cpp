@@ -11,26 +11,39 @@ namespace common::asyexe
 namespace detail
 {
 
+AsyncTaskPromiseProvider::~AsyncTaskPromiseProvider()
+{ }
+uint64_t AsyncTaskPromiseProvider::ElapseNs() noexcept
+{ 
+    return ElapseTime;
+}
+uint64_t AsyncTaskPromiseProvider::E2EElapseNs() noexcept
+{
+    return BasicPromiseProvider::ElapseNs();
+}
+
+
 AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize) : Name(name),
     StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) 
 { }
-void AsyncTaskNodeBase::BeginTask()
+AsyncTaskNodeBase::~AsyncTaskNodeBase() 
+{ }
+void AsyncTaskNodeBase::BeginTask() noexcept
 {
-    Status = detail::AsyncTaskStatus::Ready;
+    Status = AsyncTaskStatus::Ready;
     TaskTimer.Start();
 }
-void AsyncTaskNodeBase::SumPartialTime()
+void AsyncTaskNodeBase::SumPartialTime() noexcept
 {
     TaskTimer.Stop();
     ElapseTime += TaskTimer.ElapseNs();
 }
-void AsyncTaskNodeBase::FinishTask(const detail::AsyncTaskStatus status, AsyncTaskTime& taskTime)
+void AsyncTaskNodeBase::FinishTask(const AsyncTaskStatus status, AsyncTaskPromiseProvider& taskTime) noexcept
 {
     SumPartialTime();
     taskTime.ElapseTime = ElapseTime;
     Status = status;
 }
-AsyncTaskNodeBase::~AsyncTaskNodeBase() { }
 
 }
 

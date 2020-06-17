@@ -23,7 +23,7 @@ template<typename T>
 class PromiseResult_;
 template<typename RetType, typename MidType>
 class StagedResult_;
-template<typename T>
+template<typename T, typename P>
 class BasicResult_;
 }
 class PromiseResultCore;
@@ -33,9 +33,84 @@ template<typename T>
 using PromiseResult = std::shared_ptr<detail::PromiseResult_<T>>;
 template<typename R, typename M>
 using StagedResult = std::shared_ptr<detail::StagedResult_<R, M>>;
-template<typename T>
-using BasicResult = std::shared_ptr<detail::BasicResult_<T>>;
+template<typename T, typename P>
+using BasicResult = std::shared_ptr<detail::BasicResult_<T, P>>;
+template<typename T, typename R>
+class BasicPromise;
 
+
+
+namespace detail
+{
+
+struct EmptyDummy {};
+template<typename T>
+class ResultHolder
+{
+protected:
+    T Result;
+    template<typename U>
+    ResultHolder(U&& result) : Result(std::forward<U>(result)) { }
+};
+template<>
+class ResultHolder<void>
+{
+protected:
+    constexpr ResultHolder(EmptyDummy) noexcept { }
+};
+
+template<typename T>
+struct ExceptionResult
+{
+    T Exception;
+};
+template<typename T>
+class ResultExHolder
+{
+private:
+    using T2 = std::conditional_t<std::is_same_v<T, void>, char, T>;
+public:
+    std::variant<std::monostate, ExceptionResult<std::exception_ptr>, ExceptionResult<std::shared_ptr<BaseException>>, T2> Result;
+    template<typename U>
+    void SetException(U&& ex)
+    {
+        using U2 = std::decay_t<U>;
+        if constexpr (std::is_base_of_v<common::BaseException, U2>)
+            Result = ExceptionResult<U2>{ ex.Share() };
+        else
+            Result = ExceptionResult<U2>{ std::forward<U>(ex) };
+    }
+    [[nodiscard]] T ExtraResult()
+    {
+        switch (Result.index())
+        {
+        case 0:
+            COMMON_THROW(common::BaseException, u"Result unset");
+            break;
+        case 1:
+            std::rethrow_exception(std::get<1>(Result).Exception);
+            break;
+        case 2:
+            std::get<2>(Result).Exception->ThrowSelf();
+            break;
+        case 3:
+            if constexpr (std::is_same_v<T, void>)
+                return;
+            else
+                return std::get<3>(std::move(Result));
+        }
+        if constexpr (std::is_same_v<T, void>)
+            return;
+        else
+            return {};
+    }
+    [[nodiscard]] bool IsException() const noexcept
+    {
+        return Result.index() == 1 || Result.index() == 2;
+    }
+};
+
+}
 
 
 enum class PromiseState : uint8_t
@@ -59,11 +134,11 @@ public:
     RWSpinLock PromiseLock;
     AtomicBitfield<PromiseFlags> Flags = PromiseFlags::None;
     virtual ~PromiseProvider();
-    virtual PromiseState GetState() noexcept;
+    [[nodiscard]] virtual PromiseState GetState() noexcept;
     virtual void PreparePms();
     virtual void MakeActive(PmsCore&& pms);
     virtual PromiseState WaitPms() noexcept = 0;
-    virtual uint64_t ElapseNs() noexcept { return 0; };
+    [[nodiscard]] virtual uint64_t ElapseNs() noexcept { return 0; };
 };
 
 template<typename T>
@@ -74,15 +149,15 @@ private:
     PromiseState CachedState = PromiseState::Invalid;
 public:
     using T::T;
-    PromiseState GetState() noexcept override
+    ~CachedPromiseProvider() override { }
+    [[nodiscard]] PromiseState GetState() noexcept override
     {
-
         if (CachedState >= PromiseState::Executed)
             return CachedState;
         else
             return CachedState = T::GetState();
     }
-    PromiseState WaitPms() noexcept
+    PromiseState WaitPms() noexcept override
     {
         return CachedState = T::WaitPms();
     }
@@ -93,11 +168,11 @@ class SYSCOMMONAPI COMMON_EMPTY_BASES PromiseResultCore
 {
     friend class PromiseActiveProxy;
 protected:
-    [[nodiscard]] forceinline bool CheckFlag(const PromiseFlags field) const noexcept
+    [[nodiscard]] forceinline bool CheckFlag(const PromiseFlags field) noexcept
     {
         return GetPromise().Flags.Check(field);
     }
-    [[nodiscard]] forceinline bool AddFlag(const PromiseFlags field) const noexcept
+    [[nodiscard]] forceinline bool AddFlag(const PromiseFlags field) noexcept
     {
         return GetPromise().Flags.Add(field);
     }
@@ -116,37 +191,21 @@ public:
     virtual void AddCallback(std::function<void()> func) = 0;
     virtual void AddCallback(std::function<void(const PmsCore&)> func) = 0;
     virtual void ExecuteCallback() = 0;
-    virtual PromiseProvider& GetPromise() noexcept = 0;
-    virtual PromiseProvider& GetPromise() const noexcept 
-    { 
-        return const_cast<PromiseResultCore*>(this)->GetPromise();
+    [[nodiscard]] virtual PromiseProvider& GetPromise() noexcept = 0;
+    template<typename T> 
+    [[nodiscard]] forceinline T* GetPromise() noexcept
+    {
+        return dynamic_cast<T*>(&GetPromise());
     }
     void Prepare();
-    PromiseState State();
+    [[nodiscard]] PromiseState State();
     void WaitFinish();
-    virtual uint64_t ElapseNs() noexcept { return GetPromise().ElapseNs(); };
+    [[nodiscard]] uint64_t ElapseNs() noexcept;
 };
 
 
 namespace detail
 {
-
-struct EmptyDummy {};
-template<typename T>
-class ResultHolder
-{
-protected:
-    T Result;
-    template<typename U>
-    ResultHolder(U&& result) : Result(std::forward<U>(result)) { }
-};
-template<>
-class ResultHolder<void>
-{
-protected:
-    constexpr ResultHolder(EmptyDummy) noexcept { }
-};
-
 
 template<typename T>
 class COMMON_EMPTY_BASES PromiseResult_ : public PromiseResultCore, public std::enable_shared_from_this<PromiseResult_<T>>
@@ -155,8 +214,11 @@ protected:
     Delegate<const PromiseResult<T>&> Callback;
     PromiseResult_()
     { }
-    forceinline PromiseResult<T> GetSelf() { return this->shared_from_this(); }
-    virtual T GetResult() = 0;
+    [[nodiscard]] forceinline PromiseResult<T> GetSelf() 
+    { 
+        return this->shared_from_this();
+    }
+    [[nodiscard]] virtual T GetResult() = 0;
     void ExecuteCallback() override
     {
         {
@@ -178,7 +240,7 @@ public:
     {
         OnComplete(std::move(func));
     }
-    T Get()
+    [[nodiscard]] T Get()
     {
         WaitFinish();
         return GetResult();
@@ -223,7 +285,7 @@ private:
     PromiseResult<MidType> Stage1;
     PostExecute Stage2;
 protected:
-    PromiseState GetState() noexcept override
+    [[nodiscard]] PromiseState GetState() noexcept override
     {
         const auto state = Stage1->State();
         if (state == PromiseState::Success)
@@ -235,15 +297,11 @@ protected:
         Stage1->WaitFinish();
         return Stage1->State();
     }
-    uint64_t ElapseNs() noexcept override 
+    [[nodiscard]] uint64_t ElapseNs() noexcept override
     { 
         return Stage1->ElapseNs();
     };
-    PromiseProvider& GetPromise() noexcept override
-    {
-        return *this;
-    }
-    RetType GetResult() override
+    [[nodiscard]] RetType GetResult() override
     {
         return Stage2(Stage1->Get());
     }
@@ -252,6 +310,10 @@ public:
         : Stage1(std::move(stage1)), Stage2(std::move(stage2))
     { }
     ~StagedResult_() override {}
+    [[nodiscard]] PromiseProvider& GetPromise() noexcept override
+    {
+        return *this;
+    }
 };
 //constexpr auto kkl = sizeof(StagedResult_<int, double>);
 
@@ -265,13 +327,15 @@ private:
     class COMMON_EMPTY_BASES FinishedResult_ final : protected detail::ResultHolder<T>, protected PromiseProvider,
         public detail::PromiseResult_<T>
     {
-        PromiseProvider& GetPromise() noexcept override 
+        [[nodiscard]] PromiseState GetState() noexcept override 
         { 
-            return *this;
+            return PromiseState::Executed;
         }
-        PromiseState GetState() noexcept override { return PromiseState::Executed; }
-        PromiseState WaitPms() noexcept override { return PromiseState::Executed; }
-        T GetResult() override 
+        PromiseState WaitPms() noexcept override 
+        { 
+            return PromiseState::Executed;
+        }
+        [[nodiscard]] T GetResult() override
         { 
             if constexpr (std::is_same_v<T, void>)
                 return;
@@ -285,15 +349,19 @@ private:
         template<typename U>
         FinishedResult_(U&& data) : detail::ResultHolder<T>(std::forward<U>(data)) {}
         ~FinishedResult_() override {}
+        [[nodiscard]] PromiseProvider& GetPromise() noexcept override
+        {
+            return *this;
+        }
     };
 public:
     template<typename U>
-    static PromiseResult<T> Get(U&& data)
+    [[nodiscard]] static PromiseResult<T> Get(U&& data)
     {
         static_assert(!std::is_same_v<T, void>);
         return std::make_shared<FinishedResult_>(std::forward<U>(data));
     }
-    static PromiseResult<T> Get()
+    [[nodiscard]] static PromiseResult<T> Get()
     {
         static_assert(std::is_same_v<T, void>);
         return std::make_shared<FinishedResult_>(detail::EmptyDummy{});
@@ -301,94 +369,38 @@ public:
 };
 
 
-template<typename T, typename P>
-class BasicPromise;
-
-class SYSCOMMONAPI COMMON_EMPTY_BASES BasicPromiseProvider : public PromiseProvider
+class SYSCOMMONAPI BasicPromiseProvider : public PromiseProvider
 {
-    template<typename> friend class detail::BasicResult_;
+    template<typename, typename> friend class detail::BasicResult_;
 private:
     struct Waitable;
     Waitable* Ptr = nullptr;
     SimpleTimer Timer;
-    BasicPromiseProvider();
 protected:
     std::atomic<PromiseState> TheState = PromiseState::Executing;
+    BasicPromiseProvider();
 public:
     ~BasicPromiseProvider() override;
-    PromiseState GetState() noexcept override { return TheState; }
+    [[nodiscard]] PromiseState GetState() noexcept override;
     void MakeActive(PmsCore&&) override { }
     PromiseState WaitPms() noexcept override;
-    uint64_t ElapseNs() noexcept override { return Timer.ElapseNs(); };
+    [[nodiscard]] uint64_t ElapseNs() noexcept override;
     void NotifyState(PromiseState state);
 };
+
 
 namespace detail
 {
 
-template<typename T>
-struct ExceptionResult
-{
-    T Exception;
-};
-template<typename T>
-class ResultExHolder
-{
-private:
-    using T2 = std::conditional_t<std::is_same_v<T, void>, char, T>;
-public:
-    std::variant<std::monostate, ExceptionResult<std::exception_ptr>, ExceptionResult<std::shared_ptr<BaseException>>, T2> Result;
-    template<typename U>
-    void SetException(U&& ex)
-    {
-        using U2 = std::decay_t<U>;
-        if constexpr (std::is_base_of_v<common::BaseException, U2>)
-            Result = ExceptionResult<U2>{ ex.Share() };
-        else
-            Result = ExceptionResult<U2>{ std::forward<U>(ex) };
-    }
-    T ExtraResult()
-    {
-        switch (Result.index())
-        {
-        case 0:
-            COMMON_THROW(common::BaseException, u"Result unset");
-            break;
-        case 1:
-            std::rethrow_exception(std::get<1>(Result).Exception);
-            break;
-        case 2:
-            std::get<2>(Result).Exception->ThrowSelf();
-            break;
-        case 3:
-            if constexpr (std::is_same_v<T, void>)
-                return;
-            else
-                return std::get<3>(std::move(Result));
-        }
-        if constexpr (std::is_same_v<T, void>)
-            return;
-        else
-            return {};
-    }
-    bool IsException() const noexcept
-    {
-        return Result.index() == 1 || Result.index() == 2;
-    }
-};
-
-template<typename T>
+template<typename T, typename P = BasicPromiseProvider>
 class COMMON_EMPTY_BASES BasicResult_ : public PromiseResult_<T>
 {
+    static_assert(std::is_base_of_v<BasicPromiseProvider, P>);
     template<typename, typename> friend class ::common::BasicPromise;
-private:
-    BasicPromiseProvider Promise;
+protected:
+    P Promise;
     ResultExHolder<T> Holder;
-    PromiseProvider& GetPromise() noexcept override 
-    { 
-        return Promise;
-    }
-    T GetResult() override
+    [[nodiscard]] T GetResult() override
     {
         if constexpr (std::is_same_v<T, void>)
             return;
@@ -408,7 +420,6 @@ private:
             auto lock = Promise.PromiseLock.WriteScope();
             Holder.Result = T(std::forward<U>(data));
         }
-        Promise.Timer.Stop();
         Promise.NotifyState(PromiseState::Success);
         this->ExecuteCallback();
     }
@@ -416,7 +427,6 @@ private:
     {
         static_assert(std::is_same_v<T, void>);
         this->CheckResultAssigned();
-        Promise.Timer.Stop();
         Promise.NotifyState(PromiseState::Success);
         this->ExecuteCallback();
     }
@@ -428,29 +438,28 @@ private:
             auto lock = Promise.PromiseLock.WriteScope();
             Holder.SetException(std::move<U>(ex));
         }
-        Promise.Timer.Stop();
         Promise.NotifyState(PromiseState::Error);
         this->ExecuteCallback();
     }
 public:
-    BasicResult_()
-    {
-        Promise.Timer.Start();
-    }
     ~BasicResult_() override {}
+    [[nodiscard]] P& GetPromise() noexcept override
+    {
+        return Promise;
+    }
 };
 
 }
 
-template<typename T, typename P = detail::BasicResult_<T>>
+template<typename T, typename R = detail::BasicResult_<T>>
 class BasicPromise
 {
-    static_assert(std::is_base_of_v<detail::BasicResult_<T>, P>, "should be derived from BasicResult_<T>");
+    static_assert(common::is_base_of_template<detail::BasicResult_, R>::value, "should be derived from BasicResult_<T, P>");
 private:
-    std::shared_ptr<P> Promise;
+    std::shared_ptr<R> Promise;
 public:
-    BasicPromise() : Promise(std::make_shared<P>()) { }
-    constexpr const std::shared_ptr<P>& GetRawPromise() const noexcept
+    BasicPromise() : Promise(std::make_shared<R>()) { }
+    constexpr const std::shared_ptr<R>& GetRawPromise() const noexcept
     {
         return Promise;
     }
@@ -513,72 +522,53 @@ inline constexpr void EnsurePromiseResult()
 class [[nodiscard]] PromiseStub : public NonCopyable
 {
 private:
-    std::variant<
-        std::monostate,
-        std::reference_wrapper<const common::PromiseResult<void>>,
-        std::reference_wrapper<const std::vector<common::PromiseResult<void>>>,
-        std::reference_wrapper<const std::initializer_list<common::PromiseResult<void>>>,
-        std::vector<std::shared_ptr<PromiseResultCore>>
-    > Promises;
+    std::vector<PmsCore> Promises;
+    forceinline void Insert(const PmsCore& pms) noexcept
+    {
+        if (pms)
+            Promises.emplace_back(pms);
+    }
 public:
-    constexpr PromiseStub() noexcept : Promises() { }
-    constexpr PromiseStub(const common::PromiseResult<void>& promise) noexcept :
-        Promises(promise) { }
-    constexpr PromiseStub(const std::vector<common::PromiseResult<void>>& promises) noexcept :
-        Promises(promises) { }
-    constexpr PromiseStub(const std::initializer_list<common::PromiseResult<void>>& promises) noexcept :
-        Promises(promises) { }
+    PromiseStub() noexcept 
+    { }
+    PromiseStub(const common::PromiseResult<void>& promise) noexcept
+    {
+        if (promise) Promises.emplace_back(promise);
+    }
+    PromiseStub(const std::vector<common::PromiseResult<void>>& promises) noexcept
+    {
+        Promises.reserve(promises.size());
+        for (const auto& pms : promises)
+            if (pms)
+                Promises.emplace_back(pms);
+    }
+    PromiseStub(const std::initializer_list<common::PromiseResult<void>>& promises) noexcept
+    {
+        Promises.reserve(promises.size());
+        for (const auto& pms : promises)
+            if (pms)
+                Promises.emplace_back(pms);
+    }
     template<typename... Args>
     PromiseStub(const common::PromiseResult<Args>&... promises) noexcept
     {
         static_assert(sizeof...(Args) > 0, "should atleast give 1 argument");
-        std::vector<std::shared_ptr<PromiseResultCore>> pmss;
-        pmss.reserve(sizeof...(Args));
-        (pmss.push_back(promises), ...);
-        Promises = std::move(pmss);
+        Promises.reserve(sizeof...(Args));
+        (Insert(promises), ...);
     }
 
-    constexpr size_t size() const noexcept
+    [[nodiscard]] size_t size() const noexcept
     {
-        switch (Promises.index())
-        {
-        case 0: return 0;
-        case 1: return 1;
-        case 2: return std::get<2>(Promises).get().size();
-        case 3: return std::get<3>(Promises).get().size();
-        case 4: return std::get<4>(Promises)      .size();
-        default:return 0;
-        }
+        return Promises.size();
     }
 
     template<typename T>
-    constexpr std::vector<std::shared_ptr<T>> FilterOut() const noexcept
+    [[nodiscard]] std::vector<std::shared_ptr<T>> FilterOut() const noexcept
     {
         std::vector<std::shared_ptr<T>> ret;
-        switch (Promises.index())
-        {
-        case 1:
-            if (auto pms = std::dynamic_pointer_cast<T>(std::get<1>(Promises).get()); pms)
-                ret.push_back(pms);
-            break;
-        case 2:
-            for (const auto& pms : std::get<2>(Promises).get())
-                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
-                    ret.push_back(pms2);
-            break;
-        case 3:
-            for (const auto& pms : std::get<3>(Promises).get())
-                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
-                    ret.push_back(pms2);
-            break;
-        case 4:
-            for (const auto& pms : std::get<4>(Promises))
-                if (auto pms2 = std::dynamic_pointer_cast<T>(pms); pms2)
-                    ret.push_back(pms2);
-            break;
-        default:
-            break;
-        }
+        for (const auto& pms : Promises)
+            if (auto pms2 = pms->GetPromise<T>(); pms2)
+                ret.emplace_back(pms, pms2);
         return ret;
     }
 };

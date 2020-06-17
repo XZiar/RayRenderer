@@ -86,16 +86,16 @@ private:
         Pms->WaitFinish();
         return GetState();
     }
-    common::PromiseProvider& GetPromise() noexcept override 
-    { 
-        return *this;
-    }
     void GetResult() override 
     { }
     oclCustomEvent(common::PmsCore&& pms, cl_event evt);
     void Init();
 public:
     ~oclCustomEvent() override;
+    common::PromiseProvider& GetPromise() noexcept override
+    {
+        return *this;
+    }
 };
 
 
@@ -114,10 +114,6 @@ private:
         return Holder.ExtraResult();
     }
 public:
-    common::PromiseProvider& GetPromise() noexcept override 
-    { 
-        return Promise;
-    }
     oclPromise(std::exception_ptr ex) :
         Promise({}, nullptr, {}, true)
     {
@@ -133,6 +129,10 @@ public:
         Holder.Result = std::forward<U>(data);
     }
     ~oclPromise() override { }
+    oclPromiseCore& GetPromise() noexcept override
+    {
+        return Promise;
+    }
 
     [[nodiscard]] static std::shared_ptr<oclPromise> CreateError(std::exception_ptr ex)
     {

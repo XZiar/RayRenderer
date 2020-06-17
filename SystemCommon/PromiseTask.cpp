@@ -122,6 +122,11 @@ void PromiseResultCore::WaitFinish()
     GetPromise().WaitPms();
 }
 
+uint64_t PromiseResultCore::ElapseNs() noexcept 
+{ 
+    return GetPromise().ElapseNs();
+}
+
 
 struct BasicPromiseProvider::Waitable
 {
@@ -132,11 +137,17 @@ public:
 };
 
 BasicPromiseProvider::BasicPromiseProvider() : Ptr(new Waitable())
-{ }
-
+{ 
+    Timer.Start();
+}
 BasicPromiseProvider::~BasicPromiseProvider()
 {
     delete Ptr;
+}
+
+PromiseState BasicPromiseProvider::GetState() noexcept
+{
+    return TheState;
 }
 
 PromiseState BasicPromiseProvider::WaitPms() noexcept
@@ -144,11 +155,17 @@ PromiseState BasicPromiseProvider::WaitPms() noexcept
     return Ptr->Future.get();
 }
 
+uint64_t BasicPromiseProvider::ElapseNs() noexcept
+{
+    return Timer.ElapseNs();
+}
+
 void BasicPromiseProvider::NotifyState(PromiseState state)
 {
     const auto prev = TheState.exchange(state);
     Expects(prev < PromiseState::Executed);
     //COMMON_THROW(BaseException, u"Set result repeatedly");
+    Timer.Stop();
     Ptr->Pms.set_value(state);
 }
 

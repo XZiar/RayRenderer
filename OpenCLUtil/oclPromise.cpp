@@ -15,8 +15,8 @@ using namespace std::string_view_literals;
 DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
 {
     auto clpmss = pmss.FilterOut<oclPromiseCore>();
-    /*if (clpmss.size() < pmss.size())
-        oclLog().warning(u"Some non-ocl promise detected as dependent events, will be ignored!\n");*/
+    if (clpmss.size() < pmss.size())
+        oclLog().warning(u"Some non-ocl promise detected as dependent events, will be ignored!\n");
     for (const auto& clpms : clpmss)
     {
         for (const auto& que : clpms->Depends.Queues)

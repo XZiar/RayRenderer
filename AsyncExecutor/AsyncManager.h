@@ -22,23 +22,28 @@ namespace asyexe
 namespace detail
 {
 
-struct AsyncTaskTime
+class ASYEXEAPI AsyncTaskPromiseProvider : public common::BasicPromiseProvider
 {
     friend struct AsyncTaskNodeBase;
 protected:
     uint64_t ElapseTime = 0;
+public:
+    ~AsyncTaskPromiseProvider() override;
+    [[nodiscard]] uint64_t ElapseNs() noexcept override;
+    [[nodiscard]] uint64_t E2EElapseNs() noexcept;
 };
 
 template<typename T>
-class AsyncTaskResult : public ::common::detail::BasicResult_<T>, public AsyncTaskTime
+class AsyncTaskResult : public ::common::detail::BasicResult_<T, AsyncTaskPromiseProvider>
 {
     friend class ::common::asyexe::AsyncManager;
     friend class ::common::asyexe::AsyncAgent;
 public:
+    //forceinline AsyncTaskPromiseProvider& GetAsyncProvider() noexcept { return this->Promise; }
     AsyncTaskResult() { }
     ~AsyncTaskResult() override { }
-    uint64_t ElapseNs() noexcept override { return ElapseTime; }
 };
+
 
 enum class AsyncTaskStatus : uint8_t
 {
@@ -60,9 +65,9 @@ protected:
     common::SimpleTimer TaskTimer; // execution timer
     AsyncTaskStatus Status = AsyncTaskStatus::New;
     AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize);
-    void BeginTask();
-    void SumPartialTime();
-    void FinishTask(const detail::AsyncTaskStatus status, AsyncTaskTime& taskTime);
+    void BeginTask() noexcept;
+    void SumPartialTime() noexcept;
+    void FinishTask(const AsyncTaskStatus status, AsyncTaskPromiseProvider& taskTime) noexcept;
 private:
     uint64_t ElapseTime = 0; // execution time
     const uint32_t StackSize;
@@ -82,6 +87,7 @@ private:
     AsyncTaskNode(const std::u16string name, uint32_t stackSize, F&& func) : 
         AsyncTaskNodeBase(name, stackSize), Func(std::forward<F>(func))
     { }
+    forceinline AsyncTaskPromiseProvider& GetAsyncProvider() noexcept { return InnerPms.GetRawPromise()->GetPromise(); }
     forceinline RetType InnerCall([[maybe_unused]] const AsyncAgent& agent)
     {
         if constexpr (AcceptAgent)
@@ -97,13 +103,13 @@ private:
             if constexpr (std::is_same_v<RetType, void>)
             {
                 InnerCall(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
+                FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
                 InnerPms.SetData();
             }
             else
             {
                 auto ret = InnerCall(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, *InnerPms.GetRawPromise());
+                FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
                 InnerPms.SetData(std::move(ret));
             }
         }
@@ -118,7 +124,7 @@ private:
     }
     virtual void OnException(std::exception_ptr e) override 
     { 
-        FinishTask(detail::AsyncTaskStatus::Error, *InnerPms.GetRawPromise());
+        FinishTask(detail::AsyncTaskStatus::Error, GetAsyncProvider());
         InnerPms.SetException(e);
     }
 public:
