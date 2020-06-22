@@ -128,8 +128,10 @@ class NAILANGAPI ReplaceEngine
 protected:
     static std::u32string_view TrimStrBlank(const std::u32string_view str) noexcept;
     virtual void HandleException(const NailangParseException& ex) const;
-    virtual void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) = 0;
-    virtual void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) = 0;
+    virtual void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content);
+    virtual void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var);
+    virtual void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args);
+    std::u32string ProcessOptBlock(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie = nullptr);
     std::u32string ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie = nullptr);
     std::u32string ProcessFunction(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie = nullptr);
 public:

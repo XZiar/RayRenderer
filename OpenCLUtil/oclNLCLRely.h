@@ -140,6 +140,7 @@ protected:
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
     [[nodiscard]] std::u32string GenerateDebugString(const common::span<const std::u32string_view> args) const;
+    void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 

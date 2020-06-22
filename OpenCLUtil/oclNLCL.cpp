@@ -368,6 +368,40 @@ std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u3
     return func;
 }
 
+void NLCLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u32string_view cond, const std::u32string_view content)
+{
+    if (cond.empty())
+    {
+        NLRT_THROW_EX(u"Empty condition occurred when replace-opt-block"sv);
+        return;
+    }
+    Arg ret;
+    if (cond.back() == U';')
+    {
+        ret = EvaluateRawStatement(cond);
+    }
+    else
+    {
+        std::u32string str(cond);
+        str.push_back(U';');
+        ret = EvaluateRawStatement(str);
+    }
+    if (ret.IsEmpty())
+    {
+        NLRT_THROW_EX(u"No value returned as condition when replace-opt-block"sv);
+        return;
+    }
+    else if (!HAS_FIELD(ret.TypeData, Arg::Type::Boolable))
+    {
+        NLRT_THROW_EX(u"Evaluated condition is not boolable when replace-opt-block"sv);
+        return;
+    }
+    else if (ret.GetBool().value())
+    {
+        output.append(content);
+    }
+}
+
 void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] void* cookie, const std::u32string_view var)
 {
     if (var.size() > 0 && var[0] == U'@')
@@ -502,6 +536,12 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     {
         switch (const auto subName = call.Name.substr(5); hash_(subName))
         {
+        HashCase(subName, U"BlockStr")
+        {
+            const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto blkName = arg.GetStr().value();
+
+        }
         HashCase(subName, U"GetVecTypeName")
         {
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
@@ -621,9 +661,19 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
 {
     OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
-    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceVariable"sv; }))
+    bool repVar = false, repFunc = false;
+    for (const auto& fcall : metas)
+    {
+        if (fcall.Name == U"oclu.ReplaceVariable"sv)
+            repVar = true;
+        else if (fcall.Name == U"oclu.ReplaceFunction"sv)
+            repFunc = true;
+    }
+    if (repVar || repFunc)
+        source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
+    if (repVar)
         source = ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
-    if (common::linq::FromIterable(metas).ContainsIf([](const FuncCall& fcall) { return fcall.Name == U"oclu.ReplaceFunction"sv; }))
+    if (repFunc)
         source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv, cookie);
     dst.append(source.StrView());
 }

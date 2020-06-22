@@ -567,6 +567,59 @@ void ReplaceEngine::HandleException(const NailangParseException& ex) const
     ex.ThrowSelf();
 }
 
+void ReplaceEngine::OnReplaceOptBlock(std::u32string&, void*, const std::u32string_view, const std::u32string_view)
+{
+    NLPS_THROW_EX(u"ReplaceOptBlock unimplemented"sv);
+}
+void ReplaceEngine::OnReplaceVariable(std::u32string&, void*, const std::u32string_view)
+{
+    NLPS_THROW_EX(u"ReplaceVariable unimplemented"sv);
+}
+void ReplaceEngine::OnReplaceFunction(std::u32string&, void*, const std::u32string_view, const common::span<const std::u32string_view>)
+{
+    NLPS_THROW_EX(u"ReplaceFunction unimplemented"sv);
+}
+
+std::u32string ReplaceEngine::ProcessOptBlock(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie)
+{
+    Expects(!prefix.empty() && !suffix.empty()); // Illegal prefix/suffix
+    common::parser::ParserContext context(source);
+    ContextReader reader(context);
+    std::u32string output;
+    while (true)
+    {
+        auto before = reader.ReadUntil(prefix);
+        if (before.empty()) // reaching end
+        {
+            output.append(reader.ReadAll());
+            break;
+        }
+        {
+            before.remove_suffix(prefix.size());
+            output.append(before);
+        }
+        reader.ReadWhile(IgnoreBlank);
+        if (reader.ReadNext() != U'{')
+            NLPS_THROW_EX(u"Expect '{' for cond"sv);
+        reader.ReadWhile(IgnoreBlank);
+        auto cond = reader.ReadUntil(U"}");
+        cond.remove_suffix(1);
+        reader.ReadLine();
+        auto str = reader.ReadUntil(suffix);
+        if (str.empty())
+        {
+            if (reader.IsEnd())
+                NLPS_THROW_EX(u"End before block content"sv);
+            else
+                NLPS_THROW_EX(u"No suffix found!"sv);
+        }
+        str.remove_suffix(suffix.size());
+        // find a opt block replacement
+        OnReplaceOptBlock(output, cookie, TrimStrBlank(cond), str);
+    }
+    return output;
+}
+
 std::u32string ReplaceEngine::ProcessVariable(const std::u32string_view source, const std::u32string_view prefix, const std::u32string_view suffix, void* cookie)
 {
     Expects(!prefix.empty() && !suffix.empty()); // Illegal prefix/suffix
