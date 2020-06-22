@@ -52,6 +52,15 @@ bool EvaluateContext::SetArg(detail::VarHolder var, Arg arg)
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
+detail::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name)
+{
+    auto func = LookUpFuncInside(name);
+    if (func.Body == nullptr && ParentContext)
+        return ParentContext->LookUpFunc(name);
+    else
+        return func;
+}
+
 bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
@@ -125,7 +134,7 @@ bool LargeEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHold
     return LocalFuncMap.insert_or_assign(name, func).second;
 }
 
-detail::LocalFunc LargeEvaluateContext::LookUpFunc(std::u32string_view name)
+detail::LocalFunc LargeEvaluateContext::LookUpFuncInside(std::u32string_view name)
 {
     const auto it = LocalFuncMap.find(name);
     if (it == LocalFuncMap.end())
@@ -204,7 +213,7 @@ bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHo
     return true;
 }
 
-detail::LocalFunc CompactEvaluateContext::LookUpFunc(std::u32string_view name)
+detail::LocalFunc CompactEvaluateContext::LookUpFuncInside(std::u32string_view name)
 {
     for (auto& [key, val] : LocalFuncs)
         if (key == name)
@@ -403,9 +412,10 @@ NailangCodeException::NailangCodeException(const std::u32string_view msg, detail
 { }
 
 
-NailangRuntimeBase::InnerContextScope::InnerContextScope(NailangRuntimeBase& host, std::shared_ptr<EvaluateContext>&& context) :
-    Host(host), Context(std::move(Host.EvalContext))
+NailangRuntimeBase::InnerContextScope::InnerContextScope(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& context) :
+    Host(*host), Context(std::move(Host.EvalContext))
 {
+    Expects(Context);
     context->ParentContext = Context;
     Host.EvalContext = std::move(context);
 }
@@ -414,8 +424,9 @@ NailangRuntimeBase::InnerContextScope::~InnerContextScope()
     Host.EvalContext = std::move(Context);
 }
 
+
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
-    EvalContext(std::move(context))
+    RootContext(std::move(context)), EvalContext(RootContext)
 { }
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
@@ -559,6 +570,13 @@ void NailangRuntimeBase::EvaluateFuncArgs(Arg* args, const Arg::Type* types, con
     }
 }
 
+std::optional<NailangRuntimeBase::InnerContextScope> NailangRuntimeBase::InnerScope(const bool newContext)
+{
+    if (newContext)
+        return std::optional<InnerContextScope>(std::in_place, this, ConstructEvalContext());
+    return {};
+}
+
 bool NailangRuntimeBase::HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx)
 {
     for (const auto& meta : metas)
@@ -616,6 +634,11 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
 {
     ex.EvalContext = EvalContext;
     ex.ThrowSelf();
+}
+
+std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() const
+{
+    return std::make_shared<CompactEvaluateContext>();
 }
 
 NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> allMetas)
@@ -769,13 +792,12 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, const F
     for (const auto& rawarg : call.Args)
         args.emplace_back(EvaluateArg(rawarg));
 
-    const auto ctx = std::make_shared<CompactEvaluateContext>();
-    NailangRuntimeBase runtime(ctx);
+    auto scope = InnerScope();
     for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
-        ctx->SetArg(var, val);
-    ctx->SetFunc(func);
-    runtime.ExecuteBlock({ *func.Body, {} });
-    return ctx->GetReturnArg();
+        EvalContext->SetArg(var, val);
+    EvalContext->SetFunc(func);
+    ExecuteBlock({ *func.Body, {} });
+    return EvalContext->GetReturnArg();
 }
 
 Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>, const FuncTarget target)
@@ -1073,10 +1095,9 @@ void NailangRuntimeBase::OnFuncCall(const FuncCall& call, common::span<const Fun
 
 std::pair<NailangRuntimeBase::ProgramStatus, Arg> NailangRuntimeBase::OnInnerBlock(const Block& block, common::span<const FuncCall> metas)
 {
-    auto innerCtx = std::make_shared<CompactEvaluateContext>();
-    InnerContextScope scope(*this, innerCtx);
+    auto scope = InnerScope();
     const auto status = ExecuteBlock({ block, metas });
-    return { status, innerCtx->GetReturnArg() };
+    return { status, EvalContext->GetReturnArg() };
 }
 
 void NailangRuntimeBase::ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx)
@@ -1136,8 +1157,9 @@ NailangRuntimeBase::ProgramStatus NailangRuntimeBase::ExecuteBlock(BlockContext 
     return ProgramStatus::End;
 }
 
-void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas)
+void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas, const bool innerScope)
 {
+    auto scope = InnerScope(innerScope);
     if (checkMetas)
     {
         BlockContext dummy;
@@ -1154,9 +1176,7 @@ Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const 
     const auto rawarg = ComplexArgParser::ParseSingleStatement(MemPool, context);
     if (rawarg.has_value())
     {
-        std::optional<InnerContextScope> scope;
-        if (innerScope)
-            scope.emplace(*this, std::make_shared<CompactEvaluateContext>());
+        auto scope = InnerScope(innerScope);
         auto arg = EvaluateArg(rawarg.value());
         if (!innerScope && !arg.IsEmpty())
             EvalContext->SetReturnArg({});
@@ -1184,9 +1204,7 @@ Arg NailangRuntimeBase::EvaluateRawStatements(std::u32string_view content, const
     common::parser::ParserContext context(content);
     const auto blk = EmbedBlkParser::GetBlock(MemPool, content);
 
-    std::optional<InnerContextScope> scope;
-    if (innerScope)
-        scope.emplace(*this, std::make_shared<CompactEvaluateContext>());
+    auto scope = InnerScope(innerScope);
     ExecuteBlock({ blk, {} });
     auto arg = EvalContext->GetReturnArg();
     if (!innerScope && !arg.IsEmpty())

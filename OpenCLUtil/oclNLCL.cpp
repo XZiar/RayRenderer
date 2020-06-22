@@ -470,6 +470,22 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 
         switch (hash_(subName))
         {
+        HashCase(subName, U"CodeBlock")
+        {
+            ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+            const OutputBlock* block = nullptr;
+            for (const auto& blk : TemplateBlocks)
+                if (blk.Block->Name == args[0])
+                {
+                    block = &blk; break;
+                }
+            if (block)
+            {
+                APPEND_FMT(output, U"// template block [{}]\r\n"sv, args[0]);
+                DirectOutput(*block->Block, { block->MetaPtr, block->MetaCount }, output, reinterpret_cast<BlockCookie*>(cookie));
+            }
+            return;
+        }
         HashCase(subName, U"DebugString")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
@@ -536,12 +552,6 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     {
         switch (const auto subName = call.Name.substr(5); hash_(subName))
         {
-        HashCase(subName, U"BlockStr")
-        {
-            const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
-            const auto blkName = arg.GetStr().value();
-
-        }
         HashCase(subName, U"GetVecTypeName")
         {
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];

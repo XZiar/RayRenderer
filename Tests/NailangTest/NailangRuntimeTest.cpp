@@ -539,7 +539,7 @@ TEST(NailangRuntime, DefFunc)
     const auto PEDefFunc = [&](const std::u32string_view src)
     {
         const auto block = BlkParser::GetBlock(pool, src);
-        runtime.ExecuteBlock(block, {});
+        runtime.ExecuteBlock(block, {}, true, false);
     };
 
     {

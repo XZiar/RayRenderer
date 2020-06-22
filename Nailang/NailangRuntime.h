@@ -153,9 +153,11 @@ protected:
     std::vector<std::u32string_view> LocalFuncArgNames;
     Arg ReturnArg;
     virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
+    [[nodiscard]] virtual detail::LocalFunc LookUpFuncInside(std::u32string_view name) = 0;
 public:
     ~BasicEvaluateContext() override;
 
+    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) override;
     bool SetFunc(const Block* block, common::span<const RawArg> args) override;
     bool SetFunc(const detail::LocalFunc& func) override;
 
@@ -171,11 +173,10 @@ protected:
 
     [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
+    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~LargeEvaluateContext() override;
-
-    detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
@@ -192,11 +193,10 @@ protected:
 
     [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
+    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
-
-    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) override;
 
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
@@ -346,6 +346,14 @@ public:
 enum class ArgLimits { Exact, AtMost, AtLeast };
 class NAILANGAPI NailangRuntimeBase
 {
+private:
+    struct NAILANGAPI InnerContextScope : public common::NonCopyable, public common::NonMovable
+    {
+        NailangRuntimeBase& Host;
+        std::shared_ptr<EvaluateContext> Context;
+        InnerContextScope(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& context);
+        ~InnerContextScope();
+    };
 protected:
     static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
     static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
@@ -413,14 +421,8 @@ protected:
             return *reinterpret_cast<const ContentContext*>(Pointer & InvFlag);
         }
     };
-    struct NAILANGAPI InnerContextScope : public common::NonCopyable, public common::NonMovable
-    {
-        NailangRuntimeBase& Host;
-        std::shared_ptr<EvaluateContext> Context;
-        InnerContextScope(NailangRuntimeBase& host, std::shared_ptr<EvaluateContext>&& context);
-        ~InnerContextScope();
-    };
 
+    std::shared_ptr<EvaluateContext> RootContext;
     std::shared_ptr<EvaluateContext> EvalContext;
     MemoryPool MemPool;
     
@@ -451,11 +453,13 @@ protected:
         return args;
     }
 
+    [[nodiscard]] std::optional<InnerContextScope> InnerScope(const bool newContext = true);
     [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
+                  virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
     [[nodiscard]] virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
@@ -473,7 +477,7 @@ protected:
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();
-    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true);
+    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true, const bool innerScope = true);
     Arg EvaluateRawStatement(std::u32string_view content, const bool innerScope = true);
     Arg EvaluateRawStatements(std::u32string_view content, const bool innerScope = true);
 };
