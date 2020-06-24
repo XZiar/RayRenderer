@@ -427,6 +427,7 @@ protected:
     MemoryPool MemPool;
     
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
+    void ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
     void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
@@ -434,26 +435,32 @@ protected:
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
-    void EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const ArgLimits limit, const FuncCall& call);
+    void CheckFuncArgs(common::span<const RawArg::Type> types, const ArgLimits limit, const FuncCall& call);
+    void EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const FuncCall& call);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
+    forceinline void CheckFuncArgs(const FuncCall& call, const std::array<RawArg::Type, N>& types)
+    {
+        CheckFuncArgs(types, Limit, call);
+    }
+    template<size_t N, ArgLimits Limit = ArgLimits::Exact>
+    [[nodiscard]] forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
         ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        EvaluateFuncArgs(args.data(), nullptr, N, Limit, call);
+        EvaluateFuncArgs(args.data(), nullptr, std::min(N, call.Args.size()), call);
         return args;
     }
-
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::Type, N>& types)
+    [[nodiscard]] forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::Type, N>& types)
     {
         ThrowByArgCount(call, N, Limit);
         std::array<Arg, N> args;
-        EvaluateFuncArgs(args.data(), types.data(), N, Limit, call);
+        EvaluateFuncArgs(args.data(), types.data(), std::min(N, call.Args.size()), call);
         return args;
     }
 
     [[nodiscard]] std::optional<InnerContextScope> InnerScope(const bool newContext = true);
+    [[nodiscard]] std::optional<InnerContextScope> InnerScope(std::shared_ptr<EvaluateContext> evalCtx);
     [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);

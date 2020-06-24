@@ -501,6 +501,15 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         detail::ExceptionTarget{}, &call);
 }
 
+void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const
+{
+    const auto& arg = call.Args[idx];
+    if (arg.TypeData != type)
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} rawarg, which gives [{}], source is [{}]."),
+            ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(arg)),
+            arg);
+}
+
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::Type type) const
 {
     if ((arg.TypeData & type) != type)
@@ -511,8 +520,8 @@ void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::Type type) co
 void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const
 {
     if ((arg.TypeData & type) != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} arg, which gives [{}]."), 
-                ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}]."), 
+                ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(call.Args[idx])),
             arg);
 }
 
@@ -546,27 +555,21 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
     return ret.value();
 }
 
-void NailangRuntimeBase::EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const ArgLimits limit, const FuncCall& call)
+void NailangRuntimeBase::CheckFuncArgs(common::span<const RawArg::Type> types, const ArgLimits limit, const FuncCall& call)
 {
-    if (limit == ArgLimits::AtLeast)
+    ThrowByArgCount(call, types.size(), limit);
+    const auto size = std::min(types.size(), call.Args.size());
+    for (size_t i = 0; i < size; ++i)
+        ThrowByArgType(call, types[i], i);
+}
+
+void NailangRuntimeBase::EvaluateFuncArgs(Arg* args, const Arg::Type* types, const size_t size, const FuncCall& call)
+{
+    for (size_t i = 0; i < size; ++i)
     {
-        for (size_t i = 0; i < size; ++i)
-        {
-            args[i] = EvaluateArg(call.Args[i]);
-            if (types != nullptr)
-                ThrowByArgType(call, args[i], types[i], i);
-        }
-    }
-    else
-    {
-        size_t i = 0;
-        for (const auto& rawarg : call.Args)
-        {
-            args[i] = EvaluateArg(rawarg);
-            if (types != nullptr)
-                ThrowByArgType(call, args[i], types[i], i);
-            i++;
-        }
+        args[i] = EvaluateArg(call.Args[i]);
+        if (types != nullptr)
+            ThrowByArgType(call, args[i], types[i], i);
     }
 }
 
@@ -574,6 +577,12 @@ std::optional<NailangRuntimeBase::InnerContextScope> NailangRuntimeBase::InnerSc
 {
     if (newContext)
         return std::optional<InnerContextScope>(std::in_place, this, ConstructEvalContext());
+    return {};
+}
+std::optional<NailangRuntimeBase::InnerContextScope> NailangRuntimeBase::InnerScope(std::shared_ptr<EvaluateContext> evalCtx)
+{
+    if (evalCtx)
+        return std::optional<InnerContextScope>(std::in_place, this, std::move(evalCtx));
     return {};
 }
 
@@ -795,7 +804,7 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, const F
     auto scope = InnerScope();
     for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
         EvalContext->SetArg(var, val);
-    EvalContext->SetFunc(func);
+    // EvalContext->SetFunc(func);
     ExecuteBlock({ *func.Body, {} });
     return EvalContext->GetReturnArg();
 }

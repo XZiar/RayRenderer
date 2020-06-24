@@ -40,12 +40,23 @@ public:
 
 struct OutputBlock
 {
+    using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
+    struct BlockInfo
+    {
+        virtual ~BlockInfo() { }
+    };
     const xziar::nailang::RawBlock* Block;
-    const xziar::nailang::FuncCall* MetaPtr;
-    uint32_t MetaCount;
-    uint32_t ExtraInfo;
-    constexpr OutputBlock(const xziar::nailang::RawBlock* block, common::span<const xziar::nailang::FuncCall> meta, uint32_t extra = 0) noexcept :
-        Block(block), MetaPtr(meta.data()), MetaCount(gsl::narrow_cast<uint32_t>(meta.size())), ExtraInfo(extra) {}
+    MetaFuncs MetaFunc;
+    std::unique_ptr<BlockInfo> ExtraInfo;
+    OutputBlock(const xziar::nailang::RawBlock* block, MetaFuncs meta, std::unique_ptr<BlockInfo> extra = {}) noexcept :
+        Block(block), MetaFunc(meta), ExtraInfo(std::move(extra)) { }
+};
+struct TemplateBlockInfo : public OutputBlock::BlockInfo
+{
+    std::vector<std::u32string_view> ReplaceArgs;
+    std::vector<std::pair<std::u32string_view, xziar::nailang::RawArg>> PreAssignArgs;
+    TemplateBlockInfo(common::span<const xziar::nailang::RawArg> args);
+    ~TemplateBlockInfo() override {}
 };
 
 class ReplaceExtension
@@ -145,12 +156,12 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
     xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
-    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr);
+    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr, std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx = {});
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
-    virtual void OutputTemplateKernel(const RawBlock& block, MetaFuncs metas, uint32_t extraInfo, std::u32string& dst);
+    virtual void OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] const OutputBlock::BlockInfo& extraInfo, std::u32string& dst);
 public:
     [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
 

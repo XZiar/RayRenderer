@@ -70,23 +70,26 @@
   - [ ] Remove explicit include of `cl*.h`
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
   - [x] Add compatibility for OpenCL verson less than 1.2.
-  - [x] Add extended debugging output using NLCL
   - [x] Make oclKernel associate with specific device
   - [x] Make oclPromise directly use cl_event for better management
-  - [x] Mimic subgroup shuffle on non-intel
-  - [x] Mimic subgroup on unsupported platform (nv)
   - [ ] Mimic FillBuffer using embeded kernel for pre-1.2
-  - [ ] Add better kernel argument info parsing in NLCL
   - [ ] Add support for Intel's accelerator
   - [ ] Make device inherit with extra information
+  * NLCL
+    - [x] Add extended debugging output using NLCL
+    - [x] Mimic subgroup shuffle on non-intel
+    - [x] Mimic subgroup on unsupported platform (nv)
+    - [ ] Add dp4a compatible layer
+    - [ ] Seperate code generation from NLCLRuntime
+    - [ ] Add better kernel argument info parsing in NLCL
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
 
 * TextureUtil
-    - [x] Add mipmap
-    - [ ] Add blur
-    - [ ] Migate ISPC tex-compressor to OpenCL
+  - [x] Add mipmap
+  - [ ] Add blur
+  - [ ] Migate ISPC tex-compressor to OpenCL
 
 * FontHelper
   - [ ] Implement proper text render

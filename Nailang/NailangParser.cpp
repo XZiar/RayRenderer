@@ -616,6 +616,7 @@ std::u32string ReplaceEngine::ProcessOptBlock(const std::u32string_view source, 
         str.remove_suffix(suffix.size());
         // find a opt block replacement
         OnReplaceOptBlock(output, cookie, TrimStrBlank(cond), str);
+        reader.ReadLine();
     }
     return output;
 }

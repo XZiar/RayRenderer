@@ -9,6 +9,7 @@
 
 namespace oclu
 {
+using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
 using xziar::nailang::RawArg;
@@ -100,6 +101,15 @@ Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var
     return CompactEvaluateContext::LookUpArgInside(var);
 }
 
+
+TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
+{
+    ReplaceArgs.reserve(args.size());
+    for (const auto& arg : args)
+    {
+        ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+    }
+}
 
 
 NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, 
@@ -470,9 +480,25 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 
         switch (hash_(subName))
         {
-        HashCase(subName, U"CodeBlock")
+        HashCase(subName, U"GetVecTypeName")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+            const auto vname = args[0];
+            const auto info = ParseVecType(vname);
+            if (info.has_value())
+            {
+                const auto str = GetVecTypeName(info.value());
+                if (!str.empty())
+                    output.append(str);
+                else
+                    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported"sv), vname));
+            }
+            else
+                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType"sv), vname));
+        } return;
+        HashCase(subName, U"CodeBlock")
+        {
+            ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
             const OutputBlock* block = nullptr;
             for (const auto& blk : TemplateBlocks)
                 if (blk.Block->Name == args[0])
@@ -481,11 +507,18 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
                 }
             if (block)
             {
+                const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
+                ThrowByReplacerArgCount(func, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
+                auto scope = InnerScope(extra.ReplaceArgs.size() > 0);
+                for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
+                {
+                    std::u32string name = U":"; name += extra.ReplaceArgs[i];
+                    EvalContext->SetArg(name, args[i + 1]);
+                }
                 APPEND_FMT(output, U"// template block [{}]\r\n"sv, args[0]);
-                DirectOutput(*block->Block, { block->MetaPtr, block->MetaCount }, output, reinterpret_cast<BlockCookie*>(cookie));
+                DirectOutput(*block->Block, block->MetaFunc, output, reinterpret_cast<BlockCookie*>(cookie));
             }
-            return;
-        }
+        } return;
         HashCase(subName, U"DebugString")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
@@ -524,8 +557,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             }
             else
                 NLRT_THROW_EX(u"Repalcer-Func [DebugString] only support inside kernel.");
-            return;
-        }
+        } return;
         default: break;
         }
     }
@@ -667,7 +699,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
-void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie)
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie, std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx)
 {
     OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
@@ -678,7 +710,16 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
             repVar = true;
         else if (fcall.Name == U"oclu.ReplaceFunction"sv)
             repFunc = true;
+        else if (fcall.Name == U"oclu.PreAssign"sv)
+        {
+            ThrowByArgCount(fcall, 2, ArgLimits::Exact);
+            ThrowByArgType(fcall, RawArg::Type::Var, 0);
+            if (!evalCtx)
+                evalCtx = ConstructEvalContext();
+            evalCtx->SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
+        }
     }
+    auto scope = InnerScope(evalCtx);
     if (repVar || repFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
     if (repVar)
@@ -929,7 +970,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
 }
 
-void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] uint32_t extraInfo, std::u32string& dst)
+void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, 
+    [[maybe_unused]] const OutputBlock::BlockInfo& extraInfo, std::u32string& dst)
 {
     // TODO:
     APPEND_FMT(dst, U"\r\n/* From TempalteKernel [{}] */\r\n"sv, block.Name);
@@ -994,8 +1036,27 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
         HashCase(subName, U"Global")     output = true;  break;
         HashCase(subName, U"Struct")     output = true;  StructBlocks.emplace_back(&block, metas); break;
         HashCase(subName, U"Kernel")     output = true;  KernelBlocks.emplace_back(&block, metas); break;
-        HashCase(subName, U"Template")   output = false; TemplateBlocks.emplace_back(&block, metas); break;
         HashCase(subName, U"KernelStub") output = false; KernelStubBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Template")
+        {
+            output = false;
+            common::span<const RawArg> tpArgs;
+            for (const auto& meta : metas)
+            {
+                if (meta.Name == U"oclu.TemplateArgs")
+                {
+                    for (uint32_t i = 0; i < meta.Args.size(); ++i)
+                    {
+                        if (meta.Args[i].TypeData != RawArg::Type::Var)
+                            NLRT_THROW_EX(fmt::format(FMT_STRING(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv),
+                                i, ArgTypeName(meta.Args[i].TypeData)), meta, &block);
+                    }
+                    tpArgs = meta.Args;
+                    break;
+                }
+            }
+            TemplateBlocks.emplace_back(&block, metas, std::make_unique<TemplateBlockInfo>(tpArgs));
+        } break;
         default: break;
         }
         if (output)
@@ -1012,13 +1073,12 @@ std::string NLCLRuntime::GenerateOutput()
 
     for (const auto& item : OutputBlocks)
     {
-        const MetaFuncs metas(item.MetaPtr, item.MetaCount);
         switch (hash_(item.Block->Type))
         {
-        HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.Struct")     OutputStruct(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.Kernel")     OutputKernel(*item.Block, metas, output); continue;
-        HashCase(item.Block->Type, U"oclu.KernelStub") OutputTemplateKernel(*item.Block, metas, item.ExtraInfo, output); continue;
+        HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, item.MetaFunc, output); continue;
+        HashCase(item.Block->Type, U"oclu.Struct")     OutputStruct(*item.Block, item.MetaFunc, output); continue;
+        HashCase(item.Block->Type, U"oclu.Kernel")     OutputKernel(*item.Block, item.MetaFunc, output); continue;
+        HashCase(item.Block->Type, U"oclu.KernelStub") OutputTemplateKernel(*item.Block, item.MetaFunc, *item.ExtraInfo, output); continue;
         default: break;
         }
         Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
