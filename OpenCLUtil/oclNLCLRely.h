@@ -102,7 +102,8 @@ class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public co
     friend class NLCLSubgroup;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
-    using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
+    using FuncCall = xziar::nailang::FuncCall;
+    using MetaFuncs = ::common::span<const FuncCall>;
 
     common::mlog::MiniLogger<false>& Logger;
     oclDevice Device;
@@ -112,6 +113,7 @@ protected:
     std::vector<OutputBlock> KernelBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
+    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     oclDebugManager DebugManager;
@@ -147,15 +149,14 @@ protected:
         return false;
     }
 
-    [[nodiscard]] std::u32string SkipDebugPatch() const noexcept;
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
-    [[nodiscard]] std::u32string GenerateDebugString(const common::span<const std::u32string_view> args) const;
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
-    xziar::nailang::Arg EvaluateFunc(const xziar::nailang::FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
+    void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas) override;
+    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr, std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx = {});
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

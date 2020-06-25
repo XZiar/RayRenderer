@@ -21,6 +21,11 @@
   - [ ] Merge fmt with better format-context support
   - [ ] Add BOM detection
 
+* MiniLogger
+  - [ ] Add pre-defined color arg
+  - [ ] Add color filter to non-terminal backend (spin-lock based processing)
+  - [ ] Use Camel naming
+
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
@@ -80,6 +85,7 @@
     - [x] Mimic subgroup shuffle on non-intel
     - [x] Mimic subgroup on unsupported platform (nv)
     - [ ] Add dp4a compatible layer
+    - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime
     - [ ] Add better kernel argument info parsing in NLCL
 

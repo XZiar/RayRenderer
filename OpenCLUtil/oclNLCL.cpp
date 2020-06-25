@@ -28,7 +28,7 @@ using common::simd::VecDataInfo;
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-
+#define FMTSTR(syntax, ...) fmt::format(FMT_STRING(syntax), __VA_ARGS__)
 
 NLCLEvalContext::NLCLEvalContext(oclDevice dev) : Device(dev) 
 { }
@@ -177,7 +177,7 @@ void NLCLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const 
         if (args.size() >= count) return;
         prefix = U"at least"; break;
     }
-    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."), call, prefix, count, args.size()));
+    NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, call, prefix, count, args.size()));
 }
 
 std::optional<common::simd::VecDataInfo> NLCLRuntime::ParseVecType(const std::u32string_view type) const noexcept
@@ -249,11 +249,6 @@ static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t u
     default:
         return 0;
     }
-}
-
-std::u32string NLCLRuntime::SkipDebugPatch() const noexcept
-{
-    return U"inline void oclu_SkipDebug() {}\r\n";
 }
 
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
@@ -363,21 +358,6 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     return func;
 }
 
-std::u32string NLCLRuntime::GenerateDebugString(const common::span<const std::u32string_view> args) const
-{
-    Expects(args.size() >= 1);
-
-    std::u32string func = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), args[0]);
-    for (size_t i = 1; i < args.size(); ++i)
-    {
-        APPEND_FMT(func, U"{}, "sv, args[i]);
-    }
-    func.pop_back();
-    func.back() = U')';
-
-    return func;
-}
-
 void NLCLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u32string_view cond, const std::u32string_view content)
 {
     if (cond.empty())
@@ -423,17 +403,17 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
             if (!str.empty())
                 output.append(str);
             else
-                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported when replace-variable"sv), var));
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported when replace-variable"sv, var));
         }
         else
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType when replace-variable"sv), var));
+            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType when replace-variable"sv, var));
     }
     else // '@' not allowed in var anyway
     {
         const auto ret = EvalContext->LookUpArg(var);
         if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
         {
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"Arg [{}] not found when replace-variable"sv), var));
+            NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
             return;
         }
         output.append(ret.ToString().StrView());
@@ -491,10 +471,10 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
                 if (!str.empty())
                     output.append(str);
                 else
-                    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported"sv), vname));
+                    NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
             }
             else
-                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType"sv), vname));
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType"sv, vname));
         } return;
         HashCase(subName, U"CodeBlock")
         {
@@ -524,12 +504,17 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
             if (!AllowDebug)
             {
-                AddPatchedBlock(*this, U"SkipDebug"sv, &NLCLRuntime::SkipDebugPatch);
-                output.append(U"oclu_SkipDebug()"sv); 
+                //AddPatchedBlock(*this, U"SkipDebug"sv, &NLCLRuntime::SkipDebugPatch);
+                //output.append(U"oclu_SkipDebug()"sv);
+                output.append(U"do{} while(false)"sv);
             }
             else if (kerCk)
             {
-                output.append(GenerateDebugString(args));
+                const auto id = args[0];
+                const auto info = common::container::FindInMap(DebugInfos, id);
+                if (!info)
+                    NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
+                
                 kerCk->Injects.insert_or_assign(U"oclu_debug", UR"(
     const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
     if (_oclu_debug_buffer_size > 0)
@@ -554,6 +539,16 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 )"sv);
+                AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, info->first, info->second);
+                
+                std::u32string str = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), id);
+                for (size_t i = 1; i < args.size(); ++i)
+                {
+                    APPEND_FMT(str, U"{}, "sv, args[i]);
+                }
+                str.pop_back();
+                str.back() = U')';
+                output.append(str);
             }
             else
                 NLRT_THROW_EX(u"Repalcer-Func [DebugString] only support inside kernel.");
@@ -562,6 +557,11 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         }
     }
     NLRT_THROW_EX(u"replace-function not ready"sv);
+}
+
+void NLCLRuntime::OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
+{
+    ProcessRawBlock(block, metas);
 }
 
 constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
@@ -595,10 +595,10 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 if (!str.empty())
                     return str;
                 else
-                    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not supported"sv), vname));
+                    NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
             }
             else
-                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Type [{}] not recognized as VecType"sv), vname));
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType"sv, vname));
         } return {};
         HashCase(subName, U"EnableExtension")
         {
@@ -672,7 +672,8 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                     NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString], [{}] is not a recognized type"sv, i, arg.GetStr().value()), call);
                 argInfos.push_back(vtype.value());
             }
-            if (!AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, formatter, argInfos))
+            if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos))
+                .second)
                 NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
         } return {};
         HashCase(subName, U"AddSubgroupPatch")
@@ -855,7 +856,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto space_  = args[0].GetStr().value();
             const auto space   = KerArgSpaceParser(space_);
             if (!space) 
-                NLRT_THROW_EX(fmt::format(FMT_STRING(u"Unrecognized KerArgSpace [{}]"sv), space_), &meta);
+                NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
             const auto argType = std::u32string(args[1].GetStr().value()) + U'*';
             const auto name    = args[2].GetStr().value();
             const auto flags   = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
@@ -864,12 +865,12 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                         if (part == U"const"sv)     return flag | KerArgFlag::Const;
                         if (part == U"restrict"sv)  return flag | KerArgFlag::Restrict;
                         if (part == U"volatile"sv)  return flag | KerArgFlag::Volatile;
-                        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Unrecognized KerArgFlag [{}]"sv), part),
+                        NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgFlag [{}]"sv, part),
                             &meta);
                         return flag;
                     }, KerArgFlag::None);
             if (space.value() == KerArgSpace::Private)
-                NLRT_THROW_EX(fmt::format(FMT_STRING(u"BufArg [{}] cannot be in private space: [{}]"sv), name, space_), &meta);
+                NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), &meta);
             argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {} {} {}"sv),
                 ArgFlags::ToCLString(space.value()),
                 HAS_FIELD(flags, KerArgFlag::Const)    ? U"const"sv    : U""sv,
@@ -1048,7 +1049,7 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
                     for (uint32_t i = 0; i < meta.Args.size(); ++i)
                     {
                         if (meta.Args[i].TypeData != RawArg::Type::Var)
-                            NLRT_THROW_EX(fmt::format(FMT_STRING(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv),
+                            NLRT_THROW_EX(FMTSTR(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
                                 i, ArgTypeName(meta.Args[i].TypeData)), meta, &block);
                     }
                     tpArgs = meta.Args;

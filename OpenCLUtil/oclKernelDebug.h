@@ -123,6 +123,7 @@ public:
 
 struct oclThreadInfo
 {
+    uint32_t ThreadId;
     uint32_t GlobalId[3];
     uint32_t GroupId[3];
     uint32_t LocalId[3];
@@ -134,6 +135,7 @@ protected:
     oclThreadInfo BasicInfo(const uint32_t(&gsize)[3], const uint32_t(&lsize)[3], const uint32_t tid) const noexcept
     {
         oclThreadInfo info;
+        info.ThreadId = tid;
         const auto gs0 = gsize[0] * gsize[1];
         info.GlobalId[2] = tid / gs0;
         info.GlobalId[1] = (tid % gs0) / gsize[0];
