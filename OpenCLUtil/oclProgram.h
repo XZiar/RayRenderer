@@ -104,6 +104,7 @@ public:
 struct OCLUAPI CallResult
 {
     std::shared_ptr<oclDebugManager> DebugManager;
+    oclKernel Kernel;
     oclCmdQue Queue;
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;

@@ -149,6 +149,7 @@ protected:
         return false;
     }
 
+    [[nodiscard]] std::u32string DebugStringBase() noexcept;
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
         common::span<const common::simd::VecDataInfo> args) noexcept;
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;

@@ -224,10 +224,10 @@ std::pair<const oclDebugBlock*, uint32_t> oclDebugManager::RetriveMessage(common
     const auto uid = data[0];
     const auto dbgIdx = uid >> 24;
     const auto tid = uid & 0x00ffffffu;
-    if (dbgIdx == 0xff) return { nullptr, 0 };
-    if (dbgIdx >= Blocks.size())
+    if (dbgIdx == 0) return { nullptr, 0 };
+    if (dbgIdx > Blocks.size())
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with idx overflow");
-    const auto& block = Blocks[dbgIdx];
+    const auto& block = Blocks[dbgIdx - 1];
     if (data.size_bytes() < block.Layout.TotalSize)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with insufficiant buffer space");
     return { &block, tid };

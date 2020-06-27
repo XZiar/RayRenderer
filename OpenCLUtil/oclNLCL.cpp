@@ -251,6 +251,34 @@ static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t u
     }
 }
 
+std::u32string NLCLRuntime::DebugStringBase() noexcept
+{
+   return UR"(
+inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
+    const uint tid, const uint total,
+    global uint* restrict counter, global uint* restrict data)
+{
+    const uint size = dbgSize + 1;
+    const uint dId  = (dbgId + 1) << 24;
+    const uint uid  = tid & 0x00ffffffu;
+    if (total == 0) 
+        return 0;
+    if (counter[0] + size > total) 
+        return 0;
+    const uint old = atom_add(counter, size);
+    if (old >= total)
+        return 0;
+    if (old + size > total) 
+    { 
+        data[old] = uid; 
+        return 0;
+    }
+    data[old] = uid | dId;
+    return data + old + 1;
+}
+)"s;
+}
+
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
     // prepare arg layout
@@ -269,7 +297,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     }
 
     std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
-    func.append(U"\r\n    const  uint           uid,"sv)
+    func.append(U"\r\n    const  uint           tid,"sv)
         .append(U"\r\n    const  uint           total,"sv)
         .append(U"\r\n    global uint* restrict counter,"sv)
         .append(U"\r\n    global uint* restrict data,"sv);
@@ -279,15 +307,10 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     }
     func.pop_back();
     func.append(U")\r\n{"sv);
-    APPEND_FMT(func, U"\r\n    const uint size = {} + 1;", dbgData.TotalSize / 4);
-    APPEND_FMT(func, U"\r\n    const uint dbgId = {0:#010x}u << 24; // dbg [{0:3}]", dbgBlock.DebugId);
-    func.append(U"\r\n    if (total == 0) return;");
-    func.append(U"\r\n    if (counter[0] + size > total) return;");
-    func.append(U"\r\n    const uint old = atom_add (counter, size);");
-    func.append(U"\r\n    if (old >= total) return;");
-    func.append(U"\r\n    if (old + size > total) { data[old] = 0xff000000u; return; }");
-    func.append(U"\r\n    data[old] = (uid & 0x00ffffffu) | dbgId;");
-    func.append(U"\r\n    global uint* const restrict ptr = data + old + 1;");
+    static constexpr auto syntax = UR"(
+    global uint* const restrict ptr = oglu_debug({}, {}, tid, total, counter, data);
+    if (ptr == 0) return;)"sv;
+    APPEND_FMT(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
     const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
     {
         const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
@@ -539,6 +562,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 )"sv);
+                AddPatchedBlock(*this, U" oglu_debug"sv, &NLCLRuntime::DebugStringBase);
                 AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, info->first, info->second);
                 
                 std::u32string str = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), id);
@@ -711,6 +735,8 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
             repVar = true;
         else if (fcall.Name == U"oclu.ReplaceFunction"sv)
             repFunc = true;
+        else if (fcall.Name == U"oclu.Replace"sv)
+            repVar = repFunc = true;
         else if (fcall.Name == U"oclu.PreAssign"sv)
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);

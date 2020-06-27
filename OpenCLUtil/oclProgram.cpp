@@ -357,14 +357,15 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
     if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
     {
         result.DebugManager = Kernel->Prog.DebugManager;
+        result.Kernel = this->Kernel;
         result.Queue = que;
         const auto infosize = Kernel->Prog.DebugManager->GetInfoMan().GetInfoBufferSize(worksize, dim);
         const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
         std::vector<std::byte> tmp(infosize);
-        const uint32_t dbgBufSize = Kernel->ReqDbgBufSize * 1024u;
+        const uint32_t dbgBufCnt = Kernel->ReqDbgBufSize * 1024u / sizeof(uint32_t);
         result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, tmp.size(), tmp.data());
-        result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, dbgBufSize);
-        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &dbgBufSize);
+        result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, dbgBufCnt * sizeof(uint32_t));
+        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &dbgBufCnt);
         clSetKernelArg(Kernel->KernelID, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
         clSetKernelArg(Kernel->KernelID, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
     }

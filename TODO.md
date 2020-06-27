@@ -127,6 +127,7 @@
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [x] Add genenral datatype for `Arg` for type-checking
+  - [ ] Move to utf8 (save mem and moreclose to output type)
   - [ ] Add array type
   - [ ] Shrink memory usage of Arg
   - [x] Make parser throw proper exception
