@@ -7,7 +7,7 @@ using common::str::Charset;
 
 FMT_BEGIN_NAMESPACE
 
-namespace internal
+namespace detail
 {
 
 
@@ -39,33 +39,33 @@ FMT_API std::size_t strftime(char32_t *str, std::size_t count, const char32_t *f
 
 
 template<>
-FMT_API std::basic_string<char16_t> internal::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF7);
 }
 template<>
-FMT_API std::basic_string<char16_t> internal::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF8);
 }
 template<>
-FMT_API std::basic_string<char16_t> internal::UTFFormatterSupport::ConvertStr(const char32_t* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertStr(const char32_t* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF32);
 }
 
 template<>
-FMT_API std::basic_string<char32_t> internal::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF7);
 }
 template<>
-FMT_API std::basic_string<char32_t> internal::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF8);
 }
 template<>
-FMT_API std::basic_string<char32_t> internal::UTFFormatterSupport::ConvertStr(const char16_t* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertStr(const char16_t* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF16);
 }

@@ -218,7 +218,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
                         ArgsInfo[i].ArgType = ref.ArgType;
                     else if (ref.ArgType != KerArgType::Any)
                         oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
-                            i, ref.ArgType, cur.ArgType);
+                            i, ref.GetArgTypeName(), cur.GetArgTypeName());
                 }
             }
         }
