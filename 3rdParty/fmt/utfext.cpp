@@ -3,6 +3,9 @@
 #include <ctime>
 
 
+#include "format.cc"
+#include "os.cc"
+
 using common::str::Charset;
 
 FMT_BEGIN_NAMESPACE
@@ -39,41 +42,37 @@ FMT_API std::size_t strftime(char32_t *str, std::size_t count, const char32_t *f
 
 
 template<>
-FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::temp::ConvertStr(const char* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF7);
 }
 template<>
-FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::temp::ConvertU8Str(const char* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF8);
 }
 template<>
-FMT_API std::basic_string<char16_t> detail::UTFFormatterSupport::ConvertStr(const char32_t* str, const size_t size)
+FMT_API std::basic_string<char16_t> detail::temp::ConvertStr(const char32_t* str, const size_t size)
 {
     return common::strchset::to_u16string(str, size, Charset::UTF32);
 }
 
 template<>
-FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertStr(const char* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::temp::ConvertStr(const char* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF7);
 }
 template<>
-FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertU8Str(const char* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::temp::ConvertU8Str(const char* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF8);
 }
 template<>
-FMT_API std::basic_string<char32_t> detail::UTFFormatterSupport::ConvertStr(const char16_t* str, const size_t size)
+FMT_API std::basic_string<char32_t> detail::temp::ConvertStr(const char16_t* str, const size_t size)
 {
     return common::strchset::to_u32string(str, size, Charset::UTF16);
 }
 
-
-
-using u16string_view = basic_string_view<char16_t>;
-using u32string_view = basic_string_view<char32_t>;
 
 
 FMT_END_NAMESPACE

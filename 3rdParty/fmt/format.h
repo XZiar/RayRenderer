@@ -1796,22 +1796,10 @@ auto write(OutputIt out, const T& value) -> typename std::enable_if<
 
 
 // ++UTF++
-
-constexpr inline size_t SizeTag   = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t CharTag   = size_t(0b00) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t Char8Tag  = size_t(0b01) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t Char16Tag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t Char32Tag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t WCharTag  = sizeof(wchar_t) == sizeof(char16_t) ? Char16Tag : Char32Tag;
-constexpr inline size_t SizeMask  = ~SizeTag;
-
-struct UTFFormatterSupport
+struct StringHacker
 {
-public:
-    template<typename DstChar, typename SrcChar>
-    static std::basic_string<DstChar> ConvertStr(const SrcChar* str, const size_t size);
-    template<typename DstChar>
-    static std::basic_string<DstChar> ConvertU8Str(const char* str, const size_t size);
+    template<typename Ret, typename Char, typename Func>
+    static inline Ret HandleString(const basic_string_view<Char> str, Func&& func);
 };
 
 
@@ -1826,29 +1814,13 @@ template <typename OutputIt, typename Char> struct default_arg_formatter {
 
   template <typename T> OutputIt operator()(T value) {
       // ++UTF++
-      if constexpr ((std::is_same_v<Char, char16_t> || std::is_same_v<Char, char32_t>) &&
-          std::is_same_v<std::decay_t<T>, basic_string_view<Char>>)
+      if constexpr (std::is_same_v<std::decay_t<T>, basic_string_view<Char>>)
       {
-          const auto realSize = value.size() & SizeMask;
-          switch (value.size() & SizeTag)
-          {
-          case CharTag:
-              return write<Char>(out, UTFFormatterSupport::ConvertStr<Char>(reinterpret_cast<const char*>(value.data()), realSize));
-          case Char8Tag:
-              return write<Char>(out, UTFFormatterSupport::ConvertU8Str<Char>(reinterpret_cast<const char*>(value.data()), realSize));
-          case Char16Tag:
-              if constexpr (sizeof(Char) == 2)
-                  return write<Char>(out, basic_string_view<Char>(value.data(), realSize));
-              else // UTF16 -> UTF32
-                  return write<Char>(out, UTFFormatterSupport::ConvertStr<Char>(reinterpret_cast<const char16_t*>(value.data()), realSize));
-          case Char32Tag:
-              if constexpr (sizeof(Char) == 4)
-                  return write<Char>(out, basic_string_view<Char>(value.data(), realSize));
-              else // UTF32 -> UTF16
-                  return write<Char>(out, UTFFormatterSupport::ConvertStr<Char>(reinterpret_cast<const char32_t*>(value.data()), realSize));
-          default: // simple passthrough
-              return write<Char>(out, value);
-          }
+          return StringHacker::HandleString<OutputIt>(value, 
+              [&](const basic_string_view<Char> str)
+              {
+                  return write<Char>(out, str);
+              });
       }
       else
         return write<Char>(out, value);
@@ -2732,7 +2704,7 @@ FMT_CONSTEXPR const typename ParseContext::char_type* parse_format_specs(
                         type::custom_type,
 //                    decltype(arg_mapper<context>().map(std::declval<T>())), T>;
 // ++UTF++
-                    decltype(MakeValueProxy<context>().map(std::declval<T>())), T>;
+                    decltype(ArgMapperProxy<context>().map(std::declval<T>())), T>;
   auto f = conditional_t<has_formatter<mapped_type, context>::value,
                          formatter<mapped_type, char_type>,
                          detail::fallback_formatter<T, char_type>>();
@@ -2942,9 +2914,7 @@ FMT_API void report_error(format_func func, int error_code,
 
 /** The default argument formatter. */
 template <typename OutputIt, typename Char>
-//class arg_formatter : public arg_formatter_base<OutputIt, Char> {
-// ++UTF++
-class arg_formatter : public UTFFormatterSupport, public arg_formatter_base<OutputIt, Char> {
+class arg_formatter : public arg_formatter_base<OutputIt, Char> {
  private:
   using char_type = Char;
   using base = arg_formatter_base<OutputIt, Char>;
@@ -2986,31 +2956,11 @@ class arg_formatter : public UTFFormatterSupport, public arg_formatter_base<Outp
   // ++UTF++
   iterator operator()(basic_string_view<char_type> value)
   {
-      if constexpr (std::is_same_v<char_type, char16_t> || std::is_same_v<char_type, char32_t>)
-      {
-          const auto realSize = value.size() & SizeMask;
-          switch (value.size() & SizeTag)
+      return StringHacker::HandleString<iterator>(value, 
+          [&](const basic_string_view<char_type> str) 
           {
-          case CharTag:
-              return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char*>(value.data()), realSize)); 
-          case Char8Tag:
-              return base::operator()(ConvertU8Str<char_type>(reinterpret_cast<const char*>(value.data()), realSize));
-          case Char16Tag:
-              if constexpr (sizeof(char_type) == 2)
-                  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
-              else // UTF16 -> UTF32
-                  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char16_t*>(value.data()), realSize));
-          case Char32Tag:
-              if constexpr (sizeof(char_type) == 4)
-                  return base::operator()(basic_string_view<char_type>(value.data(), realSize));
-              else // UTF32 -> UTF16
-                  return base::operator()(ConvertStr<char_type>(reinterpret_cast<const char32_t*>(value.data()), realSize));
-          default: // simple passthrough
-              return ctx_.out();
-          }
-      }
-      else
-          return base::operator()(value);
+              return base::operator()(str);
+          });
   }
 };
 }  // namespace detail

@@ -13,7 +13,7 @@
     {
         "cpp":
         {
-            "sources": ["*.cc", "*.cpp"],
+            "sources": ["*.cpp"],
             "defines":  ["FMT_EXPORT", "FMT_LOCALE"]
         }
         

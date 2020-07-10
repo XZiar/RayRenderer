@@ -1089,21 +1089,15 @@ template <typename Context> struct arg_mapper {
 
 // ++UTF++
 template<typename Context>
-struct MakeValueProxy
-{
-    template<typename T>
-    FMT_CONSTEXPR auto map(const T& val) -> decltype(arg_mapper<Context>().map(val))
-    {
-        return arg_mapper<Context>().map(val);
-    }
-};
+struct ArgMapperProxy : public arg_mapper<Context>
+{ };
 
 // A type constant after applying arg_mapper<Context>.
 template <typename T, typename Context>
 using mapped_type_constant =
     //type_constant<decltype(arg_mapper<Context>().map(std::declval<const T&>())),
 // ++UTF++
-    type_constant<decltype(MakeValueProxy<Context>().map(std::declval<const T&>())),
+    type_constant<decltype(ArgMapperProxy<Context>().map(std::declval<const T&>())),
                   typename Context::char_type>;
 
 enum { packed_arg_bits = 4 };
@@ -1270,7 +1264,7 @@ FMT_CONSTEXPR basic_format_arg<Context> make_arg(const T& value) {
   arg.type_ = mapped_type_constant<T, Context>::value;
   //arg.value_ = arg_mapper<Context>().map(value);
   // ++UTF++
-  arg.value_ = MakeValueProxy<Context>().map(value);
+  arg.value_ = ArgMapperProxy<Context>().map(value);
   return arg;
 }
 
@@ -1282,7 +1276,7 @@ template <bool IS_PACKED, typename Context, type, typename T,
 inline value<Context> make_arg(const T& val) {
   //return arg_mapper<Context>().map(val);
   // ++UTF++
-  return MakeValueProxy<Context>().map(val);
+  return ArgMapperProxy<Context>().map(val);
 }
 
 template <bool IS_PACKED, typename Context, type, typename T,
@@ -1385,9 +1379,6 @@ using buffer_context =
     basic_format_context<std::back_insert_iterator<detail::buffer<Char>>, Char>;
 using format_context = buffer_context<char>;
 using wformat_context = buffer_context<wchar_t>;
-// ++UTF++
-using u16format_context = buffer_context<char16_t>;
-using u32format_context = buffer_context<char32_t>;
 
 // Workaround a bug in gcc: https://stackoverflow.com/q/62767544/471164.
 #define FMT_BUFFER_CONTEXT(Char) \
