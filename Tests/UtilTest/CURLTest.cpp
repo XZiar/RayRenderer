@@ -2,8 +2,8 @@
 #include "MiniLogger/QueuedBackend.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
-#include "StringCharset/Convert.h"
-#include "fmt/format.h"
+#include "StringUtil/Convert.h"
+#include "StringUtil/Format.h"
 #define CURL_STATICLIB
 #include "curl/include/curl/curl.h"
 #include <vector>
@@ -77,7 +77,7 @@ static void CURLTest()
     log().info(u"Access {}\n", url);
     request.Perform();
     const auto& data = request.GetData();
-    const auto content = common::strchset::to_u16string(data.data(), data.size(), common::str::Charset::UTF8);
+    const auto content = common::str::to_u16string(data.data(), data.size(), common::str::Charset::UTF8);
     log().info(u"Response:\n{}\n\n\n", content);
     getchar();
 }

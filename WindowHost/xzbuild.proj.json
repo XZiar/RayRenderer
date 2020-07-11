@@ -2,7 +2,7 @@
     "name": "WindowHost",
     "type": "dynamic",
     "description": "window host",
-    "dependency": ["fmt", "MiniLogger", "StringCharset", "SystemCommon"],
+    "dependency": ["MiniLogger", "StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

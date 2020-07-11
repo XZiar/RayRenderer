@@ -1,9 +1,8 @@
 {
-    "name": "fmt",
+    "name": "StringUtil",
     "type": "dynamic",
-    "version": "7.0.1",
-    "description": "A modern formatting library",
-    "dependency": ["StringCharset"],
+    "description": "charset operation utillities",
+    "dependency": ["uchardet"],
     "library": 
     {
         "static": [],
@@ -14,7 +13,7 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines":  ["FMT_EXPORT", "FMT_LOCALE"]
+            "defines":  ["STRCHSET_EXPORT"]
         }
         
     }

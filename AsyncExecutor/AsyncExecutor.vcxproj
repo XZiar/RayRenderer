@@ -172,10 +172,7 @@
     <ProjectReference Include="..\3rdParty\boost.context\boost.context.vcxproj">
       <Project>{e308a1b2-da99-4d69-a2e5-ff5b57e6efc7}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">

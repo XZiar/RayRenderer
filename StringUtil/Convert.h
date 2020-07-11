@@ -1,13 +1,11 @@
 #pragma once
 
-#include "StringCharsetRely.h"
+#include "StringUtilRely.h"
 #include "common/StrBase.hpp"
 
 
-namespace common::strchset
+namespace common::str
 {
-using common::str::Charset;
-using common::str::u8string;
 
 
 namespace detail

@@ -2,7 +2,7 @@
     "name": "boost.stacktrace",
     "type": "dynamic",
     "description": "A C++ library for storing and printing backtraces",
-    "dependency": ["StringCharset", "SystemCommon"],
+    "dependency": ["StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

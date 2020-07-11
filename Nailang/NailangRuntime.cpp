@@ -1,8 +1,8 @@
 #include "NailangRuntime.h"
 #include "NailangParser.h"
 #include "SystemCommon/MiscIntrins.h"
-#include "StringCharset/Convert.h"
-#include "3rdParty/fmt/utfext.h"
+#include "StringUtil/Convert.h"
+#include "StringUtil/Format.h"
 #include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
@@ -408,7 +408,7 @@ NailangFormatException::~NailangFormatException()
 { }
 
 NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
-    NailangRuntimeException(TYPENAME, common::strchset::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope), data)
+    NailangRuntimeException(TYPENAME, common::str::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope), data)
 { }
 
 

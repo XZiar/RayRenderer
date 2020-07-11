@@ -1,10 +1,10 @@
 #pragma once
 
-#include "StringCharsetRely.h"
+#include "StringUtilRely.h"
 #include "common/StrBase.hpp"
 
 
-namespace common::strchset
+namespace common::str
 {
 
 namespace detail

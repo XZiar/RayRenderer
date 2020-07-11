@@ -2,7 +2,7 @@
 #include <algorithm>
 #include "Nailang/ParserRely.h"
 #include "Nailang/NailangParser.h"
-#include "3rdParty/fmt/utfext.h"
+#include "StringUtil/Format.h"
 
 
 using namespace std::string_view_literals;

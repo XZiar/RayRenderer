@@ -430,7 +430,7 @@ public:
             &CloseAtom
         );
         // set title
-        const auto title = common::strchset::to_u8string(host->Title, common::str::Charset::UTF16LE);
+        const auto title = common::str::to_u8string(host->Title, common::str::Charset::UTF16LE);
         xcb_change_property(
             Connection,
             XCB_PROP_MODE_REPLACE,

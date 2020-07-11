@@ -7,7 +7,7 @@
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/FileMapperEx.h"
-#include "StringCharset/Convert.h"
+#include "StringUtil/Convert.h"
 
 #include "common/CopyEx.hpp"
 #include "common/FileBase.hpp"

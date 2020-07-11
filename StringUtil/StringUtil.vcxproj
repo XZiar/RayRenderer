@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{82F6B626-FC93-4089-8C78-5E5ED82A68EF}</ProjectGuid>
-    <RootNamespace>StringCharset</RootNamespace>
+    <RootNamespace>StringUtil</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -154,12 +154,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Convert.h" />
-    <ClInclude Include="StringCharsetRely.h" />
+    <ClInclude Include="Format.h" />
+    <ClInclude Include="StringUtilRely.h" />
     <ClInclude Include="Detect.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Convert.cpp" />
     <ClCompile Include="Detect.cpp" />
+    <ClCompile Include="Format.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

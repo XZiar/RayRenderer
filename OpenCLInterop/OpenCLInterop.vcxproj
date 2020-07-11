@@ -150,9 +150,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\3rdParty\OpenCL\OpenCL.vcxproj">
       <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
     </ProjectReference>
@@ -167,6 +164,9 @@
     </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -39,7 +39,7 @@ void _FakeTex::Serialize(SerializeUtil&, xziar::ejson::JObject&) const
 }
 void _FakeTex::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = common::strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("name"), Charset::UTF8);
 }
 }
 
@@ -150,7 +150,7 @@ static std::optional<string> SerializeTex(const TexHolder& holder, SerializeUtil
     if (holder.index() != 1 && holder.index() != 2)
         return {};
     auto jtex = context.NewObject();
-    jtex.Add("name", common::strchset::to_u8string(holder.GetName()));
+    jtex.Add("name", common::str::to_u8string(holder.GetName()));
     jtex.Add("format", (uint16_t)holder.GetInnerFormat());
     const auto[w, h] = holder.GetSize();
     jtex.Add("width", w);
@@ -193,7 +193,7 @@ static TexHolder DeserializeTex(DeserializeUtil& context, const string_view& val
 }
 void PBRMaterial::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("name", common::strchset::to_u8string(Name));
+    jself.Add("name", common::str::to_u8string(Name));
     jself.Add("albedo", detail::ToJArray(context, Albedo));
     jself.Add(EJ_FIELD(Metalness))
          .Add(EJ_FIELD(Roughness))
@@ -212,7 +212,7 @@ void PBRMaterial::Serialize(SerializeUtil & context, xziar::ejson::JObject& jsel
 }
 void PBRMaterial::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = common::strchset::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("name"), Charset::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
     object.TryGet(EJ_FIELD(Metalness));
     object.TryGet(EJ_FIELD(Roughness));

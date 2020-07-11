@@ -1,38 +1,35 @@
 #pragma once
+
+#include "StringUtilRely.h"
+#include "Convert.h"
+
 #ifdef FMT_FORMAT_H_
-#  error "Don't include format.h before utfext.h"
+#  error "Don't include format.h before Format.h"
 #endif
 #define FMT_USE_GRISU 1
-#ifndef FMT_EXPORT
+#ifdef STRCHSET_EXPORT
+#  define FMT_EXPORT
+#else
 #  define FMT_SHARED
 #endif
 
-#include "ranges.h"
-#include "chrono.h"
-#include "format.h"
+#include "3rdParty/fmt/ranges.h"
+#include "3rdParty/fmt/chrono.h"
+#include "3rdParty/fmt/format.h"
 
 FMT_BEGIN_NAMESPACE
-
 
 namespace detail
 {
 
-
 namespace temp
 {
-template <class T, template <typename...> class Template>
-struct is_specialization : std::false_type {};
-template <template <typename...> class Template, typename... Ts>
-struct is_specialization<Template<Ts...>, Template> : std::true_type {};
-
-template<typename T>
-inline constexpr bool AlwaysTrue = true;
 
 template<typename T>
 inline constexpr bool StringHack1 =
-is_specialization<T, std::basic_string>::value ||
-is_specialization<T, std::basic_string_view>::value ||
-is_specialization<T, basic_string_view>::value;
+common::is_specialization<T, std::basic_string>::value ||
+common::is_specialization<T, std::basic_string_view>::value ||
+common::is_specialization<T, basic_string_view>::value;
 
 template<typename T>
 inline constexpr bool StringHack2 = is_char<T>::value ||
@@ -50,23 +47,78 @@ std::is_convertible_v<const T&, const std::u16string&> ||
 std::is_convertible_v<const T&, const std::u32string&>;
 
 
-
 template<typename DstChar, typename SrcChar>
 std::basic_string<DstChar> ConvertStr(const SrcChar* str, const size_t size);
 template<typename DstChar>
 std::basic_string<DstChar> ConvertU8Str(const char* str, const size_t size);
+using Charset = common::str::Charset;
 
+template<>
+inline std::basic_string<char16_t> ConvertStr(const char* str, const size_t size)
+{
+    return common::str::to_u16string(str, size, Charset::UTF7);
+}
+template<>
+inline std::basic_string<char16_t> ConvertU8Str(const char* str, const size_t size)
+{
+    return common::str::to_u16string(str, size, Charset::UTF8);
+}
+template<>
+inline std::basic_string<char16_t> ConvertStr(const char32_t* str, const size_t size)
+{
+    return common::str::to_u16string(str, size, Charset::UTF32);
+}
+
+template<>
+inline std::basic_string<char32_t> ConvertStr(const char* str, const size_t size)
+{
+    return common::str::to_u32string(str, size, Charset::UTF7);
+}
+template<>
+inline std::basic_string<char32_t> ConvertU8Str(const char* str, const size_t size)
+{
+    return common::str::to_u32string(str, size, Charset::UTF8);
+}
+template<>
+inline std::basic_string<char32_t> ConvertStr(const char16_t* str, const size_t size)
+{
+    return common::str::to_u32string(str, size, Charset::UTF16);
+}
+
+[[nodiscard]] STRCHSETAPI std::string& GetLocalString();
 
 }
 
+inline std::size_t strftime(char16_t* str, std::size_t count, const char16_t* format, const std::tm* time)
+{
+    auto& buffer = temp::GetLocalString();
+    buffer.resize(count);
+    const auto u7format = common::str::to_string(std::u16string_view(format), temp::Charset::UTF7);
+    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
+    for (size_t idx = 0; idx < ret;)
+        *str++ = buffer[idx++];
+    return ret;
+}
 
-constexpr inline size_t SizeTag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t CharTag = size_t(0b00) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t Char8Tag = size_t(0b01) << (sizeof(size_t) * 8 - 2);
+inline std::size_t strftime(char32_t* str, std::size_t count, const char32_t* format, const std::tm* time)
+{
+    auto& buffer = temp::GetLocalString();
+    buffer.resize(count);
+    const auto u7format = common::str::to_string(std::u32string_view(format), temp::Charset::UTF7);
+    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
+    for (size_t idx = 0; idx < ret;)
+        *str++ = buffer[idx++];
+    return ret;
+}
+
+
+constexpr inline size_t SizeTag   = size_t(0b11) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t CharTag   = size_t(0b00) << (sizeof(size_t) * 8 - 2);
+constexpr inline size_t Char8Tag  = size_t(0b01) << (sizeof(size_t) * 8 - 2);
 constexpr inline size_t Char16Tag = size_t(0b10) << (sizeof(size_t) * 8 - 2);
 constexpr inline size_t Char32Tag = size_t(0b11) << (sizeof(size_t) * 8 - 2);
-constexpr inline size_t WCharTag = sizeof(wchar_t) == sizeof(char16_t) ? Char16Tag : Char32Tag;
-constexpr inline size_t SizeMask = ~SizeTag;
+constexpr inline size_t WCharTag  = sizeof(wchar_t) == sizeof(char16_t) ? Char16Tag : Char32Tag;
+constexpr inline size_t SizeMask  = ~SizeTag;
 
 template <typename Context>
 struct UTFArgMapperProxy
@@ -89,7 +141,7 @@ struct UTFArgMapperProxy
         else if constexpr (std::is_same_v<T, wchar_t>)
             return basic_string_view<Char>(reinterpret_cast<const Char*>(ptr), (size & SizeMask) | WCharTag);
         else
-            static_assert(!temp::AlwaysTrue<T>, "Non-char type enter here");
+            static_assert(!common::AlwaysTrue<T>, "Non-char type enter here");
     }
     template<typename T>
     constexpr auto ToStringValue(const T* ptr) { return ToStringValue(ptr, std::char_traits<T>::length(ptr)); }
@@ -136,20 +188,23 @@ struct UTFArgMapperProxy
         else if constexpr (std::is_convertible_v<const T&, const std::wstring&>)
             return map(static_cast<const std::wstring&>(val));
         else
-            static_assert(!temp::AlwaysTrue<T>, "should not enter here");
+            static_assert(!common::AlwaysTrue<T>, "should not enter here");
     }
     template<typename T>
-    FMT_CONSTEXPR auto map(const T& val) -> typename std::enable_if_t<!temp::StringHack1<T> && !temp::StringHack2<T>, decltype(arg_mapper<Context>().map(val))>
+    FMT_CONSTEXPR auto map(const T& val) -> typename std::enable_if_t<!temp::StringHack1<T> && !temp::StringHack2<T>, 
+        decltype(arg_mapper_<Context>().map(val))>
     {
-        return arg_mapper<Context>().map(val);
+        return arg_mapper_<Context>().map(val);
     }
 
 };
 
-template<typename Ret, typename Char, typename Func>
-inline Ret StringHacker::HandleString(const basic_string_view<Char> str, Func&& func)
+
+template<typename Char>
+struct StringHacker
 {
-    if constexpr (std::is_same_v<Char, char16_t> || std::is_same_v<Char, char32_t>)
+    template<typename Ret, typename Func>
+    static forceinline Ret HandleString(const basic_string_view<Char> str, Func&& func)
     {
         const auto realSize = str.size() & SizeMask;
         switch (str.size() & SizeTag)
@@ -172,18 +227,20 @@ inline Ret StringHacker::HandleString(const basic_string_view<Char> str, Func&& 
             return func(std::basic_string_view<Char>(str.data(), realSize));
         }
     }
-    else
-        return func(str);
-}
+};
+
+template<> struct StringProcess<char16_t> : public StringHacker<char16_t> {};
+template<> struct StringProcess<char32_t> : public StringHacker<char32_t> {};
 
 
 using u16memory_buffer = basic_memory_buffer<char16_t>;
 using u32memory_buffer = basic_memory_buffer<char32_t>;
-template<> struct ArgMapperProxy<buffer_context<char16_t>> : public UTFArgMapperProxy<buffer_context<char16_t>> {};
-template<> struct ArgMapperProxy<buffer_context<char32_t>> : public UTFArgMapperProxy<buffer_context<char32_t>> {};
+template<> struct arg_mapper<buffer_context<char16_t>> : public UTFArgMapperProxy<buffer_context<char16_t>> {};
+template<> struct arg_mapper<buffer_context<char32_t>> : public UTFArgMapperProxy<buffer_context<char32_t>> {};
 }
 
 using u16format_context = buffer_context<char16_t>;
 using u32format_context = buffer_context<char32_t>;
 
 FMT_END_NAMESPACE
+

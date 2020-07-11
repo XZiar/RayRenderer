@@ -108,7 +108,7 @@ static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
     XGetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
     txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
     oglLog().warning(u"X11 report an error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code,
-        common::strchset::to_u16string(txtBuf, common::str::Charset::UTF8));
+        common::str::to_u16string(txtBuf, common::str::Charset::UTF8));
     return 0;
 }
 #endif
@@ -894,9 +894,9 @@ CtxFuncs::CtxFuncs()
 
     Extensions = GetExtensions();
     {
-        VendorString = common::strchset::to_u16string(
+        VendorString = common::str::to_u16string(
             reinterpret_cast<const char*>(ogluGetString(GL_VENDOR)), common::str::Charset::UTF8);
-        VersionString = common::strchset::to_u16string(
+        VersionString = common::str::to_u16string(
             reinterpret_cast<const char*>(ogluGetString(GL_VERSION)), common::str::Charset::UTF8);
         int32_t major = 0, minor = 0;
         ogluGetIntegerv(GL_MAJOR_VERSION, &major);
@@ -1595,7 +1595,7 @@ void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_v
 {
     if (ogluObjectLabel_)
     {
-        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        const auto str = common::str::to_u8string(name, common::str::Charset::UTF16LE);
         ogluObjectLabel_(identifier, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
@@ -1618,7 +1618,7 @@ void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_v
         case GL_FRAMEBUFFER:        type = GL_FRAMEBUFFER;                  break;
         default:                    return;
         }
-        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        const auto str = common::str::to_u8string(name, common::str::Charset::UTF16LE);
         ogluLabelObjectEXT_(type, id,
             static_cast<GLsizei>(str.size()),
             reinterpret_cast<const GLchar*>(str.c_str()));
@@ -1628,7 +1628,7 @@ void CtxFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
 {
     if (ogluObjectPtrLabel_)
     {
-        const auto str = common::strchset::to_u8string(name, common::str::Charset::UTF16LE);
+        const auto str = common::str::to_u8string(name, common::str::Charset::UTF16LE);
         ogluObjectPtrLabel_(sync,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
@@ -1638,14 +1638,14 @@ void CtxFuncs::ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view 
 {
     if (ogluPushDebugGroup_)
     {
-        const auto str = common::strchset::to_u8string(message, common::str::Charset::UTF16LE);
+        const auto str = common::str::to_u8string(message, common::str::Charset::UTF16LE);
         ogluPushDebugGroup_(source, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
     else if (ogluPushGroupMarkerEXT_)
     {
-        const auto str = common::strchset::to_u8string(message, common::str::Charset::UTF16LE);
+        const auto str = common::str::to_u8string(message, common::str::Charset::UTF16LE);
         ogluPushGroupMarkerEXT_(0, reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }

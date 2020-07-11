@@ -151,9 +151,6 @@
     <ProjectReference Include="..\..\3rdParty\curl\libcurl.vcxproj">
       <Project>{6401702a-1d7d-4879-b3b5-b28f95215d00}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
@@ -175,7 +172,7 @@
     <ProjectReference Include="..\..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\StringCharset\StringCharset.vcxproj">
+    <ProjectReference Include="..\..\StringUtil\StringUtil.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">

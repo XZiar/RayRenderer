@@ -1,5 +1,5 @@
 #include "NailangStruct.h"
-#include "3rdParty/fmt/utfext.h"
+#include "StringUtil/Format.h"
 #include "common/AlignedBase.hpp"
 #include <boost/range/adaptor/reversed.hpp>
 #include <cassert>

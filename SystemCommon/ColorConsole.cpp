@@ -183,14 +183,14 @@ static constexpr const char(&GetColorCharStr(const ConsoleColor color))[13]
 void ConsoleHelper::Print(const ConsoleColor color, const std::u16string_view& str) const
 {
     const auto hStdout = reinterpret_cast<FILE*>(Handle);
-    const auto u8str = strchset::to_u8string(str, str::Charset::UTF16LE);
+    const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
     fprintf(hStdout, GetColorCharStr(color), u8str.c_str());
     fflush(hStdout);
 }
 void ConsoleHelper::Print(const std::u16string_view& str) const
 {
     const auto hStdout = reinterpret_cast<FILE*>(Handle);
-    const auto u8str = strchset::to_u8string(str, str::Charset::UTF16LE);
+    const auto u8str = str::to_u8string(str, str::Charset::UTF16LE);
     fprintf(hStdout, "%s", u8str.c_str());
     fflush(hStdout);
 }

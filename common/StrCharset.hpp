@@ -7,7 +7,7 @@
 #include <algorithm>
 
 
-namespace common::str
+namespace common::str::charset
 {
 
 

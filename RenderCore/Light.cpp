@@ -63,7 +63,7 @@ void Light::RegistControllable()
 
 void Light::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("Name", common::strchset::to_u8string(Name));
+    jself.Add("Name", common::str::to_u8string(Name));
     jself.Add("Position", detail::ToJArray(context, Position));
     jself.Add("Direction", detail::ToJArray(context, Direction));
     jself.Add("Color", detail::ToJArray(context, Color));
@@ -85,7 +85,7 @@ void Light::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& 
 RESPAK_IMPL_COMP_DESERIALIZE(Light, LightType, u16string)
 {
     return std::make_tuple(static_cast<LightType>(object.Get<int32_t>("LightType")),
-        common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+        common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
 }
 
 

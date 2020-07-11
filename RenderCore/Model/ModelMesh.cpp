@@ -279,12 +279,12 @@ _ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoad
 
 RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
 {
-    u16string name = common::strchset::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
+    u16string name = common::str::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
     return std::any(std::make_tuple(name));
 }
 void _ModelMesh::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
-    jself.Add("mfname", common::strchset::to_u8string(mfname));
+    jself.Add("mfname", common::str::to_u8string(mfname));
     jself.Add("size", ToJArray(context, size));
     jself.Add("pts", context.PutResource(pts.data(), pts.size() * sizeof(oglu::PointEx)));
     jself.Add("indexs", context.PutResource(indexs.data(), indexs.size() * sizeof(uint32_t)));

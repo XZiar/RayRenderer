@@ -128,8 +128,8 @@ void Scene::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef
         for (const auto ele : jdrawables)
         {
             const xziar::ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::strchset::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
-                common::strchset::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::str::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
+                common::str::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)
                 WaitDrawables.insert(drw);

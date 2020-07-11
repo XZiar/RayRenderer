@@ -399,11 +399,8 @@ inline size_t strftime(wchar_t* str, size_t count, const wchar_t* format,
 }
 
 // ++UTF++
-FMT_API std::size_t strftime(char16_t* str, std::size_t count, const char16_t* format,
-                             const std::tm* time);
-
-FMT_API std::size_t strftime(char32_t* str, std::size_t count,
-                             const char32_t* format, const std::tm* time);
+inline size_t strftime(char16_t* str, size_t count, const char16_t* format, const std::tm* time);
+inline size_t strftime(char32_t* str, size_t count, const char32_t* format, const std::tm* time);
 }  // namespace detail
 
 template <typename Char> struct formatter<std::tm, Char> {

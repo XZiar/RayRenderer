@@ -37,7 +37,7 @@ Camera::Camera() noexcept
 void Camera::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 {
     using detail::JsonConv;
-    jself.Add("Name", common::strchset::to_u8string(Name));
+    jself.Add("Name", common::str::to_u8string(Name));
     jself.Add<JsonConv>(EJ_FIELD(Position))
          .Add<JsonConv>(EJ_FIELD(Rotation))
          .Add<JsonConv>("Right", CamMat.x)
@@ -48,7 +48,7 @@ void Camera::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 void Camera::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));
     object.TryGet<JsonConv>("Right", CamMat.x);

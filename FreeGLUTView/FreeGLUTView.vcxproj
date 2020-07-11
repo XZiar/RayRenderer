@@ -163,9 +163,6 @@
     <ClCompile Include="FreeGLUTView.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\3rdParty\freeglut\freeglut.vcxproj">
       <Project>{afb20f81-5a02-49ef-b968-4749a2bb4bd5}</Project>
     </ProjectReference>
@@ -175,7 +172,7 @@
     <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">

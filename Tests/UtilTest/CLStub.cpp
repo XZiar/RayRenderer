@@ -3,7 +3,7 @@
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclException.h"
 #include "SystemCommon/ConsoleEx.h"
-#include "StringCharset/Convert.h"
+#include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
 #include "common/StringEx.hpp"
@@ -18,7 +18,7 @@ using std::u16string;
 using std::u16string_view;
 using std::cin;
 using xziar::img::TexFormatUtil;
-using common::strchset::to_u16string;
+using common::str::to_u16string;
 
 static MiniLogger<false>& log()
 {

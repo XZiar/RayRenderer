@@ -157,9 +157,6 @@
     <ProjectReference Include="..\3rdParty\boost.stacktrace\boost.stacktrace.vcxproj">
       <Project>{73e340bf-05df-4582-b3c8-83f6ef60bd87}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>

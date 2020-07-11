@@ -1,6 +1,6 @@
 #include "NailangParser.h"
 #include "ParserRely.h"
-#include "3rdParty/fmt/utfext.h"
+#include "StringUtil/Format.h"
 #include <boost/range/adaptor/reversed.hpp>
 
 namespace xziar::nailang

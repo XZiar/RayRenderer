@@ -2,7 +2,7 @@
     "name": "UtilTest",
     "type": "executable",
     "description": "Utility test",
-    "dependency": ["fmt", "MiniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil", "FreeGLUTView", "curl", "libressl", "StringCharset", "SystemCommon", "WindowHost", "Nailang"],
+    "dependency": ["MiniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil", "FreeGLUTView", "curl", "libressl", "StringUtil", "SystemCommon", "WindowHost", "Nailang"],
     "library": 
     {
         "static": [],

@@ -2,7 +2,7 @@
     "name": "MiniLogger",
     "type": "dynamic",
     "description": "A mini logger library",
-    "dependency": ["fmt", "StringCharset", "SystemCommon"],
+    "dependency": ["StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

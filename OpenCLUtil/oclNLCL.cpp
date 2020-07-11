@@ -3,8 +3,8 @@
 #include "oclNLCLRely.h"
 #include "NLCLSubgroup.h"
 #include "oclException.h"
-#include "StringCharset/Convert.h"
-#include "StringCharset/Detect.h"
+#include "StringUtil/Convert.h"
+#include "StringUtil/Detect.h"
 #include "common/StrParsePack.hpp"
 
 namespace oclu
@@ -39,7 +39,7 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
     if (var.Part() == U"Extension"sv)
     {
-        const auto extName = common::strchset::to_string(var.Rest(), Charset::UTF8, Charset::UTF32);
+        const auto extName = common::str::to_string(var.Rest(), Charset::UTF8, Charset::UTF32);
         return Device->Extensions.Has(extName);
     }
     if (var.Part() == U"Dev"sv)
@@ -129,14 +129,14 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
     AllowDebug = info["debug"].has_value();
     for (const auto [key, val] : info)
     {
-        const auto varName = common::strchset::to_u32string(key, Charset::UTF8);
+        const auto varName = common::str::to_u32string(key, Charset::UTF8);
         switch (val.index())
         {
         case 1: EvalContext->SetArg(varName, std::get<1>(val)); break;
         case 2: EvalContext->SetArg(varName, std::get<2>(val)); break;
         case 3: EvalContext->SetArg(varName, std::get<3>(val)); break;
         case 4: EvalContext->SetArg(varName, 
-            common::strchset::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+            common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
         case 0: 
         default:
             break;
@@ -711,7 +711,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
             SubgroupAttributes sgAttr;
             sgAttr.Mimic = SubgroupMimicParser(args[2].GetStr().value_or(std::u32string_view{}))
                 .value_or(SubgroupAttributes::MimicType::Auto);
-            sgAttr.Args = common::strchset::to_string(args[3].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
+            sgAttr.Args = common::str::to_string(args[3].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
             const auto solver = NLCLSubgroup::Generate(this, sgAttr);
             std::array strs{ vtype, U"x"sv, U"y"sv };
 
@@ -846,7 +846,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             const auto args = EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
             sgAttr.Mimic = SubgroupMimicParser(args[0].GetStr().value_or(std::u32string_view{}))
                 .value_or(SubgroupAttributes::MimicType::Auto);
-            sgAttr.Args = common::strchset::to_string(args[1].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
+            sgAttr.Args = common::str::to_string(args[1].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
         } break;
         HashCase(subName, U"SimpleArg")
         {
@@ -872,8 +872,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 argType,
                 name));
             argInfos.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, KerArgFlag::None, // const will be ignored for simple arg
-                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name, Charset::UTF8, Charset::UTF32),
+                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
         HashCase(subName, U"BufArg")
         {
@@ -905,8 +905,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 HAS_FIELD(flags, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
                 name));
             argInfos.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
-                common::strchset::to_string(name,    Charset::UTF8, Charset::UTF32),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
+                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
         HashCase(subName, U"ImgArg")
         {
@@ -922,8 +922,8 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 argType,
                 name));
             argInfos.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
-                common::strchset::to_string(name, Charset::UTF8, Charset::UTF32),
-                common::strchset::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name, Charset::UTF8, Charset::UTF32),
+                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
         } break;
         HashCase(subName, U"DebugOutput")
         {
@@ -994,7 +994,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     dst.append(content);
     dst.append(U"}\r\n"sv);
-    CompiledKernels.emplace_back(common::strchset::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
+    CompiledKernels.emplace_back(common::str::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, 
@@ -1138,7 +1138,7 @@ std::string NLCLRuntime::GenerateOutput()
         }
     }
 
-    return common::strchset::to_string(prefix + output, Charset::UTF8, Charset::UTF32);
+    return common::str::to_string(prefix + output, Charset::UTF8, Charset::UTF32);
 }
 
 
@@ -1274,9 +1274,9 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
 std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> source) const
 {
     auto& logger = Logger();
-    const auto encoding = common::strchset::DetectEncoding(source);
+    const auto encoding = common::str::DetectEncoding(source);
     logger.info(u"Detected encoding[{}].\n", common::str::getCharsetName(encoding));
-    const auto prog = std::make_shared<NLCLProgram>(common::strchset::to_u32string(source, encoding));
+    const auto prog = std::make_shared<NLCLProgram>(common::str::to_u32string(source, encoding));
     logger.info(u"Translate into [utf32] for [{}] chars.\n", prog->Source.size());
     NLCLParser::GetBlock(prog->MemPool, prog->Source, prog->Program);
     logger.verbose(u"Parse done, get [{}] Blocks.\n", prog->Program.Size());

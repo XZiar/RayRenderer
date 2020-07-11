@@ -160,8 +160,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4
 		3rdParty\date\tz_private.h = 3rdParty\date\tz_private.h
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fmt", "3rdParty\fmt\fmt.vcxproj", "{70DDE3A9-B057-4AE0-842E-37917F633582}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageUtil", "ImageUtil\ImageUtil.vcxproj", "{45660991-51C4-4972-916F-9F2D2227BC4A}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpng", "3rdParty\libpng\libpng.vcxproj", "{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E}"
@@ -272,7 +270,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.stacktrace", "3rdPart
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NullTest", "Tests\NullTest\NullTest.vcxproj", "{3AE3FE89-96DA-4878-84F4-B0B8648C2C61}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StringCharset", "StringCharset\StringCharset.vcxproj", "{82F6B626-FC93-4089-8C78-5E5ED82A68EF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StringUtil", "StringUtil\StringUtil.vcxproj", "{82F6B626-FC93-4089-8C78-5E5ED82A68EF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcurl", "3rdParty\curl\libcurl.vcxproj", "{6401702A-1D7D-4879-B3B5-B28F95215D00}"
 EndProject
@@ -346,6 +344,26 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "digestpp", "digestpp", "{4F
 		3rdParty\digestpp\README.md = 3rdParty\digestpp\README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{AA68694D-1802-42F4-8FD9-7F3E149B8F1A}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\fmt\chrono.h = 3rdParty\fmt\chrono.h
+		3rdParty\fmt\color.h = 3rdParty\fmt\color.h
+		3rdParty\fmt\compile.h = 3rdParty\fmt\compile.h
+		3rdParty\fmt\core.h = 3rdParty\fmt\core.h
+		3rdParty\fmt\format-inl.h = 3rdParty\fmt\format-inl.h
+		3rdParty\fmt\format.cc = 3rdParty\fmt\format.cc
+		3rdParty\fmt\format.h = 3rdParty\fmt\format.h
+		3rdParty\fmt\LICENSE.rst = 3rdParty\fmt\LICENSE.rst
+		3rdParty\fmt\locale.h = 3rdParty\fmt\locale.h
+		3rdParty\fmt\os.cc = 3rdParty\fmt\os.cc
+		3rdParty\fmt\os.h = 3rdParty\fmt\os.h
+		3rdParty\fmt\ostream.h = 3rdParty\fmt\ostream.h
+		3rdParty\fmt\posix.h = 3rdParty\fmt\posix.h
+		3rdParty\fmt\printf.h = 3rdParty\fmt\printf.h
+		3rdParty\fmt\ranges.h = 3rdParty\fmt\ranges.h
+		3rdParty\fmt\README.rst = 3rdParty\fmt\README.rst
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -408,10 +426,6 @@ Global
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Debug|x64.Build.0 = Debug|x64
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x64.ActiveCfg = Release|x64
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}.Release|x64.Build.0 = Release|x64
-		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x64.ActiveCfg = Debug|x64
-		{70DDE3A9-B057-4AE0-842E-37917F633582}.Debug|x64.Build.0 = Debug|x64
-		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x64.ActiveCfg = Release|x64
-		{70DDE3A9-B057-4AE0-842E-37917F633582}.Release|x64.Build.0 = Release|x64
 		{45660991-51C4-4972-916F-9F2D2227BC4A}.Debug|x64.ActiveCfg = Debug|x64
 		{45660991-51C4-4972-916F-9F2D2227BC4A}.Debug|x64.Build.0 = Debug|x64
 		{45660991-51C4-4972-916F-9F2D2227BC4A}.Release|x64.ActiveCfg = Release|x64
@@ -559,7 +573,6 @@ Global
 		{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{AFB20F81-5A02-49EF-B968-4749A2BB4BD5} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{D36D1F7F-4D13-4944-9024-CC703F56FB75} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
-		{70DDE3A9-B057-4AE0-842E-37917F633582} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{45660991-51C4-4972-916F-9F2D2227BC4A} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3797BA95-6625-4483-B63E-3B3F9B845DAB} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
@@ -600,6 +613,7 @@ Global
 		{10014ADB-5E92-4ADC-AB6B-5080C615CCEE} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{4FD39CB8-7B50-4DF3-AA8D-AF83B83A7955} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{AA68694D-1802-42F4-8FD9-7F3E149B8F1A} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

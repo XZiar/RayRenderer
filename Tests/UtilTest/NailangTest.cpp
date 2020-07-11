@@ -1,8 +1,8 @@
 #include "TestRely.h"
 #include "Nailang/NailangParser.h"
 #include "SystemCommon/ConsoleEx.h"
-#include "StringCharset/Detect.h"
-#include "StringCharset/Convert.h"
+#include "StringUtil/Detect.h"
+#include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
 #include <iostream>
 
@@ -87,10 +87,10 @@ static void TestNailang()
             common::mlog::SyncConsoleBackend();
             string fpath = common::console::ConsoleEx::ReadLine("input nailang file:");
             const auto data = common::file::ReadAll<std::byte>(fpath);
-            const auto chset = common::strchset::DetectEncoding(data);
+            const auto chset = common::str::DetectEncoding(data);
             log().verbose(u"file has encoding [{}].\n", common::str::getCharsetName(chset));
-            const auto u32str = common::strchset::to_u32string(data, chset);
-            const auto u16fname = common::strchset::to_u16string(fpath, common::strchset::DetectEncoding(fpath));
+            const auto u32str = common::str::to_u32string(data, chset);
+            const auto u16fname = common::str::to_u16string(fpath, common::str::DetectEncoding(fpath));
 
             common::parser::ParserContext context(u32str, u16fname);
             MemoryPool pool;

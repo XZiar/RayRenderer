@@ -28,7 +28,7 @@
 #include <string_view>
 
 
-namespace common::strchset
+namespace common::str
 {
 
 namespace detail

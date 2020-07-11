@@ -25,7 +25,7 @@ MAKE_ENABLER_IMPL(oclCustomEvent)
 static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const void * private_info, size_t, void *user_data)
 {
     const oclContext_& ctx = *(oclContext_*)user_data;
-    const auto u16Info = common::strchset::to_u16string(errinfo, common::strchset::Charset::UTF8);
+    const auto u16Info = common::str::to_u16string(errinfo, common::str::Charset::UTF8);
     ctx.OnMessage(u16Info);
 }
 

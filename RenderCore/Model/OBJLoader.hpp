@@ -1,6 +1,6 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "StringCharset/Detect.h"
+#include "StringUtil/Detect.h"
 #include "common/CharConvs.hpp"
 
 namespace rayr::detail
@@ -52,10 +52,10 @@ public:
         {
             if (Params.size() <= index)
                 return u"";
-            return common::strchset::to_u16string(Params[index], charset);
+            return common::str::to_u16string(Params[index], charset);
         }
 
-        u16string ToUString() const { return common::strchset::to_u16string(Line, charset); }
+        u16string ToUString() const { return common::str::to_u16string(Line, charset); }
 
         b3d::Coord2D ParamsToFloat2(size_t offset) const
         {
@@ -124,7 +124,7 @@ public:
         common::file::ReadAll(FilePath, Content);
         Length = Content.size() - 1;
         CurPos = 0;
-        chset = common::strchset::DetectEncoding(Content);
+        chset = common::str::DetectEncoding(Content);
         dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetName(chset));
     }
 

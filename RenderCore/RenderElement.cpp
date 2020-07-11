@@ -213,7 +213,7 @@ void Drawable::RegistControllable()
 void Drawable::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const
 {
     using detail::JsonConv;
-    jself.Add("Name", common::strchset::to_u8string(Name));
+    jself.Add("Name", common::str::to_u8string(Name));
     jself.Add("Uid", boost::uuids::to_string(Uid));
     jself.Add<JsonConv>(EJ_FIELD(Position));
     jself.Add<JsonConv>(EJ_FIELD(Rotation));
@@ -224,7 +224,7 @@ void Drawable::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
 void Drawable::Deserialize(DeserializeUtil & context, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = common::strchset::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));

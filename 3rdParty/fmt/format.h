@@ -1796,10 +1796,14 @@ auto write(OutputIt out, const T& value) -> typename std::enable_if<
 
 
 // ++UTF++
-struct StringHacker
+template<typename Char>
+struct StringProcess
 {
-    template<typename Ret, typename Char, typename Func>
-    static inline Ret HandleString(const basic_string_view<Char> str, Func&& func);
+    template<typename Ret, typename Func>
+    static inline Ret HandleString(const basic_string_view<Char> str, Func&& func)
+    {
+        return func(str);
+    }
 };
 
 
@@ -1816,7 +1820,7 @@ template <typename OutputIt, typename Char> struct default_arg_formatter {
       // ++UTF++
       if constexpr (std::is_same_v<std::decay_t<T>, basic_string_view<Char>>)
       {
-          return StringHacker::HandleString<OutputIt>(value, 
+          return StringProcess<Char>::template HandleString<OutputIt>(value,
               [&](const basic_string_view<Char> str)
               {
                   return write<Char>(out, str);
@@ -2588,8 +2592,8 @@ FMT_CONSTEXPR const Char* parse_format_specs(const Char* begin, const Char* end,
 template <bool IS_CONSTEXPR, typename T, typename Ptr = const T*>
 FMT_CONSTEXPR bool find(Ptr first, Ptr last, T value, Ptr& out) {
   for (out = first; out != last; ++out) {
-    //if (*out == value) return true;
     // ++MOD++
+    //if (*out == value) return true;
     if (*out == static_cast<decltype(*out)>(value)) return true;
   }
   return false;
@@ -2702,9 +2706,7 @@ FMT_CONSTEXPR const typename ParseContext::char_type* parse_format_specs(
   using mapped_type =
       conditional_t<detail::mapped_type_constant<T, context>::value !=
                         type::custom_type,
-//                    decltype(arg_mapper<context>().map(std::declval<T>())), T>;
-// ++UTF++
-                    decltype(ArgMapperProxy<context>().map(std::declval<T>())), T>;
+                    decltype(arg_mapper<context>().map(std::declval<T>())), T>;
   auto f = conditional_t<has_formatter<mapped_type, context>::value,
                          formatter<mapped_type, char_type>,
                          detail::fallback_formatter<T, char_type>>();
@@ -2956,7 +2958,7 @@ class arg_formatter : public arg_formatter_base<OutputIt, Char> {
   // ++UTF++
   iterator operator()(basic_string_view<char_type> value)
   {
-      return StringHacker::HandleString<iterator>(value, 
+      return StringProcess<char_type>::template HandleString<iterator>(value, 
           [&](const basic_string_view<char_type> str) 
           {
               return base::operator()(str);

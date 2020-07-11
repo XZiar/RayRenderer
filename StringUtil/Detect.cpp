@@ -1,10 +1,9 @@
 #include "Detect.h"
-#include "uchardetlib/nscore.h"
-#include "uchardetlib/nsUniversalDetector.h"
+#include "3rdParty/uchardetlib/nscore.h"
+#include "3rdParty/uchardetlib/nsUniversalDetector.h"
 
-namespace common::strchset
+namespace common::str
 {
-using namespace common::str;
 
 namespace detail
 {

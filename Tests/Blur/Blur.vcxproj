@@ -89,9 +89,6 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\MiniLogger\MiniLogger.vcxproj">
       <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
     </ProjectReference>
@@ -100,6 +97,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\OpenCLUtil\OpenCLUtil.vcxproj">
       <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\StringUtil\StringUtil.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>

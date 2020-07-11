@@ -69,9 +69,6 @@
     <ProjectReference Include="..\3rdParty\cpuid\cpuid.vcxproj">
       <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
@@ -81,7 +78,7 @@
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\StringCharset\StringCharset.vcxproj">
+    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">

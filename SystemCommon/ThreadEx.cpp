@@ -65,11 +65,11 @@ bool SetThreadName(const std::u16string_view threadName)
         ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
     else
     {
-        const auto asciiThreadName = strchset::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
+        const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
         SetThreadNameImpl(asciiThreadName, ::GetCurrentThreadId());
     }
 #else
-    const auto u8TName = strchset::to_u8string(threadName, str::Charset::UTF16LE);
+    const auto u8TName = str::to_u8string(threadName, str::Charset::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
 # if defined(__APPLE__)
@@ -101,7 +101,7 @@ std::u16string GetThreadName()
 # else
     pthread_getname_np(pthread_self(), tmp, sizeof(tmp));
 # endif
-    return strchset::to_u16string(&tmp[0], str::Charset::UTF8);
+    return str::to_u16string(&tmp[0], str::Charset::UTF8);
 #endif
 }
 

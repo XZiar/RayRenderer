@@ -1,7 +1,6 @@
 #include "oclPch.h"
 #include "oclKernelDebug.h"
 #include "oclException.h"
-#include "fmt/ranges.h"
 
 namespace oclu
 {
@@ -205,7 +204,7 @@ common::str::u8string oclDebugBlock::GetString(common::span<const std::byte> dat
         arg.VisitData(data, [&](auto ele) { Insert(store, ele); });
     }
     auto str = fmt::vformat(Formatter, store);
-    return common::strchset::to_u8string(str, common::str::Charset::UTF32LE);
+    return common::str::to_u8string(str, common::str::Charset::UTF32LE);
 }
 
 

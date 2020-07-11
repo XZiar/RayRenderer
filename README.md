@@ -24,7 +24,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | C,C++ | N/A |
 | [common](./common) | Basic but useful things | Multi | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
-| [StringCharset](./StringCharset) | String Charset Library | C++ | Windows & Linux |
+| [StringUtil](./StringUtil) | String Charset Library | C++ | Windows & Linux |
 | [SystemCommon](./SystemCommon) | System-level common library | C++ | Windows & Linux |
 | [MiniLogger](./MiniLogger) | Mini Logger | C++ | Windows & Linux |
 | [Nailang](./Nailang) | A customizable language | C++ | Windows & Linux |
@@ -87,7 +87,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) 6.2.1 (customized with utf-support)
+* [fmt](http://fmtlib.net) 7.0.1 (customized with utf-support)
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

@@ -3,6 +3,12 @@
 
 using namespace common::str;
 using namespace std::string_view_literals;
+using charset::ToLowerEng;
+using charset::ToUpperEng;
+using charset::to_string;
+using charset::to_u8string;
+using charset::to_u16string;
+using charset::to_u32string;
 
 
 static constexpr auto U8Str  =       u8string_view(u8"aBcD1\U00000707\U0000A5EE\U00010086");
@@ -107,25 +113,26 @@ constexpr bool CTCheck(const std::array<Char, N> src, const std::basic_string_vi
 //constexpr auto u8d = CTConv2<detail::UTF16, detail::UTF8, decltype(u8s)>();
 //constexpr auto u8e = CTCheck(u8d, u8"hello"sv);
 
-#define CTConvCheck(From, To, Src, Dst, str) []() constexpr         \
-{                                                                   \
-    constexpr auto srcstr = CTSource(Src ## str ## sv);             \
-    constexpr auto dststr = CTConv2<From, To, decltype(srcstr)>();  \
-    return CTCheck(dststr, Dst ## str ## sv);                       \
-}()                                                                 \
+#define CTConvCheck(From, To, Src, Dst, str) []() constexpr                 \
+{                                                                           \
+    constexpr auto srcstr = CTSource(Src ## str ## sv);                     \
+    constexpr auto dststr = CTConv2<                                        \
+        charset::detail::From, charset::detail::To, decltype(srcstr)>();    \
+    return CTCheck(dststr, Dst ## str ## sv);                               \
+}()                                                                         \
 
 
 TEST(StrChset, CompileTime)
 {
-    static_assert(CTConvCheck(detail::UTF8,  detail::UTF8,  u8, u8, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf8" );
-    static_assert(CTConvCheck(detail::UTF16, detail::UTF8,   u, u8, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf8" );
-    static_assert(CTConvCheck(detail::UTF32, detail::UTF8,   U, u8, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf8" );
-    static_assert(CTConvCheck(detail::UTF8,  detail::UTF16, u8,  u, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf16");
-    static_assert(CTConvCheck(detail::UTF16, detail::UTF16,  u,  u, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf16");
-    static_assert(CTConvCheck(detail::UTF32, detail::UTF16,  U,  u, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf16");
-    static_assert(CTConvCheck(detail::UTF8,  detail::UTF32, u8,  U, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf32");
-    static_assert(CTConvCheck(detail::UTF16, detail::UTF32,  u,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf32");
-    static_assert(CTConvCheck(detail::UTF32, detail::UTF32,  U,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf32");
+    static_assert(CTConvCheck(UTF8,  UTF8,  u8, u8, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf8" );
+    static_assert(CTConvCheck(UTF16, UTF8,   u, u8, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf8" );
+    static_assert(CTConvCheck(UTF32, UTF8,   U, u8, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf8" );
+    static_assert(CTConvCheck(UTF8,  UTF16, u8,  u, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf16");
+    static_assert(CTConvCheck(UTF16, UTF16,  u,  u, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf16");
+    static_assert(CTConvCheck(UTF32, UTF16,  U,  u, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf16");
+    static_assert(CTConvCheck(UTF8,  UTF32, u8,  U, "aBcD1\U00000707\U0000A5EE\U00010086"),  "utf8->utf32");
+    static_assert(CTConvCheck(UTF16, UTF32,  u,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf16->utf32");
+    static_assert(CTConvCheck(UTF32, UTF32,  U,  U, "aBcD1\U00000707\U0000A5EE\U00010086"), "utf32->utf32");
 
 }
 #endif

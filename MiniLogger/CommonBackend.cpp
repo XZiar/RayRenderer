@@ -27,7 +27,7 @@ public:
     #if defined(_WIN32)
         OutputDebugString((LPCWSTR)txt.data());
     #else
-        const auto text = strchset::to_u8string(txt, str::Charset::UTF16LE);
+        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
         fprintf(stderr, "%s", text.c_str());
     #endif
     }

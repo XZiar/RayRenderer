@@ -137,7 +137,7 @@ Image StbReader::Read(const ImageDataType dataType)
     }
     if (ret.Ptr == nullptr)
     {
-        COMMON_THROW(BaseException, common::strchset::to_u16string(stbi_failure_reason()));
+        COMMON_THROW(BaseException, common::str::to_u16string(stbi_failure_reason()));
     }
 
     ImageDataType retType;

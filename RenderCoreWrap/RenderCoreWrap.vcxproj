@@ -256,9 +256,6 @@
     <ProjectReference Include="..\3rdParty\boost.stacktrace\boost.stacktrace.vcxproj">
       <Project>{73e340bf-05df-4582-b3c8-83f6ef60bd87}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\3rdParty\fmt\fmt.vcxproj">
-      <Project>{70dde3a9-b057-4ae0-842e-37917f633582}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
@@ -273,6 +270,9 @@
     </ProjectReference>
     <ProjectReference Include="..\RenderCore\RenderCore.vcxproj">
       <Project>{2c2fbe4d-b211-473e-9a93-3393c5e3bc4f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
+      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>

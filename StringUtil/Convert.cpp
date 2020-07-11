@@ -1,7 +1,7 @@
 #include "Convert.h"
 #include "common/StrCharset.hpp"
 
-namespace common::strchset
+namespace common::str
 {
 
 namespace detail
@@ -10,7 +10,7 @@ namespace detail
 template<typename Char, typename Conv>
 [[nodiscard]] forceinline std::basic_string<Char> ConvertString(const common::span<const std::byte> data, const Charset inchset)
 {
-    using namespace common::str::detail;
+    using namespace common::str::charset::detail;
     const std::basic_string_view<uint8_t> str(reinterpret_cast<const uint8_t*>(data.data()), data.size());
     switch (inchset)
     {
@@ -35,7 +35,7 @@ template<typename Char, typename Conv>
 
 std::string to_string(const common::span<const std::byte> data, const Charset outchset, const Charset inchset)
 {
-    using namespace common::str::detail;
+    using namespace common::str::charset::detail;
     switch (outchset)
     {
     case Charset::ASCII:
@@ -59,22 +59,22 @@ std::string to_string(const common::span<const std::byte> data, const Charset ou
 
 std::u32string  to_u32string(const common::span<const std::byte> data, const Charset inchset)
 {
-    return ConvertString<char32_t, common::str::detail::UTF32LE>(data, inchset);
+    return ConvertString<char32_t, common::str::charset::detail::UTF32LE>(data, inchset);
 }
 std::u16string  to_u16string(const common::span<const std::byte> data, const Charset inchset)
 {
-    return ConvertString<char16_t, common::str::detail::UTF16LE>(data, inchset);
+    return ConvertString<char16_t, common::str::charset::detail::UTF16LE>(data, inchset);
 }
 str::u8string   to_u8string (const common::span<const std::byte> data, const Charset inchset)
 {
-    return ConvertString<u8ch_t  , common::str::detail::UTF8   >(data, inchset);
+    return ConvertString<u8ch_t  , common::str::charset::detail::UTF8   >(data, inchset);
 }
 
 
 template<typename Char>
 STRCHSETAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> str, const Charset inchset)
 {
-    using namespace common::str::detail;
+    using namespace common::str::charset::detail;
     return DirectConv<Char>(str, inchset, EngUpper);
 
 }
@@ -86,7 +86,7 @@ template STRCHSETAPI std::basic_string<char32_t> ToUEng(const std::basic_string_
 template<typename Char>
 STRCHSETAPI std::basic_string<Char> ToLEng(const std::basic_string_view<Char> str, const Charset inchset)
 {
-    using namespace common::str::detail;
+    using namespace common::str::charset::detail;
     return DirectConv<Char>(str, inchset, EngLower);
 }
 template STRCHSETAPI std::basic_string<char>     ToLEng(const std::basic_string_view<char>     str, const Charset inchset);

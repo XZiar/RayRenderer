@@ -14,11 +14,11 @@
     - [ ] Add static control-item for Controllable
     - [ ] Remove unnecessary lambda func for direct access
 
-* StringCharset
+* StringUtil
   - [x] Add general charset default value
   - [x] Add compile-time LE/BE decision
   - [ ] Applying SIMD acceleration 
-  - [ ] Merge fmt with better format-context support
+  - [x] Merge fmt with better format-context support
   - [ ] Add BOM detection
 
 * MiniLogger

@@ -1,6 +1,6 @@
 #include "stacktrace.h"
 #include "SystemCommon/ThreadEx.h"
-#include "StringCharset/Convert.h"
+#include "StringUtil/Convert.h"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
 #elif !COMPILER_CLANG // no idea how to cleanly make clang find backtrace
@@ -40,7 +40,7 @@ public:
             while (ShouldRun)
             {
                 for (const auto& frame : *Stk)
-                    Output->emplace_back(common::strchset::to_u16string(frame.source_file()), common::strchset::to_u16string(frame.name()), frame.source_line());
+                    Output->emplace_back(common::str::to_u16string(frame.source_file()), common::str::to_u16string(frame.name()), frame.source_line());
                 CallerCV.notify_one();
                 WorkerCV.wait(lock);
             }

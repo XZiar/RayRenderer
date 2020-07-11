@@ -969,6 +969,8 @@ using long_type = conditional_t<long_short, int, long long>;
 using ulong_type = conditional_t<long_short, unsigned, unsigned long long>;
 
 // Maps formatting arguments to core types.
+// ++UTF++
+#define arg_mapper arg_mapper_
 template <typename Context> struct arg_mapper {
   using char_type = typename Context::char_type;
 
@@ -1088,16 +1090,15 @@ template <typename Context> struct arg_mapper {
 };
 
 // ++UTF++
+#undef arg_mapper
 template<typename Context>
-struct ArgMapperProxy : public arg_mapper<Context>
+struct arg_mapper : public arg_mapper_<Context>
 { };
 
 // A type constant after applying arg_mapper<Context>.
 template <typename T, typename Context>
 using mapped_type_constant =
-    //type_constant<decltype(arg_mapper<Context>().map(std::declval<const T&>())),
-// ++UTF++
-    type_constant<decltype(ArgMapperProxy<Context>().map(std::declval<const T&>())),
+    type_constant<decltype(arg_mapper<Context>().map(std::declval<const T&>())),
                   typename Context::char_type>;
 
 enum { packed_arg_bits = 4 };
@@ -1262,9 +1263,7 @@ template <typename Context, typename T>
 FMT_CONSTEXPR basic_format_arg<Context> make_arg(const T& value) {
   basic_format_arg<Context> arg;
   arg.type_ = mapped_type_constant<T, Context>::value;
-  //arg.value_ = arg_mapper<Context>().map(value);
-  // ++UTF++
-  arg.value_ = ArgMapperProxy<Context>().map(value);
+  arg.value_ = arg_mapper<Context>().map(value);
   return arg;
 }
 
@@ -1274,9 +1273,7 @@ FMT_CONSTEXPR basic_format_arg<Context> make_arg(const T& value) {
 template <bool IS_PACKED, typename Context, type, typename T,
           FMT_ENABLE_IF(IS_PACKED)>
 inline value<Context> make_arg(const T& val) {
-  //return arg_mapper<Context>().map(val);
-  // ++UTF++
-  return ArgMapperProxy<Context>().map(val);
+  return arg_mapper<Context>().map(val);
 }
 
 template <bool IS_PACKED, typename Context, type, typename T,
@@ -1496,10 +1493,10 @@ class dynamic_format_arg_store
     };
   };
 
+  // ++UTF++
   //template <typename T>
   //using stored_type = conditional_t<detail::is_string<T>::value,
   //                                  std::basic_string<char_type>, T>;
-  // ++UTF++
   template <typename T, typename = void> struct stored_type_impl {
       using type = T;
   };
