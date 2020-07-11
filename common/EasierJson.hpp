@@ -10,15 +10,15 @@
 #   pragma warning(push)
 #   pragma warning(disable:5054)
 #endif
-#include "3rdParty/rapidjson/document.h"
+#include "3rdParty/rapidjson/include/rapidjson/document.h"
 #if COMPILER_MSVC
 #   pragma warning(pop)
 #endif
-#include "3rdParty/rapidjson/encodings.h"
-#include "3rdParty/rapidjson/stringbuffer.h"
-#include "3rdParty/rapidjson/writer.h"
-#include "3rdParty/rapidjson/prettywriter.h"
-#include "3rdParty/rapidjson/pointer.h"
+#include "3rdParty/rapidjson/include/rapidjson/encodings.h"
+#include "3rdParty/rapidjson/include/rapidjson/stringbuffer.h"
+#include "3rdParty/rapidjson/include/rapidjson/writer.h"
+#include "3rdParty/rapidjson/include/rapidjson/prettywriter.h"
+#include "3rdParty/rapidjson/include/rapidjson/pointer.h"
 
 
 namespace xziar::ejson

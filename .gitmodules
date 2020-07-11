@@ -10,3 +10,7 @@
 	shallow = true
 	path = 3rdParty/digestpp
 	url = https://github.com/kerukuro/digestpp.git
+[submodule "3rdParty/gtest"]
+	shallow = true
+	path = 3rdParty/gtest
+	url = https://github.com/google/googletest.git

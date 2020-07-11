@@ -2,9 +2,9 @@
 
 This folder includes almost all the 3rd-party libraries that RayRenderer uses.
 
-It seems that the normal way is to fork each of them, and add them here by "submodule".
-However, I am using Visual Studio whose github plugin has no such function for me.
-Also, I am tired to find out the difference among "submodule", "subtree", etc...
+## About Submodules
+
+Due to historic reasons and build toolchian issue, some libs are included with source code. I am working on moving them into submodules.
 
 ## Dummy libraries
 

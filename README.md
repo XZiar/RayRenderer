@@ -79,7 +79,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
-* [Google Test](https://github.com/google/googletest) 1.10.x (master@2020-07-09)
+* [Google Test](https://github.com/google/googletest) `submodule` 1.10.x
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
@@ -91,17 +91,17 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) 7.0.1 (customized with utf-support)
+* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 7.0.1 (customized with utf-support)
 
-  [MIT License](./3rdParty/fmt/LICENSE.rst)
+  [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 
-* [rapidjson](http://rapidjson.org/) 1.1.0 master@2020-04-10
+* [rapidjson](http://rapidjson.org/) `submodule` 1.1.0 master
 
-  [MIT License](./3rdParty/rapidjson/license.txt)
+  [MIT License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
-* [digestpp](https://github.com/kerukuro/digestpp) master@2020-05-17
+* [digestpp](https://github.com/kerukuro/digestpp) `submodule` master
   
-  [Public Domain](3rdParty/digestpp/LICENSE)
+  [Public Domain](https://github.com/kerukuro/digestpp/blob/master/LICENSE)
 
 * [FreeType2](https://www.freetype.org/) 2.10.1
 

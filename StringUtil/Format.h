@@ -13,9 +13,9 @@
 #  define FMT_SHARED
 #endif
 
-#include "3rdParty/fmt/ranges.h"
-#include "3rdParty/fmt/chrono.h"
-#include "3rdParty/fmt/format.h"
+#include "3rdParty/fmt/include/fmt/ranges.h"
+#include "3rdParty/fmt/include/fmt/chrono.h"
+#include "3rdParty/fmt/include/fmt/format.h"
 
 FMT_BEGIN_NAMESPACE
 
