@@ -1,3 +1,12 @@
-[submodule "3rdParty/gtest"]
-	path = 3rdParty/gtest
-	url = https://github.com/google/googletest.git
+[submodule "3rdParty/rapidjson"]
+	shallow = true
+	path = 3rdParty/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
+[submodule "3rdParty/fmt"]
+	shallow = true
+	path = 3rdParty/fmt
+	url = https://github.com/XZiar/fmt.git
+[submodule "3rdParty/digestpp"]
+	shallow = true
+	path = 3rdParty/digestpp
+	url = https://github.com/kerukuro/digestpp.git
