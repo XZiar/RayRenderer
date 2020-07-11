@@ -6,16 +6,6 @@
 #include <cmath>
 
 
-class TestCout : public std::stringstream
-{
-public:
-    ~TestCout()
-    {
-        testing::internal::ColoredPrintf(testing::internal::COLOR_GREEN, "[          ] "); 
-        testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s", str().c_str());
-    }
-};
-
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;

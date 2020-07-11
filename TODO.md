@@ -83,7 +83,7 @@
   * NLCL
     - [x] Add extended debugging output using NLCL
     - [x] Mimic subgroup shuffle on non-intel
-    - [x] Mimic subgroup on unsupported platform (nv)
+    - [x] Mimic subgroup shuffle on unsupported platform (nv)
     - [ ] Add dp4a compatible layer
     - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime
@@ -165,5 +165,6 @@
   - [x] Add custom base DSL for OpenGL and OpenCL
   - [ ] Switch to github actions for CI?
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
-  - [ ] Embed gtest for latest fixes for C++20
+  - [x] Embed gtest for latest fixes for C++20
+  - [ ] Move to submodule-based 3rdParty libraries
 

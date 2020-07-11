@@ -1,26 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\lib\native\src\gmock\gmock-all.cc">
-      <Filter>Dependency</Filter>
-    </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\lib\native\src\gtest\gtest-all.cc">
-      <Filter>Dependency</Filter>
-    </ClCompile>
     <ClCompile Include="MiscIntrinsTest.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="rely.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
-    <None Include="packages.config">
-      <Filter>Dependency</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Dependency">
-      <UniqueIdentifier>{a417ec69-254b-41dc-aff7-61aed27f319f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header">
       <UniqueIdentifier>{4ed4c090-f447-4fb7-9402-86c2900a7482}</UniqueIdentifier>
     </Filter>

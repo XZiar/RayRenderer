@@ -79,6 +79,10 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
+* [Google Test](https://github.com/google/googletest) 1.10.x (master@2020-07-09)
+
+  [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
+
 * [FreeGLUT](http://freeglut.sourceforge.net)  3.2.1
 
   [MIT License](./3rdParty/freeglut/license.txt)

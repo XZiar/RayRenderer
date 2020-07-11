@@ -2,21 +2,12 @@
 #include "common/CommonRely.hpp"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "common/gtesthack.h"
 #include <type_traits>
 #include <tuple>
 #include <string>
 #include <string_view>
 
-
-class TestCout : public std::stringstream
-{
-public:
-    ~TestCout()
-    {
-        testing::internal::ColoredPrintf(testing::internal::COLOR_GREEN, "[          ] ");
-        testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, "%s", str().c_str());
-    }
-};
 
 
 template<typename T>

@@ -61,6 +61,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\FileBase.hpp = common\FileBase.hpp
 		common\FrozenDenseSet.hpp = common\FrozenDenseSet.hpp
 		common\FrozenDenseSet.natvis = common\FrozenDenseSet.natvis
+		common\gtesthack.h = common\gtesthack.h
+		common\gtesthack.inl = common\gtesthack.inl
 		common\IntrusiveDoubleLinkList.hpp = common\IntrusiveDoubleLinkList.hpp
 		common\IntrusiveDoubleLinkList.natvis = common\IntrusiveDoubleLinkList.natvis
 		common\IntToString.hpp = common\IntToString.hpp
@@ -364,6 +366,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fmt", "fmt", "{AA68694D-180
 		3rdParty\fmt\README.rst = 3rdParty\fmt\README.rst
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gtest", "gtest", "{3BD51305-E666-4B25-A3A9-D586F5130026}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -614,6 +618,7 @@ Global
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F} = {4D08E485-9B7A-4B9B-9204-4289C1092C0D}
 		{4FD39CB8-7B50-4DF3-AA8D-AF83B83A7955} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{AA68694D-1802-42F4-8FD9-7F3E149B8F1A} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{3BD51305-E666-4B25-A3A9-D586F5130026} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

@@ -2,16 +2,17 @@
     "name": "NailangTest",
     "type": "executable",
     "description": "Sector Parser Test",
-    "dependency": ["Nailang", "fmt", "SystemCommon"],
+    "dependency": ["Nailang", "SystemCommon"],
     "library": 
     {
-        "static": ["gtest", "gmock", "gtest_main"],
+        "static": [],
         "dynamic": []
     },
     "targets":
     {
         "cpp":
         {
+            "incpath": ["$(SolutionDir)/3rdParty/gtest/googletest/", "$(SolutionDir)/3rdParty/gtest/googletest/include/", "$(SolutionDir)/3rdParty/gtest/googlemock/", "$(SolutionDir)/3rdParty/gtest/googlemock/include/"],
             "sources": ["*.cpp"]
         }
     }

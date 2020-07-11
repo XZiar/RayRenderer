@@ -59,6 +59,11 @@ class BuildTarget(metaclass=abc.ABCMeta):
         a,d = solveElementList(target, "flags", env)
         self.flags = combineElements(self.flags, a, d)
 
+    @staticmethod
+    def preparePaths(paths: list, env:dict) -> list :
+        solDir = env["rootDir"]
+        return [path.replace("$(SolutionDir)", solDir) for path in paths]
+
     def __repr__(self):
         return str(vars(self))
 
@@ -118,6 +123,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.incpath = combineElements(self.incpath, a, d)
 
         self.flags += [f"-fvisibility={self.visibility}"]
+        self.incpath = BuildTarget.preparePaths(self.incpath, env)
 
     def write(self, file):
         super().write(file)
@@ -172,6 +178,8 @@ class NASMTarget(BuildTarget):
         target = targets["nasm"]
         a,d = solveElementList(target, "incpath", env)
         self.incpath = list(set(a) - set(d))
+        self.incpath = BuildTarget.preparePaths(self.incpath, env)
+
     def write(self, file):
         super().write(file)
         writeItems(file, self.prefix()+"_incpaths", self.incpath)
@@ -278,6 +286,7 @@ class CUDATarget(BuildTarget):
             self.arch = combineElements(self.arch, a, d)
             self.version = cuda.get("version", "-std=c++14")
         super().solveTarget(targets, env)
+        self.incpath = BuildTarget.preparePaths(self.incpath, env)
 
     def write(self, file):
         super().write(file)

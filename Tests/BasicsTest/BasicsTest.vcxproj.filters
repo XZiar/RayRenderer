@@ -7,12 +7,6 @@
     <ClCompile Include="LinqTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\lib\native\src\gmock\gmock-all.cc">
-      <Filter>Dependency</Filter>
-    </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\lib\native\src\gtest\gtest-all.cc">
-      <Filter>Dependency</Filter>
-    </ClCompile>
     <ClCompile Include="CopyTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -48,9 +42,6 @@
     <Filter Include="Header">
       <UniqueIdentifier>{5fb8cf7c-570f-4ac8-83da-21af3611c811}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Dependency">
-      <UniqueIdentifier>{9a4ed251-e0df-4eb2-9528-19d1dbf74425}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -64,9 +55,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <Filter>Dependency</Filter>
-    </None>
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>
