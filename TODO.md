@@ -24,13 +24,13 @@
 * MiniLogger
   - [ ] Add pre-defined color arg
   - [ ] Add color filter to non-terminal backend (spin-lock based processing)
-  - [ ] Use Camel naming
+  - [ ] Use Pascal naming
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
   - [ ] Add SpinLock implementation
-  - [ ] Seperate PromiseTask's functionalities of task-info and ret-value
+  - [x] Seperate PromiseTask's functionalities of task-info and ret-value
 
 * AsyncExecutor
   - [x] Add support for returning value
@@ -134,6 +134,8 @@
   - [ ] Embed position information in token
   - [ ] Add `include` support
   - [ ] Add python parser & runtime
+  - [x] Explicitly handle loops
+  - [ ] Fix test for inhirit arg access
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

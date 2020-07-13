@@ -132,10 +132,10 @@ NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
         const auto varName = common::str::to_u32string(key, Charset::UTF8);
         switch (val.index())
         {
-        case 1: EvalContext->SetArg(varName, std::get<1>(val)); break;
-        case 2: EvalContext->SetArg(varName, std::get<2>(val)); break;
-        case 3: EvalContext->SetArg(varName, std::get<3>(val)); break;
-        case 4: EvalContext->SetArg(varName, 
+        case 1: RootContext->SetArg(varName, std::get<1>(val)); break;
+        case 2: RootContext->SetArg(varName, std::get<2>(val)); break;
+        case 3: RootContext->SetArg(varName, std::get<3>(val)); break;
+        case 4: RootContext->SetArg(varName, 
             common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
         case 0: 
         default:
@@ -433,7 +433,7 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
     }
     else // '@' not allowed in var anyway
     {
-        const auto ret = EvalContext->LookUpArg(var);
+        const auto ret = GetContextRef().LookUpArg(var);
         if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
         {
             NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
@@ -512,11 +512,11 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             {
                 const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
                 ThrowByReplacerArgCount(func, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
-                auto scope = InnerScope(extra.ReplaceArgs.size() > 0);
+                auto frame = PushFrame(extra.ReplaceArgs.size() > 0, StackFrame::LoopStates::NotInLoop);
                 for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
                 {
                     std::u32string name = U":"; name += extra.ReplaceArgs[i];
-                    EvalContext->SetArg(name, args[i + 1]);
+                    CurFrame->Context->SetArg(name, args[i + 1]);
                 }
                 APPEND_FMT(output, U"// template block [{}]\r\n"sv, args[0]);
                 DirectOutput(*block->Block, block->MetaFunc, output, reinterpret_cast<BlockCookie*>(cookie));
@@ -602,7 +602,7 @@ std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
         return LogLevelParser(str.value());
     return {};
 }
-Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target)
+Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTargetType target)
 {
     if (IsBeginWith(call.Name, U"oclu."sv))
     {
@@ -640,7 +640,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return false;
         HashCase(subName, U"EnableUnroll")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             if (!EnableUnroll)
             {
                 Logger.warning(u"Manually enable unroll hint.\n");
@@ -649,13 +649,13 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"EnableDebug")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             Logger.verbose(u"Manually enable debug.\n");
             AllowDebug = true;
         } return {};
         HashCase(subName, U"Log")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto logLevel = ParseLogLevel(args2[0]);
             if (!logLevel) 
@@ -678,7 +678,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"DefineDebugString")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             ThrowByArgCount(call, 3, ArgLimits::AtLeast);
             const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto id = arg2[0].GetStr().value();
@@ -702,7 +702,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"AddSubgroupPatch")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
+            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             ThrowByArgCount(call, 2, ArgLimits::AtLeast);
             const auto args = EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             const auto isShuffle = args[0].GetBool().value();
@@ -724,8 +724,9 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
 }
 
-void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie, std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx)
+void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie)
 {
+    Expects(CurFrame != nullptr);
     OutputConditions(metas, dst);
     common::str::StrVariant<char32_t> source(block.Source);
     bool repVar = false, repFunc = false;
@@ -741,12 +742,9 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);
             ThrowByArgType(fcall, RawArg::Type::Var, 0);
-            if (!evalCtx)
-                evalCtx = ConstructEvalContext();
-            evalCtx->SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
+            CurFrame->Context->SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
         }
     }
-    auto scope = InnerScope(evalCtx);
     if (repVar || repFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
     if (repVar)
@@ -1053,9 +1051,9 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
 
 void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
-    BlockContext ctx;
+    auto frame = PushFrame(StackFrame::LoopStates::NotInLoop);
     if (IsBeginWith(block.Type, U"oclu."sv) &&
-        HandleMetaFuncsBefore(metas, BlockContent::Generate(&block), ctx))
+        HandleMetaFuncs(metas, BlockContent::Generate(&block)))
     {
         bool output = false;
         switch (const auto subName = block.Type.substr(5); hash_(subName))
@@ -1100,6 +1098,7 @@ std::string NLCLRuntime::GenerateOutput()
 
     for (const auto& item : OutputBlocks)
     {
+        auto frame = PushFrame(ConstructEvalContext(), StackFrame::LoopStates::NotInLoop);
         switch (hash_(item.Block->Type))
         {
         HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, item.MetaFunc, output); continue;
@@ -1263,11 +1262,11 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
         progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
         progStub.DebugManager = std::move(stub.Runtime->DebugManager);
         progStub.Build(config);
-        return std::make_unique<NLCLBuiltResult>(stub.Runtime->EvalContext, progStub.Finish());
+        return std::make_unique<NLCLBuiltResult>(stub.Runtime->RootContext, progStub.Finish());
     }
     catch (const common::BaseException& be)
     {
-        return std::make_unique<NLCLBuildFailResult>(stub.Runtime->EvalContext, std::move(str), be.Share());
+        return std::make_unique<NLCLBuildFailResult>(stub.Runtime->RootContext, std::move(str), be.Share());
     }
 }
 
@@ -1287,7 +1286,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLP
 {
     NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
     ConfigureCL(stub);
-    return std::make_unique<NLCLUnBuildResult>(stub.Runtime->EvalContext, stub.Runtime->GenerateOutput());
+    return std::make_unique<NLCLUnBuildResult>(stub.Runtime->RootContext, stub.Runtime->GenerateOutput());
 }
 
 std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const

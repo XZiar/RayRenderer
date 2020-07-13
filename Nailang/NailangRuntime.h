@@ -346,91 +346,55 @@ public:
 enum class ArgLimits { Exact, AtMost, AtLeast };
 class NAILANGAPI NailangRuntimeBase
 {
-private:
-    struct NAILANGAPI InnerContextScope : public common::NonCopyable, public common::NonMovable
-    {
-        NailangRuntimeBase& Host;
-        std::shared_ptr<EvaluateContext> Context;
-        InnerContextScope(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& context);
-        ~InnerContextScope();
-    };
 protected:
+    enum class FuncTargetType { Plain, Expr, Meta };
     static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
     static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
-    enum class ProgramStatus { Next = 0, Repeat, Break, Return, End };
-    enum class MetaFuncResult { Unhandled = 0, Next, Repeat, Skip };
-    struct BlockContext
-    {
-        common::span<const FuncCall> MetaScope;
-        const Block* BlockScope;
-        ProgramStatus Status = ProgramStatus::Next;
-        constexpr BlockContext() noexcept : 
-            MetaScope(), BlockScope(nullptr) {}
-        constexpr BlockContext(const Block& block, common::span<const FuncCall> metas) noexcept :
-            MetaScope(metas), BlockScope(&block) { }
+    static std::u32string_view FuncTargetName(const FuncTargetType type) noexcept;
 
-        constexpr bool SearchMeta(const std::u32string_view name) const noexcept
+    enum class ProgramStatus { Next = 0, Break, Return, End };
+    enum class MetaFuncResult { Unhandled = 0, Next, Skip, Return };
+
+    struct StackFrame
+    {
+        enum class LoopStates : uint8_t { Inhirit, InLoop, NotInLoop };
+        StackFrame* PrevFrame = nullptr;
+        std::shared_ptr<EvaluateContext> Context;
+        common::span<const FuncCall> MetaScope;
+        const Block* BlockScope = nullptr;
+        ProgramStatus Status = ProgramStatus::Next;
+        LoopStates LoopState = LoopStates::Inhirit;
+        constexpr StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { }
+        bool CheckIsInLoop() const noexcept
         {
-            for (const auto& meta : MetaScope)
-                if (meta.Name == name)
-                    return true;
+            for (auto frame = this; frame; frame = frame->PrevFrame)
+            {
+                switch (frame->LoopState)
+                {
+                case LoopStates::InLoop:    return true;
+                case LoopStates::NotInLoop: return false;
+                default:                    continue;
+                }
+            }
             return false;
         }
     };
-    struct ContentContext
+    struct NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
     {
-        common::span<const FuncCall> MetaScope;
-        const BlockContent& ContentScope;
-        constexpr ContentContext(const BlockContent& content, common::span<const FuncCall> metas) noexcept :
-            MetaScope(metas), ContentScope(content) { }
-    };
-    struct FuncTarget
-    {
-        enum class Type { Empty, Block, Meta };
-        constexpr static uintptr_t Flag     = 0x1;
-        constexpr static uintptr_t InvFlag  = ~Flag;
-        static constexpr std::u32string_view FuncTargetName(const Type type) noexcept
-        {
-            using namespace std::string_view_literals;
-            switch (type)
-            {
-            case Type::Empty: return U"part of statement"sv;
-            case Type::Block: return U"funccall"sv;
-            case Type::Meta:  return U"metafunc"sv;
-            default:          return U"error"sv;
-            }
-        }
-
-        uintptr_t Pointer;
-        constexpr FuncTarget() noexcept : Pointer(0) {}
-        FuncTarget(BlockContext& ctx) noexcept : Pointer(reinterpret_cast<uintptr_t>(&ctx)) { }
-        FuncTarget(const ContentContext& ctx) noexcept : Pointer(reinterpret_cast<uintptr_t>(&ctx) | Flag) { }
-        
-        constexpr Type GetType() const noexcept 
-        {
-            if (Pointer == 0)   return Type::Empty;
-            if (Pointer & Flag) return Type::Meta;
-            else                return Type::Block;
-        }
-        BlockContext& GetBlockContext() const noexcept 
-        { 
-            return *reinterpret_cast<BlockContext*>(Pointer);
-        }
-        const ContentContext& GetContentContext() const noexcept 
-        { 
-            return *reinterpret_cast<const ContentContext*>(Pointer & InvFlag);
-        }
+        NailangRuntimeBase& Host;
+        StackFrame Frame;
+        FrameHolder(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& ctx, const StackFrame::LoopStates loopState);
+        ~FrameHolder();
     };
 
     std::shared_ptr<EvaluateContext> RootContext;
-    std::shared_ptr<EvaluateContext> EvalContext;
+    StackFrame* CurFrame = nullptr;
     MemoryPool MemPool;
-    
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
-    void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTarget target, const FuncTarget::Type type) const;
+    void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTargetType target, const FuncTargetType type) const;
     void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
@@ -459,28 +423,35 @@ protected:
         return args;
     }
 
-    [[nodiscard]] std::optional<InnerContextScope> InnerScope(const bool newContext = true);
-    [[nodiscard]] std::optional<InnerContextScope> InnerScope(std::shared_ptr<EvaluateContext> evalCtx);
-    [[nodiscard]] bool HandleMetaFuncsBefore(common::span<const FuncCall> metas, const BlockContent& target, BlockContext& ctx);
+    [[nodiscard]] FrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit);
+    [[nodiscard]] FrameHolder PushFrame(const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit)
+    {
+        return PushFrame(ConstructEvalContext(), loopState);
+    }
+    [[nodiscard]] FrameHolder PushFrame(const bool innerScope, const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit)
+    {
+        return PushFrame(innerScope ? ConstructEvalContext() : RootContext, loopState);
+    }
+    [[nodiscard]] EvaluateContext& GetContextRef() const;
+                  void ExecuteFrame();
+    [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const BlockContent& target);
+                  void HandleContent    (const BlockContent& content, common::span<const FuncCall> metas);
+                  void OnInnerBlock     (const Block& block, common::span<const FuncCall> metas);
+                  void OnLoop           (const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
-                  virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
-    [[nodiscard]] virtual MetaFuncResult HandleMetaFuncBefore(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
-                  virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTarget target);
-                  virtual Arg  EvaluateArg(const RawArg& arg);
+    [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
+                  virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
+    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
+    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
     [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
+                  virtual Arg  EvaluateArg(const RawArg& arg);
     [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
-                  virtual void OnAssignment(const Assignment& assign, common::span<const FuncCall> metas);
                   virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
-                  virtual void OnFuncCall(const FuncCall& call, common::span<const FuncCall> metas, BlockContext& ctx);
-    [[nodiscard]] virtual std::pair<ProgramStatus, Arg> OnInnerBlock(const Block& block, common::span<const FuncCall> metas);
-                  virtual void ExecuteContent(const BlockContent& content, common::span<const FuncCall> metas, BlockContext& ctx);
-                  virtual ProgramStatus ExecuteBlock(BlockContext ctx);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();

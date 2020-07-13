@@ -157,8 +157,8 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
     void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas) override;
-    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTarget target) override;
-    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr, std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx = {});
+    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target) override;
+    void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr);
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

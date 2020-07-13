@@ -53,18 +53,27 @@ public:
 class NailangRT : public NailangRuntimeBase
 {
 public:
-    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>())
+    StackFrame BaseFrame;
+    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr)
     {
+        BaseFrame.Context = RootContext;
+        CurFrame = &BaseFrame;
     }
 
-    auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(EvalContext); }
+    auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
 
-    using NailangRuntimeBase::EvalContext;
+    using NailangRuntimeBase::RootContext;
 
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::EvaluateArg;
-    using NailangRuntimeBase::OnAssignment;
-    using NailangRuntimeBase::ExecuteContent;
+    using NailangRuntimeBase::HandleContent;
+    void Assign(const Assignment& assign)
+    {
+        if (assign.IsNilCheck() && !GetContextRef().LookUpArg(assign.GetVar()).IsEmpty()) // non-null
+            return;
+        GetContextRef().SetArg(assign.GetVar(), EvaluateArg(assign.Statement));
+    }
+
 };
 
 
@@ -399,17 +408,17 @@ TEST(NailangRuntime, Variable)
 
     {
         // _
-        const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg = runtime.RootContext->LookUpArg(U"test"sv);
         EXPECT_EQ(arg.TypeData, Arg::Type::Empty);
     }
     {
-        EXPECT_EQ(runtime.EvalContext->SetArg(U"test"sv, Arg(uint64_t(512))), false);
+        EXPECT_EQ(runtime.RootContext->SetArg(U"test"sv, Arg(uint64_t(512))), false);
         // 512
-        const auto arg = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg = runtime.RootContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg, Uint, 512u);
     }
     const auto ctx2 = std::make_shared<EvalCtx>();
-    ctx2->ParentContext = runtime.EvalContext;
+    ctx2->ParentContext = runtime.RootContext;
     {
         // 512, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
@@ -422,7 +431,7 @@ TEST(NailangRuntime, Variable)
         // 256, _
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 256u);
-        const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg2 = runtime.RootContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::Type::Empty);
@@ -432,7 +441,7 @@ TEST(NailangRuntime, Variable)
         // 256, 128
         const auto arg1 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg1, Uint, 128u);
-        const auto arg2 = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg2 = runtime.RootContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
         CHECK_ARG(arg3, Uint, 128u);
@@ -451,7 +460,7 @@ TEST(NailangRuntime, Variable)
         CHECK_ARG(arg1, Uint, 256u);
         const auto arg2 = ctx2->LookUpArg(U"test"sv);
         CHECK_ARG(arg2, Uint, 256u);
-        const auto arg3 = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg3 = runtime.RootContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg3, Uint, 256u);
     }
     {
@@ -463,7 +472,7 @@ TEST(NailangRuntime, Variable)
         CHECK_ARG(arg2, Uint, 256u);
         const auto arg3 = ctx2->LookUpArg(U":test"sv);
         EXPECT_EQ(arg3.TypeData, Arg::Type::Empty);
-        const auto arg4 = runtime.EvalContext->LookUpArg(U"test"sv);
+        const auto arg4 = runtime.RootContext->LookUpArg(U"test"sv);
         CHECK_ARG(arg4, Uint, 256u);
     }
 }
@@ -489,11 +498,10 @@ struct BlkParser : public BlockParser
 };
 
 static void PEAssign(NailangRT& runtime, MemoryPool& pool, 
-    const std::u32string_view var, const std::u32string_view src,
-    const common::span<const FuncCall>& metas = {})
+    const std::u32string_view var, const std::u32string_view src)
 {
     const Assignment assign = BlkParser::GetAssignment(pool, var, src);
-    runtime.OnAssignment(assign, metas);
+    runtime.Assign(assign);
 }
 
 TEST(NailangRuntime, Assign)
@@ -600,10 +608,10 @@ tmp = 1;
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
-        runtime.EvalContext->SetArg(U"m"sv, m);
-        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.RootContext->SetArg(U"m"sv, m);
+        runtime.RootContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
-        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        const auto ans = runtime.RootContext->LookUpArg(U"m");
         EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
@@ -652,10 +660,10 @@ TEST(NailangRuntime, gcd2)
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
-        runtime.EvalContext->SetArg(U"m"sv, m);
-        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.RootContext->SetArg(U"m"sv, m);
+        runtime.RootContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
-        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        const auto ans = runtime.RootContext->LookUpArg(U"m");
         EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
@@ -704,10 +712,10 @@ m = $gcd(m,n);
 
     const auto gcd = [&](uint64_t m, uint64_t n)
     {
-        runtime.EvalContext->SetArg(U"m"sv, m);
-        runtime.EvalContext->SetArg(U"n"sv, n);
+        runtime.RootContext->SetArg(U"m"sv, m);
+        runtime.RootContext->SetArg(U"n"sv, n);
         runtime.ExecuteBlock(algoBlock, {});
-        const auto ans = runtime.EvalContext->LookUpArg(U"m");
+        const auto ans = runtime.RootContext->LookUpArg(U"m");
         EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
         return *ans.GetUint();
     };
