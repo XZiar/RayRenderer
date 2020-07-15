@@ -31,6 +31,7 @@ protected:
             SupportBasicSubgroup = false;
     };
     NLCLRuntime& Runtime;
+    NLCLContext& Context;
     const SubgroupCapbility Cap;
     std::map<std::u32string, std::u32string, std::less<>> Injects;
     KernelCookie* Cookie = nullptr;
@@ -44,13 +45,13 @@ protected:
     template<typename T, typename F, typename... Args>
     forceinline bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
     {
-        return Runtime.AddPatchedBlock(id, [&]() { return (obj.*generator)(std::forward<Args>(args)...); });
+        return Context.AddPatchedBlock(id, [&]() { return (obj.*generator)(std::forward<Args>(args)...); });
         //return Runtime.AddPatchedBlock(obj, id, generator, std::forward<Args>(args)...);
     }
     template<typename F>
     forceinline bool AddPatchedBlock(std::u32string_view id, F&& generator)
     {
-        return Runtime.AddPatchedBlock(id, std::forward<F>(generator));
+        return Context.AddPatchedBlock(id, std::forward<F>(generator));
     }
     forceinline common::mlog::MiniLogger<false>& Logger() const noexcept
     {
@@ -72,7 +73,7 @@ public:
     std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args, void* cookie) override;
     void Finish(void* cookie) override;
 
-    static SubgroupCapbility GenerateCapabiity(NLCLRuntime* runtime, const SubgroupAttributes& attr);
+    static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
     static std::unique_ptr<NLCLSubgroup> Generate(NLCLRuntime* runtime, const SubgroupAttributes& attr);
 };
 

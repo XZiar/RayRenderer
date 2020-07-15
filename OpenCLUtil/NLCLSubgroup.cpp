@@ -17,19 +17,20 @@ using common::simd::VecDataInfo;
 
 
 
-NLCLSubgroup::NLCLSubgroup(NLCLRuntime* runtime, NLCLSubgroup::SubgroupCapbility cap) : Runtime(*runtime), Cap(cap) 
+NLCLSubgroup::NLCLSubgroup(NLCLRuntime* runtime, NLCLSubgroup::SubgroupCapbility cap) : 
+    Runtime(*runtime), Context(Runtime.Context), Cap(cap) 
 { }
 
-NLCLSubgroup::SubgroupCapbility NLCLSubgroup::GenerateCapabiity(NLCLRuntime* runtime, const SubgroupAttributes& attr)
+NLCLSubgroup::SubgroupCapbility NLCLSubgroup::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
 {
     SubgroupCapbility cap;
     cap.SubgroupSize            = attr.SubgroupSize;
-    cap.SupportSubgroupKHR      = runtime->SupportSubgroupKHR;
-    cap.SupportSubgroupIntel    = runtime->SupportSubgroupIntel;
-    cap.SupportSubgroup8Intel   = runtime->SupportSubgroup8Intel;
-    cap.SupportSubgroup16Intel  = runtime->SupportSubgroup16Intel;
-    cap.SupportFP16             = runtime->SupportFP16;
-    cap.SupportFP64             = runtime->SupportFP64;
+    cap.SupportSubgroupKHR      = context.SupportSubgroupKHR;
+    cap.SupportSubgroupIntel    = context.SupportSubgroupIntel;
+    cap.SupportSubgroup8Intel   = context.SupportSubgroup8Intel;
+    cap.SupportSubgroup16Intel  = context.SupportSubgroup16Intel;
+    cap.SupportFP16             = context.SupportFP16;
+    cap.SupportFP64             = context.SupportFP64;
     for (auto arg : common::str::SplitStream(attr.Args, ',', false))
     {
         if (arg.empty()) continue;
@@ -88,7 +89,7 @@ std::u32string NLCLSubgroup::ScalarPatch(const std::u32string_view funcName, con
 {
     Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = Runtime.GetVecTypeName(vtype);
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
         vecName, funcName);
     for (uint8_t i = 0; i < vtype.Dim0; ++i)
@@ -125,9 +126,9 @@ std::u32string NLCLSubgroup::ReplaceFunc(const std::u32string_view func, const c
     {
         ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         EnableSubgroup = true;
-        if (const auto info = Runtime.ParseVecType(args[0]); info.has_value())
+        if (const auto vtype = Context.ParseVecType(args[0]); vtype)
         {
-            auto ret = SubgroupBroadcast(info.value(), args[1], args[2]);
+            auto ret = SubgroupBroadcast(vtype.Info, args[1], args[2]);
             if (ret.empty())
                 NLRT_THROW_EX(fmt::format(FMT_STRING(u"SubgroupBroadcast with Type [{}] not supported"sv), args[0]));
             return ret;
@@ -139,9 +140,9 @@ std::u32string NLCLSubgroup::ReplaceFunc(const std::u32string_view func, const c
     {
         ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         EnableSubgroup = true;
-        if (const auto info = Runtime.ParseVecType(args[0]); info.has_value())
+        if (const auto vtype = Context.ParseVecType(args[0]); vtype)
         {
-            auto ret = SubgroupShuffle(info.value(), args[1], args[2]);
+            auto ret = SubgroupShuffle(vtype.Info, args[1], args[2]);
             if (ret.empty())
                 NLRT_THROW_EX(fmt::format(FMT_STRING(u"SubgroupShuffle with Type [{}] not supported"sv), args[0]));
             return ret;
@@ -208,7 +209,7 @@ struct BcastShuf
             const auto [dst, mid] = TypeCast.value();
             if (dst != mid)
                 return fmt::format(FMT_STRING(U"as_{}({}({}as_{}({}), {}))"sv),
-                    NLCLRuntime::GetVecTypeName(dst), Func, Extra, NLCLRuntime::GetVecTypeName(mid), Element, Index);
+                    NLCLContext::GetCLTypeName(dst), Func, Extra, NLCLContext::GetCLTypeName(mid), Element, Index);
         }
         return fmt::format(FMT_STRING(U"{}({}{}, {})"sv), Func, Extra, Element, Index);
     }
@@ -301,9 +302,9 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
     Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
     Expects(vtype.Bit == mid.Bit * mid.Dim0);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
-    const auto vecName = NLCLRuntime::GetVecTypeName(vtype);
-    const auto scalarName = NLCLRuntime::GetVecTypeName({ vtype.Type,vtype.Bit,1,0 });
-    const auto midName = NLCLRuntime::GetVecTypeName(mid);
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto scalarName = NLCLContext::GetCLTypeName({ vtype.Type,vtype.Bit,1,0 });
+    const auto midName = NLCLContext::GetCLTypeName(mid);
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
         vecName, funcName);
     for (uint8_t i = 0; i < vtype.Dim0; ++i)
@@ -619,8 +620,8 @@ void NLCLSubgroupLocal::OnFinish()
 std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLRuntime::GetVecTypeName(vtype);
-    const auto scalarName = NLCLRuntime::GetVecTypeName({ vtype.Type, vtype.Bit, 1, 0 });
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto scalarName = NLCLContext::GetCLTypeName({ vtype.Type, vtype.Bit, 1, 0 });
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
         vecName, funcName);
     func.append(UR"(
@@ -656,8 +657,8 @@ std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcN
 std::u32string NLCLSubgroupLocal::ShufflePatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLRuntime::GetVecTypeName(vtype);
-    const auto scalarName = NLCLRuntime::GetVecTypeName({ vtype.Type, vtype.Bit, 1, 0 });
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto scalarName = NLCLContext::GetCLTypeName({ vtype.Type, vtype.Bit, 1, 0 });
     constexpr char32_t idxNames[] = U"0123456789abcdef";
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv),
         vecName, funcName);
@@ -766,7 +767,7 @@ std::u32string NLCLSubgroupPtx::Shuffle64Patch(const std::u32string_view funcNam
 {
     Expects(vtype.Bit == 64 && vtype.Type == VecDataInfo::DataTypes::Unsigned);
     Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLRuntime::GetVecTypeName(vtype);
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
 
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
@@ -789,7 +790,7 @@ std::u32string NLCLSubgroupPtx::Shuffle64Patch(const std::u32string_view funcNam
 std::u32string NLCLSubgroupPtx::Shuffle32Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16 && vtype.Bit == 32);
-    const auto vecName = NLCLRuntime::GetVecTypeName(vtype);
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
     constexpr char32_t idxNames[] = U"0123456789abcdef";
 
     std::u32string func = fmt::format(FMT_STRING(U"inline {0} {1}(const {0} val, const uint sgId)\r\n{{\r\n    {0} ret;"sv),
@@ -860,12 +861,13 @@ std::u32string NLCLSubgroupPtx::SubgroupShuffle(common::simd::VecDataInfo vtype,
 
 std::unique_ptr<NLCLSubgroup> NLCLSubgroup::Generate(NLCLRuntime* runtime, const SubgroupAttributes& attr)
 {
-    auto cap = GenerateCapabiity(runtime, attr);
+    auto& ctx = runtime->Context;
+    auto cap = GenerateCapabiity(ctx, attr);
 
     SubgroupAttributes::MimicType mType = attr.Mimic;
     if (mType == SubgroupAttributes::MimicType::Auto)
     {
-        if (runtime->Device->PlatVendor == Vendors::NVIDIA)
+        if (ctx.Device->PlatVendor == Vendors::NVIDIA)
             mType = SubgroupAttributes::MimicType::Ptx;
         else
             mType = SubgroupAttributes::MimicType::Local;
@@ -877,11 +879,11 @@ std::unique_ptr<NLCLSubgroup> NLCLSubgroup::Generate(NLCLRuntime* runtime, const
     else if (mType == SubgroupAttributes::MimicType::Ptx)
     {
         uint32_t smVer = 0;
-        if (runtime->Device->Extensions.Has("cl_nv_device_attribute_query"sv))
+        if (ctx.Device->Extensions.Has("cl_nv_device_attribute_query"sv))
         {
             uint32_t major = 0, minor = 0;
-            clGetDeviceInfo(*runtime->Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
-            clGetDeviceInfo(*runtime->Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
+            clGetDeviceInfo(*ctx.Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
+            clGetDeviceInfo(*ctx.Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
             smVer = major * 10 + minor;
         }
         return std::make_unique<NLCLSubgroupPtx>(runtime, cap, smVer);

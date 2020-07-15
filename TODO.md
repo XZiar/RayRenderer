@@ -136,6 +136,7 @@
   - [ ] Add python parser & runtime
   - [x] Explicitly handle loops
   - [ ] Fix test for inhirit arg access
+  - [ ] Add proper stacktrace when throw exception
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail
@@ -169,4 +170,5 @@
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
   - [x] Embed gtest for latest fixes for C++20
   - [ ] Move to submodule-based 3rdParty libraries
+  - [ ] Add basic DX12 runtime wrapper
 

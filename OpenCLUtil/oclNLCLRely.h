@@ -12,6 +12,7 @@ namespace oclu
 #   pragma warning(disable:4275 4251)
 #endif
 
+
 class OCLUAPI NLCLParser : xziar::nailang::BlockParser
 {
     using BlockParser::BlockParser;
@@ -24,19 +25,6 @@ public:
     }
 };
 
-
-class OCLUAPI NLCLEvalContext : public xziar::nailang::CompactEvaluateContext
-{
-    friend class NLCLRuntime;
-protected:
-    oclDevice Device;
-    xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
-    [[nodiscard]] xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
-public:
-    NLCLEvalContext(oclDevice dev);
-    ~NLCLEvalContext() override;
-
-};
 
 struct OutputBlock
 {
@@ -58,6 +46,66 @@ struct TemplateBlockInfo : public OutputBlock::BlockInfo
     TemplateBlockInfo(common::span<const xziar::nailang::RawArg> args);
     ~TemplateBlockInfo() override {}
 };
+
+
+class OCLUAPI NLCLContext : public xziar::nailang::CompactEvaluateContext
+{
+    friend class NLCLProcessor;
+    friend class NLCLRuntime;
+protected:
+    oclDebugManager DebugManager;
+    xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
+    [[nodiscard]] xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
+public:
+    const oclDevice Device;
+    const bool SupportFP16, SupportFP64, SupportNVUnroll,
+        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
+    NLCLContext(oclDevice dev, const common::CLikeDefines& info);
+    ~NLCLContext() override;
+    template<typename T, typename F, typename... Args>
+    bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
+    {
+        static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
+        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+        {
+            PatchedBlocks.insert_or_assign(std::u32string(id),
+                (obj.*generator)(std::forward<Args>(args)...));
+            return true;
+        }
+        return false;
+    }
+    template<typename F>
+    bool AddPatchedBlock(std::u32string_view id, F&& generator)
+    {
+        static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
+        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+        {
+            PatchedBlocks.insert_or_assign(std::u32string(id), generator());
+            return true;
+        }
+        return false;
+    }
+    struct VecTypeResult
+    {
+        common::simd::VecDataInfo Info;
+        bool TypeSupport;
+        constexpr operator bool() const noexcept { return Info.Bit != 0; }
+    };
+    VecTypeResult ParseVecType(const std::u32string_view type) const noexcept;
+    [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
+protected:
+    std::vector<bool> EnabledExtensions;
+    std::vector<OutputBlock> OutputBlocks;
+    std::vector<OutputBlock> StructBlocks;
+    std::vector<OutputBlock> KernelBlocks;
+    std::vector<OutputBlock> TemplateBlocks;
+    std::vector<OutputBlock> KernelStubBlocks;
+    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
+    std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
+    std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
+    bool EnableUnroll, AllowDebug;
+};
+
 
 class ReplaceExtension
 {
@@ -100,54 +148,21 @@ class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public co
     friend class NLCLReplacer;
     friend class NLCLProcessor;
     friend class NLCLSubgroup;
+    friend class NLCLBaseResult;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
     using MetaFuncs = ::common::span<const FuncCall>;
 
+    NLCLContext& Context;
     common::mlog::MiniLogger<false>& Logger;
-    oclDevice Device;
-    std::vector<bool> EnabledExtensions;
-    std::vector<OutputBlock> OutputBlocks;
-    std::vector<OutputBlock> StructBlocks;
-    std::vector<OutputBlock> KernelBlocks;
-    std::vector<OutputBlock> TemplateBlocks;
-    std::vector<OutputBlock> KernelStubBlocks;
-    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
-    std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
-    std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
-    oclDebugManager DebugManager;
-    bool EnableUnroll, AllowDebug;
 
-    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info);
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args, 
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
-    
-    template<typename T, typename F, typename... Args>
-    bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
-    {
-        static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
-        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
-        {
-            PatchedBlocks.insert_or_assign(std::u32string(id), 
-                (obj.*generator)(std::forward<Args>(args)...));
-            return true;
-        }
-        return false;
-    }
-    template<typename F>
-    bool AddPatchedBlock(std::u32string_view id, F&& generator)
-    {
-        static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
-        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
-        {
-            PatchedBlocks.insert_or_assign(std::u32string(id), generator());
-            return true;
-        }
-        return false;
-    }
+    common::simd::VecDataInfo ParseVecType(const std::u32string_view type, 
+        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const noexcept;
 
     [[nodiscard]] std::u32string DebugStringBase() noexcept;
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
@@ -165,16 +180,12 @@ protected:
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] const OutputBlock::BlockInfo& extraInfo, std::u32string& dst);
 public:
-    [[nodiscard]] static std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) noexcept;
 
-    const bool SupportFP16, SupportFP64, SupportNVUnroll,
-        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
-    NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, const common::CLikeDefines& info);
+    NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
-    std::optional<common::simd::VecDataInfo> ParseVecType(const std::u32string_view type) const noexcept;
 
     std::string GenerateOutput();
 };
@@ -183,9 +194,9 @@ public:
 class OCLUAPI NLCLBaseResult : public NLCLResult
 {
 protected:
-    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
+    std::shared_ptr<NLCLContext> Context;
 public:
-    NLCLBaseResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx);
+    NLCLBaseResult(const std::shared_ptr<NLCLContext>& context);
     ~NLCLBaseResult() override;
     NLCLResult::ResultType QueryResult(std::u32string_view name) const override;
 };
@@ -193,10 +204,9 @@ public:
 class OCLUAPI NLCLUnBuildResult : public NLCLBaseResult
 {
 protected:
-    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
     std::string Source;
 public:
-    NLCLUnBuildResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source);
+    NLCLUnBuildResult(const std::shared_ptr<NLCLContext>& context, std::string&& source);
     ~NLCLUnBuildResult() override;
     std::string_view GetNewSource() const noexcept override;
     oclProgram GetProgram() const override;
@@ -205,10 +215,9 @@ public:
 class OCLUAPI NLCLBuiltResult : public NLCLBaseResult
 {
 protected:
-    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
     oclProgram Prog;
 public:
-    NLCLBuiltResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, oclProgram prog);
+    NLCLBuiltResult(const std::shared_ptr<NLCLContext>& context, oclProgram prog);
     ~NLCLBuiltResult() override;
     std::string_view GetNewSource() const noexcept override;
     oclProgram GetProgram() const override;
@@ -217,10 +226,9 @@ public:
 class OCLUAPI NLCLBuildFailResult : public NLCLUnBuildResult
 {
 protected:
-    std::shared_ptr<xziar::nailang::EvaluateContext> EvalContext;
     std::shared_ptr<common::BaseException> Exception;
 public:
-    NLCLBuildFailResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source, std::shared_ptr<common::BaseException> ex);
+    NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::BaseException> ex);
     ~NLCLBuildFailResult() override;
     oclProgram GetProgram() const override;
 };
@@ -258,17 +266,17 @@ public:
 };
 
 
-class OCLUAPI NLCLProgStub
+class OCLUAPI NLCLProgStub : public common::NonCopyable
 {
     friend class NLCLProcessor;
 protected:
     xziar::nailang::MemoryPool MemPool;
     std::shared_ptr<const NLCLProgram> Program;
-    const oclDevice Device;
+    std::shared_ptr<NLCLContext> Context;
     std::unique_ptr<NLCLRuntime> Runtime;
-
 public:
-    NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime);
+    NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, std::shared_ptr<NLCLContext>&& context, std::unique_ptr<NLCLRuntime>&& runtime);
+    NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, const std::shared_ptr<NLCLContext> context, common::mlog::MiniLogger<false>& logger);
     NLCLProgStub(NLCLProgStub&&) = default;
     virtual ~NLCLProgStub();
 };

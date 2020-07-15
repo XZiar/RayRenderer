@@ -21,6 +21,7 @@ using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
+using common::mlog::LogLevel;
 using common::str::Charset;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
@@ -30,12 +31,50 @@ using common::simd::VecDataInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define FMTSTR(syntax, ...) fmt::format(FMT_STRING(syntax), __VA_ARGS__)
 
-NLCLEvalContext::NLCLEvalContext(oclDevice dev) : Device(dev) 
-{ }
-NLCLEvalContext::~NLCLEvalContext() 
+
+TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
+{
+    ReplaceArgs.reserve(args.size());
+    for (const auto& arg : args)
+    {
+        ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+    }
+}
+
+
+NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
+    Device(dev),
+    SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
+    SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
+    SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
+    SupportSubgroupKHR(Device->Extensions.Has("cl_khr_subgroups")),
+    SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
+    SupportSubgroup8Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_char")),
+    SupportSubgroup16Intel(SupportSubgroupIntel&& Device->Extensions.Has("cl_intel_subgroups_short")),
+    SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel),
+    EnabledExtensions(Device->Extensions.Size()),
+    EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false)
+{
+    AllowDebug = info["debug"].has_value();
+    for (const auto [key, val] : info)
+    {
+        const auto varName = common::str::to_u32string(key, Charset::UTF8);
+        switch (val.index())
+        {
+        case 1: SetArg(varName, std::get<1>(val)); break;
+        case 2: SetArg(varName, std::get<2>(val)); break;
+        case 3: SetArg(varName, std::get<3>(val)); break;
+        case 4: SetArg(varName, common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+        case 0:
+        default:
+            break;
+        }
+    }
+}
+NLCLContext::~NLCLContext()
 { }
 
-Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
+Arg NLCLContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
 {
     if (var.Part() == U"Extension"sv)
     {
@@ -94,58 +133,71 @@ Arg NLCLEvalContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
     return {};
 }
 
-Arg oclu::NLCLEvalContext::LookUpArgInside(xziar::nailang::detail::VarLookup var) const
+Arg NLCLContext::LookUpArgInside(xziar::nailang::detail::VarLookup var) const
 {
     if (var.Part() == U"oclu"sv)
         return LookUpCLArg(var.Rest());
     return CompactEvaluateContext::LookUpArgInside(var);
 }
 
-
-TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
+NLCLContext::VecTypeResult NLCLContext::ParseVecType(const std::u32string_view type) const noexcept
 {
-    ReplaceArgs.reserve(args.size());
-    for (const auto& arg : args)
+    auto [info, least] = ParseVDataType(type);
+    if (info.Bit == 0)
+        return { info, false };
+    bool typeSupport = true;
+    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
     {
-        ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
-    }
-}
-
-
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev, 
-    std::shared_ptr<NLCLEvalContext>&& evalCtx, const common::CLikeDefines& info) :
-    NailangRuntimeBase(std::move(evalCtx)), Logger(logger), Device(dev), 
-    EnabledExtensions(Device->Extensions.Size()),
-    EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false),
-    SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
-    SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
-    SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
-    SupportSubgroupKHR(Device->Extensions.Has("cl_khr_subgroups")),
-    SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
-    SupportSubgroup8Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_char")),
-    SupportSubgroup16Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_short")),
-    SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel)
-{ 
-    AllowDebug = info["debug"].has_value();
-    for (const auto [key, val] : info)
-    {
-        const auto varName = common::str::to_u32string(key, Charset::UTF8);
-        switch (val.index())
+        if (info.Bit == 16 && !SupportFP16) // FP16 check
         {
-        case 1: RootContext->SetArg(varName, std::get<1>(val)); break;
-        case 2: RootContext->SetArg(varName, std::get<2>(val)); break;
-        case 3: RootContext->SetArg(varName, std::get<3>(val)); break;
-        case 4: RootContext->SetArg(varName, 
-            common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
-        case 0: 
-        default:
-            break;
+            if (least) // promotion
+                info.Bit = 32;
+            else
+                typeSupport = false;
+        }
+        else if (info.Bit == 64 && !SupportFP64)
+        {
+            typeSupport = false;
         }
     }
+    return { info, typeSupport };
 }
-NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, oclDevice dev,
-    const common::CLikeDefines& info) : 
-    NLCLRuntime(logger, dev, std::make_shared<NLCLEvalContext>(dev), info)
+
+std::u32string_view NLCLContext::GetCLTypeName(common::simd::VecDataInfo info) noexcept
+{
+#define CASE(s, type, bit, n) \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
+#define CASEV(pfx, type, bit) \
+    CASE(STRINGIZE(pfx),            type, bit, 1)  \
+    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
+    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
+    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
+    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
+    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
+
+    switch (static_cast<uint32_t>(info))
+    {
+    CASEV(uchar,  Unsigned, 8)
+    CASEV(ushort, Unsigned, 16)
+    CASEV(uint,   Unsigned, 32)
+    CASEV(ulong,  Unsigned, 64)
+    CASEV(char,   Signed,   8)
+    CASEV(short,  Signed,   16)
+    CASEV(int,    Signed,   32)
+    CASEV(long,   Signed,   64)
+    CASEV(half,   Float,    16)
+    CASEV(float,  Float,    32)
+    CASEV(double, Float,    64)
+    default: return {};
+    }
+
+#undef CASEV
+#undef CASE
+}
+
+
+NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx) :
+    NailangRuntimeBase(evalCtx), Context(*evalCtx), Logger(logger)
 { }
 NLCLRuntime::~NLCLRuntime()
 { }
@@ -180,75 +232,33 @@ void NLCLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const 
     NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, call, prefix, count, args.size()));
 }
 
-std::optional<common::simd::VecDataInfo> NLCLRuntime::ParseVecType(const std::u32string_view type) const noexcept
+common::simd::VecDataInfo NLCLRuntime::ParseVecType(const std::u32string_view var,
+    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const noexcept
 {
-    auto [info, least] = ParseVDataType(type);
-    if (info.Bit == 0)
-        return {};
-    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
+    const auto vtype = Context.ParseVecType(var);
+    if (!vtype)
     {
-        if (info.Bit == 16 && !SupportFP16) // FP16 check
+        switch (extraInfo.index())
         {
-            if (least) // promotion
-                info.Bit = 32;
+        case 0:
+        {
+            const auto str = std::get<0>(extraInfo);
+            if (str.size() == 0)
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType."sv, var));
             else
-                Logger.warning(u"Potential use of unsupported FP16 with [{}].\n"sv, type);
-        }
-        else if (info.Bit == 64 && !SupportFP64)
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType when {}."sv, var, str));
+        } break;
+        case 1:
         {
-            Logger.warning(u"Potential use of unsupported FP64 with [{}].\n"sv, type);
+            const auto str = std::get<1>(extraInfo)();
+            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType, ."sv, var, str));
+        } break;
         }
     }
-    return info;
-}
+    if (!vtype.TypeSupport)
+        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
 
-std::u32string_view NLCLRuntime::GetVecTypeName(common::simd::VecDataInfo info) noexcept
-{
-#define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
-#define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1)  \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
-    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
-    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
-
-    switch (static_cast<uint32_t>(info))
-    {
-    CASEV(uchar,  Unsigned, 8)
-    CASEV(ushort, Unsigned, 16)
-    CASEV(uint,   Unsigned, 32)
-    CASEV(ulong,  Unsigned, 64)
-    CASEV(char,   Signed,   8)
-    CASEV(short,  Signed,   16)
-    CASEV(int,    Signed,   32)
-    CASEV(long,   Signed,   64)
-    CASEV(half,   Float,    16)
-    CASEV(float,  Float,    32)
-    CASEV(double, Float,    64)
-    default: return {};
-    }
-
-#undef CASEV
-#undef CASE
-}
-
-static constexpr uint8_t CheckVecable(const uint32_t totalBits, const uint32_t unitBits) noexcept
-{
-    if (totalBits % unitBits != 0) return 0;
-    switch (const auto num = totalBits / unitBits; num)
-    {
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 8:
-    case 16:
-        return static_cast<uint8_t>(num);
-    default:
-        return 0;
-    }
+    return vtype.Info;
 }
 
 std::u32string NLCLRuntime::DebugStringBase() noexcept
@@ -282,7 +292,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
 std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
 {
     // prepare arg layout
-    const auto& dbgBlock = DebugManager.AppendBlock(dbgId, formatter, args);
+    const auto& dbgBlock = Context.DebugManager.AppendBlock(dbgId, formatter, args);
     const auto& dbgData = dbgBlock.Layout;
     // test format
     try
@@ -303,7 +313,7 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
         .append(U"\r\n    global uint* restrict data,"sv);
     for (size_t i = 0; i < args.size(); ++i)
     {
-        APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, GetVecTypeName(args[i]), i);
+        APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLContext::GetCLTypeName(args[i]), i);
     }
     func.pop_back();
     func.append(U")\r\n{"sv);
@@ -314,9 +324,9 @@ std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, co
     const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
     {
         const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
-        const auto dstTypeStr  = GetVecTypeName(dtype);
+        const auto dstTypeStr  = NLCLContext::GetCLTypeName(dtype);
         std::u32string getData = needConv ?
-            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), GetVecTypeName(vtype), argIdx, argAccess) :
+            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), NLCLContext::GetCLTypeName(vtype), argIdx, argAccess) :
             fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
         if (vsize == 1)
         {
@@ -419,17 +429,12 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
 {
     if (var.size() > 0 && var[0] == U'@')
     {
-        const auto info = ParseVecType(var.substr(1));
-        if (info.has_value())
-        {
-            const auto str = GetVecTypeName(info.value());
-            if (!str.empty())
-                output.append(str);
-            else
-                NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported when replace-variable"sv, var));
-        }
+        const auto vtype = ParseVecType(var.substr(1), u"replace-variable"sv);
+        const auto str = NLCLContext::GetCLTypeName(vtype);
+        if (!str.empty())
+            output.append(str);
         else
-            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType when replace-variable"sv, var));
+            NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported when replace-variable"sv, var));
     }
     else // '@' not allowed in var anyway
     {
@@ -448,9 +453,9 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
     if (func == U"unroll"sv)
     {
         ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtMost);
-        if (EnableUnroll)
+        if (Context.EnableUnroll)
         {
-            if (Device->CVersion >= 20 || !SupportNVUnroll)
+            if (Context.Device->CVersion >= 20 || !Context.SupportNVUnroll)
             {
                 if (args.empty())
                     output.append(U"__attribute__((opencl_unroll_hint))"sv);
@@ -487,23 +492,18 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
             const auto vname = args[0];
-            const auto info = ParseVecType(vname);
-            if (info.has_value())
-            {
-                const auto str = GetVecTypeName(info.value());
-                if (!str.empty())
-                    output.append(str);
-                else
-                    NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
-            }
+            const auto vtype = ParseVecType(vname, u"call [GetVecTypeName]"sv);
+            const auto str = NLCLContext::GetCLTypeName(vtype);
+            if (!str.empty())
+                output.append(str);
             else
-                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType"sv, vname));
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
         } return;
         HashCase(subName, U"CodeBlock")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
             const OutputBlock* block = nullptr;
-            for (const auto& blk : TemplateBlocks)
+            for (const auto& blk : Context.TemplateBlocks)
                 if (blk.Block->Name == args[0])
                 {
                     block = &blk; break;
@@ -525,7 +525,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         HashCase(subName, U"DebugString")
         {
             ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
-            if (!AllowDebug)
+            if (!Context.AllowDebug)
             {
                 //AddPatchedBlock(*this, U"SkipDebug"sv, &NLCLRuntime::SkipDebugPatch);
                 //output.append(U"oclu_SkipDebug()"sv);
@@ -534,7 +534,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             else if (kerCk)
             {
                 const auto id = args[0];
-                const auto info = common::container::FindInMap(DebugInfos, id);
+                const auto info = common::container::FindInMap(Context.DebugInfos, id);
                 if (!info)
                     NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
                 
@@ -562,8 +562,8 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
     }
 )"sv);
-                AddPatchedBlock(*this, U" oglu_debug"sv, &NLCLRuntime::DebugStringBase);
-                AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, info->first, info->second);
+                Context.AddPatchedBlock(*this, U" oglu_debug"sv, &NLCLRuntime::DebugStringBase);
+                Context.AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, info->first, info->second);
                 
                 std::u32string str = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), id);
                 for (size_t i = 1; i < args.size(); ++i)
@@ -612,17 +612,12 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         {
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
             const auto vname = arg.GetStr().value();
-            const auto info = ParseVecType(vname);
-            if (info.has_value())
-            {
-                const auto str = GetVecTypeName(info.value());
-                if (!str.empty())
-                    return str;
-                else
-                    NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
-            }
+            const auto vtype = ParseVecType(vname, u"call [GetVecTypeName]"sv);
+            const auto str = NLCLContext::GetCLTypeName(vtype);
+            if (!str.empty())
+                return str;
             else
-                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType"sv, vname));
+                NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
         } return {};
         HashCase(subName, U"EnableExtension")
         {
@@ -641,17 +636,17 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         HashCase(subName, U"EnableUnroll")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
-            if (!EnableUnroll)
+            if (!Context.EnableUnroll)
             {
                 Logger.warning(u"Manually enable unroll hint.\n");
-                EnableUnroll = true;
+                Context.EnableUnroll = true;
             }
         } return {};
         HashCase(subName, U"EnableDebug")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
             Logger.verbose(u"Manually enable debug.\n");
-            AllowDebug = true;
+            Context.AllowDebug = true;
         } return {};
         HashCase(subName, U"Log")
         {
@@ -691,12 +686,13 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 const auto arg = EvaluateArg(rawarg);
                 if (!arg.IsStr())
                     NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]"sv, i, ArgTypeName(arg.TypeData)), call);
-                const auto vtype = ParseVecType(arg.GetStr().value());
-                if (!vtype.has_value())
-                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString], [{}] is not a recognized type"sv, i, arg.GetStr().value()), call);
-                argInfos.push_back(vtype.value());
+                const auto vtype = ParseVecType(arg.GetStr().value(), [&]() 
+                    {
+                        return fmt::format(FMT_STRING(u"Arg[{}] of [DefineDebugString]"sv), i);
+                    });
+                argInfos.push_back(vtype);
             }
-            if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos))
+            if (!Context.DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos))
                 .second)
                 NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
         } return {};
@@ -925,7 +921,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
         } break;
         HashCase(subName, U"DebugOutput")
         {
-            if (!AllowDebug)
+            if (!Context.AllowDebug)
             {
                 Logger.info(u"DebugOutput is disabled and ignored.\n");
                 break;
@@ -950,7 +946,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                 cookie.SubgroupSize, cookie.WorkgroupSize));
         else if (cookie.SubgroupSize == 0) // means SubgroupSize == 0, WorkgroupSize == 0
             NLRT_THROW_EX(u"MimicSubgroup without knowing subgroupSize."sv);
-        if (!specifiedSgSize && Device->GetPlatform()->PlatVendor == oclu::Vendors::Intel)
+        if (!specifiedSgSize && Context.Device->GetPlatform()->PlatVendor == oclu::Vendors::Intel)
         {
             EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
             APPEND_FMT(dst, U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv, cookie.SubgroupSize);
@@ -992,7 +988,7 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     dst.append(content);
     dst.append(U"}\r\n"sv);
-    CompiledKernels.emplace_back(common::str::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
+    Context.CompiledKernels.emplace_back(common::str::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, 
@@ -1007,9 +1003,9 @@ void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] M
 bool NLCLRuntime::EnableExtension(std::string_view ext, std::u16string_view desc)
 {
     if (ext == "all"sv)
-        EnabledExtensions.assign(EnabledExtensions.size(), true);
-    else if (const auto idx = Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
-        EnabledExtensions[idx] = true;
+        Context.EnabledExtensions.assign(Context.EnabledExtensions.size(), true);
+    else if (const auto idx = Context.Device->Extensions.GetIndex(ext); idx != SIZE_MAX)
+        Context.EnabledExtensions[idx] = true;
     else
     {
         if (!desc.empty())
@@ -1037,9 +1033,9 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
         }
     };
     if (ext == U"all"sv)
-        EnabledExtensions.assign(EnabledExtensions.size(), true);
-    else if (const auto idx = Device->Extensions.GetIndex(TmpSv{ext}); idx != SIZE_MAX)
-        EnabledExtensions[idx] = true;
+        Context.EnabledExtensions.assign(Context.EnabledExtensions.size(), true);
+    else if (const auto idx = Context.Device->Extensions.GetIndex(TmpSv{ext}); idx != SIZE_MAX)
+        Context.EnabledExtensions[idx] = true;
     else
     {
         if (!desc.empty())
@@ -1059,9 +1055,9 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
         switch (const auto subName = block.Type.substr(5); hash_(subName))
         {
         HashCase(subName, U"Global")     output = true;  break;
-        HashCase(subName, U"Struct")     output = true;  StructBlocks.emplace_back(&block, metas); break;
-        HashCase(subName, U"Kernel")     output = true;  KernelBlocks.emplace_back(&block, metas); break;
-        HashCase(subName, U"KernelStub") output = false; KernelStubBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Struct")     output = true;  Context.StructBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"Kernel")     output = true;  Context.KernelBlocks.emplace_back(&block, metas); break;
+        HashCase(subName, U"KernelStub") output = false; Context.KernelStubBlocks.emplace_back(&block, metas); break;
         HashCase(subName, U"Template")
         {
             output = false;
@@ -1080,25 +1076,25 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
                     break;
                 }
             }
-            TemplateBlocks.emplace_back(&block, metas, std::make_unique<TemplateBlockInfo>(tpArgs));
+            Context.TemplateBlocks.emplace_back(&block, metas, std::make_unique<TemplateBlockInfo>(tpArgs));
         } break;
         default: break;
         }
         if (output)
-            OutputBlocks.emplace_back(&block, metas);
+            Context.OutputBlocks.emplace_back(&block, metas);
     }
 }
 
 std::string NLCLRuntime::GenerateOutput()
 {
-    DebugManager.InfoMan = SupportBasicSubgroup ?
+    Context.DebugManager.InfoMan = Context.SupportBasicSubgroup ?
         static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<SubgroupInfoMan>()) : 
         static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<NonSubgroupInfoMan>());
     std::u32string prefix, output;
 
-    for (const auto& item : OutputBlocks)
+    for (const auto& item : Context.OutputBlocks)
     {
-        auto frame = PushFrame(ConstructEvalContext(), StackFrame::LoopStates::NotInLoop);
+        auto frame = PushFrame(StackFrame::LoopStates::NotInLoop);
         switch (hash_(item.Block->Type))
         {
         HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, item.MetaFunc, output); continue;
@@ -1112,13 +1108,13 @@ std::string NLCLRuntime::GenerateOutput()
 
     { // Output extentions
         prefix.append(U"/* Extensions */\r\n"sv);
-        if (common::linq::FromIterable(EnabledExtensions).All(true))
+        if (common::linq::FromIterable(Context.EnabledExtensions).All(true))
         {
             prefix.append(U"#pragma OPENCL EXTENSION all : enable\r\n"sv);
         }
         else
         {
-            common::linq::FromIterable(EnabledExtensions).Pair(common::linq::FromIterable(Device->Extensions))
+            common::linq::FromIterable(Context.EnabledExtensions).Pair(common::linq::FromIterable(Context.Device->Extensions))
                 .ForEach([&](const auto& pair)
                     {
                         if (pair.first)
@@ -1129,7 +1125,7 @@ std::string NLCLRuntime::GenerateOutput()
     }
 
     { // Output patched blocks
-        for (const auto& [id, src] : PatchedBlocks)
+        for (const auto& [id, src] : Context.PatchedBlocks)
         {
             APPEND_FMT(prefix, U"/* Patched Block [{}] */\r\n"sv, id);
             prefix.append(src);
@@ -1142,14 +1138,13 @@ std::string NLCLRuntime::GenerateOutput()
 
 
 
-NLCLBaseResult::NLCLBaseResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx) :
-    EvalContext(std::move(evalCtx))
+NLCLBaseResult::NLCLBaseResult(const std::shared_ptr<NLCLContext>& context) : Context(context)
 { }
 NLCLBaseResult::~NLCLBaseResult()
 { }
 NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
-    auto result = EvalContext->LookUpArg(name);
+    auto result = Context->LookUpArg(name);
     return result.Visit([](auto val) -> NLCLResult::ResultType
         {
             using T = std::decay_t<decltype(val)>;
@@ -1163,8 +1158,8 @@ NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) con
         });
 }
 
-NLCLUnBuildResult::NLCLUnBuildResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source) :
-    NLCLBaseResult(std::move(evalCtx)), Source(std::move(source))
+NLCLUnBuildResult::NLCLUnBuildResult(const std::shared_ptr<NLCLContext>& context, std::string&& source) :
+    NLCLBaseResult(context), Source(std::move(source))
 { }
 NLCLUnBuildResult::~NLCLUnBuildResult()
 { }
@@ -1177,8 +1172,8 @@ oclProgram NLCLUnBuildResult::GetProgram() const
     COMMON_THROW(common::BaseException, u"Program has not been built!");
 }
 
-NLCLBuiltResult::NLCLBuiltResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, oclProgram prog) :
-    NLCLBaseResult(std::move(evalCtx)), Prog(std::move(prog))
+NLCLBuiltResult::NLCLBuiltResult(const std::shared_ptr<NLCLContext>& context, oclProgram prog) :
+    NLCLBaseResult(context), Prog(std::move(prog))
 { }
 NLCLBuiltResult::~NLCLBuiltResult()
 { }
@@ -1191,9 +1186,8 @@ oclProgram NLCLBuiltResult::GetProgram() const
     return Prog;
 }
 
-NLCLBuildFailResult::NLCLBuildFailResult(std::shared_ptr<xziar::nailang::EvaluateContext> evalCtx, std::string&& source, 
-    std::shared_ptr<common::BaseException> ex) : 
-    NLCLUnBuildResult(std::move(evalCtx), std::move(source)), Exception(std::move(ex))
+NLCLBuildFailResult::NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::BaseException> ex) :
+    NLCLUnBuildResult(context, std::move(source)), Exception(std::move(ex))
 { }
 NLCLBuildFailResult::~NLCLBuildFailResult()
 { }
@@ -1204,16 +1198,18 @@ oclProgram NLCLBuildFailResult::GetProgram() const
 }
 
 
-
 NLCLProgram::NLCLProgram(std::u32string&& source) :
     Source(std::move(source)) { }
 NLCLProgram::~NLCLProgram()
 { }
 
 
-NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program,
-    oclDevice dev, std::unique_ptr<NLCLRuntime>&& runtime) :
-    Program(program), Device(dev), Runtime(std::move(runtime))
+NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, std::shared_ptr<NLCLContext>&& context, 
+    std::unique_ptr<NLCLRuntime>&& runtime) : Program(program), Context(std::move(context)), Runtime(std::move(runtime))
+{ }
+NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, const std::shared_ptr<NLCLContext> context, 
+    common::mlog::MiniLogger<false>& logger) : Program(program), Context(context), 
+    Runtime(std::make_unique<NLCLRuntime>(logger, context))
 { }
 NLCLProgStub::~NLCLProgStub()
 { }
@@ -1221,7 +1217,6 @@ NLCLProgStub::~NLCLProgStub()
 
 NLCLResult::~NLCLResult()
 { }
-
 
 
 NLCLProcessor::NLCLProcessor() : TheLogger(&oclLog())
@@ -1258,15 +1253,15 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
     auto str = stub.Runtime->GenerateOutput();
     try
     {
-        auto progStub = oclProgram_::Create(ctx, str, stub.Device);
-        progStub.ImportedKernelInfo = std::move(stub.Runtime->CompiledKernels);
-        progStub.DebugManager = std::move(stub.Runtime->DebugManager);
+        auto progStub = oclProgram_::Create(ctx, str, stub.Context->Device);
+        progStub.ImportedKernelInfo = std::move(stub.Context->CompiledKernels);
+        progStub.DebugManager = std::move(stub.Context->DebugManager);
         progStub.Build(config);
-        return std::make_unique<NLCLBuiltResult>(stub.Runtime->RootContext, progStub.Finish());
+        return std::make_unique<NLCLBuiltResult>(stub.Context, progStub.Finish());
     }
     catch (const common::BaseException& be)
     {
-        return std::make_unique<NLCLBuildFailResult>(stub.Runtime->RootContext, std::move(str), be.Share());
+        return std::make_unique<NLCLBuildFailResult>(stub.Context, std::move(str), be.Share());
     }
 }
 
@@ -1284,16 +1279,16 @@ std::shared_ptr<NLCLProgram> NLCLProcessor::Parse(common::span<const std::byte> 
 
 std::unique_ptr<NLCLResult> NLCLProcessor::ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info) const
 {
-    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
+    NLCLProgStub stub(prog, std::make_shared<NLCLContext>(dev, info), Logger());
     ConfigureCL(stub);
-    return std::make_unique<NLCLUnBuildResult>(stub.Runtime->RootContext, stub.Runtime->GenerateOutput());
+    return std::make_unique<NLCLUnBuildResult>(stub.Context, stub.Runtime->GenerateOutput());
 }
 
 std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const
 {
     if (!ctx->CheckIncludeDevice(dev))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"device not included in the context"sv);
-    NLCLProgStub stub(prog, dev, std::make_unique<NLCLRuntime>(Logger(), dev, info));
+    NLCLProgStub stub(prog, std::make_shared<NLCLContext>(dev, info), Logger());
     ConfigureCL(stub);
     return CompileIntoProgram(stub, ctx, config);
 }
