@@ -77,14 +77,12 @@ struct KernelSubgroupExtension : public ReplaceExtension
     KernelContext& Kernel;
     std::shared_ptr<SubgroupProvider> Provider;
     uint32_t SubgroupSize = 0;
+
     KernelSubgroupExtension(NLCLRuntime& runtime, KernelContext& kernel) :
         ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)), Kernel(kernel),
         Provider(Context.GetNLCLExt<NLCLSubgroupExtension>(NLCLSubgroupExtension::ID).DefaultProvider)
     { }
     ~KernelSubgroupExtension() override { }
-
-    void ThrowByReplacerArgCount(const std::u32string_view func, const common::span<const std::u32string_view> args,
-        const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const; 
 
     bool KernelMeta(const xziar::nailang::FuncCall& meta, KernelContext& kernel) override;
     std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args) override;

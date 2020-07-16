@@ -59,7 +59,7 @@ struct OCLUAPI KernelContext
     };
     std::vector<NamedText> Attributes;
     KernelArgStore Args;
-    KernelArgStore TailArgs;
+    KernelArgStore TailArgs; // args that won't be recorded
     std::vector<NamedText> BodyPrefixes;
     std::vector<NamedText> BodySuffixes;
     uint32_t WorkgroupSize = 0;
@@ -113,7 +113,7 @@ public:
     }
     virtual void FinishKernel(KernelContext&) { }
 };
-class NLCLExtension : public ReplaceExtension
+class OCLUAPI NLCLExtension : public ReplaceExtension
 {
     friend class NLCLRuntime;
 public:

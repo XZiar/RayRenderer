@@ -89,12 +89,13 @@ struct NLCLRuntime_ : public NLCLRuntime
     friend struct KernelDebugExtension;
 };
 
-#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 struct NLCLDebugExtension : public NLCLExtension
 {
     NLCLRuntime_& Runtime;
     oclDebugManager DebugManager;
-    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
+    using DbgContent = std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>;
+    std::map<std::u32string, DbgContent, std::less<>> DebugInfos;
     bool AllowDebug = false, HasDebug = false;
     NLCLDebugExtension(NLCLRuntime& runtime) : NLCLExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)) { }
     ~NLCLDebugExtension() override { }
@@ -124,7 +125,7 @@ struct NLCLDebugExtension : public NLCLExtension
             {
                 const auto arg = Runtime.EvaluateArg(rawarg);
                 if (!arg.IsStr())
-                    Runtime.NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]", 
+                    NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]", 
                         i, NLCLRuntime_::ArgTypeName(arg.TypeData)), call);
                 const auto vtype = Runtime.ParseVecType(arg.GetStr().value(), [&]()
                     {
@@ -133,7 +134,7 @@ struct NLCLDebugExtension : public NLCLExtension
                 argInfos.push_back(vtype);
             }
             if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
-                Runtime.NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
+                NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
             return Arg{};
         }
         return {};
@@ -321,6 +322,22 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return func;
     }
 
+    std::u32string GenerateDebugFunc(const std::u32string_view id, const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
+    {
+        Context.AddPatchedBlock(*this, U" oglu_debug"sv, &KernelDebugExtension::DebugStringBase);
+        Context.AddPatchedBlock(*this, id, &KernelDebugExtension::DebugStringPatch, id, item.first, item.second);
+
+        std::u32string str = FMTSTR(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
+        for (size_t i = 0; i < vals.size(); ++i)
+        {
+            APPEND_FMT(str, U"{}, "sv, vals[i]);
+        }
+        str.pop_back();
+        str.back() = U')';
+        HasDebug = true;
+        return str;
+    }
+
     std::u32string ReplaceFunc(std::u32string_view func, const common::span<const std::u32string_view> args) override
     {
         using namespace xziar::nailang;
@@ -334,21 +351,40 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             const auto info = common::container::FindInMap(Host.DebugInfos, id);
             if (info)
             {
-                
-                Context.AddPatchedBlock(*this, U" oglu_debug"sv, &KernelDebugExtension::DebugStringBase);
-                Context.AddPatchedBlock(*this, id, &KernelDebugExtension::DebugStringPatch, id, info->first, info->second);
-
-                std::u32string str = FMTSTR(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
-                for (size_t i = 1; i < args.size(); ++i)
-                {
-                    APPEND_FMT(str, U"{}, "sv, args[i]);
-                }
-                str.pop_back();
-                str.back() = U')';
-                HasDebug = true;
-                return str;
+                Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
+                return GenerateDebugFunc(id, *info, args.subspan(1));
             }
-            Runtime.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
+            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
+        }
+        else if (func == U"oclu.DebugStr"sv)
+        {
+            Runtime.ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtLeast);
+            if (!Host.AllowDebug)
+                return U"do{} while(false)";
+            if (args.size() % 2)
+                NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
+            if (args[1].size() < 2 || args[1].front() != U'"' || args[1].back() != U'"')
+                NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
+            const auto id = args[0], formatter = args[1].substr(1, args[1].size() - 2);
+
+            std::vector<common::simd::VecDataInfo> types;
+            std::vector<std::u32string_view> vals;
+            const auto argCnt = args.size() / 2 - 1;
+            types.reserve(argCnt); vals.reserve(argCnt);
+            for (size_t i = 2; i < args.size(); i += 2)
+            {
+                const auto vtype = Runtime.ParseVecType(args[i], [&]()
+                    {
+                        return FMTSTR(u"Arg[{}] of [DebugStr]", i);
+                    });
+                types.push_back(vtype);
+                vals. push_back(args[i + 1]);
+            }
+            const auto [info, ret] = Host.DebugInfos.try_emplace(std::u32string(id), formatter, std::move(types));
+            if (!ret)
+                NLRT_THROW_EX(FMTSTR(u"DebugString [{}] repeately defined", id));
+            
+            return GenerateDebugFunc(id, info->second, vals);
         }
         return {};
     }

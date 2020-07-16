@@ -92,6 +92,7 @@
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
+  - [ ] Add interop with directx (delay load + conditional compiling)
 
 * TextureUtil
   - [x] Add mipmap
@@ -124,6 +125,8 @@
   * Model
     - [ ] Add skeleton animation
     - [ ] Add more import format support
+  * CLI Wrapper
+    - [ ] Remove incompatibility with C++20
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
@@ -138,6 +141,7 @@
   - [x] Explicitly handle loops
   - [ ] Fix test for inhirit arg access
   - [ ] Add proper stacktrace when throw exception
+  - [ ] Add nested brace support for ReplaceEngine
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail
@@ -153,6 +157,7 @@
   - [x] Custom build procedure for Linux
   - [x] Generate build Makefile from python script and project-info json
   - [x] Add Pch for GCC build
+  - [ ] Add support for build config outside source folder (for 3rd lib with original source structure)
   - [ ] Move to fully self-controlled build system
 
 * Global

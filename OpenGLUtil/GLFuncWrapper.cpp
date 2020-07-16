@@ -40,8 +40,8 @@
 
 namespace oglu
 {
-constexpr auto PlatFuncsSize = sizeof(PlatFuncs);
-constexpr auto CtxFuncsSize  = sizeof(CtxFuncs);
+[[maybe_unused]] constexpr auto PlatFuncsSize = sizeof(PlatFuncs);
+[[maybe_unused]] constexpr auto CtxFuncsSize  = sizeof(CtxFuncs);
 
 template<typename T>
 struct ResourceKeeper

@@ -450,7 +450,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             }
         }
     }
-    NLRT_THROW_EX(u"replace-function not ready"sv);
+    NLRT_THROW_EX(FMTSTR(u"replace-function [{}] with [{}]args is not resolved", func, args.size()));
 }
 
 void NLCLRuntime::OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
@@ -593,7 +593,7 @@ void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
         else
             continue;
         if (meta.Args.size() == 1)
-            APPEND_FMT(dst, U"/* {:7} :  {} */\r\n"sv, prefix, xziar::nailang::Serializer::Stringify(meta.Args[0]));
+            APPEND_FMT(dst, U"    /* {:7} :  {} */\r\n"sv, prefix, xziar::nailang::Serializer::Stringify(meta.Args[0]));
     }
 }
 
@@ -768,12 +768,11 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     {
         cookie.Extensions.push_back(creator(*this, kerCtx));
     }
-    APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
+
     for (const auto& meta : metas)
     {
         HandleKernelMeta(meta, kerCtx, cookie.Extensions);
     }
-
     std::u32string content;
     DirectOutput(block, metas, content, &cookie);
     for (const auto& ext : Context.NLCLExts)
@@ -787,11 +786,14 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             ext->FinishKernel(kerCtx);
     }
 
+    APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
+    // attributes
     for (const auto& item : kerCtx.Attributes)
     {
         dst.append(item.Content).append(U"\r\n"sv);
     }
     APPEND_FMT(dst, U"kernel void {} ("sv, block.Name);
+    // arguments
     for (const auto& arg : kerCtx.Args)
     {
         dst.append(U"\r\n    "sv);
@@ -806,20 +808,24 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     }
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
-
+    // prefixes
     for (const auto& item : kerCtx.BodyPrefixes)
     {
-        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, item.ID);
+        APPEND_FMT(dst, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, item.ID);
         dst.append(item.Content).append(U"\r\n"sv);
+        APPEND_FMT(dst, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, item.ID);
     }
+    // content
     dst.append(content);
+    // suffixes
     for (const auto& item : kerCtx.BodySuffixes)
     {
-        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, item.ID);
+        APPEND_FMT(dst, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, item.ID);
         dst.append(item.Content).append(U"\r\n"sv);
+        APPEND_FMT(dst, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, item.ID);
     }
-
     dst.append(U"}\r\n"sv);
+
     for (auto& arg : kerCtx.Args.ArgsInfo)
     {
         if (arg.ArgType == KerArgType::Simple)

@@ -161,25 +161,6 @@ SubgroupProvider::SubgroupProvider(NLCLRuntime_& runtime, SubgroupCapbility cap)
 { }
 
 
-void KernelSubgroupExtension::ThrowByReplacerArgCount(const std::u32string_view func, 
-    const common::span<const std::u32string_view> args, const size_t count, const xziar::nailang::ArgLimits limit) const
-{
-    std::u32string_view prefix;
-    switch (limit)
-    {
-    case ArgLimits::Exact:
-        if (args.size() == count) return;
-        prefix = U""; break;
-    case ArgLimits::AtMost:
-        if (args.size() <= count) return;
-        prefix = U"at most"; break;
-    case ArgLimits::AtLeast:
-        if (args.size() >= count) return;
-        prefix = U"at least"; break;
-    }
-    NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}].", func, prefix, count, args.size()));
-}
-
 bool KernelSubgroupExtension::KernelMeta(const xziar::nailang::FuncCall& meta, KernelContext& kernel)
 {
     Expects(&kernel == &Kernel);
@@ -210,7 +191,7 @@ std::u32string KernelSubgroupExtension::ReplaceFunc(std::u32string_view func, co
     {
     HashCase(func, U"SubgroupBroadcast")
     {
-        ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        Runtime.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
         auto ret = Provider->SubgroupBroadcast(vtype, args[1], args[2]);
         if (ret.empty())
@@ -219,7 +200,7 @@ std::u32string KernelSubgroupExtension::ReplaceFunc(std::u32string_view func, co
     }
     HashCase(func, U"SubgroupShuffle")
     {
-        ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        Runtime.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
         auto ret = Provider->SubgroupShuffle(vtype, args[1], args[2]);
         if (ret.empty())
@@ -228,7 +209,7 @@ std::u32string KernelSubgroupExtension::ReplaceFunc(std::u32string_view func, co
     }
     HashCase(func, U"GetSubgroupLocalId")
     {
-        ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         auto ret = Provider->GetSubgroupLocalId();
         if (ret.empty())
             NLRT_THROW_EX(u"[GetSubgroupLocalId] not supported"sv);
@@ -236,7 +217,7 @@ std::u32string KernelSubgroupExtension::ReplaceFunc(std::u32string_view func, co
     }
     HashCase(func, U"GetSubgroupSize")
     {
-        ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         auto ret = Provider->GetSubgroupSize(SubgroupSize ? SubgroupSize : Kernel.WorkgroupSize);
         if (ret.empty())
             NLRT_THROW_EX(u"[GetSubgroupSize] not supported"sv);

@@ -541,7 +541,7 @@ struct NonMovable
 
 
 /* span compatible include */
-#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMPILER_MSVC // gtest's incompatibility with C++20
+#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMPILER_MSVC // C++/CLI's incompatibility with C++20
 #   include <span>
 namespace common
 {
@@ -569,7 +569,6 @@ template <class ElementType, size_t Extent = gsl::dynamic_extent>
 using span = gsl::span<ElementType, Extent>;
 using gsl::as_bytes;
 using gsl::as_writable_bytes;
-//inline constexpr auto as_writable_bytes = [](auto&& t) constexpr -> decltype(auto) { return gsl::as_writeable_bytes(t); };
 template<typename T>
 using is_span = gsl::details::is_span<T>;
 template<typename T>

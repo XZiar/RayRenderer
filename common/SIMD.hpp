@@ -115,7 +115,6 @@ struct VecDataInfo
     template<typename T, uint8_t N>
     static constexpr VecDataInfo GetVectorInfo() noexcept
     {
-        auto type = DataTypes::Unsigned;
         if constexpr (std::is_floating_point_v<T>)
         {
             const auto bit = gsl::narrow_cast<uint8_t>(sizeof(T));
