@@ -380,7 +380,7 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
 }
 
 
-oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
+oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
     : Context(ctx), Device(dev), Source(std::move(str)), ProgID(nullptr)
 {
     cl_int errcode;
@@ -391,7 +391,7 @@ oclProgram_::oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& de
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create program");
 }
 
-oclProgram_::oclProgStub::~oclProgStub()
+oclProgStub::~oclProgStub()
 {
     if (ProgID)
     {
@@ -400,7 +400,7 @@ oclProgram_::oclProgStub::~oclProgStub()
     }
 }
 
-void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
+void oclProgStub::Build(const CLProgConfig& config)
 {
     const auto minVer = std::min(Device->CVersion, Device->Version);
     const auto cver = config.Version == 0 ? minVer : config.Version;
@@ -457,7 +457,12 @@ void oclProgram_::oclProgStub::Build(const CLProgConfig& config)
 
 }
 
-oclProgram oclProgram_::oclProgStub::Finish()
+std::u16string oclProgStub::GetBuildLog() const
+{ 
+    return oclProgram_::GetProgBuildLog(ProgID, *Device); 
+}
+
+oclProgram oclProgStub::Finish()
 {
     return MAKE_ENABLER_SHARED(const oclProgram_, (this));
 }
@@ -536,7 +541,7 @@ oclKernel oclProgram_::GetKernel(const string_view& name) const
     return {};
 }
 
-oclProgram_::oclProgStub oclProgram_::Create(const oclContext& ctx, string str, const oclDevice& dev)
+oclProgStub oclProgram_::Create(const oclContext& ctx, string str, const oclDevice& dev)
 {
     return oclProgStub(ctx, dev ? dev : ctx->Devices[0], std::move(str));
 }

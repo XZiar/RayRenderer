@@ -18,10 +18,11 @@ using oclContext = std::shared_ptr<const oclContext_>;
 class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovable
 {
     friend class GLInterop;
-    friend class NLCLEvalContext;
+    friend class NLCLContext;
     friend class oclPlatform_;
     friend class oclCmdQue_;
     friend class oclProgram_;
+    friend class oclProgStub;
     friend class oclMem_;
     friend class oclBuffer_;
     friend class oclImage_;

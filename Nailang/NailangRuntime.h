@@ -104,7 +104,7 @@ struct LocalFunc
     const Block* Body;
     common::span<std::u32string_view> ArgNames;
 
-    [[nodiscard]] constexpr operator bool() const noexcept { return Body != nullptr; }
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return Body != nullptr; }
 };
 }
 
@@ -346,14 +346,14 @@ public:
 enum class ArgLimits { Exact, AtMost, AtLeast };
 class NAILANGAPI NailangRuntimeBase
 {
-protected:
+public:
     enum class FuncTargetType { Plain, Expr, Meta };
     static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
     static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
     static std::u32string_view FuncTargetName(const FuncTargetType type) noexcept;
-
     enum class ProgramStatus { Next = 0, Break, Return, End };
     enum class MetaFuncResult { Unhandled = 0, Next, Skip, Return };
+protected:
 
     struct StackFrame
     {

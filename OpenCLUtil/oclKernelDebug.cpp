@@ -1,11 +1,15 @@
 #include "oclPch.h"
 #include "oclKernelDebug.h"
+#include "oclNLCLRely.h"
 #include "oclException.h"
 
 namespace oclu
 {
+using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
+
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept
@@ -77,6 +81,325 @@ std::u32string_view StringifyVDataType(const VecDataInfo vtype) noexcept
 #undef CASEV
 #undef CASE
 }
+
+
+struct NLCLRuntime_ : public NLCLRuntime
+{
+    friend struct NLCLDebugExtension;
+    friend struct KernelDebugExtension;
+};
+
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+struct NLCLDebugExtension : public NLCLExtension
+{
+    NLCLRuntime_& Runtime;
+    oclDebugManager DebugManager;
+    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
+    bool AllowDebug = false, HasDebug = false;
+    NLCLDebugExtension(NLCLRuntime& runtime) : NLCLExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)) { }
+    ~NLCLDebugExtension() override { }
+
+    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(const xziar::nailang::FuncCall& call,
+        common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override
+    {
+        using namespace xziar::nailang;
+        if (call.Name == U"oclu.EnableDebug")
+        {
+            Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.Logger.verbose(u"Manually enable debug.\n");
+            AllowDebug = true;
+            return Arg{};
+        }
+        else if (call.Name == U"oclu.DefineDebugString"sv)
+        {
+            Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.ThrowByArgCount(call, 3, ArgLimits::AtLeast);
+            const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
+            const auto id = arg2[0].GetStr().value();
+            const auto formatter = arg2[1].GetStr().value();
+            std::vector<common::simd::VecDataInfo> argInfos;
+            argInfos.reserve(call.Args.size() - 2);
+            size_t i = 2;
+            for (const auto& rawarg : call.Args.subspan(2))
+            {
+                const auto arg = Runtime.EvaluateArg(rawarg);
+                if (!arg.IsStr())
+                    Runtime.NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]", 
+                        i, NLCLRuntime_::ArgTypeName(arg.TypeData)), call);
+                const auto vtype = Runtime.ParseVecType(arg.GetStr().value(), [&]()
+                    {
+                        return fmt::format(FMT_STRING(u"Arg[{}] of [DefineDebugString]"sv), i);
+                    });
+                argInfos.push_back(vtype);
+            }
+            if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
+                Runtime.NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
+            return Arg{};
+        }
+        return {};
+    }
+    bool KernelMeta(const xziar::nailang::FuncCall& meta, KernelContext& kernel) override
+    {
+        using namespace xziar::nailang;
+        if (meta.Name == U"oclu.DebugOutput"sv)
+        {
+            if (AllowDebug)
+            {
+                const auto size = Runtime.EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
+                kernel.SetDebugBuffer(gsl::narrow_cast<uint32_t>(size.value_or(512)));
+            }
+            else
+                Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
+            return true;
+        }
+        return false;
+    }
+    void FinishNLCL() override
+    {
+        if (AllowDebug && HasDebug)
+        {
+            Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
+            Runtime.EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
+        }
+        if (Context.SupportBasicSubgroup)
+            DebugManager.InfoMan = std::make_unique<SubgroupInfoMan>();
+        else
+            DebugManager.InfoMan = std::make_unique<NonSubgroupInfoMan>();
+    }
+    void OnCompile(oclProgStub& stub) override
+    { 
+        stub.DebugManager = std::move(DebugManager);
+    }
+
+    inline static uint32_t ID = NLCLExtension::RegisterNLCLExtenstion(
+        [](NLCLRuntime& runtime, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
+        {
+            return std::make_unique<NLCLDebugExtension>(runtime);
+        });
+};
+
+struct KernelDebugExtension : public ReplaceExtension
+{
+public:
+    NLCLRuntime_& Runtime;
+    KernelContext& Kernel;
+    NLCLDebugExtension& Host;
+    bool HasDebug = false;
+    KernelDebugExtension(NLCLRuntime& runtime, KernelContext& kernel) :
+        ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)),
+        Kernel(kernel), Host(Context.GetNLCLExt<NLCLDebugExtension>(NLCLDebugExtension::ID))
+    { }
+    ~KernelDebugExtension() override { }
+
+    std::u32string DebugStringBase() noexcept
+    {
+        return UR"(
+inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
+    const uint tid, const uint total,
+    global uint* restrict counter, global uint* restrict data)
+{
+    const uint size = dbgSize + 1;
+    const uint dId  = (dbgId + 1) << 24;
+    const uint uid  = tid & 0x00ffffffu;
+    if (total == 0) 
+        return 0;
+    if (counter[0] + size > total) 
+        return 0;
+    const uint old = atom_add(counter, size);
+    if (old >= total)
+        return 0;
+    if (old + size > total) 
+    { 
+        data[old] = uid; 
+        return 0;
+    }
+    data[old] = uid | dId;
+    return data + old + 1;
+}
+)"s;
+    }
+
+    std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
+    {
+        // prepare arg layout
+        const auto& dbgBlock = Host.DebugManager.AppendBlock(dbgId, formatter, args);
+        const auto& dbgData = dbgBlock.Layout;
+        // test format
+        try
+        {
+            std::vector<std::byte> test(dbgData.TotalSize);
+            Runtime.Logger.debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
+        }
+        catch (const fmt::format_error& fe)
+        {
+            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
+            return U"// Formatter not match the datatype provided\r\n";
+        }
+
+        std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
+        func.append(U"\r\n    const  uint           tid,"sv)
+            .append(U"\r\n    const  uint           total,"sv)
+            .append(U"\r\n    global uint* restrict counter,"sv)
+            .append(U"\r\n    global uint* restrict data,"sv);
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLContext::GetCLTypeName(args[i]), i);
+        }
+        func.pop_back();
+        func.append(U")\r\n{"sv);
+        static constexpr auto syntax = UR"(
+    global uint* const restrict ptr = oglu_debug({}, {}, tid, total, counter, data);
+    if (ptr == 0) return;)"sv;
+        APPEND_FMT(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
+        const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
+        {
+            const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
+            const auto dstTypeStr = NLCLContext::GetCLTypeName(dtype);
+            std::u32string getData = needConv ?
+                fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), NLCLContext::GetCLTypeName(vtype), argIdx, argAccess) :
+                fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
+            if (vsize == 1)
+            {
+                APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / (dtype.Bit / 8), getData);
+            }
+            else
+            {
+                APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
+            }
+        };
+        for (const auto& [info, offset, idx] : dbgData.ByLayout())
+        {
+            const auto size = info.Bit * info.Dim0;
+            APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv,
+                idx, offset, size / 8, StringifyVDataType(info));
+            for (const auto eleBit : std::array<uint8_t, 3>{ 32u, 16u, 8u })
+            {
+                const auto eleByte = eleBit / 8;
+                if (size % eleBit == 0)
+                {
+                    VecDataInfo dstType{ VecDataInfo::DataTypes::Unsigned, eleBit, 1, 0 };
+                    const bool needConv = info.Bit != dstType.Bit || info.Type != VecDataInfo::DataTypes::Unsigned;
+                    const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
+                    // For 32bit:
+                    // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
+                    // 32bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                    // 16bit: 2,4,8,16     -> 1,2,4,8
+                    //  8bit: 4,8,16       -> 1,2,4
+                    // For 16bit:
+                    // 16bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                    //  8bit: 2,4,8,16     -> 1,2,4,8
+                    // For 8bit:
+                    //  8bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
+                    if (cnt == 32u)
+                    {
+                        Expects(info.Bit == 64 && info.Dim0 == 16);
+                        WriteOne(offset + eleByte * 0, idx, 16, dstType, U".s01234567"sv, needConv);
+                        WriteOne(offset + eleByte * 16, idx, 16, dstType, U".s89abcdef"sv, needConv);
+                    }
+                    else if (cnt == 6u)
+                    {
+                        Expects(info.Bit == 64 && info.Dim0 == 3);
+                        WriteOne(offset + eleByte * 0, idx, 4, dstType, U".s01"sv, needConv);
+                        WriteOne(offset + eleByte * 4, idx, 2, dstType, U".s2"sv, needConv);
+                    }
+                    else if (cnt == 3u)
+                    {
+                        Expects(info.Bit == dstType.Bit && info.Dim0 == 3);
+                        WriteOne(offset + eleByte * 0, idx, 2, dstType, U".s01"sv, needConv);
+                        WriteOne(offset + eleByte * 2, idx, 1, dstType, U".s2"sv, needConv);
+                    }
+                    else
+                    {
+                        Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
+                        WriteOne(offset, idx, cnt, dstType, {}, needConv);
+                    }
+                    break;
+                }
+            }
+        }
+        func.append(U"\r\n}\r\n"sv);
+        return func;
+    }
+
+    std::u32string ReplaceFunc(std::u32string_view func, const common::span<const std::u32string_view> args) override
+    {
+        using namespace xziar::nailang;
+        if (func == U"oclu.DebugString"sv)
+        {
+            Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
+            if (!Host.AllowDebug)
+                return U"do{} while(false)";
+
+            const auto id = args[0];
+            const auto info = common::container::FindInMap(Host.DebugInfos, id);
+            if (info)
+            {
+                
+                Context.AddPatchedBlock(*this, U" oglu_debug"sv, &KernelDebugExtension::DebugStringBase);
+                Context.AddPatchedBlock(*this, id, &KernelDebugExtension::DebugStringPatch, id, info->first, info->second);
+
+                std::u32string str = FMTSTR(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
+                for (size_t i = 1; i < args.size(); ++i)
+                {
+                    APPEND_FMT(str, U"{}, "sv, args[i]);
+                }
+                str.pop_back();
+                str.back() = U')';
+                HasDebug = true;
+                return str;
+            }
+            Runtime.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
+        }
+        return {};
+    }
+    void FinishKernel(KernelContext& kernel) override
+    {
+        Expects(&kernel == &Kernel);
+        if (HasDebug)
+        {
+            kernel.Args.HasDebug = true;
+            Host.HasDebug = true;
+            kernel.AddTailArg(KerArgType::Simple, KerArgSpace::Private, ImgAccess::None, KerArgFlag::Const,
+                "_oclu_debug_buffer_size", "uint");
+            kernel.AddTailArg(KerArgType::Buffer, KerArgSpace::Global, ImgAccess::None, KerArgFlag::Restrict,
+                "_oclu_debug_buffer_info", "uint*");
+            kernel.AddTailArg(KerArgType::Buffer, KerArgSpace::Global, ImgAccess::None, KerArgFlag::Restrict,
+                "_oclu_debug_buffer_data", "uint*"); 
+            kernel.AddBodyPrefix(U"oclu_debug", UR"(
+    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
+    if (_oclu_debug_buffer_size > 0)
+    {
+        if (_oclu_thread_id == 0)
+        {
+            _oclu_debug_buffer_info[1] = get_global_size(0);
+            _oclu_debug_buffer_info[2] = get_global_size(1);
+            _oclu_debug_buffer_info[3] = get_global_size(2);
+            _oclu_debug_buffer_info[4] = get_local_size(0);
+            _oclu_debug_buffer_info[5] = get_local_size(1);
+            _oclu_debug_buffer_info[6] = get_local_size(2);
+        }
+
+#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
+        const ushort sgid  = get_sub_group_id();
+        const ushort sglid = get_sub_group_local_id();
+        const uint sginfo  = sgid * 65536u + sglid;
+#else
+        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
+#endif
+        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
+    }
+)");
+        }
+    }
+
+    inline static uint32_t ID = NLCLExtension::RegisterKernelExtenstion(
+        [](NLCLRuntime& runtime, KernelContext& kernel) -> std::unique_ptr<ReplaceExtension>
+        {
+            return std::make_unique<KernelDebugExtension>(runtime, kernel);
+        });
+};
+#undef NLRT_THROW_EX
+
 
 
 DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const uint16_t align) :

@@ -84,6 +84,7 @@
     - [x] Add extended debugging output using NLCL
     - [x] Mimic subgroup shuffle on non-intel
     - [x] Mimic subgroup shuffle on unsupported platform (nv)
+    - [x] Use extension to provide debug support
     - [ ] Add dp4a compatible layer
     - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime

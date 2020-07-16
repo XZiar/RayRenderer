@@ -59,7 +59,8 @@ class oclUtil;
 class oclMapPtr_;
 class GLInterop;
 class NLCLRuntime;
-class NLCLEvalContext;
+struct KernelContext;
+class NLCLContext;
 class NLCLProcessor;
 
 class oclCmdQue_;

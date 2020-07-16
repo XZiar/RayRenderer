@@ -244,3 +244,4 @@ using u32format_context = buffer_context<char32_t>;
 
 FMT_END_NAMESPACE
 
+#define FMTSTR(syntax, ...) fmt::format(FMT_STRING(syntax), __VA_ARGS__)

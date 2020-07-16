@@ -15,6 +15,11 @@ namespace oclu
 OCLUAPI std::pair<common::simd::VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noexcept;
 OCLUAPI std::u32string_view StringifyVDataType(const common::simd::VecDataInfo vtype) noexcept;
 
+
+struct NLCLDebugExtension;
+struct KernelDebugExtension;
+
+
 class DebugDataLayout
 {
 private:
@@ -184,9 +189,10 @@ struct OCLUAPI oclDebugBlock
 
 class OCLUAPI oclDebugManager
 {
-    friend class NLCLRuntime;
+    friend struct NLCLDebugExtension;
+    friend struct KernelDebugExtension;
     friend class oclKernel_;
-private:
+protected:
     std::vector<oclDebugBlock> Blocks;
     std::unique_ptr<oclDebugInfoMan> InfoMan;
     void CheckNewBlock(const std::u32string_view name) const;
@@ -198,6 +204,7 @@ private:
     }
     std::pair<const oclDebugBlock*, uint32_t> RetriveMessage(common::span<const uint32_t> data) const;
 public:
+
     common::span<const oclDebugBlock> GetBlocks() const noexcept { return Blocks; }
     const oclDebugInfoMan& GetInfoMan() const noexcept { return *InfoMan; }
 

@@ -12,6 +12,8 @@ namespace oclu
 #   pragma warning(disable:4275 4251)
 #endif
 
+class NLCLContext;
+class NLCLRuntime;
 
 class OCLUAPI NLCLParser : xziar::nailang::BlockParser
 {
@@ -48,12 +50,96 @@ struct TemplateBlockInfo : public OutputBlock::BlockInfo
 };
 
 
-class OCLUAPI NLCLContext : public xziar::nailang::CompactEvaluateContext
+struct OCLUAPI KernelContext
+{
+    struct NamedText
+    {
+        std::u32string ID;
+        std::u32string Content;
+    };
+    std::vector<NamedText> Attributes;
+    KernelArgStore Args;
+    KernelArgStore TailArgs;
+    std::vector<NamedText> BodyPrefixes;
+    std::vector<NamedText> BodySuffixes;
+    uint32_t WorkgroupSize = 0;
+
+    static bool Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content);
+    forceinline bool AddAttribute(const std::u32string_view id, std::u32string_view content)
+    {
+        return Add(Attributes, id, content);
+    }
+    forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content)
+    {
+        return Add(BodyPrefixes, id, content);
+    }
+    forceinline bool AddBodySuffix(const std::u32string_view id, std::u32string_view content)
+    {
+        return Add(BodySuffixes, id, content);
+    }
+    template<typename... Ts>
+    forceinline void AddArg(Ts&&... args)
+    {
+        Args.AddArg(std::forward<Ts>(args)...);
+    }
+    template<typename... Ts>
+    forceinline void AddTailArg(Ts&&... args)
+    {
+        TailArgs.AddArg(std::forward<Ts>(args)...);
+    }
+    forceinline void SetDebugBuffer(uint32_t size)
+    {
+        Args.HasDebug = true;
+        Args.DebugBuffer = std::max(Args.DebugBuffer, size);
+    }
+};
+
+
+class OCLUAPI ReplaceExtension
+{
+protected:
+    NLCLContext& Context;
+    NLCLRuntime& Runtime;
+public:
+    ReplaceExtension(NLCLRuntime& runtime);
+    virtual ~ReplaceExtension();
+    virtual bool KernelMeta(const xziar::nailang::FuncCall&, KernelContext&) 
+    {
+        return false;
+    }
+    virtual std::u32string ReplaceFunc(std::u32string_view, const common::span<const std::u32string_view>)
+    {
+        return U"";
+    }
+    virtual void FinishKernel(KernelContext&) { }
+};
+class NLCLExtension : public ReplaceExtension
+{
+    friend class NLCLRuntime;
+public:
+    using ReplaceExtension::ReplaceExtension;
+    virtual ~NLCLExtension();
+    [[nodiscard]] virtual std::optional<xziar::nailang::Arg> NLCLFunc(const xziar::nailang::FuncCall&,
+        common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType)
+    {
+        return {};
+    }
+    virtual void FinishNLCL() { }
+    virtual void OnCompile(oclProgStub&) { }
+
+    using KerExtGen = std::function<std::unique_ptr<ReplaceExtension>(NLCLRuntime&, KernelContext&)>;
+    using NLCLExtGen = std::function<std::unique_ptr<NLCLExtension>(NLCLRuntime&, const xziar::nailang::Block&)>;
+    static uint32_t RegisterKernelExtenstion(KerExtGen creator) noexcept;
+    static uint32_t RegisterNLCLExtenstion(NLCLExtGen creator) noexcept;
+};
+
+
+class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public common::NonCopyable, public xziar::nailang::CompactEvaluateContext
 {
     friend class NLCLProcessor;
     friend class NLCLRuntime;
 protected:
-    oclDebugManager DebugManager;
+    std::vector<std::unique_ptr<NLCLExtension>> NLCLExts;
     xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
     [[nodiscard]] xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
 public:
@@ -68,8 +154,7 @@ public:
         static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
         if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
         {
-            PatchedBlocks.insert_or_assign(std::u32string(id),
-                (obj.*generator)(std::forward<Args>(args)...));
+            PatchedBlocks.insert_or_assign(std::u32string(id), (obj.*generator)(std::forward<Args>(args)...));
             return true;
         }
         return false;
@@ -85,11 +170,16 @@ public:
         }
         return false;
     }
+    template<typename T>
+    T& GetNLCLExt(uint32_t id)
+    {
+        return static_cast<T&>(*NLCLExts[id]);
+    }
     struct VecTypeResult
     {
         common::simd::VecDataInfo Info;
         bool TypeSupport;
-        constexpr operator bool() const noexcept { return Info.Bit != 0; }
+        constexpr explicit operator bool() const noexcept { return Info.Bit != 0; }
     };
     VecTypeResult ParseVecType(const std::u32string_view type) const noexcept;
     [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
@@ -100,20 +190,12 @@ protected:
     std::vector<OutputBlock> KernelBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
-    std::map<std::u32string, std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>, std::less<>> DebugInfos;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     bool EnableUnroll, AllowDebug;
 };
 
 
-class ReplaceExtension
-{
-public:
-    virtual ~ReplaceExtension() { }
-    virtual std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args, void* cookie) = 0;
-    virtual void Finish(void*) { }
-};
 struct BlockCookie
 {
     uint32_t Type;
@@ -135,17 +217,15 @@ struct BlockCookie
 struct KernelCookie : public BlockCookie
 {
     static constexpr uint32_t TYPE = 1;
-    std::map<std::u32string, std::u32string, std::less<>> Injects;
-    std::unique_ptr<ReplaceExtension> SubgroupSolver;
-    uint32_t WorkgroupSize = 0;
-    uint8_t  SubgroupSize = 0;
+    KernelContext Context;
+    std::vector<std::unique_ptr<ReplaceExtension>> Extensions;
     KernelCookie() noexcept : BlockCookie(TYPE) { }
 };
 
 
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
 {
-    friend class NLCLReplacer;
+    friend class ReplaceExtension;
     friend class NLCLProcessor;
     friend class NLCLSubgroup;
     friend class NLCLBaseResult;
@@ -164,9 +244,9 @@ protected:
     common::simd::VecDataInfo ParseVecType(const std::u32string_view type, 
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const noexcept;
 
-    [[nodiscard]] std::u32string DebugStringBase() noexcept;
+    /*[[nodiscard]] std::u32string DebugStringBase() noexcept;
     [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
-        common::span<const common::simd::VecDataInfo> args) noexcept;
+        common::span<const common::simd::VecDataInfo> args) noexcept;*/
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
@@ -177,6 +257,8 @@ protected:
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
+    virtual void HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<ReplaceExtension>>& kerExts);
+    virtual void StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg);
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] const OutputBlock::BlockInfo& extraInfo, std::u32string& dst);
 public:

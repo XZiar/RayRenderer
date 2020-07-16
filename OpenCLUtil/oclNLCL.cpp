@@ -1,7 +1,6 @@
 #include "oclPch.h"
 #include "oclNLCL.h"
 #include "oclNLCLRely.h"
-#include "NLCLSubgroup.h"
 #include "oclException.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Detect.h"
@@ -29,7 +28,6 @@ using common::simd::VecDataInfo;
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-#define FMTSTR(syntax, ...) fmt::format(FMT_STRING(syntax), __VA_ARGS__)
 
 
 TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
@@ -39,6 +37,48 @@ TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
     {
         ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
     }
+}
+
+
+bool KernelContext::Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content)
+{
+    for (const auto& item : container)
+        if (item.ID == id)
+            return false;
+    container.push_back(NamedText{ std::u32string(id), std::u32string(content) });
+    return true;
+}
+
+
+ReplaceExtension::ReplaceExtension(NLCLRuntime& runtime) : 
+    Context(runtime.Context), Runtime(runtime) { }
+ReplaceExtension::~ReplaceExtension() { }
+
+
+NLCLExtension::~NLCLExtension() { }
+
+
+static std::vector<NLCLExtension::KerExtGen>& KerExtGenVector() noexcept
+{
+    static std::vector<NLCLExtension::KerExtGen> container;
+    return container;
+}
+static std::vector<NLCLExtension::NLCLExtGen>& NLCLExtGenVector() noexcept
+{
+    static std::vector<NLCLExtension::NLCLExtGen> container;
+    return container;
+}
+uint32_t NLCLExtension::RegisterKernelExtenstion(KerExtGen creator) noexcept
+{
+    KerExtGenVector().push_back(std::move(creator));
+    return 0;
+}
+uint32_t NLCLExtension::RegisterNLCLExtenstion(NLCLExtGen creator) noexcept
+{
+    auto& container = NLCLExtGenVector();
+    const auto id = static_cast<uint32_t>(container.size());
+    container.push_back(std::move(creator));
+    return id;
 }
 
 
@@ -196,6 +236,7 @@ std::u32string_view NLCLContext::GetCLTypeName(common::simd::VecDataInfo info) n
 }
 
 
+
 NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx) :
     NailangRuntimeBase(evalCtx), Context(*evalCtx), Logger(logger)
 { }
@@ -259,136 +300,6 @@ common::simd::VecDataInfo NLCLRuntime::ParseVecType(const std::u32string_view va
         Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
 
     return vtype.Info;
-}
-
-std::u32string NLCLRuntime::DebugStringBase() noexcept
-{
-   return UR"(
-inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
-    const uint tid, const uint total,
-    global uint* restrict counter, global uint* restrict data)
-{
-    const uint size = dbgSize + 1;
-    const uint dId  = (dbgId + 1) << 24;
-    const uint uid  = tid & 0x00ffffffu;
-    if (total == 0) 
-        return 0;
-    if (counter[0] + size > total) 
-        return 0;
-    const uint old = atom_add(counter, size);
-    if (old >= total)
-        return 0;
-    if (old + size > total) 
-    { 
-        data[old] = uid; 
-        return 0;
-    }
-    data[old] = uid | dId;
-    return data + old + 1;
-}
-)"s;
-}
-
-std::u32string NLCLRuntime::DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
-{
-    // prepare arg layout
-    const auto& dbgBlock = Context.DebugManager.AppendBlock(dbgId, formatter, args);
-    const auto& dbgData = dbgBlock.Layout;
-    // test format
-    try
-    {
-        std::vector<std::byte> test(dbgData.TotalSize);
-        Logger.debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
-    }
-    catch (const fmt::format_error& fe)
-    {
-        HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
-        return U"// Formatter not match the datatype provided\r\n";
-    }
-
-    std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
-    func.append(U"\r\n    const  uint           tid,"sv)
-        .append(U"\r\n    const  uint           total,"sv)
-        .append(U"\r\n    global uint* restrict counter,"sv)
-        .append(U"\r\n    global uint* restrict data,"sv);
-    for (size_t i = 0; i < args.size(); ++i)
-    {
-        APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLContext::GetCLTypeName(args[i]), i);
-    }
-    func.pop_back();
-    func.append(U")\r\n{"sv);
-    static constexpr auto syntax = UR"(
-    global uint* const restrict ptr = oglu_debug({}, {}, tid, total, counter, data);
-    if (ptr == 0) return;)"sv;
-    APPEND_FMT(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
-    const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
-    {
-        const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
-        const auto dstTypeStr  = NLCLContext::GetCLTypeName(dtype);
-        std::u32string getData = needConv ?
-            fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), NLCLContext::GetCLTypeName(vtype), argIdx, argAccess) :
-            fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
-        if (vsize == 1)
-        {
-            APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / (dtype.Bit / 8), getData);
-        }
-        else
-        {
-            APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
-        }
-    };
-    for (const auto& [info, offset, idx] : dbgData.ByLayout())
-    {
-        const auto size = info.Bit * info.Dim0;
-        APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv,
-            idx, offset, size / 8, StringifyVDataType(info));
-        for (const auto eleBit : std::array<uint8_t, 3>{ 32u,16u,8u })
-        {
-            const auto eleByte = eleBit / 8;
-            if (size % eleBit == 0)
-            {
-                VecDataInfo dstType{ VecDataInfo::DataTypes::Unsigned, eleBit, 1, 0 };
-                const bool needConv = info.Bit != dstType.Bit || info.Type != VecDataInfo::DataTypes::Unsigned;
-                const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
-                // For 32bit:
-                // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
-                // 32bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                // 16bit: 2,4,8,16     -> 1,2,4,8
-                //  8bit: 4,8,16       -> 1,2,4
-                // For 16bit:
-                // 16bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                //  8bit: 2,4,8,16     -> 1,2,4,8
-                // For 8bit:
-                //  8bit: 1,2,3,4,8,16 -> 1,2,3(2+1),4,8,16
-                if (cnt == 32u)
-                {
-                    Expects(info.Bit == 64 && info.Dim0 == 16);
-                    WriteOne(offset + eleByte * 0 , idx, 16, dstType, U".s01234567"sv, needConv);
-                    WriteOne(offset + eleByte * 16, idx, 16, dstType, U".s89abcdef"sv, needConv);
-                }
-                else if (cnt == 6u)
-                {
-                    Expects(info.Bit == 64 && info.Dim0 == 3);
-                    WriteOne(offset + eleByte * 0, idx, 4, dstType, U".s01"sv, needConv);
-                    WriteOne(offset + eleByte * 4, idx, 2, dstType, U".s2"sv,  needConv);
-                }
-                else if (cnt == 3u)
-                {
-                    Expects(info.Bit == dstType.Bit && info.Dim0 == 3);
-                    WriteOne(offset + eleByte * 0, idx, 2, dstType, U".s01"sv, needConv);
-                    WriteOne(offset + eleByte * 2, idx, 1, dstType, U".s2"sv,  needConv);
-                }
-                else
-                {
-                    Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
-                    WriteOne(offset, idx, cnt, dstType, {}, needConv);
-                }
-                break;
-            }
-        }
-    }
-    func.append(U"\r\n}\r\n"sv);
-    return func;
 }
 
 void NLCLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u32string_view cond, const std::u32string_view content)
@@ -472,20 +383,10 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         }
         return;
     }
+    const auto kerCk = BlockCookie::Get<KernelCookie>(cookie);
     if (IsBeginWith(func, U"oclu."sv))
     {
         const auto subName = func.substr(5);
-        const auto kerCk = BlockCookie::Get<KernelCookie>(cookie);
-        if (kerCk && kerCk->SubgroupSolver)
-        {
-            const auto ret = kerCk->SubgroupSolver->ReplaceFunc(subName, args, kerCk);
-            if (!ret.empty())
-            {
-                output.append(ret);
-                return;
-            }
-        }
-
         switch (hash_(subName))
         {
         HashCase(subName, U"GetVecTypeName")
@@ -522,62 +423,31 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
                 DirectOutput(*block->Block, block->MetaFunc, output, reinterpret_cast<BlockCookie*>(cookie));
             }
         } return;
-        HashCase(subName, U"DebugString")
-        {
-            ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
-            if (!Context.AllowDebug)
-            {
-                //AddPatchedBlock(*this, U"SkipDebug"sv, &NLCLRuntime::SkipDebugPatch);
-                //output.append(U"oclu_SkipDebug()"sv);
-                output.append(U"do{} while(false)"sv);
-            }
-            else if (kerCk)
-            {
-                const auto id = args[0];
-                const auto info = common::container::FindInMap(Context.DebugInfos, id);
-                if (!info)
-                    NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
-                
-                kerCk->Injects.insert_or_assign(U"oclu_debug", UR"(
-    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
-    if (_oclu_debug_buffer_size > 0)
-    {
-        if (_oclu_thread_id == 0)
-        {
-            _oclu_debug_buffer_info[1] = get_global_size(0);
-            _oclu_debug_buffer_info[2] = get_global_size(1);
-            _oclu_debug_buffer_info[3] = get_global_size(2);
-            _oclu_debug_buffer_info[4] = get_local_size(0);
-            _oclu_debug_buffer_info[5] = get_local_size(1);
-            _oclu_debug_buffer_info[6] = get_local_size(2);
-        }
-
-#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
-        const ushort sgid  = get_sub_group_id();
-        const ushort sglid = get_sub_group_local_id();
-        const uint sginfo  = sgid * 65536u + sglid;
-#else
-        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
-#endif
-        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
-    }
-)"sv);
-                Context.AddPatchedBlock(*this, U" oglu_debug"sv, &NLCLRuntime::DebugStringBase);
-                Context.AddPatchedBlock(*this, id, &NLCLRuntime::DebugStringPatch, id, info->first, info->second);
-                
-                std::u32string str = fmt::format(FMT_STRING(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, "sv), id);
-                for (size_t i = 1; i < args.size(); ++i)
-                {
-                    APPEND_FMT(str, U"{}, "sv, args[i]);
-                }
-                str.pop_back();
-                str.back() = U')';
-                output.append(str);
-            }
-            else
-                NLRT_THROW_EX(u"Repalcer-Func [DebugString] only support inside kernel.");
-        } return;
         default: break;
+        }
+    }
+
+    for (const auto& ext : Context.NLCLExts)
+    {
+        if (!ext) continue;
+        const auto ret = ext->ReplaceFunc(func, args);
+        if (!ret.empty())
+        {
+            output.append(ret);
+            return;
+        }
+    }
+    if (kerCk)
+    {
+        for (const auto& ext : kerCk->Extensions)
+        {
+            if (!ext) continue;
+            const auto ret = ext->ReplaceFunc(func, args);
+            if (!ret.empty())
+            {
+                output.append(ret);
+                return;
+            }
         }
     }
     NLRT_THROW_EX(u"replace-function not ready"sv);
@@ -642,12 +512,6 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 Context.EnableUnroll = true;
             }
         } return {};
-        HashCase(subName, U"EnableDebug")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
-            Logger.verbose(u"Manually enable debug.\n");
-            Context.AllowDebug = true;
-        } return {};
         HashCase(subName, U"Log")
         {
             ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
@@ -671,50 +535,16 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 }
             }
         } return {};
-        HashCase(subName, U"DefineDebugString")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
-            ThrowByArgCount(call, 3, ArgLimits::AtLeast);
-            const auto arg2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
-            const auto id = arg2[0].GetStr().value();
-            const auto formatter = arg2[1].GetStr().value();
-            std::vector<common::simd::VecDataInfo> argInfos;
-            argInfos.reserve(call.Args.size() - 2);
-            size_t i = 2;
-            for (const auto& rawarg : call.Args.subspan(2))
-            {
-                const auto arg = EvaluateArg(rawarg);
-                if (!arg.IsStr())
-                    NLRT_THROW_EX(fmt::format(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]"sv, i, ArgTypeName(arg.TypeData)), call);
-                const auto vtype = ParseVecType(arg.GetStr().value(), [&]() 
-                    {
-                        return fmt::format(FMT_STRING(u"Arg[{}] of [DefineDebugString]"sv), i);
-                    });
-                argInfos.push_back(vtype);
-            }
-            if (!Context.DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos))
-                .second)
-                NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
-        } return {};
-        HashCase(subName, U"AddSubgroupPatch")
-        {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
-            ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-            const auto args = EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-            const auto isShuffle = args[0].GetBool().value();
-            const auto vtype = args[1].GetStr().value();
-
-            SubgroupAttributes sgAttr;
-            sgAttr.Mimic = SubgroupMimicParser(args[2].GetStr().value_or(std::u32string_view{}))
-                .value_or(SubgroupAttributes::MimicType::Auto);
-            sgAttr.Args = common::str::to_string(args[3].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
-            const auto solver = NLCLSubgroup::Generate(this, sgAttr);
-            std::array strs{ vtype, U"x"sv, U"y"sv };
-
-            solver->ReplaceFunc(isShuffle ? U"SubgroupShuffle"sv : U"SubgroupBroadcast"sv, strs, nullptr);
-            solver->Finish(nullptr);
-        } return {};
         default: break;
+        }
+        for (const auto& ext : Context.NLCLExts)
+        {
+            if (ext)
+            {
+                auto ret = ext->NLCLFunc(call, metas, target);
+                if (ret)
+                    return std::move(ret.value());
+            }
         }
     }
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
@@ -801,47 +631,29 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"",             ImgAccess::ReadWrite));
 
 
-void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
+void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<ReplaceExtension>>& kerExts)
 {
-    KernelCookie cookie;
-    KernelArgStore argInfos;
-    SubgroupAttributes sgAttr;
-    std::vector<std::u32string> argTexts;
-    APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
-    for (auto meta : metas)
+    if (meta.Name == U"MetaIf")
     {
-        if (meta.Name == U"MetaIf")
-        {
-            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
-            if (!args[0].GetBool().value())
-                continue;
-            meta.Name = args[1].GetStr().value();
-            meta.Args = meta.Args.subspan(2);
-        }
-        if (!IsBeginWith(meta.Name, U"oclu.")) continue;
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
+        if (!args[0].GetBool().value())
+            return;
+        FuncCall newMeta{ args[1].GetStr().value(), meta.Args.subspan(2) };
+        return HandleKernelMeta(newMeta, kerCtx, kerExts);
+    }
+    if (IsBeginWith(meta.Name, U"oclu."))
+    {
         switch (const auto subName = meta.Name.substr(5); hash_(subName))
         {
         HashCase(subName, U"RequestWorkgroupSize")
         {
             const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
             const auto x = args[0].GetUint().value_or(1),
-                       y = args[1].GetUint().value_or(1),
-                       z = args[2].GetUint().value_or(1);
-            cookie.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
-            APPEND_FMT(dst, U"__attribute__((reqd_work_group_size({}, {}, {})))\r\n"sv, x, y, z);
-        } break;
-        HashCase(subName, U"SubgroupSize")
-        {
-            const auto sgSize = EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
-            cookie.SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
-        } break;
-        HashCase(subName, U"SubgroupExt")
-        {
-            const auto args = EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-            sgAttr.Mimic = SubgroupMimicParser(args[0].GetStr().value_or(std::u32string_view{}))
-                .value_or(SubgroupAttributes::MimicType::Auto);
-            sgAttr.Args = common::str::to_string(args[1].GetStr().value_or(std::u32string_view{}), Charset::ASCII);
-        } break;
+                y = args[1].GetUint().value_or(1),
+                z = args[2].GetUint().value_or(1);
+            kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
+            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"__attribute__((reqd_work_group_size({}, {}, {})))"sv, x, y, z));
+        } return;
         HashCase(subName, U"SimpleArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
@@ -860,27 +672,22 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                             &meta);
                         return flag;
                     }, KerArgFlag::None);
-            argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {}"sv),
-                ArgFlags::ToCLString(space.value()),
-                HAS_FIELD(flags, KerArgFlag::Const) ? U"const"sv : U""sv,
-                argType,
-                name));
-            argInfos.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, KerArgFlag::None, // const will be ignored for simple arg
+            kerCtx.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, flags,
                 common::str::to_string(name, Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } break;
+        } return;
         HashCase(subName, U"BufArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
             KernelArgInfo info;
-            const auto space_  = args[0].GetStr().value();
-            const auto space   = KerArgSpaceParser(space_);
-            if (!space) 
+            const auto space_ = args[0].GetStr().value();
+            const auto space = KerArgSpaceParser(space_);
+            if (!space)
                 NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
             const auto argType = std::u32string(args[1].GetStr().value()) + U'*';
-            const auto name    = args[2].GetStr().value();
-            const auto flags   = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
-                .Reduce([&](KerArgFlag flag, std::u32string_view part) 
+            const auto name = args[2].GetStr().value();
+            const auto flags = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
+                .Reduce([&](KerArgFlag flag, std::u32string_view part)
                     {
                         if (part == U"const"sv)     return flag | KerArgFlag::Const;
                         if (part == U"restrict"sv)  return flag | KerArgFlag::Restrict;
@@ -891,17 +698,10 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
                     }, KerArgFlag::None);
             if (space.value() == KerArgSpace::Private)
                 NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), &meta);
-            argTexts.emplace_back(fmt::format(FMT_STRING(U"{:8} {:5} {} {} {} {}"sv),
-                ArgFlags::ToCLString(space.value()),
-                HAS_FIELD(flags, KerArgFlag::Const)    ? U"const"sv    : U""sv,
-                HAS_FIELD(flags, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
-                argType,
-                HAS_FIELD(flags, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
-                name));
-            argInfos.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
-                common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
+            kerCtx.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
+                common::str::to_string(name, Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } break;
+        } return;
         HashCase(subName, U"ImgArg")
         {
             const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
@@ -911,84 +711,123 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
             if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), &meta);
             const auto argType = args[1].GetStr().value();
             const auto name = args[2].GetStr().value();
-            argTexts.emplace_back(fmt::format(FMT_STRING(U"{:10} {} {}"sv),
-                ArgFlags::ToCLString(access.value()),
-                argType,
-                name));
-            argInfos.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
+            kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
                 common::str::to_string(name, Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } break;
-        HashCase(subName, U"DebugOutput")
-        {
-            if (!Context.AllowDebug)
-            {
-                Logger.info(u"DebugOutput is disabled and ignored.\n");
-                break;
-            }
-            EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
-            EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
-            argInfos.HasDebug = true;
-            argInfos.DebugBuffer = gsl::narrow_cast<uint32_t>(
-                EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint().value_or(512));
-        }
+        } return;
         default:
             break;
         }
-    }
-    if (sgAttr.Mimic != SubgroupAttributes::MimicType::None)
-    {
-        const bool specifiedSgSize = cookie.SubgroupSize != 0;
-        if (cookie.SubgroupSize == 0)
-            cookie.SubgroupSize = gsl::narrow_cast<uint8_t>(cookie.WorkgroupSize);
-        if (cookie.WorkgroupSize != cookie.SubgroupSize && cookie.WorkgroupSize != 0)
-            NLRT_THROW_EX(fmt::format(u"MimicSubgroup requires only 1 subgroup for an workgroup, now have subgroup[{}] and workgroup [{}]."sv,
-                cookie.SubgroupSize, cookie.WorkgroupSize));
-        else if (cookie.SubgroupSize == 0) // means SubgroupSize == 0, WorkgroupSize == 0
-            NLRT_THROW_EX(u"MimicSubgroup without knowing subgroupSize."sv);
-        if (!specifiedSgSize && Context.Device->GetPlatform()->PlatVendor == oclu::Vendors::Intel)
+        for (const auto& ext : Context.NLCLExts)
         {
-            EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv);
-            APPEND_FMT(dst, U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv, cookie.SubgroupSize);
+            if (ext && ext->KernelMeta(meta, kerCtx))
+                return;
+        }
+        for (const auto& ext : kerExts)
+        {
+            if (ext && ext->KernelMeta(meta, kerCtx))
+                return;
         }
     }
-    if (cookie.SubgroupSize > 0)
+}
+
+void NLCLRuntime::StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg)
+{
+    switch (arg.ArgType)
     {
-        if (EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
-            APPEND_FMT(dst, U"__attribute__((intel_reqd_sub_group_size({})))\r\n"sv, cookie.SubgroupSize);
-        else
-            Logger.verbose(u"Skip subgroup size due to non-intel platform.\n");
+    case KerArgType::Simple:
+        APPEND_FMT(out, U"{:8} {:5}  {} {}", ArgFlags::ToCLString(arg.Space),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    case KerArgType::Buffer:
+        APPEND_FMT(out, U"{:8} {:5} {} {} {} {}", ArgFlags::ToCLString(arg.Space),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    case KerArgType::Image:
+        APPEND_FMT(out, U"{:10} {} {}", ArgFlags::ToCLString(arg.Access),
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    default:
+        NLRT_THROW_EX(u"Does not support KerArg of type[Any]");
+        break;
+    }
+}
+
+void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst)
+{
+    KernelCookie cookie;
+    KernelContext& kerCtx = cookie.Context;
+    for (const auto& creator : KerExtGenVector())
+    {
+        cookie.Extensions.push_back(creator(*this, kerCtx));
+    }
+    APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
+    for (const auto& meta : metas)
+    {
+        HandleKernelMeta(meta, kerCtx, cookie.Extensions);
+    }
+
+    std::u32string content;
+    DirectOutput(block, metas, content, &cookie);
+    for (const auto& ext : Context.NLCLExts)
+    {
+        if (ext)
+            ext->FinishKernel(kerCtx);
+    }
+    for (const auto& ext : cookie.Extensions)
+    {
+        if (ext)
+            ext->FinishKernel(kerCtx);
+    }
+
+    for (const auto& item : kerCtx.Attributes)
+    {
+        dst.append(item.Content).append(U"\r\n"sv);
     }
     APPEND_FMT(dst, U"kernel void {} ("sv, block.Name);
-    for (const auto& argText : argTexts)
+    for (const auto& arg : kerCtx.Args)
     {
-        dst.append(U"\r\n    "sv).append(argText).append(U","sv);
+        dst.append(U"\r\n    "sv);
+        StringifyKernelArg(dst, arg);
+        dst.append(U","sv);
     }
-    if (argInfos.HasDebug)
+    for (const auto& arg : kerCtx.TailArgs)
     {
-        dst .append(U"\r\n    const  uint           _oclu_debug_buffer_size,"sv)
-            .append(U"\r\n    global uint* restrict _oclu_debug_buffer_info,"sv)
-            .append(U"\r\n    global uint* restrict _oclu_debug_buffer_data,"sv);
+        dst.append(U"\r\n    "sv);
+        StringifyKernelArg(dst, arg);
+        dst.append(U","sv);
     }
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
-    std::u32string content;
 
-    sgAttr.SubgroupSize = cookie.SubgroupSize;
-    cookie.SubgroupSolver = NLCLSubgroup::Generate(this, sgAttr);
-
-    DirectOutput(block, metas, content, &cookie);
-    cookie.SubgroupSolver->Finish(&cookie);
-
-    for (const auto& [key, val] : cookie.Injects)
+    for (const auto& item : kerCtx.BodyPrefixes)
     {
-        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, key);
-        dst.append(val);
-        dst.append(U"\r\n"sv);
+        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, item.ID);
+        dst.append(item.Content).append(U"\r\n"sv);
     }
     dst.append(content);
+    for (const auto& item : kerCtx.BodySuffixes)
+    {
+        APPEND_FMT(dst, U"    // below injected by {}\r\n"sv, item.ID);
+        dst.append(item.Content).append(U"\r\n"sv);
+    }
+
     dst.append(U"}\r\n"sv);
-    Context.CompiledKernels.emplace_back(common::str::to_string(block.Name, Charset::UTF8, Charset::UTF32), std::move(argInfos));
+    for (auto& arg : kerCtx.Args.ArgsInfo)
+    {
+        if (arg.ArgType == KerArgType::Simple)
+            arg.Qualifier = REMOVE_MASK(arg.Qualifier, KerArgFlag::Const); // const will be ignored for simple arg
+    }
+    Context.CompiledKernels.emplace_back(
+        common::str::to_string(block.Name, Charset::UTF8, Charset::UTF32), 
+        std::move(kerCtx.Args));
 }
 
 void NLCLRuntime::OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, 
@@ -1087,9 +926,6 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 
 std::string NLCLRuntime::GenerateOutput()
 {
-    Context.DebugManager.InfoMan = Context.SupportBasicSubgroup ?
-        static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<SubgroupInfoMan>()) : 
-        static_cast<std::unique_ptr<oclDebugInfoMan>>(std::make_unique<NonSubgroupInfoMan>());
     std::u32string prefix, output;
 
     for (const auto& item : Context.OutputBlocks)
@@ -1104,6 +940,11 @@ std::string NLCLRuntime::GenerateOutput()
         default: break;
         }
         Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", item.Block->Type, item.Block->Name); break;
+    }
+    for (const auto& ext : Context.NLCLExts)
+    {
+        if (ext)
+            ext->FinishNLCL();
     }
 
     { // Output extentions
@@ -1228,6 +1069,10 @@ NLCLProcessor::~NLCLProcessor()
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {
+    for (const auto& creator : NLCLExtGenVector())
+    {
+        stub.Context->NLCLExts.push_back(creator(*stub.Runtime, stub.Program->Program));
+    }
     // Prepare
     stub.Program->ForEachBlockType<true, true>(U"oclu.Prepare"sv,
         [&](const Block& block, common::span<const FuncCall> metas) 
@@ -1254,8 +1099,12 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
     try
     {
         auto progStub = oclProgram_::Create(ctx, str, stub.Context->Device);
+        for (const auto& ext : stub.Context->NLCLExts)
+        {
+            if (ext)
+                ext->OnCompile(progStub);
+        }
         progStub.ImportedKernelInfo = std::move(stub.Context->CompiledKernels);
-        progStub.DebugManager = std::move(stub.Context->DebugManager);
         progStub.Build(config);
         return std::make_unique<NLCLBuiltResult>(stub.Context, progStub.Finish());
     }

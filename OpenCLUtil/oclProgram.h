@@ -77,6 +77,8 @@ class OCLUAPI KernelArgStore : public common::StringPool<char>
 {
     friend class oclKernel_;
     friend class NLCLRuntime;
+    friend struct KernelContext;
+    friend struct KernelDebugExtension;
 protected:
     struct ArgInfo : public ArgFlags
     {
@@ -84,7 +86,7 @@ protected:
         common::StringPiece<char> Type;
     };
     std::vector<ArgInfo> ArgsInfo;
-    std::uint32_t DebugBuffer;
+    uint32_t DebugBuffer;
     bool HasInfo, HasDebug;
     KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
     size_t GetSize() const noexcept { return ArgsInfo.size(); }
@@ -282,10 +284,31 @@ struct CLProgConfig
 };
 
 
+class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
+{
+    friend class oclProgram_;
+    friend class NLCLProcessor;
+    friend struct NLCLDebugExtension;
+private:
+    oclContext Context;
+    oclDevice Device;
+    std::string Source;
+    cl_program ProgID;
+    std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
+    oclDebugManager DebugManager;
+    oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
+public:
+    ~oclProgStub();
+    void Build(const CLProgConfig& config);
+    [[nodiscard]] std::u16string GetBuildLog() const;
+    [[nodiscard]] oclProgram Finish();
+};
+
 class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, public common::NonCopyable
 {
     friend class oclContext_;
     friend class oclKernel_;
+    friend class oclProgStub;
 private:
     MAKE_ENABLER();
     const oclContext Context;
@@ -297,24 +320,6 @@ private:
     std::shared_ptr<oclDebugManager> DebugManager;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
-    class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
-    {
-        friend class oclProgram_;
-        friend class NLCLProcessor;
-    private:
-        oclContext Context;
-        oclDevice Device;
-        std::string Source;
-        cl_program ProgID;
-        std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
-        oclDebugManager DebugManager;
-    public:
-        oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
-        ~oclProgStub();
-        void Build(const CLProgConfig& config);
-        [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
-        [[nodiscard]] oclProgram Finish();
-    };
     oclProgram_(oclProgStub* stub);
 public:
     ~oclProgram_();
