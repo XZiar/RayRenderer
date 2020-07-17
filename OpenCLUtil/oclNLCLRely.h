@@ -171,9 +171,9 @@ public:
         return false;
     }
     template<typename T>
-    T& GetNLCLExt(uint32_t id)
+    T& GetNLCLExt() const
     {
-        return static_cast<T&>(*NLCLExts[id]);
+        return static_cast<T&>(*NLCLExts[T::ID]);
     }
     struct VecTypeResult
     {

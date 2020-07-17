@@ -17,6 +17,7 @@ using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
+using xziar::nailang::FrameFlags;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
@@ -413,7 +414,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
             {
                 const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
                 ThrowByReplacerArgCount(func, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
-                auto frame = PushFrame(extra.ReplaceArgs.size() > 0, StackFrame::LoopStates::NotInLoop);
+                auto frame = PushFrame(extra.ReplaceArgs.size() > 0, FrameFlags::FlowScope);
                 for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
                 {
                     std::u32string name = U":"; name += extra.ReplaceArgs[i];
@@ -892,7 +893,7 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
 
 void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
-    auto frame = PushFrame(StackFrame::LoopStates::NotInLoop);
+    auto frame = PushFrame(FrameFlags::FlowScope);
     if (IsBeginWith(block.Type, U"oclu."sv) &&
         HandleMetaFuncs(metas, BlockContent::Generate(&block)))
     {
@@ -936,7 +937,7 @@ std::string NLCLRuntime::GenerateOutput()
 
     for (const auto& item : Context.OutputBlocks)
     {
-        auto frame = PushFrame(StackFrame::LoopStates::NotInLoop);
+        auto frame = PushFrame(FrameFlags::FlowScope);
         switch (hash_(item.Block->Type))
         {
         HashCase(item.Block->Type, U"oclu.Global")     OutputGlobal(*item.Block, item.MetaFunc, output); continue;

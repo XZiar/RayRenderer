@@ -178,6 +178,10 @@ struct NLCLDebugExtension : public NLCLExtension
             return std::make_unique<NLCLDebugExtension>(runtime);
         });
 };
+void SetAllowDebug(const NLCLContext& context) noexcept
+{
+    context.GetNLCLExt<NLCLDebugExtension>().AllowDebug = true;
+}
 
 struct KernelDebugExtension : public ReplaceExtension
 {
@@ -188,7 +192,7 @@ public:
     bool HasDebug = false;
     KernelDebugExtension(NLCLRuntime& runtime, KernelContext& kernel) :
         ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)),
-        Kernel(kernel), Host(Context.GetNLCLExt<NLCLDebugExtension>(NLCLDebugExtension::ID))
+        Kernel(kernel), Host(Context.GetNLCLExt<NLCLDebugExtension>())
     { }
     ~KernelDebugExtension() override { }
 

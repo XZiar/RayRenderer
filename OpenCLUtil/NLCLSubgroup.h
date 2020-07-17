@@ -80,7 +80,7 @@ struct KernelSubgroupExtension : public ReplaceExtension
 
     KernelSubgroupExtension(NLCLRuntime& runtime, KernelContext& kernel) :
         ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)), Kernel(kernel),
-        Provider(Context.GetNLCLExt<NLCLSubgroupExtension>(NLCLSubgroupExtension::ID).DefaultProvider)
+        Provider(Context.GetNLCLExt<NLCLSubgroupExtension>().DefaultProvider)
     { }
     ~KernelSubgroupExtension() override { }
 

@@ -18,6 +18,7 @@ OCLUAPI std::u32string_view StringifyVDataType(const common::simd::VecDataInfo v
 
 struct NLCLDebugExtension;
 struct KernelDebugExtension;
+OCLUAPI void SetAllowDebug(const NLCLContext& context) noexcept;
 
 
 class DebugDataLayout

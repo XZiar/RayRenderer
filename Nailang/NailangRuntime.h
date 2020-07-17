@@ -102,7 +102,7 @@ private:
 struct LocalFunc
 {
     const Block* Body;
-    common::span<std::u32string_view> ArgNames;
+    common::span<const std::u32string_view> ArgNames;
 
     [[nodiscard]] constexpr explicit operator bool() const noexcept { return Body != nullptr; }
 };
@@ -137,11 +137,9 @@ public:
 
     [[nodiscard]] virtual Arg LookUpArg(detail::VarHolder var) const;
                   virtual bool SetArg(detail::VarHolder var, Arg arg);
-    [[nodiscard]] virtual detail::LocalFunc LookUpFunc(std::u32string_view name) = 0;
+    [[nodiscard]] virtual detail::LocalFunc LookUpFunc(std::u32string_view name) const = 0;
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
                   virtual bool SetFunc(const detail::LocalFunc& func) = 0;
-                  virtual void SetReturnArg(Arg arg) = 0;
-    [[nodiscard]] virtual Arg  GetReturnArg() const = 0;
     [[nodiscard]] virtual size_t GetArgCount() const noexcept = 0;
     [[nodiscard]] virtual size_t GetFuncCount() const noexcept = 0;
 };
@@ -151,18 +149,14 @@ class NAILANGAPI BasicEvaluateContext : public EvaluateContext
 protected:
     using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
     std::vector<std::u32string_view> LocalFuncArgNames;
-    Arg ReturnArg;
     virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
-    [[nodiscard]] virtual detail::LocalFunc LookUpFuncInside(std::u32string_view name) = 0;
+    [[nodiscard]] virtual detail::LocalFunc LookUpFuncInside(std::u32string_view name) const = 0;
 public:
     ~BasicEvaluateContext() override;
 
-    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) override;
+    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) const override;
     bool SetFunc(const Block* block, common::span<const RawArg> args) override;
     bool SetFunc(const detail::LocalFunc& func) override;
-
-    void SetReturnArg(Arg arg) override;
-    [[nodiscard]] Arg GetReturnArg() const override;
 };
 
 class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
@@ -173,7 +167,7 @@ protected:
 
     [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
-    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) override;
+    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~LargeEvaluateContext() override;
@@ -193,7 +187,7 @@ protected:
 
     [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
     bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
-    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) override;
+    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
@@ -344,6 +338,15 @@ public:
 
 
 enum class ArgLimits { Exact, AtMost, AtLeast };
+enum class FrameFlags : uint8_t
+{
+    Empty     = 0b0,
+    InLoop    = 0b1,
+    FlowScope = 0b10,
+    CallScope = 0b110,
+};
+MAKE_ENUM_BITFIELD(FrameFlags)
+
 class NAILANGAPI NailangRuntimeBase
 {
 public:
@@ -351,40 +354,55 @@ public:
     static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
     static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
     static std::u32string_view FuncTargetName(const FuncTargetType type) noexcept;
-    enum class ProgramStatus { Next = 0, Break, Return, End };
-    enum class MetaFuncResult { Unhandled = 0, Next, Skip, Return };
+    enum class ProgramStatus  : uint8_t { Next, Break, Return, End };
+    enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
 protected:
-
+    class FrameHolder;
     struct StackFrame
     {
-        enum class LoopStates : uint8_t { Inhirit, InLoop, NotInLoop };
+        friend class FrameHolder;
+    private:
         StackFrame* PrevFrame = nullptr;
+    public:
         std::shared_ptr<EvaluateContext> Context;
         common::span<const FuncCall> MetaScope;
         const Block* BlockScope = nullptr;
+        Arg ReturnArg;
         ProgramStatus Status = ProgramStatus::Next;
-        LoopStates LoopState = LoopStates::Inhirit;
-        constexpr StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { }
-        bool CheckIsInLoop() const noexcept
+        FrameFlags Flags = FrameFlags::Empty;
+        StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { }
+        constexpr bool IsInLoop() const noexcept
         {
             for (auto frame = this; frame; frame = frame->PrevFrame)
             {
-                switch (frame->LoopState)
-                {
-                case LoopStates::InLoop:    return true;
-                case LoopStates::NotInLoop: return false;
-                default:                    continue;
-                }
+                if (HAS_FIELD(frame->Flags, FrameFlags::FlowScope)) // cannot pass flow scope
+                    return false;
+                if (HAS_FIELD(frame->Flags, FrameFlags::InLoop))
+                    return true;
             }
             return false;
         }
+        constexpr StackFrame* GetCallScope() noexcept
+        {
+            for (auto frame = this; frame; frame = frame->PrevFrame)
+            {
+                if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
+                    return frame;
+            }
+            return nullptr;
+        }
     };
-    struct NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
+    class NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
     {
         NailangRuntimeBase& Host;
         StackFrame Frame;
-        FrameHolder(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& ctx, const StackFrame::LoopStates loopState);
+    public:
+        FrameHolder(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& ctx, const FrameFlags flags);
         ~FrameHolder();
+        constexpr StackFrame* operator->() const noexcept
+        {
+            return Frame.PrevFrame;
+        }
     };
 
     std::shared_ptr<EvaluateContext> RootContext;
@@ -423,20 +441,19 @@ protected:
         return args;
     }
 
-    [[nodiscard]] FrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit);
-    [[nodiscard]] FrameHolder PushFrame(const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit)
+    [[nodiscard]] FrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, const FrameFlags flags = FrameFlags::Empty);
+    [[nodiscard]] forceinline FrameHolder PushFrame(const FrameFlags flags = FrameFlags::Empty)
     {
-        return PushFrame(ConstructEvalContext(), loopState);
+        return PushFrame(ConstructEvalContext(), flags);
     }
-    [[nodiscard]] FrameHolder PushFrame(const bool innerScope, const StackFrame::LoopStates loopState = StackFrame::LoopStates::Inhirit)
+    [[nodiscard]] forceinline FrameHolder PushFrame(const bool innerScope, const FrameFlags flags = FrameFlags::Empty)
     {
-        return PushFrame(innerScope ? ConstructEvalContext() : RootContext, loopState);
+        return PushFrame(innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), flags);
     }
     [[nodiscard]] EvaluateContext& GetContextRef() const;
                   void ExecuteFrame();
     [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const BlockContent& target);
                   void HandleContent    (const BlockContent& content, common::span<const FuncCall> metas);
-                  void OnInnerBlock     (const Block& block, common::span<const FuncCall> metas);
                   void OnLoop           (const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
