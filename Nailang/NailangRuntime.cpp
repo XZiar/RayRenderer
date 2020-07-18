@@ -13,55 +13,18 @@
 namespace xziar::nailang
 {
 using namespace std::string_view_literals;
-using VarType = detail::VarHolder::VarType;
 
 
 EvaluateContext::~EvaluateContext()
 { }
 
-Arg EvaluateContext::LookUpArg(detail::VarHolder var) const
-{
-    if (var.GetType() == VarType::Root)
-        return FindRoot()->LookUpArgInside(var);
-    auto arg = LookUpArgInside(var);
-    if (var.GetType() != VarType::Local && arg.TypeData == Arg::Type::Empty && ParentContext)
-        return ParentContext->LookUpArg(var);
-    else
-        return arg;
-}
-
-bool EvaluateContext::SetArg(detail::VarHolder var, Arg arg)
-{
-    detail::VarLookup lookup(var);
-    switch (var.GetType())
-    {
-    case VarType::Local:    
-        return SetArgInside(lookup, arg, true);
-    case VarType::Normal:   
-        for (auto* ctx = this; ctx; ctx = ctx->ParentContext.get())
-        {
-            if (ctx->SetArgInside(lookup, arg, false))
-                return true;
-        }
-        return SetArgInside(lookup, arg, true);
-    case VarType::Root: 
-        return FindRoot()->SetArgInside(lookup, arg, true);
-    }
-    Expects(false);
-    return false;
-}
-
-
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
-detail::LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name) const
+LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name) const
 {
-    auto func = LookUpFuncInside(name);
-    if (func.Body == nullptr && ParentContext)
-        return ParentContext->LookUpFunc(name);
-    else
-        return func;
+    const auto [ptr, offset, size] = LookUpFuncInside(name);
+    return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
 }
 
 bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
@@ -74,28 +37,41 @@ bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg
     return SetFuncInside(block->Name, { block, offset, size });
 }
 
-bool BasicEvaluateContext::SetFunc(const detail::LocalFunc & func)
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const std::u32string_view> args)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
-        size = gsl::narrow_cast<uint32_t>(func.ArgNames.size());
+        size = gsl::narrow_cast<uint32_t>(args.size());
     LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
-    for (const auto& name : func.ArgNames)
+    for (const auto& name : args)
         LocalFuncArgNames.emplace_back(name);
-    return SetFuncInside(func.Body->Name, { func.Body, offset, size });
+    return SetFuncInside(block->Name, { block, offset, size });
 }
 
 
 LargeEvaluateContext::~LargeEvaluateContext()
 { }
 
-Arg LargeEvaluateContext::LookUpArgInside(detail::VarLookup var) const
+bool LargeEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
+{
+    return LocalFuncMap.insert_or_assign(name, func).second;
+}
+
+BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std::u32string_view name) const
+{
+    const auto it = LocalFuncMap.find(name);
+    if (it == LocalFuncMap.end())
+        return { nullptr, 0, 0 };
+    return it->second;
+}
+
+Arg LargeEvaluateContext::LookUpArg(VarLookup var) const
 {
     if (const auto it = ArgMap.find(var.GetFull()); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
-bool LargeEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
+bool LargeEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
 {
     auto it = ArgMap.find(var.GetFull());
     const bool hasIt = it != ArgMap.end();
@@ -122,20 +98,6 @@ bool LargeEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bo
     }
 }
 
-bool LargeEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
-{
-    return LocalFuncMap.insert_or_assign(name, func).second;
-}
-
-detail::LocalFunc LargeEvaluateContext::LookUpFuncInside(std::u32string_view name) const
-{
-    const auto it = LocalFuncMap.find(name);
-    if (it == LocalFuncMap.end())
-        return { nullptr, {} };
-    const auto [ptr, offset, size] = it->second;
-    return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
-}
-
 size_t LargeEvaluateContext::GetArgCount() const noexcept
 {
     return ArgMap.size();
@@ -150,13 +112,36 @@ size_t LargeEvaluateContext::GetFuncCount() const noexcept
 CompactEvaluateContext::~CompactEvaluateContext()
 { }
 
-
 std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const uint32_t len) const noexcept
 {
     return { &StrPool[offset], len };
 }
 
-Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
+bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
+{
+    for (auto& [key, val] : LocalFuncs)
+    {
+        if (key == name)
+        {
+            val = func;
+            return false;
+        }
+    }
+    LocalFuncs.emplace_back(name, func);
+    return true;
+}
+
+BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(std::u32string_view name) const
+{
+    for (auto& [key, val] : LocalFuncs)
+        if (key == name)
+        {
+            return val;
+        }
+    return { nullptr, 0, 0 };
+}
+
+Arg CompactEvaluateContext::LookUpArg(VarLookup var) const
 {
     for (const auto& [pos, val] : Args)
         if (GetStr(pos.first, pos.second) == var.GetFull())
@@ -164,7 +149,7 @@ Arg CompactEvaluateContext::LookUpArgInside(detail::VarLookup var) const
     return Arg{};
 }
 
-bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const bool force)
+bool CompactEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
 {
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
@@ -192,31 +177,6 @@ bool CompactEvaluateContext::SetArgInside(detail::VarLookup var, Arg arg, const 
     }
 }
 
-bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
-{
-    for (auto& [key, val] : LocalFuncs)
-    {
-        if (key == name)
-        {
-            val = func;
-            return false;
-        }
-    }
-    LocalFuncs.emplace_back(name, func);
-    return true;
-}
-
-detail::LocalFunc CompactEvaluateContext::LookUpFuncInside(std::u32string_view name) const
-{
-    for (auto& [key, val] : LocalFuncs)
-        if (key == name)
-        {
-            const auto [ptr, offset, size] = val;
-            return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
-        }
-    return { nullptr, {} };
-}
-
 size_t CompactEvaluateContext::GetArgCount() const noexcept
 {
     return common::linq::FromIterable(Args)
@@ -228,7 +188,6 @@ size_t CompactEvaluateContext::GetFuncCount() const noexcept
 {
     return LocalFuncs.size();
 }
-
 
 
 #define LR_BOTH(left, right, func) left.func() && right.func()
@@ -410,8 +369,8 @@ NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, std::shar
 {
     Expects(ctx);
     Frame.Context = std::move(ctx);
-    if (!Frame.Context->ParentContext)
-        Frame.Context->ParentContext = Host.CurFrame ? Host.CurFrame->Context : Host.RootContext;
+    /*if (!Frame.Context->ParentContext)
+        Frame.Context->ParentContext = Host.CurFrame ? Host.CurFrame->Context : Host.RootContext;*/
     Frame.Flags = flags;
     Host.CurFrame = &Frame;
 }
@@ -585,10 +544,10 @@ NailangRuntimeBase::FrameHolder NailangRuntimeBase::PushFrame(std::shared_ptr<Ev
     return FrameHolder(this, std::move(ctx), flags);
 }
 
-EvaluateContext& NailangRuntimeBase::GetContextRef() const
-{
-    return CurFrame ? *CurFrame->Context : *RootContext;
-}
+//EvaluateContext& NailangRuntimeBase::GetContextRef() const
+//{
+//    return CurFrame ? *CurFrame->Context : *RootContext;
+//}
 
 void NailangRuntimeBase::ExecuteFrame()
 {
@@ -637,8 +596,8 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     case BlockContent::Type::Assignment:
     {
         const auto& assign = *content.Get<Assignment>();
-        if (!assign.IsNilCheck() || CurFrame->Context->LookUpArg(assign.GetVar()).IsEmpty())
-            CurFrame->Context->SetArg(assign.GetVar(), EvaluateArg(assign.Statement));
+        if (!assign.IsNilCheck() || LookUpArg(assign.GetVar()).IsEmpty())
+            SetArg(assign.GetVar(), EvaluateArg(assign.Statement));
     } break;
     case BlockContent::Type::Block:
     {
@@ -674,7 +633,7 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
 
 void NailangRuntimeBase::OnLoop(const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas)
 {
-    const auto prevFrame = PushFrame(CurFrame->Context, FrameFlags::InLoop);
+    const auto prevFrame = PushFrame(FrameFlags::InLoop);
     while (true)
     {
         const auto cond = EvaluateArg(condition);
@@ -743,6 +702,101 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
     return std::make_shared<CompactEvaluateContext>();
 }
 
+Arg NailangRuntimeBase::LookUpArg(VarLookup var) const
+{
+    switch (var.GetType())
+    {
+    case VarLookup::VarType::Root:
+        return RootContext->LookUpArg(var);
+    case VarLookup::VarType::Local:
+        if (!CurFrame)
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var.GetRawName()));
+        else if (CurFrame->Has(FrameFlags::Virtual))
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var.GetRawName()));
+        else
+            return CurFrame->Context->LookUpArg(var);
+        break;
+    case VarLookup::VarType::Normal:
+        for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+        {
+            if (!frame->Has(FrameFlags::Virtual))
+            {
+                auto arg = frame->Context->LookUpArg(var);
+                if (arg.TypeData != Arg::Type::Empty)
+                    return arg;
+            }
+            //if (frame->Has(FrameFlags::CallScope))
+            //    break; // cannot beyond  
+        }
+        return RootContext->LookUpArg(var);
+    }
+    return {};
+}
+bool NailangRuntimeBase::SetArg(VarLookup var, Arg arg)
+{
+    switch (var.GetType())
+    {
+    case VarLookup::VarType::Root:
+        return RootContext->SetArg(var, std::move(arg), true);
+    case VarLookup::VarType::Normal:
+        for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+        {
+            if (!frame->Has(FrameFlags::Virtual))
+            {
+                if (frame->Context->SetArg(var, arg, false))
+                    return true;
+            }
+            //if (frame->Has(FrameFlags::CallScope))
+            //    break; // cannot beyond call scope
+        }
+        if (RootContext->SetArg(var, arg, false))
+            return true; 
+    case VarLookup::VarType::Local:
+        if (!CurFrame)
+            NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] without frame", var.GetRawName()));
+        else if (CurFrame->Has(FrameFlags::Virtual))
+            NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] in a virtual frame", var.GetRawName()));
+        else
+            return CurFrame->Context->SetArg(var, std::move(arg), true);
+        break;
+    }
+    return false;
+}
+
+LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
+{
+    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+    {
+        if (!frame->Has(FrameFlags::Virtual))
+        {
+            auto func = frame->Context->LookUpFunc(name);
+            if (func.Body != nullptr)
+                return func;
+        }
+    }
+    return RootContext->LookUpFunc(name);
+}
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const RawArg> args)
+{
+    if (!CurFrame)
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    else if (CurFrame->Has(FrameFlags::Virtual))
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] in a virtual frame", block->Name));
+    else
+        return CurFrame->Context->SetFunc(block, args);
+    return false;
+}
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32string_view> args)
+{
+    if (!CurFrame)
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    else if (CurFrame->Has(FrameFlags::Virtual))
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] in a virtual frame", block->Name));
+    else
+        return CurFrame->Context->SetFunc(block, args);
+    return false;
+}
+
 NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> allMetas)
 {
     switch (hash_(meta.Name))
@@ -773,7 +827,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
         for (const auto& arg : meta.Args)
             if (arg.TypeData != RawArg::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
-        CurFrame->Context->SetFunc(content.Get<Block>(), meta.Args);
+        SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
     }
     HashCase(meta.Name, U"While")
@@ -849,12 +903,12 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
                 call.Args[0]);
             return {};
         }
-        return !CurFrame->Context->LookUpArg(varName).IsEmpty();
+        return !LookUpArg(varName).IsEmpty();
     }
     HashCase(call.Name, U"ExistsDynamic")
     {
         const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
-        return !CurFrame->Context->LookUpArg(arg.GetStr().value()).IsEmpty();
+        return !LookUpArg(arg.GetStr().value()).IsEmpty();
     }
     HashCase(call.Name, U"ValueOr")
     {
@@ -869,7 +923,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
                 call.Args[0]);
             return {};
         }
-        if (auto ret = CurFrame->Context->LookUpArg(varName); !ret.IsEmpty())
+        if (auto ret = LookUpArg(varName); !ret.IsEmpty())
             return ret;
         else
             return EvaluateArg(call.Args[1]);
@@ -884,14 +938,14 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     }
     default: break;
     }
-    if (const auto lcFunc = CurFrame->Context->LookUpFunc(call.Name); lcFunc)
+    if (const auto lcFunc = LookUpFunc(call.Name); lcFunc)
     {
         return EvaluateLocalFunc(lcFunc, call, metas, target);
     }
     return EvaluateUnknwonFunc(call, metas, target);
 }
 
-Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall>, const FuncTargetType)
+Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall>, const FuncTargetType)
 {
     ThrowByArgCount(call, func.ArgNames.size());
     std::vector<Arg> args;
@@ -899,11 +953,11 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const detail::LocalFunc& func, const F
     for (const auto& rawarg : call.Args)
         args.emplace_back(EvaluateArg(rawarg));
 
-    auto newFrame = PushFrame(FrameFlags::CallScope);
+    auto newFrame = PushFrame(FrameFlags::FuncCall);
     CurFrame->BlockScope = func.Body;
     CurFrame->MetaScope = {};
     for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
-        CurFrame->Context->SetArg(var, val);
+        CurFrame->Context->SetArg(var, val, true);
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
 }
@@ -1123,7 +1177,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         else
             NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
     case Type::Var:
-        return CurFrame->Context->LookUpArg(arg.GetVar<Type::Var>().Name);
+        return LookUpArg(arg.GetVar<Type::Var>().Name);
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
@@ -1190,9 +1244,9 @@ void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall
 }
 
 
-void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas, const bool innerScope)
+void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, std::shared_ptr<EvaluateContext> ctx, const bool checkMetas)
 {
-    auto frame = PushFrame(innerScope, FrameFlags::FlowScope);
+    auto frame = PushFrame(ctx, FrameFlags::FlowScope);
     if (checkMetas)
     {
         auto target = BlockContentItem::Generate(&block, 0, 0);

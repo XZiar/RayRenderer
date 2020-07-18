@@ -102,10 +102,10 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
         const auto varName = common::str::to_u32string(key, Charset::UTF8);
         switch (val.index())
         {
-        case 1: SetArg(varName, std::get<1>(val)); break;
-        case 2: SetArg(varName, std::get<2>(val)); break;
-        case 3: SetArg(varName, std::get<3>(val)); break;
-        case 4: SetArg(varName, common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+        case 1: SetArg(varName, std::get<1>(val), true); break;
+        case 2: SetArg(varName, std::get<2>(val), true); break;
+        case 3: SetArg(varName, std::get<3>(val), true); break;
+        case 4: SetArg(varName, common::str::to_u32string(std::get<4>(val), Charset::UTF8), true); break;
         case 0:
         default:
             break;
@@ -115,7 +115,7 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-Arg NLCLContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
+Arg NLCLContext::LookUpCLArg(xziar::nailang::VarLookup var) const
 {
     if (var.Part() == U"Extension"sv)
     {
@@ -174,11 +174,11 @@ Arg NLCLContext::LookUpCLArg(xziar::nailang::detail::VarLookup var) const
     return {};
 }
 
-Arg NLCLContext::LookUpArgInside(xziar::nailang::detail::VarLookup var) const
+Arg NLCLContext::LookUpArg(xziar::nailang::VarLookup var) const
 {
     if (var.Part() == U"oclu"sv)
         return LookUpCLArg(var.Rest());
-    return CompactEvaluateContext::LookUpArgInside(var);
+    return CompactEvaluateContext::LookUpArg(var);
 }
 
 NLCLContext::VecTypeResult NLCLContext::ParseVecType(const std::u32string_view type) const noexcept
@@ -253,6 +253,13 @@ void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
     Logger.error(u"{}\n", ex.message);
     NailangRuntimeBase::HandleException(ex);
+}
+
+xziar::nailang::Arg NLCLRuntime::LookUpArg(xziar::nailang::VarLookup var) const
+{
+    if (var.Part() == U"oclu"sv)
+        return Context.LookUpCLArg(var.Rest());
+    return NailangRuntimeBase::LookUpArg(var);
 }
 
 void NLCLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
@@ -350,7 +357,7 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
     }
     else // '@' not allowed in var anyway
     {
-        const auto ret = GetContextRef().LookUpArg(var);
+        const auto ret = LookUpArg(var);
         if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
         {
             NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
@@ -418,7 +425,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
                 for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
                 {
                     std::u32string name = U":"; name += extra.ReplaceArgs[i];
-                    CurFrame->Context->SetArg(name, args[i + 1]);
+                    SetArg(name, args[i + 1]);
                 }
                 APPEND_FMT(output, U"// template block [{}]\r\n"sv, args[0]);
                 DirectOutput(*block->Block, block->MetaFunc, output, reinterpret_cast<BlockCookie*>(cookie));
@@ -569,7 +576,7 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);
             ThrowByArgType(fcall, RawArg::Type::Var, 0);
-            CurFrame->Context->SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
+            SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
         }
     }
     if (repVar || repFunc)
@@ -1054,13 +1061,25 @@ NLCLProgram::~NLCLProgram()
 
 NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, std::shared_ptr<NLCLContext>&& context, 
     std::unique_ptr<NLCLRuntime>&& runtime) : Program(program), Context(std::move(context)), Runtime(std::move(runtime))
-{ }
+{
+    Prepare();
+}
 NLCLProgStub::NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, const std::shared_ptr<NLCLContext> context, 
     common::mlog::MiniLogger<false>& logger) : Program(program), Context(context), 
     Runtime(std::make_unique<NLCLRuntime>(logger, context))
-{ }
+{ 
+    Prepare();
+}
 NLCLProgStub::~NLCLProgStub()
 { }
+void NLCLProgStub::Prepare()
+{
+    Context->NLCLExts.clear();
+    for (const auto& creator : NLCLExtGenVector())
+    {
+        Context->NLCLExts.push_back(creator(*Runtime, Program->Program));
+    }
+}
 
 
 NLCLResult::~NLCLResult()
@@ -1076,10 +1095,6 @@ NLCLProcessor::~NLCLProcessor()
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {
-    for (const auto& creator : NLCLExtGenVector())
-    {
-        stub.Context->NLCLExts.push_back(creator(*stub.Runtime, stub.Program->Program));
-    }
     // Prepare
     stub.Program->ForEachBlockType<true, true>(U"oclu.Prepare"sv,
         [&](const Block& block, common::span<const FuncCall> metas) 

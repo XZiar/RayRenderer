@@ -142,7 +142,7 @@
   - [ ] Fix test for inhirit arg access
   - [ ] Add proper stacktrace when throw exception
   - [ ] Add nested brace support for ReplaceEngine
-  - [ ] Move arg/func's lookup logic into StackFrame
+  - [x] Move arg/func's lookup logic into StackFrame
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

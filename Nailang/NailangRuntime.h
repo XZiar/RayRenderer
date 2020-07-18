@@ -14,64 +14,36 @@ namespace xziar::nailang
 {
 
 
-namespace detail
-{
-struct VarHolder
+struct VarLookup
 {
     enum class VarType { Normal, Local, Root };
-    constexpr VarHolder(const std::u32string_view name) : 
-        Ptr(name.data()), Size(gsl::narrow_cast<uint32_t>(name.size())), Type(InitType(name))
-    { }
-    constexpr VarHolder(const VarHolder& other) = default;
+    constexpr VarLookup(const std::u32string_view name) noexcept : Ptr(name.data()), Size(gsl::narrow_cast<uint32_t>(name.size())),
+        Offset(0), NextOffset(0), Type(InitType(name))
+    {
+        if (Type != VarType::Normal)
+            Offset = 1;
+        FindNext();
+    }
     template<typename T>
-    constexpr VarHolder(T&& val, std::enable_if_t<std::is_constructible_v<std::u32string_view, T>>* = nullptr) 
-        : VarHolder(common::str::ToStringView(val)) { }
-
-    constexpr std::u32string_view GetRawName() const noexcept { return { Ptr, Size }; }
-    constexpr std::u32string_view GetFull() const noexcept 
-    {
-        const uint32_t prefix = Type == VarType::Normal ? 0 : 1;
-        Expects(Size > prefix);
-        return { Ptr + prefix, static_cast<size_t>(Size) - prefix };
-    }
-    constexpr VarType GetType() const noexcept { return Type; }
-protected:
-    static constexpr VarType InitType(const std::u32string_view name) noexcept
-    {
-        if (name.size() > 0)
-        {
-            switch (name[0])
-            {
-            case U':':  return VarType::Local;
-            case U'`':  return VarType::Root;
-            default:    break;
-            }
-        }
-        return VarType::Normal;
-    }
-
-    const char32_t* Ptr;
-    uint32_t Size;
-    VarType Type;
-};
-struct VarLookup : public VarHolder
-{
-    constexpr VarLookup(const std::u32string_view name) : VarHolder(name), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
-    {
-        FindNext();
-    }
-    constexpr VarLookup(const VarHolder& other) : VarHolder(other), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
-    {
-        FindNext();
-    }
-    constexpr VarLookup(const VarLookup& other) : VarHolder(other), Offset(Type == VarType::Normal ? 0 : 1), NextOffset(0)
+    constexpr VarLookup(T&& val, std::enable_if_t<std::is_constructible_v<std::u32string_view, T>>* = nullptr) noexcept
+        : VarLookup(common::str::ToStringView(val)) { }
+    constexpr VarLookup(const VarLookup& other) noexcept : Ptr(other.Ptr), Size(other.Size), 
+        Offset(other.Type == VarType::Normal ? 0 : 1), NextOffset(0), Type(other.Type)
     {
         if (Offset == other.Offset)
             NextOffset = other.NextOffset;
         else
             FindNext();
     }
-    
+
+    [[nodiscard]] constexpr std::u32string_view GetRawName() const noexcept { return { Ptr, Size }; }
+    [[nodiscard]] constexpr std::u32string_view GetFull() const noexcept
+    {
+        const uint32_t prefix = Type == VarType::Normal ? 0 : 1;
+        Expects(Size > prefix);
+        return { Ptr + prefix, static_cast<size_t>(Size) - prefix };
+    }
+    [[nodiscard]] constexpr VarType GetType() const noexcept { return Type; }
     [[nodiscard]] constexpr std::u32string_view Part() const noexcept
     {
         return { Ptr + Offset, NextOffset - Offset };
@@ -87,6 +59,23 @@ struct VarLookup : public VarHolder
         return FindNext();
     }
 private:
+    static constexpr VarType InitType(const std::u32string_view name) noexcept
+    {
+        if (name.size() > 0)
+        {
+            switch (name[0])
+            {
+            case U':':  return VarType::Local;
+            case U'`':  return VarType::Root;
+            default:    break;
+            }
+        }
+        return VarType::Normal;
+    }
+    const char32_t* Ptr;
+    uint32_t Size;
+    uint32_t Offset, NextOffset;
+    VarType Type;
     constexpr bool FindNext() noexcept
     {
         if (Offset >= Size)
@@ -96,7 +85,6 @@ private:
         NextOffset = ptr == nullptr ? Size : static_cast<uint32_t>(ptr - Ptr);
         return true;
     }
-    uint32_t Offset, NextOffset;
 };
 
 struct LocalFunc
@@ -106,57 +94,36 @@ struct LocalFunc
 
     [[nodiscard]] constexpr explicit operator bool() const noexcept { return Body != nullptr; }
 };
-}
 
 
 class NAILANGAPI EvaluateContext
 {
     friend class NailangRuntimeBase;
-protected:
-    std::shared_ptr<EvaluateContext> ParentContext;
-
-    EvaluateContext* FindRoot() noexcept
-    {
-        auto ptr = this;
-        while (ptr->ParentContext)
-            ptr = ptr->ParentContext.get();
-        return ptr;
-    }
-    const EvaluateContext* FindRoot() const noexcept
-    {
-        auto ptr = this;
-        while (ptr->ParentContext)
-            ptr = ptr->ParentContext.get();
-        return ptr;
-    }
-
-    [[nodiscard]] virtual Arg LookUpArgInside(detail::VarLookup var) const = 0;
-    virtual bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) = 0;
 public:
     virtual ~EvaluateContext();
-
-    [[nodiscard]] virtual Arg LookUpArg(detail::VarHolder var) const;
-                  virtual bool SetArg(detail::VarHolder var, Arg arg);
-    [[nodiscard]] virtual detail::LocalFunc LookUpFunc(std::u32string_view name) const = 0;
-                  virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
-                  virtual bool SetFunc(const detail::LocalFunc& func) = 0;
+    [[nodiscard]] virtual Arg LookUpArg(VarLookup var) const = 0;
+    [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
+    virtual bool SetArg(VarLookup var, Arg arg, const bool force) = 0;
+    virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
+    virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args) = 0;
     [[nodiscard]] virtual size_t GetArgCount() const noexcept = 0;
     [[nodiscard]] virtual size_t GetFuncCount() const noexcept = 0;
 };
 
 class NAILANGAPI BasicEvaluateContext : public EvaluateContext
 {
+private:
+    std::vector<std::u32string_view> LocalFuncArgNames;
 protected:
     using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
-    std::vector<std::u32string_view> LocalFuncArgNames;
+    [[nodiscard]] virtual LocalFuncHolder LookUpFuncInside(std::u32string_view name) const = 0;
     virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
-    [[nodiscard]] virtual detail::LocalFunc LookUpFuncInside(std::u32string_view name) const = 0;
 public:
     ~BasicEvaluateContext() override;
 
-    [[nodiscard]] detail::LocalFunc LookUpFunc(std::u32string_view name) const override;
+    [[nodiscard]] LocalFunc LookUpFunc(std::u32string_view name) const override;
     bool SetFunc(const Block* block, common::span<const RawArg> args) override;
-    bool SetFunc(const detail::LocalFunc& func) override;
+    bool SetFunc(const Block* block, common::span<const std::u32string_view> args) override;
 };
 
 class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
@@ -165,13 +132,13 @@ protected:
     std::map<std::u32string, Arg, std::less<>> ArgMap;
     std::map<std::u32string_view, LocalFuncHolder, std::less<>> LocalFuncMap;
 
-    [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
-    bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
-    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) const override;
+    [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~LargeEvaluateContext() override;
 
+    [[nodiscard]] Arg    LookUpArg(VarLookup var) const override;
+                  bool   SetArg(VarLookup var, Arg arg, const bool force) override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
@@ -185,13 +152,13 @@ protected:
 
     std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
 
-    [[nodiscard]] Arg LookUpArgInside(detail::VarLookup var) const override;
-    bool SetArgInside(detail::VarLookup var, Arg arg, const bool force) override;
-    [[nodiscard]] detail::LocalFunc LookUpFuncInside(std::u32string_view name) const override;
+    [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
 
+    [[nodiscard]] Arg    LookUpArg(VarLookup var) const override;
+                  bool   SetArg(VarLookup var, Arg arg, const bool force) override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
@@ -340,10 +307,12 @@ public:
 enum class ArgLimits { Exact, AtMost, AtLeast };
 enum class FrameFlags : uint8_t
 {
-    Empty     = 0b0,
-    InLoop    = 0b1,
-    FlowScope = 0b10,
-    CallScope = 0b110,
+    Empty     = 0b00000000,
+    InLoop    = 0b00000001,
+    FlowScope = 0b00000010,
+    CallScope = 0b00000100,
+    FuncCall  = FlowScope | CallScope,
+    Virtual   = 0b00001000,
 };
 MAKE_ENUM_BITFIELD(FrameFlags)
 
@@ -361,6 +330,7 @@ protected:
     struct StackFrame
     {
         friend class FrameHolder;
+        friend class NailangRuntimeBase;
     private:
         StackFrame* PrevFrame = nullptr;
     public:
@@ -368,9 +338,12 @@ protected:
         common::span<const FuncCall> MetaScope;
         const Block* BlockScope = nullptr;
         Arg ReturnArg;
-        ProgramStatus Status = ProgramStatus::Next;
         FrameFlags Flags = FrameFlags::Empty;
-        StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { }
+        ProgramStatus Status = ProgramStatus::Next;
+
+        StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { } 
+
+        constexpr bool Has(FrameFlags flag) const noexcept { return HAS_FIELD(Flags, flag); }
         constexpr bool IsInLoop() const noexcept
         {
             for (auto frame = this; frame; frame = frame->PrevFrame)
@@ -450,7 +423,7 @@ protected:
     {
         return PushFrame(innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), flags);
     }
-    [[nodiscard]] EvaluateContext& GetContextRef() const;
+
                   void ExecuteFrame();
     [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const BlockContent& target);
                   void HandleContent    (const BlockContent& content, common::span<const FuncCall> metas);
@@ -460,9 +433,14 @@ protected:
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
+    [[nodiscard]] virtual Arg  LookUpArg(VarLookup var) const;
+                  virtual bool SetArg(VarLookup var, Arg arg);
+    [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
+                  virtual bool SetFunc(const Block* block, common::span<const RawArg> args);
+                  virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
-    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const detail::LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
+    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
     [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
     [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
                   virtual Arg  EvaluateArg(const RawArg& arg);
@@ -472,7 +450,11 @@ protected:
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();
-    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true, const bool innerScope = true);
+    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, std::shared_ptr<EvaluateContext> ctx, const bool checkMetas = true);
+    void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, const bool checkMetas = true, const bool innerScope = true)
+    {
+        ExecuteBlock(block, metas, innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), checkMetas);
+    }
     Arg EvaluateRawStatement(std::u32string_view content, const bool innerScope = true);
     Arg EvaluateRawStatements(std::u32string_view content, const bool innerScope = true);
 };

@@ -171,22 +171,38 @@
           </CustomListItems>
         </Expand>
       </Synthetic>
-      <Item Name="Parent">ParentContext</Item>
-      <Item Name="ReturnArg">ReturnArg</Item>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::NailangRuntimeBase::FuncTarget">
-    <DisplayString Condition="Pointer == 0"         >{{ Empty }}</DisplayString>
-    <DisplayString Condition="Pointer &amp; Flag"   >{{ Meta }}</DisplayString>
-    <DisplayString Condition="!(Pointer &amp; Flag)">{{ Block }}</DisplayString>
+  <Type Name="xziar::nailang::NailangRuntimeBase::StackFrame">
+    <DisplayString>{{ StackFrame {Flags,en} }}</DisplayString>
     <Expand>
-      <Item Condition="Pointer &amp; Flag"    Name="[BlockContent]">*reinterpret_cast&lt;BlockContext*&gt;(Pointer &amp; InvFlag)</Item>
-      <Item Condition="!(Pointer &amp; Flag)" Name="[BlockScope]"  >*reinterpret_cast&lt;BlockContext*&gt;(Pointer)</Item>
+      <Item Name="PrevFrame">PrevFrame,na</Item>
+      <Item Name="Flag">Flags,en</Item>
+      <Item Name="Status">Status,en</Item>
+      <Item Name="Context">*Context</Item>
+      <Item Name="MetaScope">MetaScope</Item>
+      <Item Name="[BlockScope]">BlockScope,na</Item>
+      <Item Name="ReturnArg">ReturnArg</Item>
+      <Synthetic Name="AllContexts">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Variable Name="ptr" InitialValue="this" />
+            <Loop>
+              <Break Condition="ptr == nullptr" />
+              <Item Name="[{idx}] {(void*)(&amp;(*ptr->Context))}">*ptr->Context</Item>
+              <Exec>ptr = ptr->PrevFrame</Exec>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::NailangRuntimeBase" Inheritable="true">
     <Expand>
-      <Item Name="EvalContext">EvalContext</Item>
+      <Item Name="RootContext">*RootContext</Item>
+      <Item Name="CurFrame">CurFrame,na</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::detail::ExceptionTarget">

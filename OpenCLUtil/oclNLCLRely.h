@@ -138,16 +138,17 @@ class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public common::NonCopyable, publi
 {
     friend class NLCLProcessor;
     friend class NLCLRuntime;
+    friend class NLCLProgStub;
 protected:
     std::vector<std::unique_ptr<NLCLExtension>> NLCLExts;
-    xziar::nailang::Arg LookUpCLArg(xziar::nailang::detail::VarLookup var) const;
-    [[nodiscard]] xziar::nailang::Arg LookUpArgInside(xziar::nailang::detail::VarLookup var) const override;
+    xziar::nailang::Arg LookUpCLArg(xziar::nailang::VarLookup var) const;
 public:
     const oclDevice Device;
     const bool SupportFP16, SupportFP64, SupportNVUnroll,
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
+    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::VarLookup var) const override;
     template<typename T, typename F, typename... Args>
     bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
     {
@@ -239,14 +240,12 @@ protected:
 
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
-    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args, 
+    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::VarLookup var) const override;
+    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     common::simd::VecDataInfo ParseVecType(const std::u32string_view type, 
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const noexcept;
 
-    /*[[nodiscard]] std::u32string DebugStringBase() noexcept;
-    [[nodiscard]] std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter,
-        common::span<const common::simd::VecDataInfo> args) noexcept;*/
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
@@ -351,6 +350,8 @@ public:
 class OCLUAPI NLCLProgStub : public common::NonCopyable
 {
     friend class NLCLProcessor;
+private:
+    void Prepare();
 protected:
     xziar::nailang::MemoryPool MemPool;
     std::shared_ptr<const NLCLProgram> Program;
@@ -361,6 +362,19 @@ public:
     NLCLProgStub(const std::shared_ptr<const NLCLProgram>& program, const std::shared_ptr<NLCLContext> context, common::mlog::MiniLogger<false>& logger);
     NLCLProgStub(NLCLProgStub&&) = default;
     virtual ~NLCLProgStub();
+
+    constexpr const std::shared_ptr<const NLCLProgram>& GetProgram() const noexcept
+    {
+        return Program;
+    }
+    constexpr const std::shared_ptr<NLCLContext>& GetContext() const noexcept
+    {
+        return Context;
+    }
+    NLCLRuntime& GetRuntime() const noexcept
+    {
+        return *Runtime;
+    }
 };
 
 

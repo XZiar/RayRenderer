@@ -224,8 +224,9 @@
   
   <Type Name="oclu::NLCLRuntime">
     <Expand>
-      <Item Name="Device">Device,na</Item>
-      <Item Name="EvalContext">EvalContext</Item>
+      <Item Name="Context">Context</Item>
+      <Item Name="Device">Context.Device,na</Item>
+      <Item Name="CurFrame">CurFrame,na</Item>
     </Expand>
   </Type>
   <Type Name="oclu::NLCLProgStub">
