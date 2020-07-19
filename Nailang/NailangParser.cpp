@@ -687,6 +687,14 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
         std::vector<std::u32string_view> args;
         enum class States : uint32_t { Init, Pending, InComma, InSlash, End };
         States state = States::Init;
+        uint32_t nestedLevel = 0;
+        const auto PushArg = [&]() 
+        {
+            Expects(nestedLevel == 0);
+            auto part = reader.CommitRead();
+            part.remove_suffix(1);
+            args.push_back(TrimStrBlank(part));
+        };
         reader.ReadWhile(IgnoreBlank);
         while (state != States::End)
         {
@@ -698,30 +706,46 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
             {
             case States::Init:
             case States::Pending:
-                if (ch == U'"')
-                    state = States::InComma;
-                else if (ch == U',' || ch == U')')
+                switch (ch)
                 {
-                    if (state == States::Init)
-                    {
-                        if (ch == U',')
-                            NLPS_THROW_EX(u"empty arg not allowed"sv);
-                        else
-                            reader.CommitRead();
-                    }
-                    else
-                    {
-                        auto part = reader.CommitRead();
-                        part.remove_suffix(1);
-                        args.push_back(TrimStrBlank(part));
-                    }
-                    if (ch == U',')
-                        state = States::Init, reader.ReadWhile(IgnoreBlank);
-                    else
-                        state = States::End;
-                }
-                else
+                case U'"':
+                    state = States::InComma;
+                    break;
+                case U'(':
                     state = States::Pending;
+                    nestedLevel++;
+                    break;
+                case U')':
+                    if (nestedLevel)
+                    {
+                        state = States::Pending;
+                        nestedLevel--;
+                    }
+                    else
+                    {
+                        if (state == States::Init)
+                        {
+                            if (args.size() > 0)
+                                NLPS_THROW_EX(u"empty arg not allowed"sv);
+                            reader.CommitRead();
+                        }
+                        else
+                            PushArg();
+                        state = States::End;
+                    }
+                    break;
+                case U',':
+                    if (state == States::Init)
+                        NLPS_THROW_EX(u"empty arg not allowed"sv);
+                    else
+                        PushArg();
+                    state = States::Init;
+                    reader.ReadWhile(IgnoreBlank);
+                    break;
+                default:
+                    state = States::Pending;
+                    break;
+                }
                 break;
             case States::InComma:
                 if (ch == U'"')

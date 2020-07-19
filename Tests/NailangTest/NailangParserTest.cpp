@@ -512,7 +512,7 @@ TEST(NailangParser, ReplaceEngine)
     }
     {
         Replacer replacer(U"func()"sv);
-        const auto result = replacer.ProcessFunction(U"y = $$!xy(\"\")"sv, U"$$!"sv, U""sv);
+        const auto result = replacer.ProcessFunction(UR"(y = $$!xy(""))"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
         ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
@@ -520,11 +520,11 @@ TEST(NailangParser, ReplaceEngine)
     }
     {
         Replacer replacer(U"func()"sv);
-        const auto result = replacer.ProcessFunction(U"y = $$!xy(\"1+2\t,3\")"sv, U"$$!"sv, U""sv);
+        const auto result = replacer.ProcessFunction(UR"(y = $$!xy("1+2     ,3"))"sv, U"$$!"sv, U""sv);
         EXPECT_EQ(result, U"y = func()"sv);
         ASSERT_EQ(replacer.Funcs.size(), 1u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
-        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"\"1+2\t,3\""sv));
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(UR"("1+2     ,3")"sv));
     }
     {
         Replacer replacer(U"func()"sv);
@@ -536,7 +536,23 @@ TEST(NailangParser, ReplaceEngine)
     }
     {
         Replacer replacer(U"func()"sv);
-        const auto result = replacer.ProcessFunction(U"y = $$!xy( 12, 34 )$ +$$!y(56 + \"\" / 7)$"sv, U"$$!"sv, U"$"sv);
+        const auto result = replacer.ProcessFunction(U"y = $$!xy((1), 2)"sv, U"$$!"sv, U""sv);
+        EXPECT_EQ(result, U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(U"(1)"sv, U"2"sv));
+    }
+    {
+        Replacer replacer(U"func()"sv);
+        const auto result = replacer.ProcessFunction(UR"kk(y = $$!xy((1+("(2)")), 2))kk"sv, U"$$!"sv, U""sv);
+        EXPECT_EQ(result, U"y = func()"sv);
+        ASSERT_EQ(replacer.Funcs.size(), 1u);
+        EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
+        EXPECT_THAT(replacer.Funcs[0].second, testing::ElementsAre(UR"kk((1+("(2)")))kk"sv, U"2"sv));
+    }
+    {
+        Replacer replacer(U"func()"sv);
+        const auto result = replacer.ProcessFunction(UR"(y = $$!xy( 12, 34 )$ +$$!y(56 + "" / 7)$)"sv, U"$$!"sv, U"$"sv);
         EXPECT_EQ(result, U"y = func() +func()"sv);
         ASSERT_EQ(replacer.Funcs.size(), 2u);
         EXPECT_EQ(replacer.Funcs[0].first, U"xy"sv);
