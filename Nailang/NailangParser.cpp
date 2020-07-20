@@ -244,6 +244,7 @@ RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool
 
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
 {
+    const auto row = context.Row, col = context.Col;
     ComplexArgParser parser(pool, context);
     parser.EatLeftParenthese();
     std::vector<RawArg> args;
@@ -261,7 +262,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
             parser.NLPS_THROW_EX(u"Expect ')' before reaching end"sv);
     }
     const auto sp = pool.CreateArray(args);
-    return { funcName,sp };
+    return { funcName, sp, gsl::narrow_cast<uint32_t>(row), gsl::narrow_cast<uint32_t>(col) };
 }
 
 std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
@@ -299,7 +300,7 @@ void RawBlockParser::FillBlockName(RawBlock& block)
 
 void RawBlockParser::FillBlockInfo(RawBlock& block)
 {
-    block.Position = { Context.Row, Context.Col };
+    block.Position = { gsl::narrow_cast<uint32_t>(Context.Row), gsl::narrow_cast<uint32_t>(Context.Col) };
     block.FileName = Context.SourceName;
 }
 

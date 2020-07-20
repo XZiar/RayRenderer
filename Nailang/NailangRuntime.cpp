@@ -364,14 +364,10 @@ NailangCodeException::NailangCodeException(const std::u32string_view msg, detail
 { }
 
 
-NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& ctx, const FrameFlags flags) :
-    Host(*host), Frame(host->CurFrame)
+NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const FrameFlags flags) :
+    Host(*host), Frame(host->CurFrame, ctx, flags)
 {
     Expects(ctx);
-    Frame.Context = std::move(ctx);
-    /*if (!Frame.Context->ParentContext)
-        Frame.Context->ParentContext = Host.CurFrame ? Host.CurFrame->Context : Host.RootContext;*/
-    Frame.Flags = flags;
     Host.CurFrame = &Frame;
 }
 NailangRuntimeBase::FrameHolder::~FrameHolder()
@@ -379,6 +375,14 @@ NailangRuntimeBase::FrameHolder::~FrameHolder()
     Expects(Host.CurFrame == &Frame);
     Host.CurFrame = Frame.PrevFrame;
 }
+
+NailangRuntimeBase::FCallHost::~FCallHost()
+{
+    Expects(Host.CurFrame);
+    Expects(Host.CurFrame->CurFuncCall == &Frame);
+    Host.CurFrame->CurFuncCall = Frame.PrevFrame;
+}
+
 
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
     RootContext(std::move(context))
@@ -544,16 +548,12 @@ NailangRuntimeBase::FrameHolder NailangRuntimeBase::PushFrame(std::shared_ptr<Ev
     return FrameHolder(this, std::move(ctx), flags);
 }
 
-//EvaluateContext& NailangRuntimeBase::GetContextRef() const
-//{
-//    return CurFrame ? *CurFrame->Context : *RootContext;
-//}
-
 void NailangRuntimeBase::ExecuteFrame()
 {
     for (size_t idx = 0; idx < CurFrame->BlockScope->Size();)
     {
         const auto& [metas, content] = (*CurFrame->BlockScope)[idx];
+        CurFrame->CurContent = &content;
         if (HandleMetaFuncs(metas, content))
         {
             HandleContent(content, metas);
@@ -573,8 +573,10 @@ void NailangRuntimeBase::ExecuteFrame()
 
 bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const BlockContent& target)
 {
+    FCallHost callHost(this);
     for (const auto& meta : metas)
     {
+        callHost = &meta;
         switch (HandleMetaFunc(meta, target, metas))
         {
         case MetaFuncResult::Return:
@@ -619,7 +621,9 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     } break;
     case BlockContent::Type::FuncCall:
     {
-        EvaluateFunc(*content.Get<FuncCall>(), metas, FuncTargetType::Plain);
+        const auto& fcall = content.Get<FuncCall>();
+        FCallHost callHost(this, fcall);
+        EvaluateFunc(*fcall, metas, FuncTargetType::Plain);
     } break;
     case BlockContent::Type::RawBlock:
     {
@@ -693,7 +697,39 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
 
 void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
 {
-    //ex.EvalContext = EvalContext;
+    std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>> nameCache;
+    const auto GetFileName = [&](const Block* blk) -> common::SharedString<char16_t>
+    {
+        if (!blk) return {};
+        for (const auto& [name, str] : nameCache)
+            if (name == blk->FileName)
+                return str;
+        return blk->FileName;
+    };
+    constexpr auto FromBlock = [&](const Block* blk, common::SharedString<char16_t> fname) -> common::StackTraceItem
+    {
+        if (!blk) 
+            return { fname, u"<empty>"sv, 0 };
+        return { fname, FMTSTR(u"<Block>{}", blk->Name), blk->Position.first };
+    }; 
+    constexpr auto FromFunc = [](const FuncFrame* frame, const common::SharedString<char16_t>& fname) -> common::StackTraceItem
+    {
+        if (frame->Func)
+            return { fname, common::str::to_u16string(frame->Func->Name), frame->Func->Position.first };
+        return { fname, common::SharedString<char16_t>{}, 0 };
+    };
+    std::vector<common::StackTraceItem> traces;
+    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+    {
+        auto fname = GetFileName(frame->BlockScope);
+        for (auto call = CurFrame->CurFuncCall; call; call = call->PrevFrame)
+        {
+            traces.emplace_back(FromFunc(call, fname));
+        }
+        traces.emplace_back(FromBlock(frame->BlockScope, std::move(fname)));
+    }
+    auto& ex_ = const_cast<NailangRuntimeException&>(ex);
+    ex_.StackTrace.insert(ex_.StackTrace.begin(), traces.begin(), traces.end());
     ex.ThrowSelf();
 }
 
@@ -856,10 +892,10 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
         else if (call.Name == U"Return")
         {
-            const auto scope = CurFrame->GetCallScope();
-            if (!scope)
+            if (const auto scope = CurFrame->GetCallScope(); scope)
+                scope->ReturnArg = EvaluateFuncArgs<1, ArgLimits::AtMost>(call)[0];
+            else
                 NLRT_THROW_EX(u"[Return] can only be used inside FlowScope"sv, call);
-            scope->ReturnArg = EvaluateFuncArgs<1, ArgLimits::AtMost>(call)[0];
             CurFrame->Status = ProgramStatus::Return;
             return {};
         }
@@ -1165,7 +1201,11 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     switch (arg.TypeData)
     {
     case Type::Func:
-        return EvaluateFunc(*arg.GetVar<Type::Func>(), {}, FuncTargetType::Expr);
+    {
+        const auto& fcall = arg.GetVar<Type::Func>();
+        FCallHost callHost(this, fcall);
+        return EvaluateFunc(*fcall, {}, FuncTargetType::Expr);
+    }
     case Type::Unary:
         if (auto ret = EvaluateUnaryExpr(*arg.GetVar<Type::Unary>()); ret.has_value())
             return ret.value();

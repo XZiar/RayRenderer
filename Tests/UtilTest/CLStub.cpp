@@ -43,6 +43,16 @@ uint32_t SelectIdx(const T& container, u16string_view name)
     return idx;
 }
 
+static void PrintStack(const common::BaseException& be)
+{
+    std::u16string str;
+    for (const auto& item : be.Stack())
+    {
+        fmt::format_to(std::back_inserter(str), FMT_STRING(u"{}:{}\t{}\n"), item.File, item.Line, item.Func);
+    }
+    log().warning(u"StackTrace:\n{}", str);
+}
+
 static void OCLStub()
 {
     const auto& plats = oclUtil::GetPlatforms();
@@ -225,6 +235,7 @@ static void OCLStub()
             catch (const BaseException& be)
             {
                 log().error(u"Error here:\n{}\n\n", be.message);
+                PrintStack(be);
             }
         }
     }

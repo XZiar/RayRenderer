@@ -282,8 +282,6 @@ protected:
     NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
         BaseException(type, msg, data), Target(std::move(target)), Scope(std::move(scope))
     { }
-private:
-    mutable std::shared_ptr<EvaluateContext> EvalContext;
 };
 
 class NAILANGAPI NailangFormatException : public NailangRuntimeException
@@ -327,21 +325,29 @@ public:
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
 protected:
     class FrameHolder;
+    struct FuncFrame
+    {
+        const FuncFrame* PrevFrame = nullptr;
+        const FuncCall*  Func      = nullptr;
+    };
     struct StackFrame
     {
         friend class FrameHolder;
         friend class NailangRuntimeBase;
     private:
-        StackFrame* PrevFrame = nullptr;
+        StackFrame* PrevFrame;
     public:
         std::shared_ptr<EvaluateContext> Context;
         common::span<const FuncCall> MetaScope;
         const Block* BlockScope = nullptr;
+        const BlockContent* CurContent  = nullptr;
+        const FuncFrame*    CurFuncCall = nullptr;
         Arg ReturnArg;
-        FrameFlags Flags = FrameFlags::Empty;
+        FrameFlags Flags;
         ProgramStatus Status = ProgramStatus::Next;
 
-        StackFrame(StackFrame* prev) noexcept : PrevFrame(prev) { } 
+        StackFrame(StackFrame* prev, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
+            PrevFrame(prev), Context(ctx), Flags(flag) { }
 
         constexpr bool Has(FrameFlags flag) const noexcept { return HAS_FIELD(Flags, flag); }
         constexpr bool IsInLoop() const noexcept
@@ -365,12 +371,27 @@ protected:
             return nullptr;
         }
     };
+    class FCallHost
+    {
+        friend class NailangRuntimeBase;
+        NailangRuntimeBase& Host;
+        FuncFrame Frame;
+        constexpr FCallHost(NailangRuntimeBase* host, const FuncCall* call = nullptr) noexcept :
+            Host(*host), Frame({ Host.CurFrame->CurFuncCall, call })
+        {
+            Host.CurFrame->CurFuncCall = &Frame;
+        }
+    public:
+        void operator=(const FuncCall* call) noexcept { Frame.Func = call; }
+        ~FCallHost();
+    };
     class NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
     {
+        friend class NailangRuntimeBase;
         NailangRuntimeBase& Host;
         StackFrame Frame;
+        FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const FrameFlags flags);
     public:
-        FrameHolder(NailangRuntimeBase* host, std::shared_ptr<EvaluateContext>&& ctx, const FrameFlags flags);
         ~FrameHolder();
         constexpr StackFrame* operator->() const noexcept
         {

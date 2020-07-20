@@ -50,9 +50,8 @@ class NailangRT : public NailangRuntimeBase
 {
 public:
     StackFrame BaseFrame;
-    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr)
+    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, xziar::nailang::FrameFlags::Empty)
     {
-        BaseFrame.Context = RootContext;
         CurFrame = &BaseFrame;
     }
 

@@ -415,10 +415,20 @@ public:
 MAKE_ENUM_BITFIELD(Arg::Type)
 
 
-struct FuncCall
+struct WithPos
+{
+    std::pair<uint32_t, uint32_t> Position = { 0,0 };
+};
+
+struct FuncCall : public WithPos
 {
     std::u32string_view Name;
     common::span<const RawArg> Args;
+    constexpr FuncCall() noexcept {}
+    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args) noexcept : Name(name), Args(args) { }
+    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args, const uint32_t row, const uint32_t col) noexcept :
+        WithPos{ {row, col} }, Name(name), Args(args)
+    { }
 };
 struct UnaryExpr
 {
@@ -442,13 +452,12 @@ struct WithMeta : public T
     common::span<const FuncCall> MetaFunctions;
 };
 
-struct RawBlock
+struct RawBlock : public WithPos
 {
     std::u32string_view Type;
     std::u32string_view Name;
     std::u32string_view Source;
     std::u16string FileName;
-    std::pair<size_t, size_t> Position;
 };
 using RawBlockWithMeta = WithMeta<RawBlock>;
 struct Block;

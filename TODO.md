@@ -140,7 +140,7 @@
   - [ ] Add python parser & runtime
   - [x] Explicitly handle loops
   - [ ] Fix test for inhirit arg access
-  - [ ] Add proper stacktrace when throw exception
+  - [x] Add proper stacktrace when throw exception
   - [x] Add nested brace support for ReplaceEngine
   - [x] Move arg/func's lookup logic into StackFrame
 
