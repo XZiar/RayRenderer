@@ -92,17 +92,17 @@ struct NLCLRuntime_ : public NLCLRuntime
 #define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 struct NLCLDebugExtension : public NLCLExtension
 {
-    NLCLRuntime_& Runtime;
     oclDebugManager DebugManager;
     using DbgContent = std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>;
     std::map<std::u32string, DbgContent, std::less<>> DebugInfos;
     bool AllowDebug = false, HasDebug = false;
-    NLCLDebugExtension(NLCLRuntime& runtime) : NLCLExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)) { }
+    NLCLDebugExtension(NLCLContext& context) : NLCLExtension(context) { }
     ~NLCLDebugExtension() override { }
 
-    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(const xziar::nailang::FuncCall& call,
+    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
         common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override
     {
+        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
         if (call.Name == U"oclu.EnableDebug")
         {
@@ -139,8 +139,9 @@ struct NLCLDebugExtension : public NLCLExtension
         }
         return {};
     }
-    bool KernelMeta(const xziar::nailang::FuncCall& meta, KernelContext& kernel) override
+    bool KernelMeta(NLCLRuntime& runtime, const xziar::nailang::FuncCall& meta, KernelContext& kernel) override
     {
+        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
         if (meta.Name == U"oclu.DebugOutput"sv)
         {
@@ -155,8 +156,9 @@ struct NLCLDebugExtension : public NLCLExtension
         }
         return false;
     }
-    void FinishNLCL() override
+    void FinishNLCL(NLCLRuntime& runtime) override
     {
+        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         if (AllowDebug && HasDebug)
         {
             Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
@@ -173,27 +175,28 @@ struct NLCLDebugExtension : public NLCLExtension
     }
 
     inline static uint32_t ID = NLCLExtension::RegisterNLCLExtenstion(
-        [](NLCLRuntime& runtime, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
+        [](auto&, NLCLContext& context, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
         {
-            return std::make_unique<NLCLDebugExtension>(runtime);
+            return std::make_unique<NLCLDebugExtension>(context);
         });
 };
 void SetAllowDebug(const NLCLContext& context) noexcept
 {
-    context.GetNLCLExt<NLCLDebugExtension>().AllowDebug = true;
+    if (const auto ext = context.GetNLCLExt<NLCLDebugExtension>(); ext)
+        ext->AllowDebug = true;
 }
 
-struct KernelDebugExtension : public ReplaceExtension
+struct KernelDebugExtension : public KernelExtension
 {
 public:
-    NLCLRuntime_& Runtime;
     KernelContext& Kernel;
     NLCLDebugExtension& Host;
     bool HasDebug = false;
-    KernelDebugExtension(NLCLRuntime& runtime, KernelContext& kernel) :
-        ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)),
-        Kernel(kernel), Host(Context.GetNLCLExt<NLCLDebugExtension>())
-    { }
+    KernelDebugExtension(NLCLContext& context, KernelContext& kernel) :
+        KernelExtension(context), Kernel(kernel), Host(*Context.GetNLCLExt<NLCLDebugExtension>())
+    {
+        Expects(&Host);
+    }
     ~KernelDebugExtension() override { }
 
     std::u32string DebugStringBase() noexcept
@@ -224,7 +227,8 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
 )"s;
     }
 
-    std::u32string DebugStringPatch(const std::u32string_view dbgId, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
+    std::u32string DebugStringPatch(NLCLRuntime_& runtime, const std::u32string_view dbgId, 
+        const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
     {
         // prepare arg layout
         const auto& dbgBlock = Host.DebugManager.AppendBlock(dbgId, formatter, args);
@@ -233,11 +237,11 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         try
         {
             std::vector<std::byte> test(dbgData.TotalSize);
-            Runtime.Logger.debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
+            runtime.Logger.debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
         }
         catch (const fmt::format_error& fe)
         {
-            Runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
+            runtime.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
             return U"// Formatter not match the datatype provided\r\n";
         }
 
@@ -326,10 +330,11 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return func;
     }
 
-    std::u32string GenerateDebugFunc(const std::u32string_view id, const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
+    std::u32string GenerateDebugFunc(NLCLRuntime_& runtime, const std::u32string_view id, 
+        const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
     {
         Context.AddPatchedBlock(*this, U" oglu_debug"sv, &KernelDebugExtension::DebugStringBase);
-        Context.AddPatchedBlock(*this, id, &KernelDebugExtension::DebugStringPatch, id, item.first, item.second);
+        Context.AddPatchedBlock(*this, id, &KernelDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
 
         std::u32string str = FMTSTR(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
         for (size_t i = 0; i < vals.size(); ++i)
@@ -342,8 +347,9 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return str;
     }
 
-    std::u32string ReplaceFunc(std::u32string_view func, const common::span<const std::u32string_view> args) override
+    std::u32string ReplaceFunc(NLCLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override
     {
+        NLCLRuntime_& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
         if (func == U"oclu.DebugString"sv)
         {
@@ -356,7 +362,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             if (info)
             {
                 Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
-                return GenerateDebugFunc(id, *info, args.subspan(1));
+                return GenerateDebugFunc(Runtime, id, *info, args.subspan(1));
             }
             NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
         }
@@ -388,11 +394,11 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             if (!ret)
                 NLRT_THROW_EX(FMTSTR(u"DebugString [{}] repeately defined", id));
             
-            return GenerateDebugFunc(id, info->second, vals);
+            return GenerateDebugFunc(Runtime, id, info->second, vals);
         }
         return {};
     }
-    void FinishKernel(KernelContext& kernel) override
+    void FinishKernel(NLCLRuntime&, KernelContext& kernel) override
     {
         Expects(&kernel == &Kernel);
         if (HasDebug)
@@ -433,9 +439,9 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
     }
 
     inline static uint32_t ID = NLCLExtension::RegisterKernelExtenstion(
-        [](NLCLRuntime& runtime, KernelContext& kernel) -> std::unique_ptr<ReplaceExtension>
+        [](auto&, NLCLContext& context, KernelContext& kernel) -> std::unique_ptr<KernelExtension>
         {
-            return std::make_unique<KernelDebugExtension>(runtime, kernel);
+            return std::make_unique<KernelDebugExtension>(context, kernel);
         });
 };
 #undef NLRT_THROW_EX

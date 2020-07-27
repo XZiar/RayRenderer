@@ -95,40 +95,44 @@ struct OCLUAPI KernelContext
 };
 
 
-class OCLUAPI ReplaceExtension
+class OCLUAPI KernelExtension
 {
+    friend class NLCLRuntime;
+    friend class NLCLProgStub;
+    friend class NLCLContext;
 protected:
     NLCLContext& Context;
-    NLCLRuntime& Runtime;
 public:
-    ReplaceExtension(NLCLRuntime& runtime);
-    virtual ~ReplaceExtension();
-    virtual bool KernelMeta(const xziar::nailang::FuncCall&, KernelContext&) 
+    KernelExtension(NLCLContext& context);
+    virtual ~KernelExtension();
+    virtual bool KernelMeta(NLCLRuntime&, const xziar::nailang::FuncCall&, KernelContext&)
     {
         return false;
     }
-    virtual std::u32string ReplaceFunc(std::u32string_view, const common::span<const std::u32string_view>)
+    virtual std::u32string ReplaceFunc(NLCLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
     {
         return U"";
     }
-    virtual void FinishKernel(KernelContext&) { }
+    virtual void FinishKernel(NLCLRuntime&, KernelContext&) { }
+private:
+    uint32_t ID;
 };
-class OCLUAPI NLCLExtension : public ReplaceExtension
+class OCLUAPI NLCLExtension : public KernelExtension
 {
     friend class NLCLRuntime;
 public:
-    using ReplaceExtension::ReplaceExtension;
+    using KernelExtension::KernelExtension;
     virtual ~NLCLExtension();
-    [[nodiscard]] virtual std::optional<xziar::nailang::Arg> NLCLFunc(const xziar::nailang::FuncCall&,
+    [[nodiscard]] virtual std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime&, const xziar::nailang::FuncCall&,
         common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType)
     {
         return {};
     }
-    virtual void FinishNLCL() { }
+    virtual void FinishNLCL(NLCLRuntime&) { }
     virtual void OnCompile(oclProgStub&) { }
 
-    using KerExtGen = std::function<std::unique_ptr<ReplaceExtension>(NLCLRuntime&, KernelContext&)>;
-    using NLCLExtGen = std::function<std::unique_ptr<NLCLExtension>(NLCLRuntime&, const xziar::nailang::Block&)>;
+    using KerExtGen  = std::function<std::unique_ptr<KernelExtension>(common::mlog::MiniLogger<false>&, NLCLContext&, KernelContext&)>;
+    using NLCLExtGen = std::function<std::unique_ptr<NLCLExtension>(common::mlog::MiniLogger<false>&, NLCLContext&, const xziar::nailang::Block&)>;
     static uint32_t RegisterKernelExtenstion(KerExtGen creator) noexcept;
     static uint32_t RegisterNLCLExtenstion(NLCLExtGen creator) noexcept;
 };
@@ -172,9 +176,14 @@ public:
         return false;
     }
     template<typename T>
-    T& GetNLCLExt() const
+    T* GetNLCLExt() const
     {
-        return static_cast<T&>(*NLCLExts[T::ID]);
+        for (const auto& ext : NLCLExts)
+        {
+            if (ext->ID == T::ID)
+                return static_cast<T*>(ext.get());
+        }
+        return nullptr;
     }
     struct VecTypeResult
     {
@@ -219,14 +228,14 @@ struct KernelCookie : public BlockCookie
 {
     static constexpr uint32_t TYPE = 1;
     KernelContext Context;
-    std::vector<std::unique_ptr<ReplaceExtension>> Extensions;
+    std::vector<std::unique_ptr<KernelExtension>> Extensions;
     KernelCookie() noexcept : BlockCookie(TYPE) { }
 };
 
 
 class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
 {
-    friend class ReplaceExtension;
+    friend class KernelExtension;
     friend class NLCLProcessor;
     friend class NLCLSubgroup;
     friend class NLCLBaseResult;
@@ -256,12 +265,11 @@ protected:
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputStruct(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
-    virtual void HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<ReplaceExtension>>& kerExts);
+    virtual void HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<KernelExtension>>& kerExts);
     virtual void StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg);
     virtual void OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32string& dst);
     virtual void OutputTemplateKernel(const RawBlock& block, [[maybe_unused]] MetaFuncs metas, [[maybe_unused]] const OutputBlock::BlockInfo& extraInfo, std::u32string& dst);
 public:
-
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});

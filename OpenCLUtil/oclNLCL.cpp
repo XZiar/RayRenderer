@@ -51,34 +51,39 @@ bool KernelContext::Add(std::vector<NamedText>& container, const std::u32string_
 }
 
 
-ReplaceExtension::ReplaceExtension(NLCLRuntime& runtime) : 
-    Context(runtime.Context), Runtime(runtime) { }
-ReplaceExtension::~ReplaceExtension() { }
+KernelExtension::KernelExtension(NLCLContext& context) : Context(context), ID(UINT32_MAX)
+{ }
+KernelExtension::~KernelExtension() { }
 
 
 NLCLExtension::~NLCLExtension() { }
 
 
-static std::vector<NLCLExtension::KerExtGen>& KerExtGenVector() noexcept
+static uint32_t RegId() noexcept
 {
-    static std::vector<NLCLExtension::KerExtGen> container;
+    static std::atomic<uint32_t> ID = 0;
+    return ID++;
+}
+static auto& KerExtGenVector() noexcept
+{
+    static std::vector<std::pair<NLCLExtension::KerExtGen, uint32_t>> container;
     return container;
 }
-static std::vector<NLCLExtension::NLCLExtGen>& NLCLExtGenVector() noexcept
+static auto& NLCLExtGenVector() noexcept
 {
-    static std::vector<NLCLExtension::NLCLExtGen> container;
+    static std::vector< std::pair<NLCLExtension::NLCLExtGen, uint32_t>> container;
     return container;
 }
 uint32_t NLCLExtension::RegisterKernelExtenstion(KerExtGen creator) noexcept
 {
-    KerExtGenVector().push_back(std::move(creator));
-    return 0;
+    const auto id = RegId();
+    KerExtGenVector().emplace_back(std::move(creator), id);
+    return id;
 }
 uint32_t NLCLExtension::RegisterNLCLExtenstion(NLCLExtGen creator) noexcept
 {
-    auto& container = NLCLExtGenVector();
-    const auto id = static_cast<uint32_t>(container.size());
-    container.push_back(std::move(creator));
+    const auto id = RegId();
+    NLCLExtGenVector().emplace_back(std::move(creator), id);
     return id;
 }
 
@@ -438,7 +443,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
     for (const auto& ext : Context.NLCLExts)
     {
         if (!ext) continue;
-        const auto ret = ext->ReplaceFunc(func, args);
+        const auto ret = ext->ReplaceFunc(*this, func, args);
         if (!ret.empty())
         {
             output.append(ret);
@@ -450,7 +455,7 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         for (const auto& ext : kerCk->Extensions)
         {
             if (!ext) continue;
-            const auto ret = ext->ReplaceFunc(func, args);
+            const auto ret = ext->ReplaceFunc(*this, func, args);
             if (!ret.empty())
             {
                 output.append(ret);
@@ -547,12 +552,9 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         }
         for (const auto& ext : Context.NLCLExts)
         {
-            if (ext)
-            {
-                auto ret = ext->NLCLFunc(call, metas, target);
-                if (ret)
-                    return std::move(ret.value());
-            }
+            auto ret = ext->NLCLFunc(*this, call, metas, target);
+            if (ret)
+                return std::move(ret.value());
         }
     }
     return NailangRuntimeBase::EvaluateFunc(call, metas, target);
@@ -639,7 +641,7 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"",             ImgAccess::ReadWrite));
 
 
-void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<ReplaceExtension>>& kerExts)
+void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<KernelExtension>>& kerExts)
 {
     if (meta.Name == U"MetaIf")
     {
@@ -728,12 +730,12 @@ void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, 
         }
         for (const auto& ext : Context.NLCLExts)
         {
-            if (ext && ext->KernelMeta(meta, kerCtx))
+            if (ext->KernelMeta(*this, meta, kerCtx))
                 return;
         }
         for (const auto& ext : kerExts)
         {
-            if (ext && ext->KernelMeta(meta, kerCtx))
+            if (ext->KernelMeta(*this, meta, kerCtx))
                 return;
         }
     }
@@ -772,9 +774,14 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
 {
     KernelCookie cookie;
     KernelContext& kerCtx = cookie.Context;
-    for (const auto& creator : KerExtGenVector())
+    for (const auto& [creator, id] : KerExtGenVector())
     {
-        cookie.Extensions.push_back(creator(*this, kerCtx));
+        auto ext = creator(Logger, Context, kerCtx);
+        if (ext)
+        {
+            ext->ID = id;
+            cookie.Extensions.push_back(std::move(ext));
+        }
     }
 
     for (const auto& meta : metas)
@@ -785,13 +792,11 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
     DirectOutput(block, metas, content, &cookie);
     for (const auto& ext : Context.NLCLExts)
     {
-        if (ext)
-            ext->FinishKernel(kerCtx);
+        ext->FinishKernel(*this, kerCtx);
     }
     for (const auto& ext : cookie.Extensions)
     {
-        if (ext)
-            ext->FinishKernel(kerCtx);
+        ext->FinishKernel(*this, kerCtx);
     }
 
     APPEND_FMT(dst, U"\r\n/* From KernelBlock [{}] */\r\n"sv, block.Name);
@@ -957,8 +962,7 @@ std::string NLCLRuntime::GenerateOutput()
     }
     for (const auto& ext : Context.NLCLExts)
     {
-        if (ext)
-            ext->FinishNLCL();
+        ext->FinishNLCL(*this);
     }
 
     { // Output extentions
@@ -1075,9 +1079,14 @@ NLCLProgStub::~NLCLProgStub()
 void NLCLProgStub::Prepare()
 {
     Context->NLCLExts.clear();
-    for (const auto& creator : NLCLExtGenVector())
+    for (const auto& [creator, id] : NLCLExtGenVector())
     {
-        Context->NLCLExts.push_back(creator(*Runtime, Program->Program));
+        auto ext = creator(oclLog(), *Context, Program->Program);
+        if (ext)
+        {
+            ext->ID = id;
+            Context->NLCLExts.push_back(std::move(ext));
+        }
     }
 }
 
@@ -1123,8 +1132,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
         auto progStub = oclProgram_::Create(ctx, str, stub.Context->Device);
         for (const auto& ext : stub.Context->NLCLExts)
         {
-            if (ext)
-                ext->OnCompile(progStub);
+            ext->OnCompile(progStub);
         }
         progStub.ImportedKernelInfo = std::move(stub.Context->CompiledKernels);
         progStub.Build(config);

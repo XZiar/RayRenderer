@@ -37,61 +37,60 @@ struct SubgroupProvider
         common::span<const common::simd::VecDataInfo> scalars) noexcept;
     [[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view funcName, const std::u32string_view base, common::simd::VecDataInfo vtype) noexcept;
     
-    NLCLRuntime_& Runtime;
     NLCLContext& Context;
     const SubgroupCapbility Cap;
-    SubgroupProvider(NLCLRuntime_& runtime, SubgroupCapbility cap);
+    SubgroupProvider(NLCLContext& context, SubgroupCapbility cap);
     virtual ~SubgroupProvider() { }
     virtual std::u32string GetSubgroupLocalId() { return {}; };
     virtual std::u32string GetSubgroupSize(const uint32_t) { return {}; };
     virtual std::u32string SubgroupBroadcast(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual std::u32string SubgroupShuffle(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
-    virtual void OnFinish(const KernelSubgroupExtension&, KernelContext&) { }
+    virtual void OnFinish(NLCLRuntime_&, const KernelSubgroupExtension&, KernelContext&) { }
 };
 
 
 struct NLCLSubgroupExtension : public NLCLExtension
 {
-    NLCLRuntime_& Runtime;
     std::shared_ptr<SubgroupProvider> DefaultProvider;
+    common::mlog::MiniLogger<false>& Logger;
 
-    NLCLSubgroupExtension(NLCLRuntime& runtime) : NLCLExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)),
-        DefaultProvider(Generate(Runtime, {}, {})) { }
+    NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) : 
+        NLCLExtension(context), DefaultProvider(Generate(logger, context, {}, {})), Logger(logger)
+    { }
     ~NLCLSubgroupExtension() override { }
-    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(const xziar::nailang::FuncCall& call,
+    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
         common::span<const xziar::nailang::FuncCall> metas, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override;
 
     static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
-    static std::shared_ptr<SubgroupProvider> Generate(NLCLRuntime_& runtime, std::u32string_view mimic, std::u32string_view args);
+    static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);
     inline static uint32_t ID = NLCLExtension::RegisterNLCLExtenstion(
-        [](NLCLRuntime& runtime, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
+        [](common::mlog::MiniLogger<false>& logger, NLCLContext& context, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
         {
-            return std::make_unique<NLCLSubgroupExtension>(runtime);
+            return std::make_unique<NLCLSubgroupExtension>(logger, context);
         });
 };
 
 
-struct KernelSubgroupExtension : public ReplaceExtension
+struct KernelSubgroupExtension : public KernelExtension
 {
-    NLCLRuntime_& Runtime;
     KernelContext& Kernel;
     std::shared_ptr<SubgroupProvider> Provider;
     uint32_t SubgroupSize = 0;
 
-    KernelSubgroupExtension(NLCLRuntime& runtime, KernelContext& kernel) :
-        ReplaceExtension(runtime), Runtime(static_cast<NLCLRuntime_&>(runtime)), Kernel(kernel),
-        Provider(Context.GetNLCLExt<NLCLSubgroupExtension>().DefaultProvider)
+    KernelSubgroupExtension(NLCLContext& context, KernelContext& kernel) :
+        KernelExtension(context), Kernel(kernel),
+        Provider(Context.GetNLCLExt<NLCLSubgroupExtension>()->DefaultProvider)
     { }
     ~KernelSubgroupExtension() override { }
 
-    bool KernelMeta(const xziar::nailang::FuncCall& meta, KernelContext& kernel) override;
-    std::u32string ReplaceFunc(const std::u32string_view func, const common::span<const std::u32string_view> args) override;
-    void FinishKernel(KernelContext& kernel) override;
+    bool KernelMeta(NLCLRuntime& runtime, const xziar::nailang::FuncCall& meta, KernelContext& kernel) override;
+    std::u32string ReplaceFunc(NLCLRuntime& runtime, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
+    void FinishKernel(NLCLRuntime& runtime, KernelContext& kernel) override;
 
     inline static uint32_t ID = NLCLExtension::RegisterKernelExtenstion(
-        [](NLCLRuntime& runtime, KernelContext& kernel) -> std::unique_ptr<ReplaceExtension>
+        [](auto&, NLCLContext& context, KernelContext& kernel) -> std::unique_ptr<KernelExtension>
         {
-            return std::make_unique<KernelSubgroupExtension>(runtime, kernel);
+            return std::make_unique<KernelSubgroupExtension>(context, kernel);
         });
 };
 
@@ -100,7 +99,7 @@ class NLCLSubgroupKHR : public SubgroupProvider
 {
 protected:
     bool EnableSubgroup = false, EnableFP16 = false, EnableFP64 = false;
-    void OnFinish(const KernelSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension& ext, KernelContext& kernel) override;
 public:
     using SubgroupProvider::SubgroupProvider;
     ~NLCLSubgroupKHR() override { }
@@ -119,7 +118,7 @@ protected:
     [[nodiscard]] std::u32string VectorPatch(const std::u32string_view funcName, const std::u32string_view base, 
         common::simd::VecDataInfo vtype, common::simd::VecDataInfo mid) noexcept;
     std::u32string DirectShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx);
-    void OnFinish(const KernelSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension& ext, KernelContext& kernel) override;
 public:
     using NLCLSubgroupKHR::NLCLSubgroupKHR;
     ~NLCLSubgroupIntel() override { }
@@ -132,9 +131,8 @@ public:
 class NLCLSubgroupLocal : public NLCLSubgroupKHR
 {
 protected:
-    bool NeedLocalTemp = false;
-    void CheckSubgroupSize(const size_t sgSize);
-    void OnFinish(const KernelSubgroupExtension& ext, KernelContext& kernel) override;
+    bool NeedCommonInfo = false, NeedLocalTemp = false;
+    void OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension& ext, KernelContext& kernel) override;
     std::u32string BroadcastPatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string ShufflePatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
 public:
@@ -155,7 +153,7 @@ protected:
     std::u32string Shuffle64Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string Shuffle32Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
 public:
-    NLCLSubgroupPtx(NLCLRuntime_& runtime, SubgroupCapbility cap, const uint32_t smVersion = 30);
+    NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
 
     std::u32string GetSubgroupLocalId() override;
