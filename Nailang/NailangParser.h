@@ -55,6 +55,8 @@ protected:
     MemoryPool& MemPool;
     std::u16string SubScopeName;
 
+    static std::pair<uint32_t, uint32_t> GetPosition(const common::parser::ParserContext& context, const bool ignoreCol = false) noexcept;
+
     [[nodiscard]] std::u16string DescribeTokenID(const uint16_t tid) const noexcept override;
     [[nodiscard]] common::str::StrVariant<char16_t> GetCurrentFileName() const noexcept override;
     virtual void HandleException(const NailangParseException& ex) const;
@@ -100,7 +102,7 @@ class NAILANGAPI RawBlockParser : public NailangParser
 protected:
     void EatSemiColon();
     void FillBlockName(RawBlock& block);
-    void FillBlockInfo(RawBlock& block);
+    void FillFileName(RawBlock& block) const noexcept;
     [[nodiscard]] RawBlock FillRawBlock(const std::u32string_view name);
 public:
     using NailangParser::NailangParser;

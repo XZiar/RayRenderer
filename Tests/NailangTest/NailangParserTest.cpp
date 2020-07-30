@@ -380,14 +380,14 @@ Here
         EXPECT_EQ(block0.Type, U"Main"sv);
         EXPECT_EQ(block0.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block0.Source), U"Here\n"sv);
-        EXPECT_EQ(block0.Position.first,  3u);
+        EXPECT_EQ(block0.Position.first,  2u);
         EXPECT_EQ(block0.Position.second, 0u);
 
         const auto block1 = Parser.GetNextRawBlock();
         EXPECT_EQ(block1.Type, U"Main"sv);
         EXPECT_EQ(block1.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block1.Source), U"{Here}\n"sv);
-        EXPECT_EQ(block1.Position.first,  8u);
+        EXPECT_EQ(block1.Position.first,  7u);
         EXPECT_EQ(block1.Position.second, 0u);
     }
 }
@@ -411,7 +411,7 @@ Here
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
-        EXPECT_EQ(block.Position.first,  4u);
+        EXPECT_EQ(block.Position.first,  3u);
         EXPECT_EQ(block.Position.second, 0u);
         ASSERT_EQ(block.MetaFunctions.size(), 1u);
         const auto& meta = block.MetaFunctions[0];
@@ -439,7 +439,7 @@ Here
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block.Source), U"Here\n"sv);
-        EXPECT_EQ(block.Position.first,  5u);
+        EXPECT_EQ(block.Position.first,  4u);
         EXPECT_EQ(block.Position.second, 0u);
         ASSERT_EQ(block.MetaFunctions.size(), 2u);
         {
@@ -459,7 +459,7 @@ Here
         EXPECT_EQ(block_.Type, U"Main"sv);
         EXPECT_EQ(block_.Name, U"Hello"sv);
         EXPECT_EQ(ReplaceNewLine(block_.Source), U"Here\n"sv);
-        EXPECT_EQ(block_.Position.first,  9u);
+        EXPECT_EQ(block_.Position.first,  8u);
         EXPECT_EQ(block_.Position.second, 0u);
         EXPECT_EQ(block_.MetaFunctions.size(), 0u);
     }

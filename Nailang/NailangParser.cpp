@@ -25,6 +25,12 @@ struct ExpectCurlyBraceR
 };
 
 
+std::pair<uint32_t, uint32_t> NailangParser::GetPosition(const common::parser::ParserContext& context, const bool ignoreCol) noexcept
+{
+    return { gsl::narrow_cast<uint32_t>(context.Row + 1), ignoreCol ? 0u : gsl::narrow_cast<uint32_t>(context.Col) };
+}
+
+
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
 #define RET_TK_ID(type) case SectorLangToken::type:        return u ## #type
@@ -244,7 +250,7 @@ RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool
 
 FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
 {
-    const auto row = context.Row, col = context.Col;
+    const auto pos = GetPosition(context);
     ComplexArgParser parser(pool, context);
     parser.EatLeftParenthese();
     std::vector<RawArg> args;
@@ -262,7 +268,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPoo
             parser.NLPS_THROW_EX(u"Expect ')' before reaching end"sv);
     }
     const auto sp = pool.CreateArray(args);
-    return { funcName, sp, gsl::narrow_cast<uint32_t>(row), gsl::narrow_cast<uint32_t>(col) };
+    return { funcName, sp, pos };
 }
 
 std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
@@ -298,15 +304,15 @@ void RawBlockParser::FillBlockName(RawBlock& block)
     EatRightParenthese();
 }
 
-void RawBlockParser::FillBlockInfo(RawBlock& block)
+void RawBlockParser::FillFileName(RawBlock& block) const noexcept
 {
-    block.Position = { gsl::narrow_cast<uint32_t>(Context.Row), gsl::narrow_cast<uint32_t>(Context.Col) };
     block.FileName = Context.SourceName;
 }
 
 RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name)
 {
     RawBlock block;
+    block.Position = GetPosition(Context, true);
     block.Type = name;
 
     FillBlockName(block);
@@ -315,7 +321,7 @@ RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name)
 
     ContextReader reader(Context);
     auto guardString = std::u32string(reader.ReadLine());
-    FillBlockInfo(block);
+    FillFileName(block);
 
     guardString.append(U"}");
     block.Source = reader.ReadUntil(guardString);
@@ -379,6 +385,8 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
     constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
 
+    const auto pos = GetPosition(Context);
+
     auto varLen = var.size() * 2;
 
     const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
@@ -405,6 +413,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
 
     Assignment assign;
+    assign.Position  = pos;
     assign.Variable_ = { var.data(), varLen };
     if (!selfOp.has_value())
     {
@@ -460,6 +469,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         case SectorLangToken::Block:
         {
             Block inlineBlk;
+            inlineBlk.Position = GetPosition(Context, true);
             FillBlockName(inlineBlk);
             inlineBlk.Type = token.GetString();
             EatLeftCurlyBrace();
@@ -467,7 +477,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
                 ContextReader reader(Context);
                 reader.ReadLine();
             }
-            FillBlockInfo(inlineBlk);
+            FillFileName(inlineBlk);
             {
                 const auto idxBegin = Context.Index;
                 ParseContentIntoBlock<true>(inlineBlk, false);
@@ -543,7 +553,8 @@ Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserConte
     BlockParser parser(pool, context);
 
     Block ret;
-    parser.FillBlockInfo(ret);
+    ret.Position = GetPosition(context, true);
+    parser.FillFileName(ret);
     parser.ParseContentIntoBlock<false>(ret);
     return ret;
 }

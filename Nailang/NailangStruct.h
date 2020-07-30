@@ -426,8 +426,8 @@ struct FuncCall : public WithPos
     common::span<const RawArg> Args;
     constexpr FuncCall() noexcept {}
     constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args) noexcept : Name(name), Args(args) { }
-    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args, const uint32_t row, const uint32_t col) noexcept :
-        WithPos{ {row, col} }, Name(name), Args(args)
+    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
+        WithPos{pos}, Name(name), Args(args)
     { }
 };
 struct UnaryExpr
@@ -462,7 +462,7 @@ struct RawBlock : public WithPos
 using RawBlockWithMeta = WithMeta<RawBlock>;
 struct Block;
 
-struct Assignment
+struct Assignment : public WithPos
 {
     std::u32string_view Variable_;
     RawArg Statement;
