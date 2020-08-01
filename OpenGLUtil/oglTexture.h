@@ -53,8 +53,8 @@ class OGLWrongFormatException : public OGLException
 public:
     EXCEPTION_CLONE_EX(OGLWrongFormatException);
     xziar::img::TextureFormat Format;
-    OGLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format, const std::any& data_ = std::any())
-        : OGLException(TYPENAME, GLComponent::OGLU, msg, data_), Format(format)
+    OGLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format)
+        : OGLException(TYPENAME, GLComponent::OGLU, msg), Format(format)
     { }
     virtual ~OGLWrongFormatException() {}
 };

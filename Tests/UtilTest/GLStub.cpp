@@ -193,26 +193,17 @@ static void OGLStub()
                     break;
                 }
             }
-            try
-            {
-                auto stub = oglProgram_::Create();
-                stub.AddExtShaders(shaderSrc, config);
-                log().info(u"Try Draw Program\n");
-                [[maybe_unused]] auto drawProg = stub.LinkDrawProgram(u"Draw Prog");
-                log().info(u"Try Compute Program\n");
-                [[maybe_unused]] auto compProg = stub.LinkComputeProgram(u"Compute Prog");
-            }
-            catch (const OGLException & gle)
-            {
-                log().error(u"OpenGL shader fail:\n{}\n", gle.message);
-                const auto buildLog = gle.data.has_value() ? std::any_cast<std::u16string>(&gle.data) : nullptr;
-                if (buildLog)
-                    log().error(u"Extra info:{}\n", *buildLog);
-            }
+            auto stub = oglProgram_::Create();
+            stub.AddExtShaders(shaderSrc, config);
+            log().info(u"Try Draw Program\n");
+            [[maybe_unused]] auto drawProg = stub.LinkDrawProgram(u"Draw Prog");
+            log().info(u"Try Compute Program\n");
+            [[maybe_unused]] auto compProg = stub.LinkComputeProgram(u"Compute Prog");
         }
         catch (const BaseException& be)
         {
-            log().error(u"Error here:\n{}\n\n", be.message);
+            log().error(u"Error here:\n{}\n{}\n", be.Message(), be.GetDetailMessage());
+            //PrintStack(be);
         }
     }
     getchar();

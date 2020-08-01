@@ -108,9 +108,9 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
 
     return img2;
 }
-catch (common::BaseException& be)
+catch (const common::BaseException& be)
 {
-    log().error(u"Error when process image: {}\n", be.message);
+    log().error(u"Error when process image: {}\n", be.Message());
     return {};
 }
 
@@ -165,12 +165,9 @@ int main() try
         auto stub = proc.Parse(common::as_bytes(common::to_span(str)));
         prog = proc.CompileProgram(stub, ctx, thedev)->GetProgram();
     }
-    catch (OCLException& cle)
+    catch (const OCLException& cle)
     {
-        u16string buildLog;
-        if (cle.data.has_value())
-            buildLog = std::any_cast<u16string>(cle.data);
-        log().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+        log().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
         return 0;
     }
 
@@ -212,7 +209,7 @@ int main() try
 
     getchar();
 }
-catch (common::BaseException& be)
+catch (const common::BaseException& be)
 {
-    log().error(u"{}\n", be.message);
+    log().error(u"{}\n", be.Message());
 }

@@ -17,19 +17,19 @@ namespace xziar::nailang
 class NAILANGAPI NailangParseException : public common::BaseException
 {
     friend class NailangParser;
+protected:
+    NailangParseException(const char* const type, const std::u16string_view file, std::pair<size_t, size_t> pos,
+        const std::u16string_view msg) :
+        BaseException(type, msg), File(file), Position(pos)
+    { }
 public:
     EXCEPTION_CLONE_EX(NailangParseException);
-    NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 },
-        const std::any& data = {}) : BaseException(TYPENAME, msg, data), File(file), Position(pos)
+    NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }) 
+        : NailangParseException(TYPENAME, file, pos, msg)
     { }
     ~NailangParseException() override {}
     std::u16string_view GetFileName() const noexcept { return File; }
     std::pair<size_t, size_t> GetPosition() const noexcept { return Position; }
-protected:
-    NailangParseException(const char* const type, const std::u16string_view file, std::pair<size_t, size_t> pos,
-        const std::u16string_view msg, const std::any& data = {}) :
-        BaseException(type, msg, data), File(file), Position(pos)
-    { }
 private:
     mutable common::SharedString<char16_t> File;
     mutable std::pair<size_t, size_t> Position;
@@ -41,8 +41,8 @@ public:
     common::parser::ParserToken Token;
     EXCEPTION_CLONE_EX(UnexpectedTokenException);
     UnexpectedTokenException(const std::u16string_view msg, common::parser::ParserToken token,
-        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }, const std::any& data = {}) :
-        NailangParseException(TYPENAME, file, pos, msg, data), Token(token)
+        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }) :
+        NailangParseException(TYPENAME, file, pos, msg), Token(token)
     { }
     ~UnexpectedTokenException() override {}
 };

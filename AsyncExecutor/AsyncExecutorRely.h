@@ -43,8 +43,8 @@ public:
     EXCEPTION_CLONE_EX(AsyncTaskException);
     enum class Reason : uint8_t { Terminated, Timeout, Cancelled };
     const Reason reason;
-    AsyncTaskException(const Reason reason_, const std::u16string_view& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data_), reason(reason_)
+    AsyncTaskException(const Reason reason_, const std::u16string_view& msg)
+        : BaseException(TYPENAME, msg), reason(reason_)
     { }
     virtual ~AsyncTaskException() {}
 };

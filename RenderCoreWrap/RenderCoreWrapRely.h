@@ -116,7 +116,7 @@ forceinline T* TryConstruct(Args&&... args)
     {
         return new T(std::forward<Args>(args)...);
     }
-    catch (common::BaseException & be)
+    catch (const common::BaseException & be)
     {
         throw gcnew Common::CPPException(be);
     }

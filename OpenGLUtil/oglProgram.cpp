@@ -205,7 +205,10 @@ oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, co
     {
         oglLog().warning(u"Link program failed.\n{}\n", logdat);
         CtxFunc->ogluDeleteProgram(ProgramID);
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed", logdat);
+        common::SharedString<char16_t> log(logdat);
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed")
+            .Attach("detail", log)
+            .Attach("linklog", log);
     }
     oglLog().success(u"Link program success.\n{}\n", logdat);
     InitLocs(stub->ExtInfo);

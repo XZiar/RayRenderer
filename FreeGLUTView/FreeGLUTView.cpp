@@ -285,11 +285,11 @@ public:
                             FilterMessage();
                             glutMainLoopEvent();
                         }
-                        catch (BaseException& be)
+                        catch (const BaseException& be)
                         {
-                            fgvLog().error(u"Occur Error:\t{}\n", be.message);
+                            fgvLog().error(u"Occur Error:\t{}\n{}\n", be.Message(), be.GetDetailMessage());
                         }
-                        catch (std::runtime_error& err)
+                        catch (const std::runtime_error& err)
                         {
                             fgvLog().error(u"Occur Error:\t{}\n", err.what());
                         }

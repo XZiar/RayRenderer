@@ -246,7 +246,7 @@ auto FindPath()
 
 void PrintException(const common::BaseException& be)
 {
-    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
+    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message());
     fmt::basic_memory_buffer<char16_t> buf;
     for (const auto& stack : be.Stack())
         fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);

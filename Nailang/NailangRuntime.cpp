@@ -359,8 +359,8 @@ NailangFormatException::NailangFormatException(const std::u32string_view formatt
 NailangFormatException::~NailangFormatException()
 { }
 
-NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
-    NailangRuntimeException(TYPENAME, common::str::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope), data)
+NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope) :
+    NailangRuntimeException(TYPENAME, common::str::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope))
 { }
 
 
@@ -729,7 +729,7 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
         traces.emplace_back(FromBlock(frame->BlockScope, std::move(fname)));
     }
     auto& ex_ = const_cast<NailangRuntimeException&>(ex);
-    ex_.StackTrace.insert(ex_.StackTrace.begin(), traces.begin(), traces.end());
+    ex_.Info->StackTrace.insert(ex_.Info->StackTrace.begin(), traces.begin(), traces.end());
     ex.ThrowSelf();
 }
 

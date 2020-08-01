@@ -118,7 +118,7 @@ static void FGTest()
         }
         catch (const oglu::OGLException & gle)
         {
-            log().warning(u"Failed to load LUT Generator:\n{}\n", gle.message);
+            log().warning(u"Failed to load LUT Generator:\n{}\n", gle.Message());
         }
     }
 

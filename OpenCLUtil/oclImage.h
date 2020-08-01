@@ -27,8 +27,8 @@ class OCLWrongFormatException : public OCLException
 public:
     EXCEPTION_CLONE_EX(OCLWrongFormatException);
     xziar::img::TextureFormat Format;
-    OCLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format, const std::any& data_ = std::any())
-        : OCLException(TYPENAME, CLComponent::OCLU, msg, data_), Format(format)
+    OCLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format)
+        : OCLException(TYPENAME, CLComponent::OCLU, msg), Format(format)
     { }
     virtual ~OCLWrongFormatException() {}
 };

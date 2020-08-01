@@ -127,7 +127,7 @@ static void TestNailang()
         }
         catch (const common::BaseException& be)
         {
-            log().error(u"Exception: \n{}\n", (u16string_view)be.message);
+            log().error(u"Exception: \n{}\n", be.Message());
         }
         log().info(u"\n<=End of file=>\n\n");
         ClearReturn();

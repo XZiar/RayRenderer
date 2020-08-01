@@ -58,9 +58,9 @@ FontViewer::FontViewer()
     {
         prog = oglDrawProgram_::Create(u"FontViewer", LoadShaderFromDLL(IDR_SHADER_PRINTFONT));
     }
-    catch (OGLException& gle)
+    catch (const OGLException& gle)
     {
-        fntLog().error(u"OpenGL create glProgram:\n{}\n", gle.message);
+        fntLog().error(u"Fail to create glProgram:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
         COMMON_THROW(BaseException, u"OpenGL compile fail");
     }
 

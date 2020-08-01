@@ -25,7 +25,8 @@ namespace stacktrace
 {
 
 std::vector<common::StackTraceItem> STKTRACEAPI GetStack();
-#define COMMON_THROWEX(ex, ...) throw ::common::BaseException::CreateWithStacks<ex>(::stacktrace::GetStack(), __VA_ARGS__)
+#define CREATE_EXCEPTIONEX(ex, ...) ::common::BaseException::CreateWithStacks<ex>(::stacktrace::GetStack(), __VA_ARGS__)
+#define COMMON_THROWEX(ex, ...) throw CREATE_EXCEPTIONEX(ex, __VA_ARGS__)
 
 
 }

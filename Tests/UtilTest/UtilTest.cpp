@@ -70,7 +70,7 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     }
     catch (const common::file::FileException& fe)
     {
-        log().warning(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.message);
+        log().warning(u"unable to load shader from [{}]({}) : {}\nFallback to default embeded shader.\n", shaderPath.u16string(), shdpath.u16string(), fe.Message());
     }
     auto data = common::ResourceHelper::GetData(L"BIN", id);
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
@@ -78,7 +78,7 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
 
 void PrintException(const common::BaseException& be)
 {
-    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.message);
+    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message());
     fmt::basic_memory_buffer<char16_t> buf;
     for (const auto& stack : be.Stack())
         fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);

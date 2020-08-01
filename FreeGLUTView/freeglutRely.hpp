@@ -157,7 +157,7 @@ private:
                 pms.set_value(true);
             }
         #pragma warning(disable:4101)
-            catch (std::exception& e)
+            catch (const std::exception& e)
             {
                 std::get<2>(invokeData).set_exception(std::current_exception());
             }

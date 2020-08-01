@@ -271,16 +271,16 @@ struct ExceptionTarget
 class NAILANGAPI NailangRuntimeException : public common::BaseException
 {
     friend class NailangRuntimeBase;
+protected:
+    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope) :
+        BaseException(type, msg), Target(std::move(target)), Scope(std::move(scope))
+    { }
 public:
     EXCEPTION_CLONE_EX(NailangRuntimeException);
     detail::ExceptionTarget Target;
     detail::ExceptionTarget Scope;
-    NailangRuntimeException(const std::u16string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {}) :
-        BaseException(TYPENAME, msg, data), Target(std::move(target)), Scope(std::move(scope))
-    { }
-protected:
-    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope, const std::any& data) :
-        BaseException(type, msg, data), Target(std::move(target)), Scope(std::move(scope))
+    NailangRuntimeException(const std::u16string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}) :
+        NailangRuntimeException(TYPENAME, msg, std::move(target), std::move(scope))
     { }
 };
 
@@ -298,7 +298,7 @@ class NAILANGAPI NailangCodeException : public NailangRuntimeException
 {
 public:
     EXCEPTION_CLONE_EX(NailangCodeException);
-    NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}, const std::any& data = {});
+    NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {});
 };
 
 

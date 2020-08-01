@@ -146,7 +146,7 @@ PostProcessor::PostProcessor(const uint32_t lutSize, const string& postSrc)
         }
         catch (const BaseException & be)
         {
-            dizzLog().warning(u"unable to create copmpute lut generator:\n {}\n", be.message);
+            dizzLog().warning(u"unable to create copmpute lut generator:\n {}\n", be.Message());
         }
     }
     if (!LutGenerator)

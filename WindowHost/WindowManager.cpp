@@ -38,9 +38,9 @@ void WindowManager::Start()
             {
                 Initialize();
             }
-            catch (common::BaseException & be)
+            catch (const common::BaseException & be)
             {
-                Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.message);
+                Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
                 pms.set_exception(std::current_exception());
             }
             pms.set_value();

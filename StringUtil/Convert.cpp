@@ -29,7 +29,7 @@ template<typename Char, typename Conv>
     case Charset::GB18030:
         return Transform(GetDecoder<GB18030>(str), GetEncoder<Conv, Char>());
     default: // should not enter, to please compiler
-        COMMON_THROW(BaseException, u"unknown charset", inchset);
+        COMMON_THROW(BaseException, u"unknown charset");
     }
 }
 
@@ -53,7 +53,7 @@ std::string to_string(const common::span<const std::byte> data, const Charset ou
     case Charset::GB18030:
         return ConvertString<char, GB18030>(data, inchset);
     default:
-        COMMON_THROW(BaseException, u"unknown charset", outchset);
+        COMMON_THROW(BaseException, u"unknown charset");
     }
 }
 

@@ -70,7 +70,7 @@ private:
         {
             if (const auto fex = std::dynamic_pointer_cast<common::file::FileException>(inner))
             {
-                auto msg = ToStr((const std::u16string_view&)fex->message);
+                auto msg = ToStr((const std::u16string_view&)fex->Message());
                 auto fpath = ToStr(fex->filepath.u16string());
                 auto innerEx = FormInnerException(*fex);
                 switch (fex->reason & common::file::FileErrReason::MASK_REASON)
@@ -96,7 +96,7 @@ public:
     {
         String^ get() override { return stacktrace; }
     }
-    CPPException(const common::BaseException& be) : Exception(ToStr(be.message), FormInnerException(be))
+    CPPException(const common::BaseException& be) : Exception(ToStr(be.Message()), FormInnerException(be))
     {
         using std::u16string_view;
         stacktrace = "";

@@ -452,7 +452,12 @@ void oclProgStub::Build(const CLProgConfig& config)
     else
     {
         oclLog().error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)ProgID, options, buildlog);
-        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed", buildlog);
+        common::SharedString<char16_t> log(buildlog);
+        COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed")
+            .Attach("dev", Device)
+            .Attach("source", Source)
+            .Attach("detail", log)
+            .Attach("buildlog", log);
     }
 
 }

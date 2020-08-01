@@ -333,22 +333,27 @@ static void CheckCompatible(const TextureFormat formatA, const TextureFormat for
 {
     if (formatA == formatB) return;
     const bool isCompressA = TexFormatUtil::IsCompressType(formatA), isCompressB = TexFormatUtil::IsCompressType(formatB);
-    if (isCompressA != isCompressB)
-        COMMON_THROWEX(OGLWrongFormatException, u"texture aliases not compatible between compress/non-compress format", formatB, formatA);
-    if(isCompressA)
+    std::u16string_view errmsg;
+    if (isCompressA == isCompressB)
     {
-        if ((formatA & TextureFormat::MASK_COMPRESS_RAW) != (formatB & TextureFormat::MASK_COMPRESS_RAW))
-            COMMON_THROWEX(OGLWrongFormatException, u"texture aliases not compatible between different compressed format", formatB, formatA);
+        if (isCompressA)
+        {
+            if ((formatA & TextureFormat::MASK_COMPRESS_RAW) != (formatB & TextureFormat::MASK_COMPRESS_RAW))
+                errmsg = u"texture aliases not compatible between different compressed format";
+            else
+                return;
+        }
         else
-            return;
+        {
+            if (TexFormatUtil::BitPerPixel(formatA) != TexFormatUtil::BitPerPixel(formatB))
+                errmsg = u"texture aliases not compatible between different sized format";
+            else
+                return;
+        }
     }
     else
-    {
-        if (TexFormatUtil::BitPerPixel(formatA) != TexFormatUtil::BitPerPixel(formatB))
-            COMMON_THROWEX(OGLWrongFormatException, u"texture aliases not compatible between different sized format", formatB, formatA);
-        else
-            return;
-    }
+        errmsg = u"texture aliases not compatible between compress/non-compress format";
+    COMMON_THROWEX(OGLWrongFormatException, errmsg, formatB).Attach("formatA", formatA);
 }
 
 

@@ -64,7 +64,11 @@ void oglShader_::compile()
         const auto logdat = common::str::to_u16string(logstr.c_str(), Charset::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         oglLog().verbose(u"source:\n{}\n\n", Src);
-        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed", logdat);
+        common::SharedString<char16_t> log(logdat);
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Compile shader failed")
+            .Attach("source", Src)
+            .Attach("detail", log)
+            .Attach("buildlog", log);
     }
 }
 
@@ -98,7 +102,7 @@ vector<oglShader> oglShader_::LoadFromFiles(path fname)
         }
         catch (const FileException& fe)
         {
-            oglLog().warning(u"skip loading {} due to Exception[{}]", fname.u16string(), fe.message);
+            oglLog().warning(u"skip loading {} due to Exception[{}]", fname.u16string(), fe.Message());
         }
     }
     return shaders;
@@ -187,8 +191,8 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
         }
         catch (...)
         {
-            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property",
-                common::linq::FromIterable(parts).Cast<string>().ToVector());
+            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Error in parsing property")
+                .Attach("extparts", common::linq::FromIterable(parts).Cast<string>().ToVector());
         }
     }
     else

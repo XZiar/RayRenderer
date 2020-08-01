@@ -72,6 +72,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\MemoryStream.hpp = common\MemoryStream.hpp
 		common\README.md = common\README.md
 		common\RefObject.hpp = common\RefObject.hpp
+		common\ResourceDict.hpp = common\ResourceDict.hpp
 		common\ResourceHelper.h = common\ResourceHelper.h
 		common\ResourceHelper.inl = common\ResourceHelper.inl
 		common\SharedResource.hpp = common\SharedResource.hpp
@@ -380,6 +381,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gtest", "gtest", "{3BD51305
 		3rdParty\gtest\README.md = 3rdParty\gtest\README.md
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirctXUtil", "DirectXUtil\DirctXUtil.vcxproj", "{CC934298-6B2A-4538-B656-71DFE4F37C89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -566,6 +569,10 @@ Global
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}.Debug|x64.Build.0 = Debug|x64
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}.Release|x64.ActiveCfg = Release|x64
 		{5B68EA93-2C83-4AF3-9E5F-F4F90917376F}.Release|x64.Build.0 = Release|x64
+		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Debug|x64.ActiveCfg = Debug|x64
+		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Debug|x64.Build.0 = Debug|x64
+		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Release|x64.ActiveCfg = Release|x64
+		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -631,6 +638,7 @@ Global
 		{4FD39CB8-7B50-4DF3-AA8D-AF83B83A7955} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{AA68694D-1802-42F4-8FD9-7F3E149B8F1A} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3BD51305-E666-4B25-A3A9-D586F5130026} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{CC934298-6B2A-4538-B656-71DFE4F37C89} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

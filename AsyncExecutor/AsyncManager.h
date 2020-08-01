@@ -113,7 +113,7 @@ private:
                 InnerPms.SetData(std::move(ret));
             }
         }
-        catch (boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
+        catch (const boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
         {
             std::rethrow_exception(std::current_exception());
         }

@@ -100,7 +100,10 @@ oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vect
     for (const auto& dev : devs)
     {
         if (dev < &Devices.front() || dev > &Devices.back())
-            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"cannot using device from other platform", dev);
+        {
+            COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, 
+                u"cannot using device from other platform").Attach("dev", dev);
+        }
     }
     const auto self = shared_from_this();
     return MAKE_ENABLER_SHARED(oclContext_, (self, props, devs));

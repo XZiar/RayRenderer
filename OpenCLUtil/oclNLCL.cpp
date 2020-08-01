@@ -256,7 +256,7 @@ void NLCLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str
 
 void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
-    Logger.error(u"{}\n", ex.message);
+    Logger.error(u"{}\n", ex.Message());
     NailangRuntimeBase::HandleException(ex);
 }
 
@@ -544,7 +544,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
                 }
                 catch (const xziar::nailang::NailangFormatException& nfe)
                 {
-                    Logger.error(u"Error when formating inner log: {}\n", nfe.message);
+                    Logger.error(u"Error when formating inner log: {}\n", nfe.Message());
                 }
             }
         } return {};

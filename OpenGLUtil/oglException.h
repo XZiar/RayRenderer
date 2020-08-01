@@ -12,11 +12,11 @@ public:
 	enum class GLComponent { Compiler, Driver, GPU, OGLU, Tex };
 	const GLComponent exceptionSource;
 protected:
-	OGLException(const char* const type, const GLComponent source, const std::u16string_view& msg, const std::any& data_ = std::any())
-		: common::BaseException(type, msg, data_), exceptionSource(source) { }
+	OGLException(const char* const type, const GLComponent source, const std::u16string_view msg)
+		: common::BaseException(type, msg), exceptionSource(source) { }
 public:
-	OGLException(const GLComponent source, const std::u16string_view& msg, const std::any& data_ = std::any())
-		: OGLException(TYPENAME, source, msg, data_)
+	OGLException(const GLComponent source, const std::u16string_view msg)
+		: OGLException(TYPENAME, source, msg)
 	{ }
 	virtual ~OGLException() {}
 };

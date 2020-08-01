@@ -80,8 +80,8 @@ public:
 public:
     EXCEPTION_CLONE_EX(FileException);
     const FileErrReason reason;
-    FileException(const FileErrReason why, const fs::path& file, const std::u16string_view& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data_), filepath(file), reason(why)
+    FileException(const FileErrReason why, const fs::path& file, const std::u16string_view msg)
+        : BaseException(TYPENAME, msg), filepath(file), reason(why)
     { }
     ~FileException() override {}
 };

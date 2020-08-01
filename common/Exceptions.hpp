@@ -2,6 +2,7 @@
 
 #include "CommonRely.hpp"
 #include "SharedString.hpp"
+#include "ResourceDict.hpp"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -18,8 +19,25 @@ namespace common
 
 class BaseException;
 
+
+class StackTraceItem
+{
+public:
+    SharedString<char16_t> File;
+    SharedString<char16_t> Func;
+    size_t Line;
+    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos)
+        : File(file), Func(func), Line(pos) {}
+    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos)
+        : File(file), Func(std::u16string(func, func + std::char_traits<char>::length(func))), Line(pos) {}
+    template<typename T1, typename T2>
+    StackTraceItem(T1&& file, T2&& func, const size_t pos)
+        : File(std::forward<T1>(file)), Func(std::forward<T2>(func)), Line(pos) {}
+};
+
 namespace detail
 {
+struct ExceptionHelper;
 
 class AnyException : public std::runtime_error, public std::enable_shared_from_this<AnyException>
 {
@@ -32,7 +50,7 @@ protected:
 
 class OtherException : public AnyException
 {
-    friend BaseException;
+    friend struct ExceptionHelper;
 public:
     static constexpr auto TYPENAME = "OtherException";
     [[nodiscard]] const char* What() const
@@ -57,25 +75,25 @@ private:
     {}
 };
 
-class ExceptionHelper;
-
-}
-
-
-class StackTraceItem
+struct ExceptionHelper
 {
 public:
-    SharedString<char16_t> File;
-    SharedString<char16_t> Func;
-    size_t Line;
-    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos)
-        : File(file), Func(func), Line(pos) {}
-    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos)
-        : File(file), Func(std::u16string(func, func + std::char_traits<char>::length(func))), Line(pos) {}
-    template<typename T1, typename T2>
-    StackTraceItem(T1&& file, T2&& func, const size_t pos)
-        : File(std::forward<T1>(file)), Func(std::forward<T2>(func)), Line(pos) {}
+    [[nodiscard]] static std::shared_ptr<AnyException> GetCurrentException();
 };
+
+struct ExceptionBasicInfo
+{
+    std::u16string Message;
+    std::vector<StackTraceItem> StackTrace;
+    std::shared_ptr<AnyException> InnerException;
+    std::unique_ptr<ResourceDict> Resources;
+    ExceptionBasicInfo(const std::u16string_view& msg) 
+        : Message{ msg }, InnerException(ExceptionHelper::GetCurrentException()) 
+    { }
+};
+
+
+}
 
 
 class [[nodiscard]] BaseException : public detail::AnyException
@@ -83,34 +101,29 @@ class [[nodiscard]] BaseException : public detail::AnyException
     friend detail::ExceptionHelper;
 public:
     static constexpr auto TYPENAME = "BaseException";
-    SharedString<char16_t> message;
-    std::any data;
 protected:
-    std::shared_ptr<detail::AnyException> InnerException;
-    std::vector<StackTraceItem> StackTrace;
-    static std::shared_ptr<detail::AnyException> GetCurrentException();
-    BaseException(const char* const type, const std::u16string_view& msg, const std::any& data_)
-        : detail::AnyException(type), message(msg), data(data_), InnerException(GetCurrentException())
+    std::shared_ptr<detail::ExceptionBasicInfo> Info;
+    BaseException(const char* const type, const std::u16string_view msg)
+        : detail::AnyException(type), Info(std::make_shared<detail::ExceptionBasicInfo>(msg))
     { }
 private:
     void CollectStack(std::vector<StackTraceItem>& stks) const
     {
-        if (InnerException)
+        if (Info->InnerException)
         {
-            const auto baseEx = std::dynamic_pointer_cast<BaseException>(InnerException);
+            const auto baseEx = std::dynamic_pointer_cast<BaseException>(Info->InnerException);
             if (baseEx)
                 baseEx->CollectStack(stks);
             else // is std exception
                 stks.emplace_back(u"StdException", u"StdException", 0);
         }
-        if (StackTrace.size() > 0)
-            stks.push_back(StackTrace[0]);
+        if (Info->StackTrace.size() > 0)
+            stks.push_back(Info->StackTrace[0]);
         else
             stks.emplace_back(u"Undefined", u"Undefined", 0);
     }
 public:
-    BaseException(const std::u16string_view& msg, const std::any& data_ = std::any())
-        : BaseException(TYPENAME, msg, data_)
+    BaseException(const std::u16string_view msg) : BaseException(TYPENAME, msg)
     { }
     BaseException(const BaseException& baseEx) = default;
     BaseException(BaseException&& baseEx) = default;
@@ -123,10 +136,14 @@ public:
     {
         throw *this;
     }
-    [[nodiscard]] std::shared_ptr<detail::AnyException> NestedException() const { return InnerException; }
-    [[nodiscard]] constexpr const std::vector<StackTraceItem>& Stack() const
+    [[nodiscard]] std::shared_ptr<detail::AnyException> NestedException() const { return Info->InnerException; }
+    [[nodiscard]] const std::vector<StackTraceItem>& Stack() const noexcept
     {
-        return StackTrace;
+        return Info->StackTrace;
+    }
+    [[nodiscard]] std::u16string_view Message() const noexcept
+    {
+        return Info->Message;
     }
     [[nodiscard]] std::vector<StackTraceItem> ExceptionStacks() const
     {
@@ -134,12 +151,40 @@ public:
         CollectStack(ret);
         return ret;
     }
+    template<typename T>
+    BaseException& Attach(std::string key, T&& value)
+    {
+        if (!Info->Resources)
+            Info->Resources = std::make_unique<ResourceDict>();
+        Info->Resources->Add(key, std::forward<T>(value));
+        return *this;
+    }
+    template<typename T>
+    [[nodiscard]] const T* GetResource(std::string_view key) const noexcept
+    {
+        if (!Info->Resources)
+            return nullptr;
+        return Info->Resources->QueryItem<T>(key);
+    }
+    [[nodiscard]] std::u16string_view GetDetailMessage() const noexcept
+    {
+        if (!Info->Resources)
+            return {};
+        const auto ptr = Info->Resources->QueryItem("detail");
+        if (ptr && ptr->type() == typeid(common::SharedString<char16_t>))
+            return *std::any_cast<common::SharedString<char16_t>>(ptr);
+        if (ptr && ptr->type() == typeid(std::u16string))
+            return *std::any_cast<std::u16string>(ptr);
+        if (ptr && ptr->type() == typeid(std::u16string_view))
+            return *std::any_cast<std::u16string_view>(ptr);
+        return {};
+    }
     template<typename T, typename... Args>
     [[nodiscard]] static T CreateWithStack(StackTraceItem&& sti, Args... args)
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         T ex(std::forward<Args>(args)...);
-        static_cast<BaseException*>(&ex)->StackTrace.push_back(std::move(sti));
+        static_cast<BaseException*>(&ex)->Info->StackTrace.push_back(std::move(sti));
         return ex;
     }
     template<typename T, typename... Args>
@@ -147,7 +192,7 @@ public:
     {
         static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
         T ex(std::forward<Args>(args)...);
-        static_cast<BaseException*>(&ex)->StackTrace = std::move(stacks);
+        static_cast<BaseException*>(&ex)->Info->StackTrace = std::move(stacks);
         return ex;
     }
 };
@@ -165,7 +210,8 @@ public:
     }                                                                               \
 
 
-[[nodiscard]] inline std::shared_ptr<detail::AnyException> BaseException::GetCurrentException()
+
+[[nodiscard]] inline std::shared_ptr<detail::AnyException> detail::ExceptionHelper::GetCurrentException()
 {
     const auto cex = std::current_exception();
     if (!cex)
@@ -188,14 +234,13 @@ public:
     }
 }
 
-
 #if defined(_MSC_VER)
-#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
 #   define CREATE_EXCEPTION(ex, ...) ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), u"" __FUNCSIG__, (size_t)(__LINE__) }, __VA_ARGS__)
 #else
-#   define COMMON_THROW(ex, ...) throw ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
 #   define CREATE_EXCEPTION(ex, ...) ::common::BaseException::CreateWithStack<ex>({ UTF16ER(__FILE__), __PRETTY_FUNCTION__, (size_t)(__LINE__) }, __VA_ARGS__)
 #endif
+#define COMMON_THROW(ex, ...) throw CREATE_EXCEPTION(ex, __VA_ARGS__)
+
 
 }
 

@@ -247,9 +247,9 @@ bool JpegReader::Validate()
     {
         jpeg_read_header(decompStruct, true);
     }
-    catch (BaseException& be)
+    catch (const BaseException& be)
     {
-        ImgLog().warning(u"libjpeg-turbo validate failed {}\n", be.message);
+        ImgLog().warning(u"libjpeg-turbo validate failed {}\n", be.Message());
         return false;
     }
     return true;

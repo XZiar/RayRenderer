@@ -99,9 +99,9 @@ Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const Imag
             auto img = reader->Read(dataType);
             return img;
         }
-        catch (BaseException& be)
+        catch (const BaseException& be)
         {
-            ImgLog().warning(u"Read Image using {} receive error {}\n", support.Name, be.message);
+            ImgLog().warning(u"Read Image using {} receive error {}\n", support.Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot read image");
@@ -128,9 +128,9 @@ void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16st
             stream.Flush();
             return;
         }
-        catch (BaseException& be)
+        catch (const BaseException& be)
         {
-            ImgLog().warning(u"Write Image using {} receive error {}\n", support.Name, be.message);
+            ImgLog().warning(u"Write Image using {} receive error {}\n", support.Name, be.Message());
         }
     }
     COMMON_THROW(BaseException, u"cannot write image");

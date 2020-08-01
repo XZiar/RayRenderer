@@ -34,9 +34,9 @@ void FontCreator::loadCL(const string& src)
         stub.Build(config);
         clProg = stub.Finish();
     }
-    catch (OCLException& cle)
+    catch (const OCLException& cle)
     {
-        fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
+        fntLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
         COMMON_THROW(BaseException, u"build Program error");
     }
     kerSdf = clProg->GetKernel("bmpsdf");
@@ -60,9 +60,9 @@ void FontCreator::loadDownSampler(const string& src)
         stub.Build(config);
         clProg = stub.Finish();
     }
-    catch (OCLException& cle)
+    catch (const OCLException& cle)
     {
-        fntLog().error(u"Fail to build opencl Program:\n{}\n", cle.message);
+        fntLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
         COMMON_THROW(BaseException, u"build Program error");
     }
     kerDownSamp = clProg->GetKernel("avg16");// "downsample4");

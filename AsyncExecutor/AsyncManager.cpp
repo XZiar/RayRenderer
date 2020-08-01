@@ -150,7 +150,7 @@ void AsyncManager::OnStop() noexcept
                 {
                     COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
                 }
-                catch (AsyncTaskException&)
+                catch (const AsyncTaskException&)
                 {
                     node->OnException(std::current_exception());
                 }

@@ -32,7 +32,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
         }
         catch (const OGLException& gle)
         {
-            texLog().error(u"GLTexResizer shader fail:\n{}\n", gle.message);
+            texLog().error(u"GLTexResizer shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
             COMMON_THROW(BaseException, u"GLTexResizer shader fail");
         }
         if (oglComputeProgram_::CheckSupport())
@@ -41,9 +41,9 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             {
                 GLResizer2 = oglComputeProgram_::Create(u"GLResizer2", shaderTxt);
             }
-            catch (const OGLException & gle)
+            catch (const OGLException& gle)
             {
-                texLog().error(u"GLResizer2 shader fail:\n{}\n", gle.message);
+                texLog().error(u"GLResizer2 shader fail:{}\n{}\n", gle.Message(), gle.GetDetailMessage());
                 texLog().warning(u"Compute Shader is disabled");
             }
         }
@@ -80,12 +80,9 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
                 texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);
             }
-            catch (OCLException& cle)
+            catch (const OCLException& cle)
             {
-                u16string buildLog;
-                if (cle.data.has_value())
-                    buildLog = std::any_cast<u16string>(cle.data);
-                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
             }
         }
         else

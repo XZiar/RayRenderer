@@ -335,9 +335,11 @@ void MultiMaterialHolder::Refresh()
     {
         const auto[w, h] = holder.GetSize();
         if (w == 0 || h == 0)
-            COMMON_THROWEX(BaseException, u"binded texture size cannot be 0", material->Name);
+            COMMON_THROWEX(BaseException, u"binded texture size cannot be 0")
+                .Attach("meterialName", material->Name);
         if (!IsPower2(w) || !IsPower2(h))
-            COMMON_THROWEX(BaseException, u"binded texture size should be power of 2", material->Name);
+            COMMON_THROWEX(BaseException, u"binded texture size should be power of 2")
+                .Attach("meterialName", material->Name);
         const detail::TexTag tid(holder.GetInnerFormat(), w, h, holder.GetMipmapCount());
         if (const auto avaSlot = avaliableMap.lower_bound(tid); avaSlot == avaliableMap.cend())
         {

@@ -46,9 +46,9 @@ protected:
                 FontTex->SetProperty(TextureFilterVal::Linear, TextureWrapVal::ClampEdge);
                 FontViewer->BindTexture(FontTex);
             }
-            catch (BaseException&)
+            catch (const BaseException&)
             {
-                //dizzLog().error(u"Font Construct failure:\n{}\n", be.message);
+                //dizzLog().error(u"Font Construct failure:\n{}\n", be.Message());
             }
         }
     }

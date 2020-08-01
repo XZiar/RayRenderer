@@ -129,7 +129,7 @@ common::PromiseResult<FakeTex> TextureLoader::LoadImgToFakeTex(const fs::path& p
         catch (const BaseException& be)
         {
             dizzLog().error(u"Error when compress texture file [{}] into [{}]: {}\n",
-                picPath.filename().u16string(), xziar::img::TexFormatUtil::GetFormatName(format), be.message);
+                picPath.filename().u16string(), xziar::img::TexFormatUtil::GetFormatName(format), be.Message());
         }
         return tex;
     }, picPath.filename().u16string(), StackSize::Big);

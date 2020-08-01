@@ -238,7 +238,7 @@ void RenderCore::LoadModelAsync(const u16string & fname, std::function<void(std:
             mod->Name = u"model";
             onFinish(mod);
         }
-        catch (BaseException& be)
+        catch (const BaseException& be)
         {
             dizzLog().error(u"failed to load model by file {}\n", name);
             if (onError)
@@ -260,7 +260,7 @@ common::PromiseResult<std::shared_ptr<Model>> RenderCore::LoadModelAsync2(const 
                 mod->Name = u"model";
                 return mod;
             }
-            catch (BaseException& be)
+            catch (const BaseException& be)
             {
                 dizzLog().error(u"failed to load model by file {}\n", name);
                 throw be;

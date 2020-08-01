@@ -45,12 +45,9 @@ TexMipmap::TexMipmap(const std::shared_ptr<TexUtilWorker>& worker) : Worker(work
                 texLog().info(u"kernel compiled workgroup size [{}x{}x{}], uses [{}] pmem and [{}] smem\n",
                     wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2], wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize);*/
             }
-            catch (OCLException & cle)
+            catch (const OCLException & cle)
             {
-                u16string buildLog;
-                if (cle.data.has_value())
-                    buildLog = std::any_cast<u16string>(cle.data);
-                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.message, buildLog);
+                texLog().error(u"Fail to build opencl Program:{}\n{}\n", cle.Message(), cle.GetDetailMessage());
             }
         }
     })->Get();

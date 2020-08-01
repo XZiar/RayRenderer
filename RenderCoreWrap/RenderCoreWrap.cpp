@@ -87,7 +87,7 @@ void RenderCore::Draw()
         Core->Draw();
         theScene->PrepareScene();
     }
-    catch (common::BaseException& be)
+    catch (const common::BaseException& be)
     {
         throw gcnew Common::CPPException(be);
     }
