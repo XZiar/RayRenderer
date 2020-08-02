@@ -3,24 +3,24 @@
   <Type Name="common::StackTraceItem">
     <DisplayString>{{{File}:[{Line}]-{Func}}}</DisplayString>
   </Type>
-  <Type Name="common::BaseException" Inheritable="false">
-    <DisplayString>{{{TypeName,s},{message}}}</DisplayString>
+  <Type Name="common::detail::ExceptionBasicInfo" Inheritable="true">
     <Expand>
-      <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">StackTrace</Item>
-      <Item Name="data" ExcludeView="simple">data</Item>
-      <Item Name="InnerException" ExcludeView="simple">InnerException</Item>
+      <Item Name="Message">Message</Item>
+      <Item Name="InnerException" Condition="InnerException._Ptr">InnerException._Ptr,na</Item>
+      <Synthetic Name="InnerException" Condition="InnerException._Ptr == nullptr">
+        <DisplayString>empty</DisplayString>
+      </Synthetic>
+      <Item Name="Stack">StackTrace</Item>
+      <Item Name="Resources" Condition="Resources != nullptr">*Resources</Item>
+      <Synthetic Name="Resources" Condition="Resources == nullptr">
+        <DisplayString>empty</DisplayString>
+      </Synthetic>
     </Expand>
   </Type>
-  <Type Name="common::FileException">
-    <DisplayString>{{{TypeName,s},{reason},{filepath},{data}}}</DisplayString>
+  <Type Name="common::BaseException" Inheritable="true">
+    <DisplayString>{TypeName,sb} {{{Info._Ptr->Message,su}}}</DisplayString>
     <Expand>
-      <Item Name="message" ExcludeView="simple">message</Item>
-      <Item Name="stack" ExcludeView="simple">StackTrace</Item>
-      <Item Name="reason" ExcludeView="simple">reason</Item>
-      <Item Name="file" ExcludeView="simple">filepath</Item>
-      <Item Name="data" ExcludeView="simple">data</Item>
-      <Item Name="InnerException" ExcludeView="simple">InnerException</Item>
+      <ExpandedItem>Info._Ptr</ExpandedItem>
     </Expand>
   </Type>
 </AutoVisualizer>

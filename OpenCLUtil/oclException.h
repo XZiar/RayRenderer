@@ -11,10 +11,10 @@ class OCLException : public common::BaseException
 public:
     EXCEPTION_CLONE_EX(OCLException);
     enum class CLComponent { Compiler, Driver, Accellarator, OCLU };
-    const CLComponent exceptionSource;
+    const CLComponent Component;
 protected:
     OCLException(const char* const type, const CLComponent source, const std::u16string_view& msg)
-        : BaseException(type, msg), exceptionSource(source) { }
+        : BaseException(type, msg), Component(source) { }
 public:
     OCLException(const CLComponent source, const std::u16string_view& msg)
         : OCLException(TYPENAME, source, msg)

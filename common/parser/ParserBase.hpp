@@ -217,7 +217,7 @@ protected:
     }
     [[nodiscard]] virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
     {
-        return { Context.Row, Context.Col };
+        return { Context.Row + 1, Context.Col };
     }
 
     virtual ParserToken OnUnExpectedToken(const ParserToken& token, const std::u16string_view extraInfo = {}) const

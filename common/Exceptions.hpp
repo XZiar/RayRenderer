@@ -151,12 +151,12 @@ public:
         CollectStack(ret);
         return ret;
     }
-    template<typename T>
-    BaseException& Attach(std::string key, T&& value)
+    template<typename S, typename T>
+    BaseException& Attach(S&& key, T&& value)
     {
         if (!Info->Resources)
             Info->Resources = std::make_unique<ResourceDict>();
-        Info->Resources->Add(key, std::forward<T>(value));
+        Info->Resources->Add(std::forward<S>(key), std::forward<T>(value));
         return *this;
     }
     template<typename T>

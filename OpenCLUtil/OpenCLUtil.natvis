@@ -231,10 +231,20 @@
   </Type>
   <Type Name="oclu::NLCLProgStub">
     <Expand>
-      <Item Name="Device">Device,na</Item>
-      <Item Name="[Runtime]">*Runtime</Item>
       <Item Name="[Program]">Program->Program</Item>
+      <Item Name="[Context]">*Context</Item>
+      <Item Name="[Runtime]">*Runtime</Item>
+      <Item Name="[Device]">Context->Device,na</Item>
       <Item Name="[Source]">Program->Source</Item>
     </Expand>
   </Type>
+
+  <Type Name="oglu::OCLException">
+    <DisplayString>{TypeName,sb} {{{Component,en}}}</DisplayString>
+    <Expand>
+      <Item Name="Component">Component,en</Item>
+      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+  
 </AutoVisualizer>

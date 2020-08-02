@@ -71,4 +71,13 @@
     <DisplayString Condition="Method == oglu::detail::oglVAO_::DrawMethod::IndirectArrays">{{IndirectArrays}}</DisplayString>
     <DisplayString Condition="Method == oglu::detail::oglVAO_::DrawMethod::IndirectIndexes">{{IndirectIndexes}}</DisplayString>
   </Type>
+
+  <Type Name="oglu::OGLException">
+    <DisplayString>{TypeName,sb} {{{Component,en}}}</DisplayString>
+    <Expand>
+      <Item Name="Component">Component,en</Item>
+      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+  
 </AutoVisualizer>

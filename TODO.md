@@ -6,6 +6,7 @@
   - [ ] Makes strcharset Linq-able
   - [x] Makes string split Linq-able
   - [x] Use dict to store Exception's custom info
+  - [ ] Use more compact custom container to replace deque in ResourceDict
   - [ ] Add enhanced enum (macro-based, string typing, parsing/stringify support, switchable, bitfield aseemble)
   * Parser
     - [ ] Parser should accept template for ContextReader, allowing custom reading strategy

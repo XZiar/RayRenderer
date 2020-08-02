@@ -76,12 +76,12 @@ constexpr inline std::u16string_view GetReasonOp(const FileErrReason reason)
 class FileException : public BaseException
 {
 public:
-    fs::path filepath;
+    fs::path Filepath;
 public:
     EXCEPTION_CLONE_EX(FileException);
-    const FileErrReason reason;
+    const FileErrReason Reason;
     FileException(const FileErrReason why, const fs::path& file, const std::u16string_view msg)
-        : BaseException(TYPENAME, msg), filepath(file), reason(why)
+        : BaseException(TYPENAME, msg), Filepath(file), Reason(why)
     { }
     ~FileException() override {}
 };

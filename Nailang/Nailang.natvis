@@ -226,4 +226,40 @@
       {{ Assignment [Target._Tail._Head.Get&lt;BlockContent::Type::Assignment&gt;()->Variable.Name,s32] }}
     </DisplayString>
   </Type>
+
+  <Type Name="xziar::nailang::NailangParseException">
+    <DisplayString>{TypeName,sb} {Position}</DisplayString>
+    <Expand>
+      <Item Name="File">File</Item>
+      <Item Name="Position">Position</Item>
+      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="xziar::nailang::UnexpectedTokenException">
+    <DisplayString>{TypeName,sb} {{{Token.ValType,en}}} at {Position}</DisplayString>
+    <Expand>
+      <Item Name="Token">Token</Item>
+      <ExpandedItem>(xziar::nailang::NailangParseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="xziar::nailang::NailangRuntimeException">
+    <AlternativeType Name="xziar::nailang::NailangCodeException"/>
+    <DisplayString>{TypeName,sb} at {{{Target}}}</DisplayString>
+    <Expand>
+      <Item Name="Target">Target</Item>
+      <Item Name="Scope">Scope</Item>
+      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="xziar::nailang::NailangFormatException">
+    <DisplayString>{TypeName,sb}</DisplayString>
+    <Expand>
+      <Item Name="Formatter">Formatter</Item>
+      <ExpandedItem>(xziar::nailang::NailangRuntimeException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+  
 </AutoVisualizer>

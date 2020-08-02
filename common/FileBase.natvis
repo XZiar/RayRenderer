@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::file::FileException">
+    <Intrinsic Name="ErrOp"  Expression="(common::file::FileErrReason)(Reason &amp; 0xf0)" />
+    <Intrinsic Name="ErrRes" Expression="(common::file::FileErrReason)(Reason &amp; 0x0f)" />
+    <DisplayString>{TypeName,sb} {{{ErrOp(),en} | {ErrRes(),en}}} [{Filepath._Text,su}]</DisplayString>
+    <Expand>
+      <Synthetic Name="Reason">
+        <DisplayString>{ErrOp(),en} | {ErrRes(),en}</DisplayString>
+      </Synthetic>
+      <Item Name="File">Filepath._Text,su</Item>
+      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+    </Expand>
+  </Type>
+</AutoVisualizer>

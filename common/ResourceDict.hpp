@@ -1,3 +1,4 @@
+#pragma once
 #include "CommonRely.hpp"
 #include <deque>
 #include <tuple>
@@ -9,11 +10,48 @@
 namespace common
 {
 
+namespace detail
+{
+template<typename T> struct RDStrHelper
+{
+    static_assert(!AlwaysTrue<T>, "need char string-like");
+};
+template<> struct RDStrHelper<::std::string>
+{
+    const std::string_view Str;
+    const bool NeedCopy;
+    RDStrHelper(const std::string& str) noexcept : Str{ str }, NeedCopy(true) { }
+};
+template<> struct RDStrHelper<::std::string_view>
+{
+    const std::string_view Str;
+    const bool NeedCopy;
+    constexpr RDStrHelper(const std::string_view str) noexcept : Str{ str }, NeedCopy(false) { }
+};
+struct RDStrHelperRaw
+{
+    const std::string_view Str;
+    const bool NeedCopy;
+    constexpr RDStrHelperRaw(const char* str) noexcept : Str{ str }, NeedCopy(true) { }
+};
+template<typename T> struct RDStrHelper<T*> : public RDStrHelperRaw
+{
+    static_assert(std::is_same_v<std::remove_const_t<T>, char>, "need char pointer");
+};
+template<size_t N> struct RDStrHelper<char[N]>
+{
+    const std::string_view Str;
+    const bool NeedCopy;
+    constexpr RDStrHelper(const char(&str)[N]) noexcept : Str{ str }, NeedCopy(false) { }
+};
+}
+
 class ResourceDict
 {
 private:
     static constexpr size_t SizeTag  = size_t(0b1) << (sizeof(size_t) * 8 - 1);
     static constexpr size_t SizeMask = ~SizeTag;
+    
 protected:
     struct RawItem
     {
@@ -22,11 +60,11 @@ protected:
         std::any Val;
         constexpr bool IsEmpty() const noexcept { return Len == SIZE_MAX; }
         constexpr size_t GetLen() const noexcept { return Len & SizeMask; }
-        bool Compare(const char* str, const size_t len) const noexcept
+        constexpr bool operator==(const std::string_view str) const noexcept
         {
             if (IsEmpty()) return false;
-            if (GetLen() != len) return false;
-            return std::char_traits<char>::compare(Key, str, len) == 0;
+            if (GetLen() != str.size()) return false;
+            return std::char_traits<char>::compare(Key, str.data(), str.size()) == 0;
         }
         void ResetStr()
         {
@@ -35,50 +73,25 @@ protected:
             Key = nullptr;
             Len = SIZE_MAX;
         }
-        void SetStr(const char* str, const size_t len, const bool shouldCopy)
+        void SetStr(const std::string_view str, const bool shouldCopy)
         {
             ResetStr();
             if (shouldCopy)
             {
-                Len = len;
-                auto ptr = new char[len];
-                memcpy_s(ptr, len, str, len);
+                Len = str.size();
+                auto ptr = new char[str.size()];
+                memcpy_s(ptr, str.size(), str.data(), str.size());
                 Key = ptr;
             }
             else
             {
-                Len = SizeTag | len;
-                Key = str;
+                Len = SizeTag | str.size();
+                Key = str.data();
             }
         }
     };
-    static constexpr auto kkk = sizeof(RawItem);
     std::deque<RawItem> Items;
-    template<typename T>
-    bool Add_(const char* str, const size_t len, const bool shouldCopy, T&& val)
-    {
-        for (auto& item : Items)
-        {
-            if (item.Compare(str, len))
-            {
-                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
-                return false;
-            }
-        }
-        for (auto& item : Items)
-        {
-            if (item.IsEmpty())
-            {
-                item.SetStr(str, len, shouldCopy);
-                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
-                return true;
-            }
-        }
-        auto& item = Items.emplace_back();
-        item.SetStr(str, len, shouldCopy);
-        item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
-        return true;
-    }
+    size_t UsedSlot = 0;
 public:
     ~ResourceDict()
     {
@@ -90,34 +103,43 @@ public:
             }
         }
     }
-    template<typename T>
-    bool Add(const std::string& key, T&& val)
+    template<typename T, typename S>
+    bool Add(const S& key_, T&& val)
     {
-        return Add_(key.c_str(), key.size(), true, std::forward<T>(val));
-    }
-    template<typename T>
-    bool Add(const std::string_view& key, T&& val)
-    {
-        return Add_(key.data(), key.size(), false, std::forward<T>(val));
-    }
-    template<typename T>
-    bool Add(const char* key, T&& val)
-    {
-        return Add_(key, std::char_traits<char>::length(key), true, std::forward<T>(val));
-    }
-    template<typename T, size_t N>
-    bool Add(const char(&key)[N], T&& val)
-    {
-        return Add_(key, N - 1, false, std::forward<T>(val));
+        const detail::RDStrHelper<S> key(key_);
+        for (auto& item : Items)
+        {
+            if (item == key.Str)
+            {
+                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+                return false;
+            }
+        }
+        for (auto& item : Items)
+        {
+            if (item.IsEmpty())
+            {
+                item.SetStr(key.Str, key.NeedCopy);
+                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+                UsedSlot++;
+                return true;
+            }
+        }
+        auto& item = Items.emplace_back();
+        item.SetStr(key.Str, key.NeedCopy);
+        item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+        UsedSlot++;
+        return true;
     }
     bool Remove(const std::string_view& key)
     {
         for (auto& item : Items)
         {
-            if (item.Compare(key.data(), key.size()))
+            if (item == key)
             {
                 item.ResetStr();
                 item.Val.reset();
+                UsedSlot--;
                 return true;
             }
         }
@@ -132,11 +154,11 @@ public:
             return Key.size() != SIZE_MAX;
         }
     };
-    const std::any* QueryItem(const std::string_view& key) const noexcept
+    const std::any* QueryItem(const std::string_view key) const noexcept
     {
         for (auto& item : Items)
         {
-            if (item.Compare(key.data(), key.size()))
+            if (item == key)
             {
                 return &item.Val;
             }
@@ -144,11 +166,11 @@ public:
         return nullptr;
     }
     template<typename T>
-    const T* QueryItem(const std::string_view& key) const noexcept
+    const T* QueryItem(const std::string_view key) const noexcept
     {
         for (auto& item : Items)
         {
-            if (item.Compare(key.data(), key.size()))
+            if (item == key)
             {
                 if (item.Val.type() == typeid(T))
                     return std::any_cast<T>(&item.Val);

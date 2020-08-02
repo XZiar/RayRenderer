@@ -66,6 +66,9 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 {
     ex.File = GetCurrentFileName().StrView();
     ex.Position = GetCurrentPosition();
+    if (ex.GetDetailMessage().empty())
+        const_cast<NailangParseException&>(ex)
+            .Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", ex.Position.first, ex.Position.second, ex.File));
     ex.ThrowSelf();
 }
 

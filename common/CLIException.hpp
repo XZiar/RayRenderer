@@ -71,16 +71,16 @@ private:
             if (const auto fex = std::dynamic_pointer_cast<common::file::FileException>(inner))
             {
                 auto msg = ToStr((const std::u16string_view&)fex->Message());
-                auto fpath = ToStr(fex->filepath.u16string());
+                auto fpath = ToStr(fex->Filepath.u16string());
                 auto innerEx = FormInnerException(*fex);
-                switch (fex->reason & common::file::FileErrReason::MASK_REASON)
+                switch (fex->Reason & common::file::FileErrReason::MASK_REASON)
                 {
                 case common::file::FileErrReason::NotExist:
                     return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
                 case common::file::FileErrReason::EndOfFile:
                     return gcnew EndOfStreamExceptionEx(msg, fpath, innerEx);
                 default:
-                    return gcnew FileException(msg, fpath, fex->reason, innerEx);
+                    return gcnew FileException(msg, fpath, fex->Reason, innerEx);
                 }
             }
             else if (const auto bex = std::dynamic_pointer_cast<common::BaseException>(inner))

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::ResourceDict::RawItem">
+    <Intrinsic Name="NotEmpty" Expression="Len != (size_t)(-1)"/>
+    <Intrinsic Name="GetLen" Expression="Len &amp; common::ResourceDict::SizeMask"/>
+    <Intrinsic Name="Type" Expression="Val.type()" />
+    <DisplayString ExcludeView="DictItem">{{ [{Key,[GetLen()]sb}] {Val} }}</DisplayString>
+    <!--<DisplayString IncludeView="DictItem" Condition="Val.type() == " >{Val}</DisplayString>-->
+    <DisplayString IncludeView="DictItem">{Val}</DisplayString>
+  </Type>
+  <Type Name="common::ResourceDict">
+    <DisplayString>{UsedSlot} element</DisplayString>
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>Items._Mypair._Myval2._Mysize</Size>
+        <Loop>
+          <Break Condition="idx &gt;= Items._Mypair._Myval2._Mysize" />
+          <Item Condition="Items[idx].NotEmpty()" 
+                Name="[{Items[idx].Key,[Items[idx].GetLen()]sb}]">Items[idx],view(DictItem)</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>
