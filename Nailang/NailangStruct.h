@@ -18,6 +18,7 @@
 
 
 #include "common/CommonRely.hpp"
+#include "common/TrunckedContainer.hpp"
 #include "common/EnumEx.hpp"
 #include "common/StrBase.hpp"
 #include "common/StringLinq.hpp"
@@ -37,17 +38,15 @@ namespace xziar::nailang
 #   pragma warning(disable:4275 4251)
 #endif
 
-class NAILANGAPI MemoryPool : public common::NonCopyable
+class NAILANGAPI MemoryPool : protected common::container::TrunckedContainer<std::byte>
 {
 public:
-    std::vector<std::tuple<std::byte*, size_t, size_t>> Trunks;
-    size_t TrunkSize;
-public:
-    MemoryPool(const size_t trunkSize = 2 * 1024 * 1024) : TrunkSize(trunkSize) { }
-    MemoryPool(MemoryPool&& other) noexcept = default;
-    ~MemoryPool();
+    MemoryPool(const size_t trunkSize = 2 * 1024 * 1024) : common::container::TrunckedContainer<std::byte>(trunkSize, 64) { }
 
-    [[nodiscard]] common::span<std::byte> Alloc(const size_t size, const size_t align = 64);
+    [[nodiscard]] forceinline common::span<std::byte> Alloc(const size_t size, const size_t align = 64)
+    {
+        return common::container::TrunckedContainer<std::byte>::Alloc(size, align);
+    }
     [[nodiscard]] std::pair<size_t, size_t> Usage() const noexcept;
 
     template<typename T>

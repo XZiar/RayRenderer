@@ -86,12 +86,11 @@ struct ExceptionBasicInfo
     std::u16string Message;
     std::vector<StackTraceItem> StackTrace;
     std::shared_ptr<AnyException> InnerException;
-    std::unique_ptr<ResourceDict> Resources;
-    ExceptionBasicInfo(const std::u16string_view& msg) 
-        : Message{ msg }, InnerException(ExceptionHelper::GetCurrentException()) 
+    container::ResourceDict Resources;
+    ExceptionBasicInfo(const std::u16string_view msg) 
+        : Message{ msg }, InnerException(ExceptionHelper::GetCurrentException())
     { }
 };
-
 
 }
 
@@ -154,29 +153,26 @@ public:
     template<typename S, typename T>
     BaseException& Attach(S&& key, T&& value)
     {
-        if (!Info->Resources)
-            Info->Resources = std::make_unique<ResourceDict>();
-        Info->Resources->Add(std::forward<S>(key), std::forward<T>(value));
+        Info->Resources.Add(std::forward<S>(key), std::forward<T>(value));
         return *this;
     }
     template<typename T>
     [[nodiscard]] const T* GetResource(std::string_view key) const noexcept
     {
-        if (!Info->Resources)
-            return nullptr;
-        return Info->Resources->QueryItem<T>(key);
+        return Info->Resources.QueryItem<T>(key);
     }
     [[nodiscard]] std::u16string_view GetDetailMessage() const noexcept
     {
-        if (!Info->Resources)
-            return {};
-        const auto ptr = Info->Resources->QueryItem("detail");
-        if (ptr && ptr->type() == typeid(common::SharedString<char16_t>))
-            return *std::any_cast<common::SharedString<char16_t>>(ptr);
-        if (ptr && ptr->type() == typeid(std::u16string))
-            return *std::any_cast<std::u16string>(ptr);
-        if (ptr && ptr->type() == typeid(std::u16string_view))
-            return *std::any_cast<std::u16string_view>(ptr);
+        const auto ptr = Info->Resources.QueryItem("detail");
+        if (ptr)
+        {
+            if (ptr->type() == typeid(common::SharedString<char16_t>))
+                return *std::any_cast<common::SharedString<char16_t>>(ptr);
+            if (ptr->type() == typeid(std::u16string))
+                return *std::any_cast<std::u16string>(ptr);
+            if (ptr->type() == typeid(std::u16string_view))
+                return *std::any_cast<std::u16string_view>(ptr);
+        }
         return {};
     }
     template<typename T, typename... Args>

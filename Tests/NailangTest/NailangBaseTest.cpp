@@ -15,11 +15,18 @@ using common::parser::ContextReader;
 #define CHECK_BASE_TK(token, type, action, val) CHECK_TK(token, common::parser::BaseToken, type, action, val)
 
 
-static std::string PrintMemPool(const xziar::nailang::MemoryPool& pool) noexcept
+struct MemPool_ : public xziar::nailang::MemoryPool
 {
+    using MemoryPool::Trunks;
+    using MemoryPool::DefaultTrunkLength;
+};
+
+static std::string PrintMemPool(const xziar::nailang::MemoryPool& pool_) noexcept
+{
+    const auto& pool = static_cast<const MemPool_&>(pool_);
     const auto [used, total] = pool.Usage();
     std::string txt = fmt::format("MemoryPool[{} trunks(default {} bytes)]: [{}/{}]\n", 
-        pool.Trunks.size(), pool.TrunkSize, used, total);
+        pool.Trunks.size(), pool.DefaultTrunkLength, used, total);
     auto ins = std::back_inserter(txt);
     size_t i = 0;
     for (const auto& [ptr, offset, avaliable] : pool.Trunks)

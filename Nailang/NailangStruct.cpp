@@ -8,52 +8,14 @@ namespace xziar::nailang
 {
 using namespace std::string_view_literals;
 
-MemoryPool::~MemoryPool()
-{
-    for ([[maybe_unused]] const auto& [ptr, offset, avaliable] : Trunks)
-    {
-        common::free_align(ptr);
-    }
-}
-
-common::span<std::byte> MemoryPool::Alloc(const size_t size, const size_t align)
-{
-    Expects(align > 0);
-    for (auto& [ptr, offset, avaliable] : boost::adaptors::reverse(Trunks))
-    {
-        if (avaliable > size)
-        {
-            const auto ptr_ = reinterpret_cast<uintptr_t>(ptr + offset + align - 1) / align * align;
-            const auto offset_ = reinterpret_cast<std::byte*>(ptr_) - ptr;
-            if (offset_ + size <= offset + avaliable)
-            {
-                const common::span<std::byte> ret(ptr + offset_, size);
-                avaliable -= (offset_ - offset) + size;
-                offset = offset_ + size;
-                return ret;
-            }
-        }
-    }
-    if (size > 16 * TrunkSize)
-    {
-        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(size, align));
-        Trunks.emplace_back(ptr, size, 0);
-        return common::span<std::byte>(ptr, size);
-    }
-    else
-    {
-        const auto total = (size + TrunkSize - 1) / TrunkSize * TrunkSize;
-        auto ptr = reinterpret_cast<std::byte*>(common::malloc_align(total, align));
-        Trunks.emplace_back(ptr, size, total - size);
-        return common::span<std::byte>(ptr, size);
-    }
-}
 
 std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
 {
     size_t used = 0, unused = 0;
-    for (auto& [ptr, offset, avaliable] : Trunks)
-        used += offset, unused += avaliable;
+    for (const auto& trunk : Trunks)
+    {
+        used += trunk.Offset, unused += trunk.Avaliable;
+    }
     return { used, used + unused };
 }
 

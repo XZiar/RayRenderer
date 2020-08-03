@@ -1,13 +1,13 @@
 #pragma once
 #include "CommonRely.hpp"
-#include <deque>
+#include "TrunckedContainer.hpp"
 #include <tuple>
 #include <any>
 #include <string_view>
 #include <string>
 
 
-namespace common
+namespace common::container
 {
 
 namespace detail
@@ -90,16 +90,17 @@ protected:
             }
         }
     };
-    std::deque<RawItem> Items;
+    TrunckedContainer<RawItem> Items{ 8 };
     size_t UsedSlot = 0;
 public:
     ~ResourceDict()
     {
         for (auto& item : Items)
         {
-            if (!item.IsEmpty())
+            if (item.IsEmpty())
             {
                 item.ResetStr();
+                item.Val.reset();
             }
         }
     }
@@ -125,7 +126,8 @@ public:
                 return true;
             }
         }
-        auto& item = Items.emplace_back();
+        auto& item = Items.AllocOne();
+        new (&item) RawItem();
         item.SetStr(key.Str, key.NeedCopy);
         item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
         UsedSlot++;
@@ -140,6 +142,7 @@ public:
                 item.ResetStr();
                 item.Val.reset();
                 UsedSlot--;
+                [[maybe_unused]] const auto dummy = Items.TryDealloc(item);
                 return true;
             }
         }
