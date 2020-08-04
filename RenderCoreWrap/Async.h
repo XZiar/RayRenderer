@@ -50,7 +50,7 @@ private:
             }
             catch (const common::BaseException& be)
             {
-                TaskProxy->SetException(gcnew CPPException(be));
+                TaskProxy->SetException(CPPException::FromException(be));
             }
             catch (Exception^ ex)
             {
@@ -86,7 +86,7 @@ internal:
             }
             catch (const common::BaseException& be)
             {
-                return Task::FromException<CLRType>(gcnew CPPException(be));
+                return Task::FromException<CLRType>(CPPException::FromException(be));
             }
             catch (Exception^ ex)
             {

@@ -76,9 +76,9 @@ public:
     {
         using U2 = std::decay_t<U>;
         if constexpr (std::is_base_of_v<common::BaseException, U2>)
-            Result.emplace<2>(ExceptionResult<std::shared_ptr<ExceptionBasicInfo>>{ex.InnerInfo()});
+            Result.template emplace<2>(ExceptionResult<std::shared_ptr<ExceptionBasicInfo>>{ex.InnerInfo()});
         else
-            Result.emplace<1>(ExceptionResult<std::exception_ptr>{std::forward<U>(ex)});
+            Result.template emplace<1>(ExceptionResult<std::exception_ptr>{std::forward<U>(ex)});
     }
     [[nodiscard]] T ExtraResult()
     {

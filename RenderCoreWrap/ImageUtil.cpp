@@ -58,7 +58,7 @@ void ImageUtil::WriteImage(const xziar::img::Image& image, String^ filePath)
     }
     catch (const common::BaseException& be)
     {
-        throw gcnew CPPException(be);
+        throw CPPException::FromException(be);
     }
 }
 

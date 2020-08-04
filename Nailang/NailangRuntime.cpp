@@ -728,9 +728,8 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
         }
         traces.emplace_back(FromBlock(frame->BlockScope, std::move(fname)));
     }
-    auto& ex_ = const_cast<NailangRuntimeException&>(ex);
-    ex_.Info->StackTrace.insert(ex_.Info->StackTrace.begin(), traces.begin(), traces.end());
-    ex.ThrowSelf();
+    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), traces.begin(), traces.end());
+    throw ex;
 }
 
 std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() const

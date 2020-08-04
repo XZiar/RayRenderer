@@ -27,12 +27,12 @@ inline void __cdecl SetTcsResult(const gcroot<TaskCompletionSource<RetType>^>& t
 template<class RetType>
 inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>& tcs, const common::BaseException& be)
 {
-    tcs->SetException(gcnew CPPException(be));
+    tcs->SetException(CPPException::FromException(be));
 }
 template<class RetType>
 inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>& tcs, std::exception_ptr e)
 {
-    tcs->SetException(gcnew CPPException(e));
+    tcs->SetException(CPPException::FromException(e));
 }
 
 //template<auto Convertor, typename C, typename NativeT, typename ManagedT>

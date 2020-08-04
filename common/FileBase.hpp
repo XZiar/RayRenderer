@@ -85,6 +85,8 @@ class FileException : public BaseException
     FileException(const FileErrReason why, const fs::path& file, const std::u16string_view msg)
         : BaseException(T_<ExceptionInfo>{}, msg, file, why)
     { }
+    FileErrReason Reason() const noexcept { return GetInfo().Reason; }
+    const fs::path& FilePath() const noexcept { return GetInfo().Filepath; }
 };
 
 

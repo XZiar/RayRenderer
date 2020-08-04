@@ -244,16 +244,16 @@ auto FindPath()
 }
 
 
-void PrintException(const common::BaseException& be)
+void PrintException(const common::ExceptionBasicInfo& be)
 {
-    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message());
+    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message);
     fmt::basic_memory_buffer<char16_t> buf;
-    for (const auto& stack : be.Stack())
+    for (const auto& stack : be.StackTrace)
         fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
     log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
 
-    if (const auto inEx = std::dynamic_pointer_cast<common::BaseException>(be.NestedException()); inEx)
-        PrintException(*inEx);
+    if (be.InnerException)
+        PrintException(*be.InnerException);
 }
 
 #if COMMON_OS_UNIX
@@ -307,5 +307,5 @@ int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 }
 catch (const BaseException & be)
 {
-    PrintException(be);
+    PrintException(*be.InnerInfo());
 }

@@ -144,7 +144,7 @@ std::optional<Image> TryReadImage(const fs::path& picPath)
     }
     catch (const common::file::FileException& fe)
     {
-        if (fe.Reason == (FileErrReason::OpenFail | FileErrReason::NotExist))
+        if (fe.Reason() == (FileErrReason::OpenFail | FileErrReason::NotExist))
             dizzLog().error(u"Cannot find image file\t[{}]\n", picPath.u16string());
         else
             dizzLog().error(u"Fail to read image file\t[{}]\n", picPath.u16string());

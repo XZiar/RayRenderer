@@ -64,45 +64,69 @@ public ref class CPPException : public Exception
 {
 private:
     initonly String^ stacktrace;
-    static Exception^ FormInnerException(const common::BaseException& be)
+    CPPException(const common::ExceptionBasicInfo& info, String^ msg, Exception^ innerEx) : Exception(msg, innerEx)
     {
-        if (const auto& inner = be.NestedException())
-        {
-            if (const auto fex = std::dynamic_pointer_cast<common::file::FileException>(inner))
-            {
-                auto msg = ToStr((const std::u16string_view&)fex->Message());
-                auto fpath = ToStr(fex->Filepath.u16string());
-                auto innerEx = FormInnerException(*fex);
-                switch (fex->Reason & common::file::FileErrReason::MASK_REASON)
-                {
-                case common::file::FileErrReason::NotExist:
-                    return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
-                case common::file::FileErrReason::EndOfFile:
-                    return gcnew EndOfStreamExceptionEx(msg, fpath, innerEx);
-                default:
-                    return gcnew FileException(msg, fpath, fex->Reason, innerEx);
-                }
-            }
-            else if (const auto bex = std::dynamic_pointer_cast<common::BaseException>(inner))
-                return gcnew CPPException(*bex);
-            else if (const auto oex = std::dynamic_pointer_cast<common::detail::OtherException>(inner))
-                return gcnew CPPException(*oex);
-        }
-        return nullptr;
+        using std::u16string_view;
+        stacktrace = "";
+        for (const auto& stack : info.StackTrace)
+            stacktrace += String::Format("at [{0}] : line {1} ({2})\r\n",
+                ToStr((const u16string_view&)stack.Func), stack.Line, ToStr((const u16string_view&)stack.File));
     }
-    CPPException(const common::detail::OtherException& oe) : Exception(ToStr(std::string_view(oe.What()))) {}
+    CPPException(String^ msg, Exception^ innerEx) : Exception(msg, innerEx) 
+    { 
+        stacktrace = ""; 
+    }
+    static Exception^ FromException(common::ExceptionBasicInfo& info)
+    {
+        Exception^ innerEx = info.InnerException ? FromException(*info.InnerException) : nullptr;
+        if (const auto fex = info.Cast<common::file::FileException>(); fex)
+        {
+            auto msg = ToStr(fex->Message);
+            auto fpath = ToStr(fex->Filepath.u16string());
+            switch (fex->Reason & common::file::FileErrReason::MASK_REASON)
+            {
+            case common::file::FileErrReason::NotExist:
+                return gcnew IO::FileNotFoundException(msg, fpath, innerEx);
+            case common::file::FileErrReason::EndOfFile:
+                return gcnew EndOfStreamExceptionEx(msg, fpath, innerEx);
+            default:
+                return gcnew FileException(msg, fpath, fex->Reason, innerEx);
+            }
+        }
+        else if (const auto oex = info.Cast<common::OtherException>(); oex)
+            return gcnew CPPException(info, ToStr(std::string_view(oex->GetInnerMessage())), innerEx);
+        else
+            return gcnew CPPException(info, ToStr(info.Message), innerEx);
+    }
 public:
     property String^ StackTrace
     {
         String^ get() override { return stacktrace; }
     }
-    CPPException(const common::BaseException& be) : Exception(ToStr(be.Message()), FormInnerException(be))
+    static Exception^ FromException(const common::BaseException& be)
     {
-        using std::u16string_view;
-        stacktrace = "";
-        for(const auto& stack : be.Stack())
-            stacktrace += String::Format("at [{0}] : line {1} ({2})\r\n", 
-                ToStr((const u16string_view&)stack.Func), stack.Line, ToStr((const u16string_view&)stack.File));
+        return FromException(*be.InnerInfo());
+    }
+    static Exception^ FromException(std::exception_ptr e)
+    {
+        String^ msg;
+        try
+        {
+            std::rethrow_exception(e);
+        }
+        catch (const common::BaseException& be)
+        {
+            return FromException(be);
+        }
+        catch (const std::runtime_error& re)
+        {
+            msg = ToStr(std::string_view(re.what()));
+        }
+        catch (...)
+        {
+            msg = "UNKNWON";
+        }
+        return gcnew CPPException(msg, nullptr);
     }
 };
 

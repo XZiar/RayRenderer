@@ -89,7 +89,7 @@ void RenderCore::Draw()
     }
     catch (const common::BaseException& be)
     {
-        throw gcnew Common::CPPException(be);
+        throw Common::CPPException::FromException(be);
     }
 }
 

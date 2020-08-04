@@ -67,6 +67,18 @@ public:
     virtual ~ExceptionBasicInfo() {}
     [[noreturn]] virtual void ThrowReal();
     [[nodiscard]] BaseException GetException();
+    template<typename T>
+    auto Cast() const noexcept
+    {
+        using TInfo = typename T::TInfo;
+        return dynamic_cast<const TInfo*>(this);
+    }
+    template<typename T>
+    auto Cast() noexcept
+    {
+        using TInfo = typename T::TInfo;
+        return dynamic_cast<TInfo*>(this);
+    }
 };
 
 
@@ -87,22 +99,6 @@ protected:
     BaseException(T_<T>, Args&&... args)
         : BaseException(std::nullopt, std::make_shared<T>(std::forward<Args>(args)...))
     { }
-private:
-    void CollectStack(std::vector<StackTraceItem>& stks) const
-    {
-        if (Info->InnerException)
-        {
-            const auto baseEx = std::dynamic_pointer_cast<BaseException>(Info->InnerException);
-            if (baseEx)
-                baseEx->CollectStack(stks);
-            else // is std exception
-                stks.emplace_back(u"StdException", u"StdException", 0);
-        }
-        if (Info->StackTrace.size() > 0)
-            stks.push_back(Info->StackTrace[0]);
-        else
-            stks.emplace_back(u"Undefined", u"Undefined", 0);
-    }
 public:
     BaseException(const std::u16string_view msg) : BaseException(T_<TInfo>{}, msg)
     { }
@@ -135,7 +131,13 @@ public:
     [[nodiscard]] std::vector<StackTraceItem> ExceptionStacks() const
     {
         std::vector<StackTraceItem> ret;
-        CollectStack(ret);
+        for (auto ex = Info.get(); ex; ex = ex->InnerException.get())
+        {
+            if (ex->StackTrace.size() > 0)
+                ret.push_back(ex->StackTrace[0]);
+            else
+                ret.emplace_back(u"Undefined", u"Undefined", 0);
+        }
         return ret;
     }
     template<typename T, typename S, typename U = T>
@@ -181,7 +183,7 @@ public:
     }
 };
 
-inline void ExceptionBasicInfo::ThrowReal()
+[[noreturn]] inline void ExceptionBasicInfo::ThrowReal()
 {
     throw BaseException(std::nullopt, this->shared_from_this());
 }
@@ -197,7 +199,7 @@ inline BaseException ExceptionBasicInfo::GetException()
     {                                                                               \
         static constexpr auto TYPENAME = #type;                                     \
         ~ExceptionInfo() override { }                                               \
-        void ThrowReal() override                                                   \
+        [[noreturn]] void ThrowReal() override                                      \
         {                                                                           \
             throw type(std::nullopt, this->shared_from_this());                     \
         }                                                                           \
@@ -233,21 +235,28 @@ class [[nodiscard]] OtherException : public BaseException
         ExceptionInfo(const std::u16string_view msg, const std::exception& ex)
             : ExceptionInfo(msg, std::make_exception_ptr(ex))
         { }
+        const char* GetInnerMessage() const noexcept
+        {
+            if (!StdException)
+                return "EMPTY";
+            try
+            {
+                std::rethrow_exception(StdException);
+            }
+            catch (const std::runtime_error& re)
+            {
+                return re.what();
+            }
+            catch (...)
+            {
+                return "UNKNWON";
+            }
+        }
     );
     OtherException(const std::exception_ptr& exptr) : BaseException(T_<ExceptionInfo>{}, u"std_exception", exptr) {}
     const char* what() const noexcept override 
     { 
-        auto& info = GetInfo();
-        if (!info.StdException)
-            return "EMPTY";
-        try
-        {
-            std::rethrow_exception(info.StdException);
-        }
-        catch (const std::runtime_error& re)
-        {
-            return re.what();
-        }
+        return GetInfo().GetInnerMessage();
     }
 };
 
