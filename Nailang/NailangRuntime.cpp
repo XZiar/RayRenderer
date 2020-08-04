@@ -348,19 +348,19 @@ std::optional<Arg> EmbedOpEval::Not(const Arg& arg) noexcept
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 
-NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err) :
-    NailangRuntimeException(fmt::format(FMT_STRING(u"Error when formating string: {}"sv), err.what())),
-    Formatter(formatter)
+NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err)
+    : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, err.what()), formatter)
 { }
-NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason) :
-    NailangRuntimeException(fmt::format(FMT_STRING(u"Error when formating string: {}"sv), reason), arg),
-    Formatter(formatter)
-{ }
-NailangFormatException::~NailangFormatException()
+NailangFormatException::NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason)
+    : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, reason), formatter, arg)
 { }
 
+NailangCodeException::ExceptionInfo::ExceptionInfo(const char* type, const std::u32string_view msg, 
+    detail::ExceptionTarget target, detail::ExceptionTarget scope)
+    : NailangCodeException::TPInfo(type, common::str::to_u16string(msg), std::move(target), std::move(scope))
+{ }
 NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope) :
-    NailangRuntimeException(TYPENAME, common::str::to_u16string(msg, common::str::Charset::UTF32LE), std::move(target), std::move(scope))
+    NailangRuntimeException(T_<ExceptionInfo>{}, msg, std::move(target), std::move(scope))
 { }
 
 

@@ -3,7 +3,8 @@
   <Type Name="common::StackTraceItem">
     <DisplayString>{{{File}:[{Line}]-{Func}}}</DisplayString>
   </Type>
-  <Type Name="common::detail::ExceptionBasicInfo" Inheritable="true">
+  <Type Name="common::ExceptionBasicInfo" Inheritable="true">
+    <DisplayString>{TypeName,sb} {{{Message,su}}}</DisplayString>
     <Expand>
       <Item Name="Message">Message</Item>
       <Item Name="InnerException" Condition="InnerException._Ptr">InnerException._Ptr,na</Item>
@@ -11,16 +12,25 @@
         <DisplayString>empty</DisplayString>
       </Synthetic>
       <Item Name="Stack">StackTrace</Item>
-      <Item Name="Resources" Condition="Resources != nullptr">*Resources</Item>
-      <Synthetic Name="Resources" Condition="Resources == nullptr">
-        <DisplayString>empty</DisplayString>
-      </Synthetic>
-    </Expand>
+      <Item Name="Resources">Resources</Item>
+    </Expand> 
   </Type>
   <Type Name="common::BaseException" Inheritable="true">
-    <DisplayString>{TypeName,sb} {{{Info._Ptr->Message,su}}}</DisplayString>
+    <DisplayString>{Info._Ptr, na}</DisplayString>
     <Expand>
       <ExpandedItem>Info._Ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="common::file::FileException::ExceptionInfo">
+    <Intrinsic Name="ErrOp"  Expression="(common::file::FileErrReason)(Reason &amp; 0xf0)" />
+    <Intrinsic Name="ErrRes" Expression="(common::file::FileErrReason)(Reason &amp; 0x0f)" />
+    <DisplayString>{TypeName,sb} {{{ErrOp(),en} | {ErrRes(),en}}} [{Filepath._Text,su}]</DisplayString>
+    <Expand>
+      <Synthetic Name="Reason">
+        <DisplayString>{ErrOp(),en} | {ErrRes(),en}</DisplayString>
+      </Synthetic>
+      <Item Name="File">Filepath._Text,su</Item>
+      <ExpandedItem>(common::ExceptionBasicInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
 </AutoVisualizer>

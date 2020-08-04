@@ -60,7 +60,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\Exceptions.hpp = common\Exceptions.hpp
 		common\Exceptions.natvis = common\Exceptions.natvis
 		common\FileBase.hpp = common\FileBase.hpp
-		common\FileBase.natvis = common\FileBase.natvis
 		common\FrozenDenseSet.hpp = common\FrozenDenseSet.hpp
 		common\gtesthack.h = common\gtesthack.h
 		common\gtesthack.inl = common\gtesthack.inl

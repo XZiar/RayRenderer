@@ -1045,14 +1045,14 @@ oclProgram NLCLBuiltResult::GetProgram() const
     return Prog;
 }
 
-NLCLBuildFailResult::NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::BaseException> ex) :
+NLCLBuildFailResult::NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::ExceptionBasicInfo> ex) :
     NLCLUnBuildResult(context, std::move(source)), Exception(std::move(ex))
 { }
 NLCLBuildFailResult::~NLCLBuildFailResult()
 { }
 oclProgram NLCLBuildFailResult::GetProgram() const
 {
-    Exception->ThrowSelf();
+    Exception->ThrowReal();
     return {};
 }
 
@@ -1140,7 +1140,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
     }
     catch (const common::BaseException& be)
     {
-        return std::make_unique<NLCLBuildFailResult>(stub.Context, std::move(str), be.Share());
+        return std::make_unique<NLCLBuildFailResult>(stub.Context, std::move(str), be.InnerInfo());
     }
 }
 

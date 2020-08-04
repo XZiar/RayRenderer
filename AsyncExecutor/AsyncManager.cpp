@@ -61,7 +61,7 @@ void AsyncManager::Resume(detail::AsyncTaskStatus status)
     Current->Status = status;
     Context = Context.resume();
     if (!IsRunning())
-        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Terminated, u"Task was terminated, due to executor was terminated.");
+        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Terminated, u"Task was terminated, due to executor was terminated.");
 }
 
 common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
@@ -148,7 +148,7 @@ void AsyncManager::OnStop() noexcept
                 Logger.warning(u"Task [{}] cancelled due to termination.\n", node->Name);
                 try
                 {
-                    COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
+                    COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Task was cancelled and not executed, due to executor was terminated.");
                 }
                 catch (const AsyncTaskException&)
                 {

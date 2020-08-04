@@ -84,7 +84,7 @@ void PrintException(const common::BaseException& be)
         fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
     log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
     
-    if (const auto inEx = std::dynamic_pointer_cast<common::BaseException>(be.NestedException()); inEx)
+    if (const auto inEx = be.NestedException(); inEx.has_value())
         PrintException(*inEx);
 }
 

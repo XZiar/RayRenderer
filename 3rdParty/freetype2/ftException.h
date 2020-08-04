@@ -4,13 +4,12 @@
 namespace ft
 {
 
-class FTException : public common::BaseException
+class [[nodiscard]] FTException : public common::BaseException
 {
-public:
-	EXCEPTION_CLONE_EX(FTException);
-	FTException(const std::u16string_view& msg) : BaseException(TYPENAME, msg)
-	{ }
-	virtual ~FTException() {}
+    PREPARE_EXCEPTION(FTException, BaseException,
+        ExceptionInfo(const std::u16string_view msg) : TPInfo(TYPENAME, msg) { }
+    );
+    FTException(const std::u16string_view msg) : BaseException(T_<ExceptionInfo>{}, msg) {}
 };
 
 

@@ -6,25 +6,31 @@ namespace oclu
 {
 
 
+
 class OCLException : public common::BaseException
 {
 public:
-    EXCEPTION_CLONE_EX(OCLException);
     enum class CLComponent { Compiler, Driver, Accellarator, OCLU };
-    const CLComponent Component;
-protected:
-    OCLException(const char* const type, const CLComponent source, const std::u16string_view& msg)
-        : BaseException(type, msg), Component(source) { }
-public:
-    OCLException(const CLComponent source, const std::u16string_view& msg)
-        : OCLException(TYPENAME, source, msg)
+private:
+    PREPARE_EXCEPTION(OCLException, BaseException,
+        const CLComponent Component;
+        template<typename T>
+        ExceptionInfo(T&& msg, const CLComponent source)
+            : ExceptionInfo(TYPENAME, std::forward<T>(msg), source)
+        { }
+    protected:
+        template<typename T>
+        ExceptionInfo(const char* type, T&& msg, const CLComponent source)
+            : TPInfo(type, std::forward<T>(msg)), Component(source)
+    { }
+    );
+    OCLException(const CLComponent source, const std::u16string_view msg)
+        : BaseException(T_<ExceptionInfo>{}, msg, source)
     { }
     OCLException(const CLComponent source, cl_int errcode, std::u16string msg)
-        : OCLException(TYPENAME, source, msg.append(u" --ERROR: ").append(oclUtil::GetErrorString(errcode)))
+        : BaseException(T_<ExceptionInfo>{}, msg.append(u" --ERROR: ").append(oclUtil::GetErrorString(errcode)), source)
     { }
-    virtual ~OCLException() {}
 };
-
 
 
 

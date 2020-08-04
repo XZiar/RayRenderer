@@ -10,13 +10,13 @@
 #include <array>
 #include <stdexcept>
 #include <exception>
+#include <optional>
 #include <memory>
-#include <any>
 
 
 namespace common
 {
-
+class ExceptionBasicInfo;
 class BaseException;
 
 
@@ -37,73 +37,55 @@ public:
 
 namespace detail
 {
-struct ExceptionHelper;
-
-class AnyException : public std::runtime_error, public std::enable_shared_from_this<AnyException>
-{
-protected:
-    const char* TypeName;
-    explicit AnyException(const char* const type) : std::runtime_error(type), TypeName(type) { }
-    ~AnyException() override { }
-    using std::runtime_error::what;
-};
-
-class OtherException : public AnyException
-{
-    friend struct ExceptionHelper;
-public:
-    static constexpr auto TYPENAME = "OtherException";
-    [[nodiscard]] const char* What() const
-    {
-        if (!StdException)
-            return "EMPTY";
-        try
-        {
-            std::rethrow_exception(StdException);
-        }
-        catch (const std::runtime_error& re)
-        {
-            return re.what();
-        }
-    }
-    ~OtherException() override { }
-private:
-    std::exception_ptr StdException;
-    OtherException(const std::exception& ex) : AnyException(TYPENAME), StdException(std::make_exception_ptr(ex))
-    {}
-    OtherException(const std::exception_ptr& exptr) : AnyException(TYPENAME), StdException(exptr)
-    {}
-};
 
 struct ExceptionHelper
 {
 public:
-    [[nodiscard]] static std::shared_ptr<AnyException> GetCurrentException();
-};
-
-struct ExceptionBasicInfo
-{
-    std::u16string Message;
-    std::vector<StackTraceItem> StackTrace;
-    std::shared_ptr<AnyException> InnerException;
-    container::ResourceDict Resources;
-    ExceptionBasicInfo(const std::u16string_view msg) 
-        : Message{ msg }, InnerException(ExceptionHelper::GetCurrentException())
-    { }
+    [[nodiscard]] static std::shared_ptr<ExceptionBasicInfo> GetCurrentException() noexcept;
 };
 
 }
 
 
-class [[nodiscard]] BaseException : public detail::AnyException
+class COMMON_EMPTY_BASES ExceptionBasicInfo : public NonCopyable, public std::enable_shared_from_this<ExceptionBasicInfo>
 {
-    friend detail::ExceptionHelper;
-public:
+    friend class BaseException;
+private:
     static constexpr auto TYPENAME = "BaseException";
 protected:
-    std::shared_ptr<detail::ExceptionBasicInfo> Info;
-    BaseException(const char* const type, const std::u16string_view msg)
-        : detail::AnyException(type), Info(std::make_shared<detail::ExceptionBasicInfo>(msg))
+    template<typename T>
+    ExceptionBasicInfo(const char* type, T&& msg)
+        : TypeName(type), Message(std::forward<T>(msg)), InnerException(detail::ExceptionHelper::GetCurrentException()) { }
+public:
+    const char* TypeName;
+    std::u16string Message;
+    std::vector<StackTraceItem> StackTrace;
+    std::shared_ptr<ExceptionBasicInfo> InnerException;
+    container::ResourceDict Resources;
+    ExceptionBasicInfo(const std::u16string_view msg)
+        : ExceptionBasicInfo(TYPENAME, msg) { }
+    virtual ~ExceptionBasicInfo() {}
+    [[noreturn]] virtual void ThrowReal();
+    [[nodiscard]] BaseException GetException();
+};
+
+
+class [[nodiscard]] BaseException : public std::runtime_error
+{
+    friend class ExceptionBasicInfo;
+    friend struct detail::ExceptionHelper;
+public:
+    static constexpr auto TYPENAME = ExceptionBasicInfo::TYPENAME;
+protected:
+    template<typename T> struct T_ {};
+    using TInfo = ExceptionBasicInfo;
+    std::shared_ptr<ExceptionBasicInfo> Info;
+    BaseException(std::nullopt_t, std::shared_ptr<ExceptionBasicInfo> info) noexcept 
+        : std::runtime_error(info->TypeName), Info(std::move(info)) 
+    { }
+    template<typename T, typename... Args>
+    BaseException(T_<T>, Args&&... args)
+        : BaseException(std::nullopt, std::make_shared<T>(std::forward<Args>(args)...))
     { }
 private:
     void CollectStack(std::vector<StackTraceItem>& stks) const
@@ -122,20 +104,26 @@ private:
             stks.emplace_back(u"Undefined", u"Undefined", 0);
     }
 public:
-    BaseException(const std::u16string_view msg) : BaseException(TYPENAME, msg)
+    BaseException(const std::u16string_view msg) : BaseException(T_<TInfo>{}, msg)
     { }
     BaseException(const BaseException& baseEx) = default;
-    BaseException(BaseException&& baseEx) = default;
+    BaseException(BaseException&& baseEx) noexcept = default;
     ~BaseException() override {}
-    [[nodiscard]] virtual std::shared_ptr<BaseException> Share() const
+    const char* what() const noexcept override { return Info->TypeName; }
+    const std::shared_ptr<ExceptionBasicInfo>& InnerInfo() const noexcept
     {
-        return std::make_shared<BaseException>(*this);
+        return Info;
     }
-    [[noreturn]]  virtual void ThrowSelf() const
+    [[noreturn]] void ThrowSelf() const
     {
-        throw *this;
+        Info->ThrowReal();
     }
-    [[nodiscard]] std::shared_ptr<detail::AnyException> NestedException() const { return Info->InnerException; }
+    [[nodiscard]] std::optional<BaseException> NestedException() const 
+    { 
+        if (Info)
+            return Info->GetException();
+        return {};
+    }
     [[nodiscard]] const std::vector<StackTraceItem>& Stack() const noexcept
     {
         return Info->StackTrace;
@@ -150,10 +138,10 @@ public:
         CollectStack(ret);
         return ret;
     }
-    template<typename S, typename T>
-    BaseException& Attach(S&& key, T&& value)
+    template<typename T, typename S, typename U = T>
+    const BaseException& Attach(S&& key, T&& value) const
     {
-        Info->Resources.Add(std::forward<S>(key), std::forward<T>(value));
+        Info->Resources.Add<U>(std::forward<S>(key), std::forward<T>(value));
         return *this;
     }
     template<typename T>
@@ -192,41 +180,94 @@ public:
         return ex;
     }
 };
-#define EXCEPTION_CLONE_EX(type)                                                    \
-    static constexpr auto TYPENAME = #type;                                         \
+
+inline void ExceptionBasicInfo::ThrowReal()
+{
+    throw BaseException(std::nullopt, this->shared_from_this());
+}
+inline BaseException ExceptionBasicInfo::GetException()
+{
+    return BaseException{ std::nullopt, this->shared_from_this() };
+}
+
+
+#define PREPARE_EXCEPTION(type, parent, ...)                                        \
+    using TPInfo = parent::TInfo;                                                   \
+    struct ExceptionInfo : public TPInfo                                            \
+    {                                                                               \
+        static constexpr auto TYPENAME = #type;                                     \
+        ~ExceptionInfo() override { }                                               \
+        void ThrowReal() override                                                   \
+        {                                                                           \
+            throw type(std::nullopt, this->shared_from_this());                     \
+        }                                                                           \
+        __VA_ARGS__                                                                 \
+    };                                                                              \
+    ExceptionInfo& GetInfo() const noexcept                                         \
+    {                                                                               \
+        return *std::static_pointer_cast<ExceptionInfo>(Info);                      \
+    }                                                                               \
+protected:                                                                          \
+    type(std::nullopt_t, std::shared_ptr<common::ExceptionBasicInfo> info) noexcept \
+        : parent(std::nullopt, std::move(info))                                     \
+    { }                                                                             \
+    template<typename T, typename... Args>                                          \
+    type(T_<T>, Args&&... args)                                                     \
+        : parent(T_<T>{}, std::forward<Args>(args)...)                              \
+    { }                                                                             \
+public:                                                                             \
+    static constexpr auto TYPENAME = ExceptionInfo::TYPENAME;                       \
+    using TInfo = ExceptionInfo;                                                    \
     type(const type& ex) = default;                                                 \
-    [[nodiscard]] ::std::shared_ptr<::common::BaseException> Share() const override \
-    {                                                                               \
-        return ::std::static_pointer_cast<::common::BaseException>                  \
-            (::std::make_shared<type>(*this));                                      \
-    }                                                                               \
-    [[noreturn]]  virtual void ThrowSelf() const override                           \
-    {                                                                               \
-        throw *this;                                                                \
-    }                                                                               \
+    type(type&& ex) noexcept = default;                                             \
+    ~type() override {}                                                             \
 
 
+class [[nodiscard]] OtherException : public BaseException
+{
+    PREPARE_EXCEPTION(OtherException, BaseException, 
+        std::exception_ptr StdException;
+        ExceptionInfo(const std::u16string_view msg, const std::exception_ptr& exptr)
+            : TPInfo(TYPENAME, msg), StdException(exptr)
+        { }
+        ExceptionInfo(const std::u16string_view msg, const std::exception& ex)
+            : ExceptionInfo(msg, std::make_exception_ptr(ex))
+        { }
+    );
+    OtherException(const std::exception_ptr& exptr) : BaseException(T_<ExceptionInfo>{}, u"std_exception", exptr) {}
+    const char* what() const noexcept override 
+    { 
+        auto& info = GetInfo();
+        if (!info.StdException)
+            return "EMPTY";
+        try
+        {
+            std::rethrow_exception(info.StdException);
+        }
+        catch (const std::runtime_error& re)
+        {
+            return re.what();
+        }
+    }
+};
 
-[[nodiscard]] inline std::shared_ptr<detail::AnyException> detail::ExceptionHelper::GetCurrentException()
+
+[[nodiscard]] inline std::shared_ptr<ExceptionBasicInfo> detail::ExceptionHelper::GetCurrentException() noexcept
 {
     const auto cex = std::current_exception();
     if (!cex)
-        return std::shared_ptr<detail::AnyException>{};
+        return {};
     try
     {
         std::rethrow_exception(cex);
     }
     catch (const BaseException& be)
     {
-        return std::static_pointer_cast<detail::AnyException>(be.Share());
-    }
-    catch (const std::shared_ptr<BaseException>& sbe)
-    {
-        return std::static_pointer_cast<detail::AnyException>(sbe);
+        return be.Info;
     }
     catch (...)
     {
-        return std::shared_ptr<detail::AnyException>(new detail::OtherException(cex));
+        return OtherException(cex).Info;
     }
 }
 

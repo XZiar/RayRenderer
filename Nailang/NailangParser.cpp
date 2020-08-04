@@ -64,11 +64,11 @@ common::str::StrVariant<char16_t> NailangParser::GetCurrentFileName() const noex
 
 void NailangParser::HandleException(const NailangParseException& ex) const
 {
-    ex.File = GetCurrentFileName().StrView();
-    ex.Position = GetCurrentPosition();
+    auto& info = ex.GetInfo();
+    info.File = GetCurrentFileName().StrView();
+    info.Position = GetCurrentPosition();
     if (ex.GetDetailMessage().empty())
-        const_cast<NailangParseException&>(ex)
-            .Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", ex.Position.first, ex.Position.second, ex.File));
+        ex.Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", info.Position.first, info.Position.second, info.File));
     ex.ThrowSelf();
 }
 

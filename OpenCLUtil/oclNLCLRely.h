@@ -315,9 +315,9 @@ public:
 class OCLUAPI NLCLBuildFailResult : public NLCLUnBuildResult
 {
 protected:
-    std::shared_ptr<common::BaseException> Exception;
+    std::shared_ptr<common::ExceptionBasicInfo> Exception;
 public:
-    NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::BaseException> ex);
+    NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::ExceptionBasicInfo> ex);
     ~NLCLBuildFailResult() override;
     oclProgram GetProgram() const override;
 };

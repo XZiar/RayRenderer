@@ -70,15 +70,15 @@ class ResultExHolder
 private:
     using T2 = std::conditional_t<std::is_same_v<T, void>, char, T>;
 public:
-    std::variant<std::monostate, ExceptionResult<std::exception_ptr>, ExceptionResult<std::shared_ptr<BaseException>>, T2> Result;
+    std::variant<std::monostate, ExceptionResult<std::exception_ptr>, ExceptionResult<std::shared_ptr<ExceptionBasicInfo>>, T2> Result;
     template<typename U>
     void SetException(U&& ex)
     {
         using U2 = std::decay_t<U>;
         if constexpr (std::is_base_of_v<common::BaseException, U2>)
-            Result = ExceptionResult<U2>{ ex.Share() };
+            Result.emplace<2>(ExceptionResult<std::shared_ptr<ExceptionBasicInfo>>{ex.InnerInfo()});
         else
-            Result = ExceptionResult<U2>{ std::forward<U>(ex) };
+            Result.emplace<1>(ExceptionResult<std::exception_ptr>{std::forward<U>(ex)});
     }
     [[nodiscard]] T ExtraResult()
     {
@@ -91,7 +91,7 @@ public:
             std::rethrow_exception(std::get<1>(Result).Exception);
             break;
         case 2:
-            std::get<2>(Result).Exception->ThrowSelf();
+            std::get<2>(Result).Exception->ThrowReal();
             break;
         case 3:
             if constexpr (std::is_same_v<T, void>)

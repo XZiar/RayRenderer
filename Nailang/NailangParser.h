@@ -17,34 +17,36 @@ namespace xziar::nailang
 class NAILANGAPI NailangParseException : public common::BaseException
 {
     friend class NailangParser;
-protected:
-    NailangParseException(const char* const type, const std::u16string_view file, std::pair<size_t, size_t> pos,
-        const std::u16string_view msg) :
-        BaseException(type, msg), File(file), Position(pos)
+    PREPARE_EXCEPTION(NailangParseException, BaseException,
+        std::u16string File;
+        std::pair<size_t, size_t> Position;
+        ExceptionInfo(const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos)
+            : ExceptionInfo(TYPENAME, msg, file, pos)
+        { }
+    protected:
+        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos)
+            : TPInfo(type, msg), File(file), Position(pos)
+        { }
+    );
+    NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 })
+        : NailangParseException(T_<ExceptionInfo>{}, msg, file, pos)
     { }
-public:
-    EXCEPTION_CLONE_EX(NailangParseException);
-    NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }) 
-        : NailangParseException(TYPENAME, file, pos, msg)
-    { }
-    ~NailangParseException() override {}
-    std::u16string_view GetFileName() const noexcept { return File; }
-    std::pair<size_t, size_t> GetPosition() const noexcept { return Position; }
-private:
-    mutable common::SharedString<char16_t> File;
-    mutable std::pair<size_t, size_t> Position;
+    std::u16string_view GetFileName() const noexcept { return GetInfo().File; }
+    std::pair<size_t, size_t> GetPosition() const noexcept { return GetInfo().Position; }
 };
 class NAILANGAPI UnexpectedTokenException : public NailangParseException
 {
     friend class NailangParser;
-public:
-    common::parser::ParserToken Token;
-    EXCEPTION_CLONE_EX(UnexpectedTokenException);
+    PREPARE_EXCEPTION(UnexpectedTokenException, NailangParseException,
+        common::parser::ParserToken Token;
+        ExceptionInfo(const std::u16string_view msg, common::parser::ParserToken token, 
+            const std::u16string_view file, std::pair<size_t, size_t> pos)
+            : TPInfo(TYPENAME, msg, file, pos), Token(token) { }
+    );
     UnexpectedTokenException(const std::u16string_view msg, common::parser::ParserToken token,
-        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 }) :
-        NailangParseException(TYPENAME, file, pos, msg), Token(token)
+        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 })
+        : NailangParseException(T_<ExceptionInfo>{}, msg, token, file, pos)
     { }
-    ~UnexpectedTokenException() override {}
 };
 
 

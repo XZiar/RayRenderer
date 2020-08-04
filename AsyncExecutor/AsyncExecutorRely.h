@@ -40,13 +40,17 @@ class AsyncManager;
 class AsyncTaskException : public BaseException
 {
 public:
-    EXCEPTION_CLONE_EX(AsyncTaskException);
-    enum class Reason : uint8_t { Terminated, Timeout, Cancelled };
-    const Reason reason;
-    AsyncTaskException(const Reason reason_, const std::u16string_view& msg)
-        : BaseException(TYPENAME, msg), reason(reason_)
+    enum class Reasons : uint8_t { Terminated, Timeout, Cancelled };
+private:
+    PREPARE_EXCEPTION(AsyncTaskException, BaseException,
+        const Reasons Reason;
+        ExceptionInfo(const std::u16string_view msg, const Reasons reason)
+            : TPInfo(TYPENAME, msg), Reason(reason)
+        { }
+    );
+    AsyncTaskException(const Reasons reason, const std::u16string_view msg)
+        : BaseException(T_<ExceptionInfo>{}, msg, reason)
     { }
-    virtual ~AsyncTaskException() {}
 };
 
 

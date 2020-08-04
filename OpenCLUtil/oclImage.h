@@ -24,13 +24,16 @@ using oclImg3D = std::shared_ptr<oclImage3D_>;
 
 class OCLWrongFormatException : public OCLException
 {
-public:
-    EXCEPTION_CLONE_EX(OCLWrongFormatException);
-    xziar::img::TextureFormat Format;
-    OCLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format)
-        : OCLException(TYPENAME, CLComponent::OCLU, msg), Format(format)
+    PREPARE_EXCEPTION(OCLWrongFormatException, OCLException,
+        xziar::img::TextureFormat Format;
+        template<typename T>
+        ExceptionInfo(T&& msg, const xziar::img::TextureFormat format)
+            : TPInfo(TYPENAME, std::forward<T>(msg), CLComponent::OCLU), Format(format)
+        { }
+    );
+    OCLWrongFormatException(const std::u16string_view msg, const xziar::img::TextureFormat format)
+        : OCLException(T_<ExceptionInfo>{}, msg, format)
     { }
-    virtual ~OCLWrongFormatException() {}
 };
 
 

@@ -121,7 +121,7 @@ common::PromiseState oclPromiseCore::WaitPms() noexcept
     if (ret != CL_SUCCESS)
     {
         if (Queue) Queue->Finish();
-        WaitException = CREATE_EXCEPTION(OCLException, OCLException::CLComponent::Driver, ret, u"wait for event error").Share();
+        WaitException = CREATE_EXCEPTION(OCLException, OCLException::CLComponent::Driver, ret, u"wait for event error").InnerInfo();
         return common::PromiseState::Error;
     }
     return common::PromiseState::Executed;
@@ -220,6 +220,12 @@ std::string_view oclPromiseCore::GetEventName() const noexcept
         }
     }
     return ""sv;
+}
+std::optional<common::BaseException> oclPromiseCore::GetException() const
+{
+    if (WaitException)
+        return WaitException->GetException();
+    return {};
 }
 
 

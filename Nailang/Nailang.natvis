@@ -227,38 +227,38 @@
     </DisplayString>
   </Type>
 
-  <Type Name="xziar::nailang::NailangParseException">
+  <Type Name="xziar::nailang::NailangParseException::ExceptionInfo">
     <DisplayString>{TypeName,sb} {Position}</DisplayString>
     <Expand>
       <Item Name="File">File</Item>
       <Item Name="Position">Position</Item>
-      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+      <ExpandedItem>(common::ExceptionBasicInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
 
-  <Type Name="xziar::nailang::UnexpectedTokenException">
+  <Type Name="xziar::nailang::UnexpectedTokenException::ExceptionInfo">
     <DisplayString>{TypeName,sb} {{{Token.ValType,en}}} at {Position}</DisplayString>
     <Expand>
       <Item Name="Token">Token</Item>
-      <ExpandedItem>(xziar::nailang::NailangParseException*)this,nd</ExpandedItem>
+      <ExpandedItem>(xziar::nailang::NailangParseException::ExceptionInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
 
-  <Type Name="xziar::nailang::NailangRuntimeException">
+  <Type Name="xziar::nailang::NailangRuntimeException::ExceptionInfo">
     <AlternativeType Name="xziar::nailang::NailangCodeException"/>
     <DisplayString>{TypeName,sb} at {{{Target}}}</DisplayString>
     <Expand>
       <Item Name="Target">Target</Item>
       <Item Name="Scope">Scope</Item>
-      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+      <ExpandedItem>(common::ExceptionBasicInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
 
-  <Type Name="xziar::nailang::NailangFormatException">
+  <Type Name="xziar::nailang::NailangFormatException::ExceptionInfo">
     <DisplayString>{TypeName,sb}</DisplayString>
     <Expand>
       <Item Name="Formatter">Formatter</Item>
-      <ExpandedItem>(xziar::nailang::NailangRuntimeException*)this,nd</ExpandedItem>
+      <ExpandedItem>(xziar::nailang::NailangRuntimeException::ExceptionInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
   

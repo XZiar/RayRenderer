@@ -48,7 +48,7 @@ protected:
     DependEvents Depends;
     const cl_event Event;
     const oclCmdQue Queue;
-    std::shared_ptr<common::BaseException> WaitException;
+    std::shared_ptr<common::ExceptionBasicInfo> WaitException;
     bool IsException;
     [[nodiscard]] common::PromiseState GetState() noexcept override;
     void PreparePms() override;
@@ -62,7 +62,7 @@ public:
     uint64_t QueryTime(TimeType type) const noexcept;
     bool RegisterCallback(const common::PmsCore& pms);
     std::string_view GetEventName() const noexcept;
-    std::shared_ptr<common::BaseException> GetException() const { return WaitException; }
+    std::optional<common::BaseException> GetException() const;
 };
 
 class oclCustomEvent : public ::common::detail::PromiseResult_<void>, public oclPromiseCore
@@ -110,7 +110,7 @@ private:
     {
         this->CheckResultExtracted();
         if (auto ex = Promise.GetException())
-            Holder.SetException(std::move(ex));
+            Holder.SetException(*ex);
         return Holder.ExtraResult();
     }
 public:

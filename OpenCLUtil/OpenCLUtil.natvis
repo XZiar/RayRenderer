@@ -239,11 +239,11 @@
     </Expand>
   </Type>
 
-  <Type Name="oglu::OCLException">
+  <Type Name="oclu::OCLException::ExceptionInfo">
     <DisplayString>{TypeName,sb} {{{Component,en}}}</DisplayString>
     <Expand>
       <Item Name="Component">Component,en</Item>
-      <ExpandedItem>(common::BaseException*)this,nd</ExpandedItem>
+      <ExpandedItem>(common::ExceptionBasicInfo*)this,nd</ExpandedItem>
     </Expand>
   </Type>
   

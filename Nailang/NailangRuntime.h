@@ -192,7 +192,9 @@ struct ExceptionTarget
 
     constexpr ExceptionTarget() noexcept {}
     template<typename T>
-    constexpr ExceptionTarget(T&& arg) noexcept : Target(std::forward<T>(arg)) {}
+    constexpr ExceptionTarget(T&& arg, std::enable_if_t<!std::is_same_v<std::decay_t<T>, ExceptionTarget>>* = nullptr) noexcept 
+        : Target(std::forward<T>(arg)) {}
+    //constexpr ExceptionTarget(ExceptionTarget&& arg) noexcept = default;
 
     [[nodiscard]] constexpr Type GetType() const noexcept
     {
@@ -268,36 +270,56 @@ struct ExceptionTarget
 };
 }
 
+
 class NAILANGAPI NailangRuntimeException : public common::BaseException
 {
     friend class NailangRuntimeBase;
-protected:
-    NailangRuntimeException(const char* const type, const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope) :
-        BaseException(type, msg), Target(std::move(target)), Scope(std::move(scope))
-    { }
+    PREPARE_EXCEPTION(NailangRuntimeException, BaseException,
+        detail::ExceptionTarget Target;
+        detail::ExceptionTarget Scope;
+        ExceptionInfo(const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope)
+            : ExceptionInfo(TYPENAME, msg, target, scope)
+        { }
+    protected:
+        template<typename T>
+        ExceptionInfo(const char* type, T&& msg, detail::ExceptionTarget target, detail::ExceptionTarget scope)
+            : TPInfo(type, std::forward<T>(msg)), Target(std::move(target)), Scope(std::move(scope))
+        { }
+    );
 public:
-    EXCEPTION_CLONE_EX(NailangRuntimeException);
-    detail::ExceptionTarget Target;
-    detail::ExceptionTarget Scope;
     NailangRuntimeException(const std::u16string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {}) :
-        NailangRuntimeException(TYPENAME, msg, std::move(target), std::move(scope))
+        NailangRuntimeException(T_<ExceptionInfo>{}, msg, std::move(target), std::move(scope))
     { }
 };
 
 class NAILANGAPI NailangFormatException : public NailangRuntimeException
 {
-    common::SharedString<char32_t> Formatter;
+    friend class NailangRuntimeBase;
+    PREPARE_EXCEPTION(NailangFormatException, NailangRuntimeException,
+        std::u32string Formatter;
+        ExceptionInfo(const std::u16string_view msg, const std::u32string_view formatter, detail::ExceptionTarget target = {})
+            : ExceptionInfo(TYPENAME, msg, formatter, target)
+        { }
+    protected:
+        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u32string_view formatter, detail::ExceptionTarget target)
+            : TPInfo(type, msg, target, {}), Formatter(formatter)
+        { }
+    );
 public:
-    EXCEPTION_CLONE_EX(NailangFormatException);
     NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err);
     NailangFormatException(const std::u32string_view formatter, const Arg& arg, const std::u16string_view reason = u"");
-    ~NailangFormatException() override;
 };
 
 class NAILANGAPI NailangCodeException : public NailangRuntimeException
 {
+    PREPARE_EXCEPTION(NailangCodeException, NailangRuntimeException,
+        ExceptionInfo(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope)
+            : ExceptionInfo(TYPENAME, msg, target, scope)
+        { }
+    protected:
+        ExceptionInfo(const char* type, const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope);
+    );
 public:
-    EXCEPTION_CLONE_EX(NailangCodeException);
     NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target = {}, detail::ExceptionTarget scope = {});
 };
 

@@ -50,14 +50,17 @@ enum class TextureType : GLenum
 
 class OGLWrongFormatException : public OGLException
 {
-public:
-    EXCEPTION_CLONE_EX(OGLWrongFormatException);
-    xziar::img::TextureFormat Format;
-    OGLWrongFormatException(const std::u16string_view& msg, const xziar::img::TextureFormat format)
-        : OGLException(TYPENAME, GLComponent::OGLU, msg), Format(format)
+    PREPARE_EXCEPTION(OGLWrongFormatException, OGLException,
+        xziar::img::TextureFormat Format;
+        ExceptionInfo(const std::u16string_view msg, const xziar::img::TextureFormat format)
+            : TPInfo(TYPENAME, msg, OGLException::GLComponent::OGLU), Format(format)
+        { }
+    );
+    OGLWrongFormatException(const std::u16string_view msg, const xziar::img::TextureFormat format)
+        : OGLException(T_<ExceptionInfo>{}, msg, format)
     { }
-    virtual ~OGLWrongFormatException() {}
 };
+
 
 struct OGLUAPI OGLTexUtil
 {

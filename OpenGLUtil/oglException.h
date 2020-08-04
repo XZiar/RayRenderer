@@ -8,20 +8,22 @@ namespace oglu
 class OGLException : public common::BaseException
 {
 public:
-	EXCEPTION_CLONE_EX(OGLException);
-	enum class GLComponent { Compiler, Driver, GPU, OGLU, Tex };
-	const GLComponent Component;
-protected:
-	OGLException(const char* const type, const GLComponent source, const std::u16string_view msg)
-		: common::BaseException(type, msg), Component(source) { }
-public:
-	OGLException(const GLComponent source, const std::u16string_view msg)
-		: OGLException(TYPENAME, source, msg)
-	{ }
-	virtual ~OGLException() {}
+    enum class GLComponent { Compiler, Driver, GPU, OGLU, Tex };
+private:
+    PREPARE_EXCEPTION(OGLException, BaseException,
+        GLComponent Component;
+        ExceptionInfo(const std::u16string_view msg, const GLComponent source)
+            : ExceptionInfo(TYPENAME, msg, source)
+        { }
+    protected:
+        ExceptionInfo(const char* type, const std::u16string_view msg, const GLComponent source)
+            : TPInfo(type, msg), Component(source)
+        { }
+    );
+    OGLException(const GLComponent source, const std::u16string_view msg)
+        : BaseException(T_<ExceptionInfo>{}, msg, source)
+    { }
 };
-
-//class GL
 
 
 }

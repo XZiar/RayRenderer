@@ -194,7 +194,7 @@ public:
         if (!AllowStopAdd && !IsRunning()) //has stopped
         {
             Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, taskname);
-            COMMON_THROW(AsyncTaskException, AsyncTaskException::Reason::Cancelled, u"Executor was terminated when adding task.");
+            COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Executor was terminated when adding task.");
         }
         auto node = new detail::AsyncTaskNode<Ret, AcceptAgent>(taskname, stackSize, std::forward<Func>(task));
         AddNode(node);
