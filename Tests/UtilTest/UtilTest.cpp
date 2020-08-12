@@ -1,7 +1,5 @@
 #include "TestRely.h"
-#include <map>
-#include <vector>
-#include <algorithm>
+#include "SystemCommon/ConsoleEx.h"
 #include "common/Linq2.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/StringEx.hpp"
@@ -9,10 +7,15 @@
 #include "common/SIMD128.hpp"
 #include "3DBasic/miniBLAS/VecNew.hpp"
 #include "common/ResourceHelper.inl"
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <iostream>
 
 using std::string;
 using std::map;
 using std::vector;
+using common::console::ConsoleColor;
 namespace fs = common::fs;
 
 static common::mlog::MiniLogger<false>& log()
@@ -76,58 +79,105 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
-void PrintException(const common::BaseException& be)
+void PrintColored(const common::console::ConsoleColor color, const std::u16string_view str)
 {
-    log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message());
-    fmt::basic_memory_buffer<char16_t> buf;
-    for (const auto& stack : be.Stack())
-        fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-    log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
-    
+    static common::console::ConsoleHelper helper;
+    helper.Print(color, str);
+}
+
+void PrintException(const common::BaseException& be, std::u16string_view info)
+{
+    common::mlog::SyncConsoleBackend();
+    PrintColored(ConsoleColor::BrightRed,
+        FMTSTR(u"{}:{}\n{}\n", info, be.Message(), be.GetDetailMessage()));
+    {
+        std::u16string str;
+        for (const auto& stack : be.Stack())
+            fmt::format_to(std::back_inserter(str), FMT_STRING(u"[{}:{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+        PrintColored(ConsoleColor::BrightWhite, u"stack trace:\n");
+        PrintColored(ConsoleColor::BrightYellow, str);
+    }
     if (const auto inEx = be.NestedException(); inEx.has_value())
-        PrintException(*inEx);
+        return PrintException(*inEx, u"Caused by");
+}
+
+void ClearReturn()
+{
+    std::cin.ignore(1024, '\n');
+}
+
+char GetIdx36(const size_t idx)
+{
+    constexpr std::string_view Idx36 = "0123456789abcdefghijklmnopqrstuvwxyz";
+    if (idx < 36)
+        return Idx36[idx];
+    return '*';
+}
+
+uint32_t Select36(const size_t size)
+{
+    uint32_t idx = UINT32_MAX;
+    do
+    {
+        const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
+        if (ch >= '0' && ch <= '9')
+            idx = ch - '0';
+        else if (ch >= 'a' && ch <= 'z')
+            idx = ch - 'a' + 10;
+        else if (ch >= 'A' && ch <= 'Z')
+            idx = ch - 'A' + 10;
+    } while (idx >= size);
+    return idx;
 }
 
 
 int main(int argc, char *argv[])
 {
     common::ResourceHelper::Init(nullptr);
-    log().info(u"UnitTest\n");
+    PrintColored(ConsoleColor::BrightGreen, u"UnitTest\n");
 
-    const auto args = common::linq::FromContainer(common::span<char*>(argv, argv + argc))
-        .Cast<std::string_view>()
-        .ToVector();
-    GetCmdArgs_() = common::linq::FromIterable(args)
-        .Where([](const auto sv) { return common::str::IsBeginWith(sv, "-"); })
-        .ToVector();
-    const auto left = common::linq::FromIterable(args)
-        .Where([](const auto sv) { return !common::str::IsBeginWith(sv, "-"); })
-        .ToVector();
+    std::vector<std::string_view> args;
+    {
+        for (const std::string_view arg : common::span<char*>(argv, argv + argc))
+        {
+            if (common::str::IsBeginWith(arg, "-"))
+                GetCmdArgs_().push_back(arg.substr(1));
+            else
+                args.push_back(arg);
+        }
+    }
 
-    if (left.size() >= 1)
-        BasePathHolder() = fs::absolute(left[0]);
+    if (args.size() >= 1)
+        BasePathHolder() = fs::absolute(args[0]);
     log().debug(FMT_STRING(u"Locate BasePath to [{}]\n"), BasePathHolder().u16string());
 
-    uint32_t idx = 0;
     const auto& testMap = GetTestMap();
-    for (const auto& pair : testMap)
     {
-        log().info(FMT_STRING(u"[{}] {:<20} {}\n"), idx++, pair.first, (void*)pair.second);
+        uint32_t idx = 0;
+        for (const auto& pair : testMap)
+        {
+            PrintColored(ConsoleColor::BrightWhite, 
+                FMTSTR(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
+        }
     }
-    common::SimpleTimer timer;
-    timer.Start();
-    log().info(u"Select One To Execute...");
-    timer.Stop();
-    if (left.size() >= 2)
-        idx = (uint32_t)std::stoul(left[1].data());
-    else
-    {
-        std::cin >> idx;
-        ClearReturn();
-    }
+    PrintColored(ConsoleColor::BrightWhite, u"Select One To Execute...\n");
+    
+    const auto idx = args.size() >= 2 ?
+        [&]() -> uint32_t 
+        {
+            uint32_t idx = 0;
+            for (const auto& pair : testMap)
+            {
+                if (pair.first == args[1].data())
+                    return idx;
+                idx++;
+            }
+            return UINT32_MAX;
+        }() : 
+        Select36(testMap.size());
+
     if (idx < testMap.size())
     {
-        log().info(FMT_STRING(u"Simple logging cost {} ns.\n"), timer.ElapseNs());
         auto it = testMap.cbegin();
         std::advance(it, idx);
         try
@@ -136,7 +186,7 @@ int main(int argc, char *argv[])
         }
         catch (const common::BaseException& be)
         {
-            PrintException(be);
+            PrintException(be, FMTSTR(u"Error when performing test [{}]", it->first));
         }
     }
     else
@@ -148,8 +198,5 @@ int main(int argc, char *argv[])
     }
     ClearReturn();
     getchar();
-    static_assert(common::is_specialization<std::vector<char>, std::vector>::value, "");
-    static_assert(common::is_specialization<std::vector<char, common::AlignAllocator<char>>, std::vector>::value, "");
-    static_assert(common::str::IsBeginWith("here", "here"), "is not begin");
 
 }

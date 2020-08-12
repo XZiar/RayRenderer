@@ -7,6 +7,7 @@
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
 #include "common/StringEx.hpp"
+#include <iostream>
 
 
 using namespace common;
@@ -27,32 +28,6 @@ static MiniLogger<false>& log()
 }
 
 
-template<typename T>
-uint32_t SelectIdx(const T& container, u16string_view name)
-{
-    if (container.size() <= 1)
-        return 0;
-    log().info(u"Select {} to use:\n", name);
-    uint32_t idx = UINT32_MAX;
-    do
-    {
-        const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
-        if (ch >= '0' && ch <= '9')
-            idx = ch - '0';
-    } while (idx >= container.size());
-    return idx;
-}
-
-static void PrintStack(const common::BaseException& be)
-{
-    std::u16string str;
-    for (const auto& item : be.Stack())
-    {
-        fmt::format_to(std::back_inserter(str), FMT_STRING(u"{}:{}\t{}\n"), item.File, item.Line, item.Func);
-    }
-    log().warning(u"StackTrace:\n{}", str);
-}
-
 static void OCLStub()
 {
     const auto& plats = oclUtil::GetPlatforms();
@@ -63,10 +38,13 @@ static void OCLStub()
     }
     while (true)
     {
-        common::linq::FromIterable(plats)
+        /*common::linq::FromIterable(plats)
             .ForEach([](const auto& plat, size_t idx)
-                { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), idx, plat->Name, plat->Ver); });
-        const auto platidx = SelectIdx(plats, u"platform");
+                { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), GetIdx36(idx), plat->Name, plat->Ver); });*/
+        const auto platidx = SelectIdx(plats, u"platform", [](const auto& plat)
+            {
+                return FMTSTR(u"{}  {{{}}}", plat->Name, plat->Ver);
+            });
         const auto plat = plats[platidx];
 
         const auto devs = plat->GetDevices();
@@ -75,10 +53,13 @@ static void OCLStub()
             log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
             return;
         }
-        common::linq::FromIterable(devs)
+        /*common::linq::FromIterable(devs)
             .ForEach([](const auto& dev, size_t idx)
-                { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });
-        const auto devidx = SelectIdx(devs, u"device");
+                { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), GetIdx36(idx), dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });*/
+        const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
+            {
+                return FMTSTR(u"{}  {{{} | {}}}\t[{} CU]", dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
+            });
         const auto dev = devs[devidx];
 
         const auto ctx = plat->CreateContext(dev);
@@ -227,8 +208,7 @@ static void OCLStub()
             }
             catch (const BaseException& be)
             {
-                log().error(u"Error here:\n{}\n{}\n", be.Message(), be.GetDetailMessage());
-                PrintStack(be);
+                PrintException(be, u"Error here");
             }
         }
     }

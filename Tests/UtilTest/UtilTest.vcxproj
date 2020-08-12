@@ -154,6 +154,9 @@
     <ProjectReference Include="..\..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\DirectXUtil\DirctXUtil.vcxproj">
+      <Project>{cc934298-6b2a-4538-b656-71dfe4f37c89}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\Nailang\Nailang.vcxproj">
       <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
     </ProjectReference>
@@ -202,6 +205,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="CURLTest.cpp" />
+    <ClCompile Include="DXStub.cpp" />
     <ClCompile Include="FreeGLUTTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>

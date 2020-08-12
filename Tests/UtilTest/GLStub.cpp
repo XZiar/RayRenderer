@@ -3,6 +3,7 @@
 #include "OpenGLUtil/oglException.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/StringLinq.hpp"
+#include <iostream>
 #include <algorithm>
 
 #if COMMON_OS_WIN
@@ -202,8 +203,7 @@ static void OGLStub()
         }
         catch (const BaseException& be)
         {
-            log().error(u"Error here:\n{}\n{}\n", be.Message(), be.GetDetailMessage());
-            //PrintStack(be);
+            PrintException(be, u"Error here");
         }
     }
     getchar();

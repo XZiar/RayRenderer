@@ -22,7 +22,7 @@ private:
         template<typename T>
         ExceptionInfo(const char* type, T&& msg, const CLComponent source)
             : TPInfo(type, std::forward<T>(msg)), Component(source)
-    { }
+        { }
     );
     OCLException(const CLComponent source, const std::u16string_view msg)
         : BaseException(T_<ExceptionInfo>{}, msg, source)

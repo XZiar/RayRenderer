@@ -116,7 +116,7 @@ public:
     }
     [[nodiscard]] std::optional<BaseException> NestedException() const 
     { 
-        if (Info)
+        if (Info->InnerException)
             return Info->GetException();
         return {};
     }

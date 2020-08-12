@@ -10,7 +10,6 @@ using namespace common::mlog;
 using namespace xziar::img;
 using namespace oglu;
 using std::string;
-using std::cin;
 using namespace glutview;
 using namespace b3d;
 using std::wstring;
@@ -74,7 +73,7 @@ static void FGTest()
 {
     printf("miniBLAS intrin:%s\n", miniBLAS::miniBLAS_intrin());
     if (!common::linq::FromIterable(GetCmdArgs())
-        .Where([](const auto arg) { return arg == "--renderdoc"; })
+        .Where([](const auto arg) { return arg == "-renderdoc"; })
         .Empty())
         oglu::oglUtil::InJectRenderDoc("");
     FreeGLUTViewInit();

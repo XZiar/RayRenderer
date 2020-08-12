@@ -5,7 +5,6 @@ using namespace common;
 using namespace common::mlog;
 using namespace xziar::gui;
 using std::string;
-using std::cin;
 
 static MiniLogger<false>& log()
 {

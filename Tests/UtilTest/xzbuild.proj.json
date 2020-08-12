@@ -12,7 +12,7 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": ["*.cpp", {"-": "DXStub.cpp"}],
             "flags": ["-Wno-unused-function"]
         },
         "rc":

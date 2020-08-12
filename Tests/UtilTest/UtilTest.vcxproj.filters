@@ -48,6 +48,9 @@
     <ClCompile Include="NailangTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DXStub.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestRely.h">
