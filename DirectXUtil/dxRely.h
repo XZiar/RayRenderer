@@ -80,7 +80,7 @@ namespace dxu
 class DXException : public common::BaseException
 {
 public:
-    enum class CLComponent { Compiler, Driver, Accellarator, OCLU };
+    enum class CLComponent { Compiler, Driver, DXU };
 private:
     PREPARE_EXCEPTION(DXException, BaseException,
         template<typename T>
@@ -93,6 +93,7 @@ private:
             : TPInfo(type, std::forward<T>(msg))
         { }
     );
+    DXException(std::u16string msg);
     DXException(int32_t hresult, std::u16string msg);
 };
 

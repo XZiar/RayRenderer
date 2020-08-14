@@ -1,10 +1,9 @@
 #include "TestRely.h"
 #include "DirectXUtil/dxDevice.h"
+#include "DirectXUtil/dxCmdQue.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
-#include "common/StringLinq.hpp"
-#include "common/StringEx.hpp"
 
 
 using namespace common;
@@ -33,14 +32,12 @@ static void DXStub()
     }
     while (true)
     {
-        /*common::linq::FromIterable(devs)
-            .ForEach([](const auto& dev, size_t idx)
-                { log().info(FMT_STRING(u"device[{}] {}\n"), GetIdx36(idx), dev.GetAdapterName()); });*/
         const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
             {
                 return dev.GetAdapterName();
             });
         const auto& dev = devs[devidx];
+        const auto cmdque = DXComputeCmdQue_::Create(&dev);
     }
 }
 

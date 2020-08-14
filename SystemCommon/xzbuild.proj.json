@@ -12,7 +12,7 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": ["*.cpp", {"-": "HResultHelper.cpp"}],
             "defines":  ["SYSCOMMON_EXPORT"],
             "pch": "SystemCommonPch.h"
         }

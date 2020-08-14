@@ -34,11 +34,6 @@ ConsoleHelper::ConsoleHelper()
 }
 ConsoleHelper::~ConsoleHelper()
 {
-#if defined(_WIN32)
-    const auto handle = (HANDLE)Handle;
-    if (handle != INVALID_HANDLE_VALUE)
-        CloseHandle(handle);
-#endif
 }
 
 #if defined(_WIN32)

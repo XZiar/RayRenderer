@@ -1,5 +1,4 @@
 #include "dxPch.h"
-#include "comdef.h"
 
 #if defined(_WIN32)
 #   pragma comment (lib, "D3d12.lib")
@@ -10,8 +9,8 @@
 
 namespace dxu
 {
-
 using namespace common::mlog;
+
 MiniLogger<false>& dxLog()
 {
     static MiniLogger<false> dxlog(u"DirectXUtil", { GetConsoleBackend() });
@@ -19,12 +18,13 @@ MiniLogger<false>& dxLog()
 }
 
 
-DXException::DXException(int32_t hresult, std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
+DXException::DXException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
+{ }
+
+DXException::DXException(int32_t hresult, std::u16string msg) : DXException(msg)
 {
-    _com_error err(hresult);
     Attach("HResult", hresult);
-    std::u16string hrmsg(reinterpret_cast<const char16_t*>(err.ErrorMessage()));
-    Attach("Detail", std::move(hrmsg));
+    Attach("detail", common::HrToStr(hresult));
 }
 
 

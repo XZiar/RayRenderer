@@ -27,12 +27,18 @@
     <ClInclude Include="ProxyStruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="dxCmdQue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dxRely.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="dxDevice.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dxCmdQue.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

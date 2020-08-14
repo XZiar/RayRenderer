@@ -5,16 +5,10 @@
 namespace dxu
 {
 
-DXDevice_::DXDevice_(void* adapter, void* device) : 
-    Adapter(reinterpret_cast<AdapterProxy*>(adapter)), Device(reinterpret_cast<DeviceProxy*>(device))
-{
-    DXGI_ADAPTER_DESC1 desc;
-    if (Adapter->GetDesc1(&desc) >= 0)
-    {
-        AdapterName.assign(reinterpret_cast<const char16_t*>(desc.Description));
-        dxLog().verbose(u"Created device on {}.\n", AdapterName);
-    }
-}
+DXDevice_::DXDevice_(void* adapter, void* device, std::u16string_view name) :
+    Adapter(reinterpret_cast<AdapterProxy*>(adapter)), Device(reinterpret_cast<DeviceProxy*>(device)),
+    AdapterName(name)
+{ }
 DXDevice_::DXDevice_(DXDevice_&& other) noexcept : 
     Adapter(other.Adapter), Device(other.Device),
     AdapterName(std::move(other.AdapterName))
@@ -42,6 +36,10 @@ common::span<const DXDevice_> DXDevice_::GetDevices()
                 debug->EnableDebugLayer();
                 debug->Release();
             }
+            else
+            {
+                dxLog().warning(u"Failed to enable debug layer: {}.\n", common::HrToStr(hr));
+            }
         }
 #endif
         IDXGIFactory4* factory = nullptr;
@@ -53,17 +51,34 @@ common::span<const DXDevice_> DXDevice_::GetDevices()
             IDXGIAdapter1* adapter = nullptr;
             if (factory->EnumAdapters1(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
                 break;
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            DXGI_ADAPTER_DESC1 desc = {};
+            if (FAILED(adapter->GetDesc1(&desc)))
                 continue;
-            ID3D12Device* device = nullptr;
-            if (const auto hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_1_0_CORE, IID_PPV_ARGS(&device)); FAILED(hr))
+            std::u16string_view adapterName = reinterpret_cast<const char16_t*>(desc.Description);
+            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             {
-                if (const auto hr2 = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)); FAILED(hr2))
-                    COMMON_THROWEX(DXException, hr2, u"Failed to create device");
+                dxLog().verbose(u"Skip software adapter [{}].\n", adapterName);
+                continue;
             }
-            devs.push_back(DXDevice_(adapter, device));
+            ID3D12Device* device = nullptr;
+            {
+                constexpr std::array<D3D_FEATURE_LEVEL, 2> FeatureLvs =
+                    { D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_1_0_CORE };
+                std::array<common::HResultHolder, 2> hrs = { 0 };
+                for (size_t fid = 0; fid < FeatureLvs.size(); ++fid)
+                {
+                    hrs[fid] = D3D12CreateDevice(adapter, FeatureLvs[fid], IID_PPV_ARGS(&device));
+                    if (hrs[fid])
+                        break;
+                }
+                if (!device)
+                {
+                    dxLog().warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", adapterName, hrs[0], hrs[1]);
+                    continue;
+                }
+            }
+            dxLog().verbose(u"Created device on {}.\n", adapterName);
+            devs.push_back(DXDevice_(adapter, device, adapterName));
         }
 
         return devs;

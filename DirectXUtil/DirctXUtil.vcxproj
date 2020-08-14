@@ -42,12 +42,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dxCmdQue.h" />
     <ClInclude Include="dxDevice.h" />
     <ClInclude Include="dxPch.h" />
     <ClInclude Include="dxRely.h" />
     <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dxCmdQue.cpp" />
     <ClCompile Include="dxDevice.cpp" />
     <ClCompile Include="dxRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

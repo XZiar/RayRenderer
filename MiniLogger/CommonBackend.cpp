@@ -44,7 +44,7 @@ class ConsoleBackend : public LoggerQBackend
 {
 private:
     std::unique_ptr<const console::ConsoleHelper> Helper;
-    static constexpr console::ConsoleColor ToColor(const LogLevel lv)
+    static constexpr console::ConsoleColor ToColor(const LogLevel lv) noexcept
     {
         using console::ConsoleColor;
         switch (lv)

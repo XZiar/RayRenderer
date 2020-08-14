@@ -1,7 +1,6 @@
 #pragma once
 #include "dxRely.h"
 
-
 #if COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
@@ -11,11 +10,13 @@ namespace dxu
 {
 class DXDevice_;
 using DXDevice = const DXDevice_*;
+class DXCmdQue_;
 
 class DXUAPI DXDevice_ : public common::NonCopyable
 {
+    friend class DXCmdQue_;
 private:
-    DXDevice_(void* adapter, void* device);
+    DXDevice_(void* adapter, void* device, std::u16string_view name);
 protected:
     struct AdapterProxy;
     struct DeviceProxy;
