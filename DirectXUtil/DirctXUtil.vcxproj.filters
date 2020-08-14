@@ -30,6 +30,9 @@
     <ClInclude Include="dxCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="dxResource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dxRely.cpp">
@@ -39,6 +42,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="dxCmdQue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dxResource.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

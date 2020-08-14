@@ -10,11 +10,15 @@ namespace dxu
 {
 class DXDevice_;
 using DXDevice = const DXDevice_*;
-class DXCmdQue_;
+class DXCopyCmdQue_;
+class DXCmdList_;
+class DXResource_;
 
 class DXUAPI DXDevice_ : public common::NonCopyable
 {
-    friend class DXCmdQue_;
+    friend class DXCopyCmdQue_;
+    friend class DXCmdList_;
+    friend class DXResource_;
 private:
     DXDevice_(void* adapter, void* device, std::u16string_view name);
 protected:
@@ -26,9 +30,9 @@ protected:
 public:
     DXDevice_(DXDevice_&& other) noexcept;
     ~DXDevice_();
-    const std::u16string& GetAdapterName() const noexcept { return AdapterName; }
+    [[nodiscard]] const std::u16string& GetAdapterName() const noexcept { return AdapterName; }
 
-    static common::span<const DXDevice_> GetDevices();
+    [[nodiscard]] static common::span<const DXDevice_> GetDevices();
 };
 
 

@@ -32,12 +32,13 @@ static void DXStub()
     }
     while (true)
     {
-        const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
+        const auto devidx = SelectIdx(devs, u"device", [](const DXDevice_& dev) 
             {
                 return dev.GetAdapterName();
             });
         const auto& dev = devs[devidx];
         const auto cmdque = DXComputeCmdQue_::Create(&dev);
+        const auto cmdlist = DXComputeCmdList_::Create(&dev);
     }
 }
 

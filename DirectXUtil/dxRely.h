@@ -76,6 +76,50 @@
 namespace dxu
 {
 
+template<typename T>
+struct PtrProxy
+{
+    void* Pointer = nullptr;
+    T* Ptr() const noexcept 
+    {
+        return reinterpret_cast<T*>(Pointer);
+    }
+    auto PPtr() noexcept
+    {
+        return reinterpret_cast<typename T::RealType**>(&Pointer);
+    }
+    auto PPtr() const noexcept
+    {
+        return reinterpret_cast<typename T::RealType* const*>(&Pointer);
+    }
+    template<typename U>
+    PtrProxy<U>& AsDerive() noexcept
+    {
+        static_assert(std::is_base_of_v<typename T::RealType, typename U::RealType>);
+        return *reinterpret_cast<PtrProxy<U>*>(this);
+    }
+    operator T* () const noexcept
+    {
+        return Ptr();
+    }
+    constexpr explicit operator bool() const noexcept
+    {
+        return Pointer != nullptr;
+    }
+    T& operator*() const noexcept
+    {
+        return *Ptr();
+    }
+    T* operator->() const noexcept
+    {
+        return Ptr();
+    }
+};
+
+namespace detail
+{
+struct IIDPPVPair;
+}
 
 class DXException : public common::BaseException
 {

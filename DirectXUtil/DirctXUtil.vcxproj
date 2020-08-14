@@ -42,6 +42,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dxResource.h" />
     <ClInclude Include="dxCmdQue.h" />
     <ClInclude Include="dxDevice.h" />
     <ClInclude Include="dxPch.h" />
@@ -49,6 +50,7 @@
     <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dxResource.cpp" />
     <ClCompile Include="dxCmdQue.cpp" />
     <ClCompile Include="dxDevice.cpp" />
     <ClCompile Include="dxRely.cpp">

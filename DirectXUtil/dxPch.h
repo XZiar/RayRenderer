@@ -29,17 +29,17 @@
 
 
 
-//forceinline IDXGIAdapter1* GetAdapter(uintptr_t adapter) noexcept
-//{
-//    return reinterpret_cast<IDXGIAdapter1*>(adapter);
-//}
-//forceinline ID3D12Device* GetDevice(uintptr_t device) noexcept
-//{
-//    return reinterpret_cast<ID3D12Device*>(device);
-//}
-
 namespace dxu
 {
+
+namespace detail
+{
+struct IIDPPVPair
+{
+    REFIID TheIID;
+    void** PtrObj;
+};
+}
 
 common::mlog::MiniLogger<false>& dxLog();
 
