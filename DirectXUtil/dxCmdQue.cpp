@@ -22,12 +22,11 @@ DXCmdList_::DXCmdList_(DXDevice device, ListType type, const detail::IIDPPVPair&
     case ListType::Direct:  listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;  break;
     default:                COMMON_THROW(DXException, u"Unrecognized command list type");
     }
-    THROW_HR(device->Device->CreateCommandAllocator(listType, IID_PPV_ARGS(CmdAllocator.PPtr())), u"Failed to create command allocator");
+    THROW_HR(device->Device->CreateCommandAllocator(listType, IID_PPV_ARGS(&CmdAllocator)), u"Failed to create command allocator");
     THROW_HR(device->Device->CreateCommandList(0, listType, CmdAllocator, nullptr, thelist.TheIID, thelist.PtrObj), u"Failed to create command list");
 }
-DXCmdList_::DXCmdList_(DXDevice device, ListType type) : DXCmdList_(device, type, { IID_PPV_ARGS(CmdList.PPtr()) })
+DXCmdList_::DXCmdList_(DXDevice device, ListType type) : DXCmdList_(device, type, { IID_PPV_ARGS(&CmdList) })
 { }
-
 DXCmdList_::~DXCmdList_()
 {
     if (CmdList)
@@ -47,7 +46,7 @@ DXComputeCmdList DXComputeCmdList_::Create(DXDevice device)
 }
 
 DXDirectCmdList_::DXDirectCmdList_(DXDevice device) : DXComputeCmdList_(device, ListType::Direct, 
-    { IID_PPV_ARGS(CmdList.AsDerive<GraphicsCmdListProxy>().PPtr()) })
+    { IID_PPV_ARGS(&CmdList.AsDerive<GraphicsCmdListProxy>()) })
 { }
 
 DXDirectCmdList DXDirectCmdList_::Create(DXDevice device)
@@ -67,7 +66,7 @@ DXCopyCmdQue_::DXCopyCmdQue_(DXDevice device, QueType type, bool diableTimeout)
     case QueType::Direct:   desc.Type = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT;  break;
     default:                COMMON_THROW(DXException, u"Unrecognized command que type");
     }
-    THROW_HR(device->Device->CreateCommandQueue(&desc, IID_PPV_ARGS(CmdQue.PPtr())), u"Failed to create command que");
+    THROW_HR(device->Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&CmdQue)), u"Failed to create command que");
 }
 DXCopyCmdQue_::~DXCopyCmdQue_()
 {
@@ -77,7 +76,7 @@ DXCopyCmdQue_::~DXCopyCmdQue_()
 
 void DXCopyCmdQue_::ExecuteList(const DXCmdList_& list) const
 {
-    CmdQue->ExecuteCommandLists(1, list.CmdList.PPtr());
+    CmdQue->ExecuteCommandLists(1, &list.CmdList);
 }
 
 DXCopyCmdQue DXCopyCmdQue_::Create(DXDevice device, bool diableTimeout)

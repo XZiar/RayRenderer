@@ -16,10 +16,6 @@ class DXBuffer_;
 using DXBuffer = std::shared_ptr<DXBuffer_>;
 
 
-enum class HeapType : uint8_t { Default, Upload, Readback, Custom };
-enum class CPUPageProps : uint8_t { Unknown, NotAvailable, WriteCombine, WriteBack };
-enum class MemoryPool : uint8_t { Unknown, PreferCPU, PreferGPU };
-
 
 enum class HeapFlags : uint32_t
 {
@@ -30,11 +26,62 @@ enum class HeapFlags : uint32_t
 };
 MAKE_ENUM_BITFIELD(HeapFlags)
 
+enum class ResourceFlags : uint32_t
+{
+    Empty = 0x0,
+    AllowRT = 0x1, AllowDepthStencil = 0x2,
+    AllowUnorderAccess = 0x4,
+    DenyShaderResource = 0x8,
+    AllowCrossAdpter = 0x10,
+    AllowSimultaneousAccess = 0x20,
+    VideoDecodeOnly = 0x40,
+};
+MAKE_ENUM_BITFIELD(ResourceFlags)
+
 enum class ResourceState : uint32_t
 {
-    Common, ConstBuffer, IndexBuffer, RenderTarget, UnorderAccess, DepthWrite, DepthRead, NonPSRes, PsRes, StreamOut, IndirectArg,
-    CopyDst, CopySrc, RTStruct, ShadeRateRes, Read, Present, Pred, 
-    VideoDecodeRead, VideoDecodeWrite, VideoProcessRead, VideoProcessWrite, VideoEncodeRead, VideoEncodeWrite
+    Common              = 0, 
+    ConstBuffer         = 0x1, 
+    IndexBuffer         = 0x2, 
+    RenderTarget        = 0x4, 
+    UnorderAccess       = 0x8, 
+    DepthWrite          = 0x10, 
+    DepthRead           = 0x20, 
+    NonPSRes            = 0x40, 
+    PsRes               = 0x80, 
+    StreamOut           = 0x100, 
+    IndirectArg         = 0x200,
+    CopyDst             = 0x400, 
+    CopySrc             = 0x800, 
+    ResolveSrc          = 0x1000, 
+    ResolveDst          = 0x2000, 
+    RTStruct            = 0x400000, 
+    ShadeRateRes        = 0x1000000, 
+    Read                = ConstBuffer | IndexBuffer | NonPSRes | PsRes | IndirectArg | CopySrc, 
+    Present             = 0, 
+    Pred                = 0x200,
+    VideoDecodeRead     = 0x10000, 
+    VideoDecodeWrite    = 0x20000, 
+    VideoProcessRead    = 0x40000, 
+    VideoProcessWrite   = 0x80000, 
+    VideoEncodeRead     = 0x200000, 
+    VideoEncodeWrite    = 0x800000,
+};
+
+
+struct HeapProps
+{
+    HeapType Type;
+    CPUPageProps CPUPage;
+    MemPrefer Memory;
+    constexpr HeapProps(HeapType type) noexcept
+        : Type(type), CPUPage(CPUPageProps::Unknown), Memory(MemPrefer::Unknown)
+    {
+        Expects(Type != HeapType::Custom);
+    }
+    constexpr HeapProps(CPUPageProps pageProp, MemPrefer memPrefer) noexcept
+        : Type(HeapType::Custom), CPUPage(pageProp), Memory(memPrefer)
+    { }
 };
 
 
@@ -43,16 +90,21 @@ class DXMapPtr;
 
 class DXUAPI DXResource_ : public common::NonCopyable, public std::enable_shared_from_this<DXResource_>
 {
-    friend class DXMapPtr;
+    friend class DXMapPtr; 
 protected:
     MAKE_ENABLER();
-    struct HeapProps;
     struct ResDesc;
-    DXResource_(DXDevice device, const HeapProps& heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
     struct ResProxy;
+    DXResource_(DXDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
+public:
+    virtual ~DXResource_();
+    [[nodiscard]] virtual DXMapPtr Map(size_t offset, size_t size);
+
+protected:
     PtrProxy<ResProxy> Resource;
+    ResourceState State;
 private:
-    class DXUAPI DXMapPtr_ : public common::NonCopyable, public common::NonMovable
+    class DXUAPI COMMON_EMPTY_BASES DXMapPtr_ : public common::NonCopyable, public common::NonMovable
     {
         friend class DXMapPtr;
     private:
@@ -64,8 +116,7 @@ private:
         ~DXMapPtr_();
     };
 public:
-    virtual ~DXResource_();
-    [[nodiscard]] DXMapPtr Map(size_t offset, size_t size);
+    const HeapProps HeapInfo;
 };
 
 
@@ -86,17 +137,6 @@ public:
     [[nodiscard]] common::AlignedBuffer AsBuffer() const noexcept;
 };
 
-
-class DXUAPI DXBuffer_ : public DXResource_
-{
-protected:
-    MAKE_ENABLER();
-    DXBuffer_(DXDevice device, const HeapProps& heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
-public:
-    const size_t Size;
-    ~DXBuffer_() override;
-    [[nodiscard]] static DXBuffer Create(DXDevice device, HeapType type, HeapFlags flag, const size_t size);
-};
 
 }
 

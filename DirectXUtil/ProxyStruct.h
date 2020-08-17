@@ -24,7 +24,6 @@ DxProxy(DXCmdList_,         CmdAllocatorProxy,      ID3D12CommandAllocator);
 DxProxy(DXCmdList_,         CmdListProxy,           ID3D12CommandList);
 DxProxy(DXDirectCmdList_,   GraphicsCmdListProxy,   ID3D12GraphicsCommandList);
 
-DxProxy(DXResource_,        HeapProps,              D3D12_HEAP_PROPERTIES);
 DxProxy(DXResource_,        ResDesc,                D3D12_RESOURCE_DESC);
 DxProxy(DXResource_,        ResProxy,               ID3D12Resource);
 

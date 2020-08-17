@@ -42,6 +42,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="dxBuffer.h" />
     <ClInclude Include="dxResource.h" />
     <ClInclude Include="dxCmdQue.h" />
     <ClInclude Include="dxDevice.h" />
@@ -50,6 +52,7 @@
     <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dxBuffer.cpp" />
     <ClCompile Include="dxResource.cpp" />
     <ClCompile Include="dxCmdQue.cpp" />
     <ClCompile Include="dxDevice.cpp" />

@@ -1,6 +1,8 @@
 #include "TestRely.h"
 #include "DirectXUtil/dxDevice.h"
 #include "DirectXUtil/dxCmdQue.h"
+#include "DirectXUtil/dxResource.h"
+#include "DirectXUtil/dxBuffer.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
@@ -32,13 +34,20 @@ static void DXStub()
     }
     while (true)
     {
-        const auto devidx = SelectIdx(devs, u"device", [](const DXDevice_& dev) 
+        const auto devidx = SelectIdx(devs, u"device", [](DXDevice dev) 
             {
-                return dev.GetAdapterName();
+                return FMTSTR(u"{} SM{:3.1f}\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10.0f,
+                    dev->IsTBR() ? u"TBR"sv : u""sv, dev->IsUMA() ? u"UMA"sv : u""sv);
             });
         const auto& dev = devs[devidx];
-        const auto cmdque = DXComputeCmdQue_::Create(&dev);
-        const auto cmdlist = DXComputeCmdList_::Create(&dev);
+        const auto cmdque = DXComputeCmdQue_::Create(dev);
+        const auto cmdlist = DXComputeCmdList_::Create(dev);
+        const auto buf = DXBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
+        const auto region = buf->Map(0, 4096);
+        for (auto& item : region.AsType<float>())
+        {
+            item = 1.0f;
+        }
     }
 }
 

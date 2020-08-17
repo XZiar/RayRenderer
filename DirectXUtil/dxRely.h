@@ -19,6 +19,7 @@
 
 
 #include "ImageUtil/ImageCore.h"
+#include "SystemCommon/HResultHelper.h"
 #include "SystemCommon/PromiseTask.h"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
@@ -84,20 +85,13 @@ struct PtrProxy
     {
         return reinterpret_cast<T*>(Pointer);
     }
-    auto PPtr() noexcept
-    {
-        return reinterpret_cast<typename T::RealType**>(&Pointer);
-    }
-    auto PPtr() const noexcept
-    {
-        return reinterpret_cast<typename T::RealType* const*>(&Pointer);
-    }
     template<typename U>
     PtrProxy<U>& AsDerive() noexcept
     {
         static_assert(std::is_base_of_v<typename T::RealType, typename U::RealType>);
         return *reinterpret_cast<PtrProxy<U>*>(this);
     }
+    void SetNull() noexcept { Pointer = nullptr; }
     operator T* () const noexcept
     {
         return Ptr();
@@ -113,6 +107,14 @@ struct PtrProxy
     T* operator->() const noexcept
     {
         return Ptr();
+    }
+    auto operator&() noexcept
+    {
+        return reinterpret_cast<typename T::RealType**>(&Pointer);
+    }
+    auto operator&() const noexcept
+    {
+        return reinterpret_cast<typename T::RealType* const*>(&Pointer);
     }
 };
 
@@ -138,9 +140,13 @@ private:
         { }
     );
     DXException(std::u16string msg);
-    DXException(int32_t hresult, std::u16string msg);
+    DXException(common::HResultHolder hresult, std::u16string msg);
 };
 
+
+enum class HeapType     : uint8_t { Default = 1, Upload, Readback, Custom };
+enum class CPUPageProps : uint8_t { Unknown, NotAvailable, WriteCombine, WriteBack };
+enum class MemPrefer    : uint8_t { Unknown, PreferCPU, PreferGPU };
 
 //struct ContextCapability
 //{

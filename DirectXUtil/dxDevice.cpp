@@ -4,17 +4,68 @@
 
 namespace dxu
 {
+MAKE_ENABLER_IMPL(DXDevice_);
+using common::HResultHolder;
 
-DXDevice_::DXDevice_(void* adapter, void* device, std::u16string_view name) :
-    Adapter(reinterpret_cast<AdapterProxy*>(adapter)), Device(reinterpret_cast<DeviceProxy*>(device)),
-    AdapterName(name)
-{ }
-DXDevice_::DXDevice_(DXDevice_&& other) noexcept : 
-    Adapter(other.Adapter), Device(other.Device),
-    AdapterName(std::move(other.AdapterName))
+
+template<typename T, typename... Args>
+static forceinline detail::OptRet<T> CheckFeat_(D3D12_FEATURE feat, ID3D12Device* dev, Args... args)
 {
-    other.Device  = nullptr;
-    other.Adapter = nullptr;
+    detail::OptRet<T> ret = { args... };
+    ret.HResult.Value = dev->CheckFeatureSupport(feat, &ret.Data, sizeof(T));
+    return ret;
+}
+
+static std::pair<CPUPageProps, MemPrefer> QueryHeapProp(ID3D12Device* dev, D3D12_HEAP_TYPE type)
+{
+    const auto prop = dev->GetCustomHeapProperties(0, type);
+    return { static_cast<CPUPageProps>(prop.CPUPageProperty), static_cast<MemPrefer>(prop.MemoryPoolPreference) };
+}
+
+DXDevice_::DXDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> device, std::u16string_view name) :
+    Adapter(adapter), Device(device), AdapterName(name), 
+    SMVer(0), WaveSize(0), 
+    HeapUpload(QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), HeapDefault(QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
+    Arch(Architecture::None), DtypeSupport(ShaderDType::None)
+{
+#define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)
+#define CheckFeat2(dev, feat, ...) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev, __VA_ARGS__)
+    if (const auto feat = CheckFeat2(Device, SHADER_MODEL, D3D_SHADER_MODEL_6_5))
+        SMVer = (feat->HighestShaderModel & 0xf) + (feat->HighestShaderModel >> 4) * 10;
+    else
+        COMMON_THROWEX(DXException, feat.HResult, u"Failed to check SM version");
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS))
+    {
+        if (feat->DoublePrecisionFloatShaderOps) DtypeSupport |= ShaderDType::FP64;
+    }
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS1))
+    {
+        if (feat->WaveOps) WaveSize = feat->WaveLaneCountMin;
+        if (feat->Int64ShaderOps) DtypeSupport |= ShaderDType::INT64;
+    }
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS4))
+    {
+        if (feat->Native16BitShaderOpsSupported) DtypeSupport |= ShaderDType::FP16 | ShaderDType::INT16;
+    }
+    
+    if (const auto feat1 = CheckFeat(Device, ARCHITECTURE1))
+    {
+        if (feat1->TileBasedRenderer) Arch |= Architecture::TBR;
+        if (feat1->UMA)               Arch |= Architecture::UMA;
+        if (feat1->CacheCoherentUMA)  Arch |= Architecture::CacheCoherent;
+        if (feat1->IsolatedMMU)       Arch |= Architecture::IsolatedMMU;
+    }
+    else if (const auto feat2 = CheckFeat(Device, ARCHITECTURE))
+    {
+        if (feat2->TileBasedRenderer) Arch |= Architecture::TBR;
+        if (feat2->UMA)               Arch |= Architecture::UMA;
+        if (feat2->CacheCoherentUMA)  Arch |= Architecture::CacheCoherent;
+    }
+    else
+    {
+        dxLog().warning(FMT_STRING(u"Failed to check architecture: [{}, {}]"), feat1.HResult, feat2.HResult);
+        COMMON_THROWEX(DXException, feat2.HResult, u"Failed to check architecture");
+    }
 }
 DXDevice_::~DXDevice_()
 {
@@ -24,28 +75,28 @@ DXDevice_::~DXDevice_()
         Adapter->Release();
 }
 
-common::span<const DXDevice_> DXDevice_::GetDevices()
+common::span<const DXDevice> DXDevice_::GetDevices()
 {
     static const auto devices = []()
     {
 #if defined(DEBUG) || defined(_DEBUG)
         {
-            ID3D12Debug* debug;
-            if (const auto hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug)); !FAILED(hr))
+            ID3D12Debug* debug = nullptr;
+            if (const HResultHolder hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug)); hr)
             {
                 debug->EnableDebugLayer();
                 debug->Release();
             }
             else
             {
-                dxLog().warning(u"Failed to enable debug layer: {}.\n", common::HrToStr(hr));
+                dxLog().warning(u"Failed to enable debug layer: {}.\n", hr);
             }
         }
 #endif
         IDXGIFactory4* factory = nullptr;
-        CreateDXGIFactory(IID_PPV_ARGS(&factory));
+        THROW_HR(CreateDXGIFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
 
-        std::vector<DXDevice_> devs;
+        std::vector<std::unique_ptr<DXDevice_>> devs;
         for (uint32_t idx = 0; ; ++idx)
         {
             IDXGIAdapter1* adapter = nullptr;
@@ -64,7 +115,7 @@ common::span<const DXDevice_> DXDevice_::GetDevices()
             {
                 constexpr std::array<D3D_FEATURE_LEVEL, 2> FeatureLvs =
                     { D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_1_0_CORE };
-                std::array<common::HResultHolder, 2> hrs = { 0 };
+                std::array<common::HResultHolder, 2> hrs = { };
                 for (size_t fid = 0; fid < FeatureLvs.size(); ++fid)
                 {
                     hrs[fid] = D3D12CreateDevice(adapter, FeatureLvs[fid], IID_PPV_ARGS(&device));
@@ -78,12 +129,14 @@ common::span<const DXDevice_> DXDevice_::GetDevices()
                 }
             }
             dxLog().verbose(u"Created device on {}.\n", adapterName);
-            devs.push_back(DXDevice_(adapter, device, adapterName));
+            devs.emplace_back(MAKE_ENABLER_UNIQUE(DXDevice_, (PtrProxy<AdapterProxy>{ adapter }, PtrProxy<DeviceProxy>{ device }, adapterName)));
         }
 
         return devs;
     }();
-    return devices;
+
+    static_assert(sizeof(std::unique_ptr<DXDevice_>) == sizeof(DXDevice));
+    return { reinterpret_cast<const DXDevice*>(devices.data()), devices.size() };
 }
 
 

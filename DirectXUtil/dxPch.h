@@ -1,7 +1,6 @@
 #pragma once
 #include "dxRely.h"
 #include "StringUtil/Convert.h"
-#include "SystemCommon/HResultHelper.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "MiniLogger/MiniLogger.h"
@@ -21,11 +20,12 @@
 #define COM_NO_WINDOWS_H
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include "d3dx12.h"
 
 
 
 
-#define THROW_HR(eval, msg) if (const long hr = eval; hr < 0) COMMON_THROWEX(DXException, hr, msg)
+#define THROW_HR(eval, msg) if (const common::HResultHolder hr = eval; !hr) COMMON_THROWEX(DXException, hr, msg)
 
 
 
@@ -39,6 +39,23 @@ struct IIDPPVPair
     REFIID TheIID;
     void** PtrObj;
 };
+
+template<typename T>
+struct OptRet
+{
+    T Data;
+    common::HResultHolder HResult;
+    constexpr explicit operator bool() const noexcept { return (bool)HResult; }
+          T* operator->() noexcept
+    {
+        return &Data;
+    }
+    const T* operator->() const noexcept
+    {
+        return &Data;
+    }
+};
+
 }
 
 common::mlog::MiniLogger<false>& dxLog();

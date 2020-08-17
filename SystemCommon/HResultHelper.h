@@ -5,10 +5,16 @@
 namespace common
 {
 
+std::u16string SYSCOMMONAPI HrToStr(long hresult);
 struct HResultHolder
 {
     long Value;
 
+    constexpr HResultHolder() noexcept : Value(0) {}
+    template<typename T, typename = std::enable_if_t<std::is_same_v<T, long>>>
+    constexpr HResultHolder(T hr) noexcept : Value(hr) {}
+
+    [[nodiscard]] forceinline std::u16string ToStr() const { return HrToStr(Value); }
     constexpr HResultHolder& operator=(long hr) noexcept
     {
         Value = hr;
@@ -17,12 +23,11 @@ struct HResultHolder
     constexpr explicit operator long() const noexcept { return Value; }
     constexpr explicit operator bool() const noexcept { return Value >= 0; }
 
-    typename ::fmt::u16format_context::iterator SYSCOMMONAPI Format(fmt::u16format_context& ctx) const;
-    typename ::fmt::u32format_context::iterator SYSCOMMONAPI Format(fmt::u32format_context& ctx) const;
-    typename ::fmt::  wformat_context::iterator SYSCOMMONAPI Format(fmt::  wformat_context& ctx) const;
+    [[nodiscard]] typename ::fmt::u16format_context::iterator SYSCOMMONAPI Format(fmt::u16format_context& ctx) const;
+    [[nodiscard]] typename ::fmt::u32format_context::iterator SYSCOMMONAPI Format(fmt::u32format_context& ctx) const;
+    [[nodiscard]] typename ::fmt::  wformat_context::iterator SYSCOMMONAPI Format(fmt::  wformat_context& ctx) const;
 };
 
-std::u16string SYSCOMMONAPI HrToStr(long hresult);
 
 }
 

@@ -21,10 +21,10 @@ MiniLogger<false>& dxLog()
 DXException::DXException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
 { }
 
-DXException::DXException(int32_t hresult, std::u16string msg) : DXException(msg)
+DXException::DXException(common::HResultHolder hresult, std::u16string msg) : DXException(msg)
 {
     Attach("HResult", hresult);
-    Attach("detail", common::HrToStr(hresult));
+    Attach("detail", hresult.ToStr());
 }
 
 

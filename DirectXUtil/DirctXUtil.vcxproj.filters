@@ -33,6 +33,12 @@
     <ClInclude Include="dxResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="dxBuffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dxRely.cpp">
@@ -45,6 +51,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="dxResource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dxBuffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
