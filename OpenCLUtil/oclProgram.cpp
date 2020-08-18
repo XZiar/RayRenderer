@@ -418,7 +418,7 @@ void oclProgStub::Build(const CLProgConfig& config)
         options += "-cl-nv-verbose ";
     if (cver >= 12)
         options.append("-cl-kernel-arg-info ");
-    for (const auto def : config.Defines)
+    for (const auto& def : config.Defines)
     {
         options.append("-D"sv).append(def.Key);
         std::visit([&](const auto val)

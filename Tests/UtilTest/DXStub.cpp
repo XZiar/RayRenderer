@@ -3,6 +3,7 @@
 #include "DirectXUtil/dxCmdQue.h"
 #include "DirectXUtil/dxResource.h"
 #include "DirectXUtil/dxBuffer.h"
+#include "DirectXUtil/dxShader.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
@@ -48,6 +49,9 @@ static void DXStub()
         {
             item = 1.0f;
         }
+        auto shaderStub = DXShader_::Create(dev, ShaderType::Compute, "");
+        shaderStub.Build({});
+        auto shader = shaderStub.Finish();
     }
 }
 

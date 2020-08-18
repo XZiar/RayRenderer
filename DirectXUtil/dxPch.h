@@ -25,7 +25,7 @@
 
 
 
-#define THROW_HR(eval, msg) if (const common::HResultHolder hr = eval; !hr) COMMON_THROWEX(DXException, hr, msg)
+#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(DXException, hr___, msg)
 
 
 

@@ -3,6 +3,7 @@
 #if defined(_WIN32)
 #   pragma comment (lib, "D3d12.lib")
 #   pragma comment (lib, "DXGI.lib")
+#   pragma comment (lib, "dxcompiler.lib")
 #endif
 #pragma message("Compiling DirectXUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
 

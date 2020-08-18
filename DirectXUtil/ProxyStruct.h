@@ -3,6 +3,7 @@
 #include "dxDevice.h"
 #include "dxCmdQue.h"
 #include "dxResource.h"
+#include "dxShader.h"
 
 
 namespace dxu
@@ -26,9 +27,6 @@ DxProxy(DXDirectCmdList_,   GraphicsCmdListProxy,   ID3D12GraphicsCommandList);
 
 DxProxy(DXResource_,        ResDesc,                D3D12_RESOURCE_DESC);
 DxProxy(DXResource_,        ResProxy,               ID3D12Resource);
-
-
-#undef DxProxy
 
 
 }
