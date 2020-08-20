@@ -1,10 +1,10 @@
-#include "dxPch.h"
-#include "dxDevice.h"
+#include "DxPch.h"
+#include "DxDevice.h"
 #include "ProxyStruct.h"
 
 namespace dxu
 {
-MAKE_ENABLER_IMPL(DXDevice_);
+MAKE_ENABLER_IMPL(DxDevice_);
 using common::HResultHolder;
 
 
@@ -22,7 +22,7 @@ static std::pair<CPUPageProps, MemPrefer> QueryHeapProp(ID3D12Device* dev, D3D12
     return { static_cast<CPUPageProps>(prop.CPUPageProperty), static_cast<MemPrefer>(prop.MemoryPoolPreference) };
 }
 
-DXDevice_::DXDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> device, std::u16string_view name) :
+DxDevice_::DxDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> device, std::u16string_view name) :
     Adapter(adapter), Device(device), AdapterName(name), 
     SMVer(0), WaveSize(0), 
     HeapUpload(QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), HeapDefault(QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
@@ -33,7 +33,7 @@ DXDevice_::DXDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> devic
     if (const auto feat = CheckFeat2(Device, SHADER_MODEL, D3D_SHADER_MODEL_6_5))
         SMVer = (feat->HighestShaderModel & 0xf) + (feat->HighestShaderModel >> 4) * 10;
     else
-        COMMON_THROWEX(DXException, feat.HResult, u"Failed to check SM version");
+        COMMON_THROWEX(DxException, feat.HResult, u"Failed to check SM version");
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS))
     {
         if (feat->DoublePrecisionFloatShaderOps) DtypeSupport |= ShaderDType::FP64;
@@ -64,10 +64,10 @@ DXDevice_::DXDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> devic
     else
     {
         dxLog().warning(FMT_STRING(u"Failed to check architecture: [{}, {}]"), feat1.HResult, feat2.HResult);
-        COMMON_THROWEX(DXException, feat2.HResult, u"Failed to check architecture");
+        COMMON_THROWEX(DxException, feat2.HResult, u"Failed to check architecture");
     }
 }
-DXDevice_::~DXDevice_()
+DxDevice_::~DxDevice_()
 {
     if (Device)
         Device->Release();
@@ -75,7 +75,7 @@ DXDevice_::~DXDevice_()
         Adapter->Release();
 }
 
-common::span<const DXDevice> DXDevice_::GetDevices()
+common::span<const DxDevice> DxDevice_::GetDevices()
 {
     static const auto devices = []()
     {
@@ -96,7 +96,7 @@ common::span<const DXDevice> DXDevice_::GetDevices()
         IDXGIFactory4* factory = nullptr;
         THROW_HR(CreateDXGIFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
 
-        std::vector<std::unique_ptr<DXDevice_>> devs;
+        std::vector<std::unique_ptr<DxDevice_>> devs;
         for (uint32_t idx = 0; ; ++idx)
         {
             IDXGIAdapter1* adapter = nullptr;
@@ -129,14 +129,14 @@ common::span<const DXDevice> DXDevice_::GetDevices()
                 }
             }
             dxLog().verbose(u"Created device on {}.\n", adapterName);
-            devs.emplace_back(MAKE_ENABLER_UNIQUE(DXDevice_, (PtrProxy<AdapterProxy>{ adapter }, PtrProxy<DeviceProxy>{ device }, adapterName)));
+            devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<AdapterProxy>{ adapter }, PtrProxy<DeviceProxy>{ device }, adapterName)));
         }
 
         return devs;
     }();
 
-    static_assert(sizeof(std::unique_ptr<DXDevice_>) == sizeof(DXDevice));
-    return { reinterpret_cast<const DXDevice*>(devices.data()), devices.size() };
+    static_assert(sizeof(std::unique_ptr<DxDevice_>) == sizeof(DxDevice));
+    return { reinterpret_cast<const DxDevice*>(devices.data()), devices.size() };
 }
 
 

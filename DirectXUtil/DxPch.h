@@ -1,5 +1,5 @@
 #pragma once
-#include "dxRely.h"
+#include "DxRely.h"
 #include "StringUtil/Convert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
@@ -25,7 +25,7 @@
 
 
 
-#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(DXException, hr___, msg)
+#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(DxException, hr___, msg)
 
 
 

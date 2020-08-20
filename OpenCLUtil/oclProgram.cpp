@@ -476,7 +476,7 @@ oclProgram oclProgStub::Finish()
 u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev)
 {
     u16string result;
-    cl_build_status status;
+    cl_build_status status = CL_BUILD_NONE;
     clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
     switch (status)
     {

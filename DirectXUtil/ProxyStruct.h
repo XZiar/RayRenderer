@@ -1,9 +1,9 @@
 #pragma once
-#include "dxPch.h"
-#include "dxDevice.h"
-#include "dxCmdQue.h"
-#include "dxResource.h"
-#include "dxShader.h"
+#include "DxPch.h"
+#include "DxDevice.h"
+#include "DxCmdQue.h"
+#include "DxResource.h"
+#include "DxShader.h"
 
 
 namespace dxu
@@ -16,17 +16,18 @@ struct clz::type : public dxtype    \
 }                                   \
 
 
-DxProxy(DXDevice_,          AdapterProxy,           IDXGIAdapter1);
-DxProxy(DXDevice_,          DeviceProxy,            ID3D12Device);
+DxProxy(DxDevice_,          AdapterProxy,           IDXGIAdapter1);
+DxProxy(DxDevice_,          DeviceProxy,            ID3D12Device);
 
-DxProxy(DXCopyCmdQue_,      CmdQueProxy,            ID3D12CommandQueue);
+DxProxy(DxCopyCmdQue_,      CmdQueProxy,            ID3D12CommandQueue);
+DxProxy(DxCopyCmdQue_,      FenceProxy,             ID3D12Fence);
 
-DxProxy(DXCmdList_,         CmdAllocatorProxy,      ID3D12CommandAllocator);
-DxProxy(DXCmdList_,         CmdListProxy,           ID3D12CommandList);
-DxProxy(DXDirectCmdList_,   GraphicsCmdListProxy,   ID3D12GraphicsCommandList);
+DxProxy(DxCmdList_,         CmdAllocatorProxy,      ID3D12CommandAllocator);
+DxProxy(DxCmdList_,         CmdListProxy,           ID3D12CommandList);
+DxProxy(DxDirectCmdList_,   GraphicsCmdListProxy,   ID3D12GraphicsCommandList);
 
-DxProxy(DXResource_,        ResDesc,                D3D12_RESOURCE_DESC);
-DxProxy(DXResource_,        ResProxy,               ID3D12Resource);
+DxProxy(DxResource_,        ResDesc,                D3D12_RESOURCE_DESC);
+DxProxy(DxResource_,        ResProxy,               ID3D12Resource);
 
 
 }

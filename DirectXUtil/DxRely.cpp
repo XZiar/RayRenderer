@@ -1,9 +1,8 @@
-#include "dxPch.h"
+#include "DxPch.h"
 
 #if defined(_WIN32)
 #   pragma comment (lib, "D3d12.lib")
 #   pragma comment (lib, "DXGI.lib")
-#   pragma comment (lib, "dxcompiler.lib")
 #endif
 #pragma message("Compiling DirectXUtil with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
@@ -19,10 +18,10 @@ MiniLogger<false>& dxLog()
 }
 
 
-DXException::DXException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
+DxException::DxException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
 { }
 
-DXException::DXException(common::HResultHolder hresult, std::u16string msg) : DXException(msg)
+DxException::DxException(common::HResultHolder hresult, std::u16string msg) : DxException(msg)
 {
     Attach("HResult", hresult);
     Attach("detail", hresult.ToStr());

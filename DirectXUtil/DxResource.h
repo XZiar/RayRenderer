@@ -1,6 +1,7 @@
 #pragma once
-#include "dxRely.h"
-#include "dxDevice.h"
+#include "DxRely.h"
+#include "DxDevice.h"
+#include "DxCmdQue.h"
 
 
 #if COMPILER_MSVC
@@ -10,10 +11,10 @@
 
 namespace dxu
 {
-class DXResource_;
-using DXResource = std::shared_ptr<DXResource_>;
-class DXBuffer_;
-using DXBuffer = std::shared_ptr<DXBuffer_>;
+class DxResource_;
+using DxResource = std::shared_ptr<DxResource_>;
+class DxBuffer_;
+using DxBuffer = std::shared_ptr<DxBuffer_>;
 
 
 
@@ -82,59 +83,40 @@ struct HeapProps
     constexpr HeapProps(CPUPageProps pageProp, MemPrefer memPrefer) noexcept
         : Type(HeapType::Custom), CPUPage(pageProp), Memory(memPrefer)
     { }
+    constexpr CPUPageProps GetCPUPage(bool conformance = false) const noexcept
+    {
+        return (conformance && Type != HeapType::Custom) ? CPUPageProps::Unknown : CPUPage;
+    }
+    constexpr MemPrefer GetMemory(bool conformance = false) const noexcept
+    {
+        return (conformance && Type != HeapType::Custom) ? MemPrefer::Unknown : Memory;
+    }
 };
 
 
-class DXMapPtr;
-
-
-class DXUAPI DXResource_ : public common::NonCopyable, public std::enable_shared_from_this<DXResource_>
+enum class MapFlags : uint8_t
 {
-    friend class DXMapPtr; 
+    ReadOnly = 0x1, WriteOnly = 0x2, ReadWrite = ReadOnly | WriteOnly,
+};
+MAKE_ENUM_BITFIELD(MapFlags)
+
+
+class DXUAPI DxResource_ : public common::NonCopyable, public std::enable_shared_from_this<DxResource_>
+{
 protected:
     MAKE_ENABLER();
     struct ResDesc;
     struct ResProxy;
-    DXResource_(DXDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
+    DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
 public:
-    virtual ~DXResource_();
-    [[nodiscard]] virtual DXMapPtr Map(size_t offset, size_t size);
+    virtual ~DxResource_();
 
 protected:
+    DxDevice Device;
     PtrProxy<ResProxy> Resource;
     ResourceState State;
-private:
-    class DXUAPI COMMON_EMPTY_BASES DXMapPtr_ : public common::NonCopyable, public common::NonMovable
-    {
-        friend class DXMapPtr;
-    private:
-        ResProxy& Resource;
-        common::span<std::byte> MemSpace;
-    public:
-        MAKE_ENABLER();
-        DXMapPtr_(DXResource_* res, size_t offset, size_t size);
-        ~DXMapPtr_();
-    };
 public:
     const HeapProps HeapInfo;
-};
-
-
-class DXUAPI DXMapPtr
-{
-    friend class DXResource_;
-private:
-    class DXMemInfo;
-    DXResource Res;
-    std::shared_ptr<const DXResource_::DXMapPtr_> Ptr;
-    DXMapPtr(DXResource res, std::shared_ptr<const DXResource_::DXMapPtr_> ptr) noexcept 
-        : Res(std::move(res)), Ptr(std::move(ptr)) { }
-public:
-    constexpr DXMapPtr() noexcept {}
-    [[nodiscard]] common::span<std::byte> Get() const noexcept { return Ptr->MemSpace; }
-    template<typename T>
-    [[nodiscard]] common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
-    [[nodiscard]] common::AlignedBuffer AsBuffer() const noexcept;
 };
 
 

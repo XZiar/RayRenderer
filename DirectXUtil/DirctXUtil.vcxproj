@@ -43,27 +43,29 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h" />
-    <ClInclude Include="dxBuffer.h" />
-    <ClInclude Include="dxResource.h" />
-    <ClInclude Include="dxCmdQue.h" />
-    <ClInclude Include="dxDevice.h" />
-    <ClInclude Include="dxPch.h" />
-    <ClInclude Include="dxRely.h" />
-    <ClInclude Include="dxShader.h" />
+    <ClInclude Include="DxBuffer.h" />
+    <ClInclude Include="DxPromise.h" />
+    <ClInclude Include="DxResource.h" />
+    <ClInclude Include="DxCmdQue.h" />
+    <ClInclude Include="DxDevice.h" />
+    <ClInclude Include="DxPch.h" />
+    <ClInclude Include="DxRely.h" />
+    <ClInclude Include="DxShader.h" />
     <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dxBuffer.cpp" />
-    <ClCompile Include="dxResource.cpp" />
-    <ClCompile Include="dxCmdQue.cpp" />
-    <ClCompile Include="dxDevice.cpp" />
-    <ClCompile Include="dxRely.cpp">
+    <ClCompile Include="DxBuffer.cpp" />
+    <ClCompile Include="DxPromise.cpp" />
+    <ClCompile Include="DxResource.cpp" />
+    <ClCompile Include="DxCmdQue.cpp" />
+    <ClCompile Include="DxDevice.cpp" />
+    <ClCompile Include="DxRely.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="dxShader.cpp" />
+    <ClCompile Include="DxShader.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CC934298-6B2A-4538-B656-71DFE4F37C89}</ProjectGuid>
@@ -125,7 +127,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4101;4505;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>dxPch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>DxPch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -144,7 +146,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4101;4505;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>dxPch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>DxPch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -166,7 +168,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4101;4505;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>dxPch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>DxPch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
@@ -193,7 +195,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4251;4101;4505;4324;</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PrecompiledHeaderFile>dxPch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>DxPch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)3rdParty\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>

@@ -123,12 +123,12 @@ namespace detail
 struct IIDPPVPair;
 }
 
-class DXException : public common::BaseException
+class DxException : public common::BaseException
 {
 public:
     enum class CLComponent { Compiler, Driver, DXU };
 private:
-    PREPARE_EXCEPTION(DXException, BaseException,
+    PREPARE_EXCEPTION(DxException, BaseException,
         template<typename T>
         ExceptionInfo(T&& msg)
             : ExceptionInfo(TYPENAME, std::forward<T>(msg))
@@ -139,8 +139,8 @@ private:
             : TPInfo(type, std::forward<T>(msg))
         { }
     );
-    DXException(std::u16string msg);
-    DXException(common::HResultHolder hresult, std::u16string msg);
+    DxException(std::u16string msg);
+    DxException(common::HResultHolder hresult, std::u16string msg);
 };
 
 

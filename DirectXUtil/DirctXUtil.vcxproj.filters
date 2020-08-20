@@ -15,51 +15,57 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="dxRely.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dxPch.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="dxDevice.h">
+    <ClInclude Include="DxDevice.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ProxyStruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="dxCmdQue.h">
+    <ClInclude Include="DxCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="dxResource.h">
+    <ClInclude Include="DxResource.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="d3dx12.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="dxBuffer.h">
+    <ClInclude Include="DxBuffer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="dxShader.h">
+    <ClInclude Include="DxShader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DxPromise.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DxRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DxPch.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dxRely.cpp">
+    <ClCompile Include="DxDevice.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="dxDevice.cpp">
+    <ClCompile Include="DxCmdQue.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="dxCmdQue.cpp">
+    <ClCompile Include="DxResource.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="dxResource.cpp">
+    <ClCompile Include="DxBuffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="dxBuffer.cpp">
+    <ClCompile Include="DxShader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="dxShader.cpp">
+    <ClCompile Include="DxRely.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DxPromise.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
