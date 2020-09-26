@@ -195,9 +195,15 @@ public:
         return AlignedBuffer(CoreInfo, Data + offset, size, std::gcd(offset + Align, Align));
     }
 
-    constexpr bool operator==(const AlignedBuffer& other) const noexcept
+    [[nodiscard]] constexpr bool operator==(const AlignedBuffer& other) const noexcept
     {
         return Data == other.Data && Size == other.Size;
+    }
+
+    template<typename T>
+    [[nodiscard]] std::enable_if_t<std::is_base_of_v<ExternBufInfo, T>, const T*> TryGetOwner() const noexcept
+    {
+        return dynamic_cast<const T*>(CoreInfo->ExternInfo);
     }
 
     static AlignedBuffer CreateBuffer(std::unique_ptr<const ExternBufInfo>&& externInfo, const size_t align = sizeof(std::max_align_t)) noexcept

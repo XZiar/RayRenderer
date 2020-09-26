@@ -752,10 +752,12 @@ std::u32string ReplaceEngine::ProcessFunction(const std::u32string_view source, 
                 case U',':
                     if (state == States::Init)
                         NLPS_THROW_EX(u"empty arg not allowed"sv);
-                    else
+                    else if (nestedLevel == 0)
+                    {
                         PushArg();
-                    state = States::Init;
-                    reader.ReadWhile(IgnoreBlank);
+                        state = States::Init;
+                        reader.ReadWhile(IgnoreBlank);
+                    }
                     break;
                 default:
                     state = States::Pending;

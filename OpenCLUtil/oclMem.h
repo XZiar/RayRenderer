@@ -104,6 +104,8 @@ public:
     template<typename T>
     [[nodiscard]] common::span<T> AsType() const noexcept { return common::span<T>(reinterpret_cast<T*>(Get().data()), Get().size() / sizeof(T)); }
     [[nodiscard]] common::AlignedBuffer AsBuffer() const noexcept;
+
+    [[nodiscard]] static bool CheckIsCLBuffer(const common::AlignedBuffer& buffer) noexcept;
 };
 
 

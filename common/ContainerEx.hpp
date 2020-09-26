@@ -459,14 +459,16 @@ public:
 };
 
 
-template<typename T, typename V, V(T::*F)(size_t) const>
+template<typename T, typename V, auto F>
 class IndirectIterator
 {
     friend T;
+    static_assert(std::is_invocable_r_v<V, decltype(F), T, size_t>, 
+        "F need to be member function of T, acceptting size_t and returning V");
 private:
-    const T* Host;
+    T* Host;
     size_t Idx;
-    constexpr IndirectIterator(const T* host, size_t idx) noexcept : Host(host), Idx(idx) {}
+    constexpr IndirectIterator(T* host, size_t idx) noexcept : Host(host), Idx(idx) {}
 public:
     using iterator_category = std::random_access_iterator_tag;
     using value_type = V;

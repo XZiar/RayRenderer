@@ -15,8 +15,9 @@ common::span<std::byte> oclMapPtr::Get() const noexcept { return Ptr->MemSpace; 
 
 class oclMapPtr::oclMemInfo : public common::AlignedBuffer::ExternBufInfo
 {
+    oclMem Mem;
     std::shared_ptr<const oclMem_::oclMapPtr_> Ptr;
-    [[nodiscard]] size_t GetSize() const noexcept override 
+    [[nodiscard]] size_t GetSize() const noexcept override
     {
         return Ptr->MemSpace.size();
     }
@@ -25,12 +26,17 @@ class oclMapPtr::oclMemInfo : public common::AlignedBuffer::ExternBufInfo
         return Ptr->MemSpace.data();
     }
 public:
-    oclMemInfo(std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept : Ptr(std::move(ptr)) { }
+    oclMemInfo(oclMem mem, std::shared_ptr<const oclMem_::oclMapPtr_> ptr) noexcept :
+        Mem(std::move(mem)), Ptr(std::move(ptr)){ }
     ~oclMemInfo() override {}
 };
 common::AlignedBuffer oclMapPtr::AsBuffer() const noexcept
 {
-    return common::AlignedBuffer::CreateBuffer(std::make_unique<oclMemInfo>(Ptr));
+    return common::AlignedBuffer::CreateBuffer(std::make_unique<oclMemInfo>(Mem, Ptr));
+}
+bool oclMapPtr::CheckIsCLBuffer(const common::AlignedBuffer& buffer) noexcept
+{
+    return buffer.TryGetOwner<oclMemInfo>() != nullptr;
 }
 
 

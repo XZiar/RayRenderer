@@ -2,6 +2,7 @@
 
 #include "oclRely.h"
 #include "common/SIMD.hpp"
+#include "common/StringPool.hpp"
 #include "3rdParty/half/half.hpp"
 
 #if COMPILER_MSVC
@@ -90,8 +91,8 @@ private:
     {
         return Blocks[ArgLayout[idx]];
     }
-    using ItTypeIndexed  = common::container::IndirectIterator<DebugDataLayout, const DataBlock&, &DebugDataLayout::GetByIndex>;
-    using ItTypeLayouted = common::container::IndirectIterator<DebugDataLayout, const DataBlock&, &DebugDataLayout::GetByLayout>;
+    using ItTypeIndexed  = common::container::IndirectIterator<const DebugDataLayout, const DataBlock&, &DebugDataLayout::GetByIndex>;
+    using ItTypeLayouted = common::container::IndirectIterator<const DebugDataLayout, const DataBlock&, &DebugDataLayout::GetByLayout>;
     friend ItTypeIndexed;
     friend ItTypeLayouted;
     class Indexed
@@ -223,6 +224,76 @@ public:
         }
     }
 };
+
+
+class CachedDebugData;
+class OCLUAPI oclDebugPackage
+{
+    friend CachedDebugData;
+protected:
+    std::shared_ptr<oclDebugManager> DebugManager;
+    common::AlignedBuffer InfoBuffer;
+    common::AlignedBuffer DataBuffer;
+public:
+    oclDebugPackage(std::shared_ptr<oclDebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept
+        : DebugManager(manager), InfoBuffer(std::move(info)), DataBuffer(std::move(data)) { }
+    virtual ~oclDebugPackage();
+    virtual void ReleaseRuntime() {}
+    template<typename F>
+    void VisitData(F&& func) const
+    {
+        if (!DebugManager) return;
+        const auto infoData = InfoSpan();
+        DebugManager->VisitData(DataBuffer.AsSpan(),
+            [&](const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, const auto& dat)
+            {
+                func(tid, infoMan, block, infoData, dat);
+            });
+    }
+    CachedDebugData GetCachedData() const;
+    const oclDebugInfoMan& InfoMan() const noexcept { return DebugManager->GetInfoMan(); }
+    common::span<const uint32_t> InfoSpan() const noexcept { return InfoBuffer.AsSpan<uint32_t>(); }
+};
+
+class OCLUAPI CachedDebugData : private common::StringPool<u8ch_t>
+{
+    friend oclDebugPackage;
+    struct DebugItem
+    {
+        common::StringPiece<u8ch_t> Str;
+        uint32_t ThreadId;
+        uint32_t DataOffset;
+        uint16_t DataLength;
+        uint16_t BlockId;
+    };
+    class OCLUAPI DebugItemWrapper
+    {
+        friend CachedDebugData;
+        CachedDebugData& Host;
+        DebugItem& Item;
+        constexpr DebugItemWrapper(CachedDebugData* host, DebugItem& item) noexcept : Host(*host), Item(item) { }
+    public:
+        common::str::u8string_view Str();
+        constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
+    };
+    DebugItemWrapper GetByIndex(const size_t idx) noexcept
+    {
+        return { this, Items[idx] };
+    }
+    const oclDebugPackage& Package;
+    std::vector<DebugItem> Items;
+    CachedDebugData(const oclDebugPackage* package);
+public:
+    ~CachedDebugData();
+
+    using ItType = common::container::IndirectIterator<CachedDebugData, DebugItemWrapper, &CachedDebugData::GetByIndex>;
+    friend ItType;
+    constexpr ItType begin() noexcept { return { this, 0 }; }
+              ItType end()   noexcept { return { this, Items.size() }; }
+    size_t Count() const noexcept { return Items.size(); }
+
+};
+
 
 }
 

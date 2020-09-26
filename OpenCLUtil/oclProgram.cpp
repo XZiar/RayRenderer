@@ -261,6 +261,43 @@ void KernelArgStore::AddArg(const KerArgType argType, const KerArgSpace space, c
 }
 
 
+class KernelDebugPackage : public oclDebugPackage
+{
+public:
+    using oclDebugPackage::oclDebugPackage;
+    void ReleaseRuntime() override
+    {
+        if (oclMapPtr::CheckIsCLBuffer(DataBuffer))
+            DataBuffer = common::AlignedBuffer(DataBuffer);
+        if (oclMapPtr::CheckIsCLBuffer(InfoBuffer))
+            InfoBuffer = common::AlignedBuffer(InfoBuffer);
+    }
+};
+
+std::unique_ptr<oclDebugPackage> CallResult::GetDebugData(const bool releaseRuntime)
+{
+    if (!DebugManager) return {};
+    const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
+    const auto infoData = info.AsType<uint32_t>();
+    const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
+    if (releaseRuntime)
+    {
+        common::AlignedBuffer infoBuf(InfoBuf->Size), dataBuf(dbgSize);
+        memcpy_s(infoBuf.GetRawPtr(), InfoBuf->Size, &infoData[0], InfoBuf->Size);
+        DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
+        return std::make_unique<oclDebugPackage>(DebugManager,
+            std::move(infoBuf),
+            std::move(dataBuf));
+    }
+    else
+    {
+        return std::make_unique<KernelDebugPackage>(DebugManager, 
+            info.AsBuffer(), 
+            DebugBuf->Map(Queue, oclu::MapFlag::Read).AsBuffer().CreateSubBuffer(0, dbgSize));
+    }
+}
+
+
 oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, string name, KernelArgStore&& argStore) :
     Plat(*plat), Prog(*prog), KernelID(kerID), Name(std::move(name))
 {

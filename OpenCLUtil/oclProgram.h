@@ -94,7 +94,7 @@ protected:
     void AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
     KernelArgInfo GetArgInfo(const size_t idx) const noexcept;
-    using ItType = common::container::IndirectIterator<KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
+    using ItType = common::container::IndirectIterator<const KernelArgStore, KernelArgInfo, &KernelArgStore::GetArgInfo>;
     friend ItType;
 public:
     KernelArgStore() : DebugBuffer(0), HasInfo(false), HasDebug(false) {}
@@ -111,22 +111,7 @@ struct OCLUAPI CallResult
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;
 
-    template<typename F>
-    void VisitData(F&& func) const
-    {
-        if (!DebugManager) return;
-        const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
-        const auto data = DebugBuf->Map(Queue, oclu::MapFlag::Read);
-        const auto infoData = info.AsType<uint32_t>();
-        const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
-        const auto dbgData = data.Get().subspan(0, dbgSize);
-        
-        DebugManager->VisitData(dbgData,
-            [&](const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, const auto& dat)
-            {
-                func(tid, infoMan, block, infoData, dat);
-            });
-    }
+    std::unique_ptr<oclDebugPackage> GetDebugData(const bool releaseRuntime = false);
 };
 
 class OCLUAPI oclKernel_ : public common::NonCopyable

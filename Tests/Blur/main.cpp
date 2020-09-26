@@ -48,20 +48,6 @@ std::array<float, 4> ComputeCoeff(const float sigma)
     return coeff;
 }
 
-void PrintDebugMsg(const uint32_t tid, const oclDebugInfoMan& infoMan, const oclDebugBlock& block, 
-    const common::span<const uint32_t> infoData, const common::span<const uint32_t> dat)
-{
-    auto& logger = log();
-    const auto msg = block.GetString(common::as_bytes(dat));
-    const auto tinfo = infoMan.GetThreadInfo(infoData, tid);
-    logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"), 
-        tid, tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2], 
-        tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
-        tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
-        tinfo.SubgroupId, tinfo.SubgroupLocalId,
-        msg);
-}
-
 Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue& cmdque, const Image& image, float sigma) try
 {
     oclKernel blurX = prog->GetKernel("blurX");
@@ -91,21 +77,36 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
     const auto time4 = pms->ElapseNs() / 1e6f;
     log().info(u"WRITE[{:.5}ms], BLURX[{:.5}ms], BLURY[{:.5}ms], READ[{:.5}ms]\n", time1, time2, time3, time4);
     
-    const auto pcX = std::dynamic_pointer_cast<oclu::oclPromiseCore>(pmsX);
+    ;
+    const auto& pcX = dynamic_cast<const oclPromiseCore&>(pmsX->GetPromise());
     log().info(u"BLURX:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n", 
-        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Queued),
-        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Submit),
-        pcX->QueryTime(oclu::oclPromiseCore::TimeType::Start),
-        pcX->QueryTime(oclu::oclPromiseCore::TimeType::End)); 
-    const auto pcY = std::dynamic_pointer_cast<oclu::oclPromiseCore>(pmsY);
+        pcX.QueryTime(oclu::oclPromiseCore::TimeType::Queued),
+        pcX.QueryTime(oclu::oclPromiseCore::TimeType::Submit),
+        pcX.QueryTime(oclu::oclPromiseCore::TimeType::Start),
+        pcX.QueryTime(oclu::oclPromiseCore::TimeType::End)); 
+    const auto& pcY = dynamic_cast<const oclPromiseCore&>(pmsY->GetPromise());
     log().info(u"BLURY:\nQueued at [{}]\nSubmit at [{}]\nStart  at [{}]\nEnd    at [{}]\n",
-        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Queued),
-        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Submit),
-        pcY->QueryTime(oclu::oclPromiseCore::TimeType::Start),
-        pcY->QueryTime(oclu::oclPromiseCore::TimeType::End));
+        pcY.QueryTime(oclu::oclPromiseCore::TimeType::Queued),
+        pcY.QueryTime(oclu::oclPromiseCore::TimeType::Submit),
+        pcY.QueryTime(oclu::oclPromiseCore::TimeType::Start),
+        pcY.QueryTime(oclu::oclPromiseCore::TimeType::End));
 
-    pmsX->Get().VisitData(PrintDebugMsg);
+    const auto debugPack = pmsX->Get().GetDebugData(true);
+    auto data = debugPack->GetCachedData();
 
+    auto& logger = log();
+    const auto& infoMan = debugPack->InfoMan();
+    const auto infoSpan = debugPack->InfoSpan();
+    for (auto item : data)
+    {
+        const auto tinfo = infoMan.GetThreadInfo(infoSpan, item.ThreadId());
+        logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
+            item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
+            tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
+            tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
+            tinfo.SubgroupId, tinfo.SubgroupLocalId,
+            item.Str());
+    }
     return img2;
 }
 catch (const common::BaseException& be)

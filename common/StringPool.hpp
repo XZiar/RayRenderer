@@ -20,6 +20,7 @@ public:
     constexpr StringPiece() noexcept : Offset(0), Length(0) {}
     constexpr StringPiece(const uint32_t offset, const uint32_t len) noexcept : Offset(offset), Length(len)
     { }
+    constexpr size_t GetLength() const noexcept { return Length; }
 };
 
 template<typename T>

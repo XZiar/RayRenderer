@@ -601,4 +601,42 @@ std::pair<const oclDebugBlock*, uint32_t> oclDebugManager::RetriveMessage(common
     return { &block, tid };
 }
 
+
+oclDebugPackage::~oclDebugPackage()
+{ }
+
+CachedDebugData oclDebugPackage::GetCachedData() const
+{
+    return this;
+}
+
+common::str::u8string_view CachedDebugData::DebugItemWrapper::Str()
+{
+    if (!Item.Str.GetLength())
+    {
+        const auto& block = Host.Package.DebugManager->GetBlocks()[Item.BlockId];
+        const auto data = Host.Package.DataBuffer.AsSpan<uint32_t>().subspan(Item.DataOffset, Item.DataLength);
+        const auto str = block.GetString(data);
+        Item.Str = Host.AllocateString(str);
+    }
+    return Host.GetStringView(Item.Str);
+}
+
+CachedDebugData::CachedDebugData(const oclDebugPackage* package) : Package(*package)
+{
+    const auto blocks  = Package.DebugManager->GetBlocks();
+    const auto alldata = Package.DataBuffer.AsSpan<uint32_t>();
+    Package.VisitData([&](const uint32_t tid, const oclDebugInfoMan&, const oclDebugBlock& block,
+        const common::span<const uint32_t>, const common::span<const uint32_t> dat) 
+        {
+            const auto offset = gsl::narrow_cast<uint32_t>(dat.data() - alldata.data());
+            const auto datLen = gsl::narrow_cast<uint16_t>(dat.size());
+            const auto blkId  = gsl::narrow_cast<uint16_t>(&block - blocks.data());
+            Items.push_back({ {0, 0}, tid, offset, datLen, blkId });
+        });
+}
+CachedDebugData::~CachedDebugData()
+{ }
+
+
 }
