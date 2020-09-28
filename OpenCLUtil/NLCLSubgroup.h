@@ -11,6 +11,7 @@ struct SubgroupAttributes
     std::string Args;
     MimicType Mimic = MimicType::None;
 };
+enum class SubgroupReduceOp { Sum, Min, Max, And, Or, Xor };
 
 
 struct NLCLRuntime_ : public NLCLRuntime
@@ -43,6 +44,8 @@ protected:
     {
         return ScalarPatch(name, baseFunc, vtype, U", sgId", U", const uint sgId");
     }
+    [[nodiscard]] static std::u32string HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
+        const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
 
     NLCLContext& Context;
     const SubgroupCapbility Cap;
@@ -56,7 +59,7 @@ public:
     virtual std::u32string SubgroupAny(const std::u32string_view) { return {}; };
     virtual std::u32string SubgroupBroadcast(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual std::u32string SubgroupShuffle(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
-    virtual std::u32string SubgroupSum(common::simd::VecDataInfo, const std::u32string_view) { return {}; };
+    virtual std::u32string SubgroupReduce(SubgroupReduceOp, common::simd::VecDataInfo, const std::u32string_view) { return {}; };
     virtual void OnFinish(NLCLRuntime_&, const KernelSubgroupExtension&, KernelContext&);
 private:
     std::vector<std::u16string> Warnings;
@@ -123,7 +126,7 @@ public:
     std::u32string SubgroupAll(const std::u32string_view predicate) override;
     std::u32string SubgroupAny(const std::u32string_view predicate) override;
     std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
-    std::u32string SubgroupSum(common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
+    std::u32string SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 };
 
 class NLCLSubgroupIntel : public NLCLSubgroupKHR
@@ -174,8 +177,9 @@ class NLCLSubgroupPtx : public SubgroupProvider
 protected:
     std::u32string_view ExtraSync, ExtraMask;
     const uint32_t SMVersion;
-    std::u32string Shuffle64Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
-    std::u32string Shuffle32Patch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
+    std::u32string ShufflePatch(const uint8_t bit) noexcept;
+    std::u32string SubgroupReduceSM80(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
+    std::u32string SubgroupReduceSM30(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
 public:
     NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
@@ -186,7 +190,7 @@ public:
     std::u32string SubgroupAny(const std::u32string_view predicate) override;
     std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
     std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
-    std::u32string SubgroupSum(common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
+    std::u32string SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 
 };
 
