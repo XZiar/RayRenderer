@@ -316,6 +316,7 @@ public:
     }
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
     [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
+    [[nodiscard]] std::vector<std::byte> GetBinary() const;
 
     [[nodiscard]] static oclProgStub Create(const oclContext& ctx, std::string str, const oclDevice& dev = {});
     [[nodiscard]] static oclProgram CreateAndBuild(const oclContext& ctx, std::string str, const CLProgConfig& config, const oclDevice& dev = {});

@@ -491,6 +491,17 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
     {
         switch (const auto subName = call.Name.substr(5); hash_(subName))
         {
+        HashCase(subName, U"CompilerFlag")
+        {
+            const auto arg  = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto flag = common::str::to_string(arg.GetStr().value(), Charset::UTF8, Charset::UTF32);
+            for (const auto& item : Context.CompilerFlags)
+            {
+                if (item == flag)
+                    return {};
+            }
+            Context.CompilerFlags.push_back(flag);
+        } return {};
         HashCase(subName, U"GetVecTypeName")
         {
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
@@ -1124,7 +1135,7 @@ void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
         });
 }
 
-std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, const oclu::CLProgConfig& config) const
+std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, CLProgConfig config) const
 {
     auto str = stub.Runtime->GenerateOutput();
     try
@@ -1135,6 +1146,10 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
             ext->OnCompile(progStub);
         }
         progStub.ImportedKernelInfo = std::move(stub.Context->CompiledKernels);
+        for (const auto flag : stub.Context->CompilerFlags)
+        {
+            config.Flags.insert(flag);
+        }
         progStub.Build(config);
         return std::make_unique<NLCLBuiltResult>(stub.Context, progStub.Finish());
     }

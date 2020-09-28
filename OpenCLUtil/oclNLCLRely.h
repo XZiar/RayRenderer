@@ -201,6 +201,7 @@ protected:
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<OutputBlock> KernelStubBlocks;
     std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
+    std::vector<std::string> CompilerFlags;
     std::vector<std::pair<std::string, KernelArgStore>> CompiledKernels;
     bool EnableUnroll, AllowDebug;
 };

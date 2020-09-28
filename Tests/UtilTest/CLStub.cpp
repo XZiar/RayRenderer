@@ -161,6 +161,8 @@ static void OCLStub()
                         case '@':
                             if (key == "version")
                                 config.Version = (parts[1][0] - '0') * 10 + (parts[1][1] - '0');
+                            else
+                                config.Flags.insert(key);
                             continue;
                         }
                         break;
@@ -205,6 +207,9 @@ static void OCLStub()
                     }
                 }
                 log().info(u"\n\n");
+                const auto bin = clProg->GetBinary();
+                if (!bin.empty())
+                    common::file::WriteAll(fpath + ".bin", bin);
             }
             catch (const BaseException& be)
             {

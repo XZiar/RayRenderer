@@ -583,6 +583,45 @@ oclKernel oclProgram_::GetKernel(const string_view& name) const
     return {};
 }
 
+std::vector<std::byte> oclProgram_::GetBinary() const
+{
+    std::vector<std::byte> ret;
+    uint32_t devCnt = 0;
+#define CHK_SUC(x) if (x != CL_SUCCESS) return ret
+    CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &devCnt, nullptr));
+    if (devCnt == 1)
+    {
+        size_t size = 0;
+        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARY_SIZES, sizeof(size), &size, nullptr));
+        ret.resize(size);
+        auto ptr = ret.data();
+        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARIES, sizeof(ptr), &ptr, nullptr));
+        return ret;
+    }
+    else if (devCnt > 1) 
+    {
+        std::vector<size_t> sizes; sizes.resize(devCnt, 0);
+        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARY_SIZES, sizeof(size_t) * devCnt, sizes.data(), nullptr));
+        std::vector<cl_device_id> devs; devs.resize(devCnt);
+        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * devCnt, devs.data(), nullptr));
+        std::vector<std::byte*> ptrs; ptrs.resize(devCnt, nullptr);
+        size_t idx = 0;
+        for (const auto dev : devs)
+        {
+            if (dev == *Device)
+            {
+                ret.resize(sizes[idx]);
+                ptrs[idx] = ret.data();
+                break;
+            }
+            idx++;
+        }
+        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARIES, sizeof(std::byte*) * devCnt, ptrs.data(), nullptr));
+        return ret;
+    }
+    return ret;
+}
+
 oclProgStub oclProgram_::Create(const oclContext& ctx, string str, const oclDevice& dev)
 {
     return oclProgStub(ctx, dev ? dev : ctx->Devices[0], std::move(str));

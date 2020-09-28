@@ -88,6 +88,20 @@ public:
     {
         return View;
     }
+    [[nodiscard]] std::basic_string<Ch> ExtractStr() noexcept
+    {
+        if (Str.empty())
+        {
+            std::basic_string<Ch> ret(Str);
+            View = {};
+            return ret;
+        }
+        else
+        {
+            View = {};
+            return std::move(Str);
+        }
+    }
     constexpr operator common::span<const Ch>() const noexcept
     {
         return common::span<const Ch>(View.data(), View.size());

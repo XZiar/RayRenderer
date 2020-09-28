@@ -36,7 +36,7 @@ protected:
         return TheLogger.index() == 0 ? std::get<0>(TheLogger) : *std::get<1>(TheLogger);
     }
     virtual void ConfigureCL(NLCLProgStub& stub) const;
-    std::unique_ptr<NLCLResult> CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, const oclu::CLProgConfig& config = {}) const;
+    std::unique_ptr<NLCLResult> CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, CLProgConfig config = {}) const;
 public:
     NLCLProcessor();
     NLCLProcessor(common::mlog::MiniLogger<false>&& logger);
@@ -44,7 +44,7 @@ public:
 
     virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source) const;
     virtual std::unique_ptr<NLCLResult> ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
-    virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const oclu::CLProgConfig& config = {}) const;
+    virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const CLProgConfig& config = {}) const;
 };
 
 #if COMPILER_MSVC
