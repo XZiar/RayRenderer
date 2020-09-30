@@ -167,10 +167,15 @@ forceinline constexpr static bool CheckVNum(const uint32_t num) noexcept
 {
     switch (num)
     {
-    case 1:case 2: case 4: case 8: case 16: return true;
+    case 1: case 2: case 3: case 4: case 8: case 16: return true;
     default: return false;
     }
 }
+forceinline constexpr static VecDataInfo ToUintVec(VecDataInfo vtype) noexcept
+{
+    return { VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0 };
+}
+
 std::optional<VecDataInfo> SubgroupProvider::DecideVtype(VecDataInfo vtype, common::span<const VecDataInfo> scalars) noexcept
 {
     const uint32_t totalBits = vtype.Bit * vtype.Dim0;
@@ -405,19 +410,39 @@ struct SingleArgFunc
 {
     std::u32string_view Func;
     std::u32string_view Element;
-    std::optional<std::tuple<VecDataInfo, VecDataInfo, bool>> TypeCast;
+    std::variant<std::monostate, std::tuple<VecDataInfo, VecDataInfo, bool>, std::tuple<VecDataInfo, VecDataInfo, VecDataInfo, bool>> TypeCast;
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele) noexcept :
         Func(func), Element(ele) { }
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele, const VecDataInfo dst, const VecDataInfo mid, const bool convert) noexcept :
-        Func(func), Element(ele), TypeCast({ dst, mid, convert }) { }
+        Func(func), Element(ele), TypeCast(std::tuple{ dst, mid, convert }) { }
+    constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele, 
+        const VecDataInfo dst, const VecDataInfo first, const VecDataInfo then, const bool convertFirst) noexcept :
+        Func(func), Element(ele), TypeCast(std::tuple{ dst, first, then, convertFirst }) { }
     operator std::u32string() const
     {
-        if (TypeCast)
+        switch (TypeCast.index())
         {
-            const auto [dst, mid, convert] = TypeCast.value();
+        case 1:
+        {
+            const auto [dst, mid, convert] = std::get<1>(TypeCast);
             if (dst != mid)
                 return FMTSTR(U"{0}_{1}({3}({0}_{2}({4})))"sv,
                     convert ? U"convert"sv : U"as"sv, NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(mid), Func, Element);
+        } break;
+        case 2:
+        {
+            const auto [dst, first, then, convFirst] = std::get<2>(TypeCast);
+            if (convFirst)
+                return FMTSTR(U"convert_{0}(as_{1}({3}(as_{2}(convert_{1}({4})))))"sv,
+                    NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
+                    Func, Element);
+            else
+                return FMTSTR(U"as_{0}(convert_{1}({3}(convert_{2}(as_{1}({4})))))"sv,
+                    NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
+                    Func, Element);
+        } break;
+        default:
+            break;
         }
         return FMTSTR(U"{}({})", Func, Element);
     }
@@ -433,6 +458,50 @@ void NLCLSubgroupKHR::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtens
     if (EnableFP64)
         Runtime.EnableExtension("cl_khr_fp64"sv) || Runtime.EnableExtension("cl_amd_fp64"sv);
     SubgroupProvider::OnFinish(Runtime, ext, kernel);
+}
+
+void NLCLSubgroupKHR::WarnFP(VecDataInfo vtype, const std::u16string_view func)
+{
+    if (vtype.Type == VecDataInfo::DataTypes::Float)
+    {
+        std::u16string_view type;
+        if (vtype.Bit == 16 && !Cap.SupportFP16)
+            type = u"f16";
+        else if (vtype.Bit == 64 && !Cap.SupportFP64)
+            type = u"f64";
+        
+        if (type.empty())
+            AddWarning(FMTSTR(u"Potential use of unsupported type[{}] with [{}]."sv, type, func));
+    }
+}
+
+std::u32string NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataInfo vtype, VecDataInfo realType, const std::u32string_view ele)
+{
+    Expects(IsReduceOpArith(op));
+    EnableSubgroup = true;
+    // https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/sub_group_broadcast.html
+    const auto func = [](SubgroupReduceOp op)
+    {
+        switch (op)
+        {
+        case SubgroupReduceOp::Sum: return U"sub_group_reduce_add"sv;
+        case SubgroupReduceOp::Min: return U"sub_group_reduce_min"sv;
+        case SubgroupReduceOp::Max: return U"sub_group_reduce_max"sv;
+        default: assert(false);     return U""sv;
+        }
+    }(op);
+
+    if (vtype.Dim0 == 1)
+    {
+        return SingleArgFunc(func, ele, realType, vtype, true);
+    }
+
+    const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}", StringifyReduceOp(op), StringifyVDataType(vtype));
+    Context.AddPatchedBlock(funcName, [&]()
+        {
+            return NLCLSubgroupKHR::ScalarPatch(funcName, func, vtype);
+        });
+    return SingleArgFunc(funcName, ele, realType, vtype, true);
 }
 
 std::u32string NLCLSubgroupKHR::GetSubgroupLocalId()
@@ -513,36 +582,22 @@ std::u32string NLCLSubgroupKHR::SubgroupReduce(SubgroupReduceOp op, VecDataInfo 
 {
     if (!IsReduceOpArith(op))
         return {};
-    EnableSubgroup = true;
-    // https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/sub_group_broadcast.html
-    const auto func = [](SubgroupReduceOp op) 
-    {
-        switch (op)
-        {
-        case SubgroupReduceOp::Sum: return U"sub_group_reduce_add"sv;
-        case SubgroupReduceOp::Min: return U"sub_group_reduce_min"sv;
-        case SubgroupReduceOp::Max: return U"sub_group_reduce_max"sv;
-        default: assert(false);     return U""sv;
-        }
-    }(op);
+    VecDataInfo mid = vtype;
     if (vtype.Type == VecDataInfo::DataTypes::Float)
     {
-        if (vtype.Bit == 16 && !Cap.SupportFP16)
-            AddWarning(u"Potential use of unsupported type[f16] with [SubgroupReduce]."sv);
-        else if (vtype.Bit == 64 && !Cap.SupportFP64)
-            AddWarning(u"Potential use of unsupported type[f64] with [SubgroupReduce]."sv);
+        WarnFP(vtype, u"SubgroupReduce"sv);
     }
-    if (vtype.Dim0 == 1)
+    else if (vtype.Type == VecDataInfo::DataTypes::Unsigned || vtype.Type == VecDataInfo::DataTypes::Signed)
     {
-        return SingleArgFunc(func, ele);
-    }
-
-    const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}", StringifyReduceOp(op), StringifyVDataType(vtype));
-    Context.AddPatchedBlock(funcName, [&]()
+        if (vtype.Bit < 32)
         {
-            return NLCLSubgroupIntel::ScalarPatch(funcName, func, vtype);
-        });
-    return SingleArgFunc(funcName, ele);
+            mid.Bit = 32;
+        }
+    }
+    else
+        return {};
+
+    return SubgroupReduceArith(op, mid, vtype, ele);
 }
 
 
@@ -573,6 +628,25 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
     }
     func.append(U"\r\n    return ret;\r\n}"sv);
     return func;
+}
+
+void NLCLSubgroupIntel::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
+{
+    if (EnableSubgroupIntel)
+        Runtime.EnableExtension("cl_intel_subgroups"sv);
+    if (EnableSubgroup16Intel)
+        Runtime.EnableExtension("cl_intel_subgroups_short"sv);
+    if (EnableSubgroup8Intel)
+        Runtime.EnableExtension("cl_intel_subgroups_char"sv);
+    if (EnableSubgroup)
+        EnableSubgroup = !Runtime.EnableExtension("cl_intel_subgroups"sv);
+    if (ext.SubgroupSize > 0)
+    {
+        if (Runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
+            kernel.AddAttribute(U"reqd_sub_group_size",
+                FMTSTR(U"__attribute__((intel_reqd_sub_group_size({})))", ext.SubgroupSize));
+    }
+    NLCLSubgroupKHR::OnFinish(Runtime, ext, kernel);
 }
 
 std::u32string NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
@@ -660,23 +734,129 @@ std::u32string NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u3
     return {};
 }
 
-void NLCLSubgroupIntel::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
+std::u32string NLCLSubgroupIntel::SubgroupReduceArith(SubgroupReduceOp op, VecDataInfo vtype, const std::u32string_view ele)
 {
-    if (EnableSubgroupIntel)
-        Runtime.EnableExtension("cl_intel_subgroups"sv);
-    if (EnableSubgroup16Intel)
-        Runtime.EnableExtension("cl_intel_subgroups_short"sv);
-    if (EnableSubgroup8Intel)
-        Runtime.EnableExtension("cl_intel_subgroups_char"sv); 
-    if (EnableSubgroup)
-        EnableSubgroup = !Runtime.EnableExtension("cl_intel_subgroups"sv);
-    if (ext.SubgroupSize > 0)
+    Expects(IsReduceOpArith(op)); 
+
+    VecDataInfo mid = vtype;
+    if (vtype.Type == VecDataInfo::DataTypes::Float)
     {
-        if (Runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
-            kernel.AddAttribute(U"reqd_sub_group_size", 
-                FMTSTR(U"__attribute__((intel_reqd_sub_group_size({})))", ext.SubgroupSize));
+        WarnFP(vtype, u"SubgroupReduce"sv);
     }
-    NLCLSubgroupKHR::OnFinish(Runtime, ext, kernel);
+    else if (vtype.Type == VecDataInfo::DataTypes::Unsigned || vtype.Type == VecDataInfo::DataTypes::Signed)
+    {
+        switch (vtype.Bit)
+        {
+        case 16:
+            // https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_subgroups_short.html
+            if (Cap.SupportSubgroup16Intel)
+                EnableSubgroup16Intel = true;
+            else
+                mid.Bit = 32;
+            break;
+        case 8:
+            // https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_subgroups_char.html
+            if (Cap.SupportSubgroup8Intel)
+                EnableSubgroup8Intel = true;
+            else
+                mid.Bit = 32;
+            break;
+        default:
+            break;
+        }
+    }
+    else
+        return {};
+    return NLCLSubgroupKHR::SubgroupReduceArith(op, mid, vtype, ele);
+}
+
+std::u32string NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecDataInfo vtype, const std::u32string_view ele)
+{
+    Expects(!IsReduceOpArith(op));
+    const auto opstr = StringifyReduceOp(op);
+    enum class Method { Direct, Combine, Convert };
+
+    constexpr auto DecideMethod = [](const uint32_t total, const uint8_t bit, const bool support) -> std::pair<Method, uint8_t>
+    {
+        if (support)
+            return { Method::Direct, bit };
+        if (total % 32 == 0 && CheckVNum(total / 32))
+            return { Method::Combine, (uint8_t)32 };
+        if (total % 64 == 0 && CheckVNum(total / 64))
+            return { Method::Combine, (uint8_t)64 };
+        return { Method::Convert, (uint8_t)32 };
+    };
+    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+    const auto [method, scalarBit] = vtype.Bit == 16 ?
+        DecideMethod(totalBits, 16, Cap.SupportSubgroup16Intel) :
+        (vtype.Bit == 8 ?
+            DecideMethod(totalBits, 8, Cap.SupportSubgroup8Intel) :
+            std::pair<Method, uint8_t>{ Method::Direct, vtype.Bit });
+    const auto vnum = method == Method::Combine ? static_cast<uint8_t>(totalBits / scalarBit) : vtype.Dim0;
+    Expects(vnum >= 1 && vnum <= 16);
+
+    const auto scalarType = VecDataInfo{ VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
+    const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
+    const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, StringifyVDataType(scalarType));
+
+    EnableSubgroupIntel = true;
+    Context.AddPatchedBlock(scalarFunc, [&]()
+        {
+            auto func = FMTSTR(U"inline {0} {1}({0} x)"sv, scalarName, scalarFunc);
+            const auto opinst = [](SubgroupReduceOp op)
+            {
+                switch (op)
+                {
+                case SubgroupReduceOp::And: return U"x = x & intel_sub_group_shuffle_xor(x, mask);"sv;
+                case SubgroupReduceOp::Or:  return U"x = x | intel_sub_group_shuffle_xor(x, mask);"sv;
+                case SubgroupReduceOp::Xor: return U"x = x ^ intel_sub_group_shuffle_xor(x, mask);"sv;
+                default: assert(false);     return U""sv;
+                }
+            }(op);
+            func.append(UR"(
+{
+    for (uint mask = get_sub_group_size(); mask > 0; mask /= 2) 
+    {
+        )"sv);
+            // x = x & intel_sub_group_shuffle_xor(val, mask);
+            constexpr auto tail = UR"(
+    }
+    return x;
+})"sv;
+            func.append(opinst);
+            func.append(tail);
+            return func;
+        });
+
+    if (vnum == 1)
+    {
+        switch (method)
+        {
+        case Method::Direct:
+        case Method::Combine:
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false);
+        case Method::Convert:
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true);
+        }
+    }
+
+    const auto vectorType = VecDataInfo { scalarType.Type, scalarBit, vnum, 0 };
+    const auto vectorFunc = FMTSTR(U"{}v{}", scalarFunc, vnum);
+    Context.AddPatchedBlock(vectorFunc, [&]()
+        {
+            return NLCLSubgroupPtx::ScalarPatch(vectorFunc, scalarFunc, vectorType);
+        });
+    switch (method)
+    {
+    case Method::Direct:
+    case Method::Combine:
+        return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false);
+    case Method::Convert:
+        return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false);
+    default: 
+        assert(false); return {};
+    }
+
 }
 
 std::u32string NLCLSubgroupIntel::SubgroupBroadcast(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
@@ -830,7 +1010,7 @@ std::u32string NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::
         supportSmaller.push_back({ VecDataInfo::DataTypes::Unsigned, 8u, 1u, 0u });
 
     const uint32_t totalBits = vtype.Bit * vtype.Dim0;
-    const VecDataInfo newType{ VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0u };
+    const VecDataInfo newType = ToUintVec(vtype);
     for (const auto& mid : supportSmaller)
     {
         if (vtype.Bit <= mid.Bit /*|| vtype.Bit % mid.Bit != 0*/)
@@ -889,6 +1069,15 @@ std::u32string NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::
 
     return {};
 }
+
+std::u32string NLCLSubgroupIntel::SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele)
+{
+    if (IsReduceOpArith(op))
+        return SubgroupReduceArith(op, vtype, ele);
+    else
+        return SubgroupReduceBitwise(op, vtype, ele);
+}
+
 
 void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
 {
@@ -1179,14 +1368,24 @@ std::u32string NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataI
 {
     const bool isArith = IsReduceOpArith(op);
     const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+    uint8_t scalarBit = vtype.Bit, vnum = vtype.Dim0;
     if (isArith)
     {
         if (vtype.Bit != 32 && vtype.Bit != 64)
             return {};
     }
+    else
+    {
+        if (vtype.Bit < 32)
+        {
+            if (totalBits % 32 == 0)
+                scalarBit = 32, vnum = static_cast<uint8_t>(totalBits / 32);
+            else
+                scalarBit = 32;
+        }
+    }
     
     const auto opstr      = StringifyReduceOp(op);
-    const auto scalarBit  = static_cast<uint8_t>(isArith ? vtype.Bit : (vtype.Bit < 32 ? 32 : vtype.Bit));
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
     const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}"sv, opstr, StringifyVDataType(scalarType));
@@ -1241,37 +1440,49 @@ std::u32string NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataI
         });
 
     // direct
-    if (isArith)
+    if (vnum == 1)
     {
-        if (vtype.Dim0 == 1)
-            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true);
-    }
-    else if (totalBits == 32)
-    {
-        return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false);
-    }
-    else if (totalBits < 32)
-    {
-        return FMTSTR(U"as_{0}(convert_{1}({2}(convert_uint(as_{1}({3})))))"sv,
-            NLCLContext::GetCLTypeName(vtype), NLCLContext::GetCLTypeName({ VecDataInfo::DataTypes::Unsigned,static_cast<uint8_t>(totalBits),1,0 }),
-            scalarFunc, ele);
+        if (isArith)
+        {
+            Expects(scalarType == vtype);
+            return SingleArgFunc(scalarFunc, ele);
+        }
+        else
+        {
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, totalBits != scalarBit);
+        }
     }
 
     const auto vectorType = VecDataInfo
     {
         scalarType.Type,
         scalarBit,
-        isArith ? vtype.Dim0 : static_cast<uint8_t>(totalBits / 32),
+        vnum,
         0
     };
-    Expects(vectorType.Dim0 > 1 && vectorType.Dim0 <= 16);
+    Expects(CheckVNum(vnum));
     const auto vectorFunc = FMTSTR(U"{}v{}", scalarFunc, vectorType.Dim0);
     Context.AddPatchedBlock(vectorFunc, [&]()
         {
             return NLCLSubgroupPtx::ScalarPatch(vectorFunc, scalarFunc, vectorType);
         });
 
-    return SingleArgFunc(vectorFunc, ele, vtype, vectorType, isArith);
+    if (isArith)
+    {
+        Expects(vectorType == vtype);
+        return SingleArgFunc(vectorFunc, ele);
+    }
+    else
+    {
+        if (totalBits != static_cast<uint32_t>(scalarBit * vnum)) // need convert
+        {
+            return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false);
+        }
+        else
+        {
+            return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false);
+        }
+    }
 }
 
 std::u32string NLCLSubgroupPtx::GetSubgroupLocalId()
@@ -1344,7 +1555,7 @@ std::u32string NLCLSubgroupPtx::SubgroupShuffle(VecDataInfo vtype, const std::u3
 {
     if (vtype.Bit == 32 || vtype.Bit == 64)
     {
-        const VecDataInfo scalarUType { VecDataInfo::DataTypes::Unsigned, vtype.Bit, 1, 0 };
+        const VecDataInfo scalarUType{ VecDataInfo::DataTypes::Unsigned, vtype.Bit, 1, 0 };
         const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_shuffle_u{}", vtype.Bit);
         Context.AddPatchedBlock(*this, scalarFunc, &NLCLSubgroupPtx::ShufflePatch, vtype.Bit);
         if (vtype.Dim0 == 1)
@@ -1353,7 +1564,7 @@ std::u32string NLCLSubgroupPtx::SubgroupShuffle(VecDataInfo vtype, const std::u3
         }
 
         const auto funcName = FMTSTR(U"{}v{}", scalarFunc, vtype.Dim0);
-        const VecDataInfo vectorUType{ VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0 };
+        const VecDataInfo vectorUType = ToUintVec(vtype);
         Context.AddPatchedBlock(funcName, [&]()
             {
                 return NLCLSubgroupPtx::ScalarPatchBcastShuf(funcName, scalarFunc, vectorUType);

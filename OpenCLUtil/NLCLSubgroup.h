@@ -117,6 +117,9 @@ class NLCLSubgroupKHR : public SubgroupProvider
 protected:
     bool EnableSubgroup = false, EnableFP16 = false, EnableFP64 = false;
     void OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension& ext, KernelContext& kernel) override;
+    void WarnFP(common::simd::VecDataInfo vtype, const std::u16string_view func);
+    // internal use, won't check type
+    std::u32string SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, common::simd::VecDataInfo realType, const std::u32string_view ele);
 public:
     using SubgroupProvider::SubgroupProvider;
     ~NLCLSubgroupKHR() override { }
@@ -141,14 +144,17 @@ protected:
     {
         return VectorPatch(funcName, baseFunc, vtype, mid, U", sgId", U", const uint sgId");
     }
-    std::u32string DirectShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx);
     void OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension& ext, KernelContext& kernel) override;
+    std::u32string DirectShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx);
+    std::u32string SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
+    std::u32string SubgroupReduceBitwise(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
 public:
     using NLCLSubgroupKHR::NLCLSubgroupKHR;
     ~NLCLSubgroupIntel() override { }
 
     std::u32string SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
     std::u32string SubgroupShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
+    std::u32string SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 
 };
 
