@@ -347,7 +347,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return str;
     }
 
-    std::u32string ReplaceFunc(NLCLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override
+    ReplaceResult ReplaceFunc(NLCLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override
     {
         NLCLRuntime_& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
@@ -355,7 +355,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         {
             Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
             if (!Host.AllowDebug)
-                return U"do{} while(false)";
+                return U"do{} while(false)"sv;
 
             const auto id = args[0];
             const auto info = common::container::FindInMap(Host.DebugInfos, id);
@@ -370,7 +370,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         {
             Runtime.ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtLeast);
             if (!Host.AllowDebug)
-                return U"do{} while(false)";
+                return U"do{} while(false)"sv;
             if (args.size() % 2)
                 NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
             if (args[1].size() < 2 || args[1].front() != U'"' || args[1].back() != U'"')

@@ -95,6 +95,23 @@ struct OCLUAPI KernelContext
 };
 
 
+class ReplaceResult
+{
+    common::str::StrVariant<char32_t> Str;
+    bool IsSuccess, AllowFallback;
+public:
+    ReplaceResult() noexcept : IsSuccess(false), AllowFallback(true) { }
+    template<typename T>
+    ReplaceResult(T&& str) noexcept : 
+        Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false) { }
+    template<typename T>
+    ReplaceResult(T&& str, const bool allowFallback) noexcept :
+        Str(std::forward<T>(str)), IsSuccess(false), AllowFallback(allowFallback) { }
+    constexpr explicit operator bool() const noexcept { return IsSuccess; }
+    constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
+    constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
+    void SetStr(common::str::StrVariant<char32_t> str) noexcept { Str = std::move(str); }
+};
 class OCLUAPI KernelExtension
 {
     friend class NLCLRuntime;
@@ -109,9 +126,9 @@ public:
     {
         return false;
     }
-    virtual std::u32string ReplaceFunc(NLCLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
+    virtual ReplaceResult ReplaceFunc(NLCLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
     {
-        return U"";
+        return {};
     }
     virtual void FinishKernel(NLCLRuntime&, KernelContext&) { }
 private:

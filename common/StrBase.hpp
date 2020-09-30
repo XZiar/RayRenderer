@@ -54,13 +54,13 @@ private:
     std::basic_string<Ch> Str;
     std::basic_string_view<Ch> View;
 public:
-    constexpr StrVariant() noexcept { }
+    StrVariant() noexcept { }
     StrVariant(std::basic_string<Ch>&& str) noexcept : Str(std::move(str)), View(Str) { }
-    constexpr StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
-    constexpr StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }
+    StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
+    StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }
     StrVariant(const StrVariant<Ch>& other) noexcept :
         Str(other.Str), View(Str.empty() ? other.View : Str) { }
-    constexpr StrVariant(StrVariant<Ch>&& other) noexcept : 
+    StrVariant(StrVariant<Ch>&& other) noexcept : 
         Str(std::move(other.Str)), View(Str.empty() ? other.View : Str) 
     {
         other.View = {};

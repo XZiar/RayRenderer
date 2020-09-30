@@ -439,31 +439,41 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
         default: break;
         }
     }
-
+    
+    const auto CheckExtension = [&, runtime=this](KernelExtension& ext)
+    {
+        const auto ret = ext.ReplaceFunc(*runtime, func, args);
+        if (ret)
+        {
+            output.append(ret.GetStr());
+            return true;
+        }
+        else
+        {
+            const auto str = ret.GetStr();
+            if (!ret.CheckAllowFallback())
+                NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), str));
+            if (!str.empty())
+                Logger.warning(FMT_STRING(u"when replace-func [{}]: {}"), func, str);
+        }
+        return false;
+    };
     for (const auto& ext : Context.NLCLExts)
     {
         if (!ext) continue;
-        const auto ret = ext->ReplaceFunc(*this, func, args);
-        if (!ret.empty())
-        {
-            output.append(ret);
+        if (CheckExtension(*ext))
             return;
-        }
     }
     if (kerCk)
     {
         for (const auto& ext : kerCk->Extensions)
         {
             if (!ext) continue;
-            const auto ret = ext->ReplaceFunc(*this, func, args);
-            if (!ret.empty())
-            {
-                output.append(ret);
+            if (CheckExtension(*ext))
                 return;
-            }
         }
     }
-    NLRT_THROW_EX(FMTSTR(u"replace-function [{}] with [{}]args is not resolved", func, args.size()));
+    NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args is not resolved", func, args.size()));
 }
 
 void NLCLRuntime::OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas)
