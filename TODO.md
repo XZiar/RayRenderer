@@ -88,7 +88,7 @@
     - [x] Mimic subgroup shuffle on non-intel
     - [x] Mimic subgroup shuffle on unsupported platform (nv)
     - [x] Use extension to provide debug support
-    - [ ] Add dp4a compatible layer
+    - [x] Add dp4a extension
     - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime
     - [ ] Add better kernel argument info parsing in NLCL
@@ -100,7 +100,7 @@
 * TextureUtil
   - [x] Add mipmap
   - [ ] Add blur
-  - [ ] Migate ISPC tex-compressor to OpenCL
+  - [ ] Migrate ISPC tex-compressor to OpenCL
 
 * FontHelper
   - [ ] Implement proper text render

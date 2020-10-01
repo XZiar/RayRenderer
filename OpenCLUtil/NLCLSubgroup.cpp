@@ -17,7 +17,7 @@ constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 
 #define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
-#define RET_FAIL(func) return {U"No proper ["## #func ##"]"sv, false}
+#define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 
 
 class SubgroupException : public NailangRuntimeException
