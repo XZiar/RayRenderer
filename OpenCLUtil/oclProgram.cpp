@@ -416,6 +416,26 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
     return oclPromise<CallResult>::Create(std::move(depend), e, que, std::move(result));
 }
 
+oclKernel_::KernelDynCallSiteInternal::KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args) :
+    CallSiteInternal(kernel), Args(std::move(args))
+{
+    using ArgType = std::variant<oclSubBuffer, oclImage, std::vector<std::byte>, std::array<std::byte, 32>, common::span<const std::byte>>;
+    uint32_t idx = 0;
+    for (const auto& arg : Args.Args)
+    {
+        switch (arg.index())
+        {
+        case 0: this->SetArg(idx, *std::get<0>(arg)); break;
+        case 1: this->SetArg(idx, *std::get<1>(arg)); break;
+        case 2: this->SetArg(idx, std::get<2>(arg).data(), std::get<2>(arg).size()); break;
+        case 3: this->SetArg(idx, &std::get<3>(arg)[1], (size_t)std::get<3>(arg)[0]); break;
+        case 4: this->SetArg(idx, std::get<4>(arg).data(), std::get<4>(arg).size()); break;
+        default: assert(false); break;
+        }
+        idx++;
+    }
+}
+
 
 oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
     : Context(ctx), Device(dev), Source(std::move(str)), ProgID(nullptr)

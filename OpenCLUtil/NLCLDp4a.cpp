@@ -10,6 +10,7 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
+using common::str::Charset;
 
 
 

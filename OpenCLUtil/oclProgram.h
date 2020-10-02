@@ -103,6 +103,58 @@ public:
 };
 
 
+struct CallArgs
+{
+    friend oclKernel_;
+private:
+    using ArgType = std::variant<oclSubBuffer, oclImage, std::vector<std::byte>, std::array<std::byte, 32>, common::span<const std::byte>>;
+    std::vector<ArgType> Args;
+public:
+    void PushArg(oclSubBuffer buf)
+    {
+        Args.push_back(buf);
+    }
+    void PushArg(oclImage img)
+    {
+        Args.push_back(img);
+    }
+    void PushArg(const void* dat, const size_t size, const bool ref = false)
+    {
+        if (ref)
+        {
+            common::span<const std::byte> tmp(reinterpret_cast<const std::byte*>(dat), size);
+            Args.push_back(tmp);
+        }
+        else if (size <= 31)
+        {
+            std::array<std::byte, 32> tmp;
+            memcpy_s(&tmp[1], size, dat, size);
+            tmp[0] = static_cast<std::byte>(size);
+            Args.push_back(tmp);
+        }
+        else
+        {
+            std::vector<std::byte> tmp;
+            tmp.resize(size);
+            memcpy_s(&tmp[0], size, dat, size);
+            Args.push_back(tmp);
+        }
+    }
+    template<typename T, bool OnlyRef = false>
+    void PushSpanArg(T&& dat)
+    {
+        const auto space = common::as_bytes(common::to_span(dat));
+        return PushArg(space.data(), space.size(), OnlyRef);
+    }
+    template<typename T>
+    void PushSimpleArg(T&& dat)
+    {
+        static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
+        return PushArg(&dat, sizeof(T));
+    }
+};
+
+
 struct OCLUAPI CallResult
 {
     std::shared_ptr<oclDebugManager> DebugManager;
@@ -113,6 +165,45 @@ struct OCLUAPI CallResult
 
     std::unique_ptr<oclDebugPackage> GetDebugData(const bool releaseRuntime = false);
 };
+
+
+template<size_t N>
+struct SizeN
+{
+    size_t Data[N];
+    constexpr SizeN() noexcept : Data{ 0 }
+    { }
+    constexpr SizeN(const size_t(&data)[N]) noexcept : Data{ 0 }
+    {
+        for (size_t i = 0; i < N; ++i)
+            Data[i] = data[i];
+    }
+    constexpr SizeN(const std::array<size_t, N>& data) noexcept : Data{ 0 }
+    {
+        for (size_t i = 0; i < N; ++i)
+            Data[i] = data[i];
+    }
+    constexpr SizeN(const std::initializer_list<size_t>& data) noexcept : Data{ 0 }
+    {
+        Expects(data.size() == N);
+        size_t i = 0;
+        for (const auto dat : data)
+            Data[i++] = dat;
+    }
+    constexpr const size_t* GetData(const bool zeroToNull = false) const noexcept
+    {
+        if (zeroToNull)
+        {
+            for (size_t i = 0; i < N; ++i)
+                if (Data[i] != 0)
+                    return Data;
+            return nullptr;
+        }
+        else
+            return Data;
+    }
+};
+
 
 class OCLUAPI oclKernel_ : public common::NonCopyable
 {
@@ -166,42 +257,6 @@ private:
     {
         friend class oclKernel_;
     private:
-        struct SizeN
-        {
-            size_t Data[N];
-            constexpr SizeN() noexcept : Data{0}
-            { }
-            constexpr SizeN(const size_t(&data)[N]) noexcept : Data{0}
-            {
-                for (size_t i = 0; i < N; ++i)
-                    Data[i] = data[i];
-            }
-            constexpr SizeN(const std::array<size_t, N>& data) noexcept : Data{0}
-            {
-                for (size_t i = 0; i < N; ++i)
-                    Data[i] = data[i];
-            }
-            constexpr SizeN(const std::initializer_list<size_t>& data) noexcept : Data{0}
-            {
-                Expects(data.size() == N);
-                size_t i = 0;
-                for (const auto dat : data)
-                    Data[i++] = dat;
-            }
-            constexpr const size_t* GetData(const bool zeroToNull = false) const noexcept
-            {
-                if (zeroToNull)
-                {
-                    for (size_t i = 0; i < N; ++i)
-                        if (Data[i] != 0)
-                            return Data;
-                    return nullptr;
-                }
-                else
-                    return Data;
-            }
-        };
-        //using SizeN = std::array<size_t, N>;
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         std::tuple<Args...> Paras;
 
@@ -226,12 +281,36 @@ private:
         }
     public:
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que, 
-            const SizeN worksize, const SizeN localsize = {}, const SizeN workoffset = {})
+            const SizeN<N> worksize, const SizeN<N> localsize = {}, const SizeN<N> workoffset = {})
         {
             return Run(N, pmss, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const oclCmdQue& que, 
-            const SizeN worksize, const SizeN localsize = {}, const SizeN workoffset = {})
+            const SizeN<N> worksize, const SizeN<N> localsize = {}, const SizeN<N> workoffset = {})
+        {
+            return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
+        }
+    };
+    class OCLUAPI KernelDynCallSiteInternal : protected CallSiteInternal
+    {
+        friend class oclKernel_;
+    private:
+        // clSetKernelArg does not hold parameter ownership, so need to manully hold it
+        CallArgs Args;
+        KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args);
+    };
+    template<uint8_t N>
+    class [[nodiscard]] KernelDynCallSite : protected KernelDynCallSiteInternal
+    {
+        friend class oclKernel_;
+    public:
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que,
+            const SizeN<N> worksize, const SizeN<N> localsize = {}, const SizeN<N> workoffset = {})
+        {
+            return Run(N, pmss, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
+        }
+        [[nodiscard]] common::PromiseResult<CallResult> operator()(const oclCmdQue& que,
+            const SizeN<N> worksize, const SizeN<N> localsize = {}, const SizeN<N> workoffset = {})
         {
             return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
@@ -255,6 +334,12 @@ public:
     {
         static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
         return KernelCallSite<N, Args...>(this, std::forward<Args>(args)...);
+    }
+    template<uint8_t N>
+    [[nodiscard]] auto CallDynamic(CallArgs&& args) const
+    {
+        static_assert(N > 0 && N < 4, "work dim should be in [1,3]");
+        return KernelDynCallSite<N>(this, std::move(args));
     }
 
 };

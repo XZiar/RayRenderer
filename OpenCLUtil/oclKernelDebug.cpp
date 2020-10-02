@@ -17,12 +17,12 @@ std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noex
 #define CASE(str, dtype, bit, n, least) \
     HashCase(type, str) return { {common::simd::VecDataInfo::DataTypes::dtype, bit, n, 0}, least };
 #define CASEV(pfx, type, bit, least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)""),    type, bit, 1,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v2"),  type, bit, 2,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v3"),  type, bit, 3,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v4"),  type, bit, 4,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v8"),  type, bit, 8,  least) \
-    CASE(PPCAT(U, STRINGIZE(pfx)"v16"), type, bit, 16, least) \
+    CASE(U"" STRINGIZE(pfx) "",    type, bit, 1,  least) \
+    CASE(U"" STRINGIZE(pfx) "v2",  type, bit, 2,  least) \
+    CASE(U"" STRINGIZE(pfx) "v3",  type, bit, 3,  least) \
+    CASE(U"" STRINGIZE(pfx) "v4",  type, bit, 4,  least) \
+    CASE(U"" STRINGIZE(pfx) "v8",  type, bit, 8,  least) \
+    CASE(U"" STRINGIZE(pfx) "v16", type, bit, 16, least) \
 
 #define CASE2(tstr, type, bit)                  \
     CASEV(PPCAT(tstr, bit),  type, bit, false)  \
