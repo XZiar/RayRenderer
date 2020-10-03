@@ -53,8 +53,11 @@ protected:
 public:
     SubgroupProvider(NLCLContext& context, SubgroupCapbility cap);
     virtual ~SubgroupProvider() { }
+    virtual ReplaceResult GetSubgroupSize() { return {}; };
+    virtual ReplaceResult GetMaxSubgroupSize() { return {}; };
+    virtual ReplaceResult GetSubgroupCount() { return {}; };
+    virtual ReplaceResult GetSubgroupId() { return {}; };
     virtual ReplaceResult GetSubgroupLocalId() { return {}; };
-    virtual ReplaceResult GetSubgroupSize(const uint32_t) { return {}; };
     virtual ReplaceResult SubgroupAll(const std::u32string_view) { return {}; };
     virtual ReplaceResult SubgroupAny(const std::u32string_view) { return {}; };
     virtual ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
@@ -124,8 +127,11 @@ public:
     using SubgroupProvider::SubgroupProvider;
     ~NLCLSubgroupKHR() override { }
 
+    ReplaceResult GetSubgroupSize() override;
+    ReplaceResult GetMaxSubgroupSize() override;
+    ReplaceResult GetSubgroupCount() override;
+    ReplaceResult GetSubgroupId() override;
     ReplaceResult GetSubgroupLocalId() override;
-    ReplaceResult GetSubgroupSize(const uint32_t sgSize) override;
     ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
     ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
     ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
@@ -170,8 +176,11 @@ public:
     using NLCLSubgroupKHR::NLCLSubgroupKHR;
     ~NLCLSubgroupLocal() override { }
 
+    ReplaceResult GetSubgroupSize() override;
+    ReplaceResult GetMaxSubgroupSize() override;
+    ReplaceResult GetSubgroupCount() override;
+    ReplaceResult GetSubgroupId() override;
     ReplaceResult GetSubgroupLocalId() override;
-    ReplaceResult GetSubgroupSize(const uint32_t sgSize) override;
     ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
     ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
     ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
@@ -191,8 +200,11 @@ public:
     NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
 
+    ReplaceResult GetSubgroupSize() override;
+    ReplaceResult GetMaxSubgroupSize() override;
+    ReplaceResult GetSubgroupCount() override;
+    ReplaceResult GetSubgroupId() override;
     ReplaceResult GetSubgroupLocalId() override;
-    ReplaceResult GetSubgroupSize(const uint32_t sgSize) override;
     ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
     ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
     ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;

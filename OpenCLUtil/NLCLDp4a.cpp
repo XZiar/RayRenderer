@@ -28,7 +28,6 @@ std::optional<xziar::nailang::Arg> NLCLDp4aExtension::NLCLFunc(NLCLRuntime& runt
     if (call.Name == U"oclu.IntelDp4a"sv)
     {
         Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
-        Runtime.ThrowByArgCount(call, 3, ArgLimits::AtLeast);
         HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
         return Arg{};
     }
@@ -225,7 +224,7 @@ ReplaceResult NLCLDp4aIntel::DP4A(Signedness signedness, const common::span<cons
             }();
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
             static constexpr auto syntax = UR"(int __builtin_IB_dp4a_{0}(int c, int a, int b) __attribute__((const));
-inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b))
+inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b)
 {{
     return __builtin_IB_dp4a_{0}(as_int(acc), as_int(a), as_int(b));
 }})"sv;

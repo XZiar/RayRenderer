@@ -20,6 +20,38 @@ constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 
 
+template<bool IsPrefix>
+struct OptionalArg
+{
+    std::u32string_view Arg;
+};
+
+}
+
+template<typename Char, bool IsPrefix>
+struct fmt::formatter<oclu::OptionalArg<IsPrefix>, Char>
+{
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+    template<typename FormatContext>
+    auto format(oclu::OptionalArg<IsPrefix> arg, FormatContext& ctx)
+    {
+        if (arg.Arg.empty())
+            return ctx.out();
+        if constexpr (IsPrefix)
+            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
+        else
+            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
+    }
+};
+
+
+namespace oclu
+{
+
 class SubgroupException : public NailangRuntimeException
 {
     friend class NailangRuntimeBase;
@@ -295,17 +327,29 @@ ReplaceResult KernelSubgroupExtension::ReplaceFunc(NLCLRuntime& runtime, std::u3
 
         switch (hash_(func))
         {
-        HashCase(func, U"GetSubgroupLocalId")
-        {
-            Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-            return HandleResult(Provider->GetSubgroupLocalId(), 
-                U"[GetSubgroupLocalId] not supported"sv);
-        }
         HashCase(func, U"GetSubgroupSize")
         {
             Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-            return HandleResult(Provider->GetSubgroupSize(SubgroupSize ? SubgroupSize : Kernel.WorkgroupSize),
+            return HandleResult(Provider->GetSubgroupSize(),
                 U"[GetSubgroupSize] not supported"sv);
+        }
+        HashCase(func, U"GetMaxSubgroupSize")
+        {
+            Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+            return HandleResult(Provider->GetMaxSubgroupSize(),
+                U"[GetMaxSubgroupSize] not supported"sv);
+        }
+        HashCase(func, U"GetSubgroupCount")
+        {
+            Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+            return HandleResult(Provider->GetSubgroupCount(),
+                U"[GetSubgroupCount] not supported"sv);
+        }
+        HashCase(func, U"GetSubgroupLocalId")
+        {
+            Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+            return HandleResult(Provider->GetSubgroupLocalId(),
+                U"[GetSubgroupLocalId] not supported"sv);
         }
         HashCase(func, U"SubgroupAll")
         {
@@ -374,48 +418,12 @@ void KernelSubgroupExtension::FinishKernel(NLCLRuntime& runtime, KernelContext& 
 }
 
 
-struct BcastShuf
-{
-    std::u32string_view Func;
-    std::u32string_view Extra;
-    std::u32string_view Element;
-    std::u32string_view Index;
-    std::optional<std::pair<VecDataInfo, VecDataInfo>> TypeCast;
-
-    constexpr BcastShuf(const std::u32string_view func, const std::u32string_view ele, const std::u32string_view idx) noexcept :
-        Func(func), Element(ele), Index(idx) { }
-    constexpr BcastShuf(const std::u32string_view func, const std::u32string_view ele, const std::u32string_view idx,
-        const VecDataInfo dst, const VecDataInfo mid) noexcept :
-        Func(func), Element(ele), Index(idx), TypeCast({ dst, mid }) { }
-    constexpr BcastShuf(const std::u32string_view func, const std::u32string_view extra, 
-        const std::u32string_view ele, const std::u32string_view idx) noexcept :
-        Func(func), Extra(extra), Element(ele), Index(idx) { }
-    constexpr BcastShuf(const std::u32string_view func, const std::u32string_view extra, 
-        const std::u32string_view ele, const std::u32string_view idx, const VecDataInfo dst, const VecDataInfo mid) noexcept :
-        Func(func), Extra(extra), Element(ele), Index(idx), TypeCast({ dst, mid }) { }
-
-    operator std::u32string() const
-    {
-        if (TypeCast)
-        {
-            const auto [dst, mid] = TypeCast.value();
-            if (dst != mid)
-                return FMTSTR(U"as_{}({}({}as_{}({}), {}))"sv,
-                    NLCLContext::GetCLTypeName(dst), Func, Extra, NLCLContext::GetCLTypeName(mid), Element, Index);
-        }
-        return FMTSTR(U"{}({}{}, {})", Func, Extra, Element, Index);
-    }
-};
-#define BSRetDirect(func)               return BcastShuf(func, ele, idx)
-#define BSRetCastT(func, mid)           return BcastShuf(func, ele, idx, vtype, mid);
-#define BSRetCast(func, type, bit, dim) return BcastShuf(func, ele, idx, vtype, { type, bit, static_cast<uint8_t>(dim), 0 });
-#define BSRetXDirect(func, extra)       return BcastShuf(func, extra, ele, idx)
-#define BSRetXCastT(func, extra, mid)   return BcastShuf(func, extra, ele, idx, vtype, mid);
-
 struct SingleArgFunc
 {
     std::u32string_view Func;
     std::u32string_view Element;
+    OptionalArg<true>  Prefix;
+    OptionalArg<false> Suffix;
     std::variant<std::monostate, std::tuple<VecDataInfo, VecDataInfo, bool>, std::tuple<VecDataInfo, VecDataInfo, VecDataInfo, bool>> TypeCast;
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele) noexcept :
         Func(func), Element(ele) { }
@@ -424,6 +432,11 @@ struct SingleArgFunc
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele, 
         const VecDataInfo dst, const VecDataInfo first, const VecDataInfo then, const bool convertFirst) noexcept :
         Func(func), Element(ele), TypeCast(std::tuple{ dst, first, then, convertFirst }) { }
+    constexpr SingleArgFunc& Attach(const std::u32string_view prefix, const std::u32string_view suffix) noexcept
+    {
+        Prefix.Arg = prefix, Suffix.Arg = suffix;
+        return *this;
+    }
     operator std::u32string() const
     {
         switch (TypeCast.index())
@@ -432,27 +445,32 @@ struct SingleArgFunc
         {
             const auto [dst, mid, convert] = std::get<1>(TypeCast);
             if (dst != mid)
-                return FMTSTR(U"{0}_{1}({3}({0}_{2}({4})))"sv,
-                    convert ? U"convert"sv : U"as"sv, NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(mid), Func, Element);
+                return FMTSTR(U"{0}_{1}({3}({4}{0}_{2}({5}){6}))"sv,
+                    convert ? U"convert"sv : U"as"sv, NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(mid), 
+                    Func, Prefix, Element, Suffix);
         } break;
         case 2:
         {
             const auto [dst, first, then, convFirst] = std::get<2>(TypeCast);
             if (convFirst)
-                return FMTSTR(U"convert_{0}(as_{1}({3}(as_{2}(convert_{1}({4})))))"sv,
+                return FMTSTR(U"convert_{0}(as_{1}({3}({4}as_{2}(convert_{1}({5})){6})))"sv,
                     NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
-                    Func, Element);
+                    Func, Prefix, Element, Suffix);
             else
-                return FMTSTR(U"as_{0}(convert_{1}({3}(convert_{2}(as_{1}({4})))))"sv,
+                return FMTSTR(U"as_{0}(convert_{1}({3}({4}convert_{2}(as_{1}({5})){6})))"sv,
                     NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
-                    Func, Element);
+                    Func, Prefix, Element, Suffix);
         } break;
         default:
             break;
         }
-        return FMTSTR(U"{}({})", Func, Element);
+        return FMTSTR(U"{}({}{}{})", Func, Prefix, Element, Suffix);
     }
 };
+#define BSRetDirect(func)               return SingleArgFunc(func, ele).Attach(U""sv, idx)
+#define BSRetCastT(func, mid)           return SingleArgFunc(func, ele, vtype, mid, false).Attach(U""sv, idx)
+#define BSRetCast(func, type, bit, dim) return SingleArgFunc(func, ele, vtype, { type, bit, static_cast<uint8_t>(dim), 0 }, false).Attach(U""sv, idx)
+
 
 
 void NLCLSubgroupKHR::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
@@ -510,15 +528,30 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataI
     return SingleArgFunc(funcName, ele, realType, vtype, true);
 }
 
+ReplaceResult NLCLSubgroupKHR::GetSubgroupSize()
+{
+    EnableSubgroup = true;
+    return U"get_sub_group_size()"sv;
+}
+ReplaceResult NLCLSubgroupKHR::GetMaxSubgroupSize()
+{
+    EnableSubgroup = true;
+    return U"get_max_sub_group_size()"sv;
+}
+ReplaceResult NLCLSubgroupKHR::GetSubgroupCount()
+{
+    EnableSubgroup = true;
+    return U"get_num_sub_groups()"sv;
+}
+ReplaceResult NLCLSubgroupKHR::GetSubgroupId()
+{
+    EnableSubgroup = true;
+    return U"get_sub_group_id()"sv;
+}
 ReplaceResult NLCLSubgroupKHR::GetSubgroupLocalId()
 {
     EnableSubgroup = true;
     return U"get_sub_group_local_id()"sv;
-}
-ReplaceResult NLCLSubgroupKHR::GetSubgroupSize(const uint32_t)
-{
-    EnableSubgroup = true;
-    return U"get_sub_group_size()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::SubgroupAll(const std::u32string_view predicate)
 {
@@ -1067,14 +1100,12 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExte
     }
     if (NeedLocalTemp)
     {
-        const auto sgSize = ext.SubgroupSize ? ext.SubgroupSize : kernel.WorkgroupSize;
-        if (sgSize == 0)
-            NLRT_THROW_EX(u"Subgroup mimic [local] need to define SubgroupSize when under fully mimic");
         if (kernel.WorkgroupSize == 0)
-            kernel.WorkgroupSize = sgSize;
-        else if (kernel.WorkgroupSize != sgSize)
-            NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for an workgroup, now have subgroup[{}] and workgroup [{}].",
+            NLRT_THROW_EX(u"Subgroup mimic [local] need to define WorkgroupSize when under fully mimic");
+        if (ext.SubgroupSize && kernel.WorkgroupSize != ext.SubgroupSize)
+            NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
                 ext.SubgroupSize, kernel.WorkgroupSize));
+        const auto sgSize = kernel.WorkgroupSize;
         kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm",
             FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
         Runtime.Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
@@ -1155,19 +1186,40 @@ std::u32string NLCLSubgroupLocal::ShufflePatch(const std::u32string_view funcNam
     return func;
 }
 
+ReplaceResult NLCLSubgroupLocal::GetSubgroupSize()
+{
+    if (Cap.SupportBasicSubgroup)
+        return NLCLSubgroupKHR::GetSubgroupSize();
+    NeedCommonInfo = true;
+    return U"_oclu_sgsize"sv;
+}
+ReplaceResult NLCLSubgroupLocal::GetMaxSubgroupSize()
+{
+    if (Cap.SupportBasicSubgroup)
+        return NLCLSubgroupKHR::GetMaxSubgroupSize();
+    NeedCommonInfo = true;
+    return U"_oclu_sgsize"sv;
+}
+ReplaceResult NLCLSubgroupLocal::GetSubgroupCount()
+{
+    if (Cap.SupportBasicSubgroup)
+        return NLCLSubgroupKHR::GetSubgroupCount();
+    NeedCommonInfo = true;
+    return U"(/*local mimic SubgroupCount*/ 1)"sv;
+}
+ReplaceResult NLCLSubgroupLocal::GetSubgroupId()
+{
+    if (Cap.SupportBasicSubgroup)
+        return NLCLSubgroupKHR::GetSubgroupId();
+    NeedCommonInfo = true;
+    return U"(/*local mimic SubgroupId*/ 0)"sv;
+}
 ReplaceResult NLCLSubgroupLocal::GetSubgroupLocalId()
 {
     if (Cap.SupportBasicSubgroup)
         return NLCLSubgroupKHR::GetSubgroupLocalId();
     NeedCommonInfo = true;
     return U"_oclu_sglid"sv;
-}
-ReplaceResult NLCLSubgroupLocal::GetSubgroupSize(const uint32_t sgSize)
-{
-    if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetSubgroupSize(sgSize);
-    NeedCommonInfo = true;
-    return FMTSTR(U"_oclu_sgsize", sgSize);
 }
 ReplaceResult NLCLSubgroupLocal::SubgroupAll(const std::u32string_view predicate)
 {
@@ -1196,7 +1248,7 @@ ReplaceResult NLCLSubgroupLocal::SubgroupBroadcast(VecDataInfo vtype, const std:
         if (!vnum) continue;
         const VecDataInfo mid{ VecDataInfo::DataTypes::Unsigned, targetBits, vnum, 0 };
         Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::BroadcastPatch, funcName, mid);
-        BSRetXCastT(funcName, U"_oclu_subgroup_local, "sv, mid);
+        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx);
     }
     RET_FAIL(SubgroupBroadcast);
 }
@@ -1215,14 +1267,13 @@ ReplaceResult NLCLSubgroupLocal::SubgroupShuffle(VecDataInfo vtype, const std::u
         if (!vnum) continue;
         const VecDataInfo mid{ VecDataInfo::DataTypes::Unsigned, targetBits, vnum, 0 };
         Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::ShufflePatch, funcName, mid);
-        BSRetXCastT(funcName, U"_oclu_subgroup_local, "sv, mid);
+        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx);
     }
     RET_FAIL(SubgroupShuffle);
 }
 
 
-// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-shfl
-
+// https://intel.github.io/llvm-docs/cuda/opencl-subgroup-vs-cuda-crosslane-op.html
 NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion) :
     SubgroupProvider(context, cap), SMVersion(smVersion)
 {
@@ -1236,6 +1287,7 @@ NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLCo
         ExtraSync = U".sync"sv, ExtraMask = U", 0xffffffff"sv; // assum 32 as warp size
 }
 
+// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-shfl
 std::u32string NLCLSubgroupPtx::ShufflePatch(const uint8_t bit) noexcept
 {
     Expects(bit == 32 || bit == 64);
@@ -1460,22 +1512,71 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     }
 }
 
+ReplaceResult NLCLSubgroupPtx::GetSubgroupSize()
+{
+    Context.AddPatchedBlock(U"oclu_subgroup_ptx_get_size"sv, []()
+        {
+            return UR"(inline uint oclu_subgroup_ptx_get_size()
+{
+    uint ret;
+    asm volatile("mov.u32 %0, WARP_SZ;" : "=r"(ret));
+    return ret;
+})"s;
+        });
+    return U"oclu_subgroup_ptx_get_size()"sv;
+}
+ReplaceResult NLCLSubgroupPtx::GetMaxSubgroupSize()
+{
+    return U"(/*nv_warp*/32u)"sv;
+}
+ReplaceResult NLCLSubgroupPtx::GetSubgroupCount()
+{
+    if (SMVersion < 20)
+        return {};
+    Context.AddPatchedBlock(U"oclu_subgroup_ptx_count"sv, []()
+        {
+            return UR"(inline uint oclu_subgroup_ptx_count()
+{
+    uint ret;
+    asm volatile("mov.u32 %0, %%nwarpid;" : "=r"(ret));
+    return ret;
+})"s;
+        });
+    return U"oclu_subgroup_ptx_count()"sv;
+}
+ReplaceResult NLCLSubgroupPtx::GetSubgroupId()
+{
+    Context.AddPatchedBlock(U"oclu_subgroup_ptx_get_id"sv, []()
+        {
+            return UR"(inline uint oclu_subgroup_ptx_get_id()
+{
+    const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
+    return lid / 32;
+})"s;
+        });
+    /*Context.AddPatchedBlock(U"oclu_subgroup_ptx_get_id"sv, []()
+        {
+            return UR"(inline uint oclu_subgroup_ptx_get_id()
+{
+    uint ret;
+    asm volatile("mov.u32 %0, %%warpid;" : "=r"(ret));
+    return ret;
+})"s;
+        });*/
+    return U"oclu_subgroup_ptx_get_id()"sv;
+}
 ReplaceResult NLCLSubgroupPtx::GetSubgroupLocalId()
 {
     Context.AddPatchedBlock(U"oclu_subgroup_ptx_get_local_id"sv, []()
-        { 
+        {
             return UR"(inline uint oclu_subgroup_ptx_get_local_id()
 {
     uint ret;
     asm volatile("mov.u32 %0, %%laneid;" : "=r"(ret));
     return ret;
-})"s; 
+})"s;
         });
     return U"oclu_subgroup_ptx_get_local_id()"sv;
-}
-ReplaceResult NLCLSubgroupPtx::GetSubgroupSize(const uint32_t sgSize)
-{
-    return FMTSTR(U"(/*nv_warp*/{})", sgSize ? std::min(32u, sgSize) : 32u);
 }
 ReplaceResult NLCLSubgroupPtx::SubgroupAll(const std::u32string_view predicate)
 {
