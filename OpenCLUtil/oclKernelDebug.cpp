@@ -3,6 +3,104 @@
 #include "oclNLCLRely.h"
 #include "oclException.h"
 
+
+
+template<typename Char, typename T>
+struct fmt::formatter<oclu::DebugDataLayout::VecItem<T>, Char>
+{
+    using R = std::conditional_t<std::is_same_v<T, half_float::half>, float, T>;
+    std::basic_string_view<Char> Presentation;
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        const auto begin = ctx.begin(), end = ctx.end();
+        auto it = begin;
+        size_t count = 0;
+        while (it != end && *it != static_cast<Char>('}'))
+            ++it, ++count;
+        if (it != end && *it != static_cast<Char>('}'))
+            throw format_error("invalid format");
+        Presentation = { &(*begin), count };
+        return it;
+    }
+    template<typename FormatContext>
+    auto format(const oclu::DebugDataLayout::VecItem<T>& arg, FormatContext& ctx)
+    {
+        Expects(arg.Count > 0);
+        auto it = ctx.out();
+        if (arg.Count > 1)
+        {
+            *it++ = static_cast<Char>('{');
+            *it++ = static_cast<Char>(' ');
+        }
+        if (Presentation.empty())
+        {
+            for (uint32_t idx = 0; idx < arg.Count; ++idx)
+            {
+                if (idx > 0)
+                {
+                    *it++ = static_cast<Char>(',');
+                    *it++ = static_cast<Char>(' ');
+                }
+                if constexpr (std::is_same_v<Char, char>)
+                {
+                    it = fmt::format_to(it, FMT_STRING("{}"),   static_cast<R>(arg.Ptr[idx]));
+                }
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+                else if constexpr (std::is_same_v<Char, char8_t>)
+                {
+                    it = fmt::format_to(it, FMT_STRING(u8"{}"), static_cast<R>(arg.Ptr[idx]));
+                }
+#endif
+                else if constexpr (std::is_same_v<Char, char16_t>)
+                {
+                    it = fmt::format_to(it, FMT_STRING(u"{}"),  static_cast<R>(arg.Ptr[idx]));
+                }
+                else if constexpr (std::is_same_v<Char, char32_t>)
+                {
+                    it = fmt::format_to(it, FMT_STRING(U"{}"),  static_cast<R>(arg.Ptr[idx]));
+                }
+                else if constexpr (std::is_same_v<Char, wchar_t>)
+                {
+                    it = fmt::format_to(it, FMT_STRING(L"{}"),  static_cast<R>(arg.Ptr[idx]));
+                }
+                else
+                {
+                    static_assert(!common::AlwaysTrue<T>, "Unsupportted Char type");
+                }
+            }
+        }
+        else
+        {
+            const auto baseSize = Presentation.size();
+            std::basic_string<Char> fmter; 
+            fmter.resize(baseSize + 3);
+            fmter[0]     = static_cast<Char>('{');
+            fmter[1]     = static_cast<Char>(':');
+            fmter.back() = static_cast<Char>('}');
+            const auto size = Presentation.size() * sizeof(Char);
+            memcpy_s(&fmter[2], size, Presentation.data(), size);
+            
+            for (uint32_t idx = 0; idx < arg.Count; ++idx)
+            {
+                if (idx > 0)
+                {
+                    *it++ = static_cast<Char>(',');
+                    *it++ = static_cast<Char>(' ');
+                }
+                it = fmt::format_to(it, fmter, static_cast<R>(arg.Ptr[idx]));
+            }
+        }
+        if (arg.Count > 1)
+        {
+            *it++ = static_cast<Char>(' ');
+            *it++ = static_cast<Char>('}');
+        }
+        return it;
+    }
+};
+
+
 namespace oclu
 {
 using namespace std::string_literals;
@@ -534,34 +632,11 @@ oclThreadInfo SubgroupInfoMan::GetThreadInfo(common::span<const uint32_t> space,
 
 
 template<typename T>
-static void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, common::span<const T> data)
+static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, const DebugDataLayout::VecItem<T>& data)
 {
-    if (data.size() == 1)
-    {
-        if constexpr (std::is_same_v<T, half_float::half>)
-            store.push_back(static_cast<float>(data[0]));
-        else
-            store.push_back(data[0]);
-    }
-    else
-    {
-        if constexpr (std::is_same_v<T, half_float::half>)
-        {
-            Expects(data.size() <= 16);
-            std::array<float, 16> tmp;
-            size_t idx = 0;
-            for (const auto val : data)
-                tmp[idx++] = val;
-            const auto datspan = common::to_span(tmp).subspan(0, data.size());
-            store.push_back(fmt::format(FMT_STRING("{}"sv), datspan));
-        }
-        else
-        {
-            store.push_back(fmt::format(FMT_STRING("{}"sv), data));
-        }
-    }
+    store.push_back(data);
 }
-static void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, std::nullopt_t)
+static forceinline void Insert(fmt::dynamic_format_arg_store<fmt::u32format_context>& store, std::nullopt_t)
 {
     store.push_back(U"Unknown"sv);
 }
@@ -570,7 +645,10 @@ common::str::u8string oclDebugBlock::GetString(common::span<const std::byte> dat
     fmt::dynamic_format_arg_store<fmt::u32format_context> store;
     for (const auto& arg : Layout.ByIndex())
     {
-        arg.VisitData(data, [&](auto ele) { Insert(store, ele); });
+        arg.VisitData(data, [&](auto ele) 
+            { 
+                Insert(store, ele); 
+            });
     }
     auto str = fmt::vformat(Formatter, store);
     return common::str::to_u8string(str, common::str::Charset::UTF32LE);

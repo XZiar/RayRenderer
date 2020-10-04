@@ -271,7 +271,7 @@ protected:
     void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     common::simd::VecDataInfo ParseVecType(const std::u32string_view type, 
-        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const noexcept;
+        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const;
 
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;

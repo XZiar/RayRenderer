@@ -24,17 +24,18 @@ OCLUAPI void SetAllowDebug(const NLCLContext& context) noexcept;
 
 class DebugDataLayout
 {
+public:
+    template<typename T>
+    struct VecItem
+    {
+        const T* Ptr;
+        uint32_t Count;
+        VecItem(common::span<const std::byte> data, common::simd::VecDataInfo info) noexcept :
+            Ptr(reinterpret_cast<const T*>(data.data())), Count(info.Dim0) { }
+    };
 private:
     struct DataBlock
     {
-    private:
-        template<typename T>
-        constexpr common::span<const T> VisitT(common::span<const std::byte> data) const noexcept
-        {
-            return common::span<const T>(reinterpret_cast<const T*>(data.data()), Info.Dim0);
-        }
-    public:
-        struct 
         common::simd::VecDataInfo Info;
         uint16_t Offset;
         uint16_t ArgIdx;
@@ -52,29 +53,29 @@ private:
             case VecDataInfo::DataTypes::Float:
                 switch (Info.Bit)
                 {
-                case 16: return func(VisitT<  half>(data));
-                case 32: return func(VisitT< float>(data));
-                case 64: return func(VisitT<double>(data));
+                case 16: return func(VecItem<  half>(data, Info));
+                case 32: return func(VecItem< float>(data, Info));
+                case 64: return func(VecItem<double>(data, Info));
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Unsigned:
                 switch (Info.Bit)
                 {
-                case  8: return func(VisitT< uint8_t>(data));
-                case 16: return func(VisitT<uint16_t>(data));
-                case 32: return func(VisitT<uint32_t>(data));
-                case 64: return func(VisitT<uint64_t>(data));
+                case  8: return func(VecItem< uint8_t>(data, Info));
+                case 16: return func(VecItem<uint16_t>(data, Info));
+                case 32: return func(VecItem<uint32_t>(data, Info));
+                case 64: return func(VecItem<uint64_t>(data, Info));
                 default: break;
                 }
                 break;
             case VecDataInfo::DataTypes::Signed:
                 switch (Info.Bit)
                 {
-                case  8: return func(VisitT< int8_t>(data));
-                case 16: return func(VisitT<int16_t>(data));
-                case 32: return func(VisitT<int32_t>(data));
-                case 64: return func(VisitT<int64_t>(data));
+                case  8: return func(VecItem< int8_t>(data, Info));
+                case 16: return func(VecItem<int16_t>(data, Info));
+                case 32: return func(VecItem<int32_t>(data, Info));
+                case 64: return func(VecItem<int64_t>(data, Info));
                 default: break;
                 }
                 break;

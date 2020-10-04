@@ -135,7 +135,6 @@
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [x] Add genenral datatype for `Arg` for type-checking
   - [ ] Move to utf8 (save mem and moreclose to output type)
-  - [ ] Add array type
   - [ ] Shrink memory usage of Arg
   - [x] Make parser throw proper exception
   - [ ] Embed position information in token
@@ -146,6 +145,10 @@
   - [x] Add proper stacktrace when throw exception
   - [x] Add nested brace support for ReplaceEngine
   - [x] Move arg/func's lookup logic into StackFrame
+  - [ ] Pre-compute scope when parsing, for arg and func name
+  - [ ] Add array type
+  - [ ] Add array access by `[]`
+  - [ ] Add member func call for arg by `()`
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

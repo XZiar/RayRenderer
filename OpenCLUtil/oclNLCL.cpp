@@ -287,7 +287,7 @@ void NLCLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const 
 }
 
 common::simd::VecDataInfo NLCLRuntime::ParseVecType(const std::u32string_view var,
-    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const noexcept
+    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const
 {
     const auto vtype = Context.ParseVecType(var);
     if (!vtype)
@@ -305,7 +305,7 @@ common::simd::VecDataInfo NLCLRuntime::ParseVecType(const std::u32string_view va
         case 1:
         {
             const auto str = std::get<1>(extraInfo)();
-            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType, ."sv, var, str));
+            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType, {}."sv, var, str));
         } break;
         }
     }
