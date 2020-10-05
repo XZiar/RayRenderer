@@ -1,7 +1,5 @@
 #include "NailangStruct.h"
 #include "StringUtil/Format.h"
-#include "common/AlignedBase.hpp"
-#include <boost/range/adaptor/reversed.hpp>
 #include <cassert>
 
 namespace xziar::nailang
@@ -113,9 +111,9 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         output.push_back(U')');
 }
 
-void Serializer::Stringify(std::u32string& output, const LateBindVar var)
+void Serializer::Stringify(std::u32string& output, const LateBindVar& var)
 {
-    output.append(var.Name);
+    output.append(static_cast<std::u32string_view>(var));
 }
 
 void Serializer::Stringify(std::u32string& output, const std::u32string_view str)

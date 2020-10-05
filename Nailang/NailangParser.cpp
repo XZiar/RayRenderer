@@ -7,6 +7,59 @@ namespace xziar::nailang
 {
 using tokenizer::SectorLangToken;
 
+
+class NailangPartedNameException : public common::BaseException
+{
+    friend class NailangParser;
+    PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
+        std::u32string_view Name;
+        std::u32string_view Part;
+        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+            : ExceptionInfo(TYPENAME, msg, name, part)
+        { }
+    protected:
+        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+            : TPInfo(type, msg), Name(name), Part(part)
+        { }
+    );
+    NailangPartedNameException(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+        : BaseException(T_<ExceptionInfo>{}, msg, name, part)
+    { }
+};
+
+PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo)
+{
+    Expects(name.size() > 0);
+    std::vector<PartType> parts;
+    for (const auto piece : common::str::SplitStream(name, U'.', true))
+    {
+        const auto offset = piece.data() - name.data();
+        if (offset > UINT16_MAX)
+            COMMON_THROW(NailangPartedNameException, u"Name too long"sv, name, piece);
+        if (piece.size() > UINT16_MAX)
+            COMMON_THROW(NailangPartedNameException, u"Name part too long"sv, name, piece);
+        if (piece.size() == 0)
+            COMMON_THROW(NailangPartedNameException, u"Empty name part"sv, name, piece);
+        parts.emplace_back(static_cast<uint16_t>(offset), static_cast<uint16_t>(piece.size()));
+    }
+    if (parts.size() == 1)
+    {
+        const auto space = pool.Alloc<PartedName>();
+        const auto ptr = reinterpret_cast<PartedName*>(space.data());
+        new (ptr) PartedName(name, parts, exinfo);
+        return ptr;
+    }
+    else
+    {
+        const auto partSize = parts.size() * sizeof(PartType);
+        const auto space = pool.Alloc(sizeof(PartedName) + partSize, alignof(PartedName));
+        const auto ptr = reinterpret_cast<PartedName*>(space.data());
+        new (ptr) PartedName(name, parts, exinfo);
+        memcpy_s(ptr + 1, partSize, parts.data(), partSize);
+        return ptr;
+    }
+}
+
 struct ExpectParentheseL
 {
     static constexpr ParserToken Token = ParserToken(SectorLangToken::Parenthese, U'(');
@@ -98,6 +151,20 @@ void NailangParser::EatRightCurlyBrace()
     EatSingleToken<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
 }
 
+LateBindVar* NailangParser::CreateVar(std::u32string_view name) const
+{
+    try
+    {
+        return LateBindVar::Create(MemPool, name);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(NailangParseException(u"LateBindVar's name not valid"sv));
+    }
+    return nullptr;
+}
+
+
 
 struct FuncEndDelimer
 {
@@ -173,17 +240,16 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(BaseToken::Uint)        : target = token.GetUInt();                     break;
-            EID(BaseToken::Int)         : target = token.GetInt();                      break;
-            EID(BaseToken::FP)          : target = token.GetDouble();                   break;
-            EID(BaseToken::Bool)        : target = token.GetBool();                     break;
-            EID(SectorLangToken::Var)   : target = LateBindVar{ token.GetString() };    break;
+            EID(BaseToken::Uint)        : target = token.GetUInt();                 break;
+            EID(BaseToken::Int)         : target = token.GetInt();                  break;
+            EID(BaseToken::FP)          : target = token.GetDouble();               break;
+            EID(BaseToken::Bool)        : target = token.GetBool();                 break;
+            EID(SectorLangToken::Var)   : target = CreateVar(token.GetString());    break;
             EID(BaseToken::String)      : 
                 target = ProcessString(token.GetString(), MemPool); 
                 break;
             EID(SectorLangToken::Func)  :
-                target = MemPool.Create<FuncCall>(
-                    ParseFuncBody(token.GetString(), MemPool, Context));                
+                target = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context));                
                 break;
             EID(SectorLangToken::Parenthese):
                 if (token.GetChar() == U'(')
@@ -388,18 +454,18 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
     constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
 
+    const auto bindVar = CreateVar(var);
     const auto pos = GetPosition(Context);
-
-    auto varLen = var.size() * 2;
 
     const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
     Expects(opToken.GetIDEnum<SectorLangToken>() == SectorLangToken::Assign);
 
     std::optional<EmbedOps> selfOp;
+    bool checkNull = true;
     switch (static_cast<AssignOps>(opToken.GetUInt()))
     {
-    case AssignOps::   Assign:                         break;
-    case AssignOps::NilAssign: varLen += 1;            break;
+    case AssignOps::   Assign: checkNull = false;      break;
+    case AssignOps::NilAssign:                         break;
     case AssignOps::AndAssign: selfOp = EmbedOps::And; break;
     case AssignOps:: OrAssign: selfOp = EmbedOps:: Or; break;
     case AssignOps::AddAssign: selfOp = EmbedOps::Add; break;
@@ -409,6 +475,8 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     case AssignOps::RemAssign: selfOp = EmbedOps::Rem; break;
     default: OnUnExpectedToken(opToken, u"expect assign op"sv); break;
     }
+    if (checkNull)
+        bindVar->Info() |= LateBindVar::VarInfo::CheckNull;
 
     const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
     if (!stmt.has_value())
@@ -416,15 +484,15 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
 
     Assignment assign;
-    assign.Position  = pos;
-    assign.Variable_ = { var.data(), varLen };
+    assign.Position = pos;
+    assign.Target = bindVar;
     if (!selfOp.has_value())
     {
         assign.Statement = *stmt;
     }
     else
     {
-        BinaryExpr statement(*selfOp, LateBindVar{ var }, *stmt);
+        BinaryExpr statement(*selfOp, bindVar, *stmt);
         assign.Statement = MemPool.Create<BinaryExpr>(statement);
     }
     return assign;

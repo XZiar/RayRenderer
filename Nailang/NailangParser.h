@@ -78,6 +78,8 @@ protected:
     void EatRightParenthese();
     void EatLeftCurlyBrace();
     void EatRightCurlyBrace();
+
+    [[nodiscard]] LateBindVar* CreateVar(std::u32string_view name) const;
 public:
     NailangParser(MemoryPool& pool, common::parser::ParserContext& context, std::u16string subScope = u"") :
         ParserBase(context), MemPool(pool), SubScopeName(std::move(subScope)) { }

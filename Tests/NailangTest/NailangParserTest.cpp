@@ -113,7 +113,7 @@ TEST(NailangParser, ParseFuncBody)
         EXPECT_EQ(func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
         CHECK_VAR_ARG(func.Args[0], Var, U"val.xxx.3.len");
-        const auto var = func.Args[0].GetVar<RawArg::Type::Var>();
+        const auto& var = *func.Args[0].GetVar<RawArg::Type::Var>();
         EXPECT_THAT(var.Parts(), testing::ElementsAre(U"val"sv, U"xxx"sv, U"3"sv, U"len"sv));
     }
     {

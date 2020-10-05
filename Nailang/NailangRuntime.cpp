@@ -33,7 +33,7 @@ bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg
         size = gsl::narrow_cast<uint32_t>(args.size());
     LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
     for (const auto& arg : args)
-        LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+        LocalFuncArgNames.emplace_back(*arg.GetVar<RawArg::Type::Var>());
     return SetFuncInside(block->Name, { block, offset, size });
 }
 
@@ -860,8 +860,15 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     {
         ThrowIfNotBlockContent(meta, content, BlockContent::Type::Block);
         for (const auto& arg : meta.Args)
+        {
             if (arg.TypeData != RawArg::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
+            const auto& var = *arg.GetVar<RawArg::Type::Var>();
+            if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Global) || HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
+                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Global|Local] flag"sv, arg, &meta);
+            if (var.PartCount > 1)
+                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not have parts"sv, arg, &meta);
+        }
         SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
     }
@@ -931,8 +938,8 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         std::u32string_view varName;
         switch (call.Args[0].TypeData)
         {
-        case RawArg::Type::Var: varName = call.Args[0].GetVar<RawArg::Type::Var>().Name; break;
-        case RawArg::Type::Str: varName = call.Args[0].GetVar<RawArg::Type::Str>();      break;
+        case RawArg::Type::Var: varName = *call.Args[0].GetVar<RawArg::Type::Var>(); break;
+        case RawArg::Type::Str: varName =  call.Args[0].GetVar<RawArg::Type::Str>(); break;
         default:
             NLRT_THROW_EX(fmt::format(FMT_STRING(u"[Exists] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
                 call.Args[0]);
@@ -951,8 +958,8 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         std::u32string_view varName;
         switch (call.Args[0].TypeData)
         {
-        case RawArg::Type::Var: varName = call.Args[0].GetVar<RawArg::Type::Var>().Name; break;
-        case RawArg::Type::Str: varName = call.Args[0].GetVar<RawArg::Type::Str>();      break;
+        case RawArg::Type::Var: varName = *call.Args[0].GetVar<RawArg::Type::Var>(); break;
+        case RawArg::Type::Str: varName =  call.Args[0].GetVar<RawArg::Type::Str>(); break;
         default:
             NLRT_THROW_EX(fmt::format(FMT_STRING(u"[ValueOr] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
                 call.Args[0]);
@@ -1216,7 +1223,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         else
             NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
     case Type::Var:
-        return LookUpArg(arg.GetVar<Type::Var>().Name);
+        return LookUpArg(*arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();

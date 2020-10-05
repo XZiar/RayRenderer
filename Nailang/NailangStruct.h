@@ -88,13 +88,11 @@ public:
 #endif
 
 
-struct LateBindVar
+struct VarBase
 {
     using value_type = std::u32string_view;
-public:
-
     std::u32string_view Name;
-    [[nodiscard]] constexpr bool operator==(const LateBindVar& other) const noexcept
+    [[nodiscard]] constexpr bool operator==(const VarBase& other) const noexcept
     {
         return Name == other.Name;
     }
@@ -103,15 +101,81 @@ public:
         return Name == other;
     }
 
-    [[nodiscard]] constexpr auto Parts() const noexcept
+    [[nodiscard]] constexpr bool CheckGlobal() const noexcept
     {
-        return common::str::SplitStream(Name, U'.', true);
-    }
-    [[nodiscard]] constexpr std::u32string_view operator[](size_t index) const noexcept
-    {
-        return common::str::SplitStream(Name, U'.', true).Skip(index).TryGetFirst().value();
+        return !Name.empty() && Name[0] == U'`';
     }
 };
+
+struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common::NonMovable
+{
+    using value_type = char32_t;
+    using PartType = std::pair<uint16_t, uint16_t>;
+    [[nodiscard]] constexpr operator std::u32string_view() const noexcept
+    {
+        return { Ptr, Length };
+    }
+    [[nodiscard]] constexpr bool operator==(const PartedName& other) const noexcept
+    {
+        if (Length != other.Length)
+            return false;
+        if (Ptr == other.Ptr)
+            return true;
+        return std::char_traits<char32_t>::compare(Ptr, other.Ptr, Length) == 0;
+    }
+    [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
+    {
+        return other == *this;
+    }
+    [[nodiscard]] std::u32string_view operator[](size_t index) const noexcept
+    {
+        if (index >= PartCount)
+            return {};
+        if (PartCount == 1)
+            return *this;
+        const auto parts = reinterpret_cast<const PartType*>(this + 1);
+        const auto [offset, len] = parts[index];
+        return { Ptr + offset, len };
+    }
+    [[nodiscard]] constexpr auto Parts() const noexcept
+    {
+        return common::linq::FromRange<uint32_t>(0u, PartCount)
+            .Select([self = this](uint32_t idx) { return (*self)[idx]; });
+    }
+    NAILANGAPI static PartedName* Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo = 0);
+public:
+    const char32_t* Ptr;
+    uint32_t Length;
+    uint16_t PartCount;
+protected:
+    uint16_t ExternInfo;
+private:
+    constexpr PartedName(std::u32string_view name, common::span<const PartType> parts, uint16_t exinfo) noexcept :
+        Ptr(name.data()), Length(gsl::narrow_cast<uint32_t>(name.size())),
+        PartCount(gsl::narrow_cast<uint16_t>(parts.size())),
+        ExternInfo(exinfo)
+    { }
+};
+
+
+struct LateBindVar : public PartedName
+{
+    enum class VarInfo : uint16_t { Empty = 0x0, Global = 0x1, Local = 0x2, CheckNull = 0x4 };
+    constexpr VarInfo Info() const noexcept { return static_cast<VarInfo>(ExternInfo); }
+    VarInfo& Info() noexcept { return *reinterpret_cast<VarInfo*>(&ExternInfo); }
+    static LateBindVar* Create(MemoryPool& pool, std::u32string_view name)
+    {
+        const auto ptr = static_cast<LateBindVar*>(PartedName::Create(pool, name));
+        Expects(name.size() > 0);
+        VarInfo info = VarInfo::Empty;
+        if (name[0] == U'`') info = VarInfo::Global;
+        if (name[0] == U':') info = VarInfo::Local;
+        ptr->ExternInfo = common::enum_cast(info);
+        return ptr;
+    }
+};
+MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
+
 
 enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
 struct EmbedOpHelper
@@ -157,11 +221,8 @@ public:
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(2), TypeData(Type::Unary) {}
     RawArg(const BinaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Binary) {}
-    RawArg(const LateBindVar var) noexcept :
-        Data1(reinterpret_cast<uint64_t>(var.Name.data())), Data2(static_cast<uint32_t>(var.Name.size())), TypeData(Type::Var) 
-    {
-        Expects(var.Name.size() <= UINT32_MAX);
-    }
+    RawArg(const LateBindVar* ptr) noexcept :
+        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(4), TypeData(Type::Var) {}
     RawArg(const std::u32string_view str) noexcept :
         Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), TypeData(Type::Str)
     {
@@ -177,7 +238,7 @@ public:
         Data1(boolean ? 1 : 0), Data2(9), TypeData(Type::Bool) {}
 
     template<Type T>
-    [[nodiscard]] constexpr auto GetVar() const noexcept
+    [[nodiscard]] constexpr decltype(auto) GetVar() const noexcept
     {
         Expects(TypeData == T);
         if constexpr (T == Type::Func)
@@ -187,7 +248,7 @@ public:
         else if constexpr (T == Type::Binary)
             return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Var)
-            return LateBindVar{ {reinterpret_cast<const char32_t*>(Data1.Uint), Data2} };
+            return reinterpret_cast<const LateBindVar*>(Data1.Uint);
         else if constexpr (T == Type::Str)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
         else if constexpr (T == Type::Uint)
@@ -202,7 +263,9 @@ public:
             static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }
 
-    using Variant = std::variant<const FuncCall*, const UnaryExpr*, const BinaryExpr*, LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
+    using Variant = std::variant<
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const LateBindVar*, 
+        std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
         switch (TypeData)
@@ -238,7 +301,7 @@ public:
     }
 };
 
-struct CustomVar : LateBindVar
+struct CustomVar : public VarBase
 {
     uint64_t Meta0;
     uint32_t Meta1;
@@ -463,15 +526,15 @@ struct Block;
 
 struct Assignment : public WithPos
 {
-    std::u32string_view Variable_;
+    const LateBindVar* Target = nullptr;
     RawArg Statement;
     constexpr std::u32string_view GetVar() const noexcept
     { 
-        return { Variable_.data(), Variable_.size() / 2 };
+        return *Target;
     }
     constexpr bool IsNilCheck() const noexcept
     {
-        return Variable_.size() % 2 == 1;
+        return HAS_FIELD(Target->Info(), LateBindVar::VarInfo::CheckNull);
     }
 };
 
@@ -627,7 +690,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
-    static void Stringify(std::u32string& output, const LateBindVar var);
+    static void Stringify(std::u32string& output, const LateBindVar& var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);
     static void Stringify(std::u32string& output, const int64_t i64);

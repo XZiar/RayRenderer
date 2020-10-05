@@ -36,7 +36,7 @@ TemplateBlockInfo::TemplateBlockInfo(common::span<const RawArg> args)
     ReplaceArgs.reserve(args.size());
     for (const auto& arg : args)
     {
-        ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+        ReplaceArgs.emplace_back(*arg.GetVar<RawArg::Type::Var>());
     }
 }
 
@@ -599,7 +599,7 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);
             ThrowByArgType(fcall, RawArg::Type::Var, 0);
-            SetArg(fcall.Args[0].GetVar<RawArg::Type::Var>().Name, EvaluateArg(fcall.Args[1]));
+            SetArg(*fcall.Args[0].GetVar<RawArg::Type::Var>(), EvaluateArg(fcall.Args[1]));
         }
     }
     if (repVar || repFunc)
