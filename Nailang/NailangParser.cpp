@@ -8,28 +8,8 @@ namespace xziar::nailang
 using tokenizer::SectorLangToken;
 
 
-class NailangPartedNameException : public common::BaseException
+std::vector<PartedName::PartType> PartedName::GetParts(std::u32string_view name)
 {
-    friend class NailangParser;
-    PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
-        std::u32string_view Name;
-        std::u32string_view Part;
-        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
-            : ExceptionInfo(TYPENAME, msg, name, part)
-        { }
-    protected:
-        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
-            : TPInfo(type, msg), Name(name), Part(part)
-        { }
-    );
-    NailangPartedNameException(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
-        : BaseException(T_<ExceptionInfo>{}, msg, name, part)
-    { }
-};
-
-PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo)
-{
-    Expects(name.size() > 0);
     std::vector<PartType> parts;
     for (const auto piece : common::str::SplitStream(name, U'.', true))
     {
@@ -42,6 +22,12 @@ PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint1
             COMMON_THROW(NailangPartedNameException, u"Empty name part"sv, name, piece);
         parts.emplace_back(static_cast<uint16_t>(offset), static_cast<uint16_t>(piece.size()));
     }
+    return parts;
+}
+PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo)
+{
+    Expects(name.size() > 0);
+    const auto parts = GetParts(name);
     if (parts.size() == 1)
     {
         const auto space = pool.Alloc<PartedName>();
@@ -476,7 +462,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     default: OnUnExpectedToken(opToken, u"expect assign op"sv); break;
     }
     if (checkNull)
-        bindVar->Info() |= LateBindVar::VarInfo::CheckNull;
+        bindVar->Info() |= selfOp.has_value() ? LateBindVar::VarInfo::ReqNotNull : LateBindVar::VarInfo::ReqNull;
 
     const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
     if (!stmt.has_value())

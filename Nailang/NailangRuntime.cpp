@@ -64,16 +64,18 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
     return it->second;
 }
 
-Arg LargeEvaluateContext::LookUpArg(VarLookup var) const
+Arg LargeEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
-    if (const auto it = ArgMap.find(var.GetFull()); it != ArgMap.end())
+    const auto varName = static_cast<std::u32string_view>(var);
+    if (const auto it = ArgMap.find(varName); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
-bool LargeEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
+bool LargeEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
-    auto it = ArgMap.find(var.GetFull());
+    const auto varName = static_cast<std::u32string_view>(var);
+    auto it = ArgMap.find(varName);
     const bool hasIt = it != ArgMap.end();
     if (arg.IsEmpty())
     {
@@ -86,13 +88,13 @@ bool LargeEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
     {
         if (hasIt)
         {
-            it->second = arg;
+            it->second = std::move(arg);
             return true;
         }
         else
         {
             if (force)
-                ArgMap.insert_or_assign(std::u32string(var.GetFull()), arg);
+                ArgMap.insert_or_assign(std::u32string(varName), std::move(arg));
             return false;
         }
     }
@@ -111,11 +113,6 @@ size_t LargeEvaluateContext::GetFuncCount() const noexcept
 
 CompactEvaluateContext::~CompactEvaluateContext()
 { }
-
-std::u32string_view CompactEvaluateContext::GetStr(const uint32_t offset, const uint32_t len) const noexcept
-{
-    return { &StrPool[offset], len };
-}
 
 bool CompactEvaluateContext::SetFuncInside(std::u32string_view name, LocalFuncHolder func)
 {
@@ -141,24 +138,24 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, 0, 0 };
 }
 
-Arg CompactEvaluateContext::LookUpArg(VarLookup var) const
+Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
     for (const auto& [pos, val] : Args)
-        if (GetStr(pos.first, pos.second) == var.GetFull())
+        if (GetStringView(pos) == var)
             return val;
     return Arg{};
 }
 
-bool CompactEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
+bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
-        if (GetStr(pos.first, pos.second) == var.GetFull())
+        if (GetStringView(pos) == var)
             target = &val;
     const bool hasIt = target != nullptr;
     if (hasIt)
     {
-        *target = arg;
+        *target = std::move(arg);
         return true;
     }
     else
@@ -167,11 +164,8 @@ bool CompactEvaluateContext::SetArg(VarLookup var, Arg arg, const bool force)
             return false;
         if (force)
         {
-            const auto name = var.GetFull();
-            const uint32_t offset = gsl::narrow_cast<uint32_t>(StrPool.size()),
-                size = gsl::narrow_cast<uint32_t>(name.size());
-            StrPool.insert(StrPool.end(), name.cbegin(), name.cend());
-            Args.emplace_back(std::pair{ offset, size }, arg);
+            const auto piece = AllocateString(var);
+            Args.emplace_back(piece, std::move(arg));
         }
         return false;
     }
@@ -598,8 +592,20 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     case BlockContent::Type::Assignment:
     {
         const auto& assign = *content.Get<Assignment>();
-        if (!assign.IsNilCheck() || LookUpArg(assign.GetVar()).IsEmpty())
-            SetArg(assign.GetVar(), EvaluateArg(assign.Statement));
+        const auto& var = *assign.Target;
+        if (const auto chkNil = assign.GetNilCheck(); chkNil.has_value() && LookUpArg(var).IsEmpty() != *chkNil)
+        {
+            if (*chkNil) // non-null, skip assign
+                break;
+            else // Arg not exists, should throw
+            {
+                Expects(assign.Statement.TypeData == RawArg::Type::Binary);
+                const auto op = assign.Statement.GetVar<RawArg::Type::Binary>()->Operator;
+                NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists, expect perform [{}] on it"sv, 
+                    var, EmbedOpHelper::GetOpName(op)), RawArg{ assign.Target }, content);
+            }
+        }
+        SetArg(var, EvaluateArg(assign.Statement));
     } break;
     case BlockContent::Type::Block:
     {
@@ -694,6 +700,43 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
         return {};
     }
 }
+LateBindVar* NailangRuntimeBase::CreateVar(std::u32string_view name)
+{
+    try
+    {
+        return LateBindVar::Create(MemPool, name);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"LateBindVar's name not valid"sv));
+    }
+    return nullptr;
+}
+TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const
+{
+    switch (arg.TypeData)
+    {
+    case RawArg::Type::Var: 
+        return TempBindVar::Wrapper(arg.GetVar<RawArg::Type::Var>());
+    case RawArg::Type::Str: 
+        try
+        {
+            return LateBindVar::CreateTemp(arg.GetVar<RawArg::Type::Str>());
+        }
+        catch (const NailangPartedNameException&)
+        {
+            NLRT_THROW_EX(u"LateBindVar's name not valid"sv, arg);
+        }
+        break;
+    default:
+        NLRT_THROW_EX(fmt::format(FMT_STRING(u"[{}] only accept [Var]/[String], which gives [{}]."), reciever, ArgTypeName(arg.TypeData)),
+            arg);
+        break;
+    }
+    Expects(false);
+    return TempBindVar::Wrapper(nullptr);
+}
+
 
 void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
 {
@@ -737,43 +780,41 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
     return std::make_shared<CompactEvaluateContext>();
 }
 
-Arg NailangRuntimeBase::LookUpArg(VarLookup var) const
+Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
 {
-    switch (var.GetType())
-    {
-    case VarLookup::VarType::Root:
+    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Root))
         return RootContext->LookUpArg(var);
-    case VarLookup::VarType::Local:
+    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
+    {
         if (!CurFrame)
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var.GetRawName()));
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
         else if (CurFrame->Has(FrameFlags::Virtual))
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var.GetRawName()));
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
         else
             return CurFrame->Context->LookUpArg(var);
-        break;
-    case VarLookup::VarType::Normal:
-        for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
-        {
-            if (!frame->Has(FrameFlags::Virtual))
-            {
-                auto arg = frame->Context->LookUpArg(var);
-                if (arg.TypeData != Arg::Type::Empty)
-                    return arg;
-            }
-            //if (frame->Has(FrameFlags::CallScope))
-            //    break; // cannot beyond  
-        }
-        return RootContext->LookUpArg(var);
+        return {};
     }
-    return {};
-}
-bool NailangRuntimeBase::SetArg(VarLookup var, Arg arg)
-{
-    switch (var.GetType())
+
+    // Try find arg recursively
+    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
     {
-    case VarLookup::VarType::Root:
+        if (!frame->Has(FrameFlags::Virtual))
+        {
+            auto arg = frame->Context->LookUpArg(var);
+            if (arg.TypeData != Arg::Type::Empty)
+                return arg;
+        }
+        //if (frame->Has(FrameFlags::CallScope))
+        //    break; // cannot beyond  
+    }
+    return RootContext->LookUpArg(var);
+}
+bool NailangRuntimeBase::SetArg(const LateBindVar& var, Arg arg)
+{
+    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Root))
         return RootContext->SetArg(var, std::move(arg), true);
-    case VarLookup::VarType::Normal:
+    if (!HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
+    {
         for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
         {
             if (!frame->Has(FrameFlags::Virtual))
@@ -785,16 +826,15 @@ bool NailangRuntimeBase::SetArg(VarLookup var, Arg arg)
             //    break; // cannot beyond call scope
         }
         if (RootContext->SetArg(var, arg, false))
-            return true; 
-    case VarLookup::VarType::Local:
-        if (!CurFrame)
-            NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] without frame", var.GetRawName()));
-        else if (CurFrame->Has(FrameFlags::Virtual))
-            NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] in a virtual frame", var.GetRawName()));
-        else
-            return CurFrame->Context->SetArg(var, std::move(arg), true);
-        break;
+            return true;
     }
+    // Try set new arg in local
+    if (!CurFrame)
+        NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] without frame", var));
+    else if (CurFrame->Has(FrameFlags::Virtual))
+        NLRT_THROW_EX(FMTSTR(u"SetLocalArg [{}] in a virtual frame", var));
+    else
+        return CurFrame->Context->SetArg(var, std::move(arg), true);
     return false;
 }
 
@@ -864,8 +904,8 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
             if (arg.TypeData != RawArg::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
             const auto& var = *arg.GetVar<RawArg::Type::Var>();
-            if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Global) || HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
-                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Global|Local] flag"sv, arg, &meta);
+            if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::PrefixMask))
+                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, &meta);
             if (var.PartCount > 1)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not have parts"sv, arg, &meta);
         }
@@ -935,37 +975,20 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     HashCase(call.Name, U"Exists")
     {
         ThrowByArgCount(call, 1);
-        std::u32string_view varName;
-        switch (call.Args[0].TypeData)
-        {
-        case RawArg::Type::Var: varName = *call.Args[0].GetVar<RawArg::Type::Var>(); break;
-        case RawArg::Type::Str: varName =  call.Args[0].GetVar<RawArg::Type::Str>(); break;
-        default:
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[Exists] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
-                call.Args[0]);
-            return {};
-        }
-        return !LookUpArg(varName).IsEmpty();
+        const auto var = DecideDynamicVar(call.Args[0], u"Exists"sv);
+        return !LookUpArg(var).IsEmpty();
     }
     HashCase(call.Name, U"ExistsDynamic")
     {
-        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
-        return !LookUpArg(arg.GetStr().value()).IsEmpty();
+        const auto  arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+        const auto& var = *CreateVar(arg.GetStr().value());
+        return !LookUpArg(var).IsEmpty();
     }
     HashCase(call.Name, U"ValueOr")
     {
         ThrowByArgCount(call, 2);
-        std::u32string_view varName;
-        switch (call.Args[0].TypeData)
-        {
-        case RawArg::Type::Var: varName = *call.Args[0].GetVar<RawArg::Type::Var>(); break;
-        case RawArg::Type::Str: varName =  call.Args[0].GetVar<RawArg::Type::Str>(); break;
-        default:
-            NLRT_THROW_EX(fmt::format(FMT_STRING(u"[ValueOr] only accept [Var]/[String], which gives [{}]."), ArgTypeName(call.Args[0].TypeData)),
-                call.Args[0]);
-            return {};
-        }
-        if (auto ret = LookUpArg(varName); !ret.IsEmpty())
+        const auto var = DecideDynamicVar(call.Args[0], u"ValueOr"sv);
+        if (auto ret = LookUpArg(var); !ret.IsEmpty())
             return ret;
         else
             return EvaluateArg(call.Args[1]);
@@ -998,8 +1021,12 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
     auto newFrame = PushFrame(FrameFlags::FuncCall);
     CurFrame->BlockScope = func.Body;
     CurFrame->MetaScope = {};
-    for (const auto& [var, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
+    for (const auto& [varName, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
+    {
+        // ensured no parts
+        const auto var = LateBindVar::CreateSimple(varName);
         CurFrame->Context->SetArg(var, val, true);
+    }
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
 }
@@ -1217,20 +1244,22 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
             return ret.value();
         else
             NLRT_THROW_EX(u"Unary expr's arg type does not match requirement"sv, arg);
+        break;
     case Type::Binary:
         if (auto ret = EvaluateBinaryExpr(*arg.GetVar<Type::Binary>()); ret.has_value())
             return ret.value();
         else
             NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
-    case Type::Var:
-        return LookUpArg(*arg.GetVar<Type::Var>());
+        break;
+    case Type::Var:     return LookUpArg(*arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
     case Type::FP:      return arg.GetVar<Type::FP>();
     case Type::Bool:    return arg.GetVar<Type::Bool>();
-    default:            assert(false); /*Expects(false);*/ return {};
+    default:            assert(false); /*Expects(false);*/ break;
     }
+    return {};
 }
 
 std::optional<Arg> NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)

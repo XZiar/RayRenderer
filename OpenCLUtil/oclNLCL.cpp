@@ -105,12 +105,13 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
     for (const auto [key, val] : info)
     {
         const auto varName = common::str::to_u32string(key, Charset::UTF8);
+        const auto var = xziar::nailang::LateBindVar::CreateSimple(varName);
         switch (val.index())
         {
-        case 1: SetArg(varName, std::get<1>(val), true); break;
-        case 2: SetArg(varName, std::get<2>(val), true); break;
-        case 3: SetArg(varName, std::get<3>(val), true); break;
-        case 4: SetArg(varName, common::str::to_u32string(std::get<4>(val), Charset::UTF8), true); break;
+        case 1: SetArg(var, std::get<1>(val), true); break;
+        case 2: SetArg(var, std::get<2>(val), true); break;
+        case 3: SetArg(var, std::get<3>(val), true); break;
+        case 4: SetArg(var, common::str::to_u32string(std::get<4>(val), Charset::UTF8), true); break;
         case 0:
         default:
             break;
@@ -120,16 +121,21 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-Arg NLCLContext::LookUpCLArg(xziar::nailang::VarLookup var) const
+Arg NLCLContext::LookUpCLArg(const xziar::nailang::LateBindVar& var) const
 {
-    if (var.Part() == U"Extension"sv)
+    Expects(var.PartCount > 1);
+    if (var[1] == U"Extension"sv)
     {
-        const auto extName = common::str::to_string(var.Rest(), Charset::UTF8, Charset::UTF32);
+        if (var.PartCount != 3)
+            return {};
+        const auto extName = common::str::to_string(var[2], Charset::UTF8, Charset::UTF32);
         return Device->Extensions.Has(extName);
     }
-    if (var.Part() == U"Dev"sv)
+    if (var[1] == U"Dev"sv)
     {
-        const auto propName = var.Rest();
+        if (var.PartCount != 3)
+            return {};
+        const auto propName = var[2];
         switch (hash_(propName))
         {
 #define UINT_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
@@ -179,10 +185,10 @@ Arg NLCLContext::LookUpCLArg(xziar::nailang::VarLookup var) const
     return {};
 }
 
-Arg NLCLContext::LookUpArg(xziar::nailang::VarLookup var) const
+Arg NLCLContext::LookUpArg(const xziar::nailang::LateBindVar& var) const
 {
-    if (var.Part() == U"oclu"sv)
-        return LookUpCLArg(var.Rest());
+    if (var[0] == U"oclu"sv && var.PartCount > 1)
+        return LookUpCLArg(var);
     return CompactEvaluateContext::LookUpArg(var);
 }
 
@@ -260,10 +266,10 @@ void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
     NailangRuntimeBase::HandleException(ex);
 }
 
-xziar::nailang::Arg NLCLRuntime::LookUpArg(xziar::nailang::VarLookup var) const
+xziar::nailang::Arg NLCLRuntime::LookUpArg(const xziar::nailang::LateBindVar& var) const
 {
-    if (var.Part() == U"oclu"sv)
-        return Context.LookUpCLArg(var.Rest());
+    if (var[0] == U"oclu"sv && var.PartCount > 1)
+        return Context.LookUpCLArg(var);
     return NailangRuntimeBase::LookUpArg(var);
 }
 
@@ -362,7 +368,8 @@ void NLCLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
     }
     else // '@' not allowed in var anyway
     {
-        const auto ret = LookUpArg(var);
+        const auto var_ = DecideDynamicVar(var, u"ReplaceVariable"sv);
+        const auto ret = LookUpArg(var_);
         if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
         {
             NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
@@ -429,8 +436,14 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
                 auto frame = PushFrame(extra.ReplaceArgs.size() > 0, FrameFlags::FlowScope);
                 for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
                 {
-                    std::u32string name = U":"; name += extra.ReplaceArgs[i];
-                    SetArg(name, args[i + 1]);
+                    const auto var_ = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
+                    {
+                        using xziar::nailang::LateBindVar;
+                        auto& var2 = const_cast<LateBindVar&>(var_.Get());
+                        var2.Info() |= LateBindVar::VarInfo::Local;
+                    }
+                    const auto ret = LookUpArg(var_);
+                    SetArg(var_, args[i + 1]);
                 }
                 APPEND_FMT(output, U"// template block [{}]\r\n"sv, args[0]);
                 DirectOutput(*block->Block, block->MetaFunc, output, reinterpret_cast<BlockCookie*>(cookie));
@@ -1024,7 +1037,8 @@ NLCLBaseResult::~NLCLBaseResult()
 { }
 NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
-    auto result = Context->LookUpArg(name);
+    const auto var = xziar::nailang::LateBindVar::CreateTemp(name);
+    auto result = Context->LookUpArg(var);
     return result.Visit([](auto val) -> NLCLResult::ResultType
         {
             using T = std::decay_t<decltype(val)>;

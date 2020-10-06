@@ -1,6 +1,7 @@
 #pragma once
 #include "NailangStruct.h"
 #include "common/Exceptions.hpp"
+#include "common/StringPool.hpp"
 #include <map>
 #include <vector>
 #include <memory>
@@ -13,79 +14,6 @@
 namespace xziar::nailang
 {
 
-
-struct VarLookup
-{
-    enum class VarType { Normal, Local, Root };
-    constexpr VarLookup(const std::u32string_view name) noexcept : Ptr(name.data()), Size(gsl::narrow_cast<uint32_t>(name.size())),
-        Offset(0), NextOffset(0), Type(InitType(name))
-    {
-        if (Type != VarType::Normal)
-            Offset = 1;
-        FindNext();
-    }
-    template<typename T>
-    constexpr VarLookup(T&& val, std::enable_if_t<std::is_constructible_v<std::u32string_view, T>>* = nullptr) noexcept
-        : VarLookup(common::str::ToStringView(val)) { }
-    constexpr VarLookup(const VarLookup& other) noexcept : Ptr(other.Ptr), Size(other.Size), 
-        Offset(other.Type == VarType::Normal ? 0 : 1), NextOffset(0), Type(other.Type)
-    {
-        if (Offset == other.Offset)
-            NextOffset = other.NextOffset;
-        else
-            FindNext();
-    }
-
-    [[nodiscard]] constexpr std::u32string_view GetRawName() const noexcept { return { Ptr, Size }; }
-    [[nodiscard]] constexpr std::u32string_view GetFull() const noexcept
-    {
-        const uint32_t prefix = Type == VarType::Normal ? 0 : 1;
-        Expects(Size > prefix);
-        return { Ptr + prefix, static_cast<size_t>(Size) - prefix };
-    }
-    [[nodiscard]] constexpr VarType GetType() const noexcept { return Type; }
-    [[nodiscard]] constexpr std::u32string_view Part() const noexcept
-    {
-        return { Ptr + Offset, NextOffset - Offset };
-    }
-    [[nodiscard]] constexpr std::u32string_view Rest() const noexcept
-    {
-        const auto offset = std::min(NextOffset + 1, Size);
-        return { Ptr + offset, Size - offset };
-    }
-    [[nodiscard]] constexpr bool Next() noexcept
-    {
-        Offset = std::min(NextOffset + 1, Size);
-        return FindNext();
-    }
-private:
-    static constexpr VarType InitType(const std::u32string_view name) noexcept
-    {
-        if (name.size() > 0)
-        {
-            switch (name[0])
-            {
-            case U':':  return VarType::Local;
-            case U'`':  return VarType::Root;
-            default:    break;
-            }
-        }
-        return VarType::Normal;
-    }
-    const char32_t* Ptr;
-    uint32_t Size;
-    uint32_t Offset, NextOffset;
-    VarType Type;
-    constexpr bool FindNext() noexcept
-    {
-        if (Offset >= Size)
-            return false;
-        const auto ptr = std::char_traits<char32_t>::find(Ptr + Offset, Size - Offset, U'.');
-        Ensures(ptr == nullptr || ptr >= Ptr);
-        NextOffset = ptr == nullptr ? Size : static_cast<uint32_t>(ptr - Ptr);
-        return true;
-    }
-};
 
 struct LocalFunc
 {
@@ -101,9 +29,9 @@ class NAILANGAPI EvaluateContext
     friend class NailangRuntimeBase;
 public:
     virtual ~EvaluateContext();
-    [[nodiscard]] virtual Arg LookUpArg(VarLookup var) const = 0;
+    [[nodiscard]] virtual Arg LookUpArg(const LateBindVar& var) const = 0;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
-    virtual bool SetArg(VarLookup var, Arg arg, const bool force) = 0;
+    virtual bool SetArg(const LateBindVar& var, Arg arg, const bool force) = 0;
     virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
     virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args) = 0;
     [[nodiscard]] virtual size_t GetArgCount() const noexcept = 0;
@@ -137,28 +65,26 @@ protected:
 public:
     ~LargeEvaluateContext() override;
 
-    [[nodiscard]] Arg    LookUpArg(VarLookup var) const override;
-                  bool   SetArg(VarLookup var, Arg arg, const bool force) override;
+    [[nodiscard]] Arg    LookUpArg(const LateBindVar& var) const override;
+                  bool   SetArg(const LateBindVar& var, Arg arg, const bool force) override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
 
-class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
+class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext, private common::StringPool<char32_t>
 {
 protected:
-    std::vector<std::pair<std::pair<uint32_t, uint32_t>, Arg>> Args;
+    std::vector<std::pair<common::StringPiece<char32_t>, Arg>> Args;
     std::vector<std::pair<std::u32string_view, LocalFuncHolder>> LocalFuncs;
-    std::vector<char32_t> StrPool;
 
-    std::u32string_view GetStr(const uint32_t offset, const uint32_t len) const noexcept;
-
+    using StringPool<char32_t>::GetStringView;
     [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:
     ~CompactEvaluateContext() override;
 
-    [[nodiscard]] Arg    LookUpArg(VarLookup var) const override;
-                  bool   SetArg(VarLookup var, Arg arg, const bool force) override;
+    [[nodiscard]] Arg    LookUpArg(const LateBindVar& var) const override;
+                  bool   SetArg(const LateBindVar& var, Arg arg, const bool force) override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
@@ -473,11 +399,13 @@ protected:
                   void OnLoop           (const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
+    [[nodiscard]] LateBindVar* CreateVar(std::u32string_view name);
+    [[nodiscard]] TempBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever = {}) const;
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
-    [[nodiscard]] virtual Arg  LookUpArg(VarLookup var) const;
-                  virtual bool SetArg(VarLookup var, Arg arg);
+    [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
+                  virtual bool SetArg(const LateBindVar& var, Arg arg);
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);

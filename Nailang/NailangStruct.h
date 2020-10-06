@@ -83,10 +83,6 @@ public:
     }
 };
 
-#if COMPILER_MSVC
-#   pragma warning(pop)
-#endif
-
 
 struct VarBase
 {
@@ -142,6 +138,7 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
         return common::linq::FromRange<uint32_t>(0u, PartCount)
             .Select([self = this](uint32_t idx) { return (*self)[idx]; });
     }
+    NAILANGAPI static std::vector<PartType> GetParts(std::u32string_view name);
     NAILANGAPI static PartedName* Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo = 0);
 public:
     const char32_t* Ptr;
@@ -149,7 +146,6 @@ public:
     uint16_t PartCount;
 protected:
     uint16_t ExternInfo;
-private:
     constexpr PartedName(std::u32string_view name, common::span<const PartType> parts, uint16_t exinfo) noexcept :
         Ptr(name.data()), Length(gsl::narrow_cast<uint32_t>(name.size())),
         PartCount(gsl::narrow_cast<uint16_t>(parts.size())),
@@ -158,23 +154,109 @@ private:
 };
 
 
+class TempBindVar;
 struct LateBindVar : public PartedName
 {
-    enum class VarInfo : uint16_t { Empty = 0x0, Global = 0x1, Local = 0x2, CheckNull = 0x4 };
+    enum class VarInfo : uint16_t 
+    { 
+        Empty = 0x0, Root = 0x1, Local = 0x2, PrefixMask = Root | Local, 
+        ReqNull = 0x4, ReqNotNull = 0x8, NullCheckMask = ReqNull | ReqNotNull,
+    };
+
     constexpr VarInfo Info() const noexcept { return static_cast<VarInfo>(ExternInfo); }
     VarInfo& Info() noexcept { return *reinterpret_cast<VarInfo*>(&ExternInfo); }
+
+    std::u32string_view GetRest(const uint32_t index) const noexcept
+    {
+        if (index >= PartCount)
+            return {};
+        if (index == 0)
+            return *this;
+        const auto parts = reinterpret_cast<const PartType*>(this + 1);
+        const auto offset = parts[index].first;
+        return { Ptr + offset, Length - offset };
+    }
+
     static LateBindVar* Create(MemoryPool& pool, std::u32string_view name)
     {
+        if (name.size() == 0)
+            return nullptr;
+        const auto info = ParseInfo(name);
         const auto ptr = static_cast<LateBindVar*>(PartedName::Create(pool, name));
-        Expects(name.size() > 0);
-        VarInfo info = VarInfo::Empty;
-        if (name[0] == U'`') info = VarInfo::Global;
-        if (name[0] == U':') info = VarInfo::Local;
         ptr->ExternInfo = common::enum_cast(info);
         return ptr;
     }
+    /// <summary>Create a LateBindVar without parts</summary>
+    /// <param name="name">var name</param>
+    /// <returns></returns>
+    static LateBindVar CreateSimple(std::u32string_view name)
+    {
+        Expects(name.size() > 0);
+        const auto info = ParseInfo(name);
+        PartType parts[1] = { {(uint16_t)0, gsl::narrow_cast<uint16_t>(name.size())} };
+        return LateBindVar(name, parts, common::enum_cast(info));
+    }
+    static TempBindVar CreateTemp(std::u32string_view name);
+private:
+    friend TempBindVar;
+    using PartedName::PartedName;
+    static constexpr VarInfo ParseInfo(std::u32string_view& name) noexcept
+    {
+        VarInfo info = VarInfo::Empty;
+        if (name[0] == U'`')
+            info = VarInfo::Root, name.remove_prefix(1);
+        else if (name[0] == U':')
+            info = VarInfo::Local, name.remove_prefix(1);
+        return info;
+    }
 };
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
+
+class NAILANGAPI TempBindVar
+{
+    friend LateBindVar;
+    LateBindVar Var;
+    union Tail
+    {
+        const LateBindVar* Ptr;
+        PartedName::PartType Parts[4];
+        constexpr Tail() noexcept : Ptr(nullptr) {}
+    } Extra;
+    explicit TempBindVar(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info);
+    explicit TempBindVar(const LateBindVar* var) noexcept;
+public:
+    TempBindVar(TempBindVar&& other) noexcept;
+    ~TempBindVar();
+    constexpr const LateBindVar& Get() const noexcept
+    {
+        return (Var.PartCount > 4 || Var.PartCount == 0) ? *Extra.Ptr : Var;
+    }
+    TempBindVar Copy() const noexcept;
+    constexpr operator const LateBindVar& () const noexcept
+    {
+        return Get();
+    }
+    /// <summary>Create a TempBindVar that wrappers a LateBindVar</summary>
+    /// <param name="var">LateBindVar</param>
+    /// <returns>TempBindVar</returns>
+    static TempBindVar Wrapper(const LateBindVar* var) noexcept
+    {
+        return TempBindVar(var);
+    }
+}; 
+
+inline TempBindVar LateBindVar::CreateTemp(std::u32string_view name)
+{
+    Expects(name.size() > 0);
+    const auto info = ParseInfo(name);
+    const auto parts = PartedName::GetParts(name);
+    return TempBindVar(name, parts, common::enum_cast(info));
+}
+
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
@@ -184,6 +266,7 @@ struct EmbedOpHelper
     {
         return op == EmbedOps::Not;
     }
+    [[nodiscard]] static std::u32string_view GetOpName(EmbedOps op) noexcept;
 };
 
 
@@ -532,9 +615,13 @@ struct Assignment : public WithPos
     { 
         return *Target;
     }
-    constexpr bool IsNilCheck() const noexcept
+    constexpr std::optional<bool> GetNilCheck() const noexcept
     {
-        return HAS_FIELD(Target->Info(), LateBindVar::VarInfo::CheckNull);
+        if (HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNull))
+            return true;
+        if (HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNotNull))
+            return false;
+        return {};
     }
 };
 
@@ -690,7 +777,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
-    static void Stringify(std::u32string& output, const LateBindVar& var);
+    static void Stringify(std::u32string& output, const LateBindVar* var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);
     static void Stringify(std::u32string& output, const int64_t i64);

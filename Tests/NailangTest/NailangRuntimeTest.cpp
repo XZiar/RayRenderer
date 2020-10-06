@@ -35,10 +35,10 @@ class EvalCtx : public CompactEvaluateContext
 public:
     EvalCtx()
     {
-        SetArg(U"valU64"sv, Arg(uint64_t(1)), true);
-        SetArg(U"valI64"sv, Arg(int64_t(2)), true);
-        SetArg(U"valF64"sv, Arg(3.0), true);
-        SetArg(U"valStr"sv, Arg(U"txt"sv), true);
+        SetArg(LateBindVar::CreateSimple(U"valU64"sv), Arg(uint64_t(1)), true);
+        SetArg(LateBindVar::CreateSimple(U"valI64"sv), Arg(int64_t(2)), true);
+        SetArg(LateBindVar::CreateSimple(U"valF64"sv), Arg(3.0), true);
+        SetArg(LateBindVar::CreateSimple(U"valStr"sv), Arg(U"txt"sv), true);
     }
 };
 class EvalCtx2 : public CompactEvaluateContext
@@ -55,20 +55,32 @@ public:
         CurFrame = &BaseFrame;
     }
 
-    auto SetRootArg(std::u32string_view name, Arg val) { return RootContext->SetArg(name, std::move(val), true); }
-    auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
-
     using NailangRuntimeBase::RootContext;
 
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::EvaluateArg;
     using NailangRuntimeBase::HandleContent;
+
+    auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
+    auto SetRootArg(std::u32string_view name, Arg val)
+    {
+        return RootContext->SetArg(LateBindVar::CreateSimple(name), std::move(val), true);
+    }
     void Assign(const Assignment& assign)
     {
         auto& ctx = CurFrame ? *CurFrame->Context : *RootContext;
-        if (assign.IsNilCheck() && !ctx.LookUpArg(assign.GetVar()).IsEmpty()) // non-null
-            return;
-        ctx.SetArg(assign.GetVar(), EvaluateArg(assign.Statement), true);
+        const auto& var = *assign.Target;
+        if (const auto chkNil = assign.GetNilCheck(); chkNil.has_value() && ctx.LookUpArg(var).IsEmpty() != *chkNil)
+        {
+            if (*chkNil) // non-null, skip assign
+                return;
+            else // Arg not exists, should throw
+            {
+                Expects(assign.Statement.TypeData == RawArg::Type::Binary);
+                throw "Request Var exists"sv;
+            }
+        }
+        ctx.SetArg(var, EvaluateArg(assign.Statement), true);
     }
 
 };
@@ -146,23 +158,6 @@ CHECK_ARG(ret.value(), type, ans);          \
 //    void SetUp() override { }
 //    void TearDown() override { }
 //};
-
-
-TEST(NailangRuntime, VarLookup)
-{
-    constexpr auto var = U"a.b..c"sv;
-    xziar::nailang::VarLookup lookup(var);
-    EXPECT_EQ(lookup.GetRawName(), var);
-    EXPECT_EQ(lookup.Part(), U"a"sv);
-    EXPECT_TRUE(lookup.Next());
-    EXPECT_EQ(lookup.Part(), U"b"sv);
-    EXPECT_TRUE(lookup.Next());
-    EXPECT_EQ(lookup.Part(), U""sv);
-    EXPECT_TRUE(lookup.Next());
-    EXPECT_EQ(lookup.Part(), U"c"sv);
-    EXPECT_FALSE(lookup.Next());
-    EXPECT_EQ(lookup.Part(), U""sv);
-}
 
 
 TEST(NailangRuntime, ParseEvalEmbedOp)
@@ -386,12 +381,12 @@ TEST(NailangRuntime, MathIntrinFunc)
 }
 
 
-#define LOOKUP_ARG(rt, name, type, val) do      \
-{                                               \
-    const LateBindVar var{ name };              \
-    const auto arg = runtime.EvaluateArg(var);  \
-    CHECK_ARG(arg, type, val);                  \
-} while(0)                                      \
+#define LOOKUP_ARG(rt, name, type, val) do              \
+{                                                       \
+    const auto var = LateBindVar::CreateSimple(name);   \
+    const auto arg = rt.EvaluateArg(&var);              \
+    CHECK_ARG(arg, type, val);                          \
+} while(0)                                              \
 
 
 //TEST(NailangRuntime, Variable)
@@ -570,10 +565,10 @@ TEST(NailangRuntime, DefFunc)
 uint64_t gcd(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
 {
     auto ctx = std::make_shared<CompactEvaluateContext>();
-    ctx->SetArg(U"m"sv, m, true);
-    ctx->SetArg(U"n"sv, n, true);
+    ctx->SetArg(LateBindVar::CreateSimple(U"m"sv), m, true);
+    ctx->SetArg(LateBindVar::CreateSimple(U"n"sv), n, true);
     runtime.ExecuteBlock(algoBlock, {}, ctx);
-    const auto ans = ctx->LookUpArg(U"m"sv);
+    const auto ans = ctx->LookUpArg(LateBindVar::CreateSimple(U"m"sv));
     EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
     return *ans.GetUint();
 }

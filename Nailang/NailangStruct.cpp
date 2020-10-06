@@ -1,5 +1,6 @@
 #include "NailangStruct.h"
 #include "StringUtil/Format.h"
+#include "common/AlignedBase.hpp"
 #include <cassert>
 
 namespace xziar::nailang
@@ -15,6 +16,88 @@ std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
         used += trunk.Offset, unused += trunk.Avaliable;
     }
     return { used, used + unused };
+}
+
+
+static constexpr PartedName::PartType DummyPart[1] = { {(uint16_t)0, (uint16_t)0} };
+TempBindVar::TempBindVar(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info)
+    : Var(name, parts, info)
+{
+    Expects(parts.size() > 0);
+    constexpr auto SizeP = sizeof(PartedName::PartType);
+    const auto partSize = parts.size() * SizeP;
+    switch (parts.size())
+    {
+    case 1:
+        break;
+    case 2:
+    case 3:
+    case 4:
+        memcpy_s(Extra.Parts, partSize, parts.data(), partSize);
+        break;
+    default:
+    {
+        const auto ptr = reinterpret_cast<LateBindVar*>(malloc(sizeof(LateBindVar) + partSize));
+        Extra.Ptr = ptr;
+        new (ptr) LateBindVar(name, parts, info);
+        memcpy_s(ptr + 1, partSize, parts.data(), partSize);
+        break;
+    }
+    }
+}
+TempBindVar::TempBindVar(const LateBindVar* var) noexcept : Var(*var, DummyPart, var->ExternInfo)
+{
+    Extra.Ptr = var;
+}
+TempBindVar::TempBindVar(TempBindVar&& other) noexcept : 
+    Var(other.Var, DummyPart, other.Var.ExternInfo), Extra(other.Extra)
+{
+    Var.PartCount = other.Var.PartCount;
+    other.Var.Ptr = nullptr;
+    other.Var.PartCount = 0;
+    other.Extra.Ptr = nullptr;
+}
+TempBindVar::~TempBindVar()
+{
+    if (Var.PartCount > 4)
+        free(const_cast<LateBindVar*>(Extra.Ptr));
+}
+TempBindVar TempBindVar::Copy() const noexcept
+{
+    common::span<const PartedName::PartType> parts;
+    if (Var.PartCount > 4 || Var.PartCount == 0)
+    {
+        parts = { reinterpret_cast<const PartedName::PartType*>(Extra.Ptr + 1), Extra.Ptr->PartCount };
+    }
+    else
+    {
+        parts = { Extra.Parts, Var.PartCount };
+    }
+    return TempBindVar(Var, parts, Var.ExternInfo);
+}
+
+
+std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
+{
+    switch (op)
+    {
+    #define RET_NAME(op) case EmbedOps::op: return U"" STRINGIZE(op)
+    RET_NAME(Equal);
+    RET_NAME(NotEqual);
+    RET_NAME(Less);
+    RET_NAME(LessEqual);
+    RET_NAME(Greater);
+    RET_NAME(GreaterEqual);
+    RET_NAME(And);
+    RET_NAME(Or);
+    RET_NAME(Not);
+    RET_NAME(Add);
+    RET_NAME(Sub);
+    RET_NAME(Mul);
+    RET_NAME(Div);
+    RET_NAME(Rem);
+    default: return U"Unknwon"sv;
+    }
 }
 
 
@@ -111,9 +194,13 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         output.push_back(U')');
 }
 
-void Serializer::Stringify(std::u32string& output, const LateBindVar& var)
+void Serializer::Stringify(std::u32string& output, const LateBindVar* var)
 {
-    output.append(static_cast<std::u32string_view>(var));
+    if (HAS_FIELD(var->Info(), LateBindVar::VarInfo::Root))
+        output.push_back(U'`');
+    else if (HAS_FIELD(var->Info(), LateBindVar::VarInfo::Local))
+        output.push_back(U':');
+    output.append(static_cast<std::u32string_view>(*var));
 }
 
 void Serializer::Stringify(std::u32string& output, const std::u32string_view str)

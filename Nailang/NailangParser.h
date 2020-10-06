@@ -13,6 +13,20 @@
 namespace xziar::nailang
 {
 
+class NailangPartedNameException final : public common::BaseException
+{
+    friend class NailangParser;
+    PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
+        std::u32string_view Name;
+        std::u32string_view Part;
+        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+            : TPInfo(TYPENAME, msg), Name(name), Part(part)
+        { }
+    );
+    NailangPartedNameException(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+        : BaseException(T_<ExceptionInfo>{}, msg, name, part)
+    { }
+};
 
 class NAILANGAPI NailangParseException : public common::BaseException
 {

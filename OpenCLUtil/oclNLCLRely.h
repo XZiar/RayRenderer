@@ -162,14 +162,14 @@ class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public common::NonCopyable, publi
     friend class NLCLProgStub;
 protected:
     std::vector<std::unique_ptr<NLCLExtension>> NLCLExts;
-    xziar::nailang::Arg LookUpCLArg(xziar::nailang::VarLookup var) const;
+    xziar::nailang::Arg LookUpCLArg(const xziar::nailang::LateBindVar& var) const;
 public:
     const oclDevice Device;
     const bool SupportFP16, SupportFP64, SupportNVUnroll,
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
-    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::VarLookup var) const override;
+    [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
     template<typename T, typename F, typename... Args>
     bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
     {
@@ -251,7 +251,7 @@ struct KernelCookie : public BlockCookie
 };
 
 
-class OCLUAPI NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
+class OCLUAPI COMMON_EMPTY_BASES NLCLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable, protected xziar::nailang::ReplaceEngine
 {
     friend class KernelExtension;
     friend class NLCLProcessor;
@@ -267,7 +267,7 @@ protected:
 
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
-    [[nodiscard]] xziar::nailang::Arg LookUpArg(xziar::nailang::VarLookup var) const override;
+    [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
     void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     common::simd::VecDataInfo ParseVecType(const std::u32string_view type, 
