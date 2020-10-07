@@ -278,6 +278,7 @@ struct EmbedOpHelper
 struct FuncCall;
 struct UnaryExpr;
 struct BinaryExpr;
+struct IndexerExpr;
 
 namespace detail
 {
@@ -299,7 +300,7 @@ private:
     detail::IntFPUnion Data1;
     uint32_t Data2;
 public:
-    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Var, Str, Uint, Int, FP, Bool };
+    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Indexer, Var, Str, Uint, Int, FP, Bool };
     Type TypeData;
 
     constexpr RawArg() noexcept : Data1(), Data2(0), TypeData(Type::Empty) {}
@@ -309,6 +310,8 @@ public:
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(2), TypeData(Type::Unary) {}
     RawArg(const BinaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Binary) {}
+    RawArg(const IndexerExpr* ptr) noexcept :
+        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Indexer) {}
     RawArg(const LateBindVar* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Data2(4), TypeData(Type::Var) {}
     RawArg(const std::u32string_view str) noexcept :
@@ -335,6 +338,8 @@ public:
             return reinterpret_cast<const UnaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Binary)
             return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Indexer)
+            return reinterpret_cast<const IndexerExpr*>(Data1.Uint);
         else if constexpr (T == Type::Var)
             return reinterpret_cast<const LateBindVar*>(Data1.Uint);
         else if constexpr (T == Type::Str)
@@ -352,7 +357,7 @@ public:
     }
 
     using Variant = std::variant<
-        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const LateBindVar*, 
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const IndexerExpr*, const LateBindVar*,
         std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
@@ -361,6 +366,7 @@ public:
         case Type::Func:    return GetVar<Type::Func>();
         case Type::Unary:   return GetVar<Type::Unary>();
         case Type::Binary:  return GetVar<Type::Binary>();
+        case Type::Indexer: return GetVar<Type::Indexer>();
         case Type::Var:     return GetVar<Type::Var>();
         case Type::Str:     return GetVar<Type::Str>();
         case Type::Uint:    return GetVar<Type::Uint>();
@@ -378,6 +384,7 @@ public:
         case Type::Func:    return visitor(GetVar<Type::Func>());
         case Type::Unary:   return visitor(GetVar<Type::Unary>());
         case Type::Binary:  return visitor(GetVar<Type::Binary>());
+        case Type::Indexer: return visitor(GetVar<Type::Indexer>());
         case Type::Var:     return visitor(GetVar<Type::Var>());
         case Type::Str:     return visitor(GetVar<Type::Str>());
         case Type::Uint:    return visitor(GetVar<Type::Uint>());
@@ -636,6 +643,12 @@ struct BinaryExpr
     BinaryExpr(const EmbedOps op, const RawArg left, const RawArg right) noexcept :
         LeftOprend(left), RightOprend(right), Operator(op) { }
 };
+struct IndexerExpr
+{
+    RawArg Target, Index;
+    IndexerExpr(const RawArg target, const RawArg index) noexcept :
+        Target(target), Index(index) { }
+};
 
 
 template<typename T>
@@ -824,6 +837,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
+    static void Stringify(std::u32string& output, const IndexerExpr* expr);
     static void Stringify(std::u32string& output, const LateBindVar* var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);

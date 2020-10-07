@@ -409,17 +409,18 @@ std::u32string_view NailangRuntimeBase::ArgTypeName(const RawArg::Type type) noe
 {
     switch (type)
     {
-    case RawArg::Type::Empty:  return U"empty"sv;
-    case RawArg::Type::Func:   return U"func-call"sv;
-    case RawArg::Type::Unary:  return U"unary-expr"sv;
-    case RawArg::Type::Binary: return U"binary-expr"sv;
-    case RawArg::Type::Var:    return U"variable"sv;
-    case RawArg::Type::Str:    return U"string"sv;
-    case RawArg::Type::Uint:   return U"uint"sv;
-    case RawArg::Type::Int:    return U"int"sv;
-    case RawArg::Type::FP:     return U"fp"sv;
-    case RawArg::Type::Bool:   return U"bool"sv;
-    default:                   return U"error"sv;
+    case RawArg::Type::Empty:   return U"empty"sv;
+    case RawArg::Type::Func:    return U"func-call"sv;
+    case RawArg::Type::Unary:   return U"unary-expr"sv;
+    case RawArg::Type::Binary:  return U"binary-expr"sv;
+    case RawArg::Type::Indexer: return U"indexer-expr"sv;
+    case RawArg::Type::Var:     return U"variable"sv;
+    case RawArg::Type::Str:     return U"string"sv;
+    case RawArg::Type::Uint:    return U"uint"sv;
+    case RawArg::Type::Int:     return U"int"sv;
+    case RawArg::Type::FP:      return U"fp"sv;
+    case RawArg::Type::Bool:    return U"bool"sv;
+    default:                    return U"error"sv;
     }
 }
 
@@ -795,6 +796,26 @@ TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
     }
     Expects(false);
     return TempBindVar::Wrapper(nullptr);
+}
+
+size_t NailangRuntimeBase::BiDirIndexCheck(const size_t size, const RawArg& index)
+{
+    const auto idx = EvaluateArg(index);
+    if (!idx.IsInteger())
+        NLRT_THROW_EX(FMTSTR(u"Require integer as indexer, get[{}]"sv, ArgTypeName(idx.TypeData)), index);
+    bool isReverse = false;
+    uint64_t realIdx = 0;
+    if (idx.TypeData == Arg::Type::Uint)
+        realIdx = idx.GetUint().value();
+    else
+    {
+        const auto tmp = idx.GetInt().value();
+        isReverse = tmp < 0;
+        realIdx = std::abs(tmp);
+    }
+    if (realIdx >= size)
+        NLRT_THROW_EX(FMTSTR(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
+    return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
 
 
@@ -1308,6 +1329,12 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         else
             NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
         break;
+    case Type::Indexer:
+    {
+        const auto expr   = arg.GetVar<Type::Indexer>();
+        const auto target = EvaluateArg(expr->Target);
+        return EvaluateIndexerExpr(target, expr->Index);
+    }
     case Type::Var:     return LookUpArg(*arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
@@ -1368,6 +1395,18 @@ std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr
         NLRT_THROW_EX(u"Unexpected binary op"sv, RawArg(&expr));
         return {};
     }
+}
+
+Arg NailangRuntimeBase::EvaluateIndexerExpr(const Arg& target, const RawArg& index)
+{
+    if (target.IsStr())
+    {
+        const auto str = target.GetStr().value();
+        const auto idx = BiDirIndexCheck(str.size(), index);
+        return std::u32string(1, str[idx]);
+    }
+    NLRT_THROW_EX(u"Indexer currently only support string"sv);
+    return {};
 }
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)

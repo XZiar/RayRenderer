@@ -194,6 +194,14 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         output.push_back(U')');
 }
 
+void Serializer::Stringify(std::u32string& output, const IndexerExpr* expr)
+{
+    Stringify(output, expr->Target, true);
+    output.push_back(U'[');
+    Stringify(output, expr->Index, false);
+    output.push_back(U']');
+}
+
 void Serializer::Stringify(std::u32string& output, const LateBindVar* var)
 {
     if (HAS_FIELD(var->Info(), LateBindVar::VarInfo::Root))

@@ -5,7 +5,7 @@
 
 namespace xziar::nailang
 {
-using tokenizer::SectorLangToken;
+using tokenizer::NailangToken;
 
 
 std::vector<PartedName::PartType> PartedName::GetParts(std::u32string_view name)
@@ -48,19 +48,19 @@ PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint1
 
 struct ExpectParentheseL
 {
-    static constexpr ParserToken Token = ParserToken(SectorLangToken::Parenthese, U'(');
+    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U'(');
 };
 struct ExpectParentheseR
 {
-    static constexpr ParserToken Token = ParserToken(SectorLangToken::Parenthese, U')');
+    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U')');
 };
 struct ExpectCurlyBraceL
 {
-    static constexpr ParserToken Token = ParserToken(SectorLangToken::CurlyBrace, U'{');
+    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'{');
 };
 struct ExpectCurlyBraceR
 {
-    static constexpr ParserToken Token = ParserToken(SectorLangToken::CurlyBrace, U'}');
+    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'}');
 };
 
 
@@ -72,8 +72,8 @@ std::pair<uint32_t, uint32_t> NailangParser::GetPosition(const common::parser::P
 
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
-#define RET_TK_ID(type) case SectorLangToken::type:        return u ## #type
-    switch (static_cast<SectorLangToken>(tid))
+#define RET_TK_ID(type) case NailangToken::type:        return u ## #type
+    switch (static_cast<NailangToken>(tid))
     {
         RET_TK_ID(Raw);
         RET_TK_ID(Block);
@@ -160,6 +160,10 @@ struct GroupEndDelimer
 {
     static constexpr DelimTokenizer Stopper() noexcept { return ")"sv; }
 };
+struct IndexerEndDelimer
+{
+    static constexpr DelimTokenizer Stopper() noexcept { return "]"sv; }
+};
 struct StatementEndDelimer
 {
     static constexpr DelimTokenizer Stopper() noexcept { return ";"sv; }
@@ -175,7 +179,8 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
     constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
         tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
-        tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer>(StopDelim);
+        tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
+        tokenizer::SquareBracketTokenizer>(StopDelim);
     constexpr auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
         tokenizer::EmbedOpTokenizer>(StopDelim);
     
@@ -206,7 +211,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
             }
         }
 
-        if (token.GetIDEnum<SectorLangToken>() == SectorLangToken::EmbedOp)
+        if (token.GetIDEnum<NailangToken>() == NailangToken::EmbedOp)
         {
             if (op.has_value())
                 OnUnExpectedToken(token, u"already has op"sv);
@@ -217,6 +222,30 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
             if (!isUnary && !oprend1.has_value())
                 OnUnExpectedToken(token, u"expect operand before binary operator"sv);
             op = opval;
+        }
+        else if (token.GetIDEnum<NailangToken>() == NailangToken::SquareBracket) // Indexer
+        {
+            if (token.GetChar() == U']')
+                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+            auto& target = op.has_value() ? oprend2 : oprend1;
+            if (!target.has_value())
+                OnUnExpectedToken(token, u"Indexer should follow a RawArg"sv);
+            switch (target->TypeData)
+            {
+            case RawArg::Type::Func:
+            case RawArg::Type::Unary:
+            case RawArg::Type::Binary:
+            case RawArg::Type::Indexer:
+            case RawArg::Type::Var:
+                break;
+            default:
+                OnUnExpectedToken(token, u"Indexer should not follow a litteral type"sv);
+                break;
+            }
+            auto index = ParseArg<IndexerEndDelimer>().first;
+            if (!index.has_value())
+                OnUnExpectedToken(token, u"lack of index"sv);
+            target = MemPool.Create<IndexerExpr>(*target, *index);
         }
         else
         {
@@ -230,17 +259,17 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
             EID(BaseToken::Int)         : target = token.GetInt();                  break;
             EID(BaseToken::FP)          : target = token.GetDouble();               break;
             EID(BaseToken::Bool)        : target = token.GetBool();                 break;
-            EID(SectorLangToken::Var)   : target = CreateVar(token.GetString());    break;
+            EID(NailangToken::Var)      : target = CreateVar(token.GetString());    break;
             EID(BaseToken::String)      : 
                 target = ProcessString(token.GetString(), MemPool); 
                 break;
-            EID(SectorLangToken::Func)  :
+            EID(NailangToken::Func)  :
                 target = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::ExprPart));
                 break;
-            EID(SectorLangToken::Parenthese):
+            EID(NailangToken::Parenthese):
                 if (token.GetChar() == U'(')
                     target = ParseArg<GroupEndDelimer>().first;
-                else
+                else // == U')'
                     OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
                 break; 
             default                     : OnUnExpectedToken(token, u"Unexpected token"sv);
@@ -403,7 +432,7 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
        
-    constexpr auto ExpectRawOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Raw, SectorLangToken::MetaFunc);
+    constexpr auto ExpectRawOrMeta = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Raw, NailangToken::MetaFunc);
 
     constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer>();
 
@@ -411,16 +440,16 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
     while (true)
     {
         const auto token = ExpectNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken, ExpectRawOrMeta);
-        switch (token.GetIDEnum<SectorLangToken>())
+        switch (token.GetIDEnum<NailangToken>())
         {
-        case SectorLangToken::Raw:
+        case NailangToken::Raw:
         {
             RawBlockWithMeta block;
             static_cast<RawBlock&>(block) = FillRawBlock(token.GetString());
             block.MetaFunctions = MemPool.CreateArray(metaFuncs);
             return block;
         } break;
-        case SectorLangToken::MetaFunc:
+        case NailangToken::MetaFunc:
             metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
             break;
         default:
@@ -452,13 +481,13 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     using tokenizer::AssignOps;
 
     constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
-    constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, SectorLangToken::Assign);
+    constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Assign);
 
     const auto bindVar = CreateVar(var);
     const auto pos = GetPosition(Context);
 
     const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
-    Expects(opToken.GetIDEnum<SectorLangToken>() == SectorLangToken::Assign);
+    Expects(opToken.GetIDEnum<NailangToken>() == NailangToken::Assign);
 
     std::optional<EmbedOps> selfOp;
     bool checkNull = true;
@@ -524,20 +553,20 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
     while (true)
     {
         const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
-        switch (token.GetIDEnum<SectorLangToken>())
+        switch (token.GetIDEnum<NailangToken>())
         {
-        case SectorLangToken::MetaFunc:
+        case NailangToken::MetaFunc:
         {
             metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
         } continue;
-        case SectorLangToken::Raw:
+        case NailangToken::Raw:
         {
             const auto target = MemPool.Create<RawBlock>(FillRawBlock(token.GetString()));
             const auto [offset, count] = AppendMetaFuncs();
             contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
-        case SectorLangToken::Block:
+        case NailangToken::Block:
         {
             Block inlineBlk;
             inlineBlk.Position = GetPosition(Context, true);
@@ -560,7 +589,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
-        case SectorLangToken::Func:
+        case NailangToken::Func:
         {
             if constexpr (!AllowNonBlock)
                 OnUnExpectedToken(token, u"Function call not supported here"sv);
@@ -572,7 +601,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
-        case SectorLangToken::Var:
+        case NailangToken::Var:
         {
             if constexpr (!AllowNonBlock)
                 OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
@@ -582,7 +611,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
         } continue;
-        case SectorLangToken::CurlyBrace:
+        case NailangToken::CurlyBrace:
         {
             if (tillTheEnd || token.GetChar() != U'}')
                 OnUnExpectedToken(token, u"when parsing block contents"sv);

@@ -400,6 +400,7 @@ protected:
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] TempBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever = {}) const;
+    [[nodiscard]] size_t BiDirIndexCheck(const size_t size, const RawArg& index);
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
@@ -416,6 +417,7 @@ protected:
                   virtual Arg  EvaluateArg(const RawArg& arg);
     [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
+    [[nodiscard]] virtual Arg EvaluateIndexerExpr(const Arg& target, const RawArg& index);
                   virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);

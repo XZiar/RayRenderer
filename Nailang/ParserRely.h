@@ -27,11 +27,11 @@ using common::parser::ParserLexerBase;
 namespace tokenizer
 {
 
-enum class SectorLangToken : uint16_t
+enum class NailangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Raw, Block, MetaFunc, Func, Var, EmbedOp, Parenthese, CurlyBrace, Assign,
+    Raw, Block, MetaFunc, Func, Var, EmbedOp, Parenthese, SquareBracket, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
@@ -56,9 +56,11 @@ public:
     }
 };
 
-class ParentheseTokenizer : public KeyCharTokenizer<SectorLangToken::Parenthese, U'(', U')'>
+class ParentheseTokenizer    : public KeyCharTokenizer<NailangToken::Parenthese,    U'(', U')'>
 { };
-class CurlyBraceTokenizer : public KeyCharTokenizer<SectorLangToken::CurlyBrace, U'{', U'}'>
+class SquareBracketTokenizer : public KeyCharTokenizer<NailangToken::SquareBracket, U'[', U']'>
+{ };
+class CurlyBraceTokenizer    : public KeyCharTokenizer<NailangToken::CurlyBrace,    U'{', U'}'>
 { };
 
 template<char32_t Pfx>
@@ -97,18 +99,18 @@ public:
         if (common::str::IsBeginWith(fullname, U"Block"sv))
         {
             const auto typeName = GetTypeName(fullname, 5);
-            return ParserToken(SectorLangToken::Block, typeName);
+            return ParserToken(NailangToken::Block, typeName);
         }
         else if (common::str::IsBeginWith(fullname, U"Raw"sv))
         {
             const auto typeName = GetTypeName(fullname, 3);
-            return ParserToken(SectorLangToken::Raw, typeName);
+            return ParserToken(NailangToken::Raw, typeName);
         }
         return ParserToken(BaseToken::Error, fullname);
     }
 };
 
-template<char32_t Pfx, SectorLangToken Type>
+template<char32_t Pfx, NailangToken Type>
 class FuncPrefixTokenizer : public PrefixedTokenizer<Pfx>
 {
 public:
@@ -122,17 +124,17 @@ public:
     }
 };
 
-class MetaFuncPrefixTokenizer : public FuncPrefixTokenizer<U'@', SectorLangToken::MetaFunc>
+class MetaFuncPrefixTokenizer : public FuncPrefixTokenizer<U'@', NailangToken::MetaFunc>
 { };
 
-class NormalFuncPrefixTokenizer : public FuncPrefixTokenizer<U'$', SectorLangToken::Func>
+class NormalFuncPrefixTokenizer : public FuncPrefixTokenizer<U'$', NailangToken::Func>
 { };
 
 
 class VariableTokenizer : public ASCII2PartTokenizer
 {
 public:
-    constexpr VariableTokenizer() : ASCII2PartTokenizer(SectorLangToken::Var, 1, 
+    constexpr VariableTokenizer() : ASCII2PartTokenizer(NailangToken::Var, 1, 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`:", 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.")
     { }
@@ -181,7 +183,7 @@ public:
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken( SectorLangToken::EmbedOp, common::enum_cast(EmbedOps::op))
+#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::EmbedOp, common::enum_cast(EmbedOps::op))
         switch (hash_(txt))
         {
         RET_OP("==", Equal);
@@ -240,7 +242,7 @@ public:
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken( SectorLangToken::Assign, common::enum_cast(AssignOps::op))
+#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::Assign, common::enum_cast(AssignOps::op))
         switch (hash_(txt))
         {
         RET_OP("=",     Assign);

@@ -100,7 +100,7 @@ TEST(NailangBase, EmbedOpTokenizer)
         return tokens;
     };
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
-#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, EmbedOp, GetInt, common::enum_cast(xziar::nailang::EmbedOps::type))
+#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, EmbedOp, GetInt, common::enum_cast(xziar::nailang::EmbedOps::type))
 
 #define CHECK_BIN_OP(src, type) do          \
     {                                       \
@@ -163,7 +163,7 @@ TEST(NailangBase, AssignOpTokenizer)
         return tokens;
     };
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
-#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::SectorLangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
+#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
 
 #define CHECK_ASSIGN(src, type) do          \
     {                                       \
