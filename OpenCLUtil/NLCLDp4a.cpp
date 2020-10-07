@@ -25,9 +25,9 @@ std::optional<xziar::nailang::Arg> NLCLDp4aExtension::NLCLFunc(NLCLRuntime& runt
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (call.Name == U"oclu.IntelDp4a"sv)
+    if (*call.Name == U"oclu.IntelDp4a"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+        Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
         HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
         return Arg{};
     }
@@ -111,7 +111,7 @@ bool KernelDp4aExtension::KernelMeta(NLCLRuntime& runtime, const xziar::nailang:
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     Expects(&kernel == &Kernel);
     using namespace xziar::nailang;
-    if (meta.Name == U"oclu.Dp4aExt"sv)
+    if (*meta.Name == U"oclu.Dp4aExt"sv)
     {
         const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         Provider = Context.GetNLCLExt<NLCLDp4aExtension>()->Generate(

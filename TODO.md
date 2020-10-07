@@ -145,7 +145,7 @@
   - [x] Add proper stacktrace when throw exception
   - [x] Add nested brace support for ReplaceEngine
   - [x] Move arg/func's lookup logic into StackFrame
-  - [ ] Pre-compute scope when parsing, for arg and func name
+  - [x] Pre-compute scope when parsing, for arg and func name
   - [ ] Add array type
   - [ ] Add array access by `[]`
   - [ ] Add member func call for arg by `()`

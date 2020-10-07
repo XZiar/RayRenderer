@@ -266,6 +266,7 @@ protected:
     common::mlog::MiniLogger<false>& Logger;
 
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
+    void HandleException(const xziar::nailang::NailangParseException& ex) const override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
     void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,

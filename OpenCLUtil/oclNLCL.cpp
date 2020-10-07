@@ -260,6 +260,12 @@ void NLCLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str
     Logger.log(level, u"[NLCL]{}\n", str);
 }
 
+void NLCLRuntime::HandleException(const xziar::nailang::NailangParseException& ex) const
+{
+    Logger.error(u"{}\n", ex.Message());
+    ReplaceEngine::HandleException(ex);
+}
+
 void NLCLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
     Logger.error(u"{}\n", ex.Message());
@@ -510,9 +516,9 @@ std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
 }
 Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTargetType target)
 {
-    if (IsBeginWith(call.Name, U"oclu."sv))
+    if (call.Name->PartCount == 2 && (*call.Name)[0] == U"oclu"sv)
     {
-        switch (const auto subName = call.Name.substr(5); hash_(subName))
+        switch (const auto subName = (*call.Name)[1]; hash_(subName))
         {
         HashCase(subName, U"CompilerFlag")
         {
@@ -552,7 +558,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return false;
         HashCase(subName, U"EnableUnroll")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
+            ThrowIfNotFuncTarget(*call.Name, target, FuncTargetType::Plain);
             if (!Context.EnableUnroll)
             {
                 Logger.warning(u"Manually enable unroll hint.\n");
@@ -561,7 +567,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"Log")
         {
-            ThrowIfNotFuncTarget(call.Name, target, FuncTargetType::Plain);
+            ThrowIfNotFuncTarget(*call.Name, target, FuncTargetType::Plain);
             const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto logLevel = ParseLogLevel(args2[0]);
             if (!logLevel) 
@@ -602,13 +608,13 @@ void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32s
     bool repVar = false, repFunc = false;
     for (const auto& fcall : metas)
     {
-        if (fcall.Name == U"oclu.ReplaceVariable"sv)
+        if (*fcall.Name == U"oclu.ReplaceVariable"sv)
             repVar = true;
-        else if (fcall.Name == U"oclu.ReplaceFunction"sv)
+        else if (*fcall.Name == U"oclu.ReplaceFunction"sv)
             repFunc = true;
-        else if (fcall.Name == U"oclu.Replace"sv)
+        else if (*fcall.Name == U"oclu.Replace"sv)
             repVar = repFunc = true;
-        else if (fcall.Name == U"oclu.PreAssign"sv)
+        else if (*fcall.Name == U"oclu.PreAssign"sv)
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);
             ThrowByArgType(fcall, RawArg::Type::Var, 0);
@@ -630,9 +636,9 @@ void NLCLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
     for (const auto& meta : metas)
     {
         std::u32string_view prefix;
-        if (meta.Name == U"If"sv)
+        if (*meta.Name == U"If"sv)
             prefix = U"If "sv;
-        else if (meta.Name == U"Skip"sv)
+        else if (*meta.Name == U"Skip"sv)
             prefix = U"Skip if "sv;
         else
             continue;
@@ -677,17 +683,9 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
 
 void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, const std::vector<std::unique_ptr<KernelExtension>>& kerExts)
 {
-    if (meta.Name == U"MetaIf")
+    if (meta.Name->PartCount == 2 && (*meta.Name)[0] == U"oclu"sv)
     {
-        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
-        if (!args[0].GetBool().value())
-            return;
-        FuncCall newMeta{ args[1].GetStr().value(), meta.Args.subspan(2) };
-        return HandleKernelMeta(newMeta, kerCtx, kerExts);
-    }
-    if (IsBeginWith(meta.Name, U"oclu."))
-    {
-        switch (const auto subName = meta.Name.substr(5); hash_(subName))
+        switch (const auto subName = (*meta.Name)[1]; hash_(subName))
         {
         HashCase(subName, U"RequestWorkgroupSize")
         {
@@ -701,7 +699,6 @@ void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, 
         HashCase(subName, U"SimpleArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-            KernelArgInfo info;
             const auto space_ = args[0].GetStr().value();
             const auto space = KerArgSpaceParser(space_);
             if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
@@ -723,7 +720,6 @@ void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, 
         HashCase(subName, U"BufArg")
         {
             const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-            KernelArgInfo info;
             const auto space_ = args[0].GetStr().value();
             const auto space = KerArgSpaceParser(space_);
             if (!space)
@@ -749,7 +745,6 @@ void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, 
         HashCase(subName, U"ImgArg")
         {
             const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
-            KernelArgInfo info;
             const auto access_ = args[0].GetStr().value();
             const auto access = ImgArgAccessParser(access_);
             if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), &meta);
@@ -762,16 +757,16 @@ void NLCLRuntime::HandleKernelMeta(const FuncCall& meta, KernelContext& kerCtx, 
         default:
             break;
         }
-        for (const auto& ext : Context.NLCLExts)
-        {
-            if (ext->KernelMeta(*this, meta, kerCtx))
-                return;
-        }
-        for (const auto& ext : kerExts)
-        {
-            if (ext->KernelMeta(*this, meta, kerCtx))
-                return;
-        }
+    }
+    for (const auto& ext : Context.NLCLExts)
+    {
+        if (ext->KernelMeta(*this, meta, kerCtx))
+            return;
+    }
+    for (const auto& ext : kerExts)
+    {
+        if (ext->KernelMeta(*this, meta, kerCtx))
+            return;
     }
 }
 
@@ -820,7 +815,15 @@ void NLCLRuntime::OutputKernel(const RawBlock& block, MetaFuncs metas, std::u32s
 
     for (const auto& meta : metas)
     {
-        HandleKernelMeta(meta, kerCtx, cookie.Extensions);
+        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
+        {
+        case 0:
+            HandleKernelMeta(meta, kerCtx, cookie.Extensions); break;
+        case 2:
+            HandleKernelMeta({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, kerCtx, cookie.Extensions); break;
+        default:
+            break;
+        }
     }
     std::u32string content;
     DirectOutput(block, metas, content, &cookie);
@@ -956,7 +959,7 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
             common::span<const RawArg> tpArgs;
             for (const auto& meta : metas)
             {
-                if (meta.Name == U"oclu.TemplateArgs")
+                if (*meta.Name == U"oclu.TemplateArgs")
                 {
                     for (uint32_t i = 0; i < meta.Args.size(); ++i)
                     {

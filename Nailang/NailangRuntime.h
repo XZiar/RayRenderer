@@ -188,11 +188,6 @@ struct ExceptionTarget
         else
             static_assert(!common::AlwaysTrue2<T>, "");
     }
-
-    [[nodiscard]] static ExceptionTarget NewFuncCall(const std::u32string_view func) noexcept
-    {
-        return FuncCall{ func, {} };
-    }
 };
 }
 
@@ -354,7 +349,8 @@ protected:
     void ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
-    void ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTargetType target, const FuncTargetType type) const;
+    void ThrowIfNotFuncTarget(const FuncName& func, const FuncTargetType target, const FuncTargetType type) const;
+    void ThrowIfNotFuncTarget(const std::u32string_view name, const FuncTargetType target, const FuncTargetType type) const;
     void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
@@ -394,12 +390,15 @@ protected:
     }
 
                   void ExecuteFrame();
+    [[nodiscard]] std::variant<std::monostate, bool, xziar::nailang::TempFuncName> HandleMetaIf(const FuncCall& meta);
     [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const BlockContent& target);
                   void HandleContent    (const BlockContent& content, common::span<const FuncCall> metas);
                   void OnLoop           (const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
     [[nodiscard]] LateBindVar* CreateVar(std::u32string_view name);
+    [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
+    [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] TempBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever = {}) const;
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
@@ -413,7 +412,7 @@ protected:
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
     [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
     [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
-    [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall> metas);
                   virtual Arg  EvaluateArg(const RawArg& arg);
     [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);

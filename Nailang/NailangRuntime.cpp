@@ -461,7 +461,7 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         if (call.Args.size() >= count) return;
         prefix = U"at least"; break;
     }
-    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] requires {} [{}] args, which gives [{}]."), call.Name, prefix, count, call.Args.size()),
+    NLRT_THROW_EX(FMTSTR(u"Func [{}] requires {} [{}] args, which gives [{}].", *call.Name, prefix, count, call.Args.size()),
         detail::ExceptionTarget{}, &call);
 }
 
@@ -469,44 +469,55 @@ void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const RawArg::Type
 {
     const auto& arg = call.Args[idx];
     if (arg.TypeData != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} rawarg, which gives [{}], source is [{}]."),
-            ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(arg)),
+        NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} rawarg, which gives [{}], source is [{}].",
+            ArgTypeName(type), *call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(arg)),
             arg);
 }
 
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::Type type) const
 {
     if ((arg.TypeData & type) != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected arg of [{}], which gives [{}]."), ArgTypeName(type), ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"Expected arg of [{}], which gives [{}].", ArgTypeName(type), ArgTypeName(arg.TypeData)),
             arg);
 }
 
 void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const
 {
     if ((arg.TypeData & type) != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}]."), 
-                ArgTypeName(type), call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(call.Args[idx])),
+        NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].", 
+                ArgTypeName(type), *call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(call.Args[idx])),
             arg);
 }
 
-void NailangRuntimeBase::ThrowIfNotFuncTarget(const std::u32string_view func, const FuncTargetType target, const FuncTargetType type) const
+void NailangRuntimeBase::ThrowIfNotFuncTarget(const FuncName& func, const FuncTargetType target, const FuncTargetType type) const
 {
     if (target != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] only support as [{}]."), func, FuncTargetName(type)),
-            detail::ExceptionTarget::NewFuncCall(func));
+    {
+        NLRT_THROW_EX(FMTSTR(u"Func [{}] only support as [{}].", func, FuncTargetName(type)),
+            FuncCall{ &func, {} });
+    }
+}
+
+void NailangRuntimeBase::ThrowIfNotFuncTarget(const std::u32string_view name, const FuncTargetType target, const FuncTargetType type) const
+{
+    if (target != type)
+    {
+        const auto func = CreateTempFuncName(name);
+        ThrowIfNotFuncTarget(func, target, type);
+    }
 }
 
 void NailangRuntimeBase::ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
 {
     if (target.GetType() == type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Metafunc [{}] cannot be appllied to [{}]."), meta.Name, ContentTypeName(type)),
+        NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] cannot be appllied to [{}].", *meta.Name, ContentTypeName(type)),
             meta);
 }
 
 void NailangRuntimeBase::ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
 {
     if (target.GetType() != type)
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"Metafunc [{}] can only be appllied to [{}]."), meta.Name, ContentTypeName(type)),
+        NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] can only be appllied to [{}].", *meta.Name, ContentTypeName(type)),
             meta);
 }
 
@@ -514,7 +525,7 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
 {
     const auto ret = arg.GetBool();
     if (!ret.has_value())
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"[{}] should be bool-able, which is [{}]."), varName, ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"[{}] should be bool-able, which is [{}].", varName, ArgTypeName(arg.TypeData)),
             arg);
     return ret.value();
 }
@@ -565,13 +576,38 @@ void NailangRuntimeBase::ExecuteFrame()
     return;
 }
 
+std::variant<std::monostate, bool, xziar::nailang::TempFuncName> NailangRuntimeBase::HandleMetaIf(const FuncCall& meta)
+{
+    if (*meta.Name == U"MetaIf"sv)
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
+        if (args[0].GetBool().value())
+        {
+            const auto name = args[1].GetStr().value();
+            return CreateTempFuncName(name, FuncName::FuncInfo::Meta);
+        }
+        return false;
+    }
+    return {};
+}
+
 bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const BlockContent& target)
 {
     FCallHost callHost(this);
     for (const auto& meta : metas)
     {
         callHost = &meta;
-        switch (HandleMetaFunc(meta, target, metas))
+        auto result = MetaFuncResult::Unhandled;
+        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
+        {
+        case 0: 
+            result = HandleMetaFunc(meta, target, metas); break;
+        case 2:
+            result = HandleMetaFunc({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, target, metas); break;
+        default:
+            break;
+        }
+        switch (result)
         {
         case MetaFuncResult::Return:
             CurFrame->Status = ProgramStatus::Return; return false;
@@ -712,6 +748,30 @@ LateBindVar* NailangRuntimeBase::CreateVar(std::u32string_view name)
     }
     return nullptr;
 }
+FuncName* NailangRuntimeBase::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info)
+{
+    try
+    {
+        return FuncName::Create(MemPool, name, info);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
+    }
+    return nullptr;
+}
+TempFuncName NailangRuntimeBase::CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info) const
+{
+    try
+    {
+        return FuncName::CreateTemp(name, info);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
+    }
+    return FuncName::CreateTemp(name, info);
+}
 TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const
 {
     switch (arg.TypeData)
@@ -729,7 +789,7 @@ TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
         }
         break;
     default:
-        NLRT_THROW_EX(fmt::format(FMT_STRING(u"[{}] only accept [Var]/[String], which gives [{}]."), reciever, ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, ArgTypeName(arg.TypeData)),
             arg);
         break;
     }
@@ -758,7 +818,7 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
     constexpr auto FromFunc = [](const FuncFrame* frame, const common::SharedString<char16_t>& fname) -> common::StackTraceItem
     {
         if (frame->Func)
-            return { fname, common::str::to_u16string(frame->Func->Name), frame->Func->Position.first };
+            return { fname, common::str::to_u16string(frame->Func->Name->FullName()), frame->Func->Position.first };
         return { fname, common::SharedString<char16_t>{}, 0 };
     };
     std::vector<common::StackTraceItem> traces;
@@ -874,29 +934,22 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32
 
 NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> allMetas)
 {
-    switch (hash_(meta.Name))
+    if (meta.Name->PartCount > 1)
+        return MetaFuncResult::Unhandled;
+    const auto metaName = meta.Name->FullName();
+    switch (hash_(metaName))
     {
-    HashCase(meta.Name, U"Skip")
+    HashCase(metaName, U"Skip")
     {
         const auto arg = EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Boolable })[0];
         return arg.IsEmpty() || arg.GetBool().value() ? MetaFuncResult::Skip : MetaFuncResult::Next;
     }
-    HashCase(meta.Name, U"If")
+    HashCase(metaName, U"If")
     {
         const auto arg = EvaluateFuncArgs<1>(meta, { Arg::Type::Boolable })[0];
         return arg.GetBool().value() ? MetaFuncResult::Next : MetaFuncResult::Skip;
     }
-    HashCase(meta.Name, U"MetaIf")
-    {
-        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
-        if (args[0].GetBool().value())
-        {
-            const auto metaName = args[1].GetStr().value();
-            return HandleMetaFunc({ metaName, meta.Args.subspan(2) }, content, allMetas);
-        }
-        return MetaFuncResult::Unhandled;
-    }
-    HashCase(meta.Name, U"DefFunc")
+    HashCase(metaName, U"DefFunc")
     {
         ThrowIfNotBlockContent(meta, content, BlockContent::Type::Block);
         for (const auto& arg : meta.Args)
@@ -912,7 +965,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
         SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
     }
-    HashCase(meta.Name, U"While")
+    HashCase(metaName, U"While")
     {
         ThrowIfBlockContent(meta, content, BlockContent::Type::RawBlock);
         ThrowByArgCount(meta, 1);
@@ -925,10 +978,11 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
 
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target)
 {
+    const auto fullName = call.Name->FullName();
     // only for plain function
-    if (target == FuncTargetType::Plain)
+    if (target == FuncTargetType::Plain && call.Name->PartCount == 1)
     {
-        if (call.Name == U"Break"sv)
+        if (fullName == U"Break"sv)
         {
             ThrowByArgCount(call, 0);
             if (!CurFrame->IsInLoop())
@@ -936,7 +990,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             CurFrame->Status = ProgramStatus::Break;
             return {};
         }
-        else if (call.Name == U"Return")
+        else if (fullName == U"Return"sv)
         {
             if (const auto scope = CurFrame->GetCallScope(); scope)
                 scope->ReturnArg = EvaluateFuncArgs<1, ArgLimits::AtMost>(call)[0];
@@ -945,7 +999,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             CurFrame->Status = ProgramStatus::Return;
             return {};
         }
-        else if (call.Name == U"Throw"sv)
+        else if (fullName == U"Throw"sv)
         {
             const auto args = EvaluateFuncArgs<1>(call);
             this->HandleException(CREATE_EXCEPTION(NailangCodeException, args[0].ToString().StrView(), call));
@@ -954,56 +1008,58 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
     }
     // suitable for all
-    if (common::str::IsBeginWith(call.Name, U"Math."sv))
+    if (call.Name->PartCount == 2 && (*call.Name)[0] == U"Math"sv)
     {
-        if (auto ret = EvaluateExtendMathFunc(call, call.Name.substr(5), metas); ret)
+        if (auto ret = EvaluateExtendMathFunc(call, metas); ret)
         {
             if (!ret->IsEmpty())
                 return ret.value();
             NLRT_THROW_EX(FMTSTR(u"Math func's arg type does not match requirement, [{}]"sv, Serializer::Stringify(&call)), call);
         }
     }
-    switch (hash_(call.Name))
+    if (call.Name->PartCount == 1)
     {
-    HashCase(call.Name, U"Select")
-    {
-        ThrowByArgCount(call, 3);
-        const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ?
-            call.Args[1] : call.Args[2];
-        return EvaluateArg(selected);
+        switch (hash_(fullName))
+        {
+        HashCase(fullName, U"Select")
+        {
+            ThrowByArgCount(call, 3);
+            const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ? call.Args[1] : call.Args[2];
+            return EvaluateArg(selected);
+        }
+        HashCase(fullName, U"Exists")
+        {
+            ThrowByArgCount(call, 1);
+            const auto var = DecideDynamicVar(call.Args[0], u"Exists"sv);
+            return !LookUpArg(var).IsEmpty();
+        }
+        HashCase(fullName, U"ExistsDynamic")
+        {
+            const auto  arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto& var = *CreateVar(arg.GetStr().value());
+            return !LookUpArg(var).IsEmpty();
+        }
+        HashCase(fullName, U"ValueOr")
+        {
+            ThrowByArgCount(call, 2);
+            const auto var = DecideDynamicVar(call.Args[0], u"ValueOr"sv);
+            if (auto ret = LookUpArg(var); !ret.IsEmpty())
+                return ret;
+            else
+                return EvaluateArg(call.Args[1]);
+        }
+        HashCase(fullName, U"Format")
+        {
+            ThrowByArgCount(call, 2, ArgLimits::AtLeast);
+            const auto fmtStr = EvaluateArg(call.Args[0]).GetStr();
+            if (!fmtStr)
+                NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
+            return FormatString(fmtStr.value(), call.Args.subspan(1));
+        }
+        default: break;
+        }
     }
-    HashCase(call.Name, U"Exists")
-    {
-        ThrowByArgCount(call, 1);
-        const auto var = DecideDynamicVar(call.Args[0], u"Exists"sv);
-        return !LookUpArg(var).IsEmpty();
-    }
-    HashCase(call.Name, U"ExistsDynamic")
-    {
-        const auto  arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
-        const auto& var = *CreateVar(arg.GetStr().value());
-        return !LookUpArg(var).IsEmpty();
-    }
-    HashCase(call.Name, U"ValueOr")
-    {
-        ThrowByArgCount(call, 2);
-        const auto var = DecideDynamicVar(call.Args[0], u"ValueOr"sv);
-        if (auto ret = LookUpArg(var); !ret.IsEmpty())
-            return ret;
-        else
-            return EvaluateArg(call.Args[1]);
-    }
-    HashCase(call.Name, U"Format")
-    {
-        ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-        const auto fmtStr = EvaluateArg(call.Args[0]).GetStr();
-        if (!fmtStr)
-            NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
-        return FormatString(fmtStr.value(), call.Args.subspan(1));
-    }
-    default: break;
-    }
-    if (const auto lcFunc = LookUpFunc(call.Name); lcFunc)
+    if (const auto lcFunc = LookUpFunc(fullName); lcFunc)
     {
         return EvaluateLocalFunc(lcFunc, call, metas, target);
     }
@@ -1033,14 +1089,15 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
 
 Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>, const FuncTargetType target)
 {
-    NLRT_THROW_EX(fmt::format(FMT_STRING(u"Func [{}] with [{}] args cannot be resolved as [{}]."), 
-        call.Name, call.Args.size(), FuncTargetName(target)), call);
+    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved as [{}].", 
+        *call.Name, call.Args.size(), FuncTargetName(target)), call);
     return {};
 }
 
-std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, std::u32string_view mathName, common::span<const FuncCall>)
+std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall>)
 {
     using Type = Arg::Type;
+    const auto mathName = (*call.Name)[1];
     switch (hash_(mathName))
     {
     HashCase(mathName, U"Max")

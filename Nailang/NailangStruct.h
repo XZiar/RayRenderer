@@ -84,27 +84,10 @@ public:
 };
 
 
-struct VarBase
-{
-    using value_type = std::u32string_view;
-    std::u32string_view Name;
-    [[nodiscard]] constexpr bool operator==(const VarBase& other) const noexcept
-    {
-        return Name == other.Name;
-    }
-    [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
-    {
-        return Name == other;
-    }
-
-    [[nodiscard]] constexpr bool CheckGlobal() const noexcept
-    {
-        return !Name.empty() && Name[0] == U'`';
-    }
-};
-
+class TempPartedNameBase;
 struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common::NonMovable
 {
+    friend class TempPartedNameBase;
     using value_type = char32_t;
     using PartType = std::pair<uint16_t, uint16_t>;
     [[nodiscard]] constexpr operator std::u32string_view() const noexcept
@@ -133,6 +116,20 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
         const auto [offset, len] = parts[index];
         return { Ptr + offset, len };
     }
+    std::u32string_view FullName() const noexcept
+    {
+        return *this;
+    }
+    std::u32string_view GetRest(const uint32_t index) const noexcept
+    {
+        if (index >= PartCount)
+            return {};
+        if (index == 0)
+            return *this;
+        const auto parts = reinterpret_cast<const PartType*>(this + 1);
+        const auto offset = parts[index].first;
+        return { Ptr + offset, Length - offset };
+    }
     [[nodiscard]] constexpr auto Parts() const noexcept
     {
         return common::linq::FromRange<uint32_t>(0u, PartCount)
@@ -153,8 +150,66 @@ protected:
     { }
 };
 
+class NAILANGAPI TempPartedNameBase
+{
+protected:
+    PartedName Var;
+    union Tail
+    {
+        const PartedName* Ptr;
+        PartedName::PartType Parts[4];
+        constexpr Tail() noexcept : Ptr(nullptr) {}
+    } Extra;
+    explicit TempPartedNameBase(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info);
+    explicit TempPartedNameBase(const PartedName* var) noexcept;
+    TempPartedNameBase(TempPartedNameBase&& other) noexcept;
+    TempPartedNameBase Copy() const noexcept;
+    const PartedName& Get() const noexcept
+    {
+        return (Var.PartCount > 4 || Var.PartCount == 0) ? *Extra.Ptr : Var;
+    }
+public:
+    ~TempPartedNameBase();
+};
 
-class TempBindVar;
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
+template<typename T>
+class TempPartedName : public TempPartedNameBase
+{
+    static_assert(std::is_base_of_v<PartedName, T> && sizeof(T) == sizeof(PartedName));
+    friend T;
+    using TempPartedNameBase::TempPartedNameBase;
+public:
+    TempPartedName(TempPartedNameBase&& base) noexcept : TempPartedNameBase(std::move(base)) { }
+    constexpr const T& Get() const noexcept
+    {
+        return static_cast<const T&>(TempPartedNameBase::Get());
+    }
+    constexpr const T* Ptr() const noexcept
+    {
+        return static_cast<const T*>(&TempPartedNameBase::Get());
+    }
+    TempPartedName Copy() const noexcept
+    {
+        return static_cast<TempPartedName>(TempPartedNameBase::Copy());
+    }
+    constexpr operator const T& () const noexcept
+    {
+        return Get();
+    }
+    /// <summary>Create a TempBindVar that wrappers a LateBindVar</summary>
+    /// <param name="var">LateBindVar</param>
+    /// <returns>TempBindVar</returns>
+    static TempPartedName Wrapper(const T* var) noexcept
+    {
+        return TempPartedName(var);
+    }
+};
+
+
 struct LateBindVar : public PartedName
 {
     enum class VarInfo : uint16_t 
@@ -165,17 +220,6 @@ struct LateBindVar : public PartedName
 
     constexpr VarInfo Info() const noexcept { return static_cast<VarInfo>(ExternInfo); }
     VarInfo& Info() noexcept { return *reinterpret_cast<VarInfo*>(&ExternInfo); }
-
-    std::u32string_view GetRest(const uint32_t index) const noexcept
-    {
-        if (index >= PartCount)
-            return {};
-        if (index == 0)
-            return *this;
-        const auto parts = reinterpret_cast<const PartType*>(this + 1);
-        const auto offset = parts[index].first;
-        return { Ptr + offset, Length - offset };
-    }
 
     static LateBindVar* Create(MemoryPool& pool, std::u32string_view name)
     {
@@ -196,9 +240,15 @@ struct LateBindVar : public PartedName
         PartType parts[1] = { {(uint16_t)0, gsl::narrow_cast<uint16_t>(name.size())} };
         return LateBindVar(name, parts, common::enum_cast(info));
     }
-    static TempBindVar CreateTemp(std::u32string_view name);
+    static TempPartedName<LateBindVar> CreateTemp(std::u32string_view name)
+    {
+        Expects(name.size() > 0);
+        const auto info = ParseInfo(name);
+        const auto parts = PartedName::GetParts(name);
+        return TempPartedName<LateBindVar>(name, parts, common::enum_cast(info));
+    }
 private:
-    friend TempBindVar;
+    friend TempPartedName<LateBindVar>;
     using PartedName::PartedName;
     static constexpr VarInfo ParseInfo(std::u32string_view& name) noexcept
     {
@@ -211,52 +261,7 @@ private:
     }
 };
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
-
-class NAILANGAPI TempBindVar
-{
-    friend LateBindVar;
-    LateBindVar Var;
-    union Tail
-    {
-        const LateBindVar* Ptr;
-        PartedName::PartType Parts[4];
-        constexpr Tail() noexcept : Ptr(nullptr) {}
-    } Extra;
-    explicit TempBindVar(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info);
-    explicit TempBindVar(const LateBindVar* var) noexcept;
-public:
-    TempBindVar(TempBindVar&& other) noexcept;
-    ~TempBindVar();
-    constexpr const LateBindVar& Get() const noexcept
-    {
-        return (Var.PartCount > 4 || Var.PartCount == 0) ? *Extra.Ptr : Var;
-    }
-    TempBindVar Copy() const noexcept;
-    constexpr operator const LateBindVar& () const noexcept
-    {
-        return Get();
-    }
-    /// <summary>Create a TempBindVar that wrappers a LateBindVar</summary>
-    /// <param name="var">LateBindVar</param>
-    /// <returns>TempBindVar</returns>
-    static TempBindVar Wrapper(const LateBindVar* var) noexcept
-    {
-        return TempBindVar(var);
-    }
-}; 
-
-inline TempBindVar LateBindVar::CreateTemp(std::u32string_view name)
-{
-    Expects(name.size() > 0);
-    const auto info = ParseInfo(name);
-    const auto parts = PartedName::GetParts(name);
-    return TempBindVar(name, parts, common::enum_cast(info));
-}
-
-
-#if COMPILER_MSVC
-#   pragma warning(pop)
-#endif
+using TempBindVar = TempPartedName<LateBindVar>;
 
 
 enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
@@ -384,11 +389,21 @@ public:
     }
 };
 
-struct CustomVar : public VarBase
+struct CustomVar
 {
+    using value_type = std::u32string_view;
+    std::u32string_view Name;
     uint64_t Meta0;
     uint32_t Meta1;
     uint16_t Meta2;
+    [[nodiscard]] constexpr bool operator==(const CustomVar& other) const noexcept
+    {
+        return Name == other.Name;
+    }
+    [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
+    {
+        return Name == other;
+    }
 };
 struct Arg
 {
@@ -443,7 +458,7 @@ public:
     {
         Expects(TypeData == T);
         if constexpr (T == Type::Var)
-            return CustomVar{ std::u32string_view{Str}, Data1.Uint, Data2, Data3 };
+            return CustomVar{ Str, Data1.Uint, Data2, Data3 };
         else if constexpr (T == Type::U32Str)
             return std::u32string_view{ Str };
         else if constexpr (T == Type::U32Sv)
@@ -565,13 +580,45 @@ struct WithPos
     std::pair<uint32_t, uint32_t> Position = { 0,0 };
 };
 
+
+struct FuncName : public PartedName
+{
+    enum class FuncInfo : uint16_t
+    {
+        Empty = 0x0, Meta = 0x1, ExprPart = 0x2,
+    };
+
+    constexpr FuncInfo Info() const noexcept { return static_cast<FuncInfo>(ExternInfo); }
+    FuncInfo& Info() noexcept { return *reinterpret_cast<FuncInfo*>(&ExternInfo); }
+
+    static FuncName* Create(MemoryPool& pool, std::u32string_view name, FuncInfo info)
+    {
+        if (name.size() == 0)
+            return nullptr;
+        const auto ptr = static_cast<FuncName*>(PartedName::Create(pool, name));
+        ptr->ExternInfo = common::enum_cast(info);
+        return ptr;
+    }
+    static TempPartedName<FuncName> CreateTemp(std::u32string_view name, FuncInfo info)
+    {
+        const auto parts = PartedName::GetParts(name);
+        return TempPartedName<FuncName>(name, parts, common::enum_cast(info));
+    }
+private:
+    friend TempPartedName<FuncName>;
+    using PartedName::PartedName;
+};
+MAKE_ENUM_BITFIELD(FuncName::FuncInfo)
+using TempFuncName = TempPartedName<FuncName>;
+
+
 struct FuncCall : public WithPos
 {
-    std::u32string_view Name;
+    const FuncName* Name;
     common::span<const RawArg> Args;
-    constexpr FuncCall() noexcept {}
-    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args) noexcept : Name(name), Args(args) { }
-    constexpr FuncCall(const std::u32string_view name, common::span<const RawArg> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
+    constexpr FuncCall() noexcept : Name(nullptr) {}
+    constexpr FuncCall(const FuncName* name, common::span<const RawArg> args) noexcept : Name(name), Args(args) { }
+    constexpr FuncCall(const FuncName* name, common::span<const RawArg> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
         WithPos{pos}, Name(name), Args(args)
     { }
 };

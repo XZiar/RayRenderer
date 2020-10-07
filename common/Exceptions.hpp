@@ -65,7 +65,7 @@ public:
     ExceptionBasicInfo(const std::u16string_view msg)
         : ExceptionBasicInfo(TYPENAME, msg) { }
     virtual ~ExceptionBasicInfo() {}
-    [[noreturn]] virtual void ThrowReal();
+    virtual void ThrowReal();
     [[nodiscard]] BaseException GetException();
     template<typename T>
     auto Cast() const noexcept
@@ -110,7 +110,7 @@ public:
     {
         return Info;
     }
-    [[noreturn]] void ThrowSelf() const
+    void ThrowSelf() const
     {
         Info->ThrowReal();
     }
@@ -183,7 +183,7 @@ public:
     }
 };
 
-[[noreturn]] inline void ExceptionBasicInfo::ThrowReal()
+inline void ExceptionBasicInfo::ThrowReal()
 {
     throw BaseException(std::nullopt, this->shared_from_this());
 }

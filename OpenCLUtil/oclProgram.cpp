@@ -228,7 +228,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
 KernelArgInfo KernelArgStore::GetArgInfo(const size_t idx) const noexcept
 {
     const auto info = GetArg(idx);
-    return { info->ArgType, info->Space, info->Access, info->Qualifier, GetStringView(info->Name), GetStringView(info->Type) };
+    return { { info->ArgType, info->Space, info->Access, info->Qualifier }, GetStringView(info->Name), GetStringView(info->Type) };
 }
 
 const KernelArgStore::ArgInfo* KernelArgStore::GetArg(const size_t idx, const bool check) const

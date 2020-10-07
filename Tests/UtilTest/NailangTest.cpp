@@ -44,7 +44,7 @@ static void ShowMeta(const common::span<const FuncCall> metas, const u16string& 
 {
     for (const auto& meta : metas)
     {
-        OutLine(Magenta, indent, meta, "@meta ", "func[{}], arg[{}]", meta.Name, meta.Args.size());
+        OutLine(Magenta, indent, meta, "@meta ", "func[{}], arg[{}]", *meta.Name, meta.Args.size());
     }
 }
 
@@ -57,7 +57,7 @@ static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> met
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const FuncCall& content, const u16string& indent)
 {
     ShowMeta(metas, indent);
-    OutLine(BrightWhite, indent, content, "Call  ", "func[{}], arg[{}]", content.Name, content.Args.size());
+    OutLine(BrightWhite, indent, content, "Call  ", "func[{}], arg[{}]", *content.Name, content.Args.size());
 }
 static void ShowBlock(MemoryPool& pool, const Block& block, const u16string& indent);
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const RawBlock& content, const u16string& indent)
@@ -65,7 +65,7 @@ static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> met
     ShowMeta(metas, indent);
     OutLine(BrightWhite, indent, content, "RawBlk", "type[{}], name[{}]", content.Type, content.Name);
     if (common::linq::FromIterable(metas)
-        .ContainsIf([](const FuncCall& call) { return call.Name == U"parse"sv; }))
+        .ContainsIf([](const FuncCall& call) { return *call.Name == U"parse"sv; }))
     {
         ShowBlock(pool, BlockParser::ParseRawBlock(content, pool), indent);
     }

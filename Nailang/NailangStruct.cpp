@@ -20,7 +20,7 @@ std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
 
 
 static constexpr PartedName::PartType DummyPart[1] = { {(uint16_t)0, (uint16_t)0} };
-TempBindVar::TempBindVar(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info)
+TempPartedNameBase::TempPartedNameBase(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info)
     : Var(name, parts, info)
 {
     Expects(parts.size() > 0);
@@ -37,19 +37,19 @@ TempBindVar::TempBindVar(std::u32string_view name, common::span<const PartedName
         break;
     default:
     {
-        const auto ptr = reinterpret_cast<LateBindVar*>(malloc(sizeof(LateBindVar) + partSize));
+        const auto ptr = reinterpret_cast<PartedName*>(malloc(sizeof(PartedName) + partSize));
         Extra.Ptr = ptr;
-        new (ptr) LateBindVar(name, parts, info);
+        new (ptr) PartedName(name, parts, info);
         memcpy_s(ptr + 1, partSize, parts.data(), partSize);
         break;
     }
     }
 }
-TempBindVar::TempBindVar(const LateBindVar* var) noexcept : Var(*var, DummyPart, var->ExternInfo)
+TempPartedNameBase::TempPartedNameBase(const PartedName* var) noexcept : Var(*var, DummyPart, var->ExternInfo)
 {
     Extra.Ptr = var;
 }
-TempBindVar::TempBindVar(TempBindVar&& other) noexcept : 
+TempPartedNameBase::TempPartedNameBase(TempPartedNameBase&& other) noexcept :
     Var(other.Var, DummyPart, other.Var.ExternInfo), Extra(other.Extra)
 {
     Var.PartCount = other.Var.PartCount;
@@ -57,12 +57,12 @@ TempBindVar::TempBindVar(TempBindVar&& other) noexcept :
     other.Var.PartCount = 0;
     other.Extra.Ptr = nullptr;
 }
-TempBindVar::~TempBindVar()
+TempPartedNameBase::~TempPartedNameBase()
 {
     if (Var.PartCount > 4)
-        free(const_cast<LateBindVar*>(Extra.Ptr));
+        free(const_cast<PartedName*>(Extra.Ptr));
 }
-TempBindVar TempBindVar::Copy() const noexcept
+TempPartedNameBase TempPartedNameBase::Copy() const noexcept
 {
     common::span<const PartedName::PartType> parts;
     if (Var.PartCount > 4 || Var.PartCount == 0)
@@ -73,7 +73,7 @@ TempBindVar TempBindVar::Copy() const noexcept
     {
         parts = { Extra.Parts, Var.PartCount };
     }
-    return TempBindVar(Var, parts, Var.ExternInfo);
+    return TempPartedNameBase(Var, parts, Var.ExternInfo);
 }
 
 
@@ -134,7 +134,7 @@ void Serializer::Stringify(std::u32string& output, const RawArg& arg, const bool
 
 void Serializer::Stringify(std::u32string& output, const FuncCall* call)
 {
-    output.append(call->Name).push_back(U'(');
+    output.append(*call->Name).push_back(U'(');
     size_t i = 0;
     for (const auto& arg : call->Args)
     {

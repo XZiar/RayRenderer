@@ -235,7 +235,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
                 target = ProcessString(token.GetString(), MemPool); 
                 break;
             EID(SectorLangToken::Func)  :
-                target = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context));                
+                target = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::ExprPart));
                 break;
             EID(SectorLangToken::Parenthese):
                 if (token.GetChar() == U'(')
@@ -272,6 +272,19 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
     }
 }
 
+FuncName* ComplexArgParser::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const
+{
+    try
+    {
+        return FuncName::Create(MemPool, name, info);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(NailangParseException(u"FuncCall's name not valid"sv));
+    }
+    return nullptr;
+}
+
 RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool& pool)
 {
     Expects(str.size() == 0 || str.back() != U'\\');
@@ -303,10 +316,11 @@ RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool
     return std::u32string_view(space.data(), space.size());
 }
 
-FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context)
+FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, FuncName::FuncInfo info)
 {
     const auto pos = GetPosition(context);
     ComplexArgParser parser(pool, context);
+    const auto funcName = parser.CreateFuncName(name, info);
     parser.EatLeftParenthese();
     std::vector<RawArg> args;
     while (true)
@@ -407,7 +421,7 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
             return block;
         } break;
         case SectorLangToken::MetaFunc:
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
             break;
         default:
             Expects(false);
@@ -514,7 +528,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         {
         case SectorLangToken::MetaFunc:
         {
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context));
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
         } continue;
         case SectorLangToken::Raw:
         {

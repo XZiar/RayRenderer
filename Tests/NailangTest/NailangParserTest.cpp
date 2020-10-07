@@ -82,28 +82,28 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"()"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(())"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(((())))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         EXPECT_EQ(func.Args.size(), 0u);
     }
     {
         constexpr auto src = U"(\"Hello\")"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
         CHECK_DIRECT_ARG(func.Args[0], Str, U"Hello"sv);
     }
@@ -111,7 +111,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = UR"(("Hello\t\"World\""))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
         CHECK_DIRECT_ARG(func.Args[0], Str, U"Hello\t\"World\""sv);
     }
@@ -119,7 +119,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"(val.xxx.3.len)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
         CHECK_VAR_ARG(func.Args[0], U"val.xxx.3.len"sv, Empty);
         const auto& var = *func.Args[0].GetVar<RawArg::Type::Var>();
@@ -129,7 +129,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"(123, -456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         CHECK_DIRECT_ARG(func.Args[0], Int, 123);
         CHECK_DIRECT_ARG(func.Args[1], Int, -456);
@@ -138,7 +138,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"((123u), v.456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         CHECK_DIRECT_ARG(func.Args[0], Uint, 123u);
         CHECK_VAR_ARG(func.Args[1], U"v.456"sv, Empty);
@@ -147,7 +147,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"(1u + 2)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
 
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
@@ -160,7 +160,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"(!false, 3.5 + var)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
         EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Binary);
@@ -180,7 +180,7 @@ TEST(NailangParser, ParseFuncBody)
         constexpr auto src = U"(6 >= $foo(:bar), $foo(`bar, (4-5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(func.Name, U"func"sv);
+        EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
         EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
@@ -190,13 +190,13 @@ TEST(NailangParser, ParseFuncBody)
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
             EXPECT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
-            EXPECT_EQ(fcall.Name, U"foo"sv);
+            EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Local);
         }
         {
             const auto& fcall = *func.Args[1].GetVar<RawArg::Type::Func>();
-            EXPECT_EQ(fcall.Name, U"foo"sv);
+            EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 2u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Root);
             EXPECT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
@@ -234,7 +234,7 @@ $func(hey);
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
         EXPECT_EQ(meta.size(), 0u);
         const auto& fcall = *std::get<1>(stmt.GetStatement());
-        EXPECT_EQ(fcall.Name, U"func"sv);
+        EXPECT_EQ(*fcall.Name, U"func"sv);
         ASSERT_EQ(fcall.Args.size(), 1u);
         CHECK_VAR_ARG(fcall.Args[0], U"hey", Empty);
     }
@@ -248,7 +248,7 @@ hey = 13;
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
         ASSERT_EQ(meta.size(), 1u);
-        EXPECT_EQ(meta[0].Name, U"meta"sv);
+        EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
         const auto& assign = *std::get<0>(stmt.GetStatement());
         EXPECT_EQ(assign.GetVar(), U"hey"sv);
@@ -267,7 +267,7 @@ abc = 0u;
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Block);
         ASSERT_EQ(meta.size(), 1u);
-        EXPECT_EQ(meta[0].Name, U"meta"sv);
+        EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
         const auto& blk = *std::get<3>(stmt.GetStatement());
         EXPECT_EQ(blk.Name, U"13"sv);
@@ -318,7 +318,7 @@ empty
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
             EXPECT_EQ(meta.size(), 0u);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
-            EXPECT_EQ(fcall.Name, U"func"sv);
+            EXPECT_EQ(*fcall.Name, U"func"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], U"hey", Empty);
         }
@@ -326,7 +326,7 @@ empty
             const auto [meta, stmt] = block[2];
             EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
             ASSERT_EQ(meta.size(), 1u);
-            EXPECT_EQ(meta[0].Name, U"meta"sv);
+            EXPECT_EQ(*meta[0].Name, U"meta"sv);
             EXPECT_EQ(meta[0].Args.size(), 0u);
             const auto& blk = *std::get<2>(stmt.GetStatement());
             EXPECT_EQ(ReplaceNewLine(blk.Source), U"empty\n"sv);
@@ -424,7 +424,7 @@ Here
         EXPECT_EQ(block.Position.second, 0u);
         ASSERT_EQ(block.MetaFunctions.size(), 1u);
         const auto& meta = block.MetaFunctions[0];
-        EXPECT_EQ(meta.Name, U"func"sv);
+        EXPECT_EQ(*meta.Name, U"func"sv);
         EXPECT_EQ(meta.Args.size(), 0u);
     }
     {
@@ -453,13 +453,13 @@ Here
         ASSERT_EQ(block.MetaFunctions.size(), 2u);
         {
             const auto& meta = block.MetaFunctions[0];
-            EXPECT_EQ(meta.Name, U"func"sv);
+            EXPECT_EQ(*meta.Name, U"func"sv);
             ASSERT_EQ(meta.Args.size(), 1u);
             CHECK_DIRECT_ARG(meta.Args[0], Int, 1);
         }
         {
             const auto& meta = block.MetaFunctions[1];
-            EXPECT_EQ(meta.Name, U"func"sv);
+            EXPECT_EQ(*meta.Name, U"func"sv);
             EXPECT_EQ(meta.Args.size(), 2u);
             CHECK_VAR_ARG(meta.Args[0], U"abc", Empty);
             CHECK_DIRECT_ARG(meta.Args[1], Uint, 0xffu);

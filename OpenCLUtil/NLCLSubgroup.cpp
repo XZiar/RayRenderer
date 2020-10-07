@@ -95,9 +95,9 @@ std::optional<xziar::nailang::Arg> NLCLSubgroupExtension::NLCLFunc(NLCLRuntime& 
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (call.Name == U"oclu.AddSubgroupPatch"sv)
+    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call.Name, target, NailangRuntimeBase::FuncTargetType::Plain);
+        Runtime.ThrowIfNotFuncTarget(*call.Name, target, NailangRuntimeBase::FuncTargetType::Plain);
         Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
         const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = args[0].GetBool().value();
@@ -287,13 +287,13 @@ bool KernelSubgroupExtension::KernelMeta(NLCLRuntime& runtime, const xziar::nail
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     Expects(&kernel == &Kernel);
     using namespace xziar::nailang;
-    if (meta.Name == U"oclu.SubgroupSize"sv)
+    if (*meta.Name == U"oclu.SubgroupSize"sv)
     {
         const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
         SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
         return true;
     }
-    if (meta.Name == U"oclu.SubgroupExt"sv)
+    if (*meta.Name == U"oclu.SubgroupExt"sv)
     {
         const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,

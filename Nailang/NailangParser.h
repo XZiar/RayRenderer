@@ -108,9 +108,11 @@ private:
 
     template<typename StopDelimer>
     [[nodiscard]] std::pair<std::optional<RawArg>, char32_t> ParseArg();
+    [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const;
 public:
     [[nodiscard]] static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
-    [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view funcName, MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
+        FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context);
 };
 

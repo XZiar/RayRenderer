@@ -344,6 +344,7 @@ TEST(NailangBase, Serializer)
     using xziar::nailang::RawArg;
     using xziar::nailang::LateBindVar;
     using xziar::nailang::EmbedOps;
+    using xziar::nailang::FuncName;
     RawArg a1{ true };
     RawArg a2{ false };
     RawArg a3{ uint64_t(1234) };
@@ -380,27 +381,31 @@ TEST(NailangBase, Serializer)
         EXPECT_EQ(Serializer::Stringify(&expr), U"(true || false) && 1234"sv);
     }
     {
+        const auto name = FuncName::CreateTemp(U"Func"sv, FuncName::FuncInfo::Empty);
         std::vector<RawArg> args{ a1 };
-        xziar::nailang::FuncCall call{ U"Func"sv, args };
+        xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func(true)"sv);
     }
     {
+        const auto name = FuncName::CreateTemp(U"Func2"sv, FuncName::FuncInfo::Empty);
         std::vector<RawArg> args{ a2,a3,a4 };
-        xziar::nailang::FuncCall call{ U"Func2"sv, args };
+        xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func2(false, 1234, -5678)"sv);
     }
     {
+        const auto name = FuncName::CreateTemp(U"Func3"sv, FuncName::FuncInfo::Empty);
         xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
         xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
         std::vector<RawArg> args{ &expr,a4 };
-        xziar::nailang::FuncCall call{ U"Func3"sv, args };
+        xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func3((true || false) && 1234, -5678)"sv);
     }
     {
+        const auto name = FuncName::CreateTemp(U"Func4"sv, FuncName::FuncInfo::Empty);
         xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
         xziar::nailang::BinaryExpr expr1(EmbedOps::And, &expr0, a3);
         std::vector<RawArg> args{ &expr1,a4 };
-        xziar::nailang::FuncCall call{ U"Func4"sv, args };
+        xziar::nailang::FuncCall call{ &name.Get(), args };
         xziar::nailang::BinaryExpr expr(EmbedOps::Div, a5, &call);
         EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\" / Func4((true || false) && 1234, -5678)"sv);
     }

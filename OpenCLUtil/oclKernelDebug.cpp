@@ -202,16 +202,16 @@ struct NLCLDebugExtension : public NLCLExtension
     {
         auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
-        if (call.Name == U"oclu.EnableDebug")
+        if (*call.Name == U"oclu.EnableDebug")
         {
-            Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
             Runtime.Logger.verbose(u"Manually enable debug.\n");
             AllowDebug = true;
             return Arg{};
         }
-        else if (call.Name == U"oclu.DefineDebugString"sv)
+        else if (*call.Name == U"oclu.DefineDebugString"sv)
         {
-            Runtime.ThrowIfNotFuncTarget(call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
             Runtime.ThrowByArgCount(call, 3, ArgLimits::AtLeast);
             const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto id = arg2[0].GetStr().value();
@@ -241,7 +241,7 @@ struct NLCLDebugExtension : public NLCLExtension
     {
         auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
-        if (meta.Name == U"oclu.DebugOutput"sv)
+        if (*meta.Name == U"oclu.DebugOutput"sv)
         {
             if (AllowDebug)
             {
