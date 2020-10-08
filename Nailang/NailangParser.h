@@ -136,8 +136,7 @@ class NAILANGAPI BlockParser : public RawBlockParser
 {
 protected:
     [[nodiscard]] Assignment ParseAssignment(const std::u32string_view var);
-    template<bool AllowNonBlock>
-    void ParseContentIntoBlock(Block& block, const bool tillTheEnd = true);
+    void ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd = true);
     using RawBlockParser::RawBlockParser;
 public:
     [[nodiscard]] static Block ParseRawBlock(const RawBlock& block, MemoryPool& pool);

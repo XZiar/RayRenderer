@@ -213,6 +213,39 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
 }
 
 
+TEST(NailangRuntime, Indexer)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    runtime.SetRootArg(U"tmp", U"Hello"sv);
+    const auto ParseEval = [&](const std::u32string_view src)
+    {
+        ParserContext context(src);
+        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        return runtime.EvaluateArg(*rawarg);
+    };
+    {
+        const auto arg = ParseEval(U"tmp[0];"sv);
+        CHECK_ARG(arg, U32Str, U"H"sv);
+    }
+    {
+        const auto arg = ParseEval(U"tmp[3];"sv);
+        CHECK_ARG(arg, U32Str, U"l"sv);
+    }
+    {
+        const auto arg = ParseEval(U"tmp[-1];"sv);
+        CHECK_ARG(arg, U32Str, U"o"sv);        
+
+    }
+    {
+        EXPECT_THROW(ParseEval(U"tmp[5];"sv), xziar::nailang::NailangRuntimeException);
+    }
+    {
+        EXPECT_THROW(ParseEval(U"tmp[-5];"sv), xziar::nailang::NailangRuntimeException);
+    }
+}
+
+
 TEST(NailangRuntime, MathFunc)
 {
     MemoryPool pool;
@@ -484,7 +517,7 @@ struct BlkParser : public BlockParser
         common::parser::ParserContext context(src);
         BlkParser parser(pool, context);
         Block ret;
-        parser.ParseContentIntoBlock<true>(ret);
+        parser.ParseContentIntoBlock(true, ret);
         return ret;
     }
 };

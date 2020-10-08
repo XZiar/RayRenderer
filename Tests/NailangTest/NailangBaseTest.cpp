@@ -363,6 +363,14 @@ TEST(NailangBase, Serializer)
         EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
     }
     {
+        xziar::nailang::IndexerExpr expr(a5, a3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\"[1234]"sv);
+    }
+    {
+        xziar::nailang::IndexerExpr expr(a6, a4);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cd.ef[-5678]"sv);
+    }
+    {
         xziar::nailang::BinaryExpr expr(EmbedOps::Add, a1, a2);
         EXPECT_EQ(Serializer::Stringify(&expr), U"true + false"sv);
     }

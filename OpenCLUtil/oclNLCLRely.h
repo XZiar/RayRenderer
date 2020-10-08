@@ -23,7 +23,7 @@ public:
     {
         common::parser::ParserContext context(src);
         NLCLParser parser(pool, context);
-        parser.ParseContentIntoBlock<true>(dst);
+        parser.ParseContentIntoBlock(true, dst);
     }
 };
 

@@ -1452,7 +1452,7 @@ Arg NailangRuntimeBase::EvaluateRawStatements(std::u32string_view content, const
             common::parser::ParserContext context(src);
             EmbedBlkParser parser(pool, context);
             Block ret;
-            parser.ParseContentIntoBlock<true>(ret);
+            parser.ParseContentIntoBlock(true, ret);
             return ret;
         }
     };

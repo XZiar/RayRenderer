@@ -150,7 +150,7 @@ TEST(NailangParser, ParseFuncBody)
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
 
-        EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
         const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
         CHECK_DIRECT_ARG(stmt.LeftOprend, Uint, 1u);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
@@ -162,8 +162,8 @@ TEST(NailangParser, ParseFuncBody)
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
-        EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
-        EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Binary);
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
+        ASSERT_EQ(func.Args[1].TypeData, RawArg::Type::Binary);
         {
             const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Unary>();
             EXPECT_EQ(stmt.Operator, EmbedOps::Not);
@@ -177,18 +177,80 @@ TEST(NailangParser, ParseFuncBody)
         }
     }
     {
+        constexpr auto src = U"(val[5])"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(*func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1u);
+
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Indexer);
+        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Indexer>();
+        CHECK_VAR_ARG(stmt.Target, U"val"sv, Empty);
+        CHECK_DIRECT_ARG(stmt.Index, Int, 5);
+    }
+    {
+        constexpr auto src = U"(val[x+y]+ 12.8)"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(*func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1u);
+
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
+        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
+        EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Indexer);
+        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt.RightOprend, FP, 12.8);
+
+        const auto& stmt1 = *stmt.LeftOprend.GetVar<RawArg::Type::Indexer>();
+        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
+        ASSERT_EQ(stmt1.Index.TypeData, RawArg::Type::Binary);
+
+        const auto& stmt2 = *stmt1.Index.GetVar<RawArg::Type::Binary>();
+        CHECK_VAR_ARG(stmt2.LeftOprend, U"x"sv, Empty);
+        EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
+        CHECK_VAR_ARG(stmt2.RightOprend, U"y"sv, Empty);
+    }
+    {
+        constexpr auto src = U"(!val[x[3+4][5]])"sv;
+        ParserContext context(src);
+        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        EXPECT_EQ(*func.Name, U"func"sv);
+        ASSERT_EQ(func.Args.size(), 1u);
+
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
+        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::Not);
+        ASSERT_EQ(stmt.Oprend.TypeData, RawArg::Type::Indexer);
+
+        const auto& stmt1 = *stmt.Oprend.GetVar<RawArg::Type::Indexer>();
+        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
+        ASSERT_EQ(stmt1.Index.TypeData, RawArg::Type::Indexer);
+
+        const auto& stmt2 = *stmt1.Index.GetVar<RawArg::Type::Indexer>();
+        ASSERT_EQ(stmt2.Target.TypeData, RawArg::Type::Indexer);
+        CHECK_DIRECT_ARG(stmt2.Index, Int, 5);
+        const auto& stmt3 = *stmt2.Target.GetVar<RawArg::Type::Indexer>();
+        CHECK_VAR_ARG(stmt3.Target, U"x"sv, Empty);
+        ASSERT_EQ(stmt3.Index.TypeData, RawArg::Type::Binary);
+
+        const auto& stmt4 = *stmt3.Index.GetVar<RawArg::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt4.LeftOprend, Int, 3);
+        EXPECT_EQ(stmt4.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt4.RightOprend, Int, 4);
+    }
+    {
         constexpr auto src = U"(6 >= $foo(:bar), $foo(`bar, (4-5)==9))"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
-        EXPECT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
-        EXPECT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
+        ASSERT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
         {
             const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
             CHECK_DIRECT_ARG(stmt.LeftOprend, Int, 6);
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
-            EXPECT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
+            ASSERT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
             const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
             EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
@@ -199,9 +261,9 @@ TEST(NailangParser, ParseFuncBody)
             EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 2u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Root);
-            EXPECT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
+            ASSERT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
             const auto& stmt = *fcall.Args[1].GetVar<RawArg::Type::Binary>();
-            EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Binary);
+            ASSERT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Binary);
             {
                 const auto& stmt2 = *stmt.LeftOprend.GetVar<RawArg::Type::Binary>();
                 CHECK_DIRECT_ARG(stmt2.LeftOprend, Int, 4);

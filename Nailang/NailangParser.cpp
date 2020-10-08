@@ -182,7 +182,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
         tokenizer::SquareBracketTokenizer>(StopDelim);
     constexpr auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
-        tokenizer::EmbedOpTokenizer>(StopDelim);
+        tokenizer::EmbedOpTokenizer, tokenizer::SquareBracketTokenizer>(StopDelim);
     
     std::optional<RawArg> oprend1, oprend2;
     std::optional<EmbedOps> op;
@@ -527,8 +527,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     return assign;
 }
 
-template<bool AllowNonBlock>
-void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
+void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -580,7 +579,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
             FillFileName(inlineBlk);
             {
                 const auto idxBegin = Context.Index;
-                ParseContentIntoBlock<true>(inlineBlk, false);
+                ParseContentIntoBlock(true, inlineBlk, false);
                 const auto idxEnd = Context.Index;
                 inlineBlk.Source = Context.Source.substr(idxBegin, idxEnd - idxBegin - 1);
             }
@@ -591,7 +590,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         } continue;
         case NailangToken::Func:
         {
-            if constexpr (!AllowNonBlock)
+            if (!allowNonBlock)
                 OnUnExpectedToken(token, u"Function call not supported here"sv);
             FuncCall funccall;
             static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
@@ -603,7 +602,7 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
         } continue;
         case NailangToken::Var:
         {
-            if constexpr (!AllowNonBlock)
+            if (!allowNonBlock)
                 OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
             Assignment assign = ParseAssignment(token.GetString());
             const auto target = MemPool.Create<Assignment>(assign);
@@ -633,8 +632,6 @@ void BlockParser::ParseContentIntoBlock(Block& block, const bool tillTheEnd)
     block.Content = MemPool.CreateArray(contents);
     block.MetaFuncations = MemPool.CreateArray(allMetaFuncs);
 }
-template NAILANGAPI void BlockParser::ParseContentIntoBlock<true >(Block& block, const bool tillTheEnd);
-template NAILANGAPI void BlockParser::ParseContentIntoBlock<false>(Block& block, const bool tillTheEnd);
 
 Block BlockParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
 {
@@ -644,7 +641,7 @@ Block BlockParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
 
     Block ret;
     static_cast<RawBlock&>(ret) = block;
-    parser.ParseContentIntoBlock<true>(ret);
+    parser.ParseContentIntoBlock(true, ret);
     return ret;
 }
 
@@ -655,7 +652,7 @@ Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserConte
     Block ret;
     ret.Position = GetPosition(context, true);
     parser.FillFileName(ret);
-    parser.ParseContentIntoBlock<false>(ret);
+    parser.ParseContentIntoBlock(false, ret);
     return ret;
 }
 
