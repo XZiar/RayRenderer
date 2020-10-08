@@ -79,7 +79,7 @@ struct NLCLSubgroupExtension : public NLCLExtension
     { }
     ~NLCLSubgroupExtension() override { }
     [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall> metas, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override;
+        common::span<const xziar::nailang::FuncCall> metas) override;
 
     static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
     static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);

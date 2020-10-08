@@ -16,17 +16,26 @@ using xziar::nailang::UnaryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
 
+
+testing::AssertionResult CheckRawArg(const RawArg& arg, const RawArg::Type type)
+{
+    if (arg.TypeData == type)
+        return testing::AssertionSuccess();
+    else
+        return testing::AssertionFailure() << "rawarg is [" << WideToChar(arg.GetTypeName()) << "](" << common::enum_cast(arg.TypeData) << ")";
+}
+
 #define CHECK_DIRECT_ARG(target, type, val)                 \
 do                                                          \
 {                                                           \
-    ASSERT_EQ(target.TypeData, RawArg::Type::type);         \
+    ASSERT_TRUE(CheckRawArg(target, RawArg::Type::type));   \
     EXPECT_EQ(target.GetVar<RawArg::Type::type>(), val);    \
 } while(0)
 
 #define CHECK_VAR_ARG(target, val, info)                    \
 do                                                          \
 {                                                           \
-    ASSERT_EQ(target.TypeData, RawArg::Type::Var);          \
+    ASSERT_TRUE(CheckRawArg(target, RawArg::Type::Var));    \
     const auto& _var = *target.GetVar<RawArg::Type::Var>(); \
     EXPECT_EQ(_var, val);                                   \
     EXPECT_EQ(_var.Info(), LateBindVar::VarInfo::info);     \

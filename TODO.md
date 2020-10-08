@@ -149,6 +149,7 @@
   - [ ] Add array type
   - [ ] Add array access by `[]`
   - [ ] Add member func call for arg by `()`
+  - [ ] Design custom type with func-table
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

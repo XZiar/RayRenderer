@@ -260,10 +260,6 @@ MAKE_ENUM_BITFIELD(FrameFlags)
 class NAILANGAPI NailangRuntimeBase
 {
 public:
-    enum class FuncTargetType { Plain, Expr, Meta };
-    static std::u32string_view ArgTypeName(const Arg::Type type) noexcept;
-    static std::u32string_view ArgTypeName(const RawArg::Type type) noexcept;
-    static std::u32string_view FuncTargetName(const FuncTargetType type) noexcept;
     enum class ProgramStatus  : uint8_t { Next, Break, Return, End };
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
 protected:
@@ -349,8 +345,7 @@ protected:
     void ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
-    void ThrowIfNotFuncTarget(const FuncName& func, const FuncTargetType target, const FuncTargetType type) const;
-    void ThrowIfNotFuncTarget(const std::u32string_view name, const FuncTargetType target, const FuncTargetType type) const;
+    void ThrowIfNotFuncTarget(const FuncCall& call, const FuncName::FuncInfo type) const;
     void ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     void ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
@@ -410,9 +405,9 @@ protected:
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const BlockContent& target, common::span<const FuncCall> metas);
-                  virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
-    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
-    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target);
+                  virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas);
     [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall> metas);
                   virtual Arg  EvaluateArg(const RawArg& arg);
     [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);

@@ -30,6 +30,22 @@ using xziar::nailang::LargeEvaluateContext;
 using xziar::nailang::CompactEvaluateContext;
 using xziar::nailang::EmbedOpEval;
 
+
+testing::AssertionResult CheckArg(const Arg& arg, const Arg::Type type)
+{
+    if (arg.TypeData == type)
+        return testing::AssertionSuccess();
+    else
+        return testing::AssertionFailure() << "arg is [" << WideToChar(arg.GetTypeName()) << "](" << common::enum_cast(arg.TypeData) << ")";
+}
+
+#define CHECK_ARG(arg, type, val) do                \
+{                                                   \
+    ASSERT_TRUE(CheckArg(arg, Arg::Type::type));    \
+    EXPECT_EQ(arg.GetVar<Arg::Type::type>(), val);  \
+} while(0)                                          \
+
+
 class EvalCtx : public CompactEvaluateContext
 {
 public:
@@ -100,49 +116,43 @@ TEST(NailangBase, ArgToString)
     ChkStr(CustomVar{}, U""sv);
 }
 
-#define CHECK_ARG(arg, type, val) do            \
-{                                               \
-EXPECT_EQ(arg.TypeData, Arg::Type::type);       \
-EXPECT_EQ(arg.GetVar<Arg::Type::type>(), val);  \
-} while(0)                                      \
-
 TEST(NailangRuntime, EvalEmbedOp)
 {
     using Type = Arg::Type;
-#define TEST_BIN(l, r, op, type, ans) do        \
-{                                               \
-Arg left(l), right(r);                          \
-const auto ret = EmbedOpEval::op(left, right);  \
-ASSERT_TRUE(ret.has_value());                   \
-CHECK_ARG(ret.value(), type, ans);              \
-} while(0)                                      \
+#define TEST_BIN(l, r, op, type, ans) do            \
+{                                                   \
+    Arg left(l), right(r);                          \
+    const auto ret = EmbedOpEval::op(left, right);  \
+    ASSERT_TRUE(ret.has_value());                   \
+    CHECK_ARG(ret.value(), type, ans);              \
+} while(0)                                          
 
 #define TEST_UN(val, op, type, ans) do      \
 {                                           \
-Arg arg(val);                               \
-const auto ret = EmbedOpEval::op(arg);      \
-ASSERT_TRUE(ret.has_value());               \
-CHECK_ARG(ret.value(), type, ans);          \
+    Arg arg(val);                           \
+    const auto ret = EmbedOpEval::op(arg);  \
+    ASSERT_TRUE(ret.has_value());           \
+    CHECK_ARG(ret.value(), type, ans);      \
 } while(0)                                  \
 
-    TEST_BIN(uint64_t(1), uint64_t(2), Equal,       Bool, false);
-    TEST_BIN(uint64_t(0), uint64_t(0), NotEqual,    Bool, false);
-    TEST_BIN(uint64_t(1), uint64_t(2), Add,         Uint, 3u);
-    TEST_BIN(uint64_t(1), int64_t(-1), Add,         Uint, 0u);
-    TEST_BIN(uint64_t(1), 0.5,         Sub,         FP,   0.5);
-    TEST_BIN(int64_t(5),  int64_t(-1), Mul,         Int,  -5);
-    TEST_BIN(uint64_t(3), uint64_t(2), Div,         Uint, 1u);
-    TEST_BIN(uint64_t(3), 0.5,         Div,         FP,   6);
-    TEST_BIN(uint64_t(3), uint64_t(2), Rem,         Uint, 1u);
-    TEST_BIN(2.5,         2.0,         Rem,         FP,   0.5);
-    TEST_BIN(U"abc"sv,    U"ABC"sv,    Add,         U32Str, U"abcABC"sv);
-    TEST_BIN(uint64_t(1), uint64_t(2), Less,        Bool, true);
-    TEST_BIN(int64_t(-1), uint64_t(2), Less,        Bool, true);
-    TEST_BIN(uint64_t(1), int64_t(-2), Less,        Bool, false);
-    TEST_BIN(uint64_t(1), int64_t(-2), LessEqual,   Bool, false);
-    TEST_BIN(-2.0,        int64_t(-2), GreaterEqual, Bool, true);
-    TEST_BIN(-2.0,        U""sv,       And,         Bool, false);
-    TEST_BIN(true,        U""sv,       Or,          Bool, true);
+    TEST_BIN(uint64_t(1), uint64_t(2), Equal,          Bool, false);
+    TEST_BIN(uint64_t(0), uint64_t(0), NotEqual,       Bool, false);
+    TEST_BIN(uint64_t(1), uint64_t(2), Add,            Uint, 3u);
+    TEST_BIN(uint64_t(1), int64_t(-1), Add,            Uint, 0u);
+    TEST_BIN(uint64_t(1),         0.5, Sub,              FP, 0.5);
+    TEST_BIN( int64_t(5), int64_t(-1), Mul,             Int, -5);
+    TEST_BIN(uint64_t(3), uint64_t(2), Div,            Uint, 1u);
+    TEST_BIN(uint64_t(3),         0.5, Div,              FP, 6);
+    TEST_BIN(uint64_t(3), uint64_t(2), Rem,            Uint, 1u);
+    TEST_BIN(        2.5,         2.0, Rem,              FP, 0.5);
+    TEST_BIN(   U"abc"sv,    U"ABC"sv, Add,          U32Str, U"abcABC"sv);
+    TEST_BIN(uint64_t(1), uint64_t(2), Less,           Bool, true);
+    TEST_BIN(int64_t(-1), uint64_t(2), Less,           Bool, true);
+    TEST_BIN(uint64_t(1), int64_t(-2), Less,           Bool, false);
+    TEST_BIN(uint64_t(1), int64_t(-2), LessEqual,      Bool, false);
+    TEST_BIN(       -2.0, int64_t(-2), GreaterEqual,   Bool, true);
+    TEST_BIN(       -2.0,       U""sv, And,            Bool, false);
+    TEST_BIN(       true,       U""sv, Or,             Bool, true);
     TEST_UN (-2.0,  Not, Bool, false);
     TEST_UN (U""sv, Not, Bool, true);
 #undef TEST_BIN
@@ -235,7 +245,6 @@ TEST(NailangRuntime, Indexer)
     {
         const auto arg = ParseEval(U"tmp[-1];"sv);
         CHECK_ARG(arg, U32Str, U"o"sv);        
-
     }
     {
         EXPECT_THROW(ParseEval(U"tmp[5];"sv), xziar::nailang::NailangRuntimeException);

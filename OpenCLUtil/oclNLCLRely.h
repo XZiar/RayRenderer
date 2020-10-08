@@ -141,7 +141,7 @@ public:
     using KernelExtension::KernelExtension;
     virtual ~NLCLExtension();
     [[nodiscard]] virtual std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime&, const xziar::nailang::FuncCall&,
-        common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType)
+        common::span<const xziar::nailang::FuncCall>)
     {
         return {};
     }
@@ -279,7 +279,7 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
     void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas) override;
-    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target) override;
+    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) override;
     void DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie = nullptr);
     virtual void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     virtual void OutputGlobal(const RawBlock& block, MetaFuncs metas, std::u32string& dst);

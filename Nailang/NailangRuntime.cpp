@@ -384,56 +384,6 @@ NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context)
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
 
-std::u32string_view NailangRuntimeBase::ArgTypeName(const Arg::Type type) noexcept
-{
-    switch (type)
-    {
-    case Arg::Type::Empty:    return U"empty"sv;
-    case Arg::Type::Var:      return U"variable"sv;
-    case Arg::Type::U32Str:   return U"string"sv;
-    case Arg::Type::U32Sv:    return U"string_view"sv;
-    case Arg::Type::Uint:     return U"uint"sv;
-    case Arg::Type::Int:      return U"int"sv;
-    case Arg::Type::FP:       return U"fp"sv;
-    case Arg::Type::Bool:     return U"bool"sv;
-    case Arg::Type::Custom:   return U"custom"sv;
-    case Arg::Type::Boolable: return U"boolable"sv;
-    case Arg::Type::String:   return U"string-ish"sv;
-    case Arg::Type::Number:   return U"number"sv;
-    case Arg::Type::Integer:  return U"integer"sv;
-    default:                  return U"error"sv;
-    }
-}
-
-std::u32string_view NailangRuntimeBase::ArgTypeName(const RawArg::Type type) noexcept
-{
-    switch (type)
-    {
-    case RawArg::Type::Empty:   return U"empty"sv;
-    case RawArg::Type::Func:    return U"func-call"sv;
-    case RawArg::Type::Unary:   return U"unary-expr"sv;
-    case RawArg::Type::Binary:  return U"binary-expr"sv;
-    case RawArg::Type::Indexer: return U"indexer-expr"sv;
-    case RawArg::Type::Var:     return U"variable"sv;
-    case RawArg::Type::Str:     return U"string"sv;
-    case RawArg::Type::Uint:    return U"uint"sv;
-    case RawArg::Type::Int:     return U"int"sv;
-    case RawArg::Type::FP:      return U"fp"sv;
-    case RawArg::Type::Bool:    return U"bool"sv;
-    default:                    return U"error"sv;
-    }
-}
-
-std::u32string_view NailangRuntimeBase::FuncTargetName(const NailangRuntimeBase::FuncTargetType type) noexcept
-{
-    switch (type)
-    {
-    case FuncTargetType::Plain: return U"funccall"sv;
-    case FuncTargetType::Expr:  return U"part of statement"sv;
-    case FuncTargetType::Meta:  return U"metafunc"sv;
-    default:                    return U"error"sv;
-    }
-}
 
 static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
 {
@@ -471,14 +421,14 @@ void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const RawArg::Type
     const auto& arg = call.Args[idx];
     if (arg.TypeData != type)
         NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} rawarg, which gives [{}], source is [{}].",
-            ArgTypeName(type), *call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(arg)),
+            RawArg::TypeName(type), *call.Name, idx, arg.GetTypeName(), Serializer::Stringify(arg)),
             arg);
 }
 
 void NailangRuntimeBase::ThrowByArgType(const Arg& arg, const Arg::Type type) const
 {
     if ((arg.TypeData & type) != type)
-        NLRT_THROW_EX(FMTSTR(u"Expected arg of [{}], which gives [{}].", ArgTypeName(type), ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"Expected arg of [{}], which gives [{}].", Arg::TypeName(type), arg.GetTypeName()),
             arg);
 }
 
@@ -486,25 +436,27 @@ void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Arg& arg, co
 {
     if ((arg.TypeData & type) != type)
         NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].", 
-                ArgTypeName(type), *call.Name, idx, ArgTypeName(arg.TypeData), Serializer::Stringify(call.Args[idx])),
+                Arg::TypeName(type), *call.Name, idx, arg.GetTypeName(), Serializer::Stringify(call.Args[idx])),
             arg);
 }
 
-void NailangRuntimeBase::ThrowIfNotFuncTarget(const FuncName& func, const FuncTargetType target, const FuncTargetType type) const
+static constexpr std::u32string_view FuncTypeName(const FuncName::FuncInfo type)
 {
-    if (target != type)
+    switch (type)
     {
-        NLRT_THROW_EX(FMTSTR(u"Func [{}] only support as [{}].", func, FuncTargetName(type)),
-            FuncCall{ &func, {} });
+    case FuncName::FuncInfo::Empty:     return U"Plain"sv;
+    case FuncName::FuncInfo::Meta:      return U"MetaFunc"sv;
+    case FuncName::FuncInfo::ExprPart:  return U"Part of expr"sv;
+    default:                            return U"Unknown"sv;
     }
 }
 
-void NailangRuntimeBase::ThrowIfNotFuncTarget(const std::u32string_view name, const FuncTargetType target, const FuncTargetType type) const
+void NailangRuntimeBase::ThrowIfNotFuncTarget(const FuncCall& call, const FuncName::FuncInfo type) const
 {
-    if (target != type)
+    if (call.Name->Info() != type)
     {
-        const auto func = CreateTempFuncName(name);
-        ThrowIfNotFuncTarget(func, target, type);
+        NLRT_THROW_EX(FMTSTR(u"Func [{}] only support as [{}], get[{}].", *call.Name, FuncTypeName(type), FuncTypeName(call.Name->Info())),
+            call);
     }
 }
 
@@ -526,7 +478,7 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
 {
     const auto ret = arg.GetBool();
     if (!ret.has_value())
-        NLRT_THROW_EX(FMTSTR(u"[{}] should be bool-able, which is [{}].", varName, ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"[{}] should be bool-able, which is [{}].", varName, arg.GetTypeName()),
             arg);
     return ret.value();
 }
@@ -597,6 +549,7 @@ bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, con
     FCallHost callHost(this);
     for (const auto& meta : metas)
     {
+        Expects(meta.Name->Info() == FuncName::FuncInfo::Meta);
         callHost = &meta;
         auto result = MetaFuncResult::Unhandled;
         switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
@@ -666,7 +619,8 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     {
         const auto& fcall = content.Get<FuncCall>();
         FCallHost callHost(this, fcall);
-        EvaluateFunc(*fcall, metas, FuncTargetType::Plain);
+        Expects(fcall->Name->Info() == FuncName::FuncInfo::Empty);
+        EvaluateFunc(*fcall, metas);
     } break;
     case BlockContent::Type::RawBlock:
     {
@@ -790,7 +744,7 @@ TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
         }
         break;
     default:
-        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, ArgTypeName(arg.TypeData)),
+        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
             arg);
         break;
     }
@@ -802,7 +756,7 @@ size_t NailangRuntimeBase::BiDirIndexCheck(const size_t size, const RawArg& inde
 {
     const auto idx = EvaluateArg(index);
     if (!idx.IsInteger())
-        NLRT_THROW_EX(FMTSTR(u"Require integer as indexer, get[{}]"sv, ArgTypeName(idx.TypeData)), index);
+        NLRT_THROW_EX(FMTSTR(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName()), index);
     bool isReverse = false;
     uint64_t realIdx = 0;
     if (idx.TypeData == Arg::Type::Uint)
@@ -997,11 +951,11 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     return MetaFuncResult::Unhandled;
 }
 
-Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas, const FuncTargetType target)
+Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas)
 {
     const auto fullName = call.Name->FullName();
     // only for plain function
-    if (target == FuncTargetType::Plain && call.Name->PartCount == 1)
+    if (call.Name->Info() == FuncName::FuncInfo::Empty && call.Name->PartCount == 1)
     {
         if (fullName == U"Break"sv)
         {
@@ -1082,12 +1036,12 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     }
     if (const auto lcFunc = LookUpFunc(fullName); lcFunc)
     {
-        return EvaluateLocalFunc(lcFunc, call, metas, target);
+        return EvaluateLocalFunc(lcFunc, call, metas);
     }
-    return EvaluateUnknwonFunc(call, metas, target);
+    return EvaluateUnknwonFunc(call, metas);
 }
 
-Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall>, const FuncTargetType)
+Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall>)
 {
     ThrowByArgCount(call, func.ArgNames.size());
     std::vector<Arg> args;
@@ -1108,10 +1062,9 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
     return std::move(CurFrame->ReturnArg);
 }
 
-Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>, const FuncTargetType target)
+Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>)
 {
-    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved as [{}].", 
-        *call.Name, call.Args.size(), FuncTargetName(target)), call);
+    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved.", *call.Name, call.Args.size()), call);
     return {};
 }
 
@@ -1315,7 +1268,8 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
     {
         const auto& fcall = arg.GetVar<Type::Func>();
         FCallHost callHost(this, fcall);
-        return EvaluateFunc(*fcall, {}, FuncTargetType::Expr);
+        Expects(fcall->Name->Info() == FuncName::FuncInfo::ExprPart);
+        return EvaluateFunc(*fcall, {});
     }
     case Type::Unary:
         if (auto ret = EvaluateUnaryExpr(*arg.GetVar<Type::Unary>()); ret.has_value())

@@ -198,20 +198,20 @@ struct NLCLDebugExtension : public NLCLExtension
     ~NLCLDebugExtension() override { }
 
     [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall>, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override
+        common::span<const xziar::nailang::FuncCall>) override
     {
         auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         using namespace xziar::nailang;
         if (*call.Name == U"oclu.EnableDebug")
         {
-            Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
             Runtime.Logger.verbose(u"Manually enable debug.\n");
             AllowDebug = true;
             return Arg{};
         }
         else if (*call.Name == U"oclu.DefineDebugString"sv)
         {
-            Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+            Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
             Runtime.ThrowByArgCount(call, 3, ArgLimits::AtLeast);
             const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto id = arg2[0].GetStr().value();
@@ -224,7 +224,7 @@ struct NLCLDebugExtension : public NLCLExtension
                 const auto arg = Runtime.EvaluateArg(rawarg);
                 if (!arg.IsStr())
                     NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]", 
-                        i, NLCLRuntime_::ArgTypeName(arg.TypeData)), call);
+                        i, arg.GetTypeName()), call);
                 const auto vtype = Runtime.ParseVecType(arg.GetStr().value(), [&]()
                     {
                         return fmt::format(FMT_STRING(u"Arg[{}] of [DefineDebugString]"sv), i);

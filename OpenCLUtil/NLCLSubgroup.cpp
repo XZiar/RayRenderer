@@ -91,13 +91,13 @@ static constexpr bool IsReduceOpArith(SubgroupReduceOp op)
 
 
 std::optional<xziar::nailang::Arg> NLCLSubgroupExtension::NLCLFunc(NLCLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>, const NailangRuntimeBase::FuncTargetType target)
+    common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
     if (*call.Name == U"oclu.AddSubgroupPatch"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(*call.Name, target, NailangRuntimeBase::FuncTargetType::Plain);
+        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
         Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
         const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = args[0].GetBool().value();

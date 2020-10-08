@@ -41,7 +41,7 @@ struct NLCLDp4aExtension : public NLCLExtension
     { }
     ~NLCLDp4aExtension() override { }
     [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall> metas, const xziar::nailang::NailangRuntimeBase::FuncTargetType target) override;
+        common::span<const xziar::nailang::FuncCall> metas) override;
 
     std::shared_ptr<Dp4aProvider> Generate(std::u32string_view mimic, std::u32string_view args) const;
     inline static uint32_t ID = NLCLExtension::RegisterNLCLExtenstion(

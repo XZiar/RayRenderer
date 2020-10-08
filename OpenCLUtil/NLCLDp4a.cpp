@@ -21,13 +21,13 @@ using common::str::Charset;
 
 
 std::optional<xziar::nailang::Arg> NLCLDp4aExtension::NLCLFunc(NLCLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>, const NailangRuntimeBase::FuncTargetType target)
+    common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
     if (*call.Name == U"oclu.IntelDp4a"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(*call.Name, target, NLCLRuntime_::FuncTargetType::Plain);
+        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
         HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
         return Arg{};
     }

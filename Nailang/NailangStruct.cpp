@@ -101,6 +101,26 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
 }
 
 
+std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
+{
+    switch (type)
+    {
+    case RawArg::Type::Empty:   return U"empty"sv;
+    case RawArg::Type::Func:    return U"func-call"sv;
+    case RawArg::Type::Unary:   return U"unary-expr"sv;
+    case RawArg::Type::Binary:  return U"binary-expr"sv;
+    case RawArg::Type::Indexer: return U"indexer-expr"sv;
+    case RawArg::Type::Var:     return U"variable"sv;
+    case RawArg::Type::Str:     return U"string"sv;
+    case RawArg::Type::Uint:    return U"uint"sv;
+    case RawArg::Type::Int:     return U"int"sv;
+    case RawArg::Type::FP:      return U"fp"sv;
+    case RawArg::Type::Bool:    return U"bool"sv;
+    default:                    return U"error"sv;
+    }
+}
+
+
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
     return Visit([](const auto val) -> common::str::StrVariant<char32_t>
@@ -115,6 +135,27 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
             else
                 return fmt::format(FMT_STRING(U"{}"), val);
         });
+}
+
+std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
+{
+    switch (type)
+    {
+    case Arg::Type::Empty:    return U"empty"sv;
+    case Arg::Type::Var:      return U"variable"sv;
+    case Arg::Type::U32Str:   return U"string"sv;
+    case Arg::Type::U32Sv:    return U"string_view"sv;
+    case Arg::Type::Uint:     return U"uint"sv;
+    case Arg::Type::Int:      return U"int"sv;
+    case Arg::Type::FP:       return U"fp"sv;
+    case Arg::Type::Bool:     return U"bool"sv;
+    case Arg::Type::Custom:   return U"custom"sv;
+    case Arg::Type::Boolable: return U"boolable"sv;
+    case Arg::Type::String:   return U"string-ish"sv;
+    case Arg::Type::Number:   return U"number"sv;
+    case Arg::Type::Integer:  return U"integer"sv;
+    default:                  return U"error"sv;
+    }
 }
 
 

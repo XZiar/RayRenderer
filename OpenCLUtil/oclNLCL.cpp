@@ -25,6 +25,7 @@ using common::mlog::LogLevel;
 using common::str::Charset;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
+using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
@@ -514,7 +515,7 @@ std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
         return LogLevelParser(str.value());
     return {};
 }
-Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncTargetType target)
+Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
     if (call.Name->PartCount == 2 && (*call.Name)[0] == U"oclu"sv)
     {
@@ -544,7 +545,6 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"EnableExtension")
         {
-            // ThrowIfNotFuncTarget(call.Name, target, FuncTarget::Type::Block);
             const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
             if (const auto sv = arg.GetStr(); sv.has_value())
             {
@@ -558,7 +558,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return false;
         HashCase(subName, U"EnableUnroll")
         {
-            ThrowIfNotFuncTarget(*call.Name, target, FuncTargetType::Plain);
+            ThrowIfNotFuncTarget(call, FuncInfo::Empty);
             if (!Context.EnableUnroll)
             {
                 Logger.warning(u"Manually enable unroll hint.\n");
@@ -567,7 +567,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         } return {};
         HashCase(subName, U"Log")
         {
-            ThrowIfNotFuncTarget(*call.Name, target, FuncTargetType::Plain);
+            ThrowIfNotFuncTarget(call, FuncInfo::Empty);
             const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto logLevel = ParseLogLevel(args2[0]);
             if (!logLevel) 
@@ -592,12 +592,12 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas, const FuncT
         }
         for (const auto& ext : Context.NLCLExts)
         {
-            auto ret = ext->NLCLFunc(*this, call, metas, target);
+            auto ret = ext->NLCLFunc(*this, call, metas);
             if (ret)
                 return std::move(ret.value());
         }
     }
-    return NailangRuntimeBase::EvaluateFunc(call, metas, target);
+    return NailangRuntimeBase::EvaluateFunc(call, metas);
 }
 
 void NLCLRuntime::DirectOutput(const RawBlock& block, MetaFuncs metas, std::u32string& dst, BlockCookie* cookie)
@@ -965,7 +965,7 @@ void NLCLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
                     {
                         if (meta.Args[i].TypeData != RawArg::Type::Var)
                             NLRT_THROW_EX(FMTSTR(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
-                                i, ArgTypeName(meta.Args[i].TypeData)), meta, &block);
+                                i, meta.Args[i].GetTypeName()), meta, &block);
                     }
                     tpArgs = meta.Args;
                     break;

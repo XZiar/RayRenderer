@@ -394,6 +394,12 @@ public:
         default:            return visitor(std::nullopt);
         }
     }
+
+    [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
+    {
+        return TypeName(TypeData);
+    }
+    [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 
 struct CustomVar
@@ -578,6 +584,12 @@ public:
         }
     }
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t> ToString() const noexcept;
+
+    [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
+    {
+        return TypeName(TypeData);
+    }
+    [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 MAKE_ENUM_BITFIELD(Arg::Type)
 
