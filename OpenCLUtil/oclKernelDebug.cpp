@@ -105,6 +105,7 @@ namespace oclu
 {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
+using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
 
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
@@ -191,11 +192,35 @@ struct NLCLRuntime_ : public NLCLRuntime
 struct NLCLDebugExtension : public NLCLExtension
 {
     oclDebugManager DebugManager;
-    using DbgContent = std::pair<std::u32string, std::vector<common::simd::VecDataInfo>>;
+    using DbgContent = std::pair<std::u32string, std::vector<DebugDataLayout::InputType>>;
     std::map<std::u32string, DbgContent, std::less<>> DebugInfos;
     bool AllowDebug = false, HasDebug = false;
     NLCLDebugExtension(NLCLContext& context) : NLCLExtension(context) { }
     ~NLCLDebugExtension() override { }
+
+    template<typename F>
+    static DebugDataLayout::InputType GenerateInput(NLCLRuntime_& Runtime, std::u32string_view str, F&& errInfo)
+    {
+        const auto idx = str.find(U':');
+        std::u32string_view name;
+        if (idx != std::u32string_view::npos)
+        {
+            if (idx != 0)
+            {
+                name = str.substr(0, idx);
+                constexpr auto firstCheck = common::parser::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+                constexpr auto restCheck  = common::parser::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+                bool pass = firstCheck(name[0]);
+                for (size_t i = 1; i < name.size() && pass;)
+                    pass &= restCheck(name[i++]);
+                if (!pass)
+                    NLRT_THROW_EX(FMTSTR(u"Arg name [{}] is not acceptable", name));
+            }
+            str.remove_prefix(idx + 1);
+        }
+        const auto vtype = Runtime.ParseVecType(str, errInfo);
+        return { name, vtype };
+    }
 
     [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
         common::span<const xziar::nailang::FuncCall>) override
@@ -216,7 +241,7 @@ struct NLCLDebugExtension : public NLCLExtension
             const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
             const auto id = arg2[0].GetStr().value();
             const auto formatter = arg2[1].GetStr().value();
-            std::vector<common::simd::VecDataInfo> argInfos;
+            std::vector<DebugDataLayout::InputType> argInfos;
             argInfos.reserve(call.Args.size() - 2);
             size_t i = 2;
             for (const auto& rawarg : call.Args.subspan(2))
@@ -225,11 +250,10 @@ struct NLCLDebugExtension : public NLCLExtension
                 if (!arg.IsStr())
                     NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]", 
                         i, arg.GetTypeName()), call);
-                const auto vtype = Runtime.ParseVecType(arg.GetStr().value(), [&]()
+                argInfos.push_back(GenerateInput(Runtime, arg.GetStr().value(), [&]()
                     {
-                        return fmt::format(FMT_STRING(u"Arg[{}] of [DefineDebugString]"sv), i);
-                    });
-                argInfos.push_back(vtype);
+                        return FMTSTR(u"Arg[{}] of [DefineDebugString]"sv, i);
+                    }));
             }
             if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
                 NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
@@ -325,8 +349,8 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
 )"s;
     }
 
-    std::u32string DebugStringPatch(NLCLRuntime_& runtime, const std::u32string_view dbgId, 
-        const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> args) noexcept
+    std::u32string DebugStringPatch(NLCLRuntime_& runtime, const std::u32string_view dbgId,
+        const std::u32string_view formatter, common::span<const DebugDataLayout::InputType> args) noexcept
     {
         // prepare arg layout
         const auto& dbgBlock = Host.DebugManager.AppendBlock(dbgId, formatter, args);
@@ -350,7 +374,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             .append(U"\r\n    global uint* restrict data,"sv);
         for (size_t i = 0; i < args.size(); ++i)
         {
-            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLContext::GetCLTypeName(args[i]), i);
+            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLContext::GetCLTypeName(args[i].second), i);
         }
         func.pop_back();
         func.append(U")\r\n{"sv);
@@ -374,11 +398,12 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
                 APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
             }
         };
-        for (const auto& [info, offset, idx] : dbgData.ByLayout())
+        for (const auto& blk : dbgData.ByLayout())
         {
+            const auto& [info, name, offset, idx] = blk;
             const auto size = info.Bit * info.Dim0;
-            APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{}]"sv,
-                idx, offset, size / 8, StringifyVDataType(info));
+            APPEND_FMT(func, U"\r\n    // arg[{:3}], offset[{:3}], size[{:3}], type[{:6}], name[{}]"sv,
+                idx, offset, size / 8, StringifyVDataType(info), dbgData.GetName(blk));
             for (const auto eleBit : std::array<uint8_t, 3>{ 32u, 16u, 8u })
             {
                 const auto eleByte = eleBit / 8;
@@ -475,17 +500,16 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
                 NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
             const auto id = args[0], formatter = args[1].substr(1, args[1].size() - 2);
 
-            std::vector<common::simd::VecDataInfo> types;
+            std::vector<DebugDataLayout::InputType> types;
             std::vector<std::u32string_view> vals;
             const auto argCnt = args.size() / 2 - 1;
             types.reserve(argCnt); vals.reserve(argCnt);
             for (size_t i = 2; i < args.size(); i += 2)
             {
-                const auto vtype = Runtime.ParseVecType(args[i], [&]()
+                types.push_back(NLCLDebugExtension::GenerateInput(Runtime, args[i], [&]()
                     {
-                        return FMTSTR(u"Arg[{}] of [DebugStr]", i);
-                    });
-                types.push_back(vtype);
+                        return FMTSTR(u"Arg[{}] of [DebugStr]"sv, i);
+                    }));
                 vals. push_back(args[i + 1]);
             }
             const auto [info, ret] = Host.DebugInfos.try_emplace(std::u32string(id), formatter, std::move(types));
@@ -546,7 +570,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
 
 
 
-DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const uint16_t align) :
+DebugDataLayout::DebugDataLayout(common::span<const InputType> infos, const uint16_t align) :
     Blocks(std::make_unique<DataBlock[]>(infos.size())), ArgLayout(std::make_unique<uint16_t[]>(infos.size())),
     TotalSize(0), ArgCount(gsl::narrow_cast<uint32_t>(infos.size()))
 {
@@ -555,8 +579,12 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const ui
     uint16_t offset = 0, layoutidx = 0;
     { 
         uint16_t idx = 0;
-        for (const auto info : infos)
+        for (const auto [str, info] : infos)
         {
+            if (!str.empty())
+            {
+                Blocks[idx].Name = AllocateString(str);
+            }
             Blocks[idx].Info   = info;
             Blocks[idx].ArgIdx = idx;
             const auto size = info.Bit * info.Dim0 / 8;
@@ -581,7 +609,7 @@ DebugDataLayout::DebugDataLayout(common::span<const VecDataInfo> infos, const ui
                 left.Info.Bit > right.Info.Bit; 
         });
 
-    for (const auto [info, dummy, idx] : tmp)
+    for (const auto [info, name, dummy, idx] : tmp)
     {
         Expects(dummy == UINT16_MAX);
         Blocks[idx].Offset = offset;

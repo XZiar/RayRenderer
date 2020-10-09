@@ -455,6 +455,7 @@ public:
         case States::Init:
             if (ch == '-')
                 RET(Negative, Pending);
+            [[fallthrough]];
         case States::Negative:
             if (ch == '.')
                 RET(Dot, Pending);
@@ -482,6 +483,7 @@ public:
         case States::Exp:
             if (ch == '-')
                 RET(Scientific, Pending);
+            [[fallthrough]];
         case States::Scientific:
             if (ch >= '0' && ch <= '9')
                 RET(Scientific, Waitlist);

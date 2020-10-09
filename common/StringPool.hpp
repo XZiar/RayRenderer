@@ -38,6 +38,7 @@ protected:
     }
     std::basic_string_view<T> GetStringView(StringPiece<T> piece) const noexcept
     {
+        if (piece.Length == 0) return {};
         return { &Pool[piece.Offset], piece.Length };
     }
 };

@@ -22,7 +22,7 @@ struct KernelDebugExtension;
 OCLUAPI void SetAllowDebug(const NLCLContext& context) noexcept;
 
 
-class DebugDataLayout
+class OCLUAPI DebugDataLayout : private common::StringPool<char32_t>
 {
 public:
     template<typename T>
@@ -37,11 +37,12 @@ private:
     struct DataBlock
     {
         common::simd::VecDataInfo Info;
+        common::StringPiece<char32_t> Name;
         uint16_t Offset;
         uint16_t ArgIdx;
         constexpr DataBlock() noexcept : Info({}), Offset(0), ArgIdx(0) { }
-        constexpr DataBlock(common::simd::VecDataInfo info, uint16_t offset, uint16_t idx) noexcept :
-            Info(info), Offset(offset), ArgIdx(idx) { }
+        constexpr DataBlock(common::simd::VecDataInfo info, uint16_t offset, uint16_t idx, common::StringPiece<char32_t> name) noexcept :
+            Info(info), Name(name), Offset(offset), ArgIdx(idx) { }
         template<typename F>
         auto VisitData(common::span<const std::byte> space, F&& func) const
         {
@@ -120,12 +121,15 @@ public:
     uint32_t TotalSize;
     uint32_t ArgCount;
 
-    DebugDataLayout(common::span<const common::simd::VecDataInfo> infos, const uint16_t align = 4);
+    using InputType = std::pair<std::u32string_view, common::simd::VecDataInfo>;
+
+    DebugDataLayout(common::span<const InputType> infos, const uint16_t align = 4);
     //DebugDataLayout(const DebugDataLayout& other);
     DebugDataLayout(DebugDataLayout&& other) = default;
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
     const DataBlock& operator[](size_t idx) const noexcept { return Blocks[idx]; }
+    std::u32string_view GetName(const DataBlock& block) const noexcept { return GetStringView(block.Name); }
 };
 
 
@@ -178,7 +182,8 @@ struct OCLUAPI oclDebugBlock
     std::u32string Formatter;
     uint8_t DebugId;
     template<typename... Args>
-    oclDebugBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter, common::span<const common::simd::VecDataInfo> infos) :
+    oclDebugBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter, 
+        common::span<const DebugDataLayout::InputType> infos) :
         Layout(infos, 4), Name(name), Formatter(formatter), DebugId(idx) {}
     
     common::str::u8string GetString(common::span<const std::byte> data) const;

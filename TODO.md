@@ -92,6 +92,8 @@
     - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime
     - [ ] Add better kernel argument info parsing in NLCL
+    - [ ] Seperate into shared compute library
+    - [ ] Add support of output debug data into xml-in-excel format
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
