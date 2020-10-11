@@ -384,6 +384,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "gtest", "gtest", "{3BD51305
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirctXUtil", "DirectXUtil\DirctXUtil.vcxproj", "{CC934298-6B2A-4538-B656-71DFE4F37C89}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XComputeBase", "XComputeBase\XComputeBase.vcxproj", "{45234356-6D39-4FA5-A252-40D017EA8190}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -574,6 +576,10 @@ Global
 		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Debug|x64.Build.0 = Debug|x64
 		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Release|x64.ActiveCfg = Release|x64
 		{CC934298-6B2A-4538-B656-71DFE4F37C89}.Release|x64.Build.0 = Release|x64
+		{45234356-6D39-4FA5-A252-40D017EA8190}.Debug|x64.ActiveCfg = Debug|x64
+		{45234356-6D39-4FA5-A252-40D017EA8190}.Debug|x64.Build.0 = Debug|x64
+		{45234356-6D39-4FA5-A252-40D017EA8190}.Release|x64.ActiveCfg = Release|x64
+		{45234356-6D39-4FA5-A252-40D017EA8190}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -640,6 +646,7 @@ Global
 		{AA68694D-1802-42F4-8FD9-7F3E149B8F1A} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{3BD51305-E666-4B25-A3A9-D586F5130026} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{CC934298-6B2A-4538-B656-71DFE4F37C89} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
+		{45234356-6D39-4FA5-A252-40D017EA8190} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

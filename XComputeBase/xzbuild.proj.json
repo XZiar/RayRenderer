@@ -1,0 +1,20 @@
+{
+    "name": "XComputeBase",
+    "type": "dynamic",
+    "description": "Base of XCompute",
+    "dependency": ["MiniLogger", "SystemCommon", "StringUtil", "Nailang"],
+    "library": 
+    {
+        "static": [],
+        "dynamic": []
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "sources": ["*.cpp"],
+            "defines": ["XCOMPBAS_EXPORT"],
+            "pch": "XCompPch.h"
+        }
+    }
+}
