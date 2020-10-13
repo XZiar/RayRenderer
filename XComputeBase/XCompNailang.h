@@ -16,18 +16,7 @@ namespace xcomp
 
 class XCNLContext;
 class XCNLRuntime;
-
-class XCOMPBASAPI XComputeParser : xziar::nailang::BlockParser
-{
-    using BlockParser::BlockParser;
-public:
-    static void GetBlock(xziar::nailang::MemoryPool& pool, const std::u32string_view src, xziar::nailang::Block& dst)
-    {
-        common::parser::ParserContext context(src);
-        XComputeParser parser(pool, context);
-        parser.ParseContentIntoBlock(true, dst);
-    }
-};
+class XCNLProgStub;
 
 
 struct OutputBlock
@@ -38,15 +27,18 @@ struct OutputBlock
     {
         virtual ~BlockInfo() { }
     };
+
     const xziar::nailang::RawBlock* Block;
     MetaFuncs MetaFunc;
     std::vector<std::pair<const xziar::nailang::LateBindVar*, xziar::nailang::RawArg>> PreAssignArgs;
     std::unique_ptr<BlockInfo> ExtraInfo;
     BlockType Type;
     bool ReplaceVar = false, ReplaceFunc = false;
+
     OutputBlock(const xziar::nailang::RawBlock* block, MetaFuncs meta, BlockType type) noexcept :
         Block(block), MetaFunc(meta), Type(type) { }
-    std::u32string_view GetBlockTypeName() const noexcept { return BlockTypeName(Type); }
+    forceinline std::u32string_view Name() const noexcept { return Block->Name; }
+    forceinline std::u32string_view GetBlockTypeName() const noexcept { return BlockTypeName(Type); }
     
     XCOMPBASAPI static std::u32string_view BlockTypeName(const BlockType type) noexcept;
 };
@@ -62,10 +54,6 @@ struct InstanceContext
 
     virtual ~InstanceContext() {}
 
-    forceinline bool AddAttribute(const std::u32string_view id, std::u32string_view content)
-    {
-        return Add(Attributes, id, content);
-    }
     forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content)
     {
         return Add(BodyPrefixes, id, content);
@@ -88,12 +76,10 @@ struct InstanceContext
 
     std::u32string Content;
 protected:
-    XCOMPBASAPI static bool Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content);
-    XCOMPBASAPI static void Write(std::u32string& output, const NamedText& item);
-private:
-    std::vector<NamedText> Attributes;
     std::vector<NamedText> BodyPrefixes;
     std::vector<NamedText> BodySuffixes;
+    XCOMPBASAPI static bool Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content);
+    XCOMPBASAPI static void Write(std::u32string& output, const NamedText& item);
 };
 
 
@@ -113,15 +99,6 @@ struct NestedCookie : public BlockCookie
         BlockCookie(block), Context(parent.GetInstanceCtx()) {}
     ~NestedCookie() override {}
     InstanceContext* GetInstanceCtx() noexcept override { return Context; }
-};
-
-
-struct InstanceCookie : public BlockCookie
-{
-    InstanceContext Context;
-    InstanceCookie(const OutputBlock& block) noexcept : BlockCookie(block) {}
-    ~InstanceCookie() override {}
-    InstanceContext* GetInstanceCtx() noexcept override { return &Context; }
 };
 
 
@@ -146,17 +123,18 @@ public:
 
 class XCOMPBASAPI XCNLExtension
 {
-    friend class XCNLRuntime;
-    friend class XCNLContext;
-    friend class XCNLProgStub;
+    friend XCNLRuntime;
+    friend XCNLContext;
+    friend XCNLProgStub;
 protected:
     XCNLContext& Context;
 public:
     XCNLExtension(XCNLContext& context);
     virtual ~XCNLExtension();
-    virtual void BeginInstance(XCNLRuntime&, InstanceContext&) { }
-    virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
+    virtual void  BeginXCNL(XCNLRuntime&) { }
     virtual void FinishXCNL(XCNLRuntime&) { }
+    virtual void  BeginInstance(XCNLRuntime&, InstanceContext&) { } 
+    virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
     [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
     {
         return {};
@@ -166,11 +144,26 @@ public:
     {
         return {};
     }
-    using XCNLExtGen = std::function<std::unique_ptr<XCNLExtension>(common::mlog::MiniLogger<false>&, XCNLContext&, std::any)>;
-    static uint32_t RegisterXCNLExtension(XCNLExtGen creator) noexcept;
+    virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::FuncCall&, InstanceContext&)
+    {
+    }
+
+    using XCNLExtGen = std::unique_ptr<XCNLExtension>(*)(common::mlog::MiniLogger<false>&, XCNLContext&);
+    template<typename T>
+    static uintptr_t RegisterXCNLExtension() noexcept
+    {
+        return RegExt(T::Create);
+    }
 private:
-    uint32_t ID;
+    static uintptr_t RegExt(XCNLExtGen creator) noexcept;
+    uintptr_t ID;
 };
+#define XCNL_EXT_REG(type, ...)                                                         \
+    static std::unique_ptr<XCNLExtension> Create(                                       \
+        [[maybe_unused]] common::mlog::MiniLogger<false>& logger,                       \
+        [[maybe_unused]] xcomp::XCNLContext& context)                                   \
+    __VA_ARGS__                                                                         \
+    inline static uintptr_t Dummy = xcomp::XCNLExtension::RegisterXCNLExtension<type>() \
 
 
 class XCOMPBASAPI COMMON_EMPTY_BASES XCNLContext : public common::NonCopyable, public xziar::nailang::CompactEvaluateContext
@@ -178,6 +171,8 @@ class XCOMPBASAPI COMMON_EMPTY_BASES XCNLContext : public common::NonCopyable, p
     friend class XCNLProcessor;
     friend class XCNLRuntime;
     friend class XCNLProgStub;
+private:
+    [[nodiscard]] XCNLExtension* FindExt(XCNLExtension::XCNLExtGen func) const;
 protected:
     std::vector<std::unique_ptr<XCNLExtension>> Extensions;
 public:
@@ -208,12 +203,7 @@ public:
     template<typename T>
     [[nodiscard]] T* GetXCNLExt() const
     {
-        for (const auto& ext : Extensions)
-        {
-            if (ext->ID == T::ID)
-                return static_cast<T*>(ext.get());
-        }
-        return nullptr;
+        return static_cast<T*>(FindExt(T::Create));
     }
     struct VecTypeResult
     {
@@ -257,6 +247,7 @@ protected:
         const common::span<const std::u32string_view> args, BlockCookie& cookie);
     void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     void DirectOutput(BlockCookie& cookie, std::u32string& dst);
+    void ProcessInstance(BlockCookie& cookie);
 
     void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
@@ -265,16 +256,17 @@ protected:
     void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
     xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas) override;
 
-    [[nodiscard]] InstanceContext ProcessInstance(InstanceCookie& cookie);
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     [[nodiscard]] virtual std::unique_ptr<OutputBlock::BlockInfo> PrepareBlockInfo(OutputBlock& blk);
-    [[nodiscard]] virtual InstanceCookie PrepareInstance(const OutputBlock& block) = 0;
-    virtual void HandleInstanceMeta(const FuncCall& meta, InstanceContext& kerCtx);
+    [[nodiscard]] virtual std::unique_ptr<BlockCookie> PrepareInstance(const OutputBlock& block) = 0;
+    virtual void HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx);
     virtual void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
     virtual void OutputStruct   (BlockCookie& cookie, std::u32string& dst) = 0;
     virtual void OutputInstance (BlockCookie& cookie, std::u32string& dst) = 0;
     virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
     //virtual void HandleOutputBlockMeta(const FuncCall& meta, InstanceCookie& cookie);
+private:
+
 public:
     XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx);
     ~XCNLRuntime() override;
@@ -284,18 +276,22 @@ public:
 };
 
 
-class XCOMPBASAPI XCNLProgram
+class XCNLProgram
 {
-    friend class XCNLProgStub;
+    friend XCNLProgStub;
+private:
+    MAKE_ENABLER();
+    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create_(std::u32string source);
 protected:
     xziar::nailang::MemoryPool MemPool;
     std::u32string Source;
     xziar::nailang::Block Program;
+    XCNLProgram(std::u32string&& source) : Source(std::move(source)) { }
 public:
-    XCNLProgram(std::u32string&& source);
-    ~XCNLProgram();
-    template<bool IsBlock, bool FullMatch, typename F>
-    forceinline void ForEachBlockType(const std::u32string_view type, F&& func) const
+    ~XCNLProgram() {}
+
+    template<bool IsBlock, typename F>
+    forceinline void ForEachBlockType(F&& func) const
     {
         using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
         static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
@@ -307,10 +303,37 @@ public:
             if (tmp.GetType() != contentType)
                 continue;
             const auto& block = *tmp.template Get<Target>();
-            if ((FullMatch && block.Type == type) || 
-                (!FullMatch && common::str::IsBeginWith(block.Type, type)))
+            func(block, meta);
+        }
+    }
+
+    template<bool IsBlock, typename F>
+    forceinline void ForEachBlockTypeName(const std::u32string_view type, F&& func) const
+    {
+        using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
+        static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
+            "need to accept block/rawblock and meta.");
+        using xziar::nailang::BlockContent;
+        constexpr auto contentType = IsBlock ? BlockContent::Type::Block : BlockContent::Type::RawBlock;
+        for (const auto& [meta, tmp] : Program)
+        {
+            if (tmp.GetType() != contentType)
+                continue;
+            const auto& block = *tmp.template Get<Target>();
+            if (block.Type == type)
                 func(block, meta);
         }
+    }
+
+    [[nodiscard]] constexpr const xziar::nailang::Block& GetProgram() const noexcept { return Program; }
+
+    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create(std::u32string source);
+    template<typename T>
+    [[nodiscard]] static std::shared_ptr<XCNLProgram> CreateBy(std::u32string source)
+    {
+        auto prog = Create_(std::move(source));
+        T::GetBlock(prog->MemPool, prog->Source, prog->Program);
+        return prog;
     }
 };
 
@@ -329,15 +352,15 @@ public:
     XCNLProgStub(XCNLProgStub&&) = default;
     virtual ~XCNLProgStub();
 
-    constexpr const std::shared_ptr<const XCNLProgram>& GetProgram() const noexcept
+    [[nodiscard]] constexpr const std::shared_ptr<const XCNLProgram>& GetProgram() const noexcept
     {
         return Program;
     }
-    constexpr const std::shared_ptr<XCNLContext>& GetContext() const noexcept
+    [[nodiscard]] constexpr const std::shared_ptr<XCNLContext>& GetContext() const noexcept
     {
         return Context;
     }
-    XCNLRuntime& GetRuntime() const noexcept
+    [[nodiscard]] XCNLRuntime& GetRuntime() const noexcept
     {
         return *Runtime;
     }

@@ -2,10 +2,15 @@
 #include "oclRely.h"
 #include "oclProgram.h"
 
+
+namespace xcomp
+{
+class XCNLProgram;
+}
+
 namespace oclu
 {
 
-class NLCLProgram;
 class NLCLProgStub;
 
 
@@ -42,9 +47,9 @@ public:
     NLCLProcessor(common::mlog::MiniLogger<false>&& logger);
     virtual ~NLCLProcessor();
 
-    virtual std::shared_ptr<NLCLProgram> Parse(common::span<const std::byte> source) const;
-    virtual std::unique_ptr<NLCLResult> ProcessCL(const std::shared_ptr<NLCLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
-    virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<NLCLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const CLProgConfig& config = {}) const;
+    virtual std::shared_ptr<xcomp::XCNLProgram> Parse(common::span<const std::byte> source) const;
+    virtual std::unique_ptr<NLCLResult> ProcessCL(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
+    virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const CLProgConfig& config = {}) const;
 };
 
 #if COMPILER_MSVC

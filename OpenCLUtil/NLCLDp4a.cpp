@@ -5,7 +5,9 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 using namespace std::string_literals;
+using xcomp::ReplaceResult;
 using xziar::nailang::ArgLimits;
+using xziar::nailang::Arg;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
@@ -19,8 +21,7 @@ using common::str::Charset;
 #define RET_FAIL(func) return {U"No proper ["## #func ##"]"sv, false}
 
 
-
-std::optional<xziar::nailang::Arg> NLCLDp4aExtension::NLCLFunc(NLCLRuntime& runtime, const FuncCall& call,
+std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
     common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
@@ -32,6 +33,50 @@ std::optional<xziar::nailang::Arg> NLCLDp4aExtension::NLCLFunc(NLCLRuntime& runt
         return Arg{};
     }
     return {};
+}
+
+constexpr auto SignednessParser = SWITCH_PACK(Hash,
+    (U"uu", Dp4aProvider::Signedness::UU),
+    (U"ss", Dp4aProvider::Signedness::SS),
+    (U"us", Dp4aProvider::Signedness::US),
+    (U"su", Dp4aProvider::Signedness::SU));
+ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
+{
+    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
+    {
+        if (!result && result.GetStr().empty())
+            result.SetStr(std::move(msg));
+        return result;
+    };
+    if (func == U"oclu.Dp4a"sv || func == U"xcomp.Dp4a"sv)
+    {
+        Runtime.ThrowByReplacerArgCount(func, args, 4, ArgLimits::Exact);
+        if (const auto signedness = SignednessParser(args[0]); !signedness.has_value())
+            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
+        else
+            return HandleResult(Provider->DP4A(signedness.value(), args.subspan(1)),
+                U"[Dp4a] not supported"sv);
+    }
+    return {};
+}
+
+void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
+{
+    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    using namespace xziar::nailang;
+    if (*meta.Name == U"oclu.Dp4aExt"sv)
+    {
+        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        Provider = Generate(
+            args[0].GetStr().value_or(std::u32string_view{}),
+            args[1].GetStr().value_or(std::u32string_view{}));
+    }
+}
+
+void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext&)
+{
+    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime));
 }
 
 
@@ -104,55 +149,6 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mi
 
 Dp4aProvider::Dp4aProvider(NLCLContext& context) : Context(context)
 { }
-
-
-bool KernelDp4aExtension::KernelMeta(NLCLRuntime& runtime, const xziar::nailang::FuncCall& meta, KernelContext& kernel)
-{
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    Expects(&kernel == &Kernel);
-    using namespace xziar::nailang;
-    if (*meta.Name == U"oclu.Dp4aExt"sv)
-    {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = Context.GetNLCLExt<NLCLDp4aExtension>()->Generate(
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
-        return true;
-    }
-    return false;
-}
-
-constexpr auto SignednessParser = SWITCH_PACK(Hash,
-    (U"uu", Dp4aProvider::Signedness::UU),
-    (U"ss", Dp4aProvider::Signedness::SS),
-    (U"us", Dp4aProvider::Signedness::US),
-    (U"su", Dp4aProvider::Signedness::SU));
-ReplaceResult KernelDp4aExtension::ReplaceFunc(NLCLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
-{
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
-    {
-        if (!result && result.GetStr().empty())
-            result.SetStr(std::move(msg));
-        return result;
-    };
-    if (func == U"oclu.Dp4a"sv)
-    {
-        Runtime.ThrowByReplacerArgCount(func, args, 4, ArgLimits::Exact);
-        if (const auto signedness = SignednessParser(args[0]); !signedness.has_value())
-            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
-        else
-            return HandleResult(Provider->DP4A(signedness.value(), args.subspan(1)),
-                U"[Dp4a] not supported"sv);
-    }
-    return {};
-}
-
-void KernelDp4aExtension::FinishKernel(NLCLRuntime& runtime, KernelContext& kernel)
-{
-    Expects(&kernel == &Kernel);
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, kernel);
-}
 
 
 constexpr static std::array<char32_t, 3> GetSignPrefix(Dp4aProvider::Signedness signedness) noexcept
@@ -252,13 +248,13 @@ ReplaceResult NLCLDp4aArm::DP4A(Signedness signedness, const common::span<const 
         return FMTSTR(U"({} + arm_dot({}, {}))"sv, args[0], args[1], args[2]);
 }
 
-void NLCLDp4aArm::OnFinish(NLCLRuntime_& Runtime, const KernelDp4aExtension& ext, KernelContext& kernel)
+void NLCLDp4aArm::OnFinish(NLCLRuntime_& Runtime)
 {
     if (EnableDPA8)
         Runtime.EnableExtension("cl_arm_integer_dot_product_accumulate_int8"sv);
     if (EnableDP8)
         Runtime.EnableExtension("cl_arm_integer_dot_product_int8"sv);
-    NLCLDp4aPlain::OnFinish(Runtime, ext, kernel);
+    NLCLDp4aPlain::OnFinish(Runtime);
 }
 
 

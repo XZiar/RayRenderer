@@ -5,6 +5,8 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 using namespace std::string_literals;
+using xcomp::ReplaceResult;
+using xziar::nailang::Arg;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FuncCall;
 using xziar::nailang::NailangRuntimeBase;
@@ -89,36 +91,6 @@ static constexpr bool IsReduceOpArith(SubgroupReduceOp op)
     }
 }
 
-
-std::optional<xziar::nailang::Arg> NLCLSubgroupExtension::NLCLFunc(NLCLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>)
-{
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    using namespace xziar::nailang;
-    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
-    {
-        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-        const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        const auto isShuffle = args[0].GetBool().value();
-        const auto vstr  = args[1].GetStr().value();
-        const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
-
-        KernelContext kerCtx;
-        KernelSubgroupExtension tmpExt(Runtime.Context, kerCtx);
-        tmpExt.SubgroupSize = 32;
-        const auto provider = Generate(Logger, Runtime.Context,
-            args[2].GetStr().value_or(std::u32string_view{}),
-            args[3].GetStr().value_or(std::u32string_view{}));
-        const auto ret = isShuffle ?
-            provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
-            provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);
-        provider->OnFinish(Runtime, tmpExt, kerCtx);
-        
-        return Arg{};
-    }
-    return {};
-}
 
 SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
 {
@@ -273,7 +245,7 @@ void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
     }
     Warnings.push_back(msg.ExtractStr());
 }
-void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExtension&, KernelContext&)
+void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension&, KernelContext&)
 {
     for (const auto& item : Warnings)
     {
@@ -282,31 +254,38 @@ void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const KernelSubgroupExten
 }
 
 
-bool KernelSubgroupExtension::KernelMeta(NLCLRuntime& runtime, const xziar::nailang::FuncCall& meta, KernelContext& kernel)
+std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
+    common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    Expects(&kernel == &Kernel);
     using namespace xziar::nailang;
-    if (*meta.Name == U"oclu.SubgroupSize"sv)
+    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
     {
-        const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
-        SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
-        return true;
+        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
+        Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
+        const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        const auto isShuffle = args[0].GetBool().value();
+        const auto vstr  = args[1].GetStr().value();
+        const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
+
+        KernelContext kerCtx;
+        SubgroupSize = 32;
+        const auto provider = Generate(Logger, Runtime.Context,
+            args[2].GetStr().value_or(std::u32string_view{}),
+            args[3].GetStr().value_or(std::u32string_view{}));
+        const auto ret = isShuffle ?
+            provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
+            provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);
+        provider->OnFinish(Runtime, *this, kerCtx);
+        
+        return Arg{};
     }
-    if (*meta.Name == U"oclu.SubgroupExt"sv)
-    {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
-        return true;
-    }
-    return false;
+    return {};
 }
 
-ReplaceResult KernelSubgroupExtension::ReplaceFunc(NLCLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
+ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
-    if (!common::str::IsBeginWith(func, U"oclu."))
+    if (!common::str::IsBeginWith(func, U"oclu.") && !common::str::IsBeginWith(func, U"xcomp."))
         return {};
     func.remove_prefix(5);
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
@@ -411,10 +390,27 @@ ReplaceResult KernelSubgroupExtension::ReplaceFunc(NLCLRuntime& runtime, std::u3
     return {};
 }
 
-void KernelSubgroupExtension::FinishKernel(NLCLRuntime& runtime, KernelContext& kernel)
+void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
 {
-    Expects(&kernel == &Kernel);
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, kernel);
+    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    using namespace xziar::nailang;
+    if (*meta.Name == U"oclu.SubgroupSize"sv || *meta.Name == U"xcomp.SubgroupSize"sv)
+    {
+        const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
+        SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
+    }
+    else if (*meta.Name == U"oclu.SubgroupExt"sv)
+    {
+        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
+            args[0].GetStr().value_or(std::u32string_view{}),
+            args[1].GetStr().value_or(std::u32string_view{}));
+    }
+}
+
+void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
+{
+    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, static_cast<KernelContext&>(ctx));
 }
 
 
@@ -473,7 +469,7 @@ struct SingleArgFunc
 
 
 
-void NLCLSubgroupKHR::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupKHR::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (EnableSubgroup)
         Runtime.EnableExtension("cl_khr_subgroups"sv);
@@ -520,7 +516,7 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataI
         return SingleArgFunc(func, ele, realType, vtype, true);
     }
 
-    const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}", StringifyReduceOp(op), StringifyVDataType(vtype));
+    const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}", StringifyReduceOp(op), xcomp::StringifyVDataType(vtype));
     Context.AddPatchedBlock(funcName, [&]()
         {
             return NLCLSubgroupKHR::ScalarPatch(funcName, func, vtype);
@@ -685,7 +681,7 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
     return func;
 }
 
-void NLCLSubgroupIntel::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupIntel::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (EnableSubgroupIntel)
         Runtime.EnableExtension("cl_intel_subgroups"sv);
@@ -840,7 +836,7 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
 
     const auto scalarType = VecDataInfo{ VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
     const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
-    const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, StringifyVDataType(scalarType));
+    const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
 
     EnableSubgroupIntel = true;
     Context.AddPatchedBlock(scalarFunc, [&]()
@@ -1089,7 +1085,7 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduce(SubgroupReduceOp op, common::sim
 }
 
 
-void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (NeedCommonInfo)
     {
@@ -1100,12 +1096,12 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const KernelSubgroupExte
     }
     if (NeedLocalTemp)
     {
-        if (kernel.WorkgroupSize == 0)
-            NLRT_THROW_EX(u"Subgroup mimic [local] need to define WorkgroupSize when under fully mimic");
-        if (ext.SubgroupSize && kernel.WorkgroupSize != ext.SubgroupSize)
+        if (kernel.GetWorkgroupSize() == 0)
+            NLRT_THROW_EX(u"Subgroup mimic [local] need to define GetWorkgroupSize() when under fully mimic");
+        if (ext.SubgroupSize && kernel.GetWorkgroupSize() != ext.SubgroupSize)
             NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
-                ext.SubgroupSize, kernel.WorkgroupSize));
-        const auto sgSize = kernel.WorkgroupSize;
+                ext.SubgroupSize, kernel.GetWorkgroupSize()));
+        const auto sgSize = kernel.GetWorkgroupSize();
         kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm",
             FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
         Runtime.Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
@@ -1415,7 +1411,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     const auto opstr      = StringifyReduceOp(op);
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
     const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
-    const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}"sv, opstr, StringifyVDataType(scalarType));
+    const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
     Context.AddPatchedBlock(scalarFunc, [&]()
         {
             auto func = FMTSTR(U"inline {0} {1}({0} x)"sv, scalarName, scalarFunc);

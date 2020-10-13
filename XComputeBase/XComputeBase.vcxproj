@@ -187,11 +187,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="XCompDebug.h" />
+    <ClInclude Include="XCompDebugExt.h" />
     <ClInclude Include="XCompNailang.h" />
     <ClInclude Include="XCompRely.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="XCompDebug.cpp" />
+    <ClCompile Include="XCompDebugExt.cpp" />
     <ClCompile Include="XCompNailang.cpp" />
     <ClCompile Include="XCompRely.cpp" />
   </ItemGroup>

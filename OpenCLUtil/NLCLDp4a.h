@@ -5,20 +5,16 @@
 namespace oclu
 {
 
+struct NLCLDp4aExtension;
+struct Dp4aProvider;
 
 struct NLCLRuntime_ : public NLCLRuntime
 {
-    friend struct Dp4aProvider;
-    friend struct KernelDp4aExtension;
-    friend struct NLCLDp4aExtension;
-    friend class NLCLDp4aIntel;
-    friend class NLCLDp4aArm;
-    friend class NLCLDp4aPtx;
-    friend class NLCLDp4aPlain;
+    friend Dp4aProvider;
+    friend NLCLDp4aExtension;
 };
 
 
-struct KernelDp4aExtension;
 struct Dp4aProvider
 {
 protected:
@@ -27,51 +23,35 @@ public:
     enum class Signedness { UU, US, SU, SS };
     Dp4aProvider(NLCLContext& context);
     virtual ~Dp4aProvider() { }
-    virtual ReplaceResult DP4A(Signedness, const common::span<const std::u32string_view>) { return {}; };
-    virtual void OnFinish(NLCLRuntime_&, const KernelDp4aExtension&, KernelContext&) { }
+    virtual xcomp::ReplaceResult DP4A(Signedness, const common::span<const std::u32string_view>) { return {}; };
+    virtual void OnFinish(NLCLRuntime_&) { }
 };
 
 struct NLCLDp4aExtension : public NLCLExtension
 {
     common::mlog::MiniLogger<false>& Logger;
+    std::shared_ptr<Dp4aProvider> DefaultProvider;
+    std::shared_ptr<Dp4aProvider> Provider;
     bool HasIntelDp4a = false;
 
     NLCLDp4aExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) :
         NLCLExtension(context), Logger(logger)
     { }
     ~NLCLDp4aExtension() override { }
-    [[nodiscard]] std::optional<xziar::nailang::Arg> NLCLFunc(NLCLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall> metas) override;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
+        common::span<const xziar::nailang::FuncCall>) override;
+    xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override;
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx);
+    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
 
     std::shared_ptr<Dp4aProvider> Generate(std::u32string_view mimic, std::u32string_view args) const;
-    inline static uint32_t ID = NLCLExtension::RegisterNLCLExtenstion(
-        [](common::mlog::MiniLogger<false>& logger, NLCLContext& context, const xziar::nailang::Block&) -> std::unique_ptr<NLCLExtension>
-        {
-            return std::make_unique<NLCLDp4aExtension>(logger, context);
-        });
-};
 
-struct KernelDp4aExtension : public KernelExtension
-{
-    KernelContext& Kernel;
-    std::shared_ptr<Dp4aProvider> Provider;
-    uint32_t SubgroupSize = 0;
-
-    KernelDp4aExtension(NLCLContext& context, KernelContext& kernel) :
-        KernelExtension(context), Kernel(kernel),
-        Provider(Context.GetNLCLExt<NLCLDp4aExtension>()->Generate({}, {}))
-    { }
-    ~KernelDp4aExtension() override { }
-
-    bool KernelMeta(NLCLRuntime& runtime, const xziar::nailang::FuncCall& meta, KernelContext& kernel) override;
-    ReplaceResult ReplaceFunc(NLCLRuntime& runtime, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
-    void FinishKernel(NLCLRuntime& runtime, KernelContext& kernel) override;
-
-    inline static uint32_t ID = NLCLExtension::RegisterKernelExtenstion(
-        [](auto&, NLCLContext& context, KernelContext& kernel) -> std::unique_ptr<KernelExtension>
-        {
-            return std::make_unique<KernelDp4aExtension>(context, kernel);
-        });
+    XCNL_EXT_REG(NLCLDp4aExtension,
+    {
+        if(const auto ctx = dynamic_cast<NLCLContext*>(&context); ctx)
+            return std::make_unique<NLCLDp4aExtension>(logger, *ctx);
+        return {};
+    });
 };
 
 
@@ -81,7 +61,7 @@ protected:
 public:
     using Dp4aProvider::Dp4aProvider;
     ~NLCLDp4aPlain() override { }
-    ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aIntel : public NLCLDp4aPlain
@@ -91,7 +71,7 @@ protected:
 public:
     NLCLDp4aIntel(NLCLContext& context, const bool supportDp4a);
     ~NLCLDp4aIntel() override { }
-    ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aArm : public NLCLDp4aPlain
@@ -99,11 +79,11 @@ class NLCLDp4aArm : public NLCLDp4aPlain
 protected:
     const bool SupportDPA8, SupportDP8;
     bool EnableDPA8 = false, EnableDP8 = false;
-    void OnFinish(NLCLRuntime_& runtime, const KernelDp4aExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime_& runtime) override;
 public:
     NLCLDp4aArm(NLCLContext& context, const bool supportDPA8, const bool supportDP8);
     ~NLCLDp4aArm() override { }
-    ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aPtx : public NLCLDp4aPlain
@@ -113,7 +93,7 @@ protected:
 public:
     NLCLDp4aPtx(NLCLContext& context, const uint32_t smVersion = 30);
     ~NLCLDp4aPtx() override { }
-    ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
 };
 
 

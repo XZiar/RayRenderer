@@ -1,6 +1,7 @@
 #include "XCompNailang.h"
 #include "StringUtil/Convert.h"
 #include "common/StrParsePack.hpp"
+#include <shared_mutex>
 
 namespace xcomp
 {
@@ -22,6 +23,8 @@ using common::str::Charset;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
+
+MAKE_ENABLER_IMPL(XCNLProgram);
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
@@ -80,23 +83,24 @@ XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context), ID(UINT32
 XCNLExtension::~XCNLExtension() { }
 
 
-
-
-static uint32_t RegId() noexcept
+struct ExtHolder
 {
-    static std::atomic<uint32_t> ID = 0;
-    return ID++;
-}
+    std::vector<XCNLExtension::XCNLExtGen> Container;
+    std::shared_mutex Mutex;
+    auto LockShared() { return std::shared_lock<std::shared_mutex>(Mutex); }
+    auto LockUnique() { return std::unique_lock<std::shared_mutex>(Mutex); }
+};
 static auto& XCNLExtGenerators() noexcept
 {
-    static std::vector<std::pair<XCNLExtension::XCNLExtGen, uint32_t>> container;
-    return container;
+    static ExtHolder Holder;
+    return Holder;
 }
-uint32_t XCNLExtension::RegisterXCNLExtension(XCNLExtGen creator) noexcept
+uintptr_t XCNLExtension::RegExt(XCNLExtGen creator) noexcept
 {
-    const auto id = RegId();
-    XCNLExtGenerators().emplace_back(std::move(creator), id);
-    return id;
+    auto& holder = XCNLExtGenerators();
+    const auto locker = holder.LockUnique();
+    holder.Container.emplace_back(creator);
+    return reinterpret_cast<uintptr_t>(creator);
 }
 
 
@@ -120,6 +124,17 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
 }
 XCNLContext::~XCNLContext()
 { }
+
+XCNLExtension* XCNLContext::FindExt(XCNLExtension::XCNLExtGen func) const
+{
+    const auto id = reinterpret_cast<uintptr_t>(func);
+    for (const auto& ext : Extensions)
+    {
+        if (ext->ID == id)
+            return ext.get();
+    }
+    return nullptr;
+}
 
 
 XCNLRuntime::XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx) :
@@ -338,6 +353,32 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     dst.append(source.StrView());
 }
 
+void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
+{
+    auto& kerCtx = *cookie.GetInstanceCtx();
+    for (const auto& ext : XCContext.Extensions)
+    {
+        ext->BeginInstance(*this, kerCtx);
+    }
+
+    for (const auto& meta : cookie.Block.MetaFunc)
+    {
+        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
+        {
+        case 0:     HandleInstanceMeta(meta, kerCtx); break;
+        case 2:     HandleInstanceMeta({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, kerCtx); break;
+        default:    break;
+        }
+    }
+
+    DirectOutput(cookie, kerCtx.Content);
+
+    for (const auto& ext : XCContext.Extensions)
+    {
+        ext->FinishInstance(*this, kerCtx);
+    }
+}
+
 void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u32string_view cond, const std::u32string_view content)
 {
     if (cond.empty())
@@ -452,34 +493,6 @@ Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
     return NailangRuntimeBase::EvaluateFunc(call, metas);
 }
 
-InstanceContext XCNLRuntime::ProcessInstance(InstanceCookie& cookie)
-{
-    auto& kerCtx = cookie.Context;
-    for (const auto& ext : XCContext.Extensions)
-    {
-        ext->BeginInstance(*this, kerCtx);
-    }
-
-    for (const auto& meta : cookie.Block.MetaFunc)
-    {
-        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
-        {
-        case 0:     HandleInstanceMeta(meta, kerCtx); break;
-        case 2:     HandleInstanceMeta({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, kerCtx); break;
-        default:    break;
-        }
-    }
-
-    DirectOutput(cookie, kerCtx.Content);
-
-    for (const auto& ext : XCContext.Extensions)
-    {
-        ext->FinishInstance(*this, kerCtx);
-    }
-
-    return std::move(kerCtx);
-}
-
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
 {
     switch (hash_(block.Type))
@@ -517,8 +530,13 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
     return std::move(blk.ExtraInfo);
 }
 
-void XCNLRuntime::HandleInstanceMeta(const FuncCall&, InstanceContext&)
-{ }
+void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
+{
+    for (const auto& ext : XCContext.Extensions)
+    {
+        ext->InstanceMeta(*this, meta, ctx);
+    }
+}
 
 void XCNLRuntime::BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const
 {
@@ -581,7 +599,7 @@ std::string XCNLRuntime::GenerateOutput()
         if (block.Type == OutputBlock::BlockType::Instance)
         {
             auto cookie = PrepareInstance(block);
-            OutputInstance(cookie, output);
+            OutputInstance(*cookie, output);
         }
         else
         {
@@ -613,10 +631,28 @@ std::string XCNLRuntime::GenerateOutput()
 }
 
 
-XCNLProgram::XCNLProgram(std::u32string&& source) : Source(std::move(source)) 
-{ }
-XCNLProgram::~XCNLProgram()
-{ }
+class XComputeParser : xziar::nailang::BlockParser
+{
+    using BlockParser::BlockParser;
+public:
+    static void GetBlock(xziar::nailang::MemoryPool& pool, const std::u32string_view src, xziar::nailang::Block& dst)
+    {
+        common::parser::ParserContext context(src);
+        XComputeParser parser(pool, context);
+        parser.ParseContentIntoBlock(true, dst);
+    }
+};
+
+
+std::shared_ptr<XCNLProgram> XCNLProgram::Create_(std::u32string source)
+{
+    return MAKE_ENABLER_SHARED(XCNLProgram, (std::move(source)));
+}
+
+std::shared_ptr<XCNLProgram> XCNLProgram::Create(std::u32string source)
+{
+    return CreateBy<XComputeParser>(std::move(source));
+}
 
 
 XCNLProgStub::XCNLProgStub(const std::shared_ptr<const XCNLProgram>& program, std::shared_ptr<XCNLContext>&& context,
@@ -629,12 +665,14 @@ XCNLProgStub::~XCNLProgStub()
 void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
 {
     Context->Extensions.clear();
-    for (const auto& [creator, id] : XCNLExtGenerators())
+    auto& holder = XCNLExtGenerators();
+    const auto locker = holder.LockShared();
+    for (const auto& creator : holder.Container)
     {
-        auto ext = creator(logger, *Context, Program->Program);
+        auto ext = creator(logger, *Context);
         if (ext)
         {
-            ext->ID = id;
+            ext->ID = reinterpret_cast<uintptr_t>(creator);
             Context->Extensions.push_back(std::move(ext));
         }
     }

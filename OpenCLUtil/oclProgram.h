@@ -5,8 +5,8 @@
 #include "oclCmdQue.h"
 #include "oclBuffer.h"
 #include "oclImage.h"
-#include "oclKernelDebug.h"
 #include "oclPromise.h"
+#include "XComputeBase/XCompDebug.h"
 #include "common/FileBase.hpp"
 #include "common/CLikeConfig.hpp"
 #include "common/StringPool.hpp"
@@ -25,6 +25,10 @@ using oclProgram = std::shared_ptr<const oclProgram_>;
 class oclKernel_;
 using oclKernel = std::shared_ptr<const oclKernel_>;
 
+namespace debug
+{
+struct NLCLDebugExtension;
+}
 
 struct WorkGroupInfo
 {
@@ -75,10 +79,10 @@ struct KernelArgInfo : public ArgFlags
 
 class OCLUAPI KernelArgStore : public common::StringPool<char>
 {
-    friend class oclKernel_;
-    friend class NLCLRuntime;
-    friend struct KernelContext;
-    friend struct KernelDebugExtension;
+    friend oclKernel_;
+    friend NLCLRuntime;
+    friend KernelContext;
+    friend debug::NLCLDebugExtension;
 protected:
     struct ArgInfo : public ArgFlags
     {
@@ -157,13 +161,13 @@ public:
 
 struct OCLUAPI CallResult
 {
-    std::shared_ptr<oclDebugManager> DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
     oclKernel Kernel;
     oclCmdQue Queue;
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;
 
-    std::unique_ptr<oclDebugPackage> GetDebugData(const bool releaseRuntime = false);
+    std::unique_ptr<xcomp::debug::DebugPackage> GetDebugData(const bool releaseRuntime = false);
 };
 
 
@@ -365,7 +369,7 @@ private:
     std::string Source;
     cl_program ProgID;
     std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
-    oclDebugManager DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
     oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
 public:
     ~oclProgStub();
@@ -387,7 +391,7 @@ private:
     cl_program ProgID;
     std::vector<std::string> KernelNames;
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
-    std::shared_ptr<oclDebugManager> DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
     oclProgram_(oclProgStub* stub);

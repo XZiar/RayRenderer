@@ -261,10 +261,10 @@ void KernelArgStore::AddArg(const KerArgType argType, const KerArgSpace space, c
 }
 
 
-class KernelDebugPackage : public oclDebugPackage
+class KernelDebugPackage : public xcomp::debug::DebugPackage
 {
 public:
-    using oclDebugPackage::oclDebugPackage;
+    using xcomp::debug::DebugPackage::DebugPackage;
     void ReleaseRuntime() override
     {
         if (oclMapPtr::CheckIsCLBuffer(DataBuffer))
@@ -274,7 +274,7 @@ public:
     }
 };
 
-std::unique_ptr<oclDebugPackage> CallResult::GetDebugData(const bool releaseRuntime)
+std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime)
 {
     if (!DebugManager) return {};
     const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
@@ -285,7 +285,7 @@ std::unique_ptr<oclDebugPackage> CallResult::GetDebugData(const bool releaseRunt
         common::AlignedBuffer infoBuf(InfoBuf->Size), dataBuf(dbgSize);
         memcpy_s(infoBuf.GetRawPtr(), InfoBuf->Size, &infoData[0], InfoBuf->Size);
         DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
-        return std::make_unique<oclDebugPackage>(DebugManager,
+        return std::make_unique<xcomp::debug::DebugPackage>(DebugManager,
             std::move(infoBuf),
             std::move(dataBuf));
     }
@@ -396,7 +396,7 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
         result.DebugManager = Kernel->Prog.DebugManager;
         result.Kernel = this->Kernel;
         result.Queue = que;
-        const auto infosize = Kernel->Prog.DebugManager->GetInfoMan().GetInfoBufferSize(worksize, dim);
+        const auto infosize = Kernel->Prog.DebugManager->GetInfoProvider().GetInfoBufferSize(worksize, dim);
         const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
         std::vector<std::byte> tmp(infosize);
         const uint32_t dbgBufCnt = Kernel->ReqDbgBufSize * 1024u / sizeof(uint32_t);
@@ -556,7 +556,7 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev
 
 oclProgram_::oclProgram_(oclProgStub* stub) : 
     Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID),
-    DebugManager(std::make_shared<oclDebugManager>(std::move(stub->DebugManager)))
+    DebugManager(std::move(stub->DebugManager))
 {
     stub->ProgID = nullptr;
 

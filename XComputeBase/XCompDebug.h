@@ -13,10 +13,7 @@
 
 namespace xcomp::debug
 {
-
-
-struct NLCLDebugExtension;
-struct KernelDebugExtension;
+struct XCNLDebugExt;
 
 
 class XCOMPBASAPI ArgsLayout : private common::StringPool<char32_t>
@@ -156,7 +153,7 @@ struct WorkItemInfo
     uint32_t GroupId[3];
     uint32_t LocalId[3];
 };
-class InfoProvider
+class XCOMPBASAPI InfoProvider
 {
 protected:
     static constexpr void SetBasicInfo(const uint32_t(&gsize)[3], const uint32_t(&lsize)[3], const uint32_t id, WorkItemInfo& info) noexcept
@@ -183,8 +180,7 @@ public:
 
 class XCOMPBASAPI DebugManager
 {
-    friend struct NLCLDebugExtension;
-    friend struct KernelDebugExtension;
+    friend XCNLDebugExt;
 protected:
     std::vector<MessageBlock> Blocks;
     std::unique_ptr<InfoProvider> InfoProv;

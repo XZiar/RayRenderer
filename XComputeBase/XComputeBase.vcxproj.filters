@@ -24,6 +24,9 @@
     <ClInclude Include="XCompNailang.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="XCompDebugExt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="XCompRely.cpp">
@@ -33,6 +36,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="XCompNailang.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="XCompDebugExt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
