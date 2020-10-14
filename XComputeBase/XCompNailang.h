@@ -135,6 +135,7 @@ public:
     virtual void FinishXCNL(XCNLRuntime&) { }
     virtual void  BeginInstance(XCNLRuntime&, InstanceContext&) { } 
     virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
+    virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::FuncCall&, InstanceContext&) { }
     [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
     {
         return {};
@@ -143,9 +144,6 @@ public:
         common::span<const xziar::nailang::FuncCall>)
     {
         return {};
-    }
-    virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::FuncCall&, InstanceContext&)
-    {
     }
 
     using XCNLExtGen = std::unique_ptr<XCNLExtension>(*)(common::mlog::MiniLogger<false>&, XCNLContext&);

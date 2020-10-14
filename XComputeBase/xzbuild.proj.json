@@ -2,7 +2,7 @@
     "name": "XComputeBase",
     "type": "dynamic",
     "description": "Base of XCompute",
-    "dependency": ["MiniLogger", "SystemCommon", "StringUtil", "Nailang"],
+    "dependency": ["MiniLogger", "StringUtil", "Nailang"],
     "library": 
     {
         "static": [],
@@ -13,8 +13,7 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines": ["XCOMPBAS_EXPORT"],
-            "pch": "XCompPch.h"
+            "defines": ["XCOMPBAS_EXPORT"]
         }
     }
 }

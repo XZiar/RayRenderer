@@ -21,18 +21,28 @@ using common::str::Charset;
 #define RET_FAIL(func) return {U"No proper ["## #func ##"]"sv, false}
 
 
-std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>)
+
+void NLCLDp4aExtension::BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&)
+{
+    Provider = GetDefaultProvider();
+}
+
+void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext&)
+{
+    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime));
+    Provider.reset();
+}
+
+void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    using namespace xziar::nailang;
-    if (*call.Name == U"oclu.IntelDp4a"sv)
+    if (*meta.Name == U"oclu.Dp4aExt"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
-        return Arg{};
+        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        Provider = Generate(
+            args[0].GetStr().value_or(std::u32string_view{}),
+            args[1].GetStr().value_or(std::u32string_view{}));
     }
-    return {};
 }
 
 constexpr auto SignednessParser = SWITCH_PACK(Hash,
@@ -61,27 +71,30 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u
     return {};
 }
 
-void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
+std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
+    common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*meta.Name == U"oclu.Dp4aExt"sv)
+    if (*call.Name == U"oclu.IntelDp4a"sv)
     {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = Generate(
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
+        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
+        HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
+        return Arg{};
     }
+    return {};
 }
 
-void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext&)
+std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::GetDefaultProvider() const
 {
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime));
+    if (!DefaultProvider)
+    {
+        DefaultProvider = Generate(U"auto"sv, {});
+    }
+    return DefaultProvider;
 }
-
 
 enum class MimicType { Auto, Plain, Intel, Arm, Ptx };
-
 constexpr auto MimicParser = SWITCH_PACK(Hash,
     (U"auto",   MimicType::Auto),
     (U"plain",  MimicType::Plain),

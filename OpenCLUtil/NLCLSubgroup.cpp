@@ -1,6 +1,35 @@
 #include "oclPch.h"
 #include "NLCLSubgroup.h"
 
+
+
+template<bool IsPrefix>
+struct OptionalArg
+{
+    std::u32string_view Arg;
+};
+
+template<typename Char, bool IsPrefix>
+struct fmt::formatter<OptionalArg<IsPrefix>, Char>
+{
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+    template<typename FormatContext>
+    auto format(OptionalArg<IsPrefix> arg, FormatContext& ctx)
+    {
+        if (arg.Arg.empty())
+            return ctx.out();
+        if constexpr (IsPrefix)
+            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
+        else
+            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
+    }
+};
+
+
 namespace oclu
 {
 using namespace std::string_view_literals;
@@ -22,38 +51,6 @@ constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 
 
-template<bool IsPrefix>
-struct OptionalArg
-{
-    std::u32string_view Arg;
-};
-
-}
-
-template<typename Char, bool IsPrefix>
-struct fmt::formatter<oclu::OptionalArg<IsPrefix>, Char>
-{
-    template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
-    {
-        return ctx.begin();
-    }
-    template<typename FormatContext>
-    auto format(oclu::OptionalArg<IsPrefix> arg, FormatContext& ctx)
-    {
-        if (arg.Arg.empty())
-            return ctx.out();
-        if constexpr (IsPrefix)
-            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
-        else
-            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
-    }
-};
-
-
-namespace oclu
-{
-
 class SubgroupException : public NailangRuntimeException
 {
     friend class NailangRuntimeBase;
@@ -65,229 +62,45 @@ public:
 };
 
 
-static constexpr std::u32string_view StringifyReduceOp(SubgroupReduceOp op)
+void NLCLSubgroupExtension::BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&)
 {
-    switch (op)
-    {
-    case SubgroupReduceOp::Sum: return U"sum"sv;
-    case SubgroupReduceOp::Min: return U"min"sv;
-    case SubgroupReduceOp::Max: return U"max"sv;
-    case SubgroupReduceOp::And: return U"and"sv;
-    case SubgroupReduceOp::Or:  return U"or"sv;
-    case SubgroupReduceOp::Xor: return U"xor"sv;
-    default: assert(false);     return U""sv;
-    }
-}
-static constexpr bool IsReduceOpArith(SubgroupReduceOp op)
-{
-    switch (op)
-    {
-    case SubgroupReduceOp::Sum:
-    case SubgroupReduceOp::Min:
-    case SubgroupReduceOp::Max:
-        return true;
-    default:
-        return false;
-    }
+    Provider = DefaultProvider;
+    SubgroupSize = 0;
 }
 
-
-SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
+void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
 {
-    SubgroupCapbility cap;
-    cap.SupportSubgroupKHR      = context.SupportSubgroupKHR;
-    cap.SupportSubgroupIntel    = context.SupportSubgroupIntel;
-    cap.SupportSubgroup8Intel   = context.SupportSubgroup8Intel;
-    cap.SupportSubgroup16Intel  = context.SupportSubgroup16Intel;
-    cap.SupportFP16             = context.SupportFP16;
-    cap.SupportFP64             = context.SupportFP64;
-    for (auto arg : common::str::SplitStream(attr.Args, ',', false))
-    {
-        if (arg.empty()) continue;
-        const bool isDisable = arg[0] == '-';
-        if (isDisable) arg.remove_prefix(1);
-        switch (hash_(arg))
-        {
-#define Mod(dst, name) HashCase(arg, name) cap.dst = !isDisable; break
-        Mod(SupportSubgroupKHR,     "sg_khr");
-        Mod(SupportSubgroupIntel,   "sg_intel");
-        Mod(SupportSubgroup8Intel,  "sg_intel8");
-        Mod(SupportSubgroup16Intel, "sg_intel16");
-        Mod(SupportFP16,            "fp16");
-        Mod(SupportFP64,            "fp64");
-#undef Mod
-        default: break;
-        }
-    }
-    cap.SupportBasicSubgroup = cap.SupportSubgroupKHR || cap.SupportSubgroupIntel;
-    return cap;
+    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, static_cast<KernelContext&>(ctx));
+    Provider.reset();
+    SubgroupSize = 0;
 }
 
-constexpr auto SubgroupMimicParser = SWITCH_PACK(Hash,
-    (U"local",  SubgroupAttributes::MimicType::Local),
-    (U"ptx",    SubgroupAttributes::MimicType::Ptx),
-    (U"auto",   SubgroupAttributes::MimicType::Auto),
-    (U"none",   SubgroupAttributes::MimicType::None));
-std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context,
-    std::u32string_view mimic, std::u32string_view args)
-{
-    SubgroupAttributes attr;
-    attr.Mimic = SubgroupMimicParser(mimic).value_or(SubgroupAttributes::MimicType::Auto);
-    attr.Args = common::str::to_string(args, Charset::ASCII);
-    auto cap = GenerateCapabiity(context, attr);
-
-    SubgroupAttributes::MimicType mType = attr.Mimic;
-    if (mType == SubgroupAttributes::MimicType::Auto)
-    {
-        if (context.Device->PlatVendor == Vendors::NVIDIA)
-            mType = SubgroupAttributes::MimicType::Ptx;
-        else
-            mType = SubgroupAttributes::MimicType::Local;
-    }
-    Ensures(mType != SubgroupAttributes::MimicType::Auto);
-
-    if (cap.SupportSubgroupIntel)
-        return std::make_shared<NLCLSubgroupIntel>(context, cap);
-    else if (mType == SubgroupAttributes::MimicType::Ptx)
-    {
-        uint32_t smVer = 0;
-        if (context.Device->Extensions.Has("cl_nv_device_attribute_query"sv))
-        {
-            uint32_t major = 0, minor = 0;
-            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
-            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
-            smVer = major * 10 + minor;
-        }
-        return std::make_shared<NLCLSubgroupPtx>(logger, context, cap, smVer);
-    }
-    else if (mType == SubgroupAttributes::MimicType::Local)
-        return std::make_shared<NLCLSubgroupLocal>(context, cap);
-    else if (cap.SupportBasicSubgroup)
-        return std::make_shared<NLCLSubgroupKHR>(context, cap);
-    else
-        return std::make_shared<SubgroupProvider>(context, cap);
-}
-
-
-forceinline constexpr static bool CheckVNum(const uint32_t num) noexcept
-{
-    switch (num)
-    {
-    case 1: case 2: case 3: case 4: case 8: case 16: return true;
-    default: return false;
-    }
-}
-forceinline constexpr static uint8_t TryCombine(const uint32_t total, const uint8_t bit, const uint8_t vmax = 16) noexcept
-{
-    if (total % bit == 0)
-    {
-        const auto vnum = total / bit;
-        if (vnum <= vmax || CheckVNum(vnum))
-            return static_cast<uint8_t>(vnum);
-    }
-    return 0;
-}
-forceinline constexpr static VecDataInfo ToUintVec(VecDataInfo vtype) noexcept
-{
-    return { VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0 };
-}
-forceinline constexpr static VecDataInfo ToScalar(VecDataInfo vtype) noexcept
-{
-    return { vtype.Type, vtype.Bit, 1, 0 };
-}
-
-std::optional<VecDataInfo> SubgroupProvider::DecideVtype(VecDataInfo vtype, common::span<const VecDataInfo> scalars) noexcept
-{
-    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
-    for (const auto scalar : scalars)
-    {
-        if (const auto vnum = TryCombine(totalBits, scalar.Bit); vnum)
-            return VecDataInfo{ scalar.Type, scalar.Bit, vnum, 0 };
-    }
-    return {};
-}
-std::u32string SubgroupProvider::ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, VecDataInfo vtype, 
-    const std::u32string_view extraArg, const std::u32string_view extraParam) noexcept
-{
-    Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
-    std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
-    for (uint8_t i = 0; i < vtype.Dim0; ++i)
-        APPEND_FMT(func, U"\r\n    ret.s{0} = {1}(val.s{0}{2});", Idx16Names[i], baseFunc, extraArg);
-    func.append(U"\r\n    return ret;\r\n}"sv);
-    return func;
-}
-std::u32string SubgroupProvider::HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, VecDataInfo vtype,
-    const std::u32string_view extraArg, const std::u32string_view extraParam) noexcept
-{
-    Expects(vtype.Dim0 % 2 == 0 && vtype.Bit % 2 == 0);
-    const VecDataInfo midType { vtype.Type, static_cast<uint8_t>(vtype.Bit / 2), vtype.Dim0, 0 };
-    const VecDataInfo halfType{ vtype.Type, vtype.Bit, static_cast<uint8_t>(vtype.Dim0 / 2), 0 };
-    const auto vecName  = NLCLContext::GetCLTypeName(vtype);
-    const auto midName  = NLCLContext::GetCLTypeName(midType);
-    const auto halfName = NLCLContext::GetCLTypeName(halfType);
-    std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
-    APPEND_FMT(func, U"\r\n    ret.hi = as_{0}({1}(as_{2}(val.hi){3});\r\n    ret.lo = as_{0}({1}(as_{2}(val.lo){3});", 
-        halfName, baseFunc, midName, extraArg);
-    func.append(U"\r\n    return ret;\r\n}"sv);
-    return func;
-}
-
-SubgroupProvider::SubgroupProvider(NLCLContext& context, SubgroupCapbility cap) :
-    Context(context), Cap(cap)
-{ }
-void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
-{
-    for (const auto& item : Warnings)
-    {
-        if (item == msg.StrView())
-            return;
-    }
-    Warnings.push_back(msg.ExtractStr());
-}
-void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension&, KernelContext&)
-{
-    for (const auto& item : Warnings)
-    {
-        runtime.Logger.warning(item);
-    }
-}
-
-
-std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>)
+void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
+    if (*meta.Name == U"oclu.SubgroupSize"sv || *meta.Name == U"xcomp.SubgroupSize"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-        const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        const auto isShuffle = args[0].GetBool().value();
-        const auto vstr  = args[1].GetStr().value();
-        const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
-
-        KernelContext kerCtx;
-        SubgroupSize = 32;
-        const auto provider = Generate(Logger, Runtime.Context,
-            args[2].GetStr().value_or(std::u32string_view{}),
-            args[3].GetStr().value_or(std::u32string_view{}));
-        const auto ret = isShuffle ?
-            provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
-            provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);
-        provider->OnFinish(Runtime, *this, kerCtx);
-        
-        return Arg{};
+        const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
+        SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
     }
-    return {};
+    else if (*meta.Name == U"oclu.SubgroupExt"sv)
+    {
+        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
+            args[0].GetStr().value_or(std::u32string_view{}),
+            args[1].GetStr().value_or(std::u32string_view{}));
+    }
 }
 
 ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
-    if (!common::str::IsBeginWith(func, U"oclu.") && !common::str::IsBeginWith(func, U"xcomp."))
+    if (common::str::IsBeginWith(func, U"oclu."))
+        func.remove_prefix(5);
+    else if(common::str::IsBeginWith(func, U"xcomp."))
+        func.remove_prefix(6);
+    else
         return {};
-    func.remove_prefix(5);
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
     {
@@ -390,27 +203,220 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
     return {};
 }
 
-void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
+std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
+    common::span<const FuncCall>)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*meta.Name == U"oclu.SubgroupSize"sv || *meta.Name == U"xcomp.SubgroupSize"sv)
+    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
     {
-        const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
-        SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
+        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
+        Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
+        const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        const auto isShuffle = args[0].GetBool().value();
+        const auto vstr  = args[1].GetStr().value();
+        const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
+
+        KernelContext kerCtx;
+        SubgroupSize = 32;
+        const auto provider = Generate(Logger, Runtime.Context,
+            args[2].GetStr().value_or(std::u32string_view{}),
+            args[3].GetStr().value_or(std::u32string_view{}));
+        const auto ret = isShuffle ?
+            provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
+            provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);
+        provider->OnFinish(Runtime, *this, kerCtx);
+        
+        return Arg{};
     }
-    else if (*meta.Name == U"oclu.SubgroupExt"sv)
+    return {};
+}
+
+SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
+{
+    SubgroupCapbility cap;
+    cap.SupportSubgroupKHR      = context.SupportSubgroupKHR;
+    cap.SupportSubgroupIntel    = context.SupportSubgroupIntel;
+    cap.SupportSubgroup8Intel   = context.SupportSubgroup8Intel;
+    cap.SupportSubgroup16Intel  = context.SupportSubgroup16Intel;
+    cap.SupportFP16             = context.SupportFP16;
+    cap.SupportFP64             = context.SupportFP64;
+    for (auto arg : common::str::SplitStream(attr.Args, ',', false))
     {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
+        if (arg.empty()) continue;
+        const bool isDisable = arg[0] == '-';
+        if (isDisable) arg.remove_prefix(1);
+        switch (hash_(arg))
+        {
+#define Mod(dst, name) HashCase(arg, name) cap.dst = !isDisable; break
+        Mod(SupportSubgroupKHR,     "sg_khr");
+        Mod(SupportSubgroupIntel,   "sg_intel");
+        Mod(SupportSubgroup8Intel,  "sg_intel8");
+        Mod(SupportSubgroup16Intel, "sg_intel16");
+        Mod(SupportFP16,            "fp16");
+        Mod(SupportFP64,            "fp64");
+#undef Mod
+        default: break;
+        }
+    }
+    cap.SupportBasicSubgroup = cap.SupportSubgroupKHR || cap.SupportSubgroupIntel;
+    return cap;
+}
+
+constexpr auto SubgroupMimicParser = SWITCH_PACK(Hash,
+    (U"local",  SubgroupAttributes::MimicType::Local),
+    (U"ptx",    SubgroupAttributes::MimicType::Ptx),
+    (U"auto",   SubgroupAttributes::MimicType::Auto),
+    (U"none",   SubgroupAttributes::MimicType::None));
+std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context,
+    std::u32string_view mimic, std::u32string_view args)
+{
+    SubgroupAttributes attr;
+    attr.Mimic = SubgroupMimicParser(mimic).value_or(SubgroupAttributes::MimicType::Auto);
+    attr.Args = common::str::to_string(args, Charset::ASCII);
+    auto cap = GenerateCapabiity(context, attr);
+
+    SubgroupAttributes::MimicType mType = attr.Mimic;
+    if (mType == SubgroupAttributes::MimicType::Auto)
+    {
+        if (context.Device->PlatVendor == Vendors::NVIDIA)
+            mType = SubgroupAttributes::MimicType::Ptx;
+        else
+            mType = SubgroupAttributes::MimicType::Local;
+    }
+    Ensures(mType != SubgroupAttributes::MimicType::Auto);
+
+    if (cap.SupportSubgroupIntel)
+        return std::make_shared<NLCLSubgroupIntel>(context, cap);
+    else if (mType == SubgroupAttributes::MimicType::Ptx)
+    {
+        uint32_t smVer = 0;
+        if (context.Device->Extensions.Has("cl_nv_device_attribute_query"sv))
+        {
+            uint32_t major = 0, minor = 0;
+            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
+            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
+            smVer = major * 10 + minor;
+        }
+        return std::make_shared<NLCLSubgroupPtx>(logger, context, cap, smVer);
+    }
+    else if (mType == SubgroupAttributes::MimicType::Local)
+        return std::make_shared<NLCLSubgroupLocal>(context, cap);
+    else if (cap.SupportBasicSubgroup)
+        return std::make_shared<NLCLSubgroupKHR>(context, cap);
+    else
+        return std::make_shared<SubgroupProvider>(context, cap);
+}
+
+forceinline constexpr static bool CheckVNum(const uint32_t num) noexcept
+{
+    switch (num)
+    {
+    case 1: case 2: case 3: case 4: case 8: case 16: return true;
+    default: return false;
+    }
+}
+forceinline constexpr static uint8_t TryCombine(const uint32_t total, const uint8_t bit, const uint8_t vmax = 16) noexcept
+{
+    if (total % bit == 0)
+    {
+        const auto vnum = total / bit;
+        if (vnum <= vmax || CheckVNum(vnum))
+            return static_cast<uint8_t>(vnum);
+    }
+    return 0;
+}
+forceinline constexpr static VecDataInfo ToUintVec(VecDataInfo vtype) noexcept
+{
+    return { VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0 };
+}
+forceinline constexpr static VecDataInfo ToScalar(VecDataInfo vtype) noexcept
+{
+    return { vtype.Type, vtype.Bit, 1, 0 };
+}
+
+static constexpr std::u32string_view StringifyReduceOp(SubgroupReduceOp op)
+{
+    switch (op)
+    {
+    case SubgroupReduceOp::Sum: return U"sum"sv;
+    case SubgroupReduceOp::Min: return U"min"sv;
+    case SubgroupReduceOp::Max: return U"max"sv;
+    case SubgroupReduceOp::And: return U"and"sv;
+    case SubgroupReduceOp::Or:  return U"or"sv;
+    case SubgroupReduceOp::Xor: return U"xor"sv;
+    default: assert(false);     return U""sv;
+    }
+}
+static constexpr bool IsReduceOpArith(SubgroupReduceOp op)
+{
+    switch (op)
+    {
+    case SubgroupReduceOp::Sum:
+    case SubgroupReduceOp::Min:
+    case SubgroupReduceOp::Max:
+        return true;
+    default:
+        return false;
     }
 }
 
-void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
+
+std::optional<VecDataInfo> SubgroupProvider::DecideVtype(VecDataInfo vtype, common::span<const VecDataInfo> scalars) noexcept
 {
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, static_cast<KernelContext&>(ctx));
+    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+    for (const auto scalar : scalars)
+    {
+        if (const auto vnum = TryCombine(totalBits, scalar.Bit); vnum)
+            return VecDataInfo{ scalar.Type, scalar.Bit, vnum, 0 };
+    }
+    return {};
+}
+std::u32string SubgroupProvider::ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, VecDataInfo vtype,
+    const std::u32string_view extraArg, const std::u32string_view extraParam) noexcept
+{
+    Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
+    for (uint8_t i = 0; i < vtype.Dim0; ++i)
+        APPEND_FMT(func, U"\r\n    ret.s{0} = {1}(val.s{0}{2});", Idx16Names[i], baseFunc, extraArg);
+    func.append(U"\r\n    return ret;\r\n}"sv);
+    return func;
+}
+std::u32string SubgroupProvider::HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, VecDataInfo vtype,
+    const std::u32string_view extraArg, const std::u32string_view extraParam) noexcept
+{
+    Expects(vtype.Dim0 % 2 == 0 && vtype.Bit % 2 == 0);
+    const VecDataInfo midType{ vtype.Type, static_cast<uint8_t>(vtype.Bit / 2), vtype.Dim0, 0 };
+    const VecDataInfo halfType{ vtype.Type, vtype.Bit, static_cast<uint8_t>(vtype.Dim0 / 2), 0 };
+    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto midName = NLCLContext::GetCLTypeName(midType);
+    const auto halfName = NLCLContext::GetCLTypeName(halfType);
+    std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
+    APPEND_FMT(func, U"\r\n    ret.hi = as_{0}({1}(as_{2}(val.hi){3});\r\n    ret.lo = as_{0}({1}(as_{2}(val.lo){3});",
+        halfName, baseFunc, midName, extraArg);
+    func.append(U"\r\n    return ret;\r\n}"sv);
+    return func;
+}
+
+SubgroupProvider::SubgroupProvider(NLCLContext& context, SubgroupCapbility cap) :
+    Context(context), Cap(cap)
+{ }
+void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
+{
+    for (const auto& item : Warnings)
+    {
+        if (item == msg.StrView())
+            return;
+    }
+    Warnings.push_back(msg.ExtractStr());
+}
+void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension&, KernelContext&)
+{
+    for (const auto& item : Warnings)
+    {
+        runtime.Logger.warning(item);
+    }
 }
 
 

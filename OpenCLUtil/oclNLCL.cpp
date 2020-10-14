@@ -299,7 +299,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         } return {};
         default: break;
         }
-        auto ret = CommonFunc(call.Name[1], call, metas);
+        auto ret = CommonFunc((*call.Name)[1], call, metas);
         if (ret.has_value())
             return std::move(ret.value());
     }

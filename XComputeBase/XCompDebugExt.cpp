@@ -98,10 +98,5 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRuntime& runtime
     return info->second;
 }
 
-void XCNLDebugExt::SetInfoProvider(std::unique_ptr<InfoProvider>&& infoProv) noexcept
-{
-    DebugManager.InfoProv = std::move(infoProv);
-}
-
 
 }

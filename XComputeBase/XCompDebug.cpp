@@ -104,6 +104,7 @@ namespace xcomp::debug
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
+using common::BaseException;
 
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
@@ -201,10 +202,10 @@ void DebugManager::CheckNewBlock(const std::u32string_view name) const
 {
     const auto idx = Blocks.size();
     if (idx >= 250u)
-        ;// COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Too many DebugString defined, maximum 250");
+        COMMON_THROW(BaseException, u"Too many DebugString defined, maximum 250");
     for (const auto& block : Blocks)
         if (block.Name == name)
-            ;// COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"DebugString re-defiend");
+            COMMON_THROW(BaseException, u"DebugString re-defiend");
 }
 
 std::pair<const MessageBlock*, uint32_t> DebugManager::RetriveMessage(common::span<const uint32_t> data) const
@@ -214,10 +215,10 @@ std::pair<const MessageBlock*, uint32_t> DebugManager::RetriveMessage(common::sp
     const auto tid = uid & 0x00ffffffu;
     if (dbgIdx == 0) return { nullptr, 0 };
     if (dbgIdx > Blocks.size())
-        ;// COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with idx overflow");
+        COMMON_THROW(BaseException, u"Wrong message with idx overflow");
     const auto& block = Blocks[dbgIdx - 1];
     if (data.size_bytes() < block.Layout.TotalSize)
-        ;// COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Wrong message with insufficiant buffer space");
+        COMMON_THROW(BaseException, u"Wrong message with insufficiant buffer space");
     return { &block, tid };
 }
 

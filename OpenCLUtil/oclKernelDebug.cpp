@@ -44,7 +44,7 @@ public:
         auto info = std::make_unique<oclThreadInfo>();
         SetBasicInfo(gsize, lsize, tid, *info);
         const auto infodata = space[tid + 7];
-        info->SubgroupId = static_cast<uint16_t>(infodata / 65536u);
+        info->SubgroupId      = static_cast<uint16_t>(infodata / 65536u);
         info->SubgroupLocalId = static_cast<uint16_t>(infodata % 65536u);
         return info;
     }
@@ -64,88 +64,40 @@ struct NLCLRuntime_ : public NLCLRuntime
 #define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebugExt
 {
+    // For whole program
+    bool EnableDebug = false, AnyDebug = false;
+    // For kernel
     bool AllowDebug = false, HasDebug = false;
     NLCLDebugExtension(NLCLContext& context) : NLCLExtension(context) { }
     ~NLCLDebugExtension() override { }
 
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall>) override
+    void FinishXCNL(xcomp::XCNLRuntime& runtime) override
     {
-        auto& Runtime = static_cast<Runtime_&>(runtime);
-        const std::u32string_view name = *call.Name;
-        using namespace xziar::nailang;
-        if (name == U"oclu.EnableDebug" || name == U"xcomp.EnableDebug")
+        Expects(dynamic_cast<NLCLRuntime*>(&runtime) != nullptr);
+        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+        if (EnableDebug && AnyDebug)
         {
-            Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-            Runtime.Logger.verbose(u"Manually enable debug.\n");
-            AllowDebug = true;
-            return Arg{};
+            Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
+            Runtime.EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
         }
-        else if (name == U"oclu.DefineDebugString" || name == U"xcomp.DefineDebugString")
-        {
-            DefineMessage(runtime, call);
-            return Arg{};
-        }
-        return {};
+        if (Context.SupportBasicSubgroup)
+            SetInfoProvider(std::make_unique<SubgroupInfoProvider>());
+        else
+            SetInfoProvider(std::make_unique<NonSubgroupInfoProvider>());
     }
-    xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override
-    {
-        auto& Runtime = static_cast<Runtime_&>(runtime);
-        using namespace xziar::nailang;
-        if (func == U"oclu.DebugString"sv || func == U"xcomp.DebugString"sv)
-        {
-            Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
-            if (!AllowDebug)
-                return U"do{} while(false)"sv;
 
-            const auto id = args[0];
-            const auto info = common::container::FindInMap(DebugInfos, id);
-            if (info)
-            {
-                Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
-                return GenerateDebugFunc(Runtime, id, *info, args.subspan(1));
-            }
-            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
-        }
-        else if (func == U"oclu.DebugStr"sv)
-        {
-            if (!AllowDebug)
-                return U"do{} while(false)"sv;
-            const auto& content = DefineMessage(runtime, func, args);
-            std::vector<std::u32string_view> vals;
-            const auto argCnt = args.size() / 2 - 1;
-            vals.reserve(argCnt);
-            for (size_t i = 3; i < args.size(); i += 2)
-            {
-                vals.push_back(args[i]);
-            }
-            return GenerateDebugFunc(Runtime, args[0], content, vals);
-        }
-        return {};
-    }
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx)
+    void BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&) override
     {
-        Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
-        auto& Runtime = static_cast<Runtime_&>(runtime);
-        using namespace xziar::nailang;
-        if (*meta.Name == U"oclu.DebugOutput"sv || *meta.Name == U"xcomp.DebugOutput"sv)
-        {
-            if (AllowDebug)
-            {
-                auto& kerCtx = static_cast<KernelContext&>(ctx);
-                const auto size = Runtime.EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
-                kerCtx.SetDebugBuffer(gsl::narrow_cast<uint32_t>(size.value_or(512)));
-            }
-            else
-                Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
-        }
+        AllowDebug = EnableDebug;
     }
+    
     void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override
     {
         Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
         auto& kerCtx = static_cast<KernelContext&>(ctx);
         if (HasDebug)
         {
+            AnyDebug = true;
             kerCtx.Args.HasDebug = true;
             kerCtx.AddTailArg(KerArgType::Simple, KerArgSpace::Private, ImgAccess::None, KerArgFlag::Const,
                 "_oclu_debug_buffer_size", "uint");
@@ -179,19 +131,80 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 )");
         }
     }
-    void FinishXCNL(xcomp::XCNLRuntime& runtime) override
+
+    xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override
     {
-        Expects(dynamic_cast<NLCLRuntime*>(&runtime) != nullptr);
-        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-        if (AllowDebug && HasDebug)
+        auto& Runtime = static_cast<Runtime_&>(runtime);
+        using namespace xziar::nailang;
+        if (func == U"oclu.DebugString"sv || func == U"xcomp.DebugString"sv)
         {
-            Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
-            Runtime.EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
+            Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::AtLeast);
+            if (!AllowDebug)
+                return U"do{} while(false)"sv;
+
+            const auto id = args[0];
+            const auto info = common::container::FindInMap(DebugInfos, id);
+            if (info)
+            {
+                Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
+                return GenerateDebugFunc(Runtime, id, *info, args.subspan(1));
+            }
+            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
         }
-        if (Context.SupportBasicSubgroup)
-            SetInfoProvider(std::make_unique<SubgroupInfoProvider>());
-        else
-            SetInfoProvider(std::make_unique<NonSubgroupInfoProvider>());
+        else if (func == U"oclu.DebugStr"sv || func == U"xcomp.DebugStr"sv)
+        {
+            if (!AllowDebug)
+                return U"do{} while(false)"sv;
+            const auto& content = DefineMessage(runtime, func, args);
+            std::vector<std::u32string_view> vals;
+            const auto argCnt = args.size() / 2 - 1;
+            vals.reserve(argCnt);
+            for (size_t i = 3; i < args.size(); i += 2)
+            {
+                vals.push_back(args[i]);
+            }
+            return GenerateDebugFunc(Runtime, args[0], content, vals);
+        }
+        return {};
+    }
+
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
+        common::span<const xziar::nailang::FuncCall>) override
+    {
+        auto& Runtime = static_cast<Runtime_&>(runtime);
+        const std::u32string_view name = *call.Name;
+        using namespace xziar::nailang;
+        if (name == U"oclu.EnableDebug" || name == U"xcomp.EnableDebug")
+        {
+            Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
+            Runtime.Logger.verbose(u"Manually enable debug.\n");
+            EnableDebug = true;
+            return Arg{};
+        }
+        else if (name == U"oclu.DefineDebugString" || name == U"xcomp.DefineDebugString")
+        {
+            DefineMessage(runtime, call);
+            return Arg{};
+        }
+        return {};
+    }
+
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx)
+    {
+        Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
+        auto& Runtime = static_cast<Runtime_&>(runtime);
+        using namespace xziar::nailang;
+        if (*meta.Name == U"oclu.DebugOutput"sv || *meta.Name == U"xcomp.DebugOutput"sv)
+        {
+            if (AllowDebug)
+            {
+                auto& kerCtx = static_cast<KernelContext&>(ctx);
+                const auto size = Runtime.EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
+                kerCtx.SetDebugBuffer(gsl::narrow_cast<uint32_t>(size.value_or(512)));
+            }
+            else
+                Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
+        }
     }
     
     std::u32string DebugStringBase() noexcept
@@ -344,7 +357,6 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return str;
     }
 
-
     XCNL_EXT_REG(NLCLDebugExtension,
     {
         if(const auto ctx = dynamic_cast<NLCLContext*>(&context); ctx)
@@ -356,13 +368,13 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
 void SetAllowDebug(const NLCLContext& context) noexcept
 {
     if (const auto ext = context.GetXCNLExt<NLCLDebugExtension>(); ext)
-        ext->AllowDebug = true;
+        ext->EnableDebug = true;
 }
 
 xcomp::debug::DebugManager* ExtractDebugManager(const NLCLContext& context) noexcept
 {
     if (const auto ext = context.GetXCNLExt<NLCLDebugExtension>(); ext)
-        return &ext->DebugManager;
+        return &ext->DebugMan;
     return nullptr;
 }
 

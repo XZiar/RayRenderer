@@ -29,8 +29,10 @@ public:
 
 struct NLCLDp4aExtension : public NLCLExtension
 {
+private:
+    mutable std::shared_ptr<Dp4aProvider> DefaultProvider;
+public:
     common::mlog::MiniLogger<false>& Logger;
-    std::shared_ptr<Dp4aProvider> DefaultProvider;
     std::shared_ptr<Dp4aProvider> Provider;
     bool HasIntelDp4a = false;
 
@@ -38,12 +40,17 @@ struct NLCLDp4aExtension : public NLCLExtension
         NLCLExtension(context), Logger(logger)
     { }
     ~NLCLDp4aExtension() override { }
+
+    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
+    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx) override;
+
+    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, 
+        const common::span<const std::u32string_view> args) override;
     [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
         common::span<const xziar::nailang::FuncCall>) override;
-    xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override;
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx);
-    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
 
+    std::shared_ptr<Dp4aProvider> GetDefaultProvider() const;
     std::shared_ptr<Dp4aProvider> Generate(std::u32string_view mimic, std::u32string_view args) const;
 
     XCNL_EXT_REG(NLCLDp4aExtension,

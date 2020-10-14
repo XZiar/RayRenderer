@@ -2,7 +2,7 @@
     "name": "Blur",
     "type": "executable",
     "description": "Blur test",
-    "dependency": ["MiniLogger", "ImageUtil", "OpenCLUtil", "SystemCommon"],
+    "dependency": ["MiniLogger", "ImageUtil", "OpenCLUtil", "SystemCommon", "XComputeBase"],
     "library": 
     {
         "static": [],

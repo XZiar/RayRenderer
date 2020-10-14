@@ -100,11 +100,10 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
     for (auto item : data)
     {
         const auto tinfo = infoMan.GetThreadInfo(infoSpan, item.ThreadId());
-        logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
-            item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
-            tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
-            tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
-            tinfo.SubgroupId, tinfo.SubgroupLocalId,
+        logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
+            item.ThreadId(), tinfo->GlobalId[0], tinfo->GlobalId[1], tinfo->GlobalId[2],
+            tinfo->GroupId[0], tinfo->GroupId[1], tinfo->GroupId[2],
+            tinfo->LocalId[0], tinfo->LocalId[1], tinfo->LocalId[2],
             item.Str());
     }
     return img2;

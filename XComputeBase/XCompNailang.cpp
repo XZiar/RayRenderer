@@ -24,7 +24,7 @@ using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
-MAKE_ENABLER_IMPL(XCNLProgram);
+MAKE_ENABLER_IMPL(XCNLProgram)
 
 
 #define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
@@ -441,7 +441,7 @@ void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 {
     if (IsBeginWith(func, U"xcomp."sv))
     {
-        const auto subName = func.substr(5);
+        const auto subName = func.substr(6);
         auto ret = CommonReplaceFunc(subName, func, args, *reinterpret_cast<BlockCookie*>(cookie));
         if (ret.has_value())
         {
@@ -480,7 +480,7 @@ Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
     if (call.Name->PartCount == 2 && (*call.Name)[0] == U"xcomp"sv)
     {
-        auto ret = CommonFunc(call.Name[1], call, metas);
+        auto ret = CommonFunc((*call.Name)[1], call, metas);
         if (ret.has_value())
             return std::move(ret.value());
     }
@@ -606,8 +606,8 @@ std::string XCNLRuntime::GenerateOutput()
             BlockCookie cookie(block);
             switch (block.Type)
             {
-            case OutputBlock::BlockType::Struct:    DirectOutput(cookie, output); continue;
-            case OutputBlock::BlockType::Instance:  OutputStruct(cookie, output); continue;
+            case OutputBlock::BlockType::Global:    DirectOutput(cookie, output); continue;
+            case OutputBlock::BlockType::Struct:    OutputStruct(cookie, output); continue;
             default:                                Expects(false); break;
             }
         }

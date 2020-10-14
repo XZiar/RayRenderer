@@ -104,6 +104,9 @@
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\XComputeBase\XComputeBase.vcxproj">
+      <Project>{45234356-6d39-4fa5-a252-40d017ea8190}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

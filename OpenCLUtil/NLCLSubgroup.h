@@ -4,6 +4,8 @@
 
 namespace oclu
 {
+struct SubgroupProvider;
+struct NLCLSubgroupExtension;
 
 struct SubgroupAttributes
 {
@@ -16,9 +18,8 @@ enum class SubgroupReduceOp { Sum, Min, Max, And, Or, Xor };
 
 struct NLCLRuntime_ : public NLCLRuntime
 {
-    friend struct SubgroupProvider;
-    friend struct NLCLSubgroupExtension;
-    friend struct KernelSubgroupExtension;
+    friend SubgroupProvider;
+    friend NLCLSubgroupExtension;
     friend class NLCLSubgroupLocal;
     friend class NLCLSubgroupPtx;
 };
@@ -30,8 +31,39 @@ struct SubgroupCapbility
         SupportBasicSubgroup = false;
 };
 
+struct NLCLSubgroupExtension : public NLCLExtension
+{
+    std::shared_ptr<SubgroupProvider> DefaultProvider;
+    common::mlog::MiniLogger<false>& Logger;
+    std::shared_ptr<SubgroupProvider> Provider;
+    uint32_t SubgroupSize = 0;
 
-struct NLCLSubgroupExtension;
+    NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) : 
+        NLCLExtension(context), DefaultProvider(Generate(logger, context, {}, {})), Logger(logger)
+    { }
+    ~NLCLSubgroupExtension() override { }
+    
+    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
+    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx) override;
+
+    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, 
+        const common::span<const std::u32string_view> args) override;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
+        common::span<const xziar::nailang::FuncCall>) override;
+
+    static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
+    static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);
+    
+    XCNL_EXT_REG(NLCLSubgroupExtension,
+    {
+        if(const auto ctx = dynamic_cast<NLCLContext*>(&context); ctx)
+            return std::make_unique<NLCLSubgroupExtension>(logger, *ctx);
+        return {};
+    });
+};
+
+
 struct SubgroupProvider
 {
 protected:
@@ -66,35 +98,6 @@ public:
     virtual void OnFinish(NLCLRuntime_&, const NLCLSubgroupExtension&, KernelContext&);
 private:
     std::vector<std::u16string> Warnings;
-};
-
-
-struct NLCLSubgroupExtension : public NLCLExtension
-{
-    std::shared_ptr<SubgroupProvider> DefaultProvider;
-    common::mlog::MiniLogger<false>& Logger;
-    std::shared_ptr<SubgroupProvider> Provider;
-    uint32_t SubgroupSize = 0;
-
-    NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) : 
-        NLCLExtension(context), DefaultProvider(Generate(logger, context, {}, {})), Logger(logger)
-    { }
-    ~NLCLSubgroupExtension() override { }
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall>) override;
-    xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args) override;
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx);
-    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-
-    static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
-    static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);
-    
-    XCNL_EXT_REG(NLCLSubgroupExtension,
-    {
-        if(const auto ctx = dynamic_cast<NLCLContext*>(&context); ctx)
-            return std::make_unique<NLCLSubgroupExtension>(logger, *ctx);
-        return {};
-    });
 };
 
 
