@@ -51,6 +51,11 @@
   - [ ] Move DataTypeConvertor to cpp, with runtime path selection
   - [ ] Add test for DataTypeConvertor
 
+* XCompute
+  - [ ] Add XCompute based on OpenCLInterop
+  - [ ] Add support of output debug data into xml-in-excel format
+  - [ ] Enable Template-Kernel
+
 * OpenGLUtil
   - [x] Implement FrameBuffer
   - [ ] Better workaround for copying compressed texture
@@ -89,11 +94,9 @@
     - [x] Mimic subgroup shuffle on unsupported platform (nv)
     - [x] Use extension to provide debug support
     - [x] Add dp4a extension
-    - [ ] Enable Template-Kernel
     - [ ] Seperate code generation from NLCLRuntime
     - [ ] Add better kernel argument info parsing in NLCL
-    - [ ] Seperate into shared compute library
-    - [ ] Add support of output debug data into xml-in-excel format
+    - [x] Seperate into shared compute library
 
 * OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL

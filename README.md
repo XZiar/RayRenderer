@@ -30,6 +30,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [Nailang](./Nailang) | A customizable language | C++ | Windows & Linux |
 | [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Windows & Linux |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Windows & Linux |
+| [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Windows & Linux |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Windows & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Windows & Linux |
 | [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Windows & Linux |

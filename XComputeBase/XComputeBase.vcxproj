@@ -209,7 +209,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="XComputeBase.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

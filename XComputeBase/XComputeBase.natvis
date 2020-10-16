@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  
+  <Type Name="xcomp::debug::ArgsLayout">
+    <DisplayString>{{ {{{ArgCount}}} data }}</DisplayString>
+    <Expand>
+      <Synthetic Name="ByIndex">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>ArgCount</Size>
+            <Loop>
+              <Break Condition="idx &gt;= ArgCount" />
+              <Item>((ArgItem*)&amp;*Args)[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="ByLayout">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>ArgCount</Size>
+            <Loop>
+              <Break Condition="idx &gt;= ArgCount" />
+              <Item>((ArgItem*)&amp;*Args)[((uint16_t*)&amp;*ArgLayout)[idx]]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+  
+  <Type Name="xcomp::debug::MessageBlock">
+    <DisplayString>{{ Message [{Name}] {Layout.ArgCount} args }}</DisplayString>
+  </Type>
+  
+  <Type Name="xcomp::debug::DebugManager">
+    <DisplayString>{{ DebugMan {Blocks.size()} block }}</DisplayString>
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>Blocks.size()</Size>
+        <Loop>
+          <Break Condition="idx &gt;= Blocks.size()" />
+          <Item Name="[{Blocks[idx].Name,s32b}]">Blocks[idx]</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+  
+  <Type Name="xcomp::debug::DebugPackage">
+    <DisplayString>{{ DebugPackage }}</DisplayString>
+  </Type>
+  
+  <Type Name="xcomp::debug::CachedDebugPackage">
+    <DisplayString>{{ DataPackage }}</DisplayString>
+    <Expand>
+      <Item Name="Manager">*Manager</Item>
+      <Item Name="InfoBuffer">InfoBuffer</Item>
+      <Item Name="DataBuffer">DataBuffer</Item>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>Items.size()</Size>
+        <Loop>
+          <Break Condition="idx &gt;= Items.size()" />
+          <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
+                Condition="Items[idx].Str.Length == 0">Manager._Ptr->Blocks[Items[idx].BlockId].Formatter,s32b</Item>
+          <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
+                Condition="Items[idx].Str.Length != 0">((char**)(&amp;Pool._Mypair._Myval2))[1] + Items[idx].Str.Offset,[Items[idx].Str.Length]s8</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+  
+  <Type Name="xcomp::XCNLRuntime">
+    <Expand>
+      <Item Name="Context">XCContext</Item>
+      <Item Name="CurFrame">CurFrame,na</Item>
+    </Expand>
+  </Type>
+  
+  <Type Name="xcomp::XCNLProgStub">
+    <Expand>
+      <Item Name="[Program]">Program->Program</Item>
+      <Item Name="[Context]">*Context</Item>
+      <Item Name="[Runtime]">*Runtime</Item>
+      <Item Name="[Source]">Program->Source</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>
