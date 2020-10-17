@@ -17,38 +17,67 @@ using common::simd::VecDataInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
-struct NonSubgroupInfoProvider : public xcomp::debug::InfoProvider
+struct NonSubgroupInfoProvider final : public xcomp::debug::InfoProvider
 {
 public:
     ~NonSubgroupInfoProvider() override {}
-    std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
+    void GetThreadInfo(xcomp::debug::WorkItemInfo& dst, common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {
         const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
         const auto& lsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 4);
-        auto info = std::make_unique<xcomp::debug::WorkItemInfo>();
-        SetBasicInfo(gsize, lsize, tid, *info);
+        SetBasicInfo(gsize, lsize, tid, dst);
         const auto infodata = space[tid + 7];
-        const auto lid = info->LocalId[0] + info->LocalId[1] * lsize[0] + info->LocalId[2] * lsize[1] * lsize[0];
+        const auto lid = dst.LocalId[0] + dst.LocalId[1] * lsize[0] + dst.LocalId[2] * lsize[1] * lsize[0];
         Expects(infodata == lid);
+    }
+    std::unique_ptr<xcomp::debug::InfoPack> GetInfoPack(common::span<const uint32_t> space) const override
+    {
+        const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
+        const auto count = gsize[0] * gsize[1] * gsize[2];
+        return std::make_unique<xcomp::debug::InfoPackT<xcomp::debug::WorkItemInfo>>(*this, count);
+    }
+    std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
+    {
+        auto info = std::make_unique<xcomp::debug::WorkItemInfo>();
+        GetThreadInfo(*info, space, tid);
         return info;
     }
 };
-struct SubgroupInfoProvider : public xcomp::debug::InfoProvider
+struct SubgroupInfoProvider final : public xcomp::debug::InfoProvider
 {
 public:
     ~SubgroupInfoProvider() override {}
-    std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
+    void GetThreadInfo(xcomp::debug::WorkItemInfo& dst_, common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {
+        auto& dst = static_cast<oclThreadInfo&>(dst_);
         const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
         const auto& lsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 4);
-        auto info = std::make_unique<oclThreadInfo>();
-        SetBasicInfo(gsize, lsize, tid, *info);
+        SetBasicInfo(gsize, lsize, tid, dst);
         const auto infodata = space[tid + 7];
-        info->SubgroupId      = static_cast<uint16_t>(infodata / 65536u);
-        info->SubgroupLocalId = static_cast<uint16_t>(infodata % 65536u);
+        dst.SubgroupId = static_cast<uint16_t>(infodata / 65536u);
+        dst.SubgroupLocalId = static_cast<uint16_t>(infodata % 65536u);
+    }
+    std::unique_ptr<xcomp::debug::InfoPack> GetInfoPack(common::span<const uint32_t> space) const override
+    {
+        const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
+        const auto count = gsize[0] * gsize[1] * gsize[2];
+        return std::make_unique<xcomp::debug::InfoPackT<oclThreadInfo>>(*this, count);
+    }
+    std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
+    {
+        auto info = std::make_unique<oclThreadInfo>();
+        GetThreadInfo(*info, space, tid);
         return info;
     }
 };
+
+
+bool HasSubgroupInfo(const xcomp::debug::InfoProvider& infoProv) noexcept
+{
+    // fast path since `SubgroupInfoProvider` is final
+    return typeid(infoProv) == typeid(SubgroupInfoProvider);
+    // return dynamic_cast<const SubgroupInfoProvider*>(&infoProv) != nullptr;
+}
 
 
 struct NLCLDebugExtension;

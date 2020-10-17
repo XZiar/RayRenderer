@@ -153,8 +153,42 @@ struct WorkItemInfo
     uint32_t GroupId[3];
     uint32_t LocalId[3];
 };
+
+class InfoProvider;
+class XCOMPBASAPI InfoPack
+{
+    std::vector<uint32_t> IndexData;
+    virtual const WorkItemInfo& GetInfo(const uint32_t idx) = 0;
+    virtual uint32_t Generate(common::span<const uint32_t> space, const uint32_t tid) = 0;
+protected:
+    const InfoProvider& Provider;
+    InfoPack(const InfoProvider& provider, const uint32_t count);
+public:
+    virtual ~InfoPack();
+    const WorkItemInfo& GetInfo(common::span<const uint32_t> space, const uint32_t tid);
+};
+
+template<typename T>
+class InfoPackT final : public InfoPack
+{
+    friend InfoProvider;
+    static_assert(std::is_base_of_v<WorkItemInfo, T>, "T should be derived from WorkItemInfo");
+    std::vector<T> RealData;
+    const WorkItemInfo& GetInfo(const uint32_t idx) override
+    {
+        return RealData[idx];
+    }
+    uint32_t Generate(common::span<const uint32_t> space, const uint32_t tid) override;
+public:
+    InfoPackT(const InfoProvider& provider, const uint32_t count) : InfoPack(provider, count) {}
+    ~InfoPackT() override {}
+};
+
+class CachedDebugPackage;
 class XCOMPBASAPI InfoProvider
 {
+    template<typename> friend class InfoPackT;
+    friend CachedDebugPackage;
 protected:
     static constexpr void SetBasicInfo(const uint32_t(&gsize)[3], const uint32_t(&lsize)[3], const uint32_t id, WorkItemInfo& info) noexcept
     {
@@ -170,12 +204,23 @@ protected:
         info.LocalId[1] = info.GlobalId[1] % lsize[1];
         info.LocalId[0] = info.GlobalId[0] % lsize[0];
     }
+    virtual void GetThreadInfo(WorkItemInfo& dst, common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
+    virtual std::unique_ptr<InfoPack> GetInfoPack(common::span<const uint32_t> space) const = 0;
 public:
     virtual ~InfoProvider();
 
     virtual uint32_t GetInfoBufferSize(const size_t* worksize, const uint32_t dims) const noexcept;
     virtual std::unique_ptr<WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
 };
+
+template<typename T>
+inline uint32_t InfoPackT<T>::Generate(common::span<const uint32_t> space, const uint32_t tid)
+{
+    RealData.push_back({});
+    Provider.GetThreadInfo(RealData.back(), space, tid);
+    return gsl::narrow_cast<uint32_t>(RealData.size() - 1);
+}
+
 
 
 class XCOMPBASAPI DebugManager
@@ -259,6 +304,7 @@ class XCOMPBASAPI CachedDebugPackage : protected DebugPackage, private common::S
         constexpr MessageItemWrapper(CachedDebugPackage* host, MessageItem& item) noexcept : Host(*host), Item(item) { }
     public:
         common::str::u8string_view Str();
+        const WorkItemInfo& Info();
         constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
     };
     MessageItemWrapper GetByIndex(const size_t idx) noexcept
@@ -266,6 +312,7 @@ class XCOMPBASAPI CachedDebugPackage : protected DebugPackage, private common::S
         return { this, Items[idx] };
     }
     std::vector<MessageItem> Items;
+    std::unique_ptr<InfoPack> Infos;
 public:
     CachedDebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
     ~CachedDebugPackage() override;

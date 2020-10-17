@@ -1,4 +1,5 @@
 #include "OpenCLUtil/OpenCLUtil.h"
+#include "OpenCLUtil/oclKernelDebug.h"
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclPromise.h"
 #include "ImageUtil/ImageUtil.h"
@@ -95,16 +96,28 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
     auto data = debugPack->GetCachedData();
 
     auto& logger = log();
-    const auto& infoMan = debugPack->InfoMan();
-    const auto infoSpan = debugPack->InfoSpan();
+    const bool hasSgInfo = oclu::debug::HasSubgroupInfo(debugPack->InfoMan());
     for (auto item : data)
     {
-        const auto tinfo = infoMan.GetThreadInfo(infoSpan, item.ThreadId());
-        logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
-            item.ThreadId(), tinfo->GlobalId[0], tinfo->GlobalId[1], tinfo->GlobalId[2],
-            tinfo->GroupId[0], tinfo->GroupId[1], tinfo->GroupId[2],
-            tinfo->LocalId[0], tinfo->LocalId[1], tinfo->LocalId[2],
-            item.Str());
+        const auto& tinfo = item.Info();
+        if (hasSgInfo)
+        {
+            const auto& sginfo = static_cast<const oclu::debug::oclThreadInfo&>(tinfo);
+            logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
+                item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
+                tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
+                tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
+                sginfo.SubgroupId, sginfo.SubgroupLocalId,
+                item.Str());
+        }
+        else
+        {
+            logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}]:\n{}\n"),
+                item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
+                tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
+                tinfo.LocalId[0], tinfo.LocalId[1], tinfo.LocalId[2],
+                item.Str());
+        }
     }
     return img2;
 }

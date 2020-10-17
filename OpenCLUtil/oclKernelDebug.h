@@ -21,6 +21,8 @@ struct oclThreadInfo : public xcomp::debug::WorkItemInfo
     uint16_t SubgroupId, SubgroupLocalId;
 };
 
+OCLUAPI bool HasSubgroupInfo(const xcomp::debug::InfoProvider& infoProv) noexcept;
+
 
 }
 

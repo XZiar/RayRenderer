@@ -55,25 +55,87 @@
   <Type Name="xcomp::debug::DebugPackage">
     <DisplayString>{{ DebugPackage }}</DisplayString>
   </Type>
+
+  <Type Name="xcomp::debug::WorkItemInfo">
+    <DisplayString>{{ TID{{{ThreadId}}} GID{{{GlobalId[0]},{GlobalId[1]},{GlobalId[2]}}} GP{{{GroupId[0]},{GroupId[1]},{GroupId[2]}}} LID{{{LocalId[0]},{LocalId[1]},{LocalId[2]}}} }}</DisplayString>
+  </Type>
   
+  <Type Name="xcomp::debug::InfoPackT&lt;*&gt;">
+    <DisplayString>{{ InfoPack {IndexData.size()} threads, {RealData.size()} cached }}</DisplayString>
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>IndexData.size()</Size>
+        <Loop>
+          <Break Condition="idx &gt;= IndexData.size()" />
+          <Item Name="{idx}" Condition="IndexData[idx] == 0xffffffffu">idx</Item>
+          <Item Name="{idx}" Condition="IndexData[idx] != 0xffffffffu">RealData[IndexData[idx]]</Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+
   <Type Name="xcomp::debug::CachedDebugPackage">
     <DisplayString>{{ DataPackage }}</DisplayString>
     <Expand>
       <Item Name="Manager">*Manager</Item>
       <Item Name="InfoBuffer">InfoBuffer</Item>
       <Item Name="DataBuffer">DataBuffer</Item>
-      <CustomListItems MaxItemsPerView="100">
-        <Variable Name="idx" InitialValue="0" />
-        <Size>Items.size()</Size>
-        <Loop>
-          <Break Condition="idx &gt;= Items.size()" />
-          <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
-                Condition="Items[idx].Str.Length == 0">Manager._Ptr->Blocks[Items[idx].BlockId].Formatter,s32b</Item>
-          <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
-                Condition="Items[idx].Str.Length != 0">((char**)(&amp;Pool._Mypair._Myval2))[1] + Items[idx].Str.Offset,[Items[idx].Str.Length]s8</Item>
-          <Exec>idx++</Exec>
-        </Loop>
-      </CustomListItems>
+      <Item Name="ThreadInfo">*Infos</Item>
+      <Synthetic Name="Messages">
+        <DisplayString>{Items.size()} messages</DisplayString>
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>Items.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= Items.size()" />
+              <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
+                    Condition="Items[idx].Str.Length == 0">Manager._Ptr->Blocks[Items[idx].BlockId].Formatter,s32b</Item>
+              <Item Name="[{Items[idx].ThreadId}][{Manager._Ptr->Blocks[Items[idx].BlockId].Name,s32b}]"
+                    Condition="Items[idx].Str.Length != 0">((char**)(&amp;Pool._Mypair._Myval2))[1] + Items[idx].Str.Offset,[Items[idx].Str.Length]s8</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
+  <Type Name="xcomp::XCNLContext">
+    <DisplayString>{{ XCNLContext }}</DisplayString>
+    <Expand>
+      <Item Name="XCNL Extension">Extensions</Item>
+      <Item Name="PatchedBlock">PatchedBlocks</Item>
+      <Synthetic Name="OutputBlock">
+        <DisplayString>{OutputBlocks.size()} blocks</DisplayString>
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>OutputBlocks.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= OutputBlocks.size()" />
+              <Item Name="OutputBlocks[idx].Block->Name">OutputBlocks[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="TemplateBlock">
+        <DisplayString>{TemplateBlocks.size()} blocks</DisplayString>
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>TemplateBlocks.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= TemplateBlocks.size()" />
+              <Item Name="TemplateBlocks[idx].Block->Name">TemplateBlocks[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
     </Expand>
   </Type>
   

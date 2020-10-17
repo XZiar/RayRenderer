@@ -30,17 +30,17 @@
   <Type Name="oclu::oclCmdQue_">
     <DisplayString>{{ oclCmdQue {{on {Device->Name,su}}} }}</DisplayString>
     <Expand>
-      <Item Name="Context">*Context</Item>
+      <Item Name="Context">Context</Item>
       <Item Name="Device">Device,na</Item>
     </Expand>
   </Type>
   <Type Name="oclu::oclProgram_">
     <DisplayString>{{ oclProgram {{{Kernels.size()} kernels}} }}</DisplayString>
     <Expand>
-      <Item Name="Context">*Context</Item>
+      <Item Name="Context">Context</Item>
       <Item Name="Source">Source</Item>
       <Item Name="DebugManager">*DebugManager</Item>
-      <Synthetic Name="Kernels">
+      <Synthetic Name="[Kernels]">
         <Expand>
           <CustomListItems MaxItemsPerView="100">
             <Variable Name="idx" InitialValue="0" />
@@ -66,7 +66,7 @@
   <Type Name="oclu::oclSubBuffer_">
     <DisplayString>{{ oclBuffer }}</DisplayString>
     <Expand>
-      <Item Name="Context">*Context</Item>
+      <Item Name="Context">Context</Item>
       <Item Name="MemFlag">Flag,en</Item>
       <Item Name="Size">Size</Item>
     </Expand>
@@ -98,6 +98,7 @@
     <DisplayString>{{ {Events.size()} events, {Queues.size()} queues }}</DisplayString>
     <Expand>
       <Synthetic Name="Events">
+        <DisplayString>{Events.size()} events</DisplayString>
         <Expand>
           <CustomListItems MaxItemsPerView="100">
             <Variable Name="idx" InitialValue="0" />
@@ -111,6 +112,7 @@
         </Expand>
       </Synthetic>
       <Synthetic Name="Queues">
+        <DisplayString>{Queues.size()} queues</DisplayString>
         <Expand>
           <CustomListItems MaxItemsPerView="100">
             <Variable Name="idx" InitialValue="0" />
@@ -150,6 +152,12 @@
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
+  <Type Name="std::shared_ptr&lt;oclu::oclContext_ const&gt;">
+    <DisplayString>{_Ptr,na}</DisplayString>
+    <Expand>
+      <ExpandedItem>_Ptr</ExpandedItem>
+    </Expand>
+  </Type>
   <Type Name="std::shared_ptr&lt;oclu::oclPlatform_ const&gt;">
     <DisplayString>{_Ptr,na}</DisplayString>
     <Expand>
@@ -174,14 +182,67 @@
       <ExpandedItem>_Ptr</ExpandedItem>
     </Expand>
   </Type>
+
+  <Type Name="oclu::debug::oclThreadInfo">
+    <DisplayString>{{ TID{{{ThreadId}}} GID{{{GlobalId[0]},{GlobalId[1]},{GlobalId[2]}}} GP{{{GroupId[0]},{GroupId[1]},{GroupId[2]}}} LID{{{LocalId[0]},{LocalId[1]},{LocalId[2]}}} SG{{{SubgroupId},{SubgroupLocalId}}} }}</DisplayString>
+  </Type>
+
+  <Type Name="oclu::NLCLContext">
+    <DisplayString>{{ NLCLContext {{on {Device->Name,su}}} }}</DisplayString>
+    <Expand>
+      <Item Name="Device">Device,na</Item>
+      <ExpandedItem>*(xcomp::XCNLContext*)this,nd</ExpandedItem>
+      <Synthetic Name="Support">
+        <Expand>
+          <Item Name="FP16"           >SupportFP16           </Item>
+          <Item Name="FP64"           >SupportFP64           </Item>
+          <Item Name="NVUnroll"       >SupportNVUnroll       </Item>
+          <Item Name="SubgroupKHR"    >SupportSubgroupKHR    </Item>
+          <Item Name="SubgroupIntel"  >SupportSubgroupIntel  </Item>
+          <Item Name="Subgroup8Intel" >SupportSubgroup8Intel </Item>
+          <Item Name="Subgroup16Intel">SupportSubgroup16Intel</Item>
+          <Item Name="BasicSubgroup"  >SupportBasicSubgroup  </Item>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="CL Extension">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>EnabledExtensions.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= EnabledExtensions.size()" />
+              <Item Name="{&amp;Device->Extensions.Pool[0] + Device->Extensions.OrderedView[idx].first,[Device->Extensions.OrderedView[idx].second]sb}">EnabledExtensions[idx]</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="CompilerFlags">CompilerFlags</Item>
+      <Synthetic Name="Compiled Kernels">
+        <Expand>
+          <CustomListItems MaxItemsPerView="100">
+            <Variable Name="idx" InitialValue="0" />
+            <Size>CompiledKernels.size()</Size>
+            <Loop>
+              <Break Condition="idx &gt;= CompiledKernels.size()" />
+              <Item Name="{CompiledKernels[idx].first}">CompiledKernels[idx].second</Item>
+              <Exec>idx++</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
   
   <Type Name="oclu::NLCLRuntime">
+    <DisplayString>{{ NLCLRuntime {{on {Context.Device->Name,su}}} }}</DisplayString>
     <Expand>
       <Item Name="Context">Context</Item>
       <Item Name="Device">Context.Device,na</Item>
       <Item Name="CurFrame">CurFrame,na</Item>
     </Expand>
   </Type>
+  
   <Type Name="oclu::NLCLProgStub">
     <Expand>
       <Item Name="[Program]">Program->Program</Item>

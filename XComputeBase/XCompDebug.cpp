@@ -184,6 +184,23 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
 }
 
 
+InfoPack::InfoPack(const InfoProvider& provider, const uint32_t count) : Provider(provider)
+{
+    IndexData.assign(count, UINT32_MAX);
+}
+InfoPack::~InfoPack() {}
+
+const WorkItemInfo& InfoPack::GetInfo(common::span<const uint32_t> space, const uint32_t tid)
+{
+    auto& idx = IndexData[tid];
+    if (idx == UINT32_MAX)
+    {
+        idx = Generate(space, tid);
+    }
+    return GetInfo(idx);
+}
+
+
 InfoProvider::~InfoProvider()
 {
 }
@@ -244,9 +261,16 @@ common::str::u8string_view CachedDebugPackage::MessageItemWrapper::Str()
     return Host.GetStringView(Item.Str);
 }
 
+const WorkItemInfo& CachedDebugPackage::MessageItemWrapper::Info()
+{
+    return Host.Infos->GetInfo(Host.InfoSpan(), Item.ThreadId);
+}
+
+
 CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data) :
     DebugPackage(manager, std::move(info), std::move(data))
 {
+    Infos = manager->GetInfoProvider().GetInfoPack(InfoSpan());
     const auto blocks  = Manager->GetBlocks();
     const auto alldata = DataBuffer.AsSpan<uint32_t>();
     VisitData([&](const uint32_t tid, const InfoProvider&, const MessageBlock& block,
