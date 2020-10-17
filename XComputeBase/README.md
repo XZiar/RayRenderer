@@ -97,9 +97,15 @@ To allow interaction with XCNL in native code, XCNL uses Nailang's `ReplaceEngin
 
   A replace variable is simiar to a macro. It accept a `LateBindVar` so that XCNL can query from its context and output corresponding content.
 
+  Additionally, there's fastpath to get native VecTypeName:
+  * `@xxx` will treat `xxx` as VecTypeStr.
+  * `#xxx` will treat `xxx` as LateBindVar, whose str content is VecTypeStr.
+
   Syntax:
   ```
   const int flag = $$!{`IsDebug};
+  const $$!{@i32v4}   data1;
+  const $$!{#OutType} output;
   ```
 
 * **replace-function**

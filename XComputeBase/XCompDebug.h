@@ -226,7 +226,7 @@ public:
     virtual ~DebugPackage();
     virtual void ReleaseRuntime() {}
     template<typename F>
-    void VisitData(F&& func) const
+    forceinline void VisitData(F&& func) const
     {
         if (!Manager) return;
         const auto infoData = InfoSpan();

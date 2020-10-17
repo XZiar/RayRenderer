@@ -238,7 +238,8 @@ protected:
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type,
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const;
-    [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname) const;
+    [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, 
+        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
 
     std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
     std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call, 
@@ -247,9 +248,9 @@ protected:
     void DirectOutput(BlockCookie& cookie, std::u32string& dst);
     void ProcessInstance(BlockCookie& cookie);
 
-    void OnReplaceOptBlock(std::u32string& output, void* cookie, const std::u32string_view cond, const std::u32string_view content) override;
-    void OnReplaceVariable(std::u32string& output, void* cookie, const std::u32string_view var) override;
-    void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
+    void OnReplaceOptBlock(std::u32string& output, void* cookie, std::u32string_view cond, std::u32string_view content) override;
+    void OnReplaceVariable(std::u32string& output, void* cookie, std::u32string_view var) override;
+    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) override;
 
     void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
     xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas) override;

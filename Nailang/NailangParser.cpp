@@ -676,15 +676,15 @@ void ReplaceEngine::HandleException(const NailangParseException& ex) const
     ex.ThrowSelf();
 }
 
-void ReplaceEngine::OnReplaceOptBlock(std::u32string&, void*, const std::u32string_view, const std::u32string_view)
+void ReplaceEngine::OnReplaceOptBlock(std::u32string&, void*, std::u32string_view, std::u32string_view)
 {
     NLPS_THROW_EX(u"ReplaceOptBlock unimplemented"sv);
 }
-void ReplaceEngine::OnReplaceVariable(std::u32string&, void*, const std::u32string_view)
+void ReplaceEngine::OnReplaceVariable(std::u32string&, void*, std::u32string_view)
 {
     NLPS_THROW_EX(u"ReplaceVariable unimplemented"sv);
 }
-void ReplaceEngine::OnReplaceFunction(std::u32string&, void*, const std::u32string_view, const common::span<const std::u32string_view>)
+void ReplaceEngine::OnReplaceFunction(std::u32string&, void*, std::u32string_view, common::span<const std::u32string_view>)
 {
     NLPS_THROW_EX(u"ReplaceFunction unimplemented"sv);
 }

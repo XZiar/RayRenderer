@@ -179,44 +179,42 @@ void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str
     Logger.log(level, u"[XCNL]{}\n", str);
 }
 
+static std::u16string VecTypeErrorStr(const std::u32string_view var, const std::u16string_view reason, const std::variant<std::u16string_view, std::function<std::u16string(void)>>& exInfo)
+{
+    switch (exInfo.index())
+    {
+    case 0:
+        if (const auto str = std::get<0>(exInfo); str.size() == 0)
+            return FMTSTR(u"Type [{}] {}."sv, var, reason);
+        else
+            return FMTSTR(u"Type [{}] {} when {}."sv, var, reason, str);
+    case 1:
+        return FMTSTR(u"Type [{}] {}, {}."sv, var, reason, std::get<1>(exInfo)());
+    default:
+        return {};
+    }
+}
+
 common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var,
     std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const
 {
     const auto vtype = XCContext.ParseVecType(var);
     if (!vtype)
-    {
-        switch (extraInfo.index())
-        {
-        case 0:
-        {
-            const auto str = std::get<0>(extraInfo);
-            if (str.size() == 0)
-                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType."sv, var));
-            else
-                NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType when {}."sv, var, str));
-        } break;
-        case 1:
-        {
-            const auto str = std::get<1>(extraInfo)();
-            NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized as VecType, {}."sv, var, str));
-        } break;
-        }
-    }
+        NLRT_THROW_EX(VecTypeErrorStr(var, u"not recognized as VecType"sv, extraInfo));
     if (!vtype.TypeSupport)
         Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
 
     return vtype.Info;
 }
 
-std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname) const
+std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname,
+    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const
 {
-    const auto vtype = ParseVecType(vname, u"call [GetVecTypeName]"sv);
+    const auto vtype = ParseVecType(vname, extraInfo);
     const auto str = XCContext.GetVecTypeName(vtype);
-    if (!str.empty())
-        return str;
-    else
-        NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported"sv, vname));
-    return {};
+    if (str.empty())
+        NLRT_THROW_EX(VecTypeErrorStr(vname, u"not supported"sv, extraInfo));
+    return str;
 }
 
 constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
@@ -379,7 +377,7 @@ void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
     }
 }
 
-void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u32string_view cond, const std::u32string_view content)
+void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, std::u32string_view cond, std::u32string_view content)
 {
     if (cond.empty())
     {
@@ -413,31 +411,41 @@ void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, const std::u3
     }
 }
 
-void XCNLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] void* cookie, const std::u32string_view var)
+void XCNLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] void* cookie, std::u32string_view var)
 {
-    if (var.size() > 0 && var[0] == U'@')
+    if (var.size() == 0)
+        NLRT_THROW_EX(u"replace-variable does not accept empty"sv);
+
+    if (var[0] == U'@')
     {
-        const auto vtype = ParseVecType(var.substr(1), u"replace-variable"sv);
-        const auto str = XCContext.GetVecTypeName(vtype);
-        if (!str.empty())
-            output.append(str);
-        else
-            NLRT_THROW_EX(FMTSTR(u"Type [{}] not supported when replace-variable"sv, var));
+        const auto str = GetVecTypeName(var.substr(1), u"replace-variable"sv);
+        output.append(str);
     }
-    else // '@' not allowed in var anyway
+    else // '@' and '#' not allowed in var anyway
     {
+        bool toVecName = false;
+        if (var[0] == U'#')
+            toVecName = true, var.remove_prefix(1);
         const auto var_ = DecideDynamicVar(var, u"ReplaceVariable"sv);
-        const auto ret = LookUpArg(var_);
-        if (ret.IsEmpty() || ret.TypeData == Arg::Type::Var)
+        const auto val = LookUpArg(var_);
+        if (val.IsEmpty() || val.TypeData == Arg::Type::Var)
         {
             NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
             return;
         }
-        output.append(ret.ToString().StrView());
+        if (toVecName)
+        {
+            if (!val.IsStr())
+                NLRT_THROW_EX(FMTSTR(u"Arg [{}] is not a vetype string when replace-variable"sv, var));
+            const auto str = GetVecTypeName(val.GetStr().value(), u"replace-variable"sv);
+            output.append(str);
+        }
+        else
+            output.append(val.ToString().StrView());
     }
 }
 
-void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args)
+void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
 {
     if (IsBeginWith(func, U"xcomp."sv))
     {

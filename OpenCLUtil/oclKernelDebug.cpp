@@ -260,7 +260,6 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             .append(U"\r\n    global uint* restrict data,"sv);
         for (size_t i = 0; i < args.size(); ++i)
         {
-            
             APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, Context.GetVecTypeName(args[i].second), i);
         }
         func.pop_back();

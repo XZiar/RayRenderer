@@ -2,6 +2,7 @@
 #Block.oclu.Prepare("test")
 {
     $xcomp.EnableDebug();
+    `DefType = "u32";
 }
 
 @xcomp.Replace()
@@ -15,7 +16,7 @@
 @oclu.SimpleArg("",    "float4", "coeff",  "const         ")
 #Raw.oclu.Kernel("blurX")
 {@@Kernel
-    float16 in4, tmp;
+    $$!{@f32v16} in4, tmp;
     {
         global const uchar * restrict ptrIn  = src + get_global_id(0) * stride * 4;
         global       float * restrict ptrOut = mid + get_global_id(0) * width * 4;
@@ -25,9 +26,9 @@
         const uint3 gpid = (uint3)(get_group_id(0),  get_group_id(1),  get_group_id(2) );
         const uint3 lcid = (uint3)(get_local_id(0),  get_local_id(1),  get_local_id(2) );
 #if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
-        const uint sgid = get_sub_group_id(), sglid = get_sub_group_local_id();
+        const $$!{#DefType} sgid = get_sub_group_id(), sglid = get_sub_group_local_id();
 #else
-        const uint sgid = 0, sglid = 0;
+        const $$!{#DefType} sgid = 0, sglid = 0;
 #endif
         $$!xcomp.DebugStr(dbgIn, "gid({}), gpid[{:03}], lid[{}], sg[{},{}] read at [{}], get[{}].",
             gid:u32v3, gid, gpid:u32v3, gpid, lid:u32v3, lcid,
