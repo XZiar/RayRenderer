@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclNLCL.h"
+#include "OpenCLUtil/oclKernelDebug.h"
 #include "OpenCLUtil/oclException.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
@@ -93,6 +94,18 @@ static void OCLStub()
                 };
                 log().verbose(u"{}", proc(u"2DImage Supports:\n", ctx->Img2DFormatSupport));
                 log().verbose(u"{}\n", proc(u"3DImage Supports:\n", ctx->Img3DFormatSupport));
+                continue;
+            }
+            else if (fpath == "DEBUG")
+            {
+                const auto sgItemField = xcomp::debug::WGInfoHelper::Fields<oclu::debug::SubgroupWgInfo>();
+                std::string str;
+                for (const auto& field : sgItemField)
+                {
+                    fmt::format_to(std::back_inserter(str), FMT_STRING("[{:20}]: offset[{:3}] byte[{}] dim[{}]\n"),
+                        field.Name, field.Offset, field.VecType.Bit / 8, field.VecType.Dim0);
+                }
+                log().verbose(u"Fields of SubgroupWgInfo:\n{}\n", str);
                 continue;
             }
             else if (fpath == "INFO")

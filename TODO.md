@@ -55,6 +55,8 @@
   - [ ] Add XCompute based on OpenCLInterop
   - [ ] Add support of output debug data into xml-in-excel format
   - [ ] Enable Template-Kernel
+  - [ ] Add common syntax to define args of the instance
+  - [ ] Add common syntax to define structure
 
 * OpenGLUtil
   - [x] Implement FrameBuffer

@@ -15,7 +15,7 @@ namespace xcomp::debug
 struct XCOMPBASAPI XCNLDebugExt
 {
     DebugManager DebugMan;
-    using DbgContent = std::pair<std::u32string, std::vector<ArgsLayout::InputType>>;
+    using DbgContent = std::pair<std::u32string, std::vector<NamedVecPair>>;
     std::map<std::u32string, DbgContent, std::less<>> DebugInfos;
 
     void DefineMessage(XCNLRuntime& runtime, const xziar::nailang::FuncCall& call);
@@ -26,7 +26,7 @@ struct XCOMPBASAPI XCNLDebugExt
         DebugMan.InfoProv = std::move(infoProv);
     }
     forceinline const MessageBlock& AppendBlock(const std::u32string_view name, 
-        const std::u32string_view formatter, common::span<const ArgsLayout::InputType> args)
+        const std::u32string_view formatter, common::span<const NamedVecPair> args)
     {
         return DebugMan.AppendBlock(name, formatter, args);
     }

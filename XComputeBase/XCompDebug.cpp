@@ -1,6 +1,8 @@
 #include "XCompDebug.h"
 #include "StringUtil/Format.h"
-
+#include "StringUtil/Convert.h"
+#include "common/linq2.hpp"
+#include <ctime>
 
 
 template<typename Char, typename T>
@@ -105,11 +107,12 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
 using common::BaseException;
+using common::str::Charset;
 
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
-ArgsLayout::ArgsLayout(common::span<const InputType> infos, const uint16_t align) :
+ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t align) :
     Args(std::make_unique<ArgsLayout::ArgItem[]>(infos.size())), ArgLayout(std::make_unique<uint16_t[]>(infos.size())),
     TotalSize(0), ArgCount(gsl::narrow_cast<uint32_t>(infos.size()))
 {
@@ -181,6 +184,13 @@ common::str::u8string MessageBlock::GetString(common::span<const std::byte> data
     }
     auto str = fmt::vformat(Formatter, store);
     return common::str::to_u8string(str, common::str::Charset::UTF32LE);
+}
+
+
+template<> XCOMPBASAPI common::span<const WorkItemInfo::InfoField> WGInfoHelper::Fields<WorkItemInfo>() noexcept
+{
+    static const auto FIELDS = XCOMP_WGINFO_REG(WorkItemInfo, ThreadId, GlobalId, GroupId, LocalId);
+    return FIELDS;
 }
 
 
@@ -284,6 +294,92 @@ CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, co
 }
 CachedDebugPackage::~CachedDebugPackage()
 { }
+
+
+class ExcelXmlPrinter
+{
+    common::io::OutputStream& Stream;
+    common::span<const NamedVecPair> InfoFields;
+    void PrintFileHeader();
+    void PrintFileFooter();
+    void BeginWorkSheet(const MessageBlock& block);
+};
+
+
+void PrintExcelXml(common::io::OutputStream&, const DebugPackage&)
+{
+
+}
+void PrintExcelXml(common::io::OutputStream&, CachedDebugPackage&)
+{
+
+}
+
+
+void ExcelXmlPrinter::PrintFileHeader()
+{
+    constexpr std::string_view Header1 = 
+R"(<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>XCompute</Author>
+  <LastAuthor>XCompute</LastAuthor>
+  <Created>)"sv;
+    Stream.WriteMany(Header1.size(), sizeof(char), Header1.data());
+    {
+        const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        const auto tm = fmt::gmtime(t);
+        //<Created>1970-01-01T00:00:00Z</Created>
+        const auto tstr = fmt::format("{:%Y-%m-%dT%H:%M:%SZ}", tm);
+        Stream.WriteMany(tstr.size(), sizeof(char), tstr.data());
+    }
+    constexpr std::string_view Header2 =
+R"(</Created>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="s63">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+ </Styles>
+)"sv;
+    Stream.WriteMany(Header2.size(), sizeof(char), Header2.data());
+}
+void ExcelXmlPrinter::PrintFileFooter()
+{
+    constexpr std::string_view Footer =
+R"(</Workbook>
+)"sv;
+    Stream.WriteMany(Footer.size(), sizeof(char), Footer.data());
+}
+void ExcelXmlPrinter::BeginWorkSheet(const MessageBlock& block)
+{
+    const auto wsStr = common::str::to_string(FMTSTR(UR"( <Worksheet ss:Name="{}">)", block.Name), Charset::UTF8);
+    Stream.WriteMany(wsStr.size(), sizeof(char), wsStr.data());
+    constexpr auto TableFmt = UR"(
+  <Table x:FullColumns="1" x:FullRows="1">
+   <Row ss:AutoFitHeight="0">
+)"sv;
+    Stream.WriteMany(TableFmt.size(), sizeof(char), TableFmt.data());
+    using ArgPtr = std::add_pointer_t<decltype(*block.Layout.ByIndex().begin())>;
+    std::vector<ArgPtr> namedArgs;
+    for (const auto& item : block.Layout.ByIndex())
+        if (item.Name.GetLength() > 0)
+            namedArgs.push_back(&item);
+    const auto infoCol = InfoFields.size();
+    const auto dataCol = namedArgs.size() + 1; // with final arg
+}
 
 
 }

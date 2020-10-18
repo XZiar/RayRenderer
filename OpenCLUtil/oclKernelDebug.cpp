@@ -5,6 +5,13 @@
 #include "XComputeBase/XCompDebugExt.h"
 
 
+template<> OCLUAPI common::span<const xcomp::debug::WorkItemInfo::InfoField> xcomp::debug::WGInfoHelper::Fields<oclu::debug::SubgroupWgInfo>() noexcept
+{
+    using oclu::debug::SubgroupWgInfo;
+    static const auto FIELDS = XCOMP_WGINFO_REG_INHERIT(SubgroupWgInfo, xcomp::debug::WorkItemInfo,
+        SubgroupId, SubgroupLocalId);
+    return FIELDS;
+}
 
 namespace oclu::debug
 {
@@ -17,7 +24,7 @@ using common::simd::VecDataInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
-struct NonSubgroupInfoProvider final : public xcomp::debug::InfoProvider
+struct NonSubgroupInfoProvider final : public xcomp::debug::InfoProviderT<xcomp::debug::WorkItemInfo>
 {
 public:
     ~NonSubgroupInfoProvider() override {}
@@ -43,13 +50,13 @@ public:
         return info;
     }
 };
-struct SubgroupInfoProvider final : public xcomp::debug::InfoProvider
+struct SubgroupInfoProvider final : public xcomp::debug::InfoProviderT<SubgroupWgInfo>
 {
 public:
     ~SubgroupInfoProvider() override {}
     void GetThreadInfo(xcomp::debug::WorkItemInfo& dst_, common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {
-        auto& dst = static_cast<oclThreadInfo&>(dst_);
+        auto& dst = static_cast<SubgroupWgInfo&>(dst_);
         const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
         const auto& lsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 4);
         SetBasicInfo(gsize, lsize, tid, dst);
@@ -61,15 +68,16 @@ public:
     {
         const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
         const auto count = gsize[0] * gsize[1] * gsize[2];
-        return std::make_unique<xcomp::debug::InfoPackT<oclThreadInfo>>(*this, count);
+        return std::make_unique<xcomp::debug::InfoPackT<SubgroupWgInfo>>(*this, count);
     }
     std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {
-        auto info = std::make_unique<oclThreadInfo>();
+        auto info = std::make_unique<SubgroupWgInfo>();
         GetThreadInfo(*info, space, tid);
         return info;
     }
 };
+
 
 
 bool HasSubgroupInfo(const xcomp::debug::InfoProvider& infoProv) noexcept
@@ -265,7 +273,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
     }
 
     std::u32string DebugStringPatch(Runtime_& runtime, const std::u32string_view dbgId,
-        const std::u32string_view formatter, common::span<const ArgsLayout::InputType> args) noexcept
+        const std::u32string_view formatter, common::span<const xcomp::debug::NamedVecPair> args) noexcept
     {
         // prepare arg layout
         const auto& dbgBlock = AppendBlock(dbgId, formatter, args);

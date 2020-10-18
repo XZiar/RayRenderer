@@ -4,7 +4,13 @@
 #include "common/ContainerEx.hpp"
 #include "common/StringPool.hpp"
 #include "common/AlignedBuffer.hpp"
+#include "common/Stream.hpp"
 #include "3rdParty/half/half.hpp"
+#include <boost/preprocessor/punctuation/comma_if.hpp>
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+#include <array>
+
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -14,6 +20,8 @@
 namespace xcomp::debug
 {
 struct XCNLDebugExt;
+
+using NamedVecPair = std::pair<std::u32string_view, common::simd::VecDataInfo>;
 
 
 class XCOMPBASAPI ArgsLayout : private common::StringPool<char32_t>
@@ -87,7 +95,7 @@ private:
     {
         return Args[ArgLayout[idx]];
     }
-    using ItTypeIndexed  = common::container::IndirectIterator<const ArgsLayout, const ArgItem&, &ArgsLayout::GetByIndex>;
+    using ItTypeIndexed = common::container::IndirectIterator<const ArgsLayout, const ArgItem&, &ArgsLayout::GetByIndex>;
     using ItTypeLayouted = common::container::IndirectIterator<const ArgsLayout, const ArgItem&, &ArgsLayout::GetByLayout>;
     friend ItTypeIndexed;
     friend ItTypeLayouted;
@@ -115,9 +123,7 @@ public:
     uint32_t TotalSize;
     uint32_t ArgCount;
 
-    using InputType = std::pair<std::u32string_view, common::simd::VecDataInfo>;
-
-    ArgsLayout(common::span<const InputType> infos, const uint16_t align = 4);
+    ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t align = 4);
     ArgsLayout(ArgsLayout&& other) = default;
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
@@ -134,9 +140,9 @@ struct XCOMPBASAPI MessageBlock
     uint8_t DebugId;
     template<typename... Args>
     MessageBlock(const uint8_t idx, const std::u32string_view name, const std::u32string_view formatter,
-        common::span<const ArgsLayout::InputType> infos) :
+        common::span<const NamedVecPair> infos) :
         Layout(infos, 4), Name(name), Formatter(formatter), DebugId(idx) {}
-    
+
     common::str::u8string GetString(common::span<const std::byte> data) const;
     template<typename T>
     common::str::u8string GetString(common::span<T> data) const
@@ -148,11 +154,105 @@ struct XCOMPBASAPI MessageBlock
 
 struct WorkItemInfo
 {
+    struct InfoField
+    {
+        std::string_view Name;
+        std::ptrdiff_t Offset;
+        common::simd::VecDataInfo VecType;
+    };
     uint32_t ThreadId;
     uint32_t GlobalId[3];
     uint32_t GroupId[3];
     uint32_t LocalId[3];
 };
+
+struct WGInfoHelper
+{
+    template<typename T>
+    static constexpr common::simd::VecDataInfo GenerateVType() noexcept
+    {
+        using common::simd::VecDataInfo;
+        using half_float::half;
+#define CaseType(t, type, bit) if constexpr (std::is_same_v<T, t>) return { VecDataInfo::DataTypes::type, bit, 0, 0 }
+             CaseType(uint8_t,  Unsigned, 8);
+        else CaseType(uint16_t, Unsigned, 16);
+        else CaseType(uint32_t, Unsigned, 32);
+        else CaseType(uint64_t, Unsigned, 64);
+        else CaseType( int8_t,    Signed, 8);
+        else CaseType( int16_t,   Signed, 16);
+        else CaseType( int32_t,   Signed, 32);
+        else CaseType( int64_t,   Signed, 64);
+        else CaseType(half,        Float, 16);
+        else CaseType(float,       Float, 32);
+        else CaseType(double,      Float, 64);
+        else return { VecDataInfo::DataTypes::Float, 0, 0, 0 };
+#undef CaseType
+    }
+    template<typename T, typename U, size_t N>
+    static WorkItemInfo::InfoField GenerateField(const T* obj, std::string_view name, U(T::* field)[N]) noexcept
+    {
+        static_assert(N >= 1 && N <= 4, "Length of a array cannot be larger than 4");
+        constexpr auto vtype = GenerateVType<common::remove_cvref_t<U>>();
+        static_assert(vtype.Bit > 0, "Unsupportted datatype");
+        auto type = vtype; type.Dim0 = N;
+        const auto offset = reinterpret_cast<const std::byte*>(&(obj->*field)) - reinterpret_cast<const std::byte*>(obj);
+        Ensures(offset >= 0);
+        return { name, offset, type };
+    }
+    template<typename T, typename U, size_t N>
+    static WorkItemInfo::InfoField GenerateField(const T* obj, std::string_view name, std::array<U, N> T::* field) noexcept
+    {
+        static_assert(N >= 1 && N <= 4, "Length of a array cannot be larger than 4");
+        constexpr auto vtype = GenerateVType<common::remove_cvref_t<U>>();
+        static_assert(vtype.Bit > 0, "Unsupportted datatype");
+        auto type = vtype; type.Dim0 = N;
+        const auto offset = reinterpret_cast<const std::byte*>(&(obj->*field)) - reinterpret_cast<const std::byte*>(obj);
+        Ensures(offset >= 0);
+        return { name, offset, type };
+    }
+    template<typename T, typename U>
+    static WorkItemInfo::InfoField GenerateField(const T* obj, std::string_view name, U T::* field) noexcept
+    {
+        constexpr auto vtype = GenerateVType<common::remove_cvref_t<U>>();
+        static_assert(vtype.Bit > 0, "Unsupportted datatype");
+        auto type = vtype; type.Dim0 = 1;
+        const auto offset = reinterpret_cast<const std::byte*>(&(obj->*field)) - reinterpret_cast<const std::byte*>(obj);
+        Ensures(offset >= 0);
+        return { name, offset, type };
+    }
+    template<typename T, typename U, typename... Args>
+    static void GenerateField(std::vector<WorkItemInfo::InfoField>& output, const T* obj, std::string_view name, U field, Args... args) noexcept
+    {
+        output.push_back(GenerateField(obj, name, field));
+        if constexpr (sizeof...(Args) > 0)
+            GenerateField(output, obj, args...);
+    }
+    template<typename T, typename... Args>
+    static std::vector<WorkItemInfo::InfoField> GenerateFields(Args... args) noexcept
+    {
+        static_assert(sizeof...(Args) % 2 == 0, "need to pass a name and member pointer for each field");
+        std::vector<WorkItemInfo::InfoField> fields;
+        T tmp;
+        GenerateField(fields, &tmp, args...);
+        return fields;
+    }
+    template<typename T>
+    static common::span<const WorkItemInfo::InfoField> Fields() noexcept;
+};
+
+
+#define XCOMP_WGINFO_FIELD(r, type, i, field) BOOST_PP_COMMA_IF(i) STRINGIZE(field), &type::field
+#define XCOMP_WGINFO_REG(type, ...) \
+    ::xcomp::debug::WGInfoHelper::GenerateFields<type>(BOOST_PP_SEQ_FOR_EACH_I(XCOMP_WGINFO_FIELD, type, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)))
+#define XCOMP_WGINFO_REG_INHERIT(type, parent, ...) []()    \
+    {                                                       \
+        static_assert(std::is_base_of_v<parent, type>);     \
+        auto tmp = XCOMP_WGINFO_REG(type, __VA_ARGS__);     \
+        auto prt = WGInfoHelper::Fields<parent>();          \
+        tmp.insert(tmp.begin(), prt.begin(), prt.end());    \
+        return tmp;                                         \
+    }()
+
 
 class InfoProvider;
 class XCOMPBASAPI InfoPack
@@ -211,6 +311,8 @@ public:
 
     virtual uint32_t GetInfoBufferSize(const size_t* worksize, const uint32_t dims) const noexcept;
     virtual std::unique_ptr<WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
+    virtual common::span<const WorkItemInfo::InfoField> QueryFields() const noexcept = 0;
+    virtual common::span<const std::byte> GetFullInfoSpace(const WorkItemInfo& info) const noexcept = 0;
 };
 
 template<typename T>
@@ -221,6 +323,20 @@ inline uint32_t InfoPackT<T>::Generate(common::span<const uint32_t> space, const
     return gsl::narrow_cast<uint32_t>(RealData.size() - 1);
 }
 
+template<typename T>
+class InfoProviderT : public InfoProvider
+{
+    static_assert(std::is_base_of_v<WorkItemInfo, T>);
+    common::span<const WorkItemInfo::InfoField> QueryFields() const noexcept override
+    {
+        return xcomp::debug::WGInfoHelper::Fields<T>();
+    }
+    common::span<const std::byte> GetFullInfoSpace(const WorkItemInfo& info) const noexcept final
+    {
+        const auto& obj = static_cast<const T&>(info);
+        return common::as_bytes(common::span<const T>(&obj, 1));
+    }
+};
 
 
 class XCOMPBASAPI DebugManager
@@ -322,8 +438,11 @@ public:
     constexpr ItType begin() noexcept { return { this, 0 }; }
               ItType end()   noexcept { return { this, Items.size() }; }
     size_t Count() const noexcept { return Items.size(); }
-
 };
+
+
+XCOMPBASAPI void PrintExcelXml(common::io::OutputStream& stream, const DebugPackage& package);
+XCOMPBASAPI void PrintExcelXml(common::io::OutputStream& stream, CachedDebugPackage& package);
 
 
 }

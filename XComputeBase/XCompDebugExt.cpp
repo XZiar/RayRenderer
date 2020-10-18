@@ -21,7 +21,7 @@ struct XCNLRuntime_ : public XCNLRuntime
 
 
 template<typename F>
-static ArgsLayout::InputType GenerateInput(XCNLRuntime_& Runtime, std::u32string_view str, F&& errInfo)
+static NamedVecPair GenerateInput(XCNLRuntime_& Runtime, std::u32string_view str, F&& errInfo)
 {
     const auto idx = str.find(U':');
     std::u32string_view name;
@@ -53,7 +53,7 @@ void XCNLDebugExt::DefineMessage(XCNLRuntime& runtime, const xziar::nailang::Fun
     const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
     const auto id = arg2[0].GetStr().value();
     const auto formatter = arg2[1].GetStr().value();
-    std::vector<ArgsLayout::InputType> argInfos;
+    std::vector<NamedVecPair> argInfos;
     argInfos.reserve(call.Args.size() - 2);
     size_t i = 2;
     for (const auto& rawarg : call.Args.subspan(2))
@@ -82,7 +82,7 @@ const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRuntime& runtime
         NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr]'s arg[1] expects to a string with \", get [{}]", args[1]));
     const auto id = args[0], formatter = args[1].substr(1, args[1].size() - 2);
 
-    std::vector<ArgsLayout::InputType> types;
+    std::vector<NamedVecPair> types;
     const auto argCnt = args.size() / 2 - 1;
     types.reserve(argCnt);
     for (size_t i = 2; i < args.size(); i += 2)
