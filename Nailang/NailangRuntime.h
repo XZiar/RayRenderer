@@ -71,13 +71,18 @@ public:
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
 
-class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext, private common::StringPool<char32_t>
+class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
 {
+private:
+    common::StringPool<char32_t> ArgNames;
 protected:
     std::vector<std::pair<common::StringPiece<char32_t>, Arg>> Args;
     std::vector<std::pair<std::u32string_view, LocalFuncHolder>> LocalFuncs;
 
-    using StringPool<char32_t>::GetStringView;
+    std::u32string_view GetStringView(common::StringPiece<char32_t> piece) const noexcept
+    {
+        return ArgNames.GetStringView(piece);
+    }
     [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
 public:

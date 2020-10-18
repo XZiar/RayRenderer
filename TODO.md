@@ -53,10 +53,10 @@
 
 * XCompute
   - [ ] Add XCompute based on OpenCLInterop
-  - [ ] Add support of output debug data into xml-in-excel format
-  - [ ] Enable Template-Kernel
+  - [x] Add support of output debug data into SpreadsheetML format
   - [ ] Add common syntax to define args of the instance
   - [ ] Add common syntax to define structure
+  - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
 
 * OpenGLUtil
   - [x] Implement FrameBuffer

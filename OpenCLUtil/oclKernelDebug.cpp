@@ -39,9 +39,12 @@ public:
     }
     std::unique_ptr<xcomp::debug::InfoPack> GetInfoPack(common::span<const uint32_t> space) const override
     {
-        const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
-        const auto count = gsize[0] * gsize[1] * gsize[2];
+        const auto count = GetBasicExeInfo(space).ThreadCount;
         return std::make_unique<xcomp::debug::InfoPackT<xcomp::debug::WorkItemInfo>>(*this, count);
+    }
+    ExecuteInfo GetExecuteInfo(common::span<const uint32_t> space) const noexcept override
+    {
+        return GetBasicExeInfo(space);
     }
     std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {
@@ -66,9 +69,12 @@ public:
     }
     std::unique_ptr<xcomp::debug::InfoPack> GetInfoPack(common::span<const uint32_t> space) const override
     {
-        const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
-        const auto count = gsize[0] * gsize[1] * gsize[2];
+        const auto count = GetBasicExeInfo(space).ThreadCount;
         return std::make_unique<xcomp::debug::InfoPackT<SubgroupWgInfo>>(*this, count);
+    }
+    ExecuteInfo GetExecuteInfo(common::span<const uint32_t> space) const noexcept override
+    {
+        return GetBasicExeInfo(space);
     }
     std::unique_ptr<xcomp::debug::WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept override
     {

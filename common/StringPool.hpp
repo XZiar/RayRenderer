@@ -28,7 +28,7 @@ class StringPool
 {
 private:
     std::vector<T> Pool;
-protected:
+public:
     StringPiece<T> AllocateString(const std::basic_string_view<T> str)
     {
         const uint32_t offset = gsl::narrow_cast<uint32_t>(Pool.size()),
@@ -42,6 +42,7 @@ protected:
         return { &Pool[piece.Offset], piece.Length };
     }
 };
+
 
 }
 

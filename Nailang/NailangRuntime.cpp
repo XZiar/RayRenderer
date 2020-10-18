@@ -141,7 +141,7 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
 Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
     for (const auto& [pos, val] : Args)
-        if (GetStringView(pos) == var)
+        if (ArgNames.GetStringView(pos) == var)
             return val;
     return Arg{};
 }
@@ -150,7 +150,7 @@ bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool 
 {
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
-        if (GetStringView(pos) == var)
+        if (ArgNames.GetStringView(pos) == var)
             target = &val;
     const bool hasIt = target != nullptr;
     if (hasIt)
@@ -164,7 +164,7 @@ bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool 
             return false;
         if (force)
         {
-            const auto piece = AllocateString(var);
+            const auto piece = ArgNames.AllocateString(var);
             Args.emplace_back(piece, std::move(arg));
         }
         return false;

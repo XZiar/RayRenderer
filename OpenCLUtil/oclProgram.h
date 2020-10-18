@@ -77,7 +77,7 @@ struct KernelArgInfo : public ArgFlags
     std::string_view Type;
 };
 
-class OCLUAPI KernelArgStore : public common::StringPool<char>
+class OCLUAPI KernelArgStore
 {
     friend oclKernel_;
     friend NLCLRuntime;
@@ -89,6 +89,7 @@ protected:
         common::StringPiece<char> Name;
         common::StringPiece<char> Type;
     };
+    common::StringPool<char> ArgTexts;
     std::vector<ArgInfo> ArgsInfo;
     uint32_t DebugBuffer;
     bool HasInfo, HasDebug;

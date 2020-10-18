@@ -1,6 +1,10 @@
 #pragma once
 #include "oclRely.h"
 
+#include "XComputeBase/XCompNailang.h"
+#include "XComputeBase/XCompDebug.h"
+#include "Nailang/NailangParser.h"
+#include "Nailang/NailangRuntime.h"
 #include "StringUtil/Convert.h"
 
 #include "common/Linq2.hpp"

@@ -24,7 +24,7 @@ struct XCNLDebugExt;
 using NamedVecPair = std::pair<std::u32string_view, common::simd::VecDataInfo>;
 
 
-class XCOMPBASAPI ArgsLayout : private common::StringPool<char32_t>
+class XCOMPBASAPI ArgsLayout
 {
 public:
     template<typename T>
@@ -117,6 +117,7 @@ private:
         constexpr ItTypeLayouted begin() const noexcept { return { Host, 0 }; }
         constexpr ItTypeLayouted end()   const noexcept { return { Host, Host->ArgCount }; }
     };
+    common::StringPool<char32_t> ArgNames;
     std::unique_ptr<ArgItem[]> Args;
     std::unique_ptr<uint16_t[]> ArgLayout;
 public:
@@ -128,7 +129,7 @@ public:
     constexpr Indexed  ByIndex()  const noexcept { return this; }
     constexpr Layouted ByLayout() const noexcept { return this; }
     const ArgItem& operator[](size_t idx) const noexcept { return Args[idx]; }
-    std::u32string_view GetName(const ArgItem& item) const noexcept { return GetStringView(item.Name); }
+    std::u32string_view GetName(const ArgItem& item) const noexcept { return ArgNames.GetStringView(item.Name); }
 };
 
 
@@ -144,11 +145,6 @@ struct XCOMPBASAPI MessageBlock
         Layout(infos, 4), Name(name), Formatter(formatter), DebugId(idx) {}
 
     common::str::u8string GetString(common::span<const std::byte> data) const;
-    template<typename T>
-    common::str::u8string GetString(common::span<T> data) const
-    {
-        return GetString(common::as_bytes(data));
-    }
 };
 
 
@@ -168,6 +164,16 @@ struct WorkItemInfo
 
 struct WGInfoHelper
 {
+    template<typename T, typename U>
+    static std::ptrdiff_t Distance() noexcept
+    {
+        static_assert(std::is_base_of_v<T, U>);
+        U tmp;
+        const auto ptrU = reinterpret_cast<const std::byte*>(&tmp);
+        const T& obj = static_cast<const T&>(tmp);
+        const auto ptrT = reinterpret_cast<const std::byte*>(&obj);
+        return ptrU - ptrT;
+    }
     template<typename T>
     static constexpr common::simd::VecDataInfo GenerateVType() noexcept
     {
@@ -244,13 +250,15 @@ struct WGInfoHelper
 #define XCOMP_WGINFO_FIELD(r, type, i, field) BOOST_PP_COMMA_IF(i) STRINGIZE(field), &type::field
 #define XCOMP_WGINFO_REG(type, ...) \
     ::xcomp::debug::WGInfoHelper::GenerateFields<type>(BOOST_PP_SEQ_FOR_EACH_I(XCOMP_WGINFO_FIELD, type, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)))
-#define XCOMP_WGINFO_REG_INHERIT(type, parent, ...) []()    \
-    {                                                       \
-        static_assert(std::is_base_of_v<parent, type>);     \
-        auto tmp = XCOMP_WGINFO_REG(type, __VA_ARGS__);     \
-        auto prt = WGInfoHelper::Fields<parent>();          \
-        tmp.insert(tmp.begin(), prt.begin(), prt.end());    \
-        return tmp;                                         \
+#define XCOMP_WGINFO_REG_INHERIT(type, parent, ...) []()        \
+    {                                                           \
+        using namespace ::xcomp::debug;                         \
+        static_assert(std::is_base_of_v<WorkItemInfo, type>);   \
+        Expects((WGInfoHelper::Distance<parent, type>() == 0)); \
+        auto tmp = XCOMP_WGINFO_REG(type, __VA_ARGS__);         \
+        auto prt = WGInfoHelper::Fields<parent>();              \
+        tmp.insert(tmp.begin(), prt.begin(), prt.end());        \
+        return tmp;                                             \
     }()
 
 
@@ -289,6 +297,12 @@ class XCOMPBASAPI InfoProvider
 {
     template<typename> friend class InfoPackT;
     friend CachedDebugPackage;
+public:
+    struct ExecuteInfo
+    {
+        uint32_t GlobalSize[3];
+        uint32_t MinTid, ThreadCount;
+    };
 protected:
     static constexpr void SetBasicInfo(const uint32_t(&gsize)[3], const uint32_t(&lsize)[3], const uint32_t id, WorkItemInfo& info) noexcept
     {
@@ -304,12 +318,14 @@ protected:
         info.LocalId[1] = info.GlobalId[1] % lsize[1];
         info.LocalId[0] = info.GlobalId[0] % lsize[0];
     }
+    static ExecuteInfo GetBasicExeInfo(common::span<const uint32_t> space) noexcept;
     virtual void GetThreadInfo(WorkItemInfo& dst, common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
     virtual std::unique_ptr<InfoPack> GetInfoPack(common::span<const uint32_t> space) const = 0;
 public:
     virtual ~InfoProvider();
 
     virtual uint32_t GetInfoBufferSize(const size_t* worksize, const uint32_t dims) const noexcept;
+    virtual ExecuteInfo GetExecuteInfo(common::span<const uint32_t> space) const noexcept = 0;
     virtual std::unique_ptr<WorkItemInfo> GetThreadInfo(common::span<const uint32_t> space, const uint32_t tid) const noexcept = 0;
     virtual common::span<const WorkItemInfo::InfoField> QueryFields() const noexcept = 0;
     virtual common::span<const std::byte> GetFullInfoSpace(const WorkItemInfo& info) const noexcept = 0;
@@ -398,12 +414,14 @@ public:
             });
     }
     CachedDebugPackage GetCachedData() const;
+    const DebugManager& DebugMan() const noexcept { return *Manager; }
     const InfoProvider& InfoMan() const noexcept { return Manager->GetInfoProvider(); }
     common::span<const uint32_t> InfoSpan() const noexcept { return InfoBuffer.AsSpan<uint32_t>(); }
 };
 
-class XCOMPBASAPI CachedDebugPackage : protected DebugPackage, private common::StringPool<u8ch_t>
+class XCOMPBASAPI CachedDebugPackage : protected DebugPackage
 {
+private:
     struct MessageItem
     {
         common::StringPiece<u8ch_t> Str;
@@ -419,19 +437,25 @@ class XCOMPBASAPI CachedDebugPackage : protected DebugPackage, private common::S
         MessageItem& Item;
         constexpr MessageItemWrapper(CachedDebugPackage* host, MessageItem& item) noexcept : Host(*host), Item(item) { }
     public:
-        common::str::u8string_view Str();
-        const WorkItemInfo& Info();
-        constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
+        [[nodiscard]] common::str::u8string_view Str() const noexcept;
+        [[nodiscard]] const WorkItemInfo& Info() const noexcept;
+        [[nodiscard]] common::span<const uint32_t> GetDataSpan() const noexcept;
+        [[nodiscard]] const MessageBlock& Block() const noexcept;
+        [[nodiscard]] constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
     };
     MessageItemWrapper GetByIndex(const size_t idx) noexcept
     {
         return { this, Items[idx] };
     }
+    common::StringPool<u8ch_t> MsgTexts;
     std::vector<MessageItem> Items;
     std::unique_ptr<InfoPack> Infos;
 public:
     CachedDebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
     ~CachedDebugPackage() override;
+    using DebugPackage::DebugMan;
+    using DebugPackage::InfoMan;
+    using DebugPackage::InfoSpan;
 
     using ItType = common::container::IndirectIterator<CachedDebugPackage, MessageItemWrapper, &CachedDebugPackage::GetByIndex>;
     friend ItType;
@@ -441,8 +465,18 @@ public:
 };
 
 
-XCOMPBASAPI void PrintExcelXml(common::io::OutputStream& stream, const DebugPackage& package);
-XCOMPBASAPI void PrintExcelXml(common::io::OutputStream& stream, CachedDebugPackage& package);
+class XCOMPBASAPI ExcelXmlPrinter
+{
+private:
+    common::io::OutputStream& Stream;
+    void PrintFileHeader();
+    void PrintFileFooter();
+public:
+    ExcelXmlPrinter(common::io::OutputStream& stream);
+    ~ExcelXmlPrinter();
+    void PrintPackage(const DebugPackage& package);
+    void PrintPackage(CachedDebugPackage& package);
+};
 
 
 }

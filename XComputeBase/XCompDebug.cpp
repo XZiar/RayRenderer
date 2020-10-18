@@ -125,7 +125,7 @@ ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t al
         {
             if (!str.empty())
             {
-                Args[idx].Name = AllocateString(str);
+                Args[idx].Name = ArgNames.AllocateString(str);
             }
             Args[idx].Info   = info;
             Args[idx].ArgIdx = idx;
@@ -211,6 +211,13 @@ const WorkItemInfo& InfoPack::GetInfo(common::span<const uint32_t> space, const 
 }
 
 
+InfoProvider::ExecuteInfo InfoProvider::GetBasicExeInfo(common::span<const uint32_t> space) noexcept
+{
+    const auto& gsize = *reinterpret_cast<const uint32_t(*)[3]>(space.data() + 1);
+    const auto count = gsize[0] * gsize[1] * gsize[2];
+    return { {gsize[0], gsize[1], gsize[2]}, 0, count };
+}
+
 InfoProvider::~InfoProvider()
 {
 }
@@ -259,21 +266,29 @@ CachedDebugPackage DebugPackage::GetCachedData() const
 }
 
 
-common::str::u8string_view CachedDebugPackage::MessageItemWrapper::Str()
+common::str::u8string_view CachedDebugPackage::MessageItemWrapper::Str() const noexcept
 {
     if (!Item.Str.GetLength())
     {
-        const auto& block = Host.Manager->GetBlocks()[Item.BlockId];
-        const auto data = Host.DataBuffer.AsSpan<uint32_t>().subspan(Item.DataOffset, Item.DataLength);
-        const auto str = block.GetString(data);
-        Item.Str = Host.AllocateString(str);
+        const auto str = Block().GetString(common::as_bytes(GetDataSpan()));
+        Item.Str = Host.MsgTexts.AllocateString(str);
     }
-    return Host.GetStringView(Item.Str);
+    return Host.MsgTexts.GetStringView(Item.Str);
 }
 
-const WorkItemInfo& CachedDebugPackage::MessageItemWrapper::Info()
+const WorkItemInfo& CachedDebugPackage::MessageItemWrapper::Info() const noexcept
 {
     return Host.Infos->GetInfo(Host.InfoSpan(), Item.ThreadId);
+}
+
+common::span<const uint32_t> CachedDebugPackage::MessageItemWrapper::GetDataSpan() const noexcept
+{
+    return Host.DataBuffer.AsSpan<uint32_t>().subspan(Item.DataOffset, Item.DataLength);
+}
+
+const MessageBlock& CachedDebugPackage::MessageItemWrapper::Block() const noexcept
+{
+    return Host.Manager->GetBlocks()[Item.BlockId];
 }
 
 
@@ -296,23 +311,95 @@ CachedDebugPackage::~CachedDebugPackage()
 { }
 
 
-class ExcelXmlPrinter
+class PackagePrinter
 {
+private:
     common::io::OutputStream& Stream;
-    common::span<const NamedVecPair> InfoFields;
-    void PrintFileHeader();
-    void PrintFileFooter();
+    const InfoProvider& InfoProv;
+    //const DebugPackage& BasePackage;
+
+    common::span<const uint32_t> InfoSpan;
+    common::span<const WorkItemInfo::InfoField> InfoFields;
+    std::string InfoHeader0, InfoHeader1, InfoHeader2;
+    common::StringPool<char> InfoTexts;
+    std::vector<common::StringPiece<char>> InfoIndexes;
+
+    void PrepareInfo();
+    common::StringPiece<char> GenerateThreadInfo(const WorkItemInfo& info);
+
+public:
+    static constexpr auto RowBegin      = R"(   <Row ss:AutoFitHeight="0">
+)"sv;
+    static constexpr auto RowEnd        = R"(   </Row>
+)"sv;
+    static constexpr auto StrCellBegin  = R"(    <Cell><Data ss:Type="String">)"sv;
+    static constexpr auto NumCellBegin  = R"(    <Cell><Data ss:Type="Number">)"sv;
+    static constexpr auto CellEnd       = R"(</Data></Cell>
+)"sv;
+
+    PackagePrinter(common::io::OutputStream& stream, const InfoProvider& infoProv, common::span<const uint32_t> infoSpan) : 
+        Stream(stream), InfoProv(infoProv), InfoSpan(infoSpan)
+    {
+        PrepareInfo();
+    }
+    ~PackagePrinter()
+    { }
     void BeginWorkSheet(const MessageBlock& block);
+    void EndWorkSheet();
+    void BeginRow();
+    void EndRow();
+    void PrintThreadInfo(const uint32_t tid);
+    void PrintThreadInfo(const WorkItemInfo& info);
+    void PrintMessage(const MessageBlock& block, const common::str::u8string_view str, common::span<const uint32_t> data);
 };
 
 
-void PrintExcelXml(common::io::OutputStream&, const DebugPackage&)
+ExcelXmlPrinter::ExcelXmlPrinter(common::io::OutputStream& stream) : Stream(stream)
 {
-
+    PrintFileHeader();
 }
-void PrintExcelXml(common::io::OutputStream&, CachedDebugPackage&)
+ExcelXmlPrinter::~ExcelXmlPrinter()
 {
+    PrintFileFooter();
+}
 
+void ExcelXmlPrinter::PrintPackage(const DebugPackage& package)
+{
+    PackagePrinter printer(Stream, package.InfoMan(), package.InfoSpan());
+    const auto& dbgMan = package.DebugMan();
+    for (const auto& msgBlk : dbgMan.GetBlocks())
+    {
+        printer.BeginWorkSheet(msgBlk);
+        package.VisitData([&](const uint32_t tid, const InfoProvider&, const MessageBlock& block,
+            const common::span<const uint32_t>, const common::span<const uint32_t> dat)
+            {
+                if (&block != &msgBlk) return;
+                printer.BeginRow();
+                printer.PrintThreadInfo(tid);
+                const auto str = msgBlk.GetString(common::as_bytes(dat));
+                printer.PrintMessage(msgBlk, str, dat);
+                printer.EndRow();
+            });
+        printer.EndWorkSheet();
+    }
+}
+void ExcelXmlPrinter::PrintPackage(CachedDebugPackage& package)
+{
+    PackagePrinter printer(Stream, package.InfoMan(), package.InfoSpan());
+    const auto& dbgMan = package.DebugMan();
+    for (const auto& msgBlk : dbgMan.GetBlocks())
+    {
+        printer.BeginWorkSheet(msgBlk);
+        for (const auto item : package)
+        {
+            if (&item.Block() != &msgBlk) continue;
+            printer.BeginRow();
+            printer.PrintThreadInfo(item.Info());
+            printer.PrintMessage(msgBlk, item.Str(), item.GetDataSpan());
+            printer.EndRow();
+        }
+        printer.EndWorkSheet();
+    }
 }
 
 
@@ -356,6 +443,7 @@ R"(</Created>
 )"sv;
     Stream.WriteMany(Header2.size(), sizeof(char), Header2.data());
 }
+
 void ExcelXmlPrinter::PrintFileFooter()
 {
     constexpr std::string_view Footer =
@@ -363,23 +451,212 @@ R"(</Workbook>
 )"sv;
     Stream.WriteMany(Footer.size(), sizeof(char), Footer.data());
 }
-void ExcelXmlPrinter::BeginWorkSheet(const MessageBlock& block)
+
+
+void PackagePrinter::PrepareInfo()
+{
+    const auto exeInfo = InfoProv.GetExecuteInfo(InfoSpan);
+    InfoIndexes.resize(exeInfo.ThreadCount);
+
+    InfoFields = InfoProv.QueryFields();
+    uint32_t totalCols = 0;
+    for (const auto& field : InfoFields)
+    {
+        if (field.VecType.Dim0 > 1)
+        {
+            Expects(field.VecType.Dim0 <= 4);
+            totalCols += field.VecType.Dim0;
+            fmt::format_to(std::back_inserter(InfoHeader1),
+                FMT_STRING(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv),
+                field.VecType.Dim0 - 1, field.Name);
+            InfoHeader1.append("\r\n");
+            char parts[] = "xyzw";
+            for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
+            {
+                fmt::format_to(std::back_inserter(InfoHeader2),
+                    FMT_STRING(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv), parts[i]);
+                InfoHeader2.append("\r\n");
+            }
+        }
+        else
+        {
+            totalCols += 1;
+            const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, field.Name);
+            InfoHeader1.append(str).append("\r\n");
+            InfoHeader2.append(str).append("\r\n");
+        }
+    }
+    Expects(totalCols > 1);
+    InfoHeader0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">INFO</Data></Cell>)"sv, totalCols - 1);
+    InfoHeader0.append("\r\n");
+}
+
+void PackagePrinter::BeginWorkSheet(const MessageBlock& block)
 {
     const auto wsStr = common::str::to_string(FMTSTR(UR"( <Worksheet ss:Name="{}">)", block.Name), Charset::UTF8);
     Stream.WriteMany(wsStr.size(), sizeof(char), wsStr.data());
-    constexpr auto TableFmt = UR"(
+    constexpr auto TableBegin = R"(
   <Table x:FullColumns="1" x:FullRows="1">
-   <Row ss:AutoFitHeight="0">
 )"sv;
-    Stream.WriteMany(TableFmt.size(), sizeof(char), TableFmt.data());
-    using ArgPtr = std::add_pointer_t<decltype(*block.Layout.ByIndex().begin())>;
-    std::vector<ArgPtr> namedArgs;
-    for (const auto& item : block.Layout.ByIndex())
-        if (item.Name.GetLength() > 0)
-            namedArgs.push_back(&item);
-    const auto infoCol = InfoFields.size();
-    const auto dataCol = namedArgs.size() + 1; // with final arg
+    Stream.WriteMany(TableBegin.size(), sizeof(char), TableBegin.data());
+    Stream.WriteMany(  RowBegin.size(), sizeof(char),   RowBegin.data());
+
+    // prepare MsgHeader
+    std::string msgHeader0, msgHeader1, msgHeader2;
+    {
+        constexpr auto TxtCol = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">TXT</Data></Cell>)"sv;
+        msgHeader1.append(TxtCol).append("\r\n"); 
+        msgHeader2.append(TxtCol).append("\r\n");
+        uint32_t idx = 0;
+        for (const auto& arg : block.Layout.ByIndex())
+        {
+            if (arg.Name.GetLength() == 0)
+            {
+                const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv, idx++);
+                InfoHeader1.append(str).append("\r\n");
+                InfoHeader2.append(str).append("\r\n");
+            }
+            else
+            {
+                fmt::format_to(std::back_inserter(InfoHeader1),
+                    FMT_STRING(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv), idx++);
+                InfoHeader1.append("\r\n");
+                fmt::format_to(std::back_inserter(InfoHeader2),
+                    FMT_STRING(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv), 
+                    common::str::to_string(block.Layout.GetName(arg), Charset::UTF8));
+                InfoHeader2.append("\r\n");
+            }
+        }
+        if (block.Layout.ArgCount > 0)
+            msgHeader0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv, 
+                block.Layout.ArgCount - 1);
+        else
+            msgHeader0 = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv;
+        msgHeader0.append("\r\n");
+    }
+    
+    Stream.WriteMany(InfoHeader0.size(), sizeof(char), InfoHeader0.data());
+    Stream.WriteMany( msgHeader0.size(), sizeof(char),  msgHeader0.data());
+    Stream.WriteMany(     RowEnd.size(), sizeof(char),      RowEnd.data());
+    Stream.WriteMany(   RowBegin.size(), sizeof(char),    RowBegin.data());
+    Stream.WriteMany(InfoHeader1.size(), sizeof(char), InfoHeader1.data());
+    Stream.WriteMany( msgHeader1.size(), sizeof(char),  msgHeader1.data());
+    Stream.WriteMany(     RowEnd.size(), sizeof(char),      RowEnd.data());
+    Stream.WriteMany(   RowBegin.size(), sizeof(char),    RowBegin.data());
+    Stream.WriteMany(InfoHeader2.size(), sizeof(char), InfoHeader2.data());
+    Stream.WriteMany( msgHeader2.size(), sizeof(char),  msgHeader2.data());
+    Stream.WriteMany(     RowEnd.size(), sizeof(char),      RowEnd.data());
 }
+
+void PackagePrinter::EndWorkSheet()
+{
+    constexpr auto SheetEnd = R"(  </Table>
+ </Worksheet>
+)"sv;
+    Stream.WriteMany(   SheetEnd.size(), sizeof(char),    SheetEnd.data());
+}
+
+void PackagePrinter::BeginRow()
+{
+    Stream.WriteMany(RowBegin.size(), sizeof(char), RowBegin.data());
+}
+
+void PackagePrinter::EndRow()
+{
+    Stream.WriteMany(  RowEnd.size(), sizeof(char),   RowEnd.data());
+}
+
+common::StringPiece<char> PackagePrinter::GenerateThreadInfo(const WorkItemInfo& info)
+{
+    using half_float::half;
+    const auto space = InfoProv.GetFullInfoSpace(info);
+    std::string txt;
+    for (const auto& field : InfoFields)
+    {
+        const auto sp = space.subspan(field.Offset);
+        for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
+        {
+            fmt::to_string(13);
+            txt.append(NumCellBegin);
+            switch (field.VecType.Type)
+            {
+            case VecDataInfo::DataTypes::Float:
+                switch (field.VecType.Bit)
+                {
+                case 16: txt += fmt::to_string(static_cast<float>(reinterpret_cast<const   half*>(sp.data())[i])); break;
+                case 32: txt += fmt::to_string(                   reinterpret_cast<const  float*>(sp.data())[i]);  break;
+                case 64: txt += fmt::to_string(                   reinterpret_cast<const double*>(sp.data())[i]);  break;
+                default: break;
+                } break;
+            case VecDataInfo::DataTypes::Unsigned:
+                switch (field.VecType.Bit)
+                {
+                case  8: txt += fmt::to_string(reinterpret_cast<const  uint8_t*>(sp.data())[i]); break;
+                case 16: txt += fmt::to_string(reinterpret_cast<const uint16_t*>(sp.data())[i]); break;
+                case 32: txt += fmt::to_string(reinterpret_cast<const uint32_t*>(sp.data())[i]); break;
+                case 64: txt += fmt::to_string(reinterpret_cast<const uint64_t*>(sp.data())[i]); break;
+                default: break;
+                } break;
+            case VecDataInfo::DataTypes::Signed:
+                switch (field.VecType.Bit)
+                {
+                case  8: txt += fmt::to_string(reinterpret_cast<const  int8_t*>(sp.data())[i]); break;
+                case 16: txt += fmt::to_string(reinterpret_cast<const int16_t*>(sp.data())[i]); break;
+                case 32: txt += fmt::to_string(reinterpret_cast<const int32_t*>(sp.data())[i]); break;
+                case 64: txt += fmt::to_string(reinterpret_cast<const int64_t*>(sp.data())[i]); break;
+                default: break;
+                } break;
+            default: break;
+            }
+            txt.append(CellEnd);
+        }
+    }
+    return InfoTexts.AllocateString(txt);
+}
+void PackagePrinter::PrintThreadInfo(const uint32_t tid)
+{
+    auto& idx = InfoIndexes[tid];
+    if (idx.GetLength() == 0) // need to generate
+        idx = GenerateThreadInfo(*InfoProv.GetThreadInfo(InfoSpan, tid));
+    const auto txt = InfoTexts.GetStringView(idx);
+    Stream.WriteMany(txt.size(), sizeof(char), txt.data());
+}
+void PackagePrinter::PrintThreadInfo(const WorkItemInfo& info)
+{
+    auto& idx = InfoIndexes[info.ThreadId];
+    if (idx.GetLength() == 0) // need to generate
+        idx = GenerateThreadInfo(info);
+    const auto txt = InfoTexts.GetStringView(idx);
+    Stream.WriteMany(txt.size(), sizeof(char), txt.data());
+}
+
+template<typename T>
+static forceinline void Print(common::io::OutputStream& stream, const ArgsLayout::VecItem<T>& data)
+{
+    const auto& cellb = data.Count > 1 ? PackagePrinter::StrCellBegin : PackagePrinter::NumCellBegin;
+    const auto& celle = PackagePrinter::CellEnd;
+    stream.WriteMany(  cellb.size(), sizeof(char),   cellb.data());
+    const auto content = fmt::to_string(data);
+    stream.WriteMany(content.size(), sizeof(char), content.data());
+    stream.WriteMany(  celle.size(), sizeof(char),   celle.data());
+}
+static forceinline void Print(common::io::OutputStream& stream, std::nullopt_t)
+{
+    constexpr auto str = R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv;
+    stream.WriteMany(str.size(), sizeof(u8ch_t), str.data());
+}
+void PackagePrinter::PrintMessage(const MessageBlock& block, const common::str::u8string_view str, common::span<const uint32_t> data)
+{
+    for (const auto& arg : block.Layout.ByIndex())
+    {
+        arg.VisitData(common::as_bytes(data), 
+            [&](const auto& vecItem) { Print(Stream, vecItem); });
+    }
+    Stream.WriteMany(StrCellBegin.size(), sizeof(char), StrCellBegin.data());
+    Stream.WriteMany(str.size(), sizeof(u8ch_t), str.data());
+    Stream.WriteMany(CellEnd.size(), sizeof(char), CellEnd.data());
+}
+
 
 
 }

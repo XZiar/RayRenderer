@@ -102,7 +102,7 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         const auto& tinfo = item.Info();
         if (hasSgInfo)
         {
-            const auto& sginfo = static_cast<const oclu::debug::oclThreadInfo&>(tinfo);
+            const auto& sginfo = static_cast<const oclu::debug::SubgroupWgInfo&>(tinfo);
             logger.verbose(FMT_STRING(u"tid[{:7}]({},{},{}), gid[{},{},{}], lid[{},{},{}], sg[{},{}]:\n{}\n"),
                 item.ThreadId(), tinfo.GlobalId[0], tinfo.GlobalId[1], tinfo.GlobalId[2],
                 tinfo.GroupId[0], tinfo.GroupId[1], tinfo.GroupId[2],
@@ -119,6 +119,15 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
                 item.Str());
         }
     }
+
+    {
+        const auto logPath = common::fs::temp_directory_path() / "blur.debug.xml";
+        auto fobj = common::file::FileObject::OpenThrow(logPath, common::file::OpenFlag::CreateNewBinary);
+        common::file::FileOutputStream stream(fobj);
+        xcomp::debug::ExcelXmlPrinter printer(stream);
+        printer.PrintPackage(data);
+    }
+
     return img2;
 }
 catch (const common::BaseException& be)

@@ -164,13 +164,13 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         tmp.resize(dummy, '\0');
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, dummy, tmp.data(), &dummy);
         if (dummy > 0) tmp.pop_back();
-        info.Name = AllocateString(tmp);
+        info.Name = ArgTexts.AllocateString(tmp);
 
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, 0, nullptr, &dummy);
         tmp.resize(dummy, '\0');
         clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, dummy, tmp.data(), &dummy);
         if (dummy > 0) tmp.pop_back();
-        info.Type = AllocateString(tmp);
+        info.Type = ArgTexts.AllocateString(tmp);
 
         ArgsInfo.emplace_back(info);
     }
@@ -180,9 +180,9 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         const auto& arg0 = ArgsInfo[ArgsInfo.size() - 3];
         const auto& arg1 = ArgsInfo[ArgsInfo.size() - 2];
         const auto& arg2 = ArgsInfo[ArgsInfo.size() - 1];
-        if (GetStringView(arg0.Name) == "_oclu_debug_buffer_size" && GetStringView(arg0.Type) == "uint"  &&
-            GetStringView(arg1.Name) == "_oclu_debug_buffer_info" && GetStringView(arg1.Type) == "uint*" &&
-            GetStringView(arg2.Name) == "_oclu_debug_buffer_data" && GetStringView(arg2.Type) == "uint*")
+        if (ArgTexts.GetStringView(arg0.Name) == "_oclu_debug_buffer_size" && ArgTexts.GetStringView(arg0.Type) == "uint"  &&
+            ArgTexts.GetStringView(arg1.Name) == "_oclu_debug_buffer_info" && ArgTexts.GetStringView(arg1.Type) == "uint*" &&
+            ArgTexts.GetStringView(arg2.Name) == "_oclu_debug_buffer_data" && ArgTexts.GetStringView(arg2.Type) == "uint*")
         {
             HasDebug = true;
             ArgsInfo.resize(ArgsInfo.size() - 3);
@@ -228,7 +228,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
 KernelArgInfo KernelArgStore::GetArgInfo(const size_t idx) const noexcept
 {
     const auto info = GetArg(idx);
-    return { { info->ArgType, info->Space, info->Access, info->Qualifier }, GetStringView(info->Name), GetStringView(info->Type) };
+    return { { info->ArgType, info->Space, info->Access, info->Qualifier }, ArgTexts.GetStringView(info->Name), ArgTexts.GetStringView(info->Type) };
 }
 
 const KernelArgStore::ArgInfo* KernelArgStore::GetArg(const size_t idx, const bool check) const
@@ -254,8 +254,8 @@ void KernelArgStore::AddArg(const KerArgType argType, const KerArgSpace space, c
     info.Space     = space;
     info.Access    = access;
     info.Qualifier = qualifier;
-    info.Name      = AllocateString(name);
-    info.Type      = AllocateString(type);
+    info.Name      = ArgTexts.AllocateString(name);
+    info.Type      = ArgTexts.AllocateString(type);
     ArgsInfo.emplace_back(info);
     HasInfo = true;
 }
