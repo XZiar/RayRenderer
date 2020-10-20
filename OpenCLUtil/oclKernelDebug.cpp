@@ -171,7 +171,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             if (info)
             {
                 Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
-                return GenerateDebugFunc(Runtime, id, *info, args.subspan(1));
+                return { GenerateDebugFunc(Runtime, id, *info, args.subspan(1)), GetDebugDepend };
             }
             NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
         }
@@ -187,7 +187,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             {
                 vals.push_back(args[i]);
             }
-            return GenerateDebugFunc(Runtime, args[0], content, vals);
+            return { GenerateDebugFunc(Runtime, args[0], content, vals), GetDebugDepend };
         }
         return {};
     }
@@ -231,6 +231,12 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         }
     }
     
+    static inline const std::function<std::shared_ptr<const xcomp::ReplaceDepend>()> GetDebugDepend = []()
+    {
+        static auto depend = xcomp::ReplaceDepend::CreateFrom(U"oclu_debugtid"sv, U"oclu_debug"sv, std::nullopt, U"oclu_debugtid"sv);
+        return depend;
+    };
+
     static std::u32string DebugTid() noexcept
     {
         return UR"(

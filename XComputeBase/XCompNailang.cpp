@@ -24,6 +24,7 @@ using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
+MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
 
 
@@ -68,7 +69,7 @@ NamedTextHolder::NamedText::NamedText(std::u32string_view content,
 NamedTextHolder::~NamedTextHolder()
 { }
 
-std::variant<std::u32string_view, size_t> NamedTextHolder::CheckDependencies(std::vector<NamedText>& container, common::span<const std::u32string_view> depends) noexcept
+std::variant<std::u32string_view, size_t> NamedTextHolder::CheckDependencies(std::vector<NamedText>& container, U32StrSpan depends) noexcept
 {
     const auto offset = Dependencies.size();
     Dependencies.reserve(offset + depends.size());
@@ -152,6 +153,40 @@ void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>
 }
 
 
+std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx)
+{
+    static_assert(sizeof(std::u32string_view) % sizeof(char32_t) == 0);
+    const auto ret = MAKE_ENABLER_SHARED(ReplaceDepend, ());
+
+    const auto count = patchedBlk.size() + bodyPfx.size();
+    std::vector<common::StringPiece<char32_t>> tmp; tmp.reserve(count + 1);
+    {
+        std::u32string dummy; dummy.resize(count * sizeof(std::u32string_view) / sizeof(char32_t));
+        tmp.push_back(ret->Names.AllocateString(dummy));
+    }
+    for (const auto str : patchedBlk)
+    {
+        tmp.push_back(ret->Names.AllocateString(str));
+    }
+    for (const auto str : bodyPfx)
+    {
+        tmp.push_back(ret->Names.AllocateString(str));
+    }
+
+    const auto tmp2Space = ret->Names.GetStringView(tmp[0]);
+    const auto ptr = reinterpret_cast<std::u32string_view*>(const_cast<char32_t*>(tmp2Space.data()));
+    const common::span<std::u32string_view> space{ ptr, count };
+    for (size_t i = 0; i < count; ++i)
+    {
+        space[i] = ret->Names.GetStringView(tmp[i + 1]);
+    }
+
+    ret->PatchedBlock = space.subspan(0, patchedBlk.size());
+    ret->BodyPrefixes = space.subspan(patchedBlk.size(), bodyPfx.size());
+    return ret;
+}
+
+
 XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context), ID(UINT32_MAX)
 { }
 XCNLExtension::~XCNLExtension() { }
@@ -210,7 +245,7 @@ XCNLExtension* XCNLContext::FindExt(XCNLExtension::XCNLExtGen func) const
     return nullptr;
 }
 
-std::optional<size_t> XCNLContext::PreCheckPatchedBlocks(std::u32string_view id, common::span<const std::u32string_view> depends)
+std::optional<size_t> XCNLContext::PreCheckPatchedBlocks(std::u32string_view id, U32StrSpan depends)
 {
     if (CheckExists(PatchedBlocks, id))
         return {};
@@ -250,7 +285,7 @@ void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
     NailangRuntimeBase::HandleException(ex);
 }
 
-void XCNLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
+void XCNLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, U32StrSpan args,
     const size_t count, const ArgLimits limit) const
 {
     std::u32string_view prefix;
@@ -364,7 +399,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const
 }
 
 std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
-    const common::span<const std::u32string_view> args, BlockCookie& cookie)
+    U32StrSpan args, BlockCookie& cookie)
 {
     switch (hash_(name))
     {
@@ -540,7 +575,7 @@ void XCNLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] voi
     }
 }
 
-void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
+void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, U32StrSpan args)
 {
     if (IsBeginWith(func, U"xcomp."sv))
     {

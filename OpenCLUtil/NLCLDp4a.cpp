@@ -176,22 +176,32 @@ constexpr static std::array<char32_t, 3> GetSignPrefix(Dp4aProvider::Signedness 
     }
 }
 
-#define GetSignednessFuncName(base)                                 \
-[](Signedness signedness) -> std::u32string_view                    \
+#define SignednessFixedData(base, sign, sfx) case Signedness::sign:                 \
+{                                                                                   \
+    static constexpr auto name = U"oclu_" STRINGIZE(base) sfx;                      \
+    static const std::function<std::shared_ptr<const xcomp::ReplaceDepend>()> dep = \
+    []() { return xcomp::ReplaceDepend::CreateFrom(name); };                        \
+    return {name, dep};                                                             \
+}
+
+#define GetSignednessFixedData(base)                                \
+[](Signedness signedness) ->                                        \
+std::pair<std::u32string_view,                                      \
+    std::function<std::shared_ptr<const xcomp::ReplaceDepend>()>>   \
 {                                                                   \
     switch (signedness)                                             \
     {                                                               \
-    case Signedness::UU: return U"oclu_" STRINGIZE(base) "_uu"sv;   \
-    case Signedness::US: return U"oclu_" STRINGIZE(base) "_us"sv;   \
-    case Signedness::SU: return U"oclu_" STRINGIZE(base) "_su"sv;   \
-    case Signedness::SS: return U"oclu_" STRINGIZE(base) "_ss"sv;   \
+    SignednessFixedData(base, UU, "_uu"sv)                          \
+    SignednessFixedData(base, US, "_us"sv)                          \
+    SignednessFixedData(base, SU, "_su"sv)                          \
+    SignednessFixedData(base, SS, "_ss"sv)                          \
     default: assert(false); return {};                              \
     }                                                               \
 }
 
 ReplaceResult NLCLDp4aPlain::DP4A(Signedness signedness, const common::span<const std::u32string_view> args)
 {
-    const auto funcName = GetSignednessFuncName(dp4a)(signedness);
+    const auto& [funcName, depend] = GetSignednessFixedData(dp4a)(signedness);
     Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
@@ -203,7 +213,7 @@ ReplaceResult NLCLDp4aPlain::DP4A(Signedness signedness, const common::span<cons
 })"sv);
             return func;
         });
-    return FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]);
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
 }
 
 
@@ -217,7 +227,7 @@ ReplaceResult NLCLDp4aIntel::DP4A(Signedness signedness, const common::span<cons
     if (!SupportDp4a)
         return NLCLDp4aPlain::DP4A(signedness, args);
 
-    const auto funcName = GetSignednessFuncName(dp4a_intel)(signedness);
+    const auto& [funcName, depend] = GetSignednessFixedData(dp4a_intel)(signedness);
     Context.AddPatchedBlock(funcName, [&]()
         {
             const auto sfx = [&]()
@@ -239,7 +249,7 @@ inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b)
 }})"sv;
             return FMTSTR(syntax, sfx, funcName, pfxC, pfxA, pfxB);
         });
-    return FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]);
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
 }
 
 
@@ -283,7 +293,7 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
     if (signedness == Signedness::US || signedness == Signedness::SU)
         return NLCLDp4aPlain::DP4A(signedness, args);
 
-    const auto funcName = GetSignednessFuncName(dp4a_ptx)(signedness);
+    const auto& [funcName, depend] = GetSignednessFixedData(dp4a_ptx)(signedness);
     Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
@@ -295,7 +305,7 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
 }})"sv;
             return FMTSTR(syntax, funcName, pfxC, pfxA, pfxB);
         });
-    return FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]);
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
 }
 
 

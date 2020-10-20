@@ -19,6 +19,8 @@ class XCNLRuntime;
 class XCNLProgStub;
 
 
+using U32StrSpan = common::span<const std::u32string_view>;
+
 struct OutputBlock
 {
     using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
@@ -81,7 +83,7 @@ protected:
         }
         return false;
     }
-    forceinline bool Add(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, common::span<const std::u32string_view> depends)
+    forceinline bool Add(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, U32StrSpan depends)
     {
         // check exists
         if (CheckExists(container, id))
@@ -92,7 +94,7 @@ protected:
         AddNoCheck(container, id, std::move(content), std::get<1>(ret), depends.size());
         return true;
     }
-    std::variant<std::u32string_view, size_t> CheckDependencies(std::vector<NamedText>& container, common::span<const std::u32string_view> depends) noexcept;
+    std::variant<std::u32string_view, size_t> CheckDependencies(std::vector<NamedText>& container, U32StrSpan depends) noexcept;
     void AddNoCheck(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, size_t offset, size_t size);
     void ThrowDepEx(std::u32string_view id, std::u32string_view dep) const;
     void Write(std::u32string& output, const std::vector<NamedText>& container) const;
@@ -106,11 +108,11 @@ class InstanceContext : public NamedTextHolder
 public:
     virtual ~InstanceContext() {}
 
-    forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content, common::span<const std::u32string_view> depends = {})
+    forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content, U32StrSpan depends = {})
     {
         return Add(BodyPrefixes, id, content, depends);
     }
-    forceinline bool AddBodySuffix(const std::u32string_view id, std::u32string_view content, common::span<const std::u32string_view> depends = {})
+    forceinline bool AddBodySuffix(const std::u32string_view id, std::u32string_view content, U32StrSpan depends = {})
     {
         return Add(BodySuffixes, id, content, depends);
     }
@@ -124,6 +126,7 @@ public:
         Write(output, BodySuffixes);
     }
 
+    std::u32string_view InsatnceName;
     std::u32string Content;
 protected:
     std::vector<NamedText> BodyPrefixes;
@@ -150,10 +153,55 @@ struct NestedCookie : public BlockCookie
 };
 
 
+class COMMON_EMPTY_BASES ReplaceDepend : public common::NonCopyable, public common::NonMovable
+{
+private:
+    MAKE_ENABLER();
+    common::StringPool<char32_t> Names;
+public:
+    U32StrSpan PatchedBlock;
+    U32StrSpan BodyPrefixes;
+
+private:
+    template<size_t I, size_t N, typename T, typename... Args>
+    static std::pair<size_t, size_t> CreateFrom_(std::array<std::u32string_view, N>& arr, const bool isBody, [[maybe_unused]] T&& arg, Args&&... args)
+    {
+        static_assert(I < N);
+        if constexpr (std::is_same_v<std::decay_t<T>, std::nullopt_t>)
+        {
+            Expects(!isBody);
+            return CreateFrom_<I>(arr, true, std::forward<Args>(args)...);
+        }
+        else if constexpr (sizeof...(Args) > 0)
+        {
+            arr[I] = arg;
+            const auto [x, y] = CreateFrom_<I + 1>(arr, isBody, std::forward<Args>(args)...);
+            return isBody ? std::pair{ x, y + 1 } : std::pair{ x + 1, y };
+        }
+        else
+        {
+            arr[I] = arg;
+            return isBody ? std::pair{ 0, 1 } : std::pair{ 1, 0 };
+        }
+    }
+public:
+    XCOMPBASAPI static std::shared_ptr<const ReplaceDepend> Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx);
+    template<typename... Args>
+    static std::shared_ptr<const ReplaceDepend> CreateFrom(Args&&... args)
+    {
+        std::array<std::u32string_view, sizeof...(Args)> arr;
+        const auto [x, y] = CreateFrom_<0>(arr, false, std::forward<Args>(args)...);
+        Expects(x + y <= arr.size());
+        U32StrSpan sp(arr);
+        return Create(sp.subspan(0, x), sp.subspan(x, y));
+    }
+};
+
+
 class ReplaceResult
 {
     common::str::StrVariant<char32_t> Str;
-    common::str::StrVariant<char32_t> Depends; // depends of body prefix
+    std::function<std::shared_ptr<const ReplaceDepend>()> Depends;
     bool IsSuccess, AllowFallback;
 public:
     ReplaceResult() noexcept : IsSuccess(false), AllowFallback(true) { }
@@ -161,13 +209,16 @@ public:
     ReplaceResult(T&& str) noexcept : 
         Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false) { }
     template<typename T>
+    ReplaceResult(T&& str, std::function<std::shared_ptr<const ReplaceDepend>()> depend) noexcept :
+        Str(std::forward<T>(str)), Depends(std::move(depend)), IsSuccess(true), AllowFallback(false) { }
+    template<typename T>
     ReplaceResult(T&& str, const bool allowFallback) noexcept :
         Str(std::forward<T>(str)), IsSuccess(false), AllowFallback(allowFallback) { }
-    constexpr explicit operator bool() const noexcept { return IsSuccess; }
-    constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
-    constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return IsSuccess; }
+    [[nodiscard]] constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
+    [[nodiscard]] constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
+    [[nodiscard]] std::shared_ptr<const ReplaceDepend> GetDepends() const { return Depends(); }
     void SetStr(common::str::StrVariant<char32_t> str) noexcept { Str = std::move(str); }
-    void SetDepends(common::str::StrVariant<char32_t> str) noexcept { Depends = std::move(str); }
 };
 
 
@@ -186,7 +237,7 @@ public:
     virtual void  BeginInstance(XCNLRuntime&, InstanceContext&) { } 
     virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
     virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::FuncCall&, InstanceContext&) { }
-    [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRuntime&, std::u32string_view, const common::span<const std::u32string_view>)
+    [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRuntime&, std::u32string_view, U32StrSpan)
     {
         return {};
     }
@@ -241,7 +292,7 @@ public:
         return true;
     }
     template<typename T, typename F, typename... Args>
-    forceinline bool AddPatchedBlockD(T& obj, std::u32string_view id, common::span<const std::u32string_view> depends, F generator, Args&&... args)
+    forceinline bool AddPatchedBlockD(T& obj, std::u32string_view id, U32StrSpan depends, F generator, Args&&... args)
     {
         static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
         const auto ret = PreCheckPatchedBlocks(id, depends);
@@ -253,7 +304,7 @@ public:
         return false;
     }
     template<typename F>
-    forceinline bool AddPatchedBlockD(std::u32string_view id, common::span<const std::u32string_view> depends, F&& generator)
+    forceinline bool AddPatchedBlockD(std::u32string_view id, U32StrSpan depends, F&& generator)
     {
         static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
         const auto ret = PreCheckPatchedBlocks(id, depends);
@@ -288,7 +339,7 @@ protected:
     std::vector<NamedText> PatchedBlocks;
 private:
     [[nodiscard]] XCNLExtension* FindExt(XCNLExtension::XCNLExtGen func) const;
-    std::optional<size_t> PreCheckPatchedBlocks(std::u32string_view id, common::span<const std::u32string_view> depends);
+    std::optional<size_t> PreCheckPatchedBlocks(std::u32string_view id, U32StrSpan depends);
     void Write(std::u32string& output, const NamedText& item) const override;
 };
 
@@ -307,7 +358,7 @@ protected:
 
     void HandleException(const xziar::nailang::NailangParseException& ex) const override;
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
-    void ThrowByReplacerArgCount(const std::u32string_view call, const common::span<const std::u32string_view> args,
+    void ThrowByReplacerArgCount(const std::u32string_view call, const U32StrSpan args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
 
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
@@ -318,14 +369,14 @@ protected:
 
     std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
     std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call, 
-        const common::span<const std::u32string_view> args, BlockCookie& cookie);
+        U32StrSpan args, BlockCookie& cookie);
     void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     void DirectOutput(BlockCookie& cookie, std::u32string& dst);
     void ProcessInstance(BlockCookie& cookie);
 
     void OnReplaceOptBlock(std::u32string& output, void* cookie, std::u32string_view cond, std::u32string_view content) override;
     void OnReplaceVariable(std::u32string& output, void* cookie, std::u32string_view var) override;
-    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) override;
+    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, U32StrSpan args) override;
 
     void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
     xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas) override;

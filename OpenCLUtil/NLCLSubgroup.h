@@ -95,6 +95,7 @@ public:
     virtual xcomp::ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual xcomp::ReplaceResult SubgroupShuffle(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual xcomp::ReplaceResult SubgroupReduce(SubgroupReduceOp, common::simd::VecDataInfo, const std::u32string_view) { return {}; };
+    virtual void OnBegin(NLCLRuntime_&, const NLCLSubgroupExtension&, KernelContext&) {}
     virtual void OnFinish(NLCLRuntime_&, const NLCLSubgroupExtension&, KernelContext&);
 private:
     std::vector<std::u16string> Warnings;
@@ -154,7 +155,9 @@ public:
 class NLCLSubgroupLocal : public NLCLSubgroupKHR
 {
 protected:
-    bool NeedCommonInfo = false, NeedLocalTemp = false;
+    std::u32string_view KernelName;
+    bool NeedSubgroupSize = false, NeedLocalTemp = false;
+    void OnBegin(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     std::u32string BroadcastPatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string ShufflePatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;

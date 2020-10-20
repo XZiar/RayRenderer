@@ -52,7 +52,10 @@ protected:
 struct KernelCookie : public xcomp::BlockCookie
 {
     KernelContext Context;
-    KernelCookie(const xcomp::OutputBlock& block) noexcept : xcomp::BlockCookie(block) { }
+    KernelCookie(const xcomp::OutputBlock& block) noexcept : xcomp::BlockCookie(block) 
+    {
+        Context.InsatnceName = this->Block.Name();
+    }
     ~KernelCookie() override { }
     xcomp::InstanceContext* GetInstanceCtx() noexcept override { return &Context; }
 };
