@@ -92,7 +92,7 @@ public:
     {
         if (Str.empty())
         {
-            std::basic_string<Ch> ret(Str);
+            std::basic_string<Ch> ret(View);
             View = {};
             return ret;
         }

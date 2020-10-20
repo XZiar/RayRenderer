@@ -44,42 +44,90 @@ struct OutputBlock
 };
 
 
-struct InstanceContext
+class XCOMPBASAPI NamedTextHolder
 {
+private:
+    common::StringPool<char32_t> Names;
+    std::vector<uint32_t> Dependencies;
+public:
     struct NamedText
     {
-        std::u32string ID;
+        friend NamedTextHolder;
         std::u32string Content;
+        constexpr uint32_t DependCount() const noexcept { return Dependency.second; }
+    protected:
+        NamedText(std::u32string_view content, common::StringPiece<char32_t> idstr, size_t offset, size_t cnt);
+    private:
+        common::StringPiece<char32_t> IDStr;
+        std::pair<uint32_t, uint32_t> Dependency = { 0,0 };
     };
+    virtual ~NamedTextHolder();
+protected:
+    forceinline std::u32string_view GetID(const NamedText& item) const noexcept
+    {
+        return Names.GetStringView(item.IDStr);
+    }
+    forceinline std::u32string_view GetDepend(const NamedText& item, const std::vector<NamedText>& container, const uint32_t idx) const noexcept
+    {
+        Expects(idx < item.DependCount());
+        return GetID(container[Dependencies[(size_t)item.Dependency.first + idx]]);
+    }
+    forceinline bool CheckExists(std::vector<NamedText>& container, std::u32string_view id) const noexcept
+    {
+        for (const auto& item : container)
+        {
+            if (GetID(item) == id)
+                return true;
+        }
+        return false;
+    }
+    forceinline bool Add(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, common::span<const std::u32string_view> depends)
+    {
+        // check exists
+        if (CheckExists(container, id))
+            return false;
+        const auto ret = CheckDependencies(container, depends);
+        if (ret.index() == 0)
+            ThrowDepEx(id, std::get<0>(ret));
+        AddNoCheck(container, id, std::move(content), std::get<1>(ret), depends.size());
+        return true;
+    }
+    std::variant<std::u32string_view, size_t> CheckDependencies(std::vector<NamedText>& container, common::span<const std::u32string_view> depends) noexcept;
+    void AddNoCheck(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, size_t offset, size_t size);
+    void ThrowDepEx(std::u32string_view id, std::u32string_view dep) const;
+    void Write(std::u32string& output, const std::vector<NamedText>& container) const;
 
+    virtual void Write(std::u32string& output, const NamedText& item) const;
+};
+
+
+class InstanceContext : public NamedTextHolder
+{
+public:
     virtual ~InstanceContext() {}
 
-    forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content)
+    forceinline bool AddBodyPrefix(const std::u32string_view id, std::u32string_view content, common::span<const std::u32string_view> depends = {})
     {
-        return Add(BodyPrefixes, id, content);
+        return Add(BodyPrefixes, id, content, depends);
     }
-    forceinline bool AddBodySuffix(const std::u32string_view id, std::u32string_view content)
+    forceinline bool AddBodySuffix(const std::u32string_view id, std::u32string_view content, common::span<const std::u32string_view> depends = {})
     {
-        return Add(BodySuffixes, id, content);
+        return Add(BodySuffixes, id, content, depends);
     }
 
-    forceinline void WritePrefixes(std::u32string& output)
+    forceinline void WritePrefixes(std::u32string& output) const
     {
-        for (const auto& item : BodyPrefixes)
-            Write(output, item);
+        Write(output, BodyPrefixes);
     }
-    forceinline void WriteSuffixes(std::u32string& output)
+    forceinline void WriteSuffixes(std::u32string& output) const
     {
-        for (const auto& item : BodySuffixes)
-            Write(output, item);
+        Write(output, BodySuffixes);
     }
 
     std::u32string Content;
 protected:
     std::vector<NamedText> BodyPrefixes;
     std::vector<NamedText> BodySuffixes;
-    XCOMPBASAPI static bool Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content);
-    XCOMPBASAPI static void Write(std::u32string& output, const NamedText& item);
 };
 
 
@@ -105,6 +153,7 @@ struct NestedCookie : public BlockCookie
 class ReplaceResult
 {
     common::str::StrVariant<char32_t> Str;
+    common::str::StrVariant<char32_t> Depends; // depends of body prefix
     bool IsSuccess, AllowFallback;
 public:
     ReplaceResult() noexcept : IsSuccess(false), AllowFallback(true) { }
@@ -118,6 +167,7 @@ public:
     constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
     constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
     void SetStr(common::str::StrVariant<char32_t> str) noexcept { Str = std::move(str); }
+    void SetDepends(common::str::StrVariant<char32_t> str) noexcept { Depends = std::move(str); }
 };
 
 
@@ -164,15 +214,11 @@ private:
     inline static uintptr_t Dummy = xcomp::XCNLExtension::RegisterXCNLExtension<type>() \
 
 
-class XCOMPBASAPI COMMON_EMPTY_BASES XCNLContext : public common::NonCopyable, public xziar::nailang::CompactEvaluateContext
+class XCOMPBASAPI COMMON_EMPTY_BASES XCNLContext : public common::NonCopyable, public xziar::nailang::CompactEvaluateContext, public NamedTextHolder
 {
     friend class XCNLProcessor;
     friend class XCNLRuntime;
     friend class XCNLProgStub;
-private:
-    [[nodiscard]] XCNLExtension* FindExt(XCNLExtension::XCNLExtGen func) const;
-protected:
-    std::vector<std::unique_ptr<XCNLExtension>> Extensions;
 public:
     XCNLContext(const common::CLikeDefines& info);
     ~XCNLContext() override;
@@ -180,26 +226,50 @@ public:
     bool AddPatchedBlock(T& obj, std::u32string_view id, F generator, Args&&... args)
     {
         static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
-        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
-        {
-            PatchedBlocks.insert_or_assign(std::u32string(id), (obj.*generator)(std::forward<Args>(args)...));
-            return true;
-        }
-        return false;
+        if (CheckExists(PatchedBlocks, id))
+            return false;
+        AddNoCheck(PatchedBlocks, id, (obj.*generator)(std::forward<Args>(args)...), 0, 0);
+        return true;
     }
     template<typename F>
     bool AddPatchedBlock(std::u32string_view id, F&& generator)
     {
         static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
-        if (const auto it = PatchedBlocks.find(id); it == PatchedBlocks.end())
+        if (CheckExists(PatchedBlocks, id))
+            return false;
+        AddNoCheck(PatchedBlocks, id, generator(), 0, 0);
+        return true;
+    }
+    template<typename T, typename F, typename... Args>
+    forceinline bool AddPatchedBlockD(T& obj, std::u32string_view id, common::span<const std::u32string_view> depends, F generator, Args&&... args)
+    {
+        static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
+        const auto ret = PreCheckPatchedBlocks(id, depends);
+        if (ret.has_value())
         {
-            PatchedBlocks.insert_or_assign(std::u32string(id), generator());
+            AddNoCheck(PatchedBlocks, id, (obj.*generator)(std::forward<Args>(args)...), ret.value(), depends.size());
             return true;
         }
         return false;
     }
+    template<typename F>
+    forceinline bool AddPatchedBlockD(std::u32string_view id, common::span<const std::u32string_view> depends, F&& generator)
+    {
+        static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
+        const auto ret = PreCheckPatchedBlocks(id, depends);
+        if (ret.has_value())
+        {
+            AddNoCheck(PatchedBlocks, id, generator(), ret.value(), depends.size());
+            return true;
+        }
+        return false;
+    }
+    forceinline void WritePatchedBlock(std::u32string& output) const
+    {
+        NamedTextHolder::Write(output, PatchedBlocks);
+    }
     template<typename T>
-    [[nodiscard]] T* GetXCNLExt() const
+    [[nodiscard]] forceinline T* GetXCNLExt() const
     {
         return static_cast<T*>(FindExt(T::Create));
     }
@@ -212,9 +282,14 @@ public:
     [[nodiscard]] virtual VecTypeResult ParseVecType(const std::u32string_view type) const noexcept = 0;
     [[nodiscard]] virtual std::u32string_view GetVecTypeName(common::simd::VecDataInfo vec) const noexcept = 0;
 protected:
+    std::vector<std::unique_ptr<XCNLExtension>> Extensions;
     std::vector<OutputBlock> OutputBlocks;
     std::vector<OutputBlock> TemplateBlocks;
-    std::map<std::u32string, std::u32string, std::less<>> PatchedBlocks;
+    std::vector<NamedText> PatchedBlocks;
+private:
+    [[nodiscard]] XCNLExtension* FindExt(XCNLExtension::XCNLExtGen func) const;
+    std::optional<size_t> PreCheckPatchedBlocks(std::u32string_view id, common::span<const std::u32string_view> depends);
+    void Write(std::u32string& output, const NamedText& item) const override;
 };
 
 

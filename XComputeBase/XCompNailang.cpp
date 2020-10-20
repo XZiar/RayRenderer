@@ -60,22 +60,96 @@ std::u32string_view OutputBlock::BlockTypeName(const BlockType type) noexcept
 }
 
 
-bool InstanceContext::Add(std::vector<NamedText>& container, const std::u32string_view id, std::u32string_view content)
+NamedTextHolder::NamedText::NamedText(std::u32string_view content,
+    common::StringPiece<char32_t> idstr, size_t offset, size_t cnt) :
+    Content(content), IDStr(idstr), Dependency{gsl::narrow_cast<uint32_t>(offset), gsl::narrow_cast<uint32_t>(cnt) }
+{ }
+
+NamedTextHolder::~NamedTextHolder()
+{ }
+
+std::variant<std::u32string_view, size_t> NamedTextHolder::CheckDependencies(std::vector<NamedText>& container, common::span<const std::u32string_view> depends) noexcept
 {
-    for (const auto& item : container)
-        if (item.ID == id)
-            return false;
-    container.push_back(NamedText{ std::u32string(id), std::u32string(content) });
-    return true;
+    const auto offset = Dependencies.size();
+    Dependencies.reserve(offset + depends.size());
+    for (const auto dep : depends)
+    {
+        bool match = false;
+        for (size_t i = 0; i < container.size(); ++i)
+        {
+            const auto& item = container[i];
+            if (GetID(item) == dep)
+            {
+                Dependencies.push_back(gsl::narrow_cast<uint32_t>(i));
+                match = true;
+                break;
+            }
+        }
+        if (!match)
+        {
+            Dependencies.resize(offset); // rollback
+            return dep;
+        }
+    }
+    return offset;
 }
 
-void InstanceContext::Write(std::u32string& output, const NamedText& item)
+void NamedTextHolder::AddNoCheck(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, 
+    size_t offset, size_t size)
 {
-    APPEND_FMT(output, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, item.ID);
+    const auto idstr = Names.AllocateString(id);
+    container.push_back({ content.ExtractStr(), idstr, offset, size });
+}
+
+void NamedTextHolder::ThrowDepEx(std::u32string_view id, std::u32string_view dep) const
+{
+    COMMON_THROW(common::BaseException, FMTSTR(u"unsolved dependency [{}] for [{}]"sv, dep, id));
+}
+
+void NamedTextHolder::Write(std::u32string& output, const NamedText& item) const
+{
+    APPEND_FMT(output, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, GetID(item));
     output.append(item.Content).append(U"\r\n"sv);
-    APPEND_FMT(output, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, item.ID);
+    APPEND_FMT(output, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, GetID(item));
 }
 
+void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>& container) const
+{
+    if (Dependencies.empty() || container.empty()) // fast path
+    {
+        for (const auto& item : container)
+            Write(output, item);
+        return;
+    }
+    std::vector<bool> outputMask(container.size(), false);
+    for (size_t waiting = container.size(); waiting > 0;)
+    {
+        for (size_t i = 0; i < container.size(); ++i)
+        {
+            if (outputMask[i])
+                continue;
+            const auto& item = container[i];
+            if (item.DependCount() != 0)
+            {
+                bool satisfy = true;
+                for (size_t j = 0; j < item.DependCount(); ++j)
+                {
+                    const auto depIdx = Dependencies[item.Dependency.first + j];
+                    if (!outputMask[depIdx])
+                    {
+                        satisfy = false;
+                        break;
+                    }
+                }
+                if (!satisfy)
+                    continue;
+            }
+            Write(output, item);
+            outputMask[i] = true;
+            waiting--;
+        }
+    }
+}
 
 
 XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context), ID(UINT32_MAX)
@@ -134,6 +208,27 @@ XCNLExtension* XCNLContext::FindExt(XCNLExtension::XCNLExtGen func) const
             return ext.get();
     }
     return nullptr;
+}
+
+std::optional<size_t> XCNLContext::PreCheckPatchedBlocks(std::u32string_view id, common::span<const std::u32string_view> depends)
+{
+    if (CheckExists(PatchedBlocks, id))
+        return {};
+    if (depends.size() == 0)
+        return 0;
+    const auto ret = CheckDependencies(PatchedBlocks, depends);
+    if (ret.index() == 0)
+    {
+        ThrowDepEx(id, std::get<0>(ret));
+        return {};
+    }
+    return std::get<1>(ret);
+}
+
+void XCNLContext::Write(std::u32string& output, const NamedText& item) const
+{
+    APPEND_FMT(output, U"/* Patched Block [{}] */\r\n"sv, GetID(item));
+    output.append(item.Content).append(U"\r\n\r\n"sv);
 }
 
 
@@ -628,12 +723,7 @@ std::string XCNLRuntime::GenerateOutput()
     BeforeFinishOutput(prefix, output);
 
     // Output patched blocks
-    for (const auto& [id, src] : XCContext.PatchedBlocks)
-    {
-        APPEND_FMT(prefix, U"/* Patched Block [{}] */\r\n"sv, id);
-        prefix.append(src);
-        prefix.append(U"\r\n\r\n"sv);
-    }
+    XCContext.WritePatchedBlock(prefix);
 
     return common::str::to_string(prefix + output, Charset::UTF8, Charset::UTF32);
 }

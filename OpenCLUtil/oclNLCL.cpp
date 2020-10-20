@@ -457,21 +457,11 @@ void NLCLRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
     dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
     // prefixes
-    for (const auto& item : kerCtx.BodyPrefixes)
-    {
-        APPEND_FMT(dst, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, item.ID);
-        dst.append(item.Content).append(U"\r\n"sv);
-        APPEND_FMT(dst, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, item.ID);
-    }
+    kerCtx.WritePrefixes(dst);
     // content
     dst.append(kerCtx.Content);
     // suffixes
-    for (const auto& item : kerCtx.BodySuffixes)
-    {
-        APPEND_FMT(dst, U"    //vvvvvvvv below injected by {}  vvvvvvvv\r\n"sv, item.ID);
-        dst.append(item.Content).append(U"\r\n"sv);
-        APPEND_FMT(dst, U"    //^^^^^^^^ above injected by {}  ^^^^^^^^\r\n\r\n"sv, item.ID);
-    }
+    kerCtx.WriteSuffixes(dst);
     dst.append(U"}\r\n"sv);
 
     for (auto& arg : kerCtx.Args.ArgsInfo)

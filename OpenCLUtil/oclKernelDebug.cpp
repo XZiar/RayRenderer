@@ -148,29 +148,10 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
                 "_oclu_debug_buffer_info", "uint*");
             kerCtx.AddTailArg(KerArgType::Buffer, KerArgSpace::Global, ImgAccess::None, KerArgFlag::Restrict,
                 "_oclu_debug_buffer_data", "uint*"); 
+            AppendDebugTid();
+            Context.AddPatchedBlockD(U"oclu_debuginfo"sv, Depend_DebugTid, &NLCLDebugExtension::DebugInfoSetter);
             kerCtx.AddBodyPrefix(U"oclu_debug", UR"(
-    const uint _oclu_thread_id = get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
-    if (_oclu_debug_buffer_size > 0)
-    {
-        if (_oclu_thread_id == 0)
-        {
-            _oclu_debug_buffer_info[1] = get_global_size(0);
-            _oclu_debug_buffer_info[2] = get_global_size(1);
-            _oclu_debug_buffer_info[3] = get_global_size(2);
-            _oclu_debug_buffer_info[4] = get_local_size(0);
-            _oclu_debug_buffer_info[5] = get_local_size(1);
-            _oclu_debug_buffer_info[6] = get_local_size(2);
-        }
-
-#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
-        const ushort sgid  = get_sub_group_id();
-        const ushort sglid = get_sub_group_local_id();
-        const uint sginfo  = sgid * 65536u + sglid;
-#else
-        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
-#endif
-        _oclu_debug_buffer_info[_oclu_thread_id + 7] = sginfo;
-    }
+    oclu_debuginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info);
 )");
         }
     }
@@ -250,16 +231,28 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         }
     }
     
-    std::u32string DebugStringBase() noexcept
+    static std::u32string DebugTid() noexcept
     {
         return UR"(
-inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
-    const uint tid, const uint total,
+inline uint oclu_debugtid()
+{
+    return get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
+}
+)"s;
+    }
+    static constexpr auto Depend_DebugTid = std::array{ U"oclu_debugtid"sv };
+    void AppendDebugTid()
+    {
+        Context.AddPatchedBlock(U"oclu_debugtid"sv, &NLCLDebugExtension::DebugTid);
+    }
+
+    static std::u32string DebugStringBase() noexcept
+    {
+        return UR"(
+inline global uint* oclu_debug(const uint dbgId, const uint dbgSize, const uint total,
     global uint* restrict counter, global uint* restrict data)
 {
     const uint size = dbgSize + 1;
-    const uint dId  = (dbgId + 1) << 24;
-    const uint uid  = tid & 0x00ffffffu;
     if (total == 0) 
         return 0;
     if (counter[0] + size > total) 
@@ -267,13 +260,52 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
     const uint old = atom_add(counter, size);
     if (old >= total)
         return 0;
+    const uint tid = oclu_debugtid();
+    const uint uid  = tid & 0x00ffffffu;
     if (old + size > total) 
     { 
         data[old] = uid; 
         return 0;
     }
+    const uint dId  = (dbgId + 1) << 24;
     data[old] = uid | dId;
     return data + old + 1;
+}
+)"s;
+    }
+    static constexpr auto Depend_DebugBase = std::array{ U"oclu_debug"sv };
+    void AppendDebugBase()
+    {
+        Context.AddPatchedBlock(U"oclu_debug"sv, &NLCLDebugExtension::DebugStringBase);
+    }
+
+    static std::u32string DebugInfoSetter() noexcept
+    {
+        return UR"(
+inline void oclu_debuginfo(const uint total, global uint* restrict info)
+{
+    if (total > 0)
+    {
+        const uint tid = oclu_debugtid();
+        if (tid == 0)
+        {
+            info[1] = get_global_size(0);
+            info[2] = get_global_size(1);
+            info[3] = get_global_size(2);
+            info[4] = get_local_size(0);
+            info[5] = get_local_size(1);
+            info[6] = get_local_size(2);
+        }
+
+#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
+        const ushort sgid  = get_sub_group_id();
+        const ushort sglid = get_sub_group_local_id();
+        const uint sginfo  = sgid * 65536u + sglid;
+#else
+        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
+#endif
+        info[7 + tid] = sginfo;
+    }
 }
 )"s;
     }
@@ -296,9 +328,8 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
             return U"// Formatter not match the datatype provided\r\n";
         }
 
-        std::u32string func = fmt::format(FMT_STRING(U"inline void oglu_debug_{}("sv), dbgId);
-        func.append(U"\r\n    const  uint           tid,"sv)
-            .append(U"\r\n    const  uint           total,"sv)
+        std::u32string func = fmt::format(FMT_STRING(U"inline void oclu_debug_{}("sv), dbgId);
+        func.append(U"\r\n    const  uint           total,"sv)
             .append(U"\r\n    global uint* restrict counter,"sv)
             .append(U"\r\n    global uint* restrict data,"sv);
         for (size_t i = 0; i < args.size(); ++i)
@@ -308,23 +339,29 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         func.pop_back();
         func.append(U")\r\n{"sv);
         static constexpr auto syntax = UR"(
-    global uint* const restrict ptr = oglu_debug({}, {}, tid, total, counter, data);
+    global uint* const restrict ptr = oclu_debug({}, {}, total, counter, data);
     if (ptr == 0) return;)"sv;
         APPEND_FMT(func, syntax, dbgBlock.DebugId, dbgData.TotalSize / 4);
-        const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, VecDataInfo dtype, std::u32string_view argAccess, bool needConv)
+        const auto WriteOne = [&](uint32_t offset, uint16_t argIdx, uint8_t vsize, uint8_t eleBit, std::u32string_view argAccess, bool needConv)
         {
-            const VecDataInfo vtype{ dtype.Type, dtype.Bit, vsize, 0 };
+            const auto eleByte = eleBit / 8;
+            const VecDataInfo dtype{ VecDataInfo::DataTypes::Unsigned, eleBit,     1, 0 };
             const auto dstTypeStr = Context.GetVecTypeName(dtype);
-            std::u32string getData = needConv ?
-                fmt::format(FMT_STRING(U"as_{}(arg{}{})"sv), Context.GetVecTypeName(vtype), argIdx, argAccess) :
-                fmt::format(FMT_STRING(U"arg{}{}"sv), argIdx, argAccess);
+            std::u32string getData;
+            if (needConv)
+            {
+                const VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned, eleBit, vsize, 0 };
+                getData = FMTSTR(U"as_{}(arg{}{})"sv, Context.GetVecTypeName(vtype), argIdx, argAccess);
+            }
+            else
+                getData = FMTSTR(U"arg{}{}"sv, argIdx, argAccess);
             if (vsize == 1)
             {
-                APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / (dtype.Bit / 8), getData);
+                APPEND_FMT(func, U"\r\n    ((global {}*)(ptr))[{}] = {};"sv, dstTypeStr, offset / eleByte, getData);
             }
             else
             {
-                APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / (dtype.Bit / 8));
+                APPEND_FMT(func, U"\r\n    vstore{}({}, 0, (global {}*)(ptr) + {});"sv, vsize, getData, dstTypeStr, offset / eleByte);
             }
         };
         for (const auto& blk : dbgData.ByLayout())
@@ -338,8 +375,7 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
                 const auto eleByte = eleBit / 8;
                 if (size % eleBit == 0)
                 {
-                    VecDataInfo dstType{ VecDataInfo::DataTypes::Unsigned, eleBit, 1, 0 };
-                    const bool needConv = info.Bit != dstType.Bit || info.Type != VecDataInfo::DataTypes::Unsigned;
+                    const bool needConv = info.Bit != eleBit || info.Type != VecDataInfo::DataTypes::Unsigned;
                     const auto cnt = gsl::narrow_cast<uint8_t>(size / eleBit);
                     // For 32bit:
                     // 64bit: 1,2,3,4,8,16 -> 2,4,6(4+2),8,16,32
@@ -354,25 +390,25 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
                     if (cnt == 32u)
                     {
                         Expects(info.Bit == 64 && info.Dim0 == 16);
-                        WriteOne(offset + eleByte * 0, idx, 16, dstType, U".s01234567"sv, needConv);
-                        WriteOne(offset + eleByte * 16, idx, 16, dstType, U".s89abcdef"sv, needConv);
+                        WriteOne(offset + eleByte *  0, idx, 16, eleBit, U".s01234567"sv, needConv);
+                        WriteOne(offset + eleByte * 16, idx, 16, eleBit, U".s89abcdef"sv, needConv);
                     }
                     else if (cnt == 6u)
                     {
                         Expects(info.Bit == 64 && info.Dim0 == 3);
-                        WriteOne(offset + eleByte * 0, idx, 4, dstType, U".s01"sv, needConv);
-                        WriteOne(offset + eleByte * 4, idx, 2, dstType, U".s2"sv, needConv);
+                        WriteOne(offset + eleByte * 0, idx, 4, eleBit, U".s01"sv, needConv);
+                        WriteOne(offset + eleByte * 4, idx, 2, eleBit, U".s2"sv,  needConv);
                     }
                     else if (cnt == 3u)
                     {
-                        Expects(info.Bit == dstType.Bit && info.Dim0 == 3);
-                        WriteOne(offset + eleByte * 0, idx, 2, dstType, U".s01"sv, needConv);
-                        WriteOne(offset + eleByte * 2, idx, 1, dstType, U".s2"sv, needConv);
+                        Expects(info.Bit == eleBit && info.Dim0 == 3);
+                        WriteOne(offset + eleByte * 0, idx, 2, eleBit, U".s01"sv, needConv);
+                        WriteOne(offset + eleByte * 2, idx, 1, eleBit, U".s2"sv,  needConv);
                     }
                     else
                     {
                         Expects(cnt == 1 || cnt == 2 || cnt == 4 || cnt == 8 || cnt == 16);
-                        WriteOne(offset, idx, cnt, dstType, {}, needConv);
+                        WriteOne(offset, idx, cnt, eleBit, {}, needConv);
                     }
                     break;
                 }
@@ -382,19 +418,20 @@ inline global uint* oglu_debug(const uint dbgId, const uint dbgSize,
         return func;
     }
 
-    std::u32string GenerateDebugFunc(Runtime_& runtime, const std::u32string_view id, 
+    std::u32string GenerateDebugFunc(Runtime_& runtime, const std::u32string_view id,
         const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
     {
-        Context.AddPatchedBlock(*this, U" oglu_debug"sv, &NLCLDebugExtension::DebugStringBase);
-        Context.AddPatchedBlock(*this, id, &NLCLDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
+        AppendDebugTid();
+        Context.AddPatchedBlockD(U"oclu_debug"sv, Depend_DebugTid, &NLCLDebugExtension::DebugStringBase);
+        Context.AddPatchedBlockD(*this, id, Depend_DebugBase, &NLCLDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
 
-        std::u32string str = FMTSTR(U"oglu_debug_{}(_oclu_thread_id, _oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
+        std::u32string str = FMTSTR(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
         for (size_t i = 0; i < vals.size(); ++i)
         {
             APPEND_FMT(str, U"{}, "sv, vals[i]);
         }
-        str.pop_back();
-        str.back() = U')';
+        str.pop_back(); // pop space
+        str.back() = U')'; // replace ',' with ')'
         HasDebug = true;
         return str;
     }

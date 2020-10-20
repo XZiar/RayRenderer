@@ -37,7 +37,7 @@ struct KernelContext : public xcomp::InstanceContext
     }
     forceinline bool AddAttribute(const std::u32string_view id, std::u32string_view content)
     {
-        return Add(Attributes, id, content);
+        return Add(Attributes, id, content, {});
     }
 
     forceinline constexpr uint32_t GetWorkgroupSize() const noexcept { return WorkgroupSize; }
