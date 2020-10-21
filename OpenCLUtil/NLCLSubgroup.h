@@ -159,6 +159,7 @@ protected:
     bool NeedSubgroupSize = false, NeedLocalTemp = false;
     void OnBegin(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
+    std::u32string GenerateKID(std::u32string_view type) const noexcept;
     std::u32string BroadcastPatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string ShufflePatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
 public:

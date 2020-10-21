@@ -69,42 +69,36 @@ NamedTextHolder::NamedText::NamedText(std::u32string_view content,
 NamedTextHolder::~NamedTextHolder()
 { }
 
-std::variant<std::u32string_view, size_t> NamedTextHolder::CheckDependencies(std::vector<NamedText>& container, U32StrSpan depends) noexcept
+void NamedTextHolder::ForceAdd(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, U32StrSpan depends)
 {
     const auto offset = Dependencies.size();
     Dependencies.reserve(offset + depends.size());
-    for (const auto dep : depends)
+    for (const auto& dep : depends)
     {
+        if (dep == id) // early check for self-dependency
+            COMMON_THROW(common::BaseException, FMTSTR(u"self dependency at [{}] for [{}]"sv, &dep - depends.data(), id));
+
         bool match = false;
         for (size_t i = 0; i < container.size(); ++i)
         {
             const auto& item = container[i];
             if (GetID(item) == dep)
             {
-                Dependencies.push_back(gsl::narrow_cast<uint32_t>(i));
+                const auto idx = gsl::narrow_cast<uint32_t>(i);
+                Dependencies.emplace_back(item.IDStr, idx);
                 match = true;
                 break;
             }
         }
+
         if (!match)
         {
-            Dependencies.resize(offset); // rollback
-            return dep;
+            const auto str = Names.AllocateString(dep);
+            Dependencies.emplace_back(str, UINT32_MAX);
         }
     }
-    return offset;
-}
-
-void NamedTextHolder::AddNoCheck(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, 
-    size_t offset, size_t size)
-{
     const auto idstr = Names.AllocateString(id);
-    container.push_back({ content.ExtractStr(), idstr, offset, size });
-}
-
-void NamedTextHolder::ThrowDepEx(std::u32string_view id, std::u32string_view dep) const
-{
-    COMMON_THROW(common::BaseException, FMTSTR(u"unsolved dependency [{}] for [{}]"sv, dep, id));
+    container.push_back({ content.ExtractStr(), idstr, offset, depends.size() });
 }
 
 void NamedTextHolder::Write(std::u32string& output, const NamedText& item) const
@@ -123,8 +117,10 @@ void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>
         return;
     }
     std::vector<bool> outputMask(container.size(), false);
-    for (size_t waiting = container.size(); waiting > 0;)
+    size_t waiting = container.size();
+    while (waiting > 0)
     {
+        const auto last = waiting;
         for (size_t i = 0; i < container.size(); ++i)
         {
             if (outputMask[i])
@@ -133,42 +129,99 @@ void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>
             if (item.DependCount() != 0)
             {
                 bool satisfy = true;
-                for (size_t j = 0; j < item.DependCount(); ++j)
+                for (uint32_t j = 0; satisfy && j < item.DependCount(); ++j)
                 {
-                    const auto depIdx = Dependencies[item.Dependency.first + j];
-                    if (!outputMask[depIdx])
+                    const auto depIdx = SearchDepend(container, item, j);
+                    if (!depIdx.has_value())
                     {
                         satisfy = false;
-                        break;
+                        COMMON_THROW(common::BaseException, FMTSTR(u"unsolved dependency [{}] for [{}]"sv,
+                            GetDepend(item, j), GetID(item)));
+                    }
+                    else if (!outputMask[depIdx.value()])
+                    {
+                        satisfy = false;
                     }
                 }
-                if (!satisfy)
+                if (!satisfy) // skip this item
                     continue;
             }
             Write(output, item);
             outputMask[i] = true;
             waiting--;
         }
+        if (last == waiting) // some item cannot be resolved
+            break;
     }
+    if (waiting > 0) // generate report and throw
+    {
+        std::u16string report = u"unmatched dependencies:\r\n"s;
+        for (size_t i = 0; i < container.size(); ++i)
+        {
+            if (outputMask[i])
+                continue;
+            const auto& item = container[i];
+            Expects(item.DependCount() != 0);
+
+            APPEND_FMT(report, u"[{}]: total [{}] depends, unmatch:[ "sv, GetID(item), item.DependCount());
+            for (uint32_t j = 0, unmth = 0; j < item.DependCount(); ++j)
+            {
+                const auto depIdx = SearchDepend(container, item, j);
+                Expects(depIdx.has_value());
+                if (!outputMask[depIdx.value()])
+                {
+                    if (unmth++ > 0)
+                        report.append(u", "sv);
+                    const auto dstName = GetID(container[depIdx.value()]);
+                    report.append(common::str::to_u16string(dstName));
+                }
+            }
+            report.append(u" ]\r\n"sv);
+        }
+        COMMON_THROW(common::BaseException, report);
+    }
+}
+
+std::shared_ptr<const ReplaceDepend> NamedTextHolder::GenerateReplaceDepend(const NamedText& item, bool isPthBlk, 
+    U32StrSpan pthBlk, U32StrSpan bdyPfx) const
+{
+    if (item.DependCount() == 0)
+    {
+        return ReplaceDepend::Create(pthBlk, bdyPfx);
+    }
+
+    std::vector<std::u32string_view> newDeps;
+    auto& oldDeps = isPthBlk ? pthBlk : bdyPfx;
+    newDeps.reserve(oldDeps.size() + item.DependCount());
+    newDeps.insert(newDeps.begin(), oldDeps.begin(), oldDeps.end());
+    for (uint32_t i = 0; i < item.DependCount(); ++i)
+    {
+        newDeps.push_back(GetDepend(item, i));
+    }
+    oldDeps = newDeps;
+    return ReplaceDepend::Create(pthBlk, bdyPfx);
 }
 
 
 std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx)
 {
     static_assert(sizeof(std::u32string_view) % sizeof(char32_t) == 0);
-    const auto ret = MAKE_ENABLER_SHARED(ReplaceDepend, ());
 
     const auto count = patchedBlk.size() + bodyPfx.size();
+    if (count == 0)
+        return Empty();
+
+    const auto ret = MAKE_ENABLER_SHARED(ReplaceDepend, ());
     std::vector<common::StringPiece<char32_t>> tmp; tmp.reserve(count + 1);
     {
         std::u32string dummy; dummy.resize(count * sizeof(std::u32string_view) / sizeof(char32_t));
         tmp.push_back(ret->Names.AllocateString(dummy));
     }
-    for (const auto str : patchedBlk)
+    for (const auto& str : patchedBlk)
     {
         tmp.push_back(ret->Names.AllocateString(str));
     }
-    for (const auto str : bodyPfx)
+    for (const auto& str : bodyPfx)
     {
         tmp.push_back(ret->Names.AllocateString(str));
     }
@@ -184,6 +237,12 @@ std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk
     ret->PatchedBlock = space.subspan(0, patchedBlk.size());
     ret->BodyPrefixes = space.subspan(patchedBlk.size(), bodyPfx.size());
     return ret;
+}
+
+std::shared_ptr<const ReplaceDepend> ReplaceDepend::Empty()
+{
+    static auto EMPTY = MAKE_ENABLER_SHARED(ReplaceDepend, ());
+    return EMPTY;
 }
 
 
@@ -243,21 +302,6 @@ XCNLExtension* XCNLContext::FindExt(XCNLExtension::XCNLExtGen func) const
             return ext.get();
     }
     return nullptr;
-}
-
-std::optional<size_t> XCNLContext::PreCheckPatchedBlocks(std::u32string_view id, U32StrSpan depends)
-{
-    if (CheckExists(PatchedBlocks, id))
-        return {};
-    if (depends.size() == 0)
-        return 0;
-    const auto ret = CheckDependencies(PatchedBlocks, depends);
-    if (ret.index() == 0)
-    {
-        ThrowDepEx(id, std::get<0>(ret));
-        return {};
-    }
-    return std::get<1>(ret);
 }
 
 void XCNLContext::Write(std::u32string& output, const NamedText& item) const
@@ -595,6 +639,23 @@ void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u
         if (ret)
         {
             output.append(ret.GetStr());
+            if (const auto dep = ret.GetDepends(); dep)
+            {
+                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, ret.GetStr());
+                if (!dep->PatchedBlock.empty())
+                {
+                    txt += u"Depend on PatchedBlock:\r\n";
+                    for (const auto& name : dep->PatchedBlock)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                if (!dep->BodyPrefixes.empty())
+                {
+                    txt += u"Depend on BodyPrefix:\r\n";
+                    for (const auto& name : dep->BodyPrefixes)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                Logger.verbose(txt);
+            }
             return;
         }
         else

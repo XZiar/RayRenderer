@@ -171,7 +171,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             if (info)
             {
                 Runtime.ThrowByReplacerArgCount(func, args, info->second.size() + 1, ArgLimits::Exact);
-                return { GenerateDebugFunc(Runtime, id, *info, args.subspan(1)), GetDebugDepend };
+                return GenerateDebugFunc(Runtime, id, *info, args.subspan(1));
             }
             NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugString] reference to unregisted info [{}].", id));
         }
@@ -187,7 +187,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             {
                 vals.push_back(args[i]);
             }
-            return { GenerateDebugFunc(Runtime, args[0], content, vals), GetDebugDepend };
+            return GenerateDebugFunc(Runtime, args[0], content, vals);
         }
         return {};
     }
@@ -230,12 +230,6 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
                 Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
         }
     }
-    
-    static inline const std::function<std::shared_ptr<const xcomp::ReplaceDepend>()> GetDebugDepend = []()
-    {
-        static auto depend = xcomp::ReplaceDepend::CreateFrom(U"oclu_debugtid"sv, U"oclu_debug"sv, std::nullopt, U"oclu_debugtid"sv);
-        return depend;
-    };
 
     static std::u32string DebugTid() noexcept
     {
@@ -424,12 +418,13 @@ inline void oclu_debuginfo(const uint total, global uint* restrict info)
         return func;
     }
 
-    std::u32string GenerateDebugFunc(Runtime_& runtime, const std::u32string_view id,
+    xcomp::ReplaceResult GenerateDebugFunc(Runtime_& runtime, const std::u32string_view id,
         const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
     {
         AppendDebugTid();
         Context.AddPatchedBlockD(U"oclu_debug"sv, Depend_DebugTid, &NLCLDebugExtension::DebugStringBase);
-        Context.AddPatchedBlockD(*this, id, Depend_DebugBase, &NLCLDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
+        auto dep = Context.AddPatchedBlockD(*this, U"oclu_debug_"s.append(id), Depend_DebugBase, 
+            &NLCLDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
 
         std::u32string str = FMTSTR(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
         for (size_t i = 0; i < vals.size(); ++i)
@@ -439,7 +434,7 @@ inline void oclu_debuginfo(const uint total, global uint* restrict info)
         str.pop_back(); // pop space
         str.back() = U')'; // replace ',' with ')'
         HasDebug = true;
-        return str;
+        return { std::move(str), dep.first };
     }
 
     XCNL_EXT_REG(NLCLDebugExtension,

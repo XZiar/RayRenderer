@@ -50,7 +50,7 @@ constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 #define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
-#define GEN_DEPEND(...) [](){ return xcomp::ReplaceDepend::CreateFrom(__VA_ARGS__); }
+#define GEN_DEPEND(...) [=](){ return xcomp::ReplaceDepend::CreateFrom(__VA_ARGS__); }
 
 
 void NLCLSubgroupExtension::BeginInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
@@ -409,9 +409,11 @@ struct SingleArgFunc
 {
     std::u32string_view Func;
     std::u32string_view Element;
+    std::shared_ptr<const xcomp::ReplaceDepend> Depends;
     OptionalArg<true>  Prefix;
     OptionalArg<false> Suffix;
     std::variant<std::monostate, std::tuple<VecDataInfo, VecDataInfo, bool>, std::tuple<VecDataInfo, VecDataInfo, VecDataInfo, bool>> TypeCast;
+    
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele) noexcept :
         Func(func), Element(ele) { }
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele, const VecDataInfo dst, const VecDataInfo mid, const bool convert) noexcept :
@@ -419,12 +421,29 @@ struct SingleArgFunc
     constexpr SingleArgFunc(const std::u32string_view func, const std::u32string_view ele, 
         const VecDataInfo dst, const VecDataInfo first, const VecDataInfo then, const bool convertFirst) noexcept :
         Func(func), Element(ele), TypeCast(std::tuple{ dst, first, then, convertFirst }) { }
+    
+    SingleArgFunc& Depend(std::shared_ptr<const xcomp::ReplaceDepend> depends) noexcept
+    {
+        Depends = std::move(depends);
+        return *this;
+    }
+    SingleArgFunc& Depend(std::pair<std::shared_ptr<const xcomp::ReplaceDepend>, bool>& depends) noexcept
+    {
+        Depends = std::move(depends.first);
+        return *this;
+    }
+    SingleArgFunc& Depend() noexcept
+    {
+        Depends = GEN_DEPEND(Func)();
+        return *this;
+    }
     constexpr SingleArgFunc& Attach(const std::u32string_view prefix, const std::u32string_view suffix) noexcept
     {
         Prefix.Arg = prefix, Suffix.Arg = suffix;
         return *this;
     }
-    operator std::u32string() const
+
+    std::u32string ToStr() const
     {
         switch (TypeCast.index())
         {
@@ -453,6 +472,18 @@ struct SingleArgFunc
         }
         return FMTSTR(U"{}({}{}{})", Func, Prefix, Element, Suffix);
     }
+    operator xcomp::ReplaceResult() const
+    {
+        if (Depends)
+        {
+            return { ToStr(), Depends };
+        }
+        else
+        {
+            return ToStr();
+        }
+    }
+
 };
 #define BSRetDirect(func)               return SingleArgFunc(func, ele).Attach(U""sv, idx)
 #define BSRetCastT(func, mid)           return SingleArgFunc(func, ele, vtype, mid, false).Attach(U""sv, idx)
@@ -508,11 +539,11 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataI
     }
 
     const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}", StringifyReduceOp(op), xcomp::StringifyVDataType(vtype));
-    Context.AddPatchedBlock(funcName, [&]()
+    auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             return NLCLSubgroupKHR::ScalarPatch(funcName, func, vtype);
         });
-    return SingleArgFunc(funcName, ele, realType, vtype, true);
+    return SingleArgFunc(funcName, ele, realType, vtype, true).Depend(dep);
 }
 
 ReplaceResult NLCLSubgroupKHR::GetSubgroupSize()
@@ -595,11 +626,11 @@ ReplaceResult NLCLSubgroupKHR::SubgroupBroadcast(VecDataInfo vtype, const std::u
         if (mid->Bit == 16)
             EnableFP16 = true;
         const auto funcName = FMTSTR(U"oclu_subgroup_broadcast_{}", totalBits);
-        Context.AddPatchedBlock(funcName, [&]()
+        auto dep = Context.AddPatchedBlock(funcName, [&]()
             {
                 return NLCLSubgroupKHR::ScalarPatchBcastShuf(funcName, U"sub_group_broadcast"sv, mid.value());
             });
-        BSRetCastT(funcName, *mid);
+        BSRetCastT(funcName, *mid).Depend(dep);
     }
     RET_FAIL(SubgroupBroadcast);
 }
@@ -830,7 +861,7 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
 
     EnableSubgroupIntel = true;
-    Context.AddPatchedBlock(scalarFunc, [&]()
+    auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
             auto func = FMTSTR(U"inline {0} {1}({0} x)"sv, scalarName, scalarFunc);
             const auto opinst = [](SubgroupReduceOp op)
@@ -864,15 +895,15 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
         {
         case Method::Direct:
         case Method::Combine:
-            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false);
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false).Depend(dep0);
         case Method::Convert:
-            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true);
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true).Depend(dep0);
         }
     }
 
     const auto vectorType = VecDataInfo { scalarType.Type, scalarBit, vnum, 0 };
     const auto vectorFunc = FMTSTR(U"{}v{}", scalarFunc, vnum);
-    Context.AddPatchedBlock(vectorFunc, [&]()
+    auto dep1 = Context.AddPatchedBlockD(vectorFunc, scalarFunc, [&]()
         {
             return NLCLSubgroupPtx::ScalarPatch(vectorFunc, scalarFunc, vectorType);
         });
@@ -880,9 +911,9 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
     {
     case Method::Direct:
     case Method::Combine:
-        return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false);
+        return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false).Depend(dep1);
     case Method::Convert:
-        return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false);
+        return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false).Depend(dep1);
     default: 
         assert(false); return {};
     }
@@ -1001,11 +1032,11 @@ ReplaceResult NLCLSubgroupIntel::SubgroupBroadcast(VecDataInfo vtype, const std:
         else
             useIntel = false;
         const auto funcName = FMTSTR(U"oclu_subgroup_broadcast{}_{}", useIntel? U"_intel"sv : U""sv, totalBits);
-        Context.AddPatchedBlock(funcName, [&]()
+        auto dep = Context.AddPatchedBlock(funcName, [&]()
             {
                 return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, useIntel ? bcIntel : bcKHR, mid.value());
             });
-        BSRetCastT(funcName, mid.value());
+        BSRetCastT(funcName, mid.value()).Depend(dep);
     }
     RET_FAIL(SubgroupBroadcast);
 }
@@ -1037,11 +1068,11 @@ ReplaceResult NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::u
         else if (mid.Bit == 8)
             EnableSubgroup8Intel = true;
         const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
-        Context.AddPatchedBlock(funcName, [&]()
+        auto dep = Context.AddPatchedBlock(funcName, [&]()
             {
                 return NLCLSubgroupIntel::VectorPatchBcastShuf(funcName, func, newType, ToScalar(mid));
             });
-        BSRetCastT(funcName, newType);
+        BSRetCastT(funcName, newType).Depend(dep);
     }
 
     // need patch, ignore reg size
@@ -1057,11 +1088,11 @@ ReplaceResult NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::u
         else if (mid->Bit == 8)
             EnableSubgroup8Intel = true;
         const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
-        Context.AddPatchedBlock(funcName, [&]()
+        auto dep = Context.AddPatchedBlock(funcName, [&]()
             {
                 return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, func, mid.value());
             });
-        BSRetCastT(funcName, mid.value());
+        BSRetCastT(funcName, mid.value()).Depend(dep);
     }
 
     RET_FAIL(SubgroupShuffle);
@@ -1092,22 +1123,27 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtens
         if (ext.SubgroupSize && kernel.GetWorkgroupSize() != ext.SubgroupSize)
             NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
                 ext.SubgroupSize, kernel.GetWorkgroupSize()));
-        const auto blkId = FMTSTR(U"_oclu_local_sgsize_{}"sv, KernelName);
 
+        const auto blkId = GenerateKID(U"sgsize"sv);
         Context.AddPatchedBlock(blkId, [&]()
             {
-                return FMTSTR(U"#define _oclu_local_sgsize_{} {}"sv, blkId, sgSize);
+                return FMTSTR(U"#define _{} {}"sv, blkId, sgSize);
             });
     }
     if (NeedLocalTemp)
     {
         const auto sgSize = kernel.GetWorkgroupSize();
-        kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm",
+        kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm"sv,
             FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
         Runtime.Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
     }
     KernelName = {};
     NLCLSubgroupKHR::OnFinish(Runtime, ext, kernel);
+}
+
+std::u32string NLCLSubgroupLocal::GenerateKID(std::u32string_view type) const noexcept
+{
+    return FMTSTR(U"oclu_local_{}_{}"sv, type, KernelName);
 }
 
 std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
@@ -1206,7 +1242,8 @@ ReplaceResult NLCLSubgroupLocal::GetMaxSubgroupSize()
         return NLCLSubgroupKHR::GetMaxSubgroupSize();
     
     NeedSubgroupSize = true;
-    return FMTSTR(U"_oclu_local_sgsize_{}"sv, KernelName);
+    const auto kid = GenerateKID(U"sgsize"sv);
+    return { FMTSTR(U"_{}"sv, kid), GEN_DEPEND(kid) };
 }
 ReplaceResult NLCLSubgroupLocal::GetSubgroupCount()
 {
@@ -1261,8 +1298,8 @@ ReplaceResult NLCLSubgroupLocal::SubgroupBroadcast(VecDataInfo vtype, const std:
         const auto vnum = TryCombine(totalBits, targetBits);
         if (!vnum) continue;
         const VecDataInfo mid{ VecDataInfo::DataTypes::Unsigned, targetBits, vnum, 0 };
-        Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::BroadcastPatch, funcName, mid);
-        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx);
+        auto dep = Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::BroadcastPatch, funcName, mid);
+        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx).Depend(dep);
     }
     RET_FAIL(SubgroupBroadcast);
 }
@@ -1280,8 +1317,8 @@ ReplaceResult NLCLSubgroupLocal::SubgroupShuffle(VecDataInfo vtype, const std::u
         const auto vnum = TryCombine(totalBits, targetBits);
         if (!vnum) continue;
         const VecDataInfo mid{ VecDataInfo::DataTypes::Unsigned, targetBits, vnum, 0 };
-        Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::ShufflePatch, funcName, mid);
-        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx);
+        auto dep = Context.AddPatchedBlock(*this, funcName, &NLCLSubgroupLocal::ShufflePatch, funcName, mid);
+        return SingleArgFunc(funcName, ele, vtype, mid, false).Attach(U"_oclu_subgroup_local"sv, idx).Depend(dep);
     }
     RET_FAIL(SubgroupShuffle);
 }
@@ -1358,7 +1395,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataIn
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, 32, 1, 0 };
     const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}32"sv, opstr, isArith ? (isUnsigned ? U"u" : U"i") : U"");
-    Context.AddPatchedBlock(scalarFunc, [&]()
+    auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
             const auto regType = isArith ? (isUnsigned ? U'u' : U's') : U'b';
             // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#warp-reduce-functions
@@ -1375,17 +1412,19 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataIn
     if (isArith)
     {
         if (vtype.Dim0 == 1)
-            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true);
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, true).Depend(dep0);
     }
     else if (totalBits == 32)
     {
-        return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false);
+        return SingleArgFunc(scalarFunc, ele, vtype, scalarType, false).Depend(dep0);
     }
     else if (totalBits < 32)
     {
-        return FMTSTR(U"as_{0}(convert_{1}({2}(convert_uint(as_{1}({3})))))"sv,
-            NLCLContext::GetCLTypeName(vtype), NLCLContext::GetCLTypeName({ VecDataInfo::DataTypes::Unsigned,static_cast<uint8_t>(totalBits),1,0 }),
+        auto str = FMTSTR(U"as_{0}(convert_{1}({2}(convert_uint(as_{1}({3})))))"sv,
+            NLCLContext::GetCLTypeName(vtype),
+            NLCLContext::GetCLTypeName({ VecDataInfo::DataTypes::Unsigned,static_cast<uint8_t>(totalBits),1,0 }),
             scalarFunc, ele);
+        return ReplaceResult(std::move(str), dep0.first);
     }
 
     const auto vectorType = VecDataInfo
@@ -1397,12 +1436,12 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataIn
     };
     Expects(vectorType.Dim0 > 1 && vectorType.Dim0 <= 16);
     const auto vectorFunc = FMTSTR(U"{}v{}", scalarFunc, vectorType.Dim0);
-    Context.AddPatchedBlock(vectorFunc, [&]()
+    auto dep1 = Context.AddPatchedBlockD(vectorFunc, scalarFunc, [&]()
         {
             return NLCLSubgroupPtx::ScalarPatch(vectorFunc, scalarFunc, vectorType);
         });
 
-    return SingleArgFunc(vectorFunc, ele, vtype, vectorType, isArith);
+    return SingleArgFunc(vectorFunc, ele, vtype, vectorType, isArith).Depend(dep1);
 }
 
 ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataInfo vtype, const std::u32string_view ele)
@@ -1430,7 +1469,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
     const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
-    Context.AddPatchedBlock(scalarFunc, [&]()
+    auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
             auto func = FMTSTR(U"inline {0} {1}({0} x)"sv, scalarName, scalarFunc);
             const auto opinst = [](SubgroupReduceOp op)
@@ -1486,11 +1525,11 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
         if (isArith)
         {
             Expects(scalarType == vtype);
-            return SingleArgFunc(scalarFunc, ele);
+            return SingleArgFunc(scalarFunc, ele).Depend(dep0);
         }
         else
         {
-            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, totalBits != scalarBit);
+            return SingleArgFunc(scalarFunc, ele, vtype, scalarType, totalBits != scalarBit).Depend(dep0);
         }
     }
 
@@ -1503,7 +1542,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     };
     Expects(CheckVNum(vnum));
     const auto vectorFunc = FMTSTR(U"{}v{}", scalarFunc, vectorType.Dim0);
-    Context.AddPatchedBlock(vectorFunc, [&]()
+    auto dep1 = Context.AddPatchedBlockD(vectorFunc, scalarFunc, [&]()
         {
             return NLCLSubgroupPtx::ScalarPatch(vectorFunc, scalarFunc, vectorType);
         });
@@ -1511,17 +1550,17 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     if (isArith)
     {
         Expects(vectorType == vtype);
-        return SingleArgFunc(vectorFunc, ele);
+        return SingleArgFunc(vectorFunc, ele).Depend(dep1);
     }
     else
     {
         if (totalBits != static_cast<uint32_t>(scalarBit * vnum)) // need convert
         {
-            return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false);
+            return SingleArgFunc(vectorFunc, ele, vtype, ToUintVec(vtype), vectorType, false).Depend(dep1);
         }
         else
         {
-            return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false);
+            return SingleArgFunc(vectorFunc, ele, vtype, vectorType, false).Depend(dep1);
         }
     }
 }
@@ -1644,19 +1683,19 @@ ReplaceResult NLCLSubgroupPtx::SubgroupShuffle(VecDataInfo vtype, const std::u32
     {
         const VecDataInfo scalarUType{ VecDataInfo::DataTypes::Unsigned, vtype.Bit, 1, 0 };
         const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_shuffle_u{}", vtype.Bit);
-        Context.AddPatchedBlock(*this, scalarFunc, &NLCLSubgroupPtx::ShufflePatch, vtype.Bit);
+        auto dep0 = Context.AddPatchedBlock(*this, scalarFunc, &NLCLSubgroupPtx::ShufflePatch, vtype.Bit);
         if (vtype.Dim0 == 1)
         {
-            BSRetCastT(scalarFunc, scalarUType);
+            BSRetCastT(scalarFunc, scalarUType).Depend(dep0);
         }
 
         const auto funcName = FMTSTR(U"{}v{}", scalarFunc, vtype.Dim0);
         const VecDataInfo vectorUType = ToUintVec(vtype);
-        Context.AddPatchedBlock(funcName, [&]()
+        auto dep1 = Context.AddPatchedBlockD(funcName, scalarFunc, [&]()
             {
                 return NLCLSubgroupPtx::ScalarPatchBcastShuf(funcName, scalarFunc, vectorUType);
             });
-        BSRetCastT(funcName, vectorUType);
+        BSRetCastT(funcName, vectorUType).Depend(dep1);
     }
 
     const uint32_t totalBits = vtype.Bit * vtype.Dim0;
