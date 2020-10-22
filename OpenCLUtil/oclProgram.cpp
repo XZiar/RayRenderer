@@ -120,7 +120,8 @@ string_view ArgFlags::GetQualifierName() const noexcept
 #pragma GCC diagnostic pop
 #endif
 
-KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : DebugBuffer(0), HasInfo(true), HasDebug(false)
+KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : 
+    InfoProv(reference.InfoProv), DebugBuffer(0), HasInfo(true), HasDebug(false)
 {
     uint32_t size = 0;
     {
@@ -276,7 +277,7 @@ public:
 
 std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime)
 {
-    if (!DebugManager) return {};
+    if (!DebugMan) return {};
     const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
     const auto infoData = info.AsType<uint32_t>();
     const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
@@ -285,13 +286,15 @@ std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool 
         common::AlignedBuffer infoBuf(InfoBuf->Size), dataBuf(dbgSize);
         memcpy_s(infoBuf.GetRawPtr(), InfoBuf->Size, &infoData[0], InfoBuf->Size);
         DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
-        return std::make_unique<xcomp::debug::DebugPackage>(DebugManager,
+        return std::make_unique<xcomp::debug::DebugPackage>(
+            DebugMan, InfoProv,
             std::move(infoBuf),
             std::move(dataBuf));
     }
     else
     {
-        return std::make_unique<KernelDebugPackage>(DebugManager, 
+        return std::make_unique<KernelDebugPackage>(
+            DebugMan, InfoProv,
             info.AsBuffer(), 
             DebugBuf->Map(Queue, oclu::MapFlag::Read).AsBuffer().CreateSubBuffer(0, dbgSize));
     }
@@ -393,10 +396,11 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
     CallResult result;
     if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
     {
-        result.DebugManager = Kernel->Prog.DebugManager;
+        result.DebugMan = Kernel->Prog.DebugMan;
+        result.InfoProv = Kernel->ArgStore.InfoProv;
         result.Kernel = this->Kernel;
         result.Queue = que;
-        const auto infosize = Kernel->Prog.DebugManager->GetInfoProvider().GetInfoBufferSize(worksize, dim);
+        const auto infosize = result.InfoProv->GetInfoBufferSize(worksize, dim);
         const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
         std::vector<std::byte> tmp(infosize);
         const uint32_t dbgBufCnt = Kernel->ReqDbgBufSize * 1024u / sizeof(uint32_t);
@@ -556,7 +560,7 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev
 
 oclProgram_::oclProgram_(oclProgStub* stub) : 
     Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID),
-    DebugManager(std::move(stub->DebugManager))
+    DebugMan(std::move(stub->DebugMan))
 {
     stub->ProgID = nullptr;
 

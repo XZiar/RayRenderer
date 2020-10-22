@@ -355,12 +355,11 @@ class InfoProviderT : public InfoProvider
 };
 
 
-class XCOMPBASAPI DebugManager
+class XCOMPBASAPI DebugManager : public common::NonCopyable
 {
     friend XCNLDebugExt;
 protected:
     std::vector<MessageBlock> Blocks;
-    std::unique_ptr<InfoProvider> InfoProv;
     void CheckNewBlock(const std::u32string_view name) const;
     template<typename... Args>
     const MessageBlock& AppendBlock(const std::u32string_view name, const std::u32string_view formatter, Args&&... args)
@@ -372,7 +371,6 @@ protected:
 public:
 
     common::span<const MessageBlock> GetBlocks() const noexcept { return Blocks; }
-    const InfoProvider& GetInfoProvider() const noexcept { return *InfoProv; }
 
     template<typename F>
     void VisitData(common::span<const std::byte> space, F&& func) const
@@ -383,7 +381,7 @@ public:
             const auto [block, tid] = RetriveMessage(data);
             if (block == nullptr) break;
             const auto u32cnt = block->Layout.TotalSize / sizeof(uint32_t);
-            func(tid, *InfoProv, *block, data.subspan(1, u32cnt));
+            func(tid, *block, data.subspan(1, u32cnt));
             data = data.subspan(1 + u32cnt);
         }
     }
@@ -395,11 +393,15 @@ class XCOMPBASAPI DebugPackage
 {
 protected:
     std::shared_ptr<DebugManager> Manager;
+    std::shared_ptr<InfoProvider> InfoProv;
     common::AlignedBuffer InfoBuffer;
     common::AlignedBuffer DataBuffer;
 public:
-    DebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept
-        : Manager(manager), InfoBuffer(std::move(info)), DataBuffer(std::move(data)) { }
+    DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, 
+        common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept : 
+        Manager(std::move(manager)), InfoProv(std::move(infoProv)),
+        InfoBuffer(std::move(info)), DataBuffer(std::move(data))
+    { }
     virtual ~DebugPackage();
     virtual void ReleaseRuntime() {}
     template<typename F>
@@ -407,15 +409,16 @@ public:
     {
         if (!Manager) return;
         const auto infoData = InfoSpan();
+        const auto& infoProv = InfoMan();
         Manager->VisitData(DataBuffer.AsSpan(),
-            [&](const uint32_t tid, const InfoProvider& infoProv, const MessageBlock& block, const auto& dat)
+            [&](const uint32_t tid, const MessageBlock& block, const auto& dat)
             {
                 func(tid, infoProv, block, infoData, dat);
             });
     }
     CachedDebugPackage GetCachedData() const;
     const DebugManager& DebugMan() const noexcept { return *Manager; }
-    const InfoProvider& InfoMan() const noexcept { return Manager->GetInfoProvider(); }
+    const InfoProvider& InfoMan() const noexcept { return *InfoProv; }
     common::span<const uint32_t> InfoSpan() const noexcept { return InfoBuffer.AsSpan<uint32_t>(); }
 };
 
@@ -451,7 +454,7 @@ private:
     std::vector<MessageItem> Items;
     std::unique_ptr<InfoPack> Infos;
 public:
-    CachedDebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
+    CachedDebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
     ~CachedDebugPackage() override;
     using DebugPackage::DebugMan;
     using DebugPackage::InfoMan;

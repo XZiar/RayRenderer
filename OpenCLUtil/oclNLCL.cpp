@@ -477,7 +477,7 @@ void NLCLRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
 void NLCLRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
 {
     std::u32string exts = U"/* Extensions */\r\n"s;
-    // Output extentions
+    // Output extensions
     if (common::linq::FromIterable(Context.EnabledExtensions).All(true))
     {
         exts.append(U"#pragma OPENCL EXTENSION all : enable\r\n"sv);
@@ -663,7 +663,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
         auto progStub = oclProgram_::Create(ctx, str, nlclCtx.Device);
         if (const auto dbgMan = debug::ExtractDebugManager(nlclCtx); dbgMan)
         {
-            progStub.DebugManager = std::make_shared<xcomp::debug::DebugManager>(std::move(*dbgMan));
+            progStub.DebugMan = std::make_shared<xcomp::debug::DebugManager>(std::move(*dbgMan));
         }
         progStub.ImportedKernelInfo = std::move(stub.GetContext()->CompiledKernels);
         for (const auto flag : nlclCtx.CompilerFlags)

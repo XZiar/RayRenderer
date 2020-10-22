@@ -489,6 +489,44 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(
     return {};
 }
 
+ReplaceResult XCNLRuntime::ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args)
+{
+    for (const auto& ext : XCContext.Extensions)
+    {
+        if (!ext) continue;
+        auto ret = ext->ReplaceFunc(*this, func, args);
+        const auto str = ret.GetStr();
+        if (!ret && ret.CheckAllowFallback())
+        {
+            if (!str.empty())
+                Logger.warning(FMT_STRING(u"when replace-func [{}]: {}\r\n"), func, ret.GetStr());
+            continue;
+        }
+        if (ret)
+        {
+            if (const auto dep = ret.GetDepends(); dep)
+            {
+                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
+                if (!dep->PatchedBlock.empty())
+                {
+                    txt += u"Depend on PatchedBlock:\r\n";
+                    for (const auto& name : dep->PatchedBlock)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                if (!dep->BodyPrefixes.empty())
+                {
+                    txt += u"Depend on BodyPrefix:\r\n";
+                    for (const auto& name : dep->BodyPrefixes)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                Logger.verbose(txt);
+            }
+        }
+        return ret;
+    }
+    return { FMTSTR(U"[{}] with [{}]args not resolved", func, args.size()), false };
+}
+
 void XCNLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
 {
     // std::set<std::u32string_view> lateVars;
@@ -631,43 +669,18 @@ void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u
             return;
         }
     }
-    
-    for (const auto& ext : XCContext.Extensions)
+
     {
-        if (!ext) continue;
-        const auto ret = ext->ReplaceFunc(*this, func, args);
+        const auto ret = ExtensionReplaceFunc(func, args);
         if (ret)
         {
             output.append(ret.GetStr());
-            if (const auto dep = ret.GetDepends(); dep)
-            {
-                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, ret.GetStr());
-                if (!dep->PatchedBlock.empty())
-                {
-                    txt += u"Depend on PatchedBlock:\r\n";
-                    for (const auto& name : dep->PatchedBlock)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                if (!dep->BodyPrefixes.empty())
-                {
-                    txt += u"Depend on BodyPrefix:\r\n";
-                    for (const auto& name : dep->BodyPrefixes)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                Logger.verbose(txt);
-            }
-            return;
         }
         else
         {
-            const auto str = ret.GetStr();
-            if (!ret.CheckAllowFallback())
-                NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), str));
-            if (!str.empty())
-                Logger.warning(FMT_STRING(u"when replace-func [{}]: {}"), func, str);
+            NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), ret.GetStr()));
         }
     }
-    NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args is not resolved", func, args.size()));
 }
 
 void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)

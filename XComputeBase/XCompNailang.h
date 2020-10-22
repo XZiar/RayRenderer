@@ -404,9 +404,10 @@ protected:
     [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, 
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
 
-    std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
-    std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call, 
+    [[nodiscard]] std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
+    [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
         U32StrSpan args, BlockCookie& cookie);
+    [[nodiscard]] ReplaceResult ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args);
     void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     void DirectOutput(BlockCookie& cookie, std::u32string& dst);
     void ProcessInstance(BlockCookie& cookie);

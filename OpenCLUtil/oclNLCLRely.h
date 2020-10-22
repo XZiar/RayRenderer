@@ -30,10 +30,11 @@ struct KernelContext : public xcomp::InstanceContext
     {
         TailArgs.AddArg(std::forward<Ts>(args)...);
     }
-    forceinline void SetDebugBuffer(uint32_t size)
+    forceinline void SetDebug(uint32_t size, std::shared_ptr<xcomp::debug::InfoProvider> infoProv)
     {
         Args.HasDebug = true;
         Args.DebugBuffer = std::max(Args.DebugBuffer, size);
+        Args.InfoProv = std::move(infoProv);
     }
     forceinline bool AddAttribute(const std::u32string_view id, std::u32string_view content)
     {

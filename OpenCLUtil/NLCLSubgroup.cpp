@@ -127,6 +127,12 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
         return HandleResult(Provider->GetSubgroupCount(),
             U"[GetSubgroupCount] not supported"sv);
     }
+    HashCase(func, U"GetSubgroupId")
+    {
+        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        return HandleResult(Provider->GetSubgroupId(),
+            U"[GetSubgroupId] not supported"sv);
+    }
     HashCase(func, U"GetSubgroupLocalId")
     {
         Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);

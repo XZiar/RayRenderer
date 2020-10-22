@@ -21,10 +21,6 @@ struct XCOMPBASAPI XCNLDebugExt
     void DefineMessage(XCNLRuntime& runtime, const xziar::nailang::FuncCall& call);
     const DbgContent& DefineMessage(XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args);
 
-    forceinline void SetInfoProvider(std::unique_ptr<InfoProvider>&& infoProv) noexcept
-    {
-        DebugMan.InfoProv = std::move(infoProv);
-    }
     forceinline const MessageBlock& AppendBlock(const std::u32string_view name, 
         const std::u32string_view formatter, common::span<const NamedVecPair> args)
     {

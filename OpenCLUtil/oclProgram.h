@@ -82,7 +82,6 @@ class OCLUAPI KernelArgStore
     friend oclKernel_;
     friend NLCLRuntime;
     friend KernelContext;
-    friend debug::NLCLDebugExtension;
 protected:
     struct ArgInfo : public ArgFlags
     {
@@ -91,6 +90,7 @@ protected:
     };
     common::StringPool<char> ArgTexts;
     std::vector<ArgInfo> ArgsInfo;
+    std::shared_ptr<xcomp::debug::InfoProvider> InfoProv;
     uint32_t DebugBuffer;
     bool HasInfo, HasDebug;
     KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
@@ -162,7 +162,8 @@ public:
 
 struct OCLUAPI CallResult
 {
-    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
+    std::shared_ptr<xcomp::debug::InfoProvider> InfoProv;
     oclKernel Kernel;
     oclCmdQue Queue;
     oclBuffer InfoBuf;
@@ -370,7 +371,7 @@ private:
     std::string Source;
     cl_program ProgID;
     std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
-    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
     oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
 public:
     ~oclProgStub();
@@ -392,7 +393,7 @@ private:
     cl_program ProgID;
     std::vector<std::string> KernelNames;
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
-    std::shared_ptr<xcomp::debug::DebugManager> DebugManager;
+    std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
     oclProgram_(oclProgStub* stub);

@@ -107,10 +107,16 @@ struct NLCLRuntime_ : public NLCLRuntime
 #define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebugExt
 {
+    static inline std::shared_ptr<xcomp::debug::InfoProvider> 
+        DefInfoProv = std::make_shared<NonSubgroupInfoProvider>(),
+        SgInfoProv  = std::make_shared<SubgroupInfoProvider>();
     // For whole program
     bool EnableDebug = false, AnyDebug = false;
     // For kernel
-    bool AllowDebug = false, HasDebug = false;
+    bool AllowDebug = false, HasDebug = false, HasSgInfo = false;
+    uint32_t DebugBufferSize = 512;
+    std::u32string DebugInfoStr;
+
     NLCLDebugExtension(NLCLContext& context) : NLCLExtension(context) { }
     ~NLCLDebugExtension() override { }
 
@@ -123,15 +129,14 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
             Runtime.EnableExtension("cl_khr_byte_addressable_store"sv, u"Use oclu-debugoutput"sv);
         }
-        if (Context.SupportBasicSubgroup)
-            SetInfoProvider(std::make_unique<SubgroupInfoProvider>());
-        else
-            SetInfoProvider(std::make_unique<NonSubgroupInfoProvider>());
     }
 
     void BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&) override
     {
         AllowDebug = EnableDebug;
+        HasSgInfo = false;
+        DebugBufferSize = 0;
+        DebugInfoStr.clear();
     }
     
     void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override
@@ -141,18 +146,14 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         if (HasDebug)
         {
             AnyDebug = true;
-            kerCtx.Args.HasDebug = true;
             kerCtx.AddTailArg(KerArgType::Simple, KerArgSpace::Private, ImgAccess::None, KerArgFlag::Const,
                 "_oclu_debug_buffer_size", "uint");
             kerCtx.AddTailArg(KerArgType::Buffer, KerArgSpace::Global, ImgAccess::None, KerArgFlag::Restrict,
                 "_oclu_debug_buffer_info", "uint*");
             kerCtx.AddTailArg(KerArgType::Buffer, KerArgSpace::Global, ImgAccess::None, KerArgFlag::Restrict,
                 "_oclu_debug_buffer_data", "uint*"); 
-            AppendDebugTid();
-            Context.AddPatchedBlockD(U"oclu_debuginfo"sv, Depend_DebugTid, &NLCLDebugExtension::DebugInfoSetter);
-            kerCtx.AddBodyPrefix(U"oclu_debug", UR"(
-    oclu_debuginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info);
-)");
+            kerCtx.AddBodyPrefix(U"oclu_debuginfo", DebugInfoStr);
+            kerCtx.SetDebug(DebugBufferSize, HasSgInfo ? SgInfoProv : DefInfoProv);
         }
     }
 
@@ -222,19 +223,17 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         {
             if (AllowDebug)
             {
-                auto& kerCtx = static_cast<KernelContext&>(ctx);
                 const auto size = Runtime.EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
-                kerCtx.SetDebugBuffer(gsl::narrow_cast<uint32_t>(size.value_or(512)));
+                DebugBufferSize = gsl::narrow_cast<uint32_t>(size.value_or(512));
             }
             else
                 Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
         }
     }
 
-    static std::u32string DebugTid() noexcept
+    static std::u32string TextDebugTid() noexcept
     {
-        return UR"(
-inline uint oclu_debugtid()
+        return UR"(inline uint oclu_debugtid()
 {
     return get_global_id(0) + get_global_id(1) * get_global_size(0) + get_global_id(2) * get_global_size(1) * get_global_size(0);
 }
@@ -243,13 +242,12 @@ inline uint oclu_debugtid()
     static constexpr auto Depend_DebugTid = std::array{ U"oclu_debugtid"sv };
     void AppendDebugTid()
     {
-        Context.AddPatchedBlock(U"oclu_debugtid"sv, &NLCLDebugExtension::DebugTid);
+        Context.AddPatchedBlock(U"oclu_debugtid"sv, &NLCLDebugExtension::TextDebugTid);
     }
 
-    static std::u32string DebugStringBase() noexcept
+    static std::u32string TextDebugStringBase() noexcept
     {
-        return UR"(
-inline global uint* oclu_debug(const uint dbgId, const uint dbgSize, const uint total,
+        return UR"(inline global uint* oclu_debug(const uint dbgId, const uint dbgSize, const uint total,
     global uint* restrict counter, global uint* restrict data)
 {
     const uint size = dbgSize + 1;
@@ -276,13 +274,12 @@ inline global uint* oclu_debug(const uint dbgId, const uint dbgSize, const uint 
     static constexpr auto Depend_DebugBase = std::array{ U"oclu_debug"sv };
     void AppendDebugBase()
     {
-        Context.AddPatchedBlock(U"oclu_debug"sv, &NLCLDebugExtension::DebugStringBase);
+        Context.AddPatchedBlock(U"oclu_debug"sv, &NLCLDebugExtension::TextDebugStringBase);
     }
 
-    static std::u32string DebugInfoSetter() noexcept
+    static std::u32string TextDebugInfo() noexcept
     {
-        return UR"(
-inline void oclu_debuginfo(const uint total, global uint* restrict info)
+        return UR"(inline void oclu_debuginfo(const uint total, global uint* restrict info)
 {
     if (total > 0)
     {
@@ -297,17 +294,69 @@ inline void oclu_debuginfo(const uint total, global uint* restrict info)
             info[6] = get_local_size(2);
         }
 
-#if defined(cl_khr_subgroups) || defined(cl_intel_subgroups)
-        const ushort sgid  = get_sub_group_id();
-        const ushort sglid = get_sub_group_local_id();
+        const uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
+        info[7 + tid] = lid;
+    }
+}
+)"s;
+    }
+    static std::u32string TextDebugSGInfo() noexcept
+    {
+        return UR"(inline void oclu_debugsginfo(const uint total, global uint* restrict info, const ushort sgid, const ushort sglid)
+{
+    if (total > 0)
+    {
+        const uint tid = oclu_debugtid();
+        if (tid == 0)
+        {
+            info[1] = get_global_size(0);
+            info[2] = get_global_size(1);
+            info[3] = get_global_size(2);
+            info[4] = get_local_size(0);
+            info[5] = get_local_size(1);
+            info[6] = get_local_size(2);
+        }
+
         const uint sginfo  = sgid * 65536u + sglid;
-#else
-        const uint sginfo  = get_local_id(0) + get_local_id(1) * get_local_size(0) + get_local_id(2) * get_local_size(1) * get_local_size(0);
-#endif
         info[7 + tid] = sginfo;
     }
 }
 )"s;
+    }
+    void AppendDebugInfo(Runtime_& runtime)
+    {
+        if (HasDebug) return; // do not repeat
+        HasDebug = true;
+
+        AppendDebugTid();
+
+        std::u32string sgid, sglid;
+        try
+        {
+            const auto sgidRet  = runtime.ExtensionReplaceFunc(U"oclu.GetSubgroupId"sv, {});
+            const auto sglidRet = runtime.ExtensionReplaceFunc(U"oclu.GetSubgroupLocalId"sv, {});
+            if (sgidRet && sglidRet)
+            {
+                sgid  = sgidRet.GetStr();
+                sglid = sglidRet.GetStr();
+                HasSgInfo = true;
+            }
+        }
+        catch (const xziar::nailang::NailangRuntimeException& ex)
+        {
+            runtime.Logger.warning(u"Get Exception when trying to query Subgroup extension: {}\r\n", ex.Message());
+        }
+
+        if (HasSgInfo)
+        {
+            Context.AddPatchedBlockD(U"oclu_debugsginfo"sv, Depend_DebugTid, &NLCLDebugExtension::TextDebugSGInfo);
+            DebugInfoStr = FMTSTR(U"    oclu_debugsginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info, {}, {});\r\n"sv, sgid, sglid);
+        }
+        else
+        {
+            Context.AddPatchedBlockD(U"oclu_debuginfo"sv, Depend_DebugTid, &NLCLDebugExtension::TextDebugInfo);
+            DebugInfoStr = U"    oclu_debuginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info);\r\n"sv;
+        }
     }
 
     std::u32string DebugStringPatch(Runtime_& runtime, const std::u32string_view dbgId,
@@ -421,8 +470,8 @@ inline void oclu_debuginfo(const uint total, global uint* restrict info)
     xcomp::ReplaceResult GenerateDebugFunc(Runtime_& runtime, const std::u32string_view id,
         const NLCLDebugExtension::DbgContent& item, common::span<const std::u32string_view> vals)
     {
-        AppendDebugTid();
-        Context.AddPatchedBlockD(U"oclu_debug"sv, Depend_DebugTid, &NLCLDebugExtension::DebugStringBase);
+        AppendDebugInfo(runtime);
+        AppendDebugBase();
         auto dep = Context.AddPatchedBlockD(*this, U"oclu_debug_"s.append(id), Depend_DebugBase, 
             &NLCLDebugExtension::DebugStringPatch, runtime, id, item.first, item.second);
 
@@ -433,7 +482,6 @@ inline void oclu_debuginfo(const uint total, global uint* restrict info)
         }
         str.pop_back(); // pop space
         str.back() = U')'; // replace ',' with ')'
-        HasDebug = true;
         return { std::move(str), dep.first };
     }
 

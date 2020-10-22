@@ -263,7 +263,7 @@ DebugPackage::~DebugPackage()
 
 CachedDebugPackage DebugPackage::GetCachedData() const
 {
-    return { Manager, InfoBuffer.CreateSubBuffer(), DataBuffer.CreateSubBuffer() };
+    return { Manager, InfoProv, InfoBuffer.CreateSubBuffer(), DataBuffer.CreateSubBuffer() };
 }
 
 
@@ -293,10 +293,10 @@ const MessageBlock& CachedDebugPackage::MessageItemWrapper::Block() const noexce
 }
 
 
-CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, common::AlignedBuffer&& info, common::AlignedBuffer&& data) :
-    DebugPackage(manager, std::move(info), std::move(data))
+CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data) :
+    DebugPackage(std::move(manager), std::move(infoProv), std::move(info), std::move(data))
 {
-    Infos = manager->GetInfoProvider().GetInfoPack(InfoSpan());
+    Infos = InfoMan().GetInfoPack(InfoSpan());
     const auto blocks  = Manager->GetBlocks();
     const auto alldata = DataBuffer.AsSpan<uint32_t>();
     VisitData([&](const uint32_t tid, const InfoProvider&, const MessageBlock& block,
