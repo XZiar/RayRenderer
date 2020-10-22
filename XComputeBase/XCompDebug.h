@@ -397,11 +397,10 @@ protected:
     common::AlignedBuffer InfoBuffer;
     common::AlignedBuffer DataBuffer;
 public:
-    DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, 
-        common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept : 
-        Manager(std::move(manager)), InfoProv(std::move(infoProv)),
-        InfoBuffer(std::move(info)), DataBuffer(std::move(data))
-    { }
+    DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
+        common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept;
+    DebugPackage(const DebugPackage& package) noexcept;
+    DebugPackage(DebugPackage&& package) noexcept;
     virtual ~DebugPackage();
     virtual void ReleaseRuntime() {}
     template<typename F>
@@ -436,9 +435,9 @@ private:
     class XCOMPBASAPI MessageItemWrapper
     {
         friend CachedDebugPackage;
-        CachedDebugPackage& Host;
+        const CachedDebugPackage& Host;
         MessageItem& Item;
-        constexpr MessageItemWrapper(CachedDebugPackage* host, MessageItem& item) noexcept : Host(*host), Item(item) { }
+        constexpr MessageItemWrapper(const CachedDebugPackage* host, MessageItem& item) noexcept : Host(*host), Item(item) { }
     public:
         [[nodiscard]] common::str::u8string_view Str() const noexcept;
         [[nodiscard]] const WorkItemInfo& Info() const noexcept;
@@ -446,24 +445,26 @@ private:
         [[nodiscard]] const MessageBlock& Block() const noexcept;
         [[nodiscard]] constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
     };
-    MessageItemWrapper GetByIndex(const size_t idx) noexcept
+    MessageItemWrapper GetByIndex(const size_t idx) const noexcept
     {
         return { this, Items[idx] };
     }
-    common::StringPool<u8ch_t> MsgTexts;
-    std::vector<MessageItem> Items;
+    mutable common::StringPool<u8ch_t> MsgTexts;
+    mutable std::vector<MessageItem> Items;
     std::unique_ptr<InfoPack> Infos;
+    CachedDebugPackage(const CachedDebugPackage& package) noexcept = default;
 public:
     CachedDebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
+    CachedDebugPackage(CachedDebugPackage&& package) noexcept;
     ~CachedDebugPackage() override;
     using DebugPackage::DebugMan;
     using DebugPackage::InfoMan;
     using DebugPackage::InfoSpan;
 
-    using ItType = common::container::IndirectIterator<CachedDebugPackage, MessageItemWrapper, &CachedDebugPackage::GetByIndex>;
+    using ItType = common::container::IndirectIterator<const CachedDebugPackage, MessageItemWrapper, &CachedDebugPackage::GetByIndex>;
     friend ItType;
-    constexpr ItType begin() noexcept { return { this, 0 }; }
-              ItType end()   noexcept { return { this, Items.size() }; }
+    constexpr ItType begin() const noexcept { return { this, 0 }; }
+              ItType end()   const noexcept { return { this, Items.size() }; }
     size_t Count() const noexcept { return Items.size(); }
 };
 
@@ -478,7 +479,7 @@ public:
     ExcelXmlPrinter(common::io::OutputStream& stream);
     ~ExcelXmlPrinter();
     void PrintPackage(const DebugPackage& package);
-    void PrintPackage(CachedDebugPackage& package);
+    void PrintPackage(const CachedDebugPackage& package);
 };
 
 

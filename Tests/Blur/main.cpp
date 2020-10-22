@@ -93,11 +93,11 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         pcY.QueryTime(oclu::oclPromiseCore::TimeType::End));
 
     const auto debugPack = pmsX->Get().GetDebugData(true);
-    auto data = debugPack->GetCachedData();
+    const auto data = debugPack->GetCachedData();
 
     auto& logger = log();
     const bool hasSgInfo = oclu::debug::HasSubgroupInfo(debugPack->InfoMan());
-    for (auto item : data)
+    for (const auto& item : data)
     {
         const auto& tinfo = item.Info();
         if (hasSgInfo)

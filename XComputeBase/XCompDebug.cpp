@@ -258,6 +258,19 @@ std::pair<const MessageBlock*, uint32_t> DebugManager::RetriveMessage(common::sp
 }
 
 
+DebugPackage::DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
+    common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept :
+    Manager(std::move(manager)), InfoProv(std::move(infoProv)),
+    InfoBuffer(std::move(info)), DataBuffer(std::move(data))
+{ }
+DebugPackage::DebugPackage(const DebugPackage& package) noexcept :
+    Manager(package.Manager), InfoProv(package.InfoProv),
+    InfoBuffer(package.InfoBuffer.CreateSubBuffer()), DataBuffer(package.DataBuffer.CreateSubBuffer())
+{ }
+DebugPackage::DebugPackage(DebugPackage&& package) noexcept :
+    Manager(std::move(package.Manager)), InfoProv(std::move(package.InfoProv)),
+    InfoBuffer(std::move(package.InfoBuffer)), DataBuffer(std::move(package.DataBuffer))
+{ }
 DebugPackage::~DebugPackage()
 { }
 
@@ -308,6 +321,10 @@ CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, st
             Items.push_back({ {0, 0}, tid, offset, datLen, blkId });
         });
 }
+CachedDebugPackage::CachedDebugPackage(CachedDebugPackage&& package) noexcept :
+    DebugPackage(std::move(package)), MsgTexts(std::move(package.MsgTexts)),
+    Items(std::move(package.Items)), Infos(std::move(package.Infos))
+{ }
 CachedDebugPackage::~CachedDebugPackage()
 { }
 
@@ -394,7 +411,7 @@ void ExcelXmlPrinter::PrintPackage(const DebugPackage& package)
         printer.EndWorkSheet(rows, cols);
     }
 }
-void ExcelXmlPrinter::PrintPackage(CachedDebugPackage& package)
+void ExcelXmlPrinter::PrintPackage(const CachedDebugPackage& package)
 {
     PackagePrinter printer(Stream, package.InfoMan(), package.InfoSpan());
     const auto& dbgMan = package.DebugMan();
@@ -402,7 +419,7 @@ void ExcelXmlPrinter::PrintPackage(CachedDebugPackage& package)
     {
         const auto cols = printer.BeginWorkSheet(msgBlk);
         uint32_t rows = 0;
-        for (const auto item : package)
+        for (const auto& item : package)
         {
             if (&item.Block() != &msgBlk) continue;
             printer.BeginRow();

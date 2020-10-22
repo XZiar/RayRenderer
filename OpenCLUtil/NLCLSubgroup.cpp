@@ -1188,8 +1188,6 @@ std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcN
     return func;
 }
 
-constexpr auto llo = sizeof(xcomp::ReplaceResult);
-
 std::u32string NLCLSubgroupLocal::ShufflePatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);

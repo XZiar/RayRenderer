@@ -202,11 +202,11 @@ std::pair<std::u32string_view,                                      \
 ReplaceResult NLCLDp4aPlain::DP4A(Signedness signedness, const common::span<const std::u32string_view> args)
 {
     const auto& [funcName, depend] = GetSignednessFixedData(dp4a)(signedness);
-    Context.AddPatchedBlock(funcName, [&]()
+    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
             std::u32string func = FMTSTR(U"inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)",
-                funcName, pfxC, pfxA, pfxB);
+                fname, pfxC, pfxA, pfxB);
             func.append(UR"(
 {
     return acc + ((a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w));
@@ -228,7 +228,7 @@ ReplaceResult NLCLDp4aIntel::DP4A(Signedness signedness, const common::span<cons
         return NLCLDp4aPlain::DP4A(signedness, args);
 
     const auto& [funcName, depend] = GetSignednessFixedData(dp4a_intel)(signedness);
-    Context.AddPatchedBlock(funcName, [&]()
+    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
         {
             const auto sfx = [&]()
             {
@@ -247,7 +247,7 @@ inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b)
 {{
     return __builtin_IB_dp4a_{0}(as_int(acc), as_int(a), as_int(b));
 }})"sv;
-            return FMTSTR(syntax, sfx, funcName, pfxC, pfxA, pfxB);
+            return FMTSTR(syntax, sfx, fname, pfxC, pfxA, pfxB);
         });
     return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
 }
@@ -294,7 +294,7 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
         return NLCLDp4aPlain::DP4A(signedness, args);
 
     const auto& [funcName, depend] = GetSignednessFixedData(dp4a_ptx)(signedness);
-    Context.AddPatchedBlock(funcName, [&]()
+    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
             static constexpr auto syntax = UR"(inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)
@@ -303,7 +303,7 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
     asm volatile("dp4a.{2}32.{3}32 %0, %1, %2, %3;" : "=r"(ret) : "r"(a_), "r"(b_), "r"(acc));
     return ret;
 }})"sv;
-            return FMTSTR(syntax, funcName, pfxC, pfxA, pfxB);
+            return FMTSTR(syntax, fname, pfxC, pfxA, pfxB);
         });
     return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
 }
