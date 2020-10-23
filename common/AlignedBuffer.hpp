@@ -186,7 +186,7 @@ public:
     {
         if (size == SIZE_MAX)
         {
-            if (offset >= Size)
+            if (offset > Size)
                 throw std::bad_alloc(); // sub buffer offset overflow
             size = Size - offset;
         }

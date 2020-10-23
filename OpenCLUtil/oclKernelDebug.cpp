@@ -133,8 +133,9 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 
     void BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext&) override
     {
-        AllowDebug = EnableDebug;
-        HasSgInfo = false;
+        AllowDebug      = EnableDebug;
+        HasDebug        = false;
+        HasSgInfo       = false;
         DebugBufferSize = 0;
         DebugInfoStr.clear();
     }

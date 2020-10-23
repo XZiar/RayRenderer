@@ -275,7 +275,7 @@ public:
     }
 };
 
-std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime)
+std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime) const
 {
     if (!DebugMan) return {};
     const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
@@ -285,7 +285,8 @@ std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool 
     {
         common::AlignedBuffer infoBuf(InfoBuf->Size), dataBuf(dbgSize);
         memcpy_s(infoBuf.GetRawPtr(), InfoBuf->Size, &infoData[0], InfoBuf->Size);
-        DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
+        if (dbgSize > 0)
+            DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
         return std::make_unique<xcomp::debug::DebugPackage>(
             DebugMan, InfoProv,
             std::move(infoBuf),
@@ -301,9 +302,24 @@ std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool 
 }
 
 
-oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, string name, KernelArgStore&& argStore) :
-    Plat(*plat), Prog(*prog), KernelID(kerID), Name(std::move(name))
+static void GetWorkGroupInfo(WorkGroupInfo& info, const cl_kernel kerId, const oclDevice dev)
 {
+#define GetInfo(name, field) clGetKernelWorkGroupInfo(kerId, *dev, name, sizeof(info.field), &info.field, nullptr)
+    GetInfo(CL_KERNEL_LOCAL_MEM_SIZE,                       LocalMemorySize);
+    GetInfo(CL_KERNEL_PRIVATE_MEM_SIZE,                     PrivateMemorySize);
+    GetInfo(CL_KERNEL_WORK_GROUP_SIZE,                      WorkGroupSize);
+    GetInfo(CL_KERNEL_COMPILE_WORK_GROUP_SIZE,              CompiledWorkGroupSize);
+    GetInfo(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,   PreferredWorkGroupSizeMultiple);
+    if (dev->Extensions.Has("cl_intel_required_subgroup_size"sv))
+        GetInfo(CL_KERNEL_SPILL_MEM_SIZE_INTEL,             SpillMemSize);
+    else
+        info.SpillMemSize = 0;
+}
+
+oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, string name, KernelArgStore&& argStore) :
+    Plat(*plat), Prog(*prog), KernelID(kerID), ReqDbgBufSize(0), Name(std::move(name))
+{
+    GetWorkGroupInfo(WgInfo, KernelID, Prog.Device);
     if (Prog.Context->Version >= 12)
         ArgStore = KernelArgStore(KernelID, argStore);
     else if (argStore.HasInfo)
@@ -317,22 +333,6 @@ oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_ker
 oclKernel_::~oclKernel_()
 {
     clReleaseKernel(KernelID);
-}
-
-WorkGroupInfo oclKernel_::GetWorkGroupInfo() const
-{
-    const cl_device_id devid = *Prog.Device;
-    WorkGroupInfo info;
-    clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(uint64_t), &info.LocalMemorySize, nullptr);
-    clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(uint64_t), &info.PrivateMemorySize, nullptr);
-    clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &info.WorkGroupSize, nullptr);
-    clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, sizeof(size_t) * 3, &info.CompiledWorkGroupSize, nullptr);
-    clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &info.PreferredWorkGroupSizeMultiple, nullptr);
-    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
-        clGetKernelWorkGroupInfo(KernelID, devid, CL_KERNEL_SPILL_MEM_SIZE_INTEL, sizeof(uint64_t), &info.SpillMemSize, nullptr);
-    else
-        info.SpillMemSize = 0;
-    return info;
 }
 
 std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const
@@ -414,6 +414,12 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
     cl_int ret;
     cl_event e;
     const auto [evtPtr, evtCnt] = depend.GetWaitList();
+    if (localsize == nullptr && Kernel->WgInfo.HasCompiledWGSize())
+    {
+        localsize = Kernel->WgInfo.CompiledWorkGroupSize;
+        oclLog().warning(FMT_STRING(u"passing nullptr to LocalSize, while attributes shows [{},{},{}]\n"), 
+            localsize[0], localsize[1], localsize[2]);
+    }
     ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, evtCnt, evtPtr, &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");

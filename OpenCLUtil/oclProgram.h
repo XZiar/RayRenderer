@@ -38,6 +38,10 @@ struct WorkGroupInfo
     size_t WorkGroupSize;
     size_t CompiledWorkGroupSize[3];
     size_t PreferredWorkGroupSizeMultiple;
+    constexpr bool HasCompiledWGSize() const noexcept
+    {
+        return CompiledWorkGroupSize[0] || CompiledWorkGroupSize[1] || CompiledWorkGroupSize[2];
+    }
 };
 
 struct SubgroupInfo
@@ -169,7 +173,7 @@ struct OCLUAPI CallResult
     oclBuffer InfoBuf;
     oclBuffer DebugBuf;
 
-    std::unique_ptr<xcomp::debug::DebugPackage> GetDebugData(const bool releaseRuntime = false);
+    std::unique_ptr<xcomp::debug::DebugPackage> GetDebugData(const bool releaseRuntime = false) const;
 };
 
 
@@ -217,13 +221,6 @@ class OCLUAPI oclKernel_ : public common::NonCopyable
 private:
     MAKE_ENABLER();
 
-    const oclPlatform_& Plat;
-    const oclProgram_& Prog;
-    cl_kernel KernelID;
-    mutable common::SpinLocker ArgLock;
-    KernelArgStore ArgStore;
-    uint32_t ReqDbgBufSize;
-    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, std::string name, KernelArgStore&& argStore);
     template<size_t N>
     [[nodiscard]] constexpr static const size_t* CheckLocalSize(const std::array<size_t, N>& localsize)
     {
@@ -297,6 +294,7 @@ private:
             return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
     };
+
     class OCLUAPI KernelDynCallSiteInternal : protected CallSiteInternal
     {
         friend class oclKernel_;
@@ -305,6 +303,7 @@ private:
         CallArgs Args;
         KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args);
     };
+
     template<uint8_t N>
     class [[nodiscard]] KernelDynCallSite : protected KernelDynCallSiteInternal
     {
@@ -321,13 +320,12 @@ private:
             return Run(N, {}, que, worksize.GetData(), workoffset.GetData(), localsize.GetData(true));
         }
     };
+
+    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, std::string name, KernelArgStore&& argStore);
 public:
-    std::string Name;
     ~oclKernel_();
 
-    [[nodiscard]] WorkGroupInfo GetWorkGroupInfo() const;
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
-    [[nodiscard]] const KernelArgStore& GetArgInfos() const noexcept { return ArgStore; }
     [[nodiscard]] bool HasOCLUDebug() const noexcept { return ArgStore.HasDebug; }
     template<uint8_t N>
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const std::array<size_t, N>& localsize) const
@@ -348,6 +346,16 @@ public:
         return KernelDynCallSite<N>(this, std::move(args));
     }
 
+private:
+    const oclPlatform_& Plat;
+    const oclProgram_& Prog;
+    cl_kernel KernelID;
+    mutable common::SpinLocker ArgLock;
+    uint32_t ReqDbgBufSize;
+public:
+    KernelArgStore ArgStore;
+    WorkGroupInfo WgInfo;
+    std::string Name;
 };
 
 

@@ -198,7 +198,7 @@ static void OCLStub()
                 log().success(u"loaded {} kernels:\n", kernels.Size());
                 for (const auto& ker : kernels)
                 {
-                    const auto wgInfo = ker->GetWorkGroupInfo();
+                    const auto& wgInfo = ker->WgInfo;
                     log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
                         wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
                         wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
@@ -209,7 +209,7 @@ static void OCLStub()
                         const auto& info = sgInfo.value();
                         log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
                     }
-                    for (const auto& arg : ker->GetArgInfos())
+                    for (const auto& arg : ker->ArgStore)
                     {
                         if (arg.ArgType == KerArgType::Image)
                             log().verbose(FMT_STRING(u"---[Image ][{:9}]({:12})[{:12}][{}]\n"), 
