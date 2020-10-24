@@ -258,17 +258,17 @@ std::pair<const MessageBlock*, uint32_t> DebugManager::RetriveMessage(common::sp
 }
 
 
-DebugPackage::DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
+DebugPackage::DebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
     common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept :
-    Manager(std::move(manager)), InfoProv(std::move(infoProv)),
+    ExecutionName(exeName), Manager(std::move(manager)), InfoProv(std::move(infoProv)),
     InfoBuffer(std::move(info)), DataBuffer(std::move(data))
 { }
 DebugPackage::DebugPackage(const DebugPackage& package) noexcept :
-    Manager(package.Manager), InfoProv(package.InfoProv),
+    ExecutionName(package.ExecutionName), Manager(package.Manager), InfoProv(package.InfoProv),
     InfoBuffer(package.InfoBuffer.CreateSubBuffer()), DataBuffer(package.DataBuffer.CreateSubBuffer())
 { }
 DebugPackage::DebugPackage(DebugPackage&& package) noexcept :
-    Manager(std::move(package.Manager)), InfoProv(std::move(package.InfoProv)),
+    ExecutionName(std::move(package.ExecutionName)), Manager(std::move(package.Manager)), InfoProv(std::move(package.InfoProv)),
     InfoBuffer(std::move(package.InfoBuffer)), DataBuffer(std::move(package.DataBuffer))
 { }
 DebugPackage::~DebugPackage()
@@ -276,7 +276,7 @@ DebugPackage::~DebugPackage()
 
 CachedDebugPackage DebugPackage::GetCachedData() const
 {
-    return { Manager, InfoProv, InfoBuffer.CreateSubBuffer(), DataBuffer.CreateSubBuffer() };
+    return { ExecutionName, Manager, InfoProv, InfoBuffer.CreateSubBuffer(), DataBuffer.CreateSubBuffer() };
 }
 
 
@@ -306,8 +306,9 @@ const MessageBlock& CachedDebugPackage::MessageItemWrapper::Block() const noexce
 }
 
 
-CachedDebugPackage::CachedDebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data) :
-    DebugPackage(std::move(manager), std::move(infoProv), std::move(info), std::move(data))
+CachedDebugPackage::CachedDebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, 
+    common::AlignedBuffer&& info, common::AlignedBuffer&& data) :
+    DebugPackage(exeName, std::move(manager), std::move(infoProv), std::move(info), std::move(data))
 {
     Infos = InfoMan().GetInfoPack(InfoSpan());
     const auto blocks  = Manager->GetBlocks();
@@ -329,197 +330,36 @@ CachedDebugPackage::~CachedDebugPackage()
 { }
 
 
-class PackagePrinter
-{
-private:
-    common::io::OutputStream& Stream;
-    const InfoProvider& InfoProv;
-    //const DebugPackage& BasePackage;
-
-    common::span<const uint32_t> InfoSpan;
-    common::span<const WorkItemInfo::InfoField> InfoFields;
-    std::string InfoHeader0, InfoHeader1, InfoHeader2;
-    uint32_t InfoColumns = 0;
-    common::StringPool<char> InfoTexts;
-    std::vector<common::StringPiece<char>> InfoIndexes;
-
-    void PrepareInfo();
-    common::StringPiece<char> GenerateThreadInfo(const WorkItemInfo& info);
-    forceinline void Write(const std::string_view str) 
-    {
-        Stream.Write(str.size(), str.data());
-    }
-    // perform char replacement
-    void WriteStr(const std::string_view str);
-
-public:
-    static constexpr auto RowBegin      = R"(   <Row ss:AutoFitHeight="0">
-)"sv;
-    static constexpr auto RowEnd        = R"(   </Row>
-)"sv;
-    static constexpr auto StrCellBegin  = R"(    <Cell><Data ss:Type="String">)"sv;
-    static constexpr auto NumCellBegin  = R"(    <Cell><Data ss:Type="Number">)"sv;
-    static constexpr auto CellEnd       = R"(</Data></Cell>
-)"sv;
-
-    PackagePrinter(common::io::OutputStream& stream, const InfoProvider& infoProv, common::span<const uint32_t> infoSpan) : 
-        Stream(stream), InfoProv(infoProv), InfoSpan(infoSpan)
-    {
-        PrepareInfo();
-    }
-    ~PackagePrinter() { }
-    static std::string ProcSpecialChar(std::u32string_view source);
-    
-    uint32_t BeginWorkSheet(const MessageBlock& block);
-    void EndWorkSheet(const uint32_t row, const uint32_t col);
-    void BeginRow();
-    void EndRow();
-    void PrintThreadInfo(const uint32_t tid);
-    void PrintThreadInfo(const WorkItemInfo& info);
-    void PrintMessage(const MessageBlock& block, const common::str::u8string_view str, common::span<const uint32_t> data);
-};
-
-
-ExcelXmlPrinter::ExcelXmlPrinter(common::io::OutputStream& stream) : Stream(stream)
-{
-    PrintFileHeader();
-}
-ExcelXmlPrinter::~ExcelXmlPrinter()
-{
-    PrintFileFooter();
-}
-
-void ExcelXmlPrinter::PrintPackage(const DebugPackage& package)
-{
-    PackagePrinter printer(Stream, package.InfoMan(), package.InfoSpan());
-    const auto& dbgMan = package.DebugMan();
-    for (const auto& msgBlk : dbgMan.GetBlocks())
-    {
-        const auto cols = printer.BeginWorkSheet(msgBlk);
-        uint32_t rows = 0;
-        package.VisitData([&](const uint32_t tid, const InfoProvider&, const MessageBlock& block,
-            const common::span<const uint32_t>, const common::span<const uint32_t> dat)
-            {
-                if (&block != &msgBlk) return;
-                printer.BeginRow();
-                printer.PrintThreadInfo(tid);
-                const auto str = msgBlk.GetString(common::as_bytes(dat));
-                printer.PrintMessage(msgBlk, str, dat);
-                printer.EndRow();
-                rows++;
-            });
-        printer.EndWorkSheet(rows, cols);
-    }
-}
-void ExcelXmlPrinter::PrintPackage(const CachedDebugPackage& package)
-{
-    PackagePrinter printer(Stream, package.InfoMan(), package.InfoSpan());
-    const auto& dbgMan = package.DebugMan();
-    for (const auto& msgBlk : dbgMan.GetBlocks())
-    {
-        const auto cols = printer.BeginWorkSheet(msgBlk);
-        uint32_t rows = 0;
-        for (const auto& item : package)
-        {
-            if (&item.Block() != &msgBlk) continue;
-            printer.BeginRow();
-            printer.PrintThreadInfo(item.Info());
-            printer.PrintMessage(msgBlk, item.Str(), item.GetDataSpan());
-            printer.EndRow();
-            rows++;
-        }
-        printer.EndWorkSheet(rows, cols);
-    }
-}
-
-
-void ExcelXmlPrinter::PrintFileHeader()
-{
-    constexpr std::string_view Header1 = 
-R"(<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>XCompute</Author>
-  <LastAuthor>XCompute</LastAuthor>
-  <Created>)"sv;
-    Stream.Write(Header1.size(), Header1.data());
-    {
-        const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        const auto tm = fmt::gmtime(t);
-        //<Created>1970-01-01T00:00:00Z</Created>
-        const auto tstr = fmt::format("{:%Y-%m-%dT%H:%M:%SZ}", tm);
-        Stream.Write(tstr.size(), tstr.data());
-    }
-    constexpr std::string_view Header2 =
-R"(</Created>
-  <Version>16.00</Version>
- </DocumentProperties>
- <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
-  <AllowPNG/>
- </OfficeDocumentSettings>
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Vertical="Center"/>
-  </Style>
-  <Style ss:ID="s63">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-  </Style>
- </Styles>
-)"sv;
-    Stream.Write(Header2.size(), Header2.data());
-}
-
-void ExcelXmlPrinter::PrintFileFooter()
-{
-    constexpr std::string_view Footer =
-R"(</Workbook>
-)"sv;
-    Stream.Write(Footer.size(), Footer.data());
-}
-
-
-void PackagePrinter::PrepareInfo()
-{
+ExcelXmlPrinter::InfoCache::InfoCache(const InfoProvider& infoProv, common::span<const uint32_t> infoSpan) :
+    InfoProv(infoProv), InfoSpan(infoSpan), Fields(infoProv.QueryFields())
+{ 
     const auto exeInfo = InfoProv.GetExecuteInfo(InfoSpan);
     InfoIndexes.resize(exeInfo.ThreadCount);
-
-    InfoFields = InfoProv.QueryFields();
-    InfoColumns = 0;
-    for (const auto& field : InfoFields)
-    {
-        if (field.VecType.Dim0 > 1)
-        {
-            Expects(field.VecType.Dim0 <= 4);
-            InfoColumns += field.VecType.Dim0;
-            APPEND_FMT(InfoHeader1, R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv,
-                field.VecType.Dim0 - 1, field.Name);
-            InfoHeader1.append("\r\n");
-            char parts[] = "xyzw";
-            for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
-            {
-                APPEND_FMT(InfoHeader2, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, parts[i]);
-                InfoHeader2.append("\r\n");
-            }
-        }
-        else
-        {
-            InfoColumns += 1;
-            const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, field.Name);
-            InfoHeader1.append(str).append("\r\n");
-            InfoHeader2.append(str).append("\r\n");
-        }
-    }
-    Expects(InfoColumns > 1);
-    InfoHeader0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">INFO</Data></Cell>)"sv, InfoColumns - 1);
-    InfoHeader0.append("\r\n");
 }
 
+std::string_view ExcelXmlPrinter::InfoCache::GetThreadInfo(const uint32_t tid)
+{
+    auto& idx = InfoIndexes[tid];
+    if (idx.GetLength() == 0) // need to generate
+        idx = GenerateThreadInfo(*InfoProv.GetThreadInfo(InfoSpan, tid));
+    return InfoTexts.GetStringView(idx);
+}
+std::string_view ExcelXmlPrinter::InfoCache::GetThreadInfo(const WorkItemInfo& info)
+{
+    auto& idx = InfoIndexes[info.ThreadId];
+    if (idx.GetLength() == 0) // need to generate
+        idx = GenerateThreadInfo(info);
+    return InfoTexts.GetStringView(idx);
+}
 
+static constexpr auto RowBegin      = R"(   <Row ss:AutoFitHeight="0">
+)"sv;
+static constexpr auto RowEnd        = R"(   </Row>
+)"sv;
+static constexpr auto StrCellBegin  = R"(    <Cell><Data ss:Type="String">)"sv;
+static constexpr auto NumCellBegin  = R"(    <Cell><Data ss:Type="Number">)"sv;
+static constexpr auto CellEnd       = R"(</Data></Cell>
+)"sv;
 static constexpr auto XmlSpecial  = R"(&<>'")"sv;
 static constexpr auto XmlReplacer = [](const char ch)
 {
@@ -533,144 +373,242 @@ static constexpr auto XmlReplacer = [](const char ch)
     default:    return ""sv;
     }
 };
-void PackagePrinter::WriteStr(std::string_view str)
+
+uint32_t ExcelXmlPrinter::LocateInfo(const InfoCache& infoCache)
 {
-    while (!str.empty())
+    uint32_t idx = 0;
+    for (auto& info : InfoPacks)
     {
-        const auto strEnd = str.data() + str.size();
-        // use ptr seems to be faster https://www.bfilipek.com/2018/07/string-view-perf-followup.html
-        const auto ptr = std::find_first_of(str.data(), strEnd, XmlSpecial.data(), XmlSpecial.data() + XmlSpecial.size());
-        if (ptr == strEnd)
+        if (info.Fields.data() == infoCache.Fields.data() && info.Fields.size() == infoCache.Fields.size())
+            return idx;
+        idx++;
+    }
+
+    // prepare info
+    InfoPacks.push_back({});
+    auto& info = InfoPacks.back();
+    info.Fields = infoCache.Fields;
+    for (const auto& field : infoCache.Fields)
+    {
+        if (field.VecType.Dim0 > 1)
         {
-            Write(str); break;
+            Expects(field.VecType.Dim0 <= 4);
+            info.Columns += field.VecType.Dim0;
+            APPEND_FMT(info.Header1, R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv,
+                field.VecType.Dim0 - 1, field.Name);
+            info.Header1.append("\r\n");
+            char parts[] = "xyzw";
+            for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
+            {
+                APPEND_FMT(info.Header2, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, parts[i]);
+                info.Header2.append("\r\n");
+            }
         }
-        const auto ch = *ptr;
-        const auto len = ptr - str.data();
-        Write(str.substr(0, len));
-        Write(XmlReplacer(ch));
-        str.remove_prefix(len + 1);
+        else
+        {
+            info.Columns += 1;
+            const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, field.Name);
+            info.Header1.append(str).append("\r\n");
+            info.Header2.append(str).append("\r\n");
+        }
     }
+    Expects(info.Columns > 1);
+    info.Header0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">INFO</Data></Cell>)"sv, info.Columns - 1);
+    info.Header0.append("\r\n");
+
+    return idx;
 }
 
-std::string PackagePrinter::ProcSpecialChar(std::u32string_view source)
+uint32_t ExcelXmlPrinter::LocateBlock(const MessageBlock& block, const std::shared_ptr<DebugManager>& dbgMan)
 {
-    const auto str = common::str::to_string(source, Charset::UTF8);
-    const auto strLen = str.size();
-    const auto strEnd = str.data() + strLen;
-    if (str.empty()) return {};
-    size_t idx = 0;
-    std::string dst;
+    uint32_t idx = 0;
+    for (auto& msg : MsgPacks)
     {
-        const auto ptr = std::find_first_of(str.data(), strEnd, XmlSpecial.data(), XmlSpecial.data() + XmlSpecial.size());
-        if (ptr == strEnd)
-            return str;
-        dst.reserve(strLen + 20);
-        dst.assign(str.data(), ptr);
-        dst.append(XmlReplacer(*ptr));
-        idx = ptr - str.data() + 1;
+        if (msg.MsgBlock.get() == &block)
+            return idx;
+        idx++;
     }
-    while (idx < strLen)
-    {
-        const auto ptr = std::find_first_of(&str[idx], strEnd, XmlSpecial.data(), XmlSpecial.data() + XmlSpecial.size());
-        dst.append(&str[idx], strLen - idx);
-        if (ptr == strEnd)
-            break;
-        dst.append(XmlReplacer(*ptr));
-        idx = ptr - str.data() + 1;
-    }
-    return dst;
-}
-
-
-uint32_t PackagePrinter::BeginWorkSheet(const MessageBlock& block)
-{
-    const auto wsName = ProcSpecialChar(block.Name);
-    const auto wsStr = FMTSTR(R"( <Worksheet ss:Name="{}">)", wsName);
-    Write(wsStr);
-    constexpr auto TableBegin = R"(
-  <Table x:FullColumns="1" x:FullRows="1">
-)"sv;
-    Write(TableBegin);
-    Write(  RowBegin);
 
     // prepare MsgHeader
-    std::string msgHeader0, msgHeader1, msgHeader2;
+    MsgPacks.push_back({});
+    auto& msg = MsgPacks.back();
+    msg.MsgBlock = { dbgMan, &block };
+    AppendXmlStr(msg.BlockName, block.Name);
+    uint32_t argIdx = 0;
+    for (const auto& arg : block.Layout.ByIndex())
     {
-        constexpr auto TxtCol = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">TXT</Data></Cell>)"sv;
-        msgHeader1.append(TxtCol).append("\r\n"); 
-        msgHeader2.append(TxtCol).append("\r\n");
-        uint32_t idx = 0;
-        for (const auto& arg : block.Layout.ByIndex())
+        if (arg.Name.GetLength() == 0)
         {
-            if (arg.Name.GetLength() == 0)
-            {
-                const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv, idx++);
-                InfoHeader1.append(str).append("\r\n");
-                InfoHeader2.append(str).append("\r\n");
-            }
-            else
-            {
-                APPEND_FMT(InfoHeader1, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv, idx++);
-                InfoHeader1.append("\r\n");
-                const auto argName = ProcSpecialChar(block.Layout.GetName(arg));
-                APPEND_FMT(InfoHeader2, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, argName);
-                InfoHeader2.append("\r\n");
-            }
+            const auto str = FMTSTR(R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv, argIdx++);
+            msg.Header1.append(str).append("\r\n");
+            msg.Header2.append(str).append("\r\n");
         }
-        if (block.Layout.ArgCount > 0)
-            msgHeader0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv, 
-                block.Layout.ArgCount - 1);
         else
-            msgHeader0 = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv;
-        msgHeader0.append("\r\n");
+        {
+            APPEND_FMT(msg.Header1, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">ARG{}</Data></Cell>)"sv, argIdx++);
+            msg.Header1.append("\r\n");
+            std::string argName;
+            AppendXmlStr(argName, block.Layout.GetName(arg));
+            APPEND_FMT(msg.Header2, R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">{}</Data></Cell>)"sv, argName);
+            msg.Header2.append("\r\n");
+        }
     }
-    
-    Write(InfoHeader0);
-    Write( msgHeader0);
-    Write(     RowEnd);
-    Write(   RowBegin);
-    Write(InfoHeader1);
-    Write( msgHeader1);
-    Write(     RowEnd);
-    Write(   RowBegin);
-    Write(InfoHeader2);
-    Write( msgHeader2);
-    Write(     RowEnd);
+    constexpr auto TxtCol = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">TXT</Data></Cell>)"sv;
+    msg.Header1.append(TxtCol).append("\r\n");
+    msg.Header2.append(TxtCol).append("\r\n");
+    if (block.Layout.ArgCount > 0)
+        msg.Header0 = FMTSTR(R"(    <Cell ss:MergeAcross="{}" ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv,
+            block.Layout.ArgCount - 1);
+    else
+        msg.Header0 = R"(    <Cell ss:StyleID="s63"><Data ss:Type="String">MSG</Data></Cell>)"sv;
+    msg.Header0.append("\r\n");
+    msg.Columns = block.Layout.ArgCount + 1;
 
-    return InfoColumns + block.Layout.ArgCount + 1;
+    return idx;
 }
 
-forceinline void PackagePrinter::EndWorkSheet(const uint32_t row, const uint32_t col)
+uint32_t ExcelXmlPrinter::LocateSheet(std::u32string_view exeName, const uint32_t infoIdx, const uint32_t msgIdx)
 {
-    static constexpr auto FilterFmt = R"(  </Table>
-  <AutoFilter x:Range="R3C1:R{}C{}" xmlns="urn:schemas-microsoft-com:office:excel"></AutoFilter>
- </Worksheet>
-)"sv;
-    const auto filter = FMTSTR(FilterFmt, row + 3, col);
-    Write(filter);
+    uint32_t repeat = 0;
+    uint32_t idx = 0;
+    for (auto& sheet : Sheets)
+    {
+        if (sheet.ExeName == exeName && sheet.MsgPkgIdx == msgIdx)
+        {
+            if (sheet.InfoPkgIdx == infoIdx)
+                return idx;
+            repeat = std::max(repeat, sheet.RepeatId);
+        }
+        idx++;
+    }
+
+    // prepare sheet
+    Sheets.push_back({});
+    auto& sheet = Sheets.back();
+    sheet.ExeName       = exeName;
+    sheet.RepeatId      = repeat + 1;
+    sheet.InfoPkgIdx    = infoIdx;
+    sheet.MsgPkgIdx     = msgIdx;
+
+    return idx;
 }
 
-forceinline void PackagePrinter::BeginRow()
+std::vector<std::pair<ExcelXmlPrinter::SheetPackage*, const MessageBlock*>> ExcelXmlPrinter::PrepareLookup(
+    std::u32string_view exeName, const InfoCache& infoCache, const std::shared_ptr<DebugManager>& dbgMan)
 {
-    Write(RowBegin);
+    std::vector<std::pair<SheetPackage*, const MessageBlock*>> sheetLookup;
+    const auto  msgBlks = dbgMan->GetBlocks();
+    sheetLookup.reserve(msgBlks.size());
+    // prepare sheet
+    {
+        const auto  infoIdx = LocateInfo(infoCache);
+        std::vector<uint32_t> sheetIdxes; sheetIdxes.reserve(msgBlks.size());
+        for (const auto& msgBlk : msgBlks)
+        {
+            const auto msgIdx = LocateBlock(msgBlk, dbgMan);
+            sheetIdxes.push_back(LocateSheet(exeName, infoIdx, msgIdx));
+        }
+        for (const auto idx : sheetIdxes)
+        {
+            sheetLookup.emplace_back(&Sheets[idx], MsgPacks[Sheets[idx].MsgPkgIdx].MsgBlock.get());
+        }
+    }
+    return sheetLookup;
 }
 
-forceinline void PackagePrinter::EndRow()
+
+template<typename T>
+static forceinline void Print(std::string& output, const ArgsLayout::VecItem<T>& data)
 {
-    Write(RowEnd);
+    const auto& cellb = data.Count > 1 ? StrCellBegin : NumCellBegin;
+    const auto& celle = CellEnd;
+    output.append(cellb);
+    output.append(fmt::to_string(data));
+    output.append(celle);
+}
+static forceinline void Print(std::string& output, std::nullopt_t)
+{
+    output.append(R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv);
+}
+void ExcelXmlPrinter::AddItem(SheetPackage& sheet, std::string_view info, common::str::u8string_view msg, const common::span<const std::byte> dat)
+{
+    sheet.Contents.append(RowBegin);
+    sheet.Contents.append(info);
+    const auto& block = *MsgPacks[sheet.MsgPkgIdx].MsgBlock;
+    for (const auto& arg : block.Layout.ByIndex())
+    {
+        arg.VisitData(dat, [&](const auto& vecItem) { Print(sheet.Contents, vecItem); });
+    }
+    sheet.Contents.append(StrCellBegin);
+    AppendXmlStr(sheet.Contents, { reinterpret_cast<const char*>(msg.data()), msg.size() });
+    sheet.Contents.append(CellEnd);
+    sheet.Contents.append(RowEnd);
+    sheet.Rows++;
 }
 
-common::StringPiece<char> PackagePrinter::GenerateThreadInfo(const WorkItemInfo& info)
+
+ExcelXmlPrinter::ExcelXmlPrinter()
+{ }
+ExcelXmlPrinter::~ExcelXmlPrinter()
+{ }
+
+void ExcelXmlPrinter::PrintPackage(const DebugPackage& package)
+{
+    InfoCache  infoCache(package.InfoMan(), package.InfoSpan());
+    const auto dbgMan       = package.GetDebugManager();
+    const auto msgBlks      = dbgMan->GetBlocks();
+    const auto sheetLookup  = PrepareLookup(U""sv, infoCache, dbgMan);
+
+    package.VisitData([&](const uint32_t tid, const InfoProvider&, const MessageBlock& block,
+        const common::span<const uint32_t>, const common::span<const uint32_t> dat)
+        {
+            const auto tinfo = infoCache.GetThreadInfo(tid);
+
+            const auto [sheet, msgBlk] = sheetLookup[&block - msgBlks.data()];
+            const auto datSpan = common::as_bytes(dat);
+            const auto msg = msgBlk->GetString(datSpan);
+
+            AddItem(*sheet, tinfo, msg, datSpan);
+        });
+}
+
+void ExcelXmlPrinter::PrintPackage(const CachedDebugPackage& package)
+{
+    InfoCache  infoCache(package.InfoMan(), package.InfoSpan());
+    const auto dbgMan       = package.GetDebugManager();
+    const auto sheetLookup  = PrepareLookup(U""sv, infoCache, dbgMan);
+
+    for (const auto& item : package)
+    {
+        const auto tinfo = infoCache.GetThreadInfo(item.Info());
+        const auto [sheet, msgBlk] = sheetLookup[item.BlockIdx()];
+        const auto msg   = item.Str();
+        const auto datSpan = common::as_bytes(item.GetDataSpan());
+        AddItem(*sheet, tinfo, msg, datSpan);
+    }
+}
+
+void ExcelXmlPrinter::Output(common::io::OutputStream& stream)
+{
+    PrintFileHeader(stream);
+    for (const auto& sheet : Sheets)
+    {
+        WriteWorkSheet(stream, sheet);
+    }
+    PrintFileFooter(stream);
+}
+
+
+common::StringPiece<char> ExcelXmlPrinter::InfoCache::GenerateThreadInfo(const WorkItemInfo& info)
 {
     using half_float::half;
     const auto space = InfoProv.GetFullInfoSpace(info);
     std::string txt;
-    for (const auto& field : InfoFields)
+    for (const auto& field : Fields)
     {
         const auto sp = space.subspan(field.Offset);
         for (uint32_t i = 0; i < field.VecType.Dim0; ++i)
         {
-            fmt::to_string(13);
             txt.append(NumCellBegin);
             switch (field.VecType.Type)
             {
@@ -707,48 +645,126 @@ common::StringPiece<char> PackagePrinter::GenerateThreadInfo(const WorkItemInfo&
     }
     return InfoTexts.AllocateString(txt);
 }
-void PackagePrinter::PrintThreadInfo(const uint32_t tid)
+
+#define WriteTo(str) stream.Write(str.size(), str.data())
+void ExcelXmlPrinter::PrintFileHeader(common::io::OutputStream& stream)
 {
-    auto& idx = InfoIndexes[tid];
-    if (idx.GetLength() == 0) // need to generate
-        idx = GenerateThreadInfo(*InfoProv.GetThreadInfo(InfoSpan, tid));
-    const auto txt = InfoTexts.GetStringView(idx);
-    Write(txt);
-}
-void PackagePrinter::PrintThreadInfo(const WorkItemInfo& info)
-{
-    auto& idx = InfoIndexes[info.ThreadId];
-    if (idx.GetLength() == 0) // need to generate
-        idx = GenerateThreadInfo(info);
-    const auto txt = InfoTexts.GetStringView(idx);
-    Write(txt);
+    constexpr std::string_view Header1 = 
+R"(<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>XCompute</Author>
+  <LastAuthor>XCompute</LastAuthor>
+  <Created>)"sv;
+    WriteTo(Header1);
+    {
+        const auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        const auto tm = fmt::gmtime(t);
+        //<Created>1970-01-01T00:00:00Z</Created>
+        const auto tstr = fmt::format("{:%Y-%m-%dT%H:%M:%SZ}", tm);
+        WriteTo(tstr);
+    }
+    constexpr std::string_view Header2 =
+R"(</Created>
+  <Version>16.00</Version>
+ </DocumentProperties>
+ <OfficeDocumentSettings xmlns="urn:schemas-microsoft-com:office:office">
+  <AllowPNG/>
+ </OfficeDocumentSettings>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="s63">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+ </Styles>
+)"sv;
+    WriteTo(Header2);
 }
 
-template<typename T>
-static forceinline void Print(common::io::OutputStream& stream, const ArgsLayout::VecItem<T>& data)
+void ExcelXmlPrinter::PrintFileFooter(common::io::OutputStream& stream)
 {
-    const auto& cellb = data.Count > 1 ? PackagePrinter::StrCellBegin : PackagePrinter::NumCellBegin;
-    const auto& celle = PackagePrinter::CellEnd;
-    stream.WriteMany(  cellb.size(), sizeof(char),   cellb.data());
-    const auto content = fmt::to_string(data);
-    stream.WriteMany(content.size(), sizeof(char), content.data());
-    stream.WriteMany(  celle.size(), sizeof(char),   celle.data());
+    constexpr std::string_view Footer =
+R"(</Workbook>
+)"sv;
+    WriteTo(Footer);
 }
-static forceinline void Print(common::io::OutputStream& stream, std::nullopt_t)
+
+void ExcelXmlPrinter::WriteWorkSheet(common::io::OutputStream& stream, const SheetPackage& sheet)
 {
-    constexpr auto str = R"(    <Cell><Data ss:Type="String">ERROR</Data></Cell>)"sv;
-    stream.WriteMany(str.size(), sizeof(u8ch_t), str.data());
+    if (sheet.Rows == 0)
+        return;
+    
+    const auto& info = InfoPacks[sheet.InfoPkgIdx];
+    const auto& msg  =  MsgPacks[sheet. MsgPkgIdx];
+
+    std::string wsName;
+    AppendXmlStr(wsName, sheet.ExeName);
+    wsName.append(" - "sv).append(msg.BlockName);
+    const auto wsStr = FMTSTR(R"( <Worksheet ss:Name="{}">)", wsName);
+
+    constexpr auto TableBegin = R"(
+  <Table x:FullColumns="1" x:FullRows="1">
+)"sv;
+
+    static constexpr auto FilterFmt = R"(  </Table>
+  <AutoFilter x:Range="R3C1:R{}C{}" xmlns="urn:schemas-microsoft-com:office:excel"></AutoFilter>
+ </Worksheet>
+)"sv;
+    const auto filter = FMTSTR(FilterFmt, sheet.Rows + 3, info.Columns + msg.Columns);
+    
+    WriteTo(wsStr);
+    WriteTo(TableBegin);
+
+    WriteTo(RowBegin);
+    WriteTo(info.Header0);
+    WriteTo( msg.Header0);
+    WriteTo(RowEnd);
+
+    WriteTo(RowBegin);
+    WriteTo(info.Header1);
+    WriteTo( msg.Header1);
+    WriteTo(RowEnd);
+
+    WriteTo(RowBegin);
+    WriteTo(info.Header2);
+    WriteTo( msg.Header2);
+    WriteTo(RowEnd);
+
+    WriteTo(sheet.Contents);
+
+    WriteTo(filter);
 }
-void PackagePrinter::PrintMessage(const MessageBlock& block, const common::str::u8string_view str, common::span<const uint32_t> data)
+
+void ExcelXmlPrinter::AppendXmlStr(std::string& output, std::string_view str)
 {
-    for (const auto& arg : block.Layout.ByIndex())
+    while (!str.empty())
     {
-        arg.VisitData(common::as_bytes(data), 
-            [&](const auto& vecItem) { Print(Stream, vecItem); });
+        const auto strEnd = str.data() + str.size();
+        // use ptr seems to be faster https://www.bfilipek.com/2018/07/string-view-perf-followup.html
+        const auto ptr = std::find_first_of(str.data(), strEnd, XmlSpecial.data(), XmlSpecial.data() + XmlSpecial.size());
+        if (ptr == strEnd)
+        {
+            output.append(str);
+            break;
+        }
+        const auto ch = *ptr;
+        const auto len = ptr - str.data();
+        output.append(str, 0, len);
+        output.append(XmlReplacer(ch));
+        str.remove_prefix(len + 1);
     }
-    Write(StrCellBegin);
-    WriteStr({ reinterpret_cast<const char*>(str.data()), str.size() });
-    Write(CellEnd);
+}
+
+void ExcelXmlPrinter::AppendXmlStr(std::string& output, std::u32string_view str)
+{
+    return AppendXmlStr(output, common::str::to_string(str, Charset::UTF8));
 }
 
 

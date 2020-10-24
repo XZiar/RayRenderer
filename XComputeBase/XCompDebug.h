@@ -396,8 +396,9 @@ protected:
     std::shared_ptr<InfoProvider> InfoProv;
     common::AlignedBuffer InfoBuffer;
     common::AlignedBuffer DataBuffer;
+    std::u32string ExecutionName;
 public:
-    DebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
+    DebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
         common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept;
     DebugPackage(const DebugPackage& package) noexcept;
     DebugPackage(DebugPackage&& package) noexcept;
@@ -415,14 +416,16 @@ public:
                 func(tid, infoProv, block, infoData, dat);
             });
     }
-    CachedDebugPackage GetCachedData() const;
-    const DebugManager& DebugMan() const noexcept { return *Manager; }
-    const InfoProvider& InfoMan() const noexcept { return *InfoProv; }
-    common::span<const uint32_t> InfoSpan() const noexcept { return InfoBuffer.AsSpan<uint32_t>(); }
+    [[nodiscard]] CachedDebugPackage GetCachedData() const;
+    [[nodiscard]] const DebugManager& DebugMan() const noexcept { return *Manager; }
+    [[nodiscard]] const InfoProvider& InfoMan()  const noexcept { return *InfoProv; }
+    [[nodiscard]] std::shared_ptr<DebugManager> GetDebugManager() const noexcept { return Manager; }
+    [[nodiscard]] common::span<const uint32_t> InfoSpan() const noexcept { return InfoBuffer.AsSpan<uint32_t>(); }
 };
 
 class XCOMPBASAPI CachedDebugPackage : protected DebugPackage
 {
+    friend class ExcelXmlPrinter;
 private:
     struct MessageItem
     {
@@ -443,6 +446,7 @@ private:
         [[nodiscard]] const WorkItemInfo& Info() const noexcept;
         [[nodiscard]] common::span<const uint32_t> GetDataSpan() const noexcept;
         [[nodiscard]] const MessageBlock& Block() const noexcept;
+        [[nodiscard]] constexpr uint16_t BlockIdx() const noexcept { return Item.BlockId;  }
         [[nodiscard]] constexpr uint32_t ThreadId() const noexcept { return Item.ThreadId; }
     };
     MessageItemWrapper GetByIndex(const size_t idx) const noexcept
@@ -454,7 +458,7 @@ private:
     std::unique_ptr<InfoPack> Infos;
     CachedDebugPackage(const CachedDebugPackage& package) noexcept = default;
 public:
-    CachedDebugPackage(std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
+    CachedDebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
     CachedDebugPackage(CachedDebugPackage&& package) noexcept;
     ~CachedDebugPackage() override;
     using DebugPackage::DebugMan;
@@ -472,14 +476,64 @@ public:
 class XCOMPBASAPI ExcelXmlPrinter
 {
 private:
-    common::io::OutputStream& Stream;
-    void PrintFileHeader();
-    void PrintFileFooter();
+    struct InfoPackage
+    {
+        common::span<const WorkItemInfo::InfoField> Fields;
+        std::string Header0, Header1, Header2;
+        uint32_t Columns = 0;
+    };
+    struct MsgPackage
+    {
+        std::shared_ptr<const MessageBlock> MsgBlock;
+        std::string BlockName, Header0, Header1, Header2;
+        uint32_t Columns = 0;
+    };
+    struct SheetPackage
+    {
+        std::u32string ExeName;
+        std::string Contents;
+        uint32_t RepeatId   = UINT32_MAX;
+        uint32_t InfoPkgIdx = UINT32_MAX;
+        uint32_t MsgPkgIdx  = UINT32_MAX;
+        uint32_t Rows = 0;
+    };
+    struct InfoCache
+    {
+        std::vector<common::StringPiece<char>> InfoIndexes;
+        common::StringPool<char> InfoTexts;
+        const InfoProvider& InfoProv;
+        common::span<const uint32_t> InfoSpan;
+        common::span<const WorkItemInfo::InfoField> Fields;
+        InfoCache(const InfoProvider& infoProv, common::span<const uint32_t> infoSpan);
+        std::string_view GetThreadInfo(const uint32_t tid);
+        std::string_view GetThreadInfo(const WorkItemInfo& info);
+        common::StringPiece<char> GenerateThreadInfo(const WorkItemInfo& info);
+    };
+
+    std::vector<InfoPackage>  InfoPacks;
+    std::vector<MsgPackage>   MsgPacks;
+    std::vector<SheetPackage> Sheets;
+
+    [[nodiscard]] uint32_t LocateInfo (const InfoCache& infoCache);
+    [[nodiscard]] uint32_t LocateBlock(const MessageBlock& block, const std::shared_ptr<DebugManager>& dbgMan);
+    [[nodiscard]] uint32_t LocateSheet(std::u32string_view exeName, const uint32_t infoIdx, const uint32_t msgIdx);
+    [[nodiscard]] std::vector<std::pair<SheetPackage*, const MessageBlock*>> PrepareLookup(
+        std::u32string_view exeName, const InfoCache& infoCache, const std::shared_ptr<DebugManager>& dbgMan);
+    void AddItem(SheetPackage& sheet, std::string_view info, common::str::u8string_view msg, const common::span<const std::byte> dat);
+
+    void PrintFileHeader(common::io::OutputStream& stream);
+    void PrintFileFooter(common::io::OutputStream& stream);
+    void WriteWorkSheet(common::io::OutputStream& stream, const SheetPackage& sheet);
+
+    // perform char replacement
+    static void AppendXmlStr(std::string& output, std::string_view str);
+    static void AppendXmlStr(std::string& output, std::u32string_view str);
 public:
-    ExcelXmlPrinter(common::io::OutputStream& stream);
+    ExcelXmlPrinter();
     ~ExcelXmlPrinter();
     void PrintPackage(const DebugPackage& package);
     void PrintPackage(const CachedDebugPackage& package);
+    void Output(common::io::OutputStream& stream);
 };
 
 

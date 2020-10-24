@@ -278,6 +278,7 @@ public:
 std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime) const
 {
     if (!DebugMan) return {};
+    const auto exeName = common::str::to_u32string(Kernel->Name, common::str::Charset::UTF8);
     const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
     const auto infoData = info.AsType<uint32_t>();
     const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
@@ -288,14 +289,14 @@ std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool 
         if (dbgSize > 0)
             DebugBuf->ReadSpan(Queue, dataBuf.AsSpan())->WaitFinish();
         return std::make_unique<xcomp::debug::DebugPackage>(
-            DebugMan, InfoProv,
+            exeName, DebugMan, InfoProv,
             std::move(infoBuf),
             std::move(dataBuf));
     }
     else
     {
         return std::make_unique<KernelDebugPackage>(
-            DebugMan, InfoProv,
+            exeName, DebugMan, InfoProv,
             info.AsBuffer(), 
             DebugBuf->Map(Queue, oclu::MapFlag::Read).AsBuffer().CreateSubBuffer(0, dbgSize));
     }

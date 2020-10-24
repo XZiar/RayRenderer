@@ -124,8 +124,9 @@ Image ProcessImg(const oclProgram& prog, const oclContext& ctx, const oclCmdQue&
         const auto logPath = common::fs::temp_directory_path() / "blur.debug.xml";
         auto fobj = common::file::FileObject::OpenThrow(logPath, common::file::OpenFlag::CreateNewBinary);
         common::file::FileOutputStream stream(fobj);
-        xcomp::debug::ExcelXmlPrinter printer(stream);
+        xcomp::debug::ExcelXmlPrinter printer;
         printer.PrintPackage(data);
+        printer.Output(stream);
     }
 
     return img2;
