@@ -392,11 +392,11 @@ class CachedDebugPackage;
 class XCOMPBASAPI DebugPackage
 {
 protected:
+    std::u32string ExecutionName;
     std::shared_ptr<DebugManager> Manager;
     std::shared_ptr<InfoProvider> InfoProv;
     common::AlignedBuffer InfoBuffer;
     common::AlignedBuffer DataBuffer;
-    std::u32string ExecutionName;
 public:
     DebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv,
         common::AlignedBuffer&& info, common::AlignedBuffer&& data) noexcept;
@@ -456,9 +456,9 @@ private:
     mutable common::StringPool<u8ch_t> MsgTexts;
     mutable std::vector<MessageItem> Items;
     std::unique_ptr<InfoPack> Infos;
-    CachedDebugPackage(const CachedDebugPackage& package) noexcept = default;
 public:
     CachedDebugPackage(std::u32string_view exeName, std::shared_ptr<DebugManager> manager, std::shared_ptr<InfoProvider> infoProv, common::AlignedBuffer&& info, common::AlignedBuffer&& data);
+    CachedDebugPackage(const CachedDebugPackage& package) noexcept = delete;
     CachedDebugPackage(CachedDebugPackage&& package) noexcept;
     ~CachedDebugPackage() override;
     using DebugPackage::DebugMan;

@@ -148,7 +148,7 @@ struct ASCIIChecker
             ele = Result ? std::numeric_limits<EleType>::min() : std::numeric_limits<EleType>::max();
         for (const auto ch : str)
         {
-            if (ch >= 0 && ch < 128)
+            if (ch >= 0) // char is signed
             {
                 auto& ele = LUT[ch / EleBits];
                 const auto obj = EleType(1) << (ch % EleBits);

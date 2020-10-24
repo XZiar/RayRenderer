@@ -219,7 +219,7 @@ struct LateBindVar : public PartedName
     };
 
     constexpr VarInfo Info() const noexcept { return static_cast<VarInfo>(ExternInfo); }
-    VarInfo& Info() noexcept { return *reinterpret_cast<VarInfo*>(&ExternInfo); }
+    constexpr common::EnumWrapper<VarInfo> Info() noexcept { return ExternInfo; }
 
     static LateBindVar* Create(MemoryPool& pool, std::u32string_view name)
     {
@@ -608,7 +608,7 @@ struct FuncName : public PartedName
     };
 
     constexpr FuncInfo Info() const noexcept { return static_cast<FuncInfo>(ExternInfo); }
-    FuncInfo& Info() noexcept { return *reinterpret_cast<FuncInfo*>(&ExternInfo); }
+    constexpr common::EnumWrapper<FuncInfo> Info() noexcept { return ExternInfo; }
 
     static FuncName* Create(MemoryPool& pool, std::u32string_view name, FuncInfo info)
     {

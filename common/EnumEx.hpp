@@ -76,6 +76,36 @@ enum_cast(const T val)
     return static_cast<std::underlying_type_t<T>>(val);
 }
 
+template<typename T>
+struct EnumWrapper
+{
+    static_assert(std::is_enum_v<T>);
+    using U = std::underlying_type_t<T>;
+    U& Target;
+    constexpr EnumWrapper(U& target) noexcept : Target(target) { }
+    forceinline constexpr operator U() const noexcept { return Target; }
+    forceinline constexpr operator T() const noexcept { return static_cast<T>(Target); }
+
+#define CAST_OP(op, y) Target = static_cast<U>(static_cast<T>(Target) op y)
+    forceinline constexpr EnumWrapper& operator &=  (const T y) noexcept { CAST_OP( &, y); return *this; }
+    forceinline constexpr EnumWrapper& operator |=  (const T y) noexcept { CAST_OP( |, y); return *this; }
+    forceinline constexpr EnumWrapper& operator ^=  (const T y) noexcept { CAST_OP( ^, y); return *this; }
+    forceinline constexpr EnumWrapper& operator +=  (const T y) noexcept { CAST_OP( +, y); return *this; }
+    forceinline constexpr EnumWrapper& operator -=  (const T y) noexcept { CAST_OP( -, y); return *this; }
+    forceinline constexpr EnumWrapper& operator +=  (const U y) noexcept { CAST_OP( +, y); return *this; }
+    forceinline constexpr EnumWrapper& operator -=  (const U y) noexcept { CAST_OP( -, y); return *this; }
+    forceinline constexpr EnumWrapper& operator <<= (const T y) noexcept { CAST_OP(<<, y); return *this; }
+    forceinline constexpr EnumWrapper& operator >>= (const T y) noexcept { CAST_OP(>>, y); return *this; }
+    forceinline constexpr EnumWrapper& operator <<= (const U y) noexcept { CAST_OP(<<, y); return *this; }
+    forceinline constexpr EnumWrapper& operator >>= (const U y) noexcept { CAST_OP(>>, y); return *this; }
+    forceinline constexpr EnumWrapper& operator ++ () noexcept { CAST_OP(+, static_cast<U>(1)); return *this; }
+    forceinline constexpr EnumWrapper& operator -- () noexcept { CAST_OP(-, static_cast<U>(1)); return *this; }
+    forceinline constexpr T            operator ++ (int) noexcept { const T ret = *this; ++(*this); return ret; }
+    forceinline constexpr T            operator -- (int) noexcept { const T ret = *this; --(*this); return ret; }
+#undef CAST_OP
+};
+
+
 struct Enumer
 {
     template<auto E>
