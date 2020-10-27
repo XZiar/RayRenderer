@@ -111,7 +111,7 @@ DxBufMapPtr DxBuffer_::Map(const DxCopyCmdQue & que, MapFlags flag, size_t offse
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
         return Map(offset, size);
-
+    return {};
     //return DxMapPtr(shared_from_this(), MAKE_ENABLER_SHARED(const DxMapPtr2_, (this, offset, size)));
 }
 

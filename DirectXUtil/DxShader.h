@@ -48,6 +48,9 @@ protected:
     struct T_ {};
     const std::string Source;
     PtrProxy<ShaderBlob> Blob;
+    std::string ShaderHash;
+    ShaderType Type;
+    uint32_t Version;
 public:
     DxShader_(T_, DxShaderStub_* stub);
     virtual ~DxShader_();

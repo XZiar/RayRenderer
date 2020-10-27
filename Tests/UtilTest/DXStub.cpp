@@ -37,7 +37,7 @@ static void DXStub()
     {
         const auto devidx = SelectIdx(devs, u"device", [](DxDevice dev) 
             {
-                return FMTSTR(u"{} SM{:3.1f}\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10.0f,
+                return FMTSTR(u"{} [SM{}.{}]\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
                     dev->IsTBR() ? u"TBR"sv : u""sv, dev->IsUMA() ? u"UMA"sv : u""sv);
             });
         const auto& dev = devs[devidx];
@@ -50,9 +50,33 @@ static void DXStub()
         {
             item = 1.0f;
         }
-        auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, "");
-        shaderStub.Build({});
-        auto shader = shaderStub.Finish();
+        while (true)
+        {
+            common::mlog::SyncConsoleBackend();
+            string fpath = common::console::ConsoleEx::ReadLine("input hlsl file:");
+            if (fpath == "BREAK")
+                break;
+            else if (fpath == "clear")
+            {
+                common::console::ConsoleEx::ClearConsole();
+                continue;
+            }
+            else if (fpath.empty())
+                continue;
+            common::fs::path filepath = fpath;
+            log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
+            try
+            {
+                const auto kertxt = common::file::ReadAllText(filepath);
+                auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
+                shaderStub.Build({});
+                auto shader = shaderStub.Finish();
+            }
+            catch (const BaseException& be)
+            {
+                PrintException(be, u"Error here");
+            }
+        }
     }
 }
 

@@ -8,6 +8,7 @@
 namespace dxu
 {
 DxProxy(DxShader_,      ShaderBlob,     IDxcBlob);
+using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
 
@@ -18,46 +19,97 @@ forceinline const wchar_t* WStr(const char16_t* ptr) noexcept
 }
 
 
-class DXCCompiler : public common::NonCopyable
+enum class DXCType { None = 0, Debug = 1, Internal = 2 };
+MAKE_ENUM_BITFIELD(DXCType)
+
+class DXCHolder
 {
 private:
-    struct Holder
+    HMODULE Dll = nullptr;
+    DXCHolder()
     {
-        HMODULE Dll = nullptr;
-        DxcCreateInstanceProc DxcCreateInstance = nullptr;
-        DxcCreateInstance2Proc DxcCreateInstance2 = nullptr;
-        Holder()
-        {
-            Dll = LoadLibraryW(L"dxcompiler.dll");
-            if (!Dll)
-                COMMON_THROW(DxException, HRESULT_FROM_WIN32(GetLastError()), u"Cannot load dxcompiler.dll");
+        Dll = LoadLibraryW(L"dxcompiler.dll");
+        if (!Dll)
+            COMMON_THROW(DxException, HRESULT_FROM_WIN32(GetLastError()), u"Cannot load dxcompiler.dll");
 #define GetFunc(name) \
             if (name = reinterpret_cast<name##Proc>(GetProcAddress(Dll, #name)); !name) \
                 COMMON_THROW(DxException, HRESULT_FROM_WIN32(GetLastError()), u"Cannot load func " #name)
-            GetFunc(DxcCreateInstance);
-            GetFunc(DxcCreateInstance2);
+        GetFunc(DxcCreateInstance);
+        GetFunc(DxcCreateInstance2);
 #undef GetFunc
-        }
-        ~Holder()
-        {
-            if (Dll)
-                FreeLibrary(Dll);
-        }
-    };
-    static const Holder& Get()
+    }
+public:
+    DxcCreateInstanceProc  DxcCreateInstance  = nullptr;
+    DxcCreateInstance2Proc DxcCreateInstance2 = nullptr;
+    ~DXCHolder()
     {
-        static Holder holder;
+        if (Dll)
+            FreeLibrary(Dll);
+    }
+    static const DXCHolder& Get()
+    {
+        static DXCHolder holder;
         return holder;
+    }
+};
+
+class DXCCompiler : public common::NonCopyable
+{
+private:
+    uint32_t CheckMaxShaderModel()
+    {
+        constexpr auto vsTxt = "void main(){ return; }"sv;
+        ComPtr<IDxcBlobEncoding> srcBlob;
+        THROW_HR(Library->CreateBlobWithEncodingFromPinned(
+            vsTxt.data(), gsl::narrow_cast<uint32_t>(vsTxt.size()), CP_UTF8, &srcBlob),
+            u"Failed to create src blob");
+
+        uint32_t maxVer = 60;
+
+        while (true)
+        {
+            const auto smVer = maxVer + 1;
+            const auto targetProfile = FMTSTR(u"vs_{}_{}", smVer / 10, smVer % 10);
+            ComPtr<IDxcOperationResult> result;
+            common::HResultHolder hr = Compiler->Compile(srcBlob.Get(), L"hlsl",
+                L"main",
+                WStr(targetProfile.c_str()),
+                nullptr, 0,
+                nullptr, 0,
+                nullptr, result.GetAddressOf());
+            if (!hr) break;
+            result->GetStatus(&hr.Value);
+            if (!hr) break;
+            maxVer = smVer;
+        }
+        dxLog().debug(u"DxcCompler support ShaderModel [{}.{}].\r\n", maxVer / 10, maxVer % 10);
+        return maxVer;
     }
     ComPtr<IDxcLibrary> Library;
     ComPtr<IDxcCompiler> Compiler;
+    ComPtr<IDxcValidator> Validator;
+    uint32_t MaxSmVer = 0;
 public:
     DXCCompiler()
     {
-        const auto& holder = Get();
-        THROW_HR(holder.DxcCreateInstance(CLSID_DxcLibrary,  IID_PPV_ARGS(Library.GetAddressOf())),  u"Failed to create DxcLibrary");
-        THROW_HR(holder.DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(Compiler.GetAddressOf())), u"Failed to create DxcCompiler");
+        const auto& holder = DXCHolder::Get();
+        THROW_HR(holder.DxcCreateInstance(CLSID_DxcLibrary,   IID_PPV_ARGS(Library.GetAddressOf())),   u"Failed to create DxcLibrary");
+        THROW_HR(holder.DxcCreateInstance(CLSID_DxcCompiler,  IID_PPV_ARGS(Compiler.GetAddressOf())),  u"Failed to create DxcCompiler");
+        THROW_HR(holder.DxcCreateInstance(CLSID_DxcValidator, IID_PPV_ARGS(Validator.GetAddressOf())), u"Failed to create DxcValidator");
+
+        static const auto MaxShaderModel = CheckMaxShaderModel();
+        MaxSmVer = MaxShaderModel;
+        /*ComPtr<IDxcVersionInfo> verInfo;
+        Validator->QueryInterface(IID_PPV_ARGS(verInfo.GetAddressOf()));
+        UINT32 major = 0, minor = 0, flag = 0;
+        verInfo->GetVersion(&major, &minor);
+        verInfo->GetFlags(&flag);
+        const auto type = static_cast<DXCType>(flag);
+        dxLog().debug(u"Validator version: [{}.{}], [{}|{}].\n", major, minor, 
+            HAS_FIELD(type, DXCType::Debug) ? u"debug" : u"", HAS_FIELD(type, DXCType::Internal) ? u"internal" : u"");*/
     }
+    constexpr uint32_t GetMaxSmVer() const noexcept { return MaxSmVer; }
+
     std::pair<ComPtr<IDxcOperationResult>, common::HResultHolder> Compile(ShaderType type, std::string_view src, const DxShaderConfig& config, uint32_t smVer) const
     {
         using common::str::to_u16string;
@@ -120,6 +172,74 @@ public:
 };
 
 
+class DXCReflector : public common::NonCopyable
+{
+private:
+    static constexpr uint32_t FourCC(const char (&str)[5]) noexcept
+    {
+        const auto [a, b, c, d, e] = str;
+        return static_cast<uint32_t>((static_cast<uint8_t>(a) << 0) | (static_cast<uint8_t>(b) << 8) | (static_cast<uint8_t>(c) << 16) | (static_cast<uint8_t>(d) << 24));
+    }
+    ComPtr<IDxcContainerReflection> Reflector;
+    IDxcBlob& Shader;
+    uint32_t GetIdx(const uint32_t fourcc, std::u16string_view msg) const
+    {
+        uint32_t idx = 0;
+        THROW_HR(Reflector->FindFirstPartKind(fourcc, &idx), std::u16string(msg));
+        return idx;
+    }
+    std::optional<uint32_t> TryGetIdx(const uint32_t fourcc) const
+    {
+        uint32_t idx = 0;
+        const common::HResultHolder hr = Reflector->FindFirstPartKind(fourcc, &idx);
+        if (hr) return idx;
+        return {};
+    }
+public:
+    DXCReflector(IDxcBlob& shader) : Shader(shader)
+    {
+        const auto& holder = DXCHolder::Get();
+        THROW_HR(holder.DxcCreateInstance(CLSID_DxcContainerReflection, IID_PPV_ARGS(Reflector.GetAddressOf())), u"Failed to create DxcContainerReflection");
+        THROW_HR(Reflector->Load(&Shader), u"Failed to load shader");
+    }
+#define GetPartIdx(name)                                                    \
+    constexpr auto name##4CC = FourCC(#name);                               \
+    const auto idx = GetIdx(name##4CC, u"Failed to find part of " #name)    \
+
+    ComPtr<ID3D12ShaderReflection> GetShaderReflection() const
+    {
+        GetPartIdx(DXIL);
+        ComPtr<ID3D12ShaderReflection> shaderReflector;
+        THROW_HR(Reflector->GetPartReflection(idx, IID_PPV_ARGS(shaderReflector.GetAddressOf())), u"Failed to get part reflection of DXIL");
+        return shaderReflector;
+    }
+    ComPtr<IDxcBlob> GetShaderHash() const
+    {
+        GetPartIdx(HASH);
+        ComPtr<IDxcBlob> content;
+        THROW_HR(Reflector->GetPartContent(idx, content.GetAddressOf()), u"Failed to get part content of HASH");
+        return content;
+    }
+    std::string GetShaderHashStr() const
+    {
+        const auto hash = GetShaderHash();
+        std::string str;
+        str.reserve(hash->GetBufferSize() * 2);
+        constexpr auto ch = "0123456789abcdef";
+        const auto pHash = reinterpret_cast<const uint8_t*>(hash->GetBufferPointer());
+        for (size_t i = 0; i < hash->GetBufferSize(); ++i)
+        {
+            const uint8_t dat = pHash[i];
+            str.push_back(ch[dat / 16]);
+            str.push_back(ch[dat % 16]);
+        }
+        return str;
+    }
+#undef GetPartIdx
+};
+
+
+
 DxShaderStub_::DxShaderStub_(DxDevice dev, ShaderType type, std::string&& str)
     : Device(dev), Source(std::move(str)), Type(type)
 { }
@@ -130,8 +250,9 @@ DxShaderStub_::~DxShaderStub_()
 }
 void DxShaderStub_::Build(const DxShaderConfig& config)
 {
-    const auto smVer = config.SMVersion ? config.SMVersion : Device->SMVer;
+    const auto reqSmVer = config.SMVersion ? config.SMVersion : Device->SMVer;
     thread_local DXCCompiler Compiler;
+    const auto smVer = std::min(reqSmVer, Compiler.GetMaxSmVer());
     const auto [result, hr] = Compiler.Compile(Type, Source, config, smVer);
     std::u16string errorBuf;
     if (result)
@@ -189,10 +310,31 @@ std::u16string DxShaderStub_::GetBuildLog() const
 }
 
 
+static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
+{
+    switch (versionType)
+    {
+    case D3D12_SHVER_PIXEL_SHADER:      return ShaderType::Pixel;
+    case D3D12_SHVER_VERTEX_SHADER:     return ShaderType::Vertex;
+    case D3D12_SHVER_GEOMETRY_SHADER:   return ShaderType::Geometry;
+    case D3D12_SHVER_HULL_SHADER:       return ShaderType::Hull;
+    case D3D12_SHVER_DOMAIN_SHADER:     return ShaderType::Domain;
+    case D3D12_SHVER_COMPUTE_SHADER:    return ShaderType::Compute;
+    default: Expects(false);            return ShaderType::Compute;
+    }
+}
+
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     : Source(std::move(stub->Source)), Blob(stub->Blob)
 {
     stub->Blob.SetNull();
+    DXCReflector reflector(*Blob);
+    ShaderHash = reflector.GetShaderHashStr();
+    const auto shaderReflector = reflector.GetShaderReflection();
+    D3D12_SHADER_DESC desc;
+    THROW_HR(shaderReflector->GetDesc(&desc), u"Failed to get desc");
+    Type = ParseShaderType((desc.Version & 0xFFFF0000) >> 16);
+    Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
 }
 DxShader_::~DxShader_()
 { }

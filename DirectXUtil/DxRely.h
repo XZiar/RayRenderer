@@ -126,7 +126,7 @@ struct IIDPPVPair;
 class DxException : public common::BaseException
 {
 public:
-    enum class CLComponent { Compiler, Driver, DXU };
+    enum class DXComponent { Compiler, Driver, DXU };
 private:
     PREPARE_EXCEPTION(DxException, BaseException,
         template<typename T>
