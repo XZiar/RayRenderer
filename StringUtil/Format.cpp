@@ -2,6 +2,7 @@
 #include <ctime>
 
 #include "3rdParty/fmt/src/format.cc"
+#pragma message("Compiling StringUtil with fmt[" STRINGIZE(FMT_VERSION) "]" )
 
 using common::str::Charset;
 

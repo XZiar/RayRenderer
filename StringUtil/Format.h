@@ -6,7 +6,7 @@
 #ifdef FMT_FORMAT_H_
 #  error "Don't include format.h before Format.h"
 #endif
-#define FMT_USE_GRISU 1
+#define FMT_USE_FULL_CACHE_DRAGONBOX 1
 #ifdef STRCHSET_EXPORT
 #  define FMT_EXPORT
 #else
