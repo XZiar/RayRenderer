@@ -11,6 +11,7 @@ DxProxy(DxShader_,      ShaderBlob,     IDxcBlob);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
+using common::str::HashedStrView;
 
 
 forceinline const wchar_t* WStr(const char16_t* ptr) noexcept 
@@ -324,6 +325,26 @@ static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
     }
 }
 
+static constexpr std::pair<BoundedResourceType, bool> ParseBindType(const D3D_SHADER_INPUT_TYPE type) noexcept
+{
+    switch (type)
+    {
+    case D3D_SIT_CBUFFER:                           return { BoundedResourceType::CBuffer,          false };
+    case D3D_SIT_TBUFFER:                           return { BoundedResourceType::TBuffer,          false };
+    case D3D_SIT_TEXTURE:                           return { BoundedResourceType::Texture,          true  };
+    case D3D_SIT_SAMPLER:                           return { BoundedResourceType::Sampler,          true  };
+    case D3D_SIT_UAV_RWTYPED:                       return { BoundedResourceType::TypedUAV,         false };
+    case D3D_SIT_STRUCTURED:                        return { BoundedResourceType::UntypedUAV,       false };
+    case D3D_SIT_UAV_RWSTRUCTURED:                  return { BoundedResourceType::UntypedUAV,       false };
+    case D3D_SIT_BYTEADDRESS:                       return { BoundedResourceType::Other,            false };
+    case D3D_SIT_UAV_RWBYTEADDRESS:                 return { BoundedResourceType::ByteAddressUAV,   false };
+    case D3D_SIT_UAV_APPEND_STRUCTURED:             return { BoundedResourceType::Other,            false };
+    case D3D_SIT_UAV_CONSUME_STRUCTURED:            return { BoundedResourceType::Other,            false };
+    case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:     return { BoundedResourceType::Other,            false };
+    default: Expects(false);                        return { BoundedResourceType::Other,            false };
+    }
+}
+
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     : Source(std::move(stub->Source)), Blob(stub->Blob)
 {
@@ -331,13 +352,36 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     DXCReflector reflector(*Blob);
     ShaderHash = reflector.GetShaderHashStr();
     const auto shaderReflector = reflector.GetShaderReflection();
-    D3D12_SHADER_DESC desc;
+    D3D12_SHADER_DESC desc = {};
     THROW_HR(shaderReflector->GetDesc(&desc), u"Failed to get desc");
     Type = ParseShaderType((desc.Version & 0xFFFF0000) >> 16);
     Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
+    for (uint32_t i = 0; i < desc.BoundResources; ++i)
+    {
+        D3D12_SHADER_INPUT_BIND_DESC bdesc = {};
+        THROW_HR(shaderReflector->GetResourceBindingDesc(i, &bdesc), u"Failed to get binding desc");
+        HashedStrView<char> resName(bdesc.Name);
+        // dxLog().verbose(u"[{}] [{}] Bind[{},{}] Type[{}]\n", i, resName.View, bdesc.BindPoint, bdesc.BindCount, uint32_t(bdesc.Type));
+        const auto name = StrPool.AllocateString(resName);
+        const auto [type, isTex] = ParseBindType(bdesc.Type);
+        //if (isTex)
+        BufferSlots.push_back({ resName.Hash, name, bdesc.BindPoint, bdesc.BindCount, type });
+    }
 }
 DxShader_::~DxShader_()
 { }
+
+DxShader_::BoundedResWrapper DxShader_::GetBufSlot(const size_t idx) const noexcept
+{
+    const auto& slot = BufferSlots[idx];
+    return { StrPool.GetStringView(slot.Name), slot.Index, slot.Count, slot.Type };
+}
+
+DxShader_::BoundedResWrapper DxShader_::GetTexSlot(const size_t idx) const noexcept
+{
+    const auto& slot = TextureSlots[idx];
+    return { StrPool.GetStringView(slot.Name), slot.Index, slot.Count, slot.Type };
+}
 
 DxShaderStub<DxShader_> DxShader_::Create(DxDevice dev, ShaderType type, std::string str)
 {
@@ -348,6 +392,17 @@ DxShader DxShader_::CreateAndBuild(DxDevice dev, ShaderType type, std::string st
     auto stub = Create(dev, type, std::move(str));
     stub.Build(config);
     return stub.Finish();
+}
+
+const DxShader_::BoundedResource* DxShader_::GetSlot(const std::vector<BoundedResource>& container, HashedStrView<char> name)
+{
+    for (const auto& item : container)
+    {
+        if (item.Hash != name.Hash) continue;
+        if (name == StrPool.GetStringView(item.Name))
+            return &item;
+    }
+    return nullptr;
 }
 
 
@@ -363,6 +418,25 @@ DxComputeShader DxComputeShader_::Create(DxDevice dev, std::string str, const Dx
     DxShaderStub<DxComputeShader_> stub{ dev, ShaderType::Compute, std::move(str) };
     stub.Build(config);
     return stub.Finish();
+}
+
+
+
+std::string_view DxShader_::GetBoundedResTypeName(const BoundedResourceType type) noexcept
+{
+    switch (type)
+    {
+#define CASE_T(t) case BoundedResourceType::t:    return #t
+    CASE_T(Other);
+    CASE_T(CBuffer);
+    CASE_T(TBuffer);
+    CASE_T(Texture);
+    CASE_T(Sampler);
+    CASE_T(TypedUAV);
+    CASE_T(UntypedUAV);
+    CASE_T(ByteAddressUAV);
+    default:    return "unknown";
+    }
 }
 
 

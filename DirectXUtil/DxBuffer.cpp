@@ -45,7 +45,7 @@ public:
         auto buf = DxBuffer_::Create(res->Device,
             flag == MapFlags::ReadOnly ? HeapType::Readback : HeapType::Upload,
             HeapFlags::Empty, size, ResourceFlags::Empty);
-        if (HAS_FIELD(flag, MapFlags::ReadOnly))
+        if (flag != MapFlags::WriteOnly)
         {
             // TODO: do copy
             COMMON_THROWEX(DxException, u"unimplemented");

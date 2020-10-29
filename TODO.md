@@ -57,6 +57,8 @@
   - [ ] Add common syntax to define args of the instance
   - [ ] Add common syntax to define structure
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
+  - [ ] Add common interface for texture/buffer(UAV)
+  - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
 
 * OpenGLUtil
   - [x] Implement FrameBuffer

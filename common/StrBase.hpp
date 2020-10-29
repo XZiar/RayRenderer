@@ -131,6 +131,28 @@ public:
 };
 
 
+template<typename Ch>
+struct HashedStrView
+{
+    uint64_t Hash;
+    std::basic_string_view<Ch> View;
+    constexpr HashedStrView() noexcept : Hash(hash_(std::basic_string_view<Ch>{})), View{} { }
+    constexpr HashedStrView(std::basic_string_view<Ch> str) noexcept : Hash(hash_(str)), View(str) { }
+    constexpr operator std::basic_string_view<Ch>() const noexcept 
+    { 
+        return View;
+    }
+    constexpr bool operator==(const std::basic_string_view<Ch> other) const noexcept 
+    { 
+        return View == other;
+    }
+    constexpr bool operator==(const HashedStrView<Ch>& other) const noexcept 
+    { 
+        return Hash == other.Hash && View == other;
+    }
+};
+
+
 enum class Charset 
 { 
     ASCII, 

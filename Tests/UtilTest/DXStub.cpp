@@ -71,6 +71,12 @@ static void DXStub()
                 auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
                 shaderStub.Build({});
                 auto shader = shaderStub.Finish();
+
+                for (const auto& item : shader->BufSlots())
+                {
+                    log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.Index, item.Count, 
+                        dxu::DxShader_::GetBoundedResTypeName(item.Type));
+                }
             }
             catch (const BaseException& be)
             {

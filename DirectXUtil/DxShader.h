@@ -2,6 +2,7 @@
 #include "DxRely.h"
 #include "DxDevice.h"
 #include "common/CLikeConfig.hpp"
+#include "common/StringPool.hpp"
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -29,6 +30,11 @@ enum class ShaderType
     Compute
 };
 
+enum class BoundedResourceType : uint8_t
+{
+    Other, CBuffer, TBuffer, Texture, Sampler, TypedUAV, UntypedUAV, ByteAddressUAV,
+};
+
 struct DxShaderConfig
 {
     common::CLikeDefines Defines;
@@ -43,20 +49,67 @@ class DXUAPI DxShader_
     friend class DxShaderStub_;
     friend class DxShaderStub<DxShader_>;
 private:
+    struct BoundedResWrapper
+    {
+        std::string_view Name;
+        uint32_t Index;
+        uint32_t Count;
+        BoundedResourceType Type;
+    };
+    BoundedResWrapper GetBufSlot(const size_t idx) const noexcept;
+    BoundedResWrapper GetTexSlot(const size_t idx) const noexcept;
+    using ItTypeBuf = common::container::IndirectIterator<const DxShader_, BoundedResWrapper, &DxShader_::GetBufSlot>;
+    using ItTypeTex = common::container::IndirectIterator<const DxShader_, BoundedResWrapper, &DxShader_::GetTexSlot>;
+    friend ItTypeBuf;
+    friend ItTypeTex;
+    class BufSlotList
+    {
+        friend class DxShader_;
+        const DxShader_* Host;
+        constexpr BufSlotList(const DxShader_* host) noexcept : Host(host) { }
+    public:
+        constexpr ItTypeBuf begin() const noexcept { return { Host, 0 }; }
+        constexpr ItTypeBuf end()   const noexcept { return { Host, Host->BufferSlots.size() }; }
+    };
+    class TexSlotList
+    {
+        friend class DxShader_;
+        const DxShader_* Host;
+        constexpr TexSlotList(const DxShader_* host) noexcept : Host(host) { }
+    public:
+        constexpr ItTypeBuf begin() const noexcept { return { Host, 0 }; }
+        constexpr ItTypeBuf end()   const noexcept { return { Host, Host->TextureSlots.size() }; }
+    };
     struct ShaderBlob;
 protected:
     struct T_ {};
+    struct BoundedResource
+    {
+        uint64_t Hash;
+        common::StringPiece<char> Name;
+        uint32_t Index;
+        uint32_t Count;
+        BoundedResourceType Type;
+    };
     const std::string Source;
     PtrProxy<ShaderBlob> Blob;
     std::string ShaderHash;
+    common::StringPool<char> StrPool;
+    std::vector<BoundedResource> BufferSlots;
+    std::vector<BoundedResource> TextureSlots;
     ShaderType Type;
     uint32_t Version;
+
+    const BoundedResource* GetSlot(const std::vector<BoundedResource>& container, common::str::HashedStrView<char> name);
 public:
     DxShader_(T_, DxShaderStub_* stub);
     virtual ~DxShader_();
+    constexpr BufSlotList BufSlots() const noexcept { return this; }
+    constexpr TexSlotList TexSlots() const noexcept { return this; }
 
     [[nodiscard]] static DxShaderStub<DxShader_> Create(DxDevice dev, ShaderType type, std::string str);
     [[nodiscard]] static DxShader CreateAndBuild(DxDevice dev, ShaderType type, std::string str, const DxShaderConfig& config);
+    [[nodiscard]] static std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept;
 };
 
 
