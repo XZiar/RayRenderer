@@ -45,7 +45,7 @@ DxComputeCmdList DxComputeCmdList_::Create(DxDevice device)
     return MAKE_ENABLER_SHARED(DxComputeCmdList_, (device, ListType::Compute));
 }
 
-DxDirectCmdList_::DxDirectCmdList_(DxDevice device) : DxComputeCmdList_(device, ListType::Direct, 
+DxDirectCmdList_::DxDirectCmdList_(DxDevice device) : DxCmdList_(device, ListType::Direct,
     { IID_PPV_ARGS(&CmdList.AsDerive<GraphicsCmdListProxy>()) })
 { }
 
@@ -55,7 +55,7 @@ DxDirectCmdList DxDirectCmdList_::Create(DxDevice device)
 }
 
 
-DxCopyCmdQue_::DxCopyCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0)
+DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0)
 { 
     D3D12_COMMAND_QUEUE_DESC desc = {};
     desc.Flags = diableTimeout ? D3D12_COMMAND_QUEUE_FLAG_DISABLE_GPU_TIMEOUT : D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -69,7 +69,7 @@ DxCopyCmdQue_::DxCopyCmdQue_(DxDevice device, QueType type, bool diableTimeout) 
     THROW_HR(device->Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&CmdQue)), u"Failed to create command que");
     THROW_HR(device->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence)), u"Failed to create fence");
 }
-DxCopyCmdQue_::~DxCopyCmdQue_()
+DxCmdQue_::~DxCmdQue_()
 {
     if (CmdQue)
         CmdQue->Release();
@@ -77,20 +77,39 @@ DxCopyCmdQue_::~DxCopyCmdQue_()
         Fence->Release();
 }
 
-void DxCopyCmdQue_::ExecuteList(const DxCmdList_& list) const
+void DxCmdQue_::ExecuteList(const DxCmdList_& list) const
 {
     CmdQue->ExecuteCommandLists(1, &list.CmdList);
 }
 
-common::PromiseResult<void> DxCopyCmdQue_::Signal() const
+common::PromiseResult<void> DxCmdQue_::Signal() const
 {
     auto num = FenceNum++;
     if (const common::HResultHolder hr = CmdQue->Signal(Fence, num); !hr)
         return DxPromise<void>::CreateError(CREATE_EXCEPTION(DxException, hr, u""));
-    const auto handle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-    if (const common::HResultHolder hr = Fence->SetEventOnCompletion(num, handle); !hr)
-        return DxPromise<void>::CreateError(CREATE_EXCEPTION(DxException, hr, u""));
-    return DxPromise<void>::Create(handle);
+    return DxPromise<void>::Create(*this, num);
+}
+
+void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
+{
+    if (const auto dxPms = dynamic_cast<const DxPromiseCore*>(&pms); dxPms)
+    {
+        if (dxPms->CmdQue.get() == this)
+        {
+            Expects(FenceNum >= dxPms->Num);
+            // https://stackoverflow.com/questions/52385998/in-dx12-what-ordering-guarantees-do-multiple-executecommandlists-calls-provide?rq=1
+            // multiple calls to ExecuteCommandLists is ensured to be serailized, no need to wait
+        }
+        else
+        {
+            Expects(dxPms->CmdQue->FenceNum >= dxPms->Num);
+            CmdQue->Wait(dxPms->CmdQue->Fence, dxPms->Num);
+        }
+    }
+    else
+    {
+        dxLog().warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
+    }
 }
 
 DxCopyCmdQue DxCopyCmdQue_::Create(DxDevice device, bool diableTimeout)

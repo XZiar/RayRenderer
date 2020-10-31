@@ -1,6 +1,7 @@
 #include "DxPch.h"
 #include "DxPromise.h"
 #include "DxCmdQue.h"
+#include "ProxyStruct.h"
 
 
 namespace dxu
@@ -8,9 +9,14 @@ namespace dxu
 using namespace std::string_view_literals;
 
 
-DxPromiseCore::DxPromiseCore(void* handle, const bool isException) :
-    Handle(handle), IsException(isException)
+DxPromiseCore::DxPromiseCore(const DxCmdQue_& cmdQue, const uint64_t num, const bool isException) :
+    CmdQue(cmdQue.shared_from_this()), Num(num), Handle(nullptr), IsException(isException)
 {
+}
+DxPromiseCore::DxPromiseCore(const bool isException) :
+    CmdQue({}), Num(UINT64_MAX), Handle(nullptr), IsException(isException)
+{
+    Expects(!isException);
 }
 DxPromiseCore::~DxPromiseCore()
 {
@@ -20,6 +26,7 @@ DxPromiseCore::~DxPromiseCore()
 
 static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<common::ExceptionBasicInfo>& ex)
 {
+    Expects(handle != nullptr);
     switch (WaitForSingleObject(handle, ms))
     {
     case WAIT_OBJECT_0:     return common::PromiseState::Executed;
@@ -38,6 +45,18 @@ static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<c
     if (IsException)
         return PromiseState::Error;
     return WaitHandle(Handle, 0, WaitException);
+}
+
+void DxPromiseCore::PreparePms()
+{
+    if (IsException)
+        return;
+    Expects(Handle == nullptr);
+    Handle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+    if (const common::HResultHolder hr = CmdQue->Fence->SetEventOnCompletion(Num, Handle); !hr)
+    {
+        WaitException = CREATE_EXCEPTION(DxException, hr, u"Failed to call SetEventOnCompletion").InnerInfo();
+    }
 }
 
 common::PromiseState DxPromiseCore::WaitPms() noexcept

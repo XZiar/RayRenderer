@@ -19,8 +19,8 @@ struct clz::type : public dxtype    \
 DxProxy(DxDevice_,          AdapterProxy,           IDXGIAdapter1);
 DxProxy(DxDevice_,          DeviceProxy,            ID3D12Device);
 
-DxProxy(DxCopyCmdQue_,      CmdQueProxy,            ID3D12CommandQueue);
-DxProxy(DxCopyCmdQue_,      FenceProxy,             ID3D12Fence);
+DxProxy(DxCmdQue_,          CmdQueProxy,            ID3D12CommandQueue);
+DxProxy(DxCmdQue_,          FenceProxy,             ID3D12Fence);
 
 DxProxy(DxCmdList_,         CmdAllocatorProxy,      ID3D12CommandAllocator);
 DxProxy(DxCmdList_,         CmdListProxy,           ID3D12CommandList);

@@ -106,8 +106,16 @@ PromiseResultCore::~PromiseResultCore()
 
 void PromiseResultCore::Prepare()
 {
-    if (!GetPromise().Flags.Add(PromiseFlags::Prepared))
-        GetPromise().PreparePms();
+    auto& pms = GetPromise();
+    if (!pms.Flags.Check(PromiseFlags::Prepared))
+    {
+        auto lock = pms.PromiseLock.WriteScope();
+        if (!pms.Flags.Check(PromiseFlags::Prepared))
+        {
+            pms.PreparePms();
+            pms.Flags.Add(PromiseFlags::Prepared);
+        }
+    }
 }
 
 PromiseState PromiseResultCore::State()

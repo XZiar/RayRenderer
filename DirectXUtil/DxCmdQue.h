@@ -19,6 +19,8 @@ class DxComputeCmdList_;
 using DxComputeCmdList  = std::shared_ptr<const DxComputeCmdList_>;
 class DxDirectCmdList_;
 using DxDirectCmdList   = std::shared_ptr<const DxDirectCmdList_>;
+class DxCmdQue_;
+using DxCmdQue          = std::shared_ptr<const DxCmdQue_>;
 class DxCopyCmdQue_;
 using DxCopyCmdQue      = std::shared_ptr<const DxCopyCmdQue_>;
 class DxComputeCmdQue_;
@@ -29,7 +31,7 @@ using DxDirectCmdQue    = std::shared_ptr<const DxDirectCmdQue_>;
 
 class DXUAPI DxCmdList_ : public common::NonCopyable
 {
-    friend class DxCopyCmdQue_;
+    friend class DxCmdQue_;
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
     DxCmdList_(DxDevice device, ListType type, const detail::IIDPPVPair& thelist);
@@ -52,17 +54,17 @@ public:
     [[nodiscard]] static DxCopyCmdList Create(DxDevice device);
 };
 
-class DXUAPI DxComputeCmdList_ : public DxCopyCmdList_
+class DXUAPI DxComputeCmdList_ : public DxCmdList_
 {
 private:
     MAKE_ENABLER();
 protected:
-    using DxCopyCmdList_::DxCopyCmdList_;
+    using DxCmdList_::DxCmdList_;
 public:
     [[nodiscard]] static DxComputeCmdList Create(DxDevice device);
 };
 
-class DXUAPI DxDirectCmdList_ : public DxComputeCmdList_
+class DXUAPI DxDirectCmdList_ : public DxCmdList_
 {
 private:
     MAKE_ENABLER();
@@ -73,14 +75,14 @@ public:
 };
 
 
-class DXUAPI DxCopyCmdQue_ : public common::NonCopyable
+class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public common::NonCopyable, public std::enable_shared_from_this<DxCmdQue_>
 {
+    friend class DxPromiseCore;
 private:
     mutable std::atomic<uint64_t> FenceNum;
 protected:
-    MAKE_ENABLER();
     enum class QueType { Copy, Compute, Direct };
-    DxCopyCmdQue_(DxDevice device, QueType type, bool diableTimeout);
+    DxCmdQue_(DxDevice device, QueType type, bool diableTimeout);
     struct FenceProxy;
     struct CmdQueProxy;
     PtrProxy<CmdQueProxy> CmdQue;
@@ -88,8 +90,22 @@ protected:
 
     void ExecuteList(const DxCmdList_& list) const;
     common::PromiseResult<void> Signal() const;
+    void Wait(const common::PromiseProvider& pms) const;
 public:
-    virtual ~DxCopyCmdQue_();
+    virtual ~DxCmdQue_();
+    template<typename T>
+    void Wait(const common::PromiseResult<T>& pms) const
+    {
+        Wait(pms->GetPromise());
+    }
+};
+
+class DXUAPI COMMON_EMPTY_BASES DxCopyCmdQue_ : public DxCmdQue_
+{
+protected:
+    MAKE_ENABLER();
+    using DxCmdQue_::DxCmdQue_;
+public:
     common::PromiseResult<void> Execute(const DxCopyCmdList& list) const
     { 
         ExecuteList(*list);

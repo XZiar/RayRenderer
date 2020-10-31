@@ -11,20 +11,25 @@
 
 namespace dxu
 {
+class DxCmdQue_;
 
 
 class DXUAPI DxPromiseCore : public common::PromiseProvider
 {
-    friend class DependEvents;
+    friend class DxCmdQue_;
 protected:
+    std::shared_ptr<const DxCmdQue_> CmdQue;
+    uint64_t Num;
     void* Handle;
     std::shared_ptr<common::ExceptionBasicInfo> WaitException;
     bool IsException;
     [[nodiscard]] common::PromiseState GetState() noexcept override;
+    void PreparePms() override;
     [[nodiscard]] common::PromiseState WaitPms() noexcept override;
     [[nodiscard]] uint64_t ElapseNs() noexcept override;
 public:
-    DxPromiseCore(void* handle, const bool isException = false);
+    DxPromiseCore(const DxCmdQue_& cmdQue, const uint64_t num, const bool isException = false);
+    DxPromiseCore(const bool isException);
     ~DxPromiseCore();
     std::optional<common::BaseException> GetException() const;
 };
@@ -44,18 +49,18 @@ private:
         return Holder.ExtraResult();
     }
 public:
-    DxPromise(std::exception_ptr ex) : Promise(nullptr, true)
+    DxPromise(std::exception_ptr ex) : Promise(true)
     {
         Holder.SetException(ex);
     }
-    DxPromise(const DxException& ex) : Promise(nullptr, true)
+    DxPromise(const DxException& ex) : Promise(true)
     {
         Holder.SetException(ex);
     }
-    DxPromise(void* handle) : Promise(handle)
+    DxPromise(const DxCmdQue_& cmdQue, const uint64_t num) : Promise(cmdQue, num)
     { }
     template<typename U>
-    DxPromise(void* handle, U&& data) : Promise(handle)
+    DxPromise(const DxCmdQue_& cmdQue, const uint64_t num, U&& data) : Promise(cmdQue, num)
     {
         Holder.Result = std::forward<U>(data);
     }
@@ -73,16 +78,16 @@ public:
     {
         return std::make_shared<DxPromise>(ex);
     }
-    [[nodiscard]] static std::shared_ptr<DxPromise> Create(void* handle)
+    [[nodiscard]] static std::shared_ptr<DxPromise> Create(const DxCmdQue_& cmdQue, const uint64_t num)
     {
         static_assert(std::is_same_v<T, void>, "Need return value");
-        return std::make_shared<DxPromise>(handle);
+        return std::make_shared<DxPromise>(cmdQue, num);
     }
     template<typename U>
-    [[nodiscard]] static std::shared_ptr<DxPromise> Create(void* handle, U&& data)
+    [[nodiscard]] static std::shared_ptr<DxPromise> Create(const DxCmdQue_& cmdQue, const uint64_t num, U&& data)
     {
         static_assert(!std::is_same_v<T, void>, "Don't want return value");
-        return std::make_shared<DxPromise>(handle, std::forward<U>(data));
+        return std::make_shared<DxPromise>(cmdQue, num, std::forward<U>(data));
     }
 };
 

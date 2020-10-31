@@ -48,6 +48,7 @@ public:
         if (flag != MapFlags::WriteOnly)
         {
             // TODO: do copy
+            const auto cmdList = DxCopyCmdList_::Create(res->Device);
             COMMON_THROWEX(DxException, u"unimplemented");
         }
         return MAKE_ENABLER_SHARED(DxMapPtr2_, (buf, flag, offset, size));

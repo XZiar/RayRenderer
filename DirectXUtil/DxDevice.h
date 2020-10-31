@@ -10,13 +10,13 @@ namespace dxu
 {
 class DxDevice_;
 using DxDevice = const DxDevice_*;
-class DxCopyCmdQue_;
+class DxCmdQue_;
 class DxCmdList_;
 class DxResource_;
 
 class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public common::NonMovable
 {
-    friend class DxCopyCmdQue_;
+    friend class DxCmdQue_;
     friend class DxCmdList_;
     friend class DxResource_;
 protected:

@@ -38,6 +38,7 @@ public:
     ~DxBuffer_() override;
     [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size);
     [[nodiscard]] DxBufMapPtr Map(const DxCopyCmdQue& que, MapFlags flag, size_t offset, size_t size);
+    //[[nodiscard]] DxBufMapPtr MapAsync(const DxCopyCmdQue& que, MapFlags flag, size_t offset, size_t size);
 
     [[nodiscard]] static DxBuffer Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag = ResourceFlags::AllowUnorderAccess);
 };
