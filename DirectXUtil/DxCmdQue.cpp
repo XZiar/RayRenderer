@@ -12,7 +12,7 @@ MAKE_ENABLER_IMPL(DxComputeCmdQue_);
 MAKE_ENABLER_IMPL(DxDirectCmdQue_);
 
 
-DxCmdList_::DxCmdList_(DxDevice device, ListType type, const detail::IIDPPVPair& thelist)
+DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList) : HasClosed{}
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -23,10 +23,20 @@ DxCmdList_::DxCmdList_(DxDevice device, ListType type, const detail::IIDPPVPair&
     default:                COMMON_THROW(DxException, u"Unrecognized command list type");
     }
     THROW_HR(device->Device->CreateCommandAllocator(listType, IID_PPV_ARGS(&CmdAllocator)), u"Failed to create command allocator");
-    THROW_HR(device->Device->CreateCommandList(0, listType, CmdAllocator, nullptr, thelist.TheIID, thelist.PtrObj), u"Failed to create command list");
+    THROW_HR(device->Device->CreateCommandList(0, listType, CmdAllocator, nullptr, IID_PPV_ARGS(&CmdList)),
+        u"Failed to create command list");
+    if (prevList)
+    {
+        ResStateTable.reserve(prevList->ResStateTable.size());
+        for (const auto [res, state] : ResStateTable)
+        {
+            if (state != ResourceState::Common)
+            {
+                ResStateTable.emplace_back(res, state);
+            }
+        }
+    }
 }
-DxCmdList_::DxCmdList_(DxDevice device, ListType type) : DxCmdList_(device, type, { IID_PPV_ARGS(&CmdList) })
-{ }
 DxCmdList_::~DxCmdList_()
 {
     if (CmdList)
@@ -35,27 +45,53 @@ DxCmdList_::~DxCmdList_()
         CmdAllocator->Release();
 }
 
-DxCopyCmdList DxCopyCmdList_::Create(DxDevice device)
+std::optional<ResourceState> DxCmdList_::UpdateResState(void* res, const ResourceState state)
 {
-    return MAKE_ENABLER_SHARED(DxCopyCmdList_, (device, ListType::Copy));
+    for (auto& item : ResStateTable)
+    {
+        if (item.first == res)
+        {
+            const auto oldStete = item.second;
+            item.second = state;
+            return oldStete;
+        }
+    }
+    ResStateTable.emplace_back(res, state);
+    return {};
 }
 
-DxComputeCmdList DxComputeCmdList_::Create(DxDevice device)
+void DxCmdList_::EnsureClosed()
 {
-    return MAKE_ENABLER_SHARED(DxComputeCmdList_, (device, ListType::Compute));
+    if (!HasClosed.test_and_set())
+        THROW_HR(CmdList->Close(), u"Failed to close CmdList");
 }
 
-DxDirectCmdList_::DxDirectCmdList_(DxDevice device) : DxCmdList_(device, ListType::Direct,
-    { IID_PPV_ARGS(&CmdList.AsDerive<GraphicsCmdListProxy>()) })
-{ }
-
-DxDirectCmdList DxDirectCmdList_::Create(DxDevice device)
+void DxCmdList_::Reset(const bool resetResState)
 {
-    return MAKE_ENABLER_SHARED(DxDirectCmdList_, (device));
+    THROW_HR(CmdList->Reset(CmdAllocator, nullptr), u"Failed to reset CmdList");
+    HasClosed.clear();
+    if (resetResState)
+        ResStateTable.clear();
 }
 
 
-DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0)
+DxCopyCmdList DxCopyCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+{
+    return MAKE_ENABLER_SHARED(DxCopyCmdList_,    (device, ListType::Copy,    prevList.get()));
+}
+
+DxComputeCmdList DxComputeCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+{
+    return MAKE_ENABLER_SHARED(DxComputeCmdList_, (device, ListType::Compute, prevList.get()));
+}
+
+DxDirectCmdList DxDirectCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+{
+    return MAKE_ENABLER_SHARED(DxDirectCmdList_,  (device, ListType::Direct,  prevList.get()));
+}
+
+
+DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0), Device(device)
 { 
     D3D12_COMMAND_QUEUE_DESC desc = {};
     desc.Flags = diableTimeout ? D3D12_COMMAND_QUEUE_FLAG_DISABLE_GPU_TIMEOUT : D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -77,9 +113,11 @@ DxCmdQue_::~DxCmdQue_()
         Fence->Release();
 }
 
-void DxCmdQue_::ExecuteList(const DxCmdList_& list) const
+void DxCmdQue_::ExecuteList(DxCmdList_& list) const
 {
-    CmdQue->ExecuteCommandLists(1, &list.CmdList);
+    list.EnsureClosed();
+    ID3D12CommandList* ptr = list.CmdList;
+    CmdQue->ExecuteCommandLists(1, &ptr);
 }
 
 common::PromiseResult<void> DxCmdQue_::Signal() const
@@ -110,6 +148,19 @@ void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
     {
         dxLog().warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
     }
+}
+
+DxCmdList DxCmdQue_::CreateList(const DxCmdList& prevList) const
+{
+    const auto type = GetType();
+    switch (type)
+    {
+    case QueType::Copy:     return DxCopyCmdList_::   Create(Device, prevList);
+    case QueType::Compute:  return DxComputeCmdList_::Create(Device, prevList);
+    case QueType::Direct:   return DxDirectCmdList_:: Create(Device, prevList);
+    default:                COMMON_THROW(DxException, u"Unrecognized command que type");
+    }
+    return {};
 }
 
 DxCopyCmdQue DxCopyCmdQue_::Create(DxDevice device, bool diableTimeout)

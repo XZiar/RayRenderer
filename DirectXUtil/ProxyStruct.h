@@ -23,8 +23,8 @@ DxProxy(DxCmdQue_,          CmdQueProxy,            ID3D12CommandQueue);
 DxProxy(DxCmdQue_,          FenceProxy,             ID3D12Fence);
 
 DxProxy(DxCmdList_,         CmdAllocatorProxy,      ID3D12CommandAllocator);
-DxProxy(DxCmdList_,         CmdListProxy,           ID3D12CommandList);
-DxProxy(DxDirectCmdList_,   GraphicsCmdListProxy,   ID3D12GraphicsCommandList);
+// althought have different list types, they all called "GraphicsCommandList"
+DxProxy(DxCmdList_,         CmdListProxy,           ID3D12GraphicsCommandList);
 
 DxProxy(DxResource_,        ResDesc,                D3D12_RESOURCE_DESC);
 DxProxy(DxResource_,        ResProxy,               ID3D12Resource);

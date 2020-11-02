@@ -61,7 +61,7 @@ DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFla
         &props,
         static_cast<D3D12_HEAP_FLAGS>(heapFlag),
         &desc,
-        static_cast<D3D12_RESOURCE_STATES>(State),
+        static_cast<D3D12_RESOURCE_STATES>(State.load()),
         nullptr,
         IID_PPV_ARGS(&Resource)
     ), u"Failed to create committed resource");
@@ -70,6 +70,38 @@ DxResource_::~DxResource_()
 {
     Resource->Release();
 }
+
+void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes)
+{
+    list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
+}
+
+ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState)
+{
+    const auto ret = list->UpdateResState(Resource, newState);
+    if (!ret.has_value())
+        return ResourceState::Common;
+    const auto oldState = *ret;
+    if (newState != oldState)
+    {
+        D3D12_RESOURCE_TRANSITION_BARRIER trans = 
+        {
+            Resource,
+            0,
+            static_cast<D3D12_RESOURCE_STATES>(oldState),
+            static_cast<D3D12_RESOURCE_STATES>(newState)
+        };
+        D3D12_RESOURCE_BARRIER barrier = 
+        {
+            D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            D3D12_RESOURCE_BARRIER_FLAG_NONE,
+            trans
+        };
+        list->CmdList->ResourceBarrier(1, &barrier);
+    }
+    return oldState;
+}
+
 
 
 }

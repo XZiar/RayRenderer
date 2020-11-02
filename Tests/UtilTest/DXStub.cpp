@@ -43,45 +43,53 @@ static void DXStub()
         const auto& dev = devs[devidx];
         const auto cmdque = DxComputeCmdQue_::Create(dev);
         const auto cmdlist = DxComputeCmdList_::Create(dev);
-        //const auto buf = DxBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
-        const auto buf = DxBuffer_::Create(dev, {CPUPageProps::WriteBack, MemPrefer::PreferCPU}, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
-        const auto region = buf->Map(0, 4096);
-        for (auto& item : region.AsType<float>())
+        try
         {
-            item = 1.0f;
-        }
-        while (true)
-        {
-            common::mlog::SyncConsoleBackend();
-            string fpath = common::console::ConsoleEx::ReadLine("input hlsl file:");
-            if (fpath == "BREAK")
-                break;
-            else if (fpath == "clear")
+            //const auto buf = DxBuffer_::Create(dev, { CPUPageProps::WriteBack, MemPrefer::PreferCPU }, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
+            //const auto region = buf->Map(0, 4096);
+            const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
+            const auto region = buf->Map(cmdque, MapFlags::ReadWrite, 0, 4096);
+            for (auto& item : region.AsType<float>())
             {
-                common::console::ConsoleEx::ClearConsole();
-                continue;
+                item = 1.0f;
             }
-            else if (fpath.empty())
-                continue;
-            common::fs::path filepath = fpath;
-            log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
-            try
+            while (true)
             {
-                const auto kertxt = common::file::ReadAllText(filepath);
-                auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
-                shaderStub.Build({});
-                auto shader = shaderStub.Finish();
-
-                for (const auto& item : shader->BufSlots())
+                common::mlog::SyncConsoleBackend();
+                string fpath = common::console::ConsoleEx::ReadLine("input hlsl file:");
+                if (fpath == "BREAK")
+                    break;
+                else if (fpath == "clear")
                 {
-                    log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.Index, item.Count, 
-                        dxu::DxShader_::GetBoundedResTypeName(item.Type));
+                    common::console::ConsoleEx::ClearConsole();
+                    continue;
+                }
+                else if (fpath.empty())
+                    continue;
+                common::fs::path filepath = fpath;
+                log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
+                try
+                {
+                    const auto kertxt = common::file::ReadAllText(filepath);
+                    auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
+                    shaderStub.Build({});
+                    auto shader = shaderStub.Finish();
+
+                    for (const auto& item : shader->BufSlots())
+                    {
+                        log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.Index, item.Count,
+                            dxu::DxShader_::GetBoundedResTypeName(item.Type));
+                    }
+                }
+                catch (const BaseException& be)
+                {
+                    PrintException(be, u"Error here");
                 }
             }
-            catch (const BaseException& be)
-            {
-                PrintException(be, u"Error here");
-            }
+        }
+        catch (const common::BaseException& be)
+        {
+            PrintException(be, u"Error");
         }
     }
 }

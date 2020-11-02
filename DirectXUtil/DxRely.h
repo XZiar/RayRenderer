@@ -121,6 +121,7 @@ struct PtrProxy
 namespace detail
 {
 struct IIDPPVPair;
+struct IIDData;
 }
 
 class DxException : public common::BaseException
@@ -147,6 +148,37 @@ private:
 enum class HeapType     : uint8_t { Default = 1, Upload, Readback, Custom };
 enum class CPUPageProps : uint8_t { Unknown, NotAvailable, WriteCombine, WriteBack };
 enum class MemPrefer    : uint8_t { Unknown, PreferCPU, PreferGPU };
+
+enum class ResourceState : uint32_t
+{
+    Common              = 0, 
+    ConstBuffer         = 0x1, 
+    IndexBuffer         = 0x2, 
+    RenderTarget        = 0x4, 
+    UnorderAccess       = 0x8, 
+    DepthWrite          = 0x10, 
+    DepthRead           = 0x20, 
+    NonPSRes            = 0x40, 
+    PsRes               = 0x80, 
+    StreamOut           = 0x100, 
+    IndirectArg         = 0x200,
+    CopyDst             = 0x400, 
+    CopySrc             = 0x800, 
+    ResolveSrc          = 0x1000, 
+    ResolveDst          = 0x2000, 
+    RTStruct            = 0x400000, 
+    ShadeRateRes        = 0x1000000, 
+    Read                = ConstBuffer | IndexBuffer | NonPSRes | PsRes | IndirectArg | CopySrc, 
+    Present             = 0, 
+    Pred                = 0x200,
+    VideoDecodeRead     = 0x10000, 
+    VideoDecodeWrite    = 0x20000, 
+    VideoProcessRead    = 0x40000, 
+    VideoProcessWrite   = 0x80000, 
+    VideoEncodeRead     = 0x200000, 
+    VideoEncodeWrite    = 0x800000,
+};
+
 
 //struct ContextCapability
 //{

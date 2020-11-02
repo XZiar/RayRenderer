@@ -39,37 +39,6 @@ enum class ResourceFlags : uint32_t
 };
 MAKE_ENUM_BITFIELD(ResourceFlags)
 
-enum class ResourceState : uint32_t
-{
-    Common              = 0, 
-    ConstBuffer         = 0x1, 
-    IndexBuffer         = 0x2, 
-    RenderTarget        = 0x4, 
-    UnorderAccess       = 0x8, 
-    DepthWrite          = 0x10, 
-    DepthRead           = 0x20, 
-    NonPSRes            = 0x40, 
-    PsRes               = 0x80, 
-    StreamOut           = 0x100, 
-    IndirectArg         = 0x200,
-    CopyDst             = 0x400, 
-    CopySrc             = 0x800, 
-    ResolveSrc          = 0x1000, 
-    ResolveDst          = 0x2000, 
-    RTStruct            = 0x400000, 
-    ShadeRateRes        = 0x1000000, 
-    Read                = ConstBuffer | IndexBuffer | NonPSRes | PsRes | IndirectArg | CopySrc, 
-    Present             = 0, 
-    Pred                = 0x200,
-    VideoDecodeRead     = 0x10000, 
-    VideoDecodeWrite    = 0x20000, 
-    VideoProcessRead    = 0x40000, 
-    VideoProcessWrite   = 0x80000, 
-    VideoEncodeRead     = 0x200000, 
-    VideoEncodeWrite    = 0x800000,
-};
-
-
 struct HeapProps
 {
     HeapType Type;
@@ -108,13 +77,15 @@ protected:
     struct ResDesc;
     struct ResProxy;
     DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
+    void CopyRegionFrom(const DxCmdList& list, const uint64_t offset,
+        const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes);
+    ResourceState TransitState(const DxCmdList& list, ResourceState newState);
 public:
     virtual ~DxResource_();
-
 protected:
     DxDevice Device;
     PtrProxy<ResProxy> Resource;
-    ResourceState State;
+    std::atomic<ResourceState> State;
 public:
     const HeapProps HeapInfo;
 };

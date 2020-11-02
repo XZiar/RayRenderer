@@ -36,11 +36,18 @@ namespace dxu
 
 namespace detail
 {
+
 struct IIDPPVPair
 {
     REFIID TheIID;
     void** PtrObj;
 };
+
+struct IIDData
+{
+    REFIID TheIID;
+};
+
 
 template<typename T>
 struct OptRet

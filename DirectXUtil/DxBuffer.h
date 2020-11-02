@@ -21,9 +21,10 @@ private:
     class DXUAPI COMMON_EMPTY_BASES DxMapPtr_ : public common::NonCopyable, public common::NonMovable
     {
         friend class DxBufMapPtr;
-    private:
-        ResProxy& Resource;
+    protected:
+        ResProxy* Resource;
         common::span<std::byte> MemSpace;
+        void Unmap();
     public:
         DxMapPtr_(DxBuffer_* res, size_t offset, size_t size);
         virtual ~DxMapPtr_();
@@ -37,8 +38,8 @@ public:
     const size_t Size;
     ~DxBuffer_() override;
     [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size);
-    [[nodiscard]] DxBufMapPtr Map(const DxCopyCmdQue& que, MapFlags flag, size_t offset, size_t size);
-    //[[nodiscard]] DxBufMapPtr MapAsync(const DxCopyCmdQue& que, MapFlags flag, size_t offset, size_t size);
+    [[nodiscard]] DxBufMapPtr Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size);
+    //[[nodiscard]] DxBufMapPtr MapAsync(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size);
 
     [[nodiscard]] static DxBuffer Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag = ResourceFlags::AllowUnorderAccess);
 };
@@ -49,10 +50,10 @@ class DXUAPI DxBufMapPtr
     friend class DxBuffer_;
 private:
     class DxMemInfo;
-    DxBuffer Res;
     std::shared_ptr<const DxBuffer_::DxMapPtr_> Ptr;
+    DxBuffer Res;
     DxBufMapPtr(DxBuffer res, std::shared_ptr<DxBuffer_::DxMapPtr_> ptr) noexcept
-        : Res(std::move(res)), Ptr(std::move(ptr)) { }
+        : Ptr(std::move(ptr)), Res(std::move(res)) { }
 public:
     constexpr DxBufMapPtr() noexcept {}
     [[nodiscard]] common::span<std::byte> Get() const noexcept { return Ptr->MemSpace; }

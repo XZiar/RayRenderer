@@ -12,13 +12,13 @@
 namespace dxu
 {
 class DxCmdList_;
-using DxCmdList         = std::shared_ptr<const DxCmdList_>;
+using DxCmdList         = std::shared_ptr<DxCmdList_>;
 class DxCopyCmdList_;
-using DxCopyCmdList     = std::shared_ptr<const DxCopyCmdList_>;
+using DxCopyCmdList     = std::shared_ptr<DxCopyCmdList_>;
 class DxComputeCmdList_;
-using DxComputeCmdList  = std::shared_ptr<const DxComputeCmdList_>;
+using DxComputeCmdList  = std::shared_ptr<DxComputeCmdList_>;
 class DxDirectCmdList_;
-using DxDirectCmdList   = std::shared_ptr<const DxDirectCmdList_>;
+using DxDirectCmdList   = std::shared_ptr<DxDirectCmdList_>;
 class DxCmdQue_;
 using DxCmdQue          = std::shared_ptr<const DxCmdQue_>;
 class DxCopyCmdQue_;
@@ -28,50 +28,55 @@ using DxComputeCmdQue   = std::shared_ptr<const DxComputeCmdQue_>;
 class DxDirectCmdQue_;
 using DxDirectCmdQue    = std::shared_ptr<const DxDirectCmdQue_>;
 
+class DxResource_;
+
 
 class DXUAPI DxCmdList_ : public common::NonCopyable
 {
     friend class DxCmdQue_;
+    friend class DxResource_;
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
-    DxCmdList_(DxDevice device, ListType type, const detail::IIDPPVPair& thelist);
-    DxCmdList_(DxDevice device, ListType type);
+    DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList = nullptr);
     struct CmdAllocatorProxy;
     struct CmdListProxy;
     PtrProxy<CmdAllocatorProxy> CmdAllocator;
     PtrProxy<CmdListProxy> CmdList;
+    std::vector<std::pair<void*, ResourceState>> ResStateTable;
+    std::atomic_flag HasClosed;
+
+    std::optional<ResourceState> UpdateResState(void* res, const ResourceState state);
 public:
     virtual ~DxCmdList_();
+    void EnsureClosed();
+    void Reset(const bool resetResState = true);
 };
 
 class DXUAPI DxCopyCmdList_ : public DxCmdList_
 {
 private:
     MAKE_ENABLER();
-protected:
     using DxCmdList_::DxCmdList_;
 public:
-    [[nodiscard]] static DxCopyCmdList Create(DxDevice device);
+    [[nodiscard]] static DxCopyCmdList Create(DxDevice device, const DxCmdList& prevList = {});
 };
 
 class DXUAPI DxComputeCmdList_ : public DxCmdList_
 {
 private:
     MAKE_ENABLER();
-protected:
     using DxCmdList_::DxCmdList_;
 public:
-    [[nodiscard]] static DxComputeCmdList Create(DxDevice device);
+    [[nodiscard]] static DxComputeCmdList Create(DxDevice device, const DxCmdList& prevList = {});
 };
 
 class DXUAPI DxDirectCmdList_ : public DxCmdList_
 {
 private:
     MAKE_ENABLER();
-    struct GraphicsCmdListProxy;
-    DxDirectCmdList_(DxDevice device);
+    using DxCmdList_::DxCmdList_;
 public:
-    [[nodiscard]] static DxDirectCmdList Create(DxDevice device);
+    [[nodiscard]] static DxDirectCmdList Create(DxDevice device, const DxCmdList& prevList = {});
 };
 
 
@@ -85,14 +90,23 @@ protected:
     DxCmdQue_(DxDevice device, QueType type, bool diableTimeout);
     struct FenceProxy;
     struct CmdQueProxy;
+    const DxDevice Device;
     PtrProxy<CmdQueProxy> CmdQue;
-    PtrProxy<FenceProxy> Fence;
+    PtrProxy<FenceProxy> Fence; 
 
-    void ExecuteList(const DxCmdList_& list) const;
+    virtual QueType GetType() const noexcept = 0;
+    void ExecuteList(DxCmdList_& list) const;
     common::PromiseResult<void> Signal() const;
     void Wait(const common::PromiseProvider& pms) const;
 public:
     virtual ~DxCmdQue_();
+
+    DxCmdList CreateList(const DxCmdList& prevList = {}) const;
+    common::PromiseResult<void> ExecuteAnyList(const DxCmdList& list) const
+    {
+        ExecuteList(*list);
+        return Signal();
+    }
     template<typename T>
     void Wait(const common::PromiseResult<T>& pms) const
     {
@@ -105,36 +119,33 @@ class DXUAPI COMMON_EMPTY_BASES DxCopyCmdQue_ : public DxCmdQue_
 protected:
     MAKE_ENABLER();
     using DxCmdQue_::DxCmdQue_;
+    QueType GetType() const noexcept override { return QueType::Copy; };
 public:
-    common::PromiseResult<void> Execute(const DxCopyCmdList& list) const
-    { 
-        ExecuteList(*list);
-        return Signal();
-    }
+    common::PromiseResult<void> Execute(const DxCopyCmdList& list) const { return ExecuteAnyList(list); }
 
     [[nodiscard]] static DxCopyCmdQue Create(DxDevice device, bool diableTimeout = false);
 };
 
-class DXUAPI DxComputeCmdQue_ : public DxCopyCmdQue_
+class DXUAPI DxComputeCmdQue_ : public DxCmdQue_
 {
 private:
     MAKE_ENABLER();
-    using DxCopyCmdQue_::DxCopyCmdQue_;
+    using DxCmdQue_::DxCmdQue_;
+    QueType GetType() const noexcept override { return QueType::Compute; };
 public:
-    using DxCopyCmdQue_::Execute;
-    void Execute(const DxComputeCmdList& list) const { return ExecuteList(*list); }
+    common::PromiseResult<void> Execute(const DxComputeCmdList& list) const { return ExecuteAnyList(list); }
 
     [[nodiscard]] static DxComputeCmdQue Create(DxDevice device, bool diableTimeout = false);
 };
 
-class DXUAPI DxDirectCmdQue_ : public DxComputeCmdQue_
+class DXUAPI DxDirectCmdQue_ : public DxCmdQue_
 {
 private:
     MAKE_ENABLER();
-    using DxComputeCmdQue_::DxComputeCmdQue_;
+    using DxCmdQue_::DxCmdQue_;
+    QueType GetType() const noexcept override { return QueType::Direct; };
 public:
-    using DxComputeCmdQue_::Execute;
-    void Execute(const DxDirectCmdList& list) const { return ExecuteList(*list); }
+    common::PromiseResult<void> Execute(const DxDirectCmdList& list) const { return ExecuteAnyList(list); }
 
     [[nodiscard]] static DxDirectCmdQue Create(DxDevice device, bool diableTimeout = false);
 };
