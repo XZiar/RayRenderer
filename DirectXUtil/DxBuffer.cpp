@@ -8,13 +8,13 @@ namespace dxu
 MAKE_ENABLER_IMPL(DxBuffer_);
 
 
-DxBuffer_::DxMapPtr_::DxMapPtr_(DxBuffer_* res, size_t offset, size_t size)
+DxBuffer_::DxMapPtr_::DxMapPtr_(const DxBuffer_* res, size_t offset, size_t size)
     : Resource(res->Resource)
 {
     void* ptr = nullptr;
     D3D12_RANGE range{ offset, size };
     THROW_HR(Resource->Map(0, &range, &ptr), u"Failed to map directx resource");
-    MemSpace = { reinterpret_cast<std::byte*>(ptr), size };
+    MemSpace = { reinterpret_cast<std::byte*>(ptr) + offset, size };
 }
 DxBuffer_::DxMapPtr_::~DxMapPtr_()
 {
@@ -35,11 +35,11 @@ private:
     MAKE_ENABLER();
     DxCmdQue CmdQue;
     DxCmdList CopyList;
-    DxBuffer_& RealResource;
+    const DxBuffer_& RealResource;
     DxBuffer MappedResource;
     uint64_t Offset;
     MapFlags MapType;
-    DxMapPtr2_(DxCmdQue cmdQue, DxCmdList list, DxBuffer_* real, DxBuffer mapped, MapFlags flag, size_t offset, size_t size) :
+    DxMapPtr2_(DxCmdQue cmdQue, DxCmdList list, const DxBuffer_* real, DxBuffer mapped, MapFlags flag, size_t offset, size_t size) :
         DxMapPtr_(mapped.get(), 0, size), CmdQue(std::move(cmdQue)), CopyList(std::move(list)),
         RealResource(*real), MappedResource(std::move(mapped)), 
         Offset(offset), MapType(flag)
@@ -56,7 +56,7 @@ public:
         }
         Unmap();
     }
-    static std::shared_ptr<DxBuffer_::DxMapPtr_> Create(DxBuffer_* res, const DxCmdQue& que, MapFlags flag, size_t offset, size_t size)
+    static std::shared_ptr<DxBuffer_::DxMapPtr_> Create(const DxBuffer_* res, const DxCmdQue& que, MapFlags flag, size_t offset, size_t size)
     {
         auto mapped = DxBuffer_::Create(res->Device,
             { flag == MapFlags::WriteOnly ? CPUPageProps::WriteCombine : CPUPageProps::WriteBack , MemPrefer::PreferCPU },
@@ -118,21 +118,89 @@ DxBuffer_::DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, Reso
 DxBuffer_::~DxBuffer_()
 { }
 
-DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size)
+DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size) const
 {
     if (HeapInfo.CPUPage == CPUPageProps::NotAvailable || HeapInfo.Memory == MemPrefer::PreferGPU)
         COMMON_THROWEX(DxException, u"Cannot map resource with CPUPageProps = NotAvaliable.\n")
         .Attach("heapinfo", HeapInfo);
-    return DxBufMapPtr(std::static_pointer_cast<DxBuffer_>(shared_from_this()),
+    return DxBufMapPtr(std::static_pointer_cast<const DxBuffer_>(shared_from_this()),
         std::make_shared<DxMapPtr_>(this, offset, size));
 }
 
-DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size)
+DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size) const
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
         return Map(offset, size);
-    return DxBufMapPtr(std::static_pointer_cast<DxBuffer_>(shared_from_this()), 
+    return DxBufMapPtr(std::static_pointer_cast<const DxBuffer_>(shared_from_this()),
         DxMapPtr2_::Create(this, que, flag, offset, size));
+}
+
+common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const
+{
+    if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
+    {
+        const auto mapped = Map(offset, buf.size());
+        const auto src = mapped.Get();
+        memcpy_s(buf.data(), buf.size(), src.data(), src.size());
+        return common::FinishedResult<void>::Get();
+    }
+    else
+    {
+        auto mapped = DxBuffer_::Create(Device, HeapType::Readback,
+            HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
+        auto cmdList = que->CreateList();
+        TransitState(cmdList, ResourceState::CopySrc);
+        mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
+        const auto pms = que->ExecuteAnyList(cmdList);
+        return common::StagedResult::TwoStage(
+            que->ExecuteAnyList(cmdList),
+            [=]() mutable
+            {
+                cmdList.reset();
+                const auto mapptr = mapped->Map(offset, buf.size());
+                const auto src = mapptr.Get();
+                memcpy_s(buf.data(), buf.size(), src.data(), src.size());
+            });
+    }
+}
+
+common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
+{
+    if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
+    {
+        const auto mapped = Map(offset, buf.size());
+        const auto src = mapped.Get();
+        memcpy_s(src.data(), src.size(), buf.data(), buf.size());
+        return common::FinishedResult<void>::Get();
+    }
+    else
+    {
+        auto tmpBuf = DxBuffer_::Create(Device, HeapType::Upload,
+            HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
+        {
+            const auto mapptr = tmpBuf->Map(0, buf.size());
+            const auto src = mapptr.Get();
+            memcpy_s(src.data(), src.size(), buf.data(), buf.size());
+        }
+        auto cmdList = que->CreateList();
+        TransitState(cmdList, ResourceState::CopyDst);
+        CopyRegionFrom(cmdList, offset, *tmpBuf, 0, buf.size());
+        const auto pms = que->ExecuteAnyList(cmdList);
+        pms->OnComplete([=]() mutable
+            {
+                cmdList.reset();
+                tmpBuf.reset();
+            });
+        return pms;
+    }
+}
+
+common::PromiseResult<common::AlignedBuffer> DxBuffer_::Read_(const DxCmdQue& que, const size_t size, const size_t offset) const
+{
+    common::AlignedBuffer buf(size);
+    return common::StagedResult::Convert(
+        ReadSpan_(que, buf.AsSpan(), offset),
+        [buf_ = buf.CreateSubBuffer()]() { return buf_.CreateSubBuffer(); });
 }
 
 DxBuffer DxBuffer_::Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag)

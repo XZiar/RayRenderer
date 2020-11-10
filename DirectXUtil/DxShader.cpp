@@ -321,7 +321,7 @@ static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
     case D3D12_SHVER_HULL_SHADER:       return ShaderType::Hull;
     case D3D12_SHVER_DOMAIN_SHADER:     return ShaderType::Domain;
     case D3D12_SHVER_COMPUTE_SHADER:    return ShaderType::Compute;
-    default: Expects(false);            return ShaderType::Compute;
+    default: /*Expects(false);*/        return ShaderType::Compute;
     }
 }
 
@@ -341,7 +341,7 @@ static constexpr std::pair<BoundedResourceType, bool> ParseBindType(const D3D_SH
     case D3D_SIT_UAV_APPEND_STRUCTURED:             return { BoundedResourceType::Other,            false };
     case D3D_SIT_UAV_CONSUME_STRUCTURED:            return { BoundedResourceType::Other,            false };
     case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:     return { BoundedResourceType::Other,            false };
-    default: Expects(false);                        return { BoundedResourceType::Other,            false };
+    default: /*Expects(false);*/                    return { BoundedResourceType::Other,            false };
     }
 }
 

@@ -11,7 +11,7 @@ namespace dxu
 {
 class DxBufMapPtr;
 class DxBuffer_;
-using DxBuffer = std::shared_ptr<DxBuffer_>;
+using DxBuffer = std::shared_ptr<const DxBuffer_>;
 
 
 class DXUAPI DxBuffer_ : public DxResource_
@@ -26,7 +26,7 @@ private:
         common::span<std::byte> MemSpace;
         void Unmap();
     public:
-        DxMapPtr_(DxBuffer_* res, size_t offset, size_t size);
+        DxMapPtr_(const DxBuffer_* res, size_t offset, size_t size);
         virtual ~DxMapPtr_();
     };
     class DxMapPtr2_;
@@ -34,12 +34,52 @@ protected:
     MAKE_ENABLER();
     static ResDesc BufferDesc(ResourceFlags rFlags, size_t size) noexcept;
     DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, ResourceFlags rFlag, size_t size);
+    [[nodiscard]] common::PromiseResult<void> ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const;
+    [[nodiscard]] common::PromiseResult<void> WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset) const;
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read_(const DxCmdQue& que, const size_t size, const size_t offset) const;
 public:
     const size_t Size;
     ~DxBuffer_() override;
-    [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size);
-    [[nodiscard]] DxBufMapPtr Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size);
-    //[[nodiscard]] DxBufMapPtr MapAsync(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size);
+    [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size) const;
+    [[nodiscard]] DxBufMapPtr Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size) const;
+
+    template<typename U>
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, common::span<std::byte> buf, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return ReadSpan_(que, buf, offset);
+    }
+    template<typename T, typename U>
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return ReadSpan_(que, common::as_writable_bytes(common::to_span(buf)), offset);
+    }
+    template<typename T, typename U>
+    [[nodiscard]] common::PromiseResult<void> ReadInto(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return ReadSpan_(que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset);
+    }
+    template<typename U>
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read(const std::shared_ptr<U>& que, const size_t size, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return Read_(que, size, offset);
+    }
+
+    template<typename T, typename U>
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return WriteSpan_(que, common::as_bytes(common::to_span(buf)), offset);
+    }
+    template<typename T, typename U>
+    [[nodiscard]] common::PromiseResult<void> Write(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0) const
+    {
+        DXU_CMD_CHECK(U, Copy, Que);
+        return WriteSpan_(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
+    }
 
     [[nodiscard]] static DxBuffer Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag = ResourceFlags::AllowUnorderAccess);
 };

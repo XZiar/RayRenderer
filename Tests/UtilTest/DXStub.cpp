@@ -28,6 +28,7 @@ static MiniLogger<false>& log()
 static void DXStub()
 {
     const auto& devs = DxDevice_::GetDevices();
+    const bool isAuto = common::container::FindInVec(GetCmdArgs(), [](const auto str) { return str == "auto"; }) != nullptr;
     if (devs.size() == 0)
     {
         log().error(u"No DirectX12 devices found!\n");
@@ -35,7 +36,7 @@ static void DXStub()
     }
     while (true)
     {
-        const auto devidx = SelectIdx(devs, u"device", [](DxDevice dev) 
+        const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [](DxDevice dev)
             {
                 return FMTSTR(u"{} [SM{}.{}]\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
                     dev->IsTBR() ? u"TBR"sv : u""sv, dev->IsUMA() ? u"UMA"sv : u""sv);
@@ -45,13 +46,34 @@ static void DXStub()
         const auto cmdlist = DxComputeCmdList_::Create(dev);
         try
         {
-            //const auto buf = DxBuffer_::Create(dev, { CPUPageProps::WriteBack, MemPrefer::PreferCPU }, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
-            //const auto region = buf->Map(0, 4096);
-            const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
-            const auto region = buf->Map(cmdque, MapFlags::ReadWrite, 0, 4096);
-            for (auto& item : region.AsType<float>())
             {
-                item = 1.0f;
+                //const auto buf = DxBuffer_::Create(dev, { CPUPageProps::WriteBack, MemPrefer::PreferCPU }, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
+                const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 1024576, ResourceFlags::Empty);
+
+                {
+                    const auto map0 = buf->Map(cmdque, MapFlags::ReadOnly, 0, 1024);
+                    const auto sp0 = map0.AsType<uint8_t>();
+                    log().verbose("sp0: {}\n", sp0.subspan(0, 8));
+                }
+                {
+                    std::array<uint8_t, 256> tmp;
+                    for (uint32_t i = 0; i < 256; ++i)
+                        tmp[i] = static_cast<uint8_t>(i);
+                    buf->WriteSpan(cmdque, tmp, 4)->WaitFinish();
+                }
+                {
+                    const auto map1 = buf->Map(cmdque, MapFlags::ReadOnly, 0, 1024);
+                    const auto sp1 = map1.AsType<uint8_t>();
+                    log().verbose("sp1: {}\n", sp1.subspan(0, 8));
+                }
+                {
+                    std::array<uint8_t, 256> tmp = { 0 };
+                    buf->ReadSpan(cmdque, tmp, 0)->WaitFinish();
+                    common::span<const uint8_t> sp2(tmp);
+                    log().verbose("sp2: {}\n", sp2.subspan(0, 8));
+                }
+                const auto readback = buf->Read(cmdque, 1024)->Get();
+                const auto sp = readback.AsSpan<uint8_t>();
             }
             while (true)
             {

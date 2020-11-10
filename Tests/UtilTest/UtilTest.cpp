@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
             uint32_t idx = 0;
             for (const auto& pair : testMap)
             {
-                if (pair.first == args[1].data())
+                if (pair.first == args[1])
                     return idx;
                 idx++;
             }

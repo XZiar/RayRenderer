@@ -160,7 +160,6 @@ DxCmdList DxCmdQue_::CreateList(const DxCmdList& prevList) const
     case QueType::Direct:   return DxDirectCmdList_:: Create(Device, prevList);
     default:                COMMON_THROW(DxException, u"Unrecognized command que type");
     }
-    return {};
 }
 
 DxCopyCmdQue DxCopyCmdQue_::Create(DxDevice device, bool diableTimeout)

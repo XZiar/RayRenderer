@@ -56,7 +56,6 @@ DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFla
         0,
         0
     };
-
     THROW_HR(device->Device->CreateCommittedResource(
         &props,
         static_cast<D3D12_HEAP_FLAGS>(heapFlag),
@@ -71,12 +70,12 @@ DxResource_::~DxResource_()
     Resource->Release();
 }
 
-void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes)
+void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const
 {
     list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
 }
 
-ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState)
+ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState) const
 {
     const auto ret = list->UpdateResState(Resource, newState);
     if (!ret.has_value())

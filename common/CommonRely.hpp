@@ -282,6 +282,26 @@ struct clz::make_enabler : public clz           \
 
 
 
+/* copy/move assignment */
+
+#define COMMON_NO_COPY(clz)                         \
+    clz(const clz&) noexcept = delete;              \
+    clz& operator= (const clz&) noexcept = delete;  \
+
+#define COMMON_DEF_COPY(clz)                        \
+    clz(const clz&) noexcept = default;             \
+    clz& operator= (const clz&) noexcept = default; \
+
+#define COMMON_NO_MOVE(clz)                         \
+    clz(clz&&) noexcept = delete;                   \
+    clz& operator= (clz&&) noexcept = delete;       \
+
+#define COMMON_DEF_MOVE(clz)                        \
+    clz(clz&&) noexcept = default;                  \
+    clz& operator= (clz&&) noexcept = default;      \
+
+
+
 /* compile-time str hash support */
 
 /**

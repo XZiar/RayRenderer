@@ -14,7 +14,6 @@ namespace dxu
 class DxResource_;
 using DxResource = std::shared_ptr<DxResource_>;
 class DxBuffer_;
-using DxBuffer = std::shared_ptr<DxBuffer_>;
 
 
 
@@ -78,8 +77,8 @@ protected:
     struct ResProxy;
     DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
     void CopyRegionFrom(const DxCmdList& list, const uint64_t offset,
-        const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes);
-    ResourceState TransitState(const DxCmdList& list, ResourceState newState);
+        const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const;
+    ResourceState TransitState(const DxCmdList& list, ResourceState newState) const;
 public:
     virtual ~DxResource_();
 protected:

@@ -31,8 +31,6 @@ class PromiseActiveProxy;
 using PmsCore = std::shared_ptr<PromiseResultCore>;
 template<typename T>
 using PromiseResult = std::shared_ptr<detail::PromiseResult_<T>>;
-template<typename R, typename M>
-using StagedResult = std::shared_ptr<detail::StagedResult_<R, M>>;
 template<typename T, typename P>
 using BasicResult = std::shared_ptr<detail::BasicResult_<T, P>>;
 template<typename T, typename R>
@@ -159,7 +157,10 @@ public:
     }
     PromiseState WaitPms() noexcept override
     {
-        return CachedState = T::WaitPms();
+        if (CachedState >= PromiseState::Executed)
+            return CachedState;
+        else
+            return CachedState = T::WaitPms();
     }
 };
 
@@ -276,48 +277,221 @@ public:
 //constexpr auto kkl = sizeof(PromiseResult_<void>);
 
 
-template<typename RetType, typename MidType>
-class StagedResult_ : public PromiseResult_<RetType>, protected PromiseProvider
+template<typename T, typename F>
+struct InvokeRet
 {
-public:
-    using PostExecute = std::function<RetType(MidType&&)>;
-private:
-    PromiseResult<MidType> Stage1;
-    PostExecute Stage2;
-protected:
-    [[nodiscard]] PromiseState GetState() noexcept override
-    {
-        const auto state = Stage1->State();
-        if (state == PromiseState::Success)
-            return PromiseState::Executed;
-        return state;
-    }
-    PromiseState WaitPms() noexcept override
-    { 
-        Stage1->WaitFinish();
-        return Stage1->State();
-    }
-    [[nodiscard]] uint64_t ElapseNs() noexcept override
-    { 
-        return Stage1->ElapseNs();
-    };
-    [[nodiscard]] RetType GetResult() override
-    {
-        return Stage2(Stage1->Get());
-    }
-public:
-    StagedResult_(PromiseResult<MidType>&& stage1, PostExecute&& stage2)
-        : Stage1(std::move(stage1)), Stage2(std::move(stage2))
-    { }
-    ~StagedResult_() override {}
-    [[nodiscard]] PromiseProvider& GetPromise() noexcept override
-    {
-        return *this;
-    }
+    static_assert(std::is_invocable_v<F, T>, "");
+    using RetType = std::invoke_result_t<F, T>;
 };
-//constexpr auto kkl = sizeof(StagedResult_<int, double>);
+template<typename F>
+struct InvokeRet<void, F>
+{
+    static_assert(std::is_invocable_v<F>, "");
+    using RetType = std::invoke_result_t<F>;
+};
 
 }
+
+
+template<typename T>
+struct PromiseChecker
+{
+private:
+    using PureType = common::remove_cvref_t<T>;
+    static_assert(common::is_specialization<PureType, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
+    using TaskType = typename PureType::element_type;
+    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
+public:
+    using TaskRet = typename TaskType::ResultType;
+};
+template<typename T>
+inline constexpr bool IsPromiseResult()
+{
+    if constexpr (!common::is_specialization<T, std::shared_ptr>::value)
+        return false;
+    else
+    {
+        using TaskType = typename T::element_type;
+        if (!common::is_specialization<TaskType, common::detail::PromiseResult_>::value)
+            return false;
+    }
+    return true;
+}
+template<typename T>
+inline constexpr void EnsurePromiseResult()
+{
+    static_assert(common::is_specialization<T, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
+    using TaskType = typename T::element_type;
+    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
+}
+
+
+class StagedResult
+{
+private:
+    template<typename RetType, typename MidType>
+    class ConvertResult_ final : public detail::PromiseResult_<RetType>
+    {
+    public:
+        using PostExecute = std::function<RetType(MidType)>;
+    private:
+        PromiseResult<MidType> Stage1;
+        PostExecute Stage2;
+    protected:
+        [[nodiscard]] RetType GetResult() override
+        {
+            if constexpr (std::is_same_v<MidType, void>)
+                return Stage2();
+            else
+                return Stage2(Stage1->Get());
+        }
+        [[nodiscard]] PromiseProvider& GetPromise() noexcept override
+        {
+            return Stage1->GetPromise();
+        }
+    public:
+        ConvertResult_(PromiseResult<MidType> stage1, PostExecute stage2)
+            : Stage1(std::move(stage1)), Stage2(std::move(stage2))
+        { }
+        ~ConvertResult_() override {}
+    };
+    struct PostExecutor
+    {
+        virtual void PostProcess() = 0;
+        virtual PromiseProvider& GetProvider() = 0;
+    };
+    struct PostPmsProvider : public PromiseProvider
+    {
+        PostExecutor& Host;
+        PostPmsProvider(PostExecutor& host) noexcept : Host(host) {}
+        ~PostPmsProvider() override {}
+        [[nodiscard]] PromiseState GetState() noexcept  override
+        { 
+            const auto state = Host.GetProvider().GetState(); 
+            if (state >= PromiseState::Executed && state <= PromiseState::Success)
+                Host.PostProcess();
+            return state;
+        }
+        void PreparePms() override { return Host.GetProvider().PreparePms(); }
+        void MakeActive(PmsCore&& pms) override { return Host.GetProvider().MakeActive(std::move(pms)); }
+        PromiseState WaitPms() noexcept override
+        { 
+            const auto state = Host.GetProvider().WaitPms();
+            if (state >= PromiseState::Executed && state <= PromiseState::Success)
+                Host.PostProcess();
+            return state;
+        }
+        [[nodiscard]] uint64_t ElapseNs() noexcept override { return Host.GetProvider().ElapseNs(); }
+    };
+    template<typename RetType, typename MidType>
+    class StagedResult_ final : public detail::PromiseResult_<RetType>, private PostExecutor
+    {
+    public:
+        using PostExecute = std::function<RetType(MidType)>;
+    private:
+        PromiseResult<MidType> Stage1;
+        PostExecute Stage2;
+        CachedPromiseProvider<PostPmsProvider> Pms;
+        std::optional<RetType> Result;
+
+        void PostProcess() override
+        {
+            auto lock = Pms.PromiseLock.WriteScope();
+            if constexpr (std::is_same_v<MidType, void>)
+            {
+                Result.emplace(Stage2());
+            }
+            else
+            {
+                Result.emplace(Stage2(Stage1->Get()));
+            }
+        }
+        PromiseProvider& GetProvider() override
+        {
+            return Stage1->GetPromise();
+        }
+    protected:
+        [[nodiscard]] RetType GetResult() override
+        {
+            if constexpr (std::is_same_v<RetType, void>)
+                return;
+            else
+            {
+                this->CheckResultExtracted();
+                auto lock = Pms.PromiseLock.WriteScope();
+                return std::move(Result.value());
+            }
+        }
+    public:
+        StagedResult_(PromiseResult<MidType> stage1, PostExecute stage2)
+            : Stage1(std::move(stage1)), Stage2(std::move(stage2)), Pms(*this)
+        { }
+        ~StagedResult_() override {}
+        [[nodiscard]] PromiseProvider& GetPromise() noexcept override
+        {
+            return Pms;
+        }
+    };
+    template<typename MidType>
+    class StagedResult_<void, MidType> final : public detail::PromiseResult_<void>, private PostExecutor
+    {
+    public:
+        using PostExecute = std::function<void(MidType)>;
+    private:
+        PromiseResult<MidType> Stage1;
+        PostExecute Stage2;
+        CachedPromiseProvider<PostPmsProvider> Pms;
+
+        void PostProcess() override
+        {
+            auto lock = Pms.PromiseLock.WriteScope();
+            if constexpr (std::is_same_v<MidType, void>)
+            {
+                Stage2();
+            }
+            else
+            {
+                Stage2(Stage1->Get());
+            }
+        }
+        PromiseProvider& GetProvider() override
+        {
+            return Stage1->GetPromise();
+        }
+    protected:
+        [[nodiscard]] void GetResult() override
+        {
+            return;
+        }
+    public:
+        StagedResult_(PromiseResult<MidType> stage1, PostExecute stage2)
+            : Stage1(std::move(stage1)), Stage2(std::move(stage2)), Pms(*this)
+        { }
+        ~StagedResult_() override {}
+        [[nodiscard]] PromiseProvider& GetPromise() noexcept override
+        {
+            return Pms;
+        }
+    };
+public:
+    template<typename P, typename F>
+    [[nodiscard]] static auto TwoStage(P&& stage1, F&& stage2) 
+    {
+        using MidType = typename PromiseChecker<P>::TaskRet;
+        using RetType = typename detail::InvokeRet<MidType, F>::RetType;
+        PromiseResult<RetType> ret = std::make_shared<StagedResult_<RetType, MidType>>(std::move(stage1), std::move(stage2));
+        return ret;
+    }
+    template<typename P, typename F>
+    [[nodiscard]] static auto Convert(P&& stage1, F&& stage2)
+    {
+        using MidType = typename PromiseChecker<P>::TaskRet;
+        using RetType = typename detail::InvokeRet<MidType, F>::RetType;
+        static_assert(!std::is_same_v<RetType, void>, "Should not return void");
+        PromiseResult<RetType> ret = std::make_shared<ConvertResult_<RetType, MidType>>(std::move(stage1), std::move(stage2));
+        return ret;
+    }
+};
 
 
 template<typename T>
@@ -484,39 +658,6 @@ public:
         Promise->SetException(std::forward<U>(ex));
     }
 };
-
-
-template<typename T>
-struct PromiseChecker
-{
-private:
-    using PureType = common::remove_cvref_t<T>;
-    static_assert(common::is_specialization<PureType, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
-    using TaskType = typename PureType::element_type;
-    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
-public:
-    using TaskRet = typename TaskType::ResultType;
-};
-template<typename T>
-inline constexpr bool IsPromiseResult()
-{
-    if constexpr (!common::is_specialization<T, std::shared_ptr>::value)
-        return false;
-    else
-    {
-        using TaskType = typename T::element_type;
-        if (!common::is_specialization<TaskType, common::detail::PromiseResult_>::value)
-            return false;
-    }
-    return true;
-}
-template<typename T>
-inline constexpr void EnsurePromiseResult()
-{
-    static_assert(common::is_specialization<T, std::shared_ptr>::value, "task should be wrapped by shared_ptr");
-    using TaskType = typename T::element_type;
-    static_assert(common::is_specialization<TaskType, common::detail::PromiseResult_>::value, "task should be PromiseResult");
-}
 
 
 class [[nodiscard]] PromiseStub : public NonCopyable
