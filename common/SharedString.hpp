@@ -107,6 +107,24 @@ public:
     {
         return StrView.size();
     }
+
+    template<typename T>
+    static std::basic_string_view<Char> PlacedCreate(const T& obj)
+    {
+        SharedString str(obj);
+        str.Increase();
+        return str;
+    }
+    static void PlacedIncrease(std::basic_string_view<Char>& obj)
+    {
+        SharedString& str = *reinterpret_cast<common::SharedString<char32_t>*>(&obj);
+        str.Increase();
+    }
+    static void PlacedDecrease(std::basic_string_view<Char>& obj)
+    {
+        SharedString& str = *reinterpret_cast<common::SharedString<char32_t>*>(&obj);
+        str.Decrease();
+    }
 };
 
 

@@ -127,7 +127,7 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
         {
             using T = std::decay_t<decltype(val)>;
             if constexpr (std::is_same_v<T, CustomVar>)
-                return {};
+                return val.Host->ToString(val);
             else if constexpr (std::is_same_v<T, std::nullopt_t>)
                 return {};
             else if constexpr (std::is_same_v<T, std::u32string_view>)

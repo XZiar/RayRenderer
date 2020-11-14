@@ -22,6 +22,7 @@
 #include "common/EnumEx.hpp"
 #include "common/StrBase.hpp"
 #include "common/StringLinq.hpp"
+#include "common/SharedString.hpp"
 #include <vector>
 #include <variant>
 #include <string>
@@ -402,29 +403,45 @@ public:
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 
+
 struct CustomVar
 {
-    using value_type = std::u32string_view;
-    std::u32string_view Name;
+    struct Handler
+    {
+        virtual void IncreaseRef(CustomVar&) noexcept {};
+        virtual void DecreaseRef(CustomVar&) noexcept {};
+        virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; };
+    };
+    Handler* Host;
     uint64_t Meta0;
     uint32_t Meta1;
     uint16_t Meta2;
-    [[nodiscard]] constexpr bool operator==(const CustomVar& other) const noexcept
-    {
-        return Name == other.Name;
-    }
-    [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
-    {
-        return Name == other;
-    }
 };
+
 struct Arg
 {
+    static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
+    static_assert(sizeof(size_t)    <= sizeof(uint64_t));
+    static_assert(sizeof(std::u32string_view) == sizeof(common::SharedString<char32_t>));
 private:
-    std::u32string Str;
-    detail::IntFPUnion Data1;
+    detail::IntFPUnion Data0;
+    uint64_t Data1;
     uint32_t Data2;
     uint16_t Data3;
+    void Release() noexcept
+    {
+        if (TypeData == Type::U32Str && Data1 > 0)
+        {
+            auto str = GetVar<Type::U32Str>();
+            common::SharedString<char32_t>::PlacedDecrease(str);
+        }
+        else if (TypeData == Type::Var)
+        {
+            auto var = GetVar<Type::Var>();
+            var.Host->DecreaseRef(var);
+        }
+        TypeData = Type::Empty;
+    }
 public:
     enum class Type : uint16_t
     { 
@@ -440,50 +457,114 @@ public:
     };
     Type TypeData;
 
-    Arg() noexcept : Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
+    Arg() noexcept : Data0(0), Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
-    Arg(const CustomVar var) noexcept :
-        Str(var.Name), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
-    { }
-    Arg(const std::u32string& str) noexcept : Str(str), Data1(0), Data2(0), Data3(0), TypeData(Type::U32Str)
-    { }
-    Arg(const std::u32string_view str) noexcept :
-        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(gsl::narrow_cast<uint32_t>(str.size())),
-        Data3(0), TypeData(Type::U32Sv)
+    Arg(CustomVar&& var) noexcept :
+        Data0(reinterpret_cast<uint64_t>(var.Host)), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
     {
-        Expects(str.size() <= UINT32_MAX);
+        Expects(var.Host != nullptr);
+        var.Host = nullptr;
+        var.Meta0 = var.Meta1 = var.Meta2 = 0;
     }
+    Arg(const std::u32string& str) noexcept : 
+        Data0(0), Data1(0), Data2(0), Data3(4), TypeData(Type::U32Str)
+    {
+        if (str.size() > 0)
+        {
+            const auto tmp = common::SharedString<char32_t>::PlacedCreate(str);
+            Data0 = reinterpret_cast<uint64_t>(tmp.data());
+            Data1 = str.size();
+        }
+    }
+    Arg(const std::u32string_view str) noexcept :
+        Data0(reinterpret_cast<uint64_t>(str.data())), Data1(str.size()),
+        Data2(0), Data3(5), TypeData(Type::U32Sv)
+    { }
     Arg(const uint64_t num) noexcept :
-        Data1(num), Data2(6), Data3(0), TypeData(Type::Uint)
+        Data0(num), Data1(0), Data2(0), Data3(6), TypeData(Type::Uint)
     { }
     Arg(const int64_t num) noexcept :
-        Data1(static_cast<uint64_t>(num)), Data2(7), Data3(0), TypeData(Type::Int)
+        Data0(static_cast<uint64_t>(num)), Data1(0), Data2(0), Data3(7), TypeData(Type::Int)
     { }
     Arg(const double num) noexcept :
-        Data1(num), Data2(8), Data3(0), TypeData(Type::FP)
+        Data0(num), Data1(0), Data2(0), Data3(8), TypeData(Type::FP)
     { }
     Arg(const bool boolean) noexcept :
-        Data1(boolean ? 1 : 0), Data2(9), Data3(0), TypeData(Type::Bool)
+        Data0(boolean ? 1 : 0), Data1(0), Data2(0), Data3(9), TypeData(Type::Bool)
     { }
+    Arg(const Arg& other) noexcept :
+        Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
+    {
+        if (TypeData == Type::U32Str && Data1 > 0)
+        {
+            auto str = other.GetVar<Type::U32Str>();
+            common::SharedString<char32_t>::PlacedIncrease(str);
+        }
+        else if (TypeData == Type::Var)
+        {
+            auto var = GetVar<Type::Var>();
+            var.Host->IncreaseRef(var);
+        }
+    }
+    Arg(Arg&& other) noexcept :
+        Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
+    {
+        other.TypeData = Type::Empty;
+    }
+    ~Arg()
+    {
+        Release();
+    }
+    Arg& operator=(const Arg& other) noexcept
+    {
+        Release();
+        Data0 = other.Data0;
+        Data1 = other.Data1;
+        Data2 = other.Data2;
+        Data3 = other.Data3;
+        TypeData = other.TypeData;
+        if (TypeData == Type::U32Str && Data1 > 0)
+        {
+            auto str = other.GetVar<Type::U32Str>();
+            common::SharedString<char32_t>::PlacedIncrease(str);
+        }
+        else if (TypeData == Type::Var)
+        {
+            auto var = GetVar<Type::Var>();
+            var.Host->IncreaseRef(var);
+        }
+        return *this;
+    }
+    Arg& operator=(Arg&& other) noexcept
+    {
+        Release();
+        Data0 = other.Data0;
+        Data1 = other.Data1;
+        Data2 = other.Data2;
+        Data3 = other.Data3;
+        TypeData = other.TypeData;
+        other.TypeData = Type::Empty;
+        return *this;
+    }
 
     template<Type T>
     [[nodiscard]] constexpr auto GetVar() const noexcept
     {
         Expects(TypeData == T);
         if constexpr (T == Type::Var)
-            return CustomVar{ Str, Data1.Uint, Data2, Data3 };
+            return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
         else if constexpr (T == Type::U32Str)
-            return std::u32string_view{ Str };
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
         else if constexpr (T == Type::U32Sv)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
         else if constexpr (T == Type::Uint)
-            return Data1.Uint;
+            return Data0.Uint;
         else if constexpr (T == Type::Int)
-            return static_cast<int64_t>(Data1.Uint);
+            return static_cast<int64_t>(Data0.Uint);
         else if constexpr (T == Type::FP)
-            return Data1.FP;
+            return Data0.FP;
         else if constexpr (T == Type::Bool)
-            return Data1.Uint == 1;
+            return Data0.Uint == 1;
         else
             static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }

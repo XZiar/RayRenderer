@@ -73,7 +73,7 @@ void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xzia
     using namespace xziar::nailang;
     if (*meta.Name == U"oclu.SubgroupSize"sv || *meta.Name == U"xcomp.SubgroupSize"sv)
     {
-        const auto sgSize = Runtime.EvaluateFuncArgs<1>(meta, { Arg::Type::Integer })[0].GetUint().value();
+        const auto sgSize = Runtime.EvaluateFirstFuncArg(meta, Arg::Type::Integer).GetUint().value();
         SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
     }
     else if (*meta.Name == U"oclu.SubgroupExt"sv)

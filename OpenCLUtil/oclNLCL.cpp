@@ -266,7 +266,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         {
         HashCase(subName, U"CompilerFlag")
         {
-            const auto arg  = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto arg  = EvaluateFirstFuncArg(call, Arg::Type::String);
             const auto flag = common::str::to_string(arg.GetStr().value(), Charset::UTF8, Charset::UTF32);
             for (const auto& item : Context.CompilerFlags)
             {
@@ -277,7 +277,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         } return {};
         HashCase(subName, U"EnableExtension")
         {
-            const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
             if (const auto sv = arg.GetStr(); sv.has_value())
             {
                 if (EnableExtension(sv.value()))

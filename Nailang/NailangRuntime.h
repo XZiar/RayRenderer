@@ -366,7 +366,7 @@ protected:
     [[nodiscard]] forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call)
     {
         ThrowByArgCount(call, N, Limit);
-        std::array<Arg, N> args;
+        std::array<Arg, N> args = {};
         EvaluateFuncArgs(args.data(), nullptr, std::min(N, call.Args.size()), call);
         return args;
     }
@@ -374,9 +374,25 @@ protected:
     [[nodiscard]] forceinline std::array<Arg, N> EvaluateFuncArgs(const FuncCall& call, const std::array<Arg::Type, N>& types)
     {
         ThrowByArgCount(call, N, Limit);
-        std::array<Arg, N> args;
+        std::array<Arg, N> args = {};
         EvaluateFuncArgs(args.data(), types.data(), std::min(N, call.Args.size()), call);
         return args;
+    }
+    [[nodiscard]] forceinline Arg EvaluateFirstFuncArg(const FuncCall& call, ArgLimits limit = ArgLimits::Exact)
+    {
+        if (limit == ArgLimits::AtMost && call.Args.size() == 0)
+            return {};
+        ThrowByArgCount(call, 1, limit);
+        return EvaluateArg(call.Args[0]);
+    }
+    [[nodiscard]] forceinline Arg EvaluateFirstFuncArg(const FuncCall& call, Arg::Type type, ArgLimits limit = ArgLimits::Exact)
+    {
+        if (limit == ArgLimits::AtMost && call.Args.size() == 0)
+            return {};
+        ThrowByArgCount(call, 1, limit);
+        auto arg = EvaluateArg(call.Args[0]);
+        ThrowByArgType(call, arg, type, 0);
+        return arg;
     }
 
     [[nodiscard]] FrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, const FrameFlags flags = FrameFlags::Empty);

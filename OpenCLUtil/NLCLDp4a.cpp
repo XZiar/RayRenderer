@@ -79,7 +79,7 @@ std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntim
     if (*call.Name == U"oclu.IntelDp4a"sv)
     {
         Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        HasIntelDp4a = Runtime.EvaluateFuncArgs<1, ArgLimits::Exact>(call, { Arg::Type::Bool })[0].GetBool().value();
+        HasIntelDp4a = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Bool).GetBool().value();
         return Arg{};
     }
     return {};

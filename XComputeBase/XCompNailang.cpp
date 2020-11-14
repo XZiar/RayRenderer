@@ -411,7 +411,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const
     {
     HashCase(name, U"GetVecTypeName")
     {
-        const auto arg = EvaluateFuncArgs<1>(call, { Arg::Type::String })[0];
+        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
         return GetVecTypeName(arg.GetStr().value());
     }
     HashCase(name, U"Log")

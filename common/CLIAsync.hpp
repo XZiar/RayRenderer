@@ -46,8 +46,7 @@ inline void __cdecl SetTcsException(const gcroot<TaskCompletionSource<RetType>^>
 template<auto Convertor, typename NativeT, typename ManagedT, typename Arg>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms, gcroot<Arg> cookie)
 {
-    const auto proxyPms = std::make_shared<common::detail::StagedResult_<gcroot<ManagedT>, NativeT>>(
-        std::move(pms),
+    const auto proxyPms = common::StagedResult::Convert(std::move(pms),
         [=](NativeT&& obj) { return Convertor(std::move(obj), cookie); });
     proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
         {
@@ -63,9 +62,8 @@ inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common
 template<auto Convertor, typename NativeT, typename ManagedT>
 inline void ReturnTaskNative(gcroot<TaskCompletionSource<ManagedT>^> tcs, common::PromiseResult<NativeT>&& pms)
 {
-    const auto proxyPms = std::make_shared<common::detail::StagedResult_<gcroot<ManagedT>, NativeT>>(
-        std::move(pms),
-        [](NativeT&& obj) { return Convertor(std::move(obj)); });
+    const auto proxyPms = common::StagedResult::Convert(std::move(pms),
+        [=](NativeT&& obj) { return Convertor(std::move(obj)); });
     proxyPms->OnComplete([=](const common::PromiseResult<gcroot<ManagedT>>& pms_)
         {
             SetTcsResult(tcs, pms_->Get());

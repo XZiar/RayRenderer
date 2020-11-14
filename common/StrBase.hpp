@@ -55,6 +55,8 @@ private:
     std::basic_string_view<Ch> View;
 public:
     StrVariant() noexcept { }
+    template<size_t N>
+    StrVariant(const Ch(&str)[N]) noexcept : View(str) { }
     StrVariant(std::basic_string<Ch>&& str) noexcept : Str(std::move(str)), View(Str) { }
     StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
     StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }

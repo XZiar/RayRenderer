@@ -224,7 +224,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         {
             if (AllowDebug)
             {
-                const auto size = Runtime.EvaluateFuncArgs<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer })[0].GetUint();
+                const auto size = Runtime.EvaluateFirstFuncArg(meta, Arg::Type::Integer, ArgLimits::AtMost).GetUint();
                 DebugBufferSize = gsl::narrow_cast<uint32_t>(size.value_or(512));
             }
             else

@@ -109,13 +109,13 @@
   </Type>
   <Type Name="xziar::nailang::Arg" >
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Empty" >{{ Empty }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Var"   >{{ Var [{Str,s32}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Str">{{ Str [{Str,s32}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Sv" >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Uint"  >{{ Uint [{Data1.Uint}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Int"   >{{ Int [{static_cast&lt;int64_t&gt;(Data1.Uint)}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::FP"    >{{ FP [{Data1.FP}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Bool"  >{{ Bool [{Data1.Uint == 1}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Var"   >{{ Var  }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Str">{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Sv" >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Uint"  >{{ Uint [{Data0.Uint}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Int"   >{{ Int [{static_cast&lt;int64_t&gt;(Data0.Uint)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::FP"    >{{ FP [{Data0.FP}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Bool"  >{{ Bool [{Data0.Uint == 1}] }}</DisplayString>
   </Type>
   <Type Name="xziar::nailang::BlockContent">
     <DisplayString Condition="(Pointer &amp; 0x3) == Type::Assignment" >{{ Assignment }}</DisplayString>
