@@ -39,6 +39,6 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
     if (container.size() <= 1)
         return 0;
     PrintColored(common::console::ConsoleColor::BrightWhite,
-        FMTSTR(u"Select {} to use:\n", name));
+        FMTSTR(u"Select {}:\n", name));
     return Select36(container.size());
 }

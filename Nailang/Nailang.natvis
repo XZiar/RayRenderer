@@ -183,7 +183,7 @@
             <Size>Args.size()</Size>
             <Loop>
               <Break Condition="idx &gt;= Args.size()" />
-              <Item Name="[{&amp;Pool[0] + Args[idx].first.Offset,[Args[idx].first.Length]s32}]">Args[idx].second</Item>
+              <Item Name="[{&amp;ArgNames.Pool[0] + Args[idx].first.Offset,[Args[idx].first.Length]s32}]">Args[idx].second</Item>
               <Exec>idx++</Exec>
             </Loop>
           </CustomListItems>

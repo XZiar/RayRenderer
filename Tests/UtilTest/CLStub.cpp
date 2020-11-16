@@ -7,6 +7,7 @@
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
+#include "common/CharConvs.hpp"
 #include "common/StringEx.hpp"
 #include <iostream>
 
@@ -27,6 +28,250 @@ static MiniLogger<false>& log()
     static MiniLogger<false> logger(u"OCLStub", { GetConsoleBackend() });
     return logger;
 }
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+
+
+static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const std::unique_ptr<NLCLResult>& nlclRes)
+{
+    const auto que = oclCmdQue_::Create(ctx, dev);
+    const std::vector<oclKernel> kernels = prog->GetKernels();
+    common::mlog::SyncConsoleBackend();
+    {
+        size_t idx = 0;
+        for (const auto& ker : kernels)
+        {
+            PrintColored(common::console::ConsoleColor::BrightWhite,
+                FMTSTR(u"[{:3}] {}\n", idx++, ker->Name));
+        }
+    }
+    while (true)
+    {
+        common::mlog::SyncConsoleBackend();
+        PrintColored(common::console::ConsoleColor::BrightWhite, u"Enter command <kenrel|idx>[,repeat,wkX,wkY,wkZ] :\n"sv);
+        const auto line = common::console::ConsoleEx::ReadLine();
+        if (line == "break")
+            break;
+        if (line.empty())
+            continue;
+        const auto parts = common::str::Split(line, ',', true);
+        Expects(parts.size() > 0);
+        oclKernel kernel;
+        for (const auto& ker : kernels)
+        {
+            if (ker->Name == parts[0])
+            {
+                kernel = ker; break;
+            }
+        }
+        if (!kernel)
+        {
+            uint32_t idx = 0;
+            if (common::StrToInt(parts[0], idx).first)
+            {
+                if (idx < kernels.size())
+                    kernel = kernels[idx];
+            }
+        }
+        if (!kernel)
+        {
+            log().warning(u"no kernel found for [{}]\n", parts[0]);
+            continue;
+        }
+        const auto queryU32 = [&](std::string_view argName) -> std::optional<uint32_t>
+        {
+            if (nlclRes)
+            {
+                const auto name = fmt::format(U"clstub.{}.{}"sv, kernel->Name, argName);
+                const auto result = nlclRes->QueryResult(name);
+                switch (result.index())
+                {
+                case 1:  return std::get<1>(result) ? 1u : 0u;
+                case 2:  return static_cast<uint32_t>(std::get<2>(result));
+                case 3:  return static_cast<uint32_t>(std::get<3>(result));
+                case 4:  return static_cast<uint32_t>(std::get<4>(result));
+                case 0:
+                case 5:
+                default: return {};
+                }
+            }
+            else
+                return {};
+        };
+        const auto queryArgU32 = [&](size_t idx, std::string_view suffix = {}) -> std::optional<uint32_t>
+        {
+            const auto name = fmt::format(suffix.empty() ? "args.{}"sv : "args.{}.{}"sv, idx, suffix);
+            return queryU32(name);
+        };
+        CallArgs args;
+        {
+            size_t idx = 0;
+            for (const auto& arg : kernel->ArgStore)
+            {
+                if (arg.ArgType == KerArgType::Buffer)
+                {
+                    const auto bufSize = queryArgU32(idx).value_or(4096u);
+                    const auto buf = oclBuffer_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, bufSize);
+                    args.PushArg(buf);
+                }
+                else if (arg.ArgType == KerArgType::Image)
+                {
+                    const auto w = queryArgU32(idx, "w").value_or(256u);
+                    const auto h = queryArgU32(idx, "h").value_or(256u);
+                    const auto img = oclImage2D_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, w, h, xziar::img::TextureFormat::RGBA8);
+                    args.PushArg(img);
+                }
+                else
+                {
+                    const auto val = queryArgU32(idx).value_or(0u);
+                    args.PushSimpleArg(val);
+                }
+                idx++;
+            }
+        }
+        constexpr auto NumOr = [](const auto& strs, const size_t idx, uint32_t num = 1) 
+        {
+            if (idx < strs.size())
+                common::StrToInt(strs[idx], num);
+            return num;
+        };
+        auto callsite = kernel->CallDynamic<3>(std::move(args));
+        const uint32_t repeats   = NumOr(parts, 1);
+        const uint32_t worksizeX = queryU32("wk.X").value_or(NumOr(parts, 2));
+        const uint32_t worksizeY = queryU32("wk.Y").value_or(NumOr(parts, 3));
+        const uint32_t worksizeZ = queryU32("wk.Z").value_or(NumOr(parts, 4));
+        const SizeN<3> lcSize = kernel->WgInfo.CompiledWorkGroupSize;
+        log().verbose(u"run kernel [{}] with [{}x{}x{}] for [{}] times\n",
+            kernel->Name, worksizeX, worksizeY, worksizeZ, repeats);
+        common::PromiseResult<CallResult> lastPms;
+        std::vector<common::PromiseResult<CallResult>> pmss; pmss.reserve(repeats);
+        for (uint32_t i = 0; i < repeats; ++i)
+        {
+            lastPms = callsite(lastPms, que, { worksizeX, worksizeY, worksizeZ }, lcSize);
+            pmss.push_back(lastPms);
+        }
+        lastPms->WaitFinish();
+
+        uint64_t timeMin = UINT64_MAX, timeMax = 0, total = 0;
+        for (const auto& pms : pmss)
+        {
+            const auto clPms = dynamic_cast<oclu::oclPromiseCore*>(&pms->GetPromise());
+            if (!clPms) continue;
+            const auto timeB = clPms->QueryTime(oclu::oclPromiseCore::TimeType::Start);
+            const auto timeE = clPms->QueryTime(oclu::oclPromiseCore::TimeType::End);
+            timeMin = std::min(timeB, timeMin);
+            timeMax = std::max(timeE, timeMax);
+            total += timeE - timeB;
+        }
+        const auto e2eTime = timeMax - timeMin;
+        const auto avgTime = total / repeats;
+        log().success(FMT_STRING(u"Finish, E2ETime {:1.5f}ms, avg KernelTime {:1.5f}ms.\n"), e2eTime / 1e6f, avgTime / 1e6f);
+    }
+}
+
+static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
+{
+    bool exConfig = false, runnable = false;
+    while (true)
+    {
+        const auto ch = fpath.back();
+        if (ch == '#')
+            exConfig = true;
+        else if (ch == '@')
+            runnable = true;
+        else
+            break;
+        fpath.pop_back();
+    }
+    common::fs::path filepath = fpath;
+    const bool isNLCL = filepath.extension().string() == ".nlcl";
+    log().debug(u"loading cl file [{}]\n", filepath.u16string());
+    try
+    {
+        const auto kertxt = common::file::ReadAllText(filepath);
+        CLProgConfig config;
+        config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
+        if (exConfig)
+        {
+            string line;
+            while (cin >> line)
+            {
+                ClearReturn();
+                if (line.size() == 0) break;
+                const auto parts = common::str::Split(line, '=');
+                string key(parts[0].substr(1));
+                switch (line.front())
+                {
+                case '#':
+                    if (parts.size() > 1)
+                        config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
+                    else
+                        config.Defines[key] = std::monostate{};
+                    continue;
+                case '@':
+                    if (key == "version")
+                        config.Version = (parts[1][0] - '0') * 10 + (parts[1][1] - '0');
+                    else
+                        config.Flags.insert(key);
+                    continue;
+                }
+                break;
+            }
+        }
+        std::unique_ptr<NLCLResult> nlclRes;
+        oclu::oclProgram clProg;
+        if (isNLCL)
+        {
+            static const NLCLProcessor NLCLProc;
+            const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
+            nlclRes = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
+            common::file::WriteAll(fpath + ".cl", nlclRes->GetNewSource());
+            clProg = nlclRes->GetProgram();
+        }
+        else
+        {
+            clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
+        }
+        const auto kernels = clProg->GetKernels();
+        log().success(u"loaded {} kernels:\n", kernels.Size());
+        common::mlog::SyncConsoleBackend();
+        for (const auto& ker : kernels)
+        {
+            const auto& wgInfo = ker->WgInfo;
+            u16string txt;
+            APPEND_FMT(txt, u"{}:\n-Pmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
+                wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
+                wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
+                wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
+            if (const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize); sgInfo.has_value())
+            {
+                APPEND_FMT(txt, u"-Subgroup[{}] x[{}], requireSize[{}]\n", sgInfo->SubgroupSize, sgInfo->SubgroupCount, sgInfo->CompiledSubgroupSize);
+            }
+            txt.append(u"-Args:\n"sv);
+            for (const auto& arg : ker->ArgStore)
+            {
+                if (arg.ArgType == KerArgType::Image)
+                    APPEND_FMT(txt, u"---[Image ][{:9}]({:12})[{:12}][{}]\n", 
+                        arg.GetImgAccessName(), arg.Type, arg.Name, arg.GetQualifierName());
+                else
+                    APPEND_FMT(txt, u"---[{:6}][{:9}]({:12})[{:12}][{}]\n", 
+                        arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
+            }
+            txt.append(u"\n"sv);
+            PrintColored(common::console::ConsoleColor::BrightWhite, txt);
+        }
+        const auto bin = clProg->GetBinary();
+        if (!bin.empty())
+            common::file::WriteAll(fpath + ".bin", bin);
+        if (runnable)
+        {
+            RunKernel(dev, ctx, clProg, nlclRes);
+        }
+    }
+    catch (const BaseException& be)
+    {
+        PrintException(be, u"Error here");
+    }
+}
 
 
 static void OCLStub()
@@ -39,9 +284,6 @@ static void OCLStub()
     }
     while (true)
     {
-        /*common::linq::FromIterable(plats)
-            .ForEach([](const auto& plat, size_t idx)
-                { log().info(FMT_STRING(u"platform[{}] {}  {{{}}}\n"), GetIdx36(idx), plat->Name, plat->Ver); });*/
         const auto platidx = SelectIdx(plats, u"platform", [](const auto& plat)
             {
                 return FMTSTR(u"{}  {{{}}}", plat->Name, plat->Ver);
@@ -54,9 +296,6 @@ static void OCLStub()
             log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
             return;
         }
-        /*common::linq::FromIterable(devs)
-            .ForEach([](const auto& dev, size_t idx)
-                { log().info(FMT_STRING(u"device[{}] {}  {{{} | {}}}\t[{} CU]\n"), GetIdx36(idx), dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits); });*/
         const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
             {
                 return FMTSTR(u"{}  {{{} | {}}}\t[{} CU]", dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
@@ -144,90 +383,8 @@ static void OCLStub()
             }
             else if (fpath.empty())
                 continue;
-            bool exConfig = false;
-            if (fpath.back() == '#')
-                fpath.pop_back(), exConfig = true;
-            common::fs::path filepath = fpath;
-            log().debug(u"loading cl file [{}]\n", filepath.u16string());
-            try
-            {
-                const auto kertxt = common::file::ReadAllText(filepath);
-                CLProgConfig config;
-                config.Defines["LOC_MEM_SIZE"] = dev->LocalMemSize;
-                if (exConfig)
-                {
-                    string line;
-                    while (cin >> line)
-                    {
-                        ClearReturn();
-                        if (line.size() == 0) break;
-                        const auto parts = common::str::Split(line, '=');
-                        string key(parts[0].substr(1));
-                        switch (line.front())
-                        {
-                        case '#':
-                            if (parts.size() > 1)
-                                config.Defines[key] = string(parts[1].cbegin(), parts.back().cend());
-                            else
-                                config.Defines[key] = std::monostate{};
-                            continue;
-                        case '@':
-                            if (key == "version")
-                                config.Version = (parts[1][0] - '0') * 10 + (parts[1][1] - '0');
-                            else
-                                config.Flags.insert(key);
-                            continue;
-                        }
-                        break;
-                    }
-                }
-                oclu::oclProgram clProg;
-                if (common::str::IsEndWith(fpath, ".nlcl"))
-                {
-                    static const NLCLProcessor NLCLProc;
-                    const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
-                    auto result = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
-                    common::file::WriteAll(fpath + ".cl", result->GetNewSource());
-                    clProg = result->GetProgram();
-                }
-                else
-                {
-                    clProg = oclProgram_::CreateAndBuild(ctx, kertxt, config, dev);
-                }
-                const auto kernels = clProg->GetKernels();
-                log().success(u"loaded {} kernels:\n", kernels.Size());
-                for (const auto& ker : kernels)
-                {
-                    const auto& wgInfo = ker->WgInfo;
-                    log().info(u"{}:\nPmem[{}], Smem[{}], Spill[{}], Size[{}]({}x), requireSize[{}x{}x{}]\n", ker->Name,
-                        wgInfo.PrivateMemorySize, wgInfo.LocalMemorySize, wgInfo.SpillMemSize,
-                        wgInfo.WorkGroupSize, wgInfo.PreferredWorkGroupSizeMultiple,
-                        wgInfo.CompiledWorkGroupSize[0], wgInfo.CompiledWorkGroupSize[1], wgInfo.CompiledWorkGroupSize[2]);
-                    const auto sgInfo = ker->GetSubgroupInfo(3, wgInfo.CompiledWorkGroupSize);
-                    if (sgInfo.has_value())
-                    {
-                        const auto& info = sgInfo.value();
-                        log().info(u"{}:\nSubgroup[{}] x[{}], requireSize[{}]\n", ker->Name, info.SubgroupSize, info.SubgroupCount, info.CompiledSubgroupSize);
-                    }
-                    for (const auto& arg : ker->ArgStore)
-                    {
-                        if (arg.ArgType == KerArgType::Image)
-                            log().verbose(FMT_STRING(u"---[Image ][{:9}]({:12})[{:12}][{}]\n"), 
-                                arg.GetImgAccessName(), arg.Type, arg.Name, arg.GetQualifierName());
-                        else
-                            log().verbose(FMT_STRING(u"---[{:6}][{:9}]({:12})[{:12}][{}]\n"), 
-                                arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
-                    }
-                }
-                log().info(u"\n\n");
-                const auto bin = clProg->GetBinary();
-                if (!bin.empty())
-                    common::file::WriteAll(fpath + ".bin", bin);
-            }
-            catch (const BaseException& be)
-            {
-                PrintException(be, u"Error here");
-            }
+
+            TestOCL(dev, ctx, fpath);
         }
     }
 }

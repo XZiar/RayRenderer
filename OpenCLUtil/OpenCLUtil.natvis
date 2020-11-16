@@ -39,7 +39,7 @@
     <Expand>
       <Item Name="Context">Context</Item>
       <Item Name="Source">Source</Item>
-      <Item Name="DebugManager">*DebugManager</Item>
+      <Item Name="DebugManager">*DebugMan</Item>
       <Synthetic Name="[Kernels]">
         <Expand>
           <CustomListItems MaxItemsPerView="100">

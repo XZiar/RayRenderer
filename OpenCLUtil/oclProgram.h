@@ -280,7 +280,9 @@ private:
         KernelCallSite(const oclKernel_* kernel, Args&& ... args) : 
             CallSiteInternal(kernel), Paras(std::forward<Args>(args)...)
         {
-            InitArg<sizeof...(Args) - 1>();
+            constexpr size_t argCount = sizeof...(Args);
+            if constexpr(argCount > 0)
+                InitArg<argCount - 1>();
         }
     public:
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que, 
@@ -301,6 +303,7 @@ private:
     private:
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         CallArgs Args;
+    protected:
         KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args);
     };
 
@@ -309,6 +312,7 @@ private:
     {
         friend class oclKernel_;
     public:
+        using KernelDynCallSiteInternal::KernelDynCallSiteInternal;
         [[nodiscard]] common::PromiseResult<CallResult> operator()(const common::PromiseStub& pmss, const oclCmdQue& que,
             const SizeN<N> worksize, const SizeN<N> localsize = {}, const SizeN<N> workoffset = {})
         {
@@ -404,15 +408,38 @@ private:
     std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
 
     [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
+    [[nodiscard]] oclKernel GetKernelByIdx(const size_t idx) const
+    {
+        return std::shared_ptr<const oclKernel_>(shared_from_this(), Kernels[idx].get());
+    }
     oclProgram_(oclProgStub* stub);
+
+    using ItKernel = common::container::IndirectIterator<const oclProgram_, oclKernel, &oclProgram_::GetKernelByIdx>;
+    friend ItKernel;
+    class KernelContainer
+    {
+        friend class oclProgram_;
+        const oclProgram_* Host;
+        constexpr KernelContainer(const oclProgram_* host) noexcept : Host(host) { }
+    public:
+        ItKernel begin() const noexcept { return { Host, 0 }; }
+        ItKernel end()   const noexcept { return { Host, Host->Kernels.size() }; }
+        size_t Size() const noexcept { return Host->Kernels.size(); }
+        oclKernel operator[](size_t idx) const { return Host->GetKernelByIdx(idx); }
+        operator std::vector<oclKernel>() const
+        {
+            std::vector<oclKernel> vec;
+            vec.reserve(Size());
+            for (auto x : *this)
+                vec.emplace_back(x);
+            return vec;
+        }
+    };
 public:
     ~oclProgram_();
     [[nodiscard]] std::string_view GetSource() const noexcept { return Source; }
     [[nodiscard]] oclKernel GetKernel(const std::string_view& name) const;
-    [[nodiscard]] auto GetKernels() const
-    {
-        return common::container::SlaveVector<oclProgram_, std::unique_ptr<oclKernel_>>(shared_from_this(), Kernels);
-    }
+    [[nodiscard]] constexpr KernelContainer GetKernels() const { return this; }
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
     [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
     [[nodiscard]] std::vector<std::byte> GetBinary() const;
