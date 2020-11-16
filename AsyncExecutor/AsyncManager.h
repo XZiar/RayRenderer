@@ -3,7 +3,6 @@
 #include "AsyncAgent.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
-#include "common/IntToString.hpp"
 #include <atomic>
 #define BOOST_CONTEXT_STATIC_LINK 1
 #define BOOST_CONTEXT_NO_LIB 1
@@ -64,12 +63,13 @@ private:
 protected:
     common::SimpleTimer TaskTimer; // execution timer
     AsyncTaskStatus Status = AsyncTaskStatus::New;
-    AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize);
+    AsyncTaskNodeBase(const std::u16string name, uint32_t tuid, uint32_t stackSize);
     void BeginTask() noexcept;
     void SumPartialTime() noexcept;
     void FinishTask(const AsyncTaskStatus status, AsyncTaskPromiseProvider& taskTime) noexcept;
 private:
     uint64_t ElapseTime = 0; // execution time
+    const uint32_t TaskUid;
     const uint32_t StackSize;
 public:
     virtual ~AsyncTaskNodeBase();
@@ -84,8 +84,8 @@ private:
     FuncType Func;
     BasicPromise<RetType, AsyncTaskResult<RetType>> InnerPms;
     template<typename F>
-    AsyncTaskNode(const std::u16string name, uint32_t stackSize, F&& func) : 
-        AsyncTaskNodeBase(name, stackSize), Func(std::forward<F>(func))
+    AsyncTaskNode(const std::u16string name, uint32_t tuid, uint32_t stackSize, F&& func) :
+        AsyncTaskNodeBase(name, tuid, stackSize), Func(std::forward<F>(func))
     { }
     forceinline AsyncTaskPromiseProvider& GetAsyncProvider() noexcept { return InnerPms.GetRawPromise()->GetPromise(); }
     forceinline RetType InnerCall([[maybe_unused]] const AsyncAgent& agent)
@@ -165,6 +165,7 @@ private:
     std::atomic_uint32_t TaskUid{ 0 };
     bool AllowStopAdd;
 
+    uint32_t PreCheckTask(std::u16string& taskName);
     bool AddNode(detail::AsyncTaskNodeBase* node);
 
     void Resume(detail::AsyncTaskStatus status);
@@ -183,22 +184,14 @@ public:
     common::loop::LoopExecutor& GetHost();
 
     template<typename Func>
-    auto AddTask(Func&& task, std::u16string taskname = u"", uint32_t stackSize = 0)
+    forceinline auto AddTask(Func&& task, std::u16string taskName = u"", uint32_t stackSize = 0)
     {
         constexpr bool AcceptAgent = std::is_invocable_v<Func, const AsyncAgent&>;
         static_assert(AcceptAgent || std::is_invocable_v<Func>, "Unsupported Task Func Type");
         using Ret = typename detail::RetTypeGetter<Func, AcceptAgent>::Type;
-        const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
-        if (taskname == u"")
-            taskname = u"task" + common::str::to_u16string(tuid);
-        if (!AllowStopAdd && !IsRunning()) //has stopped
-        {
-            Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, taskname);
-            COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Executor was terminated when adding task.");
-        }
-        auto node = new detail::AsyncTaskNode<Ret, AcceptAgent>(taskname, stackSize, std::forward<Func>(task));
+        const auto tuid = PreCheckTask(taskName);
+        const auto node = new detail::AsyncTaskNode<Ret, AcceptAgent>(taskName, tuid, stackSize, std::forward<Func>(task));
         AddNode(node);
-        Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), tuid, node->Name);
         return node->InnerPms.GetPromiseResult();
     }
 };

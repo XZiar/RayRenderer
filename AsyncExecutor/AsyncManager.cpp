@@ -1,8 +1,6 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
-#include "common/IntToString.hpp"
-
 
 
 namespace common::asyexe
@@ -23,7 +21,8 @@ uint64_t AsyncTaskPromiseProvider::E2EElapseNs() noexcept
 }
 
 
-AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize) : Name(name),
+AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize, uint32_t tuid) : 
+    Name(name), TaskUid(tuid),
     StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) 
 { }
 AsyncTaskNodeBase::~AsyncTaskNodeBase() 
@@ -48,10 +47,24 @@ void AsyncTaskNodeBase::FinishTask(const AsyncTaskStatus status, AsyncTaskPromis
 }
 
 
+uint32_t AsyncManager::PreCheckTask(std::u16string& taskName)
+{
+    const auto tuid = TaskUid.fetch_add(1, std::memory_order_relaxed);
+    if (taskName == u"")
+        taskName = fmt::format(u"task {}", tuid);
+    if (!AllowStopAdd && !IsRunning()) //has stopped
+    {
+        Logger.warning(u"New task cancelled due to termination [{}] [{}]\n", tuid, taskName);
+        COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Cancelled, u"Executor was terminated when adding task.");
+    }
+    return tuid;
+}
+
 bool AsyncManager::AddNode(detail::AsyncTaskNodeBase* node)
 {
     if (TaskList.AppendNode(node)) // need to notify worker
         Wakeup();
+    Logger.debug(FMT_STRING(u"Add new task [{}] [{}]\n"), node->TaskUid, node->Name);
     return true;
 }
 
