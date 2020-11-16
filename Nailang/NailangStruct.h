@@ -406,16 +406,25 @@ public:
 
 struct CustomVar
 {
-    struct Handler
-    {
-        virtual void IncreaseRef(CustomVar&) noexcept {};
-        virtual void DecreaseRef(CustomVar&) noexcept {};
-        virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; };
-    };
+    struct Handler;
     Handler* Host;
     uint64_t Meta0;
     uint32_t Meta1;
     uint16_t Meta2;
+    template<auto F, typename... Args>
+    auto Call(Args&&... args)
+    {
+        static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
+            "F need to be member function of Handler, accept CustomVar& and args");
+        return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
+    template<auto F, typename... Args>
+    auto Call(Args&&... args) const
+    {
+        static_assert(std::is_invocable_v<decltype(F), Handler&, const CustomVar&, Args...>,
+            "F need to be member function of Handler, accept const CustomVar& and args");
+        return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
 };
 
 struct Arg
@@ -423,25 +432,6 @@ struct Arg
     static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
     static_assert(sizeof(size_t)    <= sizeof(uint64_t));
     static_assert(sizeof(std::u32string_view) == sizeof(common::SharedString<char32_t>));
-private:
-    detail::IntFPUnion Data0;
-    uint64_t Data1;
-    uint32_t Data2;
-    uint16_t Data3;
-    void Release() noexcept
-    {
-        if (TypeData == Type::U32Str && Data1 > 0)
-        {
-            auto str = GetVar<Type::U32Str>();
-            common::SharedString<char32_t>::PlacedDecrease(str);
-        }
-        else if (TypeData == Type::Var)
-        {
-            auto var = GetVar<Type::Var>();
-            var.Host->DecreaseRef(var);
-        }
-        TypeData = Type::Empty;
-    }
 public:
     enum class Type : uint16_t
     { 
@@ -455,7 +445,37 @@ public:
         Int    = RealType | Integer  | 0x000,
         Var    = RealType | Custom,
     };
+private:
+    detail::IntFPUnion Data0;
+    uint64_t Data1;
+    uint32_t Data2;
+    uint16_t Data3;
+    NAILANGAPI void Release() noexcept;
+    [[nodiscard]] Arg ConvertCustomType(Type type) const noexcept;
+public:
     Type TypeData;
+
+    template<Type T>
+    [[nodiscard]] constexpr auto GetVar() const noexcept
+    {
+        Expects(TypeData == T);
+        if constexpr (T == Type::Var)
+            return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
+        else if constexpr (T == Type::U32Str)
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+        else if constexpr (T == Type::U32Sv)
+            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+        else if constexpr (T == Type::Uint)
+            return Data0.Uint;
+        else if constexpr (T == Type::Int)
+            return static_cast<int64_t>(Data0.Uint);
+        else if constexpr (T == Type::FP)
+            return Data0.FP;
+        else if constexpr (T == Type::Bool)
+            return Data0.Uint == 1;
+        else
+            static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
+    }
 
     Arg() noexcept : Data0(0), Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
@@ -492,48 +512,14 @@ public:
     Arg(const bool boolean) noexcept :
         Data0(boolean ? 1 : 0), Data1(0), Data2(0), Data3(9), TypeData(Type::Bool)
     { }
-    Arg(const Arg& other) noexcept :
-        Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
+    ~Arg()
     {
-        if (TypeData == Type::U32Str && Data1 > 0)
-        {
-            auto str = other.GetVar<Type::U32Str>();
-            common::SharedString<char32_t>::PlacedIncrease(str);
-        }
-        else if (TypeData == Type::Var)
-        {
-            auto var = GetVar<Type::Var>();
-            var.Host->IncreaseRef(var);
-        }
+        Release();
     }
     Arg(Arg&& other) noexcept :
         Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
     {
         other.TypeData = Type::Empty;
-    }
-    ~Arg()
-    {
-        Release();
-    }
-    Arg& operator=(const Arg& other) noexcept
-    {
-        Release();
-        Data0 = other.Data0;
-        Data1 = other.Data1;
-        Data2 = other.Data2;
-        Data3 = other.Data3;
-        TypeData = other.TypeData;
-        if (TypeData == Type::U32Str && Data1 > 0)
-        {
-            auto str = other.GetVar<Type::U32Str>();
-            common::SharedString<char32_t>::PlacedIncrease(str);
-        }
-        else if (TypeData == Type::Var)
-        {
-            auto var = GetVar<Type::Var>();
-            var.Host->IncreaseRef(var);
-        }
-        return *this;
     }
     Arg& operator=(Arg&& other) noexcept
     {
@@ -546,28 +532,8 @@ public:
         other.TypeData = Type::Empty;
         return *this;
     }
-
-    template<Type T>
-    [[nodiscard]] constexpr auto GetVar() const noexcept
-    {
-        Expects(TypeData == T);
-        if constexpr (T == Type::Var)
-            return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
-        else if constexpr (T == Type::U32Str)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
-        else if constexpr (T == Type::U32Sv)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
-        else if constexpr (T == Type::Uint)
-            return Data0.Uint;
-        else if constexpr (T == Type::Int)
-            return static_cast<int64_t>(Data0.Uint);
-        else if constexpr (T == Type::FP)
-            return Data0.FP;
-        else if constexpr (T == Type::Bool)
-            return Data0.Uint == 1;
-        else
-            static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
-    }
+    NAILANGAPI Arg(const Arg& other) noexcept;
+    NAILANGAPI Arg& operator=(const Arg& other) noexcept;
 
     template<typename Visitor>
     [[nodiscard]] forceinline auto Visit(Visitor&& visitor) const
@@ -609,62 +575,17 @@ public:
     {
         return TypeData == Type::U32Str || TypeData == Type::U32Sv;
     }
-    [[nodiscard]] forceinline constexpr std::optional<bool> GetBool() const noexcept
+    [[nodiscard]] forceinline constexpr bool IsCustom() const noexcept
     {
-        switch (TypeData)
-        {
-        case Type::Uint:    return  GetVar<Type::Uint>() != 0;
-        case Type::Int:     return  GetVar<Type::Int>() != 0;
-        case Type::FP:      return  GetVar<Type::FP>() != 0;
-        case Type::Bool:    return  GetVar<Type::Bool>();
-        case Type::U32Str:  return !GetVar<Type::U32Str>().empty();
-        case Type::U32Sv:   return !GetVar<Type::U32Sv>().empty();
-        default:                    return {};
-        }
+        return TypeData == Type::Var;
     }
-    [[nodiscard]] forceinline constexpr std::optional<uint64_t> GetUint() const noexcept
-    {
-        switch (TypeData)
-        {
-        case Type::Uint:    return GetVar<Type::Uint>();
-        case Type::Int:     return static_cast<uint64_t>(GetVar<Type::Int>());
-        case Type::FP:      return static_cast<uint64_t>(GetVar<Type::FP>());
-        case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
-        default:                    return {};
-        }
-    }
-    [[nodiscard]] forceinline constexpr std::optional<int64_t> GetInt() const noexcept
-    {
-        switch (TypeData)
-        {
-        case Type::Uint:    return static_cast<int64_t>(GetVar<Type::Uint>());
-        case Type::Int:     return GetVar<Type::Int>();
-        case Type::FP:      return static_cast<int64_t>(GetVar<Type::FP>());
-        case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
-        default:                    return {};
-        }
-    }
-    [[nodiscard]] forceinline constexpr std::optional<double> GetFP() const noexcept
-    {
-        switch (TypeData)
-        {
-        case Type::Uint:    return static_cast<double>(GetVar<Type::Uint>());
-        case Type::Int:     return static_cast<double>(GetVar<Type::Int>());
-        case Type::FP:      return GetVar<Type::FP>();
-        case Type::Bool:    return GetVar<Type::Bool>() ? 1. : 0.;
-        default:                    return {};
-        }
-    }
-    [[nodiscard]] forceinline constexpr std::optional<std::u32string_view> GetStr() const noexcept
-    {
-        switch (TypeData)
-        {
-        case Type::U32Str:  return GetVar<Type::U32Str>();
-        case Type::U32Sv:   return GetVar<Type::U32Sv>();
-        default:                    return {};
-        }
-    }
-    [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t> ToString() const noexcept;
+    
+    [[nodiscard]] NAILANGAPI std::optional<bool>                GetBool()   const noexcept;
+    [[nodiscard]] NAILANGAPI std::optional<uint64_t>            GetUint()   const noexcept;
+    [[nodiscard]] NAILANGAPI std::optional<int64_t>             GetInt()    const noexcept;
+    [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
+    [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
+    [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
 
     [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
     {
@@ -673,6 +594,19 @@ public:
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 MAKE_ENUM_BITFIELD(Arg::Type)
+
+struct CustomVar::Handler
+{
+    virtual void IncreaseRef(CustomVar&) noexcept {};
+    virtual void DecreaseRef(CustomVar&) noexcept {};
+    virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; };
+    virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
+};
+
+[[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
+{
+    return GetVar<Type::Var>().Call<&CustomVar::Handler::ConvertToCommon>(type);
+}
 
 
 struct WithPos

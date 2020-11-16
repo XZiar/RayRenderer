@@ -121,6 +121,118 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
 }
 
 
+Arg::Arg(const Arg& other) noexcept :
+    Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
+{
+    if (TypeData == Type::U32Str && Data1 > 0)
+    {
+        auto str = other.GetVar<Type::U32Str>();
+        common::SharedString<char32_t>::PlacedIncrease(str);
+    }
+    else if (TypeData == Type::Var)
+    {
+        auto var = GetVar<Type::Var>();
+        var.Host->IncreaseRef(var);
+    }
+}
+
+Arg& Arg::operator=(const Arg& other) noexcept
+{
+    Release();
+    Data0 = other.Data0;
+    Data1 = other.Data1;
+    Data2 = other.Data2;
+    Data3 = other.Data3;
+    TypeData = other.TypeData;
+    if (TypeData == Type::U32Str && Data1 > 0)
+    {
+        auto str = other.GetVar<Type::U32Str>();
+        common::SharedString<char32_t>::PlacedIncrease(str);
+    }
+    else if (TypeData == Type::Var)
+    {
+        auto var = GetVar<Type::Var>();
+        var.Host->IncreaseRef(var);
+    }
+    return *this;
+}
+
+void Arg::Release() noexcept
+{
+    if (TypeData == Type::U32Str && Data1 > 0)
+    {
+        auto str = GetVar<Type::U32Str>();
+        common::SharedString<char32_t>::PlacedDecrease(str);
+    }
+    else if (TypeData == Type::Var)
+    {
+        auto var = GetVar<Type::Var>();
+        var.Host->DecreaseRef(var);
+    }
+    TypeData = Type::Empty;
+}
+
+std::optional<bool> Arg::GetBool() const noexcept
+{
+    switch (TypeData)
+    {
+    case Type::Uint:    return  GetVar<Type::Uint>() != 0;
+    case Type::Int:     return  GetVar<Type::Int>() != 0;
+    case Type::FP:      return  GetVar<Type::FP>() != 0;
+    case Type::Bool:    return  GetVar<Type::Bool>();
+    case Type::U32Str:  return !GetVar<Type::U32Str>().empty();
+    case Type::U32Sv:   return !GetVar<Type::U32Sv>().empty();
+    case Type::Var:     return  ConvertCustomType(Type::Bool).GetBool();
+    default:            return {};
+    }
+}
+std::optional<uint64_t> Arg::GetUint() const noexcept
+{
+    switch (TypeData)
+    {
+    case Type::Uint:    return GetVar<Type::Uint>();
+    case Type::Int:     return static_cast<uint64_t>(GetVar<Type::Int>());
+    case Type::FP:      return static_cast<uint64_t>(GetVar<Type::FP>());
+    case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
+    case Type::Var:     return ConvertCustomType(Type::Uint).GetUint();
+    default:            return {};
+    }
+}
+std::optional<int64_t> Arg::GetInt() const noexcept
+{
+    switch (TypeData)
+    {
+    case Type::Uint:    return static_cast<int64_t>(GetVar<Type::Uint>());
+    case Type::Int:     return GetVar<Type::Int>();
+    case Type::FP:      return static_cast<int64_t>(GetVar<Type::FP>());
+    case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
+    case Type::Var:     return ConvertCustomType(Type::Int).GetInt();
+    default:            return {};
+    }
+}
+std::optional<double> Arg::GetFP() const noexcept
+{
+    switch (TypeData)
+    {
+    case Type::Uint:    return static_cast<double>(GetVar<Type::Uint>());
+    case Type::Int:     return static_cast<double>(GetVar<Type::Int>());
+    case Type::FP:      return GetVar<Type::FP>();
+    case Type::Bool:    return GetVar<Type::Bool>() ? 1. : 0.;
+    case Type::Var:     return ConvertCustomType(Type::FP).GetFP();
+    default:            return {};
+    }
+}
+std::optional<std::u32string_view> Arg::GetStr() const noexcept
+{
+    switch (TypeData)
+    {
+    case Type::U32Str:  return GetVar<Type::U32Str>();
+    case Type::U32Sv:   return GetVar<Type::U32Sv>();
+    case Type::Var:     return ConvertCustomType(Type::U32Sv).GetStr();
+    default:            return {};
+    }
+}
+
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
     return Visit([](const auto val) -> common::str::StrVariant<char32_t>

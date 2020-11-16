@@ -101,6 +101,12 @@ public:
 
 };
 
+struct BaseCustomVar : public xziar::nailang::CustomVar::Handler
+{
+    common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{BaseCustomVar}"; };
+};
+static BaseCustomVar BaseCustomVarHandler;
+
 
 TEST(NailangBase, ArgToString)
 {
@@ -113,7 +119,7 @@ TEST(NailangBase, ArgToString)
     ChkStr(1.5, U"1.5"sv);
     ChkStr(U"Here"sv, U"Here"sv);
     ChkStr({}, U""sv);
-    ChkStr(CustomVar{}, U""sv);
+    ChkStr(CustomVar{ &BaseCustomVarHandler, 0,0,0 }, U"{BaseCustomVar}"sv);
 }
 
 TEST(NailangRuntime, EvalEmbedOp)

@@ -459,7 +459,7 @@ private:
             return Stage1->GetPromise();
         }
     protected:
-        [[nodiscard]] void GetResult() override
+        void GetResult() override
         {
             return;
         }

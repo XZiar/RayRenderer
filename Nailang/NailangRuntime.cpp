@@ -1061,7 +1061,6 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
         HashCase(fullName, U"ParseSciFloat")
         {
-            constexpr auto sz = sizeof(Arg);
             const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
             const auto str = common::str::to_string(arg.GetStr().value());
             double ret = 0;
