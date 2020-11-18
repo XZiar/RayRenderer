@@ -13,12 +13,14 @@ using DxDevice = const DxDevice_*;
 class DxCmdQue_;
 class DxCmdList_;
 class DxResource_;
+class DxShader_;
 
 class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public common::NonMovable
 {
     friend class DxCmdQue_;
     friend class DxCmdList_;
     friend class DxResource_;
+    friend class DxShader_;
 protected:
     struct AdapterProxy;
     struct DeviceProxy;

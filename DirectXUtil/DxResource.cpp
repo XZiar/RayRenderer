@@ -101,6 +101,11 @@ ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState new
     return oldState;
 }
 
+uint64_t DxResource_::GetGPUVirtualAddress() const
+{
+    return Resource->GetGPUVirtualAddress();
+}
+
 
 
 }

@@ -87,6 +87,7 @@ protected:
     std::atomic<ResourceState> State;
 public:
     const HeapProps HeapInfo;
+    [[nodiscard]] uint64_t GetGPUVirtualAddress() const;
 };
 
 

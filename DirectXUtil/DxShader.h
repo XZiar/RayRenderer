@@ -1,6 +1,7 @@
 #pragma once
 #include "DxRely.h"
 #include "DxDevice.h"
+#include "DxBuffer.h"
 #include "common/CLikeConfig.hpp"
 #include "common/StringPool.hpp"
 
@@ -12,12 +13,13 @@
 namespace dxu
 {
 class DxShader_;
-using DxShader = std::shared_ptr<DxShader_>;
+using DxShader = std::shared_ptr<const DxShader_>;
 class DxComputeShader_;
-using DxComputeShader = std::shared_ptr<DxComputeShader_>;
+using DxComputeShader = std::shared_ptr<const DxComputeShader_>;
 class DxShaderStub_;
 template<typename T>
 class DxShaderStub;
+class DxShaderPrepareBase;
 
 
 enum class ShaderType
@@ -44,10 +46,11 @@ struct DxShaderConfig
 };
 
 
-class DXUAPI DxShader_
+class DXUAPI DxShader_ : public std::enable_shared_from_this<DxShader_>
 {
-    friend class DxShaderStub_;
-    friend class DxShaderStub<DxShader_>;
+    friend DxShaderStub_;
+    friend DxShaderStub<DxShader_>;
+    friend DxShaderPrepareBase;
 private:
     struct BoundedResWrapper
     {
@@ -81,6 +84,8 @@ private:
         constexpr ItTypeBuf end()   const noexcept { return { Host, Host->TextureSlots.size() }; }
     };
     struct ShaderBlob;
+    struct RootSignature;
+    const PtrProxy<DxDevice_::DeviceProxy>& GetDevice() const noexcept;
 protected:
     struct T_ {};
     struct BoundedResource
@@ -91,8 +96,10 @@ protected:
         uint32_t Count;
         BoundedResourceType Type;
     };
+    const DxDevice Device;
     const std::string Source;
     PtrProxy<ShaderBlob> Blob;
+    PtrProxy<RootSignature> RootSig;
     std::string ShaderHash;
     common::StringPool<char> StrPool;
     std::vector<BoundedResource> BufferSlots;
@@ -100,7 +107,7 @@ protected:
     ShaderType Type;
     uint32_t Version;
 
-    const BoundedResource* GetSlot(const std::vector<BoundedResource>& container, common::str::HashedStrView<char> name);
+    const BoundedResource* GetSlot(const std::vector<BoundedResource>& container, common::str::HashedStrView<char> name) const;
 public:
     DxShader_(T_, DxShaderStub_* stub);
     virtual ~DxShader_();
@@ -143,14 +150,63 @@ public:
 };
 
 
+class DXUAPI DxShaderPrepareBase
+{
+private:
+    struct BindingInfo;
+protected:
+    const DxShader Shader;
+    std::unique_ptr<BindingInfo> Binding;
+    DxShaderPrepareBase(DxShader shader);
+    bool SetBuf(std::string_view name, DxBuffer buf);
+    void Finish(const DxCmdList& cmdlist);
+public:
+    ~DxShaderPrepareBase();
+};
+template<typename T>
+class DxShaderPrepare : public DxShaderPrepareBase
+{
+    static_assert(std::is_base_of_v<DxShader_, T>);
+    friend T;
+private:
+    DxShaderPrepare(std::shared_ptr<const T> shader) : DxShaderPrepareBase(std::move(shader)) {}
+    std::shared_ptr<const T> GetShader() const noexcept { return std::static_pointer_cast<const T>(Shader);  }
+public:
+    DxShaderPrepare& SetBuf(std::string_view name, DxBuffer buf)
+    {
+        DxShaderPrepareBase::SetBuf(name, buf);
+        return *this;
+    }
+    auto Finish(const DxCmdList& prevList = {})
+    {
+        return T::FinishPrepare(*this, prevList);
+    }
+};
+
+
 class DXUAPI DxComputeShader_ : public DxShader_
 {
-    friend class DxShaderStub<DxComputeShader_>;
+    friend DxShaderStub<DxComputeShader_>;
+    friend DxShaderPrepare<DxComputeShader_>;
 private:
     struct T_ {};
+    class DxComputeCall
+    {
+        const DxComputeShader Shader;
+        const DxComputeCmdList CmdList;
+    public:
+        DxComputeCall(DxShaderPrepare<DxComputeShader_>& prepare, const DxCmdList& prevList);
+    };
+    template<typename U>
+    static void CheckListType() noexcept { DXU_CMD_CHECK(U, Compute, List); }
+    static forceinline DxComputeCall FinishPrepare(DxShaderPrepare<DxComputeShader_>& prepare, const DxCmdList& prevList)
+    {
+        return { prepare, prevList };
+    }
 public:
     DxComputeShader_(T_, DxShaderStub_* stub);
     ~DxComputeShader_() override;
+    [[nodiscard]] DxShaderPrepare<DxComputeShader_> Prepare() const;
 
     [[nodiscard]] static DxComputeShader Create(DxDevice dev, std::string str, const DxShaderConfig& config);
 };

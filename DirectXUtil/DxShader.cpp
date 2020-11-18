@@ -7,7 +7,8 @@
 
 namespace dxu
 {
-DxProxy(DxShader_,      ShaderBlob,     IDxcBlob);
+DxProxy(DxShader_, ShaderBlob,    IDxcBlob);
+DxProxy(DxShader_, RootSignature, ID3D12RootSignature);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
@@ -70,11 +71,11 @@ private:
         while (true)
         {
             const auto smVer = maxVer + 1;
-            const auto targetProfile = FMTSTR(u"vs_{}_{}", smVer / 10, smVer % 10);
+            const auto targetProfile = FMTSTR(L"vs_{}_{}", smVer / 10, smVer % 10);
             ComPtr<IDxcOperationResult> result;
             common::HResultHolder hr = Compiler->Compile(srcBlob.Get(), L"hlsl",
                 L"main",
-                WStr(targetProfile.c_str()),
+                targetProfile.c_str(),
                 nullptr, 0,
                 nullptr, 0,
                 nullptr, result.GetAddressOf());
@@ -346,7 +347,7 @@ static constexpr std::pair<BoundedResourceType, bool> ParseBindType(const D3D_SH
 }
 
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
-    : Source(std::move(stub->Source)), Blob(stub->Blob)
+    : Device(stub->Device), Source(std::move(stub->Source)), Blob(stub->Blob)
 {
     stub->Blob.SetNull();
     DXCReflector reflector(*Blob);
@@ -356,6 +357,7 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     THROW_HR(shaderReflector->GetDesc(&desc), u"Failed to get desc");
     Type = ParseShaderType((desc.Version & 0xFFFF0000) >> 16);
     Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
+    std::vector<D3D12_ROOT_PARAMETER> rootParams;
     for (uint32_t i = 0; i < desc.BoundResources; ++i)
     {
         D3D12_SHADER_INPUT_BIND_DESC bdesc = {};
@@ -366,10 +368,64 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
         const auto [type, isTex] = ParseBindType(bdesc.Type);
         //if (isTex)
         BufferSlots.push_back({ resName.Hash, name, bdesc.BindPoint, bdesc.BindCount, type });
+        D3D12_ROOT_PARAMETER rootParam{};
+        rootParam.ShaderVisibility  = D3D12_SHADER_VISIBILITY_ALL;
+        bool addParam = true;
+        if (type == BoundedResourceType::TypedUAV || type == BoundedResourceType::UntypedUAV || type == BoundedResourceType::ByteAddressUAV)
+        {
+            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
+        }
+        else if (type == BoundedResourceType::CBuffer)
+        {
+            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
+        }
+        else if (type == BoundedResourceType::TBuffer || type == BoundedResourceType::Texture)
+        {
+            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
+        }
+        else
+        {
+            addParam = false;
+        }
+        if (addParam)
+            rootParams.push_back(rootParam);
+    }
+    // create RootSignature
+    {
+        D3D12_ROOT_SIGNATURE_DESC rootSigDesc =
+        {
+            gsl::narrow_cast<uint32_t>(rootParams.size()),
+            rootParams.data(),
+            0, // static sampler count
+            nullptr, // static sampler
+            D3D12_ROOT_SIGNATURE_FLAG_NONE
+        };
+        ComPtr<ID3DBlob> rootSigSer = nullptr, errorBlob = nullptr;
+        THROW_HR(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, rootSigSer.GetAddressOf(), errorBlob.GetAddressOf()),
+            ([](const auto& err) -> std::u16string
+                {
+                    if (err != nullptr)
+                    {
+                        const auto msg = reinterpret_cast<const char*>(err->GetBufferPointer());
+                        return FMTSTR(u"Failed to SerializeRootSignature:\n{}", msg);
+                    }
+                    else
+                        return u"Failed to SerializeRootSignature";
+                }(errorBlob)));
+        THROW_HR(Device->Device->CreateRootSignature(0, rootSigSer->GetBufferPointer(), rootSigSer->GetBufferSize(),
+            IID_PPV_ARGS(&RootSig)), u"Failed to create Root Signature");
     }
 }
 DxShader_::~DxShader_()
 { }
+
+const PtrProxy<DxDevice_::DeviceProxy>& DxShader_::GetDevice() const noexcept
+{
+    return Device->Device;
+}
 
 DxShader_::BoundedResWrapper DxShader_::GetBufSlot(const size_t idx) const noexcept
 {
@@ -394,7 +450,7 @@ DxShader DxShader_::CreateAndBuild(DxDevice dev, ShaderType type, std::string st
     return stub.Finish();
 }
 
-const DxShader_::BoundedResource* DxShader_::GetSlot(const std::vector<BoundedResource>& container, HashedStrView<char> name)
+const DxShader_::BoundedResource* DxShader_::GetSlot(const std::vector<BoundedResource>& container, HashedStrView<char> name) const
 {
     for (const auto& item : container)
     {
@@ -413,6 +469,11 @@ DxComputeShader_::DxComputeShader_(DxComputeShader_::T_, DxShaderStub_* stub)
 DxComputeShader_::~DxComputeShader_()
 { }
 
+DxShaderPrepare<DxComputeShader_> DxComputeShader_::Prepare() const
+{
+    return std::static_pointer_cast<const DxComputeShader_>(shared_from_this());
+}
+
 DxComputeShader DxComputeShader_::Create(DxDevice dev, std::string str, const DxShaderConfig& config)
 {
     DxShaderStub<DxComputeShader_> stub{ dev, ShaderType::Compute, std::move(str) };
@@ -420,6 +481,68 @@ DxComputeShader DxComputeShader_::Create(DxDevice dev, std::string str, const Dx
     return stub.Finish();
 }
 
+DxComputeShader_::DxComputeCall::DxComputeCall(DxShaderPrepare<DxComputeShader_>& prepare, const DxCmdList& prevList) :
+    Shader(prepare.GetShader()), CmdList(DxComputeCmdList_::Create(Shader->Device, prevList))
+{
+
+}
+
+
+struct DxShaderPrepareBase::BindingInfo
+{
+    template<typename T>
+    struct BindItem
+    {
+        std::string_view Name;
+        std::shared_ptr<T> Item;
+        uint32_t Index;
+    };
+    std::vector<BindItem<const DxBuffer_>> BindBuffer;
+    ComPtr<ID3D12DescriptorHeap> DescHeap;
+    ComPtr<ID3D12RootSignature> RootSig;
+};
+DxShaderPrepareBase::DxShaderPrepareBase(DxShader shader) :
+    Shader(std::move(shader)), Binding(std::make_unique<BindingInfo>())
+{ }
+DxShaderPrepareBase::~DxShaderPrepareBase()
+{ }
+
+bool DxShaderPrepareBase::SetBuf(std::string_view name, DxBuffer buf)
+{
+    for (auto& item : Binding->BindBuffer)
+    {
+        if (item.Name == name)
+        {
+            item.Item = buf;
+            return true;
+        }
+    }
+    const auto slot = Shader->GetSlot(Shader->BufferSlots, name);
+    if (slot)
+    {
+        Binding->BindBuffer.push_back({ name, buf, slot->Index });
+        return true;
+    }
+    return false;
+}
+
+void DxShaderPrepareBase::Finish(const DxCmdList& cmdlist)
+{
+    std::vector<D3D12_ROOT_PARAMETER> rootParams;
+    D3D12_ROOT_SIGNATURE_DESC rsDesc{};
+    D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = 
+    {
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        gsl::narrow_cast<uint32_t>(Binding->BindBuffer.size()),
+        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        0
+    };
+    THROW_HR(Shader->GetDevice()->CreateDescriptorHeap(&descHeapDesc,
+        IID_PPV_ARGS(Binding->DescHeap.GetAddressOf())), u"Failed to get desc");
+    const auto descName = FMTSTR(u"UAVs for Shader[{}]", Shader->ShaderHash);
+    Binding->DescHeap->SetName(WStr(descName.c_str()));
+
+}
 
 
 std::string_view DxShader_::GetBoundedResTypeName(const BoundedResourceType type) noexcept
@@ -435,6 +558,7 @@ std::string_view DxShader_::GetBoundedResTypeName(const BoundedResourceType type
     CASE_T(TypedUAV);
     CASE_T(UntypedUAV);
     CASE_T(ByteAddressUAV);
+#undef CASE_T
     default:    return "unknown";
     }
 }
