@@ -106,8 +106,7 @@ class NAILANGAPI ComplexArgParser : public NailangParser
 private:
     using NailangParser::NailangParser;
 
-    template<typename StopDelimer>
-    [[nodiscard]] std::pair<std::optional<RawArg>, char32_t> ParseArg();
+    [[nodiscard]] std::pair<std::optional<RawArg>, char32_t> ParseArg(std::string_view stopDelim);
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const;
 public:
     [[nodiscard]] static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);

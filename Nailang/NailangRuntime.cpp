@@ -359,6 +359,33 @@ NailangCodeException::NailangCodeException(const std::u32string_view msg, detail
 { }
 
 
+size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const RawArg* src)
+{
+    if (!idx.IsInteger())
+    {
+        auto err = FMTSTR(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName());
+        if (src)
+            COMMON_THROW(NailangRuntimeException, err, *src);
+        else
+            COMMON_THROW(NailangRuntimeException, err);
+    }
+    bool isReverse = false;
+    uint64_t realIdx = 0;
+    if (idx.TypeData == Arg::Type::Uint)
+        realIdx = idx.GetUint().value();
+    else
+    {
+        const auto tmp = idx.GetInt().value();
+        isReverse = tmp < 0;
+        realIdx = std::abs(tmp);
+    }
+    if (realIdx >= size)
+        COMMON_THROW(NailangRuntimeException,
+            FMTSTR(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
+    return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
+}
+
+
 NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const FrameFlags flags) :
     Host(*host), Frame(host->CurFrame, ctx, flags)
 {
@@ -751,26 +778,6 @@ TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
     }
     Expects(false);
     return TempBindVar::Wrapper(nullptr);
-}
-
-size_t NailangRuntimeBase::BiDirIndexCheck(const size_t size, const RawArg& index)
-{
-    const auto idx = EvaluateArg(index);
-    if (!idx.IsInteger())
-        NLRT_THROW_EX(FMTSTR(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName()), index);
-    bool isReverse = false;
-    uint64_t realIdx = 0;
-    if (idx.TypeData == Arg::Type::Uint)
-        realIdx = idx.GetUint().value();
-    else
-    {
-        const auto tmp = idx.GetInt().value();
-        isReverse = tmp < 0;
-        realIdx = std::abs(tmp);
-    }
-    if (realIdx >= size)
-        NLRT_THROW_EX(FMTSTR(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
-    return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
 
 
@@ -1390,13 +1397,37 @@ std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr
 
 Arg NailangRuntimeBase::EvaluateIndexerExpr(const Arg& target, const RawArg& index)
 {
-    if (target.IsStr())
+    if (target.IsCustom())
+    {
+        auto var = target.GetVar<Arg::Type::Var>();
+        if (var.Call<&CustomVar::Handler::CheckSupportIndexer>())
+        {
+            const auto val = EvaluateArg(index);
+            try
+            {
+                return var.Call<&CustomVar::Handler::IndexerGetter>(val, &index);
+            }
+            catch (const NailangRuntimeException& nre)
+            {
+                HandleException(nre);
+            }
+        }
+    }
+    else if (target.IsStr())
     {
         const auto str = target.GetStr().value();
-        const auto idx = BiDirIndexCheck(str.size(), index);
-        return std::u32string(1, str[idx]);
+        const auto val = EvaluateArg(index);
+        try
+        {
+            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &index);
+            return std::u32string(1, str[idx]);
+        }
+        catch (const NailangRuntimeException& nre)
+        {
+            HandleException(nre);
+        }
     }
-    NLRT_THROW_EX(u"Indexer currently only support string"sv);
+    NLRT_THROW_EX(u"Indexer applied to unsupportted type"sv, target);
     return {};
 }
 

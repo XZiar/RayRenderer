@@ -427,6 +427,12 @@ struct CustomVar
     }
 };
 
+struct FixedArray
+{
+    enum class Type : uint16_t { Any = 0, Bool, Uint, Int, FP, Var };
+    
+};
+
 struct Arg
 {
     static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
@@ -599,7 +605,9 @@ struct CustomVar::Handler
 {
     virtual void IncreaseRef(CustomVar&) noexcept {};
     virtual void DecreaseRef(CustomVar&) noexcept {};
-    virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; };
+    virtual bool CheckSupportIndexer(CustomVar&) noexcept { return false; }
+    virtual Arg IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
+    virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
     virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
 };
 

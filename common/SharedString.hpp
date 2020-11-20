@@ -1,37 +1,21 @@
 #pragma once
 #include "CommonRely.hpp"
-#include "AlignedBase.hpp"
-#include <atomic>
+#include "RefHolder.hpp"
 #include <string_view>
 
 namespace common
 {
 
 template<typename Char>
-class SharedString
+class COMMON_EMPTY_BASES SharedString : public FixedLenRefHolder<SharedString<Char>, Char>
 {
+    friend RefHolder<SharedString<Char>>;
+    friend FixedLenRefHolder<SharedString<Char>, Char>;
 private:
-    static constexpr size_t Offset = sizeof(std::atomic_uint32_t);
     std::basic_string_view<Char> StrView;
-    [[nodiscard]] std::atomic_uint32_t* GetCountor() noexcept
+    [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
     {
-        const auto strptr = reinterpret_cast<uintptr_t>(StrView.data());
-        if (strptr)
-            return reinterpret_cast<std::atomic_uint32_t*>(strptr - Offset);
-        else
-            return nullptr;
-    }
-    void Increase() noexcept
-    {
-        auto ptrcnt = GetCountor();
-        if (ptrcnt)
-            (*ptrcnt)++;
-    }
-    void Decrease() noexcept
-    {
-        auto ptrcnt = GetCountor();
-        if (ptrcnt && (*ptrcnt)-- == 1)
-            free(ptrcnt);
+        return reinterpret_cast<uintptr_t>(StrView.data());
     }
 public:
     using value_type = const Char;
@@ -40,13 +24,11 @@ public:
     {
         if (length > 0 && str != nullptr)
         {
-            if (uint8_t* ptr = (uint8_t*)malloc(Offset + sizeof(Char) * length); ptr)
+            const auto space = FixedLenRefHolder<SharedString<Char>, Char>::Allocate(length);
+            if (space.size() > 0)
             {
-                new (ptr)std::atomic_uint32_t(1);
-                Char* const ptrText = reinterpret_cast<Char*>(ptr + Offset);
-                memcpy_s(ptrText, sizeof(Char) * length, str, sizeof(Char) * length);
-                StrView = std::basic_string_view<Char>(ptrText, length);
-                return;
+                memcpy_s(space.data(), sizeof(Char) * space.size(), str, sizeof(Char) * length);
+                StrView = std::basic_string_view<Char>(space.data(), space.size());
             }
         }
     }
@@ -55,7 +37,7 @@ public:
     SharedString(const std::basic_string_view<Char>& sv) noexcept : SharedString(sv.data(), sv.size()) {}
     SharedString(const SharedString<Char>& other) noexcept : StrView(other.StrView)
     {
-        Increase();
+        this->Increase();
     }
     SharedString(SharedString<Char>&& other) noexcept : StrView(other.StrView)
     {
@@ -63,20 +45,20 @@ public:
     }
     ~SharedString()
     {
-        Decrease();
+        this->Decrease();
     }
     SharedString& operator=(const SharedString<Char>& other) noexcept
     {
-        Decrease();
+        this->Decrease();
         StrView = other.StrView;
-        Increase();
+        this->Increase();
         return *this;
     }
     SharedString& operator=(SharedString<Char>&& other) noexcept
     {
         if (this != &other)
         {
-            Decrease();
+            this->Decrease();
             StrView = other.StrView;
             other.StrView = {};
         }

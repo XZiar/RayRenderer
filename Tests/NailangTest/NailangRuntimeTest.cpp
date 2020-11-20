@@ -229,6 +229,30 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
 }
 
 
+struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
+{
+    struct Array : public common::FixedLenRefHolder<Array, float>
+    {
+        float* Pointer = nullptr;
+        [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
+        {
+            return reinterpret_cast<uintptr_t>(Pointer);
+        }
+    };
+    static Array& GetArray(CustomVar& var) noexcept
+    {
+        return *reinterpret_cast<Array*>(var.Meta0);
+    }
+    void IncreaseRef(CustomVar&) noexcept {};
+    void DecreaseRef(CustomVar&) noexcept {};
+    bool CheckSupportIndexer(CustomVar&) noexcept { return false; }
+    Arg IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
+    common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{BaseCustomVar}"; };
+    Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
+};
+static ArrayCustomVar ArrayCustomVarHandler;
+
+
 TEST(NailangRuntime, Indexer)
 {
     MemoryPool pool;

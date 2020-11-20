@@ -151,38 +151,19 @@ LateBindVar* NailangParser::CreateVar(std::u32string_view name) const
 }
 
 
-
-struct FuncEndDelimer
-{
-    static constexpr DelimTokenizer Stopper() noexcept { return ",)"sv; }
-};
-struct GroupEndDelimer
-{
-    static constexpr DelimTokenizer Stopper() noexcept { return ")"sv; }
-};
-struct IndexerEndDelimer
-{
-    static constexpr DelimTokenizer Stopper() noexcept { return "]"sv; }
-};
-struct StatementEndDelimer
-{
-    static constexpr DelimTokenizer Stopper() noexcept { return ";"sv; }
-};
-
-template<typename StopDelimer>
-std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
+std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::string_view stopDelim)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     
-    constexpr DelimTokenizer StopDelim = StopDelimer::Stopper();
-    constexpr auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
+    const DelimTokenizer StopTokenizer = stopDelim;
+    const auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
         tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
-        tokenizer::SquareBracketTokenizer>(StopDelim);
-    constexpr auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
-        tokenizer::EmbedOpTokenizer, tokenizer::SquareBracketTokenizer>(StopDelim);
+        tokenizer::SquareBracketTokenizer>(StopTokenizer);
+    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
+        tokenizer::EmbedOpTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
     
     std::optional<RawArg> oprend1, oprend2;
     std::optional<EmbedOps> op;
@@ -242,7 +223,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
                 OnUnExpectedToken(token, u"Indexer should not follow a litteral type"sv);
                 break;
             }
-            auto index = ParseArg<IndexerEndDelimer>().first;
+            auto index = ParseArg("]"sv).first;
             if (!index.has_value())
                 OnUnExpectedToken(token, u"lack of index"sv);
             target = MemPool.Create<IndexerExpr>(*target, *index);
@@ -268,7 +249,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg()
                 break;
             EID(NailangToken::Parenthese):
                 if (token.GetChar() == U'(')
-                    target = ParseArg<GroupEndDelimer>().first;
+                    target = ParseArg(")"sv).first;
                 else // == U')'
                     OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
                 break; 
@@ -354,7 +335,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& p
     std::vector<RawArg> args;
     while (true)
     {
-        auto [arg, delim] = parser.ParseArg<FuncEndDelimer>();
+        auto [arg, delim] = parser.ParseArg(",)"sv);
         if (arg.has_value())
             args.emplace_back(std::move(*arg));
         else
@@ -372,7 +353,7 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& p
 std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
 {
     ComplexArgParser parser(pool, context);
-    auto [arg, delim] = parser.ParseArg<StatementEndDelimer>();
+    auto [arg, delim] = parser.ParseArg(";"sv);
     if (delim != U';')
         parser.NLPS_THROW_EX(u"Expected end with ';'"sv);
     return arg;

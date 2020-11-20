@@ -70,6 +70,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\LUT_gb18030.tab = common\LUT_gb18030.tab
 		common\MemoryStream.hpp = common\MemoryStream.hpp
 		common\README.md = common\README.md
+		common\RefHolder.hpp = common\RefHolder.hpp
 		common\RefObject.hpp = common\RefObject.hpp
 		common\ResourceDict.hpp = common\ResourceDict.hpp
 		common\ResourceHelper.h = common\ResourceHelper.h

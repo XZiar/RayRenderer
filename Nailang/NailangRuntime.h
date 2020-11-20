@@ -262,6 +262,13 @@ enum class FrameFlags : uint8_t
 };
 MAKE_ENUM_BITFIELD(FrameFlags)
 
+
+struct NailangHelper
+{
+    [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const RawArg* src = nullptr);
+};
+
+
 class NAILANGAPI NailangRuntimeBase
 {
 public:
@@ -416,7 +423,6 @@ protected:
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] TempBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever = {}) const;
-    [[nodiscard]] size_t BiDirIndexCheck(const size_t size, const RawArg& index);
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
