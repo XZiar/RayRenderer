@@ -24,10 +24,12 @@ public:
 
         TextLine() {}
 
-        TextLine(const common::str::Charset chset, const string& prefix) : Type(hash_(prefix)), charset(chset) {}
+        TextLine(const common::str::Charset chset, const string& prefix) : 
+            Type(common::DJBHash::HashC(prefix)), charset(chset) {}
 
         template<size_t N>
-        TextLine(const common::str::Charset chset, const char(&prefix)[N] = "EMPTY") : Type(hash_(prefix)), charset(chset) {}
+        TextLine(const common::str::Charset chset, const char(&prefix)[N] = "EMPTY") : 
+            Type(common::DJBHash::HashP(prefix)), charset(chset) {}
 
         TextLine(const common::str::Charset chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
 
@@ -37,7 +39,7 @@ public:
         TextLine& operator =(TextLine&& other) = default;
 
         template<typename T>
-        void SetType(const T& prefix) { Type = hash_(prefix); }
+        void SetType(const T& prefix) { Type = common::DJBHash::Hash(prefix); }
 
         std::string_view Rest(const size_t fromIndex = 1)
         {

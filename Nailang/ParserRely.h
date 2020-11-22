@@ -184,7 +184,7 @@ public:
     {
         Expects(txt.size() == 1 || txt.size() == 2);
 #define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::EmbedOp, common::enum_cast(EmbedOps::op))
-        switch (hash_(txt))
+        switch (common::DJBHash::HashC(txt))
         {
         RET_OP("==", Equal);
         RET_OP("!=", NotEqual);
@@ -243,7 +243,7 @@ public:
     {
         Expects(txt.size() == 1 || txt.size() == 2);
 #define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::Assign, common::enum_cast(AssignOps::op))
-        switch (hash_(txt))
+        switch (common::DJBHash::HashC(txt))
         {
         RET_OP("=",     Assign);
         RET_OP("&=", AndAssign);

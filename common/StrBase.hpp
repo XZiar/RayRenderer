@@ -133,13 +133,26 @@ public:
 };
 
 
-template<typename Ch>
-struct HashedStrView
+template<typename Hasher = DJBHash>
+struct PreHashed
 {
     uint64_t Hash;
+    constexpr PreHashed(const uint64_t hash) noexcept : Hash(hash) { }
+    template<typename T>
+    constexpr PreHashed(T&& str) noexcept : Hash(Hasher::Hash(str)) { }
+};
+
+
+template<typename Ch>
+struct HashedStrView : public PreHashed<DJBHash>
+{
     std::basic_string_view<Ch> View;
-    constexpr HashedStrView() noexcept : Hash(hash_(std::basic_string_view<Ch>{})), View{} { }
-    constexpr HashedStrView(std::basic_string_view<Ch> str) noexcept : Hash(hash_(str)), View(str) { }
+    constexpr HashedStrView() noexcept : 
+        PreHashed(DJBHash::HashC(std::basic_string_view<Ch>{})), View{} { }
+    constexpr HashedStrView(std::basic_string_view<Ch> str) noexcept : 
+        PreHashed(DJBHash::HashC(str)), View(str) { }
+    constexpr explicit HashedStrView(const uint64_t hash, std::basic_string_view<Ch> str) noexcept :
+        PreHashed(hash), View(str) { }
     constexpr operator std::basic_string_view<Ch>() const noexcept 
     { 
         return View;
@@ -220,7 +233,7 @@ inline constexpr Charset DefaultCharset = detail::DefCharset<std::decay_t<T>>::V
 
 inline constexpr Charset toCharset(const std::string_view chset) noexcept
 {
-    switch (hash_(chset))
+    switch (DJBHash::HashC(chset))
     {
     case "GB18030"_hash:
         return Charset::GB18030;

@@ -407,7 +407,7 @@ std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
 }
 std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs)
 {
-    switch (hash_(name))
+    switch (common::DJBHash::HashC(name))
     {
     HashCase(name, U"GetVecTypeName")
     {
@@ -445,7 +445,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const
 std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
     U32StrSpan args, BlockCookie& cookie)
 {
-    switch (hash_(name))
+    switch (common::DJBHash::HashC(name))
     {
     HashCase(name, U"GetVecTypeName")
     {
@@ -707,7 +707,7 @@ Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
 {
-    switch (hash_(block.Type))
+    switch (common::DJBHash::HashC(block.Type))
     {
     HashCase(block.Type, U"xcomp.Global")   return OutputBlock::BlockType::Global;
     HashCase(block.Type, U"xcomp.Struct")   return OutputBlock::BlockType::Struct;

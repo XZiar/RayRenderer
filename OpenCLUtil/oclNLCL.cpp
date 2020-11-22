@@ -71,7 +71,7 @@ Arg NLCLContext::LookUpCLArg(const xziar::nailang::LateBindVar& var) const
         if (var.PartCount != 3)
             return {};
         const auto propName = var[2];
-        switch (hash_(propName))
+        switch (common::DJBHash::HashC(propName))
         {
 #define UINT_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
         UINT_PROP(LocalMemSize);
@@ -262,7 +262,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
     if (call.Name->PartCount == 2 && (*call.Name)[0] == U"oclu"sv)
     {
-        switch (const auto subName = (*call.Name)[1]; hash_(subName))
+        switch (const auto subName = (*call.Name)[1]; common::DJBHash::HashC(subName))
         {
         HashCase(subName, U"CompilerFlag")
         {
@@ -308,7 +308,7 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
 {
-    switch (hash_(block.Type))
+    switch (common::DJBHash::HashC(block.Type))
     {
     HashCase(block.Type, U"oclu.Global")    return xcomp::OutputBlock::BlockType::Global;
     HashCase(block.Type, U"oclu.Struct")    return xcomp::OutputBlock::BlockType::Struct;
@@ -347,7 +347,7 @@ void NLCLRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContex
     auto& kerCtx = static_cast<KernelContext&>(ctx);
     if (meta.Name->PartCount == 2 && (*meta.Name)[0] == U"oclu"sv)
     {
-        switch (const auto subName = (*meta.Name)[1]; hash_(subName))
+        switch (const auto subName = (*meta.Name)[1]; common::DJBHash::HashC(subName))
         {
         HashCase(subName, U"RequestWorkgroupSize")
         {
@@ -512,12 +512,9 @@ bool NLCLRuntime::EnableExtension(std::string_view ext, std::u16string_view desc
 
 bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view desc)
 {
-    struct TmpSv : public common::container::PreHashedStringView<>
+    struct TmpSv : public common::str::HashedStrView<char32_t>
     {
-        using Hasher = common::container::DJBHash;
-        std::u32string_view View;
-        constexpr TmpSv(std::u32string_view sv) noexcept : 
-            PreHashedStringView(Hasher()(sv)), View(sv) { }
+        using common::str::HashedStrView<char32_t>::operator==;
         constexpr bool operator==(std::string_view other) const noexcept
         {
             if (View.size() != other.size()) return false;

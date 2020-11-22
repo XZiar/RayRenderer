@@ -109,7 +109,7 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mi
         if (arg.empty()) continue;
         const bool isDisable = arg[0] == '-';
         if (isDisable) arg.remove_prefix(1);
-        switch (hash_(arg))
+        switch (common::DJBHash::HashC(arg))
         {
 #define Mod(dst, name) HashCase(arg, name) dst = !isDisable; break
             Mod(hasIntelDp4a, "gen12");

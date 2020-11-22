@@ -1,11 +1,13 @@
 #pragma once
 
 #include "CommonRely.hpp"
+#include "StrBase.hpp"
 #include <string>
 #include <string_view>
 #include <vector>
 #include <set>
 #include <algorithm>
+
 
 namespace common::container
 {
@@ -57,29 +59,8 @@ public:
 };
 
 
-struct DJBHash // DJB Hash
-{
-    template<typename Ch>
-    constexpr uint64_t operator()(std::basic_string_view<Ch> str) const noexcept
-    {
-        uint64_t hash = 5381;
-        for (const auto ch : str)
-            hash = hash * 33 + ch;
-        return hash;
-    }
-    template<typename Ch>
-    constexpr uint64_t operator()(const std::basic_string<Ch>& str) const noexcept
-    {
-        return operator()(std::basic_string_view<Ch>(str));
-    }
-};
 
-template<typename Hasher = DJBHash>
-struct PreHashedStringView
-{
-    uint64_t Hash;
-    constexpr PreHashedStringView(const uint64_t hash) noexcept : Hash(hash) { }
-};
+
 
 template<typename Ch, typename Hasher = DJBHash>
 class FrozenDenseStringSetBase
@@ -155,11 +136,11 @@ public:
     template<typename E>
     constexpr SVType Find(E&& element) const noexcept
     {
-        using TmpType = std::conditional_t<std::is_base_of_v<PreHashedStringView<Hasher>, std::decay_t<E>>,
+        using TmpType = std::conditional_t<std::is_base_of_v<str::PreHashed<Hasher>, std::decay_t<E>>,
             std::decay_t<E>, SVType>;
         uint64_t hash = 0;
         const TmpType tmp(std::forward<E>(element));
-        if constexpr (std::is_base_of_v<PreHashedStringView<Hasher>, TmpType>)
+        if constexpr (std::is_base_of_v<str::PreHashed<Hasher>, TmpType>)
         {
             hash = element.Hash;
         }

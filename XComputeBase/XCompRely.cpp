@@ -26,7 +26,7 @@ std::pair<VecDataInfo, bool> ParseVDataType(const std::u32string_view type) noex
     CASEV(PPCAT(tstr, bit),  type, bit, false)  \
     CASEV(PPCAT(tstr, bit+), type, bit, true)   \
 
-    switch (hash_(type))
+    switch (common::DJBHash::HashC(type))
     {
     CASE2(u, Unsigned, 8)
     CASE2(u, Unsigned, 16)

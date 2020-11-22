@@ -107,7 +107,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
         return Provider->SubgroupReduce(op, vtype, args[1]);
     };
 
-    switch (hash_(func))
+    switch (common::DJBHash::HashC(func))
     {
     HashCase(func, U"GetSubgroupSize")
     {
@@ -237,7 +237,7 @@ SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context,
         if (arg.empty()) continue;
         const bool isDisable = arg[0] == '-';
         if (isDisable) arg.remove_prefix(1);
-        switch (hash_(arg))
+        switch (common::DJBHash::HashC(arg))
         {
 #define Mod(dst, name) HashCase(arg, name) cap.dst = !isDisable; break
         Mod(SupportSubgroupKHR,     "sg_khr");

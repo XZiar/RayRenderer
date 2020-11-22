@@ -583,7 +583,7 @@ break;                                                              \
 #define SWITCH_VAR_CASES(vf, vars) BOOST_PP_SEQ_FOR_EACH(SWITCH_VAR_CASE_, vf, vars)
 #define CHECK_FUNC_VARS(f, v, func, ...)                            \
 HashCase(f, STRINGIZE(func))                                        \
-switch (hash_(v))                                                   \
+switch (DJBHash::HashC(v))                                          \
 {                                                                   \
 SWITCH_VAR_CASES((v, func), BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))  \
 } break                                                             \
@@ -609,7 +609,7 @@ MiscIntrins::MiscIntrins(common::span<const MiscIntrins::VarItem> requests) noex
 {
     for (const auto [func, var] : requests)
     {
-        switch (hash_(func))
+        switch (DJBHash::HashC(func))
         {
         CHECK_FUNC_VARS(func, var, LeadZero32, LZCNT, COMPILER);
         CHECK_FUNC_VARS(func, var, LeadZero64, LZCNT, COMPILER);
@@ -638,7 +638,7 @@ DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noex
 {
     for (const auto [func, var] : requests)
     {
-        switch (hash_(func))
+        switch (DJBHash::HashC(func))
         {
         CHECK_FUNC_VARS(func, var, Sha256, SHANI, NAIVE);
         }

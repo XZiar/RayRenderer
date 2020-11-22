@@ -14,6 +14,8 @@
 namespace xziar::nailang
 {
 using namespace std::string_view_literals;
+using common::DJBHash;
+using common::str::HashedStrView;
 
 
 EvaluateContext::~EvaluateContext()
@@ -141,17 +143,19 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
 
 Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
+    const HashedStrView hsv(var.FullName());
     for (const auto& [pos, val] : Args)
-        if (ArgNames.GetStringView(pos) == var)
+        if (ArgNames.GetHashedStr(pos) == hsv)
             return val;
     return Arg{};
 }
 
 bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
+    const HashedStrView hsv(var.FullName());
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
-        if (ArgNames.GetStringView(pos) == var)
+        if (ArgNames.GetHashedStr(pos) == hsv)
             target = &val;
     const bool hasIt = target != nullptr;
     if (hasIt)
@@ -165,7 +169,7 @@ bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool 
             return false;
         if (force)
         {
-            const auto piece = ArgNames.AllocateString(var);
+            const auto piece = ArgNames.AllocateString(var.FullName());
             Args.emplace_back(piece, std::move(arg));
         }
         return false;
@@ -920,7 +924,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     if (meta.Name->PartCount > 1)
         return MetaFuncResult::Unhandled;
     const auto metaName = meta.Name->FullName();
-    switch (hash_(metaName))
+    switch (DJBHash::HashC(metaName))
     {
     HashCase(metaName, U"Skip")
     {
@@ -1002,7 +1006,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     }
     if (call.Name->PartCount == 1)
     {
-        switch (hash_(fullName))
+        switch (DJBHash::HashC(fullName))
         {
         HashCase(fullName, U"Select")
         {
@@ -1116,7 +1120,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
 {
     using Type = Arg::Type;
     const auto mathName = (*call.Name)[1];
-    switch (hash_(mathName))
+    switch (DJBHash::HashC(mathName))
     {
     HashCase(mathName, U"Max")
     {

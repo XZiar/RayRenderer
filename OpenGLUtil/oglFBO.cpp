@@ -286,7 +286,7 @@ bool oglDefaultFrameBuffer_::IsSrgb() const
 
 GLenum oglDefaultFrameBuffer_::GetAttachPoint(const std::string_view name) const
 {
-    switch (hash_(name))
+    switch (common::DJBHash::HashC(name))
     {
     case "default"_hash:
     case "left"_hash:

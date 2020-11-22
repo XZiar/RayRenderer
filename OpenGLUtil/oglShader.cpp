@@ -167,7 +167,7 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 {
     if (parts.size() < 2)
         return {};
-    if (auto type = common::container::FindInMap(ShaderPropertyTypeMap, hash_(parts[1])))
+    if (auto type = common::container::FindInMap(ShaderPropertyTypeMap, common::DJBHash::HashC(parts[1])))
     {
         if (parts.size() == 2)
             return ShaderExtProperty(string(parts[0]), *type);
@@ -493,7 +493,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         else if (common::str::IsBeginWith(realline, "//@OGLU@"))
         {
             OgluAttribute ogluAttr(realline.substr(8));
-            switch (hash_(ogluAttr.Name))
+            switch (common::DJBHash::HashC(ogluAttr.Name))
             {
             case "Mapping"_hash:
                 if (ogluAttr.Params.size() == 2)
@@ -677,7 +677,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
         uint32_t curVer = version;
         ShaderType shaderType;
         string_view scopeDef;
-        switch (hash_(stype))
+        switch (common::DJBHash::HashC(stype))
         {
         case "Vertex"_hash:
         case "VERT"_hash:

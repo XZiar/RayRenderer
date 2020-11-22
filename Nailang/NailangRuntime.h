@@ -74,7 +74,7 @@ public:
 class NAILANGAPI CompactEvaluateContext : public BasicEvaluateContext
 {
 private:
-    common::StringPool<char32_t> ArgNames;
+    common::HashedStringPool<char32_t> ArgNames;
 protected:
     std::vector<std::pair<common::StringPiece<char32_t>, Arg>> Args;
     std::vector<std::pair<std::u32string_view, LocalFuncHolder>> LocalFuncs;

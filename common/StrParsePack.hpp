@@ -138,7 +138,7 @@ struct ParseItem
     Val Value;
     constexpr ParseItem() noexcept : Hash(0), Value(Val{}) { }
     constexpr ParseItem(const std::basic_string_view<Char> str, Val val) noexcept :
-        Str(str), Hash(hash_(str)), Value(val) { }
+        Str(str), Hash(DJBHash::HashC(str)), Value(val) { }
     constexpr bool operator<(const ParseItem<Char, Val>& item) const noexcept
     {
         return Hash < item.Hash;
@@ -156,7 +156,7 @@ struct ParsePack
     std::array<ParseItem<Char, Val>, N> Cases;
     constexpr std::optional<Val> operator()(const std::basic_string_view<Char> str) const noexcept
     {
-        const uint64_t hash = hash_(str);
+        const uint64_t hash = DJBHash::HashC(str);
         size_t left = 0, right = N;
         while (left < right)
         {
@@ -182,7 +182,7 @@ template<typename Char, typename Val, size_t N, size_t Idx, typename... Args>
 constexpr inline void PutItem(std::array<ParseItem<Char, Val>, N>& store, const std::basic_string_view<Char> str, const Val val, const Args... args) noexcept
 {
     static_assert(Idx < N);
-    store[Idx].Str = str, store[Idx].Value = val, store[Idx].Hash = hash_(str);
+    store[Idx].Str = str, store[Idx].Value = val, store[Idx].Hash = DJBHash::HashC(str);
     if constexpr (sizeof...(Args) == 0)
         return;
     else
@@ -243,7 +243,7 @@ constexpr inline auto BuildPack(const STORE wrapper) noexcept
     using V = decltype(BOOST_PP_TUPLE_ELEM(2, 1, tp));  \
     return [](K arg) -> std::optional<V>                \
     {                                                   \
-        switch (hash_(arg))                             \
+        switch (::common::DJBHash::HashC(arg))          \
         {                                               \
         STR_SWITCH_PACK_CASES(ctype, tp, __VA_ARGS__)   \
         default: break;                                 \
@@ -252,7 +252,7 @@ constexpr inline auto BuildPack(const STORE wrapper) noexcept
     }; }()                                              \
 
 
-#define HashCase(target, cstr)      case hash_(cstr): if (!::common::str::parsepack::ShortCompare(target, cstr)) break;
-#define ConstEvalCase(target, cstr) case hash_(cstr): if (target != cstr) break;
+#define HashCase(target, cstr)      case ::common::DJBHash::Hash(cstr): if (!::common::str::parsepack::ShortCompare(target, cstr)) break;
+#define ConstEvalCase(target, cstr) case ::common::DJBHash::Hash(cstr): if (target != cstr) break;
 
 }

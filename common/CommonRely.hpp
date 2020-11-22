@@ -188,6 +188,8 @@ using u8ch_t = char;
 #include <cstdint>
 #include <cstring>
 #include <numeric>
+#include <string>
+#include <string_view>
 #include <type_traits> 
 #include "3rdParty/gsl/gsl_assert"
 #include "3rdParty/gsl/gsl_util"
@@ -299,55 +301,6 @@ struct clz::make_enabler : public clz           \
 #define COMMON_DEF_MOVE(clz)                        \
     clz(clz&&) noexcept = default;                  \
     clz& operator= (clz&&) noexcept = default;      \
-
-
-
-/* compile-time str hash support */
-
-/**
-** @brief calculate simple hash for string, used for switch-string
-** @param str std-string_view/string for the text
-** @return uint64_t the hash
-**/
-template<typename T>
-[[nodiscard]] inline constexpr uint64_t hash_(const T& str) noexcept
-{
-    uint64_t hash = 5381;
-    for (size_t a = 0, len = str.size(); a < len; ++a)
-        hash = hash * 33 + str[a];
-    return hash;
-}
-/**
-** @brief calculate simple hash for string, used for switch-string
-** @param str c-string for the text
-** @return uint64_t the hash
-**/
-[[nodiscard]] inline constexpr uint64_t hash_(const char *str) noexcept
-{
-    uint64_t hash = 5381;
-    for (; *str != '\0'; ++str)
-        hash = hash * 33 + *str;
-    return hash;
-}
-[[nodiscard]] inline constexpr uint64_t hash_(const char32_t* str) noexcept
-{
-    uint64_t hash = 5381;
-    for (; *str != U'\0'; ++str)
-        hash = hash * 33 + *str;
-    return hash;
-}
-/**
-** @brief calculate simple hash for string, used for switch-string
-** @return uint64_t the hash
-**/
-[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char *str, size_t) noexcept
-{
-    return hash_(str);
-}
-[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char32_t* str, size_t) noexcept
-{
-    return hash_(str);
-}
 
 
 
@@ -560,7 +513,76 @@ struct NonMovable
 
 
 
+/* compile-time str hash support */
+
+namespace common
+{
+struct DJBHash // DJB Hash
+{
+    template<typename T>
+    static constexpr uint64_t HashC(const T& str) noexcept
+    {
+        static_assert(std::is_class_v<T> || std::is_union_v<T>, "only accept class");
+        uint64_t hash = 5381;
+        for (const auto ch : str)
+            hash = hash * 33 + ch;
+        return hash;
+    }
+    template<typename Ch>
+    static constexpr uint64_t HashP(const Ch* str) noexcept
+    {
+        uint64_t hash = 5381;
+        for (; *str != static_cast<Ch>('\0'); ++str)
+            hash = hash * 33 + *str;
+        return hash;
+    }
+    template<typename T>
+    static constexpr uint64_t Hash(const T* str) noexcept
+    {
+        return HashP(str);
+    }
+    template<typename T>
+    static constexpr uint64_t Hash(const T& str) noexcept
+    {
+        if constexpr (std::is_array_v<remove_cvref_t<T>>)
+            return HashP(str);
+        else
+            return HashC(str);
+    }
+    template<typename Ch>
+    constexpr uint64_t operator()(std::basic_string_view<Ch> str) const noexcept
+    {
+        return HashC(str);
+    }
+    template<typename Ch>
+    constexpr uint64_t operator()(const std::basic_string<Ch>& str) const noexcept
+    {
+        return HashC(str);
+    }
+};
+}
+
+/**
+** @brief calculate simple hash for string, used for switch-string
+** @return uint64_t the hash
+**/
+[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char* str, size_t) noexcept
+{
+    return common::DJBHash::HashP(str);
+}
+[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char16_t* str, size_t) noexcept
+{
+    return common::DJBHash::HashP(str);
+}
+[[nodiscard]] inline constexpr uint64_t operator "" _hash(const char32_t* str, size_t) noexcept
+{
+    return common::DJBHash::HashP(str);
+}
+
+
+
 /* span compatible include */
+
 #if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMPILER_MSVC // C++/CLI's incompatibility with C++20
 #   include <span>
 namespace common
