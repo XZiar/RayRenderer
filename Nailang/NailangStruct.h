@@ -603,13 +603,15 @@ MAKE_ENUM_BITFIELD(Arg::Type)
 
 struct CustomVar::Handler
 {
+    enum class IndexerSupport { None = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     virtual void IncreaseRef(CustomVar&) noexcept {};
     virtual void DecreaseRef(CustomVar&) noexcept {};
-    virtual bool CheckSupportIndexer(CustomVar&) noexcept { return false; }
+    virtual IndexerSupport CheckIndexerSupport(CustomVar&) noexcept { return IndexerSupport::None; }
     virtual Arg IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
     virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
     virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
 };
+MAKE_ENUM_BITFIELD(CustomVar::Handler::IndexerSupport)
 
 [[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
 {

@@ -1400,7 +1400,8 @@ Arg NailangRuntimeBase::EvaluateIndexerExpr(const Arg& target, const RawArg& ind
     if (target.IsCustom())
     {
         auto var = target.GetVar<Arg::Type::Var>();
-        if (var.Call<&CustomVar::Handler::CheckSupportIndexer>())
+        if (const auto support = var.Call<&CustomVar::Handler::CheckIndexerSupport>(); 
+            HAS_FIELD(support, CustomVar::Handler::IndexerSupport::Read))
         {
             const auto val = EvaluateArg(index);
             try

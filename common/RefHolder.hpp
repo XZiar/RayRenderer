@@ -11,21 +11,25 @@ class RefHolder
 {
 protected:
     static constexpr size_t Offset = sizeof(std::atomic_uint32_t);
-    static void AllocateRef(std::byte* ptr) noexcept
+    static forceinline void AllocateRef(std::byte* ptr) noexcept
     {
         new (ptr)std::atomic_uint32_t(1);
     }
-    void Increase() noexcept
+    forceinline void Increase() noexcept
     {
         auto ptrcnt = static_cast<T*>(this)->GetCountor();
         if (ptrcnt)
             (*ptrcnt)++;
     }
-    void Decrease() noexcept
+    forceinline bool Decrease() noexcept
     {
         auto ptrcnt = static_cast<T*>(this)->GetCountor();
         if (ptrcnt && (*ptrcnt)-- == 1)
+        {
             free(ptrcnt);
+            return true;
+        }
+        return false;
     }
 };
 

@@ -263,7 +263,7 @@ enum class FrameFlags : uint8_t
 MAKE_ENUM_BITFIELD(FrameFlags)
 
 
-struct NailangHelper
+struct NAILANGAPI NailangHelper
 {
     [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const RawArg* src = nullptr);
 };

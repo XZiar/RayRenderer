@@ -231,26 +231,82 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
 
 struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
 {
-    struct Array : public common::FixedLenRefHolder<Array, float>
+    struct COMMON_EMPTY_BASES Array : public common::FixedLenRefHolder<Array, float>
     {
-        float* Pointer = nullptr;
+        common::span<float> Data;
+        Array(common::span<const float> source)
+        {
+            Data = FixedLenRefHolder<Array, float>::Allocate(source.size());
+            if (Data.size() > 0)
+            {
+                memcpy_s(Data.data(), sizeof(float) * Data.size(), source.data(), sizeof(float) * source.size());
+            }
+        }
+        Array(const Array& other) noexcept : Data(other.Data)
+        {
+            this->Increase();
+        }
+        Array(Array&& other) noexcept : Data(other.Data)
+        {
+            other.Data = {};
+        }
+        ~Array()
+        {
+            this->Decrease();
+        }
+        Arg ToArg() noexcept;
         [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
         {
-            return reinterpret_cast<uintptr_t>(Pointer);
+            return reinterpret_cast<uintptr_t>(Data.data());
         }
+        using common::FixedLenRefHolder<Array, float>::Increase;
+        using common::FixedLenRefHolder<Array, float>::Decrease;
     };
-    static Array& GetArray(CustomVar& var) noexcept
+    static_assert(sizeof(Array) == sizeof(common::span<const float>));
+#define ArrRef(out, in)                                                         \
+    common::span<float> tmp_ = {reinterpret_cast<float*>(in.Meta0), in.Meta1};  \
+    Array& out = *reinterpret_cast<Array*>(&tmp_);
+    void IncreaseRef(CustomVar& var) noexcept override
+    { 
+        ArrRef(arr, var);
+        arr.Increase(); 
+    };
+    void DecreaseRef(CustomVar& var) noexcept  override
+    { 
+        ArrRef(arr, var);
+        if (arr.Decrease())
+            var.Meta0 = 0;
+    };
+    IndexerSupport CheckIndexerSupport(CustomVar&) noexcept override { return IndexerSupport::Read; }
+    Arg IndexerGetter(CustomVar& var, const Arg& idx, const RawArg* src)  override
     {
-        return *reinterpret_cast<Array*>(var.Meta0);
+        ArrRef(arr, var);
+        const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, src);
+        return arr.Data[idx_];
     }
-    void IncreaseRef(CustomVar&) noexcept {};
-    void DecreaseRef(CustomVar&) noexcept {};
-    bool CheckSupportIndexer(CustomVar&) noexcept { return false; }
-    Arg IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
-    common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{BaseCustomVar}"; };
-    Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
+    common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
+    Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
+    static Arg Create(common::span<const float> source);
+#undef ArrRef
 };
-static ArrayCustomVar ArrayCustomVarHandler;
+static ArrayCustomVar ArrayCustomVarHandler; 
+Arg ArrayCustomVar::Array::ToArg() noexcept
+{
+    this->Increase();
+    return CustomVar{ &ArrayCustomVarHandler,
+        reinterpret_cast<uint64_t>(Data.data()), gsl::narrow_cast<uint32_t>(Data.size()), 0 };
+}
+Arg ArrayCustomVar::Create(common::span<const float> source)
+{
+    Array arr(source);
+    return arr.ToArg();
+}
+
+
+TEST(NailangRuntime, CustomVar)
+{
+
+}
 
 
 TEST(NailangRuntime, Indexer)
@@ -281,6 +337,31 @@ TEST(NailangRuntime, Indexer)
     }
     {
         EXPECT_THROW(ParseEval(U"tmp[-5];"sv), xziar::nailang::NailangRuntimeException);
+    }
+    constexpr float dummy[] = { 0.f,1.f,4.f,-2.f };
+    runtime.SetRootArg(U"arr", ArrayCustomVar::Create(dummy));
+    {
+        const auto arg = ParseEval(U"arr[0];"sv);
+        CHECK_ARG(arg, FP, 0.f);
+    }
+    {
+        const auto arg = ParseEval(U"arr[1];"sv);
+        CHECK_ARG(arg, FP, 1.f);
+    }
+    {
+        const auto arg = ParseEval(U"arr[2];"sv);
+        CHECK_ARG(arg, FP, 4.f);
+    }
+    {
+        const auto arg = ParseEval(U"arr[3];"sv);
+        CHECK_ARG(arg, FP, -2.f);
+    }
+    {
+        const auto arg = ParseEval(U"arr[-1];"sv);
+        CHECK_ARG(arg, FP, -2.f);
+    }
+    {
+        EXPECT_THROW(ParseEval(U"arr[-5];"sv), xziar::nailang::NailangRuntimeException);
     }
 }
 
