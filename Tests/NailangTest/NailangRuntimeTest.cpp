@@ -98,7 +98,21 @@ public:
         }
         ctx.SetArg(var, EvaluateArg(assign.Statement), true);
     }
-
+    void QuickSetArg(std::u32string_view name, RawArg val, const bool nilCheck = false)
+    {
+        auto var = CreateVar(name);
+        if (nilCheck)
+            var->Info() |= LateBindVar::VarInfo::ReqNull;
+        Assignment assign;
+        assign.Target = var;
+        assign.Statement = val;
+        HandleContent(xziar::nailang::BlockContent::Generate(&assign), {});
+    }
+    Arg QuickGetArg(std::u32string_view name)
+    {
+        const auto var = CreateVar(name);
+        return EvaluateArg(var);
+    }
 };
 
 struct BaseCustomVar : public xziar::nailang::CustomVar::Handler
@@ -284,9 +298,42 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, src);
         return arr.Data[idx_];
     }
+    Arg SubGetter(const CustomVar& var, const LateBindVar& lvar, uint32_t idx) override
+    {
+        if (lvar.PartCount == idx + 1)
+        {
+            ArrRef(arr, var);
+            if (lvar[idx] == U"Length")
+                return static_cast<uint64_t>(arr.Data.size());
+        }
+        return {};
+    }
+    bool SubSetter(CustomVar& var, Arg arg, const LateBindVar& lvar, uint32_t idx) override
+    {
+        if (lvar.PartCount == idx + 1)
+        {
+            ArrRef(arr, var);
+            float* ptr = nullptr;
+            if (lvar[idx] == U"First" && arr.Data.size() > 0)
+                ptr = arr.Data.data();
+            else if (lvar[idx] == U"Last" && arr.Data.size() > 0)
+                ptr = arr.Data.data() + arr.Data.size() - 1;
+            if (ptr && arg.IsNumber())
+            {
+                *ptr = static_cast<float>(arg.GetFP().value());
+                return true;
+            }
+        }
+        return false;
+    }
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);
+    static common::span<float> GetData(const CustomVar& var) 
+    {
+        ArrRef(arr, var);
+        return arr.Data;
+    }
 #undef ArrRef
 };
 static ArrayCustomVar ArrayCustomVarHandler; 
@@ -305,7 +352,37 @@ Arg ArrayCustomVar::Create(common::span<const float> source)
 
 TEST(NailangRuntime, CustomVar)
 {
+    MemoryPool pool;
+    NailangRT runtime;
+    constexpr float dummy[] = { 0.f,1.f,4.f,-2.f };
+    runtime.SetRootArg(U"arr", ArrayCustomVar::Create(dummy));
+    {
+        const auto arg = runtime.QuickGetArg(U"arr"sv);
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Var));
+        const auto var = arg.GetVar<Arg::Type::Var>();
+        ASSERT_EQ(var.Host, &ArrayCustomVarHandler);
+        const auto data = ArrayCustomVar::GetData(var);
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy));
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr"sv);
+        EXPECT_EQ(arg.ToString(), U"{ArrayCustomVar}"sv);
+    }
+    {
+        const auto len = runtime.QuickGetArg(U"arr.Length"sv);
+        CHECK_ARG(len, Uint, 4u);
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr"sv);
+        const auto var = arg.GetVar<Arg::Type::Var>();
+        const auto data = ArrayCustomVar::GetData(var);
 
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy));
+        runtime.QuickSetArg(U"arr.First"sv, 9.f);
+        EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -2.f));
+        runtime.QuickSetArg(U"arr.Last"sv, -9.f);
+        EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -9.f));
+    }
 }
 
 

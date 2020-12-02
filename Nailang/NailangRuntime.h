@@ -27,6 +27,9 @@ struct LocalFunc
 class NAILANGAPI EvaluateContext
 {
     friend class NailangRuntimeBase;
+protected:
+    static Arg GetSubArg(const Arg& target, const LateBindVar& var, uint32_t idx);
+    static bool SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx);
 public:
     virtual ~EvaluateContext();
     [[nodiscard]] virtual Arg LookUpArg(const LateBindVar& var) const = 0;
@@ -85,6 +88,7 @@ protected:
     }
     [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
+    [[nodiscard]] std::pair<const Arg*, uint32_t> LocateArg(const LateBindVar& var) const noexcept;
 public:
     ~CompactEvaluateContext() override;
 

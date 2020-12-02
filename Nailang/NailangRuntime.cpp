@@ -21,6 +21,37 @@ using common::str::HashedStrView;
 EvaluateContext::~EvaluateContext()
 { }
 
+Arg EvaluateContext::GetSubArg(const Arg& target, const LateBindVar& var, uint32_t idx)
+{
+    Expects(idx < var.PartCount);
+    switch (target.TypeData)
+    {
+    case Arg::Type::Var:
+    {
+        const auto tmp = target.GetVar<Arg::Type::Var>();
+        return tmp.Call<&CustomVar::Handler::SubGetter>(var, idx);
+    }
+    default:
+        return {};
+    }
+}
+
+bool EvaluateContext::SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx)
+{
+    Expects(idx < var.PartCount);
+    switch (target.TypeData)
+    {
+    case Arg::Type::Var:
+    {
+        auto tmp = target.GetVar<Arg::Type::Var>();
+        return tmp.Call<&CustomVar::Handler::SubSetter>(std::move(arg), var, idx);
+    }
+    default:
+        return false;
+    }
+}
+
+
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
@@ -141,18 +172,54 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, 0, 0 };
 }
 
+std::pair<const Arg*, uint32_t> CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+{
+    for (uint32_t len = 1; len <= var.PartCount; ++len)
+    {
+        const HashedStrView hsv(var.GetRange(0, len));
+        for (const auto& [pos, val] : Args)
+            if (ArgNames.GetHashedStr(pos) == hsv)
+                return { &val, len };
+    }
+    return { nullptr, 0 };
+}
+
 Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
-    const HashedStrView hsv(var.FullName());
-    for (const auto& [pos, val] : Args)
-        if (ArgNames.GetHashedStr(pos) == hsv)
-            return val;
-    return Arg{};
+    const auto [val, subIdx] = LocateArg(var);
+    if (val == nullptr)
+        return {};
+    if (subIdx == var.PartCount)
+        return *val;
+    else
+        return GetSubArg(*val, var, subIdx);
 }
 
 bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
-    const HashedStrView hsv(var.FullName());
+    const auto [val, subIdx] = LocateArg(var);
+    if (val == nullptr)
+    {
+        if (!arg.IsEmpty() && force)
+        {
+            const auto piece = ArgNames.AllocateString(var.FullName());
+            Args.emplace_back(piece, std::move(arg));
+            return true;
+        }
+        return false;
+    }
+    else
+    {
+        auto& target = *const_cast<Arg*>(val);
+        if (subIdx == var.PartCount)
+            target = std::move(arg);
+        else
+            SetSubArg(target, std::move(arg), var, subIdx);
+        return true;
+    }
+
+
+    /*const HashedStrView hsv(var.FullName());
     Arg* target = nullptr;
     for (auto& [pos, val] : Args)
         if (ArgNames.GetHashedStr(pos) == hsv)
@@ -173,7 +240,7 @@ bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool 
             Args.emplace_back(piece, std::move(arg));
         }
         return false;
-    }
+    }*/
 }
 
 size_t CompactEvaluateContext::GetArgCount() const noexcept

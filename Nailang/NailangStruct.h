@@ -131,6 +131,17 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
         const auto offset = parts[index].first;
         return { Ptr + offset, Length - offset };
     }
+    std::u32string_view GetRange(const uint32_t from, const uint32_t to) const noexcept
+    {
+        Expects(to > from);
+        if (to > PartCount)
+            return {};
+        if (PartCount == 1)
+            return *this;
+        const auto parts = reinterpret_cast<const PartType*>(this + 1);
+        const uint32_t idxF = parts[from].first, idxT = parts[to].first - 1;
+        return { Ptr + idxF, static_cast<size_t>(idxT - idxF) };
+    }
     [[nodiscard]] constexpr auto Parts() const noexcept
     {
         return common::linq::FromRange<uint32_t>(0u, PartCount)
@@ -606,10 +617,12 @@ struct CustomVar::Handler
     enum class IndexerSupport { None = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
     virtual void IncreaseRef(CustomVar&) noexcept {};
     virtual void DecreaseRef(CustomVar&) noexcept {};
-    virtual IndexerSupport CheckIndexerSupport(CustomVar&) noexcept { return IndexerSupport::None; }
-    virtual Arg IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
-    virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
-    virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
+    [[nodiscard]] virtual IndexerSupport CheckIndexerSupport(CustomVar&) noexcept { return IndexerSupport::None; }
+    [[nodiscard]] virtual Arg  IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
+    [[nodiscard]] virtual Arg  SubGetter(const CustomVar&, const LateBindVar&, uint32_t) { return {}; }
+    [[nodiscard]] virtual bool SubSetter(CustomVar&, Arg, const LateBindVar&, uint32_t) { return false; }
+    [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
+    [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
 };
 MAKE_ENUM_BITFIELD(CustomVar::Handler::IndexerSupport)
 
@@ -714,11 +727,11 @@ struct Assignment : public WithPos
     }
     constexpr std::optional<bool> GetNilCheck() const noexcept
     {
-        if (HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNull))
-            return true;
-        if (HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNotNull))
-            return false;
-        return {};
+        const auto reqNull    = HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNull);
+        const auto reqNotNull = HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNotNull);
+        if (reqNull == reqNotNull)
+            return {};
+        return reqNull;
     }
 };
 

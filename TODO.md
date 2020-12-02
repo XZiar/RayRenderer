@@ -174,7 +174,8 @@
   - [x] Custom build procedure for Linux
   - [x] Generate build Makefile from python script and project-info json
   - [x] Add Pch for GCC build
-  - [ ] Add support for build config outside source folder (for 3rd lib with original source structure)
+  - [ ] Add support for build config outside source folder (for 3rdparty lib with original source structure)
+  - [ ] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
   - [ ] Move to fully self-controlled build system
 
 * Global
