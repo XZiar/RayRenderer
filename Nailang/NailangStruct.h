@@ -290,7 +290,7 @@ struct EmbedOpHelper
 struct FuncCall;
 struct UnaryExpr;
 struct BinaryExpr;
-struct IndexerExpr;
+struct QueryExpr;
 
 namespace detail
 {
@@ -312,34 +312,37 @@ private:
     detail::IntFPUnion Data1;
     uint32_t Data2;
 public:
-    enum class Type : uint32_t { Empty = 0, Func, Unary, Binary, Indexer, Var, Str, Uint, Int, FP, Bool };
+    enum class Type : uint16_t { Empty = 0, Func, Unary, Binary, Query, Var, Str, Uint, Int, FP, Bool };
+    uint16_t ExtraFlag;
     Type TypeData;
-
-    constexpr RawArg() noexcept : Data1(), Data2(0), TypeData(Type::Empty) {}
+#define Fill2(type) ExtraFlag(0), TypeData(Type::type)
+#define Fill3(type) Data2(common::enum_cast(Type::type)), Fill2(type)
+    constexpr RawArg() noexcept : Data1(), Fill3(Empty) {}
     RawArg(const FuncCall* ptr) noexcept : 
-        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(1), TypeData(Type::Func) {}
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Func) {}
     RawArg(const UnaryExpr* ptr) noexcept :
-        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(2), TypeData(Type::Unary) {}
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Unary) {}
     RawArg(const BinaryExpr* ptr) noexcept :
-        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Binary) {}
-    RawArg(const IndexerExpr* ptr) noexcept :
-        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(3), TypeData(Type::Indexer) {}
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Binary) {}
+    RawArg(const QueryExpr* ptr) noexcept :
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Query) {}
     RawArg(const LateBindVar* ptr) noexcept :
-        Data1(reinterpret_cast<uint64_t>(ptr)), Data2(4), TypeData(Type::Var) {}
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Var) {}
     RawArg(const std::u32string_view str) noexcept :
-        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), TypeData(Type::Str)
+        Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), Fill2(Str)
     {
         Expects(str.size() <= UINT32_MAX);
     }
     RawArg(const uint64_t num) noexcept :
-        Data1(num), Data2(6), TypeData(Type::Uint) {}
+        Data1(num), Fill3(Uint) {}
     RawArg(const int64_t num) noexcept :
-        Data1(static_cast<uint64_t>(num)), Data2(7), TypeData(Type::Int) {}
+        Data1(static_cast<uint64_t>(num)), Fill3(Int) {}
     RawArg(const double num) noexcept :
-        Data1(num), Data2(8), TypeData(Type::FP) {}
+        Data1(num), Fill3(FP) {}
     RawArg(const bool boolean) noexcept :
-        Data1(boolean ? 1 : 0), Data2(9), TypeData(Type::Bool) {}
-
+        Data1(boolean ? 1 : 0), Fill3(Bool) {}
+#undef Fill3
+#undef Fill2
     template<Type T>
     [[nodiscard]] constexpr decltype(auto) GetVar() const noexcept
     {
@@ -350,8 +353,8 @@ public:
             return reinterpret_cast<const UnaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Binary)
             return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
-        else if constexpr (T == Type::Indexer)
-            return reinterpret_cast<const IndexerExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Query)
+            return reinterpret_cast<const QueryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Var)
             return reinterpret_cast<const LateBindVar*>(Data1.Uint);
         else if constexpr (T == Type::Str)
@@ -369,7 +372,7 @@ public:
     }
 
     using Variant = std::variant<
-        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const IndexerExpr*, const LateBindVar*,
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const QueryExpr*, const LateBindVar*,
         std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
@@ -378,7 +381,7 @@ public:
         case Type::Func:    return GetVar<Type::Func>();
         case Type::Unary:   return GetVar<Type::Unary>();
         case Type::Binary:  return GetVar<Type::Binary>();
-        case Type::Indexer: return GetVar<Type::Indexer>();
+        case Type::Query:   return GetVar<Type::Query>();
         case Type::Var:     return GetVar<Type::Var>();
         case Type::Str:     return GetVar<Type::Str>();
         case Type::Uint:    return GetVar<Type::Uint>();
@@ -396,7 +399,7 @@ public:
         case Type::Func:    return visitor(GetVar<Type::Func>());
         case Type::Unary:   return visitor(GetVar<Type::Unary>());
         case Type::Binary:  return visitor(GetVar<Type::Binary>());
-        case Type::Indexer: return visitor(GetVar<Type::Indexer>());
+        case Type::Query:   return visitor(GetVar<Type::Query>());
         case Type::Var:     return visitor(GetVar<Type::Var>());
         case Type::Str:     return visitor(GetVar<Type::Str>());
         case Type::Uint:    return visitor(GetVar<Type::Uint>());
@@ -413,6 +416,45 @@ public:
     }
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
+
+
+struct SubQuery
+{
+    enum class QueryType : uint16_t { Index = 1, Sub = 2 };
+    common::span<const RawArg> Queries;
+    constexpr SubQuery Sub(const size_t offset = 1) const noexcept
+    {
+        Expects(offset < Queries.size());
+        return { Queries.subspan(offset) };
+    }
+    constexpr std::pair<QueryType, RawArg> operator[](size_t idx) const noexcept
+    {
+        Expects(idx < Queries.size());
+        return { static_cast<QueryType>(Queries[idx].ExtraFlag), Queries[idx] };
+    }
+    constexpr size_t Size() const noexcept
+    {
+        return Queries.size();
+    }
+    static void PushQuery(std::vector<RawArg>& container, std::u32string_view subField)
+    {
+        RawArg query(subField);
+        query.ExtraFlag = common::enum_cast(QueryType::Sub);
+        container.push_back(query);
+    }
+    static void PushQuery(std::vector<RawArg>& container, RawArg indexer)
+    {
+        indexer.ExtraFlag = common::enum_cast(QueryType::Index);
+        container.push_back(indexer);
+    }
+};
+struct QueryExpr : public SubQuery
+{
+    RawArg Target;
+    QueryExpr(const RawArg target, common::span<const RawArg> queries) noexcept :
+        SubQuery{ queries }, Target(target) { }
+};
+
 
 
 struct CustomVar
@@ -443,6 +485,9 @@ struct FixedArray
     enum class Type : uint16_t { Any = 0, Bool, Uint, Int, FP, Var };
     
 };
+
+class NailangRuntimeBase;
+class NailangRuntimeException;
 
 struct Arg
 {
@@ -603,6 +648,7 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
+    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t>             HandleGetter(SubQuery, NailangRuntimeBase&) const noexcept;
 
     [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
     {
@@ -612,19 +658,21 @@ public:
 };
 MAKE_ENUM_BITFIELD(Arg::Type)
 
-struct CustomVar::Handler
+struct NAILANGAPI CustomVar::Handler
 {
-    enum class IndexerSupport { None = 0x0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write };
+protected:
+    static Arg EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg);
+    static void HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex);
+public:
     virtual void IncreaseRef(CustomVar&) noexcept {};
     virtual void DecreaseRef(CustomVar&) noexcept {};
-    [[nodiscard]] virtual IndexerSupport CheckIndexerSupport(CustomVar&) noexcept { return IndexerSupport::None; }
-    [[nodiscard]] virtual Arg  IndexerGetter(CustomVar&, const Arg&, const RawArg*) { return {}; }
-    [[nodiscard]] virtual Arg  SubGetter(const CustomVar&, const LateBindVar&, uint32_t) { return {}; }
+    [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&) { return {}; }
+    [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view) { return {}; }
+    [[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual bool SubSetter(CustomVar&, Arg, const LateBindVar&, uint32_t) { return false; }
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
 };
-MAKE_ENUM_BITFIELD(CustomVar::Handler::IndexerSupport)
 
 [[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
 {
@@ -693,12 +741,6 @@ struct BinaryExpr
     BinaryExpr(const EmbedOps op, const RawArg left, const RawArg right) noexcept :
         LeftOprend(left), RightOprend(right), Operator(op) { }
 };
-struct IndexerExpr
-{
-    RawArg Target, Index;
-    IndexerExpr(const RawArg target, const RawArg index) noexcept :
-        Target(target), Index(index) { }
-};
 
 
 template<typename T>
@@ -720,7 +762,12 @@ struct Block;
 struct Assignment : public WithPos
 {
     const LateBindVar* Target = nullptr;
+    RawArg Index;
     RawArg Statement;
+    constexpr bool HasIndex() const noexcept
+    {
+        return Index.TypeData != RawArg::Type::Empty;
+    }
     constexpr std::u32string_view GetVar() const noexcept
     { 
         return *Target;
@@ -887,7 +934,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
-    static void Stringify(std::u32string& output, const IndexerExpr* expr);
+    static void Stringify(std::u32string& output, const QueryExpr* expr);
     static void Stringify(std::u32string& output, const LateBindVar* var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);

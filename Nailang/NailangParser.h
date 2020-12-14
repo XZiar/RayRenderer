@@ -112,7 +112,11 @@ public:
     [[nodiscard]] static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
     [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
         FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
-    [[nodiscard]] static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static std::optional<RawArg> ParseSingleArg(std::string_view stopDelim, MemoryPool& pool, common::parser::ParserContext& context);
+    [[nodiscard]] static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
+    {
+        return ParseSingleArg(";", pool, context);
+    }
 };
 
 

@@ -81,10 +81,14 @@
   <Type Name="xziar::nailang::IndexerExpr">
     <DisplayString>{{ Indexer }}</DisplayString>
   </Type>
+  <Type Name="xziar::nailang::QueryExpr">
+    <DisplayString>{{ Query }}</DisplayString>
+  </Type>
   <Type Name="xziar::nailang::Assignment">
     <DisplayString>{{ Assignment[{Target->Ptr,[Target->Length]s32}] }}</DisplayString>
     <Expand>
       <Item Name="Target">Target->Ptr,[Target->Length]s32</Item>
+      <Item Name="Index">Index</Item>
       <Item Name="Statement">Statement</Item>
     </Expand>
   </Type>
@@ -94,6 +98,7 @@
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Unary"  >{{ Unary }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Binary" >{{ Binary }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Indexer">{{ Indexer }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Query"  >{{ Query }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Str"    >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Uint"   >{{ Uint [{Data1.Uint}] }}</DisplayString>
@@ -105,6 +110,7 @@
       <Item Condition="TypeData == xziar::nailang::RawArg::Unary"   Name="[Unary]"  >*reinterpret_cast&lt;const xziar::nailang::UnaryExpr*&gt;(Data1.Uint)</Item>
       <Item Condition="TypeData == xziar::nailang::RawArg::Binary"  Name="[Binary]" >*reinterpret_cast&lt;const xziar::nailang::BinaryExpr*&gt;(Data1.Uint)</Item>
       <Item Condition="TypeData == xziar::nailang::RawArg::Indexer" Name="[Indexer]">*reinterpret_cast&lt;const xziar::nailang::IndexerExpr*&gt;(Data1.Uint)</Item>
+      <Item Condition="TypeData == xziar::nailang::RawArg::Query"   Name="[Query]"  >*reinterpret_cast&lt;const xziar::nailang::QueryExpr*&gt;(Data1.Uint)</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Arg" >

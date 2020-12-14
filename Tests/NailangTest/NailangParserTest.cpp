@@ -1,7 +1,9 @@
 #include "rely.h"
 #include "Nailang/ParserRely.h"
 #include "Nailang/NailangParser.h"
-
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+#include <boost/preprocessor/variadic/size.hpp>
 
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
@@ -10,6 +12,7 @@ using xziar::nailang::RawBlockParser;
 using xziar::nailang::BlockParser;
 using xziar::nailang::ComplexArgParser;
 using xziar::nailang::EmbedOps;
+using xziar::nailang::SubQuery;
 using xziar::nailang::LateBindVar;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
@@ -41,6 +44,25 @@ do                                                          \
     EXPECT_EQ(_var.Info(), LateBindVar::VarInfo::info);     \
 } while(0)
 
+#define CHECK_QUERY_SUB(target, name)                       \
+do                                                          \
+{                                                           \
+    EXPECT_EQ(target.first, SubQuery::QueryType::Sub);      \
+    CHECK_DIRECT_ARG(target.second, Str, name);             \
+} while(0)
+
+#define CHECK_QUERY_SUBFIELD(r, x, i, name) CHECK_QUERY_SUB(x[i], name);
+#define CHECK_QUERY_SUBFIELDS(x, names) BOOST_PP_SEQ_FOR_EACH_I(CHECK_QUERY_SUBFIELD, x, names)
+#define CHECK_FIELD_QUERY(target, var, info, ...)                           \
+do                                                                          \
+{                                                                           \
+    ASSERT_EQ(target.TypeData, RawArg::Type::Query);                        \
+    const auto& query = *target.GetVar<RawArg::Type::Query>();              \
+    CHECK_VAR_ARG(query.Target, var, info);                                 \
+    constexpr size_t qcnt = BOOST_PP_VARIADIC_SIZE(__VA_ARGS__);            \
+    ASSERT_EQ(query.Queries.size(), qcnt);                                  \
+    CHECK_QUERY_SUBFIELDS(query, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))     \
+} while(0)
 
 static std::u32string ReplaceNewLine(std::u32string_view txt)
 {
@@ -125,14 +147,18 @@ TEST(NailangParser, ParseFuncBody)
         CHECK_DIRECT_ARG(func.Args[0], Str, U"Hello\t\"World\""sv);
     }
     {
-        constexpr auto src = U"(val.xxx.3.len)"sv;
+        constexpr auto src = U"(val.xxx.y.len)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
-        CHECK_VAR_ARG(func.Args[0], U"val.xxx.3.len"sv, Empty);
-        const auto& var = *func.Args[0].GetVar<RawArg::Type::Var>();
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"val"sv, U"xxx"sv, U"3"sv, U"len"sv));
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Query);
+        const auto& query = *func.Args[0].GetVar<RawArg::Type::Query>();
+        CHECK_VAR_ARG(query.Target, U"val"sv, Empty);
+        ASSERT_EQ(query.Queries.size(), 3u);
+        CHECK_QUERY_SUB(query[0], U"xxx"sv);
+        CHECK_QUERY_SUB(query[1], U"y"sv);
+        CHECK_QUERY_SUB(query[2], U"len"sv);
     }
     {
         constexpr auto src = U"(123, -456)"sv;
@@ -144,13 +170,14 @@ TEST(NailangParser, ParseFuncBody)
         CHECK_DIRECT_ARG(func.Args[1], Int, -456);
     }
     {
-        constexpr auto src = U"((123u), v.456)"sv;
+        constexpr auto src = U"((123u), v._456)"sv;
         ParserContext context(src);
         const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         CHECK_DIRECT_ARG(func.Args[0], Uint, 123u);
-        CHECK_VAR_ARG(func.Args[1], U"v.456"sv, Empty);
+        CHECK_FIELD_QUERY(func.Args[1], U"v"sv, Empty, U"_456"sv);
+        //CHECK_VAR_ARG(func.Args[1], U"v.456"sv, Empty);
     }
     {
         constexpr auto src = U"(1u + 2)"sv;
@@ -192,10 +219,11 @@ TEST(NailangParser, ParseFuncBody)
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 1u);
 
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Indexer);
-        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Indexer>();
+        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Query);
+        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Query>();
         CHECK_VAR_ARG(stmt.Target, U"val"sv, Empty);
-        CHECK_DIRECT_ARG(stmt.Index, Int, 5);
+        EXPECT_EQ(stmt[0].first, SubQuery::QueryType::Index);
+        CHECK_DIRECT_ARG(stmt[0].second, Int, 5);
     }
     {
         constexpr auto src = U"(val[x+y]+ 12.8)"sv;
@@ -206,15 +234,16 @@ TEST(NailangParser, ParseFuncBody)
 
         ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
         const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
-        EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Indexer);
+        EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Query);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
         CHECK_DIRECT_ARG(stmt.RightOprend, FP, 12.8);
 
-        const auto& stmt1 = *stmt.LeftOprend.GetVar<RawArg::Type::Indexer>();
+        const auto& stmt1 = *stmt.LeftOprend.GetVar<RawArg::Type::Query>();
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        ASSERT_EQ(stmt1.Index.TypeData, RawArg::Type::Binary);
+        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt1[0].second.TypeData, RawArg::Type::Binary);
 
-        const auto& stmt2 = *stmt1.Index.GetVar<RawArg::Type::Binary>();
+        const auto& stmt2 = *stmt1[0].second.GetVar<RawArg::Type::Binary>();
         CHECK_VAR_ARG(stmt2.LeftOprend, U"x"sv, Empty);
         EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
         CHECK_VAR_ARG(stmt2.RightOprend, U"y"sv, Empty);
@@ -229,23 +258,27 @@ TEST(NailangParser, ParseFuncBody)
         ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
         const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Unary>();
         EXPECT_EQ(stmt.Operator, EmbedOps::Not);
-        ASSERT_EQ(stmt.Oprend.TypeData, RawArg::Type::Indexer);
+        ASSERT_EQ(stmt.Oprend.TypeData, RawArg::Type::Query);
 
-        const auto& stmt1 = *stmt.Oprend.GetVar<RawArg::Type::Indexer>();
+        const auto& stmt1 = *stmt.Oprend.GetVar<RawArg::Type::Query>();
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        ASSERT_EQ(stmt1.Index.TypeData, RawArg::Type::Indexer);
+        ASSERT_EQ(stmt1.Queries.size(), 1u);
+        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt1[0].second.TypeData, RawArg::Type::Query);
 
-        const auto& stmt2 = *stmt1.Index.GetVar<RawArg::Type::Indexer>();
-        ASSERT_EQ(stmt2.Target.TypeData, RawArg::Type::Indexer);
-        CHECK_DIRECT_ARG(stmt2.Index, Int, 5);
-        const auto& stmt3 = *stmt2.Target.GetVar<RawArg::Type::Indexer>();
-        CHECK_VAR_ARG(stmt3.Target, U"x"sv, Empty);
-        ASSERT_EQ(stmt3.Index.TypeData, RawArg::Type::Binary);
+        const auto& stmt2 = *stmt1[0].second.GetVar<RawArg::Type::Query>();
+        CHECK_VAR_ARG(stmt2.Target, U"x"sv, Empty);
+        ASSERT_EQ(stmt2.Queries.size(), 2u);
+        EXPECT_EQ(stmt2[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt2[0].second.TypeData, RawArg::Type::Binary);
 
-        const auto& stmt4 = *stmt3.Index.GetVar<RawArg::Type::Binary>();
-        CHECK_DIRECT_ARG(stmt4.LeftOprend, Int, 3);
-        EXPECT_EQ(stmt4.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt4.RightOprend, Int, 4);
+        const auto& stmt3 = *stmt2[0].second.GetVar<RawArg::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt3.LeftOprend, Int, 3);
+        EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt3.RightOprend, Int, 4);
+
+        EXPECT_EQ(stmt2[1].first, SubQuery::QueryType::Index);
+        CHECK_DIRECT_ARG(stmt2[1].second, Int, 5);
     }
     {
         constexpr auto src = U"(6 >= $foo(:bar), $foo(`bar, (4-5)==9))"sv;

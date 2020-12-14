@@ -350,25 +350,43 @@ TEST(NailangBase, Serializer)
     RawArg a3{ uint64_t(1234) };
     RawArg a4{ int64_t(-5678) };
     RawArg a5{ U"10ab"sv };
-    const auto a6_ = LateBindVar::CreateSimple(U"`cd.ef"sv);
+    const auto a6_ = LateBindVar::CreateSimple(U"`cdef"sv);
     RawArg a6{ &a6_ };
     EXPECT_EQ(Serializer::Stringify(a1), U"true"sv);
     EXPECT_EQ(Serializer::Stringify(a2), U"false"sv);
     EXPECT_EQ(Serializer::Stringify(a3), U"1234"sv);
     EXPECT_EQ(Serializer::Stringify(a4), U"-5678"sv);
     EXPECT_EQ(Serializer::Stringify(a5), U"\"10ab\""sv);
-    EXPECT_EQ(Serializer::Stringify(a6), U"`cd.ef"sv);
+    EXPECT_EQ(Serializer::Stringify(a6), U"`cdef"sv);
     {
         xziar::nailang::UnaryExpr expr(EmbedOps::Not, a1);
         EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
     }
     {
-        xziar::nailang::IndexerExpr expr(a5, a3);
+        std::vector<RawArg> queries;
+        xziar::nailang::SubQuery::PushQuery(queries, a3);
+        xziar::nailang::QueryExpr expr(a5, queries);
         EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\"[1234]"sv);
     }
     {
-        xziar::nailang::IndexerExpr expr(a6, a4);
-        EXPECT_EQ(Serializer::Stringify(&expr), U"`cd.ef[-5678]"sv);
+        std::vector<RawArg> queries;
+        xziar::nailang::SubQuery::PushQuery(queries, a4);
+        xziar::nailang::QueryExpr expr(a6, queries);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef[-5678]"sv);
+    }
+    {
+        std::vector<RawArg> queries;
+        xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
+        xziar::nailang::QueryExpr expr(a6, queries);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw"sv);
+    }
+    {
+        std::vector<RawArg> queries;
+        xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
+        xziar::nailang::SubQuery::PushQuery(queries, a3);
+        xziar::nailang::SubQuery::PushQuery(queries, U"abcd"sv);
+        xziar::nailang::QueryExpr expr(a6, queries);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw[1234].abcd"sv);
     }
     {
         xziar::nailang::BinaryExpr expr(EmbedOps::Add, a1, a2);

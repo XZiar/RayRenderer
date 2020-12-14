@@ -80,8 +80,10 @@ std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
         RET_TK_ID(MetaFunc);
         RET_TK_ID(Func);
         RET_TK_ID(Var);
+        RET_TK_ID(SubField);
         RET_TK_ID(EmbedOp);
         RET_TK_ID(Parenthese);
+        RET_TK_ID(SquareBracket);
         RET_TK_ID(CurlyBrace);
         RET_TK_ID(Assign);
 #undef RET_TK_ID
@@ -163,15 +165,47 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
         tokenizer::SquareBracketTokenizer>(StopTokenizer);
     const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
-        tokenizer::EmbedOpTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
+        tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
     
     std::optional<RawArg> oprend1, oprend2;
+    std::vector<RawArg> tmpQueries;
     std::optional<EmbedOps> op;
     char32_t stopChar = common::parser::special::CharEnd;
+
+    const auto CleanupQueries = [&](std::optional<RawArg>& opr)
+    {
+        if (!tmpQueries.empty())
+        {
+            Expects(opr.has_value());
+            Expects(opr->TypeData != RawArg::Type::Query);
+            const auto sp = MemPool.CreateArray(tmpQueries);
+            const auto query = MemPool.Create<QueryExpr>(*opr, sp);
+            opr.emplace(query);
+            tmpQueries.clear();
+        }
+    };
+    const auto EnsureNotLiteralType = [&](const auto oprType, const auto token)
+    {
+        if (tmpQueries.empty()) // first query
+        {
+            switch (oprType)
+            {
+            case RawArg::Type::Func:
+            case RawArg::Type::Unary:
+            case RawArg::Type::Binary:
+            case RawArg::Type::Var:
+                break;
+            default:
+                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
+                break;
+            }
+        }
+    };
 
     while (true) 
     {
         const bool isAtOp = oprend1.has_value() && !op.has_value() && !oprend2.has_value();
+        auto& targetOpr = op.has_value() ? oprend2 : oprend1;
         ParserToken token = isAtOp ?
             GetNextToken(OpLexer,  IgnoreBlank, IgnoreCommentToken) :
             GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
@@ -203,53 +237,50 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
             if (!isUnary && !oprend1.has_value())
                 OnUnExpectedToken(token, u"expect operand before binary operator"sv);
             op = opval;
+            CleanupQueries(targetOpr);
         }
         else if (token.GetIDEnum<NailangToken>() == NailangToken::SquareBracket) // Indexer
         {
             if (token.GetChar() == U']')
                 OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            auto& target = op.has_value() ? oprend2 : oprend1;
-            if (!target.has_value())
+            if (!targetOpr.has_value())
                 OnUnExpectedToken(token, u"Indexer should follow a RawArg"sv);
-            switch (target->TypeData)
-            {
-            case RawArg::Type::Func:
-            case RawArg::Type::Unary:
-            case RawArg::Type::Binary:
-            case RawArg::Type::Indexer:
-            case RawArg::Type::Var:
-                break;
-            default:
-                OnUnExpectedToken(token, u"Indexer should not follow a litteral type"sv);
-                break;
-            }
+            EnsureNotLiteralType(targetOpr->TypeData, token);
             auto index = ParseArg("]"sv).first;
             if (!index.has_value())
                 OnUnExpectedToken(token, u"lack of index"sv);
-            target = MemPool.Create<IndexerExpr>(*target, *index);
+            SubQuery::PushQuery(tmpQueries, index.value());
+            // target = MemPool.Create<IndexerExpr>(*target, *index);
+        }
+        else if (token.GetIDEnum<NailangToken>() == NailangToken::SubField) // SubField
+        {
+            if (!targetOpr.has_value())
+                OnUnExpectedToken(token, u"SubField should follow a RawArg"sv);
+            EnsureNotLiteralType(targetOpr->TypeData, token);
+            SubQuery::PushQuery(tmpQueries, token.GetString());
+            // target = MemPool.Create<IndexerExpr>(*target, *index);
         }
         else
         {
-            auto& target = op.has_value() ? oprend2 : oprend1;
-            if (target.has_value())
+            if (targetOpr.has_value())
                 OnUnExpectedToken(token, u"already has oprend"sv);
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(BaseToken::Uint)        : target = token.GetUInt();                 break;
-            EID(BaseToken::Int)         : target = token.GetInt();                  break;
-            EID(BaseToken::FP)          : target = token.GetDouble();               break;
-            EID(BaseToken::Bool)        : target = token.GetBool();                 break;
-            EID(NailangToken::Var)      : target = CreateVar(token.GetString());    break;
+            EID(BaseToken::Uint)        : targetOpr = token.GetUInt();                 break;
+            EID(BaseToken::Int)         : targetOpr = token.GetInt();                  break;
+            EID(BaseToken::FP)          : targetOpr = token.GetDouble();               break;
+            EID(BaseToken::Bool)        : targetOpr = token.GetBool();                 break;
+            EID(NailangToken::Var)      : targetOpr = CreateVar(token.GetString());    break;
             EID(BaseToken::String)      : 
-                target = ProcessString(token.GetString(), MemPool); 
+                targetOpr = ProcessString(token.GetString(), MemPool);
                 break;
             EID(NailangToken::Func)  :
-                target = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::ExprPart));
+                targetOpr = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::ExprPart));
                 break;
             EID(NailangToken::Parenthese):
                 if (token.GetChar() == U'(')
-                    target = ParseArg(")"sv).first;
+                    targetOpr = ParseArg(")"sv).first;
                 else // == U')'
                     OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
                 break; 
@@ -260,6 +291,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
     }
     // exit from delim or end
 
+    CleanupQueries(op.has_value() ? oprend2 : oprend1);
     if (!op.has_value())
     {
         Expects(!oprend2.has_value());
@@ -350,12 +382,24 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& p
     return { funcName, sp, pos };
 }
 
-std::optional<RawArg> ComplexArgParser::ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
+std::optional<RawArg> ComplexArgParser::ParseSingleArg(std::string_view stopDelim, MemoryPool& pool, common::parser::ParserContext& context)
 {
     ComplexArgParser parser(pool, context);
-    auto [arg, delim] = parser.ParseArg(";"sv);
-    if (delim != U';')
-        parser.NLPS_THROW_EX(u"Expected end with ';'"sv);
+    auto [arg, delim] = parser.ParseArg(stopDelim);
+    bool hasMatchedDeim = false;
+    if (!stopDelim.empty())
+    {
+        for (const auto ch : stopDelim)
+            if (static_cast<char32_t>(ch) == delim)
+            {
+                hasMatchedDeim = true;
+                break;
+            }
+    }
+    else
+        hasMatchedDeim = true;
+    if (!hasMatchedDeim)
+        parser.NLPS_THROW_EX(u"Expected end with delim"sv);
     return arg;
 }
 
@@ -461,18 +505,33 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     using common::parser::detail::EmptyTokenArray;
     using tokenizer::AssignOps;
 
-    constexpr auto AssignOpLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
-    constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Assign);
+    constexpr auto FirstLexer  = ParserLexerBase<CommentTokenizer, 
+        tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
+    constexpr auto OpOnlyLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
+    //constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Assign);
 
     const auto bindVar = CreateVar(var);
     const auto pos = GetPosition(Context);
 
-    const auto opToken = ExpectNextToken(AssignOpLexer, IgnoreBlank, IgnoreCommentToken, ExpectAssignOp);
-    Expects(opToken.GetIDEnum<NailangToken>() == NailangToken::Assign);
+    RawArg indexer;
+    auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
+    if (token.GetIDEnum<NailangToken>() == NailangToken::SquareBracket)
+    {
+        if (token.GetChar() == U']')
+            OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+        const auto index = ComplexArgParser::ParseSingleArg("]"sv, MemPool, Context);
+        if (!index.has_value())
+            OnUnExpectedToken(token, u"lack of index"sv);
+        indexer = index.value();
+        token = GetNextToken(OpOnlyLexer, IgnoreBlank, IgnoreCommentToken);
+    }
+
+    if (token.GetIDEnum<NailangToken>() != NailangToken::Assign)
+        OnUnExpectedToken(token, u"expect assign op"sv);
 
     std::optional<EmbedOps> selfOp;
     bool checkNull = true;
-    switch (static_cast<AssignOps>(opToken.GetUInt()))
+    switch (static_cast<AssignOps>(token.GetUInt()))
     {
     case AssignOps::   Assign: checkNull = false;      break;
     case AssignOps::NilAssign:                         break;
@@ -483,7 +542,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     case AssignOps::MulAssign: selfOp = EmbedOps::Mul; break;
     case AssignOps::DivAssign: selfOp = EmbedOps::Div; break;
     case AssignOps::RemAssign: selfOp = EmbedOps::Rem; break;
-    default: OnUnExpectedToken(opToken, u"expect assign op"sv); break;
+    default: OnUnExpectedToken(token, u"expect assign op"sv); break;
     }
     if (checkNull)
         bindVar->Info() |= selfOp.has_value() ? LateBindVar::VarInfo::ReqNotNull : LateBindVar::VarInfo::ReqNull;
@@ -495,7 +554,8 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
 
     Assignment assign;
     assign.Position = pos;
-    assign.Target = bindVar;
+    assign.Target   = bindVar;
+    assign.Index    = indexer;
     if (!selfOp.has_value())
     {
         assign.Statement = *stmt;

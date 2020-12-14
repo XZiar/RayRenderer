@@ -28,8 +28,7 @@ class NAILANGAPI EvaluateContext
 {
     friend class NailangRuntimeBase;
 protected:
-    static Arg GetSubArg(const Arg& target, const LateBindVar& var, uint32_t idx);
-    static bool SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx);
+    //static bool SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx);
 public:
     virtual ~EvaluateContext();
     [[nodiscard]] virtual Arg LookUpArg(const LateBindVar& var) const = 0;
@@ -275,6 +274,8 @@ struct NAILANGAPI NailangHelper
 
 class NAILANGAPI NailangRuntimeBase
 {
+    friend Arg;
+    friend CustomVar::Handler;
 public:
     enum class ProgramStatus  : uint8_t { Next, Break, Return, End };
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
@@ -443,7 +444,7 @@ protected:
                   virtual Arg  EvaluateArg(const RawArg& arg);
     [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
-    [[nodiscard]] virtual Arg EvaluateIndexerExpr(const Arg& target, const RawArg& index);
+    [[nodiscard]] virtual std::optional<Arg> EvaluateQueryExpr(const QueryExpr& expr);
                   virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);

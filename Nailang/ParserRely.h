@@ -31,7 +31,7 @@ enum class NailangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Raw, Block, MetaFunc, Func, Var, EmbedOp, Parenthese, SquareBracket, CurlyBrace, Assign,
+    Raw, Block, MetaFunc, Func, Var, SubField, EmbedOp, Parenthese, SquareBracket, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
@@ -136,8 +136,31 @@ class VariableTokenizer : public ASCII2PartTokenizer
 public:
     constexpr VariableTokenizer() : ASCII2PartTokenizer(NailangToken::Var, 1, 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`:", 
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.")
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
     { }
+};
+
+class SubFieldTokenizer : public common::parser::tokenizer::TokenizerBase
+{
+public:
+    using StateData = void;
+    [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
+    {
+        using namespace std::string_view_literals;
+        constexpr ASCIIChecker<true>  FirstChecker = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"sv;
+        constexpr ASCIIChecker<true> SecondChecker = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"sv;
+        switch (idx)
+        {
+        case 0:  return ch == '.' ? TokenizerResult::Pending : TokenizerResult::NotMatch;
+        case 1:  return  FirstChecker(ch) ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+        default: return SecondChecker(ch) ? TokenizerResult::Waitlist : TokenizerResult::NotMatch;
+        }
+    }
+    [[nodiscard]] forceinline ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
+    {
+        Expects(txt.size() > 1);
+        return ParserToken(NailangToken::SubField, txt.substr(1));
+    }
 };
 
 class EmbedOpTokenizer

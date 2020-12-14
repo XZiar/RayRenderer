@@ -109,7 +109,7 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
     case RawArg::Type::Func:    return U"func-call"sv;
     case RawArg::Type::Unary:   return U"unary-expr"sv;
     case RawArg::Type::Binary:  return U"binary-expr"sv;
-    case RawArg::Type::Indexer: return U"indexer-expr"sv;
+    case RawArg::Type::Query:   return U"query-expr"sv;
     case RawArg::Type::Var:     return U"variable"sv;
     case RawArg::Type::Str:     return U"string"sv;
     case RawArg::Type::Uint:    return U"uint"sv;
@@ -347,12 +347,27 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         output.push_back(U')');
 }
 
-void Serializer::Stringify(std::u32string& output, const IndexerExpr* expr)
+void Serializer::Stringify(std::u32string& output, const QueryExpr* expr)
 {
     Stringify(output, expr->Target, true);
-    output.push_back(U'[');
-    Stringify(output, expr->Index, false);
-    output.push_back(U']');
+    for (size_t i = 0; i < expr->Size(); ++i)
+    {
+        const auto [type, query] = (*expr)[i];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+            output.push_back(U'[');
+            Stringify(output, query, false);
+            output.push_back(U']');
+            break;
+        case SubQuery::QueryType::Sub:
+            output.push_back(U'.');
+            output.append(query.GetVar<RawArg::Type::Str>());
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 void Serializer::Stringify(std::u32string& output, const LateBindVar* var)

@@ -18,38 +18,93 @@ using common::DJBHash;
 using common::str::HashedStrView;
 
 
+std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const noexcept
+{
+    Expects(subq.Size() > 0);
+    if (IsCustom())
+    {
+        const auto var = GetVar<Arg::Type::Var>();
+        return var.Call<&CustomVar::Handler::HandleGetter>(subq, runtime);
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateArg(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
+            return { std::u32string(1, str[idx]), 1u };
+        } break;
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<RawArg::Type::Str>();
+            if (field == U"Length"sv)
+                return { uint64_t(str.size()), 1u };
+        } break;
+        default: break;
+        }
+    }
+    return { {}, 0u };
+}
+
+
+Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg)
+{
+    return runtime.EvaluateArg(arg);
+}
+
+void CustomVar::Handler::HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex)
+{
+    runtime.HandleException(ex);
+}
+
+std::pair<Arg, size_t> CustomVar::Handler::HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
+{
+    Expects(subq.Size() > 0);
+    const auto [type, query] = subq[0];
+    switch (type)
+    {
+    case SubQuery::QueryType::Index:
+    {
+        const auto idx = EvaluateArg(runtime, query);
+        auto result = IndexerGetter(var, idx, &query);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    case SubQuery::QueryType::Sub:
+    {
+        auto field = query.GetVar<RawArg::Type::Str>();
+        auto result = SubfieldGetter(var, field);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    default: break;
+    }
+    return { {}, 0u };
+}
+
+
 EvaluateContext::~EvaluateContext()
 { }
 
-Arg EvaluateContext::GetSubArg(const Arg& target, const LateBindVar& var, uint32_t idx)
-{
-    Expects(idx < var.PartCount);
-    switch (target.TypeData)
-    {
-    case Arg::Type::Var:
-    {
-        const auto tmp = target.GetVar<Arg::Type::Var>();
-        return tmp.Call<&CustomVar::Handler::SubGetter>(var, idx);
-    }
-    default:
-        return {};
-    }
-}
 
-bool EvaluateContext::SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx)
-{
-    Expects(idx < var.PartCount);
-    switch (target.TypeData)
-    {
-    case Arg::Type::Var:
-    {
-        auto tmp = target.GetVar<Arg::Type::Var>();
-        return tmp.Call<&CustomVar::Handler::SubSetter>(std::move(arg), var, idx);
-    }
-    default:
-        return false;
-    }
-}
+//bool EvaluateContext::SetSubArg(Arg& target, Arg arg, const LateBindVar& var, uint32_t idx)
+//{
+//    Expects(idx < var.PartCount);
+//    switch (target.TypeData)
+//    {
+//    case Arg::Type::Var:
+//    {
+//        auto tmp = target.GetVar<Arg::Type::Var>();
+//        return tmp.Call<&CustomVar::Handler::SubSetter>(std::move(arg), var, idx);
+//    }
+//    default:
+//        return false;
+//    }
+//}
 
 
 BasicEvaluateContext::~BasicEvaluateContext()
@@ -189,10 +244,10 @@ Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
     const auto [val, subIdx] = LocateArg(var);
     if (val == nullptr)
         return {};
-    if (subIdx == var.PartCount)
+    //if (subIdx == var.PartCount)
         return *val;
-    else
-        return GetSubArg(*val, var, subIdx);
+    //else
+    //    return GetSubArg(*val, var, subIdx);
 }
 
 bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
@@ -213,8 +268,8 @@ bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool 
         auto& target = *const_cast<Arg*>(val);
         if (subIdx == var.PartCount)
             target = std::move(arg);
-        else
-            SetSubArg(target, std::move(arg), var, subIdx);
+        //else
+        //    SetSubArg(target, std::move(arg), var, subIdx);
         return true;
     }
 
@@ -1398,12 +1453,12 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         else
             NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
         break;
-    case Type::Indexer:
-    {
-        const auto expr   = arg.GetVar<Type::Indexer>();
-        const auto target = EvaluateArg(expr->Target);
-        return EvaluateIndexerExpr(target, expr->Index);
-    }
+    case Type::Query:
+        if (auto ret = EvaluateQueryExpr(*arg.GetVar<Type::Query>()); ret.has_value())
+            return std::move(ret.value());
+        else
+            NLRT_THROW_EX(u"Query expr's arg type does not match requirement"sv, arg);
+        break;
     case Type::Var:     return LookUpArg(*arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
@@ -1466,42 +1521,56 @@ std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr
     }
 }
 
-Arg NailangRuntimeBase::EvaluateIndexerExpr(const Arg& target, const RawArg& index)
+std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
 {
-    if (target.IsCustom())
+    auto target = EvaluateArg(expr.Target);
+    for (size_t i = 0; i < expr.Size(); ++i)
     {
-        auto var = target.GetVar<Arg::Type::Var>();
-        if (const auto support = var.Call<&CustomVar::Handler::CheckIndexerSupport>(); 
-            HAS_FIELD(support, CustomVar::Handler::IndexerSupport::Read))
-        {
-            const auto val = EvaluateArg(index);
-            try
-            {
-                return var.Call<&CustomVar::Handler::IndexerGetter>(val, &index);
-            }
-            catch (const NailangRuntimeException& nre)
-            {
-                HandleException(nre);
-            }
-        }
+        size_t step = 0;
+        std::tie(target, step) = target.HandleGetter(expr.Sub(i), *this);
+        if (step == 0)
+            NLRT_THROW_EX(u"Fail to evaluate query"sv, target, RawArg{ &expr });
+        i += step;
     }
-    else if (target.IsStr())
-    {
-        const auto str = target.GetStr().value();
-        const auto val = EvaluateArg(index);
-        try
-        {
-            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &index);
-            return std::u32string(1, str[idx]);
-        }
-        catch (const NailangRuntimeException& nre)
-        {
-            HandleException(nre);
-        }
-    }
-    NLRT_THROW_EX(u"Indexer applied to unsupportted type"sv, target);
-    return {};
+    return target;
 }
+
+//Arg NailangRuntimeBase::EvaluateIndexerExpr(const Arg& target, const RawArg& index)
+//{
+//    if (target.IsCustom())
+//    {
+//        auto var = target.GetVar<Arg::Type::Var>();
+//        if (const auto support = var.Call<&CustomVar::Handler::CheckIndexerSupport>(); 
+//            HAS_FIELD(support, CustomVar::Handler::IndexerSupport::Read))
+//        {
+//            const auto val = EvaluateArg(index);
+//            try
+//            {
+//                return var.Call<&CustomVar::Handler::IndexerGetter>(val, &index);
+//            }
+//            catch (const NailangRuntimeException& nre)
+//            {
+//                HandleException(nre);
+//            }
+//        }
+//    }
+//    else if (target.IsStr())
+//    {
+//        const auto str = target.GetStr().value();
+//        const auto val = EvaluateArg(index);
+//        try
+//        {
+//            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &index);
+//            return std::u32string(1, str[idx]);
+//        }
+//        catch (const NailangRuntimeException& nre)
+//        {
+//            HandleException(nre);
+//        }
+//    }
+//    NLRT_THROW_EX(u"Indexer applied to unsupportted type"sv, target);
+//    return {};
+//}
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
 {
