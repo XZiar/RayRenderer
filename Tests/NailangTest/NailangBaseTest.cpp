@@ -190,150 +190,47 @@ TEST(NailangBase, AssignOpTokenizer)
 
 
 
-TEST(NailangBase, LateBindVar)
+TEST(NailangBase, FuncName)
 {
-    using xziar::nailang::LateBindVar;
-    using VI = xziar::nailang::LateBindVar::VarInfo;
+    using xziar::nailang::FuncName;
+    using xziar::nailang::TempFuncName;
+    using VI = xziar::nailang::FuncName::FuncInfo;
     xziar::nailang::MemoryPool Pool;
     {
         constexpr auto name = U"a.b.c"sv;
-        const auto var = LateBindVar::Create(Pool, name);
-        EXPECT_EQ(*var, name);
-        EXPECT_EQ(var->Info(), VI::Empty);
-        EXPECT_THAT(var->Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-        EXPECT_EQ(var->GetRest(0), name);
-        EXPECT_EQ(var->GetRest(1), name.substr(2));
+        const auto func = FuncName::Create(Pool, name, FuncName::FuncInfo::Empty);
+        EXPECT_EQ(*func, name);
+        EXPECT_EQ(func->Info(), VI::Empty);
+        EXPECT_THAT(func->Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
+        EXPECT_EQ(func->GetRest(0), name);
+        EXPECT_EQ(func->GetRest(1), name.substr(2));
     }
+    std::vector<TempFuncName> funcs;
     {
-        constexpr auto name = U"`a.b.c"sv;
-        const auto var = LateBindVar::Create(Pool, name);
-        EXPECT_EQ(*var, name.substr(1));
-        EXPECT_EQ(var->Info(), VI::Root);
-        EXPECT_THAT(var->Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-        EXPECT_EQ(var->GetRest(0), name.substr(1));
-        EXPECT_EQ(var->GetRest(1), name.substr(3));
-    }
-    {
-        constexpr auto name = U":a.b.c"sv;
-        const auto var = LateBindVar::Create(Pool, name);
-        EXPECT_EQ(*var, name.substr(1));
-        EXPECT_EQ(var->Info(), VI::Local);
-        EXPECT_THAT(var->Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-        EXPECT_EQ(var->GetRest(0), name.substr(1));
-        EXPECT_EQ(var->GetRest(1), name.substr(3));
-    }
-    {
-        constexpr auto name = U":a.b.c"sv;
-        const auto var = LateBindVar::CreateSimple(name);
-        EXPECT_EQ(var, name.substr(1));
-        EXPECT_EQ(var.Info(), VI::Local);
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a.b.c"sv));
-        EXPECT_EQ(var.GetRest(0), name.substr(1));
+        ASSERT_EQ(funcs.size(), 0u);
+        constexpr auto name = U"a.b.c"sv;
+        auto func_ = FuncName::CreateTemp(name, FuncName::FuncInfo::Empty);
+        {
+            const FuncName& func = func_;
+            EXPECT_EQ(reinterpret_cast<const void*>(&func), reinterpret_cast<const void*>(&func_));
+            EXPECT_EQ(func, name);
+        }
+        funcs.push_back(std::move(func_));
+        {
+            const FuncName& func = func_;
+            EXPECT_EQ(&func, nullptr);
+        }
+        {
+            const FuncName& func = funcs.back();
+            EXPECT_EQ(func.Info(), VI::Empty);
+            EXPECT_THAT(func.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
+            EXPECT_EQ(func.GetRest(0), name);
+            EXPECT_EQ(func.GetRest(1), name.substr(2));
+        }
     }
     {
         constexpr auto name = U"a..c"sv;
-        EXPECT_THROW(LateBindVar::Create(Pool, name), xziar::nailang::NailangPartedNameException);
-    }
-}
-
-
-TEST(NailangBase, TempBindVar)
-{
-    using xziar::nailang::LateBindVar;
-    using xziar::nailang::TempBindVar;
-    using VI = xziar::nailang::LateBindVar::VarInfo;
-    {
-        constexpr auto name = U"a.b.c"sv;
-        const auto var_ = LateBindVar::CreateTemp(name);
-        const LateBindVar& var = var_;
-        EXPECT_EQ(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var_));
-        EXPECT_EQ(var, name);
-        EXPECT_EQ(var.Info(), VI::Empty);
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-        EXPECT_EQ(var.GetRest(0), name);
-        EXPECT_EQ(var.GetRest(1), name.substr(2));
-    }
-    {
-        constexpr auto name = U"a.b.c.d.e"sv;
-        const auto var_ = LateBindVar::CreateTemp(name);
-        const LateBindVar& var = var_;
-        EXPECT_NE(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var_));
-        EXPECT_EQ(var, name);
-        EXPECT_EQ(var.Info(), VI::Empty);
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv, U"d"sv, U"e"sv));
-        EXPECT_EQ(var.GetRest(0), name);
-        EXPECT_EQ(var.GetRest(1), name.substr(2));
-    }
-    {
-        constexpr auto name = U"a.b.c"sv;
-        const auto var1 = LateBindVar::CreateTemp(name);
-        const auto var2 = var1.Copy();
-        const LateBindVar& var = var2;
-        EXPECT_EQ(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var2));
-        EXPECT_EQ(var, name);
-        EXPECT_EQ(var.Info(), VI::Empty);
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-        EXPECT_EQ(var.GetRest(0), name);
-        EXPECT_EQ(var.GetRest(1), name.substr(2));
-    }
-    {
-        constexpr auto name = U"a.b.c.d.e"sv;
-        const auto var1 = LateBindVar::CreateTemp(name);
-        const auto var2 = var1.Copy();
-        const LateBindVar& var = var2;
-        EXPECT_NE(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var2));
-        EXPECT_EQ(var, name);
-        EXPECT_EQ(var.Info(), VI::Empty);
-        EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv, U"d"sv, U"e"sv));
-        EXPECT_EQ(var.GetRest(0), name);
-        EXPECT_EQ(var.GetRest(1), name.substr(2));
-    }
-    std::vector<TempBindVar> vars;
-    {
-        ASSERT_EQ(vars.size(), 0u);
-        constexpr auto name = U"a.b.c"sv;
-        auto var_ = LateBindVar::CreateTemp(name);
-        {
-            const LateBindVar& var = var_;
-            EXPECT_EQ(var, name);
-        }
-        vars.push_back(std::move(var_));
-        {
-            const LateBindVar& var = var_;
-            EXPECT_EQ(&var, nullptr);
-        }
-        {
-            const LateBindVar& var = vars.back();
-            EXPECT_NE(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var_));
-            EXPECT_EQ(var, name);
-            EXPECT_EQ(var.Info(), VI::Empty);
-            EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv));
-            EXPECT_EQ(var.GetRest(0), name);
-            EXPECT_EQ(var.GetRest(1), name.substr(2));
-        }
-    }
-    {
-        ASSERT_EQ(vars.size(), 1u);
-        constexpr auto name = U"a.b.c.d.e"sv;
-        auto var_ = LateBindVar::CreateTemp(name);
-        {
-            const LateBindVar& var = var_;
-            EXPECT_EQ(var, name);
-        }
-        vars.push_back(std::move(var_));
-        {
-            const LateBindVar& var = var_;
-            EXPECT_EQ(&var, nullptr);
-        }
-        {
-            const LateBindVar& var = vars.back();
-            EXPECT_NE(reinterpret_cast<const void*>(&var), reinterpret_cast<const void*>(&var_));
-            EXPECT_EQ(var, name);
-            EXPECT_EQ(var.Info(), VI::Empty);
-            EXPECT_THAT(var.Parts(), testing::ElementsAre(U"a"sv, U"b"sv, U"c"sv, U"d"sv, U"e"sv));
-            EXPECT_EQ(var.GetRest(0), name);
-            EXPECT_EQ(var.GetRest(1), name.substr(2));
-        }
+        EXPECT_THROW(FuncName::Create(Pool, name, FuncName::FuncInfo::Empty), xziar::nailang::NailangPartedNameException);
     }
 }
 
@@ -350,7 +247,7 @@ TEST(NailangBase, Serializer)
     RawArg a3{ uint64_t(1234) };
     RawArg a4{ int64_t(-5678) };
     RawArg a5{ U"10ab"sv };
-    const auto a6_ = LateBindVar::CreateSimple(U"`cdef"sv);
+    const LateBindVar a6_(U"`cdef"sv);
     RawArg a6{ &a6_ };
     EXPECT_EQ(Serializer::Stringify(a1), U"true"sv);
     EXPECT_EQ(Serializer::Stringify(a2), U"false"sv);

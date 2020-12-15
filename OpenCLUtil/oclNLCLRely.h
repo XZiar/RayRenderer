@@ -81,14 +81,13 @@ class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext
     friend class NLCLRuntime;
     friend class NLCLProgStub;
 protected:
-    xziar::nailang::Arg LookUpCLArg(const xziar::nailang::LateBindVar& var) const;
+    xziar::nailang::Arg LookUpCLArg(xziar::nailang::SubQuery subq, NLCLRuntime& runtime) const;
 public:
     const oclDevice Device;
     const bool SupportFP16, SupportFP64, SupportNVUnroll,
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
-    [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
     [[nodiscard]] VecTypeResult ParseVecType(const std::u32string_view type) const noexcept override;
     [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
     [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
@@ -117,7 +116,8 @@ protected:
 
     [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
     xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) override;
-    
+    [[nodiscard]] std::optional<xziar::nailang::Arg> EvaluateQueryExpr(const xziar::nailang::QueryExpr& expr);
+
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
     [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
     void HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx) override;
@@ -134,6 +134,8 @@ public:
 
 class OCLUAPI NLCLBaseResult : public NLCLResult
 {
+private:
+    mutable NLCLRuntime TempRuntime;
 protected:
     std::shared_ptr<NLCLContext> Context;
 public:

@@ -138,6 +138,20 @@ public:
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`:", 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
     { }
+    static constexpr std::optional<size_t> CheckName(const std::u32string_view name) noexcept
+    {
+        constexpr VariableTokenizer Self;
+        if (name.empty()) 
+            return SIZE_MAX;
+        if (!Self.FirstChecker(name[0]))
+            return 0;
+        for (size_t i = 1; i < name.size(); ++i)
+        {
+            if (!Self.SecondChecker(name[i]))
+                return i;
+        }
+        return {};
+    }
 };
 
 class SubFieldTokenizer : public common::parser::tokenizer::TokenizerBase

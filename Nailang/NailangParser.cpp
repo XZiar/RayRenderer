@@ -139,19 +139,6 @@ void NailangParser::EatRightCurlyBrace()
     EatSingleToken<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
 }
 
-LateBindVar* NailangParser::CreateVar(std::u32string_view name) const
-{
-    try
-    {
-        return LateBindVar::Create(MemPool, name);
-    }
-    catch (const NailangPartedNameException&)
-    {
-        HandleException(NailangParseException(u"LateBindVar's name not valid"sv));
-    }
-    return nullptr;
-}
-
 
 std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::string_view stopDelim)
 {
@@ -163,7 +150,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
         tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
         tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
-        tokenizer::SquareBracketTokenizer>(StopTokenizer);
+        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
     const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
         tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
     
@@ -267,11 +254,13 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
 #define EID(id) case common::enum_cast(id)
             switch (token.GetID())
             {
-            EID(BaseToken::Uint)        : targetOpr = token.GetUInt();                 break;
-            EID(BaseToken::Int)         : targetOpr = token.GetInt();                  break;
-            EID(BaseToken::FP)          : targetOpr = token.GetDouble();               break;
-            EID(BaseToken::Bool)        : targetOpr = token.GetBool();                 break;
-            EID(NailangToken::Var)      : targetOpr = CreateVar(token.GetString());    break;
+            EID(BaseToken::Uint)        : targetOpr = token.GetUInt();      break;
+            EID(BaseToken::Int)         : targetOpr = token.GetInt();       break;
+            EID(BaseToken::FP)          : targetOpr = token.GetDouble();    break;
+            EID(BaseToken::Bool)        : targetOpr = token.GetBool();      break;
+            EID(NailangToken::Var)      : 
+                targetOpr = MemPool.Create<LateBindVar>(token.GetString());    
+                break;
             EID(BaseToken::String)      : 
                 targetOpr = ProcessString(token.GetString(), MemPool);
                 break;
@@ -510,7 +499,6 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     constexpr auto OpOnlyLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
     //constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Assign);
 
-    const auto bindVar = CreateVar(var);
     const auto pos = GetPosition(Context);
 
     RawArg indexer;
@@ -544,8 +532,9 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     case AssignOps::RemAssign: selfOp = EmbedOps::Rem; break;
     default: OnUnExpectedToken(token, u"expect assign op"sv); break;
     }
+    const auto bindVar = MemPool.Create<LateBindVar>(var);
     if (checkNull)
-        bindVar->Info() |= selfOp.has_value() ? LateBindVar::VarInfo::ReqNotNull : LateBindVar::VarInfo::ReqNull;
+        bindVar->Info |= selfOp.has_value() ? LateBindVar::VarInfo::ReqNotNull : LateBindVar::VarInfo::ReqNull;
 
     const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
     if (!stmt.has_value())

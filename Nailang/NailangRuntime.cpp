@@ -1,5 +1,6 @@
 #include "NailangRuntime.h"
 #include "NailangParser.h"
+#include "ParserRely.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Format.h"
@@ -18,7 +19,7 @@ using common::DJBHash;
 using common::str::HashedStrView;
 
 
-std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const noexcept
+std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const
 {
     Expects(subq.Size() > 0);
     if (IsCustom())
@@ -155,16 +156,14 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
 
 Arg LargeEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
-    const auto varName = static_cast<std::u32string_view>(var);
-    if (const auto it = ArgMap.find(varName); it != ArgMap.end())
+    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         return it->second;
     return Arg{};
 }
 
 bool LargeEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
-    const auto varName = static_cast<std::u32string_view>(var);
-    auto it = ArgMap.find(varName);
+    auto it = ArgMap.find(var.Name);
     const bool hasIt = it != ArgMap.end();
     if (arg.IsEmpty())
     {
@@ -183,7 +182,7 @@ bool LargeEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool fo
         else
         {
             if (force)
-                ArgMap.insert_or_assign(std::u32string(varName), std::move(arg));
+                ArgMap.insert_or_assign(std::u32string(var.Name), std::move(arg));
             return false;
         }
     }
@@ -227,75 +226,39 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, 0, 0 };
 }
 
-std::pair<const Arg*, uint32_t> CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+const Arg* CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
 {
-    for (uint32_t len = 1; len <= var.PartCount; ++len)
-    {
-        const HashedStrView hsv(var.GetRange(0, len));
-        for (const auto& [pos, val] : Args)
-            if (ArgNames.GetHashedStr(pos) == hsv)
-                return { &val, len };
-    }
-    return { nullptr, 0 };
+    const HashedStrView hsv(var.Name);
+    for (const auto& [pos, val] : Args)
+        if (ArgNames.GetHashedStr(pos) == hsv)
+            return &val;
+    return nullptr;
 }
 
 Arg CompactEvaluateContext::LookUpArg(const LateBindVar& var) const
 {
-    const auto [val, subIdx] = LocateArg(var);
-    if (val == nullptr)
-        return {};
-    //if (subIdx == var.PartCount)
+    if (const auto val = LocateArg(var); val != nullptr)
         return *val;
-    //else
-    //    return GetSubArg(*val, var, subIdx);
+    return {};
 }
 
 bool CompactEvaluateContext::SetArg(const LateBindVar& var, Arg arg, const bool force)
 {
-    const auto [val, subIdx] = LocateArg(var);
-    if (val == nullptr)
+    if (const auto val = LocateArg(var); val != nullptr)
+    {
+        *const_cast<Arg*>(val) = std::move(arg);
+        return true;
+    }
+    else
     {
         if (!arg.IsEmpty() && force)
         {
-            const auto piece = ArgNames.AllocateString(var.FullName());
+            const auto piece = ArgNames.AllocateString(var.Name);
             Args.emplace_back(piece, std::move(arg));
             return true;
         }
         return false;
     }
-    else
-    {
-        auto& target = *const_cast<Arg*>(val);
-        if (subIdx == var.PartCount)
-            target = std::move(arg);
-        //else
-        //    SetSubArg(target, std::move(arg), var, subIdx);
-        return true;
-    }
-
-
-    /*const HashedStrView hsv(var.FullName());
-    Arg* target = nullptr;
-    for (auto& [pos, val] : Args)
-        if (ArgNames.GetHashedStr(pos) == hsv)
-            target = &val;
-    const bool hasIt = target != nullptr;
-    if (hasIt)
-    {
-        *target = std::move(arg);
-        return true;
-    }
-    else
-    {
-        if (arg.IsEmpty())
-            return false;
-        if (force)
-        {
-            const auto piece = ArgNames.AllocateString(var.FullName());
-            Args.emplace_back(piece, std::move(arg));
-        }
-        return false;
-    }*/
 }
 
 size_t CompactEvaluateContext::GetArgCount() const noexcept
@@ -845,18 +808,6 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
         return {};
     }
 }
-LateBindVar* NailangRuntimeBase::CreateVar(std::u32string_view name)
-{
-    try
-    {
-        return LateBindVar::Create(MemPool, name);
-    }
-    catch (const NailangPartedNameException&)
-    {
-        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"LateBindVar's name not valid"sv));
-    }
-    return nullptr;
-}
 FuncName* NailangRuntimeBase::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info)
 {
     try
@@ -881,29 +832,28 @@ TempFuncName NailangRuntimeBase::CreateTempFuncName(std::u32string_view name, Fu
     }
     return FuncName::CreateTemp(name, info);
 }
-TempBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const
+LateBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const
 {
     switch (arg.TypeData)
     {
     case RawArg::Type::Var: 
-        return TempBindVar::Wrapper(arg.GetVar<RawArg::Type::Var>());
+        return *arg.GetVar<RawArg::Type::Var>();
     case RawArg::Type::Str: 
-        try
-        {
-            return LateBindVar::CreateTemp(arg.GetVar<RawArg::Type::Str>());
-        }
-        catch (const NailangPartedNameException&)
-        {
-            NLRT_THROW_EX(u"LateBindVar's name not valid"sv, arg);
-        }
-        break;
+    {
+        const auto name = arg.GetVar<RawArg::Type::Str>();
+        const auto res  = tokenizer::VariableTokenizer::CheckName(name);
+        if (res.has_value())
+            NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
+                arg);
+        return name;
+    }
     default:
         NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
             arg);
         break;
     }
     Expects(false);
-    return TempBindVar::Wrapper(nullptr);
+    return U""sv;
 }
 
 
@@ -951,9 +901,9 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
 
 Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
 {
-    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Root))
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
         return RootContext->LookUpArg(var);
-    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
     {
         if (!CurFrame)
             NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
@@ -980,9 +930,9 @@ Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
 }
 bool NailangRuntimeBase::SetArg(const LateBindVar& var, Arg arg)
 {
-    if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::Root))
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
         return RootContext->SetArg(var, std::move(arg), true);
-    if (!HAS_FIELD(var.Info(), LateBindVar::VarInfo::Local))
+    if (!HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
     {
         for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
         {
@@ -1066,10 +1016,8 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
             if (arg.TypeData != RawArg::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
             const auto& var = *arg.GetVar<RawArg::Type::Var>();
-            if (HAS_FIELD(var.Info(), LateBindVar::VarInfo::PrefixMask))
+            if (HAS_FIELD(var.Info, LateBindVar::VarInfo::PrefixMask))
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, &meta);
-            if (var.PartCount > 1)
-                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not have parts"sv, arg, &meta);
         }
         SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
@@ -1144,8 +1092,8 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         }
         HashCase(fullName, U"ExistsDynamic")
         {
-            const auto  arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto& var = *CreateVar(arg.GetStr().value());
+            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
+            const LateBindVar var(arg.GetStr().value());
             return !LookUpArg(var).IsEmpty();
         }
         HashCase(fullName, U"ValueOr")
@@ -1224,9 +1172,7 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
     CurFrame->MetaScope = {};
     for (const auto& [varName, val] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(args)))
     {
-        // ensured no parts
-        const auto var = LateBindVar::CreateSimple(varName);
-        CurFrame->Context->SetArg(var, val, true);
+        CurFrame->Context->SetArg(varName, val, true);
     }
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
@@ -1527,7 +1473,14 @@ std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
     for (size_t i = 0; i < expr.Size(); ++i)
     {
         size_t step = 0;
-        std::tie(target, step) = target.HandleGetter(expr.Sub(i), *this);
+        try 
+        {
+            std::tie(target, step) = target.HandleGetter(expr.Sub(i), *this);
+        }
+        catch (const NailangRuntimeException& nre)
+        {
+            HandleException(nre);
+        }
         if (step == 0)
             NLRT_THROW_EX(u"Fail to evaluate query"sv, target, RawArg{ &expr });
         i += step;

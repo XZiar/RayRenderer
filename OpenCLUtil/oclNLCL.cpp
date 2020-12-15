@@ -12,6 +12,7 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
 using xziar::nailang::RawArg;
+using xziar::nailang::SubQuery;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
@@ -56,75 +57,82 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-Arg NLCLContext::LookUpCLArg(const xziar::nailang::LateBindVar& var) const
+Arg NLCLContext::LookUpCLArg(SubQuery subq, NLCLRuntime&) const
 {
-    Expects(var.PartCount > 1);
-    if (var[1] == U"Extension"sv)
+    const auto ChkSubfield = [&](size_t idx, std::u32string_view name) 
     {
-        if (var.PartCount != 3)
-            return {};
-        const auto extName = common::str::to_string(var[2], Charset::UTF8, Charset::UTF32);
-        return Device->Extensions.Has(extName);
-    }
-    if (var[1] == U"Dev"sv)
+        const auto [type, query] = subq[idx];
+        return type == SubQuery::QueryType::Sub && query.GetVar<RawArg::Type::Str>() == name;
+    };
+    if (ChkSubfield(0, U"Extension"sv))
     {
-        if (var.PartCount != 3)
-            return {};
-        const auto propName = var[2];
-        switch (common::DJBHash::HashC(propName))
+        if (subq.Size() == 2)
         {
+            const auto [type, query] = subq[1];
+            if (type == SubQuery::QueryType::Sub)
+            {
+                const auto extName = common::str::to_string(query.GetVar<RawArg::Type::Str>(), Charset::UTF8, Charset::UTF32);
+                return Device->Extensions.Has(extName);
+            }
+        }
+        return {};
+    }
+    if (ChkSubfield(0, U"Dev"sv))
+    {
+        if (subq.Size() == 2)
+        {
+            const auto [type, query] = subq[1];
+            if (type != SubQuery::QueryType::Sub)
+                return {};
+            switch (const auto propName = query.GetVar<RawArg::Type::Str>(); common::DJBHash::HashC(propName))
+            {
 #define UINT_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
-        UINT_PROP(LocalMemSize);
-        UINT_PROP(GlobalMemSize);
-        UINT_PROP(GlobalCacheSize);
-        UINT_PROP(GlobalCacheLine);
-        UINT_PROP(ConstantBufSize);
-        UINT_PROP(MaxMemAllocSize);
-        UINT_PROP(ComputeUnits);
-        UINT_PROP(WaveSize);
-        UINT_PROP(Version);
-        UINT_PROP(CVersion);
+            UINT_PROP(LocalMemSize);
+            UINT_PROP(GlobalMemSize);
+            UINT_PROP(GlobalCacheSize);
+            UINT_PROP(GlobalCacheLine);
+            UINT_PROP(ConstantBufSize);
+            UINT_PROP(MaxMemAllocSize);
+            UINT_PROP(ComputeUnits);
+            UINT_PROP(WaveSize);
+            UINT_PROP(Version);
+            UINT_PROP(CVersion);
 #undef UINT_PROP
 #define BOOL_PROP(name) HashCase(propName, U ## #name) return static_cast<uint64_t>(Device->name)
-        BOOL_PROP(SupportImage);
-        BOOL_PROP(LittleEndian);
+            BOOL_PROP(SupportImage);
+            BOOL_PROP(LittleEndian);
 #undef BOOL_PROP
-        HashCase(propName, U"Type")
-        {
-            switch (Device->Type)
+            HashCase(propName, U"Type")
             {
-            case DeviceType::Accelerator:   return U"accelerator"sv;
-            case DeviceType::CPU:           return U"cpu"sv;
-            case DeviceType::GPU:           return U"gpu"sv;
-            case DeviceType::Custom:        return U"custom"sv;
-            default:                        return U"other"sv;
+                switch (Device->Type)
+                {
+                case DeviceType::Accelerator:   return U"accelerator"sv;
+                case DeviceType::CPU:           return U"cpu"sv;
+                case DeviceType::GPU:           return U"gpu"sv;
+                case DeviceType::Custom:        return U"custom"sv;
+                default:                        return U"other"sv;
+                }
             }
-        }
-        HashCase(propName, U"Vendor")
-        {
-            switch (Device->PlatVendor)
+            HashCase(propName, U"Vendor")
             {
+                switch (Device->PlatVendor)
+                {
 #define U_VENDOR(name) case Vendors::name: return PPCAT(PPCAT(U, STRINGIZE(name)), sv)
-            U_VENDOR(AMD);
-            U_VENDOR(ARM);
-            U_VENDOR(Intel);
-            U_VENDOR(NVIDIA);
-            U_VENDOR(Qualcomm);
+                U_VENDOR(AMD);
+                U_VENDOR(ARM);
+                U_VENDOR(Intel);
+                U_VENDOR(NVIDIA);
+                U_VENDOR(Qualcomm);
 #undef U_VENDOR
-            default:    return U"Other"sv;
+                default:    return U"Other"sv;
+                }
+            }
+            default: break;
             }
         }
-        default: return {};
-        }
+        return {};
     }
     return {};
-}
-
-Arg NLCLContext::LookUpArg(const xziar::nailang::LateBindVar& var) const
-{
-    if (var[0] == U"oclu"sv && var.PartCount > 1)
-        return LookUpCLArg(var);
-    return XCNLContext::LookUpArg(var);
 }
 
 NLCLContext::VecTypeResult NLCLContext::ParseVecType(const std::u32string_view type) const noexcept
@@ -253,8 +261,8 @@ void NLCLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 
 xziar::nailang::Arg NLCLRuntime::LookUpArg(const xziar::nailang::LateBindVar& var) const
 {
-    if (var[0] == U"oclu"sv && var.PartCount > 1)
-        return Context.LookUpCLArg(var);
+    if (var == U"oclu"sv)
+        return true;
     return NailangRuntimeBase::LookUpArg(var);
 }
 
@@ -304,6 +312,17 @@ Arg NLCLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
             return std::move(ret.value());
     }
     return XCNLRuntime::EvaluateFunc(call, metas);
+}
+
+std::optional<xziar::nailang::Arg> NLCLRuntime::EvaluateQueryExpr(const xziar::nailang::QueryExpr& expr)
+{
+    if (expr.Target.TypeData == RawArg::Type::Var)
+    {
+        const auto var = *expr.Target.GetVar<RawArg::Type::Var>();
+        if (var == U"oclu"sv)
+            return Context.LookUpCLArg(expr, *this);
+    }
+    return XCNLRuntime::EvaluateQueryExpr(expr);
 }
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
@@ -539,14 +558,16 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
 
 
 
-NLCLBaseResult::NLCLBaseResult(const std::shared_ptr<NLCLContext>& context) : Context(context)
+NLCLBaseResult::NLCLBaseResult(const std::shared_ptr<NLCLContext>& context) :
+    TempRuntime(oclLog(), context), Context(context)
 { }
 NLCLBaseResult::~NLCLBaseResult()
 { }
 NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
-    const auto var = xziar::nailang::LateBindVar::CreateTemp(name);
-    auto result = Context->LookUpArg(var);
+    std::u32string tmpStmt(name);
+    tmpStmt.append(U";"sv);
+    const auto result = TempRuntime.EvaluateRawStatement(name, false);
     return result.Visit([](auto val) -> NLCLResult::ResultType
         {
             using T = std::decay_t<decltype(val)>;

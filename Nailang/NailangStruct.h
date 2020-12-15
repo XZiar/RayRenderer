@@ -222,58 +222,30 @@ public:
 };
 
 
-struct LateBindVar : public PartedName
+struct LateBindVar
 {
     enum class VarInfo : uint16_t 
     { 
         Empty = 0x0, Root = 0x1, Local = 0x2, PrefixMask = Root | Local, 
         ReqNull = 0x4, ReqNotNull = 0x8, NullCheckMask = ReqNull | ReqNotNull,
     };
+    std::u32string_view Name;
+    VarInfo Info;
 
-    constexpr VarInfo Info() const noexcept { return static_cast<VarInfo>(ExternInfo); }
-    constexpr common::EnumWrapper<VarInfo> Info() noexcept { return ExternInfo; }
-
-    static LateBindVar* Create(MemoryPool& pool, std::u32string_view name)
+    constexpr LateBindVar(const std::u32string_view name) noexcept : Name(name), Info(VarInfo::Empty)
     {
-        if (name.size() == 0)
-            return nullptr;
-        const auto info = ParseInfo(name);
-        const auto ptr = static_cast<LateBindVar*>(PartedName::Create(pool, name));
-        ptr->ExternInfo = common::enum_cast(info);
-        return ptr;
+        Expects(Name.size() > 0);
+        if (Name[0] == U'`')
+            Info = VarInfo::Root, Name.remove_prefix(1);
+        else if (Name[0] == U':')
+            Info = VarInfo::Local, Name.remove_prefix(1);
     }
-    /// <summary>Create a LateBindVar without parts</summary>
-    /// <param name="name">var name</param>
-    /// <returns></returns>
-    static LateBindVar CreateSimple(std::u32string_view name)
+    constexpr operator std::u32string_view() const noexcept
     {
-        Expects(name.size() > 0);
-        const auto info = ParseInfo(name);
-        PartType parts[1] = { {(uint16_t)0, gsl::narrow_cast<uint16_t>(name.size())} };
-        return LateBindVar(name, parts, common::enum_cast(info));
-    }
-    static TempPartedName<LateBindVar> CreateTemp(std::u32string_view name)
-    {
-        Expects(name.size() > 0);
-        const auto info = ParseInfo(name);
-        const auto parts = PartedName::GetParts(name);
-        return TempPartedName<LateBindVar>(name, parts, common::enum_cast(info));
-    }
-private:
-    friend TempPartedName<LateBindVar>;
-    using PartedName::PartedName;
-    static constexpr VarInfo ParseInfo(std::u32string_view& name) noexcept
-    {
-        VarInfo info = VarInfo::Empty;
-        if (name[0] == U'`')
-            info = VarInfo::Root, name.remove_prefix(1);
-        else if (name[0] == U':')
-            info = VarInfo::Local, name.remove_prefix(1);
-        return info;
+        return Name;
     }
 };
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
-using TempBindVar = TempPartedName<LateBindVar>;
 
 
 enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
@@ -486,8 +458,8 @@ struct FixedArray
     
 };
 
-class NailangRuntimeBase;
-class NailangRuntimeException;
+class NAILANGAPI NailangRuntimeBase;
+class NAILANGAPI NailangRuntimeException;
 
 struct Arg
 {
@@ -648,7 +620,7 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
-    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t>             HandleGetter(SubQuery, NailangRuntimeBase&) const noexcept;
+    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t>             HandleGetter(SubQuery, NailangRuntimeBase&) const;
 
     [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
     {
@@ -770,12 +742,12 @@ struct Assignment : public WithPos
     }
     constexpr std::u32string_view GetVar() const noexcept
     { 
-        return *Target;
+        return Target->Name;
     }
     constexpr std::optional<bool> GetNilCheck() const noexcept
     {
-        const auto reqNull    = HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNull);
-        const auto reqNotNull = HAS_FIELD(Target->Info(), LateBindVar::VarInfo::ReqNotNull);
+        const auto reqNull    = HAS_FIELD(Target->Info, LateBindVar::VarInfo::ReqNull);
+        const auto reqNotNull = HAS_FIELD(Target->Info, LateBindVar::VarInfo::ReqNotNull);
         if (reqNull == reqNotNull)
             return {};
         return reqNull;

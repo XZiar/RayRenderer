@@ -40,8 +40,8 @@ do                                                          \
 {                                                           \
     ASSERT_TRUE(CheckRawArg(target, RawArg::Type::Var));    \
     const auto& _var = *target.GetVar<RawArg::Type::Var>(); \
-    EXPECT_EQ(_var, val);                                   \
-    EXPECT_EQ(_var.Info(), LateBindVar::VarInfo::info);     \
+    EXPECT_EQ(_var.Name, val);                              \
+    EXPECT_EQ(_var.Info, LateBindVar::VarInfo::info);       \
 } while(0)
 
 #define CHECK_QUERY_SUB(target, name)                       \

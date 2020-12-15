@@ -277,7 +277,7 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
     for (const auto [key, val] : info)
     {
         const auto varName = common::str::to_u32string(key, Charset::UTF8);
-        const auto var = xziar::nailang::LateBindVar::CreateSimple(varName);
+        const xziar::nailang::LateBindVar var(varName);
         switch (val.index())
         {
         case 1: SetArg(var, std::get<1>(val), true); break;
@@ -468,14 +468,10 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(
             auto frame = PushFrame(extra.ReplaceArgs.size() > 0, FrameFlags::FlowScope);
             for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
             {
-                const auto var_ = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
-                {
-                    using xziar::nailang::LateBindVar;
-                    auto& var2 = const_cast<LateBindVar&>(var_.Get());
-                    var2.Info() |= LateBindVar::VarInfo::Local;
-                }
-                const auto ret = LookUpArg(var_);
-                SetArg(var_, args[i + 1]);
+                auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
+                var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
+                const auto ret = LookUpArg(var);
+                SetArg(var, args[i + 1]);
             }
             auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
             NestedCookie newCookie(cookie, *block);

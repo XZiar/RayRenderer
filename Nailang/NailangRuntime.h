@@ -87,7 +87,7 @@ protected:
     }
     [[nodiscard]] LocalFuncHolder LookUpFuncInside(std::u32string_view name) const override;
     bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) override;
-    [[nodiscard]] std::pair<const Arg*, uint32_t> LocateArg(const LateBindVar& var) const noexcept;
+    [[nodiscard]] const Arg* LocateArg(const LateBindVar& var) const noexcept;
 public:
     ~CompactEvaluateContext() override;
 
@@ -424,10 +424,9 @@ protected:
                   void OnLoop           (const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const RawArg> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
-    [[nodiscard]] LateBindVar* CreateVar(std::u32string_view name);
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
-    [[nodiscard]] TempBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever = {}) const;
+    [[nodiscard]] LateBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const;
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;

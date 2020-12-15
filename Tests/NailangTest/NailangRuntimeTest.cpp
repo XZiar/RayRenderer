@@ -53,10 +53,10 @@ class EvalCtx : public CompactEvaluateContext
 public:
     EvalCtx()
     {
-        SetArg(LateBindVar::CreateSimple(U"valU64"sv), Arg(uint64_t(1)), true);
-        SetArg(LateBindVar::CreateSimple(U"valI64"sv), Arg(int64_t(2)), true);
-        SetArg(LateBindVar::CreateSimple(U"valF64"sv), Arg(3.0), true);
-        SetArg(LateBindVar::CreateSimple(U"valStr"sv), Arg(U"txt"sv), true);
+        SetArg(U"valU64"sv, Arg(uint64_t(1)), true);
+        SetArg(U"valI64"sv, Arg(int64_t(2)),  true);
+        SetArg(U"valF64"sv, Arg(3.0),         true);
+        SetArg(U"valStr"sv, Arg(U"txt"sv),    true);
     }
 };
 class EvalCtx2 : public CompactEvaluateContext
@@ -82,7 +82,7 @@ public:
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
     auto SetRootArg(std::u32string_view name, Arg val)
     {
-        return RootContext->SetArg(LateBindVar::CreateSimple(name), std::move(val), true);
+        return RootContext->SetArg(name, std::move(val), true);
     }
     void Assign(const Assignment& assign)
     {
@@ -100,13 +100,12 @@ public:
         }
         ctx.SetArg(var, EvaluateArg(assign.Statement), true);
     }
-    void QuickSetArg(std::u32string_view name, RawArg val, const bool nilCheck = false)
+    void QuickSetArg(LateBindVar var, RawArg val, const bool nilCheck = false)
     {
-        auto var = CreateVar(name);
         if (nilCheck)
-            var->Info() |= LateBindVar::VarInfo::ReqNull;
+            var.Info |= LateBindVar::VarInfo::ReqNull;
         Assignment assign;
-        assign.Target = var;
+        assign.Target = &var;
         assign.Statement = val;
         HandleContent(xziar::nailang::BlockContent::Generate(&assign), {});
     }
@@ -309,7 +308,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         }
         return {};
     }
-    bool SubSetter(CustomVar& var, Arg arg, const LateBindVar& lvar, uint32_t idx) override
+    /*bool SubSetter(CustomVar& var, Arg arg, const LateBindVar& lvar, uint32_t idx) override
     {
         if (lvar.PartCount == idx + 1)
         {
@@ -326,7 +325,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
             }
         }
         return false;
-    }
+    }*/
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);
@@ -612,12 +611,12 @@ TEST(NailangRuntime, MathIntrinFunc)
 }
 
 
-#define LOOKUP_ARG(rt, name, type, val) do              \
-{                                                       \
-    const auto var = LateBindVar::CreateSimple(name);   \
-    const auto arg = rt.EvaluateArg(&var);              \
-    CHECK_ARG(arg, type, val);                          \
-} while(0)                                              \
+#define LOOKUP_ARG(rt, name, type, val) do  \
+{                                           \
+    const LateBindVar var(name);            \
+    const auto arg = rt.EvaluateArg(&var);  \
+    CHECK_ARG(arg, type, val);              \
+} while(0)                                  \
 
 
 //TEST(NailangRuntime, Variable)
@@ -796,10 +795,10 @@ TEST(NailangRuntime, DefFunc)
 uint64_t gcd(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
 {
     auto ctx = std::make_shared<CompactEvaluateContext>();
-    ctx->SetArg(LateBindVar::CreateSimple(U"m"sv), m, true);
-    ctx->SetArg(LateBindVar::CreateSimple(U"n"sv), n, true);
+    ctx->SetArg(U"m"sv, m, true);
+    ctx->SetArg(U"n"sv, n, true);
     runtime.ExecuteBlock(algoBlock, {}, ctx);
-    const auto ans = ctx->LookUpArg(LateBindVar::CreateSimple(U"m"sv));
+    const auto ans = ctx->LookUpArg(U"m"sv);
     EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
     return *ans.GetUint();
 }

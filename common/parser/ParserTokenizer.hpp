@@ -602,7 +602,7 @@ public:
 
 class ASCII2PartTokenizer : public TokenizerBase
 {
-private:
+protected:
     ASCIIChecker<true> FirstChecker;
     ASCIIChecker<true> SecondChecker;
     uint16_t FirstPartLen;
