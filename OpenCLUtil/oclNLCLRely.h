@@ -80,14 +80,16 @@ class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext
     friend class NLCLProcessor;
     friend class NLCLRuntime;
     friend class NLCLProgStub;
-protected:
-    xziar::nailang::Arg LookUpCLArg(xziar::nailang::SubQuery subq, NLCLRuntime& runtime) const;
+private:
+    struct OCLUVar;
+    xziar::nailang::Arg OCLUArg;
 public:
     const oclDevice Device;
     const bool SupportFP16, SupportFP64, SupportNVUnroll,
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
+    [[nodiscard]] const xziar::nailang::Arg* LocateArg(const xziar::nailang::LateBindVar& var) const noexcept override;
     [[nodiscard]] VecTypeResult ParseVecType(const std::u32string_view type) const noexcept override;
     [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
     [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
@@ -114,9 +116,7 @@ protected:
 
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
-    [[nodiscard]] xziar::nailang::Arg LookUpArg(const xziar::nailang::LateBindVar& var) const override;
-    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) override;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> EvaluateQueryExpr(const xziar::nailang::QueryExpr& expr);
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) override;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
     [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;

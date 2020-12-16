@@ -33,7 +33,7 @@ struct OutputBlock
 
     const xziar::nailang::RawBlock* Block;
     MetaFuncs MetaFunc;
-    std::vector<std::pair<const xziar::nailang::LateBindVar*, xziar::nailang::RawArg>> PreAssignArgs;
+    std::vector<std::pair<xziar::nailang::LateBindVar, xziar::nailang::RawArg>> PreAssignArgs;
     std::unique_ptr<BlockInfo> ExtraInfo;
     BlockType Type;
     bool ReplaceVar = false, ReplaceFunc = false;

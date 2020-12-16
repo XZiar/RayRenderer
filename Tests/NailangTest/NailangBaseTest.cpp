@@ -247,8 +247,7 @@ TEST(NailangBase, Serializer)
     RawArg a3{ uint64_t(1234) };
     RawArg a4{ int64_t(-5678) };
     RawArg a5{ U"10ab"sv };
-    const LateBindVar a6_(U"`cdef"sv);
-    RawArg a6{ &a6_ };
+    RawArg a6{ LateBindVar(U"`cdef"sv) };
     EXPECT_EQ(Serializer::Stringify(a1), U"true"sv);
     EXPECT_EQ(Serializer::Stringify(a2), U"false"sv);
     EXPECT_EQ(Serializer::Stringify(a3), U"1234"sv);

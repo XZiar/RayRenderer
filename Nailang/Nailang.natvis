@@ -43,14 +43,7 @@
     </Expand>
   </Type>
   <Type Name="xziar::nailang::LateBindVar">
-    <DisplayString>{{ Var[{Ptr,[Length]s32}], {PartCount} parts }}</DisplayString>
-    <Expand>
-      <IndexListItems>
-        <Size>PartCount</Size>
-        <ValueNode Condition="PartCount == 1">Ptr,[Length]s32</ValueNode>
-        <ValueNode Condition="PartCount &gt; 1">Ptr + reinterpret_cast&lt;const xziar::nailang::PartedName::PartType*&gt;(this+1)[$i].first,[reinterpret_cast&lt;const xziar::nailang::PartedName::PartType*&gt;(this+1)[$i].second]s32</ValueNode>
-      </IndexListItems>
-    </Expand>
+    <DisplayString>{{ Var[{Name,s32}], {Info,en} }}</DisplayString>
   </Type>
   <Type Name="xziar::nailang::FuncName">
     <DisplayString>{{ FuncName[{Ptr,[Length]s32}], {PartCount} parts }}</DisplayString>
@@ -78,28 +71,54 @@
   <Type Name="xziar::nailang::BinaryExpr">
     <DisplayString>{{ Binary[{Operator,en}] }}</DisplayString>
   </Type>
-  <Type Name="xziar::nailang::IndexerExpr">
-    <DisplayString>{{ Indexer }}</DisplayString>
+  <Type Name="xziar::nailang::SubQuery">
+    <DisplayString>{{ SubQuery [{Queries.storage_.size_}] queries }}</DisplayString>
+    <Expand>
+      <CustomListItems MaxItemsPerView="100">
+        <Variable Name="idx" InitialValue="0" />
+        <Size>Queries.storage_.size_</Size>
+        <Loop>
+          <Break Condition="idx &gt;= Queries.storage_.size_" />
+          <Item Name="[{idx}] Index"    Condition="Queries.storage_.data_[idx].ExtraFlag == 1">
+            Queries.storage_.data_[idx]
+          </Item>
+          <Item Name="[{idx}] SubField" Condition="Queries.storage_.data_[idx].ExtraFlag == 2">
+            Queries.storage_.data_[idx].GetStrPtr(),[Queries.storage_.data_[idx].Data2]s32
+          </Item>
+          <Exec>idx++</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
   </Type>
   <Type Name="xziar::nailang::QueryExpr">
-    <DisplayString>{{ Query }}</DisplayString>
+    <DisplayString>{{ Query[{Target}] }}</DisplayString>
+    <Expand>
+      <Item Name="[Target]">Target</Item>
+      <Synthetic Name="Query">
+        <DisplayString>{{ [{Queries.storage_.size_}] queries }}</DisplayString>
+        <Expand>
+          <ExpandedItem>(xziar::nailang::SubQuery*)this,nd</ExpandedItem>
+        </Expand>
+      </Synthetic>
+    </Expand>
   </Type>
   <Type Name="xziar::nailang::Assignment">
-    <DisplayString>{{ Assignment[{Target->Ptr,[Target->Length]s32}] }}</DisplayString>
+    <DisplayString>{{ Assignment[{Target.Name,s32}] }}</DisplayString>
     <Expand>
-      <Item Name="Target">Target->Ptr,[Target->Length]s32</Item>
-      <Item Name="Index">Index</Item>
+      <Item Name="Target">Target</Item>
+      <Item Name="Query">Queries</Item>
       <Item Name="Statement">Statement</Item>
+      <Item Name="CheckNil">CheckNil,en</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::RawArg" >
+    <Intrinsic Name="GetStrPtr" Expression="reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint)"/>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Empty"  >{{ Empty }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Func"   >{{ Func [{*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Unary"  >{{ Unary }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Binary" >{{ Binary }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Indexer">{{ Indexer }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Query"  >{{ Query }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}], {(xziar::nailang::LateBindVar::VarInfo)(Data3),en} }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Str"    >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Uint"   >{{ Uint [{Data1.Uint}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Int"    >{{ Int [{static_cast&lt;int64_t&gt;(Data1.Uint)}] }}</DisplayString>
@@ -109,7 +128,6 @@
       <Item Condition="TypeData == xziar::nailang::RawArg::Func"    Name="[Func]"   >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)</Item>
       <Item Condition="TypeData == xziar::nailang::RawArg::Unary"   Name="[Unary]"  >*reinterpret_cast&lt;const xziar::nailang::UnaryExpr*&gt;(Data1.Uint)</Item>
       <Item Condition="TypeData == xziar::nailang::RawArg::Binary"  Name="[Binary]" >*reinterpret_cast&lt;const xziar::nailang::BinaryExpr*&gt;(Data1.Uint)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Indexer" Name="[Indexer]">*reinterpret_cast&lt;const xziar::nailang::IndexerExpr*&gt;(Data1.Uint)</Item>
       <Item Condition="TypeData == xziar::nailang::RawArg::Query"   Name="[Query]"  >*reinterpret_cast&lt;const xziar::nailang::QueryExpr*&gt;(Data1.Uint)</Item>
     </Expand>
   </Type>

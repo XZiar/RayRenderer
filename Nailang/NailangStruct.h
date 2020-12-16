@@ -230,7 +230,11 @@ struct LateBindVar
     };
     std::u32string_view Name;
     VarInfo Info;
-
+    constexpr explicit LateBindVar(const char32_t* ptr, const uint32_t size, VarInfo info) noexcept :
+        Name(ptr, size), Info(info) 
+    {
+        Expects(Name.size() > 0);
+    }
     constexpr LateBindVar(const std::u32string_view name) noexcept : Name(name), Info(VarInfo::Empty)
     {
         Expects(Name.size() > 0);
@@ -282,11 +286,13 @@ struct RawArg
 private:
     detail::IntFPUnion Data1;
     uint32_t Data2;
+    uint16_t Data3;
 public:
-    enum class Type : uint16_t { Empty = 0, Func, Unary, Binary, Query, Var, Str, Uint, Int, FP, Bool };
-    uint16_t ExtraFlag;
+    enum class Type : uint8_t { Empty = 0, Func, Unary, Binary, Query, Var, Str, Uint, Int, FP, Bool };
+    uint8_t ExtraFlag;
     Type TypeData;
-#define Fill2(type) ExtraFlag(0), TypeData(Type::type)
+#define Fill1(type) ExtraFlag(0), TypeData(Type::type)
+#define Fill2(type) Data3(common::enum_cast(Type::type)), Fill1(type)
 #define Fill3(type) Data2(common::enum_cast(Type::type)), Fill2(type)
     constexpr RawArg() noexcept : Data1(), Fill3(Empty) {}
     RawArg(const FuncCall* ptr) noexcept : 
@@ -297,8 +303,12 @@ public:
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Binary) {}
     RawArg(const QueryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Query) {}
-    RawArg(const LateBindVar* ptr) noexcept :
-        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Var) {}
+    RawArg(const LateBindVar& var) noexcept :
+        Data1(reinterpret_cast<uint64_t>(var.Name.data())), Data2(static_cast<uint32_t>(var.Name.size())),
+        Data3(common::enum_cast(var.Info)), Fill1(Var) 
+    {
+        Expects(var.Name.size() <= UINT32_MAX);
+    }
     RawArg(const std::u32string_view str) noexcept :
         Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), Fill2(Str)
     {
@@ -327,7 +337,7 @@ public:
         else if constexpr (T == Type::Query)
             return reinterpret_cast<const QueryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Var)
-            return reinterpret_cast<const LateBindVar*>(Data1.Uint);
+            return LateBindVar(reinterpret_cast<const char32_t*>(Data1.Uint), Data2, static_cast<LateBindVar::VarInfo>(Data3));
         else if constexpr (T == Type::Str)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
         else if constexpr (T == Type::Uint)
@@ -343,8 +353,8 @@ public:
     }
 
     using Variant = std::variant<
-        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const QueryExpr*, const LateBindVar*,
-        std::u32string_view, uint64_t, int64_t, double, bool>;
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const QueryExpr*, 
+        LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
         switch (TypeData)
@@ -391,7 +401,7 @@ public:
 
 struct SubQuery
 {
-    enum class QueryType : uint16_t { Index = 1, Sub = 2 };
+    enum class QueryType : uint8_t { Index = 1, Sub = 2 };
     common::span<const RawArg> Queries;
     constexpr SubQuery Sub(const size_t offset = 1) const noexcept
     {
@@ -911,7 +921,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const QueryExpr* expr);
-    static void Stringify(std::u32string& output, const LateBindVar* var);
+    static void Stringify(std::u32string& output, const LateBindVar& var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);
     static void Stringify(std::u32string& output, const int64_t i64);

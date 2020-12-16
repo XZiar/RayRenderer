@@ -76,6 +76,7 @@ public:
     using NailangRuntimeBase::RootContext;
 
     using NailangRuntimeBase::EvaluateFunc;
+    using NailangRuntimeBase::LookUpArg;
     using NailangRuntimeBase::EvaluateArg;
     using NailangRuntimeBase::HandleContent;
 
@@ -88,15 +89,26 @@ public:
     {
         SetArg(assign.Target, assign.Queries, assign.Statement, assign.CheckNil);
     }
-    /*void QuickSetArg(LateBindVar var, RawArg val, const bool nilCheck = false)
+    void QuickSetArg(std::u32string_view name, RawArg val)
     {
-        if (nilCheck)
-            var.Info |= LateBindVar::VarInfo::ReqNull;
-        Assignment assign;
-        assign.Target = &var;
+        ParserContext context(name);
+        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg("", MemPool, context);
+        std::u32string_view varName;
+        SubQuery query;
+        if (var->TypeData == RawArg::Type::Var)
+            varName = var->GetVar<RawArg::Type::Var>();
+        else
+        {
+            const auto& qexpr = *var->GetVar<RawArg::Type::Query>();
+            varName = qexpr.Target.GetVar<RawArg::Type::Var>();
+            query = qexpr.Sub(0);
+        }
+        Assignment assign(varName);
+        assign.Queries = query;
         assign.Statement = val;
-        HandleContent(xziar::nailang::BlockContent::Generate(&assign), {});
-    }*/
+        assign.CheckNil = xziar::nailang::NilCheck::ReqNotNull;
+        Assign(assign);
+    }
     Arg QuickGetArg(std::u32string_view name)
     {
         ParserContext context(name);
@@ -296,24 +308,27 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         }
         return {};
     }
-    /*bool SubSetter(CustomVar& var, Arg arg, const LateBindVar& lvar, uint32_t idx) override
+    size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase&, Arg arg) override
     {
-        if (lvar.PartCount == idx + 1)
+        if (subq.Size() == 1)
         {
+            const auto [type, query] = subq[0];
+            if (type != SubQuery::QueryType::Sub) return 0;
+            const auto subf = query.GetVar<RawArg::Type::Str>();
             ArrRef(arr, var);
             float* ptr = nullptr;
-            if (lvar[idx] == U"First" && arr.Data.size() > 0)
+            if (subf == U"First" && arr.Data.size() > 0)
                 ptr = arr.Data.data();
-            else if (lvar[idx] == U"Last" && arr.Data.size() > 0)
+            else if (subf == U"Last" && arr.Data.size() > 0)
                 ptr = arr.Data.data() + arr.Data.size() - 1;
             if (ptr && arg.IsNumber())
             {
                 *ptr = static_cast<float>(arg.GetFP().value());
-                return true;
+                return 1;
             }
         }
-        return false;
-    }*/
+        return 0;
+    }
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);
@@ -360,7 +375,7 @@ TEST(NailangRuntime, CustomVar)
         const auto len = runtime.QuickGetArg(U"arr.Length"sv);
         CHECK_ARG(len, Uint, 4u);
     }
-    /*{
+    {
         const auto arg  = runtime.QuickGetArg(U"arr"sv);
         const auto& var = arg.GetCustom();
         const auto data = ArrayCustomVar::GetData(var);
@@ -370,7 +385,7 @@ TEST(NailangRuntime, CustomVar)
         EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -2.f));
         runtime.QuickSetArg(U"arr.Last"sv, -9.f);
         EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -9.f));
-    }*/
+    }
 }
 
 
@@ -601,8 +616,7 @@ TEST(NailangRuntime, MathIntrinFunc)
 
 #define LOOKUP_ARG(rt, name, type, val) do  \
 {                                           \
-    const LateBindVar var(name);            \
-    const auto arg = rt.EvaluateArg(&var);  \
+    const auto arg = rt.LookUpArg(name);    \
     CHECK_ARG(arg, type, val);              \
 } while(0)                                  \
 

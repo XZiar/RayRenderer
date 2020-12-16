@@ -375,13 +375,13 @@ void Serializer::Stringify(std::u32string& output, const QueryExpr* expr)
     Stringify(output, *expr);
 }
 
-void Serializer::Stringify(std::u32string& output, const LateBindVar* var)
+void Serializer::Stringify(std::u32string& output, const LateBindVar& var)
 {
-    if (HAS_FIELD(var->Info, LateBindVar::VarInfo::Root))
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
         output.push_back(U'`');
-    else if (HAS_FIELD(var->Info, LateBindVar::VarInfo::Local))
+    else if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
         output.push_back(U':');
-    output.append(static_cast<std::u32string_view>(var->Name));
+    output.append(var.Name);
 }
 
 void Serializer::Stringify(std::u32string& output, const std::u32string_view str)

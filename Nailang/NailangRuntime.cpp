@@ -148,7 +148,7 @@ bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg
         size = gsl::narrow_cast<uint32_t>(args.size());
     LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
     for (const auto& arg : args)
-        LocalFuncArgNames.emplace_back(*arg.GetVar<RawArg::Type::Var>());
+        LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>());
     return SetFuncInside(block->Name, { block, offset, size });
 }
 
@@ -806,7 +806,7 @@ LateBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
     switch (arg.TypeData)
     {
     case RawArg::Type::Var: 
-        return *arg.GetVar<RawArg::Type::Var>();
+        return arg.GetVar<RawArg::Type::Var>();
     case RawArg::Type::Str: 
     {
         const auto name = arg.GetVar<RawArg::Type::Str>();
@@ -1045,7 +1045,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
         {
             if (arg.TypeData != RawArg::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
-            const auto& var = *arg.GetVar<RawArg::Type::Var>();
+            const auto& var = arg.GetVar<RawArg::Type::Var>();
             if (HAS_FIELD(var.Info, LateBindVar::VarInfo::PrefixMask))
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, &meta);
         }
@@ -1431,7 +1431,7 @@ Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
         else
             NLRT_THROW_EX(u"Query expr's arg type does not match requirement"sv, arg);
         break;
-    case Type::Var:     return LookUpArg(*arg.GetVar<Type::Var>());
+    case Type::Var:     return LookUpArg(arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
@@ -1499,16 +1499,17 @@ std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
     for (size_t i = 0; i < expr.Size(); ++i)
     {
         size_t step = 0;
+        const auto subq = expr.Sub(i);
         try 
         {
-            std::tie(target, step) = target.HandleGetter(expr.Sub(i), *this);
+            std::tie(target, step) = target.HandleGetter(subq, *this);
         }
         catch (const NailangRuntimeException& nre)
         {
             HandleException(nre);
         }
         if (step == 0)
-            NLRT_THROW_EX(u"Fail to evaluate query"sv, target, RawArg{ &expr });
+            NLRT_THROW_EX(FMTSTR(u"Fail to evaluate query [{}]"sv, Serializer::Stringify(subq)), target, RawArg{ &expr });
         i += step;
     }
     return target;

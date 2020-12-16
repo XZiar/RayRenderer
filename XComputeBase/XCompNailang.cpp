@@ -41,7 +41,7 @@ struct TemplateBlockInfo : public OutputBlock::BlockInfo
         ReplaceArgs.reserve(args.size());
         for (const auto& arg : args)
         {
-            ReplaceArgs.emplace_back(*arg.GetVar<RawArg::Type::Var>());
+            ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
         }
     }
     ~TemplateBlockInfo() override {}
@@ -280,10 +280,10 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
         const xziar::nailang::LateBindVar var(varName);
         switch (val.index())
         {
-        case 1: SetArg(var, std::get<1>(val), true); break;
-        case 2: SetArg(var, std::get<2>(val), true); break;
-        case 3: SetArg(var, std::get<3>(val), true); break;
-        case 4: SetArg(var, common::str::to_u32string(std::get<4>(val), Charset::UTF8), true); break;
+        case 1: *LocateArg(var, true) = std::get<1>(val); break;
+        case 2: *LocateArg(var, true) = std::get<2>(val); break;
+        case 3: *LocateArg(var, true) = std::get<3>(val); break;
+        case 4: *LocateArg(var, true) = common::str::to_u32string(std::get<4>(val), Charset::UTF8); break;
         case 0:
         default:
             break;
@@ -470,8 +470,8 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(
             {
                 auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
                 var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
-                const auto ret = LookUpArg(var);
-                SetArg(var, args[i + 1]);
+                // const auto ret = LookUpArg(var);
+                SetArg(var, {}, Arg(args[i + 1]));
             }
             auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
             NestedCookie newCookie(cookie, *block);
@@ -548,7 +548,7 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     common::str::StrVariant<char32_t> source(block.Block->Source);
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        SetArg(*var, EvaluateArg(arg));
+        SetArg(var, {}, EvaluateArg(arg));
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);

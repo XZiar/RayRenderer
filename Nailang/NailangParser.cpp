@@ -259,7 +259,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
             EID(BaseToken::FP)          : targetOpr = token.GetDouble();    break;
             EID(BaseToken::Bool)        : targetOpr = token.GetBool();      break;
             EID(NailangToken::Var)      : 
-                targetOpr = MemPool.Create<LateBindVar>(token.GetString());    
+                targetOpr = LateBindVar(token.GetString());
                 break;
             EID(BaseToken::String)      : 
                 targetOpr = ProcessString(token.GetString(), MemPool);
@@ -551,7 +551,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
             }
             else
             {
-                BinaryExpr statement(*selfOp, MemPool.Create<LateBindVar>(assign.Target), *stmt);
+                BinaryExpr statement(*selfOp, assign.Target, *stmt);
                 assign.Statement = MemPool.Create<BinaryExpr>(statement);
             }
             assign.Queries.Queries = MemPool.CreateArray(tmpQueries);
