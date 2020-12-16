@@ -495,65 +495,75 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     using tokenizer::AssignOps;
 
     constexpr auto FirstLexer  = ParserLexerBase<CommentTokenizer, 
-        tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
-    constexpr auto OpOnlyLexer = ParserLexerBase<CommentTokenizer, tokenizer::AssignOpTokenizer>();
-    //constexpr auto ExpectAssignOp = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, NailangToken::Assign);
+        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
 
-    const auto pos = GetPosition(Context);
+    std::vector<RawArg> tmpQueries;
+    Assignment assign(var);
+    assign.Position = GetPosition(Context);
 
-    RawArg indexer;
-    auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
-    if (token.GetIDEnum<NailangToken>() == NailangToken::SquareBracket)
+    for (bool shouldCont = true; shouldCont;)
     {
-        if (token.GetChar() == U']')
-            OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-        const auto index = ComplexArgParser::ParseSingleArg("]"sv, MemPool, Context);
-        if (!index.has_value())
-            OnUnExpectedToken(token, u"lack of index"sv);
-        indexer = index.value();
-        token = GetNextToken(OpOnlyLexer, IgnoreBlank, IgnoreCommentToken);
+        auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
+        switch (token.GetIDEnum<NailangToken>())
+        {
+        case NailangToken::SquareBracket: // Indexer
+        {
+            if (token.GetChar() == U']')
+                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+            const auto index = ComplexArgParser::ParseSingleArg("]"sv, MemPool, Context);
+            if (!index.has_value())
+                OnUnExpectedToken(token, u"lack of index"sv);
+            SubQuery::PushQuery(tmpQueries, *index);
+        } break;
+        case NailangToken::SubField: // SubField
+        {
+            SubQuery::PushQuery(tmpQueries, token.GetString());
+        } break;
+        case NailangToken::Assign:
+        {
+            bool reqNotNull = false;
+            bool reqNull    = false;
+            std::optional<EmbedOps> selfOp;
+            switch (static_cast<AssignOps>(token.GetUInt()))
+            {
+            case AssignOps::   Assign:                                            break;
+            case AssignOps::NilAssign: reqNotNull = false; reqNull = true;        break;
+            case AssignOps::AndAssign: reqNotNull = true; selfOp = EmbedOps::And; break;
+            case AssignOps:: OrAssign: reqNotNull = true; selfOp = EmbedOps:: Or; break;
+            case AssignOps::AddAssign: reqNotNull = true; selfOp = EmbedOps::Add; break;
+            case AssignOps::SubAssign: reqNotNull = true; selfOp = EmbedOps::Sub; break;
+            case AssignOps::MulAssign: reqNotNull = true; selfOp = EmbedOps::Mul; break;
+            case AssignOps::DivAssign: reqNotNull = true; selfOp = EmbedOps::Div; break;
+            case AssignOps::RemAssign: reqNotNull = true; selfOp = EmbedOps::Rem; break;
+            default: OnUnExpectedToken(token, u"expect assign op"sv); break;
+            }
+            reqNotNull |= !tmpQueries.empty();
+            if (reqNotNull && reqNull)
+                OnUnExpectedToken(token, u"NilAssign cannot be applied on query"sv);
+            const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
+            if (!stmt.has_value())
+                NLPS_THROW_EX(u"expect statement"sv);
+            if (reqNotNull)   assign.CheckNil = NilCheck::ReqNotNull;
+            else if (reqNull) assign.CheckNil = NilCheck::ReqNull;
+            if (!selfOp.has_value())
+            {
+                assign.Statement = *stmt;
+            }
+            else
+            {
+                BinaryExpr statement(*selfOp, MemPool.Create<LateBindVar>(assign.Target), *stmt);
+                assign.Statement = MemPool.Create<BinaryExpr>(statement);
+            }
+            assign.Queries.Queries = MemPool.CreateArray(tmpQueries);
+            tmpQueries.clear();
+            shouldCont = false;
+        } break;
+        default:
+            OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
+            break;
+        }
     }
 
-    if (token.GetIDEnum<NailangToken>() != NailangToken::Assign)
-        OnUnExpectedToken(token, u"expect assign op"sv);
-
-    std::optional<EmbedOps> selfOp;
-    bool checkNull = true;
-    switch (static_cast<AssignOps>(token.GetUInt()))
-    {
-    case AssignOps::   Assign: checkNull = false;      break;
-    case AssignOps::NilAssign:                         break;
-    case AssignOps::AndAssign: selfOp = EmbedOps::And; break;
-    case AssignOps:: OrAssign: selfOp = EmbedOps:: Or; break;
-    case AssignOps::AddAssign: selfOp = EmbedOps::Add; break;
-    case AssignOps::SubAssign: selfOp = EmbedOps::Sub; break;
-    case AssignOps::MulAssign: selfOp = EmbedOps::Mul; break;
-    case AssignOps::DivAssign: selfOp = EmbedOps::Div; break;
-    case AssignOps::RemAssign: selfOp = EmbedOps::Rem; break;
-    default: OnUnExpectedToken(token, u"expect assign op"sv); break;
-    }
-    const auto bindVar = MemPool.Create<LateBindVar>(var);
-    if (checkNull)
-        bindVar->Info |= selfOp.has_value() ? LateBindVar::VarInfo::ReqNotNull : LateBindVar::VarInfo::ReqNull;
-
-    const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
-    if (!stmt.has_value())
-        NLPS_THROW_EX(u"expect statement"sv);
-    //const auto stmt_ = MemPool.Create<FuncArgRaw>(*stmt);
-
-    Assignment assign;
-    assign.Position = pos;
-    assign.Target   = bindVar;
-    assign.Index    = indexer;
-    if (!selfOp.has_value())
-    {
-        assign.Statement = *stmt;
-    }
-    else
-    {
-        BinaryExpr statement(*selfOp, bindVar, *stmt);
-        assign.Statement = MemPool.Create<BinaryExpr>(statement);
-    }
     return assign;
 }
 

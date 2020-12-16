@@ -112,8 +112,6 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/ispc_texcomp/license.txt)
 
-* [itoa](https://github.com/miloyip/itoa-benchmark)
-
 * [half](http://half.sourceforge.net/) 2.1.0
   
   [MIT License](./3rdParty/half/LICENSE.txt)

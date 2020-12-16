@@ -227,7 +227,6 @@ struct LateBindVar
     enum class VarInfo : uint16_t 
     { 
         Empty = 0x0, Root = 0x1, Local = 0x2, PrefixMask = Root | Local, 
-        ReqNull = 0x4, ReqNotNull = 0x8, NullCheckMask = ReqNull | ReqNotNull,
     };
     std::u32string_view Name;
     VarInfo Info;
@@ -428,7 +427,6 @@ struct QueryExpr : public SubQuery
 };
 
 
-
 struct CustomVar
 {
     struct Handler;
@@ -437,16 +435,16 @@ struct CustomVar
     uint32_t Meta1;
     uint16_t Meta2;
     template<auto F, typename... Args>
-    auto Call(Args&&... args)
-    {
-        static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
-            "F need to be member function of Handler, accept CustomVar& and args");
-        return (Host->*F)(*this, std::forward<Args>(args)...);
-    }
-    template<auto F, typename... Args>
     auto Call(Args&&... args) const
     {
         static_assert(std::is_invocable_v<decltype(F), Handler&, const CustomVar&, Args...>,
+            "F need to be member function of Handler, accept const CustomVar& and args");
+        return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
+    template<auto F, typename... Args>
+    auto Call(Args&&... args)
+    {
+        static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
             "F need to be member function of Handler, accept const CustomVar& and args");
         return (Host->*F)(*this, std::forward<Args>(args)...);
     }
@@ -614,13 +612,24 @@ public:
         return TypeData == Type::Var;
     }
     
+    [[nodiscard]] forceinline CustomVar& GetCustom() noexcept
+    {
+        static_assert( sizeof(Arg) ==  sizeof(CustomVar));
+        static_assert(alignof(Arg) == alignof(CustomVar));
+        return *reinterpret_cast<CustomVar*>(this);
+    }
+    [[nodiscard]] forceinline const CustomVar& GetCustom() const noexcept
+    {
+        return *reinterpret_cast<const CustomVar*>(this);
+    }
     [[nodiscard]] NAILANGAPI std::optional<bool>                GetBool()   const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<uint64_t>            GetUint()   const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<int64_t>             GetInt()    const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
-    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t>             HandleGetter(SubQuery, NailangRuntimeBase&) const;
+    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
+                  NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
 
     [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
     {
@@ -641,7 +650,7 @@ public:
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&) { return {}; }
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view) { return {}; }
     [[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
-    [[nodiscard]] virtual bool SubSetter(CustomVar&, Arg, const LateBindVar&, uint32_t) { return false; }
+    [[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
 };
@@ -731,26 +740,20 @@ struct RawBlock : public WithPos
 using RawBlockWithMeta = WithMeta<RawBlock>;
 struct Block;
 
+enum class NilCheck : uint8_t { None = 0, ReqNull = 0x1, ReqNotNull = 0x2 };
 struct Assignment : public WithPos
 {
-    const LateBindVar* Target = nullptr;
-    RawArg Index;
+    LateBindVar Target;
+    SubQuery Queries;
     RawArg Statement;
-    constexpr bool HasIndex() const noexcept
-    {
-        return Index.TypeData != RawArg::Type::Empty;
-    }
+    NilCheck CheckNil;
+
+    constexpr Assignment(std::u32string_view name) noexcept :
+        Target(name), CheckNil(NilCheck::None) { }
+
     constexpr std::u32string_view GetVar() const noexcept
     { 
-        return Target->Name;
-    }
-    constexpr std::optional<bool> GetNilCheck() const noexcept
-    {
-        const auto reqNull    = HAS_FIELD(Target->Info, LateBindVar::VarInfo::ReqNull);
-        const auto reqNotNull = HAS_FIELD(Target->Info, LateBindVar::VarInfo::ReqNotNull);
-        if (reqNull == reqNotNull)
-            return {};
-        return reqNull;
+        return Target.Name;
     }
 };
 
@@ -902,6 +905,7 @@ public:
 
 struct NAILANGAPI Serializer
 {
+    static void Stringify(std::u32string& output, const SubQuery& subq);
     static void Stringify(std::u32string& output, const RawArg& arg, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);

@@ -403,10 +403,11 @@ empty
             EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"hey"sv);
+            EXPECT_EQ(assign.CheckNil, xziar::nailang::NilCheck::ReqNotNull);
             EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
             {
                 const auto& stmt_ = *assign.Statement.GetVar<RawArg::Type::Binary>();
-                CHECK_VAR_ARG(stmt_.LeftOprend, U"hey", ReqNotNull);
+                CHECK_VAR_ARG(stmt_.LeftOprend, U"hey", Empty);
                 EXPECT_EQ(stmt_.Operator, EmbedOps::Div);
                 EXPECT_EQ(stmt_.RightOprend.TypeData, RawArg::Type::Binary);
                 {

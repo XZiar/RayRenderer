@@ -131,7 +131,7 @@ Arg::Arg(const Arg& other) noexcept :
     }
     else if (TypeData == Type::Var)
     {
-        auto var = GetVar<Type::Var>();
+        auto& var = GetCustom();
         var.Host->IncreaseRef(var);
     }
 }
@@ -151,7 +151,7 @@ Arg& Arg::operator=(const Arg& other) noexcept
     }
     else if (TypeData == Type::Var)
     {
-        auto var = GetVar<Type::Var>();
+        auto& var = GetCustom();
         var.Host->IncreaseRef(var);
     }
     return *this;
@@ -166,7 +166,7 @@ void Arg::Release() noexcept
     }
     else if (TypeData == Type::Var)
     {
-        auto var = GetVar<Type::Var>();
+        auto& var = GetCustom();
         var.Host->DecreaseRef(var);
     }
     TypeData = Type::Empty;
@@ -271,6 +271,28 @@ std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 }
 
 
+void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
+{
+    for (size_t i = 0; i < subq.Size(); ++i)
+    {
+        const auto [type, query] = subq[i];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+            output.push_back(U'[');
+            Stringify(output, query, false);
+            output.push_back(U']');
+            break;
+        case SubQuery::QueryType::Sub:
+            output.push_back(U'.');
+            output.append(query.GetVar<RawArg::Type::Str>());
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 void Serializer::Stringify(std::u32string& output, const RawArg& arg, const bool requestParenthese)
 {
     arg.Visit([&](const auto& data)
@@ -350,24 +372,7 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
 void Serializer::Stringify(std::u32string& output, const QueryExpr* expr)
 {
     Stringify(output, expr->Target, true);
-    for (size_t i = 0; i < expr->Size(); ++i)
-    {
-        const auto [type, query] = (*expr)[i];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-            output.push_back(U'[');
-            Stringify(output, query, false);
-            output.push_back(U']');
-            break;
-        case SubQuery::QueryType::Sub:
-            output.push_back(U'.');
-            output.append(query.GetVar<RawArg::Type::Str>());
-            break;
-        default:
-            break;
-        }
-    }
+    Stringify(output, *expr);
 }
 
 void Serializer::Stringify(std::u32string& output, const LateBindVar* var)
@@ -388,19 +393,19 @@ void Serializer::Stringify(std::u32string& output, const std::u32string_view str
 
 void Serializer::Stringify(std::u32string& output, const uint64_t u64)
 {
-    const auto str = std::to_string(u64);
+    const auto str = fmt::to_string(u64);
     output.insert(output.end(), str.begin(), str.end());
 }
 
 void Serializer::Stringify(std::u32string& output, const int64_t i64)
 {
-    const auto str = std::to_string(i64);
+    const auto str = fmt::to_string(i64);
     output.insert(output.end(), str.begin(), str.end());
 }
 
 void Serializer::Stringify(std::u32string& output, const double f64)
 {
-    const auto str = std::to_string(f64);
+    const auto str = fmt::to_string(f64);
     output.insert(output.end(), str.begin(), str.end());
 }
 

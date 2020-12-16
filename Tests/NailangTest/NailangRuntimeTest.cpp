@@ -53,10 +53,10 @@ class EvalCtx : public CompactEvaluateContext
 public:
     EvalCtx()
     {
-        SetArg(U"valU64"sv, Arg(uint64_t(1)), true);
-        SetArg(U"valI64"sv, Arg(int64_t(2)),  true);
-        SetArg(U"valF64"sv, Arg(3.0),         true);
-        SetArg(U"valStr"sv, Arg(U"txt"sv),    true);
+        *LocateArg(U"valU64"sv, true) = Arg(uint64_t(1));
+        *LocateArg(U"valI64"sv, true) = Arg(int64_t(2));
+        *LocateArg(U"valF64"sv, true) = Arg(3.0);
+        *LocateArg(U"valStr"sv, true) = Arg(U"txt"sv);
     }
 };
 class EvalCtx2 : public CompactEvaluateContext
@@ -82,25 +82,13 @@ public:
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
     auto SetRootArg(std::u32string_view name, Arg val)
     {
-        return RootContext->SetArg(name, std::move(val), true);
+        return *RootContext->LocateArg(name, true) = std::move(val);
     }
     void Assign(const Assignment& assign)
     {
-        auto& ctx = CurFrame ? *CurFrame->Context : *RootContext;
-        const auto& var = *assign.Target;
-        if (const auto chkNil = assign.GetNilCheck(); chkNil.has_value() && ctx.LookUpArg(var).IsEmpty() != *chkNil)
-        {
-            if (*chkNil) // non-null, skip assign
-                return;
-            else // Arg not exists, should throw
-            {
-                Expects(assign.Statement.TypeData == RawArg::Type::Binary);
-                throw "Request Var exists"sv;
-            }
-        }
-        ctx.SetArg(var, EvaluateArg(assign.Statement), true);
+        SetArg(assign.Target, assign.Queries, assign.Statement, assign.CheckNil);
     }
-    void QuickSetArg(LateBindVar var, RawArg val, const bool nilCheck = false)
+    /*void QuickSetArg(LateBindVar var, RawArg val, const bool nilCheck = false)
     {
         if (nilCheck)
             var.Info |= LateBindVar::VarInfo::ReqNull;
@@ -108,7 +96,7 @@ public:
         assign.Target = &var;
         assign.Statement = val;
         HandleContent(xziar::nailang::BlockContent::Generate(&assign), {});
-    }
+    }*/
     Arg QuickGetArg(std::u32string_view name)
     {
         ParserContext context(name);
@@ -359,7 +347,7 @@ TEST(NailangRuntime, CustomVar)
     {
         const auto arg = runtime.QuickGetArg(U"arr"sv);
         ASSERT_TRUE(CheckArg(arg, Arg::Type::Var));
-        const auto var = arg.GetVar<Arg::Type::Var>();
+        const auto& var = arg.GetCustom();
         ASSERT_EQ(var.Host, &ArrayCustomVarHandler);
         const auto data = ArrayCustomVar::GetData(var);
         EXPECT_THAT(data, testing::ElementsAreArray(dummy));
@@ -373,8 +361,8 @@ TEST(NailangRuntime, CustomVar)
         CHECK_ARG(len, Uint, 4u);
     }
     /*{
-        const auto arg = runtime.QuickGetArg(U"arr"sv);
-        const auto var = arg.GetVar<Arg::Type::Var>();
+        const auto arg  = runtime.QuickGetArg(U"arr"sv);
+        const auto& var = arg.GetCustom();
         const auto data = ArrayCustomVar::GetData(var);
 
         EXPECT_THAT(data, testing::ElementsAreArray(dummy));
@@ -795,10 +783,10 @@ TEST(NailangRuntime, DefFunc)
 uint64_t gcd(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
 {
     auto ctx = std::make_shared<CompactEvaluateContext>();
-    ctx->SetArg(U"m"sv, m, true);
-    ctx->SetArg(U"n"sv, n, true);
+    *ctx->LocateArg(U"m"sv, true) = m;
+    *ctx->LocateArg(U"n"sv, true) = n;
     runtime.ExecuteBlock(algoBlock, {}, ctx);
-    const auto ans = ctx->LookUpArg(U"m"sv);
+    const auto& ans = *ctx->LocateArg(U"m"sv);
     EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
     return *ans.GetUint();
 }
