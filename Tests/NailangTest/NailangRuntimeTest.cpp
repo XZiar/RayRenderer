@@ -15,6 +15,7 @@ using xziar::nailang::BlockParser;
 using xziar::nailang::ComplexArgParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::LateBindVar;
+using xziar::nailang::FixedArray;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::SubQuery;
@@ -386,6 +387,66 @@ TEST(NailangRuntime, CustomVar)
         runtime.QuickSetArg(U"arr.Last"sv, -9.f);
         EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -9.f));
     }
+}
+
+
+TEST(NailangRuntime, FixedArray)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    constexpr float dummy1[] = { 0.f,1.f,4.f,-2.f };
+    int8_t dummy2[] = { 0,1,4,-2 };
+    runtime.SetRootArg(U"arr1", FixedArray::Create<const float>(dummy1));
+    runtime.SetRootArg(U"arr2", FixedArray::Create<int8_t>(dummy2));
+    {
+        const auto arg = runtime.QuickGetArg(U"arr1"sv);
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
+        const auto var = arg.GetVar<Arg::Type::Array>();
+        ASSERT_EQ(var.ElementType, FixedArray::Type::F32);
+        ASSERT_TRUE(var.IsReadOnly);
+        const auto sp  = var.GetSpan();
+        ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
+        const auto data = std::get<common::span<const float>>(sp);
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy1));
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr2"sv);
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
+        const auto var = arg.GetVar<Arg::Type::Array>();
+        ASSERT_EQ(var.ElementType, FixedArray::Type::I8);
+        ASSERT_FALSE(var.IsReadOnly);
+        const auto sp = var.GetSpan();
+        ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
+        const auto data = std::get<common::span<int8_t>>(sp);
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr1"sv);
+        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr2"sv);
+        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
+    }
+    {
+        const auto len = runtime.QuickGetArg(U"arr1.Length"sv);
+        CHECK_ARG(len, Uint, 4u);
+    }
+    {
+        const auto len = runtime.QuickGetArg(U"arr2.Length"sv);
+        CHECK_ARG(len, Uint, 4u);
+    }
+    //{
+    //    const auto arg = runtime.QuickGetArg(U"arr"sv);
+    //    const auto& var = arg.GetCustom();
+    //    const auto data = ArrayCustomVar::GetData(var);
+
+    //    EXPECT_THAT(data, testing::ElementsAreArray(dummy));
+    //    runtime.QuickSetArg(U"arr.First"sv, 9.f);
+    //    EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -2.f));
+    //    runtime.QuickSetArg(U"arr.Last"sv, -9.f);
+    //    EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -9.f));
+    //}
 }
 
 

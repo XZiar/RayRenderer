@@ -23,6 +23,10 @@
 #include "common/StrBase.hpp"
 #include "common/StringLinq.hpp"
 #include "common/SharedString.hpp"
+#ifndef HALF_ENABLE_F16C_INTRINSICS
+#   define HALF_ENABLE_F16C_INTRINSICS __F16C__
+#endif
+#include "3rdParty/half/half.hpp"
 #include <vector>
 #include <variant>
 #include <string>
@@ -324,6 +328,7 @@ public:
         Data1(boolean ? 1 : 0), Fill3(Bool) {}
 #undef Fill3
 #undef Fill2
+#undef Fill1
     template<Type T>
     [[nodiscard]] constexpr decltype(auto) GetVar() const noexcept
     {
@@ -440,7 +445,7 @@ struct QueryExpr : public SubQuery
 struct CustomVar
 {
     struct Handler;
-    Handler* Host;
+    alignas(detail::IntFPUnion) Handler* Host;
     uint64_t Meta0;
     uint32_t Meta1;
     uint16_t Meta2;
@@ -460,10 +465,84 @@ struct CustomVar
     }
 };
 
+
+struct Arg;
+
 struct FixedArray
 {
-    enum class Type : uint16_t { Any = 0, Bool, Uint, Int, FP, Var };
-    
+    enum class Type : uint16_t 
+    { 
+        Any = 0, Bool, 
+        U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64, 
+        Str8, Str16, Str32, Sv8, Sv16, Sv32
+    };
+    alignas(detail::IntFPUnion) uintptr_t DataPtr;
+    uint64_t Length;
+    Type ElementType;
+    bool IsReadOnly;
+    NAILANGAPI Arg Get(size_t idx) const;
+    template<typename T>
+    static FixedArray Create(common::span<T> elements)
+    {
+        static constexpr bool IsConst = std::is_const_v<T>;
+        using R = std::remove_const_t<T>;
+#define Ret(type) return { reinterpret_cast<uintptr_t>(elements.data()), elements.size(), Type::type, IsConst }
+        if constexpr (std::is_same_v<R, Arg>)
+            Ret(Any);
+        else if constexpr (std::is_same_v<R, bool>)
+            Ret(Bool);
+        else if constexpr (std::is_same_v<R, uint8_t>)
+            Ret(U8);
+        else if constexpr (std::is_same_v<R, int8_t>)
+            Ret(I8);
+        else if constexpr (std::is_same_v<R, uint16_t>)
+            Ret(U16);
+        else if constexpr (std::is_same_v<R, int16_t>)
+            Ret(I16);
+        else if constexpr (std::is_same_v<R, half_float::half>)
+            Ret(F16);
+        else if constexpr (std::is_same_v<R, uint32_t>)
+            Ret(U32);
+        else if constexpr (std::is_same_v<R, int32_t>)
+            Ret(I32);
+        else if constexpr (std::is_same_v<R, float>)
+            Ret(F32);
+        else if constexpr (std::is_same_v<R, uint64_t>)
+            Ret(U64);
+        else if constexpr (std::is_same_v<R, int64_t>)
+            Ret(I64);
+        else if constexpr (std::is_same_v<R, double>)
+            Ret(F64);
+        else if constexpr (std::is_same_v<R, std::string>)
+            Ret(Str8);
+        else if constexpr (std::is_same_v<R, std::string_view>)
+            Ret(Sv8);
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+        else if constexpr (std::is_same_v<R, std::u8string>)
+            Ret(Str8);
+        else if constexpr (std::is_same_v<R, std::u8string_view>)
+            Ret(Sv8);
+#endif
+        else if constexpr (std::is_same_v<R, std::u16string>)
+            Ret(Str16);
+        else if constexpr (std::is_same_v<R, std::u16string_view>)
+            Ret(Sv16);
+        else if constexpr (std::is_same_v<R, std::u32string>)
+            Ret(Str32);
+        else if constexpr (std::is_same_v<R, std::u32string_view>)
+            Ret(Sv32);
+        else
+            static_assert(!common::AlwaysTrue<T>, "unsupported type");
+#undef Ret
+    }
+#define SPT(type) common::span<type>, common::span<const type>
+    using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
+        SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
+        SPT(uint32_t), SPT(int32_t), SPT(float), SPT(uint64_t), SPT(int64_t), SPT(double),
+        SPT(std::string), SPT(std::u16string), SPT(std::u32string),
+        SPT(std::string_view), SPT(std::u16string_view), SPT(std::u32string_view)>;
+#undef SPT
+    NAILANGAPI SpanVariant GetSpan() const;
 };
 
 class NAILANGAPI NailangRuntimeBase;
@@ -476,15 +555,27 @@ struct Arg
     static_assert(sizeof(std::u32string_view) == sizeof(common::SharedString<char32_t>));
 public:
     enum class Type : uint16_t
-    { 
-        Empty = 0, RealType = 0x8000, 
-        Custom = 0b10000000, Boolable = 0b1, String = 0b11, Number = 0b101, Integer = 0b1101, 
+    {
+        // |0   |1   |2  |3  |4  |...|7     |
+        // |real|bool|str|num|arr|...|custom|
+        // For Str
+        // |8       |...15|
+        // |real str|.....|
+        // For Num
+        // |8  |9       |...15|
+        // |int|unsigned|.....|
+        Empty = 0, RealType = 0b00000001,
+        Boolable = 0b00000010, String = 0b00000110, Number = 0b00001010, ArrayLike = 0b00010000, Custom = 0b10000000,
+        IntegerBit = 0b00000001 << 8, UnsignedBit = 0b00000010 << 8, 
+        StrRealBit = 0b00000001 << 8,
+        Integer = Number | IntegerBit,
         Bool   = RealType | Boolable,
-        U32Sv  = RealType | String   | 0x000,
-        U32Str = RealType | String   | 0x100,
-        FP     = RealType | Number   | 0x000,
-        Uint   = RealType | Integer  | 0x100,
-        Int    = RealType | Integer  | 0x000,
+        U32Sv  = RealType | String   | Empty,
+        U32Str = RealType | String   | StrRealBit,
+        FP     = RealType | Number   | Empty,
+        Uint   = RealType | Integer  | UnsignedBit, 
+        Int    = RealType | Integer  | Empty,
+        Array  = RealType | ArrayLike,
         Var    = RealType | Custom,
     };
 private:
@@ -503,6 +594,8 @@ public:
         Expects(TypeData == T);
         if constexpr (T == Type::Var)
             return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
+        else if constexpr (T == Type::Array)
+            return FixedArray{ static_cast<uintptr_t>(Data0.Uint), Data1, static_cast<FixedArray::Type>(Data2), static_cast<bool>(Data3) };
         else if constexpr (T == Type::U32Str)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
         else if constexpr (T == Type::U32Sv)
@@ -528,6 +621,9 @@ public:
         var.Host = nullptr;
         var.Meta0 = var.Meta1 = var.Meta2 = 0;
     }
+    Arg(const FixedArray arr) noexcept :
+        Data0(arr.DataPtr), Data1(arr.Length), Data2(common::enum_cast(arr.ElementType)), Data3(arr.IsReadOnly ? 1 : 0), TypeData(Type::Array)
+    { }
     Arg(const std::u32string& str) noexcept : 
         Data0(0), Data1(0), Data2(0), Data3(4), TypeData(Type::U32Str)
     {
@@ -583,6 +679,7 @@ public:
         switch (TypeData)
         {
         case Type::Var:     return visitor(GetVar<Type::Var>());
+        case Type::Array:   return visitor(GetVar<Type::Array>());
         case Type::U32Str:  return visitor(GetVar<Type::U32Str>());
         case Type::U32Sv:   return visitor(GetVar<Type::U32Sv>());
         case Type::Uint:    return visitor(GetVar<Type::Uint>());
@@ -616,6 +713,10 @@ public:
     [[nodiscard]] forceinline constexpr bool IsStr() const noexcept
     {
         return TypeData == Type::U32Str || TypeData == Type::U32Sv;
+    }
+    [[nodiscard]] forceinline constexpr bool IsArray() const noexcept
+    {
+        return TypeData == Type::Array;
     }
     [[nodiscard]] forceinline constexpr bool IsCustom() const noexcept
     {

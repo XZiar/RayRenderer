@@ -360,6 +360,55 @@ hey = 13;
     }
     {
         constexpr auto src = UR"(
+x.y = z;
+a[0][1].b[2] = c;
+)"sv;
+        const auto block = ParseAll(src);
+        ASSERT_EQ(block.Content.size(), 2u);
+        {
+            const auto [meta, stmt] = block[0];
+            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            ASSERT_EQ(meta.size(), 0u);
+            const auto& assign = *std::get<0>(stmt.GetStatement());
+            EXPECT_EQ(assign.GetVar(), U"x"sv);
+            ASSERT_EQ(assign.Queries.Size(), 1u);
+            const auto [qtype, qarg] = assign.Queries[0];
+            EXPECT_EQ(qtype, SubQuery::QueryType::Sub);
+            CHECK_DIRECT_ARG(qarg, Str, U"y"sv);
+            CHECK_VAR_ARG(assign.Statement, U"z"sv, Empty);
+        }
+        {
+            const auto [meta, stmt] = block[1];
+            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            ASSERT_EQ(meta.size(), 0u);
+            const auto& assign = *std::get<0>(stmt.GetStatement());
+            EXPECT_EQ(assign.GetVar(), U"a"sv);
+            ASSERT_EQ(assign.Queries.Size(), 4u);
+            {
+                const auto [qtype, qarg] = assign.Queries[0];
+                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
+                CHECK_DIRECT_ARG(qarg, Int, 0);
+            }
+            {
+                const auto [qtype, qarg] = assign.Queries[1];
+                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
+                CHECK_DIRECT_ARG(qarg, Int, 1);
+            }
+            {
+                const auto [qtype, qarg] = assign.Queries[2];
+                EXPECT_EQ(qtype, SubQuery::QueryType::Sub);
+                CHECK_DIRECT_ARG(qarg, Str, U"b"sv);
+            }
+            {
+                const auto [qtype, qarg] = assign.Queries[3];
+                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
+                CHECK_DIRECT_ARG(qarg, Int, 2);
+            }
+            CHECK_VAR_ARG(assign.Statement, U"c"sv, Empty);
+        }
+    }
+    {
+        constexpr auto src = UR"(
 @meta()
 #Block("13")
 {

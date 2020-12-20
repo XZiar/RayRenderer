@@ -121,6 +121,75 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
 }
 
 
+Arg FixedArray::Get(size_t idx) const
+{
+#define RET(tenum, type) case Type::tenum: return reinterpret_cast<const type*>(DataPtr)[idx]
+#define RETC(tenum, type, ttype) case Type::tenum: return static_cast<ttype>(reinterpret_cast<const type*>(DataPtr)[idx])
+    switch (ElementType)
+    {
+    RET(Any, Arg);
+    RET(Bool, bool); 
+    RETC(U8, uint8_t, uint64_t);
+    RETC(I8, int8_t, int64_t);
+    RETC(U16, uint16_t, uint64_t);
+    RETC(I16, int16_t, int64_t);
+    RETC(F16, half_float::half, double);
+    RETC(U32, uint32_t, uint64_t);
+    RETC(I32, int32_t, int64_t);
+    RETC(F32, float, double);
+    RET(U64, uint64_t);
+    RET(I64, int64_t);
+    RET(F64, double);
+    //RET(Str8, );
+    //RET(Str16, Arg);
+    //RETC(Str32, );
+    //RET(Sv8, Arg);
+    //RET(Sv16, Arg);
+    RET(Sv32, std::u32string_view);
+    default: return {};
+    }
+#undef RETC
+#undef RET
+}
+
+FixedArray::SpanVariant FixedArray::GetSpan() const
+{
+#define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
+#define RET(tenum, type)            \
+    case Type::tenum:               \
+        if (IsReadOnly)             \
+            return SP(const type);  \
+        else                        \
+            return SP(type)         \
+
+    switch (ElementType)
+    {
+    RET(Any,    Arg);
+    RET(Bool,   bool);
+    RET(U8,     uint8_t);
+    RET(I8,     int8_t);
+    RET(U16,    uint16_t);
+    RET(I16,    int16_t);
+    RET(F16,    half_float::half);
+    RET(U32,    uint32_t);
+    RET(I32,    int32_t);
+    RET(F32,    float);
+    RET(U64,    uint64_t);
+    RET(I64,    int64_t);
+    RET(F64,    double);
+    RET(Str8,   std::string);
+    RET(Str16,  std::u16string);
+    RET(Str32,  std::u32string);
+    RET(Sv8,    std::string_view);
+    RET(Sv16,   std::u16string_view);
+    RET(Sv32,   std::u32string_view);
+    default: return {};
+    }
+#undef RET
+#undef SP
+}
+
+
 Arg::Arg(const Arg& other) noexcept :
     Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
 {
@@ -235,11 +304,23 @@ std::optional<std::u32string_view> Arg::GetStr() const noexcept
 
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
-    return Visit([](const auto val) -> common::str::StrVariant<char32_t>
+    return Visit([](const auto& val) -> common::str::StrVariant<char32_t>
         {
             using T = std::decay_t<decltype(val)>;
             if constexpr (std::is_same_v<T, CustomVar>)
                 return val.Host->ToString(val);
+            else if constexpr (std::is_same_v<T, FixedArray>)
+            {
+                std::u32string ret = U"[";
+                for (uint64_t i = 0; i < val.Length; ++i)
+                {
+                    if (i > 0)
+                        ret.append(U", "sv);
+                    ret.append(val.Get(i).ToString().StrView());
+                }
+                ret.append(U"]"sv);
+                return std::move(ret);
+            }
             else if constexpr (std::is_same_v<T, std::nullopt_t>)
                 return {};
             else if constexpr (std::is_same_v<T, std::u32string_view>)

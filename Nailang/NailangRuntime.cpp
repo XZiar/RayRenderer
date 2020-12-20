@@ -45,6 +45,27 @@ std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runt
         auto& var = GetCustom();
         return var.Call<&CustomVar::Handler::HandleGetter>(subq, runtime);
     }
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateArg(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
+            return { arr.Get(idx), 1u };
+        } break;
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<RawArg::Type::Str>();
+            if (field == U"Length"sv)
+                return { arr.Length, 1u };
+        } break;
+        default: break;
+        }
+    }
     if (IsStr())
     {
         const auto str = GetStr().value();

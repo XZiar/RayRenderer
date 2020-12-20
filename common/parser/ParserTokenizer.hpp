@@ -357,7 +357,7 @@ public:
         switch (realState)
         {
         case States::Num0:
-            return ParserToken(BaseToken::Uint, 0);
+            return ParserToken(BaseToken::Int, 0);
         case States::Binary:
         {
             Expects(txt.size() > 2);
