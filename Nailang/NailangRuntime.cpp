@@ -104,6 +104,36 @@ void Arg::HandleSetter(SubQuery subq, NailangRuntimeBase& runtime, Arg val)
         }
         return;
     }
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        if (arr.IsReadOnly)
+            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant array, with query [{}]"sv,
+                Serializer::Stringify(subq.Sub(0))), *this);
+        const auto [type, query] = subq[0];
+        if (type != SubQuery::QueryType::Index)
+            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify Array type"sv,
+                Serializer::Stringify(subq.Sub(0))), *this);
+        const auto idx_ = runtime.EvaluateArg(query);
+        const auto idx  = NailangHelper::BiDirIndexCheck(arr.Length, idx_, &query);
+        if (subq.Size() > 1) // has further query
+        {
+            if (arr.ElementType != FixedArray::Type::Any)
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify immutable primitive type of Array"sv,
+                    Serializer::Stringify(subq.Sub(0))), *this);
+            const auto sp = arr.GetSpan();
+            Expects(std::holds_alternative<common::span<Arg>>(sp));
+            std::get<common::span<Arg>>(sp)[idx].HandleSetter(subq.Sub(1), runtime, std::move(val));
+        }
+        else
+        {
+            const auto valType = val.TypeData;
+            if (const bool suc = arr.Set(idx, std::move(val)); !suc)
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to type [{}] of Array"sv,
+                    Arg::TypeName(valType), arr.GetElementTypeName()), *this);
+        }
+        return;
+    }
     COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot perform query [{}] on type [{}]"sv, 
         Serializer::Stringify(subq), GetTypeName()), *this);
 }

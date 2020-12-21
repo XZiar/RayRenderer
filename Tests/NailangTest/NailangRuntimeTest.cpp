@@ -390,66 +390,6 @@ TEST(NailangRuntime, CustomVar)
 }
 
 
-TEST(NailangRuntime, FixedArray)
-{
-    MemoryPool pool;
-    NailangRT runtime;
-    constexpr float dummy1[] = { 0.f,1.f,4.f,-2.f };
-    int8_t dummy2[] = { 0,1,4,-2 };
-    runtime.SetRootArg(U"arr1", FixedArray::Create<const float>(dummy1));
-    runtime.SetRootArg(U"arr2", FixedArray::Create<int8_t>(dummy2));
-    {
-        const auto arg = runtime.QuickGetArg(U"arr1"sv);
-        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
-        const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, FixedArray::Type::F32);
-        ASSERT_TRUE(var.IsReadOnly);
-        const auto sp  = var.GetSpan();
-        ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
-        const auto data = std::get<common::span<const float>>(sp);
-        EXPECT_THAT(data, testing::ElementsAreArray(dummy1));
-    }
-    {
-        const auto arg = runtime.QuickGetArg(U"arr2"sv);
-        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
-        const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, FixedArray::Type::I8);
-        ASSERT_FALSE(var.IsReadOnly);
-        const auto sp = var.GetSpan();
-        ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
-        const auto data = std::get<common::span<int8_t>>(sp);
-        EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
-    }
-    {
-        const auto arg = runtime.QuickGetArg(U"arr1"sv);
-        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
-    }
-    {
-        const auto arg = runtime.QuickGetArg(U"arr2"sv);
-        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
-    }
-    {
-        const auto len = runtime.QuickGetArg(U"arr1.Length"sv);
-        CHECK_ARG(len, Uint, 4u);
-    }
-    {
-        const auto len = runtime.QuickGetArg(U"arr2.Length"sv);
-        CHECK_ARG(len, Uint, 4u);
-    }
-    //{
-    //    const auto arg = runtime.QuickGetArg(U"arr"sv);
-    //    const auto& var = arg.GetCustom();
-    //    const auto data = ArrayCustomVar::GetData(var);
-
-    //    EXPECT_THAT(data, testing::ElementsAreArray(dummy));
-    //    runtime.QuickSetArg(U"arr.First"sv, 9.f);
-    //    EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -2.f));
-    //    runtime.QuickSetArg(U"arr.Last"sv, -9.f);
-    //    EXPECT_THAT(data, testing::ElementsAre(9.f, 1.f, 4.f, -9.f));
-    //}
-}
-
-
 TEST(NailangRuntime, Indexer)
 {
     MemoryPool pool;
@@ -503,6 +443,69 @@ TEST(NailangRuntime, Indexer)
     }
     {
         EXPECT_THROW(ParseEval(U"arr[-5];"sv), xziar::nailang::NailangRuntimeException);
+    }
+}
+
+
+TEST(NailangRuntime, FixedArray)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+    constexpr float dummy1[] = { 0.f,1.f,4.f,-2.f };
+    int8_t dummy2[] = { 0,1,4,-2 };
+    runtime.SetRootArg(U"arr1", FixedArray::Create<const float>(dummy1));
+    runtime.SetRootArg(U"arr2", FixedArray::Create<int8_t>(dummy2));
+    {
+        const auto arg = runtime.QuickGetArg(U"arr1"sv);
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
+        const auto var = arg.GetVar<Arg::Type::Array>();
+        ASSERT_EQ(var.ElementType, FixedArray::Type::F32);
+        ASSERT_TRUE(var.IsReadOnly);
+        const auto sp  = var.GetSpan();
+        ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
+        const auto data = std::get<common::span<const float>>(sp);
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy1));
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr2"sv);
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
+        const auto var = arg.GetVar<Arg::Type::Array>();
+        ASSERT_EQ(var.ElementType, FixedArray::Type::I8);
+        ASSERT_FALSE(var.IsReadOnly);
+        const auto sp = var.GetSpan();
+        ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
+        const auto data = std::get<common::span<int8_t>>(sp);
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr1"sv);
+        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr2"sv);
+        EXPECT_EQ(arg.ToString(), U"[0, 1, 4, -2]"sv);
+    }
+    {
+        const auto len = runtime.QuickGetArg(U"arr1.Length"sv);
+        CHECK_ARG(len, Uint, 4u);
+    }
+    {
+        const auto len = runtime.QuickGetArg(U"arr2.Length"sv);
+        CHECK_ARG(len, Uint, 4u);
+    }
+    {
+        EXPECT_THROW(runtime.QuickSetArg(U"arr1[0]"sv, 2.0f), xziar::nailang::NailangRuntimeException);
+    }
+    {
+        const auto arg = runtime.QuickGetArg(U"arr2"sv);
+        const auto var = arg.GetVar<Arg::Type::Array>();
+        const auto data = std::get<common::span<int8_t>>(var.GetSpan());
+        EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
+        runtime.QuickSetArg(U"arr2[0]"sv, 2.0f);
+        EXPECT_THAT(data, testing::ElementsAreArray(std::array<int8_t, 4>{2, 1, 4, -2}));
+        runtime.QuickSetArg(U"arr2[-1]"sv, uint64_t(9));
+        EXPECT_THAT(data, testing::ElementsAreArray(std::array<int8_t, 4>{2, 1, 4, 9}));
+        EXPECT_THROW(runtime.QuickSetArg(U"arr2[0]"sv, U""sv), xziar::nailang::NailangRuntimeException);
     }
 }
 

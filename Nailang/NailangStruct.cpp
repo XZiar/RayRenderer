@@ -1,5 +1,6 @@
 #include "NailangStruct.h"
 #include "StringUtil/Format.h"
+#include "StringUtil/Convert.h"
 #include "common/AlignedBase.hpp"
 #include <cassert>
 
@@ -121,8 +122,9 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
 }
 
 
-Arg FixedArray::Get(size_t idx) const
+Arg FixedArray::Get(size_t idx) const noexcept
 {
+    Expects(idx < Length);
 #define RET(tenum, type) case Type::tenum: return reinterpret_cast<const type*>(DataPtr)[idx]
 #define RETC(tenum, type, ttype) case Type::tenum: return static_cast<ttype>(reinterpret_cast<const type*>(DataPtr)[idx])
     switch (ElementType)
@@ -152,7 +154,97 @@ Arg FixedArray::Get(size_t idx) const
 #undef RET
 }
 
-FixedArray::SpanVariant FixedArray::GetSpan() const
+bool FixedArray::Set(size_t idx, Arg val) const noexcept
+{
+    Expects(!IsReadOnly);
+    Expects(idx < Length);
+    if (val.IsEmpty()) return false;
+#define TYPESET(tenum, type)                                                        \
+    if (ElementType == Type::tenum)                                                 \
+    {                                                                               \
+        reinterpret_cast<type*>(DataPtr)[idx] = static_cast<type>(real.value());    \
+        return true;                                                                \
+    }
+    switch (ElementType)
+    {
+    case Type::Any:
+        reinterpret_cast<Arg*>(DataPtr)[idx] = std::move(val);
+        return true;
+    case Type::Bool:
+        if (const auto real = val.GetBool(); real.has_value())
+        {
+            reinterpret_cast<bool*>(DataPtr)[idx] = real.value();
+            return true;
+        }
+        return false;
+    case Type::U8:
+    case Type::U16:
+    case Type::U32:
+    case Type::U64:
+        if (const auto real = val.GetUint(); real.has_value())
+        {
+            TYPESET(U8,  uint8_t)
+            TYPESET(U16, uint16_t)
+            TYPESET(U32, uint32_t)
+            TYPESET(U64, uint64_t)
+        }
+        return false;
+    case Type::I8:
+    case Type::I16:
+    case Type::I32:
+    case Type::I64:
+        if (const auto real = val.GetInt(); real.has_value())
+        {
+            TYPESET(I8,  int8_t)
+            TYPESET(I16, int16_t)
+            TYPESET(I32, int32_t)
+            TYPESET(I64, int64_t)
+        }
+        return false;
+    case Type::F16:
+    case Type::F32:
+    case Type::F64:
+        if (const auto real = val.GetFP(); real.has_value())
+        {
+            if (ElementType == Type::F16)
+            {
+                reinterpret_cast<half_float::half*>(DataPtr)[idx] = static_cast<float>(real.value());
+                return true;
+            }
+            TYPESET(F32, float)
+            TYPESET(F64, double)
+        }
+        return false;
+    case Type::Str8:
+    case Type::Str16:
+    case Type::Str32:
+        if (const auto real = val.GetStr(); real.has_value())
+        {
+            using namespace common::str;
+            if (ElementType == Type::Str8)
+            {
+                reinterpret_cast<std::string*>(DataPtr)[idx] = common::str::to_string(real.value(), Charset::UTF8);
+                return true;
+            }
+            if (ElementType == Type::Str16)
+            {
+                reinterpret_cast<std::u16string*>(DataPtr)[idx] = common::str::to_u16string(real.value(), Charset::UTF16);
+                return true;
+            }
+            if (ElementType == Type::Str32)
+            {
+                reinterpret_cast<std::u32string*>(DataPtr)[idx].assign(real.value());
+                return true;
+            }
+        }
+        return false;
+    default: 
+        return false;
+    }
+#undef TYPESET
+}
+
+FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
 {
 #define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
 #define RET(tenum, type)            \
@@ -187,6 +279,34 @@ FixedArray::SpanVariant FixedArray::GetSpan() const
     }
 #undef RET
 #undef SP
+}
+
+std::u32string_view FixedArray::TypeName(FixedArray::Type type) noexcept
+{
+#define RET(tenum) case Type::tenum: return U"" STRINGIZE(tenum) ""sv
+    switch (type)
+    {
+    RET(Any);
+    RET(Bool);
+    RET(U8);
+    RET(I8);
+    RET(U16);
+    RET(I16);
+    RET(F16);
+    RET(U32);
+    RET(I32);
+    RET(F32);
+    RET(U64);
+    RET(I64);
+    RET(F64);
+    RET(Str8);
+    RET(Str16);
+    RET(Str32);
+    RET(Sv8);
+    RET(Sv16);
+    RET(Sv32);
+    default: return U"Unknown"sv;
+    }
 }
 
 

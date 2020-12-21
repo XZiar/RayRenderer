@@ -480,7 +480,21 @@ struct FixedArray
     uint64_t Length;
     Type ElementType;
     bool IsReadOnly;
-    NAILANGAPI Arg Get(size_t idx) const;
+    NAILANGAPI Arg Get(size_t idx) const noexcept;
+    NAILANGAPI bool Set(size_t idx, Arg val) const noexcept;
+#define SPT(type) common::span<type>, common::span<const type>
+    using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
+        SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
+        SPT(uint32_t), SPT(int32_t), SPT(float), SPT(uint64_t), SPT(int64_t), SPT(double),
+        SPT(std::string), SPT(std::u16string), SPT(std::u32string),
+        SPT(std::string_view), SPT(std::u16string_view), SPT(std::u32string_view)>;
+#undef SPT
+    NAILANGAPI SpanVariant GetSpan() const noexcept;
+    forceinline std::u32string_view GetElementTypeName() const noexcept
+    {
+        return TypeName(ElementType);
+    }
+    NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
     template<typename T>
     static FixedArray Create(common::span<T> elements)
     {
@@ -535,14 +549,6 @@ struct FixedArray
             static_assert(!common::AlwaysTrue<T>, "unsupported type");
 #undef Ret
     }
-#define SPT(type) common::span<type>, common::span<const type>
-    using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
-        SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
-        SPT(uint32_t), SPT(int32_t), SPT(float), SPT(uint64_t), SPT(int64_t), SPT(double),
-        SPT(std::string), SPT(std::u16string), SPT(std::u32string),
-        SPT(std::string_view), SPT(std::u16string_view), SPT(std::u32string_view)>;
-#undef SPT
-    NAILANGAPI SpanVariant GetSpan() const;
 };
 
 class NAILANGAPI NailangRuntimeBase;
