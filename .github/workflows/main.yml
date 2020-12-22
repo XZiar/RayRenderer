@@ -87,6 +87,9 @@ jobs:
       - name: Make temp dir
         run: |
           mkdir tmp
+          mkdir ~/dependency
+          mkdir ~/dependency/include
+          mkdir ~/dependency/bin
           echo "ubt_codename=$(lsb_release -c -s)" >> $GITHUB_ENV
       
       - name: Prepare for clang
@@ -113,12 +116,12 @@ jobs:
           key: cache-boost-${{ env.boost_ver1 }}
         
       - name: Download boost library
-        if: ${{steps.cache-boost.outputs.cache-hit}}
+        if: ${{steps.cache-boost.outputs.cache-hit != 'true'}}
         working-directory: ./tmp
         run: |
-          wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/$${{steps.cache-boost.env.boost_ver2}}/boost_$${{steps.cache-boost.env.boost_ver1}}.tar.bz2
+          wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/${{steps.cache-boost.env.boost_ver2}}/boost_${{steps.cache-boost.env.boost_ver1}}.tar.bz2
           tar xjf boost.tar.bz2
-          mv ./boost_$${{steps.cache-boost.env.boost_ver1}}/boost ~/dependency/include/
+          mv ./boost_${{steps.cache-boost.env.boost_ver1}}/boost ~/dependency/include/
           
       - name: Cache ispc
         id: cache-ispc
@@ -130,10 +133,10 @@ jobs:
           key: cache-ispc-${{ env.ispc_ver }}
         
       - name: Download ispc library
-        if: ${{steps.cache-ispc.outputs.cache-hit}}
+        if: ${{steps.cache-ispc.outputs.cache-hit != 'true'}}
         working-directory: ./tmp
         run: |
-          wget -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v$${{steps.cache-ispc.env.ispc_ver}}/ispc-v$${{steps.cache-ispc.env.ispc_ver}}-linux.tar.gz
+          wget -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v${{steps.cache-ispc.env.ispc_ver}}/ispc-v${{steps.cache-ispc.env.ispc_ver}}-linux.tar.gz
           mkdir ispc
           tar xzf ispc.tar.gz -C ./ispc
           mv ./ispc ~/dependency/bin/
@@ -145,12 +148,12 @@ jobs:
           echo $ISPCCOMPILER
           echo "ISPCCOMPILER=$(find ~/dependency/bin -type f -name ispc)" >> $GITHUB_ENV
           echo "CPP_DEPENDENCY_PATH=~/dependency" >> $GITHUB_ENV
-          echo "CCOMPILER=$${{matrix.env_cc}}" >> $GITHUB_ENV
-          echo "ASMCOMPILER=$${{matrix.env_asm}}" >> $GITHUB_ENV
-          echo "CPPCOMPILER=$${{matrix.env_cpp}}" >> $GITHUB_ENV
-          echo "STATICLINKER=$${{matrix.env_stalink}}" >> $GITHUB_ENV
-          echo "DYNAMICLINKER=$${{matrix.env_dynlink}}" >> $GITHUB_ENV
-          echo "APPLINKER=$${{matrix.env_applink}}" >> $GITHUB_ENV
+          echo "CCOMPILER=${{matrix.env_cc}}" >> $GITHUB_ENV
+          echo "ASMCOMPILER=${{matrix.env_asm}}" >> $GITHUB_ENV
+          echo "CPPCOMPILER=${{matrix.env_cpp}}" >> $GITHUB_ENV
+          echo "STATICLINKER=${{matrix.env_stalink}}" >> $GITHUB_ENV
+          echo "DYNAMICLINKER=${{matrix.env_dynlink}}" >> $GITHUB_ENV
+          echo "APPLINKER=${{matrix.env_applink}}" >> $GITHUB_ENV
           
       - name: List verbose info
         run: |
