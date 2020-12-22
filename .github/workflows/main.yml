@@ -1,0 +1,178 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        cxx: [gcc7, gcc8, gcc9, clang7, clang8]
+        include:
+          - cxx: gcc7
+            env_cc: "gcc-7"
+            env_asm: "g++-7"
+            env_cpp: "g++-7"
+            env_stalink: "gcc-ar-7"
+            env_dynlink: "g++-7"
+            env_applink: "g++-7"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-7"
+          - cxx: gcc8
+            env_cc: "gcc-8"
+            env_asm: "g++-8"
+            env_cpp: "g++-8"
+            env_stalink: "gcc-ar-8"
+            env_dynlink: "g++-8"
+            env_applink: "g++-8"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-8"
+          - cxx: gcc9
+            env_cc: "gcc-9"
+            env_asm: "g++-9"
+            env_cpp: "g++-9"
+            env_stalink: "gcc-ar-9"
+            env_dynlink: "g++-9"
+            env_applink: "g++-9"
+            env_module: "all"
+            env_clang: false
+            pkg: "g++-9"
+          - cxx: clang7
+            env_cc: "clang-7"
+            env_asm: "clang++-7"
+            env_cpp: "clang++-7"
+            env_stalink: "ar"
+            env_dynlink: "clang++-7"
+            env_applink: "clang++-7"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 7
+            pkg: "clang-7 lld-7"
+          - cxx: clang8
+            env_cc: "clang-8"
+            env_asm: "clang++-8"
+            env_cpp: "clang++-8"
+            env_stalink: "ar"
+            env_dynlink: "clang++-8"
+            env_applink: "clang++-8"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 8
+            pkg: "clang-8 lld-8"
+    
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          submodules: "true"
+
+      - name: Make temp dir
+        run: |
+          mkdir tmp
+          echo "ubt_codename=$(lsb_release -c -s)" >> $GITHUB_ENV
+      
+      - name: Prepare for clang
+        if: ${{matrix.env_clang}}
+        working-directory: ./tmp
+        run: |
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
+          sudo add-apt-repository 'deb http://apt.llvm.org/$ubt_codename/ llvm-toolchain-$ubt_codename-${{matrix.env_clang_ver}} main' -y
+        
+      - name: Install packages
+        run: | 
+          sudo apt update -q
+          sudo apt install util-linux nasm unzip python3-pip $${{matrix.pkg}}
+          sudo apt install libreadline7 libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev 
+          
+      - name: Cache boost library
+        id: cache-boost
+        uses: actions/cache@v2
+        env:
+          boost_ver1: "1_73_0"
+          boost_ver2: "1.73.0"
+        with:
+          path: ~/dependency/include/boost
+          key: cache-boost-${{ env.boost_ver1 }}
+        
+      - name: Download boost library
+        if: ${{steps.cache-boost.outputs.cache-hit}}
+        working-directory: ./tmp
+        run: |
+          wget -O boost.tar.bz2 https://iweb.dl.sourceforge.net/project/boost/boost/$${{steps.cache-boost.env.boost_ver2}}/boost_$${{steps.cache-boost.env.boost_ver1}}.tar.bz2
+          tar xjf boost.tar.bz2
+          mv ./boost_$${{steps.cache-boost.env.boost_ver1}}/boost ~/dependency/include/
+          
+      - name: Cache ispc
+        id: cache-ispc
+        uses: actions/cache@v2
+        env:
+          ispc_ver: "1.15.0"
+        with:
+          path: ~/dependency/bin/ispc
+          key: cache-ispc-${{ env.ispc_ver }}
+        
+      - name: Download ispc library
+        if: ${{steps.cache-ispc.outputs.cache-hit}}
+        working-directory: ./tmp
+        run: |
+          wget -O ispc.tar.gz https://github.com/ispc/ispc/releases/download/v$${{steps.cache-ispc.env.ispc_ver}}/ispc-v$${{steps.cache-ispc.env.ispc_ver}}-linux.tar.gz
+          mkdir ispc
+          tar xzf ispc.tar.gz -C ./ispc
+          mv ./ispc ~/dependency/bin/
+
+      - name: Setup environment
+        run: |
+          echo $CPP_DEPENDENCY_PATH
+          echo "CPP_DEPENDENCY_PATH=~/dependency" >> $GITHUB_ENV
+          echo $ISPCCOMPILER
+          echo "ISPCCOMPILER=$(find ~/dependency/bin -type f -name ispc)" >> $GITHUB_ENV
+          echo "CPP_DEPENDENCY_PATH=~/dependency" >> $GITHUB_ENV
+          echo "CCOMPILER=$${{matrix.env_cc}}" >> $GITHUB_ENV
+          echo "ASMCOMPILER=$${{matrix.env_asm}}" >> $GITHUB_ENV
+          echo "CPPCOMPILER=$${{matrix.env_cpp}}" >> $GITHUB_ENV
+          echo "STATICLINKER=$${{matrix.env_stalink}}" >> $GITHUB_ENV
+          echo "DYNAMICLINKER=$${{matrix.env_dynlink}}" >> $GITHUB_ENV
+          echo "APPLINKER=$${{matrix.env_applink}}" >> $GITHUB_ENV
+          
+      - name: List verbose info
+        run: |
+          $ISPCCOMPILER --version
+          $CPPCOMPILER --version
+          python3 --version
+          python3 -m pip install pip
+          python3 -m pip install chardet
+          nasm -v
+          lscpu
+
+      - name: Build Debug modules
+        run: |
+          DBG_MODS=$BUILDMODULES+",-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur"
+          python3 xzbuild.py rebuild $DBG_MODS /threads=x1.5
+          
+      - name: Build Release modules
+        run: |     
+          python3 xzbuild.py rebuildall "BasicsTest,SystemCommonTest,NailangTest" Release /threads=x1.5
+          
+      - name: Run Tests
+        run: |            
+          ./x64/Release/BasicsTest
+          ./x64/Release/SystemCommonTest
+          ./x64/Release/NailangTest
