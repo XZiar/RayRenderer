@@ -94,12 +94,12 @@ jobs:
         working-directory: ./tmp
         run: |
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/$ubt_codename/ llvm-toolchain-$ubt_codename-${{matrix.env_clang_ver}} main' -y
+          sudo add-apt-repository "deb http://apt.llvm.org/$ubt_codename/ llvm-toolchain-$ubt_codename-${{matrix.env_clang_ver}} main" -y
         
       - name: Install packages
         run: | 
           sudo apt update -q
-          sudo apt install util-linux nasm unzip python3-pip $${{matrix.pkg}}
+          sudo apt install util-linux nasm unzip python3-pip ${{matrix.pkg}}
           sudo apt install libreadline7 libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev 
           
       - name: Cache boost library
