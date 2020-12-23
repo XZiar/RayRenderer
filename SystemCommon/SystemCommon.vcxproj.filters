@@ -48,6 +48,9 @@
     <ClCompile Include="HResultHelper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="StackTrace.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -87,6 +90,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="HResultHelper.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="StackTrace.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

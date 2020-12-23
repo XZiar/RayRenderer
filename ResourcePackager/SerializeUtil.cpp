@@ -3,7 +3,7 @@
 #include "ResourceUtil.h"
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
-#include "3rdParty/boost.stacktrace/stacktrace.h"
+#include "SystemCommon/StackTrace.h"
 #include "common/Exceptions.hpp"
 #include "common/Linq2.hpp"
 

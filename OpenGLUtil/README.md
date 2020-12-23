@@ -85,9 +85,9 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 
   provide async-execution environment for OpenGL workers.
 
-* [boost.stacktrace](../3rdParty/boost.stacktrace)
+* [SystemCommon](../3rdParty/SystemCommon)
 
-  provide detail stacktrace when throwing exceptions
+  provide system-related functionality
 
 ## Requirements
 

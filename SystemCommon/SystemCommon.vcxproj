@@ -177,6 +177,7 @@
     </ClCompile>
     <ClCompile Include="PromiseTask.cpp" />
     <ClCompile Include="RawFileEx.cpp" />
+    <ClCompile Include="StackTrace.cpp" />
     <ClCompile Include="SystemCommonRely.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -193,6 +194,7 @@
     <ClInclude Include="PromiseTask.h" />
     <ClInclude Include="PromiseTaskSTD.h" />
     <ClInclude Include="RawFileEx.h" />
+    <ClInclude Include="StackTrace.h" />
     <ClInclude Include="SystemCommonPch.h" />
     <ClInclude Include="SystemCommonRely.h" />
     <ClInclude Include="ThreadEx.h" />

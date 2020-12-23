@@ -1,5 +1,6 @@
-#include "stacktrace.h"
-#include "SystemCommon/ThreadEx.h"
+#include "SystemCommonPch.h"
+#include "StackTrace.h"
+#include "ThreadEx.h"
 #include "StringUtil/Convert.h"
 #if defined(_WIN32)
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
@@ -13,7 +14,7 @@
 #include <atomic>
 
 
-namespace stacktrace
+namespace common
 {
 
 class StackExplainer
@@ -24,7 +25,7 @@ class StackExplainer
     std::mutex WorkerMutex;
     std::condition_variable WorkerCV;
     const boost::stacktrace::stacktrace* Stk;
-    std::vector<common::StackTraceItem>* Output;
+    std::vector<StackTraceItem>* Output;
     bool ShouldRun;
 public:
     StackExplainer() : ShouldRun(true)
@@ -32,19 +33,19 @@ public:
         std::unique_lock<std::mutex> callerLock(CallerMutex);
         std::unique_lock<std::mutex> workerLock(WorkerMutex);
         WorkThread = std::thread([this]()
-        {
-            common::SetThreadName(u"StackExplainer");
-            std::unique_lock<std::mutex> lock(WorkerMutex);
-            CallerCV.notify_one();
-            WorkerCV.wait(lock);
-            while (ShouldRun)
             {
-                for (const auto& frame : *Stk)
-                    Output->emplace_back(common::str::to_u16string(frame.source_file()), common::str::to_u16string(frame.name()), frame.source_line());
+                SetThreadName(u"StackExplainer");
+                std::unique_lock<std::mutex> lock(WorkerMutex);
                 CallerCV.notify_one();
                 WorkerCV.wait(lock);
-            }
-        });
+                while (ShouldRun)
+                {
+                    for (const auto& frame : *Stk)
+                        Output->emplace_back(str::to_u16string(frame.source_file()), str::to_u16string(frame.name()), frame.source_line());
+                    CallerCV.notify_one();
+                    WorkerCV.wait(lock);
+                }
+            });
         CallerCV.wait(workerLock);
     }
     ~StackExplainer()
@@ -58,9 +59,9 @@ public:
             WorkThread.join();
         }
     }
-    std::vector<common::StackTraceItem> Explain(const boost::stacktrace::stacktrace& st)
+    std::vector<StackTraceItem> Explain(const boost::stacktrace::stacktrace& st)
     {
-        std::vector<common::StackTraceItem> ret;
+        std::vector<StackTraceItem> ret;
         {
             std::unique_lock<std::mutex> callerLock(CallerMutex);
             std::unique_lock<std::mutex> workerLock(WorkerMutex);
@@ -73,7 +74,7 @@ public:
 };
 
 
-std::vector<common::StackTraceItem> GetStack()
+std::vector<StackTraceItem> GetStack()
 {
     static StackExplainer Explainer;
     boost::stacktrace::stacktrace st;
