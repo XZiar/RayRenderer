@@ -6,7 +6,7 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs", "readline"]
+        "dynamic": ["pthread", "stdc++fs", "readline", "dl", "backtrace"]
     },
     "targets":
     {

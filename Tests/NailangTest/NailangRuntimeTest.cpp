@@ -294,7 +294,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)  override
+    Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
     {
         ArrRef(arr, var);
         const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, &src);

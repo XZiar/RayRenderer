@@ -287,6 +287,8 @@ union IntFPUnion
 
 struct RawArg
 {
+    static_assert( sizeof(detail::IntFPUnion) ==  sizeof(uint64_t));
+    static_assert(alignof(detail::IntFPUnion) == alignof(uint64_t));
 private:
     detail::IntFPUnion Data1;
     uint32_t Data2;
@@ -476,7 +478,7 @@ struct FixedArray
         U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64, 
         Str8, Str16, Str32, Sv8, Sv16, Sv32
     };
-    alignas(detail::IntFPUnion) uintptr_t DataPtr;
+    uint64_t DataPtr;
     uint64_t Length;
     Type ElementType;
     bool IsReadOnly;

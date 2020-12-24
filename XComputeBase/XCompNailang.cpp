@@ -1,4 +1,5 @@
 #include "XCompNailang.h"
+#include "SystemCommon/StackTrace.h"
 #include "StringUtil/Convert.h"
 #include "common/StrParsePack.hpp"
 #include <shared_mutex>
@@ -12,6 +13,7 @@ using xziar::nailang::RawArg;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
+using xziar::nailang::CustomVar;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FrameFlags;
@@ -881,5 +883,109 @@ void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
     }
 }
 
+
+enum class GVecRefFlags : uint32_t
+{
+    Empty = 0x0,
+    Vec2 = 0x2, Vec3 = 0x3, Vec4 = 0x4,
+    ReadOnly = 0x80
+};
+MAKE_ENUM_BITFIELD(GVecRefFlags)
+static GeneralVecRef GVecRefHandler;
+
+CustomVar GeneralVecRef::Create(xziar::nailang::FixedArray arr)
+{
+    auto flag = GVecRefFlags::Empty;
+    switch (arr.Length)
+    {
+    case 2: flag = GVecRefFlags::Vec2; break;
+    case 3: flag = GVecRefFlags::Vec3; break;
+    case 4: flag = GVecRefFlags::Vec4; break;
+    default:
+        COMMON_THROWEX(common::BaseException, FMTSTR(u"Vec ref only support [2~4] as length, get [{}].", arr.Length));
+    }
+    if (arr.IsReadOnly)
+        flag |= GVecRefFlags::ReadOnly;
+    return { &GVecRefHandler, arr.DataPtr, common::enum_cast(flag), common::enum_cast(arr.ElementType) };
+}
+xziar::nailang::FixedArray GeneralVecRef::ToArray(const xziar::nailang::CustomVar& var) noexcept
+{
+    Expects(var.Host == &GVecRefHandler);
+    const auto flag = static_cast<GVecRefFlags>(var.Meta1);
+    const bool isReadOnly = HAS_FIELD(flag, GVecRefFlags::ReadOnly);
+    const uint64_t length = (var.Meta1 & 0xffu);
+    return { var.Meta0, length, static_cast<xziar::nailang::FixedArray::Type>(var.Meta2), isReadOnly };
+}
+size_t GeneralVecRef::ToIndex(const CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field)
+{
+    size_t tidx = SIZE_MAX;
+    switch (common::DJBHash::HashC(field))
+    {
+    HashCase(field, U"x") tidx = 0; break;
+    HashCase(field, U"y") tidx = 1; break;
+    HashCase(field, U"z") tidx = 2; break;
+    HashCase(field, U"w") tidx = 3; break;
+    default: break;
+    }
+    if (tidx == SIZE_MAX)
+        return {};
+    if (tidx > arr.Length)
+    {
+        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot access [{}] on a vector of length[{}]"sv,
+            field, arr.Length), var);
+    }
+    return tidx;
+}
+
+Arg GeneralVecRef::IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)
+{
+    const auto arr = ToArray(var);
+    const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length), idx, &src);
+    return arr.Get(idx_);
+}
+Arg GeneralVecRef::SubfieldGetter(const CustomVar& var, std::u32string_view field)
+{
+    const auto arr = ToArray(var);
+    if (field == U"Length"sv)
+        return arr.Length;
+    const size_t tidx = ToIndex(var, arr, field);
+    return arr.Get(tidx);
+}
+size_t GeneralVecRef::HandleSetter(CustomVar& var, xziar::nailang::SubQuery subq, NailangRuntimeBase& runtime, Arg arg)
+{
+    using xziar::nailang::SubQuery;
+    if (subq.Size() == 1)
+    {
+        const auto arr = ToArray(var);
+        if (arr.IsReadOnly)
+            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant vecref, with query [{}]"sv,
+                xziar::nailang::Serializer::Stringify(subq.Sub(0))), var);
+        const auto [type, query] = subq[0];
+        size_t tidx = SIZE_MAX;
+        switch (type)
+        {
+        case SubQuery::QueryType::Sub:
+            tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
+                EvaluateArg(runtime, query), &query);
+            break;
+        case SubQuery::QueryType::Index:
+            tidx = ToIndex(var, arr, query.GetVar<RawArg::Type::Str>());
+            break;
+        default:
+            return 0;
+        }
+        const auto valType = arg.TypeData;
+        if (const bool suc = arr.Set(tidx, std::move(arg)); !suc)
+            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to xcomp::vecref<{},{}>"sv,
+                Arg::TypeName(valType), arr.GetElementTypeName(), arr.Length), var);
+        return 1;
+    }
+    return 0;
+}
+common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) noexcept
+{
+    const auto arr = ToArray(var);
+    return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
+}
 
 }

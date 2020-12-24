@@ -530,6 +530,32 @@ public:
 };
 
 
+class XCOMPBASAPI GeneralVecRef : public xziar::nailang::CustomVar::Handler
+{
+    static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray arr);
+    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
+    static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
+    xziar::nailang::Arg IndexerGetter(const xziar::nailang::CustomVar& var, const xziar::nailang::Arg& idx, const xziar::nailang::RawArg& src) override;
+    xziar::nailang::Arg SubfieldGetter(const xziar::nailang::CustomVar& var, std::u32string_view field) override;
+    size_t HandleSetter(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime, xziar::nailang::Arg arg) override;
+    common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
+public:
+    template<typename T>
+    static constexpr bool CheckType() noexcept
+    {
+        using R = std::remove_cv_t<T>;
+        return std::is_arithmetic_v<R> || std::is_same_v<R, half_float::half>;
+    }
+    template<typename T>
+    static xziar::nailang::CustomVar Create(common::span<T> target)
+    {
+        static_assert(CheckType<T>(), "only allow arithmetic type");
+        return Create(xziar::nailang::FixedArray::Create(target));
+    }
+};
+
+
+
 #if COMPILER_MSVC
 #   pragma warning(pop)
 #endif

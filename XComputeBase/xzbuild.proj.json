@@ -2,7 +2,7 @@
     "name": "XComputeBase",
     "type": "dynamic",
     "description": "Base of XCompute",
-    "dependency": ["MiniLogger", "StringUtil", "Nailang"],
+    "dependency": ["MiniLogger", "StringUtil", "Nailang", "SystemCommon"],
     "library": 
     {
         "static": [],

@@ -32,7 +32,7 @@ public:
     {
         std::unique_lock<std::mutex> callerLock(CallerMutex);
         std::unique_lock<std::mutex> workerLock(WorkerMutex);
-        WorkThread = std::thread([this]()
+        WorkThread = std::thread([&]()
             {
                 SetThreadName(u"StackExplainer");
                 std::unique_lock<std::mutex> lock(WorkerMutex);
