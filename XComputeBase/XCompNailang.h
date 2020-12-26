@@ -405,6 +405,7 @@ protected:
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
 
     [[nodiscard]] std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
+    [[nodiscard]] std::optional<xziar::nailang::Arg> CreateGVec(const std::u32string_view type, const FuncCall& call);
     [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
         U32StrSpan args, BlockCookie& cookie);
     [[nodiscard]] ReplaceResult ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args);
@@ -532,9 +533,10 @@ public:
 
 class XCOMPBASAPI GeneralVecRef : public xziar::nailang::CustomVar::Handler
 {
+protected:
     static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray arr);
-    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
     static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
+    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
     xziar::nailang::Arg IndexerGetter(const xziar::nailang::CustomVar& var, const xziar::nailang::Arg& idx, const xziar::nailang::RawArg& src) override;
     xziar::nailang::Arg SubfieldGetter(const xziar::nailang::CustomVar& var, std::u32string_view field) override;
     size_t HandleSetter(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime, xziar::nailang::Arg arg) override;
@@ -551,6 +553,23 @@ public:
     {
         static_assert(CheckType<T>(), "only allow arithmetic type");
         return Create(xziar::nailang::FixedArray::Create(target));
+    }
+};
+
+class XCOMPBASAPI GeneralVec : public GeneralVecRef
+{
+    void IncreaseRef(xziar::nailang::CustomVar& var) noexcept override;
+    void DecreaseRef(xziar::nailang::CustomVar& var) noexcept override;
+    common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
+public:
+    static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray::Type type, size_t len);
+    template<typename T>
+    static xziar::nailang::CustomVar Create(size_t len)
+    {
+        static_assert(GeneralVecRef::CheckType<T>(), "only allow arithmetic type");
+        common::span<T> dummy(reinterpret_cast<T*>(nullptr), 1);
+        const auto type = xziar::nailang::FixedArray::Create(dummy).ElementType;
+        return Create(type, len);
     }
 };
 

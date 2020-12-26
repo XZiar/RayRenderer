@@ -17,13 +17,13 @@ protected:
     }
     forceinline void Increase() noexcept
     {
-        auto ptrcnt = static_cast<T*>(this)->GetCountor();
+        auto ptrcnt = static_cast<T*>(this)->GetCounter();
         if (ptrcnt)
             (*ptrcnt)++;
     }
     forceinline bool Decrease() noexcept
     {
-        auto ptrcnt = static_cast<T*>(this)->GetCountor();
+        auto ptrcnt = static_cast<T*>(this)->GetCounter();
         if (ptrcnt && (*ptrcnt)-- == 1)
         {
             free(ptrcnt);
@@ -51,7 +51,7 @@ protected:
         }
         return {};
     }
-    [[nodiscard]] forceinline std::atomic_uint32_t* GetCountor() const noexcept
+    [[nodiscard]] forceinline std::atomic_uint32_t* GetCounter() const noexcept
     {
         uintptr_t ptr = static_cast<const T*>(this)->GetDataPtr();
         if (ptr)

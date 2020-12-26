@@ -288,7 +288,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         ArrRef(arr, var);
         arr.Increase(); 
     };
-    void DecreaseRef(CustomVar& var) noexcept  override
+    void DecreaseRef(CustomVar& var) noexcept override
     { 
         ArrRef(arr, var);
         if (arr.Decrease())

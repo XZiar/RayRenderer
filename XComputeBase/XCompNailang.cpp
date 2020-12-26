@@ -14,6 +14,7 @@ using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::CustomVar;
+using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FrameFlags;
@@ -443,6 +444,40 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const
     }
     return {};
 }
+std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const FuncCall& call)
+{
+    auto [info, least] = xcomp::ParseVDataType(type);
+    if (info.Bit == 0)
+    {
+        NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), call);
+        return {};
+    }
+    if (info.Dim0 < 2 || info.Dim0 > 4)
+    {
+        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, info.Dim0), call);
+        return {};
+    }
+    VecDataInfo sinfo{ info.Type, info.Bit, 1, 0 };
+#define GENV(vtype, bit, atype)                                                         \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::vtype, bit, 1, 0}):  \
+        return GeneralVec::Create(FixedArray::Type::atype, info.Dim0)
+    switch (static_cast<uint32_t>(sinfo))
+    {
+    GENV(Unsigned, 8,  U8);
+    GENV(Unsigned, 16, U16);
+    GENV(Unsigned, 32, U32);
+    GENV(Unsigned, 64, U64);
+    GENV(Signed,   8,  I8);
+    GENV(Signed,   16, I16);
+    GENV(Signed,   32, I32);
+    GENV(Signed,   64, I64);
+    GENV(Float,    16, F16);
+    GENV(Float,    32, F32);
+    GENV(Float,    64, F64);
+    default: return {};
+    }
+#undef GENV
+}
 
 std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
     U32StrSpan args, BlockCookie& cookie)
@@ -694,6 +729,12 @@ Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         if (ret.has_value())
             return std::move(ret.value());
     }
+    if (call.Name->PartCount == 3 && (*call.Name)[0] == U"xcomp"sv && (*call.Name)[1] == U"vec"sv)
+    {
+        auto ret = CreateGVec((*call.Name)[2], call);
+        if (ret.has_value())
+            return std::move(ret.value());
+    }
     for (const auto& ext : XCContext.Extensions)
     {
         auto ret = ext->XCNLFunc(*this, call, metas);
@@ -884,7 +925,7 @@ void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
 }
 
 
-enum class GVecRefFlags : uint32_t
+enum class GVecRefFlags : uint8_t
 {
     Empty = 0x0,
     Vec2 = 0x2, Vec3 = 0x3, Vec4 = 0x4,
@@ -892,8 +933,9 @@ enum class GVecRefFlags : uint32_t
 };
 MAKE_ENUM_BITFIELD(GVecRefFlags)
 static GeneralVecRef GVecRefHandler;
+static GeneralVec GVecHandler;
 
-CustomVar GeneralVecRef::Create(xziar::nailang::FixedArray arr)
+CustomVar GeneralVecRef::Create(FixedArray arr)
 {
     auto flag = GVecRefFlags::Empty;
     switch (arr.Length)
@@ -908,15 +950,15 @@ CustomVar GeneralVecRef::Create(xziar::nailang::FixedArray arr)
         flag |= GVecRefFlags::ReadOnly;
     return { &GVecRefHandler, arr.DataPtr, common::enum_cast(flag), common::enum_cast(arr.ElementType) };
 }
-xziar::nailang::FixedArray GeneralVecRef::ToArray(const xziar::nailang::CustomVar& var) noexcept
+FixedArray GeneralVecRef::ToArray(const xziar::nailang::CustomVar& var) noexcept
 {
-    Expects(var.Host == &GVecRefHandler);
+    Expects(var.Host == &GVecRefHandler || var.Host == &GVecHandler);
     const auto flag = static_cast<GVecRefFlags>(var.Meta1);
     const bool isReadOnly = HAS_FIELD(flag, GVecRefFlags::ReadOnly);
-    const uint64_t length = (var.Meta1 & 0xffu);
-    return { var.Meta0, length, static_cast<xziar::nailang::FixedArray::Type>(var.Meta2), isReadOnly };
+    const uint64_t length = (var.Meta1 & 0xfu);
+    return { var.Meta0, length, static_cast<FixedArray::Type>(var.Meta2), isReadOnly };
 }
-size_t GeneralVecRef::ToIndex(const CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field)
+size_t GeneralVecRef::ToIndex(const CustomVar& var, const FixedArray& arr, std::u32string_view field)
 {
     size_t tidx = SIZE_MAX;
     switch (common::DJBHash::HashC(field))
@@ -964,11 +1006,11 @@ size_t GeneralVecRef::HandleSetter(CustomVar& var, xziar::nailang::SubQuery subq
         size_t tidx = SIZE_MAX;
         switch (type)
         {
-        case SubQuery::QueryType::Sub:
+        case SubQuery::QueryType::Index:
             tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
                 EvaluateArg(runtime, query), &query);
             break;
-        case SubQuery::QueryType::Index:
+        case SubQuery::QueryType::Sub:
             tidx = ToIndex(var, arr, query.GetVar<RawArg::Type::Str>());
             break;
         default:
@@ -986,6 +1028,119 @@ common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) 
 {
     const auto arr = ToArray(var);
     return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
+}
+
+
+template<typename T>
+struct COMMON_EMPTY_BASES VecArray : public common::FixedLenRefHolder<VecArray<T>, T>
+{
+    common::span<T> Data;
+    VecArray(size_t size)
+    {
+        Data = common::FixedLenRefHolder<VecArray<T>, T>::Allocate(size);
+        if (Data.size() > 0)
+        {
+            memset(Data.data(), 0x0, sizeof(T) * Data.size());
+        }
+    }
+    VecArray(const VecArray<T>& other) noexcept : Data(other.Data)
+    {
+        this->Increase();
+    }
+    VecArray(VecArray<T>&& other) noexcept : Data(other.Data)
+    {
+        other.Data = {};
+    }
+    ~VecArray()
+    {
+        this->Decrease();
+    }
+    [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
+    {
+        return reinterpret_cast<uintptr_t>(Data.data());
+    }
+    using common::FixedLenRefHolder<VecArray<T>, T>::Increase;
+    using common::FixedLenRefHolder<VecArray<T>, T>::Decrease;
+};
+CustomVar GeneralVec::Create(FixedArray::Type type, size_t len)
+{
+    auto flag = GVecRefFlags::Empty;
+    switch (len)
+    {
+    case 2: flag = GVecRefFlags::Vec2; break;
+    case 3: flag = GVecRefFlags::Vec3; break;
+    case 4: flag = GVecRefFlags::Vec4; break;
+    default:
+        COMMON_THROWEX(common::BaseException, FMTSTR(u"Vec only support [2~4] as length, get [{}].", len));
+    }
+    uint64_t ptr = 0;
+#define RET(tenum, type) case FixedArray::Type::tenum: { VecArray<type> vec(len); vec.Increase(); ptr = vec.GetDataPtr(); break; }
+    switch (type)
+    {
+    RET(U8,  uint8_t)
+    RET(I8,  int8_t)
+    RET(U16, uint16_t)
+    RET(I16, int16_t)
+    RET(F16, half_float::half)
+    RET(U32, uint32_t)
+    RET(I32, int32_t)
+    RET(F32, float)
+    RET(U64, uint64_t)
+    RET(I64, int64_t)
+    RET(F64, double)
+    default: break;
+    }
+#undef RET
+    return { &GVecHandler, ptr, common::enum_cast(flag), common::enum_cast(type) };
+}
+template<typename F>
+static void CallOnVecArray(const CustomVar& var, F&& func) noexcept
+{
+    const auto type = static_cast<FixedArray::Type>(var.Meta2);
+    const uint8_t length = (var.Meta1 & 0xfu);
+#define COVA(tenum, type)                                                       \
+    case FixedArray::Type::tenum:                                               \
+    {                                                                           \
+        static_assert(sizeof(VecArray<type>) == sizeof(common::span<type>));    \
+        common::span<type> sp(reinterpret_cast<type*>(var.Meta0), length);      \
+        auto& vec = *reinterpret_cast<VecArray<type>*>(&sp);                    \
+        func(vec);                                                              \
+        break;                                                                  \
+    }
+
+    switch (type)
+    {
+    COVA(U8,  uint8_t)
+    COVA(I8,  int8_t)
+    COVA(U16, uint16_t)
+    COVA(I16, int16_t)
+    COVA(F16, half_float::half)
+    COVA(U32, uint32_t)
+    COVA(I32, int32_t)
+    COVA(F32, float)
+    COVA(U64, uint64_t)
+    COVA(I64, int64_t)
+    COVA(F64, double)
+    default: break;
+    }
+#undef COVA
+}
+void GeneralVec::IncreaseRef(CustomVar& var) noexcept
+{
+    CallOnVecArray(var, [](auto& vec) { vec.Increase(); });
+}
+void GeneralVec::DecreaseRef(CustomVar& var) noexcept
+{
+    CallOnVecArray(var, [&](auto& vec) 
+        { 
+            if (vec.Decrease())
+                var.Meta0 = 0;
+        });
+}
+common::str::StrVariant<char32_t> GeneralVec::ToString(const CustomVar& var) noexcept
+{
+    const auto arr = ToArray(var);
+    return FMTSTR(U"xcomp::vec<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
 
 }
