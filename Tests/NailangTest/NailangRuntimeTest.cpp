@@ -858,15 +858,15 @@ TEST(NailangRuntime, DefFunc)
 }
 
 
-uint64_t gcd(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
+uint64_t RunGCD(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
 {
     auto ctx = std::make_shared<CompactEvaluateContext>();
     *ctx->LocateArg(U"m"sv, true) = m;
     *ctx->LocateArg(U"n"sv, true) = n;
     runtime.ExecuteBlock(algoBlock, {}, ctx);
-    const auto& ans = *ctx->LocateArg(U"m"sv);
-    EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
-    return *ans.GetUint();
+    const auto ans = ctx->LocateArg(U"m"sv);
+    EXPECT_EQ(ans->TypeData, Arg::Type::Uint);
+    return *ans->GetUint();
 }
 
 TEST(NailangRuntime, gcd1)
@@ -905,9 +905,9 @@ tmp = 1;
 
     ASSERT_EQ(algoBlock.Size(), 2u);
 
-    EXPECT_EQ(gcd(runtime, algoBlock,  5u, 5u), std::gcd( 5u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
 }
 
 TEST(NailangRuntime, gcd2)
@@ -948,9 +948,9 @@ TEST(NailangRuntime, gcd2)
 
     ASSERT_EQ(algoBlock.Size(), 1u);
 
-    EXPECT_EQ(gcd(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
 }
 
 
@@ -991,7 +991,7 @@ m = $gcd(m,n);
 
     ASSERT_EQ(algoBlock.Size(), 2u);
 
-    EXPECT_EQ(gcd(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(gcd(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
 }

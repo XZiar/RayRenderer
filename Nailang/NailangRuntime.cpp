@@ -230,12 +230,12 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
     return it->second;
 }
 
-const Arg* LargeEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+EvaluateContext::ArgGetRet LargeEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
         if (!it->second.IsEmpty())
             return &it->second;
-    return nullptr;
+    return {};
 }
 
 Arg* LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
@@ -288,13 +288,13 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, 0, 0 };
 }
 
-const Arg* CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+EvaluateContext::ArgGetRet CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
 {
     const HashedStrView hsv(var.Name);
     for (const auto& [pos, val] : Args)
         if (ArgNames.GetHashedStr(pos) == hsv)
             return val.IsEmpty() ? nullptr : &val;
-    return nullptr;
+    return {};
 }
 
 Arg* CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
@@ -876,35 +876,35 @@ LateBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
     return U""sv;
 }
 
-const Arg* NailangRuntimeBase::LocateArgRead(const LateBindVar& var) const
-{
-    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
-        return RootContext->LocateArg(var);
-    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
-    {
-        if (!CurFrame)
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
-        else if (CurFrame->Has(FrameFlags::Virtual))
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
-        else
-            return CurFrame->Context->LocateArg(var);
-        return nullptr;
-    }
-
-    // Try find arg recursively
-    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
-    {
-        if (!frame->Has(FrameFlags::Virtual))
-        {
-            const auto ptr = frame->Context->LocateArg(var);
-            if (ptr)
-                return ptr;
-        }
-        //if (frame->Has(FrameFlags::CallScope))
-        //    break; // cannot beyond  
-    }
-    return RootContext->LocateArg(var);
-}
+//EvaluateContext::GetArgVariant NailangRuntimeBase::LocateArgRead(const LateBindVar& var) const
+//{
+//    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
+//        return RootContext->LocateArg(var);
+//    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
+//    {
+//        if (!CurFrame)
+//            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
+//        else if (CurFrame->Has(FrameFlags::Virtual))
+//            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
+//        else
+//            return CurFrame->Context->LocateArg(var);
+//        return nullptr;
+//    }
+//
+//    // Try find arg recursively
+//    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+//    {
+//        if (!frame->Has(FrameFlags::Virtual))
+//        {
+//            auto ret = frame->Context->LocateArg(var);
+//            if ((ret.index() == 0 && std::get<0>(ret)) || (ret.index() == 1 && !std::get<1>(ret).IsEmpty()))
+//                return std::move(ret);
+//        }
+//        //if (frame->Has(FrameFlags::CallScope))
+//        //    break; // cannot beyond  
+//    }
+//    return RootContext->LocateArg(var);
+//}
 
 Arg* NailangRuntimeBase::LocateArgWrite(const LateBindVar& var, const bool create) const
 {
@@ -982,9 +982,31 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
 
 Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
 {
-    const auto ptr = LocateArgRead(var);
-    if (ptr) return *ptr;
-    return {};
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
+        return RootContext->LocateArg(var).Extract();
+    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
+    {
+        if (!CurFrame)
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
+        else if (CurFrame->Has(FrameFlags::Virtual))
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
+        else
+            return CurFrame->Context->LocateArg(var).Extract();
+        return {};
+    }
+
+    // Try find arg recursively
+    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+    {
+        if (!frame->Has(FrameFlags::Virtual))
+        {
+            if (auto ret = frame->Context->LocateArg(var); ret)
+                return ret.Extract();
+        }
+        //if (frame->Has(FrameFlags::CallScope))
+        //    break; // cannot beyond  
+    }
+    return RootContext->LocateArg(var).Extract();
 }
 bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck)
 {

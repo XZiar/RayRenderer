@@ -151,7 +151,7 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-const Arg* NLCLContext::LocateArg(const LateBindVar& var) const noexcept
+NLCLContext::ArgGetRet NLCLContext::LocateArg(const LateBindVar& var) const noexcept
 {
     if (var == U"oclu"sv)
         return &OCLUArg;

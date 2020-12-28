@@ -188,6 +188,7 @@ using u8ch_t = char;
 #include <cstdint>
 #include <cstring>
 #include <numeric>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits> 

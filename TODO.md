@@ -155,10 +155,11 @@
   - [x] Add nested brace support for ReplaceEngine
   - [x] Move arg/func's lookup logic into StackFrame
   - [x] Pre-compute scope when parsing, for arg and func name
-  - [ ] Add array type
-  - [ ] Add array access by `[]`
+  - [x] Add array type
+  - [x] Add array access by `[]`
   - [ ] Add member func call for arg by `()`
   - [ ] Design custom type with func-table
+  - [ ] Allow fake arg when try to set value of an arg
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

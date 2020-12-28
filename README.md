@@ -1,6 +1,7 @@
 # RayRenderer
 
-[![Build Status](https://travis-ci.org/XZiar/RayRenderer.svg?branch=master)](https://travis-ci.org/XZiar/RayRenderer)
+[![CI](https://github.com/XZiar/RayRenderer/workflows/CI/badge.svg)](https://github.com/XZiar/RayRenderer/actions)
+[![Build Status](https://api.travis-ci.com/XZiar/RayRenderer.svg?branch=master)](https://travis-ci.org/XZiar/RayRenderer)
 
 No it's not a renderer.
 

@@ -28,8 +28,42 @@ class NAILANGAPI EvaluateContext
 {
     friend class NailangRuntimeBase;
 public:
+    struct ArgGetRet
+    {
+        Arg RealArg;
+        const Arg* PtrArg;
+        ArgGetRet() noexcept : RealArg{}, PtrArg(nullptr) {}
+        ArgGetRet(Arg&& arg) noexcept : RealArg(std::move(arg)), PtrArg(nullptr) {}
+        ArgGetRet(const Arg* arg) noexcept : RealArg{}, PtrArg(arg) {}
+        ArgGetRet(const ArgGetRet&) = delete;
+        ArgGetRet(ArgGetRet&& arg) noexcept : RealArg(std::move(arg.RealArg)), PtrArg(arg.PtrArg) {}
+        ArgGetRet& operator=(const ArgGetRet&) = delete;
+        ArgGetRet& operator=(ArgGetRet&&) = delete;
+        explicit constexpr operator bool() const noexcept
+        {
+            return !RealArg.IsEmpty() || PtrArg != nullptr;
+        }
+        Arg Extract() noexcept
+        {
+            if (!RealArg.IsEmpty())
+                return std::move(RealArg);
+            if (PtrArg)
+                return *PtrArg;
+            return {};
+        }
+        const Arg* operator->() const noexcept
+        {
+            static const Arg EmptyArg = {};
+            if (!RealArg.IsEmpty())
+                return &RealArg;
+            if (PtrArg)
+                return PtrArg;
+            else
+                return &EmptyArg;
+        }
+    };
     virtual ~EvaluateContext();
-    [[nodiscard]] virtual const Arg* LocateArg(const LateBindVar& var) const noexcept = 0;
+    [[nodiscard]] virtual ArgGetRet LocateArg(const LateBindVar& var) const noexcept = 0;
     [[nodiscard]] virtual Arg* LocateArg(const LateBindVar& var, const bool create) noexcept = 0;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
     virtual bool SetFunc(const Block* block, common::span<const RawArg> args) = 0;
@@ -65,7 +99,7 @@ protected:
 public:
     ~LargeEvaluateContext() override;
 
-    [[nodiscard]] const Arg* LocateArg(const LateBindVar& var) const noexcept override;
+    [[nodiscard]] ArgGetRet LocateArg(const LateBindVar& var) const noexcept override;
     [[nodiscard]] Arg* LocateArg(const LateBindVar& var, const bool create) noexcept override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
@@ -88,10 +122,10 @@ protected:
 public:
     ~CompactEvaluateContext() override;
 
-    [[nodiscard]] const Arg* LocateArg(const LateBindVar& var) const noexcept override;
-    [[nodiscard]]       Arg* LocateArg(const LateBindVar& var, const bool create) noexcept override;
-    [[nodiscard]] size_t     GetArgCount() const noexcept override;
-    [[nodiscard]] size_t     GetFuncCount() const noexcept override;
+    [[nodiscard]] ArgGetRet LocateArg(const LateBindVar& var) const noexcept override;
+    [[nodiscard]] Arg*      LocateArg(const LateBindVar& var, const bool create) noexcept override;
+    [[nodiscard]] size_t    GetArgCount() const noexcept override;
+    [[nodiscard]] size_t    GetFuncCount() const noexcept override;
 };
 
 
@@ -424,7 +458,6 @@ protected:
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] LateBindVar DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const;
-    [[nodiscard]] const Arg* LocateArgRead(const LateBindVar& var) const;
     [[nodiscard]] Arg* LocateArgWrite(const LateBindVar& var, const bool create) const;
 
                   virtual void HandleException(const NailangRuntimeException& ex) const;

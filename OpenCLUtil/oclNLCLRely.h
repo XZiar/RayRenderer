@@ -89,10 +89,11 @@ public:
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
-    [[nodiscard]] const xziar::nailang::Arg* LocateArg(const xziar::nailang::LateBindVar& var) const noexcept override;
+    [[nodiscard]] ArgGetRet LocateArg(const xziar::nailang::LateBindVar& var) const noexcept override;
     [[nodiscard]] VecTypeResult ParseVecType(const std::u32string_view type) const noexcept override;
     [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
     [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
+    using xcomp::XCNLContext::LocateArg;
 protected:
     std::vector<bool> EnabledExtensions;
     std::vector<std::string> CompilerFlags;
