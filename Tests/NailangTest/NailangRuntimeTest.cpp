@@ -93,7 +93,7 @@ public:
     void QuickSetArg(std::u32string_view name, RawArg val)
     {
         ParserContext context(name);
-        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg("", MemPool, context);
+        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
         std::u32string_view varName;
         SubQuery query;
         if (var->TypeData == RawArg::Type::Var)
@@ -113,7 +113,7 @@ public:
     Arg QuickGetArg(std::u32string_view name)
     {
         ParserContext context(name);
-        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg("", MemPool, context);
+        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
         return EvaluateArg(var.value());
     }
 };

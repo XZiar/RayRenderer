@@ -149,15 +149,13 @@ public:
             static_assert(std::is_constructible_v<SVType, const E&>, "element should be able to construct string_view");
             hash = Hasher()(tmp);
         }
-        auto it = std::lower_bound(Pieces.cbegin(), Pieces.cend(), hash);
-        while (it != Pieces.cend())
+        
+        for (auto it = std::lower_bound(Pieces.cbegin(), Pieces.cend(), hash); 
+            it != Pieces.cend() && it->Hash == hash; ++it)
         {
             const SVType target(Pool.data() + it->Offset, it->Size);
             if (tmp == target)
                 return target;
-            ++it;
-            if (it->Hash != hash)
-                break;
         }
         return {};
     }

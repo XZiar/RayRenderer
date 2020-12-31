@@ -510,6 +510,18 @@ struct NonMovable
 };
 
 
+forceinline void ZeroRegion(void* ptr, size_t size)
+{
+#if COMPILER_GCC && __GNUC__ >= 8
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+    memset(ptr, 0x0, size);
+#if COMPILER_GCC && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+}
+
 }
 
 

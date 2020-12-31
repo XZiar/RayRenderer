@@ -570,8 +570,6 @@ NLCLBaseResult::~NLCLBaseResult()
 { }
 NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
-    std::u32string tmpStmt(name);
-    tmpStmt.append(U";"sv);
     const auto result = TempRuntime.EvaluateRawStatement(name, false);
     return result.Visit([](auto val) -> NLCLResult::ResultType
         {

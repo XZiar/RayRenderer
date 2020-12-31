@@ -1611,7 +1611,7 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
 Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const bool innerScope)
 {
     common::parser::ParserContext context(content);
-    const auto rawarg = ComplexArgParser::ParseSingleStatement(MemPool, context);
+    const auto rawarg = ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
     if (rawarg.has_value())
     {
         auto frame = PushFrame(innerScope, FrameFlags::FlowScope);

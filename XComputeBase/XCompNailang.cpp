@@ -624,22 +624,14 @@ void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
 
 void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, std::u32string_view cond, std::u32string_view content)
 {
+    if (cond.back() == U';')
+        cond.remove_suffix(1);
     if (cond.empty())
     {
         NLRT_THROW_EX(u"Empty condition occurred when replace-opt-block"sv);
         return;
     }
-    Arg ret;
-    if (cond.back() == U';')
-    {
-        ret = EvaluateRawStatement(cond);
-    }
-    else
-    {
-        std::u32string str(cond);
-        str.push_back(U';');
-        ret = EvaluateRawStatement(str);
-    }
+    Arg ret = EvaluateRawStatement(cond);
     if (ret.IsEmpty())
     {
         NLRT_THROW_EX(u"No value returned as condition when replace-opt-block"sv);
@@ -1040,7 +1032,7 @@ struct COMMON_EMPTY_BASES VecArray : public common::FixedLenRefHolder<VecArray<T
         Data = common::FixedLenRefHolder<VecArray<T>, T>::Allocate(size);
         if (Data.size() > 0)
         {
-            memset(Data.data(), 0x0, sizeof(T) * Data.size());
+            common::ZeroRegion(Data.data(), sizeof(T) * Data.size());
         }
     }
     VecArray(const VecArray<T>& other) noexcept : Data(other.Data)

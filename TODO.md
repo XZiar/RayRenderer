@@ -33,11 +33,13 @@
   - [ ] Add SpinLock implementation
   - [x] Seperate PromiseTask's functionalities of task-info and ret-value
   - [ ] Move SIMD copy into SystemCommon
-  - [ ] Maybe Move StringUtil into SystemCommon, enable OS-specific path
+  - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
+  - [ ] Maybe move MiniLigger into SystemCommon, since commonlly used
 
 * AsyncExecutor
   - [x] Add support for returning value
   - [ ] Add multi thread executor
+  - [ ] Embed boost.context, make boost.context a submodule
 
 * ImageUtil
   - [x] Add memory input/output
@@ -56,6 +58,7 @@
   - [x] Add support of output debug data into SpreadsheetML format
   - [ ] Add common syntax to define args of the instance
   - [ ] Add common syntax to define structure
+  - [ ] Expose common API to inject custom extensions
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
   - [ ] Add common interface for texture/buffer(UAV)
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
@@ -143,7 +146,7 @@
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [x] Add genenral datatype for `Arg` for type-checking
-  - [ ] Move to utf8 (save mem and moreclose to output type)
+  - [ ] Move to utf8 (save mem and closer to output type)
   - [x] Shrink memory usage of Arg
   - [x] Make parser throw proper exception
   - [ ] Embed position information in token
@@ -185,13 +188,12 @@
   - [x] Port core components to Linux 
   - [ ] Move to .net core 3.1 with WPF/Winform
   - [ ] Add Vulkan backend
-  - [ ] Add GLFW
   - [ ] Add FancyCL codegen which can write code in C++ with template/type-safe support and emit compute langs
   - [ ] Add custom window host (for OGL/vulkan)
   - [ ] Seperate OGL/Vulkan backend
   - [ ] Add remote rendering backend (out-of-process or network-based)
   - [x] Add custom base DSL for OpenGL and OpenCL
-  - [ ] Switch to github actions for CI?
+  - [x] Switch to github actions for CI?
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
   - [x] Embed gtest for latest fixes for C++20
   - [ ] Move to submodule-based 3rdParty libraries

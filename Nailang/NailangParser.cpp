@@ -371,24 +371,12 @@ FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& p
     return { funcName, sp, pos };
 }
 
-std::optional<RawArg> ComplexArgParser::ParseSingleArg(std::string_view stopDelim, MemoryPool& pool, common::parser::ParserContext& context)
+std::optional<RawArg> ComplexArgParser::ParseSingleArg(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims, std::u32string_view stopChecker)
 {
     ComplexArgParser parser(pool, context);
-    auto [arg, delim] = parser.ParseArg(stopDelim);
-    bool hasMatchedDeim = false;
-    if (!stopDelim.empty())
-    {
-        for (const auto ch : stopDelim)
-            if (static_cast<char32_t>(ch) == delim)
-            {
-                hasMatchedDeim = true;
-                break;
-            }
-    }
-    else
-        hasMatchedDeim = true;
-    if (!hasMatchedDeim)
-        parser.NLPS_THROW_EX(u"Expected end with delim"sv);
+    auto [arg, delim] = parser.ParseArg(stopDelims);
+    if (!stopChecker.empty() && stopChecker.find(delim) == std::u32string_view::npos)
+        parser.NLPS_THROW_EX(FMTSTR(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
     return arg;
 }
 
@@ -510,7 +498,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
         {
             if (token.GetChar() == U']')
                 OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            const auto index = ComplexArgParser::ParseSingleArg("]"sv, MemPool, Context);
+            const auto index = ComplexArgParser::ParseSingleArg(MemPool, Context, "]"sv, U"]"sv);
             if (!index.has_value())
                 OnUnExpectedToken(token, u"lack of index"sv);
             SubQuery::PushQuery(tmpQueries, *index);

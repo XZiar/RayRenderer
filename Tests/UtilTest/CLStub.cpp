@@ -1,6 +1,7 @@
 #include "TestRely.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclNLCL.h"
+#include "OpenCLUtil/oclNLCLRely.h"
 #include "OpenCLUtil/oclKernelDebug.h"
 #include "OpenCLUtil/oclException.h"
 #include "SystemCommon/ConsoleEx.h"
