@@ -1,4 +1,5 @@
 #include "TestRely.h"
+#include "XComputeBase/XCompNailang.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclNLCLRely.h"
@@ -30,6 +31,73 @@ static MiniLogger<false>& log()
     return logger;
 }
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
+
+
+namespace
+{
+using namespace xziar::nailang;
+struct RunConfig 
+{
+    oclKernel Kernel;
+    std::vector<std::pair<uint32_t, uint32_t>> Args;
+    std::array<size_t, 3> WgSize;
+    std::array<size_t, 3> LcSize;
+};
+struct RunInfo
+{
+    std::vector<RunConfig> Configs;
+};
+
+struct RunConfigVar : public CustomVar::Handler
+{
+    size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg arg) override
+    {
+        Expects(subq.Size() > 0);
+        const auto [type, query] = subq[0];
+        if (type != SubQuery::QueryType::Sub) return 0;
+        const auto subf = query.GetVar<RawArg::Type::Str>();
+        auto& config = reinterpret_cast<RunInfo*>(var.Meta0)->Configs[var.Meta2];
+        const auto SetVec3 = [&](auto& dst, std::u16string_view name) -> size_t
+        {
+            if (subq.Size() == 1)
+            {
+                if (!arg.IsCustomType<xcomp::GeneralVecRef>())
+                    COMMON_THROW(NailangRuntimeException, FMTSTR(u"{} can only be set with vec, get [{}]", name, arg.GetTypeName()), var);
+                const auto arr = xcomp::GeneralVecRef::ToArray(arg.GetCustom());
+                dst[0] = arr.Get(0).GetUint().value();
+                dst[1] = arr.Get(1).GetUint().value();
+                dst[2] = arr.Get(2).GetUint().value();
+                return 1;
+            }
+            return 1 + xcomp::GeneralVecRef::Create<size_t>(dst).Call<&CustomVar::Handler::HandleSetter>(subq.Sub(1), runtime, std::move(arg));
+        };
+        if (subf == U"WgSize")
+            return SetVec3(config.WgSize, u"WgSize"sv);
+        if (subf == U"LcSize")
+            return SetVec3(config.WgSize, u"LcSize"sv);
+        if (subf == U"Args")
+        {
+            if (subq.Size() < 2)
+                COMMON_THROW(NailangRuntimeException, u"Field [Args] can not be assigned"sv, var);
+            const auto& idx_ = subq.ExpectIndex(1);
+            const auto idx = NailangHelper::BiDirIndexCheck(config.Args.size(), EvaluateArg(runtime, idx_), &idx_);
+            const auto& argInfo = config.Kernel->ArgStore[idx];
+            /*switch (argInfo.ArgType)
+            {
+                case KerArgType::Buffer
+            }
+            return { std::u32string(1, str[idx]), 1u };*/
+        }
+        return 0;
+    }
+    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
+    {
+        if (type == Arg::Type::Bool)
+            return true;
+        return {};
+    }
+};
+}
 
 
 static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const std::unique_ptr<NLCLResult>& nlclRes)

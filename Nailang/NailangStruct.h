@@ -420,6 +420,8 @@ struct SubQuery
         Expects(idx < Queries.size());
         return { static_cast<QueryType>(Queries[idx].ExtraFlag), Queries[idx] };
     }
+    NAILANGAPI std::u32string_view ExpectSubField(size_t idx) const;
+    NAILANGAPI const RawArg&       ExpectIndex(size_t idx) const;
     constexpr size_t Size() const noexcept
     {
         return Queries.size();
@@ -464,6 +466,12 @@ struct CustomVar
         static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
             "F need to be member function of Handler, accept const CustomVar& and args");
         return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
+    template<typename T>
+    [[nodiscard]] forceinline bool IsType() const noexcept
+    {
+        static_assert(std::is_base_of_v<Handler, T>, "type need to inherit from Handler");
+        return dynamic_cast<T*>(Host) != nullptr;
     }
 };
 
@@ -730,6 +738,13 @@ public:
     {
         return TypeData == Type::Var;
     }
+    template<typename T>
+    [[nodiscard]] forceinline bool IsCustomType() const noexcept
+    {
+        static_assert(std::is_base_of_v<CustomVar::Handler, T>, "type need to inherit from Handler");
+        if (!IsCustom()) return false;
+        return GetVar<Type::Var>().IsType<T>();
+    }
     
     [[nodiscard]] forceinline CustomVar& GetCustom() noexcept
     {
@@ -750,10 +765,7 @@ public:
     [[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
                   NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
 
-    [[nodiscard]] forceinline std::u32string_view GetTypeName() const noexcept
-    {
-        return TypeName(TypeData);
-    }
+    [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 MAKE_ENUM_BITFIELD(Arg::Type)
@@ -770,13 +782,20 @@ public:
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view) { return {}; }
     [[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
-    [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return U"{CustmVar}"; }
+    [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return GetTypeName(); }
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
+    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept { return U"CustomVar"; }
 };
 
+[[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
+{
+    if (IsCustom())
+        return GetCustom().Host->GetTypeName();
+    return TypeName(TypeData);
+}
 [[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
 {
-    return GetVar<Type::Var>().Call<&CustomVar::Handler::ConvertToCommon>(type);
+    return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(type);
 }
 
 

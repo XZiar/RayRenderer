@@ -163,6 +163,7 @@
   - [ ] Add member func call for arg by `()`
   - [ ] Design custom type with func-table
   - [ ] Allow fake arg when try to set value of an arg
+  - [ ] Add register-based customvar handler
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

@@ -107,6 +107,7 @@ protected:
     friend ItType;
 public:
     KernelArgStore() : DebugBuffer(0), HasInfo(false), HasDebug(false) {}
+    KernelArgInfo operator[](size_t idx) const noexcept { return GetArgInfo(idx); }
     ItType begin() const noexcept { return { this, 0 }; }
     ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };

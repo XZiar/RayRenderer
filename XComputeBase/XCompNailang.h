@@ -180,7 +180,7 @@ public:
 
 private:
     template<size_t I, size_t N, typename T, typename... Args>
-    static std::pair<size_t, size_t> CreateFrom_(std::array<std::u32string_view, N>& arr, const bool isBody, [[maybe_unused]] T&& arg, Args&&... args)
+    forceinline static std::pair<size_t, size_t> CreateFrom_(std::array<std::u32string_view, N>& arr, const bool isBody, [[maybe_unused]] T&& arg, Args&&... args)
     {
         static_assert(I < N);
         if constexpr (std::is_same_v<std::decay_t<T>, std::nullopt_t>)
@@ -536,12 +536,13 @@ class XCOMPBASAPI GeneralVecRef : public xziar::nailang::CustomVar::Handler
 protected:
     static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray arr);
     static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
-    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
     xziar::nailang::Arg IndexerGetter(const xziar::nailang::CustomVar& var, const xziar::nailang::Arg& idx, const xziar::nailang::RawArg& src) override;
     xziar::nailang::Arg SubfieldGetter(const xziar::nailang::CustomVar& var, std::u32string_view field) override;
     size_t HandleSetter(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime, xziar::nailang::Arg arg) override;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
+    std::u32string_view GetTypeName() noexcept override;
 public:
+    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
     template<typename T>
     static constexpr bool CheckType() noexcept
     {
@@ -561,6 +562,7 @@ class XCOMPBASAPI GeneralVec : public GeneralVecRef
     void IncreaseRef(xziar::nailang::CustomVar& var) noexcept override;
     void DecreaseRef(xziar::nailang::CustomVar& var) noexcept override;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
+    std::u32string_view GetTypeName() noexcept override;
 public:
     static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray::Type type, size_t len);
     template<typename T>

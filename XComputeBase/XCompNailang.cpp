@@ -448,19 +448,17 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
 {
     auto [info, least] = xcomp::ParseVDataType(type);
     if (info.Bit == 0)
-    {
         NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), call);
-        return {};
-    }
     if (info.Dim0 < 2 || info.Dim0 > 4)
-    {
         NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, info.Dim0), call);
-        return {};
-    }
+    const auto argc = call.Args.size();
+    if (argc != 0 && argc != 1 && argc != info.Dim0)
+        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, info.Dim0, argc), call);
+
     VecDataInfo sinfo{ info.Type, info.Bit, 1, 0 };
-#define GENV(vtype, bit, atype)                                                         \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::vtype, bit, 1, 0}):  \
-        return GeneralVec::Create(FixedArray::Type::atype, info.Dim0)
+    auto atype = FixedArray::Type::Any;
+#define GENV(vtype, bit, at) \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::vtype, bit, 1, 0}): atype = FixedArray::Type::at; break;
     switch (static_cast<uint32_t>(sinfo))
     {
     GENV(Unsigned, 8,  U8);
@@ -477,6 +475,29 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
     default: return {};
     }
 #undef GENV
+
+    auto vec = GeneralVec::Create(atype, info.Dim0);
+    if (argc > 0)
+    {
+        auto arr = GeneralVec::ToArray(vec);
+        if (argc == 1)
+        {
+            auto val = EvaluateArg(call.Args[0]);
+            for (uint32_t i = 0; i < info.Dim0; ++i)
+            {
+                arr.Set(i, val);
+            }
+        }
+        else
+        {
+            Expects(argc == info.Dim0);
+            for (uint32_t i = 0; i < argc; ++i)
+            {
+                arr.Set(i, EvaluateArg(call.Args[i]));
+            }
+        }
+    }
+    return vec;
 }
 
 std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
@@ -1021,6 +1042,10 @@ common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) 
     const auto arr = ToArray(var);
     return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
+std::u32string_view GeneralVecRef::GetTypeName() noexcept
+{
+    return U"xcomp::vecref"sv;
+}
 
 
 template<typename T>
@@ -1134,5 +1159,10 @@ common::str::StrVariant<char32_t> GeneralVec::ToString(const CustomVar& var) noe
     const auto arr = ToArray(var);
     return FMTSTR(U"xcomp::vec<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
+std::u32string_view GeneralVec::GetTypeName() noexcept
+{
+    return U"xcomp::vec"sv;
+}
+
 
 }

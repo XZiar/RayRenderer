@@ -37,6 +37,22 @@ NailangCodeException::NailangCodeException(const std::u32string_view msg, detail
 { }
 
 
+std::u32string_view SubQuery::ExpectSubField(size_t idx) const
+{
+    Expects(idx < Queries.size());
+    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
+        COMMON_THROW(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
+    return Queries[idx].GetVar<RawArg::Type::Str>();
+}
+const RawArg& SubQuery::ExpectIndex(size_t idx) const
+{
+    Expects(idx < Queries.size());
+    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
+        COMMON_THROW(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
+    return Queries[idx];
+}
+
+
 std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const
 {
     Expects(subq.Size() > 0);
