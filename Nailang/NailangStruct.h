@@ -22,6 +22,7 @@
 #include "common/EnumEx.hpp"
 #include "common/StrBase.hpp"
 #include "common/StringLinq.hpp"
+#include "common/StringPool.hpp"
 #include "common/SharedString.hpp"
 #ifndef HALF_ENABLE_F16C_INTRINSICS
 #   define HALF_ENABLE_F16C_INTRINSICS __F16C__
@@ -33,6 +34,7 @@
 #include <string_view>
 #include <cstdio>
 #include <optional>
+#include <memory>
 
 
 namespace xziar::nailang
@@ -477,6 +479,7 @@ struct CustomVar
 
 
 struct Arg;
+class NAILANGAPI ArgLocator;
 
 struct FixedArray
 {
@@ -492,6 +495,7 @@ struct FixedArray
     bool IsReadOnly;
     NAILANGAPI Arg Get(size_t idx) const noexcept;
     NAILANGAPI bool Set(size_t idx, Arg val) const noexcept;
+    NAILANGAPI ArgLocator Access(size_t idx) const noexcept;
 #define SPT(type) common::span<type>, common::span<const type>
     using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
         SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
@@ -563,7 +567,6 @@ struct FixedArray
 
 class NAILANGAPI NailangRuntimeBase;
 class NAILANGAPI NailangRuntimeException;
-
 struct Arg
 {
     static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
@@ -764,6 +767,7 @@ public:
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
     [[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
                   NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
+    [[nodiscard]] NAILANGAPI ArgLocator             HandleQuery(SubQuery, NailangRuntimeBase&);
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
@@ -776,15 +780,17 @@ protected:
     static Arg EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg);
     static void HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex);
 public:
-    virtual void IncreaseRef(CustomVar&) noexcept {};
-    virtual void DecreaseRef(CustomVar&) noexcept {};
-    [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&) { return {}; }
-    [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view) { return {}; }
+    virtual void IncreaseRef(CustomVar&) noexcept;
+    virtual void DecreaseRef(CustomVar&) noexcept;
+    [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&);
+    [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
+    [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
-    [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept { return GetTypeName(); }
-    [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept { return {}; }
-    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept { return U"CustomVar"; }
+    [[nodiscard]] virtual bool                   HandleAssign(CustomVar&, Arg);
+    [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept;
+    [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept;
+    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;
 };
 
 [[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
@@ -796,6 +802,86 @@ public:
 [[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
 {
     return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(type);
+}
+
+class NAILANGAPI ArgLocator
+{
+public:
+    enum class LocateFlags : uint16_t 
+    { 
+        Readable = 0b1, NonConst = 0b10, Assignable = 0b110,
+        Empty = 0, ReadOnly = Readable, WriteOnly = NonConst | Assignable,
+        Mutable = Readable | NonConst, ReadWrite = Readable | Assignable
+    };
+    using Getter = std::function<Arg(void)>;
+    using Setter = std::function<bool(Arg)>;
+private:
+    struct GetSet
+    {
+        Getter Get;
+        Setter Set;
+        GetSet(Getter&& getter, Setter&& setter) noexcept : Get(std::move(getter)), Set(std::move(setter))
+        { }
+    };
+    enum class LocateType  : uint16_t { Empty, Arg, Ptr, GetSet };
+    Arg Val;
+    uint32_t Consumed;
+    LocateType Type;
+    LocateFlags Flag;
+    static Arg PointerToVal(const void* ptr) noexcept
+    {
+        if (ptr)
+            return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ptr));
+        else
+            return {};
+    }
+public:
+    ArgLocator() noexcept : Val{}, Consumed(0), Type(LocateType::Empty), Flag(LocateFlags::Empty) 
+    { }
+    ArgLocator(Arg&& arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadOnly) noexcept
+        : Val{ std::move(arg) }, Consumed(consumed), Type(LocateType::Arg), Flag(flag)
+    { }
+    ArgLocator(const Arg* arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadOnly) noexcept :
+        Val(PointerToVal(arg)), Consumed(consumed), Type(arg ? LocateType::Ptr : LocateType::Empty), 
+        Flag(arg ? flag : LocateFlags::Empty)
+    { }
+    ArgLocator(Arg* arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadWrite) noexcept :
+        Val(PointerToVal(arg)), Consumed(consumed), Type(arg ? LocateType::Ptr : LocateType::Empty), 
+        Flag(arg ? flag : LocateFlags::Empty)
+    { }
+    ArgLocator(Getter getter, Setter setter, uint32_t consumed) noexcept;
+    ArgLocator(const ArgLocator&) = delete;
+    ArgLocator(ArgLocator&& arg) noexcept : Val(std::move(arg.Val)), Consumed(arg.Consumed), Type(arg.Type), Flag(arg.Flag)
+    {
+        arg.Type = LocateType::Empty;
+    }
+    ~ArgLocator();
+    ArgLocator& operator=(const ArgLocator&) = delete;
+    ArgLocator& operator=(ArgLocator&&) = delete;
+    explicit constexpr operator bool() const noexcept
+    {
+        return Type != LocateType::Empty;
+    }
+    [[nodiscard]] constexpr bool CanRead()   const noexcept;
+    [[nodiscard]] constexpr bool CanAssign() const noexcept;
+    [[nodiscard]] constexpr bool IsMutable() const noexcept;
+    Arg Get() const;
+    Arg ExtractGet();
+    bool Set(Arg val);
+    [[nodiscard]] ArgLocator HandleQuery(SubQuery, NailangRuntimeBase&);
+};
+MAKE_ENUM_BITFIELD(ArgLocator::LocateFlags)
+[[nodiscard]] inline constexpr bool ArgLocator::CanRead()   const noexcept
+{
+    return HAS_FIELD(Flag, LocateFlags::Readable);
+}
+[[nodiscard]] inline constexpr bool ArgLocator::CanAssign() const noexcept
+{
+    return HAS_FIELD(Flag, LocateFlags::Assignable);
+}
+[[nodiscard]] inline constexpr bool ArgLocator::IsMutable() const noexcept
+{
+    return HAS_FIELD(Flag, LocateFlags::Mutable);
 }
 
 
@@ -1064,5 +1150,139 @@ struct NAILANGAPI Serializer
         return result;
     }
 };
+
+
+class NAILANGAPI AutoVarHandlerBase : public CustomVar::Handler
+{
+protected:
+    struct NAILANGAPI Accessor
+    {
+        union
+        {
+            std::function<CustomVar(void*)> AutoMember;
+            std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> SimpleMember;
+        };
+        bool IsSimple;
+        bool IsConst;
+        Accessor() noexcept;
+        /*Accessor(std::function<CustomVar(void*)> accessor) noexcept;
+        Accessor(std::function<Arg(void*)> getter) noexcept;
+        Accessor(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept;*/
+        Accessor(const Accessor&) = delete;
+        Accessor(Accessor&& other) noexcept;
+        Accessor& operator=(const Accessor&) = delete;
+        Accessor& operator=(Accessor&& other) = delete;
+        Accessor& operator=(std::function<CustomVar(void*)> accessor) noexcept;
+        Accessor& operator=(std::function<Arg(void*)> getter) noexcept;
+        Accessor& operator=(std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> accessor) noexcept;
+        ~Accessor();
+    };
+    class NAILANGAPI AccessorBuilder
+    {
+        Accessor& Host;
+    public:
+        AccessorBuilder& SetConst(bool isConst = true);
+    };
+    std::u32string TypeName;
+    size_t TypeSize;
+    common::HashedStringPool<char32_t> NamePool;
+    std::vector<std::pair<common::StringPiece<char32_t>, Accessor>> MemberList;
+    std::function<void(void*, Arg)> Assigner;
+    AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize);
+    Accessor* FindMember(std::u32string_view name);
+public:
+    enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
+    ~AutoVarHandlerBase();
+    AutoVarHandlerBase(const AutoVarHandlerBase&) = delete;
+    AutoVarHandlerBase(AutoVarHandlerBase&&) = delete;
+    AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
+    AutoVarHandlerBase& operator=(AutoVarHandlerBase&&) = delete;
+
+    //Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override;
+    //Arg SubfieldGetter(const CustomVar& var, std::u32string_view field) override;
+    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override;
+    //size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg val) override;
+    bool HandleAssign(CustomVar& var, Arg val) override;
+    std::u32string_view GetTypeName() noexcept override;
+};
+MAKE_ENUM_BITFIELD(AutoVarHandlerBase::VarFlags)
+
+template<typename T>
+struct AutoVarHandler : public AutoVarHandlerBase
+{
+private:
+    std::vector<std::unique_ptr<AutoVarHandlerBase>> UnnamedHandler;
+public:
+    AutoVarHandler(std::u32string_view typeName) : AutoVarHandlerBase(typeName, sizeof(T)) 
+    { }
+    template<typename U, typename F>
+    forceinline void AddAutoMember(std::u32string_view name, const AutoVarHandler<U>& handler, F&& accessor)
+    {
+        static_assert(std::is_invocable_r_v<U*, F, T&>, "need to return U from T");
+        std::function<CustomVar(void*)>* dst = nullptr;
+        if (dst = FindMember(name); !dst)
+        {
+            const auto piece = NamePool.AllocateString(name);
+            dst = &MemberList.emplace_back(piece, Accessor{}).second;
+        }
+        *dst = [handlerPtr = &handler, accessor = std::move(accessor)](void* ptr) -> CustomVar
+        {
+            auto& parent = *reinterpret_cast<T*>(ptr);
+            using X = std::invoke_result_t<F, T&>;
+            if constexpr (std::is_same_v<std::add_pointer_t<U>, X>)
+            {
+                const auto fieldPtr = reinterpret_cast<uintptr_t>(accessor(parent));
+                return CustomVar{ handlerPtr, static_cast<uint64_t>(fieldPtr), UINT32_MAX, 0 };
+            }
+            else if constexpr (std::is_same_v<common::span<U>, X>)
+            {
+                const auto sp = accessor(parent);
+                const auto elePtr = reinterpret_cast<uintptr_t>(sp.data());
+                Expects(sp.size() < SIZE_MAX);
+                const auto eleNum = static_cast<uint32_t>(sp.size());
+                return CustomVar{ handlerPtr, elePtr, eleNum, 0 };
+            }
+            else
+            {
+                static_assert(!common::AlwaysTrue<X>(), "accessor should accept T& and return U* or span<U>");
+            }
+        };
+    }
+    template<typename F, typename R>
+    forceinline void AddAutoMember(std::u32string_view name, std::u32string_view typeName, F&& accessor, R&& initer)
+    {
+        using U = std::invoke_result_t<F, T&>;
+        static_assert(std::is_invocable_v<R, AutoVarHandler<U>&>, "initer need to accept autohandler of U");
+        auto handler = std::make_unique<AutoVarHandler<U>>(typeName);
+        initer(*handler);
+        AddAutoMember<U, F>(name, *handler, std::move(accessor));
+        UnnamedHandler.push_back(std::move(handler));
+    }
+    CustomVar CreateVar(const T& obj)
+    {
+        const auto ptr     = reinterpret_cast<uintptr_t>(&obj);
+        return { this, ptr, SIZE_MAX, 0 };
+    }
+    CustomVar CreateVar(T& obj)
+    {
+        auto var = CreateVar(const_cast<const T&>(obj));
+        var.Meta2 = common::enum_cast(VarFlags::NonConst);
+        return var;
+    }
+    CustomVar CreateVar(common::span<const T> objs)
+    {
+        Expects(objs.size() < SIZE_MAX);
+        const auto ptr     = reinterpret_cast<uintptr_t>(objs.data());
+        const auto eleNum  = static_cast<uint32_t>(objs.size());
+        return { this, ptr, eleNum, 0 };
+    }
+    CustomVar CreateVar(common::span<T> objs)
+    {
+        auto var = CreateVar(common::span<const T>(objs));
+        var.Meta2 = common::enum_cast(VarFlags::NonConst);
+        return var;
+    }
+};
+
 
 }

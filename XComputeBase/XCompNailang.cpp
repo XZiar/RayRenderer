@@ -283,10 +283,10 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
         const xziar::nailang::LateBindVar var(varName);
         switch (val.index())
         {
-        case 1: *LocateArg(var, true) = std::get<1>(val); break;
-        case 2: *LocateArg(var, true) = std::get<2>(val); break;
-        case 3: *LocateArg(var, true) = std::get<3>(val); break;
-        case 4: *LocateArg(var, true) = common::str::to_u32string(std::get<4>(val), Charset::UTF8); break;
+        case 1: LocateArg(var, true).Set(std::get<1>(val)); break;
+        case 2: LocateArg(var, true).Set(std::get<2>(val)); break;
+        case 3: LocateArg(var, true).Set(std::get<3>(val)); break;
+        case 4: LocateArg(var, true).Set(common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
         case 0:
         default:
             break;

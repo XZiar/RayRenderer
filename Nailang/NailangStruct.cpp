@@ -244,6 +244,97 @@ bool FixedArray::Set(size_t idx, Arg val) const noexcept
 #undef TYPESET
 }
 
+ArgLocator FixedArray::Access(size_t idx) const noexcept
+{
+    using common::str::Charset;
+    using common::str::to_u32string;
+    using std::u32string;
+    using std::u32string_view;
+    using std::u16string;
+    using std::u16string_view;
+    using std::string;
+    using std::string_view;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    using std::u8string;
+    using std::u8string_view;
+#endif
+    Expects(idx < Length);
+#define GetPtr(type) reinterpret_cast<type*>(DataPtr) + idx
+#define RetNum(tenum, type, ttype, func) case Type::tenum: return {                 \
+        [ptr = GetPtr(const type)]() -> Arg { return static_cast<ttype>(*ptr); },   \
+        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)           \
+        {                                                                           \
+            if (const auto real = val.func(); real.has_value())                     \
+            {                                                                       \
+                *ptr = static_cast<type>(real.value());                             \
+                return true;                                                        \
+            }                                                                       \
+            return false;                                                           \
+        }, 1 }
+#define RetStr(tenum, type, ch) case Type::tenum: return {                          \
+        [ptr = GetPtr(const type)]() -> Arg { return to_u32string(*ptr); },         \
+        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)           \
+        {                                                                           \
+            if (const auto real = val.GetStr(); real.has_value())                   \
+            {                                                                       \
+                *ptr = common::str::to_##type(*real, Charset::ch);                  \
+                return true;                                                        \
+            }                                                                       \
+            return false;                                                           \
+        }, 1 }
+#define RetSv(tenum, type, ch) case Type::tenum: return \
+    { [ptr = GetPtr(const type##_view)]() -> Arg { return to_u32string(*ptr); }, {}, 1 }
+
+    switch (ElementType)
+    {
+    RetNum(Bool, bool,             bool,      GetBool);
+    RetNum(U8,   uint8_t,          uint64_t,  GetUint);
+    RetNum(U16,  uint16_t,         uint64_t,  GetUint);
+    RetNum(U32,  uint32_t,         uint64_t,  GetUint);
+    RetNum(U64,  uint64_t,         uint64_t,  GetUint);
+    RetNum(I8,   int8_t,           int64_t,   GetInt);
+    RetNum(I16,  int16_t,          int64_t,   GetInt);
+    RetNum(I32,  int32_t,          int64_t,   GetInt);
+    RetNum(I64,  int64_t,          int64_t,   GetInt);
+    RetNum(F16,  half_float::half, double,    GetFP);
+    RetNum(F32,  float,            double,    GetFP);
+    RetNum(F64,  double,           double,    GetFP);
+    case Type::Sv32:  return 
+        { [ptr = GetPtr(const u32string_view)] () -> Arg { return *ptr; }, {}, 1 };
+    case Type::Str32: return { 
+        [ptr = GetPtr(const u32string)]() -> Arg { return *ptr; },
+        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(u32string)](Arg val)
+        {
+            if (const auto real = val.GetStr(); real.has_value())
+            {
+                *ptr = real.value();
+                return true;
+            }
+            return false;
+        }, 1 };
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    RetStr(Str8,  u8string,   UTF8);
+    RetSv (Sv8,   u8string,   UTF8);
+#else
+    RetStr(Str8, string, UTF8);
+    RetSv (Sv8,  string, UTF8);
+#endif
+    RetStr(Str16, u16string,  UTF16);
+    RetSv (Sv16,  u16string,  UTF16);
+    case Type::Any:
+        if (IsReadOnly)
+            return { GetPtr(const Arg), 1 };
+        else
+            return { GetPtr(Arg), 1 };
+    default: return {};
+    }
+#undef RetSv
+#undef RetStr
+#undef RetNum
+#undef GetPtr
+}
+
+
 FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
 {
 #define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
@@ -472,6 +563,107 @@ std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 }
 
 
+void CustomVar::Handler::IncreaseRef(CustomVar&) noexcept { }
+void CustomVar::Handler::DecreaseRef(CustomVar&) noexcept { }
+Arg CustomVar::Handler::IndexerGetter(const CustomVar&, const Arg&, const RawArg&) 
+{ 
+    return {};
+}
+Arg CustomVar::Handler::SubfieldGetter(const CustomVar&, std::u32string_view)
+{
+    return {};
+}
+bool CustomVar::Handler::HandleAssign(CustomVar&, Arg)
+{
+    return false;
+}
+common::str::StrVariant<char32_t> CustomVar::Handler::ToString(const CustomVar&) noexcept
+{
+    return GetTypeName();
+}
+Arg CustomVar::Handler::ConvertToCommon(const CustomVar&, Arg::Type) noexcept
+{
+    return {};
+}
+std::u32string_view CustomVar::Handler::GetTypeName() noexcept 
+{ 
+    return U"CustomVar"sv;
+}
+
+
+ArgLocator::ArgLocator(Getter getter, Setter setter, uint32_t consumed) noexcept : 
+    Val{}, Consumed(consumed), Type(LocateType::GetSet), Flag(LocateFlags::Empty)
+{
+    if (const bool bg = (bool)getter, bs = (bool)setter; bg == bs)
+        Flag = bg ? LocateFlags::ReadWrite : LocateFlags::Empty;
+    else
+        Flag = bg ? LocateFlags::ReadOnly : LocateFlags::WriteOnly;
+    if (Flag == LocateFlags::Empty)
+        Type = LocateType::Empty;
+    else
+    {
+        auto ptr = new GetSet(std::move(getter), std::move(setter));
+        Val = PointerToVal(ptr);
+    }
+}
+ArgLocator::~ArgLocator()
+{
+    if (Type == LocateType::GetSet)
+    {
+        auto ptr = reinterpret_cast<GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()));
+        delete ptr;
+    }
+}
+Arg ArgLocator::Get() const
+{
+    switch (Type)
+    {
+    case LocateType::Ptr:       return *reinterpret_cast<const Arg*>(static_cast<uintptr_t>(Val.GetUint().value()));
+    case LocateType::GetSet:    return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Get();
+    case LocateType::Arg:       return Val;
+    default:                    return {};
+    }
+}
+Arg ArgLocator::ExtractGet()
+{
+    switch (Type)
+    {
+    case LocateType::Ptr:       return *reinterpret_cast<const Arg*>(static_cast<uintptr_t>(Val.GetUint().value()));
+    case LocateType::GetSet:    return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Get();
+    case LocateType::Arg:       return std::move(Val);
+    default:                    return {};
+    }
+}
+bool ArgLocator::Set(Arg val)
+{
+    switch (Type)
+    {
+    case LocateType::Ptr:
+        *reinterpret_cast<Arg*>(static_cast<uintptr_t>(Val.GetUint().value())) = std::move(val); 
+        return true;
+    case LocateType::GetSet:
+        reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Set(std::move(val));
+        return true;
+    case LocateType::Arg:
+        if (Val.IsCustom())
+            return Val.GetCustom().Call<&CustomVar::Handler::HandleAssign>(std::move(val));
+        return false;
+    default:
+        return false;
+    }
+}
+ArgLocator ArgLocator::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
+{
+    switch (Type)
+    {
+    case LocateType::Ptr:    return reinterpret_cast<Arg*>(static_cast<uintptr_t>(*Val.GetUint()))->HandleQuery(subq, runtime);
+    case LocateType::GetSet: return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(*Val.GetUint()))->Get().HandleQuery(subq, runtime);
+    case LocateType::Arg:    return Val.HandleQuery(subq, runtime);
+    default:                 return {};
+    }
+}
+
+
 void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
 {
     for (size_t i = 0; i < subq.Size(); ++i)
@@ -613,6 +805,88 @@ void Serializer::Stringify(std::u32string& output, const double f64)
 void Serializer::Stringify(std::u32string& output, const bool boolean)
 {
     output.append(boolean ? U"true"sv : U"false"sv);
+}
+
+
+AutoVarHandlerBase::Accessor::Accessor() noexcept :
+    AutoMember{}, IsSimple(false), IsConst(true)
+{ }
+//AutoVarHandlerBase::Accessor::Accessor(std::function<CustomVar(void*)> accessor) noexcept :
+//    AutoMember{ std::move(accessor) }, IsSimple(false), IsAssignable(true)
+//{ }
+//AutoVarHandlerBase::Accessor::Accessor(std::function<Arg(void*)> getter) noexcept :
+//    SimpleMember{ std::move(getter), {} }, IsSimple(true), IsAssignable(false)
+//{ }
+//AutoVarHandlerBase::Accessor::Accessor(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept :
+//    SimpleMember{ std::move(getter), std::move(setter) }, IsSimple(true), IsAssignable(true)
+//{ }
+AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept : 
+    AutoMember{}, IsSimple(other.IsSimple), IsConst(other.IsConst)
+{
+    if (IsSimple)
+    {
+        this->SimpleMember = std::move(other.SimpleMember);
+    }
+    else
+    {
+        this->AutoMember = std::move(other.AutoMember);
+    }
+}
+AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::function<CustomVar(void*)> accessor) noexcept
+{
+    this->AutoMember = std::move(accessor);
+    IsSimple = false;
+    IsConst = true;
+    return *this;
+}
+AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::function<Arg(void*)> getter) noexcept
+{
+    this->SimpleMember = { std::move(getter), {} };
+    IsSimple = true;
+    IsConst = true;
+    return *this;
+}
+AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> accessor) noexcept
+{
+    this->SimpleMember = std::move(accessor);
+    IsSimple = true;
+    IsConst = false;
+    return *this;
+}
+AutoVarHandlerBase::Accessor::~Accessor()
+{ }
+AutoVarHandlerBase::AccessorBuilder& AutoVarHandlerBase::AccessorBuilder::SetConst(bool isConst)
+{
+    if (!isConst && Host.IsSimple && !Host.SimpleMember.second)
+        COMMON_THROW(common::BaseException, u"No setter provided");
+    Host.IsConst = isConst;
+    return *this;
+}
+
+
+AutoVarHandlerBase::AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize) : TypeName(typeName), TypeSize(typeSize)
+{ }
+AutoVarHandlerBase::~AutoVarHandlerBase() { }
+bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
+{
+    if (var.Meta1 < UINT32_MAX) // is array
+        return false;
+    if (!Assigner)
+        return false;
+    const auto ptr = reinterpret_cast<void*>(var.Meta0);
+    Assigner(ptr, std::move(val));
+    return true;
+}
+
+AutoVarHandlerBase::Accessor* AutoVarHandlerBase::FindMember(std::u32string_view name)
+{
+    const common::str::HashedStrView hsv(name);
+    for (auto& [pos, acc] : MemberList)
+    {
+        if (NamePool.GetHashedStr(pos) == hsv)
+            return &acc;
+    }
+    return nullptr;
 }
 
 

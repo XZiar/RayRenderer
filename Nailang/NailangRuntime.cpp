@@ -154,6 +154,64 @@ void Arg::HandleSetter(SubQuery subq, NailangRuntimeBase& runtime, Arg val)
         Serializer::Stringify(subq), GetTypeName()), *this);
 }
 
+ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
+{
+    Expects(subq.Size() > 0);
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleQuery>(subq, runtime);
+    }
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateArg(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
+            return arr.Access(idx);
+        }
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<RawArg::Type::Str>();
+            if (field == U"Length"sv)
+                return { arr.Length, 1u };
+        } break;
+        default: break;
+        }
+        return {};
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateArg(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
+            if (TypeData == Type::U32Str)
+                return { std::u32string(1, str[idx]), 1u };
+            else // (TypeData == Type::U32Sv)
+                return { str.substr(idx, 1), 1u };
+        }
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<RawArg::Type::Str>();
+            if (field == U"Length"sv)
+                return { uint64_t(str.size()), 1u };
+        } break;
+        default: break;
+        }
+        return {};
+    }
+    return {};
+}
+
 
 Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg)
 {
@@ -163,6 +221,31 @@ Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const RawArg& a
 void CustomVar::Handler::HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex)
 {
     runtime.HandleException(ex);
+}
+
+ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
+{
+    Expects(subq.Size() > 0);
+    const auto [type, query] = subq[0];
+    switch (type)
+    {
+    case SubQuery::QueryType::Index:
+    {
+        const auto idx = EvaluateArg(runtime, query);
+        auto result = IndexerGetter(var, idx, &query);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    case SubQuery::QueryType::Sub:
+    {
+        auto field = query.GetVar<RawArg::Type::Str>();
+        auto result = SubfieldGetter(var, field);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    default: break;
+    }
+    return {};
 }
 
 std::pair<Arg, size_t> CustomVar::Handler::HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
@@ -193,6 +276,94 @@ std::pair<Arg, size_t> CustomVar::Handler::HandleGetter(const CustomVar& var, Su
 size_t CustomVar::Handler::HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg)
 {
     return 0;
+}
+
+
+//Arg AutoVarHandlerBase::IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)
+//{
+//    if (var.Meta1 < UINT32_MAX) // is array
+//    {
+//        const auto tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &src);
+//        const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
+//        return CustomVar{ var.Host, ptr, UINT32_MAX, 0 };
+//    }
+//    return {};
+//}
+//
+//Arg AutoVarHandlerBase::SubfieldGetter(const CustomVar& var, std::u32string_view field)
+//{
+//    if (const auto accessor = FindMember(field); accessor)
+//    {
+//        const auto ptr = reinterpret_cast<void*>(var.Meta0);
+//        if (accessor->IsSimple)
+//            return accessor->SimpleMember.first(ptr);
+//        else
+//            return accessor->AutoMember(ptr);
+//    }
+//    return {};
+//}
+
+ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
+{
+    Expects(subq.Size() > 0);
+    const bool nonConst = HAS_FIELD(static_cast<VarFlags>(var.Meta2), VarFlags::NonConst);
+    const auto [type, query] = subq[0];
+    if (var.Meta1 < UINT32_MAX) // is array
+    {
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto idx  = EvaluateArg(runtime, query);
+            const auto tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
+            const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
+            const auto flag = nonConst ? ArgLocator::LocateFlags::ReadWrite : ArgLocator::LocateFlags::ReadOnly;
+            return { CustomVar{ var.Host, ptr, UINT32_MAX, var.Meta2 }, 1, flag };
+        }
+        case SubQuery::QueryType::Sub:
+        {
+            auto field = query.GetVar<RawArg::Type::Str>();
+            if (field == U"Length")
+                return { uint64_t(var.Meta1), 1 };
+        } break;
+        default: break;
+        }
+    }
+    else
+    {
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto idx = EvaluateArg(runtime, query);
+            auto result = IndexerGetter(var, idx, &query);
+            if (!result.IsEmpty())
+                return { std::move(result), 1u };
+        } break;
+        case SubQuery::QueryType::Sub:
+        {
+            auto field = query.GetVar<RawArg::Type::Str>();
+            if (const auto accessor = FindMember(field); accessor)
+            {
+                const auto ptr = reinterpret_cast<void*>(var.Meta0);
+                const auto isConst = !nonConst || accessor->IsConst;
+                if (accessor->IsSimple)
+                    return { [=]() { return accessor->SimpleMember.first(ptr); },
+                    isConst ? ArgLocator::Setter{} : [=](Arg val) { accessor->SimpleMember.second(ptr, std::move(val)); return true; },
+                    1 };
+                else
+                    return { accessor->AutoMember(ptr), 1, isConst ? ArgLocator::LocateFlags::ReadOnly : ArgLocator::LocateFlags::ReadWrite };
+            }
+        } break;
+        default: break;
+        }
+    }
+    return {};
+}
+
+std::u32string_view AutoVarHandlerBase::GetTypeName() noexcept
+{
+    return TypeName;
 }
 
 
@@ -246,24 +417,36 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
     return it->second;
 }
 
-EvaluateContext::ArgGetRet LargeEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
-{
-    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
-        if (!it->second.IsEmpty())
-            return &it->second;
-    return {};
-}
+//EvaluateContext::ArgGetRet LargeEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+//{
+//    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
+//        if (!it->second.IsEmpty())
+//            return &it->second;
+//    return {};
+//}
+//
+//Arg* LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+//{
+//    if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
+//        return &it->second;
+//    if (create)
+//    {
+//        const auto [it, _] = ArgMap.insert_or_assign(std::u32string(var.Name), Arg{});
+//        return &it->second;
+//    }
+//    return nullptr;
+//}
 
-Arg* LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+ArgLocator LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
-        return &it->second;
+        return { &it->second, 0, ArgLocator::LocateFlags::ReadWrite };
     if (create)
-    {
+    { // need create
         const auto [it, _] = ArgMap.insert_or_assign(std::u32string(var.Name), Arg{});
-        return &it->second;
+        return { &it->second, 0, ArgLocator::LocateFlags::WriteOnly };
     }
-    return nullptr;
+    return {};
 }
 
 size_t LargeEvaluateContext::GetArgCount() const noexcept
@@ -304,28 +487,49 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, 0, 0 };
 }
 
-EvaluateContext::ArgGetRet CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
-{
-    const HashedStrView hsv(var.Name);
-    for (const auto& [pos, val] : Args)
-        if (ArgNames.GetHashedStr(pos) == hsv)
-            return val.IsEmpty() ? nullptr : &val;
-    return {};
-}
+//EvaluateContext::ArgGetRet CompactEvaluateContext::LocateArg(const LateBindVar& var) const noexcept
+//{
+//    const HashedStrView hsv(var.Name);
+//    for (const auto& [pos, val] : Args)
+//        if (ArgNames.GetHashedStr(pos) == hsv)
+//            return val.IsEmpty() ? nullptr : &val;
+//    return {};
+//}
+//
+//Arg* CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+//{
+//    const HashedStrView hsv(var.Name);
+//    for (auto& [pos, val] : Args)
+//        if (ArgNames.GetHashedStr(pos) == hsv)
+//            return &val;
+//    if (create)
+//    {
+//        const auto piece = ArgNames.AllocateString(var.Name);
+//        Args.emplace_back(piece, Arg{});
+//        return &Args.back().second;
+//    }
+//    return nullptr;
+//}
 
-Arg* CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+ArgLocator CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
 {
     const HashedStrView hsv(var.Name);
     for (auto& [pos, val] : Args)
         if (ArgNames.GetHashedStr(pos) == hsv)
-            return &val;
+        {
+            if (!val.IsEmpty())
+                return { &val, 0, ArgLocator::LocateFlags::ReadWrite };
+            if (create)
+                return { &val, 0, ArgLocator::LocateFlags::WriteOnly };
+            return {};
+        }
     if (create)
-    {
+    { // need create
         const auto piece = ArgNames.AllocateString(var.Name);
         Args.emplace_back(piece, Arg{});
-        return &Args.back().second;
+        return { &Args.back().second, 0, ArgLocator::LocateFlags::WriteOnly };
     }
-    return nullptr;
+    return {};
 }
 
 size_t CompactEvaluateContext::GetArgCount() const noexcept
@@ -542,6 +746,78 @@ NailangRuntimeBase::FCallHost::~FCallHost()
     Expects(Host.CurFrame->CurFuncCall == &Frame);
     Host.CurFrame->CurFuncCall = Frame.PrevFrame;
 }
+
+
+struct ArgQuery : private ArgLocator
+{
+    template<typename F>
+    static bool LocateWrite(ArgLocator& target, SubQuery query, NailangRuntimeBase& runtime, const F& func)
+    {
+        auto next = target.HandleQuery(query, runtime);
+        if (query.Size() > 1)
+        {
+            auto subq = query.Sub(1);
+            if (!next)
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+                    Serializer::Stringify(subq)));
+            if (!next.IsMutable())
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
+                    Serializer::Stringify(subq)));
+            return LocateWrite(next, subq, runtime, func);
+        }
+        else
+        {
+            return func(std::move(next));
+        }
+    }
+    template<typename T, typename F>
+    static Arg LocateRead(T& target, SubQuery query, NailangRuntimeBase& runtime, const F& func)
+    {
+        auto next = target.HandleQuery(query, runtime);
+        if (query.Size() > 1)
+        {
+            auto subq = query.Sub(1);
+            if (!next)
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+                    Serializer::Stringify(subq)));
+            if (!next.CanRead())
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+                    Serializer::Stringify(subq)));
+            return LocateRead(next, subq, runtime, func);
+        }
+        else
+        {
+            return func(std::move(next));
+        }
+    }
+    template<bool IsWrite, typename F>
+    static auto LocateAndExecute(ArgLocator& target, SubQuery query, NailangRuntimeBase& runtime, const F& func) 
+        -> decltype(func(std::declval<ArgLocator>()))
+    {
+        auto next = target.HandleQuery(query, runtime);
+        if (query.Size() > 1)
+        {
+            auto subq = query.Sub(1);
+            if constexpr (IsWrite)
+            {
+                if (!next.IsMutable())
+                    COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
+                        Serializer::Stringify(subq)));
+            }
+            else
+            {
+                if (!next.CanRead())
+                    COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+                        Serializer::Stringify(subq)));
+            }
+            return LocateAndExecute<IsWrite>(next, subq, runtime, func);
+        }
+        else
+        {
+            return func(std::move(next));
+        }
+    }
+};
 
 
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
@@ -922,7 +1198,7 @@ LateBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u
 //    return RootContext->LocateArg(var);
 //}
 
-Arg* NailangRuntimeBase::LocateArgWrite(const LateBindVar& var, const bool create) const
+ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool create) const
 {
     if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
     {
@@ -936,7 +1212,7 @@ Arg* NailangRuntimeBase::LocateArgWrite(const LateBindVar& var, const bool creat
             NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
         else
             return CurFrame->Context->LocateArg(var, create);
-        return nullptr;
+        return {};
     }
 
     // Try find arg recursively
@@ -944,15 +1220,46 @@ Arg* NailangRuntimeBase::LocateArgWrite(const LateBindVar& var, const bool creat
     {
         if (!frame->Has(FrameFlags::Virtual))
         {
-            const auto ptr = frame->Context->LocateArg(var, create);
-            if (ptr)
-                return ptr;
+            if (auto ret = frame->Context->LocateArg(var, create); ret)
+                return std::move(ret);
         }
         //if (frame->Has(FrameFlags::CallScope))
         //    break; // cannot beyond  
     }
     return RootContext->LocateArg(var, create);
 }
+
+//Arg* NailangRuntimeBase::LocateArgWrite(const LateBindVar& var, const bool create) const
+//{
+//    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
+//    {
+//        return RootContext->LocateArg(var, create);
+//    }
+//    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
+//    {
+//        if (!CurFrame)
+//            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
+//        else if (CurFrame->Has(FrameFlags::Virtual))
+//            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
+//        else
+//            return CurFrame->Context->LocateArg(var, create);
+//        return nullptr;
+//    }
+//
+//    // Try find arg recursively
+//    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+//    {
+//        if (!frame->Has(FrameFlags::Virtual))
+//        {
+//            const auto ptr = frame->Context->LocateArg(var, create);
+//            if (ptr)
+//                return ptr;
+//        }
+//        //if (frame->Has(FrameFlags::CallScope))
+//        //    break; // cannot beyond  
+//    }
+//    return RootContext->LocateArg(var, create);
+//}
 
 void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
 {
@@ -998,58 +1305,35 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
 
 Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
 {
-    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
-        return RootContext->LocateArg(var).Extract();
-    if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
-    {
-        if (!CurFrame)
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
-        else if (CurFrame->Has(FrameFlags::Virtual))
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
-        else
-            return CurFrame->Context->LocateArg(var).Extract();
+    auto ret = LocateArg(var, false);
+    if (!ret)
         return {};
-    }
-
-    // Try find arg recursively
-    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
-    {
-        if (!frame->Has(FrameFlags::Virtual))
-        {
-            if (auto ret = frame->Context->LocateArg(var); ret)
-                return ret.Extract();
-        }
-        //if (frame->Has(FrameFlags::CallScope))
-        //    break; // cannot beyond  
-    }
-    return RootContext->LocateArg(var).Extract();
+    if (!ret.CanRead())
+        NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
+    return ret.ExtractGet();
 }
 bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck)
 {
-    const auto DirectSet = [&](Arg* ptr)
+    const auto DirectSet = [&](auto&& target)
     {
+        if (!target.CanAssign())
+            NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
         if (arg.index() == 0)
-            *ptr = std::move(std::get<0>(arg));
+            return target.Set(std::get<0>(std::move(arg)));
         else
-            *ptr = EvaluateArg(std::get<1>(arg));
+            return target.Set(EvaluateArg(std::get<1>(arg)));
     };
-    if (nilCheck == NilCheck::ReqNull)
+    auto ret = LocateArg(var, false);
+    switch (nilCheck)
     {
+    case NilCheck::ReqNull:
         Expects(subq.Size() == 0);
-        const auto ptr = LocateArgWrite(var, false);
-        if (ptr) // not null, skip
+        if (ret) // not null, skip
             return false;
         else
-        {
-            DirectSet(LocateArgWrite(var, true));
-            return true;
-        }
-    }
-    // check if exists
-    auto ptr = LocateArgWrite(var, false);
-    if (!ptr)
-    {
-        if (nilCheck == NilCheck::ReqNotNull)
+            return DirectSet(LocateArg(var, true));
+    case NilCheck::ReqNotNull:
+        if (!ret)
         {
             std::u16string msg;
             if (subq.Size() > 0)
@@ -1064,16 +1348,18 @@ bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::vari
             NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists{}"sv, var, msg), std::get<1>(arg));
             return false;
         }
-        ptr = LocateArgWrite(var, true);
+        break;
+    default:
+        Expects(subq.Size() == 0);
+        if (!ret)
+            return DirectSet(LocateArg(var, true));
+        break;
     }
-    Expects(ptr);
+    Ensures((bool)ret);
     if (subq.Size() == 0)
-    {
-        DirectSet(ptr);
-        return true;
-    }
-    ptr->HandleSetter(subq, *this, arg.index() == 0 ? std::move(std::get<0>(arg)) : EvaluateArg(std::get<1>(arg)));
-    return true;
+        return DirectSet(std::move(ret));
+
+    return ArgQuery::LocateWrite(ret, subq, *this, DirectSet);
 }
 
 LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
@@ -1287,7 +1573,7 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
     CurFrame->MetaScope = {};
     for (const auto& [varName, rawarg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(call.Args)))
     {
-        *CurFrame->Context->LocateArg(varName, true) = EvaluateArg(rawarg);
+        CurFrame->Context->LocateArg(varName, true).Set(EvaluateArg(rawarg));
     }
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
@@ -1584,7 +1870,18 @@ std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr
 
 std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
 {
+    Expects(expr.Size() > 0);
     auto target = EvaluateArg(expr.Target);
+    try
+    {
+        return ArgQuery::LocateRead(target, expr, *this, [](ArgLocator ret) { return ret.ExtractGet(); });
+    }
+    catch (const NailangRuntimeException& nre)
+    {
+        HandleException(nre);
+        return {};
+    }
+    /*auto target = EvaluateArg(expr.Target);
     for (size_t i = 0; i < expr.Size(); ++i)
     {
         size_t step = 0;
@@ -1601,7 +1898,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
             NLRT_THROW_EX(FMTSTR(u"Fail to evaluate query [{}]"sv, Serializer::Stringify(subq)), target, RawArg{ &expr });
         i += step;
     }
-    return target;
+    return target;*/
 }
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
