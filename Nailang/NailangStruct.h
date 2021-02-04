@@ -481,21 +481,60 @@ struct CustomVar
 struct Arg;
 class NAILANGAPI ArgLocator;
 
-struct FixedArray
+
+struct NativeWrapper
 {
-    enum class Type : uint16_t 
-    { 
-        Any = 0, Bool, 
-        U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64, 
+    enum class Type : uint16_t
+    {
+        Any = 0, Bool,
+        U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64,
         Str8, Str16, Str32, Sv8, Sv16, Sv32
     };
+    NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
+    NAILANGAPI static ArgLocator GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept;
+    template<typename T>
+    static constexpr Type GetType() noexcept
+    {
+#define Ret(native, type) if constexpr (std::is_same_v<T, native>) return Type::type
+             Ret(Arg,                   Any);
+        else Ret(bool,                  Bool);
+        else Ret(uint8_t,               U8);
+        else Ret(int8_t,                I8);
+        else Ret(uint16_t,              U16);
+        else Ret(int16_t,               I16);
+        else Ret(half_float::half,      F16);
+        else Ret(uint32_t,              U32);
+        else Ret(int32_t,               I32);
+        else Ret(float,                 F32);
+        else Ret(uint64_t,              U64);
+        else Ret(int64_t,               I64);
+        else Ret(double,                F64);
+        else Ret(std::string,           Str8);
+        else Ret(std::string_view,      Sv8);
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+        else Ret(std::u8string,         Str8);
+        else Ret(std::u8string_view,    Sv8);
+#endif
+        else Ret(std::u16string,        Str16);
+        else Ret(std::u16string_view,   Sv16);
+        else Ret(std::u32string,        Str32);
+        else Ret(std::u32string_view,   Sv32);
+        else static_assert(!common::AlwaysTrue<T>, "unsupported type");
+#undef Ret
+    }
+};
+
+
+struct FixedArray
+{
+    using Type = NativeWrapper::Type;
     uint64_t DataPtr;
     uint64_t Length;
     Type ElementType;
     bool IsReadOnly;
-    NAILANGAPI Arg Get(size_t idx) const noexcept;
-    NAILANGAPI bool Set(size_t idx, Arg val) const noexcept;
-    NAILANGAPI ArgLocator Access(size_t idx) const noexcept;
+    /*NAILANGAPI Arg Get(size_t idx) const noexcept;
+    NAILANGAPI bool Set(size_t idx, Arg val) const noexcept;*/
+    ArgLocator Access(size_t idx) const noexcept;
 #define SPT(type) common::span<type>, common::span<const type>
     using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
         SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
@@ -504,64 +543,17 @@ struct FixedArray
         SPT(std::string_view), SPT(std::u16string_view), SPT(std::u32string_view)>;
 #undef SPT
     NAILANGAPI SpanVariant GetSpan() const noexcept;
+    NAILANGAPI void PrintToStr(std::u32string& str, std::u32string_view delim) const;
     forceinline std::u32string_view GetElementTypeName() const noexcept
     {
-        return TypeName(ElementType);
+        return NativeWrapper::TypeName(ElementType);
     }
-    NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
     template<typename T>
     static FixedArray Create(common::span<T> elements)
     {
         static constexpr bool IsConst = std::is_const_v<T>;
         using R = std::remove_const_t<T>;
-#define Ret(type) return { reinterpret_cast<uintptr_t>(elements.data()), elements.size(), Type::type, IsConst }
-        if constexpr (std::is_same_v<R, Arg>)
-            Ret(Any);
-        else if constexpr (std::is_same_v<R, bool>)
-            Ret(Bool);
-        else if constexpr (std::is_same_v<R, uint8_t>)
-            Ret(U8);
-        else if constexpr (std::is_same_v<R, int8_t>)
-            Ret(I8);
-        else if constexpr (std::is_same_v<R, uint16_t>)
-            Ret(U16);
-        else if constexpr (std::is_same_v<R, int16_t>)
-            Ret(I16);
-        else if constexpr (std::is_same_v<R, half_float::half>)
-            Ret(F16);
-        else if constexpr (std::is_same_v<R, uint32_t>)
-            Ret(U32);
-        else if constexpr (std::is_same_v<R, int32_t>)
-            Ret(I32);
-        else if constexpr (std::is_same_v<R, float>)
-            Ret(F32);
-        else if constexpr (std::is_same_v<R, uint64_t>)
-            Ret(U64);
-        else if constexpr (std::is_same_v<R, int64_t>)
-            Ret(I64);
-        else if constexpr (std::is_same_v<R, double>)
-            Ret(F64);
-        else if constexpr (std::is_same_v<R, std::string>)
-            Ret(Str8);
-        else if constexpr (std::is_same_v<R, std::string_view>)
-            Ret(Sv8);
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-        else if constexpr (std::is_same_v<R, std::u8string>)
-            Ret(Str8);
-        else if constexpr (std::is_same_v<R, std::u8string_view>)
-            Ret(Sv8);
-#endif
-        else if constexpr (std::is_same_v<R, std::u16string>)
-            Ret(Str16);
-        else if constexpr (std::is_same_v<R, std::u16string_view>)
-            Ret(Sv16);
-        else if constexpr (std::is_same_v<R, std::u32string>)
-            Ret(Str32);
-        else if constexpr (std::is_same_v<R, std::u32string_view>)
-            Ret(Sv32);
-        else
-            static_assert(!common::AlwaysTrue<T>, "unsupported type");
-#undef Ret
+        return { reinterpret_cast<uintptr_t>(elements.data()), elements.size(), NativeWrapper::GetType<R>(), IsConst };
     }
 };
 
@@ -765,8 +757,8 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
-    [[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
-                  NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
+    //[[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
+    //              NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
     [[nodiscard]] NAILANGAPI ArgLocator             HandleQuery(SubQuery, NailangRuntimeBase&);
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
@@ -785,9 +777,9 @@ public:
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
-    [[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
-    [[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
-    [[nodiscard]] virtual bool                   HandleAssign(CustomVar&, Arg);
+    //[[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
+    //[[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
+    [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept;
     [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;
@@ -803,6 +795,12 @@ public:
 {
     return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(type);
 }
+
+
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
 
 class NAILANGAPI ArgLocator
 {
@@ -870,6 +868,11 @@ public:
     bool Set(Arg val);
     [[nodiscard]] ArgLocator HandleQuery(SubQuery, NailangRuntimeBase&);
 };
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 MAKE_ENUM_BITFIELD(ArgLocator::LocateFlags)
 [[nodiscard]] inline constexpr bool ArgLocator::CanRead()   const noexcept
 {
@@ -882,6 +885,13 @@ MAKE_ENUM_BITFIELD(ArgLocator::LocateFlags)
 [[nodiscard]] inline constexpr bool ArgLocator::IsMutable() const noexcept
 {
     return HAS_FIELD(Flag, LocateFlags::Mutable);
+}
+
+
+inline ArgLocator FixedArray::Access(size_t idx) const noexcept
+{
+    Expects(idx < Length);
+    return NativeWrapper::GetLocator(ElementType, DataPtr, IsReadOnly, idx);
 }
 
 
@@ -1152,6 +1162,11 @@ struct NAILANGAPI Serializer
 };
 
 
+#if COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4275 4251)
+#endif
+
 class NAILANGAPI AutoVarHandlerBase : public CustomVar::Handler
 {
 protected:
@@ -1165,23 +1180,20 @@ protected:
         bool IsSimple;
         bool IsConst;
         Accessor() noexcept;
-        /*Accessor(std::function<CustomVar(void*)> accessor) noexcept;
-        Accessor(std::function<Arg(void*)> getter) noexcept;
-        Accessor(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept;*/
         Accessor(const Accessor&) = delete;
         Accessor(Accessor&& other) noexcept;
         Accessor& operator=(const Accessor&) = delete;
         Accessor& operator=(Accessor&& other) = delete;
-        Accessor& operator=(std::function<CustomVar(void*)> accessor) noexcept;
-        Accessor& operator=(std::function<Arg(void*)> getter) noexcept;
-        Accessor& operator=(std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> accessor) noexcept;
+        void SetCustom(std::function<CustomVar(void*)> accessor) noexcept;
+        void SetGetSet(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept;
         ~Accessor();
     };
-    class NAILANGAPI AccessorBuilder
+    class AccessorBuilder
     {
         Accessor& Host;
     public:
-        AccessorBuilder& SetConst(bool isConst = true);
+        constexpr AccessorBuilder(Accessor& host) noexcept : Host(host) {}
+        NAILANGAPI AccessorBuilder& SetConst(bool isConst = true);
     };
     std::u32string TypeName;
     size_t TypeSize;
@@ -1189,7 +1201,7 @@ protected:
     std::vector<std::pair<common::StringPiece<char32_t>, Accessor>> MemberList;
     std::function<void(void*, Arg)> Assigner;
     AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize);
-    Accessor* FindMember(std::u32string_view name);
+    Accessor* FindMember(std::u32string_view name, bool create = false);
 public:
     enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
     ~AutoVarHandlerBase();
@@ -1198,13 +1210,15 @@ public:
     AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
     AutoVarHandlerBase& operator=(AutoVarHandlerBase&&) = delete;
 
-    //Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override;
-    //Arg SubfieldGetter(const CustomVar& var, std::u32string_view field) override;
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override;
-    //size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg val) override;
     bool HandleAssign(CustomVar& var, Arg val) override;
     std::u32string_view GetTypeName() noexcept override;
 };
+
+#if COMPILER_MSVC
+#   pragma warning(pop)
+#endif
+
 MAKE_ENUM_BITFIELD(AutoVarHandlerBase::VarFlags)
 
 template<typename T>
@@ -1216,16 +1230,10 @@ public:
     AutoVarHandler(std::u32string_view typeName) : AutoVarHandlerBase(typeName, sizeof(T)) 
     { }
     template<typename U, typename F>
-    forceinline void AddAutoMember(std::u32string_view name, const AutoVarHandler<U>& handler, F&& accessor)
+    forceinline AccessorBuilder AddAutoMember(std::u32string_view name, AutoVarHandler<U>& handler, F&& accessor)
     {
-        static_assert(std::is_invocable_r_v<U*, F, T&>, "need to return U from T");
-        std::function<CustomVar(void*)>* dst = nullptr;
-        if (dst = FindMember(name); !dst)
-        {
-            const auto piece = NamePool.AllocateString(name);
-            dst = &MemberList.emplace_back(piece, Accessor{}).second;
-        }
-        *dst = [handlerPtr = &handler, accessor = std::move(accessor)](void* ptr) -> CustomVar
+        const auto dst = FindMember(name, true);
+        dst->SetCustom([handlerPtr = &handler, accessor = std::move(accessor)](void* ptr) -> CustomVar
         {
             auto& parent = *reinterpret_cast<T*>(ptr);
             using X = std::invoke_result_t<F, T&>;
@@ -1240,23 +1248,74 @@ public:
                 const auto elePtr = reinterpret_cast<uintptr_t>(sp.data());
                 Expects(sp.size() < SIZE_MAX);
                 const auto eleNum = static_cast<uint32_t>(sp.size());
-                return CustomVar{ handlerPtr, elePtr, eleNum, 0 };
+                return CustomVar{ handlerPtr, static_cast<uint64_t>(elePtr), eleNum, 0 };
             }
             else
             {
                 static_assert(!common::AlwaysTrue<X>(), "accessor should accept T& and return U* or span<U>");
             }
-        };
+        });
+        return *dst;
     }
-    template<typename F, typename R>
-    forceinline void AddAutoMember(std::u32string_view name, std::u32string_view typeName, F&& accessor, R&& initer)
+    template<typename U, typename F, typename R>
+    forceinline AccessorBuilder AddAutoMember(std::u32string_view name, std::u32string_view typeName, F&& accessor, R&& initer)
     {
-        using U = std::invoke_result_t<F, T&>;
-        static_assert(std::is_invocable_v<R, AutoVarHandler<U>&>, "initer need to accept autohandler of U");
-        auto handler = std::make_unique<AutoVarHandler<U>>(typeName);
-        initer(*handler);
-        AddAutoMember<U, F>(name, *handler, std::move(accessor));
-        UnnamedHandler.push_back(std::move(handler));
+        using H = AutoVarHandler<U>;
+        static_assert(std::is_invocable_v<R, H&>, "initer need to accept autohandler of U");
+        UnnamedHandler.push_back(std::make_unique<H>(typeName));
+        auto& handler = *static_cast<H*>(UnnamedHandler.back().get());
+        initer(handler);
+        return AddAutoMember<U, F>(name, handler, std::forward<F>(accessor));
+    }
+    template<typename F>
+    forceinline AccessorBuilder AddCustomMember(std::u32string_view name, F&& accessor)
+    {
+        static_assert(std::is_invocable_r_v<CustomVar, F, T&>, "accessor should accept T& and return CustomVar");
+        const auto dst = FindMember(name, true);
+        dst->SetCustom([accessor = std::move(accessor)](void* ptr) -> CustomVar
+        {
+            auto& parent = *reinterpret_cast<T*>(ptr);
+            return accessor(parent);
+        });
+        return *dst;
+    }
+    template<typename F>
+    forceinline AccessorBuilder AddSimpleMember(std::u32string_view name, F&& accessor)
+    {
+        static_assert(std::is_invocable_v<F, T&>, "accessor should accept T&");
+        using R = std::invoke_result_t<F, T&>;
+        constexpr bool isPtr = std::is_pointer_v<R>;
+        using U = std::remove_pointer_t<R>;
+        constexpr bool isConst = !isPtr || std::is_const_v<U>;
+        const auto dst = FindMember(name, true);
+        dst->SetGetSet([accessor](void* ptr) -> Arg
+        {
+            auto& parent = *reinterpret_cast<T*>(ptr);
+            accessor(parent);
+            return {};
+        }, std::is_const_v<U> ? std::function<void(void*, Arg)>{} : [accessor](void* ptr, Arg val) 
+        {
+
+        });
+        return *dst;
+    }
+    template<typename F>
+    void SetAssigner(F&& assigner)
+    {
+        static_assert(std::is_invocable_r_v<void, F, T&, Arg>, "assigner should accept T&");
+        //using R = std::invoke_result_t<F, T&, Arg>;
+        Assigner = [assigner = std::move(assigner)](void* ptr, Arg val)
+        {
+            auto& host = *reinterpret_cast<T*>(ptr);
+            //if constexpr (std::is_void_v<R>)
+                assigner(host, std::move(val));
+            /*else
+            {
+                const bool ret = assigner(host, std::move(val));
+                if (!ret)
+
+            }*/
+        };
     }
     CustomVar CreateVar(const T& obj)
     {

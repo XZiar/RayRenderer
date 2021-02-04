@@ -11,6 +11,7 @@ namespace oclu
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
+using xziar::nailang::ArgLocator;
 using xziar::nailang::RawArg;
 using xziar::nailang::CustomVar;
 using xziar::nailang::SubQuery;
@@ -21,6 +22,7 @@ using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FrameFlags;
+using xziar::nailang::AutoVarHandler;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
@@ -39,6 +41,35 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 NLCLExtension::NLCLExtension(NLCLContext& context) : xcomp::XCNLExtension(context), Context(context)
 { }
 NLCLExtension::~NLCLExtension() { }
+
+
+struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
+{
+    OCLUVar() : AutoVarHandler<NLCLContext>(U"NLCL"sv)
+    {
+        AddCustomMember(U"WgSize"sv, [](NLCLContext& conf)
+            {
+                return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
+            }).SetConst(false);
+        AddCustomMember(U"LcSize"sv, [](NLCLContext& conf)
+            {
+                return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
+            }).SetConst(false);
+        AddAutoMember<oclDevice_>(U"Dev"sv, U"oclDevice"sv, [](NLCLContext& ctx)
+            {
+                return ctx.Device;
+            }, [](auto& argHandler)
+            {
+                argHandler.AddSimple
+            }).SetConst(false);
+    }
+    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
+    {
+        if (type == Arg::Type::Bool)
+            return true;
+        return {};
+    }
+};
 
 
 struct NLCLContext::OCLUVar : public CustomVar::Handler
@@ -151,11 +182,11 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-NLCLContext::ArgGetRet NLCLContext::LocateArg(const LateBindVar& var) const noexcept
+ArgLocator NLCLContext::LocateArg(const LateBindVar& var, bool create) noexcept
 {
     if (var == U"oclu"sv)
-        return &OCLUArg;
-    return XCNLContext::LocateArg(var);
+        return { &OCLUArg, 0 };
+    return XCNLContext::LocateArg(var, create);
 }
 
 NLCLContext::VecTypeResult NLCLContext::ParseVecType(const std::u32string_view type) const noexcept

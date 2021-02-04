@@ -9,6 +9,8 @@ namespace xcomp
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
+using xziar::nailang::ArgLocator;
+using xziar::nailang::SubQuery;
 using xziar::nailang::RawArg;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
@@ -485,7 +487,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
             auto val = EvaluateArg(call.Args[0]);
             for (uint32_t i = 0; i < info.Dim0; ++i)
             {
-                arr.Set(i, val);
+                arr.Access(i).Set(val);
             }
         }
         else
@@ -493,7 +495,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
             Expects(argc == info.Dim0);
             for (uint32_t i = 0; i < argc; ++i)
             {
-                arr.Set(i, EvaluateArg(call.Args[i]));
+                arr.Access(i).Set(EvaluateArg(call.Args[i]));
             }
         }
     }
@@ -992,54 +994,103 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const FixedArray& arr, std::
     return tidx;
 }
 
-Arg GeneralVecRef::IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)
+//Arg GeneralVecRef::IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)
+//{
+//    const auto arr = ToArray(var);
+//    const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length), idx, &src);
+//    return arr.Get(idx_);
+//}
+//Arg GeneralVecRef::SubfieldGetter(const CustomVar& var, std::u32string_view field)
+//{
+//    const auto arr = ToArray(var);
+//    if (field == U"Length"sv)
+//        return arr.Length;
+//    const size_t tidx = ToIndex(var, arr, field);
+//    return arr.Get(tidx);
+//}
+//size_t GeneralVecRef::HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg arg)
+//{
+//    if (subq.Size() == 1)
+//    {
+//        const auto arr = ToArray(var);
+//        if (arr.IsReadOnly)
+//            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant vecref, with query [{}]"sv,
+//                xziar::nailang::Serializer::Stringify(subq.Sub(0))), var);
+//        const auto [type, query] = subq[0];
+//        size_t tidx = SIZE_MAX;
+//        switch (type)
+//        {
+//        case SubQuery::QueryType::Index:
+//            tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
+//                EvaluateArg(runtime, query), &query);
+//            break;
+//        case SubQuery::QueryType::Sub:
+//            tidx = ToIndex(var, arr, query.GetVar<RawArg::Type::Str>());
+//            break;
+//        default:
+//            return 0;
+//        }
+//        const auto valType = arg.TypeData;
+//        if (const bool suc = arr.Set(tidx, std::move(arg)); !suc)
+//            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to xcomp::vecref<{},{}>"sv,
+//                Arg::TypeName(valType), arr.GetElementTypeName(), arr.Length), var);
+//        return 1;
+//    }
+//    return 0;
+//}
+ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
 {
     const auto arr = ToArray(var);
-    const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length), idx, &src);
-    return arr.Get(idx_);
-}
-Arg GeneralVecRef::SubfieldGetter(const CustomVar& var, std::u32string_view field)
-{
-    const auto arr = ToArray(var);
-    if (field == U"Length"sv)
-        return arr.Length;
-    const size_t tidx = ToIndex(var, arr, field);
-    return arr.Get(tidx);
-}
-size_t GeneralVecRef::HandleSetter(CustomVar& var, xziar::nailang::SubQuery subq, NailangRuntimeBase& runtime, Arg arg)
-{
-    using xziar::nailang::SubQuery;
-    if (subq.Size() == 1)
+    const auto [type, query] = subq[0];
+    size_t tidx = SIZE_MAX;
+    switch (type)
     {
-        const auto arr = ToArray(var);
-        if (arr.IsReadOnly)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant vecref, with query [{}]"sv,
-                xziar::nailang::Serializer::Stringify(subq.Sub(0))), var);
-        const auto [type, query] = subq[0];
-        size_t tidx = SIZE_MAX;
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-            tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
-                EvaluateArg(runtime, query), &query);
-            break;
-        case SubQuery::QueryType::Sub:
-            tidx = ToIndex(var, arr, query.GetVar<RawArg::Type::Str>());
-            break;
-        default:
-            return 0;
-        }
-        const auto valType = arg.TypeData;
-        if (const bool suc = arr.Set(tidx, std::move(arg)); !suc)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to xcomp::vecref<{},{}>"sv,
-                Arg::TypeName(valType), arr.GetElementTypeName(), arr.Length), var);
-        return 1;
+    case SubQuery::QueryType::Index:
+        tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
+            EvaluateArg(runtime, query), &query);
+        break;
+    case SubQuery::QueryType::Sub:
+    {
+        const auto field = query.GetVar<RawArg::Type::Str>();
+        if (field == U"Length"sv)
+            return { arr.Length, 1 };
+        tidx = ToIndex(var, arr, field);
+    } break;
+    default:
+        return {};
     }
-    return 0;
+    return arr.Access(tidx);
+}
+bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
+{
+    const auto arr = ToArray(var);
+    if (arr.IsReadOnly)
+        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant {}"sv, GetExactType(arr)), var);
+    if (arg.IsCustomType<xcomp::GeneralVecRef>())
+    {
+        const auto other = ToArray(arg.GetCustom());
+        if (arr.Length != other.Length)
+            COMMON_THROW(NailangRuntimeException, FMTSTR(u"vecref is assigned with different length, expect [{}] get [{}, {}]",
+                arr.Length, other.GetElementTypeName(), other.Length), var);
+        for (size_t idx = 0; idx < arr.Length; ++idx)
+            arr.Access(idx).Set(other.Access(idx).Get());
+        return true;
+    }
+    if (arg.IsNumber())
+    {
+        for (size_t idx = 0; idx < arr.Length; ++idx)
+            arr.Access(idx).Set(arg);
+        return true;
+    }
+    COMMON_THROW(NailangRuntimeException, FMTSTR(u"vecref can only be set with vecref or single num, get [{}]", arg.GetTypeName()), var);
+    return false;
 }
 common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) noexcept
 {
-    const auto arr = ToArray(var);
+    return GetExactType(ToArray(var));
+}
+std::u32string GeneralVecRef::GetExactType(const xziar::nailang::FixedArray& arr) noexcept
+{
     return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
 std::u32string_view GeneralVecRef::GetTypeName() noexcept

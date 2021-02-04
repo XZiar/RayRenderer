@@ -296,7 +296,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
+    /*Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
     {
         ArrRef(arr, var);
         const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, &src);
@@ -310,7 +310,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
             return static_cast<uint64_t>(arr.Data.size());
         }
         return {};
-    }
+    }*/
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override
     {
         ArrRef(arr, var);
@@ -328,7 +328,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
                 {
                     if (const auto real = val.GetFP(); real.has_value())
                     {
-                        dat[idx] = real.value();
+                        dat[idx] = static_cast<float>(real.value());
                         return true;
                     }
                     return false;
@@ -360,7 +360,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
                     {
                         if (const auto real = val.GetFP(); real.has_value())
                         {
-                            *ptr = real.value();
+                            *ptr = static_cast<float>(real.value());
                             return true;
                         }
                         return false;
@@ -373,7 +373,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         return {};
 
     }
-    size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase&, Arg arg) override
+    /*size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase&, Arg arg) override
     {
         if (subq.Size() == 1)
         {
@@ -393,7 +393,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
             }
         }
         return 0;
-    }
+    }*/
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);

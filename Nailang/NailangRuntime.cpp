@@ -53,106 +53,106 @@ const RawArg& SubQuery::ExpectIndex(size_t idx) const
 }
 
 
-std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const
-{
-    Expects(subq.Size() > 0);
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleGetter>(subq, runtime);
-    }
-    if (IsArray())
-    {
-        const auto arr = GetVar<Type::Array>();
-        const auto [type, query] = subq[0];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = runtime.EvaluateArg(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
-            return { arr.Get(idx), 1u };
-        } break;
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<RawArg::Type::Str>();
-            if (field == U"Length"sv)
-                return { arr.Length, 1u };
-        } break;
-        default: break;
-        }
-    }
-    if (IsStr())
-    {
-        const auto str = GetStr().value();
-        const auto [type, query] = subq[0];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = runtime.EvaluateArg(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
-            return { std::u32string(1, str[idx]), 1u };
-        } break;
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<RawArg::Type::Str>();
-            if (field == U"Length"sv)
-                return { uint64_t(str.size()), 1u };
-        } break;
-        default: break;
-        }
-    }
-    return { {}, 0u };
-}
+//std::pair<Arg, size_t> Arg::HandleGetter(SubQuery subq, NailangRuntimeBase& runtime) const
+//{
+//    Expects(subq.Size() > 0);
+//    if (IsCustom())
+//    {
+//        auto& var = GetCustom();
+//        return var.Call<&CustomVar::Handler::HandleGetter>(subq, runtime);
+//    }
+//    if (IsArray())
+//    {
+//        const auto arr = GetVar<Type::Array>();
+//        const auto [type, query] = subq[0];
+//        switch (type)
+//        {
+//        case SubQuery::QueryType::Index:
+//        {
+//            const auto val = runtime.EvaluateArg(query);
+//            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
+//            return { arr.Get(idx), 1u };
+//        } break;
+//        case SubQuery::QueryType::Sub:
+//        {
+//            const auto field = query.GetVar<RawArg::Type::Str>();
+//            if (field == U"Length"sv)
+//                return { arr.Length, 1u };
+//        } break;
+//        default: break;
+//        }
+//    }
+//    if (IsStr())
+//    {
+//        const auto str = GetStr().value();
+//        const auto [type, query] = subq[0];
+//        switch (type)
+//        {
+//        case SubQuery::QueryType::Index:
+//        {
+//            const auto val = runtime.EvaluateArg(query);
+//            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
+//            return { std::u32string(1, str[idx]), 1u };
+//        } break;
+//        case SubQuery::QueryType::Sub:
+//        {
+//            const auto field = query.GetVar<RawArg::Type::Str>();
+//            if (field == U"Length"sv)
+//                return { uint64_t(str.size()), 1u };
+//        } break;
+//        default: break;
+//        }
+//    }
+//    return { {}, 0u };
+//}
 
-void Arg::HandleSetter(SubQuery subq, NailangRuntimeBase& runtime, Arg val)
-{
-    Expects(subq.Size() > 0);
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        const auto used = var.Call<&CustomVar::Handler::HandleSetter>(subq, runtime, std::move(val));
-        if (used != subq.Size())
-        {
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform query [{}] on Custom type"sv, 
-                Serializer::Stringify(subq.Sub(used))), *this);
-        }
-        return;
-    }
-    if (IsArray())
-    {
-        const auto arr = GetVar<Type::Array>();
-        if (arr.IsReadOnly)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant array, with query [{}]"sv,
-                Serializer::Stringify(subq.Sub(0))), *this);
-        const auto [type, query] = subq[0];
-        if (type != SubQuery::QueryType::Index)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify Array type"sv,
-                Serializer::Stringify(subq.Sub(0))), *this);
-        const auto idx_ = runtime.EvaluateArg(query);
-        const auto idx  = NailangHelper::BiDirIndexCheck(arr.Length, idx_, &query);
-        if (subq.Size() > 1) // has further query
-        {
-            if (arr.ElementType != FixedArray::Type::Any)
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify immutable primitive type of Array"sv,
-                    Serializer::Stringify(subq.Sub(0))), *this);
-            const auto sp = arr.GetSpan();
-            Expects(std::holds_alternative<common::span<Arg>>(sp));
-            std::get<common::span<Arg>>(sp)[idx].HandleSetter(subq.Sub(1), runtime, std::move(val));
-        }
-        else
-        {
-            const auto valType = val.TypeData;
-            if (const bool suc = arr.Set(idx, std::move(val)); !suc)
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to type [{}] of Array"sv,
-                    Arg::TypeName(valType), arr.GetElementTypeName()), *this);
-        }
-        return;
-    }
-    COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot perform query [{}] on type [{}]"sv, 
-        Serializer::Stringify(subq), GetTypeName()), *this);
-}
+//void Arg::HandleSetter(SubQuery subq, NailangRuntimeBase& runtime, Arg val)
+//{
+//    Expects(subq.Size() > 0);
+//    if (IsCustom())
+//    {
+//        auto& var = GetCustom();
+//        const auto used = var.Call<&CustomVar::Handler::HandleSetter>(subq, runtime, std::move(val));
+//        if (used != subq.Size())
+//        {
+//            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform query [{}] on Custom type"sv, 
+//                Serializer::Stringify(subq.Sub(used))), *this);
+//        }
+//        return;
+//    }
+//    if (IsArray())
+//    {
+//        const auto arr = GetVar<Type::Array>();
+//        if (arr.IsReadOnly)
+//            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot modify a constant array, with query [{}]"sv,
+//                Serializer::Stringify(subq.Sub(0))), *this);
+//        const auto [type, query] = subq[0];
+//        if (type != SubQuery::QueryType::Index)
+//            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify Array type"sv,
+//                Serializer::Stringify(subq.Sub(0))), *this);
+//        const auto idx_ = runtime.EvaluateArg(query);
+//        const auto idx  = NailangHelper::BiDirIndexCheck(arr.Length, idx_, &query);
+//        if (subq.Size() > 1) // has further query
+//        {
+//            if (arr.ElementType != FixedArray::Type::Any)
+//                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to perform subfield query [{}] to modify immutable primitive type of Array"sv,
+//                    Serializer::Stringify(subq.Sub(0))), *this);
+//            const auto sp = arr.GetSpan();
+//            Expects(std::holds_alternative<common::span<Arg>>(sp));
+//            std::get<common::span<Arg>>(sp)[idx].HandleSetter(subq.Sub(1), runtime, std::move(val));
+//        }
+//        else
+//        {
+//            const auto valType = val.TypeData;
+//            if (const bool suc = arr.Set(idx, std::move(val)); !suc)
+//                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Failed to set type [{}] to type [{}] of Array"sv,
+//                    Arg::TypeName(valType), arr.GetElementTypeName()), *this);
+//        }
+//        return;
+//    }
+//    COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot perform query [{}] on type [{}]"sv, 
+//        Serializer::Stringify(subq), GetTypeName()), *this);
+//}
 
 ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
 {
@@ -248,60 +248,36 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
     return {};
 }
 
-std::pair<Arg, size_t> CustomVar::Handler::HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
-{
-    Expects(subq.Size() > 0);
-    const auto [type, query] = subq[0];
-    switch (type)
-    {
-    case SubQuery::QueryType::Index:
-    {
-        const auto idx = EvaluateArg(runtime, query);
-        auto result = IndexerGetter(var, idx, &query);
-        if (!result.IsEmpty())
-            return { std::move(result), 1u };
-    } break;
-    case SubQuery::QueryType::Sub:
-    {
-        auto field = query.GetVar<RawArg::Type::Str>();
-        auto result = SubfieldGetter(var, field);
-        if (!result.IsEmpty())
-            return { std::move(result), 1u };
-    } break;
-    default: break;
-    }
-    return { {}, 0u };
-}
-
-size_t CustomVar::Handler::HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg)
-{
-    return 0;
-}
-
-
-//Arg AutoVarHandlerBase::IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src)
+//std::pair<Arg, size_t> CustomVar::Handler::HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
 //{
-//    if (var.Meta1 < UINT32_MAX) // is array
+//    Expects(subq.Size() > 0);
+//    const auto [type, query] = subq[0];
+//    switch (type)
 //    {
-//        const auto tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &src);
-//        const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
-//        return CustomVar{ var.Host, ptr, UINT32_MAX, 0 };
+//    case SubQuery::QueryType::Index:
+//    {
+//        const auto idx = EvaluateArg(runtime, query);
+//        auto result = IndexerGetter(var, idx, &query);
+//        if (!result.IsEmpty())
+//            return { std::move(result), 1u };
+//    } break;
+//    case SubQuery::QueryType::Sub:
+//    {
+//        auto field = query.GetVar<RawArg::Type::Str>();
+//        auto result = SubfieldGetter(var, field);
+//        if (!result.IsEmpty())
+//            return { std::move(result), 1u };
+//    } break;
+//    default: break;
 //    }
-//    return {};
+//    return { {}, 0u };
 //}
-//
-//Arg AutoVarHandlerBase::SubfieldGetter(const CustomVar& var, std::u32string_view field)
+
+//size_t CustomVar::Handler::HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg)
 //{
-//    if (const auto accessor = FindMember(field); accessor)
-//    {
-//        const auto ptr = reinterpret_cast<void*>(var.Meta0);
-//        if (accessor->IsSimple)
-//            return accessor->SimpleMember.first(ptr);
-//        else
-//            return accessor->AutoMember(ptr);
-//    }
-//    return {};
+//    return 0;
 //}
+
 
 ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
 {

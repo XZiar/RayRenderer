@@ -2,6 +2,11 @@
 #include "StringUtil/Format.h"
 #include "StringUtil/Convert.h"
 #include "common/AlignedBase.hpp"
+
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+
 #include <cassert>
 
 namespace xziar::nailang
@@ -122,257 +127,130 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
 }
 
 
-Arg FixedArray::Get(size_t idx) const noexcept
-{
-    Expects(idx < Length);
-#define RET(tenum, type) case Type::tenum: return reinterpret_cast<const type*>(DataPtr)[idx]
-#define RETC(tenum, type, ttype) case Type::tenum: return static_cast<ttype>(reinterpret_cast<const type*>(DataPtr)[idx])
-    switch (ElementType)
-    {
-    RET(Any, Arg);
-    RET(Bool, bool); 
-    RETC(U8, uint8_t, uint64_t);
-    RETC(I8, int8_t, int64_t);
-    RETC(U16, uint16_t, uint64_t);
-    RETC(I16, int16_t, int64_t);
-    RETC(F16, half_float::half, double);
-    RETC(U32, uint32_t, uint64_t);
-    RETC(I32, int32_t, int64_t);
-    RETC(F32, float, double);
-    RET(U64, uint64_t);
-    RET(I64, int64_t);
-    RET(F64, double);
-    //RET(Str8, );
-    //RET(Str16, Arg);
-    //RETC(Str32, );
-    //RET(Sv8, Arg);
-    //RET(Sv16, Arg);
-    RET(Sv32, std::u32string_view);
-    default: return {};
-    }
-#undef RETC
-#undef RET
-}
-
-bool FixedArray::Set(size_t idx, Arg val) const noexcept
-{
-    Expects(!IsReadOnly);
-    Expects(idx < Length);
-    if (val.IsEmpty()) return false;
-#define TYPESET(tenum, type)                                                        \
-    if (ElementType == Type::tenum)                                                 \
-    {                                                                               \
-        reinterpret_cast<type*>(DataPtr)[idx] = static_cast<type>(real.value());    \
-        return true;                                                                \
-    }
-    switch (ElementType)
-    {
-    case Type::Any:
-        reinterpret_cast<Arg*>(DataPtr)[idx] = std::move(val);
-        return true;
-    case Type::Bool:
-        if (const auto real = val.GetBool(); real.has_value())
-        {
-            reinterpret_cast<bool*>(DataPtr)[idx] = real.value();
-            return true;
-        }
-        return false;
-    case Type::U8:
-    case Type::U16:
-    case Type::U32:
-    case Type::U64:
-        if (const auto real = val.GetUint(); real.has_value())
-        {
-            TYPESET(U8,  uint8_t)
-            TYPESET(U16, uint16_t)
-            TYPESET(U32, uint32_t)
-            TYPESET(U64, uint64_t)
-        }
-        return false;
-    case Type::I8:
-    case Type::I16:
-    case Type::I32:
-    case Type::I64:
-        if (const auto real = val.GetInt(); real.has_value())
-        {
-            TYPESET(I8,  int8_t)
-            TYPESET(I16, int16_t)
-            TYPESET(I32, int32_t)
-            TYPESET(I64, int64_t)
-        }
-        return false;
-    case Type::F16:
-    case Type::F32:
-    case Type::F64:
-        if (const auto real = val.GetFP(); real.has_value())
-        {
-            if (ElementType == Type::F16)
-            {
-                reinterpret_cast<half_float::half*>(DataPtr)[idx] = static_cast<float>(real.value());
-                return true;
-            }
-            TYPESET(F32, float)
-            TYPESET(F64, double)
-        }
-        return false;
-    case Type::Str8:
-    case Type::Str16:
-    case Type::Str32:
-        if (const auto real = val.GetStr(); real.has_value())
-        {
-            using namespace common::str;
-            if (ElementType == Type::Str8)
-            {
-                reinterpret_cast<std::string*>(DataPtr)[idx] = common::str::to_string(real.value(), Charset::UTF8);
-                return true;
-            }
-            if (ElementType == Type::Str16)
-            {
-                reinterpret_cast<std::u16string*>(DataPtr)[idx] = common::str::to_u16string(real.value(), Charset::UTF16);
-                return true;
-            }
-            if (ElementType == Type::Str32)
-            {
-                reinterpret_cast<std::u32string*>(DataPtr)[idx].assign(real.value());
-                return true;
-            }
-        }
-        return false;
-    default: 
-        return false;
-    }
-#undef TYPESET
-}
-
-ArgLocator FixedArray::Access(size_t idx) const noexcept
-{
-    using common::str::Charset;
-    using common::str::to_u32string;
-    using std::u32string;
-    using std::u32string_view;
-    using std::u16string;
-    using std::u16string_view;
-    using std::string;
-    using std::string_view;
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    using std::u8string;
-    using std::u8string_view;
-#endif
-    Expects(idx < Length);
-#define GetPtr(type) reinterpret_cast<type*>(DataPtr) + idx
-#define RetNum(tenum, type, ttype, func) case Type::tenum: return {                 \
-        [ptr = GetPtr(const type)]() -> Arg { return static_cast<ttype>(*ptr); },   \
-        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)           \
-        {                                                                           \
-            if (const auto real = val.func(); real.has_value())                     \
-            {                                                                       \
-                *ptr = static_cast<type>(real.value());                             \
-                return true;                                                        \
-            }                                                                       \
-            return false;                                                           \
-        }, 1 }
-#define RetStr(tenum, type, ch) case Type::tenum: return {                          \
-        [ptr = GetPtr(const type)]() -> Arg { return to_u32string(*ptr); },         \
-        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)           \
-        {                                                                           \
-            if (const auto real = val.GetStr(); real.has_value())                   \
-            {                                                                       \
-                *ptr = common::str::to_##type(*real, Charset::ch);                  \
-                return true;                                                        \
-            }                                                                       \
-            return false;                                                           \
-        }, 1 }
-#define RetSv(tenum, type, ch) case Type::tenum: return \
-    { [ptr = GetPtr(const type##_view)]() -> Arg { return to_u32string(*ptr); }, {}, 1 }
-
-    switch (ElementType)
-    {
-    RetNum(Bool, bool,             bool,      GetBool);
-    RetNum(U8,   uint8_t,          uint64_t,  GetUint);
-    RetNum(U16,  uint16_t,         uint64_t,  GetUint);
-    RetNum(U32,  uint32_t,         uint64_t,  GetUint);
-    RetNum(U64,  uint64_t,         uint64_t,  GetUint);
-    RetNum(I8,   int8_t,           int64_t,   GetInt);
-    RetNum(I16,  int16_t,          int64_t,   GetInt);
-    RetNum(I32,  int32_t,          int64_t,   GetInt);
-    RetNum(I64,  int64_t,          int64_t,   GetInt);
-    RetNum(F16,  half_float::half, double,    GetFP);
-    RetNum(F32,  float,            double,    GetFP);
-    RetNum(F64,  double,           double,    GetFP);
-    case Type::Sv32:  return 
-        { [ptr = GetPtr(const u32string_view)] () -> Arg { return *ptr; }, {}, 1 };
-    case Type::Str32: return { 
-        [ptr = GetPtr(const u32string)]() -> Arg { return *ptr; },
-        IsReadOnly ? ArgLocator::Setter{} : [ptr = GetPtr(u32string)](Arg val)
-        {
-            if (const auto real = val.GetStr(); real.has_value())
-            {
-                *ptr = real.value();
-                return true;
-            }
-            return false;
-        }, 1 };
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    RetStr(Str8,  u8string,   UTF8);
-    RetSv (Sv8,   u8string,   UTF8);
-#else
-    RetStr(Str8, string, UTF8);
-    RetSv (Sv8,  string, UTF8);
-#endif
-    RetStr(Str16, u16string,  UTF16);
-    RetSv (Sv16,  u16string,  UTF16);
-    case Type::Any:
-        if (IsReadOnly)
-            return { GetPtr(const Arg), 1 };
-        else
-            return { GetPtr(Arg), 1 };
-    default: return {};
-    }
-#undef RetSv
-#undef RetStr
-#undef RetNum
-#undef GetPtr
-}
+//Arg FixedArray::Get(size_t idx) const noexcept
+//{
+//    Expects(idx < Length);
+//#define RET(tenum, type) case Type::tenum: return reinterpret_cast<const type*>(DataPtr)[idx]
+//#define RETC(tenum, type, ttype) case Type::tenum: return static_cast<ttype>(reinterpret_cast<const type*>(DataPtr)[idx])
+//    switch (ElementType)
+//    {
+//    RET(Any, Arg);
+//    RET(Bool, bool); 
+//    RETC(U8, uint8_t, uint64_t);
+//    RETC(I8, int8_t, int64_t);
+//    RETC(U16, uint16_t, uint64_t);
+//    RETC(I16, int16_t, int64_t);
+//    RETC(F16, half_float::half, double);
+//    RETC(U32, uint32_t, uint64_t);
+//    RETC(I32, int32_t, int64_t);
+//    RETC(F32, float, double);
+//    RET(U64, uint64_t);
+//    RET(I64, int64_t);
+//    RET(F64, double);
+//    //RET(Str8, );
+//    //RET(Str16, Arg);
+//    //RETC(Str32, );
+//    //RET(Sv8, Arg);
+//    //RET(Sv16, Arg);
+//    RET(Sv32, std::u32string_view);
+//    default: return {};
+//    }
+//#undef RETC
+//#undef RET
+//}
+//
+//bool FixedArray::Set(size_t idx, Arg val) const noexcept
+//{
+//    Expects(!IsReadOnly);
+//    Expects(idx < Length);
+//    if (val.IsEmpty()) return false;
+//#define TYPESET(tenum, type)                                                        \
+//    if (ElementType == Type::tenum)                                                 \
+//    {                                                                               \
+//        reinterpret_cast<type*>(DataPtr)[idx] = static_cast<type>(real.value());    \
+//        return true;                                                                \
+//    }
+//    switch (ElementType)
+//    {
+//    case Type::Any:
+//        reinterpret_cast<Arg*>(DataPtr)[idx] = std::move(val);
+//        return true;
+//    case Type::Bool:
+//        if (const auto real = val.GetBool(); real.has_value())
+//        {
+//            reinterpret_cast<bool*>(DataPtr)[idx] = real.value();
+//            return true;
+//        }
+//        return false;
+//    case Type::U8:
+//    case Type::U16:
+//    case Type::U32:
+//    case Type::U64:
+//        if (const auto real = val.GetUint(); real.has_value())
+//        {
+//            TYPESET(U8,  uint8_t)
+//            TYPESET(U16, uint16_t)
+//            TYPESET(U32, uint32_t)
+//            TYPESET(U64, uint64_t)
+//        }
+//        return false;
+//    case Type::I8:
+//    case Type::I16:
+//    case Type::I32:
+//    case Type::I64:
+//        if (const auto real = val.GetInt(); real.has_value())
+//        {
+//            TYPESET(I8,  int8_t)
+//            TYPESET(I16, int16_t)
+//            TYPESET(I32, int32_t)
+//            TYPESET(I64, int64_t)
+//        }
+//        return false;
+//    case Type::F16:
+//    case Type::F32:
+//    case Type::F64:
+//        if (const auto real = val.GetFP(); real.has_value())
+//        {
+//            if (ElementType == Type::F16)
+//            {
+//                reinterpret_cast<half_float::half*>(DataPtr)[idx] = static_cast<float>(real.value());
+//                return true;
+//            }
+//            TYPESET(F32, float)
+//            TYPESET(F64, double)
+//        }
+//        return false;
+//    case Type::Str8:
+//    case Type::Str16:
+//    case Type::Str32:
+//        if (const auto real = val.GetStr(); real.has_value())
+//        {
+//            using namespace common::str;
+//            if (ElementType == Type::Str8)
+//            {
+//                reinterpret_cast<std::string*>(DataPtr)[idx] = common::str::to_string(real.value(), Charset::UTF8);
+//                return true;
+//            }
+//            if (ElementType == Type::Str16)
+//            {
+//                reinterpret_cast<std::u16string*>(DataPtr)[idx] = common::str::to_u16string(real.value(), Charset::UTF16);
+//                return true;
+//            }
+//            if (ElementType == Type::Str32)
+//            {
+//                reinterpret_cast<std::u32string*>(DataPtr)[idx].assign(real.value());
+//                return true;
+//            }
+//        }
+//        return false;
+//    default: 
+//        return false;
+//    }
+//#undef TYPESET
+//}
 
 
-FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
-{
-#define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
-#define RET(tenum, type)            \
-    case Type::tenum:               \
-        if (IsReadOnly)             \
-            return SP(const type);  \
-        else                        \
-            return SP(type)         \
-
-    switch (ElementType)
-    {
-    RET(Any,    Arg);
-    RET(Bool,   bool);
-    RET(U8,     uint8_t);
-    RET(I8,     int8_t);
-    RET(U16,    uint16_t);
-    RET(I16,    int16_t);
-    RET(F16,    half_float::half);
-    RET(U32,    uint32_t);
-    RET(I32,    int32_t);
-    RET(F32,    float);
-    RET(U64,    uint64_t);
-    RET(I64,    int64_t);
-    RET(F64,    double);
-    RET(Str8,   std::string);
-    RET(Str16,  std::u16string);
-    RET(Str32,  std::u32string);
-    RET(Sv8,    std::string_view);
-    RET(Sv16,   std::u16string_view);
-    RET(Sv32,   std::u32string_view);
-    default: return {};
-    }
-#undef RET
-#undef SP
-}
-
-std::u32string_view FixedArray::TypeName(FixedArray::Type type) noexcept
+std::u32string_view NativeWrapper::TypeName(NativeWrapper::Type type) noexcept
 {
 #define RET(tenum) case Type::tenum: return U"" STRINGIZE(tenum) ""sv
     switch (type)
@@ -398,7 +276,167 @@ std::u32string_view FixedArray::TypeName(FixedArray::Type type) noexcept
     RET(Sv32);
     default: return U"Unknown"sv;
     }
+#undef RET
 }
+
+ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx) noexcept
+{
+    using common::str::Charset;
+    using common::str::to_u32string;
+    using std::u32string;
+    using std::u32string_view;
+    using std::u16string;
+    using std::u16string_view;
+    using std::string;
+    using std::string_view;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    using std::u8string;
+    using std::u8string_view;
+#endif
+#define GetPtr(type) reinterpret_cast<type*>(pointer) + idx
+#define RetNum(tenum, type, ttype, func) case Type::tenum: return {                 \
+        [ptr = GetPtr(const type)]() -> Arg { return static_cast<ttype>(*ptr); },   \
+        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)              \
+        {                                                                           \
+            if (const auto real = val.func(); real.has_value())                     \
+            {                                                                       \
+                *ptr = static_cast<type>(real.value());                             \
+                return true;                                                        \
+            }                                                                       \
+            return false;                                                           \
+        }, 1 }
+#define RetStr(tenum, type, ch) case Type::tenum: return {                          \
+        [ptr = GetPtr(const type)]() -> Arg { return to_u32string(*ptr); },         \
+        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)              \
+        {                                                                           \
+            if (const auto real = val.GetStr(); real.has_value())                   \
+            {                                                                       \
+                *ptr = common::str::to_##type(*real, Charset::ch);                  \
+                return true;                                                        \
+            }                                                                       \
+            return false;                                                           \
+        }, 1 }
+#define RetSv(tenum, type, ch) case Type::tenum: return \
+    { [ptr = GetPtr(const type##_view)]() -> Arg { return to_u32string(*ptr); }, {}, 1 }
+
+    switch (type)
+    {
+    RetNum(Bool, bool,             bool,      GetBool);
+    RetNum(U8,   uint8_t,          uint64_t,  GetUint);
+    RetNum(U16,  uint16_t,         uint64_t,  GetUint);
+    RetNum(U32,  uint32_t,         uint64_t,  GetUint);
+    RetNum(U64,  uint64_t,         uint64_t,  GetUint);
+    RetNum(I8,   int8_t,           int64_t,   GetInt);
+    RetNum(I16,  int16_t,          int64_t,   GetInt);
+    RetNum(I32,  int32_t,          int64_t,   GetInt);
+    RetNum(I64,  int64_t,          int64_t,   GetInt);
+    RetNum(F16,  half_float::half, double,    GetFP);
+    RetNum(F32,  float,            double,    GetFP);
+    RetNum(F64,  double,           double,    GetFP);
+    case Type::Sv32:  return 
+        { [ptr = GetPtr(const u32string_view)] () -> Arg { return *ptr; }, {}, 1 };
+    case Type::Str32: return { 
+        [ptr = GetPtr(const u32string)]() -> Arg { return *ptr; },
+        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(u32string)](Arg val)
+        {
+            if (const auto real = val.GetStr(); real.has_value())
+            {
+                *ptr = real.value();
+                return true;
+            }
+            return false;
+        }, 1 };
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    RetStr(Str8,  u8string,   UTF8);
+    RetSv (Sv8,   u8string,   UTF8);
+#else
+    RetStr(Str8, string, UTF8);
+    RetSv (Sv8,  string, UTF8);
+#endif
+    RetStr(Str16, u16string,  UTF16);
+    RetSv (Sv16,  u16string,  UTF16);
+    case Type::Any:
+        if (isConst)
+            return { GetPtr(const Arg), 1 };
+        else
+            return { GetPtr(Arg), 1 };
+    default: return {};
+    }
+#undef RetSv
+#undef RetStr
+#undef RetNum
+#undef GetPtr
+}
+
+
+#define NATIVE_TYPE_MAP BOOST_PP_VARIADIC_TO_SEQ(   \
+    (Any,    Arg),                  \
+    (Bool,   bool),                 \
+    (U8,     uint8_t),              \
+    (I8,     int8_t),               \
+    (U16,    uint16_t),             \
+    (I16,    int16_t),              \
+    (F16,    half_float::half),     \
+    (U32,    uint32_t),             \
+    (I32,    int32_t),              \
+    (F32,    float),                \
+    (U64,    uint64_t),             \
+    (I64,    int64_t),              \
+    (F64,    double),               \
+    (Str8,   std::string),          \
+    (Str16,  std::u16string),       \
+    (Str32,  std::u32string),       \
+    (Sv8,    std::string_view),     \
+    (Sv16,   std::u16string_view),  \
+    (Sv32,   std::u32string_view))
+
+#define NATIVE_TYPE_EACH_(r, func, tp) func(BOOST_PP_TUPLE_ELEM(2, 0, tp), BOOST_PP_TUPLE_ELEM(2, 1, tp))
+#define NATIVE_TYPE_EACH(func) BOOST_PP_SEQ_FOR_EACH(NATIVE_TYPE_EACH_, func, NATIVE_TYPE_MAP)
+
+FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
+{
+#define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
+#define RET(tenum, type) case Type::tenum:      \
+        if (IsReadOnly) return SP(const type);  \
+        else return SP(type);                   \
+
+    switch (ElementType)
+    {
+    NATIVE_TYPE_EACH(RET)
+    default: return {};
+    }
+#undef RET
+#undef SP
+}
+
+void FixedArray::PrintToStr(std::u32string& str, std::u32string_view delim) const
+{
+    constexpr auto Append = [](std::u32string& str, auto delim, auto ptr, const size_t len)
+    {
+        for (uint32_t idx = 0; idx < len; ++idx)
+        {
+            if (idx > 0) str.append(delim);
+            if constexpr (std::is_same_v<const Arg&, decltype(*ptr)>)
+                str.append(ptr[idx].ToString().StrView());
+            else
+                fmt::format_to(std::back_inserter(str), FMT_STRING(U"{}"), ptr[idx]);
+        }
+    };
+#define PRT(tenum, type) case Type::tenum:                              \
+    Append(str, delim, reinterpret_cast<const type*>(DataPtr), Length); \
+    return;
+
+    switch (ElementType)
+    {
+    NATIVE_TYPE_EACH(PRT)
+    default: return;
+    }
+#undef PRT
+}
+
+#undef NATIVE_TYPE_EACH
+#undef NATIVE_TYPE_EACH_
+#undef NATIVE_TYPE_MAP
 
 
 Arg::Arg(const Arg& other) noexcept :
@@ -523,12 +561,13 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
             else if constexpr (std::is_same_v<T, FixedArray>)
             {
                 std::u32string ret = U"[";
-                for (uint64_t i = 0; i < val.Length; ++i)
+                val.PrintToStr(ret, U", "sv);
+                /*for (uint64_t i = 0; i < val.Length; ++i)
                 {
                     if (i > 0)
                         ret.append(U", "sv);
                     ret.append(val.Get(i).ToString().StrView());
-                }
+                }*/
                 ret.append(U"]"sv);
                 return std::move(ret);
             }
@@ -811,15 +850,6 @@ void Serializer::Stringify(std::u32string& output, const bool boolean)
 AutoVarHandlerBase::Accessor::Accessor() noexcept :
     AutoMember{}, IsSimple(false), IsConst(true)
 { }
-//AutoVarHandlerBase::Accessor::Accessor(std::function<CustomVar(void*)> accessor) noexcept :
-//    AutoMember{ std::move(accessor) }, IsSimple(false), IsAssignable(true)
-//{ }
-//AutoVarHandlerBase::Accessor::Accessor(std::function<Arg(void*)> getter) noexcept :
-//    SimpleMember{ std::move(getter), {} }, IsSimple(true), IsAssignable(false)
-//{ }
-//AutoVarHandlerBase::Accessor::Accessor(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept :
-//    SimpleMember{ std::move(getter), std::move(setter) }, IsSimple(true), IsAssignable(true)
-//{ }
 AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept : 
     AutoMember{}, IsSimple(other.IsSimple), IsConst(other.IsConst)
 {
@@ -832,26 +862,17 @@ AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept :
         this->AutoMember = std::move(other.AutoMember);
     }
 }
-AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::function<CustomVar(void*)> accessor) noexcept
+void AutoVarHandlerBase::Accessor::SetCustom(std::function<CustomVar(void*)> accessor) noexcept
 {
-    this->AutoMember = std::move(accessor);
     IsSimple = false;
     IsConst = true;
-    return *this;
+    this->AutoMember = std::move(accessor);
 }
-AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::function<Arg(void*)> getter) noexcept
+void AutoVarHandlerBase::Accessor::SetGetSet(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept
 {
-    this->SimpleMember = { std::move(getter), {} };
     IsSimple = true;
-    IsConst = true;
-    return *this;
-}
-AutoVarHandlerBase::Accessor& AutoVarHandlerBase::Accessor::operator=(std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> accessor) noexcept
-{
-    this->SimpleMember = std::move(accessor);
-    IsSimple = true;
-    IsConst = false;
-    return *this;
+    IsConst = !(bool)setter;
+    this->SimpleMember = std::make_pair(std::move(getter), std::move(setter));
 }
 AutoVarHandlerBase::Accessor::~Accessor()
 { }
@@ -878,13 +899,18 @@ bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
     return true;
 }
 
-AutoVarHandlerBase::Accessor* AutoVarHandlerBase::FindMember(std::u32string_view name)
+AutoVarHandlerBase::Accessor* AutoVarHandlerBase::FindMember(std::u32string_view name, bool create)
 {
     const common::str::HashedStrView hsv(name);
     for (auto& [pos, acc] : MemberList)
     {
         if (NamePool.GetHashedStr(pos) == hsv)
             return &acc;
+    }
+    if (create)
+    {
+        const auto piece = NamePool.AllocateString(name);
+        return &MemberList.emplace_back(piece, Accessor{}).second;
     }
     return nullptr;
 }

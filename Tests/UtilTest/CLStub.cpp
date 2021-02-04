@@ -12,6 +12,7 @@
 #include "common/CharConvs.hpp"
 #include "common/StringEx.hpp"
 #include <iostream>
+#include <mutex>
 
 
 using namespace common;
@@ -36,10 +37,56 @@ static MiniLogger<false>& log()
 namespace
 {
 using namespace xziar::nailang;
+
+struct RunArgInfo
+{
+    enum class ArgType : uint16_t { Buffer, Image, Val8, Val16, Val32, Val64 };
+    ArgFlags Flags;
+    uint32_t Val0;
+    uint32_t Val1;
+    ArgType Type;
+    constexpr RunArgInfo(const ArgFlags& flags) noexcept : Flags(flags), Val0(0), Val1(0), Type([](auto type) 
+            {
+            switch (type)
+            {
+            case KerArgType::Buffer: return ArgType::Buffer;
+            case KerArgType::Image:  return ArgType::Image;
+            case KerArgType::Simple:
+            case KerArgType::Any:
+            default:                 return ArgType::Val32;
+            }
+            }(Flags.ArgType)) 
+    { }
+    constexpr bool CheckType(ArgType type) const noexcept
+    {
+        switch (Flags.ArgType)
+        {
+        case KerArgType::Buffer: return type == ArgType::Buffer;
+        case KerArgType::Image:  return type == ArgType::Image;
+        case KerArgType::Simple: return type != ArgType::Buffer && type != ArgType::Image;
+        case KerArgType::Any:    
+        default:                 return false;
+        }
+    }
+    static constexpr std::u16string_view GetTypeName(const ArgType type) noexcept
+    {
+        switch (type)
+        {
+        case ArgType::Buffer:   return u"Buffer"sv;
+        case ArgType::Image:    return u"Image"sv;
+        case ArgType::Val8:     return u"Val8"sv;
+        case ArgType::Val16:    return u"Val16"sv;
+        case ArgType::Val32:    return u"Val32"sv;
+        case ArgType::Val64:    return u"Val64"sv;
+        default:                return u"unknwon"sv;
+        }
+    }
+};
+
 struct RunConfig 
 {
     oclKernel Kernel;
-    std::vector<std::pair<uint32_t, uint32_t>> Args;
+    std::vector<RunArgInfo> Args;
     std::array<size_t, 3> WgSize;
     std::array<size_t, 3> LcSize;
 };
@@ -48,55 +95,155 @@ struct RunInfo
     std::vector<RunConfig> Configs;
 };
 
-struct RunConfigVar : public CustomVar::Handler
+struct ArgWrapperHandler : public CustomVar::Handler
 {
-    size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg arg) override
+    static ArgWrapperHandler Handler;
+    static CustomVar CreateBuffer(uint32_t size)
     {
-        Expects(subq.Size() > 0);
-        const auto [type, query] = subq[0];
-        if (type != SubQuery::QueryType::Sub) return 0;
-        const auto subf = query.GetVar<RawArg::Type::Str>();
-        auto& config = reinterpret_cast<RunInfo*>(var.Meta0)->Configs[var.Meta2];
-        const auto SetVec3 = [&](auto& dst, std::u16string_view name) -> size_t
-        {
-            if (subq.Size() == 1)
-            {
-                if (!arg.IsCustomType<xcomp::GeneralVecRef>())
-                    COMMON_THROW(NailangRuntimeException, FMTSTR(u"{} can only be set with vec, get [{}]", name, arg.GetTypeName()), var);
-                const auto arr = xcomp::GeneralVecRef::ToArray(arg.GetCustom());
-                dst[0] = arr.Get(0).GetUint().value();
-                dst[1] = arr.Get(1).GetUint().value();
-                dst[2] = arr.Get(2).GetUint().value();
-                return 1;
-            }
-            return 1 + xcomp::GeneralVecRef::Create<size_t>(dst).Call<&CustomVar::Handler::HandleSetter>(subq.Sub(1), runtime, std::move(arg));
-        };
-        if (subf == U"WgSize")
-            return SetVec3(config.WgSize, u"WgSize"sv);
-        if (subf == U"LcSize")
-            return SetVec3(config.WgSize, u"LcSize"sv);
-        if (subf == U"Args")
-        {
-            if (subq.Size() < 2)
-                COMMON_THROW(NailangRuntimeException, u"Field [Args] can not be assigned"sv, var);
-            const auto& idx_ = subq.ExpectIndex(1);
-            const auto idx = NailangHelper::BiDirIndexCheck(config.Args.size(), EvaluateArg(runtime, idx_), &idx_);
-            const auto& argInfo = config.Kernel->ArgStore[idx];
-            /*switch (argInfo.ArgType)
-            {
-                case KerArgType::Buffer
-            }
-            return { std::u32string(1, str[idx]), 1u };*/
-        }
-        return 0;
+        return { &Handler, size, size, common::enum_cast(RunArgInfo::ArgType::Buffer) };
     }
+    static CustomVar CreateImage(uint32_t w, uint32_t h)
+    {
+        return { &Handler, w, h, common::enum_cast(RunArgInfo::ArgType::Image) };
+    }
+    static CustomVar CreateVal8(uint8_t val)
+    {
+        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val8) };
+    }
+    static CustomVar CreateVal16(uint16_t val)
+    {
+        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val16) };
+    }
+    static CustomVar CreateVal32(uint32_t val)
+    {
+        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val32) };
+    }
+    static CustomVar CreateVal64(uint64_t val)
+    {
+        return { &Handler, val >> 32, static_cast<uint32_t>(val & UINT32_MAX), common::enum_cast(RunArgInfo::ArgType::Val64) };
+    }
+};
+ArgWrapperHandler ArgWrapperHandler::Handler;
+
+//const AutoVarHandler<RunConfig>& GetRunConf()
+//{
+//    static AutoVarHandler<RunConfig> Handler(U"RunConfig"sv);
+//    static std::once_flag Flag;
+//    std::call_once(Flag, [&]() 
+//        {
+//            Handler.AddCustomMember(U"WgSize"sv, [](RunConfig& conf) 
+//                {
+//                    return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
+//                }).SetConst(false);
+//            Handler.AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
+//                {
+//                    return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
+//                }).SetConst(false);
+//            Handler.AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
+//                {
+//                    return common::to_span(conf.Args);
+//                }, [](auto& argHandler) 
+//                {
+//                    argHandler.SetAssigner([](auto& arg, Arg val)
+//                    {
+//                        if (!val.IsCustomType<ArgWrapperHandler>())
+//                            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
+//                        const auto& var = val.GetCustom();
+//                        const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
+//                        if (!arg.CheckType(type))
+//                            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]", 
+//                                arg.GetArgTypeName(), RunArgInfo::GetTypeName(type)));
+//                        arg.Val0 = static_cast<uint32_t>(var.Meta0);
+//                        arg.Val1 = static_cast<uint32_t>(var.Meta1);
+//                        arg.Type = type;
+//                    });
+//                }).SetConst(false);
+//        });
+//    return Handler;
+//}
+
+struct RunConfigVar : public AutoVarHandler<RunConfig>
+{
+    RunConfigVar() : AutoVarHandler<RunConfig>(U"RunConfig"sv)
+    {
+        AddCustomMember(U"WgSize"sv, [](RunConfig& conf) 
+            {
+                return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
+            }).SetConst(false);
+        AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
+            {
+                return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
+            }).SetConst(false);
+        AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
+            {
+                return common::to_span(conf.Args);
+            }, [](auto& argHandler) 
+            {
+                argHandler.SetAssigner([](RunArgInfo& arg, Arg val)
+                {
+                    if (!val.IsCustomType<ArgWrapperHandler>())
+                        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
+                    const auto& var = val.GetCustom();
+                    const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
+                    if (!arg.CheckType(type))
+                        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]", 
+                            arg.Flags.GetArgTypeName(), RunArgInfo::GetTypeName(type)));
+                    arg.Val0 = static_cast<uint32_t>(var.Meta0);
+                    arg.Val1 = static_cast<uint32_t>(var.Meta1);
+                    arg.Type = type;
+                });
+            }).SetConst(false);
+    }
+    //size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg arg) override
+    //{
+    //    Expects(subq.Size() > 0);
+    //    const auto [type, query] = subq[0];
+    //    if (type != SubQuery::QueryType::Sub) return 0;
+    //    const auto subf = query.GetVar<RawArg::Type::Str>();
+    //    auto& config = reinterpret_cast<RunInfo*>(var.Meta0)->Configs[var.Meta2];
+    //    const auto SetVec3 = [&](auto& dst, std::u16string_view name) -> size_t
+    //    {
+    //        if (subq.Size() == 1)
+    //        {
+    //            if (!arg.IsCustomType<xcomp::GeneralVecRef>())
+    //                COMMON_THROW(NailangRuntimeException, FMTSTR(u"{} can only be set with vec, get [{}]", name, arg.GetTypeName()), var);
+    //            const auto arr = xcomp::GeneralVecRef::ToArray(arg.GetCustom());
+    //            dst[0] = arr.Get(0).GetUint().value();
+    //            dst[1] = arr.Get(1).GetUint().value();
+    //            dst[2] = arr.Get(2).GetUint().value();
+    //            return 1;
+    //        }
+    //        return 1 + xcomp::GeneralVecRef::Create<size_t>(dst).Call<&CustomVar::Handler::HandleSetter>(subq.Sub(1), runtime, std::move(arg));
+    //    };
+    //    if (subf == U"WgSize")
+    //        return SetVec3(config.WgSize, u"WgSize"sv);
+    //    if (subf == U"LcSize")
+    //        return SetVec3(config.WgSize, u"LcSize"sv);
+    //    if (subf == U"Args")
+    //    {
+    //        if (subq.Size() < 2)
+    //            COMMON_THROW(NailangRuntimeException, u"Field [Args] can not be assigned"sv, var);
+    //        const auto& idx_ = subq.ExpectIndex(1);
+    //        const auto idx = NailangHelper::BiDirIndexCheck(config.Args.size(), EvaluateArg(runtime, idx_), &idx_);
+    //        const auto& argInfo = config.Kernel->ArgStore[idx];
+    //        /*switch (argInfo.ArgType)
+    //        {
+    //            case KerArgType::Buffer
+    //        }
+    //        return { std::u32string(1, str[idx]), 1u };*/
+    //    }
+    //    return 0;
+    //}
     Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
     {
         if (type == Arg::Type::Bool)
             return true;
         return {};
     }
+    static RunConfigVar Handler;
 };
+RunConfigVar RunConfigVar::Handler;
+
 }
 
 
