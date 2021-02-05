@@ -45,23 +45,76 @@ NLCLExtension::~NLCLExtension() { }
 
 struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
 {
+    struct CLExtVar : public CustomVar::Handler
+    {
+        Arg SubfieldGetter(const CustomVar& var, std::u32string_view name) override
+        {
+            const auto& exts = reinterpret_cast<const oclDevice_*>(var.Meta0)->Extensions;
+            if (name == U"Length"sv)
+                return exts.Size();
+            const auto extName = common::str::to_string(name, Charset::UTF8);
+            return exts.Has(extName);
+        }
+        Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
+        {
+            const auto& exts = reinterpret_cast<const oclDevice_*>(var.Meta0)->Extensions;
+            const auto tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(exts.Size(), idx, &src);
+            return common::str::to_u32string(exts[tidx]);
+        }
+        std::u32string_view GetTypeName() noexcept override { return U"OCLUDeviceExtensions"sv; }
+    };
     OCLUVar() : AutoVarHandler<NLCLContext>(U"NLCL"sv)
     {
-        AddCustomMember(U"WgSize"sv, [](NLCLContext& conf)
+        static CLExtVar CLExtVarHandler;
+        AddCustomMember(U"Extension"sv, [](NLCLContext& ctx) -> CustomVar
             {
-                return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
-            }).SetConst(false);
-        AddCustomMember(U"LcSize"sv, [](NLCLContext& conf)
-            {
-                return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
-            }).SetConst(false);
+                return { &CLExtVarHandler, reinterpret_cast<uintptr_t>(ctx.Device), 0, 0 };
+            });
         AddAutoMember<oclDevice_>(U"Dev"sv, U"oclDevice"sv, [](NLCLContext& ctx)
             {
                 return ctx.Device;
             }, [](auto& argHandler)
             {
-                argHandler.AddSimple
-            }).SetConst(false);
+#define MEMBER(name) argHandler.AddSimpleMember(U"" STRINGIZE(name) ""sv, [](oclDevice_& dev) { return dev.name; })
+                MEMBER(LocalMemSize);
+                MEMBER(GlobalMemSize);
+                MEMBER(GlobalCacheSize);
+                MEMBER(GlobalCacheLine);
+                MEMBER(ConstantBufSize);
+                MEMBER(MaxMemAllocSize);
+                MEMBER(ComputeUnits);
+                MEMBER(WaveSize);
+                MEMBER(Version);
+                MEMBER(CVersion);
+                MEMBER(SupportImage);
+                MEMBER(LittleEndian);
+#undef MEMBER
+                argHandler.AddSimpleMember(U"Type"sv, [](oclDevice_& dev) 
+                    { 
+                        switch (dev.Type)
+                        {
+                        case DeviceType::Accelerator:   return U"accelerator"sv;
+                        case DeviceType::CPU:           return U"cpu"sv;
+                        case DeviceType::GPU:           return U"gpu"sv;
+                        case DeviceType::Custom:        return U"custom"sv;
+                        default:                        return U"other"sv;
+                        }
+                    });
+                argHandler.AddSimpleMember(U"Vendor"sv, [](oclDevice_& dev)
+                    {
+                        switch (dev.PlatVendor)
+                        {
+#define U_VENDOR(name) case Vendors::name: return U"" STRINGIZE(name) ""sv
+                        U_VENDOR(AMD);
+                        U_VENDOR(ARM);
+                        U_VENDOR(Intel);
+                        U_VENDOR(NVIDIA);
+                        U_VENDOR(Qualcomm);
+#undef U_VENDOR
+                        default: return U"Other"sv;
+                        }
+                    });
+            });
     }
     Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
     {
@@ -72,94 +125,94 @@ struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
 };
 
 
-struct NLCLContext::OCLUVar : public CustomVar::Handler
-{
-    std::pair<Arg, size_t> HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase&) override
-    {
-        Expects(subq.Size() > 0);
-        const NLCLContext& ctx = *reinterpret_cast<const NLCLContext*>(var.Meta0);
-        const auto ChkSubfield = [&](size_t idx, std::u32string_view name)
-        {
-            const auto [type, query] = subq[idx];
-            return type == SubQuery::QueryType::Sub && query.GetVar<RawArg::Type::Str>() == name;
-        };
-        if (ChkSubfield(0, U"Extension"sv))
-        {
-            if (subq.Size() == 2)
-            {
-                const auto [type, query] = subq[1];
-                if (type == SubQuery::QueryType::Sub)
-                {
-                    const auto extName = common::str::to_string(query.GetVar<RawArg::Type::Str>(), Charset::UTF8, Charset::UTF32);
-                    return { ctx.Device->Extensions.Has(extName), 2 };
-                }
-            }
-            return { {}, 1 };
-        }
-        if (ChkSubfield(0, U"Dev"sv))
-        {
-            if (subq.Size() == 2)
-            {
-                const auto [type, query] = subq[1];
-                if (type != SubQuery::QueryType::Sub)
-                    return { {}, 1 };
-                switch (const auto propName = query.GetVar<RawArg::Type::Str>(); common::DJBHash::HashC(propName))
-                {
-    #define UINT_PROP(name) HashCase(propName, U ## #name) return { static_cast<uint64_t>(ctx.Device->name), 2}
-                UINT_PROP(LocalMemSize);
-                UINT_PROP(GlobalMemSize);
-                UINT_PROP(GlobalCacheSize);
-                UINT_PROP(GlobalCacheLine);
-                UINT_PROP(ConstantBufSize);
-                UINT_PROP(MaxMemAllocSize);
-                UINT_PROP(ComputeUnits);
-                UINT_PROP(WaveSize);
-                UINT_PROP(Version);
-                UINT_PROP(CVersion);
-    #undef UINT_PROP
-    #define BOOL_PROP(name) HashCase(propName, U ## #name) return { static_cast<uint64_t>(ctx.Device->name), 2}
-                BOOL_PROP(SupportImage);
-                BOOL_PROP(LittleEndian);
-    #undef BOOL_PROP
-                HashCase(propName, U"Type")
-                {
-                    switch (ctx.Device->Type)
-                    {
-                    case DeviceType::Accelerator:   return { U"accelerator"sv, 2 };
-                    case DeviceType::CPU:           return { U"cpu"sv, 2 };
-                    case DeviceType::GPU:           return { U"gpu"sv, 2 };
-                    case DeviceType::Custom:        return { U"custom"sv, 2 };
-                    default:                        return { U"other"sv, 2 };
-                    }
-                }
-                HashCase(propName, U"Vendor")
-                {
-                    switch (ctx.Device->PlatVendor)
-                    {
-    #define U_VENDOR(name) case Vendors::name: return { PPCAT(PPCAT(U, STRINGIZE(name)), sv), 2 }
-                    U_VENDOR(AMD);
-                    U_VENDOR(ARM);
-                    U_VENDOR(Intel);
-                    U_VENDOR(NVIDIA);
-                    U_VENDOR(Qualcomm);
-    #undef U_VENDOR
-                    default:    return { U"Other"sv, 2 };
-                    }
-                }
-                default: break;
-                }
-            }
-            return { {}, 0u };
-        }
-        return { {}, 0u };
-    }
-    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override 
-    { 
-        if (type == Arg::Type::Bool)
-            return true;
-        return {};
-    }
-};
+//struct NLCLContext::OCLUVar : public CustomVar::Handler
+//{
+//    std::pair<Arg, size_t> HandleGetter(const CustomVar& var, SubQuery subq, NailangRuntimeBase&) override
+//    {
+//        Expects(subq.Size() > 0);
+//        const NLCLContext& ctx = *reinterpret_cast<const NLCLContext*>(var.Meta0);
+//        const auto ChkSubfield = [&](size_t idx, std::u32string_view name)
+//        {
+//            const auto [type, query] = subq[idx];
+//            return type == SubQuery::QueryType::Sub && query.GetVar<RawArg::Type::Str>() == name;
+//        };
+//        if (ChkSubfield(0, U"Extension"sv))
+//        {
+//            if (subq.Size() == 2)
+//            {
+//                const auto [type, query] = subq[1];
+//                if (type == SubQuery::QueryType::Sub)
+//                {
+//                    const auto extName = common::str::to_string(query.GetVar<RawArg::Type::Str>(), Charset::UTF8, Charset::UTF32);
+//                    return { ctx.Device->Extensions.Has(extName), 2 };
+//                }
+//            }
+//            return { {}, 1 };
+//        }
+//        if (ChkSubfield(0, U"Dev"sv))
+//        {
+//            if (subq.Size() == 2)
+//            {
+//                const auto [type, query] = subq[1];
+//                if (type != SubQuery::QueryType::Sub)
+//                    return { {}, 1 };
+//                switch (const auto propName = query.GetVar<RawArg::Type::Str>(); common::DJBHash::HashC(propName))
+//                {
+//    #define UINT_PROP(name) HashCase(propName, U ## #name) return { static_cast<uint64_t>(ctx.Device->name), 2}
+//                UINT_PROP(LocalMemSize);
+//                UINT_PROP(GlobalMemSize);
+//                UINT_PROP(GlobalCacheSize);
+//                UINT_PROP(GlobalCacheLine);
+//                UINT_PROP(ConstantBufSize);
+//                UINT_PROP(MaxMemAllocSize);
+//                UINT_PROP(ComputeUnits);
+//                UINT_PROP(WaveSize);
+//                UINT_PROP(Version);
+//                UINT_PROP(CVersion);
+//    #undef UINT_PROP
+//    #define BOOL_PROP(name) HashCase(propName, U ## #name) return { static_cast<uint64_t>(ctx.Device->name), 2}
+//                BOOL_PROP(SupportImage);
+//                BOOL_PROP(LittleEndian);
+//    #undef BOOL_PROP
+//                HashCase(propName, U"Type")
+//                {
+//                    switch (ctx.Device->Type)
+//                    {
+//                    case DeviceType::Accelerator:   return { U"accelerator"sv, 2 };
+//                    case DeviceType::CPU:           return { U"cpu"sv, 2 };
+//                    case DeviceType::GPU:           return { U"gpu"sv, 2 };
+//                    case DeviceType::Custom:        return { U"custom"sv, 2 };
+//                    default:                        return { U"other"sv, 2 };
+//                    }
+//                }
+//                HashCase(propName, U"Vendor")
+//                {
+//                    switch (ctx.Device->PlatVendor)
+//                    {
+//    #define U_VENDOR(name) case Vendors::name: return { PPCAT(PPCAT(U, STRINGIZE(name)), sv), 2 }
+//                    U_VENDOR(AMD);
+//                    U_VENDOR(ARM);
+//                    U_VENDOR(Intel);
+//                    U_VENDOR(NVIDIA);
+//                    U_VENDOR(Qualcomm);
+//    #undef U_VENDOR
+//                    default:    return { U"Other"sv, 2 };
+//                    }
+//                }
+//                default: break;
+//                }
+//            }
+//            return { {}, 0u };
+//        }
+//        return { {}, 0u };
+//    }
+//    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override 
+//    { 
+//        if (type == Arg::Type::Bool)
+//            return true;
+//        return {};
+//    }
+//};
 
 
 NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
@@ -177,7 +230,8 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 {
     AllowDebug = info["debug"].has_value();
     static OCLUVar OCLUVarHandler;
-    OCLUArg = CustomVar{ &OCLUVarHandler, reinterpret_cast<uint64_t>(this), 0u, static_cast<uint16_t>(0u) };
+    OCLUArg = OCLUVarHandler.CreateVar(*this);
+    //OCLUArg = CustomVar{ &OCLUVarHandler, reinterpret_cast<uint64_t>(this), 0u, static_cast<uint16_t>(0u) };
 }
 NLCLContext::~NLCLContext()
 { }

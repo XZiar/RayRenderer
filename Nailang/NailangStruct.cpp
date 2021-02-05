@@ -127,248 +127,6 @@ std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
 }
 
 
-//Arg FixedArray::Get(size_t idx) const noexcept
-//{
-//    Expects(idx < Length);
-//#define RET(tenum, type) case Type::tenum: return reinterpret_cast<const type*>(DataPtr)[idx]
-//#define RETC(tenum, type, ttype) case Type::tenum: return static_cast<ttype>(reinterpret_cast<const type*>(DataPtr)[idx])
-//    switch (ElementType)
-//    {
-//    RET(Any, Arg);
-//    RET(Bool, bool); 
-//    RETC(U8, uint8_t, uint64_t);
-//    RETC(I8, int8_t, int64_t);
-//    RETC(U16, uint16_t, uint64_t);
-//    RETC(I16, int16_t, int64_t);
-//    RETC(F16, half_float::half, double);
-//    RETC(U32, uint32_t, uint64_t);
-//    RETC(I32, int32_t, int64_t);
-//    RETC(F32, float, double);
-//    RET(U64, uint64_t);
-//    RET(I64, int64_t);
-//    RET(F64, double);
-//    //RET(Str8, );
-//    //RET(Str16, Arg);
-//    //RETC(Str32, );
-//    //RET(Sv8, Arg);
-//    //RET(Sv16, Arg);
-//    RET(Sv32, std::u32string_view);
-//    default: return {};
-//    }
-//#undef RETC
-//#undef RET
-//}
-//
-//bool FixedArray::Set(size_t idx, Arg val) const noexcept
-//{
-//    Expects(!IsReadOnly);
-//    Expects(idx < Length);
-//    if (val.IsEmpty()) return false;
-//#define TYPESET(tenum, type)                                                        \
-//    if (ElementType == Type::tenum)                                                 \
-//    {                                                                               \
-//        reinterpret_cast<type*>(DataPtr)[idx] = static_cast<type>(real.value());    \
-//        return true;                                                                \
-//    }
-//    switch (ElementType)
-//    {
-//    case Type::Any:
-//        reinterpret_cast<Arg*>(DataPtr)[idx] = std::move(val);
-//        return true;
-//    case Type::Bool:
-//        if (const auto real = val.GetBool(); real.has_value())
-//        {
-//            reinterpret_cast<bool*>(DataPtr)[idx] = real.value();
-//            return true;
-//        }
-//        return false;
-//    case Type::U8:
-//    case Type::U16:
-//    case Type::U32:
-//    case Type::U64:
-//        if (const auto real = val.GetUint(); real.has_value())
-//        {
-//            TYPESET(U8,  uint8_t)
-//            TYPESET(U16, uint16_t)
-//            TYPESET(U32, uint32_t)
-//            TYPESET(U64, uint64_t)
-//        }
-//        return false;
-//    case Type::I8:
-//    case Type::I16:
-//    case Type::I32:
-//    case Type::I64:
-//        if (const auto real = val.GetInt(); real.has_value())
-//        {
-//            TYPESET(I8,  int8_t)
-//            TYPESET(I16, int16_t)
-//            TYPESET(I32, int32_t)
-//            TYPESET(I64, int64_t)
-//        }
-//        return false;
-//    case Type::F16:
-//    case Type::F32:
-//    case Type::F64:
-//        if (const auto real = val.GetFP(); real.has_value())
-//        {
-//            if (ElementType == Type::F16)
-//            {
-//                reinterpret_cast<half_float::half*>(DataPtr)[idx] = static_cast<float>(real.value());
-//                return true;
-//            }
-//            TYPESET(F32, float)
-//            TYPESET(F64, double)
-//        }
-//        return false;
-//    case Type::Str8:
-//    case Type::Str16:
-//    case Type::Str32:
-//        if (const auto real = val.GetStr(); real.has_value())
-//        {
-//            using namespace common::str;
-//            if (ElementType == Type::Str8)
-//            {
-//                reinterpret_cast<std::string*>(DataPtr)[idx] = common::str::to_string(real.value(), Charset::UTF8);
-//                return true;
-//            }
-//            if (ElementType == Type::Str16)
-//            {
-//                reinterpret_cast<std::u16string*>(DataPtr)[idx] = common::str::to_u16string(real.value(), Charset::UTF16);
-//                return true;
-//            }
-//            if (ElementType == Type::Str32)
-//            {
-//                reinterpret_cast<std::u32string*>(DataPtr)[idx].assign(real.value());
-//                return true;
-//            }
-//        }
-//        return false;
-//    default: 
-//        return false;
-//    }
-//#undef TYPESET
-//}
-
-
-std::u32string_view NativeWrapper::TypeName(NativeWrapper::Type type) noexcept
-{
-#define RET(tenum) case Type::tenum: return U"" STRINGIZE(tenum) ""sv
-    switch (type)
-    {
-    RET(Any);
-    RET(Bool);
-    RET(U8);
-    RET(I8);
-    RET(U16);
-    RET(I16);
-    RET(F16);
-    RET(U32);
-    RET(I32);
-    RET(F32);
-    RET(U64);
-    RET(I64);
-    RET(F64);
-    RET(Str8);
-    RET(Str16);
-    RET(Str32);
-    RET(Sv8);
-    RET(Sv16);
-    RET(Sv32);
-    default: return U"Unknown"sv;
-    }
-#undef RET
-}
-
-ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx) noexcept
-{
-    using common::str::Charset;
-    using common::str::to_u32string;
-    using std::u32string;
-    using std::u32string_view;
-    using std::u16string;
-    using std::u16string_view;
-    using std::string;
-    using std::string_view;
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    using std::u8string;
-    using std::u8string_view;
-#endif
-#define GetPtr(type) reinterpret_cast<type*>(pointer) + idx
-#define RetNum(tenum, type, ttype, func) case Type::tenum: return {                 \
-        [ptr = GetPtr(const type)]() -> Arg { return static_cast<ttype>(*ptr); },   \
-        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)              \
-        {                                                                           \
-            if (const auto real = val.func(); real.has_value())                     \
-            {                                                                       \
-                *ptr = static_cast<type>(real.value());                             \
-                return true;                                                        \
-            }                                                                       \
-            return false;                                                           \
-        }, 1 }
-#define RetStr(tenum, type, ch) case Type::tenum: return {                          \
-        [ptr = GetPtr(const type)]() -> Arg { return to_u32string(*ptr); },         \
-        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(type)](Arg val)              \
-        {                                                                           \
-            if (const auto real = val.GetStr(); real.has_value())                   \
-            {                                                                       \
-                *ptr = common::str::to_##type(*real, Charset::ch);                  \
-                return true;                                                        \
-            }                                                                       \
-            return false;                                                           \
-        }, 1 }
-#define RetSv(tenum, type, ch) case Type::tenum: return \
-    { [ptr = GetPtr(const type##_view)]() -> Arg { return to_u32string(*ptr); }, {}, 1 }
-
-    switch (type)
-    {
-    RetNum(Bool, bool,             bool,      GetBool);
-    RetNum(U8,   uint8_t,          uint64_t,  GetUint);
-    RetNum(U16,  uint16_t,         uint64_t,  GetUint);
-    RetNum(U32,  uint32_t,         uint64_t,  GetUint);
-    RetNum(U64,  uint64_t,         uint64_t,  GetUint);
-    RetNum(I8,   int8_t,           int64_t,   GetInt);
-    RetNum(I16,  int16_t,          int64_t,   GetInt);
-    RetNum(I32,  int32_t,          int64_t,   GetInt);
-    RetNum(I64,  int64_t,          int64_t,   GetInt);
-    RetNum(F16,  half_float::half, double,    GetFP);
-    RetNum(F32,  float,            double,    GetFP);
-    RetNum(F64,  double,           double,    GetFP);
-    case Type::Sv32:  return 
-        { [ptr = GetPtr(const u32string_view)] () -> Arg { return *ptr; }, {}, 1 };
-    case Type::Str32: return { 
-        [ptr = GetPtr(const u32string)]() -> Arg { return *ptr; },
-        isConst ? ArgLocator::Setter{} : [ptr = GetPtr(u32string)](Arg val)
-        {
-            if (const auto real = val.GetStr(); real.has_value())
-            {
-                *ptr = real.value();
-                return true;
-            }
-            return false;
-        }, 1 };
-#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-    RetStr(Str8,  u8string,   UTF8);
-    RetSv (Sv8,   u8string,   UTF8);
-#else
-    RetStr(Str8, string, UTF8);
-    RetSv (Sv8,  string, UTF8);
-#endif
-    RetStr(Str16, u16string,  UTF16);
-    RetSv (Sv16,  u16string,  UTF16);
-    case Type::Any:
-        if (isConst)
-            return { GetPtr(const Arg), 1 };
-        else
-            return { GetPtr(Arg), 1 };
-    default: return {};
-    }
-#undef RetSv
-#undef RetStr
-#undef RetNum
-#undef GetPtr
-}
-
-
 #define NATIVE_TYPE_MAP BOOST_PP_VARIADIC_TO_SEQ(   \
     (Any,    Arg),                  \
     (Bool,   bool),                 \
@@ -383,7 +141,7 @@ ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst,
     (U64,    uint64_t),             \
     (I64,    int64_t),              \
     (F64,    double),               \
-    (Str8,   std::string),          \
+    (Str8,   common::str::u8string),\
     (Str16,  std::u16string),       \
     (Str32,  std::u32string),       \
     (Sv8,    std::string_view),     \
@@ -393,12 +151,191 @@ ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst,
 #define NATIVE_TYPE_EACH_(r, func, tp) func(BOOST_PP_TUPLE_ELEM(2, 0, tp), BOOST_PP_TUPLE_ELEM(2, 1, tp))
 #define NATIVE_TYPE_EACH(func) BOOST_PP_SEQ_FOR_EACH(NATIVE_TYPE_EACH_, func, NATIVE_TYPE_MAP)
 
+std::u32string_view NativeWrapper::TypeName(NativeWrapper::Type type) noexcept
+{
+#define RET(tenum, type) case Type::tenum: return U"" STRINGIZE(tenum) ""sv;
+    switch (type)
+    {
+    NATIVE_TYPE_EACH(RET)
+    default: return U"Unknown"sv;
+    }
+#undef RET
+}
+
+template<typename T>
+static Arg NativeGetter(uintptr_t pointer, size_t idx)
+{
+    using common::str::Charset;
+    using U = std::remove_pointer_t<T>;
+    [[maybe_unused]] static constexpr bool ShouldMove = std::is_pointer_v<T>;
+    const auto ptr = reinterpret_cast<U*>(pointer) + idx;
+    if constexpr (std::is_unsigned_v<U>)
+        return static_cast<uint64_t>(*ptr);
+    else if constexpr (std::is_signed_v<U>)
+        return static_cast<int64_t>(*ptr);
+    else if constexpr (std::is_floating_point_v<U> || std::is_same_v<U, half_float::half>)
+        return static_cast<double>(*ptr);
+    else if constexpr (std::is_same_v<U, Arg>)
+    {
+        if constexpr (ShouldMove)
+            return std::move(*ptr);
+        else
+            return *ptr;
+    }
+    else if constexpr (std::is_same_v<U, std::u32string>)
+    {
+        if constexpr (ShouldMove)
+            return *ptr;
+        else
+            return std::u32string_view(*ptr);
+    }
+    else if constexpr (std::is_same_v<U, std::u32string_view>)
+    {
+        if constexpr (ShouldMove)
+            return std::u32string(*ptr);
+        else
+            return *ptr;
+    }
+    else if constexpr (common::is_specialization<U, std::basic_string>::value || common::is_specialization<U, std::basic_string_view>::value)
+    {
+        return common::str::to_u32string(*ptr);
+    }
+    else if constexpr (std::is_same_v<U, bool>)
+        return *ptr;
+    else
+    {
+        Expects(false);
+        return {};
+    }
+}
+NativeWrapper::Getter NativeWrapper::GetGetter(Type type, bool move) noexcept
+{
+#define RET(tenum, type) case Type::tenum: return move ? &NativeGetter<type*> : &NativeGetter<type>;
+
+    switch (type)
+    {
+    NATIVE_TYPE_EACH(RET)
+    default: return nullptr;
+    }
+#undef RET
+}
+
+template<typename T>
+static bool NativeSetter(uintptr_t pointer, size_t idx, Arg arg)
+{
+    using common::str::Charset;
+    [[maybe_unused]] const auto ptr = reinterpret_cast<T*>(pointer) + idx;
+    if constexpr (std::is_same_v<T, Arg>)
+    {
+        *ptr = std::move(arg);
+        return true;
+    }
+    else if constexpr (std::is_unsigned_v<T>)
+    {
+        if (const auto real = arg.GetUint(); real.has_value())
+        {
+            *ptr = static_cast<T>(*real);
+            return true;
+        }
+    }
+    else if constexpr (std::is_signed_v<T>)
+    {
+        if (const auto real = arg.GetInt(); real.has_value())
+        {
+            *ptr = static_cast<T>(*real);
+            return true;
+        }
+    }
+    else if constexpr (std::is_floating_point_v<T>)
+    {
+        if (const auto real = arg.GetFP(); real.has_value())
+        {
+            *ptr = static_cast<T>(*real);
+            return true;
+        }
+    }
+    else if constexpr (std::is_same_v<T, half_float::half>)
+    {
+        if (const auto real = arg.GetFP(); real.has_value())
+        {
+            *ptr = static_cast<T>(static_cast<float>(*real));
+            return true;
+        }
+    }
+    else if constexpr (common::is_specialization<T, std::basic_string>::value)
+    {
+        if (const auto real = arg.GetStr(); real.has_value())
+        {
+            using U = typename T::value_type;
+            if constexpr (std::is_same_v<U, char32_t>)
+                *ptr = *real;
+            else if constexpr (std::is_same_v<U, u8ch_t>)
+                *ptr = common::str::to_u8string(*real);
+            else if constexpr (std::is_same_v<U, char16_t>)
+                *ptr = common::str::to_u16string(*real);
+            else
+                static_assert(!common::AlwaysTrue<T>, "unsupported char type");
+            return true;
+        }
+    }
+    else
+        Expects(false);
+    return false;
+}
+NativeWrapper::Setter NativeWrapper::GetSetter(Type type) noexcept
+{
+#define RET(tenum, type) case Type::tenum: return &NativeSetter<type>;
+
+    switch (type)
+    {
+    NATIVE_TYPE_EACH(RET)
+    default: return nullptr;
+    }
+#undef RET
+}
+
+ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx) noexcept
+{
+    constexpr auto Combine = [](Type type, auto ptr, bool isConst) -> ArgLocator
+    {
+        using T = decltype(*ptr);
+        if constexpr (std::is_same_v<T, Arg>)
+            return { ptr, 1, isConst ? ArgLocator::LocateFlags::ReadOnly : ArgLocator::LocateFlags::ReadWrite };
+        else
+        {
+            const bool noSetter = isConst || common::is_specialization<decltype(*ptr), std::basic_string_view>::value;
+            const auto ptrVal = reinterpret_cast<uintptr_t>(ptr);
+            return
+            {
+                [ptrVal, func = NativeWrapper::GetGetter(type)] () { return func(ptrVal, 0); },
+                noSetter ? ArgLocator::Setter{} :
+                    [ptrVal, func = NativeWrapper::GetSetter(type)] (Arg val) { return func(ptrVal, 0, std::move(val)); },
+                1
+            };
+        }
+    };
+#define RET(tenum, t) case Type::tenum: return Combine(type, reinterpret_cast<t*>(pointer) + idx, isConst);
+
+    switch (type)
+    {
+    NATIVE_TYPE_EACH(RET)
+    default: return {};
+    }
+#undef RET
+}
+
+
+template<typename T> struct U8StrFix { using Type = T; };
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+template<> struct U8StrFix<std::u8string> { using Type = std::string; };
+template<> struct U8StrFix<std::u8string_view> { using Type = std::string_view; };
+#endif
 FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
 {
 #define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
-#define RET(tenum, type) case Type::tenum:      \
-        if (IsReadOnly) return SP(const type);  \
-        else return SP(type);                   \
+#define RET(tenum, type) case Type::tenum:                              \
+        if (IsReadOnly) return SP(const typename U8StrFix<type>::Type); \
+        else return SP(typename U8StrFix<type>::Type);                  \
 
     switch (ElementType)
     {
@@ -562,12 +499,6 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
             {
                 std::u32string ret = U"[";
                 val.PrintToStr(ret, U", "sv);
-                /*for (uint64_t i = 0; i < val.Length; ++i)
-                {
-                    if (i > 0)
-                        ret.append(U", "sv);
-                    ret.append(val.Get(i).ToString().StrView());
-                }*/
                 ret.append(U"]"sv);
                 return std::move(ret);
             }
@@ -851,31 +782,51 @@ AutoVarHandlerBase::Accessor::Accessor() noexcept :
     AutoMember{}, IsSimple(false), IsConst(true)
 { }
 AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept : 
-    AutoMember{}, IsSimple(other.IsSimple), IsConst(other.IsConst)
+    AutoMember{}, IsSimple(false), IsConst(other.IsConst)
 {
-    if (IsSimple)
+    if (other.IsSimple)
     {
-        this->SimpleMember = std::move(other.SimpleMember);
+        Release();
+        IsSimple = true;
+        new (&SimpleMember) TSimp(std::move(other.SimpleMember));
+        //this->SimpleMember = std::move(other.SimpleMember);
     }
     else
     {
-        this->AutoMember = std::move(other.AutoMember);
+        AutoMember = std::move(other.AutoMember);
     }
 }
 void AutoVarHandlerBase::Accessor::SetCustom(std::function<CustomVar(void*)> accessor) noexcept
 {
+    Release();
     IsSimple = false;
     IsConst = true;
-    this->AutoMember = std::move(accessor);
+    new (&AutoMember) TAuto(std::move(accessor));
+    //this->AutoMember = std::move(accessor);
 }
-void AutoVarHandlerBase::Accessor::SetGetSet(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept
+void AutoVarHandlerBase::Accessor::SetGetSet(std::function<Arg(void*)> getter, std::function<bool(void*, Arg)> setter) noexcept
 {
+    Release();
     IsSimple = true;
     IsConst = !(bool)setter;
-    this->SimpleMember = std::make_pair(std::move(getter), std::move(setter));
+    new (&SimpleMember) TSimp(std::move(getter), std::move(setter));
+    //this->SimpleMember = std::make_pair(std::move(getter), std::move(setter));
+}
+void AutoVarHandlerBase::Accessor::Release() noexcept
+{
+    if (IsSimple)
+    {
+        SimpleMember.~SimpleMember();
+    }
+    else
+    {
+        AutoMember.~AutoMember();
+    }
 }
 AutoVarHandlerBase::Accessor::~Accessor()
-{ }
+{
+    Release();
+}
 AutoVarHandlerBase::AccessorBuilder& AutoVarHandlerBase::AccessorBuilder::SetConst(bool isConst)
 {
     if (!isConst && Host.IsSimple && !Host.SimpleMember.second)

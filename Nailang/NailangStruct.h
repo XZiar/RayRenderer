@@ -490,8 +490,12 @@ struct NativeWrapper
         U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64,
         Str8, Str16, Str32, Sv8, Sv16, Sv32
     };
+    using Getter = Arg(*)(uintptr_t pointer, size_t idx);
+    using Setter = bool(*)(uintptr_t pointer, size_t idx, Arg arg);
     NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
     NAILANGAPI static ArgLocator GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept;
+    NAILANGAPI static Getter GetGetter(Type type, bool move = false) noexcept;
+    NAILANGAPI static Setter GetSetter(Type type) noexcept;
     template<typename T>
     static constexpr Type GetType() noexcept
     {
@@ -532,9 +536,9 @@ struct FixedArray
     uint64_t Length;
     Type ElementType;
     bool IsReadOnly;
-    /*NAILANGAPI Arg Get(size_t idx) const noexcept;
-    NAILANGAPI bool Set(size_t idx, Arg val) const noexcept;*/
     ArgLocator Access(size_t idx) const noexcept;
+    Arg Get(size_t idx) const noexcept;
+    bool Set(size_t idx, Arg val) const noexcept;
 #define SPT(type) common::span<type>, common::span<const type>
     using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
         SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
@@ -757,8 +761,6 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
-    //[[nodiscard]] NAILANGAPI std::pair<Arg, size_t> HandleGetter(SubQuery, NailangRuntimeBase&) const;
-    //              NAILANGAPI void                   HandleSetter(SubQuery, NailangRuntimeBase&, Arg);
     [[nodiscard]] NAILANGAPI ArgLocator             HandleQuery(SubQuery, NailangRuntimeBase&);
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
@@ -777,8 +779,6 @@ public:
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
-    //[[nodiscard]] virtual std::pair<Arg, size_t> HandleGetter(const CustomVar&, SubQuery, NailangRuntimeBase&);
-    //[[nodiscard]] virtual size_t                 HandleSetter(CustomVar&, SubQuery, NailangRuntimeBase&, Arg);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept;
@@ -892,6 +892,16 @@ inline ArgLocator FixedArray::Access(size_t idx) const noexcept
 {
     Expects(idx < Length);
     return NativeWrapper::GetLocator(ElementType, DataPtr, IsReadOnly, idx);
+}
+inline Arg FixedArray::Get(size_t idx) const noexcept
+{
+    Expects(idx < Length);
+    return NativeWrapper::GetGetter(ElementType)(static_cast<uintptr_t>(DataPtr), idx);
+}
+inline bool FixedArray::Set(size_t idx, Arg val) const noexcept
+{
+    Expects(idx < Length);
+    return NativeWrapper::GetSetter(ElementType)(static_cast<uintptr_t>(DataPtr), idx, std::move(val));
 }
 
 
@@ -1172,10 +1182,12 @@ class NAILANGAPI AutoVarHandlerBase : public CustomVar::Handler
 protected:
     struct NAILANGAPI Accessor
     {
+        using TAuto = std::function<CustomVar(void*)>;
+        using TSimp = std::pair<std::function<Arg(void*)>, std::function<bool(void*, Arg)>>;
         union
         {
-            std::function<CustomVar(void*)> AutoMember;
-            std::pair<std::function<Arg(void*)>, std::function<void(void*, Arg)>> SimpleMember;
+            TAuto AutoMember;
+            TSimp SimpleMember;
         };
         bool IsSimple;
         bool IsConst;
@@ -1185,7 +1197,8 @@ protected:
         Accessor& operator=(const Accessor&) = delete;
         Accessor& operator=(Accessor&& other) = delete;
         void SetCustom(std::function<CustomVar(void*)> accessor) noexcept;
-        void SetGetSet(std::function<Arg(void*)> getter, std::function<void(void*, Arg)> setter) noexcept;
+        void SetGetSet(std::function<Arg(void*)> getter, std::function<bool(void*, Arg)> setter) noexcept;
+        void Release() noexcept;
         ~Accessor();
     };
     class AccessorBuilder
@@ -1202,6 +1215,11 @@ protected:
     std::function<void(void*, Arg)> Assigner;
     AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize);
     Accessor* FindMember(std::u32string_view name, bool create = false);
+    template<typename T>
+    static constexpr auto GetFlag() noexcept
+    {
+        return common::enum_cast(std::is_const_v<T> ? VarFlags::Empty : VarFlags::NonConst);
+    }
 public:
     enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
     ~AutoVarHandlerBase();
@@ -1237,22 +1255,24 @@ public:
         {
             auto& parent = *reinterpret_cast<T*>(ptr);
             using X = std::invoke_result_t<F, T&>;
-            if constexpr (std::is_same_v<std::add_pointer_t<U>, X>)
+            if constexpr (std::is_same_v<X, U*> || std::is_same_v<X, const U*>)
             {
+                static constexpr auto Flag = AutoVarHandlerBase::GetFlag<std::remove_pointer_t<X>>();
                 const auto fieldPtr = reinterpret_cast<uintptr_t>(accessor(parent));
-                return CustomVar{ handlerPtr, static_cast<uint64_t>(fieldPtr), UINT32_MAX, 0 };
+                return CustomVar{ handlerPtr, static_cast<uint64_t>(fieldPtr), UINT32_MAX, Flag };
             }
-            else if constexpr (std::is_same_v<common::span<U>, X>)
+            else if constexpr (std::is_same_v<X, common::span<U>> || std::is_same_v<X, common::span<const U>>)
             {
+                static constexpr auto Flag = AutoVarHandlerBase::GetFlag<typename X::value_type>();
                 const auto sp = accessor(parent);
                 const auto elePtr = reinterpret_cast<uintptr_t>(sp.data());
                 Expects(sp.size() < SIZE_MAX);
                 const auto eleNum = static_cast<uint32_t>(sp.size());
-                return CustomVar{ handlerPtr, static_cast<uint64_t>(elePtr), eleNum, 0 };
+                return CustomVar{ handlerPtr, static_cast<uint64_t>(elePtr), eleNum, Flag };
             }
             else
             {
-                static_assert(!common::AlwaysTrue<X>(), "accessor should accept T& and return U* or span<U>");
+                static_assert(!common::AlwaysTrue<X>, "accessor should accept T& and return U* or span<U>");
             }
         });
         return *dst;
@@ -1284,18 +1304,38 @@ public:
     {
         static_assert(std::is_invocable_v<F, T&>, "accessor should accept T&");
         using R = std::invoke_result_t<F, T&>;
-        constexpr bool isPtr = std::is_pointer_v<R>;
+        static constexpr bool IsPtr = std::is_pointer_v<R>;
         using U = std::remove_pointer_t<R>;
-        constexpr bool isConst = !isPtr || std::is_const_v<U>;
+        static constexpr bool IsConst = !IsPtr || std::is_const_v<U>;
+        static constexpr auto Type = NativeWrapper::GetType<std::remove_const_t<U>>();
+        const auto getter = NativeWrapper::GetGetter(Type, !IsPtr);
+        const auto setter = NativeWrapper::GetSetter(Type);
+
         const auto dst = FindMember(name, true);
-        dst->SetGetSet([accessor](void* ptr) -> Arg
+        dst->SetGetSet([accessor, getter](void* ptr) -> Arg
         {
             auto& parent = *reinterpret_cast<T*>(ptr);
-            accessor(parent);
-            return {};
-        }, std::is_const_v<U> ? std::function<void(void*, Arg)>{} : [accessor](void* ptr, Arg val) 
+            if constexpr (IsPtr)
+            {
+                return getter(reinterpret_cast<uintptr_t>(accessor(parent)), 0);
+            }
+            else
+            {
+                auto tmp = accessor(parent);
+                return getter(reinterpret_cast<uintptr_t>(&tmp), 0);
+            }
+        }, IsConst ? std::function<bool(void*, Arg)>{} : 
+            [accessor, setter]([[maybe_unused]]void* ptr, [[maybe_unused]] Arg val)
         {
-
+            if constexpr (IsPtr)
+            {
+                auto& parent = *reinterpret_cast<T*>(ptr);
+                return setter(reinterpret_cast<uintptr_t>(accessor(parent)), 0, std::move(val));
+            }
+            else
+            {
+                return false;
+            }
         });
         return *dst;
     }
@@ -1320,7 +1360,7 @@ public:
     CustomVar CreateVar(const T& obj)
     {
         const auto ptr     = reinterpret_cast<uintptr_t>(&obj);
-        return { this, ptr, SIZE_MAX, 0 };
+        return { this, ptr, UINT32_MAX, 0 };
     }
     CustomVar CreateVar(T& obj)
     {
@@ -1330,7 +1370,7 @@ public:
     }
     CustomVar CreateVar(common::span<const T> objs)
     {
-        Expects(objs.size() < SIZE_MAX);
+        Expects(objs.size() < UINT32_MAX);
         const auto ptr     = reinterpret_cast<uintptr_t>(objs.data());
         const auto eleNum  = static_cast<uint32_t>(objs.size());
         return { this, ptr, eleNum, 0 };

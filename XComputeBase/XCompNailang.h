@@ -536,9 +536,6 @@ class XCOMPBASAPI GeneralVecRef : public xziar::nailang::CustomVar::Handler
 protected:
     static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray arr);
     static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
-    //xziar::nailang::Arg IndexerGetter(const xziar::nailang::CustomVar& var, const xziar::nailang::Arg& idx, const xziar::nailang::RawArg& src) override;
-    //xziar::nailang::Arg SubfieldGetter(const xziar::nailang::CustomVar& var, std::u32string_view field) override;
-    //size_t HandleSetter(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime, xziar::nailang::Arg arg) override;
     xziar::nailang::ArgLocator HandleQuery(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime) override;
     bool HandleAssign(xziar::nailang::CustomVar& var, xziar::nailang::Arg arg) override;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;

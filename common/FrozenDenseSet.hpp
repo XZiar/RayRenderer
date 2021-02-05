@@ -191,8 +191,9 @@ private:
         }
         constexpr value_type operator*() const noexcept
         {
-            const auto [offset, size] = Host->OrderedView[Idx];
-            return { Host->Pool.data() + offset, size };
+            return (*Host)[Idx];
+            /*const auto [offset, size] = Host->OrderedView[Idx];
+            return { Host->Pool.data() + offset, size };*/
         }
         constexpr OrderedIterator& operator++()
         {
@@ -242,6 +243,11 @@ public:
                 return i;
         Expects(false);
         return SIZE_MAX;
+    }
+    constexpr SVType operator[](size_t idx) const noexcept
+    {
+        const auto [offset, size] = OrderedView[idx];
+        return { this->Pool.data() + offset, size }; 
     }
     forceinline OrderedIterator begin() const noexcept { return { this, 0 }; }
     forceinline OrderedIterator end()   const noexcept { return { this, this->Pieces.size() }; }
