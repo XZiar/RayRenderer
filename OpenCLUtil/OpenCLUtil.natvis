@@ -211,7 +211,7 @@
             <Size>EnabledExtensions.size()</Size>
             <Loop>
               <Break Condition="idx &gt;= EnabledExtensions.size()" />
-              <Item Name="{&amp;Device->Extensions.Pool[0] + Device->Extensions.OrderedView[idx].first,[Device->Extensions.OrderedView[idx].second]sb}">EnabledExtensions[idx]</Item>
+              <Item Name="{Device->Extensions.StrPtr(idx),[Device->Extensions.StrLen(idx)]sb}">EnabledExtensions[idx]</Item>
               <Exec>idx++</Exec>
             </Loop>
           </CustomListItems>

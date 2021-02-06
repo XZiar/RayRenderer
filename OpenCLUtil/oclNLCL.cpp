@@ -785,15 +785,15 @@ std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub
     }
 }
 
-std::shared_ptr<xcomp::XCNLProgram> NLCLProcessor::Parse(common::span<const std::byte> source) const
+std::shared_ptr<xcomp::XCNLProgram> NLCLProcessor::Parse(common::span<const std::byte> source, std::u16string fileName) const
 {
     auto& logger = Logger();
     const auto encoding = common::str::DetectEncoding(source);
-    logger.info(u"Detected encoding[{}].\n", common::str::getCharsetName(encoding));
+    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::getCharsetName(encoding));
     auto src = common::str::to_u32string(source, encoding);
     logger.info(u"Translate into [utf32] for [{}] chars.\n", src.size());
-    const auto prog = xcomp::XCNLProgram::Create(std::move(src));
-    logger.verbose(u"Parse done, get [{}] Blocks.\n", prog->GetProgram().Size());
+    const auto prog = xcomp::XCNLProgram::Create(std::move(src), std::move(fileName));
+    logger.verbose(u"Parse finished, get [{}] Blocks.\n", prog->GetProgram().Size());
     return prog;
 }
 

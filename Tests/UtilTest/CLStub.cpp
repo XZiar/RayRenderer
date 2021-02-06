@@ -438,7 +438,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
         if (isNLCL)
         {
             static const NLCLProcessor NLCLProc;
-            const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)));
+            const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)), filepath.u16string());
             nlclRes = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
             common::file::WriteAll(fpath + ".cl", nlclRes->GetNewSource());
             clProg = nlclRes->GetProgram();

@@ -896,23 +896,23 @@ class XComputeParser : xziar::nailang::BlockParser
 {
     using BlockParser::BlockParser;
 public:
-    static void GetBlock(xziar::nailang::MemoryPool& pool, const std::u32string_view src, xziar::nailang::Block& dst)
+    static void GetBlock(xziar::nailang::MemoryPool& pool, const std::u32string_view src, const std::u16string_view fname, xziar::nailang::Block& dst)
     {
-        common::parser::ParserContext context(src);
+        common::parser::ParserContext context(src, fname);
         XComputeParser parser(pool, context);
         parser.ParseContentIntoBlock(true, dst);
     }
 };
 
 
-std::shared_ptr<XCNLProgram> XCNLProgram::Create_(std::u32string source)
+std::shared_ptr<XCNLProgram> XCNLProgram::Create_(std::u32string source, std::u16string fname)
 {
-    return MAKE_ENABLER_SHARED(XCNLProgram, (std::move(source)));
+    return MAKE_ENABLER_SHARED(XCNLProgram, (std::move(source), std::move(fname)));
 }
 
-std::shared_ptr<XCNLProgram> XCNLProgram::Create(std::u32string source)
+std::shared_ptr<XCNLProgram> XCNLProgram::Create(std::u32string source, std::u16string fname)
 {
-    return CreateBy<XComputeParser>(std::move(source));
+    return CreateBy<XComputeParser>(std::move(source), std::move(fname));
 }
 
 

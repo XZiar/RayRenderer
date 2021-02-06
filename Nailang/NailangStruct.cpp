@@ -816,11 +816,13 @@ void AutoVarHandlerBase::Accessor::Release() noexcept
 {
     if (IsSimple)
     {
-        SimpleMember.~SimpleMember();
+        std::destroy_at(&SimpleMember);
+        //SimpleMember.~TSimp();
     }
     else
     {
-        AutoMember.~AutoMember();
+        std::destroy_at(&AutoMember);
+        //AutoMember.~TAuto();
     }
 }
 AutoVarHandlerBase::Accessor::~Accessor()

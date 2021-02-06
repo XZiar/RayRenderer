@@ -445,12 +445,14 @@ class XCNLProgram
     friend XCNLProgStub;
 private:
     MAKE_ENABLER();
-    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create_(std::u32string source);
+    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create_(std::u32string source, std::u16string fname);
 protected:
     xziar::nailang::MemoryPool MemPool;
     std::u32string Source;
+    std::u16string FileName;
     xziar::nailang::Block Program;
-    XCNLProgram(std::u32string&& source) : Source(std::move(source)) { }
+    XCNLProgram(std::u32string source, std::u16string fname) : 
+        Source(std::move(source)), FileName(std::move(fname)) { }
 public:
     ~XCNLProgram() {}
 
@@ -491,12 +493,12 @@ public:
 
     [[nodiscard]] constexpr const xziar::nailang::Block& GetProgram() const noexcept { return Program; }
 
-    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create(std::u32string source);
+    [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create(std::u32string source, std::u16string fname);
     template<typename T>
-    [[nodiscard]] static std::shared_ptr<XCNLProgram> CreateBy(std::u32string source)
+    [[nodiscard]] static std::shared_ptr<XCNLProgram> CreateBy(std::u32string source, std::u16string fname)
     {
-        auto prog = Create_(std::move(source));
-        T::GetBlock(prog->MemPool, prog->Source, prog->Program);
+        auto prog = Create_(std::move(source), std::move(fname));
+        T::GetBlock(prog->MemPool, prog->Source, prog->FileName, prog->Program);
         return prog;
     }
 };

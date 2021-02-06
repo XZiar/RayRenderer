@@ -14,6 +14,7 @@ class StringPool;
 template<typename T>
 class HashedStringPool;
 
+
 template<typename T>
 class StringPiece
 {
@@ -24,8 +25,32 @@ public:
     constexpr StringPiece() noexcept : Offset(0), Length(0) {}
     constexpr StringPiece(const uint32_t offset, const uint32_t len) noexcept : Offset(offset), Length(len)
     { }
-    constexpr size_t GetLength() const noexcept { return Length; }
+    forceinline constexpr size_t GetLength() const noexcept { return Length; }
 };
+
+template<typename T>
+class HashedStringPiece : public StringPiece<T>
+{
+    uint64_t Hash;
+public:
+    constexpr HashedStringPiece() noexcept : Hash(0) {}
+    constexpr HashedStringPiece(StringPiece<T> piece, uint64_t hash) noexcept : StringPiece<T>(piece), Hash(hash) 
+    { }
+    HashedStringPiece(StringPiece<T> piece, const StringPool<T>& pool) noexcept : 
+        StringPiece<T>(piece), Hash(DJBHash::HashC(pool.GetStringView(piece)))
+    { }
+    forceinline constexpr uint64_t GetHash() const noexcept { return Hash; }
+
+    forceinline constexpr bool operator<(const HashedStringPiece<T>& other) const noexcept
+    {
+        return Hash < other.Hash;
+    }
+    forceinline constexpr bool operator<(const uint64_t hash) const noexcept
+    {
+        return Hash < hash;
+    }
+};
+
 
 template<typename T>
 class StringPool
@@ -40,11 +65,13 @@ public:
         Pool.insert(Pool.end(), str.cbegin(), str.cend());
         return { offset, size };
     }
-    std::basic_string_view<T> GetStringView(StringPiece<T> piece) const noexcept
+    forceinline std::basic_string_view<T> GetStringView(const StringPiece<T>& piece) const noexcept
     {
         if (piece.Length == 0) return {};
         return { &Pool[piece.Offset], piece.Length };
     }
+    forceinline bool IsEmpty() const noexcept { return Pool.empty(); }
+    forceinline void Reserve(size_t size) noexcept { return Pool.reserve(size); }
 };
 
 template<typename T>

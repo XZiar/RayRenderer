@@ -47,7 +47,7 @@ public:
     NLCLProcessor(common::mlog::MiniLogger<false>&& logger);
     virtual ~NLCLProcessor();
 
-    virtual std::shared_ptr<xcomp::XCNLProgram> Parse(common::span<const std::byte> source) const;
+    virtual std::shared_ptr<xcomp::XCNLProgram> Parse(common::span<const std::byte> source, std::u16string fileName = {}) const;
     virtual std::unique_ptr<NLCLResult> ProcessCL(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclDevice dev, const common::CLikeDefines& info = {}) const;
     virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const CLProgConfig& config = {}) const;
 };
