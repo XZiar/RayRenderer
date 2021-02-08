@@ -292,11 +292,13 @@ private:
     static uintptr_t RegExt(XCNLExtGen creator) noexcept;
     uintptr_t ID;
 };
-#define XCNL_EXT_REG(type, ...)                                                         \
-    static std::unique_ptr<XCNLExtension> Create(                                       \
-        [[maybe_unused]] common::mlog::MiniLogger<false>& logger,                       \
-        [[maybe_unused]] xcomp::XCNLContext& context)                                   \
-    __VA_ARGS__                                                                         \
+#define XCNL_EXT_FUNC(type, ...)                                    \
+    static std::unique_ptr<XCNLExtension> Create(                   \
+        [[maybe_unused]] common::mlog::MiniLogger<false>& logger,   \
+        [[maybe_unused]] xcomp::XCNLContext& context)               \
+    __VA_ARGS__                                                     \
+
+#define XCNL_EXT_REG(type, ...) XCNL_EXT_FUNC(type, __VA_ARGS__)                        \
     inline static uintptr_t Dummy = xcomp::XCNLExtension::RegisterXCNLExtension<type>() \
 
 
@@ -359,7 +361,7 @@ public:
     template<typename T>
     [[nodiscard]] forceinline T* GetXCNLExt() const
     {
-        return static_cast<T*>(FindExt(T::Create));
+        return static_cast<T*>(FindExt([](const XCNLExtension* ext) -> bool { return dynamic_cast<const T*>(ext); }));
     }
     struct VecTypeResult
     {
@@ -376,7 +378,7 @@ protected:
     std::vector<NamedText> PatchedBlocks;
 private:
     std::vector<std::shared_ptr<const ReplaceDepend>> PatchedSelfDepends;
-    [[nodiscard]] XCNLExtension* FindExt(XCNLExtension::XCNLExtGen func) const;
+    [[nodiscard]] XCNLExtension* FindExt(std::function<bool(const XCNLExtension*)> func) const;
     void Write(std::u32string& output, const NamedText& item) const override;
 };
 
@@ -451,10 +453,22 @@ protected:
     std::u32string Source;
     std::u16string FileName;
     xziar::nailang::Block Program;
+    using ExtGen = std::function<std::unique_ptr<XCNLExtension>(common::mlog::MiniLogger<false>&, XCNLContext&)>;
+    std::vector<ExtGen> ExtraExtension;
     XCNLProgram(std::u32string source, std::u16string fname) : 
         Source(std::move(source)), FileName(std::move(fname)) { }
 public:
     ~XCNLProgram() {}
+
+    template<typename T>
+    void AttachExtension() noexcept
+    {
+        ExtraExtension.push_back(T::Create);
+    }
+    void AttachExtension(ExtGen creator) noexcept
+    {
+        ExtraExtension.push_back(std::move(creator));
+    }
 
     template<bool IsBlock, typename F>
     forceinline void ForEachBlockType(F&& func) const

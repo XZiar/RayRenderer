@@ -98,7 +98,6 @@ protected:
     uint32_t DebugBuffer;
     bool HasInfo, HasDebug;
     KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
-    size_t GetSize() const noexcept { return ArgsInfo.size(); }
     const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
     void AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
@@ -108,6 +107,7 @@ protected:
 public:
     KernelArgStore() : DebugBuffer(0), HasInfo(false), HasDebug(false) {}
     KernelArgInfo operator[](size_t idx) const noexcept { return GetArgInfo(idx); }
+    size_t GetSize() const noexcept { return ArgsInfo.size(); }
     ItType begin() const noexcept { return { this, 0 }; }
     ItType end()   const noexcept { return { this, ArgsInfo.size() }; }
 };

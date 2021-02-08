@@ -9,10 +9,11 @@
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"
+#include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
 #include "common/StringEx.hpp"
 #include <iostream>
-#include <mutex>
+#include <deque>
 
 
 using namespace common;
@@ -24,6 +25,7 @@ using std::u16string;
 using std::u16string_view;
 using std::cin;
 using xziar::img::TexFormatUtil;
+using common::str::Charset;
 using common::str::to_u16string;
 
 static MiniLogger<false>& log()
@@ -37,6 +39,7 @@ static MiniLogger<false>& log()
 namespace
 {
 using namespace xziar::nailang;
+using namespace xcomp;
 
 struct RunArgInfo
 {
@@ -85,14 +88,24 @@ struct RunArgInfo
 
 struct RunConfig 
 {
-    oclKernel Kernel;
+    std::u32string Name;
+    std::string KernelName;
     std::vector<RunArgInfo> Args;
     std::array<size_t, 3> WgSize;
     std::array<size_t, 3> LcSize;
+    RunConfig(std::u32string_view name, std::string kerName, const KernelArgStore& args) noexcept : 
+        Name(name), KernelName(kerName), WgSize{ 0,0,0 }, LcSize{ 0,0,0 }
+    {
+        Args.reserve(args.GetSize());
+        for (const auto& arg : args)
+        {
+            Args.emplace_back(arg);
+        }
+    }
 };
 struct RunInfo
 {
-    std::vector<RunConfig> Configs;
+    std::deque<RunConfig> Configs; // in case add invalids reference
 };
 
 struct ArgWrapperHandler : public CustomVar::Handler
@@ -124,7 +137,6 @@ struct ArgWrapperHandler : public CustomVar::Handler
     }
 };
 ArgWrapperHandler ArgWrapperHandler::Handler;
-
 
 struct RunConfigVar : public AutoVarHandler<RunConfig>
 {
@@ -158,46 +170,6 @@ struct RunConfigVar : public AutoVarHandler<RunConfig>
                 });
             }).SetConst(false);
     }
-    //size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime, Arg arg) override
-    //{
-    //    Expects(subq.Size() > 0);
-    //    const auto [type, query] = subq[0];
-    //    if (type != SubQuery::QueryType::Sub) return 0;
-    //    const auto subf = query.GetVar<RawArg::Type::Str>();
-    //    auto& config = reinterpret_cast<RunInfo*>(var.Meta0)->Configs[var.Meta2];
-    //    const auto SetVec3 = [&](auto& dst, std::u16string_view name) -> size_t
-    //    {
-    //        if (subq.Size() == 1)
-    //        {
-    //            if (!arg.IsCustomType<xcomp::GeneralVecRef>())
-    //                COMMON_THROW(NailangRuntimeException, FMTSTR(u"{} can only be set with vec, get [{}]", name, arg.GetTypeName()), var);
-    //            const auto arr = xcomp::GeneralVecRef::ToArray(arg.GetCustom());
-    //            dst[0] = arr.Get(0).GetUint().value();
-    //            dst[1] = arr.Get(1).GetUint().value();
-    //            dst[2] = arr.Get(2).GetUint().value();
-    //            return 1;
-    //        }
-    //        return 1 + xcomp::GeneralVecRef::Create<size_t>(dst).Call<&CustomVar::Handler::HandleSetter>(subq.Sub(1), runtime, std::move(arg));
-    //    };
-    //    if (subf == U"WgSize")
-    //        return SetVec3(config.WgSize, u"WgSize"sv);
-    //    if (subf == U"LcSize")
-    //        return SetVec3(config.WgSize, u"LcSize"sv);
-    //    if (subf == U"Args")
-    //    {
-    //        if (subq.Size() < 2)
-    //            COMMON_THROW(NailangRuntimeException, u"Field [Args] can not be assigned"sv, var);
-    //        const auto& idx_ = subq.ExpectIndex(1);
-    //        const auto idx = NailangHelper::BiDirIndexCheck(config.Args.size(), EvaluateArg(runtime, idx_), &idx_);
-    //        const auto& argInfo = config.Kernel->ArgStore[idx];
-    //        /*switch (argInfo.ArgType)
-    //        {
-    //            case KerArgType::Buffer
-    //        }
-    //        return { std::u32string(1, str[idx]), 1u };*/
-    //    }
-    //    return 0;
-    //}
     Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
     {
         if (type == Arg::Type::Bool)
@@ -208,20 +180,104 @@ struct RunConfigVar : public AutoVarHandler<RunConfig>
 };
 RunConfigVar RunConfigVar::Handler;
 
+
+struct CLStubExtension : public XCNLExtension
+{
+private:
+    struct NLCLRuntime_ : public NLCLRuntime
+    {
+        friend CLStubExtension;
+    };
+    struct NLCLContext_ : public NLCLContext
+    {
+        friend CLStubExtension;
+    };
+    NLCLContext_& Context;
+    RunInfo& Info;
+public:
+    CLStubExtension(XCNLContext& context, RunInfo& info) : XCNLExtension(context), Context(static_cast<NLCLContext_&>(context)), Info(info)
+    { }
+    ~CLStubExtension() override { }
+
+    void  BeginXCNL(XCNLRuntime&) { }
+    void FinishXCNL(XCNLRuntime&) { }
+    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>)
+    {
+        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+        if ((*call.Name)[0] == U"clstub"sv)
+        {
+            const auto sub = (*call.Name)[1];
+            if (sub == U"AddRun"sv)
+            {
+                const auto args    = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::String, Arg::Type::String });
+                const auto name    = args[0].GetStr().value();
+                const auto kerName = common::str::to_string(args[1].GetStr().value(), Charset::UTF8);
+                for (const auto& [kname, karg] : Context.CompiledKernels)
+                {
+                    if (kerName == kname)
+                    {
+                        auto& config = Info.Configs.emplace_back(name, kerName, karg);
+                        return RunConfigVar::Handler.CreateVar(config);
+                    }
+                }
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
+            }
+            else if (sub == U"BufArg"sv)
+            {
+                const auto size = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                return ArgWrapperHandler::CreateBuffer(gsl::narrow_cast<uint32_t>(size));
+            }
+            else if (sub == U"ImgArg"sv)
+            {
+                const auto args = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::Integer, Arg::Type::Integer });
+                const auto width  = gsl::narrow_cast<uint32_t>(args[0].GetUint().value());
+                const auto height = gsl::narrow_cast<uint32_t>(args[1].GetUint().value());
+                return ArgWrapperHandler::CreateImage(width, height);
+            }
+            else if (sub == U"ValArg"sv)
+            {
+                const auto type = (*call.Name)[2];
+                if (type == U"u8")
+                {
+                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    return ArgWrapperHandler::CreateVal8(gsl::narrow_cast<uint8_t>(val));
+                }
+                else if (type == U"u16")
+                {
+                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    return ArgWrapperHandler::CreateVal16(gsl::narrow_cast<uint16_t>(val));
+                }
+                else if (type == U"u32")
+                {
+                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    return ArgWrapperHandler::CreateVal32(gsl::narrow_cast<uint32_t>(val));
+                }
+                else if (type == U"u64")
+                {
+                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    return ArgWrapperHandler::CreateVal64(gsl::narrow_cast<uint64_t>(val));
+                }
+                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type));
+            }
+        }
+        return {};
+    }
+};
+
 }
 
 
-static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const std::unique_ptr<NLCLResult>& nlclRes)
+static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunInfo& info)
 {
     const auto que = oclCmdQue_::Create(ctx, dev);
     const std::vector<oclKernel> kernels = prog->GetKernels();
     common::mlog::SyncConsoleBackend();
     {
         size_t idx = 0;
-        for (const auto& ker : kernels)
+        for (const auto& conf : info.Configs)
         {
             PrintColored(common::console::ConsoleColor::BrightWhite,
-                FMTSTR(u"[{:3}] {}\n", idx++, ker->Name));
+                FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
         }
     }
     while (true)
@@ -235,77 +291,78 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const std:
             continue;
         const auto parts = common::str::Split(line, ',', true);
         Expects(parts.size() > 0);
+        const RunConfig* config = nullptr;
+        {
+            std::string_view kerName;
+            const auto name32 = common::str::to_u32string(parts[0]);
+            for (const auto& conf : info.Configs)
+            {
+                if (conf.Name == name32)
+                {
+                    config = &conf;
+                    break;
+                }
+            }
+            if (kerName.empty())
+            {
+                if (uint32_t idx = 0; common::StrToInt(parts[0], idx).first)
+                {
+                    if (idx < info.Configs.size())
+                    {
+                        config = &info.Configs[idx];
+                        break;
+                    }
+                }
+            }
+        }
+        if (!config)
+        {
+            log().warning(u"no config found for [{}]\n", parts[0]);
+            continue;
+        }
         oclKernel kernel;
         for (const auto& ker : kernels)
         {
-            if (ker->Name == parts[0])
+            if (ker->Name == config->KernelName)
             {
                 kernel = ker; break;
             }
         }
-        if (!kernel)
-        {
-            uint32_t idx = 0;
-            if (common::StrToInt(parts[0], idx).first)
-            {
-                if (idx < kernels.size())
-                    kernel = kernels[idx];
-            }
-        }
-        if (!kernel)
-        {
-            log().warning(u"no kernel found for [{}]\n", parts[0]);
-            continue;
-        }
-        const auto queryU32 = [&](std::string_view argName) -> std::optional<uint32_t>
-        {
-            if (nlclRes)
-            {
-                const auto name = fmt::format(U"clstub.{}.{}"sv, kernel->Name, argName);
-                const auto result = nlclRes->QueryResult(name);
-                switch (result.index())
-                {
-                case 1:  return std::get<1>(result) ? 1u : 0u;
-                case 2:  return static_cast<uint32_t>(std::get<2>(result));
-                case 3:  return static_cast<uint32_t>(std::get<3>(result));
-                case 4:  return static_cast<uint32_t>(std::get<4>(result));
-                case 0:
-                case 5:
-                default: return {};
-                }
-            }
-            else
-                return {};
-        };
-        const auto queryArgU32 = [&](size_t idx, std::string_view suffix = {}) -> std::optional<uint32_t>
-        {
-            const auto name = fmt::format(suffix.empty() ? "args.{}"sv : "args.{}.{}"sv, idx, suffix);
-            return queryU32(name);
-        };
         CallArgs args;
         {
-            size_t idx = 0;
-            for (const auto& arg : kernel->ArgStore)
+            for (const auto& arg : config->Args)
             {
-                if (arg.ArgType == KerArgType::Buffer)
+                switch (arg.Type)
                 {
-                    const auto bufSize = queryArgU32(idx).value_or(4096u);
-                    const auto buf = oclBuffer_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, bufSize);
+                case RunArgInfo::ArgType::Buffer:
+                {
+                    const auto buf = oclBuffer_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, arg.Val0);
                     args.PushArg(buf);
-                }
-                else if (arg.ArgType == KerArgType::Image)
+                } break;
+                case RunArgInfo::ArgType::Image:
                 {
-                    const auto w = queryArgU32(idx, "w").value_or(256u);
-                    const auto h = queryArgU32(idx, "h").value_or(256u);
-                    const auto img = oclImage2D_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, w, h, xziar::img::TextureFormat::RGBA8);
+                    const auto img = oclImage2D_::Create(ctx, MemFlag::ReadWrite | MemFlag::HostNoAccess, 
+                        arg.Val0, arg.Val1, xziar::img::TextureFormat::RGBA8);
                     args.PushArg(img);
-                }
-                else
+                } break;
+                case RunArgInfo::ArgType::Val8:
                 {
-                    const auto val = queryArgU32(idx).value_or(0u);
-                    args.PushSimpleArg(val);
+                    args.PushSimpleArg(static_cast<uint8_t>(arg.Val0));
+                } break;
+                case RunArgInfo::ArgType::Val16:
+                {
+                    args.PushSimpleArg(static_cast<uint16_t>(arg.Val0));
+                } break;
+                case RunArgInfo::ArgType::Val32:
+                {
+                    args.PushSimpleArg(static_cast<uint32_t>(arg.Val0));
+                } break;
+                case RunArgInfo::ArgType::Val64:
+                {
+                    args.PushSimpleArg((static_cast<uint64_t>(arg.Val0) << 32) + arg.Val1);
+                } break;
+                default: break;
                 }
-                idx++;
             }
         }
         constexpr auto NumOr = [](const auto& strs, const size_t idx, uint32_t num = 1) 
@@ -316,10 +373,13 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const std:
         };
         auto callsite = kernel->CallDynamic<3>(std::move(args));
         const uint32_t repeats   = NumOr(parts, 1);
-        const uint32_t worksizeX = queryU32("wk.X").value_or(NumOr(parts, 2));
-        const uint32_t worksizeY = queryU32("wk.Y").value_or(NumOr(parts, 3));
-        const uint32_t worksizeZ = queryU32("wk.Z").value_or(NumOr(parts, 4));
-        const SizeN<3> lcSize = kernel->WgInfo.CompiledWorkGroupSize;
+        const uint32_t worksizeX = NumOr(parts, 2, static_cast<uint32_t>(config->WgSize[0]));
+        const uint32_t worksizeY = NumOr(parts, 3, static_cast<uint32_t>(config->WgSize[1]));
+        const uint32_t worksizeZ = NumOr(parts, 4, static_cast<uint32_t>(config->WgSize[2]));
+        SizeN<3> lcSize = config->LcSize;
+        if (!lcSize.GetData(true))
+            lcSize = kernel->WgInfo.CompiledWorkGroupSize;
+        //const SizeN<3> lcSize = kernel->WgInfo.CompiledWorkGroupSize;
         log().verbose(u"run kernel [{}] with [{}x{}x{}] for [{}] times\n",
             kernel->Name, worksizeX, worksizeY, worksizeZ, repeats);
         common::PromiseResult<CallResult> lastPms;
@@ -399,10 +459,12 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
         }
         std::unique_ptr<NLCLResult> nlclRes;
         oclu::oclProgram clProg;
+        RunInfo runInfo;
         if (isNLCL)
         {
             static const NLCLProcessor NLCLProc;
             const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)), filepath.u16string());
+            prog->AttachExtension([&](auto&, auto& ctx) { return std::make_unique<CLStubExtension>(ctx, runInfo); });
             nlclRes = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
             common::file::WriteAll(fpath + ".cl", nlclRes->GetNewSource());
             clProg = nlclRes->GetProgram();
@@ -444,7 +506,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
             common::file::WriteAll(fpath + ".bin", bin);
         if (runnable)
         {
-            RunKernel(dev, ctx, clProg, nlclRes);
+            RunKernel(dev, ctx, clProg, runInfo);
         }
     }
     catch (const BaseException& be)

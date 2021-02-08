@@ -656,6 +656,11 @@ void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
             if (IsBeginWith(block.Type, U"oclu."sv) || IsBeginWith(block.Type, U"xcomp."sv))
                 stub.Runtime->ProcessRawBlock(block, metas);
         });
+}
+
+std::string NLCLProcessor::GenerateCL(NLCLProgStub& stub) const
+{
+    auto str = stub.Runtime->GenerateOutput();
     // PostAct
     stub.Program->ForEachBlockTypeName<true>(U"xcomp.PostAct"sv,
         [&](const Block& block, common::span<const FuncCall> metas)
@@ -667,14 +672,15 @@ void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
         {
             stub.Runtime->ExecuteBlock(block, metas);
         });
+    return str;
 }
 
 std::unique_ptr<NLCLResult> NLCLProcessor::CompileIntoProgram(NLCLProgStub& stub, const oclContext& ctx, CLProgConfig config) const
 {
-    auto str = stub.Runtime->GenerateOutput();
+    auto str = GenerateCL(stub);
     try
     {
-        auto& nlclCtx = *stub.GetContext();
+        auto& nlclCtx = *stub.GetContext().get();
         auto progStub = oclProgram_::Create(ctx, str, nlclCtx.Device);
         if (const auto dbgMan = debug::ExtractDebugManager(nlclCtx); dbgMan)
         {
@@ -710,7 +716,7 @@ std::unique_ptr<NLCLResult> NLCLProcessor::ProcessCL(const std::shared_ptr<xcomp
 {
     NLCLProgStub stub(prog, std::make_shared<NLCLContext>(dev, info), Logger());
     ConfigureCL(stub);
-    return std::make_unique<NLCLUnBuildResult>(stub.GetContext(), stub.Runtime->GenerateOutput());
+    return std::make_unique<NLCLUnBuildResult>(stub.GetContext(), GenerateCL(stub));
 }
 
 std::unique_ptr<NLCLResult> NLCLProcessor::CompileProgram(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclContext& ctx, oclDevice dev, const common::CLikeDefines& info, const oclu::CLProgConfig& config) const

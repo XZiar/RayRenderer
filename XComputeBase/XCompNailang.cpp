@@ -298,12 +298,11 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
 XCNLContext::~XCNLContext()
 { }
 
-XCNLExtension* XCNLContext::FindExt(XCNLExtension::XCNLExtGen func) const
+XCNLExtension* XCNLContext::FindExt(std::function<bool(const XCNLExtension*)> func) const
 {
-    const auto id = reinterpret_cast<uintptr_t>(func);
     for (const auto& ext : Extensions)
     {
-        if (ext->ID == id)
+        if (func(ext.get()))
             return ext.get();
     }
     return nullptr;
@@ -926,14 +925,24 @@ XCNLProgStub::~XCNLProgStub()
 void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
 {
     Context->Extensions.clear();
-    auto& holder = XCNLExtGenerators();
-    const auto locker = holder.LockShared();
-    for (const auto& creator : holder.Container)
+    {
+        auto& holder = XCNLExtGenerators();
+        const auto locker = holder.LockShared();
+        for (const auto& creator : holder.Container)
+        {
+            auto ext = creator(logger, *Context);
+            if (ext)
+            {
+                ext->ID = reinterpret_cast<uintptr_t>(creator);
+                Context->Extensions.push_back(std::move(ext));
+            }
+        }
+    }
+    for (const auto& creator : Program->ExtraExtension)
     {
         auto ext = creator(logger, *Context);
         if (ext)
         {
-            ext->ID = reinterpret_cast<uintptr_t>(creator);
             Context->Extensions.push_back(std::move(ext));
         }
     }
