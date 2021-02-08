@@ -1222,7 +1222,7 @@ protected:
     }
 public:
     enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
-    ~AutoVarHandlerBase();
+    virtual ~AutoVarHandlerBase();
     AutoVarHandlerBase(const AutoVarHandlerBase&) = delete;
     AutoVarHandlerBase(AutoVarHandlerBase&&) = delete;
     AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
@@ -1247,6 +1247,7 @@ private:
 public:
     AutoVarHandler(std::u32string_view typeName) : AutoVarHandlerBase(typeName, sizeof(T)) 
     { }
+    ~AutoVarHandler() override {}
     template<typename U, typename F>
     forceinline AccessorBuilder AddAutoMember(std::u32string_view name, AutoVarHandler<U>& handler, F&& accessor)
     {
@@ -1308,11 +1309,18 @@ public:
         using U = std::remove_pointer_t<R>;
         static constexpr bool IsConst = !IsPtr || std::is_const_v<U>;
         static constexpr auto Type = NativeWrapper::GetType<std::remove_const_t<U>>();
-        const auto getter = NativeWrapper::GetGetter(Type, !IsPtr);
-        const auto setter = NativeWrapper::GetSetter(Type);
 
         const auto dst = FindMember(name, true);
-        dst->SetGetSet([accessor, getter](void* ptr) -> Arg
+        std::function<bool(void*, Arg)> setFunc;
+        if constexpr (!IsConst)
+        {
+            setFunc = [accessor, setter = NativeWrapper::GetSetter(Type)](void* ptr, Arg val)
+            {
+                auto& parent = *reinterpret_cast<T*>(ptr);
+                return setter(reinterpret_cast<uintptr_t>(accessor(parent)), 0, std::move(val));
+            };
+        }
+        dst->SetGetSet([accessor, getter = NativeWrapper::GetGetter(Type, !IsPtr)](void* ptr) -> Arg
         {
             auto& parent = *reinterpret_cast<T*>(ptr);
             if constexpr (IsPtr)
@@ -1324,19 +1332,7 @@ public:
                 auto tmp = accessor(parent);
                 return getter(reinterpret_cast<uintptr_t>(&tmp), 0);
             }
-        }, IsConst ? std::function<bool(void*, Arg)>{} : 
-            [accessor, setter]([[maybe_unused]]void* ptr, [[maybe_unused]] Arg val)
-        {
-            if constexpr (IsPtr)
-            {
-                auto& parent = *reinterpret_cast<T*>(ptr);
-                return setter(reinterpret_cast<uintptr_t>(accessor(parent)), 0, std::move(val));
-            }
-            else
-            {
-                return false;
-            }
-        });
+        }, std::move(setFunc));
         return *dst;
     }
     template<typename F>

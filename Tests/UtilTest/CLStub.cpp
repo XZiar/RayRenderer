@@ -125,42 +125,6 @@ struct ArgWrapperHandler : public CustomVar::Handler
 };
 ArgWrapperHandler ArgWrapperHandler::Handler;
 
-//const AutoVarHandler<RunConfig>& GetRunConf()
-//{
-//    static AutoVarHandler<RunConfig> Handler(U"RunConfig"sv);
-//    static std::once_flag Flag;
-//    std::call_once(Flag, [&]() 
-//        {
-//            Handler.AddCustomMember(U"WgSize"sv, [](RunConfig& conf) 
-//                {
-//                    return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
-//                }).SetConst(false);
-//            Handler.AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
-//                {
-//                    return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
-//                }).SetConst(false);
-//            Handler.AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
-//                {
-//                    return common::to_span(conf.Args);
-//                }, [](auto& argHandler) 
-//                {
-//                    argHandler.SetAssigner([](auto& arg, Arg val)
-//                    {
-//                        if (!val.IsCustomType<ArgWrapperHandler>())
-//                            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
-//                        const auto& var = val.GetCustom();
-//                        const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
-//                        if (!arg.CheckType(type))
-//                            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]", 
-//                                arg.GetArgTypeName(), RunArgInfo::GetTypeName(type)));
-//                        arg.Val0 = static_cast<uint32_t>(var.Meta0);
-//                        arg.Val1 = static_cast<uint32_t>(var.Meta1);
-//                        arg.Type = type;
-//                    });
-//                }).SetConst(false);
-//        });
-//    return Handler;
-//}
 
 struct RunConfigVar : public AutoVarHandler<RunConfig>
 {

@@ -499,7 +499,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
             }
         }
     }
-    return vec;
+    return std::move(vec);
 }
 
 std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,

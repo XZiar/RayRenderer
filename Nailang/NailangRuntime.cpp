@@ -131,7 +131,7 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
     case SubQuery::QueryType::Index:
     {
         const auto idx = EvaluateArg(runtime, query);
-        auto result = IndexerGetter(var, idx, &query);
+        auto result = IndexerGetter(var, idx, query);
         if (!result.IsEmpty())
             return { std::move(result), 1u };
     } break;
@@ -181,7 +181,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         case SubQuery::QueryType::Index:
         {
             const auto idx = EvaluateArg(runtime, query);
-            auto result = IndexerGetter(var, idx, &query);
+            auto result = IndexerGetter(var, idx, query);
             if (!result.IsEmpty())
                 return { std::move(result), 1u };
         } break;
@@ -992,7 +992,7 @@ ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool crea
         if (!frame->Has(FrameFlags::Virtual))
         {
             if (auto ret = frame->Context->LocateArg(var, create); ret)
-                return std::move(ret);
+                return ret;
         }
         //if (frame->Has(FrameFlags::CallScope))
         //    break; // cannot beyond  
