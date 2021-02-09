@@ -34,10 +34,9 @@ static bool GetBool(const cl_device_id DeviceID, const cl_device_info type)
     return ret == CL_TRUE;
 }
 template<typename T>
-static T GetNum(const cl_device_id DeviceID, const cl_device_info type)
+static T GetNum(const cl_device_id DeviceID, const cl_device_info type, T num = 0)
 {
     static_assert(std::is_integral_v<T>, "T should be numeric type");
-    T num = 0;
     clGetDeviceInfo(DeviceID, type, sizeof(T), &num, nullptr);
     return num;
 }
@@ -47,6 +46,12 @@ static void GetNums(const cl_device_id DeviceID, const cl_device_info type, T (&
     static_assert(std::is_integral_v<T>, "T should be numeric type");
     clGetDeviceInfo(DeviceID, type, sizeof(T) * N, &ret, nullptr);
 }
+
+union cl_device_topology_amd
+{
+    struct { cl_uint type; cl_uint data[5]; } raw;
+    struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
+};
 
 oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID) :
     Platform(plat), DeviceID(dID), PlatVendor(Platform.lock()->PlatVendor)
@@ -75,6 +80,9 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
 
     Extensions = common::str::Split(GetStr(DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
 
+    F64Caps = static_cast<FPConfig>(GetNum<uint64_t>(DeviceID, CL_DEVICE_DOUBLE_FP_CONFIG));
+    F32Caps = static_cast<FPConfig>(GetNum<uint64_t>(DeviceID, CL_DEVICE_SINGLE_FP_CONFIG));
+    F16Caps = static_cast<FPConfig>(GetNum<uint64_t>(DeviceID, CL_DEVICE_HALF_FP_CONFIG));
     ConstantBufSize     = GetNum<uint64_t>(DeviceID, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE);
     GlobalMemSize       = GetNum<uint64_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_SIZE);
     LocalMemSize        = GetNum<uint64_t>(DeviceID, CL_DEVICE_LOCAL_MEM_SIZE);
@@ -85,10 +93,28 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     GlobalCacheLine     = GetNum<uint32_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE);
     MemBaseAddrAlign    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MEM_BASE_ADDR_ALIGN);
     ComputeUnits        = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
+    VendorId            = GetNum<uint32_t>(DeviceID, CL_DEVICE_VENDOR_ID);
+    PCIEBus = PCIEDev = PCIEFunc = 0;
     if (Extensions.Has("cl_nv_device_attribute_query"))
+    {
         WaveSize = GetNum<uint32_t>(DeviceID, CL_DEVICE_WARP_SIZE_NV);
+        PCIEBus  = GetNum<uint32_t>(DeviceID, 0x4008/*CL_DEVICE_PCI_BUS_ID_NV*/) & 0xff;
+        const auto slot = GetNum<uint32_t>(DeviceID, 0x4009/*CL_DEVICE_PCI_SLOT_ID_NV*/);
+        PCIEDev  = slot >> 3;
+        PCIEFunc = slot & 0x7;
+    }
     else if (Extensions.Has("cl_amd_device_attribute_query"))
+    {
         WaveSize = GetNum<uint32_t>(DeviceID, CL_DEVICE_WAVEFRONT_WIDTH_AMD);
+        cl_device_topology_amd topology;
+        clGetDeviceInfo(DeviceID, CL_DEVICE_TOPOLOGY_AMD, sizeof(topology), &topology, nullptr);
+        if (topology.raw.type == 1)
+        {
+            PCIEBus  = topology.pcie.bus;
+            PCIEDev  = topology.pcie.device;
+            PCIEFunc = topology.pcie.function;
+        }
+    }
     else if (PlatVendor == Vendors::Intel && Type == DeviceType::GPU)
         WaveSize = 16;
 
@@ -118,6 +144,30 @@ u16string_view oclDevice_::GetDeviceTypeName(const DeviceType type)
     case DeviceType::Custom:        return u"Custom"sv;
     default:                        return u"Other"sv;
     }
+}
+
+std::string oclDevice_::GetFPCapabilityStr(const FPConfig cap)
+{
+    if (cap == FPConfig::Empty)
+        return "Empty";
+    std::string ret;
+#define CAP(cenum) if (HAS_FIELD(cap, FPConfig::cenum)) ret.append(#cenum " | ")
+    CAP(Denorm);
+    CAP(InfNaN);
+    CAP(RoundNearest);
+    CAP(RoundZero);
+    CAP(RoundInf);
+    CAP(FMA);
+    CAP(SoftFloat);
+    CAP(DivSqrtCorrect);
+#undef CAP
+    if (!ret.empty())
+    {
+        ret.pop_back();
+        ret.pop_back();
+        ret.pop_back();
+    }
+    return ret;
 }
 
 

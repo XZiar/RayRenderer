@@ -251,7 +251,7 @@ std::shared_ptr<const ReplaceDepend> ReplaceDepend::Empty()
 }
 
 
-XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context), ID(UINT32_MAX)
+XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context)
 { }
 XCNLExtension::~XCNLExtension() { }
 
@@ -933,7 +933,6 @@ void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
             auto ext = creator(logger, *Context);
             if (ext)
             {
-                ext->ID = reinterpret_cast<uintptr_t>(creator);
                 Context->Extensions.push_back(std::move(ext));
             }
         }

@@ -199,9 +199,9 @@ public:
     { }
     ~CLStubExtension() override { }
 
-    void  BeginXCNL(XCNLRuntime&) { }
-    void FinishXCNL(XCNLRuntime&) { }
-    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>)
+    void  BeginXCNL(XCNLRuntime&) override { }
+    void FinishXCNL(XCNLRuntime&) override { }
+    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>) override
     {
         auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
         if ((*call.Name)[0] == U"clstub"sv)
@@ -310,7 +310,6 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
                     if (idx < info.Configs.size())
                     {
                         config = &info.Configs[idx];
-                        break;
                     }
                 }
             }
@@ -540,7 +539,9 @@ static void OCLStub()
         }
         const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
             {
-                return FMTSTR(u"{}  {{{} | {}}}\t[{} CU]", dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
+                return FMTSTR(u"[{:04X}:{:02X}.{:<2X}]{}  {{{} | {}}}\t[{} CU]", 
+                    dev->PCIEBus, dev->PCIEDev, dev->PCIEFunc,
+                    dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
         const auto dev = devs[devidx];
 
@@ -592,9 +593,10 @@ static void OCLStub()
             else if (fpath == "INFO")
             {
                 std::u16string infotxt;
-#define ADD_INFO(info) fmt::format_to(std::back_inserter(infotxt), u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
+#define ADD_INFO(info) APPEND_FMT(infotxt, u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
                 ADD_INFO(Name);
                 ADD_INFO(Vendor);
+                ADD_INFO(VendorId);
                 ADD_INFO(Ver);
                 ADD_INFO(CVer);
                 ADD_INFO(ConstantBufSize);
@@ -612,8 +614,11 @@ static void OCLStub()
                 ADD_INFO(SupportImage);
                 ADD_INFO(LittleEndian);
                 ADD_INFO(HasCompiler);
-                fmt::format_to(std::back_inserter(infotxt), u"{}: [{}x{}x{}]\n"sv, "MaxWorkItemSize", dev->MaxWorkItemSize[0], dev->MaxWorkItemSize[1], dev->MaxWorkItemSize[2]);
+                APPEND_FMT(infotxt, u"MaxWorkItemSize: [{}x{}x{}]\n"sv, dev->MaxWorkItemSize[0], dev->MaxWorkItemSize[1], dev->MaxWorkItemSize[2]);
                 ADD_INFO(MaxWorkGroupSize);
+                APPEND_FMT(infotxt, u"F64Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F64Caps));
+                APPEND_FMT(infotxt, u"F32Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F32Caps));
+                APPEND_FMT(infotxt, u"F16Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F16Caps));
 #undef ADD_INFO
                 log().verbose(u"Device Info:\n{}\n", infotxt);
                 continue;

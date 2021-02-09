@@ -290,7 +290,6 @@ public:
     }
 private:
     static uintptr_t RegExt(XCNLExtGen creator) noexcept;
-    uintptr_t ID;
 };
 #define XCNL_EXT_FUNC(type, ...)                                    \
     static std::unique_ptr<XCNLExtension> Create(                   \
