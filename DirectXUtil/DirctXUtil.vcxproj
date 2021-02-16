@@ -39,8 +39,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BindingManager.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DxBuffer.h" />
+    <ClInclude Include="DxProgram.h" />
     <ClInclude Include="DxPromise.h" />
     <ClInclude Include="DxResource.h" />
     <ClInclude Include="DxCmdQue.h" />
@@ -51,7 +53,9 @@
     <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BindingManager.cpp" />
     <ClCompile Include="DxBuffer.cpp" />
+    <ClCompile Include="DxProgram.cpp" />
     <ClCompile Include="DxPromise.cpp" />
     <ClCompile Include="DxResource.cpp" />
     <ClCompile Include="DxCmdQue.cpp" />

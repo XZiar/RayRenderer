@@ -123,16 +123,14 @@ DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size) const
     if (HeapInfo.CPUPage == CPUPageProps::NotAvailable || HeapInfo.Memory == MemPrefer::PreferGPU)
         COMMON_THROWEX(DxException, u"Cannot map resource with CPUPageProps = NotAvaliable.\n")
         .Attach("heapinfo", HeapInfo);
-    return DxBufMapPtr(std::static_pointer_cast<const DxBuffer_>(shared_from_this()),
-        std::make_shared<DxMapPtr_>(this, offset, size));
+    return DxBufMapPtr(GetSelf(), std::make_shared<DxMapPtr_>(this, offset, size));
 }
 
 DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size) const
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
         return Map(offset, size);
-    return DxBufMapPtr(std::static_pointer_cast<const DxBuffer_>(shared_from_this()),
-        DxMapPtr2_::Create(this, que, flag, offset, size));
+    return DxBufMapPtr(GetSelf(), DxMapPtr2_::Create(this, que, flag, offset, size));
 }
 
 common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const

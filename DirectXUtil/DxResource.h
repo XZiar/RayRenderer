@@ -14,7 +14,7 @@ namespace dxu
 class DxResource_;
 using DxResource = std::shared_ptr<DxResource_>;
 class DxBuffer_;
-
+class DxBindingManager;
 
 
 enum class HeapFlags : uint32_t
@@ -69,8 +69,11 @@ enum class MapFlags : uint8_t
 MAKE_ENUM_BITFIELD(MapFlags)
 
 
-class DXUAPI DxResource_ : public common::NonCopyable, public std::enable_shared_from_this<DxResource_>
+class DXUAPI DxResource_ : public DxNamable, public std::enable_shared_from_this<DxResource_>
 {
+    friend DxBindingManager;
+private:
+    void* GetD3D12Object() const noexcept override;
 protected:
     MAKE_ENABLER();
     struct ResDesc;
@@ -79,15 +82,20 @@ protected:
     void CopyRegionFrom(const DxCmdList& list, const uint64_t offset,
         const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const;
     ResourceState TransitState(const DxCmdList& list, ResourceState newState) const;
-public:
-    virtual ~DxResource_();
-protected:
     DxDevice Device;
     PtrProxy<ResProxy> Resource;
     std::atomic<ResourceState> State;
 public:
+    const ResourceFlags ResFlags;
     const HeapProps HeapInfo;
+    ~DxResource_() override;
+    COMMON_NO_COPY(DxResource_)
+    COMMON_NO_MOVE(DxResource_)
     [[nodiscard]] uint64_t GetGPUVirtualAddress() const;
+    [[nodiscard]] constexpr bool CanBindToShader() const noexcept
+    {
+        return !(HAS_FIELD(ResFlags, ResourceFlags::DenyShaderResource) && !HAS_FIELD(ResFlags, ResourceFlags::AllowUnorderAccess));
+    }
 };
 
 

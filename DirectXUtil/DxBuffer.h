@@ -34,6 +34,10 @@ protected:
     MAKE_ENABLER();
     static ResDesc BufferDesc(ResourceFlags rFlags, size_t size) noexcept;
     DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, ResourceFlags rFlag, size_t size);
+    DxBuffer GetSelf() const noexcept
+    {
+        return std::static_pointer_cast<const DxBuffer_>(shared_from_this());
+    }
     [[nodiscard]] common::PromiseResult<void> ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const;
     [[nodiscard]] common::PromiseResult<void> WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset) const;
     [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read_(const DxCmdQue& que, const size_t size, const size_t offset) const;
@@ -79,6 +83,61 @@ public:
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return WriteSpan_(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
+    }
+
+    struct BufferView
+    {
+        enum class Types : uint16_t { Structured, Typed, Raw };
+        DxBuffer Buffer;
+        uint32_t Offset;
+        uint32_t Count;
+        uint32_t Stride;
+        xziar::img::TextureFormat Format;
+        Types Type;
+        bool operator==(const BufferView& other) const noexcept
+        {
+            if (Buffer != other.Buffer || Type != other.Type || Format != other.Format)
+                return false;
+            if (Offset != other.Offset || Count != other.Count || Stride != other.Stride)
+                return false;
+            return true;
+        }
+    };
+    template<typename T>
+    BufferView CreateStructuredView(size_t count, size_t offset = 0) const noexcept
+    {
+        Expects(offset % sizeof(T) == 0);
+        Expects(sizeof(T) * count + offset < Size);
+        return 
+        { 
+            GetSelf(), gsl::narrow_cast<uint32_t>(offset / sizeof(T)), 
+            gsl::narrow_cast<uint32_t>(count), gsl::narrow_cast<uint32_t>(sizeof(T)),
+            xziar::img::TextureFormat::ERROR, BufferView::Types::Structured 
+        };
+    }
+    BufferView CreateRawView(size_t count, size_t offset = 0) const noexcept
+    {
+        Expects(offset % 4 == 0);
+        Expects(4 * count + offset < Size);
+        return 
+        { 
+            GetSelf(), gsl::narrow_cast<uint32_t>(offset / 4), 
+            gsl::narrow_cast<uint32_t>(count), 4,
+            xziar::img::TextureFormat::ERROR, BufferView::Types::Raw 
+        };
+    }
+    BufferView CreateTypedView(xziar::img::TextureFormat format, size_t count, size_t offset = 0) const noexcept
+    {
+        const auto bitPerPix = xziar::img::TexFormatUtil::BitPerPixel(format);
+        Expects(bitPerPix != 0);
+        Expects((offset * 8) % bitPerPix == 0);
+        Expects(bitPerPix * count / 8 + offset < Size);
+        return 
+        {
+            GetSelf(), gsl::narrow_cast<uint32_t>((offset * 8) / bitPerPix),
+            gsl::narrow_cast<uint32_t>(count), 0,
+            format, BufferView::Types::Typed 
+        };
     }
 
     [[nodiscard]] static DxBuffer Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag = ResourceFlags::AllowUnorderAccess);

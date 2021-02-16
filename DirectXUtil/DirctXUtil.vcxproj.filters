@@ -45,6 +45,12 @@
     <ClInclude Include="DxPch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DxProgram.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BindingManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DxDevice.cpp">
@@ -66,6 +72,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="DxPromise.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DxProgram.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BindingManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

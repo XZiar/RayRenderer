@@ -4,6 +4,7 @@
 #include "DxCmdQue.h"
 #include "DxResource.h"
 #include "DxShader.h"
+#include "BindingManager.h"
 
 
 namespace dxu
@@ -28,6 +29,10 @@ DxProxy(DxCmdList_,         CmdListProxy,           ID3D12GraphicsCommandList);
 
 DxProxy(DxResource_,        ResDesc,                D3D12_RESOURCE_DESC);
 DxProxy(DxResource_,        ResProxy,               ID3D12Resource);
+
+DxProxy(DxBindingManager,   DescHeapProxy,          ID3D12DescriptorHeap);
+
+DxProxy(DxShader_,          BindResourceDetail,     D3D12_SHADER_INPUT_BIND_DESC);
 
 
 }

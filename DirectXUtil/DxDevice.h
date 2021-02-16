@@ -14,13 +14,17 @@ class DxCmdQue_;
 class DxCmdList_;
 class DxResource_;
 class DxShader_;
+class DxProgram_;
+class DxBindingManager;
 
 class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public common::NonMovable
 {
-    friend class DxCmdQue_;
-    friend class DxCmdList_;
-    friend class DxResource_;
-    friend class DxShader_;
+    friend DxCmdQue_;
+    friend DxCmdList_;
+    friend DxResource_;
+    friend DxShader_;
+    friend DxProgram_;
+    friend DxBindingManager;
 protected:
     struct AdapterProxy;
     struct DeviceProxy;

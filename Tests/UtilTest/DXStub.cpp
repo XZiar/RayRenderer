@@ -4,6 +4,7 @@
 #include "DirectXUtil/DxResource.h"
 #include "DirectXUtil/DxBuffer.h"
 #include "DirectXUtil/DxShader.h"
+#include "DirectXUtil/DxProgram.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
@@ -102,12 +103,11 @@ static void DXStub()
                     const auto kertxt = common::file::ReadAllText(filepath);
                     auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
                     shaderStub.Build({});
-                    auto shader = shaderStub.Finish();
-
-                    for (const auto& item : shader->BufSlots())
+                    const auto prog = std::make_shared<DxComputeProgram_>(shaderStub.Finish());
+                    for (const auto& item : prog->BufSlots())
                     {
-                        log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.Index, item.Count,
-                            dxu::DxShader_::GetBoundedResTypeName(item.Type));
+                        log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.BindReg, item.Count,
+                            dxu::detail::GetBoundedResTypeName(item.Type));
                     }
                 }
                 catch (const BaseException& be)

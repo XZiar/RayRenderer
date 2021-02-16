@@ -23,7 +23,9 @@
 #include <dxgi1_6.h>
 #include "d3dx12.h"
 
-
+//fucking wingdi defines some terrible macro
+#undef ERROR
+#undef MemoryBarrier
 
 
 #define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(DxException, hr___, msg)
@@ -63,6 +65,8 @@ struct OptRet
         return &Data;
     }
 };
+
+[[nodiscard]] uint32_t TexFormatToDXGIFormat(xziar::img::TextureFormat format) noexcept;
 
 }
 

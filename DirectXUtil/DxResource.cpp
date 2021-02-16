@@ -46,7 +46,7 @@ static HeapProps ProcessProps(HeapProps props, DxDevice dev) noexcept
 }
 DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState) 
     : Device(device), State(FixState(initState, heapProps.Type)), 
-    HeapInfo(ProcessProps(heapProps, device))
+    ResFlags(static_cast<ResourceFlags>(desc.Flags)), HeapInfo(ProcessProps(heapProps, device))
 {
     const D3D12_HEAP_PROPERTIES props
     {
@@ -68,6 +68,11 @@ DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFla
 DxResource_::~DxResource_()
 {
     Resource->Release();
+}
+
+void* DxResource_::GetD3D12Object() const noexcept
+{
+    return static_cast<ID3D12Object*>(Resource.Ptr());
 }
 
 void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const

@@ -8,7 +8,6 @@
 namespace dxu
 {
 DxProxy(DxShader_, ShaderBlob,    IDxcBlob);
-DxProxy(DxShader_, RootSignature, ID3D12RootSignature);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
@@ -326,26 +325,6 @@ static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
     }
 }
 
-static constexpr std::pair<BoundedResourceType, bool> ParseBindType(const D3D_SHADER_INPUT_TYPE type) noexcept
-{
-    switch (type)
-    {
-    case D3D_SIT_CBUFFER:                           return { BoundedResourceType::CBuffer,          false };
-    case D3D_SIT_TBUFFER:                           return { BoundedResourceType::TBuffer,          false };
-    case D3D_SIT_TEXTURE:                           return { BoundedResourceType::Texture,          true  };
-    case D3D_SIT_SAMPLER:                           return { BoundedResourceType::Sampler,          true  };
-    case D3D_SIT_UAV_RWTYPED:                       return { BoundedResourceType::TypedUAV,         false };
-    case D3D_SIT_STRUCTURED:                        return { BoundedResourceType::UntypedUAV,       false };
-    case D3D_SIT_UAV_RWSTRUCTURED:                  return { BoundedResourceType::UntypedUAV,       false };
-    case D3D_SIT_BYTEADDRESS:                       return { BoundedResourceType::Other,            false };
-    case D3D_SIT_UAV_RWBYTEADDRESS:                 return { BoundedResourceType::ByteAddressUAV,   false };
-    case D3D_SIT_UAV_APPEND_STRUCTURED:             return { BoundedResourceType::Other,            false };
-    case D3D_SIT_UAV_CONSUME_STRUCTURED:            return { BoundedResourceType::Other,            false };
-    case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:     return { BoundedResourceType::Other,            false };
-    default: /*Expects(false);*/                    return { BoundedResourceType::Other,            false };
-    }
-}
-
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     : Device(stub->Device), Source(std::move(stub->Source)), Blob(stub->Blob)
 {
@@ -357,66 +336,16 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     THROW_HR(shaderReflector->GetDesc(&desc), u"Failed to get desc");
     Type = ParseShaderType((desc.Version & 0xFFFF0000) >> 16);
     Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
-    std::vector<D3D12_ROOT_PARAMETER> rootParams;
-    for (uint32_t i = 0; i < desc.BoundResources; ++i)
+
+    BindCount = desc.BoundResources;
+    BindResources = std::make_unique<BindResourceDetail[]>(BindCount);
+    for (uint32_t i = 0; i < BindCount; ++i)
     {
-        D3D12_SHADER_INPUT_BIND_DESC bdesc = {};
-        THROW_HR(shaderReflector->GetResourceBindingDesc(i, &bdesc), u"Failed to get binding desc");
-        HashedStrView<char> resName(bdesc.Name);
-        // dxLog().verbose(u"[{}] [{}] Bind[{},{}] Type[{}]\n", i, resName.View, bdesc.BindPoint, bdesc.BindCount, uint32_t(bdesc.Type));
-        const auto name = StrPool.AllocateString(resName);
-        const auto [type, isTex] = ParseBindType(bdesc.Type);
-        //if (isTex)
-        BufferSlots.push_back({ resName.Hash, name, bdesc.BindPoint, bdesc.BindCount, type });
-        D3D12_ROOT_PARAMETER rootParam{};
-        rootParam.ShaderVisibility  = D3D12_SHADER_VISIBILITY_ALL;
-        bool addParam = true;
-        if (type == BoundedResourceType::TypedUAV || type == BoundedResourceType::UntypedUAV || type == BoundedResourceType::ByteAddressUAV)
-        {
-            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
-            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
-        }
-        else if (type == BoundedResourceType::CBuffer)
-        {
-            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
-        }
-        else if (type == BoundedResourceType::TBuffer || type == BoundedResourceType::Texture)
-        {
-            rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-            rootParam.Descriptor    = { bdesc.BindPoint, bdesc.BindCount };
-        }
-        else
-        {
-            addParam = false;
-        }
-        if (addParam)
-            rootParams.push_back(rootParam);
-    }
-    // create RootSignature
-    {
-        D3D12_ROOT_SIGNATURE_DESC rootSigDesc =
-        {
-            gsl::narrow_cast<uint32_t>(rootParams.size()),
-            rootParams.data(),
-            0, // static sampler count
-            nullptr, // static sampler
-            D3D12_ROOT_SIGNATURE_FLAG_NONE
-        };
-        ComPtr<ID3DBlob> rootSigSer = nullptr, errorBlob = nullptr;
-        THROW_HR(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, rootSigSer.GetAddressOf(), errorBlob.GetAddressOf()),
-            ([](const auto& err) -> std::u16string
-                {
-                    if (err != nullptr)
-                    {
-                        const auto msg = reinterpret_cast<const char*>(err->GetBufferPointer());
-                        return FMTSTR(u"Failed to SerializeRootSignature:\n{}", msg);
-                    }
-                    else
-                        return u"Failed to SerializeRootSignature";
-                }(errorBlob)));
-        THROW_HR(Device->Device->CreateRootSignature(0, rootSigSer->GetBufferPointer(), rootSigSer->GetBufferSize(),
-            IID_PPV_ARGS(&RootSig)), u"Failed to create Root Signature");
+        auto& res = BindResources[i];
+        THROW_HR(shaderReflector->GetResourceBindingDesc(i, &res), u"Failed to get binding desc");
+        dxLog().verbose(u"[{}] [{}] Bind[{},{}] Type[{}] SrvDim[{}], Ret[{}]\n",
+            i, res.Name, res.BindPoint, res.BindCount,
+            uint32_t(res.Type), uint32_t(res.Dimension), uint32_t(res.ReturnType));
     }
 }
 DxShader_::~DxShader_()
@@ -425,18 +354,6 @@ DxShader_::~DxShader_()
 const PtrProxy<DxDevice_::DeviceProxy>& DxShader_::GetDevice() const noexcept
 {
     return Device->Device;
-}
-
-DxShader_::BoundedResWrapper DxShader_::GetBufSlot(const size_t idx) const noexcept
-{
-    const auto& slot = BufferSlots[idx];
-    return { StrPool.GetStringView(slot.Name), slot.Index, slot.Count, slot.Type };
-}
-
-DxShader_::BoundedResWrapper DxShader_::GetTexSlot(const size_t idx) const noexcept
-{
-    const auto& slot = TextureSlots[idx];
-    return { StrPool.GetStringView(slot.Name), slot.Index, slot.Count, slot.Type };
 }
 
 DxShaderStub<DxShader_> DxShader_::Create(DxDevice dev, ShaderType type, std::string str)
@@ -448,119 +365,6 @@ DxShader DxShader_::CreateAndBuild(DxDevice dev, ShaderType type, std::string st
     auto stub = Create(dev, type, std::move(str));
     stub.Build(config);
     return stub.Finish();
-}
-
-const DxShader_::BoundedResource* DxShader_::GetSlot(const std::vector<BoundedResource>& container, HashedStrView<char> name) const
-{
-    for (const auto& item : container)
-    {
-        if (item.Hash != name.Hash) continue;
-        if (name == StrPool.GetStringView(item.Name))
-            return &item;
-    }
-    return nullptr;
-}
-
-
-DxComputeShader_::DxComputeShader_(DxComputeShader_::T_, DxShaderStub_* stub)
-    : DxShader_(DxShader_::T_{}, stub)
-{
-}
-DxComputeShader_::~DxComputeShader_()
-{ }
-
-DxShaderPrepare<DxComputeShader_> DxComputeShader_::Prepare() const
-{
-    return std::static_pointer_cast<const DxComputeShader_>(shared_from_this());
-}
-
-DxComputeShader DxComputeShader_::Create(DxDevice dev, std::string str, const DxShaderConfig& config)
-{
-    DxShaderStub<DxComputeShader_> stub{ dev, ShaderType::Compute, std::move(str) };
-    stub.Build(config);
-    return stub.Finish();
-}
-
-DxComputeShader_::DxComputeCall::DxComputeCall(DxShaderPrepare<DxComputeShader_>& prepare, const DxCmdList& prevList) :
-    Shader(prepare.GetShader()), CmdList(DxComputeCmdList_::Create(Shader->Device, prevList))
-{
-
-}
-
-
-struct DxShaderPrepareBase::BindingInfo
-{
-    template<typename T>
-    struct BindItem
-    {
-        std::string_view Name;
-        std::shared_ptr<T> Item;
-        uint32_t Index;
-    };
-    std::vector<BindItem<const DxBuffer_>> BindBuffer;
-    ComPtr<ID3D12DescriptorHeap> DescHeap;
-    ComPtr<ID3D12RootSignature> RootSig;
-};
-DxShaderPrepareBase::DxShaderPrepareBase(DxShader shader) :
-    Shader(std::move(shader)), Binding(std::make_unique<BindingInfo>())
-{ }
-DxShaderPrepareBase::~DxShaderPrepareBase()
-{ }
-
-bool DxShaderPrepareBase::SetBuf(std::string_view name, DxBuffer buf)
-{
-    for (auto& item : Binding->BindBuffer)
-    {
-        if (item.Name == name)
-        {
-            item.Item = buf;
-            return true;
-        }
-    }
-    const auto slot = Shader->GetSlot(Shader->BufferSlots, name);
-    if (slot)
-    {
-        Binding->BindBuffer.push_back({ name, buf, slot->Index });
-        return true;
-    }
-    return false;
-}
-
-void DxShaderPrepareBase::Finish(const DxCmdList& cmdlist)
-{
-    std::vector<D3D12_ROOT_PARAMETER> rootParams;
-    D3D12_ROOT_SIGNATURE_DESC rsDesc{};
-    D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = 
-    {
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        gsl::narrow_cast<uint32_t>(Binding->BindBuffer.size()),
-        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-        0
-    };
-    THROW_HR(Shader->GetDevice()->CreateDescriptorHeap(&descHeapDesc,
-        IID_PPV_ARGS(Binding->DescHeap.GetAddressOf())), u"Failed to get desc");
-    const auto descName = FMTSTR(u"UAVs for Shader[{}]", Shader->ShaderHash);
-    Binding->DescHeap->SetName(WStr(descName.c_str()));
-
-}
-
-
-std::string_view DxShader_::GetBoundedResTypeName(const BoundedResourceType type) noexcept
-{
-    switch (type)
-    {
-#define CASE_T(t) case BoundedResourceType::t:    return #t
-    CASE_T(Other);
-    CASE_T(CBuffer);
-    CASE_T(TBuffer);
-    CASE_T(Texture);
-    CASE_T(Sampler);
-    CASE_T(TypedUAV);
-    CASE_T(UntypedUAV);
-    CASE_T(ByteAddressUAV);
-#undef CASE_T
-    default:    return "unknown";
-    }
 }
 
 

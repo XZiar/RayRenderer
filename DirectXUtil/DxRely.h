@@ -19,6 +19,7 @@
 
 
 #include "ImageUtil/ImageCore.h"
+#include "ImageUtil/TexFormat.h"
 #include "SystemCommon/HResultHelper.h"
 #include "SystemCommon/PromiseTask.h"
 #include "common/EnumEx.hpp"
@@ -80,7 +81,16 @@ namespace dxu
 template<typename T>
 struct PtrProxy
 {
-    void* Pointer = nullptr;
+    void* Pointer;
+    constexpr PtrProxy() noexcept : Pointer(nullptr) {}
+    constexpr PtrProxy(const PtrProxy<T>&) noexcept = default;
+    constexpr PtrProxy(PtrProxy<T>&& ptr) noexcept : Pointer(ptr.Pointer)
+    {
+        ptr.SetNull();
+    }
+    explicit constexpr PtrProxy(void* ptr) noexcept : Pointer(ptr) {}
+    PtrProxy<T>& operator=(const PtrProxy<T>&) noexcept = delete;
+    PtrProxy<T>& operator=(PtrProxy<T>&&) noexcept = delete;
     T* Ptr() const noexcept 
     {
         return reinterpret_cast<T*>(Pointer);
@@ -118,11 +128,19 @@ struct PtrProxy
     }
 };
 
-namespace detail
+
+class DXUAPI DxNamable
 {
-struct IIDPPVPair;
-struct IIDData;
-}
+protected:
+    std::u16string Name;
+private:
+    virtual void* GetD3D12Object() const noexcept = 0;
+public:
+    virtual ~DxNamable();
+    void SetName(std::u16string name);
+    forceinline std::u16string_view GetName() const noexcept { return Name; }
+};
+
 
 class DxException : public common::BaseException
 {
@@ -178,6 +196,33 @@ enum class ResourceState : uint32_t
     VideoEncodeRead     = 0x200000, 
     VideoEncodeWrite    = 0x800000,
 };
+
+
+enum class BoundedResourceType : uint16_t
+{
+    RWMask   = 0x0100,
+    TypeMask = 0xf000, OtherType = 0x0000, UAVType = 0x1000, SRVType = 0x2000, CBVType = 0x3000, SamplerType = 0x4000,
+    Other           =   OtherType | 1, 
+    CBuffer         =     CBVType | 1,
+    TBuffer         =     SRVType | 1,
+    Texture         =     SRVType | 2, 
+    Sampler         = SamplerType | 1, 
+    TypedUAV        =     UAVType | 1,
+    UntypedUAV      =     UAVType | 2,
+    RawUAV          =     UAVType | 3,
+    RWTypedUAV      = RWMask | TypedUAV,
+    RWUntypedUAV    = RWMask | UntypedUAV,
+    RWRawUAV        = RWMask | RawUAV,
+};
+MAKE_ENUM_BITFIELD(BoundedResourceType)
+
+
+namespace detail
+{
+struct IIDPPVPair;
+struct IIDData;
+DXUAPI [[nodiscard]] std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept;
+}
 
 
 //struct ContextCapability
