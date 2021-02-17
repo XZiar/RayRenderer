@@ -1,6 +1,5 @@
 #include "DxPch.h"
 #include "DxDevice.h"
-#include "ProxyStruct.h"
 
 namespace dxu
 {
@@ -22,8 +21,8 @@ static std::pair<CPUPageProps, MemPrefer> QueryHeapProp(ID3D12Device* dev, D3D12
     return { static_cast<CPUPageProps>(prop.CPUPageProperty), static_cast<MemPrefer>(prop.MemoryPoolPreference) };
 }
 
-DxDevice_::DxDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> device, std::u16string_view name) :
-    Adapter(adapter), Device(device), AdapterName(name), 
+DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name) :
+    Adapter(std::move(adapter)), Device(std::move(device)), AdapterName(name), 
     SMVer(0), WaveSize(0), 
     HeapUpload(QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), HeapDefault(QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
     Arch(Architecture::None), DtypeSupport(ShaderDType::None)
@@ -68,12 +67,7 @@ DxDevice_::DxDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> devic
     }
 }
 DxDevice_::~DxDevice_()
-{
-    if (Device)
-        Device->Release();
-    if (Adapter)
-        Adapter->Release();
-}
+{ }
 
 common::span<const DxDevice> DxDevice_::GetDevices()
 {
@@ -129,7 +123,7 @@ common::span<const DxDevice> DxDevice_::GetDevices()
                 }
             }
             dxLog().verbose(u"Created device on {}.\n", adapterName);
-            devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<AdapterProxy>{ adapter }, PtrProxy<DeviceProxy>{ device }, adapterName)));
+            devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, adapterName)));
         }
 
         return devs;

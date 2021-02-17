@@ -76,15 +76,13 @@ private:
     void* GetD3D12Object() const noexcept override;
 protected:
     MAKE_ENABLER();
-    struct ResDesc;
-    struct ResProxy;
-    DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState);
+    DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const detail::ResourceDesc& desc, ResourceState initState);
     void CopyRegionFrom(const DxCmdList& list, const uint64_t offset,
         const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const;
-    ResourceState TransitState(const DxCmdList& list, ResourceState newState) const;
+    ResourceState TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState = false) const;
     DxDevice Device;
-    PtrProxy<ResProxy> Resource;
-    std::atomic<ResourceState> State;
+    PtrProxy<detail::Resource> Resource;
+    ResourceState InitState;
 public:
     const ResourceFlags ResFlags;
     const HeapProps HeapInfo;

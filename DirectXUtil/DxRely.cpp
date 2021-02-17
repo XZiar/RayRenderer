@@ -121,6 +121,17 @@ uint32_t TexFormatToDXGIFormat(xziar::img::TextureFormat format) noexcept
     }
 }
 
+std::u16string TryErrorString(std::u16string str, const Microsoft::WRL::ComPtr<ID3DBlob>& errBlob)
+{
+    if (errBlob != nullptr)
+    {
+        const auto msg = reinterpret_cast<const char*>(errBlob->GetBufferPointer());
+        str.append(u":\n");
+        str.append(common::str::to_u16string(msg, common::str::Charset::UTF8));
+    }
+    return str;
+}
+
 std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept
 {
     switch (type)

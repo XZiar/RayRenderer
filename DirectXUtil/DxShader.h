@@ -48,22 +48,21 @@ class DXUAPI DxShader_ : public std::enable_shared_from_this<DxShader_>
     friend DxComputeProgram_;
 private:
     struct ShaderBlob;
-    const PtrProxy<DxDevice_::DeviceProxy>& GetDevice() const noexcept;
+    const PtrProxy<detail::Device>& GetDevice() const noexcept;
 protected:
-    struct BindResourceDetail;
     struct T_ {};
     const DxDevice Device;
     const std::string Source;
     PtrProxy<ShaderBlob> Blob;
     std::string ShaderHash;
-    std::unique_ptr<BindResourceDetail[]> BindResources;
+    std::unique_ptr<detail::BindResourceDetail[]> BindResources;
     uint32_t BindCount;
     ShaderType Type;
     uint32_t Version;
-
 public:
     DxShader_(T_, DxShaderStub_* stub);
     virtual ~DxShader_();
+    common::span<const std::byte> GetBinary() const;
 
     [[nodiscard]] static DxShaderStub<DxShader_> Create(DxDevice dev, ShaderType type, std::string str);
     [[nodiscard]] static DxShader CreateAndBuild(DxDevice dev, ShaderType type, std::string str, const DxShaderConfig& config);

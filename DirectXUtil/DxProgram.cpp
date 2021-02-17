@@ -1,75 +1,16 @@
 #include "DxPch.h"
 #include "DxProgram.h"
-#include "ProxyStruct.h"
 #include "StringUtil/Detect.h"
-#include <dxcapi.h>
 
 
 namespace dxu
 {
-DxProxy(DxProgram_, RootSignature, ID3D12RootSignature);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
 using common::str::HashedStrView;
 
 
-
-enum class BoundedResourceFormat : uint16_t
-{
-    Other = 0, Sampler = 1, Buf = 2, Tex = 3
-};
-
-struct TempBindResource
-{
-    enum class FormatTypes : uint16_t { Other = 0, Sampler = 1, Buf = 2, Tex = 3 };
-    D3D12_SHADER_INPUT_BIND_DESC Descriptor;
-    uint32_t CategoryIdx;
-    BoundedResourceType ResType;
-    FormatTypes FormatType;
-    constexpr TempBindResource() noexcept : Descriptor{}, CategoryIdx(0),
-        ResType(BoundedResourceType::OtherType), FormatType(FormatTypes::Other)
-    { }
-    void InitType() noexcept
-    {
-        switch (Descriptor.Type)
-        {
-        case D3D_SIT_CBUFFER:
-            ResType = BoundedResourceType::CBuffer; FormatType = FormatTypes::Buf; return;
-        case D3D_SIT_TBUFFER:
-            ResType = BoundedResourceType::TBuffer; break;
-        case D3D_SIT_TEXTURE:
-            ResType = BoundedResourceType::Texture; break;
-        case D3D_SIT_SAMPLER:
-            ResType = BoundedResourceType::Sampler; FormatType = FormatTypes::Sampler; return;
-        case D3D_SIT_UAV_RWTYPED:
-            ResType = BoundedResourceType::RWTypedUAV; break;
-        case D3D_SIT_STRUCTURED:
-            ResType = BoundedResourceType::UntypedUAV; break;
-        case D3D_SIT_UAV_RWSTRUCTURED:
-            ResType = BoundedResourceType::RWUntypedUAV; break;
-        case D3D_SIT_BYTEADDRESS:
-            ResType = BoundedResourceType::RawUAV; FormatType = FormatTypes::Buf; return;
-        case D3D_SIT_UAV_RWBYTEADDRESS:
-            ResType = BoundedResourceType::RWRawUAV; FormatType = FormatTypes::Buf; return;
-        case D3D_SIT_UAV_APPEND_STRUCTURED:
-        case D3D_SIT_UAV_CONSUME_STRUCTURED:
-        case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
-        default:
-            ResType = BoundedResourceType::Other; FormatType = FormatTypes::Other; return;
-        }
-        switch (Descriptor.Dimension)
-        {
-        case D3D_SRV_DIMENSION_BUFFER:
-        case D3D_SRV_DIMENSION_BUFFEREX:
-            FormatType = FormatTypes::Buf; return;
-        case D3D_SRV_DIMENSION_UNKNOWN:
-            FormatType = FormatTypes::Other; return;
-        default:
-            FormatType = FormatTypes::Tex; return;
-        }
-    }
-};
 
 DxProgram_::DxProgram_(DxDevice dev) : Device(dev)
 {
@@ -187,39 +128,11 @@ const DxProgram_::BoundedResource* DxProgram_::GetSlot(const std::vector<Bounded
 }
 
 
-DxComputeProgram_::DxComputeProgram_(DxShader shader) : DxProgram_(shader->Device), Shader(std::move(shader))
-{
-}
-DxComputeProgram_::~DxComputeProgram_()
-{ }
-
-DxProgram_::DxProgramPrepare<DxComputeProgram_> DxComputeProgram_::Prepare() const
-{
-    return std::static_pointer_cast<const DxComputeProgram_>(shared_from_this());
-}
-
-DxComputeProgram DxComputeProgram_::Create(DxDevice dev, std::string str, const DxShaderConfig& config)
-{
-    return std::make_shared<DxComputeProgram_>(DxShader_::CreateAndBuild(dev, ShaderType::Compute, std::move(str), config));
-}
-
-DxComputeProgram_::DxComputeCall::DxComputeCall(DxProgramPrepare<DxComputeProgram_>& prepare, const DxCmdList& prevList) :
-    Program(prepare.GetProgram()), CmdList(DxComputeCmdList_::Create(Program->Device, prevList)),
-    RootSig(std::move(prepare.RootSig))
-{
-    prepare.FinishBinding(CmdList);
-}
-
-
-
-DxProgram_::DxProgramPrepareBase::DxProgramPrepareBase(DxProgram program) : Program(std::move(program)), 
-    BindMan(Program->BufferSlots.size(), Program->TextureSlots.size(), Program->SamplerSlots.size())
+DxProgram_::DxProgramPrepareBase::DxProgramPrepareBase(DxProgram program) : Program(std::move(program)),
+BindMan(Program->BufferSlots.size(), Program->TextureSlots.size(), Program->SamplerSlots.size())
 { }
 DxProgram_::DxProgramPrepareBase::~DxProgramPrepareBase()
-{
-    if (RootSig)
-        RootSig->Release();
-}
+{ }
 
 bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const DxBuffer_::BufferView& bufview)
 {
@@ -241,14 +154,15 @@ bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const Dx
     return true;
 }
 
-void DxProgram_::DxProgramPrepareBase::FinishBinding(const DxCmdList& cmdlist)
-{
-    auto& device = *Program->Device->Device;
+
+DxProgram_::DxProgramCall::DxProgramCall(DxProgramPrepareBase& prepare) :
+    Device(prepare.Program->Device),
+    CSUDescHeap(prepare.BindMan.GetCSUHeap(prepare.Program->Device))
+{ 
     std::vector<D3D12_DESCRIPTOR_RANGE> descRanges;
-    descRanges.reserve(Bindings.size());
-    for (uint32_t i = 0; i < descRanges.size(); ++i)
+    descRanges.reserve(prepare.Bindings.size());
+    for (const auto [res, pos] : prepare.Bindings)
     {
-        const auto [res, pos] = Bindings[i];
         const auto& resDesc = *res->Detail;
         // Expects(slot.FormatType != TempBindResource::FormatTypes::Other);
         D3D12_DESCRIPTOR_RANGE_TYPE descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -280,23 +194,64 @@ void DxProgram_::DxProgramPrepareBase::FinishBinding(const DxCmdList& cmdlist)
         };
         ComPtr<ID3DBlob> rootSigSer = nullptr, errorBlob = nullptr;
         THROW_HR(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, rootSigSer.GetAddressOf(), errorBlob.GetAddressOf()),
-            ([](const auto& err) -> std::u16string
-                {
-                    if (err != nullptr)
-                    {
-                        const auto msg = reinterpret_cast<const char*>(err->GetBufferPointer());
-                        return FMTSTR(u"Failed to SerializeRootSignature:\n{}", msg);
-                    }
-                    else
-                        return u"Failed to SerializeRootSignature";
-                }(errorBlob)));
-        THROW_HR(device.CreateRootSignature(0, rootSigSer->GetBufferPointer(), rootSigSer->GetBufferSize(),
+            detail::TryErrorString(u"Failed to SerializeRootSignature", errorBlob));
+        THROW_HR(GetDevice()->CreateRootSignature(0, rootSigSer->GetBufferPointer(), rootSigSer->GetBufferSize(),
             IID_PPV_ARGS(&RootSig)), u"Failed to create Root Signature");
     }
-    
+}
+DxProgram_::DxProgramCall::~DxProgramCall()
+{
 }
 
 
+DxComputeProgram_::DxComputeProgram_(DxShader shader) : DxProgram_(shader->Device), Shader(std::move(shader))
+{
+}
+DxComputeProgram_::~DxComputeProgram_()
+{ }
+
+DxProgram_::DxProgramPrepare<DxComputeProgram_> DxComputeProgram_::Prepare() const
+{
+    return std::static_pointer_cast<const DxComputeProgram_>(shared_from_this());
+}
+
+DxComputeProgram DxComputeProgram_::Create(DxDevice dev, std::string str, const DxShaderConfig& config)
+{
+    return std::make_shared<DxComputeProgram_>(DxShader_::CreateAndBuild(dev, ShaderType::Compute, std::move(str), config));
+}
+
+
+DxComputeProgram_::DxComputeCall::DxComputeCall(DxProgramPrepare<DxComputeProgram_>& prepare) :
+    DxProgramCall(prepare), Program(prepare.GetProgram())
+{
+    const auto bytecode = Program->Shader->GetBinary();
+    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc =
+    {
+        RootSig,
+        { bytecode.data(), bytecode.size() }, // CS bytecode
+        0,
+        { nullptr, 0 }, // no cache
+        D3D12_PIPELINE_STATE_FLAG_NONE
+    };
+    THROW_HR(GetDevice()->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&PSO)), u"Failed to create Compute PSO");
+} 
+
+void DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdList& cmdlist, const std::array<uint32_t, 3>& threadgroups) const
+{
+    auto& list = *GetCmdList(cmdlist);
+    list.SetPipelineState(PSO);
+    list.SetComputeRootSignature(RootSig);
+    list.SetComputeRootDescriptorTable(0, CSUDescHeap->GetGPUDescriptorHandleForHeapStart());
+    // TODO: resource barrier
+    list.Dispatch(threadgroups[0], threadgroups[1], threadgroups[2]);
+}
+
+common::PromiseResult<void> DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdQue& que, const std::array<uint32_t, 3>& threadgroups) const
+{
+    const auto cmdlist = DxComputeCmdList_::Create(Device);
+    ExecuteIn(cmdlist, threadgroups);
+    return que->ExecuteAnyList(cmdlist);
+}
 
 
 }

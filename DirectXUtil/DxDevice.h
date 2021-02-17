@@ -26,10 +26,8 @@ class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public c
     friend DxProgram_;
     friend DxBindingManager;
 protected:
-    struct AdapterProxy;
-    struct DeviceProxy;
-    PtrProxy<AdapterProxy> Adapter;
-    PtrProxy<DeviceProxy> Device;
+    PtrProxy<detail::Adapter> Adapter;
+    PtrProxy<detail::Device> Device;
 public:
     ~DxDevice_();
 
@@ -53,7 +51,7 @@ private:
     MAKE_ENABLER();
     Architecture Arch;
     ShaderDType DtypeSupport;
-    DxDevice_(PtrProxy<AdapterProxy> adapter, PtrProxy<DeviceProxy> device, std::u16string_view name);
+    DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name);
 };
 MAKE_ENUM_BITFIELD(DxDevice_::Architecture)
 MAKE_ENUM_BITFIELD(DxDevice_::ShaderDType)

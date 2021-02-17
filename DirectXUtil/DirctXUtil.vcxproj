@@ -50,7 +50,6 @@
     <ClInclude Include="DxPch.h" />
     <ClInclude Include="DxRely.h" />
     <ClInclude Include="DxShader.h" />
-    <ClInclude Include="ProxyStruct.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BindingManager.cpp" />

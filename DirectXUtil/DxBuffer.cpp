@@ -1,6 +1,5 @@
 #include "DxPch.h"
 #include "DxBuffer.h"
-#include "ProxyStruct.h"
 
 
 namespace dxu
@@ -96,7 +95,7 @@ common::AlignedBuffer DxBufMapPtr::AsBuffer() const noexcept
 }
 
 
-DxResource_::ResDesc DxBuffer_::BufferDesc(ResourceFlags rFlag, size_t size) noexcept
+detail::ResourceDesc DxBuffer_::BufferDesc(ResourceFlags rFlag, size_t size) noexcept
 {
     return 
     {

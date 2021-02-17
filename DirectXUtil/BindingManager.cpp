@@ -1,6 +1,5 @@
 #include "DxPch.h"
 #include "BindingManager.h"
-#include "ProxyStruct.h"
 #include "StringUtil/Detect.h"
 
 
@@ -26,7 +25,7 @@ struct DescHeap
     }
 };
 
-PtrProxy<DxBindingManager::DescHeapProxy> DxBindingManager::GetCSUHeap(const DxDevice device) const
+PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) const
 {
     auto& dev = *device->Device;
     std::vector<D3D12_ROOT_PARAMETER> rootParams;
@@ -84,7 +83,7 @@ PtrProxy<DxBindingManager::DescHeapProxy> DxBindingManager::GetCSUHeap(const DxD
             dev.CreateShaderResourceView(buf.Resource, &srvDesc, handle);
         }
     }
-    return PtrProxy<DescHeapProxy>{ csuDescHeap.Heap.Detach() };
+    return PtrProxy<detail::DescHeap>{ csuDescHeap.Heap.Detach() };
 }
 
 

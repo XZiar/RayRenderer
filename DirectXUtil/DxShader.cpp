@@ -1,13 +1,12 @@
 #include "DxPch.h"
 #include "DxShader.h"
-#include "ProxyStruct.h"
 #include "StringUtil/Detect.h"
 #include <dxcapi.h>
 
 
 namespace dxu
 {
-DxProxy(DxShader_, ShaderBlob,    IDxcBlob);
+ClzProxy(DxShader_, ShaderBlob, IDxcBlob);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
 using common::str::Charset;
@@ -245,10 +244,7 @@ DxShaderStub_::DxShaderStub_(DxDevice dev, ShaderType type, std::string&& str)
     : Device(dev), Source(std::move(str)), Type(type)
 { }
 DxShaderStub_::~DxShaderStub_()
-{
-    if (Blob)
-        Blob->Release();
-}
+{ }
 void DxShaderStub_::Build(const DxShaderConfig& config)
 {
     const auto reqSmVer = config.SMVersion ? config.SMVersion : Device->SMVer;
@@ -326,9 +322,8 @@ static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
 }
 
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
-    : Device(stub->Device), Source(std::move(stub->Source)), Blob(stub->Blob)
+    : Device(stub->Device), Source(std::move(stub->Source)), Blob(std::move(stub->Blob))
 {
-    stub->Blob.SetNull();
     DXCReflector reflector(*Blob);
     ShaderHash = reflector.GetShaderHashStr();
     const auto shaderReflector = reflector.GetShaderReflection();
@@ -338,7 +333,7 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
 
     BindCount = desc.BoundResources;
-    BindResources = std::make_unique<BindResourceDetail[]>(BindCount);
+    BindResources = std::make_unique<detail::BindResourceDetail[]>(BindCount);
     for (uint32_t i = 0; i < BindCount; ++i)
     {
         auto& res = BindResources[i];
@@ -351,9 +346,16 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
 DxShader_::~DxShader_()
 { }
 
-const PtrProxy<DxDevice_::DeviceProxy>& DxShader_::GetDevice() const noexcept
+const PtrProxy<detail::Device>& DxShader_::GetDevice() const noexcept
 {
     return Device->Device;
+}
+
+common::span<const std::byte> DxShader_::GetBinary() const
+{
+    const auto ptr  = Blob->GetBufferPointer();
+    const auto size = Blob->GetBufferSize();
+    return { reinterpret_cast<const std::byte*>(ptr), size };
 }
 
 DxShaderStub<DxShader_> DxShader_::Create(DxDevice dev, ShaderType type, std::string str)

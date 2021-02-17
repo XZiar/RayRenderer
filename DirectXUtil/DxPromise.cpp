@@ -1,7 +1,6 @@
 #include "DxPch.h"
 #include "DxPromise.h"
 #include "DxCmdQue.h"
-#include "ProxyStruct.h"
 
 
 namespace dxu

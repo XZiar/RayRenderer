@@ -18,9 +18,6 @@
     <ClInclude Include="DxDevice.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ProxyStruct.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="DxCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -12,10 +12,12 @@
 
 namespace dxu
 {
+class DxProgram_;
 
 
 class DXUAPI DxBindingManager
 {
+    friend DxProgram_;
 protected:
     template<typename T>
     struct BindItem
@@ -24,13 +26,12 @@ protected:
         uint16_t DescOffset = 0;
         uint16_t Reference = 0;
     };
-    struct DescHeapProxy;
     std::vector<BindItem<DxBuffer_::BufferView>> BindBuffer;
     std::vector<BindItem<DxBuffer_::BufferView>> BindTexture;
     std::vector<BindItem<DxBuffer_::BufferView>> BindSampler;
 public:
     virtual uint16_t SetBuf(DxBuffer_::BufferView bufview, uint16_t offset) = 0;
-    PtrProxy<DescHeapProxy> GetCSUHeap(const DxDevice device) const;
+    PtrProxy<detail::DescHeap> GetCSUHeap(const DxDevice device) const;
 };
 
 class DXUAPI DxSharedBindingManager : public DxBindingManager

@@ -1,7 +1,6 @@
 #include "DxPch.h"
 #include "DxResource.h"
 #include "DxBuffer.h"
-#include "ProxyStruct.h"
 
 namespace dxu
 {
@@ -44,8 +43,8 @@ static HeapProps ProcessProps(HeapProps props, DxDevice dev) noexcept
     }
     return props;
 }
-DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const ResDesc& desc, ResourceState initState) 
-    : Device(device), State(FixState(initState, heapProps.Type)), 
+DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const detail::ResourceDesc& desc, ResourceState initState) :
+    Device(device), InitState(FixState(initState, heapProps.Type)),
     ResFlags(static_cast<ResourceFlags>(desc.Flags)), HeapInfo(ProcessProps(heapProps, device))
 {
     const D3D12_HEAP_PROPERTIES props
@@ -60,14 +59,13 @@ DxResource_::DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFla
         &props,
         static_cast<D3D12_HEAP_FLAGS>(heapFlag),
         &desc,
-        static_cast<D3D12_RESOURCE_STATES>(State.load()),
+        static_cast<D3D12_RESOURCE_STATES>(InitState),
         nullptr,
         IID_PPV_ARGS(&Resource)
     ), u"Failed to create committed resource");
 }
 DxResource_::~DxResource_()
 {
-    Resource->Release();
 }
 
 void* DxResource_::GetD3D12Object() const noexcept
@@ -80,13 +78,13 @@ void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, c
     list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
 }
 
-ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState) const
+ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
 {
     const auto ret = list->UpdateResState(Resource, newState);
-    if (!ret.has_value())
-        return ResourceState::Common;
-    const auto oldState = *ret;
-    if (newState != oldState)
+    ResourceState oldState = fromInitState ? InitState : ResourceState::Common;
+    if (ret.has_value())
+        oldState = *ret;
+    if (oldState != ResourceState::Common && newState != oldState)
     {
         D3D12_RESOURCE_TRANSITION_BARRIER trans = 
         {

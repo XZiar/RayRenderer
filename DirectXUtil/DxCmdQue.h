@@ -29,20 +29,21 @@ class DxDirectCmdQue_;
 using DxDirectCmdQue    = std::shared_ptr<const DxDirectCmdQue_>;
 
 class DxResource_;
+class DxProgram_;
+
 
 class DXUAPI DxCmdList_
 {
-    friend class DxCmdQue_;
-    friend class DxResource_;
+    friend DxCmdQue_;
+    friend DxResource_;
+    friend DxProgram_;
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
     COMMON_NO_COPY(DxCmdList_)
     COMMON_NO_MOVE(DxCmdList_)
     DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList = nullptr);
-    struct CmdAllocatorProxy;
-    struct CmdListProxy;
-    PtrProxy<CmdAllocatorProxy> CmdAllocator;
-    PtrProxy<CmdListProxy> CmdList;
+    PtrProxy<detail::CmdAllocator> CmdAllocator;
+    PtrProxy<detail::CmdList> CmdList;
     std::vector<std::pair<void*, ResourceState>> ResStateTable;
     std::atomic_flag HasClosed;
 
@@ -96,11 +97,9 @@ protected:
     COMMON_NO_COPY(DxCmdQue_)
     COMMON_NO_MOVE(DxCmdQue_)
     DxCmdQue_(DxDevice device, QueType type, bool diableTimeout);
-    struct FenceProxy;
-    struct CmdQueProxy;
     const DxDevice Device;
-    PtrProxy<CmdQueProxy> CmdQue;
-    PtrProxy<FenceProxy> Fence; 
+    PtrProxy<detail::CmdQue> CmdQue;
+    PtrProxy<detail::Fence> Fence; 
 
     virtual QueType GetType() const noexcept = 0;
     void ExecuteList(DxCmdList_& list) const;

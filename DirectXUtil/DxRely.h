@@ -24,7 +24,7 @@
 #include "SystemCommon/PromiseTask.h"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
-#include "common/ContainerEx.hpp"
+#include "common/EasyIterator.hpp"
 #include "common/FrozenDenseSet.hpp"
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
@@ -83,12 +83,24 @@ struct PtrProxy
 {
     void* Pointer;
     constexpr PtrProxy() noexcept : Pointer(nullptr) {}
-    constexpr PtrProxy(const PtrProxy<T>&) noexcept = default;
+    constexpr PtrProxy(const PtrProxy<T>& ptr) noexcept : Pointer(ptr.Pointer)
+    {
+        if (Pointer)
+            Ptr()->AddRef();
+    }
     constexpr PtrProxy(PtrProxy<T>&& ptr) noexcept : Pointer(ptr.Pointer)
     {
-        ptr.SetNull();
+        ptr.Pointer = nullptr;
     }
     explicit constexpr PtrProxy(void* ptr) noexcept : Pointer(ptr) {}
+    ~PtrProxy()
+    {
+        if (Pointer)
+        {
+            Ptr()->Release();
+            Pointer = nullptr;
+        }
+    }
     PtrProxy<T>& operator=(const PtrProxy<T>&) noexcept = delete;
     PtrProxy<T>& operator=(PtrProxy<T>&&) noexcept = delete;
     T* Ptr() const noexcept 
@@ -101,7 +113,6 @@ struct PtrProxy
         static_assert(std::is_base_of_v<typename T::RealType, typename U::RealType>);
         return *reinterpret_cast<PtrProxy<U>*>(this);
     }
-    void SetNull() noexcept { Pointer = nullptr; }
     operator T* () const noexcept
     {
         return Ptr();
@@ -221,6 +232,21 @@ namespace detail
 {
 struct IIDPPVPair;
 struct IIDData;
+
+struct Adapter;
+struct Device;
+struct CmdAllocator;
+struct CmdList;
+struct CmdQue;
+struct Fence;
+struct Resource;
+struct ResourceDesc;
+struct DescHeap;
+struct BindResourceDetail;
+struct RootSignature;
+struct PipelineState;
+
+
 DXUAPI [[nodiscard]] std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept;
 }
 

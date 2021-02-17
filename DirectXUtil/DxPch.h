@@ -49,6 +49,35 @@ struct IIDData
     REFIID TheIID;
 };
 
+#define ProxyType(type, dxtype) \
+struct type : public dxtype     \
+{                               \
+    using RealType = dxtype;    \
+}
+
+ProxyType(Adapter,              IDXGIAdapter1);
+ProxyType(Device,               ID3D12Device);
+ProxyType(CmdAllocator,         ID3D12CommandAllocator);
+// althought have different list types, they all called "GraphicsCommandList"
+ProxyType(CmdList,              ID3D12GraphicsCommandList);
+ProxyType(CmdQue,               ID3D12CommandQueue);
+ProxyType(Fence,                ID3D12Fence);
+ProxyType(Resource,             ID3D12Resource);
+ProxyType(ResourceDesc,         D3D12_RESOURCE_DESC);
+ProxyType(DescHeap,             ID3D12DescriptorHeap);
+ProxyType(BindResourceDetail,   D3D12_SHADER_INPUT_BIND_DESC);
+ProxyType(RootSignature,        ID3D12RootSignature);
+ProxyType(PipelineState,        ID3D12PipelineState);
+
+#undef ProxyType
+
+
+#define ClzProxy(clz, type, dxtype) \
+struct clz::type : public dxtype    \
+{                                   \
+    using RealType = dxtype;        \
+}
+
 
 template<typename T>
 struct OptRet
@@ -67,8 +96,10 @@ struct OptRet
 };
 
 [[nodiscard]] uint32_t TexFormatToDXGIFormat(xziar::img::TextureFormat format) noexcept;
+[[nodiscard]] std::u16string TryErrorString(std::u16string str, const Microsoft::WRL::ComPtr<ID3DBlob>& errBlob);
 
 }
+
 
 common::mlog::MiniLogger<false>& dxLog();
 

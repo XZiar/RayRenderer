@@ -8,6 +8,7 @@
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
+#include "common/ContainerEx.hpp"
 
 
 using namespace common;

@@ -1,6 +1,7 @@
 #pragma once
 #include "DxRely.h"
 #include "DxDevice.h"
+#include "DxCmdQue.h"
 #include "DxBuffer.h"
 #include "DxShader.h"
 #include "BindingManager.h"
@@ -37,50 +38,41 @@ private:
     };
     BoundedResWrapper GetBufSlot(const size_t idx) const noexcept;
     BoundedResWrapper GetTexSlot(const size_t idx) const noexcept;
-    using ItTypeBuf = common::container::IndirectIterator<const DxProgram_, BoundedResWrapper, &DxProgram_::GetBufSlot>;
-    using ItTypeTex = common::container::IndirectIterator<const DxProgram_, BoundedResWrapper, &DxProgram_::GetTexSlot>;
-    friend ItTypeBuf;
-    friend ItTypeTex;
-    class BufSlotList
-    {
-        friend class DxProgram_;
-        const DxProgram_* Host;
-        constexpr BufSlotList(const DxProgram_* host) noexcept : Host(host) { }
-    public:
-        constexpr ItTypeBuf begin() const noexcept { return { Host, 0 }; }
-        constexpr ItTypeBuf end()   const noexcept { return { Host, Host->BufferSlots.size() }; }
-    };
-    class TexSlotList
-    {
-        friend class DxProgram_;
-        const DxProgram_* Host;
-        constexpr TexSlotList(const DxProgram_* host) noexcept : Host(host) { }
-    public:
-        constexpr ItTypeBuf begin() const noexcept { return { Host, 0 }; }
-        constexpr ItTypeBuf end()   const noexcept { return { Host, Host->TextureSlots.size() }; }
-    };
-    struct RootSignature;
+    COMMON_EASY_CONST_ITER(BufSlotList, DxProgram_, BoundedResWrapper, GetBufSlot, 0, Host->BufferSlots.size());
+    COMMON_EASY_CONST_ITER(TexSlotList, DxProgram_, BoundedResWrapper, GetTexSlot, 0, Host->TextureSlots.size());
     //const PtrProxy<DxDevice_::DeviceProxy>& GetDevice() const noexcept;
 protected:
     struct BoundedResource
     {
         uint64_t Hash;
         common::StringPiece<char> Name;
-        const DxShader_::BindResourceDetail* Detail;
+        const detail::BindResourceDetail* Detail;
         uint16_t DescOffset;
         BoundedResourceType Type;
     };
+    const DxDevice Device;
+    common::StringPool<char> StrPool;
+    std::vector<BoundedResource> BufferSlots;
+    std::vector<BoundedResource> TextureSlots;
+    std::vector<BoundedResource> SamplerSlots;
+    DxProgram_(DxDevice dev);
+    void Initialize(common::span<const DxShader> shaders);
+    const BoundedResource* GetSlot(const std::vector<BoundedResource>& container, common::str::HashedStrView<char> name) const;
+public:
+    virtual ~DxProgram_();
+    constexpr BufSlotList BufSlots() const noexcept { return this; }
+    constexpr TexSlotList TexSlots() const noexcept { return this; }
+protected:
     class DXUAPI DxProgramPrepareBase
     {
+        friend class DxProgram_;
     private:
     protected:
         const DxProgram Program;
-        PtrProxy<RootSignature> RootSig;
         DxUniqueBindingManager BindMan;
         std::vector<std::pair<const BoundedResource*, uint16_t>> Bindings;
         DxProgramPrepareBase(DxProgram program);
         bool SetBuf(common::str::HashedStrView<char> name, const DxBuffer_::BufferView& bufview);
-        void FinishBinding(const DxCmdList& cmdlist);
     public:
         ~DxProgramPrepareBase();
     };
@@ -98,23 +90,31 @@ protected:
             DxProgramPrepareBase::SetBuf(name, bufview);
             return *this;
         }
-        auto Finish(const DxCmdList& prevList = {})
+        auto Finish()
         {
-            return T::FinishPrepare(*this, prevList);
+            return T::FinishPrepare(*this);
         }
     };
-    const DxDevice Device;
-    common::StringPool<char> StrPool;
-    std::vector<BoundedResource> BufferSlots;
-    std::vector<BoundedResource> TextureSlots;
-    std::vector<BoundedResource> SamplerSlots;
-    DxProgram_(DxDevice dev);
-    void Initialize(common::span<const DxShader> shaders);
-    const BoundedResource* GetSlot(const std::vector<BoundedResource>& container, common::str::HashedStrView<char> name) const;
-public:
-    virtual ~DxProgram_();
-    constexpr BufSlotList BufSlots() const noexcept { return this; }
-    constexpr TexSlotList TexSlots() const noexcept { return this; }
+    class DXUAPI DxProgramCall
+    {
+    protected:
+        static const PtrProxy<detail::CmdList>& GetCmdList(const DxCmdList& cmdlist) noexcept
+        {
+            return cmdlist->CmdList;
+        }
+        DxDevice Device;
+        PtrProxy<detail::RootSignature> RootSig;
+        PtrProxy<detail::PipelineState> PSO;
+        PtrProxy<detail::DescHeap> CSUDescHeap;
+        PtrProxy<detail::DescHeap> SamplerHeap;
+        DxProgramCall(DxProgramPrepareBase& prepare);
+        const PtrProxy<detail::Device>& GetDevice() const noexcept
+        {
+            return Device->Device;
+        }
+    public:
+        ~DxProgramCall();
+    };
 }; 
 
 
@@ -122,19 +122,35 @@ class DXUAPI DxComputeProgram_ : public DxProgram_
 {
     friend DxProgramPrepare<DxComputeProgram_>;
 private:
-    class DxComputeCall
+    class DXUAPI DxComputeCall : protected DxProgram_::DxProgramCall
     {
         const DxComputeProgram Program;
-        const DxComputeCmdList CmdList;
-        PtrProxy<DxProgram_::RootSignature> RootSig;
+    private:
+        void ExecuteIn(const DxCmdList& cmdlist, const std::array<uint32_t, 3>& threadgroups) const;
+        common::PromiseResult<void> ExecuteIn(const DxCmdQue& que, const std::array<uint32_t, 3>& threadgroups) const;
     public:
-        DxComputeCall(DxProgramPrepare<DxComputeProgram_>& prepare, const DxCmdList& prevList);
+        DxComputeCall(DxProgramPrepare<DxComputeProgram_>& prepare);
+        template<typename U>
+        auto Execute(const std::shared_ptr<U>& cmd, const std::array<uint32_t, 3>& threadgroups) const
+        {
+            static_assert(HAS_FIELD(U::CmdCaps, DxCmdList_::Capability::Compute), "need a Compute List/Que");
+            return ExecuteIn(cmd, threadgroups);
+        }
+        template<typename U>
+        common::PromiseResult<void> Execute(const std::shared_ptr<U>& cmd, const std::array<uint32_t, 3>& wgSize, const std::array<uint32_t, 3>& lcSize) const
+        {
+            std::array<uint32_t, 3> tgSize = { 0 };
+            tgSize[0] = (wgSize[0] + lcSize[0] - 1) / wgSize[0];
+            tgSize[1] = (wgSize[1] + lcSize[1] - 1) / wgSize[1];
+            tgSize[2] = (wgSize[2] + lcSize[2] - 1) / wgSize[2];
+            return Execute(cmd, tgSize);
+        }
     };
     template<typename U>
     static void CheckListType() noexcept { DXU_CMD_CHECK(U, Compute, List); }
     static forceinline DxComputeCall FinishPrepare(DxProgramPrepare<DxComputeProgram_>& prepare, const DxCmdList& prevList)
     {
-        return { prepare, prevList };
+        return { prepare };
     }
     DxShader Shader;
 public:

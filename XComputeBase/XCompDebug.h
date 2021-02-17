@@ -1,7 +1,7 @@
 #pragma once
 
 #include "XCompRely.h"
-#include "common/ContainerEx.hpp"
+#include "common/EasyIterator.hpp"
 #include "common/StringPool.hpp"
 #include "common/AlignedBuffer.hpp"
 #include "common/Stream.hpp"

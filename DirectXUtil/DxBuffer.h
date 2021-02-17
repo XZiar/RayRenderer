@@ -22,7 +22,7 @@ private:
     {
         friend class DxBufMapPtr;
     protected:
-        ResProxy* Resource;
+        detail::Resource* Resource;
         common::span<std::byte> MemSpace;
         void Unmap();
     public:
@@ -32,7 +32,7 @@ private:
     class DxMapPtr2_;
 protected:
     MAKE_ENABLER();
-    static ResDesc BufferDesc(ResourceFlags rFlags, size_t size) noexcept;
+    static detail::ResourceDesc BufferDesc(ResourceFlags rFlags, size_t size) noexcept;
     DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, ResourceFlags rFlag, size_t size);
     DxBuffer GetSelf() const noexcept
     {

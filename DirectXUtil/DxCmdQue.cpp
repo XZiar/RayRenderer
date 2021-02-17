@@ -1,6 +1,5 @@
 #include "DxPch.h"
 #include "DxCmdQue.h"
-#include "ProxyStruct.h"
 
 namespace dxu
 {
@@ -39,10 +38,6 @@ DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevLis
 }
 DxCmdList_::~DxCmdList_()
 {
-    if (CmdList)
-        CmdList->Release();
-    if (CmdAllocator)
-        CmdAllocator->Release();
 }
 
 std::optional<ResourceState> DxCmdList_::UpdateResState(void* res, const ResourceState state)
@@ -107,10 +102,6 @@ DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceN
 }
 DxCmdQue_::~DxCmdQue_()
 {
-    if (CmdQue)
-        CmdQue->Release();
-    if (Fence)
-        Fence->Release();
 }
 
 void DxCmdQue_::ExecuteList(DxCmdList_& list) const
