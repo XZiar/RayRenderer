@@ -147,6 +147,9 @@ protected:
 private:
     virtual void* GetD3D12Object() const noexcept = 0;
 public:
+    DxNamable() noexcept {}
+    COMMON_NO_COPY(DxNamable)
+    COMMON_DEF_MOVE(DxNamable)
     virtual ~DxNamable();
     void SetName(std::u16string name);
     forceinline std::u16string_view GetName() const noexcept { return Name; }
@@ -178,6 +181,18 @@ enum class HeapType     : uint8_t { Default = 1, Upload, Readback, Custom };
 enum class CPUPageProps : uint8_t { Unknown, NotAvailable, WriteCombine, WriteBack };
 enum class MemPrefer    : uint8_t { Unknown, PreferCPU, PreferGPU };
 
+enum class ResourceFlags : uint32_t
+{
+    Empty = 0x0,
+    AllowRT = 0x1, AllowDepthStencil = 0x2,
+    AllowUnorderAccess = 0x4,
+    DenyShaderResource = 0x8,
+    AllowCrossAdpter = 0x10,
+    AllowSimultaneousAccess = 0x20,
+    VideoDecodeOnly = 0x40,
+};
+MAKE_ENUM_BITFIELD(ResourceFlags)
+
 enum class ResourceState : uint32_t
 {
     Common              = 0, 
@@ -207,7 +222,7 @@ enum class ResourceState : uint32_t
     VideoEncodeRead     = 0x200000, 
     VideoEncodeWrite    = 0x800000,
 };
-
+MAKE_ENUM_BITFIELD(ResourceState)
 
 enum class BoundedResourceType : uint16_t
 {

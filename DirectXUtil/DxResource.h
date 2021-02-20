@@ -26,18 +26,6 @@ enum class HeapFlags : uint32_t
 };
 MAKE_ENUM_BITFIELD(HeapFlags)
 
-enum class ResourceFlags : uint32_t
-{
-    Empty = 0x0,
-    AllowRT = 0x1, AllowDepthStencil = 0x2,
-    AllowUnorderAccess = 0x4,
-    DenyShaderResource = 0x8,
-    AllowCrossAdpter = 0x10,
-    AllowSimultaneousAccess = 0x20,
-    VideoDecodeOnly = 0x40,
-};
-MAKE_ENUM_BITFIELD(ResourceFlags)
-
 struct HeapProps
 {
     HeapType Type;
@@ -72,14 +60,15 @@ MAKE_ENUM_BITFIELD(MapFlags)
 class DXUAPI DxResource_ : public DxNamable, public std::enable_shared_from_this<DxResource_>
 {
     friend DxBindingManager;
+    friend DxCmdList_;
 private:
-    void* GetD3D12Object() const noexcept override;
+    [[nodiscard]] void* GetD3D12Object() const noexcept final;
+    [[nodiscard]] virtual bool IsBufOrSATex() const noexcept; // Buffers and Simultaneous-Access Textures
 protected:
     MAKE_ENABLER();
     DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const detail::ResourceDesc& desc, ResourceState initState);
     void CopyRegionFrom(const DxCmdList& list, const uint64_t offset,
         const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const;
-    ResourceState TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState = false) const;
     DxDevice Device;
     PtrProxy<detail::Resource> Resource;
     ResourceState InitState;
@@ -89,6 +78,7 @@ public:
     ~DxResource_() override;
     COMMON_NO_COPY(DxResource_)
     COMMON_NO_MOVE(DxResource_)
+    void TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState = false) const;
     [[nodiscard]] uint64_t GetGPUVirtualAddress() const;
     [[nodiscard]] constexpr bool CanBindToShader() const noexcept
     {

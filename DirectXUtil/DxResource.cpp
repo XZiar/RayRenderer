@@ -73,35 +73,24 @@ void* DxResource_::GetD3D12Object() const noexcept
     return static_cast<ID3D12Object*>(Resource.Ptr());
 }
 
+bool DxResource_::IsBufOrSATex() const noexcept
+{
+    return false;
+}
+
 void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const
 {
     list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
 }
 
-ResourceState DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
+void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
 {
-    const auto ret = list->UpdateResState(Resource, newState);
-    ResourceState oldState = fromInitState ? InitState : ResourceState::Common;
-    if (ret.has_value())
-        oldState = *ret;
-    if (oldState != ResourceState::Common && newState != oldState)
-    {
-        D3D12_RESOURCE_TRANSITION_BARRIER trans = 
-        {
-            Resource,
-            0,
-            static_cast<D3D12_RESOURCE_STATES>(oldState),
-            static_cast<D3D12_RESOURCE_STATES>(newState)
-        };
-        D3D12_RESOURCE_BARRIER barrier = 
-        {
-            D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-            D3D12_RESOURCE_BARRIER_FLAG_NONE,
-            trans
-        };
-        list->CmdList->ResourceBarrier(1, &barrier);
-    }
-    return oldState;
+    const bool isBufOrSATex = IsBufOrSATex();
+    // common check
+    if (isBufOrSATex && HAS_FIELD(newState, ResourceState::DepthWrite | ResourceState::DepthRead))
+        COMMON_THROW(DxException, FMTSTR(u"Buffer and Simultaneous-Access Texture can not set to type [DepthWrite|DepthRead], get[{}]",
+            common::enum_cast(newState)));
+    list->UpdateResState(this, newState, fromInitState);
 }
 
 uint64_t DxResource_::GetGPUVirtualAddress() const

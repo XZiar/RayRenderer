@@ -32,25 +32,37 @@ class DxResource_;
 class DxProgram_;
 
 
-class DXUAPI DxCmdList_
+class DXUAPI DxCmdList_ : public DxNamable
 {
     friend DxCmdQue_;
     friend DxResource_;
     friend DxProgram_;
+private:
+    [[nodiscard]] void* GetD3D12Object() const noexcept final;
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
+    struct ResStateRecord
+    {
+        void* Resource;
+        ResourceState State;
+        bool IsPromote;
+        bool IsBufOrSATex;
+        ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
+    };
     COMMON_NO_COPY(DxCmdList_)
     COMMON_NO_MOVE(DxCmdList_)
     DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList = nullptr);
     PtrProxy<detail::CmdAllocator> CmdAllocator;
     PtrProxy<detail::CmdList> CmdList;
-    std::vector<std::pair<void*, ResourceState>> ResStateTable;
-    std::atomic_flag HasClosed;
+    std::vector<ResStateRecord> ResStateTable;
+    const ListType Type;
+    std::atomic<bool> HasClosed;
 
-    std::optional<ResourceState> UpdateResState(void* res, const ResourceState state);
+    bool UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState);
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
-    virtual ~DxCmdList_();
+    ~DxCmdList_() override;
+    bool IsClosed() const noexcept;
     void EnsureClosed();
     void Reset(const bool resetResState = true);
 };
@@ -87,11 +99,12 @@ public:
 };
 
 
-class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public std::enable_shared_from_this<DxCmdQue_>
+class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public std::enable_shared_from_this<DxCmdQue_>
 {
     friend class DxPromiseCore;
 private:
     mutable std::atomic<uint64_t> FenceNum;
+    [[nodiscard]] void* GetD3D12Object() const noexcept final;
 protected:
     enum class QueType { Copy, Compute, Direct };
     COMMON_NO_COPY(DxCmdQue_)
@@ -106,7 +119,7 @@ protected:
     common::PromiseResult<void> Signal() const;
     void Wait(const common::PromiseProvider& pms) const;
 public:
-    virtual ~DxCmdQue_();
+    ~DxCmdQue_() override;
 
     DxCmdList CreateList(const DxCmdList& prevList = {}) const;
     common::PromiseResult<void> ExecuteAnyList(const DxCmdList& list) const
@@ -126,7 +139,7 @@ class DXUAPI COMMON_EMPTY_BASES DxCopyCmdQue_ : public DxCmdQue_
 protected:
     MAKE_ENABLER();
     using DxCmdQue_::DxCmdQue_;
-    QueType GetType() const noexcept override { return QueType::Copy; };
+    QueType GetType() const noexcept final { return QueType::Copy; };
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy;
     common::PromiseResult<void> Execute(const DxCopyCmdList& list) const { return ExecuteAnyList(list); }
@@ -139,7 +152,7 @@ class DXUAPI COMMON_EMPTY_BASES DxComputeCmdQue_ : public DxCmdQue_
 private:
     MAKE_ENABLER();
     using DxCmdQue_::DxCmdQue_;
-    QueType GetType() const noexcept override { return QueType::Compute; };
+    QueType GetType() const noexcept final { return QueType::Compute; };
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy | DxCmdList_::Capability::Compute;
     common::PromiseResult<void> Execute(const DxComputeCmdList& list) const { return ExecuteAnyList(list); }
@@ -152,7 +165,7 @@ class DXUAPI COMMON_EMPTY_BASES DxDirectCmdQue_ : public DxCmdQue_
 private:
     MAKE_ENABLER();
     using DxCmdQue_::DxCmdQue_;
-    QueType GetType() const noexcept override { return QueType::Direct; };
+    QueType GetType() const noexcept final { return QueType::Direct; };
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy | DxCmdList_::Capability::Compute | DxCmdList_::Capability::Graphic;
     common::PromiseResult<void> Execute(const DxDirectCmdList& list) const { return ExecuteAnyList(list); }

@@ -11,7 +11,8 @@ namespace dxu
 {
 class DxBufMapPtr;
 class DxBuffer_;
-using DxBuffer = std::shared_ptr<const DxBuffer_>;
+using DxBuffer = std::shared_ptr<DxBuffer_>;
+using DxBufferConst = std::shared_ptr<const DxBuffer_>;
 
 
 class DXUAPI DxBuffer_ : public DxResource_
@@ -30,56 +31,61 @@ private:
         virtual ~DxMapPtr_();
     };
     class DxMapPtr2_;
+    bool IsBufOrSATex() const noexcept final;
 protected:
     MAKE_ENABLER();
     static detail::ResourceDesc BufferDesc(ResourceFlags rFlags, size_t size) noexcept;
     DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, ResourceFlags rFlag, size_t size);
-    DxBuffer GetSelf() const noexcept
+    DxBufferConst GetSelf() const noexcept
     {
         return std::static_pointer_cast<const DxBuffer_>(shared_from_this());
     }
-    [[nodiscard]] common::PromiseResult<void> ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const;
-    [[nodiscard]] common::PromiseResult<void> WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset) const;
-    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read_(const DxCmdQue& que, const size_t size, const size_t offset) const;
+    DxBuffer GetSelf() noexcept
+    {
+        return std::static_pointer_cast<DxBuffer_>(shared_from_this());
+    }
+    [[nodiscard]] common::PromiseResult<void> ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset);
+    [[nodiscard]] common::PromiseResult<void> WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset);
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read_(const DxCmdQue& que, const size_t size, const size_t offset);
 public:
     const size_t Size;
     ~DxBuffer_() override;
-    [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size) const;
-    [[nodiscard]] DxBufMapPtr Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size) const;
+    [[nodiscard]] DxBufMapPtr Map(size_t offset, size_t size);
+    [[nodiscard]] DxBufMapPtr Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size);
 
     template<typename U>
-    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, common::span<std::byte> buf, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, common::span<std::byte> buf, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return ReadSpan_(que, buf, offset);
     }
     template<typename T, typename U>
-    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<void> ReadSpan(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return ReadSpan_(que, common::as_writable_bytes(common::to_span(buf)), offset);
     }
     template<typename T, typename U>
-    [[nodiscard]] common::PromiseResult<void> ReadInto(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<void> ReadInto(const std::shared_ptr<U>& que, T& buf, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return ReadSpan_(que, common::span<std::byte>(reinterpret_cast<std::byte*>(&buf), sizeof(buf)), offset);
     }
     template<typename U>
-    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read(const std::shared_ptr<U>& que, const size_t size, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read(const std::shared_ptr<U>& que, const size_t size, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return Read_(que, size, offset);
     }
 
     template<typename T, typename U>
-    [[nodiscard]] common::PromiseResult<void> WriteSpan(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<void> WriteSpan(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return WriteSpan_(que, common::as_bytes(common::to_span(buf)), offset);
     }
     template<typename T, typename U>
-    [[nodiscard]] common::PromiseResult<void> Write(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0) const
+    [[nodiscard]] common::PromiseResult<void> Write(const std::shared_ptr<U>& que, const T& buf, const size_t offset = 0)
     {
         DXU_CMD_CHECK(U, Copy, Que);
         return WriteSpan_(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
@@ -88,7 +94,7 @@ public:
     struct BufferView
     {
         enum class Types : uint16_t { Structured, Typed, Raw };
-        DxBuffer Buffer;
+        DxBufferConst Buffer;
         uint32_t Offset;
         uint32_t Count;
         uint32_t Stride;

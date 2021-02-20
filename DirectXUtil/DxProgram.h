@@ -67,10 +67,16 @@ protected:
     {
         friend class DxProgram_;
     private:
+        struct BindRecord
+        {
+            const BoundedResource* Slot;
+            const DxResource_* Resource;
+            uint16_t Offset;
+        };
     protected:
         const DxProgram Program;
-        DxUniqueBindingManager BindMan;
-        std::vector<std::pair<const BoundedResource*, uint16_t>> Bindings;
+        std::shared_ptr<DxBindingManager> BindMan;
+        std::vector<BindRecord> Bindings;
         DxProgramPrepareBase(DxProgram program);
         bool SetBuf(common::str::HashedStrView<char> name, const DxBuffer_::BufferView& bufview);
     public:
@@ -97,17 +103,26 @@ protected:
     };
     class DXUAPI DxProgramCall
     {
+    private:
+        struct ResStateRecord
+        {
+            const DxResource_* Resource;
+            ResourceState State;
+        };
     protected:
         static const PtrProxy<detail::CmdList>& GetCmdList(const DxCmdList& cmdlist) noexcept
         {
             return cmdlist->CmdList;
         }
         DxDevice Device;
+        std::shared_ptr<DxBindingManager> BindMan;
+        std::vector<ResStateRecord> ResStates;
         PtrProxy<detail::RootSignature> RootSig;
         PtrProxy<detail::PipelineState> PSO;
         PtrProxy<detail::DescHeap> CSUDescHeap;
         PtrProxy<detail::DescHeap> SamplerHeap;
         DxProgramCall(DxProgramPrepareBase& prepare);
+        void PutResourceBarrier(const DxCmdList& cmdlist) const;
         const PtrProxy<detail::Device>& GetDevice() const noexcept
         {
             return Device->Device;
@@ -143,12 +158,12 @@ private:
             tgSize[0] = (wgSize[0] + lcSize[0] - 1) / wgSize[0];
             tgSize[1] = (wgSize[1] + lcSize[1] - 1) / wgSize[1];
             tgSize[2] = (wgSize[2] + lcSize[2] - 1) / wgSize[2];
-            return Execute(cmd, tgSize);
+            return ExecuteIn(cmd, tgSize);
         }
     };
     template<typename U>
     static void CheckListType() noexcept { DXU_CMD_CHECK(U, Compute, List); }
-    static forceinline DxComputeCall FinishPrepare(DxProgramPrepare<DxComputeProgram_>& prepare, const DxCmdList& prevList)
+    static forceinline DxComputeCall FinishPrepare(DxProgramPrepare<DxComputeProgram_>& prepare)
     {
         return { prepare };
     }

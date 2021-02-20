@@ -61,10 +61,11 @@ public:
             { flag == MapFlags::WriteOnly ? CPUPageProps::WriteCombine : CPUPageProps::WriteBack , MemPrefer::PreferCPU },
             HeapFlags::Empty, size, ResourceFlags::Empty);
         auto cmdList = que->CreateList();
+        cmdList->SetName(FMTSTR(u"CopyList for mapping [{}]", res->GetName()));
         if (HAS_FIELD(flag, MapFlags::ReadOnly))
         {
             res->TransitState(cmdList, ResourceState::CopySrc);
-            mapped->TransitState(cmdList, ResourceState::CopyDst);
+            mapped->TransitState(cmdList, ResourceState::CopyDst, true);
             mapped->CopyRegionFrom(cmdList, 0, *res, offset, size);
             que->ExecuteAnyList(cmdList)->WaitFinish();
             cmdList->Reset(false);
@@ -117,7 +118,12 @@ DxBuffer_::DxBuffer_(DxDevice device, HeapProps heapProps, HeapFlags hFlag, Reso
 DxBuffer_::~DxBuffer_()
 { }
 
-DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size) const
+bool DxBuffer_::IsBufOrSATex() const noexcept
+{
+    return true;
+}
+
+DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size)
 {
     if (HeapInfo.CPUPage == CPUPageProps::NotAvailable || HeapInfo.Memory == MemPrefer::PreferGPU)
         COMMON_THROWEX(DxException, u"Cannot map resource with CPUPageProps = NotAvaliable.\n")
@@ -125,14 +131,14 @@ DxBufMapPtr DxBuffer_::Map(size_t offset, size_t size) const
     return DxBufMapPtr(GetSelf(), std::make_shared<DxMapPtr_>(this, offset, size));
 }
 
-DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size) const
+DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, size_t size)
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
         return Map(offset, size);
     return DxBufMapPtr(GetSelf(), DxMapPtr2_::Create(this, que, flag, offset, size));
 }
 
-common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset) const
+common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset)
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
     {
@@ -146,9 +152,10 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
         auto mapped = DxBuffer_::Create(Device, HeapType::Readback,
             HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
         auto cmdList = que->CreateList();
+        cmdList->SetName(FMTSTR(u"CopyList for readback [{}]", GetName()));
         TransitState(cmdList, ResourceState::CopySrc);
+        mapped->TransitState(cmdList, ResourceState::CopyDst, true); // should be skipped
         mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
-        const auto pms = que->ExecuteAnyList(cmdList);
         return common::StagedResult::TwoStage(
             que->ExecuteAnyList(cmdList),
             [=]() mutable
@@ -161,7 +168,7 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
     }
 }
 
-common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset) const
+common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset)
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
     {
@@ -174,12 +181,14 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
     {
         auto tmpBuf = DxBuffer_::Create(Device, HeapType::Upload,
             HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
+        tmpBuf->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
         {
             const auto mapptr = tmpBuf->Map(0, buf.size());
             const auto src = mapptr.Get();
             memcpy_s(src.data(), src.size(), buf.data(), buf.size());
         }
         auto cmdList = que->CreateList();
+        cmdList->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
         TransitState(cmdList, ResourceState::CopyDst);
         CopyRegionFrom(cmdList, offset, *tmpBuf, 0, buf.size());
         const auto pms = que->ExecuteAnyList(cmdList);
@@ -192,7 +201,7 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
     }
 }
 
-common::PromiseResult<common::AlignedBuffer> DxBuffer_::Read_(const DxCmdQue& que, const size_t size, const size_t offset) const
+common::PromiseResult<common::AlignedBuffer> DxBuffer_::Read_(const DxCmdQue& que, const size_t size, const size_t offset)
 {
     common::AlignedBuffer buf(size);
     return common::StagedResult::Convert(

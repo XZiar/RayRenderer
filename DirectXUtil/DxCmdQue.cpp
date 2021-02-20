@@ -1,5 +1,6 @@
 #include "DxPch.h"
 #include "DxCmdQue.h"
+#include "DxResource.h"
 
 namespace dxu
 {
@@ -11,7 +12,17 @@ MAKE_ENABLER_IMPL(DxComputeCmdQue_);
 MAKE_ENABLER_IMPL(DxDirectCmdQue_);
 
 
-DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList) : HasClosed{}
+constexpr static bool IsReadOnlyState(const ResourceState state)
+{
+    return !HAS_FIELD(state, ~ResourceState::Read);
+}
+
+DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const ResourceState state) noexcept :
+    Resource(res->Resource), State(state), IsPromote(state == ResourceState::Common), IsBufOrSATex(res->IsBufOrSATex())
+{ }
+
+
+DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList) : Type(type), HasClosed{false}
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -26,45 +37,135 @@ DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevLis
         u"Failed to create command list");
     if (prevList)
     {
-        ResStateTable.reserve(prevList->ResStateTable.size());
-        for (const auto [res, state] : ResStateTable)
-        {
-            if (state != ResourceState::Common)
-            {
-                ResStateTable.emplace_back(res, state);
-            }
-        }
+        if (!prevList->IsClosed())
+            COMMON_THROW(DxException, u"PrevList not closed");
+        ResStateTable = prevList->ResStateTable;
     }
 }
 DxCmdList_::~DxCmdList_()
 {
 }
 
-std::optional<ResourceState> DxCmdList_::UpdateResState(void* res, const ResourceState state)
+void* DxCmdList_::GetD3D12Object() const noexcept
 {
+    return static_cast<ID3D12Object*>(CmdList.Ptr());
+}
+
+bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState)
+{
+    static constexpr auto CopyAllowState    = ResourceState::CopyDst | ResourceState::CopySrc;
+    static constexpr auto ComputeAllowState =
+        ResourceState::UnorderAccess | ResourceState::NonPSRes | ResourceState::CopyDst | ResourceState::CopySrc;
+    // capability check
+    switch (Type)
+    {
+    case ListType::Copy:
+        if (HAS_FIELD(newState, ~CopyAllowState))
+            COMMON_THROW(DxException, FMTSTR(u"Unsupported type [{}] for Copy List", common::enum_cast(newState)));
+        break;
+    case ListType::Compute:
+        if (HAS_FIELD(newState, ~ComputeAllowState))
+            COMMON_THROW(DxException, FMTSTR(u"Unsupported type [{}] for Compute List", common::enum_cast(newState)));
+        break;
+    default:
+        break;
+    }
+
+    ResStateRecord* record = nullptr;
     for (auto& item : ResStateTable)
     {
-        if (item.first == res)
+        if (item.Resource == res)
         {
-            const auto oldStete = item.second;
-            item.second = state;
-            return oldStete;
+            record = &item;
+            break;
         }
     }
-    ResStateTable.emplace_back(res, state);
-    return {};
+    if (!record)
+    {
+        record = &ResStateTable.emplace_back(res, fromInitState ? res->InitState : ResourceState::Common);
+    }
+    const auto oldState = record->State;
+    if (oldState == newState) // fast skip
+        return true;
+
+    bool isPromote = false;
+    if (oldState == ResourceState::Common)
+    {
+        static constexpr auto BSATState = ResourceState::ConstBuffer | ResourceState::IndexBuffer | ResourceState::RenderTarget |
+            ResourceState::UnorderAccess | ResourceState::NonPSRes | ResourceState::PsRes | ResourceState::StreamOut |
+            ResourceState::IndirectArg | ResourceState::CopyDst | ResourceState::CopySrc |
+            ResourceState::ResolveSrc | ResourceState::ResolveDst | ResourceState::Pred;
+        static constexpr auto NonBSATState = ResourceState::NonPSRes | ResourceState::PsRes | ResourceState::CopyDst | ResourceState::CopySrc;
+        if (const auto pmtState = record->IsBufOrSATex ? BSATState : NonBSATState; !HAS_FIELD(newState, ~pmtState))
+        { // Resources can only be "promoted" out of D3D12_RESOURCE_STATE_COMMON
+            isPromote = true;
+        }
+    }
+    else if (record->IsPromote)
+    {
+        if (IsReadOnlyState(oldState) && IsReadOnlyState(newState))
+        { // promotion from one promoted read state into multiple read state is valid
+            isPromote = true;
+        }
+    }
+
+    record->IsPromote = isPromote;
+    record->State     = newState;
+    if (!isPromote)
+    {
+        D3D12_RESOURCE_TRANSITION_BARRIER trans =
+        {
+            res->Resource,
+            0,
+            static_cast<D3D12_RESOURCE_STATES>(oldState),
+            static_cast<D3D12_RESOURCE_STATES>(newState)
+        };
+        D3D12_RESOURCE_BARRIER barrier =
+        {
+            D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            D3D12_RESOURCE_BARRIER_FLAG_NONE,
+            trans
+        };
+        CmdList->ResourceBarrier(1, &barrier);
+    }
+    return false;
+}
+
+bool DxCmdList_::IsClosed() const noexcept
+{
+    return HasClosed.load();
 }
 
 void DxCmdList_::EnsureClosed()
 {
-    if (!HasClosed.test_and_set())
+    if (!HasClosed.exchange(true))
+    {
         THROW_HR(CmdList->Close(), u"Failed to close CmdList");
+        // Decay states
+        if (Type == ListType::Copy) // Resources being accessed on a Copy queue
+            ResStateTable.clear();
+        else
+        {
+            std::vector<ResStateRecord> newStates;
+            for (const auto& record : ResStateTable)
+            {
+                if (record.IsBufOrSATex)
+                    // Buffer resources on any queue type, or
+                    // Texture resources on any queue type that have the D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS flag set
+                    continue;
+                if (record.IsPromote && IsReadOnlyState(record.State)) // Any resource implicitly promoted to a read-only state
+                    continue;
+                newStates.emplace_back(record);
+            }
+            ResStateTable.swap(newStates);
+        }
+    }
 }
 
 void DxCmdList_::Reset(const bool resetResState)
 {
     THROW_HR(CmdList->Reset(CmdAllocator, nullptr), u"Failed to reset CmdList");
-    HasClosed.clear();
+    HasClosed.store(false);
     if (resetResState)
         ResStateTable.clear();
 }
@@ -102,6 +203,11 @@ DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceN
 }
 DxCmdQue_::~DxCmdQue_()
 {
+}
+
+void* DxCmdQue_::GetD3D12Object() const noexcept
+{
+    return static_cast<ID3D12Object*>(CmdQue.Ptr());
 }
 
 void DxCmdQue_::ExecuteList(DxCmdList_& list) const

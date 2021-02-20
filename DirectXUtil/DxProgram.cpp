@@ -129,7 +129,7 @@ const DxProgram_::BoundedResource* DxProgram_::GetSlot(const std::vector<Bounded
 
 
 DxProgram_::DxProgramPrepareBase::DxProgramPrepareBase(DxProgram program) : Program(std::move(program)),
-BindMan(Program->BufferSlots.size(), Program->TextureSlots.size(), Program->SamplerSlots.size())
+    BindMan(std::make_shared<DxUniqueBindingManager>(Program->BufferSlots.size(), Program->TextureSlots.size(), Program->SamplerSlots.size()))
 { }
 DxProgram_::DxProgramPrepareBase::~DxProgramPrepareBase()
 { }
@@ -138,43 +138,75 @@ bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const Dx
 {
     if (!bufview.Buffer->CanBindToShader())
         return false;
-    const auto res = Program->GetSlot(Program->BufferSlots, name);
-    if (!res)
+    const auto slot = Program->GetSlot(Program->BufferSlots, name);
+    if (!slot)
         return false;
+    const auto res = bufview.Buffer.get();
     for (auto& item : Bindings)
     {
-        if (item.first == res)
+        if (item.Slot == slot)
         {
-            item.second = BindMan.SetBuf(bufview, item.second);
+            item.Resource = res;
+            item.Offset = BindMan->SetBuf(bufview, item.Offset);
             return true;
         }
     }
-    const auto descOffset = BindMan.SetBuf(bufview, res->DescOffset);
-    Bindings.emplace_back(res, descOffset);
+    const auto descOffset = BindMan->SetBuf(bufview, slot->DescOffset);
+    Bindings.push_back({ slot, res, descOffset });
     return true;
 }
 
 
 DxProgram_::DxProgramCall::DxProgramCall(DxProgramPrepareBase& prepare) :
-    Device(prepare.Program->Device),
-    CSUDescHeap(prepare.BindMan.GetCSUHeap(prepare.Program->Device))
+    Device(prepare.Program->Device), BindMan(std::move(prepare.BindMan)),
+    CSUDescHeap(BindMan->GetCSUHeap(prepare.Program->Device))
 { 
     std::vector<D3D12_DESCRIPTOR_RANGE> descRanges;
     descRanges.reserve(prepare.Bindings.size());
-    for (const auto [res, pos] : prepare.Bindings)
+    ResStates.reserve(prepare.Bindings.size());
+    for (const auto [res, dxRes, pos] : prepare.Bindings)
     {
         const auto& resDesc = *res->Detail;
         // Expects(slot.FormatType != TempBindResource::FormatTypes::Other);
         D3D12_DESCRIPTOR_RANGE_TYPE descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        ResourceState state = ResourceState::Common;
         switch (res->Type & BoundedResourceType::TypeMask)
         {
-        case BoundedResourceType::CBVType:      descType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV; break;
-        case BoundedResourceType::SRVType:      descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; break;
-        case BoundedResourceType::UAVType:      descType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; break;
-        case BoundedResourceType::SamplerType:  descType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER; break;
-        default:                                continue;
+        case BoundedResourceType::CBVType:
+            descType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+            state    = ResourceState::ConstBuffer;
+            break;
+        case BoundedResourceType::SRVType:
+            descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+            state    = ResourceState::NonPSRes;
+            break;
+        case BoundedResourceType::UAVType:
+            descType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; 
+            state    = ResourceState::UnorderAccess;
+            break;
+        case BoundedResourceType::SamplerType:
+            descType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+            break;
+        default:
+            continue;
         }
         descRanges.push_back({ descType, resDesc.BindCount, resDesc.BindPoint, resDesc.Space, pos });
+        if (state != ResourceState::Common)
+        {
+            ResStateRecord* ptr = nullptr;
+            for (auto& record : ResStates)
+            {
+                if (record.Resource == dxRes)
+                {
+                    ptr = &record;
+                    break;
+                }
+            }
+            if (ptr)
+                ptr->State |= state;
+            else
+                ResStates.push_back({ dxRes, state });
+        }
     }
     //std::vector<D3D12_ROOT_PARAMETER> rootParams;
     D3D12_ROOT_PARAMETER rootParam{};
@@ -200,7 +232,14 @@ DxProgram_::DxProgramCall::DxProgramCall(DxProgramPrepareBase& prepare) :
     }
 }
 DxProgram_::DxProgramCall::~DxProgramCall()
+{ }
+
+void DxProgram_::DxProgramCall::PutResourceBarrier(const DxCmdList& cmdlist) const
 {
+    for (const auto& record : ResStates)
+    {
+        record.Resource->TransitState(cmdlist, record.State);
+    }
 }
 
 
@@ -242,13 +281,13 @@ void DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdList& cmdlist, const
     list.SetPipelineState(PSO);
     list.SetComputeRootSignature(RootSig);
     list.SetComputeRootDescriptorTable(0, CSUDescHeap->GetGPUDescriptorHandleForHeapStart());
-    // TODO: resource barrier
+    PutResourceBarrier(cmdlist);
     list.Dispatch(threadgroups[0], threadgroups[1], threadgroups[2]);
 }
 
 common::PromiseResult<void> DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdQue& que, const std::array<uint32_t, 3>& threadgroups) const
 {
-    const auto cmdlist = DxComputeCmdList_::Create(Device);
+    const auto cmdlist = que->CreateList();
     ExecuteIn(cmdlist, threadgroups);
     return que->ExecuteAnyList(cmdlist);
 }
