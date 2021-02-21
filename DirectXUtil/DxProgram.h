@@ -44,14 +44,12 @@ private:
 protected:
     struct BoundedResource
     {
-        uint64_t Hash;
-        common::StringPiece<char> Name;
+        common::str::HashedStrView<char> HashedName;
         const detail::BindResourceDetail* Detail;
         uint16_t DescOffset;
         BoundedResourceType Type;
     };
     const DxDevice Device;
-    common::StringPool<char> StrPool;
     std::vector<BoundedResource> BufferSlots;
     std::vector<BoundedResource> TextureSlots;
     std::vector<BoundedResource> SamplerSlots;
@@ -78,7 +76,7 @@ protected:
         std::shared_ptr<DxBindingManager> BindMan;
         std::vector<BindRecord> Bindings;
         DxProgramPrepareBase(DxProgram program);
-        bool SetBuf(common::str::HashedStrView<char> name, const DxBuffer_::BufferView& bufview);
+        bool SetBuf(common::str::HashedStrView<char> name, DxBuffer_::BufferView bufview);
     public:
         ~DxProgramPrepareBase();
     };

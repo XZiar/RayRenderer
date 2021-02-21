@@ -338,6 +338,7 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     {
         auto& res = BindResources[i];
         THROW_HR(shaderReflector->GetResourceBindingDesc(i, &res), u"Failed to get binding desc");
+        res.NameSv = StrPool.AllocateString(res.Name); // Name will be invalidated after reflector destruct
         dxLog().verbose(u"[{}] [{}] Bind[{},{}] Type[{}] SrvDim[{}], Ret[{}]\n",
             i, res.Name, res.BindPoint, res.BindCount,
             uint32_t(res.Type), uint32_t(res.Dimension), uint32_t(res.ReturnType));

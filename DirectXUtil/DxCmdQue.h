@@ -32,6 +32,25 @@ class DxResource_;
 class DxProgram_;
 
 
+namespace detail
+{
+struct ResStateRecord
+{
+    Resource* Resource;
+    ResourceState State;
+};
+}
+
+class DXUAPI ResStateList
+{
+    friend DxCmdList_;
+    std::vector<detail::ResStateRecord> Records;
+    void AddState(detail::Resource* res, ResourceState state);
+public:
+    void AddState(const std::shared_ptr<DxResource_>& res, ResourceState state);
+};
+
+
 class DXUAPI DxCmdList_ : public DxNamable
 {
     friend DxCmdQue_;
@@ -43,8 +62,9 @@ protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
     struct ResStateRecord
     {
-        void* Resource;
+        detail::Resource* Resource;
         ResourceState State;
+        ResourceState FromState;
         bool IsPromote;
         bool IsBufOrSATex;
         ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
@@ -62,6 +82,7 @@ protected:
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
     ~DxCmdList_() override;
+    void FlushResourceState();
     bool IsClosed() const noexcept;
     void EnsureClosed();
     void Reset(const bool resetResState = true);

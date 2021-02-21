@@ -21,7 +21,7 @@ DxProgram_::~DxProgram_()
 enum class FormatTypes : uint16_t { Other = 0, Sampler = 1, Buf = 2, Tex = 3 };
 static std::pair<BoundedResourceType, FormatTypes> ParseDescType(const D3D12_SHADER_INPUT_BIND_DESC& desc) noexcept
 {
-    BoundedResourceType type = BoundedResourceType::OtherType;
+    BoundedResourceType type = BoundedResourceType::Others;
     switch (desc.Type)
     {
     case D3D_SIT_CBUFFER:
@@ -29,19 +29,19 @@ static std::pair<BoundedResourceType, FormatTypes> ParseDescType(const D3D12_SHA
     case D3D_SIT_TBUFFER:
         type = BoundedResourceType::TBuffer; break;
     case D3D_SIT_TEXTURE:
-        type = BoundedResourceType::Texture; break;
+        type = BoundedResourceType::Typed; break;
     case D3D_SIT_SAMPLER:
         return { BoundedResourceType::Sampler, FormatTypes::Sampler };
     case D3D_SIT_UAV_RWTYPED:
-        type = BoundedResourceType::RWTypedUAV; break;
+        type = BoundedResourceType::RWTyped; break;
     case D3D_SIT_STRUCTURED:
-        type = BoundedResourceType::UntypedUAV; break;
+        return { BoundedResourceType::StructBuf, FormatTypes::Buf };
     case D3D_SIT_UAV_RWSTRUCTURED:
-        type = BoundedResourceType::RWUntypedUAV; break;
+        return { BoundedResourceType::RWStructBuf, FormatTypes::Buf };
     case D3D_SIT_BYTEADDRESS:
-        return { BoundedResourceType::RawUAV, FormatTypes::Buf };
+        return { BoundedResourceType::RawBuf, FormatTypes::Buf };
     case D3D_SIT_UAV_RWBYTEADDRESS:
-        return { BoundedResourceType::RWRawUAV, FormatTypes::Buf };
+        return { BoundedResourceType::RWRawBuf, FormatTypes::Buf };
     case D3D_SIT_UAV_APPEND_STRUCTURED:
     case D3D_SIT_UAV_CONSUME_STRUCTURED:
     case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
@@ -79,12 +79,10 @@ void DxProgram_::Initialize(common::span<const DxShader> shaders)
             }
             const auto offset = gsl::narrow_cast<uint16_t>(container->size());
             auto& res = container->emplace_back();
-            HashedStrView<char> resName(item.Name);
-            res.Hash = resName.Hash;
-            res.Name = StrPool.AllocateString(resName);
-            res.Detail = &item;
-            res.DescOffset = offset;
-            res.Type = type;
+            res.HashedName  = shader->StrPool.GetStringView(item.NameSv);
+            res.Detail      = &item;
+            res.DescOffset  = offset;
+            res.Type        = type;
         }
     }
 }
@@ -99,7 +97,7 @@ DxProgram_::BoundedResWrapper DxProgram_::GetBufSlot(const size_t idx) const noe
     const auto& slot = BufferSlots[idx];
     return 
     { 
-        StrPool.GetStringView(slot.Name), static_cast<uint16_t>(slot.Detail->Space), 
+        slot.HashedName, static_cast<uint16_t>(slot.Detail->Space),
         static_cast<uint16_t>(slot.Detail->BindPoint), static_cast<uint16_t>(slot.Detail->BindCount), 
         slot.DescOffset, slot.Type 
     };
@@ -110,7 +108,7 @@ DxProgram_::BoundedResWrapper DxProgram_::GetTexSlot(const size_t idx) const noe
     const auto& slot = TextureSlots[idx];
     return
     {
-        StrPool.GetStringView(slot.Name), static_cast<uint16_t>(slot.Detail->Space),
+        slot.HashedName, static_cast<uint16_t>(slot.Detail->Space),
         static_cast<uint16_t>(slot.Detail->BindPoint), static_cast<uint16_t>(slot.Detail->BindCount),
         slot.DescOffset, slot.Type
     };
@@ -120,9 +118,8 @@ const DxProgram_::BoundedResource* DxProgram_::GetSlot(const std::vector<Bounded
 {
     for (const auto& item : container)
     {
-        if (item.Hash != name.Hash) continue;
-        if (name == StrPool.GetStringView(item.Name))
-            return &item;
+        if (item.HashedName != name) continue;
+        return &item;
     }
     return nullptr;
 }
@@ -134,25 +131,46 @@ DxProgram_::DxProgramPrepareBase::DxProgramPrepareBase(DxProgram program) : Prog
 DxProgram_::DxProgramPrepareBase::~DxProgramPrepareBase()
 { }
 
-bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const DxBuffer_::BufferView& bufview)
+bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, DxBuffer_::BufferView bufview)
 {
-    if (!bufview.Buffer->CanBindToShader())
+    const auto& buf = *bufview.Buffer;
+    if (!buf.CanBindToShader())
         return false;
     const auto slot = Program->GetSlot(Program->BufferSlots, name);
     if (!slot)
         return false;
-    const auto res = bufview.Buffer.get();
+    // check type
+    if ((slot->Type & BoundedResourceType::InnerTypeMask) != bufview.Type)
+        COMMON_THROW(DxException, FMTSTR(u"Bufview type mismatch, [{}] expects [{}], get [{}]", 
+            slot->HashedName, detail::GetBoundedResTypeName(slot->Type), detail::GetBoundedResTypeName(bufview.Type)));
+    // check buf flag
+    switch (slot->Type & BoundedResourceType::CategoryMask)
+    {
+    case BoundedResourceType::UAVs:
+        if (!HAS_FIELD(buf.ResFlags, ResourceFlags::AllowUnorderAccess))
+            COMMON_THROW(DxException, FMTSTR(u"Bufview of [{}] cannot be UAV, flags[{}]",
+                buf.GetName(), common::enum_cast(buf.ResFlags)));
+        break;
+    case BoundedResourceType::SRVs:
+        if (HAS_FIELD(buf.ResFlags, ResourceFlags::DenyShaderResource))
+            COMMON_THROW(DxException, FMTSTR(u"Bufview of [{}] cannot be SRV, flags[{}]",
+                buf.GetName(), common::enum_cast(buf.ResFlags)));
+        break;
+    default:
+        break;
+    }
+    bufview.Type = slot->Type;
     for (auto& item : Bindings)
     {
         if (item.Slot == slot)
         {
-            item.Resource = res;
+            item.Resource = &buf;
             item.Offset = BindMan->SetBuf(bufview, item.Offset);
             return true;
         }
     }
     const auto descOffset = BindMan->SetBuf(bufview, slot->DescOffset);
-    Bindings.push_back({ slot, res, descOffset });
+    Bindings.push_back({ slot, &buf, descOffset });
     return true;
 }
 
@@ -169,29 +187,29 @@ DxProgram_::DxProgramCall::DxProgramCall(DxProgramPrepareBase& prepare) :
         const auto& resDesc = *res->Detail;
         // Expects(slot.FormatType != TempBindResource::FormatTypes::Other);
         D3D12_DESCRIPTOR_RANGE_TYPE descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        ResourceState state = ResourceState::Common;
-        switch (res->Type & BoundedResourceType::TypeMask)
+        ResourceState state = ResourceState::Invalid;
+        switch (res->Type & BoundedResourceType::CategoryMask)
         {
-        case BoundedResourceType::CBVType:
+        case BoundedResourceType::CBVs:
             descType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
             state    = ResourceState::ConstBuffer;
             break;
-        case BoundedResourceType::SRVType:
+        case BoundedResourceType::SRVs:
             descType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
             state    = ResourceState::NonPSRes;
             break;
-        case BoundedResourceType::UAVType:
+        case BoundedResourceType::UAVs:
             descType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV; 
             state    = ResourceState::UnorderAccess;
             break;
-        case BoundedResourceType::SamplerType:
+        case BoundedResourceType::Samplers:
             descType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
             break;
         default:
             continue;
         }
         descRanges.push_back({ descType, resDesc.BindCount, resDesc.BindPoint, resDesc.Space, pos });
-        if (state != ResourceState::Common)
+        if (state != ResourceState::Invalid)
         {
             ResStateRecord* ptr = nullptr;
             for (auto& record : ResStates)
@@ -240,11 +258,13 @@ void DxProgram_::DxProgramCall::PutResourceBarrier(const DxCmdList& cmdlist) con
     {
         record.Resource->TransitState(cmdlist, record.State);
     }
+    cmdlist->FlushResourceState();
 }
 
 
 DxComputeProgram_::DxComputeProgram_(DxShader shader) : DxProgram_(shader->Device), Shader(std::move(shader))
 {
+    Initialize({ &Shader, 1 });
 }
 DxComputeProgram_::~DxComputeProgram_()
 { }

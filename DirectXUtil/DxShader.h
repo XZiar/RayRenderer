@@ -53,6 +53,7 @@ protected:
     struct T_ {};
     const DxDevice Device;
     const std::string Source;
+    common::StringPool<char> StrPool;
     PtrProxy<ShaderBlob> Blob;
     std::string ShaderHash;
     std::unique_ptr<detail::BindResourceDetail[]> BindResources;

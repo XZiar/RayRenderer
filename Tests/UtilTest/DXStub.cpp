@@ -58,6 +58,75 @@ static void BufTest(DxDevice dev, DxComputeCmdQue cmdque)
     const auto sp = readback.AsSpan<uint8_t>();
 }
 
+static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
+{
+    bool runnable = false;
+    while (true)
+    {
+        const auto ch = fpath.back();
+        if (ch == '@')
+            runnable = true;
+        else
+            break;
+        fpath.pop_back();
+    }
+    common::fs::path filepath = fpath;
+    log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
+    try
+    {
+        const auto kertxt = common::file::ReadAllText(filepath);
+        auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
+        shaderStub.Build({});
+        const auto prog = std::make_shared<DxComputeProgram_>(shaderStub.Finish());
+        for (const auto& item : prog->BufSlots())
+        {
+            log().verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
+                dxu::detail::GetBoundedResTypeName(item.Type));
+        }
+        if (runnable)
+        {
+            auto prepare = prog->Prepare();
+            for (const auto& item : prog->BufSlots())
+            {
+                const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
+                    ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
+                const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
+                buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
+                switch (item.Type & BoundedResourceType::InnerTypeMask)
+                {
+                case BoundedResourceType::InnerTyped:
+                    prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
+                    log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                        dxu::detail::GetBoundedResTypeName(item.Type));
+                    break;
+                case BoundedResourceType::InnerStruct:
+                    prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
+                    log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg, 
+                        dxu::detail::GetBoundedResTypeName(item.Type));
+                    break;
+                case BoundedResourceType::InnerRaw:
+                    prepare.SetBuf(item.Name, buf->CreateRawView(1024));
+                    log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                        dxu::detail::GetBoundedResTypeName(item.Type));
+                    break;
+                case BoundedResourceType::InnerCBuf:
+                    prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
+                    log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                        dxu::detail::GetBoundedResTypeName(item.Type));
+                    break;
+                default: break;
+                }
+            }
+            common::mlog::SyncConsoleBackend();
+            const auto call = prepare.Finish();
+        }
+    }
+    catch (const BaseException& be)
+    {
+        PrintException(be, u"Error here");
+    }
+}
+
 static void DXStub()
 {
     const auto& devs = DxDevice_::GetDevices();
@@ -76,7 +145,6 @@ static void DXStub()
             });
         const auto& dev = devs[devidx];
         const auto cmdque = DxComputeCmdQue_::Create(dev);
-        const auto cmdlist = DxComputeCmdList_::Create(dev);
         try
         {
             while (true)
@@ -97,24 +165,7 @@ static void DXStub()
                 }
                 else if (fpath.empty())
                     continue;
-                common::fs::path filepath = fpath;
-                log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
-                try
-                {
-                    const auto kertxt = common::file::ReadAllText(filepath);
-                    auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
-                    shaderStub.Build({});
-                    const auto prog = std::make_shared<DxComputeProgram_>(shaderStub.Finish());
-                    for (const auto& item : prog->BufSlots())
-                    {
-                        log().verbose(u"---[Buffer][{}] Bind[{},{}] Type[{}]\n", item.Name, item.BindReg, item.Count,
-                            dxu::detail::GetBoundedResTypeName(item.Type));
-                    }
-                }
-                catch (const BaseException& be)
-                {
-                    PrintException(be, u"Error here");
-                }
+                TestDX(dev, cmdque, fpath);
             }
         }
         catch (const common::BaseException& be)

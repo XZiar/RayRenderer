@@ -61,6 +61,7 @@ class DXUAPI DxResource_ : public DxNamable, public std::enable_shared_from_this
 {
     friend DxBindingManager;
     friend DxCmdList_;
+    friend ResStateList;
 private:
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
     [[nodiscard]] virtual bool IsBufOrSATex() const noexcept; // Buffers and Simultaneous-Access Textures

@@ -221,24 +221,26 @@ enum class ResourceState : uint32_t
     VideoProcessWrite   = 0x80000, 
     VideoEncodeRead     = 0x200000, 
     VideoEncodeWrite    = 0x800000,
+    Invalid             = UINT32_MAX,
 };
 MAKE_ENUM_BITFIELD(ResourceState)
 
 enum class BoundedResourceType : uint16_t
 {
-    RWMask   = 0x0100,
-    TypeMask = 0xf000, OtherType = 0x0000, UAVType = 0x1000, SRVType = 0x2000, CBVType = 0x3000, SamplerType = 0x4000,
-    Other           =   OtherType | 1, 
-    CBuffer         =     CBVType | 1,
-    TBuffer         =     SRVType | 1,
-    Texture         =     SRVType | 2, 
-    Sampler         = SamplerType | 1, 
-    TypedUAV        =     UAVType | 1,
-    UntypedUAV      =     UAVType | 2,
-    RawUAV          =     UAVType | 3,
-    RWTypedUAV      = RWMask | TypedUAV,
-    RWUntypedUAV    = RWMask | UntypedUAV,
-    RWRawUAV        = RWMask | RawUAV,
+    CategoryMask = 0xf000, RWMask = 0x8000, InnerTypeMask = 0x00ff,
+    Others = 0x0000, SRVs = 0x1000, CBVs = 0x2000, Samplers = 0x3000, UAVs = RWMask | 0x4000,
+    InnerUnknown = 0x10, InnerSampler = 0x20, InnerCBuf = 0x30, InnerTBuf = 0x40,
+    InnerTyped = 0x1, InnerStruct = 0x2, InnerRaw = 0x3,
+    Other       =   Others | InnerUnknown,
+    Sampler     = Samplers | InnerSampler,
+    CBuffer     =     CBVs | InnerCBuf,
+    TBuffer     =     SRVs | InnerTBuf,
+    Typed       =     SRVs | InnerTyped,
+    StructBuf   =     SRVs | InnerStruct,
+    RawBuf      =     SRVs | InnerRaw,
+    RWTyped     =     UAVs | InnerTyped,
+    RWStructBuf =     UAVs | InnerStruct,
+    RWRawBuf    =     UAVs | InnerRaw,
 };
 MAKE_ENUM_BITFIELD(BoundedResourceType)
 

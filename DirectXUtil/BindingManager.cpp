@@ -40,37 +40,28 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
     for (const auto& binding : BindBuffer)
     {
         const auto& buf = *binding.Item.Buffer;
-        const bool isRaw = binding.Item.Type == DxBuffer_::BufferView::Types::Raw;
-        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-        switch (binding.Item.Type)
+        const auto [format, isRaw] = [](const DxBuffer_::BufferView& bufview) -> std::pair<DXGI_FORMAT, bool>
         {
-        case DxBuffer_::BufferView::Types::Raw:
-            format = DXGI_FORMAT_R32_TYPELESS;
-            break;
-        case DxBuffer_::BufferView::Types::Typed:
-            format = static_cast<DXGI_FORMAT>(detail::TexFormatToDXGIFormat(binding.Item.Format));
-            break;
-        case DxBuffer_::BufferView::Types::Structured:
-            format = DXGI_FORMAT_UNKNOWN;
-            break;
-        default:
-            Expects(false);
-            break;
-        }
+            switch (bufview.Type & BoundedResourceType::InnerTypeMask)
+            {
+            case BoundedResourceType::InnerRaw:     return { DXGI_FORMAT_R32_TYPELESS, true };
+            case BoundedResourceType::InnerTyped:   return { static_cast<DXGI_FORMAT>(detail::TexFormatToDXGIFormat(bufview.Format)), false };
+            case BoundedResourceType::InnerStruct:  return { DXGI_FORMAT_UNKNOWN, false };
+            default:                                return { DXGI_FORMAT_UNKNOWN, false };
+            }
+        }(binding.Item);
         const auto handle = csuDescHeap.At(binding.DescOffset);
-        if (HAS_FIELD(buf.ResFlags, ResourceFlags::AllowUnorderAccess)) // create buffer UAV
+        switch (binding.Item.Type & BoundedResourceType::CategoryMask)
         {
-            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-            uavDesc.Format = format;
-            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-            uavDesc.Buffer.FirstElement = binding.Item.Offset;
-            uavDesc.Buffer.NumElements = binding.Item.Count;
-            uavDesc.Buffer.StructureByteStride = binding.Item.Stride;
-            uavDesc.Buffer.CounterOffsetInBytes = 0;
-            uavDesc.Buffer.Flags = isRaw ? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
-            dev.CreateUnorderedAccessView(buf.Resource, nullptr, &uavDesc, handle);
-        }
-        else // create buffer SRV
+        case BoundedResourceType::CBVs:
+        {
+            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+            cbvDesc.SizeInBytes = binding.Item.Count;
+            cbvDesc.BufferLocation = binding.Item.Buffer->GetGPUVirtualAddress() + binding.Item.Offset;
+            dxLog().verbose(u"Create CBV to [{}].\n"sv, binding.Item.Buffer->GetName());
+            dev.CreateConstantBufferView(&cbvDesc, handle);
+        } break;
+        case BoundedResourceType::SRVs:
         {
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
             srvDesc.Format = format;
@@ -80,9 +71,30 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
             srvDesc.Buffer.NumElements = binding.Item.Count;
             srvDesc.Buffer.StructureByteStride = binding.Item.Stride;
             srvDesc.Buffer.Flags = isRaw ? D3D12_BUFFER_SRV_FLAG_RAW : D3D12_BUFFER_SRV_FLAG_NONE;
+            dxLog().verbose(u"Create SRV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
+                static_cast<uint32_t>(format), srvDesc.Buffer.StructureByteStride, static_cast<uint32_t>(srvDesc.Buffer.Flags));
             dev.CreateShaderResourceView(buf.Resource, &srvDesc, handle);
+        } break;
+        case BoundedResourceType::UAVs:
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+            uavDesc.Format = format;
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+            uavDesc.Buffer.FirstElement = binding.Item.Offset;
+            uavDesc.Buffer.NumElements = binding.Item.Count;
+            uavDesc.Buffer.StructureByteStride = binding.Item.Stride;
+            uavDesc.Buffer.CounterOffsetInBytes = 0;
+            uavDesc.Buffer.Flags = isRaw ? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
+            dxLog().verbose(u"Create UAV to [{}], Format[{}] Stride[{}] Flag[{}].\n"sv, binding.Item.Buffer->GetName(),
+                static_cast<uint32_t>(format), uavDesc.Buffer.StructureByteStride, static_cast<uint32_t>(uavDesc.Buffer.Flags));
+            dev.CreateUnorderedAccessView(buf.Resource, nullptr, &uavDesc, handle);
+        } break;
+        default:
+            Expects(false);
+            break;
         }
     }
+    common::mlog::SyncConsoleBackend();
     return PtrProxy<detail::DescHeap>{ csuDescHeap.Heap.Detach() };
 }
 

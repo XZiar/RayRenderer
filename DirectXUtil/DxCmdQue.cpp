@@ -10,6 +10,25 @@ MAKE_ENABLER_IMPL(DxDirectCmdList_);
 MAKE_ENABLER_IMPL(DxCopyCmdQue_);
 MAKE_ENABLER_IMPL(DxComputeCmdQue_);
 MAKE_ENABLER_IMPL(DxDirectCmdQue_);
+using common::enum_cast;
+
+
+void ResStateList::AddState(detail::Resource* res, ResourceState state)
+{
+    for (auto& record : Records)
+    {
+        if (record.Resource == res)
+        {
+            record.State = state;
+            return;
+        }
+    }
+    Records.push_back({ res, state });
+}
+void ResStateList::AddState(const std::shared_ptr<DxResource_>& res, ResourceState state)
+{
+    AddState(res->Resource, state);
+}
 
 
 constexpr static bool IsReadOnlyState(const ResourceState state)
@@ -18,7 +37,7 @@ constexpr static bool IsReadOnlyState(const ResourceState state)
 }
 
 DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const ResourceState state) noexcept :
-    Resource(res->Resource), State(state), IsPromote(state == ResourceState::Common), IsBufOrSATex(res->IsBufOrSATex())
+    Resource(res->Resource), State(state), FromState(ResourceState::Invalid), IsPromote(state == ResourceState::Common), IsBufOrSATex(res->IsBufOrSATex())
 { }
 
 
@@ -74,7 +93,7 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     ResStateRecord* record = nullptr;
     for (auto& item : ResStateTable)
     {
-        if (item.Resource == res)
+        if (item.Resource == res->Resource)
         {
             record = &item;
             break;
@@ -82,22 +101,41 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     }
     if (!record)
     {
-        record = &ResStateTable.emplace_back(res, fromInitState ? res->InitState : ResourceState::Common);
+        const auto state = fromInitState ? res->InitState : [](const DxResource_& res) 
+        {
+            switch (res.HeapInfo.Type)
+            {
+            case HeapType::Upload:      return ResourceState::Read;
+            case HeapType::Readback:    return ResourceState::CopyDst;
+            default:                    return ResourceState::Common;
+            }
+        }(*res);
+        record = &ResStateTable.emplace_back(res, state);
     }
     const auto oldState = record->State;
     if (oldState == newState) // fast skip
         return true;
 
+    if (record->FromState != ResourceState::Invalid) // already transisted
+    {
+        dxLog().warning(FMT_STRING(u"Resource [{}] was repeatly transit from [{:0X}]->...->[{:0X}]->[{:0X}]."),
+            res->GetName(), enum_cast(record->FromState), enum_cast(oldState), enum_cast(newState));
+    }
+    else
+    {
+        record->FromState = oldState;
+    }
+
     bool isPromote = false;
     if (oldState == ResourceState::Common)
-    {
+    { // Resources can only be "promoted" out of D3D12_RESOURCE_STATE_COMMON
         static constexpr auto BSATState = ResourceState::ConstBuffer | ResourceState::IndexBuffer | ResourceState::RenderTarget |
             ResourceState::UnorderAccess | ResourceState::NonPSRes | ResourceState::PsRes | ResourceState::StreamOut |
             ResourceState::IndirectArg | ResourceState::CopyDst | ResourceState::CopySrc |
             ResourceState::ResolveSrc | ResourceState::ResolveDst | ResourceState::Pred;
         static constexpr auto NonBSATState = ResourceState::NonPSRes | ResourceState::PsRes | ResourceState::CopyDst | ResourceState::CopySrc;
         if (const auto pmtState = record->IsBufOrSATex ? BSATState : NonBSATState; !HAS_FIELD(newState, ~pmtState))
-        { // Resources can only be "promoted" out of D3D12_RESOURCE_STATE_COMMON
+        { 
             isPromote = true;
         }
     }
@@ -111,7 +149,7 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
 
     record->IsPromote = isPromote;
     record->State     = newState;
-    if (!isPromote)
+    /*if (!isPromote)
     {
         D3D12_RESOURCE_TRANSITION_BARRIER trans =
         {
@@ -127,8 +165,31 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
             trans
         };
         CmdList->ResourceBarrier(1, &barrier);
-    }
+    }*/
     return false;
+}
+
+void DxCmdList_::FlushResourceState()
+{
+    std::vector<D3D12_RESOURCE_BARRIER> barriers;
+    for (auto& record : ResStateTable)
+    {
+        if (record.FromState != ResourceState::Invalid && !record.IsPromote)
+        {
+            auto& barrier = barriers.emplace_back();
+            barrier.Type  = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Transition.pResource   = record.Resource;
+            barrier.Transition.Subresource = 0;
+            barrier.Transition.StateBefore = static_cast<D3D12_RESOURCE_STATES>(record.FromState);
+            barrier.Transition.StateAfter  = static_cast<D3D12_RESOURCE_STATES>(record.State);
+        }
+        record.FromState = ResourceState::Invalid;
+    }
+    if (barriers.size() > 0)
+    {
+        CmdList->ResourceBarrier(gsl::narrow_cast<uint32_t>(barriers.size()), barriers.data());
+    }
 }
 
 bool DxCmdList_::IsClosed() const noexcept

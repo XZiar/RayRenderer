@@ -138,16 +138,15 @@ std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept
     {
 #define CASE_T(t) case BoundedResourceType::t:    return #t
     CASE_T(Other);
+    CASE_T(Sampler);
     CASE_T(CBuffer);
     CASE_T(TBuffer);
-    CASE_T(Texture);
-    CASE_T(Sampler);
-    CASE_T(TypedUAV);
-    CASE_T(UntypedUAV);
-    CASE_T(RawUAV);
-    CASE_T(RWTypedUAV);
-    CASE_T(RWUntypedUAV);
-    CASE_T(RWRawUAV);
+    CASE_T(Typed);
+    CASE_T(StructBuf);
+    CASE_T(RawBuf);
+    CASE_T(RWTyped);
+    CASE_T(RWStructBuf);
+    CASE_T(RWRawBuf);
 #undef CASE_T
     default:    return "unknown";
     }

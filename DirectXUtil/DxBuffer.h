@@ -93,13 +93,12 @@ public:
 
     struct BufferView
     {
-        enum class Types : uint16_t { Structured, Typed, Raw };
         DxBufferConst Buffer;
         uint32_t Offset;
         uint32_t Count;
         uint32_t Stride;
         xziar::img::TextureFormat Format;
-        Types Type;
+        BoundedResourceType Type;
         bool operator==(const BufferView& other) const noexcept
         {
             if (Buffer != other.Buffer || Type != other.Type || Format != other.Format)
@@ -113,23 +112,23 @@ public:
     BufferView CreateStructuredView(size_t count, size_t offset = 0) const noexcept
     {
         Expects(offset % sizeof(T) == 0);
-        Expects(sizeof(T) * count + offset < Size);
+        Expects(sizeof(T) * count + offset <= Size);
         return 
         { 
             GetSelf(), gsl::narrow_cast<uint32_t>(offset / sizeof(T)), 
             gsl::narrow_cast<uint32_t>(count), gsl::narrow_cast<uint32_t>(sizeof(T)),
-            xziar::img::TextureFormat::ERROR, BufferView::Types::Structured 
+            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerStruct
         };
     }
     BufferView CreateRawView(size_t count, size_t offset = 0) const noexcept
     {
         Expects(offset % 4 == 0);
-        Expects(4 * count + offset < Size);
+        Expects(4 * count + offset <= Size);
         return 
         { 
             GetSelf(), gsl::narrow_cast<uint32_t>(offset / 4), 
-            gsl::narrow_cast<uint32_t>(count), 4,
-            xziar::img::TextureFormat::ERROR, BufferView::Types::Raw 
+            gsl::narrow_cast<uint32_t>(count), 0,
+            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerRaw
         };
     }
     BufferView CreateTypedView(xziar::img::TextureFormat format, size_t count, size_t offset = 0) const noexcept
@@ -137,12 +136,22 @@ public:
         const auto bitPerPix = xziar::img::TexFormatUtil::BitPerPixel(format);
         Expects(bitPerPix != 0);
         Expects((offset * 8) % bitPerPix == 0);
-        Expects(bitPerPix * count / 8 + offset < Size);
+        Expects(bitPerPix * count / 8 + offset <= Size);
         return 
         {
             GetSelf(), gsl::narrow_cast<uint32_t>((offset * 8) / bitPerPix),
             gsl::narrow_cast<uint32_t>(count), 0,
-            format, BufferView::Types::Typed 
+            format, BoundedResourceType::InnerTyped
+        };
+    }
+    BufferView CreateConstBufView(size_t size, size_t offset = 0) const noexcept
+    {
+        Expects(size + offset <= Size);
+        return
+        {
+            GetSelf(), gsl::narrow_cast<uint32_t>(offset),
+            gsl::narrow_cast<uint32_t>(size), 1,
+            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerCBuf
         };
     }
 

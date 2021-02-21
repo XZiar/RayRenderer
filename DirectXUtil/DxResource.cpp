@@ -85,8 +85,21 @@ void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, c
 
 void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
 {
-    const bool isBufOrSATex = IsBufOrSATex();
     // common check
+    switch (HeapInfo.Type)
+    {
+    case HeapType::Readback:
+        if (newState != ResourceState::CopyDst)
+            COMMON_THROW(DxException, u"committed resources created in READBACK heaps must start in and cannot change from the COPY_DEST state");
+        return; // skip because cannot change state
+    case HeapType::Upload:
+        if (newState != ResourceState::Read)
+            COMMON_THROW(DxException, u"resources created on UPLOAD heaps must start in and cannot change from the GENERIC_READ state");
+        return; // skip because cannot change state
+    default:
+        break;
+    }
+    const bool isBufOrSATex = IsBufOrSATex();
     if (isBufOrSATex && HAS_FIELD(newState, ResourceState::DepthWrite | ResourceState::DepthRead))
         COMMON_THROW(DxException, FMTSTR(u"Buffer and Simultaneous-Access Texture can not set to type [DepthWrite|DepthRead], get[{}]",
             common::enum_cast(newState)));

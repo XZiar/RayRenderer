@@ -50,6 +50,7 @@ public:
         {
             MappedResource->TransitState(CopyList, ResourceState::CopySrc);
             RealResource.TransitState(CopyList, ResourceState::CopyDst);
+            CopyList->FlushResourceState();
             RealResource.CopyRegionFrom(CopyList, Offset, *MappedResource, 0, MemSpace.size());
             CmdQue->ExecuteAnyList(CopyList)->WaitFinish();
         }
@@ -66,6 +67,7 @@ public:
         {
             res->TransitState(cmdList, ResourceState::CopySrc);
             mapped->TransitState(cmdList, ResourceState::CopyDst, true);
+            cmdList->FlushResourceState();
             mapped->CopyRegionFrom(cmdList, 0, *res, offset, size);
             que->ExecuteAnyList(cmdList)->WaitFinish();
             cmdList->Reset(false);
@@ -155,6 +157,7 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
         cmdList->SetName(FMTSTR(u"CopyList for readback [{}]", GetName()));
         TransitState(cmdList, ResourceState::CopySrc);
         mapped->TransitState(cmdList, ResourceState::CopyDst, true); // should be skipped
+        cmdList->FlushResourceState();
         mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
         return common::StagedResult::TwoStage(
             que->ExecuteAnyList(cmdList),
@@ -190,6 +193,7 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
         auto cmdList = que->CreateList();
         cmdList->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
         TransitState(cmdList, ResourceState::CopyDst);
+        cmdList->FlushResourceState();
         CopyRegionFrom(cmdList, offset, *tmpBuf, 0, buf.size());
         const auto pms = que->ExecuteAnyList(cmdList);
         pms->OnComplete([=]() mutable

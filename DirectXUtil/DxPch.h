@@ -54,6 +54,12 @@ struct type : public dxtype     \
 {                               \
     using RealType = dxtype;    \
 }
+#define ExtendType(type, dxtype, ...)   \
+struct type : public dxtype             \
+{                                       \
+    using RealType = dxtype;            \
+    __VA_ARGS__                         \
+}
 
 ProxyType(Adapter,              IDXGIAdapter1);
 ProxyType(Device,               ID3D12Device);
@@ -65,11 +71,13 @@ ProxyType(Fence,                ID3D12Fence);
 ProxyType(Resource,             ID3D12Resource);
 ProxyType(ResourceDesc,         D3D12_RESOURCE_DESC);
 ProxyType(DescHeap,             ID3D12DescriptorHeap);
-ProxyType(BindResourceDetail,   D3D12_SHADER_INPUT_BIND_DESC);
+ExtendType(BindResourceDetail,  D3D12_SHADER_INPUT_BIND_DESC,
+    common::StringPiece<char> NameSv;);
 ProxyType(RootSignature,        ID3D12RootSignature);
 ProxyType(PipelineState,        ID3D12PipelineState);
 
 #undef ProxyType
+#undef ExtendType
 
 
 #define ClzProxy(clz, type, dxtype) \
