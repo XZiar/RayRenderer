@@ -140,6 +140,39 @@ struct PtrProxy
 };
 
 
+class DXUAPI DxCapture
+{
+protected:
+    DxCapture() noexcept { }
+    class Capture
+    {
+        const DxCapture& Handle;
+    public:
+        Capture(const DxCapture& handle) : Handle(handle)
+        {
+            Handle.Begin();
+        }
+        COMMON_NO_COPY(Capture)
+        COMMON_NO_MOVE(Capture)
+        ~Capture()
+        {
+            Handle.End();
+        }
+    };
+public:
+    COMMON_NO_COPY(DxCapture)
+    COMMON_NO_MOVE(DxCapture)
+    virtual ~DxCapture();
+    virtual void Begin() const noexcept = 0;
+    virtual void End() const noexcept = 0;
+    Capture CaptureRange() const noexcept
+    {
+        return *this;
+    }
+    static const DxCapture& Get() noexcept;
+};
+
+
 class DXUAPI DxNamable
 {
 protected:

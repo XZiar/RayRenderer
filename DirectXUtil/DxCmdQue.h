@@ -20,13 +20,13 @@ using DxComputeCmdList  = std::shared_ptr<DxComputeCmdList_>;
 class DxDirectCmdList_;
 using DxDirectCmdList   = std::shared_ptr<DxDirectCmdList_>;
 class DxCmdQue_;
-using DxCmdQue          = std::shared_ptr<const DxCmdQue_>;
+using DxCmdQue          = std::shared_ptr<DxCmdQue_>;
 class DxCopyCmdQue_;
-using DxCopyCmdQue      = std::shared_ptr<const DxCopyCmdQue_>;
+using DxCopyCmdQue      = std::shared_ptr<DxCopyCmdQue_>;
 class DxComputeCmdQue_;
-using DxComputeCmdQue   = std::shared_ptr<const DxComputeCmdQue_>;
+using DxComputeCmdQue   = std::shared_ptr<DxComputeCmdQue_>;
 class DxDirectCmdQue_;
-using DxDirectCmdQue    = std::shared_ptr<const DxDirectCmdQue_>;
+using DxDirectCmdQue    = std::shared_ptr<DxDirectCmdQue_>;
 
 class DxResource_;
 class DxProgram_;
@@ -39,6 +39,20 @@ struct ResStateRecord
     const DxResource_* Resource;
     ResourceState State;
 };
+struct DXUAPI DebugEventHolder : public std::enable_shared_from_this<DebugEventHolder>
+{
+private:
+    struct Range;
+    std::weak_ptr<Range> CurrentRange;
+    virtual void BeginEvent(std::u16string_view msg) const = 0;
+    virtual void EndEvent() const = 0;
+protected:
+    bool CheckRangeEmpty() const noexcept;
+public:
+    virtual ~DebugEventHolder();
+    virtual void AddMarker(std::u16string name) const = 0;
+    std::shared_ptr<void> DeclareRange(std::u16string msg);
+};
 }
 
 class DXUAPI ResStateList
@@ -50,13 +64,15 @@ public:
 };
 
 
-class DXUAPI DxCmdList_ : public DxNamable
+class DXUAPI DxCmdList_ : public DxNamable, public detail::DebugEventHolder
 {
     friend DxCmdQue_;
     friend DxResource_;
     friend DxProgram_;
 private:
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
+    void BeginEvent(std::u16string_view msg) const final;
+    void EndEvent() const final;
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
     struct ResStateRecord
@@ -96,6 +112,7 @@ protected:
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
     ~DxCmdList_() override;
+    void AddMarker(std::u16string name) const final;
     void FlushResourceState();
     ResStateList GenerateStateList() const;
     bool IsClosed() const noexcept;
@@ -156,12 +173,14 @@ public:
 };
 
 
-class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public std::enable_shared_from_this<DxCmdQue_>
+class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public detail::DebugEventHolder
 {
     friend class DxPromiseCore;
 private:
     mutable std::atomic<uint64_t> FenceNum;
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
+    void BeginEvent(std::u16string_view msg) const final;
+    void EndEvent() const final;
 protected:
     enum class QueType { Copy, Compute, Direct };
     COMMON_NO_COPY(DxCmdQue_)
@@ -177,7 +196,7 @@ protected:
     void Wait(const common::PromiseProvider& pms) const;
 public:
     ~DxCmdQue_() override;
-
+    void AddMarker(std::u16string name) const final;
     template<typename... Args>
     DxCmdList CreateList(Args&&... args) const
     {

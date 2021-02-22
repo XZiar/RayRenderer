@@ -1,4 +1,5 @@
 #include "DxPch.h"
+#include <DXProgrammableCapture.h>
 
 #if defined(_WIN32)
 #   pragma comment (lib, "D3d12.lib")
@@ -10,11 +11,43 @@
 namespace dxu
 {
 using namespace common::mlog;
+using Microsoft::WRL::ComPtr;
 
 MiniLogger<false>& dxLog()
 {
     static MiniLogger<false> dxlog(u"DirectXUtil", { GetConsoleBackend() });
     return dxlog;
+}
+
+
+class DxPixCapture : public DxCapture
+{
+    ComPtr<IDXGraphicsAnalysis> Handle;
+public:
+    DxPixCapture()
+    {
+        if (const common::HResultHolder hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&Handle)); !hr)
+        {
+            dxLog().warning(u"Failed to get DXGraphicsAnalysis, [{}].\n", hr.ToStr());
+        }
+    }
+    ~DxPixCapture() override {}
+    void Begin() const noexcept override
+    {
+        if (Handle)
+            Handle->BeginCapture();
+    }
+    void End() const noexcept override
+    {
+        if (Handle)
+            Handle->EndCapture();
+    }
+};
+DxCapture::~DxCapture() {}
+const DxCapture& DxCapture::Get() noexcept
+{
+    static DxPixCapture capture;
+    return capture;
 }
 
 

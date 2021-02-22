@@ -85,6 +85,7 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         }
         if (runnable)
         {
+            const auto rg = cmdque->DeclareRange(FMTSTR(u"Test run of [{}]", filepath.u16string()));
             const auto origin = DxBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 4096, ResourceFlags::Empty);
             {
                 const auto mapped = origin->Map(cmdque, MapFlags::WriteOnly, 0, 4096);
@@ -98,52 +99,61 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
             const auto cmdlist = DxComputeCmdList_::Create(dev);
             auto prepare = prog->Prepare();
             std::vector<DxBuffer> bufs;
-            for (const auto& item : prog->BufSlots())
             {
-                const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
-                    ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
-                const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
-                buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
-                switch (item.Type & BoundedResourceType::InnerTypeMask)
+                const auto rgBuf = cmdlist->DeclareRange(u"Prepare buffers");
+                for (const auto& item : prog->BufSlots())
                 {
-                case BoundedResourceType::InnerTyped:
-                    prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
-                    log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                        dxu::detail::GetBoundedResTypeName(item.Type));
-                    break;
-                case BoundedResourceType::InnerStruct:
-                    prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
-                    log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg, 
-                        dxu::detail::GetBoundedResTypeName(item.Type));
-                    break;
-                case BoundedResourceType::InnerRaw:
-                    prepare.SetBuf(item.Name, buf->CreateRawView(1024));
-                    log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                        dxu::detail::GetBoundedResTypeName(item.Type));
-                    break;
-                case BoundedResourceType::InnerCBuf:
-                    prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
-                    log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                        dxu::detail::GetBoundedResTypeName(item.Type));
-                    break;
-                default: continue;
+                    const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
+                        ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
+                    const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
+                    buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
+                    switch (item.Type & BoundedResourceType::InnerTypeMask)
+                    {
+                    case BoundedResourceType::InnerTyped:
+                        prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
+                        log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                            dxu::detail::GetBoundedResTypeName(item.Type));
+                        break;
+                    case BoundedResourceType::InnerStruct:
+                        prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
+                        log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                            dxu::detail::GetBoundedResTypeName(item.Type));
+                        break;
+                    case BoundedResourceType::InnerRaw:
+                        prepare.SetBuf(item.Name, buf->CreateRawView(1024));
+                        log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                            dxu::detail::GetBoundedResTypeName(item.Type));
+                        break;
+                    case BoundedResourceType::InnerCBuf:
+                        prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
+                        log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                            dxu::detail::GetBoundedResTypeName(item.Type));
+                        break;
+                    default: continue;
+                    }
+                    buf->CopyFrom(cmdlist, 0, origin, 0, 4096);
+                    bufs.emplace_back(buf);
                 }
-                buf->CopyFrom(cmdlist, 0, origin, 0, 4096);
-                bufs.emplace_back(buf);
+                common::mlog::SyncConsoleBackend();
             }
-            common::mlog::SyncConsoleBackend();
             const auto call = prepare.Finish();
-            call.Execute(cmdlist, {1024, 1, 1});
+            {
+                const auto rgExe = cmdlist->DeclareRange(u"Execute shader");
+                call.Execute(cmdlist, { 1024, 1, 1 });
+            }
             cmdlist->EnsureClosed();
             cmdque->Execute(cmdlist)->WaitFinish();
-            for (const auto& buf : bufs)
             {
-                const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
-                const auto sp = mapped.AsType<uint32_t>();
-                const auto vals = fmt::format("{}", sp);
-                log().debug(u"{}: {}\n", buf->GetName(), vals);
+                const auto rgExe = cmdque->DeclareRange(u"Readback buffer");
+                for (const auto& buf : bufs)
+                {
+                    const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
+                    const auto sp = mapped.AsType<uint32_t>();
+                    const auto vals = fmt::format("{}", sp);
+                    log().debug(u"{}: {}\n", buf->GetName(), vals);
+                }
+                common::mlog::SyncConsoleBackend();
             }
-            common::mlog::SyncConsoleBackend();
         }
     }
     catch (const BaseException& be)
@@ -172,6 +182,8 @@ static void DXStub()
         const auto cmdque = DxComputeCmdQue_::Create(dev);
         try
         {
+            const auto& capture = DxCapture::Get();
+            const auto cap = capture.CaptureRange();
             while (true)
             {
                 common::mlog::SyncConsoleBackend();

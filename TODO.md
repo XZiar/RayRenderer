@@ -54,13 +54,16 @@
   - [ ] Add test for DataTypeConvertor
 
 * XCompute
-  - [ ] Add XCompute based on OpenCLInterop
+  - [ ] Merge OpenCLInterop
+  - [ ] Add compatible layer for shader sharing between NLCL and NLGL
+  - [ ] Add compatible layer for shader sharing between NLCL and NLDX
+  - [ ] Add interop between opencl and directx (delay load + conditional compiling)
   - [x] Add support of output debug data into SpreadsheetML format
   - [ ] Add common syntax to define args of the instance
   - [ ] Add common syntax to define structure
-  - [ ] Expose common API to inject custom extensions
+  - [x] Expose common API to inject custom extensions
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
-  - [ ] Add common interface for texture/buffer(UAV)
+  - [ ] Add common interface for texture/buffer, SRV/UAV
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
 
 * OpenGLUtil
@@ -85,6 +88,8 @@
   - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
+  * NLGL
+    - [ ] Add basic NLGL
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
@@ -105,9 +110,17 @@
     - [ ] Add better kernel argument info parsing in NLCL
     - [x] Seperate into shared compute library
 
-* OpenCLInterop
-  - [ ] Add compatible layer for shader sharing between NLCL and NLGL
-  - [ ] Add interop with directx (delay load + conditional compiling)
+* DirectXUtil
+  - [ ] Add PCIE bus query
+  - [ ] Add compatible dx11 layer creation
+  - [ ] Add graphic pipeline
+  - [ ] Add metric query support (profiling)
+  - [ ] Add texture support
+  - [ ] Add sampler support
+  - [ ] Add shared desc heap
+  * NLDX
+    - [ ] Add basic NLDX
+    - [ ] Mimic subgroup on platform without Wave support
 
 * TextureUtil
   - [x] Add mipmap
@@ -198,5 +211,5 @@
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
   - [x] Embed gtest for latest fixes for C++20
   - [ ] Move to submodule-based 3rdParty libraries
-  - [ ] Add basic DX12 runtime wrapper
+  - [x] Add basic DX12 runtime wrapper
 

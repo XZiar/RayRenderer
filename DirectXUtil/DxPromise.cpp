@@ -9,7 +9,7 @@ using namespace std::string_view_literals;
 
 
 DxPromiseCore::DxPromiseCore(const DxCmdQue_& cmdQue, const uint64_t num, const bool isException) :
-    CmdQue(cmdQue.shared_from_this()), Num(num), Handle(nullptr), IsException(isException)
+    CmdQue(std::static_pointer_cast<const DxCmdQue_>(cmdQue.shared_from_this())), Num(num), Handle(nullptr), IsException(isException)
 {
 }
 DxPromiseCore::DxPromiseCore(const bool isException) :
@@ -28,11 +28,15 @@ static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<c
     Expects(handle != nullptr);
     switch (WaitForSingleObject(handle, ms))
     {
-    case WAIT_OBJECT_0:     return common::PromiseState::Executed;
-    case WAIT_TIMEOUT:      return common::PromiseState::Executing;
+    case WAIT_OBJECT_0:     
+        PIXNotifyWakeFromFenceSignal(handle);
+        return common::PromiseState::Executed;
+    case WAIT_TIMEOUT:
+        return common::PromiseState::Executing;
     case WAIT_ABANDONED:    
     case WAIT_FAILED:
-    default:                break;
+    default:
+        break;
     }
     ex = CREATE_EXCEPTION(DxException, HRESULT_FROM_WIN32(GetLastError()), u"Failed to wait DXPromise").InnerInfo();
     return common::PromiseState::Error;

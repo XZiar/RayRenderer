@@ -22,6 +22,7 @@
 #include <d3d12shader.h>
 #include <dxgi1_6.h>
 #include "d3dx12.h"
+#include <pix3.h>
 
 //fucking wingdi defines some terrible macro
 #undef ERROR

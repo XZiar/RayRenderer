@@ -13,6 +13,37 @@ MAKE_ENABLER_IMPL(DxDirectCmdQue_);
 using common::enum_cast;
 
 
+namespace detail
+{
+struct DebugEventHolder::Range
+{
+    std::shared_ptr<DebugEventHolder> Host;
+    std::shared_ptr<Range> Previous;
+    Range(std::shared_ptr<DebugEventHolder> host) :
+        Host(std::move(host)), Previous(Host->CurrentRange.lock())
+    { }
+    ~Range()
+    {
+        Host->EndEvent();
+    }
+};
+
+DebugEventHolder::~DebugEventHolder()
+{}
+bool DebugEventHolder::CheckRangeEmpty() const noexcept
+{
+    return CurrentRange.expired();
+}
+std::shared_ptr<void> DebugEventHolder::DeclareRange(std::u16string msg)
+{
+    BeginEvent(msg);
+    auto range = std::make_shared<Range>(shared_from_this());
+    CurrentRange = range;
+    return range;
+}
+}
+
+
 void ResStateList::AddState(const DxResource_* res, ResourceState state)
 {
     for (auto& record : Records)
@@ -59,6 +90,18 @@ DxCmdList_::~DxCmdList_()
 void* DxCmdList_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(CmdList.Ptr());
+}
+void DxCmdList_::BeginEvent(std::u16string_view msg) const
+{
+    PIXBeginEvent(CmdList.Ptr(), 0, reinterpret_cast<const wchar_t*>(msg.data()));
+}
+void DxCmdList_::EndEvent() const
+{
+    PIXEndEvent(CmdList.Ptr());
+}
+void DxCmdList_::AddMarker(std::u16string name) const
+{
+    PIXSetMarker(CmdList.Ptr(), 0, reinterpret_cast<const wchar_t*>(name.c_str()));
 }
 
 void DxCmdList_::InitResTable(const ResStateList& list)
@@ -221,6 +264,8 @@ void DxCmdList_::EnsureClosed()
 {
     if (!HasClosed.exchange(true))
     {
+        if (!CheckRangeEmpty())
+            dxLog().error(u"some range not closed with cmdlist [{}]", GetName());
         THROW_HR(CmdList->Close(), u"Failed to close CmdList");
         // Decay states
         if (Type == ListType::Copy) // Resources being accessed on a Copy queue
@@ -289,6 +334,18 @@ DxCmdQue_::~DxCmdQue_()
 void* DxCmdQue_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(CmdQue.Ptr());
+}
+void DxCmdQue_::BeginEvent(std::u16string_view msg) const
+{
+    PIXBeginEvent(CmdQue.Ptr(), 0, reinterpret_cast<const wchar_t*>(msg.data()));
+}
+void DxCmdQue_::EndEvent() const
+{
+    PIXEndEvent(CmdQue.Ptr());
+}
+void DxCmdQue_::AddMarker(std::u16string name) const
+{
+    PIXSetMarker(CmdQue.Ptr(), 0, reinterpret_cast<const wchar_t*>(name.c_str()));
 }
 
 void DxCmdQue_::ExecuteList(DxCmdList_& list) const
