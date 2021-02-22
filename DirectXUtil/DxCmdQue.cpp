@@ -13,7 +13,7 @@ MAKE_ENABLER_IMPL(DxDirectCmdQue_);
 using common::enum_cast;
 
 
-void ResStateList::AddState(detail::Resource* res, ResourceState state)
+void ResStateList::AddState(const DxResource_* res, ResourceState state)
 {
     for (auto& record : Records)
     {
@@ -25,10 +25,6 @@ void ResStateList::AddState(detail::Resource* res, ResourceState state)
     }
     Records.push_back({ res, state });
 }
-void ResStateList::AddState(const std::shared_ptr<DxResource_>& res, ResourceState state)
-{
-    AddState(res->Resource, state);
-}
 
 
 constexpr static bool IsReadOnlyState(const ResourceState state)
@@ -36,12 +32,13 @@ constexpr static bool IsReadOnlyState(const ResourceState state)
     return !HAS_FIELD(state, ~ResourceState::Read);
 }
 
+
 DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const ResourceState state) noexcept :
-    Resource(res->Resource), State(state), FromState(ResourceState::Invalid), IsPromote(state == ResourceState::Common), IsBufOrSATex(res->IsBufOrSATex())
+    Resource(res), State(state), FromState(ResourceState::Invalid), IsPromote(state == ResourceState::Common), IsBufOrSATex(res->IsBufOrSATex())
 { }
 
 
-DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList) : Type(type), HasClosed{false}
+DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Type(type), HasClosed{false}
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -54,12 +51,6 @@ DxCmdList_::DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevLis
     THROW_HR(device->Device->CreateCommandAllocator(listType, IID_PPV_ARGS(&CmdAllocator)), u"Failed to create command allocator");
     THROW_HR(device->Device->CreateCommandList(0, listType, CmdAllocator, nullptr, IID_PPV_ARGS(&CmdList)),
         u"Failed to create command list");
-    if (prevList)
-    {
-        if (!prevList->IsClosed())
-            COMMON_THROW(DxException, u"PrevList not closed");
-        ResStateTable = prevList->ResStateTable;
-    }
 }
 DxCmdList_::~DxCmdList_()
 {
@@ -68,6 +59,22 @@ DxCmdList_::~DxCmdList_()
 void* DxCmdList_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(CmdList.Ptr());
+}
+
+void DxCmdList_::InitResTable(const ResStateList& list)
+{
+    ResStateTable.reserve(list.Records.size());
+    for (const auto& record : list.Records)
+    {
+        ResStateTable.emplace_back(record.Resource, record.State);
+    }
+}
+
+void DxCmdList_::InitResTable(const DxCmdList_& list)
+{
+    if (!list.IsClosed())
+        COMMON_THROW(DxException, u"PrevList not closed");
+    ResStateTable = list.ResStateTable;
 }
 
 bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState)
@@ -93,7 +100,7 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     ResStateRecord* record = nullptr;
     for (auto& item : ResStateTable)
     {
-        if (item.Resource == res->Resource)
+        if (item.Resource == res)
         {
             record = &item;
             break;
@@ -179,7 +186,7 @@ void DxCmdList_::FlushResourceState()
             auto& barrier = barriers.emplace_back();
             barrier.Type  = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-            barrier.Transition.pResource   = record.Resource;
+            barrier.Transition.pResource   = record.Resource->Resource;
             barrier.Transition.Subresource = 0;
             barrier.Transition.StateBefore = static_cast<D3D12_RESOURCE_STATES>(record.FromState);
             barrier.Transition.StateAfter  = static_cast<D3D12_RESOURCE_STATES>(record.State);
@@ -191,6 +198,19 @@ void DxCmdList_::FlushResourceState()
         CmdList->ResourceBarrier(gsl::narrow_cast<uint32_t>(barriers.size()), barriers.data());
     }
 }
+
+ResStateList DxCmdList_::GenerateStateList() const
+{
+    if (!IsClosed())
+        COMMON_THROW(DxException, u"CmdList not closed");
+    ResStateList list;
+    for (const auto& record : ResStateTable)
+    {
+        list.AddState(record.Resource, record.State);
+    }
+    return list;
+}
+
 
 bool DxCmdList_::IsClosed() const noexcept
 {
@@ -232,19 +252,19 @@ void DxCmdList_::Reset(const bool resetResState)
 }
 
 
-DxCopyCmdList DxCopyCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+DxCopyCmdList DxCopyCmdList_::Create(DxDevice device)
 {
-    return MAKE_ENABLER_SHARED(DxCopyCmdList_,    (device, ListType::Copy,    prevList.get()));
+    return MAKE_ENABLER_SHARED(DxCopyCmdList_,    (device, ListType::Copy));
 }
 
-DxComputeCmdList DxComputeCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+DxComputeCmdList DxComputeCmdList_::Create(DxDevice device)
 {
-    return MAKE_ENABLER_SHARED(DxComputeCmdList_, (device, ListType::Compute, prevList.get()));
+    return MAKE_ENABLER_SHARED(DxComputeCmdList_, (device, ListType::Compute));
 }
 
-DxDirectCmdList DxDirectCmdList_::Create(DxDevice device, const DxCmdList& prevList)
+DxDirectCmdList DxDirectCmdList_::Create(DxDevice device)
 {
-    return MAKE_ENABLER_SHARED(DxDirectCmdList_,  (device, ListType::Direct,  prevList.get()));
+    return MAKE_ENABLER_SHARED(DxDirectCmdList_,  (device, ListType::Direct));
 }
 
 
@@ -305,18 +325,6 @@ void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
     else
     {
         dxLog().warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
-    }
-}
-
-DxCmdList DxCmdQue_::CreateList(const DxCmdList& prevList) const
-{
-    const auto type = GetType();
-    switch (type)
-    {
-    case QueType::Copy:     return DxCopyCmdList_::   Create(Device, prevList);
-    case QueType::Compute:  return DxComputeCmdList_::Create(Device, prevList);
-    case QueType::Direct:   return DxDirectCmdList_:: Create(Device, prevList);
-    default:                COMMON_THROW(DxException, u"Unrecognized command que type");
     }
 }
 

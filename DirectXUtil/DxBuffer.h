@@ -44,6 +44,8 @@ protected:
     {
         return std::static_pointer_cast<DxBuffer_>(shared_from_this());
     }
+    void CopyFrom_(const DxCmdList& list, const uint64_t offset, const DxBuffer_& src, 
+        const uint64_t srcOffset, const uint64_t numBytes, bool dstNew, bool srcNew) const;
     [[nodiscard]] common::PromiseResult<void> ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset);
     [[nodiscard]] common::PromiseResult<void> WriteSpan_(const DxCmdQue& que, common::span<const std::byte> buf, const size_t offset);
     [[nodiscard]] common::PromiseResult<common::AlignedBuffer> Read_(const DxCmdQue& que, const size_t size, const size_t offset);
@@ -90,16 +92,23 @@ public:
         DXU_CMD_CHECK(U, Copy, Que);
         return WriteSpan_(que, common::span<const std::byte>(reinterpret_cast<const std::byte*>(&buf), sizeof(buf)), offset);
     }
+    void CopyFrom(const DxCmdList& list, const uint64_t offset,
+        const DxBuffer& src, const uint64_t srcOffset, const uint64_t numBytes) const
+    {
+        CopyFrom_(list, offset, *src, srcOffset, numBytes, false, false);
+    }
 
+    template<typename T = const DxBuffer_*>
     struct BufferView
     {
-        DxBufferConst Buffer;
+        T Buffer;
         uint32_t Offset;
         uint32_t Count;
         uint32_t Stride;
         xziar::img::TextureFormat Format;
         BoundedResourceType Type;
-        bool operator==(const BufferView& other) const noexcept
+        template<typename U>
+        bool operator==(const BufferView<U>& other) const noexcept
         {
             if (Buffer != other.Buffer || Type != other.Type || Format != other.Format)
                 return false;
@@ -107,53 +116,22 @@ public:
                 return false;
             return true;
         }
+        BufferView<DxBufferConst> WithOwnership(BoundedResourceType type = BoundedResourceType::Others) const noexcept
+        {
+            if (type == BoundedResourceType::Others) 
+                type = Type;
+            return { Buffer->GetSelf(), Offset, Count, Stride, Format, type };
+        }
     };
+    BufferView<> CreateStructuredView(size_t unitSize, size_t count, size_t offset = 0) const noexcept;
     template<typename T>
-    BufferView CreateStructuredView(size_t count, size_t offset = 0) const noexcept
+    BufferView<> CreateStructuredView(size_t count, size_t offset = 0) const noexcept
     {
-        Expects(offset % sizeof(T) == 0);
-        Expects(sizeof(T) * count + offset <= Size);
-        return 
-        { 
-            GetSelf(), gsl::narrow_cast<uint32_t>(offset / sizeof(T)), 
-            gsl::narrow_cast<uint32_t>(count), gsl::narrow_cast<uint32_t>(sizeof(T)),
-            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerStruct
-        };
+        return CreateStructuredView(sizeof(T), count, offset);
     }
-    BufferView CreateRawView(size_t count, size_t offset = 0) const noexcept
-    {
-        Expects(offset % 4 == 0);
-        Expects(4 * count + offset <= Size);
-        return 
-        { 
-            GetSelf(), gsl::narrow_cast<uint32_t>(offset / 4), 
-            gsl::narrow_cast<uint32_t>(count), 0,
-            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerRaw
-        };
-    }
-    BufferView CreateTypedView(xziar::img::TextureFormat format, size_t count, size_t offset = 0) const noexcept
-    {
-        const auto bitPerPix = xziar::img::TexFormatUtil::BitPerPixel(format);
-        Expects(bitPerPix != 0);
-        Expects((offset * 8) % bitPerPix == 0);
-        Expects(bitPerPix * count / 8 + offset <= Size);
-        return 
-        {
-            GetSelf(), gsl::narrow_cast<uint32_t>((offset * 8) / bitPerPix),
-            gsl::narrow_cast<uint32_t>(count), 0,
-            format, BoundedResourceType::InnerTyped
-        };
-    }
-    BufferView CreateConstBufView(size_t size, size_t offset = 0) const noexcept
-    {
-        Expects(size + offset <= Size);
-        return
-        {
-            GetSelf(), gsl::narrow_cast<uint32_t>(offset),
-            gsl::narrow_cast<uint32_t>(size), 1,
-            xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerCBuf
-        };
-    }
+    BufferView<> CreateRawView(size_t count, size_t offset = 0) const noexcept;
+    BufferView<> CreateTypedView(xziar::img::TextureFormat format, size_t count, size_t offset = 0) const noexcept;
+    BufferView<> CreateConstBufView(size_t size, size_t offset = 0) const noexcept;
 
     [[nodiscard]] static DxBuffer Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag = ResourceFlags::AllowUnorderAccess);
 };

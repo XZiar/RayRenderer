@@ -36,7 +36,7 @@ namespace detail
 {
 struct ResStateRecord
 {
-    Resource* Resource;
+    const DxResource_* Resource;
     ResourceState State;
 };
 }
@@ -45,9 +45,8 @@ class DXUAPI ResStateList
 {
     friend DxCmdList_;
     std::vector<detail::ResStateRecord> Records;
-    void AddState(detail::Resource* res, ResourceState state);
 public:
-    void AddState(const std::shared_ptr<DxResource_>& res, ResourceState state);
+    void AddState(const DxResource_* res, ResourceState state);
 };
 
 
@@ -62,27 +61,43 @@ protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
     struct ResStateRecord
     {
-        detail::Resource* Resource;
+        const DxResource_* Resource;
         ResourceState State;
         ResourceState FromState;
         bool IsPromote;
         bool IsBufOrSATex;
         ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
     };
-    COMMON_NO_COPY(DxCmdList_)
-    COMMON_NO_MOVE(DxCmdList_)
-    DxCmdList_(DxDevice device, ListType type, const DxCmdList_* prevList = nullptr);
     PtrProxy<detail::CmdAllocator> CmdAllocator;
     PtrProxy<detail::CmdList> CmdList;
     std::vector<ResStateRecord> ResStateTable;
+    ResStateList EndResStates;
     const ListType Type;
     std::atomic<bool> HasClosed;
-
+    
+    DxCmdList_(DxDevice device, ListType type);
+    COMMON_NO_COPY(DxCmdList_)
+    COMMON_NO_MOVE(DxCmdList_)
+    void InitResTable(const ResStateList& list);
+    void InitResTable(const DxCmdList_& list);
+    void InitResTable(const DxCmdList& list) { InitResTable(*list); }
+    template<typename T>
+    void HandleBeginEndStates(T&& begin)
+    {
+        InitResTable(std::forward<T>(begin));
+    }
+    template<typename T, typename U>
+    void HandleBeginEndStates(T&& begin, U&& end)
+    {
+        InitResTable(std::forward<T>(begin));
+        EndResStates = std::forward<T>(end);
+    }
     bool UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState);
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
     ~DxCmdList_() override;
     void FlushResourceState();
+    ResStateList GenerateStateList() const;
     bool IsClosed() const noexcept;
     void EnsureClosed();
     void Reset(const bool resetResState = true);
@@ -96,7 +111,14 @@ private:
     using DxCmdList_::DxCmdList_;
 public:
     static constexpr auto CmdCaps = Capability::Copy;
-    [[nodiscard]] static DxCopyCmdList Create(DxDevice device, const DxCmdList& prevList = {});
+    [[nodiscard]] static DxCopyCmdList Create(DxDevice device);
+    template<typename T, typename... Args>
+    [[nodiscard]] static DxCopyCmdList Create(DxDevice device, T&& arg, Args&&... args)
+    {
+        auto list = Create(device);
+        list->HandleBeginEndStates(std::forward<T>(arg), std::forward<Args>(args)...);
+        return list;
+    }
 };
 
 class DXUAPI COMMON_EMPTY_BASES DxComputeCmdList_ : public DxCmdList_
@@ -106,7 +128,14 @@ private:
     using DxCmdList_::DxCmdList_;
 public:
     static constexpr auto CmdCaps = Capability::Copy | Capability::Compute;
-    [[nodiscard]] static DxComputeCmdList Create(DxDevice device, const DxCmdList& prevList = {});
+    [[nodiscard]] static DxComputeCmdList Create(DxDevice device);
+    template<typename T, typename... Args>
+    [[nodiscard]] static DxComputeCmdList Create(DxDevice device, T&& arg, Args&&... args)
+    {
+        auto list = Create(device);
+        list->HandleBeginEndStates(std::forward<T>(arg), std::forward<Args>(args)...);
+        return list;
+    }
 };
 
 class DXUAPI COMMON_EMPTY_BASES DxDirectCmdList_ : public DxCmdList_
@@ -116,7 +145,14 @@ private:
     using DxCmdList_::DxCmdList_;
 public:
     static constexpr auto CmdCaps = Capability::Copy | Capability::Compute | Capability::Graphic;
-    [[nodiscard]] static DxDirectCmdList Create(DxDevice device, const DxCmdList& prevList = {});
+    [[nodiscard]] static DxDirectCmdList Create(DxDevice device);
+    template<typename T, typename... Args>
+    [[nodiscard]] static DxDirectCmdList Create(DxDevice device, T&& arg, Args&&... args)
+    {
+        auto list = Create(device);
+        list->HandleBeginEndStates(std::forward<T>(arg), std::forward<Args>(args)...);
+        return list;
+    }
 };
 
 
@@ -142,7 +178,18 @@ protected:
 public:
     ~DxCmdQue_() override;
 
-    DxCmdList CreateList(const DxCmdList& prevList = {}) const;
+    template<typename... Args>
+    DxCmdList CreateList(Args&&... args) const
+    {
+        const auto type = GetType();
+        switch (type)
+        {
+        case QueType::Copy:     return DxCopyCmdList_   ::Create(Device, std::forward<Args>(args)...);
+        case QueType::Compute:  return DxComputeCmdList_::Create(Device, std::forward<Args>(args)...);
+        case QueType::Direct:   return DxDirectCmdList_ ::Create(Device, std::forward<Args>(args)...);
+        default:                return {};
+        }
+    }
     common::PromiseResult<void> ExecuteAnyList(const DxCmdList& list) const
     {
         ExecuteList(*list);

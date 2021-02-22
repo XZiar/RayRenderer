@@ -85,7 +85,19 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         }
         if (runnable)
         {
+            const auto origin = DxBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 4096, ResourceFlags::Empty);
+            {
+                const auto mapped = origin->Map(cmdque, MapFlags::WriteOnly, 0, 4096);
+                const auto sp = mapped.AsType<uint32_t>();
+                uint32_t val = 0;
+                for (auto& ele : sp)
+                {
+                    ele = val++;
+                }
+            }
+            const auto cmdlist = DxComputeCmdList_::Create(dev);
             auto prepare = prog->Prepare();
+            std::vector<DxBuffer> bufs;
             for (const auto& item : prog->BufSlots())
             {
                 const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
@@ -114,11 +126,24 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
                     log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
                         dxu::detail::GetBoundedResTypeName(item.Type));
                     break;
-                default: break;
+                default: continue;
                 }
+                buf->CopyFrom(cmdlist, 0, origin, 0, 4096);
+                bufs.emplace_back(buf);
             }
             common::mlog::SyncConsoleBackend();
             const auto call = prepare.Finish();
+            call.Execute(cmdlist, {1024, 1, 1});
+            cmdlist->EnsureClosed();
+            cmdque->Execute(cmdlist)->WaitFinish();
+            for (const auto& buf : bufs)
+            {
+                const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
+                const auto sp = mapped.AsType<uint32_t>();
+                const auto vals = fmt::format("{}", sp);
+                log().debug(u"{}: {}\n", buf->GetName(), vals);
+            }
+            common::mlog::SyncConsoleBackend();
         }
     }
     catch (const BaseException& be)

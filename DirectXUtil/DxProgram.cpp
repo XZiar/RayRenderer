@@ -131,7 +131,7 @@ DxProgram_::DxProgramPrepareBase::DxProgramPrepareBase(DxProgram program) : Prog
 DxProgram_::DxProgramPrepareBase::~DxProgramPrepareBase()
 { }
 
-bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, DxBuffer_::BufferView bufview)
+bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, const DxBuffer_::BufferView<>& bufview)
 {
     const auto& buf = *bufview.Buffer;
     if (!buf.CanBindToShader())
@@ -159,17 +159,16 @@ bool DxProgram_::DxProgramPrepareBase::SetBuf(HashedStrView<char> name, DxBuffer
     default:
         break;
     }
-    bufview.Type = slot->Type;
     for (auto& item : Bindings)
     {
         if (item.Slot == slot)
         {
             item.Resource = &buf;
-            item.Offset = BindMan->SetBuf(bufview, item.Offset);
+            item.Offset = BindMan->SetBuf(bufview.WithOwnership(slot->Type), item.Offset);
             return true;
         }
     }
-    const auto descOffset = BindMan->SetBuf(bufview, slot->DescOffset);
+    const auto descOffset = BindMan->SetBuf(bufview.WithOwnership(slot->Type), slot->DescOffset);
     Bindings.push_back({ slot, &buf, descOffset });
     return true;
 }
@@ -252,6 +251,29 @@ DxProgram_::DxProgramCall::DxProgramCall(DxProgramPrepareBase& prepare) :
 DxProgram_::DxProgramCall::~DxProgramCall()
 { }
 
+void DxProgram_::DxProgramCall::SetPSOAndHeaps(const DxCmdList& cmdlist) const
+{
+    auto& list = *GetCmdList(cmdlist);
+    list.SetPipelineState(PSO);
+    list.SetComputeRootSignature(RootSig);
+    ID3D12DescriptorHeap* heaps[2];
+    uint32_t heapCount = 0;
+    if (CSUDescHeap)
+    {
+        heaps[heapCount++] = CSUDescHeap;
+    }
+    if (SamplerHeap)
+    {
+        heaps[heapCount++] = SamplerHeap;
+    }
+    if (heapCount > 0)
+    {
+        list.SetDescriptorHeaps(heapCount, heaps);
+        for (uint32_t i = 0; i < heapCount; ++i)
+            list.SetComputeRootDescriptorTable(i, heaps[i]->GetGPUDescriptorHandleForHeapStart());
+    }
+}
+
 void DxProgram_::DxProgramCall::PutResourceBarrier(const DxCmdList& cmdlist) const
 {
     for (const auto& record : ResStates)
@@ -297,12 +319,9 @@ DxComputeProgram_::DxComputeCall::DxComputeCall(DxProgramPrepare<DxComputeProgra
 
 void DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdList& cmdlist, const std::array<uint32_t, 3>& threadgroups) const
 {
-    auto& list = *GetCmdList(cmdlist);
-    list.SetPipelineState(PSO);
-    list.SetComputeRootSignature(RootSig);
-    list.SetComputeRootDescriptorTable(0, CSUDescHeap->GetGPUDescriptorHandleForHeapStart());
+    SetPSOAndHeaps(cmdlist);
     PutResourceBarrier(cmdlist);
-    list.Dispatch(threadgroups[0], threadgroups[1], threadgroups[2]);
+    GetCmdList(cmdlist)->Dispatch(threadgroups[0], threadgroups[1], threadgroups[2]);
 }
 
 common::PromiseResult<void> DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdQue& que, const std::array<uint32_t, 3>& threadgroups) const

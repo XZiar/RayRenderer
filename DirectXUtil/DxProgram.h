@@ -76,7 +76,7 @@ protected:
         std::shared_ptr<DxBindingManager> BindMan;
         std::vector<BindRecord> Bindings;
         DxProgramPrepareBase(DxProgram program);
-        bool SetBuf(common::str::HashedStrView<char> name, DxBuffer_::BufferView bufview);
+        bool SetBuf(common::str::HashedStrView<char> name, const DxBuffer_::BufferView<>& bufview);
     public:
         ~DxProgramPrepareBase();
     };
@@ -89,7 +89,7 @@ protected:
         DxProgramPrepare(std::shared_ptr<const T> program) : DxProgramPrepareBase(std::move(program)) {}
         std::shared_ptr<const T> GetProgram() const noexcept { return std::static_pointer_cast<const T>(Program); }
     public:
-        DxProgramPrepare& SetBuf(std::string_view name, const DxBuffer_::BufferView& bufview)
+        DxProgramPrepare& SetBuf(std::string_view name, const DxBuffer_::BufferView<>& bufview)
         {
             DxProgramPrepareBase::SetBuf(name, bufview);
             return *this;
@@ -120,6 +120,7 @@ protected:
         PtrProxy<detail::DescHeap> CSUDescHeap;
         PtrProxy<detail::DescHeap> SamplerHeap;
         DxProgramCall(DxProgramPrepareBase& prepare);
+        void SetPSOAndHeaps(const DxCmdList& cmdlist) const;
         void PutResourceBarrier(const DxCmdList& cmdlist) const;
         const PtrProxy<detail::Device>& GetDevice() const noexcept
         {

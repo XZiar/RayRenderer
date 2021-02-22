@@ -93,7 +93,7 @@ void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bo
             COMMON_THROW(DxException, u"committed resources created in READBACK heaps must start in and cannot change from the COPY_DEST state");
         return; // skip because cannot change state
     case HeapType::Upload:
-        if (newState != ResourceState::Read)
+        if (HAS_FIELD(newState, ~ResourceState::Read))
             COMMON_THROW(DxException, u"resources created on UPLOAD heaps must start in and cannot change from the GENERIC_READ state");
         return; // skip because cannot change state
     default:

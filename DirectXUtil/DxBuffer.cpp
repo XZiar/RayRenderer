@@ -48,10 +48,7 @@ public:
     {
         if (HAS_FIELD(MapType, MapFlags::WriteOnly))
         {
-            MappedResource->TransitState(CopyList, ResourceState::CopySrc);
-            RealResource.TransitState(CopyList, ResourceState::CopyDst);
-            CopyList->FlushResourceState();
-            RealResource.CopyRegionFrom(CopyList, Offset, *MappedResource, 0, MemSpace.size());
+            RealResource.CopyFrom(CopyList, Offset, MappedResource, 0, MemSpace.size());
             CmdQue->ExecuteAnyList(CopyList)->WaitFinish();
         }
         Unmap();
@@ -65,10 +62,11 @@ public:
         cmdList->SetName(FMTSTR(u"CopyList for mapping [{}]", res->GetName()));
         if (HAS_FIELD(flag, MapFlags::ReadOnly))
         {
-            res->TransitState(cmdList, ResourceState::CopySrc);
+            /*res->TransitState(cmdList, ResourceState::CopySrc);
             mapped->TransitState(cmdList, ResourceState::CopyDst, true);
             cmdList->FlushResourceState();
-            mapped->CopyRegionFrom(cmdList, 0, *res, offset, size);
+            mapped->CopyRegionFrom(cmdList, 0, *res, offset, size);*/
+            mapped->CopyFrom_(cmdList, 0, *res, offset, size, true, false);
             que->ExecuteAnyList(cmdList)->WaitFinish();
             cmdList->Reset(false);
         }
@@ -140,6 +138,15 @@ DxBufMapPtr DxBuffer_::Map(const DxCmdQue& que, MapFlags flag, size_t offset, si
     return DxBufMapPtr(GetSelf(), DxMapPtr2_::Create(this, que, flag, offset, size));
 }
 
+void DxBuffer_::CopyFrom_(const DxCmdList& list, const uint64_t offset,
+    const DxBuffer_& src, const uint64_t srcOffset, const uint64_t numBytes, bool dstNew, bool srcNew) const
+{
+    TransitState(list, ResourceState::CopyDst, dstNew);
+    src.TransitState(list, ResourceState::CopySrc, srcNew);
+    list->FlushResourceState();
+    CopyRegionFrom(list, offset, src, srcOffset, numBytes);
+}
+
 common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::span<std::byte> buf, const size_t offset)
 {
     if (HeapInfo.CPUPage != CPUPageProps::NotAvailable && HeapInfo.Memory != MemPrefer::PreferGPU)
@@ -155,10 +162,11 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
             HeapFlags::Empty, buf.size(), ResourceFlags::Empty);
         auto cmdList = que->CreateList();
         cmdList->SetName(FMTSTR(u"CopyList for readback [{}]", GetName()));
-        TransitState(cmdList, ResourceState::CopySrc);
-        mapped->TransitState(cmdList, ResourceState::CopyDst, true); // should be skipped
-        cmdList->FlushResourceState();
-        mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
+        //TransitState(cmdList, ResourceState::CopySrc);
+        //mapped->TransitState(cmdList, ResourceState::CopyDst, true); // should be skipped
+        //cmdList->FlushResourceState();
+        //mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
+        mapped->CopyFrom_(cmdList, 0, *this, offset, buf.size(), true, false);
         return common::StagedResult::TwoStage(
             que->ExecuteAnyList(cmdList),
             [=]() mutable
@@ -192,9 +200,7 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
         }
         auto cmdList = que->CreateList();
         cmdList->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
-        TransitState(cmdList, ResourceState::CopyDst);
-        cmdList->FlushResourceState();
-        CopyRegionFrom(cmdList, offset, *tmpBuf, 0, buf.size());
+        CopyFrom_(cmdList, offset, *tmpBuf, 0, buf.size(), false, true);
         const auto pms = que->ExecuteAnyList(cmdList);
         pms->OnComplete([=]() mutable
             {
@@ -211,6 +217,53 @@ common::PromiseResult<common::AlignedBuffer> DxBuffer_::Read_(const DxCmdQue& qu
     return common::StagedResult::Convert(
         ReadSpan_(que, buf.AsSpan(), offset),
         [buf_ = buf.CreateSubBuffer()]() { return buf_.CreateSubBuffer(); });
+}
+
+DxBuffer_::BufferView<> DxBuffer_::CreateStructuredView(size_t unitSize, size_t count, size_t offset) const noexcept
+{
+    Expects(offset % unitSize == 0);
+    Expects(unitSize * count + offset <= Size);
+    return
+    {
+        this, gsl::narrow_cast<uint32_t>(offset / unitSize),
+        gsl::narrow_cast<uint32_t>(count), gsl::narrow_cast<uint32_t>(unitSize),
+        xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerStruct
+    };
+}
+
+DxBuffer_::BufferView<> DxBuffer_::CreateRawView(size_t count, size_t offset) const noexcept
+{
+    Expects(offset % 4 == 0);
+    Expects(4 * count + offset <= Size);
+    return
+    {
+        this, gsl::narrow_cast<uint32_t>(offset / 4),
+        gsl::narrow_cast<uint32_t>(count), 0,
+        xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerRaw
+    };
+}
+DxBuffer_::BufferView<> DxBuffer_::CreateTypedView(xziar::img::TextureFormat format, size_t count, size_t offset) const noexcept
+{
+    const auto bitPerPix = xziar::img::TexFormatUtil::BitPerPixel(format);
+    Expects(bitPerPix != 0);
+    Expects((offset * 8) % bitPerPix == 0);
+    Expects(bitPerPix * count / 8 + offset <= Size);
+    return
+    {
+        this, gsl::narrow_cast<uint32_t>((offset * 8) / bitPerPix),
+        gsl::narrow_cast<uint32_t>(count), 0,
+        format, BoundedResourceType::InnerTyped
+    };
+}
+DxBuffer_::BufferView<> DxBuffer_::CreateConstBufView(size_t size, size_t offset) const noexcept
+{
+    Expects(size + offset <= Size);
+    return
+    {
+        this, gsl::narrow_cast<uint32_t>(offset),
+        gsl::narrow_cast<uint32_t>(size), 1,
+        xziar::img::TextureFormat::ERROR, BoundedResourceType::InnerCBuf
+    };
 }
 
 DxBuffer DxBuffer_::Create(DxDevice device, HeapProps heapProps, HeapFlags hFlag, const size_t size, ResourceFlags rFlag)

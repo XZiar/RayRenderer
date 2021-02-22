@@ -26,25 +26,25 @@ protected:
         uint16_t DescOffset = 0;
         uint16_t Reference = 0;
     };
-    std::vector<BindItem<DxBuffer_::BufferView>> BindBuffer;
-    std::vector<BindItem<DxBuffer_::BufferView>> BindTexture;
-    std::vector<BindItem<DxBuffer_::BufferView>> BindSampler;
+    std::vector<BindItem<DxBuffer_::BufferView<DxBufferConst>>> BindBuffer;
+    std::vector<BindItem<DxBuffer_::BufferView<DxBufferConst>>> BindTexture;
+    std::vector<BindItem<DxBuffer_::BufferView<DxBufferConst>>> BindSampler;
 public:
-    virtual uint16_t SetBuf(DxBuffer_::BufferView bufview, uint16_t offset) = 0;
+    virtual uint16_t SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset) = 0;
     PtrProxy<detail::DescHeap> GetCSUHeap(const DxDevice device) const;
 };
 
 class DXUAPI DxSharedBindingManager : public DxBindingManager
 {
 public:
-    uint16_t SetBuf(DxBuffer_::BufferView bufview, uint16_t offset) override;
+    uint16_t SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset) override;
 };
 
 class DXUAPI DxUniqueBindingManager : public DxBindingManager
 {
 public:
     DxUniqueBindingManager(size_t bufCount, size_t texCount, size_t samplerCount);
-    uint16_t SetBuf(DxBuffer_::BufferView bufview, uint16_t offset) override;
+    uint16_t SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset) override;
 };
 
 

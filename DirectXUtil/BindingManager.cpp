@@ -27,6 +27,8 @@ struct DescHeap
 
 PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) const
 {
+    if (BindBuffer.empty())
+        return {};
     auto& dev = *device->Device;
     std::vector<D3D12_ROOT_PARAMETER> rootParams;
     D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc =
@@ -40,7 +42,7 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
     for (const auto& binding : BindBuffer)
     {
         const auto& buf = *binding.Item.Buffer;
-        const auto [format, isRaw] = [](const DxBuffer_::BufferView& bufview) -> std::pair<DXGI_FORMAT, bool>
+        const auto [format, isRaw] = [](const DxBuffer_::BufferView<DxBufferConst>& bufview) -> std::pair<DXGI_FORMAT, bool>
         {
             switch (bufview.Type & BoundedResourceType::InnerTypeMask)
             {
@@ -99,7 +101,7 @@ PtrProxy<detail::DescHeap> DxBindingManager::GetCSUHeap(const DxDevice device) c
 }
 
 
-uint16_t DxSharedBindingManager::SetBuf(DxBuffer_::BufferView bufview, uint16_t offset)
+uint16_t DxSharedBindingManager::SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset)
 {
     if (offset == UINT16_MAX)
     {
@@ -151,7 +153,7 @@ DxUniqueBindingManager::DxUniqueBindingManager(size_t bufCount, size_t texCount,
         bind.DescOffset = idx++;
 }
 
-uint16_t DxUniqueBindingManager::SetBuf(DxBuffer_::BufferView bufview, uint16_t offset)
+uint16_t DxUniqueBindingManager::SetBuf(DxBuffer_::BufferView<DxBufferConst> bufview, uint16_t offset)
 {
     if (offset >= BindBuffer.size())
         COMMON_THROW(DxException, FMTSTR(u"Bind buffer [{}] to offset [{}] overflow of total [{}] desc",
