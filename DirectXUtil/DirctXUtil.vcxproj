@@ -31,11 +31,17 @@
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\Nailang\Nailang.vcxproj">
+      <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
       <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\XComputeBase\XComputeBase.vcxproj">
+      <Project>{45234356-6d39-4fa5-a252-40d017ea8190}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -50,6 +56,8 @@
     <ClInclude Include="DxPch.h" />
     <ClInclude Include="DxRely.h" />
     <ClInclude Include="DxShader.h" />
+    <ClInclude Include="NLDX.h" />
+    <ClInclude Include="NLDXRely.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BindingManager.cpp" />
@@ -66,6 +74,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DxShader.cpp" />
+    <ClCompile Include="NLDX.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

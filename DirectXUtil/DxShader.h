@@ -63,7 +63,8 @@ protected:
 public:
     DxShader_(T_, DxShaderStub_* stub);
     virtual ~DxShader_();
-    common::span<const std::byte> GetBinary() const;
+    [[nodiscard]] common::span<const std::byte> GetBinary() const;
+    [[nodiscard]] std::string_view GetSource() const noexcept { return Source; }
 
     [[nodiscard]] static DxShaderStub<DxShader_> Create(DxDevice dev, ShaderType type, std::string str);
     [[nodiscard]] static DxShader CreateAndBuild(DxDevice dev, ShaderType type, std::string str, const DxShaderConfig& config);

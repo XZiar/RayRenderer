@@ -1,10 +1,10 @@
 #include "TestRely.h"
 #include "DirectXUtil/DxDevice.h"
 #include "DirectXUtil/DxCmdQue.h"
-#include "DirectXUtil/DxResource.h"
 #include "DirectXUtil/DxBuffer.h"
 #include "DirectXUtil/DxShader.h"
 #include "DirectXUtil/DxProgram.h"
+#include "DirectXUtil/NLDX.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
@@ -58,6 +58,78 @@ static void BufTest(DxDevice dev, DxComputeCmdQue cmdque)
     const auto sp = readback.AsSpan<uint8_t>();
 }
 
+static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram prog)
+{
+    const auto origin = DxBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 4096, ResourceFlags::Empty);
+    {
+        const auto mapped = origin->Map(cmdque, MapFlags::WriteOnly, 0, 4096);
+        const auto sp = mapped.AsType<uint32_t>();
+        uint32_t val = 0;
+        for (auto& ele : sp)
+        {
+            ele = val++;
+        }
+    }
+    const auto cmdlist = DxComputeCmdList_::Create(dev);
+    auto prepare = prog->Prepare();
+    std::vector<DxBuffer> bufs;
+    {
+        const auto rgBuf = cmdlist->DeclareRange(u"Prepare buffers");
+        for (const auto& item : prog->BufSlots())
+        {
+            const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
+                ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
+            const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
+            buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
+            switch (item.Type & BoundedResourceType::InnerTypeMask)
+            {
+            case BoundedResourceType::InnerTyped:
+                prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
+                log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                    dxu::detail::GetBoundedResTypeName(item.Type));
+                break;
+            case BoundedResourceType::InnerStruct:
+                prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
+                log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                    dxu::detail::GetBoundedResTypeName(item.Type));
+                break;
+            case BoundedResourceType::InnerRaw:
+                prepare.SetBuf(item.Name, buf->CreateRawView(1024));
+                log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                    dxu::detail::GetBoundedResTypeName(item.Type));
+                break;
+            case BoundedResourceType::InnerCBuf:
+                prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
+                log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
+                    dxu::detail::GetBoundedResTypeName(item.Type));
+                break;
+            default: continue;
+            }
+            buf->CopyFrom(cmdlist, 0, origin, 0, 4096);
+            bufs.emplace_back(buf);
+        }
+        common::mlog::SyncConsoleBackend();
+    }
+    const auto call = prepare.Finish();
+    {
+        const auto rgExe = cmdlist->DeclareRange(u"Execute shader");
+        call.Execute(cmdlist, { 1024, 1, 1 });
+    }
+    cmdlist->EnsureClosed();
+    cmdque->Execute(cmdlist)->WaitFinish();
+    {
+        const auto rgExe = cmdque->DeclareRange(u"Readback buffer");
+        for (const auto& buf : bufs)
+        {
+            const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
+            const auto sp = mapped.AsType<uint32_t>();
+            const auto vals = fmt::format("{}", sp);
+            log().debug(u"{}: {}\n", buf->GetName(), vals);
+        }
+        common::mlog::SyncConsoleBackend();
+    }
+}
+
 static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
 {
     bool runnable = false;
@@ -71,13 +143,28 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         fpath.pop_back();
     }
     common::fs::path filepath = fpath;
+    const bool isNLDX = filepath.extension().string() == ".nldx";
     log().debug(u"loading hlsl file [{}]\n", filepath.u16string());
     try
     {
         const auto kertxt = common::file::ReadAllText(filepath);
-        auto shaderStub = DxShader_::Create(dev, ShaderType::Compute, kertxt);
-        shaderStub.Build({});
-        const auto prog = std::make_shared<DxComputeProgram_>(shaderStub.Finish());
+        DxShaderConfig config;
+        std::unique_ptr<NLDXResult> nldxRes;
+        DxShader shader;
+        if (isNLDX)
+        {
+            static const NLDXProcessor NLDXProc;
+            const auto prog = NLDXProc.Parse(common::as_bytes(common::to_span(kertxt)), filepath.u16string());
+            //prog->AttachExtension([&](auto&, auto& ctx) { return std::make_unique<CLStubExtension>(ctx, runInfo); });
+            nldxRes = NLDXProc.CompileShader(prog, dev, {}, config);
+            common::file::WriteAll(fpath + ".hlsl", nldxRes->GetNewSource());
+            shader = nldxRes->GetShader();
+        }
+        else
+        {
+            shader = DxShader_::CreateAndBuild(dev, ShaderType::Compute, kertxt, config);
+        }
+        const auto prog = std::make_shared<DxComputeProgram_>(shader);
         for (const auto& item : prog->BufSlots())
         {
             log().verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
@@ -86,74 +173,7 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         if (runnable)
         {
             const auto rg = cmdque->DeclareRange(FMTSTR(u"Test run of [{}]", filepath.u16string()));
-            const auto origin = DxBuffer_::Create(dev, HeapType::Upload, HeapFlags::Empty, 4096, ResourceFlags::Empty);
-            {
-                const auto mapped = origin->Map(cmdque, MapFlags::WriteOnly, 0, 4096);
-                const auto sp = mapped.AsType<uint32_t>();
-                uint32_t val = 0;
-                for (auto& ele : sp)
-                {
-                    ele = val++;
-                }
-            }
-            const auto cmdlist = DxComputeCmdList_::Create(dev);
-            auto prepare = prog->Prepare();
-            std::vector<DxBuffer> bufs;
-            {
-                const auto rgBuf = cmdlist->DeclareRange(u"Prepare buffers");
-                for (const auto& item : prog->BufSlots())
-                {
-                    const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
-                        ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
-                    const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
-                    buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
-                    switch (item.Type & BoundedResourceType::InnerTypeMask)
-                    {
-                    case BoundedResourceType::InnerTyped:
-                        prepare.SetBuf(item.Name, buf->CreateTypedView(xziar::img::TextureFormat::RGBA8, 1024));
-                        log().verbose(u"Attach Typed view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                            dxu::detail::GetBoundedResTypeName(item.Type));
-                        break;
-                    case BoundedResourceType::InnerStruct:
-                        prepare.SetBuf(item.Name, buf->CreateStructuredView<uint32_t>(1024));
-                        log().verbose(u"Attach Structured view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                            dxu::detail::GetBoundedResTypeName(item.Type));
-                        break;
-                    case BoundedResourceType::InnerRaw:
-                        prepare.SetBuf(item.Name, buf->CreateRawView(1024));
-                        log().verbose(u"Attach Raw view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                            dxu::detail::GetBoundedResTypeName(item.Type));
-                        break;
-                    case BoundedResourceType::InnerCBuf:
-                        prepare.SetBuf(item.Name, buf->CreateConstBufView(4096));
-                        log().verbose(u"Attach Const Buf view to [{}]({}) Type[{}]\n", item.Name, item.BindReg,
-                            dxu::detail::GetBoundedResTypeName(item.Type));
-                        break;
-                    default: continue;
-                    }
-                    buf->CopyFrom(cmdlist, 0, origin, 0, 4096);
-                    bufs.emplace_back(buf);
-                }
-                common::mlog::SyncConsoleBackend();
-            }
-            const auto call = prepare.Finish();
-            {
-                const auto rgExe = cmdlist->DeclareRange(u"Execute shader");
-                call.Execute(cmdlist, { 1024, 1, 1 });
-            }
-            cmdlist->EnsureClosed();
-            cmdque->Execute(cmdlist)->WaitFinish();
-            {
-                const auto rgExe = cmdque->DeclareRange(u"Readback buffer");
-                for (const auto& buf : bufs)
-                {
-                    const auto mapped = buf->Map(cmdque, MapFlags::ReadOnly, 0, 64);
-                    const auto sp = mapped.AsType<uint32_t>();
-                    const auto vals = fmt::format("{}", sp);
-                    log().debug(u"{}: {}\n", buf->GetName(), vals);
-                }
-                common::mlog::SyncConsoleBackend();
-            }
+            RunKernel(dev, cmdque, prog);
         }
     }
     catch (const BaseException& be)

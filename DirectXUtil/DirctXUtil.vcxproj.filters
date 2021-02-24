@@ -48,6 +48,12 @@
     <ClInclude Include="BindingManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="NLDX.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NLDXRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DxDevice.cpp">
@@ -75,6 +81,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="BindingManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="NLDX.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

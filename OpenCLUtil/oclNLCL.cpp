@@ -472,7 +472,8 @@ void NLCLRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
         StringifyKernelArg(dst, arg);
         dst.append(U","sv);
     }
-    dst.pop_back(); // remove additional ','
+    if (dst.back() == U',')
+        dst.pop_back(); // remove additional ','
     dst.append(U")\r\n{\r\n"sv);
     // prefixes
     kerCtx.WritePrefixes(dst);
