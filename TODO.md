@@ -53,13 +53,35 @@
   - [ ] Move DataTypeConvertor to cpp, with runtime path selection
   - [ ] Add test for DataTypeConvertor
 
+* Nailang
+  - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
+  - [x] Add genenral datatype for `Arg` for type-checking
+  - [ ] Move to utf8 (save mem and closer to output type)
+  - [x] Shrink memory usage of Arg
+  - [x] Make parser throw proper exception
+  - [ ] Embed position information in token
+  - [ ] Add `include` support
+  - [ ] Add python parser & runtime
+  - [x] Explicitly handle loops
+  - [ ] Fix test for inhirit arg access
+  - [x] Add proper stacktrace when throw exception
+  - [x] Add nested brace support for ReplaceEngine
+  - [x] Move arg/func's lookup logic into StackFrame
+  - [x] Pre-compute scope when parsing, for arg and func name
+  - [x] Add array type
+  - [x] Add array access by `[]`
+  - [ ] Add member func call for arg by `()`
+  - [ ] Design custom type with func-table
+  - [x] Allow fake arg when try to set value of an arg
+  - [x] Add register-based customvar handler
+
 * XCompute
   - [ ] Merge OpenCLInterop
   - [ ] Add compatible layer for shader sharing between NLCL and NLGL
   - [ ] Add compatible layer for shader sharing between NLCL and NLDX
   - [ ] Add interop between opencl and directx (delay load + conditional compiling)
   - [x] Add support of output debug data into SpreadsheetML format
-  - [ ] Add common syntax to define args of the instance
+  - [x] Add common syntax to define args of the instance
   - [ ] Add common syntax to define structure
   - [x] Expose common API to inject custom extensions
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
@@ -88,6 +110,7 @@
   - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
+  - [ ] Move to use threadpool to provide 1:1 context support, add cmdlist to record api calls and use IPC to execute remotely
   * NLGL
     - [ ] Add basic NLGL
 
@@ -121,11 +144,13 @@
   * NLDX
     - [ ] Add basic NLDX
     - [ ] Mimic subgroup on platform without Wave support
+    - [ ] Add Debug support
 
 * TextureUtil
   - [x] Add mipmap
   - [ ] Add blur
   - [ ] Migrate ISPC tex-compressor to OpenCL
+  - [ ] Move to based on XCompute with multi-language support
 
 * FontHelper
   - [ ] Implement proper text render
@@ -155,28 +180,6 @@
     - [ ] Add more import format support
   * CLI Wrapper
     - [ ] Remove incompatibility with C++20
-
-* Nailang
-  - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
-  - [x] Add genenral datatype for `Arg` for type-checking
-  - [ ] Move to utf8 (save mem and closer to output type)
-  - [x] Shrink memory usage of Arg
-  - [x] Make parser throw proper exception
-  - [ ] Embed position information in token
-  - [ ] Add `include` support
-  - [ ] Add python parser & runtime
-  - [x] Explicitly handle loops
-  - [ ] Fix test for inhirit arg access
-  - [x] Add proper stacktrace when throw exception
-  - [x] Add nested brace support for ReplaceEngine
-  - [x] Move arg/func's lookup logic into StackFrame
-  - [x] Pre-compute scope when parsing, for arg and func name
-  - [x] Add array type
-  - [x] Add array access by `[]`
-  - [ ] Add member func call for arg by `()`
-  - [ ] Design custom type with func-table
-  - [x] Allow fake arg when try to set value of an arg
-  - [x] Add register-based customvar handler
 
 * WPFTest
   - [x] Add async-loader of Image for thumbnail

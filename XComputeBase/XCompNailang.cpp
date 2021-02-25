@@ -208,6 +208,25 @@ std::shared_ptr<const ReplaceDepend> NamedTextHolder::GenerateReplaceDepend(cons
 }
 
 
+InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype,
+    const std::vector<xziar::nailang::Arg>& args, size_t offset) :
+    Name(name), DataType(dtype), ExtraArg(common::to_span(args).subspan(offset)), TexType(texType), Type(type), Flag(Flags::Empty)
+{
+    Extra.reserve(ExtraArg.size());
+    for (const auto& arg : ExtraArg)
+    {
+        switch (const auto& txt = arg.GetStr().value(); common::DJBHash::HashC(txt))
+        {
+        HashCase(txt, U"read")      Flag |= Flags::Read; break;
+        HashCase(txt, U"write")     Flag |= Flags::Write; break;
+        HashCase(txt, U"restrict")  Flag |= Flags::Restrict; break;
+        HashCase(txt, U"")          break; // ignore empty
+        default:                    Extra.push_back(txt); break; // only add unrecognized flags
+        }
+    }
+}
+
+
 std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx)
 {
     static_assert(sizeof(std::u32string_view) % sizeof(char32_t) == 0);
@@ -795,11 +814,71 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
     return std::move(blk.ExtraInfo);
 }
 
+void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&)
+{ }
+
 void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
 {
     for (const auto& ext : XCContext.Extensions)
     {
         ext->InstanceMeta(*this, meta, ctx);
+    }
+    if (meta.Name->PartCount >= 3 && (*meta.Name)[0] == U"xcomp"sv && (*meta.Name)[1] == U"Arg"sv)
+    {
+        const auto GenerateExtra = [&](size_t offset) 
+        {
+            std::vector<Arg> args;
+            args.reserve(meta.Args.size() - offset);
+            for (size_t idx = 0; idx < meta.Args.size(); ++idx)
+            {
+                const auto& arg = args.emplace_back(EvaluateArg(meta.Args[idx]));
+                ThrowByArgType(meta, arg, Arg::Type::String, idx);
+            }
+            return args;
+        };
+
+        switch (const auto subName = (*meta.Name)[2]; common::DJBHash::HashC(subName))
+        {
+        HashCase(subName, U"Buf")
+        {
+            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String });
+            const auto type = args[0].GetStr().value();
+            const auto name = args[1].GetStr().value();
+            const auto extra = GenerateExtra(2);
+            InstanceArgInfo info(InstanceArgInfo::Types::Buf, InstanceArgInfo::TexTypes::Empty, name, type, extra, 2);
+            HandleInstanceArg(info, ctx, meta);
+        } return;
+        HashCase(subName, U"Simple")
+        {
+            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String });
+            const auto type = args[0].GetStr().value();
+            const auto name = args[1].GetStr().value();
+            const auto extra = GenerateExtra(2);
+            InstanceArgInfo info(InstanceArgInfo::Types::Simple, InstanceArgInfo::TexTypes::Empty, name, type, extra, 2);
+            HandleInstanceArg(info, ctx, meta);
+        } return;
+        HashCase(subName, U"Tex")
+        {
+            const auto args = EvaluateFuncArgs<3, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
+            const auto ttype = args[0].GetStr().value();
+            const auto type  = args[1].GetStr().value();
+            const auto name  = args[2].GetStr().value();
+            constexpr auto TexTypeParser = SWITCH_PACK(Hash,
+                (U"tex1d",      InstanceArgInfo::TexTypes::Tex1D),
+                (U"tex2d",      InstanceArgInfo::TexTypes::Tex2D),
+                (U"tex3d",      InstanceArgInfo::TexTypes::Tex3D),
+                (U"tex1darr",   InstanceArgInfo::TexTypes::Tex1DArray),
+                (U"tex2darr",   InstanceArgInfo::TexTypes::Tex2DArray));
+            const auto texType = TexTypeParser(ttype);
+            if (!texType)
+                NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, ttype), &meta);
+            const auto extra = GenerateExtra(2);
+            InstanceArgInfo info(InstanceArgInfo::Types::Tex, texType.value(), name, type, extra, 3);
+            HandleInstanceArg(info, ctx, meta);
+        } return;
+        default:
+            break;
+        }
     }
 }
 

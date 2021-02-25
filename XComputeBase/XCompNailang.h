@@ -42,7 +42,7 @@ struct OutputBlock
         Block(block), MetaFunc(meta), Type(type) { }
     forceinline std::u32string_view Name() const noexcept { return Block->Name; }
     forceinline std::u32string_view GetBlockTypeName() const noexcept { return BlockTypeName(Type); }
-    
+
     XCOMPBASAPI static std::u32string_view BlockTypeName(const BlockType type) noexcept;
 };
 
@@ -148,6 +148,24 @@ protected:
     std::vector<NamedText> BodyPrefixes;
     std::vector<NamedText> BodySuffixes;
 };
+
+
+struct InstanceArgInfo
+{
+    enum class Types : uint8_t { Buf, Tex, Simple };
+    enum class TexTypes : uint8_t { Empty = 0, Tex1D, Tex2D, Tex3D, Tex1DArray, Tex2DArray };
+    enum class Flags : uint16_t { Empty = 0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write, Restrict = 0x4 };
+    std::u32string_view Name;
+    std::u32string_view DataType;
+    common::span<const xziar::nailang::Arg> ExtraArg;
+    std::vector<std::u32string_view> Extra;
+    TexTypes TexType;
+    Types Type;
+    Flags Flag;
+    InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype, 
+        const std::vector<xziar::nailang::Arg>& args, size_t offset);
+};
+MAKE_ENUM_BITFIELD(InstanceArgInfo::Flags)
 
 
 struct BlockCookie
@@ -424,6 +442,7 @@ protected:
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     [[nodiscard]] virtual std::unique_ptr<OutputBlock::BlockInfo> PrepareBlockInfo(OutputBlock& blk);
     [[nodiscard]] virtual std::unique_ptr<BlockCookie> PrepareInstance(const OutputBlock& block) = 0;
+    virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const FuncCall& meta);
     virtual void HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx);
     virtual void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
     virtual void OutputStruct   (BlockCookie& cookie, std::u32string& dst) = 0;

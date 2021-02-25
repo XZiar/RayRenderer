@@ -360,6 +360,128 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"read_write",   ImgAccess::ReadWrite),
     (U"",             ImgAccess::ReadWrite));
 
+void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta)
+{
+    using xcomp::InstanceArgInfo;
+    auto& kerCtx = static_cast<KernelContext&>(ctx);
+    switch (arg.Type)
+    {
+    case InstanceArgInfo::Types::Buf:
+    {
+        KerArgSpace space = KerArgSpace::Global;
+        KerArgFlag flag = KerArgFlag::None;
+        if (!HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
+            flag |= KerArgFlag::Const;
+        if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Restrict))
+            flag |= KerArgFlag::Restrict;
+        std::u32string unknwonExtra;
+        for (const auto extra : arg.Extra)
+        {
+            switch (common::DJBHash::HashC(extra))
+            {
+            HashCase(extra, U"volatile")    flag |= KerArgFlag::Volatile; break;
+            HashCase(extra, U"global")      space = KerArgSpace::Global; break;
+            HashCase(extra, U"local")       space = KerArgSpace::Local; break;
+            HashCase(extra, U"private")     NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space"sv, arg.Name), &meta); break;
+            default:                        unknwonExtra.append(extra).append(U"], ["); break;
+            }
+        }
+        if (!unknwonExtra.empty())
+        {
+            Expects(unknwonExtra.size() > 4);
+            unknwonExtra.resize(unknwonExtra.size() - 4);
+            oclLog().warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+        }
+        kerCtx.AddArg(KerArgType::Buffer, space, ImgAccess::None, flag,
+            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
+            common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32) + '*');
+    } return;
+    case InstanceArgInfo::Types::Simple:
+    {
+        KerArgSpace space = KerArgSpace::Global;
+        KerArgFlag flag = KerArgFlag::None;
+        if (!HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
+            flag |= KerArgFlag::Const;
+        std::u32string unknwonExtra;
+        for (const auto extra : arg.Extra)
+        {
+            switch (common::DJBHash::HashC(extra))
+            {
+            HashCase(extra, U"global")      space = KerArgSpace::Global; break;
+            HashCase(extra, U"local")       space = KerArgSpace::Local; break;
+            HashCase(extra, U"private")     space = KerArgSpace::Private; break;
+            default:                        unknwonExtra.append(extra).append(U"], ["); break;
+            }
+        }
+        if (!unknwonExtra.empty())
+        {
+            Expects(unknwonExtra.size() > 4);
+            unknwonExtra.resize(unknwonExtra.size() - 4);
+            oclLog().warning(u"SimpleArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+        }
+        kerCtx.AddArg(KerArgType::Simple, space, ImgAccess::None, flag,
+            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
+            common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32));
+    } return;
+    case InstanceArgInfo::Types::Tex:
+    {
+        if (!Context.Device->SupportImage)
+            NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support ImgArg [{}]"sv, Context.Device->Name, arg.Name), &meta);
+        ImgAccess access = ImgAccess::None;
+        switch (arg.Flag & (InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write))
+        {
+        case InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write:
+            if (Context.Device->Version < 20)
+                oclLog().warning(u"ImgArg [{}]: image object does not support readwrite before CL2.0.\n", arg.Name);
+            access = ImgAccess::ReadWrite;
+            break;
+        case InstanceArgInfo::Flags::Read:
+            access = ImgAccess::ReadOnly;
+            break;
+        case InstanceArgInfo::Flags::Write:
+            access = ImgAccess::WriteOnly;
+            break;
+        case InstanceArgInfo::Flags::Empty:
+            if (Context.Device->Version < 20)
+            {
+                oclLog().warning(u"ImgArg [{}]: image object does not support readwrite before CL2.0, defaults to readonly.\n", arg.Name);
+                access = ImgAccess::ReadOnly;
+            }
+            else
+                access = ImgAccess::ReadWrite;
+            break;
+        default:
+            break;
+        }
+        std::string_view tname;
+        switch (arg.TexType)
+        {
+        case InstanceArgInfo::TexTypes::Tex1D:      tname = "image1d_t"sv; break;
+        case InstanceArgInfo::TexTypes::Tex2D:      tname = "image2d_t"sv; break;
+        case InstanceArgInfo::TexTypes::Tex3D:      tname = "image3d_t"sv; break;
+        case InstanceArgInfo::TexTypes::Tex1DArray: tname = "image1d_array_t"sv; break;
+        case InstanceArgInfo::TexTypes::Tex2DArray: tname = "image2d_array_t"sv; break;
+        default: NLRT_THROW_EX(FMTSTR(u"ImgArg [{}] has unsupported type"sv, arg.Name), &meta); break;
+        }
+        std::u32string unknwonExtra;
+        for (const auto extra : arg.Extra)
+        {
+            unknwonExtra.append(extra).append(U"], [");
+        }
+        if (!unknwonExtra.empty())
+        {
+            Expects(unknwonExtra.size() > 4);
+            unknwonExtra.resize(unknwonExtra.size() - 4);
+            oclLog().warning(u"ImgArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+        }
+        kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
+            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32), tname);
+    } return;
+    default:
+        return;
+    }
+}
+
 void NLCLRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
 {
     auto& kerCtx = static_cast<KernelContext&>(ctx);
