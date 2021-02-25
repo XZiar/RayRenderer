@@ -152,7 +152,7 @@ protected:
 
 struct InstanceArgInfo
 {
-    enum class Types : uint8_t { Buf, Tex, Simple };
+    enum class Types : uint8_t { RawBuf, TypedBuf, Texture, Simple };
     enum class TexTypes : uint8_t { Empty = 0, Tex1D, Tex2D, Tex3D, Tex1DArray, Tex2DArray };
     enum class Flags : uint16_t { Empty = 0, Read = 0x1, Write = 0x2, ReadWrite = Read | Write, Restrict = 0x4 };
     std::u32string_view Name;
@@ -163,9 +163,10 @@ struct InstanceArgInfo
     Types Type;
     Flags Flag;
     InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype, 
-        const std::vector<xziar::nailang::Arg>& args, size_t offset);
+        const std::vector<xziar::nailang::Arg>& args);
 };
 MAKE_ENUM_BITFIELD(InstanceArgInfo::Flags)
+struct InstanceArgData;
 
 
 struct BlockCookie
@@ -450,7 +451,7 @@ protected:
     virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
     //virtual void HandleOutputBlockMeta(const FuncCall& meta, InstanceCookie& cookie);
 private:
-
+    InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, const FuncCall& func);
 public:
     XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx);
     ~XCNLRuntime() override;

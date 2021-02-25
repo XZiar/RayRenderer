@@ -209,8 +209,8 @@ std::shared_ptr<const ReplaceDepend> NamedTextHolder::GenerateReplaceDepend(cons
 
 
 InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype,
-    const std::vector<xziar::nailang::Arg>& args, size_t offset) :
-    Name(name), DataType(dtype), ExtraArg(common::to_span(args).subspan(offset)), TexType(texType), Type(type), Flag(Flags::Empty)
+    const std::vector<xziar::nailang::Arg>& args) :
+    Name(name), DataType(dtype), ExtraArg(args), TexType(texType), Type(type), Flag(Flags::Empty)
 {
     Extra.reserve(ExtraArg.size());
     for (const auto& arg : ExtraArg)
@@ -225,6 +225,115 @@ InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_vi
         }
     }
 }
+
+
+struct InstanceArgData
+{
+    std::vector<xziar::nailang::Arg> Args;
+    std::u32string Name;
+    std::u32string DataType;
+    InstanceArgInfo::Types Type;
+    InstanceArgInfo::TexTypes TexType;
+};
+struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
+{
+    struct InstanceArgStore
+    {
+        std::vector<xziar::nailang::Arg> ExtraArgs;
+        std::u32string Name;
+        std::u32string DataType;
+        InstanceArgInfo ArgInfo;
+        InstanceArgStore(InstanceArgData&& data) :
+            ExtraArgs(std::move(data.Args)), Name(std::move(data.Name)), DataType(std::move(data.DataType)),
+            ArgInfo(data.Type, data.TexType, Name, DataType, ExtraArgs)
+        { }
+    };
+    struct COMMON_EMPTY_BASES InstanceArgHolder : public common::FixedLenRefHolder<InstanceArgHolder, InstanceArgStore>
+    {
+        using Host = common::FixedLenRefHolder<InstanceArgHolder, InstanceArgStore>;
+        uint64_t Pointer = 0;
+        InstanceArgHolder(InstanceArgData&& data)
+        {
+            auto ptr = Host::Allocate(1).data();
+            new(ptr) InstanceArgStore(std::move(data));
+            Pointer = reinterpret_cast<uintptr_t>(ptr);
+        }
+        InstanceArgHolder(const InstanceArgHolder& other) noexcept : Pointer(other.Pointer)
+        {
+            this->Increase();
+        }
+        InstanceArgHolder(InstanceArgHolder&& other) noexcept : Pointer(other.Pointer)
+        {
+            other.Pointer = 0;
+        }
+        ~InstanceArgHolder()
+        {
+            this->Decrease();
+        }
+        [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
+        {
+            return static_cast<uintptr_t>(Pointer);
+        }
+        [[nodiscard]] forceinline InstanceArgStore* GetObj() const noexcept
+        {
+            return reinterpret_cast<InstanceArgStore*>(GetDataPtr());
+        }
+        forceinline void Destruct() noexcept 
+        { 
+            Expects(Pointer != 0);
+            GetObj()->~InstanceArgStore();
+        }
+        using Host::Increase;
+        using Host::Decrease;
+    };
+    static_assert(sizeof(InstanceArgHolder) == sizeof(uint64_t));
+    forceinline static const InstanceArgHolder& GetHolder(const CustomVar& var) noexcept
+    {
+        return *reinterpret_cast<const InstanceArgHolder*>(&var.Meta0);
+    }
+    forceinline static InstanceArgHolder& GetHolder(CustomVar& var) noexcept
+    {
+        return *reinterpret_cast<InstanceArgHolder*>(&var.Meta0);
+    }
+    void IncreaseRef(CustomVar& var) noexcept final
+    {
+        GetHolder(var).Increase();
+    };
+    void DecreaseRef(CustomVar& var) noexcept final
+    {
+        GetHolder(var).Decrease();
+    };
+    common::str::StrVariant<char32_t> ToString(const CustomVar& var) noexcept final
+    {
+        const auto obj = GetHolder(var).GetObj();
+        if (!obj)
+            return U"{ Empty }";
+        switch (obj->ArgInfo.Type)
+        {
+        case InstanceArgInfo::Types::RawBuf:    return FMTSTR(U"{{ Raw Buf Arg [{}] }}",    obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::TypedBuf:  return FMTSTR(U"{{ Typed Buf Arg [{}] }}",  obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::Texture:   return FMTSTR(U"{{ Texture Arg [{}] }}",    obj->ArgInfo.Name);
+        case InstanceArgInfo::Types::Simple:    return FMTSTR(U"{{ Simple Arg [{}] }}",     obj->ArgInfo.Name);
+        default:                                return U"{ Unknown Arg }";
+        }
+    };
+    static const InstanceArgInfo& GetArgInfo(const CustomVar& var) noexcept
+    {
+        return GetHolder(var).GetObj()->ArgInfo;
+    }
+    std::u32string_view GetTypeName() noexcept final
+    {
+        return U"xcomp::arg"sv;
+    }
+    static InstanceArgCustomVar Handler;
+    static CustomVar Create(InstanceArgData&& data)
+    {
+        InstanceArgHolder holder(std::move(data));
+        holder.Increase();
+        return { &Handler, holder.Pointer, 0, 0 };
+    }
+};
+InstanceArgCustomVar InstanceArgCustomVar::Handler;
 
 
 std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx)
@@ -756,17 +865,27 @@ void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
 
 Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
-    if (call.Name->PartCount == 2 && (*call.Name)[0] == U"xcomp"sv)
+    if ((*call.Name)[0] == U"xcomp"sv)
     {
-        auto ret = CommonFunc((*call.Name)[1], call, metas);
-        if (ret.has_value())
-            return std::move(ret.value());
-    }
-    if (call.Name->PartCount == 3 && (*call.Name)[0] == U"xcomp"sv && (*call.Name)[1] == U"vec"sv)
-    {
-        auto ret = CreateGVec((*call.Name)[2], call);
-        if (ret.has_value())
-            return std::move(ret.value());
+        if (call.Name->PartCount == 2)
+        {
+            auto ret = CommonFunc((*call.Name)[1], call, metas);
+            if (ret.has_value())
+                return std::move(ret.value());
+        }
+        else if (call.Name->PartCount == 3)
+        {
+            if ((*call.Name)[1] == U"vec"sv)
+            {
+                auto ret = CreateGVec((*call.Name)[2], call);
+                if (ret.has_value())
+                    return std::move(ret.value());
+            }
+            else if ((*call.Name)[1] == U"Arg"sv)
+            {
+                return InstanceArgCustomVar::Create(ParseInstanceArg((*call.Name)[2], call));
+            }
+        }
     }
     for (const auto& ext : XCContext.Extensions)
     {
@@ -817,67 +936,93 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
 void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&)
 { }
 
+InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, const FuncCall& func)
+{
+    std::u32string name;
+    std::u32string dtype;
+    size_t offset = 0;
+    auto argType = InstanceArgInfo::Types::RawBuf;
+    auto texType = InstanceArgInfo::TexTypes::Empty;
+    switch (common::DJBHash::HashC(argTypeName))
+    {
+    HashCase(argTypeName, U"Buf")
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
+        dtype = args[0].GetStr().value();
+        name  = args[1].GetStr().value();
+        offset = 2;
+        argType = InstanceArgInfo::Types::RawBuf;
+    } break;
+    HashCase(argTypeName, U"Typed")
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
+        dtype = args[0].GetStr().value();
+        name  = args[1].GetStr().value();
+        offset = 2;
+        argType = InstanceArgInfo::Types::TypedBuf;
+    } break;
+    HashCase(argTypeName, U"Simple")
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
+        dtype = args[0].GetStr().value();
+        name  = args[1].GetStr().value();
+        offset = 2;
+        argType = InstanceArgInfo::Types::Simple;
+    } break;
+    HashCase(argTypeName, U"Tex")
+    {
+        const auto args = EvaluateFuncArgs<3, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        const auto tname = args[0].GetStr().value();
+        dtype = args[1].GetStr().value();
+        name  = args[2].GetStr().value();
+        constexpr auto TexTypeParser = SWITCH_PACK(Hash,
+            (U"tex1d",      InstanceArgInfo::TexTypes::Tex1D),
+            (U"tex2d",      InstanceArgInfo::TexTypes::Tex2D),
+            (U"tex3d",      InstanceArgInfo::TexTypes::Tex3D),
+            (U"tex1darr",   InstanceArgInfo::TexTypes::Tex1DArray),
+            (U"tex2darr",   InstanceArgInfo::TexTypes::Tex2DArray));
+        if (const auto ttype = TexTypeParser(tname); !ttype)
+            NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, tname), &func);
+        else
+            texType = ttype.value();
+        offset = 3;
+        argType = InstanceArgInfo::Types::Texture;
+    } break;
+    default:
+        break;
+    }
+    std::vector<Arg> args;
+    args.reserve(func.Args.size() - offset);
+    for (size_t idx = offset; idx < func.Args.size(); ++idx)
+    {
+        const auto& arg = args.emplace_back(EvaluateArg(func.Args[idx]));
+        ThrowByArgType(func, arg, Arg::Type::String, idx);
+    }
+    return { std::move(args), std::move(name), std::move(dtype), argType, texType };
+}
+
 void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
 {
     for (const auto& ext : XCContext.Extensions)
     {
         ext->InstanceMeta(*this, meta, ctx);
     }
-    if (meta.Name->PartCount >= 3 && (*meta.Name)[0] == U"xcomp"sv && (*meta.Name)[1] == U"Arg"sv)
+    if (meta.Name->PartCount >= 2 && (*meta.Name)[0] == U"xcomp"sv && (*meta.Name)[1] == U"Arg"sv)
     {
-        const auto GenerateExtra = [&](size_t offset) 
+        if (meta.Name->PartCount == 3)
         {
-            std::vector<Arg> args;
-            args.reserve(meta.Args.size() - offset);
-            for (size_t idx = 0; idx < meta.Args.size(); ++idx)
-            {
-                const auto& arg = args.emplace_back(EvaluateArg(meta.Args[idx]));
-                ThrowByArgType(meta, arg, Arg::Type::String, idx);
-            }
-            return args;
-        };
-
-        switch (const auto subName = (*meta.Name)[2]; common::DJBHash::HashC(subName))
-        {
-        HashCase(subName, U"Buf")
-        {
-            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String });
-            const auto type = args[0].GetStr().value();
-            const auto name = args[1].GetStr().value();
-            const auto extra = GenerateExtra(2);
-            InstanceArgInfo info(InstanceArgInfo::Types::Buf, InstanceArgInfo::TexTypes::Empty, name, type, extra, 2);
+            auto data = ParseInstanceArg((*meta.Name)[2], meta);
+            InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
             HandleInstanceArg(info, ctx, meta);
-        } return;
-        HashCase(subName, U"Simple")
+        }
+        else
         {
-            const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String });
-            const auto type = args[0].GetStr().value();
-            const auto name = args[1].GetStr().value();
-            const auto extra = GenerateExtra(2);
-            InstanceArgInfo info(InstanceArgInfo::Types::Simple, InstanceArgInfo::TexTypes::Empty, name, type, extra, 2);
+            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::Custom);
+            const auto& var = arg.GetCustom();
+            if (!var.IsType<InstanceArgCustomVar>())
+                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, var.Host->GetTypeName()), &meta);
+            const auto& info = InstanceArgCustomVar::GetArgInfo(var);
             HandleInstanceArg(info, ctx, meta);
-        } return;
-        HashCase(subName, U"Tex")
-        {
-            const auto args = EvaluateFuncArgs<3, ArgLimits::AtLeast>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
-            const auto ttype = args[0].GetStr().value();
-            const auto type  = args[1].GetStr().value();
-            const auto name  = args[2].GetStr().value();
-            constexpr auto TexTypeParser = SWITCH_PACK(Hash,
-                (U"tex1d",      InstanceArgInfo::TexTypes::Tex1D),
-                (U"tex2d",      InstanceArgInfo::TexTypes::Tex2D),
-                (U"tex3d",      InstanceArgInfo::TexTypes::Tex3D),
-                (U"tex1darr",   InstanceArgInfo::TexTypes::Tex1DArray),
-                (U"tex2darr",   InstanceArgInfo::TexTypes::Tex2DArray));
-            const auto texType = TexTypeParser(ttype);
-            if (!texType)
-                NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, ttype), &meta);
-            const auto extra = GenerateExtra(2);
-            InstanceArgInfo info(InstanceArgInfo::Types::Tex, texType.value(), name, type, extra, 3);
-            HandleInstanceArg(info, ctx, meta);
-        } return;
-        default:
-            break;
         }
     }
 }
@@ -1170,6 +1315,7 @@ struct COMMON_EMPTY_BASES VecArray : public common::FixedLenRefHolder<VecArray<T
     {
         return reinterpret_cast<uintptr_t>(Data.data());
     }
+    forceinline void Destruct() noexcept { }
     using common::FixedLenRefHolder<VecArray<T>, T>::Increase;
     using common::FixedLenRefHolder<VecArray<T>, T>::Decrease;
 };

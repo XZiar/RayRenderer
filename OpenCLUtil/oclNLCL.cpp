@@ -342,31 +342,37 @@ std::unique_ptr<xcomp::BlockCookie> NLCLRuntime::PrepareInstance(const xcomp::Ou
     return std::make_unique<KernelCookie>(block);
 }
 
-constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
-    (U"global",     KerArgSpace::Global), 
-    (U"__global",   KerArgSpace::Global), 
-    (U"constant",   KerArgSpace::Constant),
-    (U"__constant", KerArgSpace::Constant),
-    (U"local",      KerArgSpace::Local), 
-    (U"__local",    KerArgSpace::Local), 
-    (U"private",    KerArgSpace::Private),
-    (U"__private",  KerArgSpace::Private),
-    (U"",           KerArgSpace::Private));
-constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash, 
-    (U"read_only",    ImgAccess::ReadOnly),
-    (U"__read_only",  ImgAccess::ReadOnly),
-    (U"write_only",   ImgAccess::WriteOnly),
-    (U"__write_only", ImgAccess::WriteOnly),
-    (U"read_write",   ImgAccess::ReadWrite),
-    (U"",             ImgAccess::ReadWrite));
-
 void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta)
 {
     using xcomp::InstanceArgInfo;
     auto& kerCtx = static_cast<KernelContext&>(ctx);
+    const auto PrepareImgAccess = [&](std::u16string_view dst) 
+    {
+        switch (arg.Flag & (InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write))
+        {
+        case InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write:
+            if (Context.Device->Version < 20)
+                oclLog().warning(u"{} [{}]: image object does not support readwrite before CL2.0.\n", dst, arg.Name);
+            return ImgAccess::ReadWrite;
+        case InstanceArgInfo::Flags::Read:
+            return ImgAccess::ReadOnly;
+        case InstanceArgInfo::Flags::Write:
+            return ImgAccess::WriteOnly;
+        case InstanceArgInfo::Flags::Empty:
+            if (Context.Device->Version < 20)
+            {
+                oclLog().warning(u"{} [{}]: image object does not support readwrite before CL2.0, defaults to readonly.\n", dst, arg.Name);
+                return ImgAccess::ReadOnly;
+            }
+            else
+                return ImgAccess::ReadWrite;
+        default:
+            return ImgAccess::None;
+        }
+    };
     switch (arg.Type)
     {
-    case InstanceArgInfo::Types::Buf:
+    case InstanceArgInfo::Types::RawBuf:
     {
         KerArgSpace space = KerArgSpace::Global;
         KerArgFlag flag = KerArgFlag::None;
@@ -396,6 +402,25 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
             common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32) + '*');
     } return;
+    case InstanceArgInfo::Types::TypedBuf:
+    {
+        if (!Context.Device->SupportImage)
+            NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support TypedArg [{}]"sv, Context.Device->Name, arg.Name), &meta);
+        const auto access = PrepareImgAccess(u"TypedArg");
+        std::u32string unknwonExtra;
+        for (const auto extra : arg.Extra)
+        {
+            unknwonExtra.append(extra).append(U"], [");
+        }
+        if (!unknwonExtra.empty())
+        {
+            Expects(unknwonExtra.size() > 4);
+            unknwonExtra.resize(unknwonExtra.size() - 4);
+            oclLog().warning(u"TypedArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+        }
+        kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
+            common::str::to_string(arg.Name, Charset::UTF8, Charset::UTF32), "image1d_buffer_t"sv);
+    } return;
     case InstanceArgInfo::Types::Simple:
     {
         KerArgSpace space = KerArgSpace::Global;
@@ -423,36 +448,11 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
             common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32));
     } return;
-    case InstanceArgInfo::Types::Tex:
+    case InstanceArgInfo::Types::Texture:
     {
         if (!Context.Device->SupportImage)
             NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support ImgArg [{}]"sv, Context.Device->Name, arg.Name), &meta);
-        ImgAccess access = ImgAccess::None;
-        switch (arg.Flag & (InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write))
-        {
-        case InstanceArgInfo::Flags::Read | InstanceArgInfo::Flags::Write:
-            if (Context.Device->Version < 20)
-                oclLog().warning(u"ImgArg [{}]: image object does not support readwrite before CL2.0.\n", arg.Name);
-            access = ImgAccess::ReadWrite;
-            break;
-        case InstanceArgInfo::Flags::Read:
-            access = ImgAccess::ReadOnly;
-            break;
-        case InstanceArgInfo::Flags::Write:
-            access = ImgAccess::WriteOnly;
-            break;
-        case InstanceArgInfo::Flags::Empty:
-            if (Context.Device->Version < 20)
-            {
-                oclLog().warning(u"ImgArg [{}]: image object does not support readwrite before CL2.0, defaults to readonly.\n", arg.Name);
-                access = ImgAccess::ReadOnly;
-            }
-            else
-                access = ImgAccess::ReadWrite;
-            break;
-        default:
-            break;
-        }
+        const auto access = PrepareImgAccess(u"ImgArg");
         std::string_view tname;
         switch (arg.TexType)
         {
@@ -482,6 +482,23 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     }
 }
 
+constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
+    (U"global",     KerArgSpace::Global), 
+    (U"__global",   KerArgSpace::Global), 
+    (U"constant",   KerArgSpace::Constant),
+    (U"__constant", KerArgSpace::Constant),
+    (U"local",      KerArgSpace::Local), 
+    (U"__local",    KerArgSpace::Local), 
+    (U"private",    KerArgSpace::Private),
+    (U"__private",  KerArgSpace::Private),
+    (U"",           KerArgSpace::Private));
+constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash, 
+    (U"read_only",    ImgAccess::ReadOnly),
+    (U"__read_only",  ImgAccess::ReadOnly),
+    (U"write_only",   ImgAccess::WriteOnly),
+    (U"__write_only", ImgAccess::WriteOnly),
+    (U"read_write",   ImgAccess::ReadWrite),
+    (U"",             ImgAccess::ReadWrite));
 void NLCLRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
 {
     auto& kerCtx = static_cast<KernelContext&>(ctx);

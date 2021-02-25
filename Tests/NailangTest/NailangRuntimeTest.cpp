@@ -278,6 +278,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         {
             return reinterpret_cast<uintptr_t>(Data.data());
         }
+        forceinline void Destruct() noexcept { }
         using common::FixedLenRefHolder<Array, float>::Increase;
         using common::FixedLenRefHolder<Array, float>::Decrease;
     };
@@ -373,27 +374,6 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         return {};
 
     }
-    /*size_t HandleSetter(CustomVar& var, SubQuery subq, NailangRuntimeBase&, Arg arg) override
-    {
-        if (subq.Size() == 1)
-        {
-            const auto [type, query] = subq[0];
-            if (type != SubQuery::QueryType::Sub) return 0;
-            const auto subf = query.GetVar<RawArg::Type::Str>();
-            ArrRef(arr, var);
-            float* ptr = nullptr;
-            if (subf == U"First" && arr.Data.size() > 0)
-                ptr = arr.Data.data();
-            else if (subf == U"Last" && arr.Data.size() > 0)
-                ptr = arr.Data.data() + arr.Data.size() - 1;
-            if (ptr && arg.IsNumber())
-            {
-                *ptr = static_cast<float>(arg.GetFP().value());
-                return 1;
-            }
-        }
-        return 0;
-    }*/
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);

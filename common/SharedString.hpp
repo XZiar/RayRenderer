@@ -17,6 +17,7 @@ private:
     {
         return reinterpret_cast<uintptr_t>(StrView.data());
     }
+    forceinline void Destruct() noexcept { }
 public:
     using value_type = const Char;
     constexpr SharedString() noexcept { }

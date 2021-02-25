@@ -26,6 +26,7 @@ protected:
         auto ptrcnt = static_cast<T*>(this)->GetCounter();
         if (ptrcnt && (*ptrcnt)-- == 1)
         {
+            static_cast<T*>(this)->Destruct();
             free(ptrcnt);
             return true;
         }
