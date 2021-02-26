@@ -36,6 +36,16 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
+void KernelContext::AddResource(std::string_view name, std::string_view dtype, uint16_t space, uint16_t reg, uint16_t count,
+    xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type)
+{
+    BindResoures.push_back({ StrPool.AllocateString(name), StrPool.AllocateString(dtype), space, reg, count, texType, type });
+}
+void KernelContext::AddConstant(std::string_view name, std::string_view dtype, uint16_t count)
+{
+    ShaderConstants.push_back({ StrPool.AllocateString(name), StrPool.AllocateString(dtype), count });
+}
+
 
 NLDXExtension::NLDXExtension(NLDXContext& context) : xcomp::XCNLExtension(context), Context(context)
 { }
@@ -241,6 +251,154 @@ std::unique_ptr<xcomp::BlockCookie> NLDXRuntime::PrepareInstance(const xcomp::Ou
     return std::make_unique<KernelCookie>(block);
 }
 
+void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta)
+{
+    using xcomp::InstanceArgInfo;
+    using TexTypes = xcomp::InstanceArgInfo::TexTypes;
+    using common::str::to_string;
+    using common::str::Charset;
+    auto& kerCtx = static_cast<KernelContext&>(ctx);
+    const auto ParseCommonInfo = [&](const std::vector<std::u32string_view>& extras)
+    {
+        constexpr auto ParseNumber = [](std::u32string_view str, uint16_t& target) 
+        {
+            uint32_t num = 0;
+            if (str.empty())
+                return false;
+            for (const auto ch : str)
+            {
+                if (ch >= U'0' && ch <= '9')
+                    num = num * 10 + (ch - U'0');
+                else
+                    return false;
+            }
+            target = gsl::narrow_cast<uint16_t>(num);
+            return true;
+        };
+        using common::str::IsBeginWith;
+        std::u32string unknwonExtra;
+        uint16_t space = UINT16_MAX, reg = UINT16_MAX, count = 1;
+        for (const auto extra : extras)
+        {
+#define CHECK_FLAG(name)                                                                    \
+    if (const auto pfx_##name = U"" STRINGIZE(name) "="sv; IsBeginWith(extra, pfx_##name))  \
+    {                                                                                       \
+        if (!ParseNumber(extra.substr(pfx_##name.size()), name))                            \
+            NLRT_THROW_EX(FMTSTR(u"BufArg [{}] has invalid flag on [{}]: [{}]."sv,          \
+                arg.Name, U"" STRINGIZE(name) ""sv, extra), &meta);                         \
+    }
+            CHECK_FLAG(space)
+            else CHECK_FLAG(reg)
+            else CHECK_FLAG(count)
+            else unknwonExtra.append(extra).append(U"], [");
+        }
+        if (!unknwonExtra.empty())
+        {
+            Expects(unknwonExtra.size() > 4);
+            unknwonExtra.resize(unknwonExtra.size() - 4);
+            dxLog().warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
+        }
+        return std::make_tuple(space, reg, count);
+    };
+    switch (arg.Type)
+    {
+    case InstanceArgInfo::Types::RawBuf:
+    {
+        BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
+            BoundedResourceType::RWStructBuf : BoundedResourceType::StructBuf;
+        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+            space, reg, count, arg.TexType, type);
+    } return;
+    case InstanceArgInfo::Types::TypedBuf:
+    {
+        BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
+            BoundedResourceType::RWTyped : BoundedResourceType::Typed;
+        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+            space, reg, count, arg.TexType, type);
+    } return;
+    case InstanceArgInfo::Types::Simple:
+    {
+        if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
+            NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), &meta);
+        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        kerCtx.AddConstant(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
+    } return;
+    case InstanceArgInfo::Types::Texture:
+    {
+        BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
+            BoundedResourceType::RWTyped : BoundedResourceType::Typed;
+        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+            space, reg, count, arg.TexType, type);
+    } return;
+    default:
+        return;
+    }
+}
+
+std::u32string NLDXRuntime::StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName)
+{
+    std::u32string txt;
+    for (const auto& res : ctx.BindResoures)
+    {
+        const auto type = [](const KernelContext::ResourceInfo& info)
+        {
+            using TexTypes = xcomp::InstanceArgInfo::TexTypes;
+            if (info.TexType != TexTypes::Empty)
+            {
+                const bool isRW = HAS_FIELD(info.Type, BoundedResourceType::RWMask);
+                switch (info.TexType)
+                {
+                case TexTypes::Tex1D:       return isRW ? U"RWTexture1D"sv      : U"Texture1D"sv;
+                case TexTypes::Tex1DArray:  return isRW ? U"RWTexture1DArray"sv : U"Texture1DArray"sv;
+                case TexTypes::Tex2D:       return isRW ? U"RWTexture2D"sv      : U"Texture2D"sv;
+                case TexTypes::Tex2DArray:  return isRW ? U"RWTexture2DArray"sv : U"Texture2DArray"sv;
+                case TexTypes::Tex3D:       return isRW ? U"RWTexture3D"sv      : U"Texture3D"sv;
+                default:                    return U""sv;
+                }
+            }
+            else
+            {
+                switch (info.Type)
+                {
+                case BoundedResourceType::StructBuf:    return U"StructuredBuffer"sv;
+                case BoundedResourceType::RWStructBuf:  return U"RWStructuredBuffer"sv;
+                case BoundedResourceType::Typed:        return U"Buffer"sv;
+                case BoundedResourceType::RWTyped:      return U"RWBuffer"sv;
+                default:                                return U""sv;
+                }
+            }
+        }(res);
+        APPEND_FMT(txt, U"{}<{}> {}"sv, type, ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
+        if (res.Count != 1)
+        {
+            APPEND_FMT(txt, U"[{}]", res.Count);
+        }
+        if (res.BindReg != UINT16_MAX)
+        {
+            const bool isRW = HAS_FIELD(res.Type, BoundedResourceType::RWMask);
+            APPEND_FMT(txt, U" : register({}{}", isRW ? U"u"sv : U"t"sv, res.BindReg);
+            if (res.Space != UINT16_MAX)
+            {
+                APPEND_FMT(txt, U", space{}", res.Space);
+            }
+            txt.push_back(U')');
+        }
+        txt.append(U";\r\n");
+    }
+    if (!ctx.ShaderConstants.empty())
+    {
+        APPEND_FMT(txt, U"\r\ncbuffer dxu_cbuf_{}\r\n{{\r\n"sv, kerName);
+        for (const auto& res : ctx.ShaderConstants)
+        {
+            APPEND_FMT(txt, U"\t{} {};\r\n", ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
+        }
+        txt.append(U"};\r\n");
+    }
+    return txt;
+}
 
 void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
 {
@@ -278,64 +436,6 @@ void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContex
             const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::String, ArgLimits::AtMost);
             kerCtx.TIdVar = arg.GetStr().value_or(U"dxu_threadid"sv);
         } return;
-        //HashCase(subName, U"SimpleArg")
-        //{
-        //    const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        //    const auto space_ = args[0].GetStr().value();
-        //    const auto space = KerArgSpaceParser(space_);
-        //    if (!space) NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
-        //    const auto argType = args[1].GetStr().value();
-        //    // const bool isPointer = !argType.empty() && argType.back() == U'*';
-        //    const auto name = args[2].GetStr().value();
-        //    const auto flags = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
-        //        .Reduce([&](KerArgFlag flag, std::u32string_view part)
-        //            {
-        //                if (part == U"const"sv)     return flag | KerArgFlag::Const;
-        //                NLRT_THROW_EX(fmt::format(u"Unrecognized KerArgFlag [{}]"sv, part),
-        //                    &meta);
-        //                return flag;
-        //            }, KerArgFlag::None);
-        //    kerCtx.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, flags,
-        //        common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-        //        common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        //} return;
-        //HashCase(subName, U"BufArg")
-        //{
-        //    const auto args = EvaluateFuncArgs<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        //    const auto space_ = args[0].GetStr().value();
-        //    const auto space = KerArgSpaceParser(space_);
-        //    if (!space)
-        //        NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgSpace [{}]"sv, space_), &meta);
-        //    const auto argType = std::u32string(args[1].GetStr().value()) + U'*';
-        //    const auto name = args[2].GetStr().value();
-        //    const auto flags = common::str::SplitStream(args[3].GetStr().value(), U' ', false)
-        //        .Reduce([&](KerArgFlag flag, std::u32string_view part)
-        //            {
-        //                if (part == U"const"sv)     return flag | KerArgFlag::Const;
-        //                if (part == U"restrict"sv)  return flag | KerArgFlag::Restrict;
-        //                if (part == U"volatile"sv)  return flag | KerArgFlag::Volatile;
-        //                NLRT_THROW_EX(FMTSTR(u"Unrecognized KerArgFlag [{}]"sv, part),
-        //                    &meta);
-        //                return flag;
-        //            }, KerArgFlag::None);
-        //    if (space.value() == KerArgSpace::Private)
-        //        NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), &meta);
-        //    kerCtx.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
-        //        common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-        //        common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        //} return;
-        //HashCase(subName, U"ImgArg")
-        //{
-        //    const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        //    const auto access_ = args[0].GetStr().value();
-        //    const auto access = ImgArgAccessParser(access_);
-        //    if (!access) NLRT_THROW_EX(fmt::format(u"Unrecognized ImgAccess [{}]"sv, access_), &meta);
-        //    const auto argType = args[1].GetStr().value();
-        //    const auto name = args[2].GetStr().value();
-        //    kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
-        //        common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-        //        common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        //} return;
         default:
             break;
         }
@@ -355,6 +455,10 @@ void NLDXRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
     ProcessInstance(cookie);
 
     auto& kerCtx = *static_cast<KernelContext*>(cookie.GetInstanceCtx());
+
+    Context.AddPatchedBlock(*this, FMTSTR(U"Resource for [{}]"sv, cookie.Block.Name()), 
+        &NLDXRuntime::StringifyKernelResource, kerCtx, cookie.Block.Name());
+
     // attributes
     for (const auto& item : kerCtx.Attributes)
     {
