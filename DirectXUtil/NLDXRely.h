@@ -15,52 +15,49 @@ namespace dxu
 class NLDXRuntime;
 class NLDXContext;
 
+
+struct ResourceInfo
+{
+    std::string KernelIds;
+    common::StringPiece<char> Name;
+    common::StringPiece<char> DataType;
+    uint16_t Space;
+    uint16_t BindReg;
+    uint16_t Count;
+    xcomp::InstanceArgInfo::TexTypes TexType;
+    BoundedResourceType Type;
+};
+struct ConstantInfo
+{
+    std::string KernelIds;
+    common::StringPiece<char> Name;
+    common::StringPiece<char> DataType;
+    uint16_t Count;
+};
+
 struct KernelContext : public xcomp::InstanceContext
 {
     friend NLDXRuntime;
-    struct ResourceInfo
-    {
-        common::StringPiece<char> Name;
-        common::StringPiece<char> DataType;
-        uint16_t Space;
-        uint16_t BindReg;
-        uint16_t Count;
-        xcomp::InstanceArgInfo::TexTypes TexType;
-        BoundedResourceType Type;
-    };
-    struct ConstantInfo
-    {
-        common::StringPiece<char> Name;
-        common::StringPiece<char> DataType;
-        uint16_t Count;
-    };
     std::u32string GroupIdVar, ItemIdVar, GlobalIdVar, TIdVar;
+    KernelContext(uint8_t kerId) noexcept : KernelId(kerId) { }
     ~KernelContext() override {}
     
-    void AddResource(std::string_view name, std::string_view dtype, uint16_t space, uint16_t reg, uint16_t count, 
-        xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type);
-    void AddConstant(std::string_view name, std::string_view dtype, uint16_t count);
     forceinline bool AddAttribute(const std::u32string_view id, std::u32string_view content)
     {
         return Add(Attributes, id, content, {});
     }
     forceinline constexpr uint32_t GetWorkgroupSize() const noexcept { return WorkgroupSize; }
 protected:
-    std::vector<ResourceInfo> BindResoures;
-    std::vector<ConstantInfo> ShaderConstants;
     std::vector<NamedText> Attributes;
-    common::StringPool<char> StrPool;
     uint32_t WorkgroupSize = 0;
+    uint8_t KernelId = 0;
 };
 
 
 struct KernelCookie : public xcomp::BlockCookie
 {
     KernelContext Context;
-    KernelCookie(const xcomp::OutputBlock& block) noexcept : xcomp::BlockCookie(block) 
-    {
-        Context.InsatnceName = this->Block.Name();
-    }
+    KernelCookie(const xcomp::OutputBlock& block, uint8_t kerId) noexcept;
     ~KernelCookie() override { }
     xcomp::InstanceContext* GetInstanceCtx() noexcept override { return &Context; }
 };
@@ -96,8 +93,17 @@ public:
     [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
     [[nodiscard]] static std::u32string_view GetDXTypeName(common::simd::VecDataInfo info) noexcept;
 protected:
+    std::vector<std::u32string_view> KernelNames;
+    std::vector<ResourceInfo> BindResoures;
+    std::vector<std::pair<xziar::nailang::Arg, uint32_t>> ReusableResIds;
+    std::vector<ConstantInfo> ShaderConstants;
+    std::vector<std::pair<xziar::nailang::Arg, uint32_t>> ReusableSCIds;
     std::vector<std::string> CompilerFlags;
+    common::StringPool<char> StrPool;
     bool AllowDebug;
+    void AddResource(const xziar::nailang::Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype, 
+        uint16_t space, uint16_t reg, uint16_t count, xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type);
+    void AddConstant(const xziar::nailang::Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype, uint16_t count);
 };
 
 
@@ -112,7 +118,7 @@ protected:
 
     NLDXContext& Context;
 
-    std::u32string StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName);
+    //std::u32string StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName);
 
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
@@ -120,11 +126,11 @@ protected:
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
     [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
-    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta) override;
+    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg*) final;
     void HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx) override;
     void OutputStruct  (xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst) override;
-    //void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
+    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
 public:
     NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx);
     ~NLDXRuntime() override;

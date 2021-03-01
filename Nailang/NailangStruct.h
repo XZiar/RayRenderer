@@ -478,9 +478,71 @@ struct CustomVar
 };
 
 
+enum class CompareResultCore : uint32_t
+{
+    ResultMask = 0x0f, NotEqual = 0x0, Less = 0x1, Equal = 0x2, Greater = 0x3,
+    FlagMask = 0xf0, Equality = 0x10, Orderable = 0x30, StrongOrder = 0x70,
+};
+MAKE_ENUM_BITFIELD(CompareResultCore)
+
+struct CompareResult
+{
+    CompareResultCore Result;
+    constexpr CompareResult() noexcept : Result(CompareResultCore::NotEqual) { }
+    constexpr CompareResult(CompareResultCore val) noexcept : Result(val) { }
+    constexpr std::optional<CompareResultCore> GetResult() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+            return Result & CompareResultCore::ResultMask;
+        return {};
+    }
+    constexpr bool IsEqual() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Equality))
+            return (Result & CompareResultCore::ResultMask) == CompareResultCore::Equal;
+        return false;
+    }
+    constexpr bool IsNotEqual() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Equality))
+            return (Result & CompareResultCore::ResultMask) == CompareResultCore::NotEqual;
+        return false;
+    }
+    constexpr bool IsLess() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+            return (Result & CompareResultCore::ResultMask) == CompareResultCore::Less;
+        return false;
+    }
+    constexpr bool IsGreater() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+            return (Result & CompareResultCore::ResultMask) == CompareResultCore::Greater;
+        return false;
+    }
+    constexpr bool IsLessEqual() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        {
+            const auto real = Result & CompareResultCore::ResultMask;
+            return real == CompareResultCore::Less || real == CompareResultCore::Equal;
+        }
+        return false;
+    }
+    constexpr bool IsGreaterEqual() const noexcept
+    {
+        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        {
+            const auto real = Result & CompareResultCore::ResultMask;
+            return real == CompareResultCore::Greater || real == CompareResultCore::Equal;
+        }
+        return false;
+    }
+};
+
+
 struct Arg;
 class NAILANGAPI ArgLocator;
-
 
 struct NativeWrapper
 {
@@ -780,6 +842,8 @@ public:
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
+    [[nodiscard]] virtual CompareResult CompareSameClass(const CustomVar&, const CustomVar&);
+    [[nodiscard]] virtual CompareResult Compare(const CustomVar&, const Arg&);
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept;
     [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;

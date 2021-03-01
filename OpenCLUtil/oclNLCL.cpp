@@ -342,7 +342,7 @@ std::unique_ptr<xcomp::BlockCookie> NLCLRuntime::PrepareInstance(const xcomp::Ou
     return std::make_unique<KernelCookie>(block);
 }
 
-void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta)
+void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const Arg*)
 {
     using xcomp::InstanceArgInfo;
     auto& kerCtx = static_cast<KernelContext&>(ctx);

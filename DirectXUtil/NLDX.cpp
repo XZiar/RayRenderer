@@ -36,14 +36,10 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
-void KernelContext::AddResource(std::string_view name, std::string_view dtype, uint16_t space, uint16_t reg, uint16_t count,
-    xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type)
+KernelCookie::KernelCookie(const xcomp::OutputBlock& block, uint8_t kerId) noexcept :
+    xcomp::BlockCookie(block), Context(kerId)
 {
-    BindResoures.push_back({ StrPool.AllocateString(name), StrPool.AllocateString(dtype), space, reg, count, texType, type });
-}
-void KernelContext::AddConstant(std::string_view name, std::string_view dtype, uint16_t count)
-{
-    ShaderConstants.push_back({ StrPool.AllocateString(name), StrPool.AllocateString(dtype), count });
+    Context.InsatnceName = this->Block.Name();
 }
 
 
@@ -159,41 +155,32 @@ std::u32string_view NLDXContext::GetVecTypeName(common::simd::VecDataInfo info) 
     return GetDXTypeName(info);
 }
 
+void NLDXContext::AddResource(const Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype,
+    uint16_t space, uint16_t reg, uint16_t count, xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type)
+{
+    const auto resId = BindResoures.size();
+    //Expects(resId < UINT32_MAX);
+    BindResoures.push_back({ {}, StrPool.AllocateString(name), StrPool.AllocateString(dtype), space, reg, count, texType, type });
+    BindResoures.back().KernelIds.push_back(static_cast<char>(kerId));
+    if (source)
+        ReusableResIds.emplace_back(*source, static_cast<uint32_t>(resId));
+}
+void NLDXContext::AddConstant(const Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype, uint16_t count)
+{
+    const auto resId = ShaderConstants.size();
+    //Expects(resId < UINT32_MAX);
+    ShaderConstants.push_back({ {}, StrPool.AllocateString(name), StrPool.AllocateString(dtype), count });
+    ShaderConstants.back().KernelIds.push_back(static_cast<char>(kerId));
+    if (source)
+        ReusableSCIds.emplace_back(*source, static_cast<uint32_t>(resId));
+}
+
 
 NLDXRuntime::NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx) :
     XCNLRuntime(logger, evalCtx), Context(*evalCtx)
 { }
 NLDXRuntime::~NLDXRuntime()
 { }
-
-//void NLDXRuntime::StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg)
-//{
-//    switch (arg.ArgType)
-//    {
-//    case KerArgType::Simple:
-//        APPEND_FMT(out, U"{:8} {:5}  {} {}", ArgFlags::ToCLString(arg.Space),
-//            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
-//            common::str::to_u32string(arg.Type, Charset::UTF8),
-//            common::str::to_u32string(arg.Name, Charset::UTF8));
-//        break;
-//    case KerArgType::Buffer:
-//        APPEND_FMT(out, U"{:8} {:5} {} {} {} {}", ArgFlags::ToCLString(arg.Space),
-//            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
-//            HAS_FIELD(arg.Qualifier, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
-//            common::str::to_u32string(arg.Type, Charset::UTF8),
-//            HAS_FIELD(arg.Qualifier, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
-//            common::str::to_u32string(arg.Name, Charset::UTF8));
-//        break;
-//    case KerArgType::Image:
-//        APPEND_FMT(out, U"{:10} {} {}", ArgFlags::ToCLString(arg.Access),
-//            common::str::to_u32string(arg.Type, Charset::UTF8),
-//            common::str::to_u32string(arg.Name, Charset::UTF8));
-//        break;
-//    default:
-//        NLRT_THROW_EX(u"Does not support KerArg of type[Any]");
-//        break;
-//    }
-//}
 
 void NLDXRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args)
 {
@@ -248,16 +235,47 @@ xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, M
 
 std::unique_ptr<xcomp::BlockCookie> NLDXRuntime::PrepareInstance(const xcomp::OutputBlock& block)
 {
-    return std::make_unique<KernelCookie>(block);
+    const auto kerId = Context.KernelNames.size();
+    if (kerId >= 250)
+        NLRT_THROW_EX(u"Too many kernels being defined, at most 250"sv);
+    Context.KernelNames.emplace_back(block.Name());
+    return std::make_unique<KernelCookie>(block, static_cast<uint8_t>(kerId));
 }
 
-void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta)
+void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const Arg* source)
 {
     using xcomp::InstanceArgInfo;
     using TexTypes = xcomp::InstanceArgInfo::TexTypes;
     using common::str::to_string;
     using common::str::Charset;
     auto& kerCtx = static_cast<KernelContext&>(ctx);
+
+    if (source)
+    {
+        const auto HandleReusable = [&](auto& pool, const auto& idList, const Arg* source)
+        {
+            for (const auto& [holder, idx] : idList)
+            {
+                if (holder.GetCustom().Call<&CustomVar::Handler::CompareSameClass>(source->GetCustom()).IsEqual())
+                {
+                    auto& target = pool[idx];
+                    const char kerIdChar = static_cast<char>(kerCtx.KernelId);
+                    if (target.KernelIds.find(kerIdChar) != std::string::npos)
+                        NLRT_THROW_EX(FMTSTR(u"Arg [{}] has already been referenced for kernel [{}]."sv,
+                            arg.Name, kerCtx.InsatnceName), meta);
+                    target.KernelIds.push_back(kerIdChar);
+                    return true;
+                }
+            }
+            return false;
+        };
+        const bool exist = arg.Type == InstanceArgInfo::Types::Simple ?
+            HandleReusable(Context.ShaderConstants, Context.ReusableSCIds,  source) :
+            HandleReusable(Context.BindResoures,    Context.ReusableResIds, source);
+        if (exist)
+            return;
+    }
+
     const auto ParseCommonInfo = [&](const std::vector<std::u32string_view>& extras)
     {
         constexpr auto ParseNumber = [](std::u32string_view str, uint16_t& target) 
@@ -307,7 +325,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWStructBuf : BoundedResourceType::StructBuf;
         const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
-        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     case InstanceArgInfo::Types::TypedBuf:
@@ -315,7 +333,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
         const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
-        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     case InstanceArgInfo::Types::Simple:
@@ -323,14 +341,14 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
             NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), &meta);
         const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
-        kerCtx.AddConstant(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
+        Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
     } return;
     case InstanceArgInfo::Types::Texture:
     {
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
         const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
-        kerCtx.AddResource(to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     default:
@@ -338,67 +356,67 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     }
 }
 
-std::u32string NLDXRuntime::StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName)
-{
-    std::u32string txt;
-    for (const auto& res : ctx.BindResoures)
-    {
-        const auto type = [](const KernelContext::ResourceInfo& info)
-        {
-            using TexTypes = xcomp::InstanceArgInfo::TexTypes;
-            if (info.TexType != TexTypes::Empty)
-            {
-                const bool isRW = HAS_FIELD(info.Type, BoundedResourceType::RWMask);
-                switch (info.TexType)
-                {
-                case TexTypes::Tex1D:       return isRW ? U"RWTexture1D"sv      : U"Texture1D"sv;
-                case TexTypes::Tex1DArray:  return isRW ? U"RWTexture1DArray"sv : U"Texture1DArray"sv;
-                case TexTypes::Tex2D:       return isRW ? U"RWTexture2D"sv      : U"Texture2D"sv;
-                case TexTypes::Tex2DArray:  return isRW ? U"RWTexture2DArray"sv : U"Texture2DArray"sv;
-                case TexTypes::Tex3D:       return isRW ? U"RWTexture3D"sv      : U"Texture3D"sv;
-                default:                    return U""sv;
-                }
-            }
-            else
-            {
-                switch (info.Type)
-                {
-                case BoundedResourceType::StructBuf:    return U"StructuredBuffer"sv;
-                case BoundedResourceType::RWStructBuf:  return U"RWStructuredBuffer"sv;
-                case BoundedResourceType::Typed:        return U"Buffer"sv;
-                case BoundedResourceType::RWTyped:      return U"RWBuffer"sv;
-                default:                                return U""sv;
-                }
-            }
-        }(res);
-        APPEND_FMT(txt, U"{}<{}> {}"sv, type, ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
-        if (res.Count != 1)
-        {
-            APPEND_FMT(txt, U"[{}]", res.Count);
-        }
-        if (res.BindReg != UINT16_MAX)
-        {
-            const bool isRW = HAS_FIELD(res.Type, BoundedResourceType::RWMask);
-            APPEND_FMT(txt, U" : register({}{}", isRW ? U"u"sv : U"t"sv, res.BindReg);
-            if (res.Space != UINT16_MAX)
-            {
-                APPEND_FMT(txt, U", space{}", res.Space);
-            }
-            txt.push_back(U')');
-        }
-        txt.append(U";\r\n");
-    }
-    if (!ctx.ShaderConstants.empty())
-    {
-        APPEND_FMT(txt, U"\r\ncbuffer dxu_cbuf_{}\r\n{{\r\n"sv, kerName);
-        for (const auto& res : ctx.ShaderConstants)
-        {
-            APPEND_FMT(txt, U"\t{} {};\r\n", ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
-        }
-        txt.append(U"};\r\n");
-    }
-    return txt;
-}
+//std::u32string NLDXRuntime::StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName)
+//{
+//    std::u32string txt;
+//    for (const auto& res : ctx.BindResoures)
+//    {
+//        const auto type = [](const KernelContext::ResourceInfo& info)
+//        {
+//            using TexTypes = xcomp::InstanceArgInfo::TexTypes;
+//            if (info.TexType != TexTypes::Empty)
+//            {
+//                const bool isRW = HAS_FIELD(info.Type, BoundedResourceType::RWMask);
+//                switch (info.TexType)
+//                {
+//                case TexTypes::Tex1D:       return isRW ? U"RWTexture1D"sv      : U"Texture1D"sv;
+//                case TexTypes::Tex1DArray:  return isRW ? U"RWTexture1DArray"sv : U"Texture1DArray"sv;
+//                case TexTypes::Tex2D:       return isRW ? U"RWTexture2D"sv      : U"Texture2D"sv;
+//                case TexTypes::Tex2DArray:  return isRW ? U"RWTexture2DArray"sv : U"Texture2DArray"sv;
+//                case TexTypes::Tex3D:       return isRW ? U"RWTexture3D"sv      : U"Texture3D"sv;
+//                default:                    return U""sv;
+//                }
+//            }
+//            else
+//            {
+//                switch (info.Type)
+//                {
+//                case BoundedResourceType::StructBuf:    return U"StructuredBuffer"sv;
+//                case BoundedResourceType::RWStructBuf:  return U"RWStructuredBuffer"sv;
+//                case BoundedResourceType::Typed:        return U"Buffer"sv;
+//                case BoundedResourceType::RWTyped:      return U"RWBuffer"sv;
+//                default:                                return U""sv;
+//                }
+//            }
+//        }(res);
+//        APPEND_FMT(txt, U"{}<{}> {}"sv, type, ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
+//        if (res.Count != 1)
+//        {
+//            APPEND_FMT(txt, U"[{}]", res.Count);
+//        }
+//        if (res.BindReg != UINT16_MAX)
+//        {
+//            const bool isRW = HAS_FIELD(res.Type, BoundedResourceType::RWMask);
+//            APPEND_FMT(txt, U" : register({}{}", isRW ? U"u"sv : U"t"sv, res.BindReg);
+//            if (res.Space != UINT16_MAX)
+//            {
+//                APPEND_FMT(txt, U", space{}", res.Space);
+//            }
+//            txt.push_back(U')');
+//        }
+//        txt.append(U";\r\n");
+//    }
+//    if (!ctx.ShaderConstants.empty())
+//    {
+//        APPEND_FMT(txt, U"\r\ncbuffer dxu_cbuf_{}\r\n{{\r\n"sv, kerName);
+//        for (const auto& res : ctx.ShaderConstants)
+//        {
+//            APPEND_FMT(txt, U"\t{} {};\r\n", ctx.StrPool.GetStringView(res.DataType), ctx.StrPool.GetStringView(res.Name));
+//        }
+//        txt.append(U"};\r\n");
+//    }
+//    return txt;
+//}
 
 void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
 {
@@ -456,8 +474,8 @@ void NLDXRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
 
     auto& kerCtx = *static_cast<KernelContext*>(cookie.GetInstanceCtx());
 
-    Context.AddPatchedBlock(*this, FMTSTR(U"Resource for [{}]"sv, cookie.Block.Name()), 
-        &NLDXRuntime::StringifyKernelResource, kerCtx, cookie.Block.Name());
+    /*Context.AddPatchedBlock(*this, FMTSTR(U"Resource for [{}]"sv, cookie.Block.Name()), 
+        &NLDXRuntime::StringifyKernelResource, kerCtx, cookie.Block.Name());*/
 
     // attributes
     for (const auto& item : kerCtx.Attributes)
@@ -493,9 +511,117 @@ void NLDXRuntime::OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst
     dst.append(U"}\r\n"sv);
 }
 
-//void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
-//{
-//}
+void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
+{
+    std::u32string bindings = U"\r\n/* Bounded Resources */\r\n"s;
+
+    // categorize resources, ids are natually sorted
+    std::string allKernelName;
+    for (size_t i = 0; i < Context.KernelNames.size(); ++i)
+        allKernelName.push_back(static_cast<char>(static_cast<uint8_t>(i)));
+    std::map<std::string_view, std::vector<uint32_t>, std::less<>> categoryMap;
+    {
+        uint32_t idx = 0;
+        for (const auto& res : Context.BindResoures)
+        {
+            categoryMap[res.KernelIds].push_back(idx++);
+        }
+    }
+    for (const auto& [cat, resIdxs] : categoryMap)
+    {
+        bindings.append(U"/* resources for "sv);
+        const bool isAllKernel = cat == allKernelName;
+        if (isAllKernel)
+        {
+            bindings.append(U"all kernels */\r\n"sv);
+        }
+        else
+        {
+            std::u32string defNames = U"#if ";
+            for (const auto ch : cat)
+            {
+                const auto name = Context.KernelNames[static_cast<uint8_t>(ch)];
+                APPEND_FMT(bindings, U"[{}], "sv, name);
+                APPEND_FMT(defNames, U"defined(DXU_KERNEL_{}) || "sv, name);
+            }
+            bindings.resize(bindings.size() - 2);
+            bindings.append(U" */\r\n"sv).append(defNames, 0, defNames.size() - 4).append(U"\r\n"sv);
+        }
+
+        constexpr auto TypeResolver = [](const ResourceInfo& info)
+        {
+            using TexTypes = xcomp::InstanceArgInfo::TexTypes;
+            if (info.TexType != TexTypes::Empty)
+            {
+                const bool isRW = HAS_FIELD(info.Type, BoundedResourceType::RWMask);
+                switch (info.TexType)
+                {
+                case TexTypes::Tex1D:       return isRW ? U"RWTexture1D"sv      : U"Texture1D"sv;
+                case TexTypes::Tex1DArray:  return isRW ? U"RWTexture1DArray"sv : U"Texture1DArray"sv;
+                case TexTypes::Tex2D:       return isRW ? U"RWTexture2D"sv      : U"Texture2D"sv;
+                case TexTypes::Tex2DArray:  return isRW ? U"RWTexture2DArray"sv : U"Texture2DArray"sv;
+                case TexTypes::Tex3D:       return isRW ? U"RWTexture3D"sv      : U"Texture3D"sv;
+                default:                    return U""sv;
+                }
+            }
+            else
+            {
+                switch (info.Type)
+                {
+                case BoundedResourceType::StructBuf:    return U"StructuredBuffer"sv;
+                case BoundedResourceType::RWStructBuf:  return U"RWStructuredBuffer"sv;
+                case BoundedResourceType::Typed:        return U"Buffer"sv;
+                case BoundedResourceType::RWTyped:      return U"RWBuffer"sv;
+                default:                                return U""sv;
+                }
+            }
+        };
+        for (const auto idx : resIdxs)
+        {
+            const auto& res = Context.BindResoures[idx];
+            const auto type = TypeResolver(res);
+            APPEND_FMT(bindings, U"{}<{}> {}"sv, type, Context.StrPool.GetStringView(res.DataType), Context.StrPool.GetStringView(res.Name));
+            if (res.Count != 1)
+            {
+                APPEND_FMT(bindings, U"[{}]", res.Count);
+            }
+            if (res.BindReg != UINT16_MAX)
+            {
+                const bool isRW = HAS_FIELD(res.Type, BoundedResourceType::RWMask);
+                APPEND_FMT(bindings, U" : register({}{}", isRW ? U"u"sv : U"t"sv, res.BindReg);
+                if (res.Space != UINT16_MAX)
+                {
+                    APPEND_FMT(bindings, U", space{}", res.Space);
+                }
+                bindings.push_back(U')');
+            }
+            bindings.append(U";\r\n");
+        }
+        if (!isAllKernel)
+            bindings.append(U"#endif\r\n"sv);
+        bindings.append(U"\r\n"sv);
+    }
+
+    // output cbuffer
+    if (!Context.ShaderConstants.empty())
+    {
+        bindings.append(U"cbuffer dxu_cbuf\r\n{\r\n"sv);
+        for (const auto& res : Context.ShaderConstants)
+        {
+            APPEND_FMT(bindings, U"\t{} {}; // for ", Context.StrPool.GetStringView(res.DataType), Context.StrPool.GetStringView(res.Name));
+            for (const auto ch : res.KernelIds)
+            {
+                const auto name = Context.KernelNames[static_cast<uint8_t>(ch)];
+                APPEND_FMT(bindings, U"[{}], "sv, name);
+            }
+            bindings.resize(bindings.size() - 2);
+            bindings.append(U"\r\n"sv);
+        }
+        bindings.append(U"};\r\n\r\n");
+    }
+
+    prefix.insert(prefix.begin(), bindings.begin(), bindings.end());
+}
 
 
 NLDXBaseResult::NLDXBaseResult(const std::shared_ptr<NLDXContext>& context) :
@@ -627,6 +753,8 @@ std::unique_ptr<NLDXResult> NLDXProcessor::CompileIntoProgram(NLDXProgStub& stub
         {
             config.Flags.insert(flag);
         }
+        const auto kerName = nldxCtx.KernelNames.size() == 1 ? nldxCtx.KernelNames[0] : U"main"sv;
+        config.Defines.Add("DXU_KERNEL_" + common::str::to_string(kerName, common::str::Charset::UTF8));
         progStub.Build(config);
         return std::make_unique<NLDXBuiltResult>(stub.GetContext(), progStub.Finish());
     }

@@ -443,7 +443,7 @@ protected:
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     [[nodiscard]] virtual std::unique_ptr<OutputBlock::BlockInfo> PrepareBlockInfo(OutputBlock& blk);
     [[nodiscard]] virtual std::unique_ptr<BlockCookie> PrepareInstance(const OutputBlock& block) = 0;
-    virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const FuncCall& meta);
+    virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg* source);
     virtual void HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx);
     virtual void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
     virtual void OutputStruct   (BlockCookie& cookie, std::u32string& dst) = 0;
@@ -573,6 +573,7 @@ protected:
     static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
     xziar::nailang::ArgLocator HandleQuery(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery subq, xziar::nailang::NailangRuntimeBase& runtime) override;
     bool HandleAssign(xziar::nailang::CustomVar& var, xziar::nailang::Arg arg) override;
+    xziar::nailang::CompareResult CompareSameClass(const xziar::nailang::CustomVar&, const xziar::nailang::CustomVar&) final;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
     std::u32string_view GetTypeName() noexcept override;
     std::u32string GetExactType(const xziar::nailang::FixedArray& arr) noexcept;

@@ -120,7 +120,7 @@ protected:
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
     [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
-    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta) override;
+    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg*) final;
     void HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx) override;
     void OutputStruct  (xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst) override;

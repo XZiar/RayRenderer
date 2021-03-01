@@ -16,6 +16,9 @@ using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::CustomVar;
+using xziar::nailang::CompareResultCore;
+using xziar::nailang::CompareResult;
+using xziar::nailang::NativeWrapper;
 using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
@@ -295,6 +298,10 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     {
         return *reinterpret_cast<InstanceArgHolder*>(&var.Meta0);
     }
+    forceinline static InstanceArgStore* GetObj(const CustomVar& var) noexcept
+    {
+        return GetHolder(var).GetObj();
+    }
     void IncreaseRef(CustomVar& var) noexcept final
     {
         GetHolder(var).Increase();
@@ -305,7 +312,7 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     };
     common::str::StrVariant<char32_t> ToString(const CustomVar& var) noexcept final
     {
-        const auto obj = GetHolder(var).GetObj();
+        const auto obj = GetObj(var);
         if (!obj)
             return U"{ Empty }";
         switch (obj->ArgInfo.Type)
@@ -319,7 +326,11 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     };
     static const InstanceArgInfo& GetArgInfo(const CustomVar& var) noexcept
     {
-        return GetHolder(var).GetObj()->ArgInfo;
+        return GetObj(var)->ArgInfo;
+    }
+    CompareResult CompareSameClass(const CustomVar& lhs, const CustomVar& rhs) final
+    {
+        return CompareResultCore::Equality | (GetObj(lhs) == GetObj(rhs) ? CompareResultCore::Equal : CompareResultCore::NotEqual);
     }
     std::u32string_view GetTypeName() noexcept final
     {
@@ -933,7 +944,7 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
     return std::move(blk.ExtraInfo);
 }
 
-void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&)
+void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&, const xziar::nailang::Arg*)
 { }
 
 InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, const FuncCall& func)
@@ -1013,7 +1024,7 @@ void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
         {
             auto data = ParseInstanceArg((*meta.Name)[2], meta);
             InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
-            HandleInstanceArg(info, ctx, meta);
+            HandleInstanceArg(info, ctx, meta, nullptr);
         }
         else
         {
@@ -1022,7 +1033,7 @@ void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
             if (!var.IsType<InstanceArgCustomVar>())
                 NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, var.Host->GetTypeName()), &meta);
             const auto& info = InstanceArgCustomVar::GetArgInfo(var);
-            HandleInstanceArg(info, ctx, meta);
+            HandleInstanceArg(info, ctx, meta, &arg);
         }
     }
 }
@@ -1272,6 +1283,21 @@ bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
     }
     COMMON_THROW(NailangRuntimeException, FMTSTR(u"vecref can only be set with vecref or single num, get [{}]", arg.GetTypeName()), var);
     return false;
+}
+CompareResult GeneralVecRef::CompareSameClass(const CustomVar& var, const CustomVar& other)
+{
+    const auto lhs = ToArray(var), rhs = ToArray(other);
+    if (lhs.ElementType != rhs.ElementType || lhs.Length != rhs.Length)
+        return {};
+    const auto getter = NativeWrapper::GetGetter(lhs.ElementType);
+    const auto ldata = static_cast<uintptr_t>(lhs.DataPtr), rdata = static_cast<uintptr_t>(rhs.DataPtr);
+    for (size_t idx = 0; idx < lhs.Length; ++idx)
+    {
+        const auto lval = getter(ldata, idx), rval = getter(rdata, idx);
+        if (const auto res = xziar::nailang::EmbedOpEval::Equal(lval, rval); !res->GetBool().value())
+            return { CompareResultCore::NotEqual | CompareResultCore::Equality };
+    }
+    return { CompareResultCore::Equal | CompareResultCore::Equality };
 }
 common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) noexcept
 {

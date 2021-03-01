@@ -547,6 +547,19 @@ bool CustomVar::Handler::HandleAssign(CustomVar&, Arg)
 {
     return false;
 }
+CompareResult CustomVar::Handler::CompareSameClass(const CustomVar&, const CustomVar&)
+{
+    return { };
+}
+CompareResult CustomVar::Handler::Compare(const CustomVar& var, const Arg& other)
+{
+    if (other.IsCustom())
+    {
+        if (const auto& rhs = other.GetCustom(); rhs.Host == var.Host)
+            return CompareSameClass(var, rhs);
+    }
+    return { };
+}
 common::str::StrVariant<char32_t> CustomVar::Handler::ToString(const CustomVar&) noexcept
 {
     return GetTypeName();
