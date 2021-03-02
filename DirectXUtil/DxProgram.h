@@ -25,6 +25,7 @@ using DxComputeProgram = std::shared_ptr<const DxComputeProgram_>;
 
 class DXUAPI DxProgram_ : public std::enable_shared_from_this<DxProgram_>
 {
+    friend DxDrawProgram_;
     friend DxComputeProgram_;
 private:
     struct BoundedResWrapper
@@ -170,6 +171,7 @@ private:
 public:
     DxComputeProgram_(DxShader shader);
     ~DxComputeProgram_() override;
+    const std::array<uint32_t, 3>& GetThreadGroupSize() const { return Shader->ThreadGroupSize; }
     [[nodiscard]] DxProgramPrepare<DxComputeProgram_> Prepare() const;
 
     [[nodiscard]] static DxComputeProgram Create(DxDevice dev, std::string str, const DxShaderConfig& config);

@@ -654,23 +654,23 @@ std::string_view NLDXUnBuildResult::GetNewSource() const noexcept
 {
     return Source;
 }
-DxShader NLDXUnBuildResult::GetShader() const
+common::span<const std::pair<std::string, DxShader>> NLDXUnBuildResult::GetShaders() const
 {
     COMMON_THROW(common::BaseException, u"Shader has not been built!");
 }
 
-NLDXBuiltResult::NLDXBuiltResult(const std::shared_ptr<NLDXContext>& context, DxShader shader) :
-    NLDXBaseResult(context), Shader(std::move(shader))
+NLDXBuiltResult::NLDXBuiltResult(const std::shared_ptr<NLDXContext>& context, std::string source, std::vector<std::pair<std::string, DxShader>> shaders) :
+    NLDXBaseResult(context), Source(std::move(source)), Shaders(std::move(shaders))
 { }
 NLDXBuiltResult::~NLDXBuiltResult()
 { }
 std::string_view NLDXBuiltResult::GetNewSource() const noexcept
 {
-    return Shader->GetSource();
+    return Source;
 }
-DxShader NLDXBuiltResult::GetShader() const
+common::span<const std::pair<std::string, DxShader>> NLDXBuiltResult::GetShaders() const
 {
-    return Shader;
+    return Shaders;
 }
 
 NLDXBuildFailResult::NLDXBuildFailResult(const std::shared_ptr<NLDXContext>& context, std::string&& source, std::shared_ptr<common::ExceptionBasicInfo> ex) :
@@ -678,7 +678,7 @@ NLDXBuildFailResult::NLDXBuildFailResult(const std::shared_ptr<NLDXContext>& con
 { }
 NLDXBuildFailResult::~NLDXBuildFailResult()
 { }
-DxShader NLDXBuildFailResult::GetShader() const
+common::span<const std::pair<std::string, DxShader>> NLDXBuildFailResult::GetShaders() const
 {
     Exception->ThrowReal();
     return {};
@@ -748,15 +748,22 @@ std::unique_ptr<NLDXResult> NLDXProcessor::CompileIntoProgram(NLDXProgStub& stub
     try
     {
         auto& nldxCtx = *stub.GetContext().get();
-        auto progStub = DxShader_::Create(dev, ShaderType::Compute, str);
         for (const auto& flag : nldxCtx.CompilerFlags)
         {
             config.Flags.insert(flag);
         }
-        const auto kerName = nldxCtx.KernelNames.size() == 1 ? nldxCtx.KernelNames[0] : U"main"sv;
-        config.Defines.Add("DXU_KERNEL_" + common::str::to_string(kerName, common::str::Charset::UTF8));
-        progStub.Build(config);
-        return std::make_unique<NLDXBuiltResult>(stub.GetContext(), progStub.Finish());
+        std::vector<std::pair<std::string, DxShader>> shaders;
+        for (const auto kerName : nldxCtx.KernelNames)
+        {
+            auto kerNameU8 = common::str::to_string(kerName, common::str::Charset::UTF8);
+            const auto defName = "DXU_KERNEL_" + kerNameU8;
+            config.Defines.Add(defName);
+            auto progStub = DxShader_::Create(dev, ShaderType::Compute, str);
+            progStub.Build(config);
+            shaders.emplace_back(std::move(kerNameU8), progStub.Finish());
+            config.Defines.Remove(defName);
+        }
+        return std::make_unique<NLDXBuiltResult>(stub.GetContext(), std::move(str), std::move(shaders));
     }
     catch (const common::BaseException& be)
     {

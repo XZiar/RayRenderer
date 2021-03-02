@@ -58,6 +58,7 @@ protected:
     std::string ShaderHash;
     std::unique_ptr<detail::BindResourceDetail[]> BindResources;
     uint32_t BindCount;
+    std::array<uint32_t, 3> ThreadGroupSize;
     ShaderType Type;
     uint32_t Version;
 public:

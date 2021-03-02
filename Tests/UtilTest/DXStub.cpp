@@ -150,7 +150,7 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         const auto kertxt = common::file::ReadAllText(filepath);
         DxShaderConfig config;
         std::unique_ptr<NLDXResult> nldxRes;
-        DxShader shader;
+        std::vector<std::pair<std::string, DxShader>> shaders;
         if (isNLDX)
         {
             static const NLDXProcessor NLDXProc;
@@ -158,22 +158,31 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
             //prog->AttachExtension([&](auto&, auto& ctx) { return std::make_unique<CLStubExtension>(ctx, runInfo); });
             nldxRes = NLDXProc.CompileShader(prog, dev, {}, config);
             common::file::WriteAll(fpath + ".hlsl", nldxRes->GetNewSource());
-            shader = nldxRes->GetShader();
+            shaders.assign(nldxRes->GetShaders().begin(), nldxRes->GetShaders().end());
         }
         else
         {
-            shader = DxShader_::CreateAndBuild(dev, ShaderType::Compute, kertxt, config);
+            shaders.emplace_back("main", DxShader_::CreateAndBuild(dev, ShaderType::Compute, kertxt, config));
         }
-        const auto prog = std::make_shared<DxComputeProgram_>(shader);
-        for (const auto& item : prog->BufSlots())
+        std::vector<std::pair<std::string, DxComputeProgram>> progs;
+        for (const auto& [name, shader] : shaders)
         {
-            log().verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
-                dxu::detail::GetBoundedResTypeName(item.Type));
+            progs.emplace_back(name, std::make_shared<DxComputeProgram_>(shader));
+        }
+        for (const auto& [name, prog] : progs)
+        {
+            const auto& tgSize = prog->GetThreadGroupSize();
+            log().success(u"program [{}], TGSize[{}x{}x{}]:\n", name, tgSize[0], tgSize[1], tgSize[2]);
+            for (const auto& item : prog->BufSlots())
+            {
+                log().verbose(u"---[Buffer][{}] Space[{}] Bind[{},{}] Type[{}]\n", item.Name, item.Space, item.BindReg, item.Count,
+                    dxu::detail::GetBoundedResTypeName(item.Type));
+            }
         }
         if (runnable)
         {
             const auto rg = cmdque->DeclareRange(FMTSTR(u"Test run of [{}]", filepath.u16string()));
-            RunKernel(dev, cmdque, prog);
+            RunKernel(dev, cmdque, progs[0].second);
         }
     }
     catch (const BaseException& be)

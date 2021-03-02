@@ -322,7 +322,7 @@ static constexpr ShaderType ParseShaderType(const uint32_t versionType) noexcept
 }
 
 DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
-    : Device(stub->Device), Source(std::move(stub->Source)), Blob(std::move(stub->Blob))
+    : Device(stub->Device), Source(std::move(stub->Source)), Blob(std::move(stub->Blob)), ThreadGroupSize({ 0 })
 {
     DXCReflector reflector(*Blob);
     ShaderHash = reflector.GetShaderHashStr();
@@ -330,7 +330,12 @@ DxShader_::DxShader_(DxShader_::T_, DxShaderStub_* stub)
     D3D12_SHADER_DESC desc = {};
     THROW_HR(shaderReflector->GetDesc(&desc), u"Failed to get desc");
     Type = ParseShaderType((desc.Version & 0xFFFF0000) >> 16);
-    Version = ((Version & 0x000000F0) >> 4) * 10 + (Version & 0x0000000F);
+    Version = ((desc.Version & 0x000000F0) >> 4) * 10 + (desc.Version & 0x0000000F);
+
+    if (Type == ShaderType::Compute)
+    {
+        shaderReflector->GetThreadGroupSize(&ThreadGroupSize[0], &ThreadGroupSize[1], &ThreadGroupSize[2]);
+    }
 
     BindCount = desc.BoundResources;
     BindResources = std::make_unique<detail::BindResourceDetail[]>(BindCount);

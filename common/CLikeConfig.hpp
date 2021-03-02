@@ -121,6 +121,11 @@ public:
     {
         Data[std::string(key)] = std::monostate{};
     }
+    void Remove(const std::string_view key)
+    {
+        if (auto node = Data.find(key); node != Data.end())
+            Data.erase(node);
+    }
 
     std::optional<ValType> operator[](const std::string_view key) const noexcept
     {

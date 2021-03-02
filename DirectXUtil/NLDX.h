@@ -19,6 +19,7 @@ class NLDXProgStub;
 #   pragma warning(disable:4275 4251)
 #endif
 
+
 class DXUAPI NLDXResult
 {
 public:
@@ -26,7 +27,7 @@ public:
     using ResultType = std::variant<std::monostate, bool, int64_t, uint64_t, double, std::any>;
     virtual ResultType QueryResult(std::u32string_view) const = 0;
     virtual std::string_view GetNewSource() const noexcept = 0;
-    virtual DxShader GetShader() const = 0;
+    virtual common::span<const std::pair<std::string, DxShader>> GetShaders() const = 0;
 };
 
 

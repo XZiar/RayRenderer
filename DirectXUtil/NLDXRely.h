@@ -157,18 +157,19 @@ public:
     NLDXUnBuildResult(const std::shared_ptr<NLDXContext>& context, std::string&& source);
     ~NLDXUnBuildResult() override;
     std::string_view GetNewSource() const noexcept override;
-    DxShader GetShader() const override;
+    common::span<const std::pair<std::string, DxShader>> GetShaders() const override;
 };
 
 class DXUAPI NLDXBuiltResult : public NLDXBaseResult
 {
 protected:
-    DxShader Shader;
+    std::string Source;
+    std::vector<std::pair<std::string, DxShader>> Shaders;
 public:
-    NLDXBuiltResult(const std::shared_ptr<NLDXContext>& context, DxShader shader);
+    NLDXBuiltResult(const std::shared_ptr<NLDXContext>& context, std::string source, std::vector<std::pair<std::string, DxShader>> shaders);
     ~NLDXBuiltResult() override;
     std::string_view GetNewSource() const noexcept override;
-    DxShader GetShader() const override;
+    common::span<const std::pair<std::string, DxShader>> GetShaders() const override;
 };
 
 class DXUAPI NLDXBuildFailResult : public NLDXUnBuildResult
@@ -178,7 +179,7 @@ protected:
 public:
     NLDXBuildFailResult(const std::shared_ptr<NLDXContext>& context, std::string&& source, std::shared_ptr<common::ExceptionBasicInfo> ex);
     ~NLDXBuildFailResult() override;
-    DxShader GetShader() const override;
+    common::span<const std::pair<std::string, DxShader>> GetShaders() const override;
 };
 
 
