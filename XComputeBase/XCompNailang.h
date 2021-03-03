@@ -283,6 +283,7 @@ class XCOMPBASAPI XCNLExtension
     friend XCNLProgStub;
 protected:
     XCNLContext& Context;
+    struct RuntimeCaller;
 public:
     XCNLExtension(XCNLContext& context);
     virtual ~XCNLExtension();
@@ -458,6 +459,14 @@ public:
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();
+};
+
+struct XCNLExtension::RuntimeCaller : public XCNLRuntime
+{
+public:
+    using XCNLRuntime::HandleException;
+    using XCNLRuntime::EvaluateFuncArgs;
+    using XCNLRuntime::EvaluateFirstFuncArg;
 };
 
 

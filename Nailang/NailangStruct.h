@@ -99,7 +99,7 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
     using PartType = std::pair<uint16_t, uint16_t>;
     [[nodiscard]] constexpr operator std::u32string_view() const noexcept
     {
-        return { Ptr, Length };
+        return FullName();
     }
     [[nodiscard]] constexpr bool operator==(const PartedName& other) const noexcept
     {
@@ -111,39 +111,39 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
     }
     [[nodiscard]] constexpr bool operator==(const std::u32string_view other) const noexcept
     {
-        return other == *this;
+        return other == FullName();
     }
     [[nodiscard]] std::u32string_view operator[](size_t index) const noexcept
     {
         if (index >= PartCount)
             return {};
         if (PartCount == 1)
-            return *this;
+            return FullName();
         const auto parts = reinterpret_cast<const PartType*>(this + 1);
         const auto [offset, len] = parts[index];
         return { Ptr + offset, len };
     }
-    std::u32string_view FullName() const noexcept
+    [[nodiscard]] constexpr std::u32string_view FullName() const noexcept
     {
-        return *this;
+        return { Ptr, Length };
     }
-    std::u32string_view GetRest(const uint32_t index) const noexcept
+    [[nodiscard]] std::u32string_view GetRest(const uint32_t index) const noexcept
     {
         if (index >= PartCount)
             return {};
         if (index == 0)
-            return *this;
+            return FullName();
         const auto parts = reinterpret_cast<const PartType*>(this + 1);
         const auto offset = parts[index].first;
         return { Ptr + offset, Length - offset };
     }
-    std::u32string_view GetRange(const uint32_t from, const uint32_t to) const noexcept
+    [[nodiscard]] std::u32string_view GetRange(const uint32_t from, const uint32_t to) const noexcept
     {
         Expects(to > from);
         if (to > PartCount)
             return {};
         if (PartCount == 1)
-            return *this;
+            return FullName();
         const auto parts = reinterpret_cast<const PartType*>(this + 1);
         const uint32_t idxF = parts[from].first, idxT = parts[to].first - 1;
         return { Ptr + idxF, static_cast<size_t>(idxT - idxF) };

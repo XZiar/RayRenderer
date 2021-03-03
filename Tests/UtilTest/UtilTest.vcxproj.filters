@@ -51,12 +51,18 @@
     <ClCompile Include="DXStub.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="XCompCommon.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="XCompCommon.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

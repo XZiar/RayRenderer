@@ -231,10 +231,12 @@
     <ClCompile Include="NailangTest.cpp" />
     <ClCompile Include="UtilTest.cpp" />
     <ClCompile Include="WdHostTest.cpp" />
+    <ClCompile Include="XCompCommon.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
     <ClInclude Include="TestRely.h" />
+    <ClInclude Include="XCompCommon.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ColorLUT.glsl" />

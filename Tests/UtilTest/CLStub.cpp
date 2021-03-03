@@ -1,4 +1,5 @@
 #include "TestRely.h"
+#include "XCompCommon.h"
 #include "XComputeBase/XCompNailang.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclNLCL.h"
@@ -38,231 +39,69 @@ static MiniLogger<false>& log()
 
 namespace
 {
-using namespace xziar::nailang;
-using namespace xcomp;
 
-struct RunArgInfo
+struct CLStubHelper : public XCStubHelper
 {
-    enum class ArgType : uint16_t { Buffer, Image, Val8, Val16, Val32, Val64 };
-    ArgFlags Flags;
-    uint32_t Val0;
-    uint32_t Val1;
-    ArgType Type;
-    constexpr RunArgInfo(const ArgFlags& flags) noexcept : Flags(flags), Val0(0), Val1(0), Type([](auto type) 
-            {
-            switch (type)
-            {
-            case KerArgType::Buffer: return ArgType::Buffer;
-            case KerArgType::Image:  return ArgType::Image;
-            case KerArgType::Simple:
-            case KerArgType::Any:
-            default:                 return ArgType::Val32;
-            }
-            }(Flags.ArgType)) 
-    { }
-    constexpr bool CheckType(ArgType type) const noexcept
+    struct NLCLContext_ : public NLCLContext
     {
-        switch (Flags.ArgType)
+        friend CLStubHelper;
+    };
+    ~CLStubHelper() override { }
+    static KernelArgInfo GetArgInfo(const RunArgInfo& info) noexcept
+    {
+        const auto& args = *reinterpret_cast<const KernelArgStore*>(static_cast<uintptr_t>(info.Meta0));
+        return args[info.Meta1];
+    }
+    const void* TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const final
+    {
+        auto& ctx = static_cast<NLCLContext_&>(context);
+        for (const auto& [kname, karg] : ctx.CompiledKernels)
         {
-        case KerArgType::Buffer: return type == ArgType::Buffer;
-        case KerArgType::Image:  return type == ArgType::Image;
-        case KerArgType::Simple: return type != ArgType::Buffer && type != ArgType::Image;
-        case KerArgType::Any:    
+            if (name == kname)
+            {
+                return &karg;
+            }
+        }
+        return nullptr;
+    }
+    void FillArgs(std::vector<RunArgInfo>& dst, const void* cookie) const final
+    {
+        const auto& args = *reinterpret_cast<const KernelArgStore*>(cookie);
+        const uint64_t meta0 = reinterpret_cast<uintptr_t>(cookie);
+        dst.reserve(args.GetSize());
+        uint32_t idx = 0;
+        for (const auto& arg : args)
+        {
+            dst.emplace_back(meta0, idx++, [](const auto type) 
+                {
+                    switch (type)
+                    {
+                    case KerArgType::Buffer: return RunArgInfo::ArgType::Buffer;
+                    case KerArgType::Image:  return RunArgInfo::ArgType::Image;
+                    case KerArgType::Simple:
+                    case KerArgType::Any:
+                    default:                 return RunArgInfo::ArgType::Val32;
+                    }
+                }(arg.ArgType));
+        }
+    }
+    bool CheckType(const RunArgInfo& dst, RunArgInfo::ArgType type) const noexcept final
+    {
+        switch (GetArgInfo(dst).ArgType)
+        {
+        case KerArgType::Buffer: return type == RunArgInfo::ArgType::Buffer;
+        case KerArgType::Image:  return type == RunArgInfo::ArgType::Image;
+        case KerArgType::Simple: return type != RunArgInfo::ArgType::Buffer && type != RunArgInfo::ArgType::Image;
+        case KerArgType::Any:
         default:                 return false;
         }
     }
-    static constexpr std::u16string_view GetTypeName(const ArgType type) noexcept
+    std::string_view GetRealTypeName(const RunArgInfo& info) const noexcept final
     {
-        switch (type)
-        {
-        case ArgType::Buffer:   return u"Buffer"sv;
-        case ArgType::Image:    return u"Image"sv;
-        case ArgType::Val8:     return u"Val8"sv;
-        case ArgType::Val16:    return u"Val16"sv;
-        case ArgType::Val32:    return u"Val32"sv;
-        case ArgType::Val64:    return u"Val64"sv;
-        default:                return u"unknwon"sv;
-        }
+        return GetArgInfo(info).GetArgTypeName();
     }
 };
-
-struct RunConfig 
-{
-    std::u32string Name;
-    std::string KernelName;
-    std::vector<RunArgInfo> Args;
-    std::array<size_t, 3> WgSize;
-    std::array<size_t, 3> LcSize;
-    RunConfig(std::u32string_view name, std::string kerName, const KernelArgStore& args) noexcept : 
-        Name(name), KernelName(kerName), WgSize{ 0,0,0 }, LcSize{ 0,0,0 }
-    {
-        Args.reserve(args.GetSize());
-        for (const auto& arg : args)
-        {
-            Args.emplace_back(arg);
-        }
-    }
-};
-struct RunInfo
-{
-    std::deque<RunConfig> Configs; // in case add invalids reference
-};
-
-struct ArgWrapperHandler : public CustomVar::Handler
-{
-    static ArgWrapperHandler Handler;
-    static CustomVar CreateBuffer(uint32_t size)
-    {
-        return { &Handler, size, size, common::enum_cast(RunArgInfo::ArgType::Buffer) };
-    }
-    static CustomVar CreateImage(uint32_t w, uint32_t h)
-    {
-        return { &Handler, w, h, common::enum_cast(RunArgInfo::ArgType::Image) };
-    }
-    static CustomVar CreateVal8(uint8_t val)
-    {
-        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val8) };
-    }
-    static CustomVar CreateVal16(uint16_t val)
-    {
-        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val16) };
-    }
-    static CustomVar CreateVal32(uint32_t val)
-    {
-        return { &Handler, val, val, common::enum_cast(RunArgInfo::ArgType::Val32) };
-    }
-    static CustomVar CreateVal64(uint64_t val)
-    {
-        return { &Handler, val >> 32, static_cast<uint32_t>(val & UINT32_MAX), common::enum_cast(RunArgInfo::ArgType::Val64) };
-    }
-};
-ArgWrapperHandler ArgWrapperHandler::Handler;
-
-struct RunConfigVar : public AutoVarHandler<RunConfig>
-{
-    RunConfigVar() : AutoVarHandler<RunConfig>(U"RunConfig"sv)
-    {
-        AddCustomMember(U"WgSize"sv, [](RunConfig& conf) 
-            {
-                return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
-            }).SetConst(false);
-        AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
-            {
-                return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
-            }).SetConst(false);
-        AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
-            {
-                return common::to_span(conf.Args);
-            }, [](auto& argHandler) 
-            {
-                argHandler.SetAssigner([](RunArgInfo& arg, Arg val)
-                {
-                    if (!val.IsCustomType<ArgWrapperHandler>())
-                        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
-                    const auto& var = val.GetCustom();
-                    const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
-                    if (!arg.CheckType(type))
-                        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]", 
-                            arg.Flags.GetArgTypeName(), RunArgInfo::GetTypeName(type)));
-                    arg.Val0 = static_cast<uint32_t>(var.Meta0);
-                    arg.Val1 = static_cast<uint32_t>(var.Meta1);
-                    arg.Type = type;
-                });
-            }).SetConst(false);
-    }
-    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept override
-    {
-        if (type == Arg::Type::Bool)
-            return true;
-        return {};
-    }
-    static RunConfigVar Handler;
-};
-RunConfigVar RunConfigVar::Handler;
-
-
-struct CLStubExtension : public XCNLExtension
-{
-private:
-    struct NLCLRuntime_ : public NLCLRuntime
-    {
-        friend CLStubExtension;
-    };
-    struct NLCLContext_ : public NLCLContext
-    {
-        friend CLStubExtension;
-    };
-    NLCLContext_& Context;
-    RunInfo& Info;
-public:
-    CLStubExtension(XCNLContext& context, RunInfo& info) : XCNLExtension(context), Context(static_cast<NLCLContext_&>(context)), Info(info)
-    { }
-    ~CLStubExtension() override { }
-
-    void  BeginXCNL(XCNLRuntime&) override { }
-    void FinishXCNL(XCNLRuntime&) override { }
-    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>) override
-    {
-        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-        if ((*call.Name)[0] == U"clstub"sv)
-        {
-            const auto sub = (*call.Name)[1];
-            if (sub == U"AddRun"sv)
-            {
-                const auto args    = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::String, Arg::Type::String });
-                const auto name    = args[0].GetStr().value();
-                const auto kerName = common::str::to_string(args[1].GetStr().value(), Charset::UTF8);
-                for (const auto& [kname, karg] : Context.CompiledKernels)
-                {
-                    if (kerName == kname)
-                    {
-                        auto& config = Info.Configs.emplace_back(name, kerName, karg);
-                        return RunConfigVar::Handler.CreateVar(config);
-                    }
-                }
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
-            }
-            else if (sub == U"BufArg"sv)
-            {
-                const auto size = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
-                return ArgWrapperHandler::CreateBuffer(gsl::narrow_cast<uint32_t>(size));
-            }
-            else if (sub == U"ImgArg"sv)
-            {
-                const auto args = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::Integer, Arg::Type::Integer });
-                const auto width  = gsl::narrow_cast<uint32_t>(args[0].GetUint().value());
-                const auto height = gsl::narrow_cast<uint32_t>(args[1].GetUint().value());
-                return ArgWrapperHandler::CreateImage(width, height);
-            }
-            else if (sub == U"ValArg"sv)
-            {
-                const auto type = (*call.Name)[2];
-                if (type == U"u8")
-                {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
-                    return ArgWrapperHandler::CreateVal8(gsl::narrow_cast<uint8_t>(val));
-                }
-                else if (type == U"u16")
-                {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
-                    return ArgWrapperHandler::CreateVal16(gsl::narrow_cast<uint16_t>(val));
-                }
-                else if (type == U"u32")
-                {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
-                    return ArgWrapperHandler::CreateVal32(gsl::narrow_cast<uint32_t>(val));
-                }
-                else if (type == U"u64")
-                {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
-                    return ArgWrapperHandler::CreateVal64(gsl::narrow_cast<uint64_t>(val));
-                }
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type));
-            }
-        }
-        return {};
-    }
-};
+static CLStubHelper StubHelper;
 
 }
 
@@ -463,7 +302,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
         {
             static const NLCLProcessor NLCLProc;
             const auto prog = NLCLProc.Parse(common::as_bytes(common::to_span(kertxt)), filepath.u16string());
-            prog->AttachExtension([&](auto&, auto& ctx) { return std::make_unique<CLStubExtension>(ctx, runInfo); });
+            prog->AttachExtension([&](auto&, auto& ctx) { return StubHelper.GenerateExtension(ctx, runInfo); });
             nlclRes = NLCLProc.CompileProgram(prog, ctx, dev, {}, config);
             common::file::WriteAll(fpath + ".cl", nlclRes->GetNewSource());
             clProg = nlclRes->GetProgram();
