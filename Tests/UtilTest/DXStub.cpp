@@ -1,10 +1,12 @@
 #include "TestRely.h"
+#include "XCompCommon.h"
 #include "DirectXUtil/DxDevice.h"
 #include "DirectXUtil/DxCmdQue.h"
 #include "DirectXUtil/DxBuffer.h"
 #include "DirectXUtil/DxShader.h"
 #include "DirectXUtil/DxProgram.h"
 #include "DirectXUtil/NLDX.h"
+#include "DirectXUtil/NLDXRely.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "StringUtil/Convert.h"
 #include "common/Linq2.hpp"
@@ -24,6 +26,135 @@ static MiniLogger<false>& log()
 {
     static MiniLogger<false> logger(u"DXStub", { GetConsoleBackend() });
     return logger;
+}
+
+namespace
+{
+using namespace xcomp;
+
+struct DXStubHelper : public XCStubHelper
+{
+    struct NLDXContext_ : public NLDXContext
+    {
+        friend DXStubHelper;
+    };
+    struct KerArg
+    {
+        const NLDXContext_& Ctx;
+        std::variant<const ResourceInfo*, const ConstantInfo*> Obj;
+        KerArg(const RunArgInfo& info) noexcept : Ctx(*reinterpret_cast<NLDXContext_*>(static_cast<uintptr_t>(info.Meta0)))
+        {
+            if (info.Meta1 & 0x80000000)
+            {
+                Obj = &(Ctx.ShaderConstants[info.Meta1 & 0x7fffffff]);
+            }
+            else
+            {
+                Obj = &(Ctx.BindResoures[info.Meta1]);
+            }
+        }
+        constexpr bool IsSimple() const noexcept 
+        { 
+            return Obj.index() == 1;
+        }
+        constexpr bool IsTex() const noexcept 
+        { 
+            return Obj.index() == 0 && std::get<0>(Obj)->TexType != InstanceArgInfo::TexTypes::Empty;
+        }
+        std::string_view GetName() const noexcept
+        {
+            if (Obj.index() == 0)
+                return Ctx.StrPool.GetStringView(std::get<0>(Obj)->Name);
+            else
+                return Ctx.StrPool.GetStringView(std::get<1>(Obj)->Name);
+        }
+        std::string_view GetDataType() const noexcept
+        {
+            if (Obj.index() == 0)
+                return Ctx.StrPool.GetStringView(std::get<0>(Obj)->DataType);
+            else
+                return Ctx.StrPool.GetStringView(std::get<1>(Obj)->DataType);
+        }
+    };
+    ~DXStubHelper() override { }
+    std::any TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const final
+    {
+        auto& ctx = static_cast<NLDXContext_&>(context);
+        const auto name32 = common::str::to_u32string(name);
+        size_t idx = 0;
+        for (const auto& kname : ctx.KernelNames)
+        {
+            if (name32 == kname)
+            {
+                return std::make_pair(&ctx, idx);
+            }
+            idx++;
+        }
+        return {};
+    }
+    void FillArgs(std::vector<RunArgInfo>& dst, const std::any& cookie) const final
+    {
+        const auto [ctx, kidx] = std::any_cast<std::pair<NLDXContext_*, size_t>>(cookie);
+        const auto kch = static_cast<char>(kidx);
+        const uint64_t meta0 = reinterpret_cast<uintptr_t>(ctx);
+        uint32_t idx = 0;
+        for (const auto& res : ctx->BindResoures)
+        {
+            if (res.KernelIds.find(kch) != std::string::npos)
+            {
+                dst.emplace_back(meta0, idx, [](const auto& res)
+                    {
+                        if (res.TexType != InstanceArgInfo::TexTypes::Empty)
+                            return RunArgInfo::ArgType::Image;
+                        return RunArgInfo::ArgType::Buffer;
+                    }(res));
+            }
+            idx++;
+        }
+        idx = 0x80000000;
+        for (const auto& res : ctx->ShaderConstants)
+        {
+            if (res.KernelIds.find(kch) != std::string::npos)
+            {
+                dst.emplace_back(meta0, idx, RunArgInfo::ArgType::Val32);
+            }
+            idx++;
+        }
+    }
+    std::optional<size_t> FindArgIdx(common::span<const RunArgInfo> args, std::string_view name) const final
+    {
+        size_t idx = 0;
+        for (const auto& arg : args)
+        {
+            if (const KerArg tmp(arg); tmp.GetName() == name)
+                return idx;
+            idx++;
+        }
+        return {};
+    }
+    bool CheckType(const RunArgInfo& dst, RunArgInfo::ArgType type) const noexcept final
+    {
+        const KerArg tmp(dst);
+        if (tmp.IsSimple())
+            return type != RunArgInfo::ArgType::Buffer && type != RunArgInfo::ArgType::Image;
+        if (tmp.IsTex())
+            return type == RunArgInfo::ArgType::Image;
+        else
+            return type == RunArgInfo::ArgType::Buffer;
+    }
+    std::string_view GetRealTypeName(const RunArgInfo& info) const noexcept final
+    {
+        const KerArg tmp(info);
+        if (tmp.IsSimple())
+            return tmp.GetDataType();
+        if (tmp.IsTex())
+            return InstanceArgInfo::GetTexTypeName(std::get<0>(tmp.Obj)->TexType);
+        else
+            return dxu::detail::GetBoundedResTypeName(std::get<0>(tmp.Obj)->Type);
+    }
+};
+static DXStubHelper StubHelper;
+
 }
 
 
@@ -151,11 +282,12 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
         DxShaderConfig config;
         std::unique_ptr<NLDXResult> nldxRes;
         std::vector<std::pair<std::string, DxShader>> shaders;
+        RunInfo runInfo;
         if (isNLDX)
         {
             static const NLDXProcessor NLDXProc;
             const auto prog = NLDXProc.Parse(common::as_bytes(common::to_span(kertxt)), filepath.u16string());
-            //prog->AttachExtension([&](auto&, auto& ctx) { return std::make_unique<CLStubExtension>(ctx, runInfo); });
+            prog->AttachExtension([&](auto&, auto& ctx) { return StubHelper.GenerateExtension(ctx, runInfo); });
             nldxRes = NLDXProc.CompileShader(prog, dev, {}, config);
             common::file::WriteAll(fpath + ".hlsl", nldxRes->GetNewSource());
             shaders.assign(nldxRes->GetShaders().begin(), nldxRes->GetShaders().end());

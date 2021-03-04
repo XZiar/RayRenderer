@@ -1277,6 +1277,7 @@ protected:
     common::HashedStringPool<char32_t> NamePool;
     std::vector<std::pair<common::StringPiece<char32_t>, Accessor>> MemberList;
     std::function<void(void*, Arg)> Assigner;
+    std::function<std::optional<size_t>(void*, size_t, const Arg&)> ExtendIndexer;
     AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize);
     Accessor* FindMember(std::u32string_view name, bool create = false);
     template<typename T>
@@ -1417,6 +1418,18 @@ public:
             }*/
         };
     }
+    template<typename F>
+    void SetExtendIndexer(F&& indexer)
+    {
+        static_assert(std::is_invocable_r_v<std::optional<size_t>, F, common::span<const T>, const Arg&>, 
+            "indexer should accept span<T>, Arg, RawArg and return index");
+        ExtendIndexer = [indexer = std::move(indexer)](void* ptr, size_t len, const Arg& val)
+        {
+            const auto host = common::span<const T>(reinterpret_cast<const T*>(ptr), len);
+            return indexer(host, val);
+        };
+    }
+
     CustomVar CreateVar(const T& obj)
     {
         const auto ptr     = reinterpret_cast<uintptr_t>(&obj);

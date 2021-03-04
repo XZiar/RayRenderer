@@ -7,6 +7,20 @@ using namespace std::string_view_literals;
 using common::str::Charset;
 
 
+std::u16string_view RunArgInfo::GetTypeName(const ArgType type) noexcept
+{
+    using namespace std::string_view_literals;
+    switch (type)
+    {
+    case ArgType::Buffer:   return u"Buffer"sv;
+    case ArgType::Image:    return u"Image"sv;
+    case ArgType::Val8:     return u"Val8"sv;
+    case ArgType::Val16:    return u"Val16"sv;
+    case ArgType::Val32:    return u"Val32"sv;
+    case ArgType::Val64:    return u"Val64"sv;
+    default:                return u"unknwon"sv;
+    }
+}
 
 ArgWrapperHandler ArgWrapperHandler::Handler;
 
@@ -39,6 +53,12 @@ XCStubHelper::RunConfigVar::RunConfigVar(const XCStubHelper& helper) :
                     arg.Val0 = static_cast<uint32_t>(var.Meta0);
                     arg.Val1 = static_cast<uint32_t>(var.Meta1);
                     arg.Type = type;
+                });
+            argHandler.SetExtendIndexer([&](common::span<const RunArgInfo> all, const Arg& idx) -> std::optional<size_t>
+                {
+                    if (idx.IsStr())
+                        return Helper.FindArgIdx(all, common::str::to_string(idx.GetStr().value(), Charset::UTF8));
+                    return {};
                 });
         }).SetConst(false);
 }
@@ -76,7 +96,7 @@ public:
                 const auto name = args[0].GetStr().value();
                 const auto kerName = common::str::to_string(args[1].GetStr().value(), Charset::UTF8);
                 const auto cookie = Helper.TryFindKernel(Context, kerName);
-                if (!cookie)
+                if (!cookie.has_value())
                     COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
                 auto& config = Info.Configs.emplace_back(name, kerName);
                 Helper.FillArgs(config.Args, cookie);

@@ -16,20 +16,7 @@ struct RunArgInfo
     constexpr RunArgInfo(uint64_t meta0, uint32_t meta1, ArgType type) noexcept : 
         Meta0(meta0), Meta1(meta1), Val0(0), Val1(0), Type(type)
     { }
-    static constexpr std::u16string_view GetTypeName(const ArgType type) noexcept
-    {
-        using namespace std::string_view_literals;
-        switch (type)
-        {
-        case ArgType::Buffer:   return u"Buffer"sv;
-        case ArgType::Image:    return u"Image"sv;
-        case ArgType::Val8:     return u"Val8"sv;
-        case ArgType::Val16:    return u"Val16"sv;
-        case ArgType::Val32:    return u"Val32"sv;
-        case ArgType::Val64:    return u"Val64"sv;
-        default:                return u"unknwon"sv;
-        }
-    }
+    static std::u16string_view GetTypeName(const ArgType type) noexcept;
 };
 
 
@@ -89,8 +76,9 @@ private:
     };
     struct XCStubExtension;
     mutable RunConfigVar RunConfigHandler;
-    virtual const void* TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const = 0;
-    virtual void FillArgs(std::vector<RunArgInfo>& dst, const void* cookie) const = 0;
+    virtual std::any TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const = 0;
+    virtual void FillArgs(std::vector<RunArgInfo>& dst, const std::any& cookie) const = 0;
+    virtual std::optional<size_t> FindArgIdx(common::span<const RunArgInfo> args, std::string_view name) const = 0;
     virtual bool CheckType(const RunArgInfo& dst, RunArgInfo::ArgType type) const noexcept = 0;
     virtual std::string_view GetRealTypeName(const RunArgInfo& info) const noexcept = 0;
 public:

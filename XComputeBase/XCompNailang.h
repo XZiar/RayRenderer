@@ -164,6 +164,7 @@ struct InstanceArgInfo
     Flags Flag;
     InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype, 
         const std::vector<xziar::nailang::Arg>& args);
+    XCOMPBASAPI static std::string_view GetTexTypeName(const TexTypes type) noexcept;
 };
 MAKE_ENUM_BITFIELD(InstanceArgInfo::Flags)
 struct InstanceArgData;

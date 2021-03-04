@@ -1,6 +1,5 @@
 #include "TestRely.h"
 #include "XCompCommon.h"
-#include "XComputeBase/XCompNailang.h"
 #include "OpenCLUtil/OpenCLUtil.h"
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclNLCLRely.h"
@@ -52,7 +51,7 @@ struct CLStubHelper : public XCStubHelper
         const auto& args = *reinterpret_cast<const KernelArgStore*>(static_cast<uintptr_t>(info.Meta0));
         return args[info.Meta1];
     }
-    const void* TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const final
+    std::any TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const final
     {
         auto& ctx = static_cast<NLCLContext_&>(context);
         for (const auto& [kname, karg] : ctx.CompiledKernels)
@@ -62,15 +61,15 @@ struct CLStubHelper : public XCStubHelper
                 return &karg;
             }
         }
-        return nullptr;
+        return {};
     }
-    void FillArgs(std::vector<RunArgInfo>& dst, const void* cookie) const final
+    void FillArgs(std::vector<RunArgInfo>& dst, const std::any& cookie) const final
     {
-        const auto& args = *reinterpret_cast<const KernelArgStore*>(cookie);
-        const uint64_t meta0 = reinterpret_cast<uintptr_t>(cookie);
-        dst.reserve(args.GetSize());
+        const auto args = std::any_cast<const KernelArgStore*>(cookie);
+        const uint64_t meta0 = reinterpret_cast<uintptr_t>(args);
+        dst.reserve(args->GetSize());
         uint32_t idx = 0;
-        for (const auto& arg : args)
+        for (const auto& arg : *args)
         {
             dst.emplace_back(meta0, idx++, [](const auto type) 
                 {
@@ -84,6 +83,17 @@ struct CLStubHelper : public XCStubHelper
                     }
                 }(arg.ArgType));
         }
+    }
+    std::optional<size_t> FindArgIdx(common::span<const RunArgInfo> args, std::string_view name) const final
+    {
+        size_t idx = 0;
+        for (const auto& arg : args)
+        {
+            if (GetArgInfo(arg).Name == name)
+                return idx;
+            idx++;
+        }
+        return {};
     }
     bool CheckType(const RunArgInfo& dst, RunArgInfo::ArgType type) const noexcept final
     {

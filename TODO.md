@@ -87,6 +87,7 @@
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
   - [ ] Add common interface for texture/buffer, SRV/UAV
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
+  - [ ] Make better design with prefix deprendency, prefix generator should be able to register multiple dependencies
 
 * OpenGLUtil
   - [x] Implement FrameBuffer

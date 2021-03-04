@@ -160,7 +160,20 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         case SubQuery::QueryType::Index:
         {
             const auto idx  = EvaluateArg(runtime, query);
-            const auto tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
+            size_t tidx = 0;
+            if (ExtendIndexer)
+            {
+                const auto idx_ = ExtendIndexer(reinterpret_cast<void*>(var.Meta0), var.Meta1, idx);
+                if (idx_.has_value())
+                    tidx = *idx_;
+                else
+                    COMMON_THROW(NailangRuntimeException,
+                        FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idx.ToString().StrView(), var.Meta1), query);
+            }
+            else
+            {
+                tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
+            }
             const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
             const auto flag = nonConst ? ArgLocator::LocateFlags::ReadWrite : ArgLocator::LocateFlags::ReadOnly;
             return { CustomVar{ var.Host, ptr, UINT32_MAX, var.Meta2 }, 1, flag };

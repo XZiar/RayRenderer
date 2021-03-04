@@ -228,6 +228,18 @@ InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_vi
         }
     }
 }
+std::string_view InstanceArgInfo::GetTexTypeName(const TexTypes type) noexcept
+{
+    switch (type)
+    {
+    case TexTypes::Tex1D:       return "Tex1D"sv;
+    case TexTypes::Tex2D:       return "Tex2D"sv;
+    case TexTypes::Tex3D:       return "Tex3D"sv;
+    case TexTypes::Tex1DArray:  return "Tex1DArray"sv;
+    case TexTypes::Tex2DArray:  return "Tex2DArray"sv;
+    default:                    return "Empty"sv;
+    }
+}
 
 
 struct InstanceArgData
