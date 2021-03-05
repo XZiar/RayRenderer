@@ -703,15 +703,47 @@ namespace common
 #if defined(__cpp_lib_variant)
 template <typename> struct variant_tag { };
 template <typename T, typename... Ts>
-inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>)
+inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>) noexcept
 {
     return std::variant<variant_tag<Ts>...>(variant_tag<T>()).index();
 }
 template <typename T, typename V>
-inline constexpr size_t get_variant_index_v()
+inline constexpr size_t get_variant_index_v() noexcept
 {
     return get_variant_index<T>(variant_tag<V>());
 }
+
+template<typename V>
+struct VariantHelper
+{
+    static constexpr auto Indexes = std::make_index_sequence<std::variant_size_v<V>>{};
+    template<typename U, size_t... I>
+    static constexpr bool Contains_(std::index_sequence<I...>) noexcept
+    {
+        return (std::is_same_v<std::variant_alternative_t<I, V>, U> || ...);
+    }
+    template<typename U>
+    static constexpr bool Contains() noexcept
+    {
+        return Contains_<U>(Indexes);
+    }
+    template<typename V2, size_t... I>
+    static constexpr bool ContainsAll_(std::index_sequence<I...>) noexcept
+    {
+        return (Contains<std::variant_alternative_t<I, V2>>() && ...);
+    }
+    template<typename V2>
+    static constexpr bool ContainsAll() noexcept
+    {
+        return ContainsAll_<V2>(std::make_index_sequence<std::variant_size_v<V2>>{});
+    }
+    template<typename V2>
+    static constexpr V Convert(V2&& var)
+    {
+        static_assert(ContainsAll<V2>(), "Not all types in V2 exists in V");
+        return std::visit([](auto&& arg) -> V { return std::forward<decltype(arg)>(arg); }, var);
+    }
+};
 #endif
 }
 

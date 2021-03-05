@@ -1048,16 +1048,16 @@ struct RawBlock : public WithPos
 using RawBlockWithMeta = WithMeta<RawBlock>;
 struct Block;
 
-enum class NilCheck : uint8_t { None = 0, ReqNull = 0x1, ReqNotNull = 0x2 };
 struct Assignment : public WithPos
 {
+    enum class NilCheck : uint8_t { ReqNotNull, SkipNotNull, ThrowNotNull };
     LateBindVar Target;
     SubQuery Queries;
     RawArg Statement;
-    NilCheck CheckNil;
+    NilCheck Check;
 
     constexpr Assignment(std::u32string_view name) noexcept :
-        Target(name), CheckNil(NilCheck::None) { }
+        Target(name), Check(NilCheck::ReqNotNull) { }
 
     constexpr std::u32string_view GetVar() const noexcept
     { 

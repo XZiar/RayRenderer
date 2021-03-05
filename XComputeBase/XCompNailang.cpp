@@ -22,7 +22,6 @@ using xziar::nailang::NativeWrapper;
 using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
-using xziar::nailang::FrameFlags;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
@@ -767,6 +766,11 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     if (block.ReplaceFunc)
         source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv, &cookie);
     dst.append(source.StrView());
+}
+
+void XCNLRuntime::ProcessStruct(const Block& block, common::span<const FuncCall> metas)
+{
+
 }
 
 void XCNLRuntime::ProcessInstance(BlockCookie& cookie)

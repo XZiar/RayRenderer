@@ -542,6 +542,32 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const R
 }
 
 
+constexpr bool NailangRuntimeBase::StackFrame::Has(FrameFlags flag) const noexcept 
+{ 
+    return HAS_FIELD(Flags, flag);
+}
+constexpr bool NailangRuntimeBase::StackFrame::IsInLoop() const noexcept
+{
+    for (auto frame = this; frame; frame = frame->PrevFrame)
+    {
+        if (HAS_FIELD(frame->Flags, FrameFlags::FlowScope)) // cannot pass flow scope
+            return false;
+        if (HAS_FIELD(frame->Flags, FrameFlags::InLoop))
+            return true;
+    }
+    return false;
+}
+constexpr NailangRuntimeBase::StackFrame* NailangRuntimeBase::StackFrame::GetCallScope() noexcept
+{
+    for (auto frame = this; frame; frame = frame->PrevFrame)
+    {
+        if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
+            return frame;
+    }
+    return nullptr;
+}
+
+
 NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const FrameFlags flags) :
     Host(*host), Frame(host->CurFrame, ctx, flags)
 {
@@ -838,7 +864,7 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     case BlockContent::Type::Assignment:
     {
         const auto& assign = *content.Get<Assignment>();
-        SetArg(assign.Target, assign.Queries, assign.Statement, assign.CheckNil);
+        SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
     } break;
     case BlockContent::Type::Block:
     {
@@ -990,25 +1016,20 @@ ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool crea
     }
     if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Local))
     {
-        if (!CurFrame)
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
-        else if (CurFrame->Has(FrameFlags::Virtual))
-            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] in a virtual frame", var));
-        else
+        if (CurFrame)
             return CurFrame->Context->LocateArg(var, create);
+        else
+            NLRT_THROW_EX(FMTSTR(u"LookUpLocalArg [{}] without frame", var));
         return {};
     }
 
     // Try find arg recursively
     for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
     {
-        if (!frame->Has(FrameFlags::Virtual))
-        {
-            if (auto ret = frame->Context->LocateArg(var, create); ret)
-                return ret;
-        }
-        //if (frame->Has(FrameFlags::CallScope))
-        //    break; // cannot beyond  
+        if (auto ret = frame->Context->LocateArg(var, create); ret)
+            return std::move(ret);
+        if (frame->Has(FrameFlags::CallScope))
+            break; // cannot beyond  
     }
     return RootContext->LocateArg(var, create);
 }
@@ -1064,8 +1085,10 @@ Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
         NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
     return ret.ExtractGet();
 }
-bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck)
+bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, Assignment::NilCheck nilCheck)
 {
+    // detail::ExceptionTarget kk(arg);
+    // constexpr auto kkk = common::detail::VariantHelper<detail::ExceptionTarget::VType>::template ContainsAll<std::variant<Arg, RawArg>>();
     const auto DirectSet = [&](auto&& target)
     {
         if (!target.CanAssign())
@@ -1076,54 +1099,46 @@ bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::vari
             return target.Set(EvaluateArg(std::get<1>(arg)));
     };
     auto ret = LocateArg(var, false);
-    switch (nilCheck)
+    if (nilCheck != Assignment::NilCheck::ReqNotNull)
     {
-    case NilCheck::ReqNull:
         Expects(subq.Size() == 0);
-        if (ret) // not null, skip
-            return false;
-        else
-            return DirectSet(LocateArg(var, true));
-    case NilCheck::ReqNotNull:
-        if (!ret)
+        if (ret) // not null
         {
-            std::u16string msg;
-            if (subq.Size() > 0)
-            {
-                msg = u", expect perform subquery on it"sv;
-            }
-            else if (arg.index() == 1 && std::get<1>(arg).TypeData == RawArg::Type::Binary)
-            {
-                const auto op = std::get<1>(arg).GetVar<RawArg::Type::Binary>()->Operator;
-                msg = FMTSTR(u", expect perform [{}] on it"sv, EmbedOpHelper::GetOpName(op));
-            }
-            NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists{}"sv, var, msg), std::get<1>(arg));
+            if (nilCheck == Assignment::NilCheck::ThrowNotNull)
+                NLRT_THROW_EX(FMTSTR(u"Var [{}] already exists"sv, var), arg);
             return false;
         }
-        break;
-    default:
-        Expects(subq.Size() == 0);
-        if (!ret)
-            return DirectSet(LocateArg(var, true));
-        break;
+        return DirectSet(LocateArg(var, true));
     }
-    Ensures((bool)ret);
+    // Ensures(nilCheck == Assignment::NilCheck::ReqNotNull);
+    if (!ret)
+    {
+        std::u16string msg;
+        if (subq.Size() > 0)
+        {
+            msg = u", expect perform subquery on it"sv;
+        }
+        else if (arg.index() == 1 && std::get<1>(arg).TypeData == RawArg::Type::Binary)
+        {
+            const auto op = std::get<1>(arg).GetVar<RawArg::Type::Binary>()->Operator;
+            msg = FMTSTR(u", expect perform [{}] on it"sv, EmbedOpHelper::GetOpName(op));
+        }
+        NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists{}"sv, var, msg), arg);
+        return false;
+    }
     if (subq.Size() == 0)
-        return DirectSet(std::move(ret));
-
-    return ArgQuery::LocateWrite(ret, subq, *this, DirectSet);
+        return DirectSet(ret);
+    else
+        return ArgQuery::LocateWrite(ret, subq, *this, DirectSet);
 }
 
 LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
 {
     for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
     {
-        if (!frame->Has(FrameFlags::Virtual))
-        {
-            auto func = frame->Context->LookUpFunc(name);
-            if (func.Body != nullptr)
-                return func;
-        }
+        auto func = frame->Context->LookUpFunc(name);
+        if (func.Body != nullptr)
+            return func;
     }
     return RootContext->LookUpFunc(name);
 }
@@ -1131,8 +1146,6 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const RawArg> 
 {
     if (!CurFrame)
         NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
-    else if (CurFrame->Has(FrameFlags::Virtual))
-        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] in a virtual frame", block->Name));
     else
         return CurFrame->Context->SetFunc(block, args);
     return false;
@@ -1141,8 +1154,6 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32
 {
     if (!CurFrame)
         NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
-    else if (CurFrame->Has(FrameFlags::Virtual))
-        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] in a virtual frame", block->Name));
     else
         return CurFrame->Context->SetFunc(block, args);
     return false;
@@ -1316,17 +1327,18 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     return EvaluateUnknwonFunc(call, metas);
 }
 
-Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall>)
+Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas)
 {
     ThrowByArgCount(call, func.ArgNames.size());
 
-    auto newFrame = PushFrame(FrameFlags::FuncCall);
-    CurFrame->BlockScope = func.Body;
-    CurFrame->MetaScope = {};
+    auto newCtx = ConstructEvalContext();
     for (const auto& [varName, rawarg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(call.Args)))
     {
-        CurFrame->Context->LocateArg(varName, true).Set(EvaluateArg(rawarg));
+        newCtx->LocateArg(varName, true).Set(EvaluateArg(rawarg));
     }
+    auto newFrame = PushFrame(std::move(newCtx), FrameFlags::FuncCall);
+    CurFrame->BlockScope = func.Body;
+    CurFrame->MetaScope = metas;
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
 }

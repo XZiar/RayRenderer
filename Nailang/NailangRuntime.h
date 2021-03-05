@@ -116,13 +116,16 @@ namespace detail
 struct ExceptionTarget
 {
     enum class Type { Empty, Arg, RawArg, Assignment, FuncCall, RawBlock, Block };
-    std::variant<std::monostate, BlockContent, Arg, RawArg, const FuncCall*, FuncCall, const RawBlock*, const Block*> Target;
+    using VType = std::variant<std::monostate, BlockContent, Arg, RawArg, const FuncCall*, FuncCall, const RawBlock*, const Block*>;
+    VType Target;
 
     constexpr ExceptionTarget() noexcept {}
     template<typename T>
-    constexpr ExceptionTarget(T&& arg, std::enable_if_t<!std::is_same_v<std::decay_t<T>, ExceptionTarget>>* = nullptr) noexcept 
-        : Target(std::forward<T>(arg)) {}
-    //constexpr ExceptionTarget(ExceptionTarget&& arg) noexcept = default;
+    constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::VariantHelper<VType>::Contains<std::decay_t<T>>()>* = nullptr) noexcept
+        : Target{ std::forward<T>(arg) } {}
+    template<typename T>
+    constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::is_specialization<std::decay_t<T>, std::variant>::value>* = nullptr) noexcept
+        : Target{ common::VariantHelper<VType>::Convert(std::forward<T>(arg)) } {}
 
     [[nodiscard]] constexpr Type GetType() const noexcept
     {
@@ -248,16 +251,6 @@ public:
 
 
 enum class ArgLimits { Exact, AtMost, AtLeast };
-enum class FrameFlags : uint8_t
-{
-    Empty     = 0b00000000,
-    InLoop    = 0b00000001,
-    FlowScope = 0b00000010,
-    CallScope = 0b00000100,
-    FuncCall  = FlowScope | CallScope,
-    Virtual   = 0b00001000,
-};
-MAKE_ENUM_BITFIELD(FrameFlags)
 
 
 struct NAILANGAPI NailangHelper
@@ -273,6 +266,14 @@ class NAILANGAPI NailangRuntimeBase
 public:
     enum class ProgramStatus  : uint8_t { Next, Break, Return, End };
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
+    enum class FrameFlags : uint8_t
+    {
+        Empty     = 0b00000000,
+        InLoop    = 0b00000001,
+        FlowScope = 0b00000010,
+        CallScope = 0b00000100,
+        FuncCall  = FlowScope | CallScope,
+    };
 protected:
     class FrameHolder;
     struct FuncFrame
@@ -298,28 +299,9 @@ protected:
 
         StackFrame(StackFrame* prev, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
             PrevFrame(prev), Context(ctx), Flags(flag) { }
-
-        constexpr bool Has(FrameFlags flag) const noexcept { return HAS_FIELD(Flags, flag); }
-        constexpr bool IsInLoop() const noexcept
-        {
-            for (auto frame = this; frame; frame = frame->PrevFrame)
-            {
-                if (HAS_FIELD(frame->Flags, FrameFlags::FlowScope)) // cannot pass flow scope
-                    return false;
-                if (HAS_FIELD(frame->Flags, FrameFlags::InLoop))
-                    return true;
-            }
-            return false;
-        }
-        constexpr StackFrame* GetCallScope() noexcept
-        {
-            for (auto frame = this; frame; frame = frame->PrevFrame)
-            {
-                if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
-                    return frame;
-            }
-            return nullptr;
-        }
+        constexpr bool Has(FrameFlags flag) const noexcept;
+        constexpr bool IsInLoop() const noexcept;
+        constexpr StackFrame* GetCallScope() noexcept;
     };
     class FCallHost
     {
@@ -427,7 +409,7 @@ protected:
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
-                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck = NilCheck::None);
+                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, Assignment::NilCheck nilCheck);
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
@@ -452,6 +434,9 @@ public:
     Arg EvaluateRawStatement(std::u32string_view content, const bool innerScope = true);
     Arg EvaluateRawStatements(std::u32string_view content, const bool innerScope = true);
 };
+
+MAKE_ENUM_BITFIELD(NailangRuntimeBase::FrameFlags)
+
 
 }
 

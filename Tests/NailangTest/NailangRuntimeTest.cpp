@@ -70,7 +70,7 @@ class NailangRT : public NailangRuntimeBase
 {
 public:
     StackFrame BaseFrame;
-    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, xziar::nailang::FrameFlags::Empty)
+    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, FrameFlags::Empty)
     {
         CurFrame = &BaseFrame;
     }
@@ -90,9 +90,9 @@ public:
     }
     void Assign(const Assignment& assign)
     {
-        SetArg(assign.Target, assign.Queries, assign.Statement, assign.CheckNil);
+        SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
     }
-    void QuickSetArg(std::u32string_view name, RawArg val)
+    void QuickSetArg(std::u32string_view name, RawArg val, bool create = false)
     {
         ParserContext context(name);
         const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
@@ -109,7 +109,7 @@ public:
         Assignment assign(varName);
         assign.Queries = query;
         assign.Statement = val;
-        assign.CheckNil = xziar::nailang::NilCheck::ReqNotNull;
+        assign.Check = (create && query.Size() == 0) ? Assignment::NilCheck::ThrowNotNull : Assignment::NilCheck::ReqNotNull;
         Assign(assign);
     }
     Arg QuickGetArg(std::u32string_view name)
@@ -841,7 +841,10 @@ TEST(NailangRuntime, Assign)
     MemoryPool pool;
     NailangRT runtime;
     {
-        PEAssign(runtime, pool, U"str"sv, U"=\"Hello \";"sv);
+        EXPECT_THROW(PEAssign(runtime, pool, U"str"sv, U"=1;"sv), xziar::nailang::NailangRuntimeException);
+    }
+    {
+        PEAssign(runtime, pool, U"str"sv, U":=\"Hello \";"sv);
         LOOKUP_ARG(runtime, U"str"sv, U32Sv, U"Hello "sv);
     }
     {
@@ -850,7 +853,7 @@ TEST(NailangRuntime, Assign)
     }
     {
         constexpr auto ans = (63 % 4) * (3 + 5.0);
-        PEAssign(runtime, pool, U"ans"sv, U"= (63 % 4) * (3 + 5.0);"sv);
+        PEAssign(runtime, pool, U"ans"sv, U":= (63 % 4) * (3 + 5.0);"sv);
         LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
     {
@@ -919,7 +922,7 @@ TEST(NailangRuntime, gcd1)
     NailangRT runtime;
 
     constexpr auto gcdTxt = UR"(
-tmp = 1;
+tmp := 1;
 @While(tmp != 0)
 #Block("")
 {
@@ -963,7 +966,7 @@ TEST(NailangRuntime, gcd2)
 @While(true)
 #Block("")
 {
-    :tmp = m % n;
+    :tmp := m % n;
     m = n;
     n = tmp;
     @If(n==0)
@@ -1007,7 +1010,7 @@ TEST(NailangRuntime, gcd3)
 @DefFunc(m,n)
 #Block("gcd")
 {
-    tmp = m % n;
+    tmp := m % n;
     @If(tmp==0)
     $Return(n);
 

@@ -20,7 +20,6 @@ using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
-using xziar::nailang::FrameFlags;
 using xziar::nailang::AutoVarHandler;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;

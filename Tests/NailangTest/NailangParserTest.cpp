@@ -18,6 +18,7 @@ using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::RawArg;
+using xziar::nailang::Assignment;
 
 
 testing::AssertionResult CheckRawArg(const RawArg& arg, const RawArg::Type type)
@@ -452,7 +453,7 @@ empty
             EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"hey"sv);
-            EXPECT_EQ(assign.CheckNil, xziar::nailang::NilCheck::ReqNotNull);
+            EXPECT_EQ(assign.Check, Assignment::NilCheck::ReqNotNull);
             EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
             {
                 const auto& stmt_ = *assign.Statement.GetVar<RawArg::Type::Binary>();

@@ -170,6 +170,65 @@ MAKE_ENUM_BITFIELD(InstanceArgInfo::Flags)
 struct InstanceArgData;
 
 
+struct CombinedType
+{
+private:
+    common::simd::VecDataInfo TypeData;
+    forceinline constexpr uint32_t ToIndex() const noexcept
+    {
+        return (static_cast<uint32_t>(TypeData.Bit) << 0)
+            | (static_cast<uint32_t>(TypeData.Dim0) << 8) | (static_cast<uint32_t>(TypeData.Dim1) << 16);
+    }
+public:
+    constexpr CombinedType(common::simd::VecDataInfo type) noexcept : TypeData(type)
+    {
+        Expects(!IsCustomType());
+    }
+    constexpr CombinedType(uint32_t idx) noexcept :
+        TypeData{ common::simd::VecDataInfo::DataTypes::Custom, static_cast<uint8_t>(idx),
+        static_cast<uint8_t>(idx >> 8), static_cast<uint8_t>(idx >> 16) }
+    {
+        Expects(idx <= 0xffffff);
+    }
+    forceinline constexpr bool IsCustomType() const noexcept
+    {
+        return TypeData.Type == common::simd::VecDataInfo::DataTypes::Custom;
+    }
+    forceinline constexpr std::optional<common::simd::VecDataInfo> GetVecType() const noexcept
+    {
+        if (!IsCustomType())
+            return TypeData;
+        return {};
+    }
+    forceinline constexpr std::optional<uint32_t> GetCustomTypeIdx() const noexcept
+    {
+        if (IsCustomType())
+            return ToIndex();
+        return {};
+    }
+    forceinline constexpr std::variant<common::simd::VecDataInfo, uint32_t> GetType() const noexcept
+    {
+        if (IsCustomType())
+            return ToIndex();
+        else
+            return TypeData;
+    }
+};
+struct XCNLStruct
+{
+    struct Field
+    {
+        common::StringPiece<char32_t> Name;
+        CombinedType Type;
+        uint16_t Length;
+        uint16_t Offset;
+    };
+    common::StringPool<char32_t> StrPool;
+    common::StringPiece<char32_t> Name;
+    std::vector<Field> Fields;
+    std::u32string_view GetName() const noexcept { return StrPool.GetStringView(Name); }
+};
+
 struct BlockCookie
 {
     const OutputBlock& Block;
@@ -396,6 +455,7 @@ protected:
     std::vector<OutputBlock> OutputBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<NamedText> PatchedBlocks;
+    std::vector<XCNLStruct> CustomStructs;
 private:
     std::vector<std::shared_ptr<const ReplaceDepend>> PatchedSelfDepends;
     [[nodiscard]] XCNLExtension* FindExt(std::function<bool(const XCNLExtension*)> func) const;
@@ -408,6 +468,7 @@ class XCOMPBASAPI COMMON_EMPTY_BASES XCNLRuntime : public xziar::nailang::Nailan
     friend class XCNLExtension;
     friend class XCNLProgStub;
 protected:
+    using Block = xziar::nailang::Block;
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
     using MetaFuncs = ::common::span<const FuncCall>;
@@ -433,6 +494,7 @@ protected:
     [[nodiscard]] ReplaceResult ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args);
     void OutputConditions(MetaFuncs metas, std::u32string& dst) const;
     void DirectOutput(BlockCookie& cookie, std::u32string& dst);
+    void ProcessStruct(const Block& block, common::span<const FuncCall> metas);
     void ProcessInstance(BlockCookie& cookie);
 
     void OnReplaceOptBlock(std::u32string& output, void* cookie, std::u32string_view cond, std::u32string_view content) override;

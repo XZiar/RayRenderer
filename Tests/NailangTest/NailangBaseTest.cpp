@@ -182,6 +182,8 @@ TEST(NailangBase, AssignOpTokenizer)
     CHECK_ASSIGN(U"1 *= 2"sv, MulAssign);
     CHECK_ASSIGN(U"1 /= 2"sv, DivAssign);
     CHECK_ASSIGN(U"1 %= 2"sv, RemAssign);
+    CHECK_ASSIGN(U"1 ?= 2"sv, NilAssign);
+    CHECK_ASSIGN(U"1 := 2"sv,    Create);
 
 #undef CHECK_BIN_OP
 #undef CHECK_EMBED_OP
