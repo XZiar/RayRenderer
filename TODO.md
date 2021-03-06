@@ -59,7 +59,7 @@
   - [ ] Move to utf8 (save mem and closer to output type)
   - [x] Shrink memory usage of Arg
   - [x] Make parser throw proper exception
-  - [ ] Embed position information in token
+  - [x] Embed position information in token
   - [ ] Add `include` support
   - [ ] Add python parser & runtime
   - [x] Explicitly handle loops
@@ -74,6 +74,12 @@
   - [ ] Design custom type with func-table
   - [x] Allow fake arg when try to set value of an arg
   - [x] Add register-based customvar handler
+  - [ ] Design component of `Literal`, included in different `Expr`, `Expr` will be the `BlockContent`, with 8bit extra type info from original meta-info field
+  - [ ] Evaluate `Expr`(or `RawArg`) before calling the function
+  - [ ] Add ternary operator
+  - [ ] CustomVar also report `TypeData` for easier type conversion
+  - [ ] Add capture support when define func
+  - [ ] Seperate Executor and Runtime
 
 * XCompute
   - [ ] Merge OpenCLInterop

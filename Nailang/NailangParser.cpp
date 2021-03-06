@@ -64,12 +64,6 @@ struct ExpectCurlyBraceR
 };
 
 
-std::pair<uint32_t, uint32_t> NailangParser::GetPosition(const common::parser::ParserContext& context, const bool ignoreCol) noexcept
-{
-    return { gsl::narrow_cast<uint32_t>(context.Row + 1), ignoreCol ? 0u : gsl::narrow_cast<uint32_t>(context.Col) };
-}
-
-
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
 #define RET_TK_ID(type) case NailangToken::type:        return u ## #type
@@ -107,8 +101,8 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 {
     auto& info = ex.GetInfo();
     info.File = GetCurrentFileName().StrView();
-    if (info.Position.first == 0 && info.Position.second)
-        info.Position = GetCurrentPosition();
+    if (info.Position.first == 0 && info.Position.second == 0)
+        info.Position = { Context.Row + 1, Context.Col };
     if (ex.GetDetailMessage().empty())
         ex.Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", info.Position.first, info.Position.second, info.File));
     ex.ThrowSelf();
@@ -267,7 +261,8 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
                 targetOpr = ProcessString(token.GetString(), MemPool);
                 break;
             EID(NailangToken::Func)  :
-                targetOpr = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::ExprPart));
+                targetOpr = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, 
+                    GetPosition(token), FuncName::FuncInfo::ExprPart));
                 break;
             EID(NailangToken::Parenthese):
                 if (token.GetChar() == U'(')
@@ -349,9 +344,10 @@ RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool
     return std::u32string_view(space.data(), space.size());
 }
 
-FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, FuncName::FuncInfo info)
+FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
+    std::pair<uint32_t, uint32_t> pos, FuncName::FuncInfo info)
 {
-    const auto pos = GetPosition(context);
+    // const auto pos = GetPosition(context);
     ComplexArgParser parser(pool, context);
     const auto funcName = parser.CreateFuncName(name, info);
     parser.EatLeftParenthese();
@@ -411,10 +407,10 @@ void RawBlockParser::FillFileName(RawBlock& block) const noexcept
     block.FileName = Context.SourceName;
 }
 
-RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name)
+RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name, std::pair<uint32_t, uint32_t> pos)
 {
     RawBlock block;
-    block.Position = GetPosition(Context, true);
+    block.Position = pos;
     block.Type = name;
 
     FillBlockName(block);
@@ -449,12 +445,13 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
         case NailangToken::Raw:
         {
             RawBlockWithMeta block;
-            static_cast<RawBlock&>(block) = FillRawBlock(token.GetString());
+            static_cast<RawBlock&>(block) = FillRawBlock(token);
             block.MetaFunctions = MemPool.CreateArray(metaFuncs);
             return block;
         } break;
         case NailangToken::MetaFunc:
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, 
+                GetPosition(token), FuncName::FuncInfo::Meta));
             break;
         default:
             Expects(false);
@@ -478,7 +475,7 @@ std::vector<RawBlockWithMeta> RawBlockParser::GetAllRawBlocks()
 }
 
 
-Assignment BlockParser::ParseAssignment(const std::u32string_view var)
+Assignment BlockParser::ParseAssignment(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -490,7 +487,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
 
     std::vector<RawArg> tmpQueries;
     Assignment assign(var);
-    assign.Position = GetPosition(Context);
+    assign.Position = pos;
 
     for (bool shouldCont = true; shouldCont;)
     {
@@ -586,11 +583,12 @@ void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, 
         {
         case NailangToken::MetaFunc:
         {
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, FuncName::FuncInfo::Meta));
+            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, 
+                GetPosition(token), FuncName::FuncInfo::Meta));
         } continue;
         case NailangToken::Raw:
         {
-            const auto target = MemPool.Create<RawBlock>(FillRawBlock(token.GetString()));
+            const auto target = MemPool.Create<RawBlock>(FillRawBlock(token));
             const auto [offset, count] = AppendMetaFuncs();
             contents.push_back(BlockContentItem::Generate(target, offset, count));
             metaFuncs.clear();
@@ -598,7 +596,7 @@ void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, 
         case NailangToken::Block:
         {
             Block inlineBlk;
-            inlineBlk.Position = GetPosition(Context, true);
+            inlineBlk.Position = GetPosition(token);
             FillBlockName(inlineBlk);
             inlineBlk.Type = token.GetString();
             EatLeftCurlyBrace();
@@ -623,7 +621,7 @@ void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, 
             if (!allowNonBlock)
                 OnUnExpectedToken(token, u"Function call not supported here"sv);
             FuncCall funccall;
-            static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context);
+            static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, GetPosition(token));
             EatSemiColon();
             const auto target = MemPool.Create<FuncCall>(funccall);
             const auto [offset, count] = AppendMetaFuncs();
@@ -634,7 +632,7 @@ void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, 
         {
             if (!allowNonBlock)
                 OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
-            Assignment assign = ParseAssignment(token.GetString());
+            Assignment assign = ParseAssignment(token);
             const auto target = MemPool.Create<Assignment>(assign);
             const auto [offset, count] = AppendMetaFuncs();
             contents.push_back(BlockContentItem::Generate(target, offset, count));
@@ -680,7 +678,7 @@ Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserConte
     BlockParser parser(pool, context);
 
     Block ret;
-    ret.Position = GetPosition(context, true);
+    ret.Position = parser.GetCurPos(true);
     parser.FillFileName(ret);
     parser.ParseContentIntoBlock(false, ret);
     return ret;

@@ -1151,6 +1151,7 @@ struct BlockContent
         default:Expects(false); return visitor(static_cast<const Assignment*>(nullptr));
         }
     }
+    std::pair<uint32_t, uint32_t> GetPosition() const noexcept;
 };
 struct BlockContentItem : public BlockContent
 {
@@ -1231,6 +1232,11 @@ public:
     }
     [[nodiscard]] constexpr size_t Size() const noexcept { return Content.size(); }
 };
+
+inline std::pair<uint32_t, uint32_t> BlockContent::GetPosition() const noexcept
+{
+    return Visit([](const auto* ptr) { return ptr->Position; });
+}
 
 
 struct NAILANGAPI Serializer

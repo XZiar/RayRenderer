@@ -128,6 +128,7 @@ struct ExceptionTarget
     constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::is_specialization<std::decay_t<T>, std::variant>::value>* = nullptr) noexcept
         : Target{ common::VariantHelper<VType>::Convert(std::forward<T>(arg)) } {}
 
+    constexpr explicit operator bool() const noexcept { return Target.index() != 0; }
     [[nodiscard]] constexpr Type GetType() const noexcept
     {
         switch (Target.index())
@@ -275,65 +276,48 @@ public:
         CallScope = 0b00000100,
         FuncCall  = FlowScope | CallScope,
     };
+private:
+    class ExprHolder;
 protected:
     class FrameHolder;
-    struct FuncFrame
-    {
-        const FuncFrame* PrevFrame = nullptr;
-        const FuncCall*  Func      = nullptr;
-    };
-    struct StackFrame
+    struct BlockFrame
     {
         friend class FrameHolder;
         friend class NailangRuntimeBase;
     private:
-        StackFrame* PrevFrame;
+        BlockFrame* PrevFrame;
     public:
         std::shared_ptr<EvaluateContext> Context;
         common::span<const FuncCall> MetaScope;
         const Block* BlockScope = nullptr;
         const BlockContent* CurContent  = nullptr;
-        const FuncFrame*    CurFuncCall = nullptr;
+        RawArg CurExpr;
         Arg ReturnArg;
         FrameFlags Flags;
         ProgramStatus Status = ProgramStatus::Next;
 
-        StackFrame(StackFrame* prev, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
+        BlockFrame(BlockFrame* prev, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
             PrevFrame(prev), Context(ctx), Flags(flag) { }
         constexpr bool Has(FrameFlags flag) const noexcept;
         constexpr bool IsInLoop() const noexcept;
-        constexpr StackFrame* GetCallScope() noexcept;
-    };
-    class FCallHost
-    {
-        friend class NailangRuntimeBase;
-        NailangRuntimeBase& Host;
-        FuncFrame Frame;
-        constexpr FCallHost(NailangRuntimeBase* host, const FuncCall* call = nullptr) noexcept :
-            Host(*host), Frame({ Host.CurFrame->CurFuncCall, call })
-        {
-            Host.CurFrame->CurFuncCall = &Frame;
-        }
-    public:
-        void operator=(const FuncCall* call) noexcept { Frame.Func = call; }
-        ~FCallHost();
+        constexpr BlockFrame* GetCallScope() noexcept;
     };
     class NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
     {
         friend class NailangRuntimeBase;
         NailangRuntimeBase& Host;
-        StackFrame Frame;
+        BlockFrame Frame;
         FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const FrameFlags flags);
     public:
         ~FrameHolder();
-        constexpr StackFrame* operator->() const noexcept
+        constexpr BlockFrame* operator->() const noexcept
         {
             return Frame.PrevFrame;
         }
     };
 
     std::shared_ptr<EvaluateContext> RootContext;
-    StackFrame* CurFrame = nullptr;
+    BlockFrame* CurFrame = nullptr;
     MemoryPool MemPool;
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const;

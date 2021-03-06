@@ -70,7 +70,7 @@ public:
 class NailangRT : public NailangRuntimeBase
 {
 public:
-    StackFrame BaseFrame;
+    BlockFrame BaseFrame;
     NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, FrameFlags::Empty)
     {
         CurFrame = &BaseFrame;

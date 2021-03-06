@@ -212,10 +212,6 @@ protected:
     {
         return Context.SourceName;
     }
-    [[nodiscard]] virtual std::pair<size_t, size_t> GetCurrentPosition() const noexcept
-    {
-        return { Context.Row + 1, Context.Col };
-    }
 
     virtual DetailToken OnUnExpectedToken(const DetailToken& token, const std::u16string_view extraInfo = {}) const
     {

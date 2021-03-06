@@ -542,11 +542,11 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const R
 }
 
 
-constexpr bool NailangRuntimeBase::StackFrame::Has(FrameFlags flag) const noexcept 
+constexpr bool NailangRuntimeBase::BlockFrame::Has(FrameFlags flag) const noexcept
 { 
     return HAS_FIELD(Flags, flag);
 }
-constexpr bool NailangRuntimeBase::StackFrame::IsInLoop() const noexcept
+constexpr bool NailangRuntimeBase::BlockFrame::IsInLoop() const noexcept
 {
     for (auto frame = this; frame; frame = frame->PrevFrame)
     {
@@ -557,7 +557,7 @@ constexpr bool NailangRuntimeBase::StackFrame::IsInLoop() const noexcept
     }
     return false;
 }
-constexpr NailangRuntimeBase::StackFrame* NailangRuntimeBase::StackFrame::GetCallScope() noexcept
+constexpr NailangRuntimeBase::BlockFrame* NailangRuntimeBase::BlockFrame::GetCallScope() noexcept
 {
     for (auto frame = this; frame; frame = frame->PrevFrame)
     {
@@ -580,12 +580,26 @@ NailangRuntimeBase::FrameHolder::~FrameHolder()
     Host.CurFrame = Frame.PrevFrame;
 }
 
-NailangRuntimeBase::FCallHost::~FCallHost()
+
+class NailangRuntimeBase::ExprHolder
 {
-    Expects(Host.CurFrame);
-    Expects(Host.CurFrame->CurFuncCall == &Frame);
-    Host.CurFrame->CurFuncCall = Frame.PrevFrame;
-}
+    friend class NailangRuntimeBase;
+    NailangRuntimeBase& Host;
+    RawArg PrevExpr;
+    constexpr ExprHolder(NailangRuntimeBase* host, const RawArg& expr) noexcept :
+        Host(*host), PrevExpr(Host.CurFrame->CurExpr)
+    {
+        Host.CurFrame->CurExpr = expr;
+    }
+    COMMON_NO_COPY(ExprHolder)
+    COMMON_NO_MOVE(ExprHolder)
+public:
+    ~ExprHolder()
+    {
+        Expects(Host.CurFrame);
+        Host.CurFrame->CurExpr = PrevExpr;
+    }
+};
 
 
 struct ArgQuery : private ArgLocator
@@ -828,11 +842,10 @@ std::variant<std::monostate, bool, xziar::nailang::TempFuncName> NailangRuntimeB
 
 bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const BlockContent& target)
 {
-    FCallHost callHost(this);
     for (const auto& meta : metas)
     {
         Expects(meta.Name->Info() == FuncName::FuncInfo::Meta);
-        callHost = &meta;
+        ExprHolder callHost(this, &meta);
         auto result = MetaFuncResult::Unhandled;
         switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
         {
@@ -887,8 +900,8 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     case BlockContent::Type::FuncCall:
     {
         const auto& fcall = content.Get<FuncCall>();
-        FCallHost callHost(this, fcall);
         Expects(fcall->Name->Info() == FuncName::FuncInfo::Empty);
+        ExprHolder callHost(this, &fcall);
         EvaluateFunc(*fcall, metas);
     } break;
     case BlockContent::Type::RawBlock:
@@ -1034,10 +1047,41 @@ ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool crea
     return RootContext->LocateArg(var, create);
 }
 
+static common::StackTraceItem CreateStack(const Assignment* assign, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!assign)
+        return { fname, u"<empty assign>"sv, 0 };
+    std::u32string target = U"<Assign>";
+    Serializer::Stringify(target, assign->Target);
+    Serializer::Stringify(target, assign->Queries);
+    return { fname, common::str::to_u16string(target), assign->Position.first };
+}
+static common::StackTraceItem CreateStack(const FuncCall* fcall, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!fcall)
+        return { fname, u"<empty func>"sv, 0 };
+    return { fname, common::str::to_u16string(fcall->FullFuncName()), fcall->Position.first };
+}
+static common::StackTraceItem CreateStack(const RawBlock* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty raw block>"sv, 0 };
+    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
+}
+static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty block>"sv, 0 };
+    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
+}
+
 void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
 {
-    std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>> nameCache;
-    const auto GetFileName = [&](const Block* blk) -> common::SharedString<char16_t>
+    if (auto& info = ex.GetInfo(); !info.Scope && CurFrame && CurFrame->CurExpr.TypeData != RawArg::Type::Empty)
+        info.Scope = CurFrame->CurExpr;
+
+    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
+        (const Block* blk) mutable -> common::SharedString<char16_t>
     {
         if (!blk) return {};
         for (const auto& [name, str] : nameCache)
@@ -1045,27 +1089,16 @@ void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) cons
                 return str;
         return blk->FileName;
     };
-    constexpr auto FromBlock = [&](const Block* blk, common::SharedString<char16_t> fname) -> common::StackTraceItem
-    {
-        if (!blk)
-            return { fname, u"<empty>"sv, 0 };
-        return { fname, FMTSTR(u"<Block>{}", blk->Name), blk->Position.first };
-    };
-    constexpr auto FromFunc = [](const FuncFrame* frame, const common::SharedString<char16_t>& fname) -> common::StackTraceItem
-    {
-        if (frame->Func)
-            return { fname, common::str::to_u16string(frame->Func->FullFuncName()), frame->Func->Position.first };
-        return { fname, common::SharedString<char16_t>{}, 0 };
-    };
     std::vector<common::StackTraceItem> traces;
     for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
     {
         auto fname = GetFileName(frame->BlockScope);
-        for (auto call = CurFrame->CurFuncCall; call; call = call->PrevFrame)
+        /*for (const auto expr = frame->CurExpr; call; call = call->PrevFrame)
         {
-            traces.emplace_back(FromFunc(call, fname));
-        }
-        traces.emplace_back(FromBlock(frame->BlockScope, std::move(fname)));
+            traces.emplace_back(CreateStack(call->Func, fname));
+        }*/
+        if (frame->CurContent)
+            traces.emplace_back(frame->CurContent->Visit([&](const auto* ptr) { return CreateStack(ptr, fname); }));
     }
     ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), traces.begin(), traces.end());
     throw ex;
@@ -1555,12 +1588,12 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
 Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
 {
     using Type = RawArg::Type;
+    ExprHolder callHost(this, arg);
     switch (arg.TypeData)
     {
     case Type::Func:
     {
         const auto& fcall = arg.GetVar<Type::Func>();
-        FCallHost callHost(this, fcall);
         Expects(fcall->Name->Info() == FuncName::FuncInfo::ExprPart);
         return EvaluateFunc(*fcall, {});
     }

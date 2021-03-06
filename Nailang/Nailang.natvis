@@ -228,8 +228,8 @@
       </Synthetic>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::NailangRuntimeBase::StackFrame">
-    <DisplayString>{{ StackFrame {Flags,en} }}</DisplayString>
+  <Type Name="xziar::nailang::NailangRuntimeBase::BlockFrame">
+    <DisplayString>{{ BlockFrame {Flags,en} }}</DisplayString>
     <Expand>
       <Item Name="PrevFrame">PrevFrame,na</Item>
       <Item Name="Flag">Flags,en</Item>
