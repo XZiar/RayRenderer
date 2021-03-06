@@ -691,6 +691,7 @@ public:
 
     Arg() noexcept : Data0(0), Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
+    NAILANGAPI explicit Arg(const CustomVar& var) noexcept;
     Arg(CustomVar&& var) noexcept :
         Data0(reinterpret_cast<uint64_t>(var.Host)), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
     {

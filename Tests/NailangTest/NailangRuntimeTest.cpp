@@ -131,7 +131,7 @@ TEST(NailangBase, ArgToString)
 {
     constexpr auto ChkStr = [](const Arg arg, const std::u32string_view str)
     {
-        EXPECT_EQ(arg.ToString().StrView(), str);
+        EXPECT_EQ(arg.ToString(), str);
     };
     ChkStr(int64_t(-123), U"-123"sv);
     ChkStr(uint64_t(123), U"123"sv);

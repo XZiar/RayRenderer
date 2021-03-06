@@ -54,7 +54,7 @@ private:
     static constexpr auto TYPENAME = "BaseException";
 protected:
     template<typename T>
-    ExceptionBasicInfo(const char* type, T&& msg)
+    ExceptionBasicInfo(const char* type, T&& msg) noexcept
         : TypeName(type), Message(std::forward<T>(msg)), InnerException(detail::ExceptionHelper::GetCurrentException()) { }
 public:
     const char* TypeName;
@@ -62,8 +62,7 @@ public:
     std::vector<StackTraceItem> StackTrace;
     std::shared_ptr<ExceptionBasicInfo> InnerException;
     container::ResourceDict Resources;
-    ExceptionBasicInfo(const std::u16string_view msg)
-        : ExceptionBasicInfo(TYPENAME, msg) { }
+    ExceptionBasicInfo(const std::u16string_view msg) noexcept : ExceptionBasicInfo(TYPENAME, msg) { }
     virtual ~ExceptionBasicInfo() {}
     virtual void ThrowReal();
     [[nodiscard]] BaseException GetException();
@@ -207,7 +206,7 @@ inline BaseException ExceptionBasicInfo::GetException()
     };                                                                              \
     ExceptionInfo& GetInfo() const noexcept                                         \
     {                                                                               \
-        return *std::static_pointer_cast<ExceptionInfo>(Info);                      \
+        return *static_cast<ExceptionInfo*>(Info.get());                            \
     }                                                                               \
 protected:                                                                          \
     type(std::nullopt_t, std::shared_ptr<common::ExceptionBasicInfo> info) noexcept \

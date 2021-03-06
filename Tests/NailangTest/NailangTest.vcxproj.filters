@@ -35,6 +35,9 @@
     <ClInclude Include="rely.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="ParserCommon.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

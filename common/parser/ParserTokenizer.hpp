@@ -128,6 +128,15 @@ public:
 };
 
 
+struct DetailToken : public ParserToken
+{
+    uint32_t Row, Col;
+    constexpr DetailToken(size_t row, size_t col, ParserToken token) noexcept :
+        ParserToken(token), Row(static_cast<uint32_t>(row)), Col(static_cast<uint32_t>(col))
+    { }
+};
+
+
 #if COMPILER_MSVC && _MSC_VER <= 1914
 #   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
 #endif
@@ -211,6 +220,7 @@ class CommentTokenizer : public TokenizerBase
 public:
     enum class States : uint32_t { Waiting, HasSlash, Singleline, Multiline };
     using StateData = States;
+    constexpr CommentTokenizer() noexcept { }
     [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
     {
         switch (state)
@@ -253,6 +263,7 @@ class StringTokenizer : public TokenizerBase
 {
 public:
     using StateData = void;
+    constexpr StringTokenizer() noexcept { }
     [[nodiscard]] forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
         Expects(idx == 0);

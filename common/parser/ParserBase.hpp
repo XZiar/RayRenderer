@@ -20,7 +20,7 @@ struct TokenMatcher
 {
     std::array<uint16_t, IDCount> IDs;
     std::array<ParserToken, TKCount> TKs;
-    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken& token) const noexcept
     {
         for (const auto id : IDs)
             if (token.GetID() == id)
@@ -43,7 +43,7 @@ template<size_t IDCount>
 struct TokenMatcher<IDCount, 0>
 {
     std::array<uint16_t, IDCount> IDs;
-    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken& token) const noexcept
     {
         for (const auto id : IDs)
             if (token.GetID() == id)
@@ -63,7 +63,7 @@ template<size_t TKCount>
 struct TokenMatcher<0, TKCount>
 {
     std::array<ParserToken, TKCount> TKs;
-    [[nodiscard]] constexpr bool Match(const ParserToken token) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken& token) const noexcept
     {
         for (const auto& tk : TKs)
             if (token == tk)
@@ -82,7 +82,7 @@ struct TokenMatcher<0, TKCount>
 template<>
 struct TokenMatcher<0, 0>
 {
-    [[nodiscard]] constexpr bool Match(const ParserToken) const noexcept
+    [[nodiscard]] constexpr bool Match(const ParserToken&) const noexcept
     {
         return false;
     }
@@ -144,15 +144,12 @@ struct TokenMatcherHelper
 struct ParsingError : std::exception
 {
     SharedString<char16_t> File;
-    std::pair<size_t, size_t> Position;
-    ParserToken Token;
+    DetailToken Token;
     SharedString<char16_t> Notice;
-    ParsingError(const ParserContext& context, const ParserToken token, std::u16string_view notice) :
-        File(context.SourceName), Position({ context.Row, context.Col }),
-        Token(token), Notice(notice) { }
-    ParsingError(const common::str::StrVariant<char16_t>& file, const std::pair<size_t, size_t> pos,
-        const ParserToken token, std::u16string_view notice) :
-        File(file.StrView()), Position(pos), Token(token), Notice(notice) { }
+    ParsingError(const ParserContext& context, const ParserToken& token, std::u16string_view notice) :
+        File(context.SourceName), Token(context.Row, context.Col, token), Notice(notice) { }
+    ParsingError(const common::str::StrVariant<char16_t>& file, const DetailToken& token, std::u16string_view notice) :
+        File(file.StrView()), Token(token), Notice(notice) { }
 };
 
 }
@@ -220,13 +217,13 @@ protected:
         return { Context.Row + 1, Context.Col };
     }
 
-    virtual ParserToken OnUnExpectedToken(const ParserToken& token, const std::u16string_view extraInfo = {}) const
+    virtual DetailToken OnUnExpectedToken(const DetailToken& token, const std::u16string_view extraInfo = {}) const
     {
         using namespace std::string_view_literals;
         std::u16string msg = u"Unexpected token [" + DescribeToken(token) + u"]";
         if (!extraInfo.empty())
             msg.append(u", ").append(extraInfo);
-        throw detail::ParsingError(GetCurrentFileName(), GetCurrentPosition(), token, msg);
+        throw detail::ParsingError(GetCurrentFileName(), token, msg);
     }
     
     static inline constexpr auto IgnoreCommentToken = detail::TokenMatcherHelper::GetMatcher
@@ -234,12 +231,12 @@ protected:
     static inline constexpr TokenMatcher<0, 0> IgnoreNoneToken = {};
 
     template<typename Lex, typename Ignore>
-    [[nodiscard]] constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore)
+    [[nodiscard]] forceinline constexpr DetailToken GetNextToken(Lex&& lexer, Ignore&& ignore)
     {
         return lexer.GetTokenBy(Context, ignore);
     }
     template<typename Lex, typename Ignore, size_t IDCount, size_t TKCount>
-    [[nodiscard]] constexpr ParserToken GetNextToken(Lex&& lexer, Ignore&& ignore, const TokenMatcher<IDCount, TKCount>& ignoreMatcher)
+    [[nodiscard]] forceinline constexpr DetailToken GetNextToken(Lex&& lexer, Ignore&& ignore, const TokenMatcher<IDCount, TKCount>& ignoreMatcher)
     {
         while (true)
         {
@@ -249,7 +246,7 @@ protected:
         }
     }
     template<typename Lex, typename Ignore, size_t IDCount1, size_t TKCount1, size_t IDCount2, size_t TKCount2>
-    ParserToken ExpectNextToken(Lex&& lexer, Ignore&& ignore,
+    forceinline DetailToken ExpectNextToken(Lex&& lexer, Ignore&& ignore,
         const TokenMatcher<IDCount1, TKCount1>& ignoreMatcher, const TokenMatcher<IDCount2, TKCount2>& expectMatcher)
     {
         const auto token = GetNextToken(lexer, ignore, ignoreMatcher);

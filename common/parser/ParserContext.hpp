@@ -62,8 +62,10 @@ private:
         switch (ch)
         {
         case special::CharCR:
-            if (index < Context.Source.size() && Context.Source[index] == special::CharLF)
+            if (index < Context.Source.size() && Context.Source[index] == special::CharLF) 
+                // quick consume CR+LF
                 index++;
+            [[fallthrough]];
         case special::CharLF:
             Context.Row++; Context.Col = 0;
             return special::CharLF;
@@ -192,6 +194,7 @@ public:
                 break;
             // should continue
             if (HandleNextChar(Index) == special::CharLF)
+                // row adjustment ready, reset col
                 lineIdx = Index;
         }
         Context.Col += Index - lineIdx;

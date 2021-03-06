@@ -72,7 +72,7 @@ private:
     template<typename... Args>
     [[nodiscard]] forceinline static constexpr std::tuple<TKs...> GenerateTokenizerList(Args&&... args) noexcept
     {
-        std::tuple<TKs...> tokenizers;
+        std::tuple<TKs...> tokenizers = {};
         (SetTokenizer(tokenizers, std::forward<Args>(args), Indexes), ...);
         return tokenizers;
     }
@@ -159,18 +159,18 @@ protected:
     }
 public:
     template<typename... Args>
-    constexpr ParserLexerBase(Args&&... args) : Tokenizers(GenerateTokenizerList(std::forward<Args>(args)...))
+    constexpr ParserLexerBase(Args&&... args) : Tokenizers(std::move(GenerateTokenizerList(std::forward<Args>(args)...)))
     { }
 
     template<typename Ignore>
-    [[nodiscard]] forceinline constexpr ParserToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) const noexcept
+    [[nodiscard]] forceinline constexpr DetailToken GetToken(ParserContext& context, Ignore&& ignore = std::string_view(" \t")) const noexcept
     {
         return GetTokenBy(context, ToChecker(ignore));
     }
 
 
     template<typename Ignore>
-    [[nodiscard]] constexpr ParserToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) const noexcept
+    [[nodiscard]] constexpr DetailToken GetTokenBy(ParserContext& context, Ignore&& isIgnore) const noexcept
     {
         static_assert(std::is_invocable_r_v<bool, Ignore, char32_t>);
         using tokenizer::TokenizerResult;
@@ -178,6 +178,7 @@ public:
         ContextReader reader(context);
         reader.ReadWhile(isIgnore);
 
+        const auto row = context.Row, col = context.Col;
         ResultArray status = { {} };
         status.fill({});
         size_t count = 0;
@@ -212,14 +213,14 @@ public:
         switch (mth == MatchResults::NoMatch ? prev : mth)
         {
         case MatchResults::FullMatch:
-            return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::FullMatch);
+            return { row, col, OutputToken(status, offset, reader, tokenTxt, TokenizerResult::FullMatch) };
         case MatchResults::Waitlist:
-            return OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist);
+            return { row, col, OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist)  };
         default:
             if (count == 0 && ch == special::CharEnd)
-                return ParserToken(BaseToken::End);
+                return { row, col, { BaseToken::End } };
             else
-                return ParserToken(BaseToken::Unknown, tokenTxt);
+                return { row, col, { BaseToken::Unknown, tokenTxt } };
         }
     }
 

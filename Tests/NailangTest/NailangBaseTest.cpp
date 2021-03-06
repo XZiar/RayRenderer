@@ -1,8 +1,9 @@
 #include "rely.h"
-#include <algorithm>
+#include "ParserCommon.h"
 #include "Nailang/ParserRely.h"
 #include "Nailang/NailangParser.h"
 #include "StringUtil/Format.h"
+#include <algorithm>
 
 
 using namespace std::string_view_literals;
@@ -83,21 +84,7 @@ TEST(NailangBase, EmbedOpTokenizer)
     using common::parser::BaseToken;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
-        using namespace common::parser;
-        constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-        constexpr auto lexer = ParserLexerBase<xziar::nailang::tokenizer::EmbedOpTokenizer, tokenizer::IntTokenizer>();
-        ParserContext context(src);
-        std::vector<ParserToken> tokens;
-        while (true)
-        {
-            const auto token = lexer.GetTokenBy(context, ignore);
-            const auto type = token.GetIDEnum();
-            if (type != BaseToken::End)
-                tokens.emplace_back(token);
-            if (type == BaseToken::Error || type == BaseToken::Unknown || type == BaseToken::End)
-                break;
-        }
-        return tokens;
+        return TKParse<xziar::nailang::tokenizer::EmbedOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
     };
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
 #define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, EmbedOp, GetInt, common::enum_cast(xziar::nailang::EmbedOps::type))
@@ -146,21 +133,7 @@ TEST(NailangBase, AssignOpTokenizer)
     using common::parser::BaseToken;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
-        using namespace common::parser;
-        constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
-        constexpr auto lexer = ParserLexerBase<xziar::nailang::tokenizer::AssignOpTokenizer, tokenizer::IntTokenizer>();
-        ParserContext context(src);
-        std::vector<ParserToken> tokens;
-        while (true)
-        {
-            const auto token = lexer.GetTokenBy(context, ignore);
-            const auto type = token.GetIDEnum();
-            if (type != BaseToken::End)
-                tokens.emplace_back(token);
-            if (type == BaseToken::Error || type == BaseToken::Unknown || type == BaseToken::End)
-                break;
-        }
-        return tokens;
+        return TKParse<xziar::nailang::tokenizer::AssignOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
     };
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
 #define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))

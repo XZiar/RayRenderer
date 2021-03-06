@@ -376,6 +376,13 @@ void FixedArray::PrintToStr(std::u32string& str, std::u32string_view delim) cons
 #undef NATIVE_TYPE_MAP
 
 
+Arg::Arg(const CustomVar& var) noexcept :
+    Data0(reinterpret_cast<uint64_t>(var.Host)), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
+{
+    Expects(var.Host != nullptr);
+    auto& var_ = GetCustom();
+    var_.Host->IncreaseRef(var_);
+}
 Arg::Arg(const Arg& other) noexcept :
     Data0(other.Data0), Data1(other.Data1), Data2(other.Data2), Data3(other.Data3), TypeData(other.TypeData)
 {
@@ -488,9 +495,37 @@ std::optional<std::u32string_view> Arg::GetStr() const noexcept
     }
 }
 
+template<typename T>
+static common::str::StrVariant<char32_t> ArgToString(const T& val) noexcept
+{
+    return fmt::format(FMT_STRING(U"{}"), val);
+}
+template<>
+common::str::StrVariant<char32_t> ArgToString<CustomVar>(const CustomVar& val) noexcept
+{
+    return val.Host->ToString(val);
+}
+template<>
+common::str::StrVariant<char32_t> ArgToString<FixedArray>(const FixedArray& val) noexcept
+{
+    std::u32string ret = U"[";
+    val.PrintToStr(ret, U", "sv);
+    ret.append(U"]"sv);
+    return std::move(ret);
+}
+template<>
+common::str::StrVariant<char32_t> ArgToString<std::u32string_view>(const std::u32string_view& val) noexcept
+{
+    return val;
+}
+template<>
+common::str::StrVariant<char32_t> ArgToString<std::nullopt_t>(const std::nullopt_t&) noexcept
+{
+    return {};
+}
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
-    return Visit([](const auto& val) -> common::str::StrVariant<char32_t>
+    /*return Visit([](const auto& val) -> common::str::StrVariant<char32_t>
         {
             using T = std::decay_t<decltype(val)>;
             if constexpr (std::is_same_v<T, CustomVar>)
@@ -508,6 +543,10 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
                 return val;
             else
                 return fmt::format(FMT_STRING(U"{}"), val);
+        });*/
+    return Visit([](const auto& val)
+        {
+            return ArgToString(val);
         });
 }
 

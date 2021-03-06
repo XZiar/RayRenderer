@@ -53,6 +53,7 @@
     <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty\;$(SolutionDir)3rdParty\gtest\googletest\;$(SolutionDir)3rdParty\gtest\googletest\include\;$(SolutionDir)3rdParty\gtest\googlemock\;$(SolutionDir)3rdParty\gtest\googlemock\include\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
+    <ClInclude Include="ParserCommon.h" />
     <ClInclude Include="rely.h" />
   </ItemGroup>
   <ItemGroup>

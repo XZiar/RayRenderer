@@ -19,7 +19,7 @@ class NailangPartedNameException final : public common::BaseException
     PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
         std::u32string_view Name;
         std::u32string_view Part;
-        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
+        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part) noexcept
             : TPInfo(TYPENAME, msg), Name(name), Part(part)
         { }
     );
@@ -34,33 +34,37 @@ class NAILANGAPI NailangParseException : public common::BaseException
     PREPARE_EXCEPTION(NailangParseException, BaseException,
         std::u16string File;
         std::pair<size_t, size_t> Position;
-        ExceptionInfo(const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos)
+        ExceptionInfo(const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos = { 0,0 }) noexcept
             : ExceptionInfo(TYPENAME, msg, file, pos)
         { }
     protected:
-        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos)
-            : TPInfo(type, msg), File(file), Position(pos)
+        ExceptionInfo(const char* type, const std::u16string_view msg, const std::u16string_view file, 
+            std::pair<size_t, size_t> pos = { 0,0 }) : TPInfo(type, msg), File(file), Position(pos)
         { }
     );
     NailangParseException(const std::u16string_view msg, const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 })
         : NailangParseException(T_<ExceptionInfo>{}, msg, file, pos)
     { }
     std::u16string_view GetFileName() const noexcept { return GetInfo().File; }
-    std::pair<size_t, size_t> GetPosition() const noexcept { return GetInfo().Position; }
+    virtual std::pair<size_t, size_t> GetPosition() const noexcept { return GetInfo().Position; }
 };
 class NAILANGAPI UnexpectedTokenException : public NailangParseException
 {
     friend class NailangParser;
     PREPARE_EXCEPTION(UnexpectedTokenException, NailangParseException,
-        common::parser::ParserToken Token;
-        ExceptionInfo(const std::u16string_view msg, common::parser::ParserToken token, 
-            const std::u16string_view file, std::pair<size_t, size_t> pos)
-            : TPInfo(TYPENAME, msg, file, pos), Token(token) { }
+        common::parser::DetailToken Token;
+        ExceptionInfo(const std::u16string_view msg, const common::parser::DetailToken& token, const std::u16string_view file) noexcept
+            : TPInfo(TYPENAME, msg, file), Token(token) { }
     );
-    UnexpectedTokenException(const std::u16string_view msg, common::parser::ParserToken token,
-        const std::u16string_view file = {}, std::pair<size_t, size_t> pos = { 0,0 })
-        : NailangParseException(T_<ExceptionInfo>{}, msg, token, file, pos)
+    UnexpectedTokenException(const std::u16string_view msg, const common::parser::DetailToken& token,
+        const std::u16string_view file = {})
+        : NailangParseException(T_<ExceptionInfo>{}, msg, token, file)
     { }
+    std::pair<size_t, size_t> GetPosition() const noexcept final 
+    {
+        const auto& token = GetInfo().Token;
+        return { token.Row + 1, token.Col };
+    }
 };
 
 
@@ -76,7 +80,7 @@ protected:
     [[nodiscard]] std::u16string DescribeTokenID(const uint16_t tid) const noexcept override;
     [[nodiscard]] common::str::StrVariant<char16_t> GetCurrentFileName() const noexcept override;
     virtual void HandleException(const NailangParseException& ex) const;
-    common::parser::ParserToken OnUnExpectedToken(const common::parser::ParserToken& token, const std::u16string_view extraInfo = {}) const override;
+    common::parser::DetailToken OnUnExpectedToken(const common::parser::DetailToken& token, const std::u16string_view extraInfo = {}) const override;
 
     template<typename ExpectHolder, typename... TKs>
     void EatSingleToken()

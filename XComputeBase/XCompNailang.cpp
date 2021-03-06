@@ -30,6 +30,7 @@ using common::str::Charset;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
+using NilCheck = xziar::nailang::Assignment::NilCheck;
 
 MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
@@ -680,7 +681,7 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(
                 auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
                 var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
                 // const auto ret = LookUpArg(var);
-                SetArg(var, {}, Arg(args[i + 1]));
+                SetArg(var, {}, Arg(args[i + 1]), NilCheck::ThrowNotNull);
             }
             auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
             NestedCookie newCookie(cookie, *block);
@@ -757,7 +758,7 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     common::str::StrVariant<char32_t> source(block.Block->Source);
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        SetArg(var, {}, EvaluateArg(arg));
+        SetArg(var, {}, EvaluateArg(arg), NilCheck::ThrowNotNull);
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);

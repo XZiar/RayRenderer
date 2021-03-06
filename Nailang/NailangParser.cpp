@@ -107,7 +107,8 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 {
     auto& info = ex.GetInfo();
     info.File = GetCurrentFileName().StrView();
-    info.Position = GetCurrentPosition();
+    if (info.Position.first == 0 && info.Position.second)
+        info.Position = GetCurrentPosition();
     if (ex.GetDetailMessage().empty())
         ex.Attach("detail", FMTSTR(u"at row[{}] col[{}], file [{}]", info.Position.first, info.Position.second, info.File));
     ex.ThrowSelf();
@@ -115,9 +116,10 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 
 #define NLPS_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangParseException, __VA_ARGS__))
 
-common::parser::ParserToken NailangParser::OnUnExpectedToken(const common::parser::ParserToken& token, const std::u16string_view extraInfo) const
+common::parser::DetailToken NailangParser::OnUnExpectedToken(const common::parser::DetailToken& token, const std::u16string_view extraInfo) const
 {
-    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}]{}{}"sv), DescribeToken(token), extraInfo.empty() ? u' ' : u',', extraInfo);
+    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}] at [{},{}]{}{}"sv), 
+        DescribeToken(token), token.Row, token.Col, extraInfo.empty() ? u' ' : u',', extraInfo);
     HandleException(UnexpectedTokenException(msg, token));
     return token;
 }
@@ -193,7 +195,7 @@ std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::strin
     {
         const bool isAtOp = oprend1.has_value() && !op.has_value() && !oprend2.has_value();
         auto& targetOpr = op.has_value() ? oprend2 : oprend1;
-        ParserToken token = isAtOp ?
+        auto token = isAtOp ?
             GetNextToken(OpLexer,  IgnoreBlank, IgnoreCommentToken) :
             GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
 

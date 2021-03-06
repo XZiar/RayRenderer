@@ -120,6 +120,7 @@ struct ExceptionTarget
     VType Target;
 
     constexpr ExceptionTarget() noexcept {}
+    ExceptionTarget(const CustomVar& arg) noexcept : Target{ Arg(arg) } {}
     template<typename T>
     constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::VariantHelper<VType>::Contains<std::decay_t<T>>()>* = nullptr) noexcept
         : Target{ std::forward<T>(arg) } {}
