@@ -198,7 +198,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         common::span<const xziar::nailang::FuncCall>) override
     {
         auto& Runtime = static_cast<Runtime_&>(runtime);
-        const std::u32string_view name = *call.Name;
+        const std::u32string_view name = call.FullFuncName();
         using namespace xziar::nailang;
         if (name == U"oclu.EnableDebug" || name == U"xcomp.EnableDebug")
         {
@@ -220,7 +220,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
         auto& Runtime = static_cast<Runtime_&>(runtime);
         using namespace xziar::nailang;
-        if (*meta.Name == U"oclu.DebugOutput"sv || *meta.Name == U"xcomp.DebugOutput"sv)
+        if (meta.GetName() == U"oclu.DebugOutput"sv || meta.GetName() == U"xcomp.DebugOutput"sv)
         {
             if (AllowDebug)
             {

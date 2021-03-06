@@ -71,12 +71,12 @@ void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xzia
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*meta.Name == U"oclu.SubgroupSize"sv || *meta.Name == U"xcomp.SubgroupSize"sv)
+    if (meta.GetName() == U"oclu.SubgroupSize"sv || meta.GetName() == U"xcomp.SubgroupSize"sv)
     {
         const auto sgSize = Runtime.EvaluateFirstFuncArg(meta, Arg::Type::Integer).GetUint().value();
         SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
     }
-    else if (*meta.Name == U"oclu.SubgroupExt"sv)
+    else if (meta.GetName() == U"oclu.SubgroupExt"sv)
     {
         const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
@@ -199,7 +199,7 @@ std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, 
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*call.Name == U"oclu.AddSubgroupPatch"sv)
+    if (call.GetName()== U"oclu.AddSubgroupPatch"sv)
     {
         Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
         Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);

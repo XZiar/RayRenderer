@@ -410,7 +410,7 @@ protected:
                   virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
-                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, Assignment::NilCheck nilCheck);
+                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck = {});
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
                   virtual bool SetFunc(const Block* block, common::span<const RawArg> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);

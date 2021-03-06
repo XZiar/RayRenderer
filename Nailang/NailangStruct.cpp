@@ -51,12 +51,12 @@ TempPartedNameBase::TempPartedNameBase(std::u32string_view name, common::span<co
     }
     }
 }
-TempPartedNameBase::TempPartedNameBase(const PartedName* var) noexcept : Var(*var, DummyPart, var->ExternInfo)
+TempPartedNameBase::TempPartedNameBase(const PartedName* var) noexcept : Var(var->FullName(), DummyPart, var->ExternInfo)
 {
     Extra.Ptr = var;
 }
 TempPartedNameBase::TempPartedNameBase(TempPartedNameBase&& other) noexcept :
-    Var(other.Var, DummyPart, other.Var.ExternInfo), Extra(other.Extra)
+    Var(other.Var.FullName(), DummyPart, other.Var.ExternInfo), Extra(other.Extra)
 {
     Var.PartCount = other.Var.PartCount;
     other.Var.Ptr = nullptr;
@@ -79,7 +79,7 @@ TempPartedNameBase TempPartedNameBase::Copy() const noexcept
     {
         parts = { Extra.Parts, Var.PartCount };
     }
-    return TempPartedNameBase(Var, parts, Var.ExternInfo);
+    return TempPartedNameBase(Var.FullName(), parts, Var.ExternInfo);
 }
 
 
@@ -724,7 +724,7 @@ void Serializer::Stringify(std::u32string& output, const RawArg& arg, const bool
 
 void Serializer::Stringify(std::u32string& output, const FuncCall* call)
 {
-    output.append(*call->Name).push_back(U'(');
+    output.append(call->FullFuncName()).push_back(U'(');
     size_t i = 0;
     for (const auto& arg : call->Args)
     {

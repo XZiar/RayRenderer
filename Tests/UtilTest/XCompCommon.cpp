@@ -87,9 +87,10 @@ public:
     std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>) override
     {
         auto& Runtime = static_cast<RuntimeCaller&>(runtime);
-        if ((*call.Name)[0] == U"xcstub"sv)
+        const auto& fname = call.GetName();
+        if (fname[0] == U"xcstub"sv)
         {
-            const auto sub = (*call.Name)[1];
+            const auto sub = fname[1];
             if (sub == U"AddRun"sv)
             {
                 const auto args = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::String, Arg::Type::String });
@@ -116,7 +117,7 @@ public:
             }
             else if (sub == U"ValArg"sv)
             {
-                const auto type = (*call.Name)[2];
+                const auto type = fname[2];
                 if (type == U"u8")
                 {
                     const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();

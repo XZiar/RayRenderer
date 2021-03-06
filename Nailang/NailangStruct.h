@@ -92,15 +92,11 @@ public:
 
 
 class TempPartedNameBase;
-struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common::NonMovable
+struct COMMON_EMPTY_BASES PartedName
 {
     friend class TempPartedNameBase;
     using value_type = char32_t;
     using PartType = std::pair<uint16_t, uint16_t>;
-    [[nodiscard]] constexpr operator std::u32string_view() const noexcept
-    {
-        return FullName();
-    }
     [[nodiscard]] constexpr bool operator==(const PartedName& other) const noexcept
     {
         if (Length != other.Length)
@@ -113,7 +109,15 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
     {
         return other == FullName();
     }
+    [[nodiscard]] constexpr std::u32string_view FullName() const noexcept
+    {
+        return { Ptr, Length };
+    }
     [[nodiscard]] std::u32string_view operator[](size_t index) const noexcept
+    {
+        return GetPart(index);
+    }
+    [[nodiscard]] std::u32string_view GetPart(size_t index) const noexcept
     {
         if (index >= PartCount)
             return {};
@@ -122,10 +126,6 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
         const auto parts = reinterpret_cast<const PartType*>(this + 1);
         const auto [offset, len] = parts[index];
         return { Ptr + offset, len };
-    }
-    [[nodiscard]] constexpr std::u32string_view FullName() const noexcept
-    {
-        return { Ptr, Length };
     }
     [[nodiscard]] std::u32string_view GetRest(const uint32_t index) const noexcept
     {
@@ -142,8 +142,10 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
         Expects(to > from);
         if (to > PartCount)
             return {};
-        if (PartCount == 1)
-            return FullName();
+        if (to == PartCount)
+            return GetRest(from);
+        /*if (PartCount == 1)
+            return FullName();*/
         const auto parts = reinterpret_cast<const PartType*>(this + 1);
         const uint32_t idxF = parts[from].first, idxT = parts[to].first - 1;
         return { Ptr + idxF, static_cast<size_t>(idxT - idxF) };
@@ -151,7 +153,7 @@ struct COMMON_EMPTY_BASES PartedName : public common::NonCopyable, public common
     [[nodiscard]] constexpr auto Parts() const noexcept
     {
         return common::linq::FromRange<uint32_t>(0u, PartCount)
-            .Select([self = this](uint32_t idx) { return (*self)[idx]; });
+            .Select([self = this](uint32_t idx) { return self->GetPart(idx); });
     }
     NAILANGAPI static std::vector<PartType> GetParts(std::u32string_view name);
     NAILANGAPI static PartedName* Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo = 0);
@@ -161,11 +163,15 @@ public:
     uint16_t PartCount;
 protected:
     uint16_t ExternInfo;
+private:
     constexpr PartedName(std::u32string_view name, common::span<const PartType> parts, uint16_t exinfo) noexcept :
         Ptr(name.data()), Length(gsl::narrow_cast<uint32_t>(name.size())),
         PartCount(gsl::narrow_cast<uint16_t>(parts.size())),
         ExternInfo(exinfo)
     { }
+    constexpr PartedName(PartedName&& other) noexcept = default;
+    PartedName& operator= (PartedName&&) noexcept = delete;
+    COMMON_NO_COPY(PartedName)
 };
 
 class NAILANGAPI TempPartedNameBase
@@ -179,8 +185,9 @@ protected:
         constexpr Tail() noexcept : Ptr(nullptr) {}
     } Extra;
     explicit TempPartedNameBase(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info);
+    explicit TempPartedNameBase(std::u32string_view name, uint16_t info) : 
+        TempPartedNameBase(name, PartedName::GetParts(name), info) { }
     explicit TempPartedNameBase(const PartedName* var) noexcept;
-    TempPartedNameBase(TempPartedNameBase&& other) noexcept;
     TempPartedNameBase Copy() const noexcept;
     const PartedName& Get() const noexcept
     {
@@ -188,6 +195,9 @@ protected:
     }
 public:
     ~TempPartedNameBase();
+    TempPartedNameBase(TempPartedNameBase&& other) noexcept;
+    TempPartedNameBase& operator= (TempPartedNameBase&&) noexcept = delete;
+    COMMON_NO_COPY(TempPartedNameBase)
 };
 
 #if COMPILER_MSVC
@@ -218,9 +228,6 @@ public:
     {
         return Get();
     }
-    /// <summary>Create a TempBindVar that wrappers a LateBindVar</summary>
-    /// <param name="var">LateBindVar</param>
-    /// <returns>TempBindVar</returns>
     static TempPartedName Wrapper(const T* var) noexcept
     {
         return TempPartedName(var);
@@ -990,18 +997,12 @@ struct FuncName : public PartedName
     {
         if (name.size() == 0)
             return nullptr;
-        const auto ptr = static_cast<FuncName*>(PartedName::Create(pool, name));
-        ptr->ExternInfo = common::enum_cast(info);
-        return ptr;
+        return static_cast<FuncName*>(PartedName::Create(pool, name, common::enum_cast(info)));
     }
     static TempPartedName<FuncName> CreateTemp(std::u32string_view name, FuncInfo info)
     {
-        const auto parts = PartedName::GetParts(name);
-        return TempPartedName<FuncName>(name, parts, common::enum_cast(info));
+        return TempPartedName<FuncName>(name, common::enum_cast(info));
     }
-private:
-    friend TempPartedName<FuncName>;
-    using PartedName::PartedName;
 };
 MAKE_ENUM_BITFIELD(FuncName::FuncInfo)
 using TempFuncName = TempPartedName<FuncName>;
@@ -1016,6 +1017,8 @@ struct FuncCall : public WithPos
     constexpr FuncCall(const FuncName* name, common::span<const RawArg> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
         WithPos{pos}, Name(name), Args(args)
     { }
+    constexpr const FuncName& GetName() const noexcept { return *Name; }
+    constexpr std::u32string_view FullFuncName() const noexcept { return Name->FullName(); }
 };
 struct UnaryExpr
 {
@@ -1049,16 +1052,34 @@ struct RawBlock : public WithPos
 using RawBlockWithMeta = WithMeta<RawBlock>;
 struct Block;
 
+struct NilCheck
+{
+    enum class Behavior : uint32_t { Pass = 0, Skip = 1, Throw = 2 };
+    uint8_t Value;
+    constexpr NilCheck(Behavior notnull, Behavior null) noexcept :
+        Value(static_cast<uint8_t>(common::enum_cast(notnull) | (common::enum_cast(null) << 4))) 
+    { }
+    constexpr NilCheck() noexcept : NilCheck(Behavior::Pass, Behavior::Pass) 
+    { }
+    constexpr Behavior WhenNotNull() const noexcept
+    {
+        return static_cast<Behavior>(Value & 0x0fu);
+    }
+    constexpr Behavior WhenNull() const noexcept
+    {
+        return static_cast<Behavior>((Value & 0xf0u) >> 4);
+    }
+};
+
 struct Assignment : public WithPos
 {
-    enum class NilCheck : uint8_t { ReqNotNull, SkipNotNull, ThrowNotNull };
     LateBindVar Target;
     SubQuery Queries;
     RawArg Statement;
     NilCheck Check;
 
     constexpr Assignment(std::u32string_view name) noexcept :
-        Target(name), Check(NilCheck::ReqNotNull) { }
+        Target(name) { }
 
     constexpr std::u32string_view GetVar() const noexcept
     { 

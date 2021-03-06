@@ -36,7 +36,7 @@ void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::Insta
 void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
-    if (*meta.Name == U"oclu.Dp4aExt"sv)
+    if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
         const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         Provider = Generate(
@@ -76,7 +76,7 @@ std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntim
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (*call.Name == U"oclu.IntelDp4a"sv)
+    if (call.GetName()== U"oclu.IntelDp4a"sv)
     {
         Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
         HasIntelDp4a = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Bool).GetBool().value();

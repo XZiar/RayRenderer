@@ -195,9 +195,11 @@ void NLDXRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
 
 Arg NLDXRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
-    if (call.Name->PartCount == 2 && (*call.Name)[0] == U"dxu"sv)
+    const auto& fname = call.GetName();
+    if (call.Name->PartCount == 2 && fname[0] == U"dxu"sv)
     {
-        switch (const auto subName = (*call.Name)[1]; common::DJBHash::HashC(subName))
+        const auto subName = fname[1];
+        switch (common::DJBHash::HashC(subName))
         {
         HashCase(subName, U"CompilerFlag")
         {
@@ -212,7 +214,7 @@ Arg NLDXRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         } return {};
         default: break;
         }
-        auto ret = CommonFunc((*call.Name)[1], call, metas);
+        auto ret = CommonFunc(fname[1], call, metas);
         if (ret.has_value())
             return std::move(ret.value());
     }
@@ -420,9 +422,10 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
 void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
 {
     auto& kerCtx = static_cast<KernelContext&>(ctx);
-    if (meta.Name->PartCount == 2 && (*meta.Name)[0] == U"dxu"sv)
+    const auto& fname = meta.GetName();
+    if (meta.Name->PartCount == 2 && fname[0] == U"dxu"sv)
     {
-        switch (const auto subName = (*meta.Name)[1]; common::DJBHash::HashC(subName))
+        switch (const auto subName = fname[1]; common::DJBHash::HashC(subName))
         {
         HashCase(subName, U"RequestWorkgroupSize")
         {

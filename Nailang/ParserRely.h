@@ -244,7 +244,7 @@ public:
 };
 
 
-enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, Create };
+enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
 class AssignOpTokenizer
 {
 public:
@@ -292,7 +292,7 @@ public:
         RET_OP("/=", DivAssign);
         RET_OP("%=", RemAssign);
         RET_OP("?=", NilAssign);
-        RET_OP(":=",    Create);
+        RET_OP(":=", NewCreate);
         default:     return ParserToken(BaseToken::Error, txt);
         }
 #undef RET_OP

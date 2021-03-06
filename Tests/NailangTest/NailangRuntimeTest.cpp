@@ -25,6 +25,7 @@ using xziar::nailang::RawArg;
 using xziar::nailang::CustomVar;
 using xziar::nailang::Arg;
 using xziar::nailang::ArgLocator;
+using xziar::nailang::NilCheck;
 using xziar::nailang::Assignment;
 using xziar::nailang::Block;
 using xziar::nailang::NailangRuntimeBase;
@@ -109,7 +110,9 @@ public:
         Assignment assign(varName);
         assign.Queries = query;
         assign.Statement = val;
-        assign.Check = (create && query.Size() == 0) ? Assignment::NilCheck::ThrowNotNull : Assignment::NilCheck::ReqNotNull;
+        NilCheck::Behavior notnull = create ? NilCheck::Behavior::Throw : NilCheck::Behavior::Pass,
+            null = query.Size() == 0 ? NilCheck::Behavior::Pass : NilCheck::Behavior::Throw;
+        assign.Check = { notnull, null };
         Assign(assign);
     }
     Arg QuickGetArg(std::u32string_view name)
@@ -841,11 +844,11 @@ TEST(NailangRuntime, Assign)
     MemoryPool pool;
     NailangRT runtime;
     {
-        EXPECT_THROW(PEAssign(runtime, pool, U"str"sv, U"=1;"sv), xziar::nailang::NailangRuntimeException);
-    }
-    {
         PEAssign(runtime, pool, U"str"sv, U":=\"Hello \";"sv);
         LOOKUP_ARG(runtime, U"str"sv, U32Sv, U"Hello "sv);
+    }
+    {
+        EXPECT_THROW(PEAssign(runtime, pool, U"str"sv, U":=1;"sv), xziar::nailang::NailangRuntimeException);
     }
     {
         PEAssign(runtime, pool, U"str"sv, U"+= \"World\";"sv);

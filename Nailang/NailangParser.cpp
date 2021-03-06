@@ -483,7 +483,7 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
     using tokenizer::AssignOps;
-    using NilCheck = Assignment::NilCheck;
+    using Behavior = NilCheck::Behavior;
 
     constexpr auto FirstLexer  = ParserLexerBase<CommentTokenizer, 
         tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
@@ -513,22 +513,25 @@ Assignment BlockParser::ParseAssignment(const std::u32string_view var)
         case NailangToken::Assign:
         {
             std::optional<EmbedOps> selfOp;
-            switch (static_cast<AssignOps>(token.GetUInt()))
+            Behavior notnull = Behavior::Pass, null = Behavior::Pass;
+            const auto aop = static_cast<AssignOps>(token.GetUInt());
+            switch (aop)
             {
-            case AssignOps::   Assign:                                          break;
-            case AssignOps::   Create: assign.Check = NilCheck::ThrowNotNull;   break;
-            case AssignOps::NilAssign: assign.Check = NilCheck::SkipNotNull;    break;
-            case AssignOps::AndAssign: selfOp = EmbedOps::And;                  break;
-            case AssignOps:: OrAssign: selfOp = EmbedOps:: Or;                  break;
-            case AssignOps::AddAssign: selfOp = EmbedOps::Add;                  break;
-            case AssignOps::SubAssign: selfOp = EmbedOps::Sub;                  break;
-            case AssignOps::MulAssign: selfOp = EmbedOps::Mul;                  break;
-            case AssignOps::DivAssign: selfOp = EmbedOps::Div;                  break;
-            case AssignOps::RemAssign: selfOp = EmbedOps::Rem;                  break;
-            default: OnUnExpectedToken(token, u"expect assign op"sv);           break;
+            case AssignOps::   Assign:                                                      break;
+            case AssignOps::NewCreate: notnull = Behavior::Throw;                           break;
+            case AssignOps::NilAssign:    null = Behavior::Skip;                            break;
+            case AssignOps::AndAssign:    null = Behavior::Throw; selfOp = EmbedOps::And;   break;
+            case AssignOps:: OrAssign:    null = Behavior::Throw; selfOp = EmbedOps:: Or;   break;
+            case AssignOps::AddAssign:    null = Behavior::Throw; selfOp = EmbedOps::Add;   break;
+            case AssignOps::SubAssign:    null = Behavior::Throw; selfOp = EmbedOps::Sub;   break;
+            case AssignOps::MulAssign:    null = Behavior::Throw; selfOp = EmbedOps::Mul;   break;
+            case AssignOps::DivAssign:    null = Behavior::Throw; selfOp = EmbedOps::Div;   break;
+            case AssignOps::RemAssign:    null = Behavior::Throw; selfOp = EmbedOps::Rem;   break;
+            default: OnUnExpectedToken(token, u"expect assign op"sv);                       break;
             }
-            if (assign.Check != NilCheck::ReqNotNull && !tmpQueries.empty())
-                OnUnExpectedToken(token, u"NilAssign or CreateAssign cannot be applied with query"sv);
+            if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
+                OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
+            assign.Check = { notnull, null };
             const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
             if (!stmt.has_value())
                 NLPS_THROW_EX(u"expect statement"sv);

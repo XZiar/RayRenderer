@@ -15,6 +15,7 @@ using xziar::nailang::RawArg;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::BlockContent;
+using xziar::nailang::NilCheck;
 using xziar::nailang::CustomVar;
 using xziar::nailang::CompareResultCore;
 using xziar::nailang::CompareResult;
@@ -30,7 +31,6 @@ using common::str::Charset;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
-using NilCheck = xziar::nailang::Assignment::NilCheck;
 
 MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
@@ -680,8 +680,8 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(
             {
                 auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
                 var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
-                // const auto ret = LookUpArg(var);
-                SetArg(var, {}, Arg(args[i + 1]), NilCheck::ThrowNotNull);
+                constexpr NilCheck nilcheck(NilCheck::Behavior::Throw, NilCheck::Behavior::Pass);
+                SetArg(var, {}, Arg(args[i + 1]), nilcheck);
             }
             auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
             NestedCookie newCookie(cookie, *block);
@@ -739,9 +739,9 @@ void XCNLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
     for (const auto& meta : metas)
     {
         std::u32string_view prefix;
-        if (*meta.Name == U"If"sv)
+        if (meta.GetName() == U"If"sv)
             prefix = U"If "sv;
-        else if (*meta.Name == U"Skip"sv)
+        else if (meta.GetName() == U"Skip"sv)
             prefix = U"Skip if "sv;
         else
             continue;
@@ -758,7 +758,7 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     common::str::StrVariant<char32_t> source(block.Block->Source);
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        SetArg(var, {}, EvaluateArg(arg), NilCheck::ThrowNotNull);
+        SetArg(var, {}, EvaluateArg(arg));
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
@@ -893,25 +893,26 @@ void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
 
 Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
 {
-    if ((*call.Name)[0] == U"xcomp"sv)
+    const auto& fname = call.GetName();
+    if (fname[0] == U"xcomp"sv)
     {
         if (call.Name->PartCount == 2)
         {
-            auto ret = CommonFunc((*call.Name)[1], call, metas);
+            auto ret = CommonFunc(fname[1], call, metas);
             if (ret.has_value())
                 return std::move(ret.value());
         }
         else if (call.Name->PartCount == 3)
         {
-            if ((*call.Name)[1] == U"vec"sv)
+            if (fname[1] == U"vec"sv)
             {
-                auto ret = CreateGVec((*call.Name)[2], call);
+                auto ret = CreateGVec(fname[2], call);
                 if (ret.has_value())
                     return std::move(ret.value());
             }
-            else if ((*call.Name)[1] == U"Arg"sv)
+            else if (fname[1] == U"Arg"sv)
             {
-                return InstanceArgCustomVar::Create(ParseInstanceArg((*call.Name)[2], call));
+                return InstanceArgCustomVar::Create(ParseInstanceArg(fname[2], call));
             }
         }
     }
@@ -944,7 +945,7 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
         common::span<const RawArg> tpArgs;
         for (const auto& meta : blk.MetaFunc)
         {
-            if (*meta.Name == U"xcomp.TemplateArgs")
+            if (meta.GetName() == U"xcomp.TemplateArgs")
             {
                 for (uint32_t i = 0; i < meta.Args.size(); ++i)
                 {
@@ -1035,11 +1036,12 @@ void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
     {
         ext->InstanceMeta(*this, meta, ctx);
     }
-    if (meta.Name->PartCount >= 2 && (*meta.Name)[0] == U"xcomp"sv && (*meta.Name)[1] == U"Arg"sv)
+    const auto& fname = meta.GetName();
+    if (meta.Name->PartCount >= 2 && fname.GetRange(0, 2) == U"xcomp.Arg"sv)
     {
         if (meta.Name->PartCount == 3)
         {
-            auto data = ParseInstanceArg((*meta.Name)[2], meta);
+            auto data = ParseInstanceArg(fname[2], meta);
             InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
             HandleInstanceArg(info, ctx, meta, nullptr);
         }
