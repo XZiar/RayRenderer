@@ -31,23 +31,30 @@ enum class NailangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Raw, Block, MetaFunc, Func, Var, SubField, EmbedOp, Parenthese, SquareBracket, CurlyBrace, Assign,
+    Raw, Block, MetaFunc, Func, Var, SubField, EmbedOp, CondOp, Parenthese, SquareBracket, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
 
-template<auto Tid, char32_t... Char>
+template<bool FullMatch, auto Tid, char32_t... Char>
 class KeyCharTokenizer : public common::parser::tokenizer::TokenizerBase
 {
 public:
     using StateData = void;
     forceinline constexpr TokenizerResult OnChar(const char32_t ch, const size_t idx) const noexcept
     {
-        Expects(idx == 0);
-        if ((... || (ch == Char)))
-            return TokenizerResult::FullMatch;
+        if constexpr (FullMatch)
+        {
+            Expects(idx == 0);
+            if ((... || (ch == Char)))
+                return TokenizerResult::FullMatch;
+        }
         else
-            return TokenizerResult::NotMatch;
+        {
+            if (idx == 0 && (... || (ch == Char)))
+                return TokenizerResult::Waitlist;
+        }
+        return TokenizerResult::NotMatch;
     }
     forceinline constexpr ParserToken GetToken(ContextReader&, std::u32string_view txt) const noexcept
     {
@@ -56,11 +63,13 @@ public:
     }
 };
 
-class ParentheseTokenizer    : public KeyCharTokenizer<NailangToken::Parenthese,    U'(', U')'>
+class ParentheseTokenizer    : public KeyCharTokenizer<true,  NailangToken::Parenthese,    U'(', U')'>
 { };
-class SquareBracketTokenizer : public KeyCharTokenizer<NailangToken::SquareBracket, U'[', U']'>
+class SquareBracketTokenizer : public KeyCharTokenizer<true,  NailangToken::SquareBracket, U'[', U']'>
 { };
-class CurlyBraceTokenizer    : public KeyCharTokenizer<NailangToken::CurlyBrace,    U'{', U'}'>
+class CurlyBraceTokenizer    : public KeyCharTokenizer<true,  NailangToken::CurlyBrace,    U'{', U'}'>
+{ };
+class TernaryCondTokenizer   : public KeyCharTokenizer<false, NailangToken::CondOp,        U'?', U':'>
 { };
 
 template<char32_t Pfx>
@@ -131,25 +140,55 @@ class NormalFuncPrefixTokenizer : public FuncPrefixTokenizer<U'$', NailangToken:
 { };
 
 
-class VariableTokenizer : public ASCII2PartTokenizer
+class VariableTokenizer
 {
+protected:
+    static constexpr ASCIIChecker<true> HeadChecker = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"sv;
+    static constexpr ASCIIChecker<true> TailChecker = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_"sv;
 public:
-    constexpr VariableTokenizer() : ASCII2PartTokenizer(NailangToken::Var, 1, 
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_`:", 
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
-    { }
+    using StateData = uint32_t;
+    [[nodiscard]] forceinline constexpr std::pair<char32_t, TokenizerResult> 
+        OnChar(const uint32_t state, const char32_t ch, const size_t idx) const noexcept
+    {
+        if (idx == 0)
+        {
+            if (ch == '`' || ch == ':')
+                return { 0, TokenizerResult::Pending };
+            if (HeadChecker(ch))
+                return { 1, TokenizerResult::Waitlist };
+        }
+        else if (state == 0)
+        {
+            if (HeadChecker(ch))
+                return { 1, TokenizerResult::Waitlist };
+        }
+        else
+        {
+            if (TailChecker(ch))
+                return { 1, TokenizerResult::Waitlist };
+        }
+        return { 0, TokenizerResult::NotMatch };
+    }
+    [[nodiscard]] forceinline ParserToken GetToken(const uint32_t state, ContextReader&, std::u32string_view txt) const noexcept
+    {
+        Expects(state == 1);
+        return ParserToken(NailangToken::Var, txt);
+    }
     static constexpr std::optional<size_t> CheckName(const std::u32string_view name) noexcept
     {
         constexpr VariableTokenizer Self;
         if (name.empty()) 
             return SIZE_MAX;
-        if (!Self.FirstChecker(name[0]))
-            return 0;
-        for (size_t i = 1; i < name.size(); ++i)
+        uint32_t state = 0;
+        for (size_t i = 0; i < name.size(); ++i)
         {
-            if (!Self.SecondChecker(name[i]))
+            const auto [newState, ret] = Self.OnChar(state, name[i], i);
+            if (ret == TokenizerResult::NotMatch)
                 return i;
+            state = newState;
         }
+        if (state == 0)
+            return name.size() - 1;
         return {};
     }
 };
@@ -231,18 +270,17 @@ public:
         RET_OP(">=", GreaterEqual);
         RET_OP("&&", And);
         RET_OP("||", Or);
-        RET_OP("!",  Not);
         RET_OP("+",  Add);
         RET_OP("-",  Sub);
         RET_OP("*",  Mul);
         RET_OP("/",  Div);
         RET_OP("%",  Rem);
+        RET_OP("!",  Not);
         default:     return ParserToken(BaseToken::Error, txt);
         }
 #undef RET_OP
     }
 };
-
 
 enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
 class AssignOpTokenizer

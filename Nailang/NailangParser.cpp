@@ -46,23 +46,6 @@ PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint1
     }
 }
 
-struct ExpectParentheseL
-{
-    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U'(');
-};
-struct ExpectParentheseR
-{
-    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U')');
-};
-struct ExpectCurlyBraceL
-{
-    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'{');
-};
-struct ExpectCurlyBraceR
-{
-    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'}');
-};
-
 
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
@@ -90,7 +73,7 @@ common::str::StrVariant<char16_t> NailangParser::GetCurrentFileName() const noex
 {
     if (SubScopeName.empty())
         return ParserBase::GetCurrentFileName();
-    
+
     std::u16string fileName;
     fileName.reserve(Context.SourceName.size() + SubScopeName.size() + 3);
     fileName.append(Context.SourceName).append(u" ["sv).append(SubScopeName).append(u"]");
@@ -112,12 +95,32 @@ void NailangParser::HandleException(const NailangParseException& ex) const
 
 common::parser::DetailToken NailangParser::OnUnExpectedToken(const common::parser::DetailToken& token, const std::u16string_view extraInfo) const
 {
-    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}] at [{},{}]{}{}"sv), 
+    const auto msg = fmt::format(FMT_STRING(u"Unexpected token [{}] at [{},{}]{}{}"sv),
         DescribeToken(token), token.Row, token.Col, extraInfo.empty() ? u' ' : u',', extraInfo);
     HandleException(UnexpectedTokenException(msg, token));
     return token;
 }
 
+struct ExpectParentheseL
+{
+    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U'(');
+};
+struct ExpectParentheseR
+{
+    static constexpr ParserToken Token = ParserToken(NailangToken::Parenthese, U')');
+};
+struct ExpectCurlyBraceL
+{
+    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'{');
+};
+struct ExpectCurlyBraceR
+{
+    static constexpr ParserToken Token = ParserToken(NailangToken::CurlyBrace, U'}');
+};
+struct ExpectSemoColon
+{
+    static constexpr ParserToken Token = ParserToken(BaseToken::Delim, U';');
+};
 void NailangParser::EatLeftParenthese()
 {
     EatSingleToken<ExpectParentheseL, tokenizer::ParentheseTokenizer>();
@@ -134,173 +137,13 @@ void NailangParser::EatRightCurlyBrace()
 {
     EatSingleToken<ExpectCurlyBraceR, tokenizer::CurlyBraceTokenizer>();
 }
-
-
-std::pair<std::optional<RawArg>, char32_t> ComplexArgParser::ParseArg(std::string_view stopDelim)
+void NailangParser::EatSemiColon()
 {
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-    
-    const DelimTokenizer StopTokenizer = stopDelim;
-    const auto ArgLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
-        tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
-        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer, 
-        tokenizer::VariableTokenizer, tokenizer::EmbedOpTokenizer, 
-        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
-    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
-        tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
-    
-    std::optional<RawArg> oprend1, oprend2;
-    std::vector<RawArg> tmpQueries;
-    std::optional<EmbedOps> op;
-    char32_t stopChar = common::parser::special::CharEnd;
-
-    const auto CleanupQueries = [&](std::optional<RawArg>& opr)
-    {
-        if (!tmpQueries.empty())
-        {
-            Expects(opr.has_value());
-            Expects(opr->TypeData != RawArg::Type::Query);
-            const auto sp = MemPool.CreateArray(tmpQueries);
-            const auto query = MemPool.Create<QueryExpr>(*opr, sp);
-            opr.emplace(query);
-            tmpQueries.clear();
-        }
-    };
-    const auto EnsureNotLiteralType = [&](const auto oprType, const auto token)
-    {
-        if (tmpQueries.empty()) // first query
-        {
-            switch (oprType)
-            {
-            case RawArg::Type::Func:
-            case RawArg::Type::Unary:
-            case RawArg::Type::Binary:
-            case RawArg::Type::Var:
-                break;
-            default:
-                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
-                break;
-            }
-        }
-    };
-
-    while (true) 
-    {
-        const bool isAtOp = oprend1.has_value() && !op.has_value() && !oprend2.has_value();
-        auto& targetOpr = op.has_value() ? oprend2 : oprend1;
-        auto token = isAtOp ?
-            GetNextToken(OpLexer,  IgnoreBlank, IgnoreCommentToken) :
-            GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
-
-        {
-            const auto type = token.GetIDEnum();
-            if (type == BaseToken::Unknown || type == BaseToken::Error)
-            {
-                if (isAtOp)
-                    OnUnExpectedToken(token, u"expect an operator"sv);
-                else
-                    OnUnExpectedToken(token, u"unknown or error token"sv);
-            }
-            if (type == BaseToken::Delim || type == BaseToken::End)
-            {
-                stopChar = token.GetChar();
-                break;
-            }
-        }
-
-        if (token.GetIDEnum<NailangToken>() == NailangToken::EmbedOp)
-        {
-            if (op.has_value())
-                OnUnExpectedToken(token, u"already has op"sv);
-            const auto opval = static_cast<EmbedOps>(token.GetUInt());
-            const bool isUnary = EmbedOpHelper::IsUnaryOp(opval);
-            if (isUnary && oprend1.has_value())
-                OnUnExpectedToken(token, u"expect no operand before unary operator"sv);
-            if (!isUnary && !oprend1.has_value())
-                OnUnExpectedToken(token, u"expect operand before binary operator"sv);
-            op = opval;
-            CleanupQueries(targetOpr);
-        }
-        else if (token.GetIDEnum<NailangToken>() == NailangToken::SquareBracket) // Indexer
-        {
-            if (token.GetChar() == U']')
-                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            if (!targetOpr.has_value())
-                OnUnExpectedToken(token, u"Indexer should follow a RawArg"sv);
-            EnsureNotLiteralType(targetOpr->TypeData, token);
-            auto index = ParseArg("]"sv).first;
-            if (!index.has_value())
-                OnUnExpectedToken(token, u"lack of index"sv);
-            SubQuery::PushQuery(tmpQueries, index.value());
-            // target = MemPool.Create<IndexerExpr>(*target, *index);
-        }
-        else if (token.GetIDEnum<NailangToken>() == NailangToken::SubField) // SubField
-        {
-            if (!targetOpr.has_value())
-                OnUnExpectedToken(token, u"SubField should follow a RawArg"sv);
-            EnsureNotLiteralType(targetOpr->TypeData, token);
-            SubQuery::PushQuery(tmpQueries, token.GetString());
-            // target = MemPool.Create<IndexerExpr>(*target, *index);
-        }
-        else
-        {
-            if (targetOpr.has_value())
-                OnUnExpectedToken(token, u"already has oprend"sv);
-#define EID(id) case common::enum_cast(id)
-            switch (token.GetID())
-            {
-            EID(BaseToken::Uint)        : targetOpr = token.GetUInt();      break;
-            EID(BaseToken::Int)         : targetOpr = token.GetInt();       break;
-            EID(BaseToken::FP)          : targetOpr = token.GetDouble();    break;
-            EID(BaseToken::Bool)        : targetOpr = token.GetBool();      break;
-            EID(NailangToken::Var)      : 
-                targetOpr = LateBindVar(token.GetString());
-                break;
-            EID(BaseToken::String)      : 
-                targetOpr = ProcessString(token.GetString(), MemPool);
-                break;
-            EID(NailangToken::Func)  :
-                targetOpr = MemPool.Create<FuncCall>(ParseFuncBody(token.GetString(), MemPool, Context, 
-                    GetPosition(token), FuncName::FuncInfo::ExprPart));
-                break;
-            EID(NailangToken::Parenthese):
-                if (token.GetChar() == U'(')
-                    targetOpr = ParseArg(")"sv).first;
-                else // == U')'
-                    OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
-                break; 
-            default                     : OnUnExpectedToken(token, u"Unexpected token"sv);
-            }
-#undef EID
-        }
-    }
-    // exit from delim or end
-
-    CleanupQueries(op.has_value() ? oprend2 : oprend1);
-    if (!op.has_value())
-    {
-        Expects(!oprend2.has_value());
-        return { std::move(oprend1), stopChar };
-    }
-    else if (EmbedOpHelper::IsUnaryOp(*op))
-    {
-        Expects(!oprend1.has_value());
-        if (!oprend2.has_value())
-            NLPS_THROW_EX(u"Lack oprend for unary operator"sv);
-        return { MemPool.Create<UnaryExpr>(*op, std::move(*oprend2)), stopChar };
-
-    }
-    else
-    {
-        Expects(oprend1.has_value());
-        if (!oprend2.has_value())
-            NLPS_THROW_EX(u"Lack 2nd oprend for binary operator"sv);
-        return { MemPool.Create<BinaryExpr>(*op, std::move(*oprend1), std::move(*oprend2)), stopChar };
-    }
+    using SemiColonTokenizer = tokenizer::KeyCharTokenizer<true, BaseToken::Delim, U';'>;
+    EatSingleToken<ExpectSemoColon, SemiColonTokenizer>();
 }
 
-FuncName* ComplexArgParser::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const
+FuncName* NailangParser::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const
 {
     try
     {
@@ -313,7 +156,470 @@ FuncName* ComplexArgParser::CreateFuncName(std::u32string_view name, FuncName::F
     return nullptr;
 }
 
-RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool& pool)
+void NailangParser::FillBlockName(RawBlock& block)
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+    constexpr auto ExpectString = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
+
+    EatLeftParenthese();
+    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, StringTokenizer>();
+    const auto sectorNameToken = ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectString);
+    block.Name = sectorNameToken.GetString();
+    EatRightParenthese();
+}
+
+void NailangParser::FillFileName(RawBlock& block) const noexcept
+{
+    block.FileName = Context.SourceName;
+}
+
+FuncCall NailangParser::ParseFuncCall(std::u32string_view name, std::pair<uint32_t, uint32_t> pos, FuncName::FuncInfo info)
+{
+    const auto funcName = CreateFuncName(name, info);
+    EatLeftParenthese();
+    std::vector<Expr> args;
+    while (true)
+    {
+        const auto [arg, delim] = ParseExpr(",)"sv);
+        if (arg)
+            args.emplace_back(arg);
+        else
+            if (delim != U')')
+                NLPS_THROW_EX(u"Does not allow empty argument"sv);
+        if (delim == U')')
+            break;
+        if (delim == common::parser::special::CharEnd)
+            NLPS_THROW_EX(u"Expect ')' before reaching end"sv);
+    }
+    const auto sp = MemPool.CreateArray(args);
+    return { funcName, sp, pos };
+}
+
+RawBlock NailangParser::ParseRawBlock(const std::u32string_view name, std::pair<uint32_t, uint32_t> pos)
+{
+    RawBlock block;
+    block.Position = pos;
+    block.Type = name;
+
+    FillBlockName(block);
+
+    EatLeftCurlyBrace();
+
+    ContextReader reader(Context);
+    auto guardString = std::u32string(reader.ReadLine());
+    FillFileName(block);
+
+    guardString.append(U"}");
+    block.Source = reader.ReadUntil(guardString);
+    block.Source.remove_suffix(guardString.size());
+    return block;
+}
+
+AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos)
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+    using tokenizer::AssignOps;
+    using Behavior = NilCheck::Behavior;
+
+    constexpr auto FirstLexer = ParserLexerBase<CommentTokenizer,
+        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
+
+    std::vector<Expr> tmpQueries;
+    AssignExpr assign(var);
+    assign.Position = pos;
+
+    for (bool shouldCont = true; shouldCont;)
+    {
+        auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
+        switch (token.GetIDEnum<NailangToken>())
+        {
+        case NailangToken::SquareBracket: // Indexer
+        {
+            if (token.GetChar() == U']')
+                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+            const auto index = ParseExprChecked("]"sv, U"]"sv);
+            if (!index)
+                OnUnExpectedToken(token, u"lack of index"sv);
+            SubQuery::PushQuery(tmpQueries, index);
+        } break;
+        case NailangToken::SubField: // SubField
+        {
+            SubQuery::PushQuery(tmpQueries, token.GetString());
+        } break;
+        case NailangToken::Assign:
+        {
+            std::optional<EmbedOps> selfOp;
+            Behavior notnull = Behavior::Pass, null = Behavior::Pass;
+            const auto aop = static_cast<AssignOps>(token.GetUInt());
+            switch (aop)
+            {
+            case AssignOps::Assign:                                                         break;
+            case AssignOps::NewCreate: notnull = Behavior::Throw;                           break;
+            case AssignOps::NilAssign:    null = Behavior::Skip;                            break;
+            case AssignOps::AndAssign:    null = Behavior::Throw; selfOp = EmbedOps::And;   break;
+            case AssignOps::OrAssign:     null = Behavior::Throw; selfOp = EmbedOps::Or;    break;
+            case AssignOps::AddAssign:    null = Behavior::Throw; selfOp = EmbedOps::Add;   break;
+            case AssignOps::SubAssign:    null = Behavior::Throw; selfOp = EmbedOps::Sub;   break;
+            case AssignOps::MulAssign:    null = Behavior::Throw; selfOp = EmbedOps::Mul;   break;
+            case AssignOps::DivAssign:    null = Behavior::Throw; selfOp = EmbedOps::Div;   break;
+            case AssignOps::RemAssign:    null = Behavior::Throw; selfOp = EmbedOps::Rem;   break;
+            default: OnUnExpectedToken(token, u"expect assign op"sv);                       break;
+            }
+            if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
+                OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
+            assign.Check = { notnull, null };
+            const auto stmt = ParseExprChecked(";", U";");
+            if (!stmt)
+                NLPS_THROW_EX(u"expect statement"sv);
+            if (!selfOp.has_value())
+            {
+                assign.Statement = stmt;
+            }
+            else
+            {
+                BinaryExpr statement(*selfOp, assign.Target, stmt);
+                assign.Statement = MemPool.Create<BinaryExpr>(statement);
+            }
+            assign.Queries.Queries = MemPool.CreateArray(tmpQueries);
+            tmpQueries.clear();
+            shouldCont = false;
+        } break;
+        default:
+            OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
+            break;
+        }
+    }
+
+    return assign;
+}
+
+struct ExprOp
+{
+    enum class Type : uint8_t { Empty, Unary, Binary, Ternary };
+    Type TypeData = Type::Empty;
+    uint8_t Val = 0;
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return TypeData != Type::Empty; }
+    [[nodiscard]] constexpr EmbedOps GetEmbedOp() const noexcept { return static_cast<EmbedOps>(Val); }
+    constexpr void operator=(EmbedOps op) noexcept 
+    {
+        TypeData = EmbedOpHelper::IsUnaryOp(op) ? Type::Unary : Type::Binary;
+        Val = common::enum_cast(op);
+    }
+    constexpr void SetTernary(uint8_t stage) noexcept
+    {
+        TypeData = Type::Ternary;
+        Val = stage;
+    }
+};
+
+std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+
+    const DelimTokenizer StopTokenizer = stopDelim;
+    const auto ArgLexer = ParserLexerBase<CommentTokenizer,
+        DelimTokenizer, tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
+        StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer,
+        tokenizer::VariableTokenizer, tokenizer::TernaryCondTokenizer, tokenizer::EmbedOpTokenizer,
+        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
+    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, tokenizer::TernaryCondTokenizer,
+        tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
+
+    Expr oprend[3];
+    std::vector<Expr> tmpQueries;
+    uint32_t oprIdx = 0;
+    ExprOp op;
+    char32_t stopChar = common::parser::special::CharEnd;
+
+    const auto CleanupQueries = [&](Expr& opr)
+    {
+        if (!tmpQueries.empty())
+        {
+            Expects(opr);
+            Expects(opr.TypeData != Expr::Type::Query);
+            const auto sp = MemPool.CreateArray(tmpQueries);
+            opr = MemPool.Create<QueryExpr>(opr, sp);
+            tmpQueries.clear();
+        }
+    };
+    const auto EnsureNotLiteralType = [&](const auto oprType, const auto token)
+    {
+        if (tmpQueries.empty()) // first query
+        {
+            switch (oprType)
+            {
+            case Expr::Type::Func:
+            case Expr::Type::Unary:
+            case Expr::Type::Binary:
+            case Expr::Type::Var:
+                break;
+            default:
+                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
+                break;
+            }
+        }
+    };
+
+    bool shouldContinue = true;
+    while (shouldContinue)
+    {
+        auto& targetOpr = oprend[oprIdx];
+        const bool isAtOp = targetOpr && !op;
+        auto token = isAtOp ?
+            GetNextToken(OpLexer, IgnoreBlank, IgnoreCommentToken) :
+            GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
+
+#define EID(id) common::enum_cast(id)
+        switch (token.GetID())
+        {
+        case EID(BaseToken::Unknown):
+        case EID(BaseToken::Error):
+        {
+            OnUnExpectedToken(token, isAtOp ? u"expect an operator"sv : u"unknown or error token"sv);
+        } break;
+        case EID(BaseToken::Delim):
+        case EID(BaseToken::End):
+        {
+            stopChar = token.GetChar();
+            shouldContinue = false;
+        } break;
+        case EID(NailangToken::Parenthese):
+        {
+            if (targetOpr)
+                OnUnExpectedToken(token, u"already has oprend"sv);
+            if (token.GetChar() == U')')
+                OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
+            targetOpr = ParseExprChecked(")"sv, U")"sv);
+        } break;
+        case EID(NailangToken::CondOp):
+        {
+            if (token.GetChar() == U'?')
+            {
+                if (op) // requires explicit "()" when combined with ther ops
+                    OnUnExpectedToken(token, u"already has op"sv);
+                if (!targetOpr)
+                    OnUnExpectedToken(token, u"expect operand before ?(conditional) operator"sv);
+                op.SetTernary(1);
+            }
+            if (token.GetChar() == U':')
+            {
+                if (!op || op.Val != 1)
+                    OnUnExpectedToken(token, op ? u"already has ':'"sv : u"expect '?' before ':'"sv);
+                if (!targetOpr)
+                    OnUnExpectedToken(token, u"expect left operand before :(conditional) operator"sv);
+                op.SetTernary(2);
+            }
+            CleanupQueries(targetOpr);
+            oprIdx++;
+        } break;
+        case EID(NailangToken::EmbedOp):
+        {
+            if (op)
+                OnUnExpectedToken(token, u"already has op"sv);
+            const auto opval = static_cast<EmbedOps>(token.GetUInt());
+            switch (opval)
+            {
+            case EmbedOps::Not:
+                if (oprIdx != 0)
+                    OnUnExpectedToken(token, u"expect no operand before ! operator"sv);
+                break;
+            default:
+                if (oprIdx != 0)
+                    OnUnExpectedToken(token, u"no support for nested operator"sv);
+                if (!targetOpr)
+                    OnUnExpectedToken(token, u"expect 1 operand before operator"sv);
+                break;
+            }
+            op = opval;
+            CleanupQueries(targetOpr);
+            oprIdx++;
+        } break;
+        case EID(NailangToken::SquareBracket): // Indexer
+        {
+            if (token.GetChar() == U']')
+                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+            if (!targetOpr)
+                OnUnExpectedToken(token, u"Indexer should follow a Expr"sv);
+            EnsureNotLiteralType(targetOpr.TypeData, token);
+            auto index = ParseExprChecked("]"sv, U"]"sv);
+            if (!index)
+                OnUnExpectedToken(token, u"lack of index"sv);
+            SubQuery::PushQuery(tmpQueries, index);
+        } break;
+        case EID(NailangToken::SubField): // SubField
+        {
+            if (!targetOpr)
+                OnUnExpectedToken(token, u"SubField should follow a Expr"sv);
+            EnsureNotLiteralType(targetOpr.TypeData, token);
+            SubQuery::PushQuery(tmpQueries, token.GetString());
+        } break;
+        default:
+        {
+            if (targetOpr)
+                OnUnExpectedToken(token, u"already has oprend"sv);
+            switch (token.GetID())
+            {
+                case EID(BaseToken::Uint)    : targetOpr = token.GetUInt();      break;
+                case EID(BaseToken::Int)     : targetOpr = token.GetInt();       break;
+                case EID(BaseToken::FP)      : targetOpr = token.GetDouble();    break;
+                case EID(BaseToken::Bool)    : targetOpr = token.GetBool();      break;
+                case EID(NailangToken::Var)  :
+                    targetOpr = LateBindVar(token.GetString());
+                break;
+                case EID(BaseToken::String)  :
+                    targetOpr = ProcessString(token.GetString(), MemPool);
+                break;
+                case EID(NailangToken::Func) :
+                    targetOpr = MemPool.Create<FuncCall>(ParseFuncCall(token, FuncName::FuncInfo::ExprPart));
+                break;
+            default: OnUnExpectedToken(token, u"Unexpected token"sv);
+            }
+#undef EID
+        } break;
+        }
+    }
+    // exit from delim or end
+    CleanupQueries(oprend[oprIdx]);
+    switch (op.TypeData)
+    {
+    case ExprOp::Type::Empty:
+        Ensures(oprIdx == 0);
+        return { oprend[0], stopChar };
+    case ExprOp::Type::Ternary:
+        if (op.Val != 2)
+            NLPS_THROW_EX(u"Incomplete ternary operator"sv);
+        if (!oprend[2])
+            NLPS_THROW_EX(u"Lack right oprend for ternary operator"sv);
+        return { MemPool.Create<TernaryExpr>(oprend[0], oprend[1], oprend[2]), stopChar };
+    case ExprOp::Type::Binary:
+        Ensures(oprIdx == 1);
+        if (!oprend[1])
+            NLPS_THROW_EX(u"Lack 2nd oprend for binary operator"sv);
+        return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), oprend[0], oprend[1]), stopChar };
+    case ExprOp::Type::Unary:
+        Ensures(oprIdx == 1);
+        if (!oprend[1])
+            NLPS_THROW_EX(u"Lack oprend for unary operator"sv);
+        return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), oprend[1]), stopChar };
+    default:
+        Ensures(false);
+        return { {}, stopChar };
+    }
+}
+
+Expr NailangParser::ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker)
+{
+    auto [arg, delim] = ParseExpr(stopDelims);
+    if (!stopChecker.empty() && stopChecker.find(delim) == std::u32string_view::npos)
+        NLPS_THROW_EX(FMTSTR(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
+    return arg;
+}
+
+void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd)
+{
+    using common::parser::detail::TokenMatcherHelper;
+    using common::parser::detail::EmptyTokenArray;
+    using tokenizer::AssignOps;
+
+    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, 
+        tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, 
+        tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();
+
+    std::vector<Statement> contents;
+    std::vector<FuncCall> allMetaFuncs;
+    std::vector<FuncCall> metaFuncs;
+    const auto AppendMetaFuncs = [&]() -> std::pair<uint32_t, uint16_t>
+    {
+        const auto offset = gsl::narrow_cast<uint32_t>(allMetaFuncs.size());
+        const auto count  = gsl::narrow_cast<uint16_t>(   metaFuncs.size());
+        allMetaFuncs.reserve(static_cast<size_t>(offset) + count);
+        std::move(metaFuncs.begin(), metaFuncs.end(), std::back_inserter(allMetaFuncs));
+        metaFuncs.clear();
+        return { offset, count };
+    };
+    while (true)
+    {
+        const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
+        switch (token.GetIDEnum<NailangToken>())
+        {
+        case NailangToken::MetaFunc:
+        {
+            metaFuncs.emplace_back(ParseFuncCall(token, FuncName::FuncInfo::Meta));
+        } continue;
+        case NailangToken::Raw:
+        {
+            const auto target = MemPool.Create<RawBlock>(ParseRawBlock(token));
+            contents.emplace_back(target, AppendMetaFuncs());
+            metaFuncs.clear();
+        } continue;
+        case NailangToken::Block:
+        {
+            Block inlineBlk;
+            inlineBlk.Position = GetPosition(token);
+            FillBlockName(inlineBlk);
+            inlineBlk.Type = token.GetString();
+            EatLeftCurlyBrace();
+            {
+                ContextReader reader(Context);
+                reader.ReadLine();
+            }
+            FillFileName(inlineBlk);
+            {
+                const auto idxBegin = Context.Index;
+                ParseContentIntoBlock(true, inlineBlk, false);
+                const auto idxEnd = Context.Index;
+                inlineBlk.Source = Context.Source.substr(idxBegin, idxEnd - idxBegin - 1);
+            }
+            const auto target = MemPool.Create<Block>(inlineBlk);
+            contents.emplace_back(target, AppendMetaFuncs());
+            metaFuncs.clear();
+        } continue;
+        case NailangToken::Func:
+        {
+            if (!allowNonBlock)
+                OnUnExpectedToken(token, u"Function call not supported here"sv);
+            FuncCall funccall = ParseFuncCall(token);
+            EatSemiColon();
+            const auto target = MemPool.Create<FuncCall>(funccall);
+            contents.emplace_back(target, AppendMetaFuncs());
+            metaFuncs.clear();
+        } continue;
+        case NailangToken::Var:
+        {
+            if (!allowNonBlock)
+                OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
+            AssignExpr assign = ParseAssignExpr(token);
+            const auto target = MemPool.Create<AssignExpr>(assign);
+            contents.emplace_back(target, AppendMetaFuncs());
+            metaFuncs.clear();
+        } continue;
+        case NailangToken::CurlyBrace:
+        {
+            if (tillTheEnd || token.GetChar() != U'}')
+                OnUnExpectedToken(token, u"when parsing block contents"sv);
+            if (metaFuncs.size() > 0)
+                OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
+        } break;
+        default:
+        {
+            if (token.GetIDEnum() != BaseToken::End)
+                OnUnExpectedToken(token, u"when parsing block contents"sv);
+            if (metaFuncs.size() > 0)
+                OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
+            if (!tillTheEnd)
+                OnUnExpectedToken(token, u"expect '}' to close the scope"sv);
+        } break;
+        }
+        break;
+    }
+    block.Content = MemPool.CreateArray(contents);
+    block.MetaFuncations = MemPool.CreateArray(allMetaFuncs);
+}
+
+Expr NailangParser::ProcessString(const std::u32string_view str, MemoryPool& pool)
 {
     Expects(str.size() == 0 || str.back() != U'\\');
     const auto idx = str.find(U'\\');
@@ -344,90 +650,20 @@ RawArg ComplexArgParser::ProcessString(const std::u32string_view str, MemoryPool
     return std::u32string_view(space.data(), space.size());
 }
 
-FuncCall ComplexArgParser::ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
-    std::pair<uint32_t, uint32_t> pos, FuncName::FuncInfo info)
+FuncCall NailangParser::ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
+    FuncName::FuncInfo info)
 {
-    // const auto pos = GetPosition(context);
-    ComplexArgParser parser(pool, context);
-    const auto funcName = parser.CreateFuncName(name, info);
-    parser.EatLeftParenthese();
-    std::vector<RawArg> args;
-    while (true)
-    {
-        auto [arg, delim] = parser.ParseArg(",)"sv);
-        if (arg.has_value())
-            args.emplace_back(std::move(*arg));
-        else
-            if (delim != U')')
-                parser.NLPS_THROW_EX(u"Does not allow empty argument"sv);
-        if (delim == U')')
-            break;
-        if (delim == common::parser::special::CharEnd)
-            parser.NLPS_THROW_EX(u"Expect ')' before reaching end"sv);
-    }
-    const auto sp = pool.CreateArray(args);
-    return { funcName, sp, pos };
+    NailangParser parser(pool, context);
+    return parser.ParseFuncCall(name, info);
 }
 
-std::optional<RawArg> ComplexArgParser::ParseSingleArg(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims, std::u32string_view stopChecker)
+Expr NailangParser::ParseSingleExpr(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims, std::u32string_view stopChecker)
 {
-    ComplexArgParser parser(pool, context);
-    auto [arg, delim] = parser.ParseArg(stopDelims);
-    if (!stopChecker.empty() && stopChecker.find(delim) == std::u32string_view::npos)
-        parser.NLPS_THROW_EX(FMTSTR(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
-    return arg;
+    NailangParser parser(pool, context);
+    return parser.ParseExprChecked(stopDelims, stopChecker);
 }
 
-
-struct ExpectSemoColon
-{
-    static constexpr ParserToken Token = ParserToken(BaseToken::Delim, U';');
-};
-void RawBlockParser::EatSemiColon()
-{
-    using SemiColonTokenizer = tokenizer::KeyCharTokenizer<BaseToken::Delim, U';'>;
-    EatSingleToken<ExpectSemoColon, SemiColonTokenizer>();
-}
-
-void RawBlockParser::FillBlockName(RawBlock& block)
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-    constexpr auto ExpectString = TokenMatcherHelper::GetMatcher(EmptyTokenArray{}, BaseToken::String);
-
-    EatLeftParenthese();
-    constexpr auto NameLexer = ParserLexerBase<CommentTokenizer, StringTokenizer>();
-    const auto sectorNameToken = ExpectNextToken(NameLexer, IgnoreBlank, IgnoreCommentToken, ExpectString);
-    block.Name = sectorNameToken.GetString();
-    EatRightParenthese();
-}
-
-void RawBlockParser::FillFileName(RawBlock& block) const noexcept
-{
-    block.FileName = Context.SourceName;
-}
-
-RawBlock RawBlockParser::FillRawBlock(const std::u32string_view name, std::pair<uint32_t, uint32_t> pos)
-{
-    RawBlock block;
-    block.Position = pos;
-    block.Type = name;
-
-    FillBlockName(block);
-
-    EatLeftCurlyBrace();
-
-    ContextReader reader(Context);
-    auto guardString = std::u32string(reader.ReadLine());
-    FillFileName(block);
-
-    guardString.append(U"}");
-    block.Source = reader.ReadUntil(guardString);
-    block.Source.remove_suffix(guardString.size());
-    return block;
-}
-
-RawBlockWithMeta RawBlockParser::GetNextRawBlock()
+RawBlockWithMeta NailangParser::GetNextRawBlock()
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -445,13 +681,12 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
         case NailangToken::Raw:
         {
             RawBlockWithMeta block;
-            static_cast<RawBlock&>(block) = FillRawBlock(token);
+            static_cast<RawBlock&>(block) = ParseRawBlock(token);
             block.MetaFunctions = MemPool.CreateArray(metaFuncs);
             return block;
         } break;
         case NailangToken::MetaFunc:
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, 
-                GetPosition(token), FuncName::FuncInfo::Meta));
+            metaFuncs.emplace_back(ParseFuncCall(token, FuncName::FuncInfo::Meta));
             break;
         default:
             Expects(false);
@@ -460,7 +695,7 @@ RawBlockWithMeta RawBlockParser::GetNextRawBlock()
     }
 }
 
-std::vector<RawBlockWithMeta> RawBlockParser::GetAllRawBlocks()
+std::vector<RawBlockWithMeta> NailangParser::GetAllRawBlocks()
 {
     std::vector<RawBlockWithMeta> sectors;
     while (true)
@@ -474,198 +709,11 @@ std::vector<RawBlockWithMeta> RawBlockParser::GetAllRawBlocks()
     return sectors;
 }
 
-
-Assignment BlockParser::ParseAssignment(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos)
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-    using tokenizer::AssignOps;
-    using Behavior = NilCheck::Behavior;
-
-    constexpr auto FirstLexer  = ParserLexerBase<CommentTokenizer, 
-        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
-
-    std::vector<RawArg> tmpQueries;
-    Assignment assign(var);
-    assign.Position = pos;
-
-    for (bool shouldCont = true; shouldCont;)
-    {
-        auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
-        switch (token.GetIDEnum<NailangToken>())
-        {
-        case NailangToken::SquareBracket: // Indexer
-        {
-            if (token.GetChar() == U']')
-                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            const auto index = ComplexArgParser::ParseSingleArg(MemPool, Context, "]"sv, U"]"sv);
-            if (!index.has_value())
-                OnUnExpectedToken(token, u"lack of index"sv);
-            SubQuery::PushQuery(tmpQueries, *index);
-        } break;
-        case NailangToken::SubField: // SubField
-        {
-            SubQuery::PushQuery(tmpQueries, token.GetString());
-        } break;
-        case NailangToken::Assign:
-        {
-            std::optional<EmbedOps> selfOp;
-            Behavior notnull = Behavior::Pass, null = Behavior::Pass;
-            const auto aop = static_cast<AssignOps>(token.GetUInt());
-            switch (aop)
-            {
-            case AssignOps::   Assign:                                                      break;
-            case AssignOps::NewCreate: notnull = Behavior::Throw;                           break;
-            case AssignOps::NilAssign:    null = Behavior::Skip;                            break;
-            case AssignOps::AndAssign:    null = Behavior::Throw; selfOp = EmbedOps::And;   break;
-            case AssignOps:: OrAssign:    null = Behavior::Throw; selfOp = EmbedOps:: Or;   break;
-            case AssignOps::AddAssign:    null = Behavior::Throw; selfOp = EmbedOps::Add;   break;
-            case AssignOps::SubAssign:    null = Behavior::Throw; selfOp = EmbedOps::Sub;   break;
-            case AssignOps::MulAssign:    null = Behavior::Throw; selfOp = EmbedOps::Mul;   break;
-            case AssignOps::DivAssign:    null = Behavior::Throw; selfOp = EmbedOps::Div;   break;
-            case AssignOps::RemAssign:    null = Behavior::Throw; selfOp = EmbedOps::Rem;   break;
-            default: OnUnExpectedToken(token, u"expect assign op"sv);                       break;
-            }
-            if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
-                OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
-            assign.Check = { notnull, null };
-            const auto stmt = ComplexArgParser::ParseSingleStatement(MemPool, Context);
-            if (!stmt.has_value())
-                NLPS_THROW_EX(u"expect statement"sv);
-            if (!selfOp.has_value())
-            {
-                assign.Statement = *stmt;
-            }
-            else
-            {
-                BinaryExpr statement(*selfOp, assign.Target, *stmt);
-                assign.Statement = MemPool.Create<BinaryExpr>(statement);
-            }
-            assign.Queries.Queries = MemPool.CreateArray(tmpQueries);
-            tmpQueries.clear();
-            shouldCont = false;
-        } break;
-        default:
-            OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
-            break;
-        }
-    }
-
-    return assign;
-}
-
-void BlockParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd)
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-    using tokenizer::AssignOps;
-
-    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, 
-        tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, 
-        tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();
-
-    std::vector<BlockContentItem> contents;
-    std::vector<FuncCall> allMetaFuncs;
-    std::vector<FuncCall> metaFuncs;
-    const auto AppendMetaFuncs = [&]() 
-    {
-        const auto offset = gsl::narrow_cast<uint32_t>(allMetaFuncs.size());
-        const auto count  = gsl::narrow_cast<uint32_t>(   metaFuncs.size());
-        allMetaFuncs.reserve(static_cast<size_t>(offset) + count);
-        std::move(metaFuncs.begin(), metaFuncs.end(), std::back_inserter(allMetaFuncs));
-        metaFuncs.clear();
-        return std::pair{ offset, count };
-    };
-    while (true)
-    {
-        const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
-        switch (token.GetIDEnum<NailangToken>())
-        {
-        case NailangToken::MetaFunc:
-        {
-            metaFuncs.emplace_back(ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, 
-                GetPosition(token), FuncName::FuncInfo::Meta));
-        } continue;
-        case NailangToken::Raw:
-        {
-            const auto target = MemPool.Create<RawBlock>(FillRawBlock(token));
-            const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContentItem::Generate(target, offset, count));
-            metaFuncs.clear();
-        } continue;
-        case NailangToken::Block:
-        {
-            Block inlineBlk;
-            inlineBlk.Position = GetPosition(token);
-            FillBlockName(inlineBlk);
-            inlineBlk.Type = token.GetString();
-            EatLeftCurlyBrace();
-            {
-                ContextReader reader(Context);
-                reader.ReadLine();
-            }
-            FillFileName(inlineBlk);
-            {
-                const auto idxBegin = Context.Index;
-                ParseContentIntoBlock(true, inlineBlk, false);
-                const auto idxEnd = Context.Index;
-                inlineBlk.Source = Context.Source.substr(idxBegin, idxEnd - idxBegin - 1);
-            }
-            const auto target = MemPool.Create<Block>(inlineBlk);
-            const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContentItem::Generate(target, offset, count));
-            metaFuncs.clear();
-        } continue;
-        case NailangToken::Func:
-        {
-            if (!allowNonBlock)
-                OnUnExpectedToken(token, u"Function call not supported here"sv);
-            FuncCall funccall;
-            static_cast<FuncCall&>(funccall) = ComplexArgParser::ParseFuncBody(token.GetString(), MemPool, Context, GetPosition(token));
-            EatSemiColon();
-            const auto target = MemPool.Create<FuncCall>(funccall);
-            const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContentItem::Generate(target, offset, count));
-            metaFuncs.clear();
-        } continue;
-        case NailangToken::Var:
-        {
-            if (!allowNonBlock)
-                OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
-            Assignment assign = ParseAssignment(token);
-            const auto target = MemPool.Create<Assignment>(assign);
-            const auto [offset, count] = AppendMetaFuncs();
-            contents.push_back(BlockContentItem::Generate(target, offset, count));
-            metaFuncs.clear();
-        } continue;
-        case NailangToken::CurlyBrace:
-        {
-            if (tillTheEnd || token.GetChar() != U'}')
-                OnUnExpectedToken(token, u"when parsing block contents"sv);
-            if (metaFuncs.size() > 0)
-                OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
-        } break;
-        default:
-        {
-            if (token.GetIDEnum() != BaseToken::End)
-                OnUnExpectedToken(token, u"when parsing block contents"sv);
-            if (metaFuncs.size() > 0)
-                OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
-            if (!tillTheEnd)
-                OnUnExpectedToken(token, u"expect '}' to close the scope"sv);
-        } break;
-        }
-        break;
-    }
-    block.Content = MemPool.CreateArray(contents);
-    block.MetaFuncations = MemPool.CreateArray(allMetaFuncs);
-}
-
-Block BlockParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
+Block NailangParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
 {
     common::parser::ParserContext context(block.Source, block.FileName);
     std::tie(context.Row, context.Col) = block.Position;
-    BlockParser parser(pool, context);
+    NailangParser parser(pool, context);
 
     Block ret;
     static_cast<RawBlock&>(ret) = block;
@@ -673,9 +721,9 @@ Block BlockParser::ParseRawBlock(const RawBlock& block, MemoryPool& pool)
     return ret;
 }
 
-Block BlockParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context)
+Block NailangParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context)
 {
-    BlockParser parser(pool, context);
+    NailangParser parser(pool, context);
 
     Block ret;
     ret.Position = parser.GetCurPos(true);

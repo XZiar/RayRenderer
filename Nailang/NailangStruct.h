@@ -24,6 +24,7 @@
 #include "common/StringLinq.hpp"
 #include "common/StringPool.hpp"
 #include "common/SharedString.hpp"
+#include "common/EasyIterator.hpp"
 #ifndef HALF_ENABLE_F16C_INTRINSICS
 #   define HALF_ENABLE_F16C_INTRINSICS __F16C__
 #endif
@@ -264,7 +265,7 @@ struct LateBindVar
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
 
 
-enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Not, Add, Sub, Mul, Div, Rem };
+enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, Not };
 struct EmbedOpHelper
 {
     [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept
@@ -278,7 +279,9 @@ struct EmbedOpHelper
 struct FuncCall;
 struct UnaryExpr;
 struct BinaryExpr;
+struct TernaryExpr;
 struct QueryExpr;
+struct AssignExpr;
 
 namespace detail
 {
@@ -294,48 +297,51 @@ union IntFPUnion
 };
 }
 
-struct RawArg
+struct Expr
 {
     static_assert( sizeof(detail::IntFPUnion) ==  sizeof(uint64_t));
     static_assert(alignof(detail::IntFPUnion) == alignof(uint64_t));
-private:
+protected:
     detail::IntFPUnion Data1;
     uint32_t Data2;
     uint16_t Data3;
 public:
-    enum class Type : uint8_t { Empty = 0, Func, Unary, Binary, Query, Var, Str, Uint, Int, FP, Bool };
+    enum class Type : uint8_t { Empty = 0, Var, Str, Uint, Int, FP, Bool, Func, Unary, Binary, Ternary, Query, Assign };
     uint8_t ExtraFlag;
     Type TypeData;
 #define Fill1(type) ExtraFlag(0), TypeData(Type::type)
 #define Fill2(type) Data3(common::enum_cast(Type::type)), Fill1(type)
 #define Fill3(type) Data2(common::enum_cast(Type::type)), Fill2(type)
-    constexpr RawArg() noexcept : Data1(), Fill3(Empty) {}
-    RawArg(const FuncCall* ptr) noexcept : 
+public:
+    constexpr Expr() noexcept : Data1(), Fill3(Empty) {}
+    Expr(const FuncCall* ptr) noexcept : 
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Func) {}
-    RawArg(const UnaryExpr* ptr) noexcept :
+    Expr(const UnaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Unary) {}
-    RawArg(const BinaryExpr* ptr) noexcept :
+    Expr(const BinaryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Binary) {}
-    RawArg(const QueryExpr* ptr) noexcept :
+    Expr(const TernaryExpr* ptr) noexcept :
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Ternary) {}
+    Expr(const QueryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Query) {}
-    RawArg(const LateBindVar& var) noexcept :
+    Expr(const LateBindVar& var) noexcept :
         Data1(reinterpret_cast<uint64_t>(var.Name.data())), Data2(static_cast<uint32_t>(var.Name.size())),
         Data3(common::enum_cast(var.Info)), Fill1(Var) 
     {
         Expects(var.Name.size() <= UINT32_MAX);
     }
-    RawArg(const std::u32string_view str) noexcept :
+    Expr(const std::u32string_view str) noexcept :
         Data1(reinterpret_cast<uint64_t>(str.data())), Data2(static_cast<uint32_t>(str.size())), Fill2(Str)
     {
         Expects(str.size() <= UINT32_MAX);
     }
-    RawArg(const uint64_t num) noexcept :
+    Expr(const uint64_t num) noexcept :
         Data1(num), Fill3(Uint) {}
-    RawArg(const int64_t num) noexcept :
+    Expr(const int64_t num) noexcept :
         Data1(static_cast<uint64_t>(num)), Fill3(Int) {}
-    RawArg(const double num) noexcept :
+    Expr(const double num) noexcept :
         Data1(num), Fill3(FP) {}
-    RawArg(const bool boolean) noexcept :
+    Expr(const bool boolean) noexcept :
         Data1(boolean ? 1 : 0), Fill3(Bool) {}
 #undef Fill3
 #undef Fill2
@@ -343,16 +349,7 @@ public:
     template<Type T>
     [[nodiscard]] constexpr decltype(auto) GetVar() const noexcept
     {
-        Expects(TypeData == T);
-        if constexpr (T == Type::Func)
-            return reinterpret_cast<const FuncCall*>(Data1.Uint);
-        else if constexpr (T == Type::Unary)
-            return reinterpret_cast<const UnaryExpr*>(Data1.Uint);
-        else if constexpr (T == Type::Binary)
-            return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
-        else if constexpr (T == Type::Query)
-            return reinterpret_cast<const QueryExpr*>(Data1.Uint);
-        else if constexpr (T == Type::Var)
+        Expects(TypeData == T);if constexpr (T == Type::Var)
             return LateBindVar(reinterpret_cast<const char32_t*>(Data1.Uint), Data2, static_cast<LateBindVar::VarInfo>(Data3));
         else if constexpr (T == Type::Str)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };
@@ -364,27 +361,38 @@ public:
             return Data1.FP;
         else if constexpr (T == Type::Bool)
             return Data1.Uint == 1;
+        else if constexpr (T == Type::Func)
+            return reinterpret_cast<const FuncCall*>(Data1.Uint);
+        else if constexpr (T == Type::Unary)
+            return reinterpret_cast<const UnaryExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Binary)
+            return reinterpret_cast<const BinaryExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Ternary)
+            return reinterpret_cast<const TernaryExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Query)
+            return reinterpret_cast<const QueryExpr*>(Data1.Uint);
         else
             static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }
 
     using Variant = std::variant<
-        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const QueryExpr*, 
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const TernaryExpr*, const QueryExpr*,
         LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
         switch (TypeData)
         {
-        case Type::Func:    return GetVar<Type::Func>();
-        case Type::Unary:   return GetVar<Type::Unary>();
-        case Type::Binary:  return GetVar<Type::Binary>();
-        case Type::Query:   return GetVar<Type::Query>();
         case Type::Var:     return GetVar<Type::Var>();
         case Type::Str:     return GetVar<Type::Str>();
         case Type::Uint:    return GetVar<Type::Uint>();
         case Type::Int:     return GetVar<Type::Int>();
         case Type::FP:      return GetVar<Type::FP>();
         case Type::Bool:    return GetVar<Type::Bool>();
+        case Type::Func:    return GetVar<Type::Func>();
+        case Type::Unary:   return GetVar<Type::Unary>();
+        case Type::Binary:  return GetVar<Type::Binary>();
+        case Type::Ternary: return GetVar<Type::Ternary>();
+        case Type::Query:   return GetVar<Type::Query>();
         default:            Expects(false); return {};
         }
     }
@@ -393,16 +401,17 @@ public:
     {
         switch (TypeData)
         {
-        case Type::Func:    return visitor(GetVar<Type::Func>());
-        case Type::Unary:   return visitor(GetVar<Type::Unary>());
-        case Type::Binary:  return visitor(GetVar<Type::Binary>());
-        case Type::Query:   return visitor(GetVar<Type::Query>());
         case Type::Var:     return visitor(GetVar<Type::Var>());
         case Type::Str:     return visitor(GetVar<Type::Str>());
         case Type::Uint:    return visitor(GetVar<Type::Uint>());
         case Type::Int:     return visitor(GetVar<Type::Int>());
         case Type::FP:      return visitor(GetVar<Type::FP>());
         case Type::Bool:    return visitor(GetVar<Type::Bool>());
+        case Type::Func:    return visitor(GetVar<Type::Func>());
+        case Type::Unary:   return visitor(GetVar<Type::Unary>());
+        case Type::Binary:  return visitor(GetVar<Type::Binary>());
+        case Type::Ternary: return visitor(GetVar<Type::Ternary>());
+        case Type::Query:   return visitor(GetVar<Type::Query>());
         default:            return visitor(std::nullopt);
         }
     }
@@ -411,6 +420,7 @@ public:
     {
         return TypeName(TypeData);
     }
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return TypeData != Expr::Type::Empty; }
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 
@@ -418,40 +428,34 @@ public:
 struct SubQuery
 {
     enum class QueryType : uint8_t { Index = 1, Sub = 2 };
-    common::span<const RawArg> Queries;
+    common::span<const Expr> Queries;
     constexpr SubQuery Sub(const size_t offset = 1) const noexcept
     {
         Expects(offset < Queries.size());
         return { Queries.subspan(offset) };
     }
-    constexpr std::pair<QueryType, RawArg> operator[](size_t idx) const noexcept
+    constexpr std::pair<QueryType, Expr> operator[](size_t idx) const noexcept
     {
         Expects(idx < Queries.size());
         return { static_cast<QueryType>(Queries[idx].ExtraFlag), Queries[idx] };
     }
     NAILANGAPI std::u32string_view ExpectSubField(size_t idx) const;
-    NAILANGAPI const RawArg&       ExpectIndex(size_t idx) const;
+    NAILANGAPI const Expr&       ExpectIndex(size_t idx) const;
     constexpr size_t Size() const noexcept
     {
         return Queries.size();
     }
-    static void PushQuery(std::vector<RawArg>& container, std::u32string_view subField)
+    static void PushQuery(std::vector<Expr>& container, std::u32string_view subField)
     {
-        RawArg query(subField);
+        Expr query(subField);
         query.ExtraFlag = common::enum_cast(QueryType::Sub);
         container.push_back(query);
     }
-    static void PushQuery(std::vector<RawArg>& container, RawArg indexer)
+    static void PushQuery(std::vector<Expr>& container, Expr indexer)
     {
         indexer.ExtraFlag = common::enum_cast(QueryType::Index);
         container.push_back(indexer);
     }
-};
-struct QueryExpr : public SubQuery
-{
-    RawArg Target;
-    QueryExpr(const RawArg target, common::span<const RawArg> queries) noexcept :
-        SubQuery{ queries }, Target(target) { }
 };
 
 
@@ -841,12 +845,12 @@ MAKE_ENUM_BITFIELD(Arg::Type)
 struct NAILANGAPI CustomVar::Handler
 {
 protected:
-    static Arg EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg);
+    static Arg EvaluateArg(NailangRuntimeBase& runtime, const Expr& arg);
     static void HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex);
 public:
     virtual void IncreaseRef(CustomVar&) noexcept;
     virtual void DecreaseRef(CustomVar&) noexcept;
-    [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const RawArg&);
+    [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
@@ -1011,10 +1015,10 @@ using TempFuncName = TempPartedName<FuncName>;
 struct FuncCall : public WithPos
 {
     const FuncName* Name;
-    common::span<const RawArg> Args;
+    common::span<const Expr> Args;
     constexpr FuncCall() noexcept : Name(nullptr) {}
-    constexpr FuncCall(const FuncName* name, common::span<const RawArg> args) noexcept : Name(name), Args(args) { }
-    constexpr FuncCall(const FuncName* name, common::span<const RawArg> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
+    constexpr FuncCall(const FuncName* name, common::span<const Expr> args) noexcept : Name(name), Args(args) { }
+    constexpr FuncCall(const FuncName* name, common::span<const Expr> args, const std::pair<uint32_t, uint32_t> pos) noexcept :
         WithPos{pos}, Name(name), Args(args)
     { }
     constexpr const FuncName& GetName() const noexcept { return *Name; }
@@ -1022,17 +1026,119 @@ struct FuncCall : public WithPos
 };
 struct UnaryExpr
 {
-    RawArg Oprend;
+    Expr Oprend;
     EmbedOps Operator;
-    UnaryExpr(const EmbedOps op, const RawArg oprend) noexcept :
+    UnaryExpr(const EmbedOps op, const Expr& oprend) noexcept :
         Oprend(oprend), Operator(op) { }
 };
 struct BinaryExpr
 {
-    RawArg LeftOprend, RightOprend;
+    Expr LeftOprend, RightOprend;
     EmbedOps Operator;
-    BinaryExpr(const EmbedOps op, const RawArg left, const RawArg right) noexcept :
+    BinaryExpr(const EmbedOps op, const Expr& left, const Expr& right) noexcept :
         LeftOprend(left), RightOprend(right), Operator(op) { }
+};
+struct TernaryExpr
+{
+    Expr Condition, LeftOprend, RightOprend;
+    TernaryExpr(const Expr& cond, const Expr& left, const Expr& right) noexcept :
+        Condition(cond), LeftOprend(left), RightOprend(right) { }
+};
+struct QueryExpr : public SubQuery
+{
+    Expr Target;
+    QueryExpr(const Expr& target, common::span<const Expr> queries) noexcept :
+        SubQuery{ queries }, Target(target) { }
+};
+struct NilCheck
+{
+    enum class Behavior : uint32_t { Pass = 0, Skip = 1, Throw = 2 };
+    uint8_t Value;
+    constexpr NilCheck(Behavior notnull, Behavior null) noexcept :
+        Value(static_cast<uint8_t>(common::enum_cast(notnull) | (common::enum_cast(null) << 4)))
+    { }
+    constexpr NilCheck() noexcept : NilCheck(Behavior::Pass, Behavior::Pass)
+    { }
+    constexpr Behavior WhenNotNull() const noexcept
+    {
+        return static_cast<Behavior>(Value & 0x0fu);
+    }
+    constexpr Behavior WhenNull() const noexcept
+    {
+        return static_cast<Behavior>((Value & 0xf0u) >> 4);
+    }
+};
+struct AssignExpr : public WithPos
+{
+    LateBindVar Target;
+    SubQuery Queries;
+    Expr Statement;
+    NilCheck Check;
+
+    constexpr AssignExpr(std::u32string_view name) noexcept :
+        Target(name) { }
+
+    constexpr std::u32string_view GetVar() const noexcept
+    {
+        return Target.Name;
+    }
+};
+
+
+struct RawBlock;
+struct Block;
+
+struct Statement
+{
+    enum class Type : uint16_t { Empty = 0, FuncCall, Assign, RawBlock, Block };
+    uintptr_t Pointer;
+    uint32_t Offset;
+    uint16_t Count;
+    Type TypeData;
+    constexpr Statement() noexcept : Pointer(0), Offset(0), Count(0), TypeData(Type::Empty)
+    { }
+    Statement(const FuncCall* ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
+        Pointer(reinterpret_cast<uintptr_t>(ptr)), Offset(meta.first), Count(meta.second), TypeData(Type::FuncCall)
+    { }
+    Statement(const AssignExpr* ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
+        Pointer(reinterpret_cast<uintptr_t>(ptr)), Offset(meta.first), Count(meta.second), TypeData(Type::Assign)
+    { }
+    Statement(const RawBlock  * ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
+        Pointer(reinterpret_cast<uintptr_t>(ptr)), Offset(meta.first), Count(meta.second), TypeData(Type::RawBlock)
+    { }
+    Statement(const Block     * ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
+        Pointer(reinterpret_cast<uintptr_t>(ptr)), Offset(meta.first), Count(meta.second), TypeData(Type::Block)
+    { }
+    template<typename T>
+    [[nodiscard]] forceinline const T* Get() const noexcept
+    {
+        return reinterpret_cast<const T*>(Pointer);
+    }
+    [[nodiscard]] std::variant<const AssignExpr*, const FuncCall*, const RawBlock*, const Block*>
+        GetStatement() const noexcept
+    {
+        switch (TypeData)
+        {
+        case Type::FuncCall: return Get<  FuncCall>();
+        case Type::Assign:   return Get<AssignExpr>();
+        case Type::RawBlock: return Get<  RawBlock>();
+        case Type::Block:    return Get<     Block>();
+        default:             Expects(false); return {};
+        }
+    }
+    template<typename Visitor>
+    auto Visit(Visitor&& visitor) const
+    {
+        switch (TypeData)
+        {
+        case Type::FuncCall:    return visitor(Get<  FuncCall>());
+        case Type::Assign:      return visitor(Get<AssignExpr>());
+        case Type::RawBlock:    return visitor(Get<  RawBlock>());
+        case Type::Block:       return visitor(Get<     Block>());
+        default:Expects(false); return visitor(static_cast<const AssignExpr*>(nullptr));
+        }
+    }
+    std::pair<uint32_t, uint32_t> GetPosition() const noexcept;
 };
 
 
@@ -1050,190 +1156,39 @@ struct RawBlock : public WithPos
     std::u16string FileName;
 };
 using RawBlockWithMeta = WithMeta<RawBlock>;
-struct Block;
-
-struct NilCheck
-{
-    enum class Behavior : uint32_t { Pass = 0, Skip = 1, Throw = 2 };
-    uint8_t Value;
-    constexpr NilCheck(Behavior notnull, Behavior null) noexcept :
-        Value(static_cast<uint8_t>(common::enum_cast(notnull) | (common::enum_cast(null) << 4))) 
-    { }
-    constexpr NilCheck() noexcept : NilCheck(Behavior::Pass, Behavior::Pass) 
-    { }
-    constexpr Behavior WhenNotNull() const noexcept
-    {
-        return static_cast<Behavior>(Value & 0x0fu);
-    }
-    constexpr Behavior WhenNull() const noexcept
-    {
-        return static_cast<Behavior>((Value & 0xf0u) >> 4);
-    }
-};
-
-struct Assignment : public WithPos
-{
-    LateBindVar Target;
-    SubQuery Queries;
-    RawArg Statement;
-    NilCheck Check;
-
-    constexpr Assignment(std::u32string_view name) noexcept :
-        Target(name) { }
-
-    constexpr std::u32string_view GetVar() const noexcept
-    { 
-        return Target.Name;
-    }
-};
-
-struct BlockContent
-{
-    enum class Type : uint8_t { Assignment = 0, FuncCall = 1, RawBlock = 2, Block = 3 };
-    uintptr_t Pointer;
-
-    [[nodiscard]] static BlockContent Generate(const Assignment* ptr) noexcept
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::Assignment) };
-    }
-    [[nodiscard]] static BlockContent Generate(const FuncCall* ptr) noexcept
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::FuncCall) };
-    }
-    [[nodiscard]] static BlockContent Generate(const RawBlock* ptr) noexcept
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::RawBlock) };
-    }
-    [[nodiscard]] static BlockContent Generate(const Block* ptr) noexcept
-    {
-        const auto pointer = reinterpret_cast<uintptr_t>(ptr);
-        Expects(pointer % 4 == 0); // should be at least 4 bytes aligned
-        return BlockContent{ pointer | common::enum_cast(Type::Block) };
-    }
-
-    template<typename T>
-    [[nodiscard]] forceinline const T* Get() const noexcept
-    {
-        return reinterpret_cast<const T*>(Pointer & ~(uintptr_t)(0x3));
-    }
-
-    [[nodiscard]] forceinline constexpr Type GetType() const noexcept
-    {
-        return static_cast<Type>(Pointer & 0x3);
-    }
-    [[nodiscard]] std::variant<const Assignment*, const FuncCall*, const RawBlock*, const Block*>
-        GetStatement() const noexcept
-    {
-        switch (GetType())
-        {
-        case Type::Assignment:  return Get<Assignment>();
-        case Type::FuncCall:    return Get<  FuncCall>();
-        case Type::RawBlock:    return Get<  RawBlock>();
-        case Type::   Block:    return Get<     Block>();
-        default:                Expects(false); return {};
-        }
-    }
-    template<typename Visitor> 
-    auto Visit(Visitor&& visitor) const
-    {
-        switch (GetType())
-        {
-        case Type::Assignment:  return visitor(Get<Assignment>());
-        case Type::FuncCall:    return visitor(Get<  FuncCall>());
-        case Type::RawBlock:    return visitor(Get<  RawBlock>());
-        case Type::Block:       return visitor(Get<     Block>());
-        default:Expects(false); return visitor(static_cast<const Assignment*>(nullptr));
-        }
-    }
-    std::pair<uint32_t, uint32_t> GetPosition() const noexcept;
-};
-struct BlockContentItem : public BlockContent
-{
-    uint32_t Offset, Count;
-    template<typename T>
-    [[nodiscard]] static BlockContentItem Generate(const T* ptr, const uint32_t offset, const uint32_t count) noexcept
-    {
-        return BlockContentItem{ BlockContent::Generate(ptr), offset, count };
-    }
-};
 
 struct Block : RawBlock
 {
 private:
-    using value_type = std::pair<common::span<const FuncCall>, BlockContent>;
-
-    class BlockIterator
-    {
-        friend struct Block;
-        const Block* Host;
-        size_t Idx;
-        constexpr BlockIterator(const Block* block, size_t idx) noexcept : Host(block), Idx(idx) {}
-    public:
-        using iterator_category = std::input_iterator_tag;
-        using value_type = typename Block::value_type;
-        using difference_type = std::ptrdiff_t;
-
-        [[nodiscard]] constexpr value_type operator*() const noexcept
-        {
-            return (*Host)[Idx];
-        }
-        [[nodiscard]] constexpr bool operator!=(const BlockIterator& other) const noexcept
-        {
-            return Host != other.Host || Idx != other.Idx;
-        }
-        [[nodiscard]] constexpr bool operator==(const BlockIterator& other) const noexcept
-        {
-            return Host == other.Host && Idx == other.Idx;
-        }
-        constexpr BlockIterator& operator++() noexcept
-        {
-            Idx++;
-            return *this;
-        }
-        constexpr BlockIterator& operator--() noexcept
-        {
-            Idx--;
-            return *this;
-        }
-        constexpr BlockIterator& operator+=(size_t n) noexcept
-        {
-            Idx += n;
-            return *this;
-        }
-        constexpr BlockIterator& operator-=(size_t n) noexcept
-        {
-            Idx -= n;
-            return *this;
-        }
-    };
-public:
-    common::span<const FuncCall> MetaFuncations;
-    common::span<const BlockContentItem> Content;
-
-    [[nodiscard]] constexpr BlockIterator begin() const noexcept
-    {
-        return { this, 0 };
-    }
-    [[nodiscard]] constexpr BlockIterator end() const noexcept
-    {
-        return { this, Size() };
-    }
-    [[nodiscard]] constexpr value_type operator[](size_t index) const noexcept
+    using value_type = std::pair<common::span<const FuncCall>, Statement>;
+    [[nodiscard]] constexpr value_type Get(size_t index) const noexcept
     {
         const auto& content = Content[index];
         const auto metafuncs = MetaFuncations.subspan(content.Offset, content.Count);
         return { metafuncs, content };
     }
+    using ItType = common::container::IndirectIterator<const Block, value_type, &Block::Get>;
+    friend ItType;
+public:
+    common::span<const FuncCall> MetaFuncations;
+    common::span<const Statement> Content;
+
+    [[nodiscard]] constexpr ItType begin() const noexcept
+    {
+        return { this, 0 };
+    }
+    [[nodiscard]] constexpr ItType end() const noexcept
+    {
+        return { this, Size() };
+    }
+    [[nodiscard]] constexpr value_type operator[](size_t index) const noexcept
+    {
+        return Get(index);
+    }
     [[nodiscard]] constexpr size_t Size() const noexcept { return Content.size(); }
 };
 
-inline std::pair<uint32_t, uint32_t> BlockContent::GetPosition() const noexcept
+inline std::pair<uint32_t, uint32_t> Statement::GetPosition() const noexcept
 {
     return Visit([](const auto* ptr) { return ptr->Position; });
 }
@@ -1241,18 +1196,19 @@ inline std::pair<uint32_t, uint32_t> BlockContent::GetPosition() const noexcept
 
 struct NAILANGAPI Serializer
 {
-    static void Stringify(std::u32string& output, const SubQuery& subq);
-    static void Stringify(std::u32string& output, const RawArg& arg, const bool requestParenthese = false);
+    static void Stringify(std::u32string& output, const Expr& expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const QueryExpr* expr);
+    static void Stringify(std::u32string& output, const AssignExpr* expr);
     static void Stringify(std::u32string& output, const LateBindVar& var);
     static void Stringify(std::u32string& output, const std::u32string_view str);
     static void Stringify(std::u32string& output, const uint64_t u64);
     static void Stringify(std::u32string& output, const int64_t i64);
     static void Stringify(std::u32string& output, const double f64);
     static void Stringify(std::u32string& output, const bool boolean);
+    static void Stringify(std::u32string& output, const SubQuery& subq);
 
     template<typename T>
     static std::u32string Stringify(const T& obj)
@@ -1450,7 +1406,7 @@ public:
     void SetExtendIndexer(F&& indexer)
     {
         static_assert(std::is_invocable_r_v<std::optional<size_t>, F, common::span<const T>, const Arg&>, 
-            "indexer should accept span<T>, Arg, RawArg and return index");
+            "indexer should accept span<T>, Arg, Expr and return index");
         ExtendIndexer = [indexer = std::move(indexer)](void* ptr, size_t len, const Arg& val)
         {
             const auto host = common::span<const T>(reinterpret_cast<const T*>(ptr), len);

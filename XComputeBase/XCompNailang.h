@@ -33,7 +33,7 @@ struct OutputBlock
 
     const xziar::nailang::RawBlock* Block;
     MetaFuncs MetaFunc;
-    std::vector<std::pair<xziar::nailang::LateBindVar, xziar::nailang::RawArg>> PreAssignArgs;
+    std::vector<std::pair<xziar::nailang::LateBindVar, xziar::nailang::Expr>> PreAssignArgs;
     std::unique_ptr<BlockInfo> ExtraInfo;
     BlockType Type;
     bool ReplaceVar = false, ReplaceFunc = false;
@@ -567,8 +567,8 @@ public:
         using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
         static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
             "need to accept block/rawblock and meta.");
-        using xziar::nailang::BlockContent;
-        constexpr auto contentType = IsBlock ? BlockContent::Type::Block : BlockContent::Type::RawBlock;
+        using xziar::nailang::Statement;
+        constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
         {
             if (tmp.GetType() != contentType)
@@ -584,8 +584,8 @@ public:
         using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
         static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
             "need to accept block/rawblock and meta.");
-        using xziar::nailang::BlockContent;
-        constexpr auto contentType = IsBlock ? BlockContent::Type::Block : BlockContent::Type::RawBlock;
+        using xziar::nailang::Statement;
+        constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
         {
             if (tmp.GetType() != contentType)

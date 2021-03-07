@@ -71,7 +71,6 @@ class NAILANGAPI UnexpectedTokenException : public NailangParseException
 class NAILANGAPI NailangParser : public common::parser::ParserBase
 {
 private:
-protected:
     MemoryPool& MemPool;
     std::u16string SubScopeName;
 
@@ -97,81 +96,70 @@ protected:
         constexpr auto Lexer = common::parser::ParserLexerBase<common::parser::tokenizer::CommentTokenizer, TKs...>();
         ExpectNextToken(Lexer, IgnoreChar, IgnoreCommentToken, ExpectMatcher);
     }
-
     void EatLeftParenthese();
     void EatRightParenthese();
     void EatLeftCurlyBrace();
     void EatRightCurlyBrace();
+    void EatSemiColon();
+
+    [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const;
+    void FillBlockName(RawBlock& block);
+    void FillFileName(RawBlock& block) const noexcept;
+protected:
 
 public:
     NailangParser(MemoryPool& pool, common::parser::ParserContext& context, std::u16string subScope = u"") :
         ParserBase(context), MemPool(pool), SubScopeName(std::move(subScope)) { }
     virtual ~NailangParser() { }
-};
 
+    [[nodiscard]] FuncCall ParseFuncCall(std::u32string_view name, std::pair<uint32_t, uint32_t> pos, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
+    [[nodiscard]] forceinline FuncCall ParseFuncCall(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty)
+    {
+        return ParseFuncCall(name, GetCurPos(), info);
+    }
+    [[nodiscard]] forceinline FuncCall ParseFuncCall(const common::parser::DetailToken& token, FuncName::FuncInfo info = FuncName::FuncInfo::Empty)
+    {
+        return ParseFuncCall(token.GetString(), GetPosition(token), info);
+    }
+    [[nodiscard]] RawBlock ParseRawBlock(const std::u32string_view name, std::pair<uint32_t, uint32_t> pos);
+    [[nodiscard]] forceinline RawBlock ParseRawBlock(const std::u32string_view name)
+    {
+        return ParseRawBlock(name, GetCurPos(true));
+    }
+    [[nodiscard]] forceinline RawBlock ParseRawBlock(const common::parser::DetailToken & token)
+    {
+        return ParseRawBlock(token.GetString(), GetPosition(token));
+    }
+    [[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos);
+    [[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var)
+    {
+        return ParseAssignExpr(var, GetCurPos());
+    }
+    [[nodiscard]] AssignExpr ParseAssignExpr(const common::parser::DetailToken & token)
+    {
+        return ParseAssignExpr(token.GetString(), GetPosition(token));
+    }
+    [[nodiscard]] std::pair<Expr, char32_t> ParseExpr(std::string_view stopDelim);
+    [[nodiscard]] Expr ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker);
+    void ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd = true);
 
-class NAILANGAPI ComplexArgParser : public NailangParser
-{
-private:
-    using NailangParser::NailangParser;
-
-    [[nodiscard]] std::pair<std::optional<RawArg>, char32_t> ParseArg(std::string_view stopDelim);
-    [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const;
-public:
-    [[nodiscard]] static RawArg ProcessString(std::u32string_view str, MemoryPool& pool);
-    [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context, 
-        std::pair<uint32_t, uint32_t> pos = { 0,0 }, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
-    [[nodiscard]] static std::optional<RawArg> ParseSingleArg(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims, std::u32string_view stopChecker);
-    [[nodiscard]] static std::optional<RawArg> ParseSingleArg(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims)
+    [[nodiscard]] static Expr ProcessString(std::u32string_view str, MemoryPool& pool);
+    [[nodiscard]] static FuncCall ParseFuncBody(std::u32string_view name, MemoryPool& pool, common::parser::ParserContext& context,
+        FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
+    [[nodiscard]] static Expr ParseSingleExpr(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims, std::u32string_view stopChecker);
+    [[nodiscard]] static Expr ParseSingleExpr(MemoryPool& pool, common::parser::ParserContext& context, std::string_view stopDelims)
     {
         std::u32string stopChecker(stopDelims.begin(), stopDelims.end());
-        return ParseSingleArg(pool, context, stopDelims, stopChecker);
+        return ParseSingleExpr(pool, context, stopDelims, stopChecker);
     }
-    [[nodiscard]] static std::optional<RawArg> ParseSingleStatement(MemoryPool& pool, common::parser::ParserContext& context)
+    [[nodiscard]] static Expr ParseSingleExpr(MemoryPool& pool, common::parser::ParserContext& context)
     {
-        return ParseSingleArg(pool, context, ";", U";");
+        return ParseSingleExpr(pool, context, ";", U";");
     }
-};
 
-
-class NAILANGAPI RawBlockParser : public NailangParser
-{
-protected:
-    void EatSemiColon();
-    void FillBlockName(RawBlock& block);
-    void FillFileName(RawBlock& block) const noexcept;
-    [[nodiscard]] RawBlock FillRawBlock(const std::u32string_view name, std::pair<uint32_t, uint32_t> pos);
-    [[nodiscard]] forceinline RawBlock FillRawBlock(const std::u32string_view name)
-    {
-        return FillRawBlock(name, GetCurPos(true));
-    } 
-    [[nodiscard]] forceinline RawBlock FillRawBlock(const common::parser::DetailToken& token)
-    {
-        return FillRawBlock(token.GetString(), GetPosition(token));
-    }
-public:
-    using NailangParser::NailangParser;
-    
     [[nodiscard]] RawBlockWithMeta GetNextRawBlock();
     [[nodiscard]] std::vector<RawBlockWithMeta> GetAllRawBlocks();
-};
 
-
-class NAILANGAPI BlockParser : public RawBlockParser
-{
-protected:
-    [[nodiscard]] Assignment ParseAssignment(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos);
-    [[nodiscard]] Assignment ParseAssignment(const std::u32string_view var)
-    {
-        return ParseAssignment(var, GetCurPos());
-    }
-    [[nodiscard]] Assignment ParseAssignment(const common::parser::DetailToken& token)
-    {
-        return ParseAssignment(token.GetString(), GetPosition(token));
-    }
-    void ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd = true);
-    using RawBlockParser::RawBlockParser;
-public:
     [[nodiscard]] static Block ParseRawBlock(const RawBlock& block, MemoryPool& pool);
     [[nodiscard]] static Block ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context);
 };

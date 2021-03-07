@@ -49,7 +49,7 @@ static void ShowMeta(const common::span<const FuncCall> metas, const u16string& 
 }
 
 
-static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const Assignment& content, const u16string& indent)
+static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const AssignExpr& content, const u16string& indent)
 {
     ShowMeta(metas, indent);
     OutLine(BrightWhite, indent, content, "Assign", "[{}]", content.GetVar());
@@ -67,7 +67,7 @@ static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> met
     if (common::linq::FromIterable(metas)
         .ContainsIf([](const FuncCall& call) { return call.GetName()== U"parse"sv; }))
     {
-        ShowBlock(pool, BlockParser::ParseRawBlock(content, pool), indent);
+        ShowBlock(pool, NailangParser::ParseRawBlock(content, pool), indent);
     }
     OutIndent(indent);
 }
@@ -109,15 +109,15 @@ static void TestNailang()
 
             common::parser::ParserContext context(u32str, u16fname);
             MemoryPool pool;
-            const auto all = BlockParser::ParseAllAsBlock(pool, context);
+            const auto all = NailangParser::ParseAllAsBlock(pool, context);
             for (const auto [meta, content] : all)
             {
                 switch (content.GetType())
                 {
-                case xziar::nailang::BlockContent::Type::RawBlock:
+                case xziar::nailang::Statement::Type::RawBlock:
                     ShowContent(pool, meta, *content.Get<RawBlock>(), u"");
                     break;
-                case xziar::nailang::BlockContent::Type::Block:
+                case xziar::nailang::Statement::Type::Block:
                     ShowContent(pool, meta, *content.Get<Block>(), u"");
                     break;
                 default:

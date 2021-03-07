@@ -8,21 +8,21 @@
 using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
-using xziar::nailang::RawBlockParser;
-using xziar::nailang::BlockParser;
-using xziar::nailang::ComplexArgParser;
+using xziar::nailang::NailangParser;
+using xziar::nailang::NailangParser;
+using xziar::nailang::NailangParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::SubQuery;
 using xziar::nailang::LateBindVar;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::FuncCall;
-using xziar::nailang::RawArg;
+using xziar::nailang::Expr;
 using xziar::nailang::NilCheck;
-using xziar::nailang::Assignment;
+using xziar::nailang::AssignExpr;
 
 
-testing::AssertionResult CheckRawArg(const RawArg& arg, const RawArg::Type type)
+testing::AssertionResult CheckExpr(const Expr& arg, const Expr::Type type)
 {
     if (arg.TypeData == type)
         return testing::AssertionSuccess();
@@ -33,15 +33,15 @@ testing::AssertionResult CheckRawArg(const RawArg& arg, const RawArg::Type type)
 #define CHECK_DIRECT_ARG(target, type, val)                 \
 do                                                          \
 {                                                           \
-    ASSERT_TRUE(CheckRawArg(target, RawArg::Type::type));   \
-    EXPECT_EQ(target.GetVar<RawArg::Type::type>(), val);    \
+    ASSERT_TRUE(CheckExpr(target, Expr::Type::type));   \
+    EXPECT_EQ(target.GetVar<Expr::Type::type>(), val);    \
 } while(0)
 
 #define CHECK_VAR_ARG(target, val, info)                    \
 do                                                          \
 {                                                           \
-    ASSERT_TRUE(CheckRawArg(target, RawArg::Type::Var));    \
-    const auto& _var = target.GetVar<RawArg::Type::Var>();  \
+    ASSERT_TRUE(CheckExpr(target, Expr::Type::Var));    \
+    const auto& _var = target.GetVar<Expr::Type::Var>();  \
     EXPECT_EQ(_var.Name, val);                              \
     EXPECT_EQ(_var.Info, LateBindVar::VarInfo::info);       \
 } while(0)
@@ -58,8 +58,8 @@ do                                                          \
 #define CHECK_FIELD_QUERY(target, var, info, ...)                           \
 do                                                                          \
 {                                                                           \
-    ASSERT_EQ(target.TypeData, RawArg::Type::Query);                        \
-    const auto& query = *target.GetVar<RawArg::Type::Query>();              \
+    ASSERT_EQ(target.TypeData, Expr::Type::Query);                        \
+    const auto& query = *target.GetVar<Expr::Type::Query>();              \
     CHECK_VAR_ARG(query.Target, var, info);                                 \
     constexpr size_t qcnt = BOOST_PP_VARIADIC_SIZE(__VA_ARGS__);            \
     ASSERT_EQ(query.Queries.size(), qcnt);                                  \
@@ -93,69 +93,60 @@ TEST(NailangParser, ProcStr)
     xziar::nailang::MemoryPool pool;
     {
         constexpr auto src = U"Hello"sv;
-        const auto dst = ComplexArgParser::ProcessString(src, pool);
-        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello"sv);
+        const auto dst = NailangParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<Expr::Type::Str>(), U"Hello"sv);
     }
     {
         constexpr auto src = U"Hello\\tWorld"sv;
-        const auto dst = ComplexArgParser::ProcessString(src, pool);
-        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello\tWorld"sv);
+        const auto dst = NailangParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<Expr::Type::Str>(), U"Hello\tWorld"sv);
     }
     {
         constexpr auto src = U"Hello\tWorld\\0"sv;
-        const auto dst = ComplexArgParser::ProcessString(src, pool);
-        EXPECT_EQ(dst.GetVar<RawArg::Type::Str>(), U"Hello\tWorld\0"sv);
+        const auto dst = NailangParser::ProcessString(src, pool);
+        EXPECT_EQ(dst.GetVar<Expr::Type::Str>(), U"Hello\tWorld\0"sv);
     }
 }
 
-TEST(NailangParser, ParseFuncBody)
+TEST(NailangParser, ParseExpr)
 {
     xziar::nailang::MemoryPool pool;
     {
-        constexpr auto src = U"()"sv;
+        constexpr auto src = U""sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0u);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        EXPECT_FALSE(expr);
     }
     {
-        constexpr auto src = U"(())"sv;
+        constexpr auto src = U"()"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0u);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        EXPECT_FALSE(expr);
     }
     {
         constexpr auto src = U"(((())))"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        EXPECT_EQ(func.Args.size(), 0u);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        EXPECT_FALSE(expr);
     }
     {
-        constexpr auto src = U"(\"Hello\")"sv;
+        constexpr auto src = U"\"Hello\""sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-        CHECK_DIRECT_ARG(func.Args[0], Str, U"Hello"sv);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        CHECK_DIRECT_ARG(expr, Str, U"Hello"sv);
     }
     {
-        constexpr auto src = UR"(("Hello\t\"World\""))"sv;
+        constexpr auto src = UR"("Hello\t\"World\"")"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-        CHECK_DIRECT_ARG(func.Args[0], Str, U"Hello\t\"World\""sv);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        CHECK_DIRECT_ARG(expr, Str, U"Hello\t\"World\""sv);
     }
     {
-        constexpr auto src = U"(val.xxx.y.len)"sv;
+        constexpr auto src = U"val.xxx.y.len"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Query);
-        const auto& query = *func.Args[0].GetVar<RawArg::Type::Query>();
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Query);
+        const auto& query = *expr.GetVar<Expr::Type::Query>();
         CHECK_VAR_ARG(query.Target, U"val"sv, Empty);
         ASSERT_EQ(query.Queries.size(), 3u);
         CHECK_QUERY_SUB(query[0], U"xxx"sv);
@@ -163,9 +154,102 @@ TEST(NailangParser, ParseFuncBody)
         CHECK_QUERY_SUB(query[2], U"len"sv);
     }
     {
+        constexpr auto src = U"(val[5])"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Query);
+        const auto& stmt = *expr.GetVar<Expr::Type::Query>();
+        CHECK_VAR_ARG(stmt.Target, U"val"sv, Empty);
+        EXPECT_EQ(stmt[0].first, SubQuery::QueryType::Index);
+        CHECK_DIRECT_ARG(stmt[0].second, Int, 5);
+    }
+    {
+        constexpr auto src = U"1u + 2"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt.LeftOprend, Uint, 1u);
+        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 2);
+    }
+    {
+        constexpr auto src = U"1?2:3"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Ternary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Ternary>();
+        CHECK_DIRECT_ARG(stmt.Condition,   Int, 1);
+        CHECK_DIRECT_ARG(stmt.LeftOprend,  Int, 2);
+        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 3);
+    }
+    {
+        constexpr auto src = U"1?:here:3"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Ternary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Ternary>();
+        CHECK_DIRECT_ARG(stmt.Condition,   Int, 1);
+        CHECK_VAR_ARG(stmt.LeftOprend, U"here"sv, Local);
+        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 3);
+    }
+    {
+        constexpr auto src = U"val[x+y]+ 12.8"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
+        EXPECT_EQ(stmt.LeftOprend.TypeData, Expr::Type::Query);
+        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt.RightOprend, FP, 12.8);
+
+        const auto& stmt1 = *stmt.LeftOprend.GetVar<Expr::Type::Query>();
+        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
+        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt1[0].second.TypeData, Expr::Type::Binary);
+
+        const auto& stmt2 = *stmt1[0].second.GetVar<Expr::Type::Binary>();
+        CHECK_VAR_ARG(stmt2.LeftOprend, U"x"sv, Empty);
+        EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
+        CHECK_VAR_ARG(stmt2.RightOprend, U"y"sv, Empty);
+    }
+    {
+        constexpr auto src = U"!val[x[3+4][5]]"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::Not);
+        ASSERT_EQ(stmt.Oprend.TypeData, Expr::Type::Query);
+
+        const auto& stmt1 = *stmt.Oprend.GetVar<Expr::Type::Query>();
+        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
+        ASSERT_EQ(stmt1.Queries.size(), 1u);
+        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt1[0].second.TypeData, Expr::Type::Query);
+
+        const auto& stmt2 = *stmt1[0].second.GetVar<Expr::Type::Query>();
+        CHECK_VAR_ARG(stmt2.Target, U"x"sv, Empty);
+        ASSERT_EQ(stmt2.Queries.size(), 2u);
+        EXPECT_EQ(stmt2[0].first, SubQuery::QueryType::Index);
+        ASSERT_EQ(stmt2[0].second.TypeData, Expr::Type::Binary);
+
+        const auto& stmt3 = *stmt2[0].second.GetVar<Expr::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt3.LeftOprend, Int, 3);
+        EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt3.RightOprend, Int, 4);
+
+        EXPECT_EQ(stmt2[1].first, SubQuery::QueryType::Index);
+        CHECK_DIRECT_ARG(stmt2[1].second, Int, 5);
+    }
+}
+TEST(NailangParser, ParseFuncBody)
+{
+    xziar::nailang::MemoryPool pool;
+    {
         constexpr auto src = U"(123, -456)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        const auto func = NailangParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         CHECK_DIRECT_ARG(func.Args[0], Int, 123);
@@ -174,7 +258,7 @@ TEST(NailangParser, ParseFuncBody)
     {
         constexpr auto src = U"((123u), v._456)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        const auto func = NailangParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
         CHECK_DIRECT_ARG(func.Args[0], Uint, 123u);
@@ -182,134 +266,53 @@ TEST(NailangParser, ParseFuncBody)
         //CHECK_VAR_ARG(func.Args[1], U"v.456"sv, Empty);
     }
     {
-        constexpr auto src = U"(1u + 2)"sv;
-        ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
-        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
-        CHECK_DIRECT_ARG(stmt.LeftOprend, Uint, 1u);
-        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 2);
-    }
-    {
         constexpr auto src = U"(!false, 3.5 + var)"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        const auto func = NailangParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
-        ASSERT_EQ(func.Args[1].TypeData, RawArg::Type::Binary);
+        ASSERT_EQ(func.Args[0].TypeData, Expr::Type::Unary);
+        ASSERT_EQ(func.Args[1].TypeData, Expr::Type::Binary);
         {
-            const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Unary>();
+            const auto& stmt = *func.Args[0].GetVar<Expr::Type::Unary>();
             EXPECT_EQ(stmt.Operator, EmbedOps::Not);
             CHECK_DIRECT_ARG(stmt.Oprend, Bool, false);
         }
         {
-            const auto& stmt = *func.Args[1].GetVar<RawArg::Type::Binary>();
+            const auto& stmt = *func.Args[1].GetVar<Expr::Type::Binary>();
             CHECK_DIRECT_ARG(stmt.LeftOprend, FP, 3.5);
             EXPECT_EQ(stmt.Operator, EmbedOps::Add);
             CHECK_VAR_ARG(stmt.RightOprend, U"var"sv, Empty);
         }
     }
     {
-        constexpr auto src = U"(val[5])"sv;
-        ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Query);
-        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Query>();
-        CHECK_VAR_ARG(stmt.Target, U"val"sv, Empty);
-        EXPECT_EQ(stmt[0].first, SubQuery::QueryType::Index);
-        CHECK_DIRECT_ARG(stmt[0].second, Int, 5);
-    }
-    {
-        constexpr auto src = U"(val[x+y]+ 12.8)"sv;
-        ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
-        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
-        EXPECT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Query);
-        EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt.RightOprend, FP, 12.8);
-
-        const auto& stmt1 = *stmt.LeftOprend.GetVar<RawArg::Type::Query>();
-        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt1[0].second.TypeData, RawArg::Type::Binary);
-
-        const auto& stmt2 = *stmt1[0].second.GetVar<RawArg::Type::Binary>();
-        CHECK_VAR_ARG(stmt2.LeftOprend, U"x"sv, Empty);
-        EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
-        CHECK_VAR_ARG(stmt2.RightOprend, U"y"sv, Empty);
-    }
-    {
-        constexpr auto src = U"(!val[x[3+4][5]])"sv;
-        ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
-        EXPECT_EQ(*func.Name, U"func"sv);
-        ASSERT_EQ(func.Args.size(), 1u);
-
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Unary);
-        const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Unary>();
-        EXPECT_EQ(stmt.Operator, EmbedOps::Not);
-        ASSERT_EQ(stmt.Oprend.TypeData, RawArg::Type::Query);
-
-        const auto& stmt1 = *stmt.Oprend.GetVar<RawArg::Type::Query>();
-        CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        ASSERT_EQ(stmt1.Queries.size(), 1u);
-        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt1[0].second.TypeData, RawArg::Type::Query);
-
-        const auto& stmt2 = *stmt1[0].second.GetVar<RawArg::Type::Query>();
-        CHECK_VAR_ARG(stmt2.Target, U"x"sv, Empty);
-        ASSERT_EQ(stmt2.Queries.size(), 2u);
-        EXPECT_EQ(stmt2[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt2[0].second.TypeData, RawArg::Type::Binary);
-
-        const auto& stmt3 = *stmt2[0].second.GetVar<RawArg::Type::Binary>();
-        CHECK_DIRECT_ARG(stmt3.LeftOprend, Int, 3);
-        EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt3.RightOprend, Int, 4);
-
-        EXPECT_EQ(stmt2[1].first, SubQuery::QueryType::Index);
-        CHECK_DIRECT_ARG(stmt2[1].second, Int, 5);
-    }
-    {
         constexpr auto src = U"(6 >= $foo(:bar), $foo(`bar, (4-5)==9))"sv;
         ParserContext context(src);
-        const auto func = ComplexArgParser::ParseFuncBody(U"func"sv, pool, context);
+        const auto func = NailangParser::ParseFuncBody(U"func"sv, pool, context);
         EXPECT_EQ(*func.Name, U"func"sv);
         ASSERT_EQ(func.Args.size(), 2u);
-        ASSERT_EQ(func.Args[0].TypeData, RawArg::Type::Binary);
-        ASSERT_EQ(func.Args[1].TypeData, RawArg::Type::Func);
+        ASSERT_EQ(func.Args[0].TypeData, Expr::Type::Binary);
+        ASSERT_EQ(func.Args[1].TypeData, Expr::Type::Func);
         {
-            const auto& stmt = *func.Args[0].GetVar<RawArg::Type::Binary>();
+            const auto& stmt = *func.Args[0].GetVar<Expr::Type::Binary>();
             CHECK_DIRECT_ARG(stmt.LeftOprend, Int, 6);
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
-            ASSERT_EQ(stmt.RightOprend.TypeData, RawArg::Type::Func);
-            const auto& fcall = *stmt.RightOprend.GetVar<RawArg::Type::Func>();
+            ASSERT_EQ(stmt.RightOprend.TypeData, Expr::Type::Func);
+            const auto& fcall = *stmt.RightOprend.GetVar<Expr::Type::Func>();
             EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Local);
         }
         {
-            const auto& fcall = *func.Args[1].GetVar<RawArg::Type::Func>();
+            const auto& fcall = *func.Args[1].GetVar<Expr::Type::Func>();
             EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 2u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Root);
-            ASSERT_EQ(fcall.Args[1].TypeData, RawArg::Type::Binary);
-            const auto& stmt = *fcall.Args[1].GetVar<RawArg::Type::Binary>();
-            ASSERT_EQ(stmt.LeftOprend.TypeData, RawArg::Type::Binary);
+            ASSERT_EQ(fcall.Args[1].TypeData, Expr::Type::Binary);
+            const auto& stmt = *fcall.Args[1].GetVar<Expr::Type::Binary>();
+            ASSERT_EQ(stmt.LeftOprend.TypeData, Expr::Type::Binary);
             {
-                const auto& stmt2 = *stmt.LeftOprend.GetVar<RawArg::Type::Binary>();
+                const auto& stmt2 = *stmt.LeftOprend.GetVar<Expr::Type::Binary>();
                 CHECK_DIRECT_ARG(stmt2.LeftOprend, Int, 4);
                 EXPECT_EQ(stmt2.Operator, EmbedOps::Sub);
                 CHECK_DIRECT_ARG(stmt2.RightOprend, Int, 5);
@@ -328,7 +331,7 @@ TEST(NailangParser, ParseBlockBody)
     {
         xziar::nailang::RawBlock block;// { U""sv, U""sv, src, u"", { 0,0 } };
         block.Source = src;
-        return xziar::nailang::BlockParser::ParseRawBlock(block, pool);
+        return xziar::nailang::NailangParser::ParseRawBlock(block, pool);
     };
     {
         constexpr auto src = UR"(
@@ -337,7 +340,7 @@ $func(hey);
         const auto block = ParseAll(src);
         ASSERT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
-        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
+        EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::FuncCall);
         EXPECT_EQ(meta.size(), 0u);
         const auto& fcall = *std::get<1>(stmt.GetStatement());
         EXPECT_EQ(*fcall.Name, U"func"sv);
@@ -352,7 +355,7 @@ hey = 13;
         const auto block = ParseAll(src);
         EXPECT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
-        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+        EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
         ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
@@ -369,7 +372,7 @@ a[0][1].b[2] = c;
         ASSERT_EQ(block.Content.size(), 2u);
         {
             const auto [meta, stmt] = block[0];
-            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"x"sv);
@@ -381,7 +384,7 @@ a[0][1].b[2] = c;
         }
         {
             const auto [meta, stmt] = block[1];
-            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"a"sv);
@@ -420,7 +423,7 @@ abc = 0u;
         const auto block = ParseAll(src);
         ASSERT_EQ(block.Content.size(), 1u);
         const auto [meta, stmt] = block[0];
-        EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Block);
+        EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Block);
         ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
@@ -429,7 +432,7 @@ abc = 0u;
         ASSERT_EQ(blk.Content.size(), 1u);
         {
             const auto [meta_, stmt_] = blk[0];
-            EXPECT_EQ(stmt_.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt_.TypeData, xziar::nailang::Statement::Type::Assign);
             EXPECT_EQ(meta_.size(), 0u);
             const auto& assign = *std::get<0>(stmt_.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"abc"sv);
@@ -450,20 +453,20 @@ empty
         ASSERT_EQ(block.Content.size(), 3u);
         {
             const auto [meta, stmt] = block[0];
-            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::Assignment);
+            EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"hey"sv);
             EXPECT_EQ(assign.Check.WhenNull(), NilCheck::Behavior::Throw);
             EXPECT_EQ(assign.Check.WhenNotNull(), NilCheck::Behavior::Pass);
-            EXPECT_EQ(assign.Statement.TypeData, RawArg::Type::Binary);
+            EXPECT_EQ(assign.Statement.TypeData, Expr::Type::Binary);
             {
-                const auto& stmt_ = *assign.Statement.GetVar<RawArg::Type::Binary>();
+                const auto& stmt_ = *assign.Statement.GetVar<Expr::Type::Binary>();
                 CHECK_VAR_ARG(stmt_.LeftOprend, U"hey", Empty);
                 EXPECT_EQ(stmt_.Operator, EmbedOps::Div);
-                EXPECT_EQ(stmt_.RightOprend.TypeData, RawArg::Type::Binary);
+                EXPECT_EQ(stmt_.RightOprend.TypeData, Expr::Type::Binary);
                 {
-                    const auto& stmt2 = *stmt_.RightOprend.GetVar<RawArg::Type::Binary>();
+                    const auto& stmt2 = *stmt_.RightOprend.GetVar<Expr::Type::Binary>();
                     CHECK_DIRECT_ARG(stmt2.LeftOprend, Uint, 9u);
                     EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
                     CHECK_DIRECT_ARG(stmt2.RightOprend, Uint, 1u);
@@ -472,7 +475,7 @@ empty
         }
         {
             const auto [meta, stmt] = block[1];
-            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::FuncCall);
+            EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::FuncCall);
             EXPECT_EQ(meta.size(), 0u);
             const auto& fcall = *std::get<1>(stmt.GetStatement());
             EXPECT_EQ(*fcall.Name, U"func"sv);
@@ -481,7 +484,7 @@ empty
         }
         {
             const auto [meta, stmt] = block[2];
-            EXPECT_EQ(stmt.GetType(), xziar::nailang::BlockContent::Type::RawBlock);
+            EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::RawBlock);
             ASSERT_EQ(meta.size(), 1u);
             EXPECT_EQ(*meta[0].Name, U"meta"sv);
             EXPECT_EQ(meta[0].Args.size(), 0u);
@@ -498,7 +501,7 @@ TEST(NailangParser, ParseBlock)
     {
         constexpr auto src = U"#Raw.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        RawBlockParser Parser(pool, context);
+        NailangParser Parser(pool, context);
         const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);
         EXPECT_EQ(block.Name, U"Hello"sv);
@@ -510,7 +513,7 @@ TEST(NailangParser, ParseBlock)
     {
         constexpr auto src = U"#Raw.Main(\"Hello\"){\r\n}\r\n#Raw.Main(\"Hello\"){\r\n}"sv;
         ParserContext context(src);
-        RawBlockParser Parser(pool, context);
+        NailangParser Parser(pool, context);
 
         const auto block0 = Parser.GetNextRawBlock();
         EXPECT_EQ(block0.Type, U"Main"sv);
@@ -540,7 +543,7 @@ Here
 ===+++}
 )"sv;
         ParserContext context(src);
-        RawBlockParser Parser(pool, context);
+        NailangParser Parser(pool, context);
 
         const auto block0 = Parser.GetNextRawBlock();
         EXPECT_EQ(block0.Type, U"Main"sv);
@@ -571,7 +574,7 @@ Here
 }
 )"sv;
         ParserContext context(src);
-        RawBlockParser Parser(pool, context);
+        NailangParser Parser(pool, context);
 
         const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);
@@ -599,7 +602,7 @@ Here
 }
 )"sv;
         ParserContext context(src);
-        RawBlockParser Parser(pool, context);
+        NailangParser Parser(pool, context);
 
         const auto block = Parser.GetNextRawBlock();
         EXPECT_EQ(block.Type, U"Main"sv);

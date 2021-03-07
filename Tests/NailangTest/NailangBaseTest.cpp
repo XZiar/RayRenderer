@@ -213,16 +213,16 @@ TEST(NailangBase, FuncName)
 TEST(NailangBase, Serializer)
 {
     using xziar::nailang::Serializer;
-    using xziar::nailang::RawArg;
+    using xziar::nailang::Expr;
     using xziar::nailang::LateBindVar;
     using xziar::nailang::EmbedOps;
     using xziar::nailang::FuncName;
-    RawArg a1{ true };
-    RawArg a2{ false };
-    RawArg a3{ uint64_t(1234) };
-    RawArg a4{ int64_t(-5678) };
-    RawArg a5{ U"10ab"sv };
-    RawArg a6{ LateBindVar(U"`cdef"sv) };
+    Expr a1{ true };
+    Expr a2{ false };
+    Expr a3{ uint64_t(1234) };
+    Expr a4{ int64_t(-5678) };
+    Expr a5{ U"10ab"sv };
+    Expr a6{ LateBindVar(U"`cdef"sv) };
     EXPECT_EQ(Serializer::Stringify(a1), U"true"sv);
     EXPECT_EQ(Serializer::Stringify(a2), U"false"sv);
     EXPECT_EQ(Serializer::Stringify(a3), U"1234"sv);
@@ -234,25 +234,25 @@ TEST(NailangBase, Serializer)
         EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
     }
     {
-        std::vector<RawArg> queries;
+        std::vector<Expr> queries;
         xziar::nailang::SubQuery::PushQuery(queries, a3);
         xziar::nailang::QueryExpr expr(a5, queries);
         EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\"[1234]"sv);
     }
     {
-        std::vector<RawArg> queries;
+        std::vector<Expr> queries;
         xziar::nailang::SubQuery::PushQuery(queries, a4);
         xziar::nailang::QueryExpr expr(a6, queries);
         EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef[-5678]"sv);
     }
     {
-        std::vector<RawArg> queries;
+        std::vector<Expr> queries;
         xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
         xziar::nailang::QueryExpr expr(a6, queries);
         EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw"sv);
     }
     {
-        std::vector<RawArg> queries;
+        std::vector<Expr> queries;
         xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
         xziar::nailang::SubQuery::PushQuery(queries, a3);
         xziar::nailang::SubQuery::PushQuery(queries, U"abcd"sv);
@@ -279,13 +279,13 @@ TEST(NailangBase, Serializer)
     }
     {
         const auto name = FuncName::CreateTemp(U"Func"sv, FuncName::FuncInfo::Empty);
-        std::vector<RawArg> args{ a1 };
+        std::vector<Expr> args{ a1 };
         xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func(true)"sv);
     }
     {
         const auto name = FuncName::CreateTemp(U"Func2"sv, FuncName::FuncInfo::Empty);
-        std::vector<RawArg> args{ a2,a3,a4 };
+        std::vector<Expr> args{ a2,a3,a4 };
         xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func2(false, 1234, -5678)"sv);
     }
@@ -293,7 +293,7 @@ TEST(NailangBase, Serializer)
         const auto name = FuncName::CreateTemp(U"Func3"sv, FuncName::FuncInfo::Empty);
         xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
         xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
-        std::vector<RawArg> args{ &expr,a4 };
+        std::vector<Expr> args{ &expr,a4 };
         xziar::nailang::FuncCall call{ &name.Get(), args };
         EXPECT_EQ(Serializer::Stringify(&call), U"Func3((true || false) && 1234, -5678)"sv);
     }
@@ -301,7 +301,7 @@ TEST(NailangBase, Serializer)
         const auto name = FuncName::CreateTemp(U"Func4"sv, FuncName::FuncInfo::Empty);
         xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
         xziar::nailang::BinaryExpr expr1(EmbedOps::And, &expr0, a3);
-        std::vector<RawArg> args{ &expr1,a4 };
+        std::vector<Expr> args{ &expr1,a4 };
         xziar::nailang::FuncCall call{ &name.Get(), args };
         xziar::nailang::BinaryExpr expr(EmbedOps::Div, a5, &call);
         EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\" / Func4((true || false) && 1234, -5678)"sv);

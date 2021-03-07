@@ -74,9 +74,9 @@
   - [ ] Design custom type with func-table
   - [x] Allow fake arg when try to set value of an arg
   - [x] Add register-based customvar handler
-  - [ ] Design component of `Literal`, included in different `Expr`, `Expr` will be the `BlockContent`, with 8bit extra type info from original meta-info field
+  - [ ] Design component of `Literal`, included in different `Expr`, `Expr` will be the `Statement`, with 8bit extra type info from original meta-info field
   - [ ] Evaluate `Expr`(or `RawArg`) before calling the function
-  - [ ] Add ternary operator
+  - [x] Add ternary operator
   - [ ] CustomVar also report `TypeData` for easier type conversion
   - [ ] Add capture support when define func
   - [ ] Seperate Executor and Runtime

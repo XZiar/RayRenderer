@@ -11,10 +11,10 @@ using namespace std::string_view_literals;
 using xziar::nailang::Arg;
 using xziar::nailang::ArgLocator;
 using xziar::nailang::SubQuery;
-using xziar::nailang::RawArg;
+using xziar::nailang::Expr;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
-using xziar::nailang::BlockContent;
+using xziar::nailang::Statement;
 using xziar::nailang::NilCheck;
 using xziar::nailang::CustomVar;
 using xziar::nailang::CompareResultCore;
@@ -44,12 +44,12 @@ MAKE_ENABLER_IMPL(XCNLProgram)
 struct TemplateBlockInfo : public OutputBlock::BlockInfo
 {
     std::vector<std::u32string_view> ReplaceArgs;
-    TemplateBlockInfo(common::span<const xziar::nailang::RawArg> args)
+    TemplateBlockInfo(common::span<const xziar::nailang::Expr> args)
     {
         ReplaceArgs.reserve(args.size());
         for (const auto& arg : args)
         {
-            ReplaceArgs.emplace_back(arg.GetVar<RawArg::Type::Var>().Name);
+            ReplaceArgs.emplace_back(arg.GetVar<Expr::Type::Var>().Name);
         }
     }
     ~TemplateBlockInfo() override {}
@@ -942,14 +942,14 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
 {
     if (blk.Type == OutputBlock::BlockType::Template)
     {
-        common::span<const RawArg> tpArgs;
+        common::span<const Expr> tpArgs;
         for (const auto& meta : blk.MetaFunc)
         {
             if (meta.GetName() == U"xcomp.TemplateArgs")
             {
                 for (uint32_t i = 0; i < meta.Args.size(); ++i)
                 {
-                    if (meta.Args[i].TypeData != RawArg::Type::Var)
+                    if (meta.Args[i].TypeData != Expr::Type::Var)
                         NLRT_THROW_EX(FMTSTR(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
                             i, meta.Args[i].GetTypeName()), meta, blk.Block);
                 }
@@ -1073,7 +1073,7 @@ void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 {
     auto frame = PushFrame(FrameFlags::FlowScope);
 
-    if (!HandleMetaFuncs(metas, BlockContent::Generate(&block)))
+    if (!HandleMetaFuncs(metas, Statement::Generate(&block)))
         return;
     
     const auto type = GetBlockType(block, metas);
@@ -1094,8 +1094,8 @@ void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
         else if (*fcall.Name == U"xcomp.PreAssign"sv)
         {
             ThrowByArgCount(fcall, 2, ArgLimits::Exact);
-            ThrowByArgType(fcall, RawArg::Type::Var, 0);
-            blk.PreAssignArgs.emplace_back(fcall.Args[0].GetVar<RawArg::Type::Var>(), fcall.Args[1]);
+            ThrowByArgType(fcall, Expr::Type::Var, 0);
+            blk.PreAssignArgs.emplace_back(fcall.Args[0].GetVar<Expr::Type::Var>(), fcall.Args[1]);
         }
     }
 
@@ -1145,9 +1145,9 @@ std::string XCNLRuntime::GenerateOutput()
 }
 
 
-class XComputeParser : xziar::nailang::BlockParser
+class XComputeParser : xziar::nailang::NailangParser
 {
-    using BlockParser::BlockParser;
+    using NailangParser::NailangParser;
 public:
     static void GetBlock(xziar::nailang::MemoryPool& pool, const std::u32string_view src, const std::u16string_view fname, xziar::nailang::Block& dst)
     {
@@ -1269,7 +1269,7 @@ ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangRunt
         break;
     case SubQuery::QueryType::Sub:
     {
-        const auto field = query.GetVar<RawArg::Type::Str>();
+        const auto field = query.GetVar<Expr::Type::Str>();
         if (field == U"Length"sv)
             return { arr.Length, 1 };
         tidx = ToIndex(var, arr, field);

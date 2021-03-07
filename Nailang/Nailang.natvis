@@ -102,8 +102,8 @@
       </Synthetic>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::Assignment">
-    <DisplayString>{{ Assignment[{Target.Name,s32}] }}</DisplayString>
+  <Type Name="xziar::nailang::AssignExpr">
+    <DisplayString>{{ AssignExpr[{Target.Name,s32}] }}</DisplayString>
     <Expand>
       <Item Name="Target">Target</Item>
       <Item Name="Query">Queries</Item>
@@ -111,24 +111,24 @@
       <Item Name="CheckNil">CheckNil,en</Item>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::RawArg" >
+  <Type Name="xziar::nailang::Expr" >
     <Intrinsic Name="GetStrPtr" Expression="reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint)"/>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Empty"  >{{ Empty }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Func"   >{{ Func [{*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Unary"  >{{ Unary }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Binary" >{{ Binary }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Query"  >{{ Query }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}], {(xziar::nailang::LateBindVar::VarInfo)(Data3),en} }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Str"    >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Uint"   >{{ Uint [{Data1.Uint}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Int"    >{{ Int [{static_cast&lt;int64_t&gt;(Data1.Uint)}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::FP"     >{{ FP [{Data1.FP}] }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::RawArg::Type::Bool"   >{{ Bool [{Data1.Uint == 1}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Empty"  >{{ Empty }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Func"   >{{ Func [{*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Unary"  >{{ Unary }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Binary" >{{ Binary }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Query"  >{{ Query }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}], {(xziar::nailang::LateBindVar::VarInfo)(Data3),en} }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Str"    >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Uint"   >{{ Uint [{Data1.Uint}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Int"    >{{ Int [{static_cast&lt;int64_t&gt;(Data1.Uint)}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::FP"     >{{ FP [{Data1.FP}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Bool"   >{{ Bool [{Data1.Uint == 1}] }}</DisplayString>
     <Expand>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Func"    Name="[Func]"   >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Unary"   Name="[Unary]"  >*reinterpret_cast&lt;const xziar::nailang::UnaryExpr*&gt;(Data1.Uint)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Binary"  Name="[Binary]" >*reinterpret_cast&lt;const xziar::nailang::BinaryExpr*&gt;(Data1.Uint)</Item>
-      <Item Condition="TypeData == xziar::nailang::RawArg::Query"   Name="[Query]"  >*reinterpret_cast&lt;const xziar::nailang::QueryExpr*&gt;(Data1.Uint)</Item>
+      <Item Condition="TypeData == xziar::nailang::Expr::Func"    Name="[Func]"   >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Data1.Uint)</Item>
+      <Item Condition="TypeData == xziar::nailang::Expr::Unary"   Name="[Unary]"  >*reinterpret_cast&lt;const xziar::nailang::UnaryExpr*&gt;(Data1.Uint)</Item>
+      <Item Condition="TypeData == xziar::nailang::Expr::Binary"  Name="[Binary]" >*reinterpret_cast&lt;const xziar::nailang::BinaryExpr*&gt;(Data1.Uint)</Item>
+      <Item Condition="TypeData == xziar::nailang::Expr::Query"   Name="[Query]"  >*reinterpret_cast&lt;const xziar::nailang::QueryExpr*&gt;(Data1.Uint)</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Arg" >
@@ -141,13 +141,13 @@
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::FP"    >{{ FP [{Data0.FP}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Bool"  >{{ Bool [{Data0.Uint == 1}] }}</DisplayString>
   </Type>
-  <Type Name="xziar::nailang::BlockContent">
-    <DisplayString Condition="(Pointer &amp; 0x3) == Type::Assignment" >{{ Assignment }}</DisplayString>
+  <Type Name="xziar::nailang::Statement">
+    <DisplayString Condition="(Pointer &amp; 0x3) == Type::AssignExpr" >{{ AssignExpr }}</DisplayString>
     <DisplayString Condition="(Pointer &amp; 0x3) == Type::FuncCall"   >{{ FuncCall }}</DisplayString>
     <DisplayString Condition="(Pointer &amp; 0x3) == Type::RawBlock"   >{{ RawBlock }}</DisplayString>
     <DisplayString Condition="(Pointer &amp; 0x3) == Type::Block"      >{{ Block }}</DisplayString>
     <Expand>
-      <Item Condition="(Pointer &amp; 0x3) == Type::Assignment" Name="[Assignment]">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
+      <Item Condition="(Pointer &amp; 0x3) == Type::AssignExpr" Name="[AssignExpr]">*reinterpret_cast&lt;const xziar::nailang::AssignExpr*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
       <Item Condition="(Pointer &amp; 0x3) == Type::FuncCall"   Name="[FuncCall]"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
       <Item Condition="(Pointer &amp; 0x3) == Type::RawBlock"   Name="[RawBlock]"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
       <Item Condition="(Pointer &amp; 0x3) == Type::Block"      Name="[Block]"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;(Pointer &amp; ~(uintptr_t)(0x3))</Item>
@@ -163,10 +163,10 @@
         <Expand>
           <IndexListItems>
             <Size>Content.storage_.size_</Size>
-            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Assignment">*reinterpret_cast&lt;const xziar::nailang::Assignment*&gt;(Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
-            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::FuncCall"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
-            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::RawBlock"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
-            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::BlockContent::Type::Block"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::Statement::Type::AssignExpr">*reinterpret_cast&lt;const xziar::nailang::AssignExpr*&gt;(Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::Statement::Type::FuncCall"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::Statement::Type::RawBlock"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
+            <ValueNode Condition="(Content[$i].Pointer &amp; 0x3) == xziar::nailang::Statement::Type::Block"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Content[$i].Pointer &amp; ~(uintptr_t)(0x3))</ValueNode>
           </IndexListItems>
         </Expand>
       </Synthetic>
@@ -263,22 +263,22 @@
   <Type Name="xziar::nailang::detail::ExceptionTarget">
     <DisplayString Condition="Target.index() == 0">{{ Empty }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 2">{{ Arg [{Target._Tail._Tail._Head}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 3">{{ RawArg [{Target._Tail._Tail._Head}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 3">{{ Expr [{Target._Tail._Tail._Head}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 4">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 5">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Tail._Head.Name,s32}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 6">{{ RawBlock [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 7">{{ Block [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::FuncCall">
-      {{ FuncCall [Target._Tail._Head.Get&lt;BlockContent::Type::FuncCall&gt;()->Name,s32] }}
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == Statement::Type::FuncCall">
+      {{ FuncCall [Target._Tail._Head.Get&lt;Statement::Type::FuncCall&gt;()->Name,s32] }}
     </DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::Block">
-      {{ Block [Target._Tail._Head.Get&lt;BlockContent::Type::Block&gt;()->Name,s32] }}
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == Statement::Type::Block">
+      {{ Block [Target._Tail._Head.Get&lt;Statement::Type::Block&gt;()->Name,s32] }}
     </DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::RawBlock">
-      {{ RawBlock [Target._Tail._Head.Get&lt;BlockContent::Type::RawBlock&gt;()->Name,s32] }}
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == Statement::Type::RawBlock">
+      {{ RawBlock [Target._Tail._Head.Get&lt;Statement::Type::RawBlock&gt;()->Name,s32] }}
     </DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == BlockContent::Type::Assignment">
-      {{ Assignment [Target._Tail._Head.Get&lt;BlockContent::Type::Assignment&gt;()->Variable.Name,s32] }}
+    <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == Statement::Type::AssignExpr">
+      {{ AssignExpr [Target._Tail._Head.Get&lt;Statement::Type::AssignExpr&gt;()->Variable.Name,s32] }}
     </DisplayString>
   </Type>
 

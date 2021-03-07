@@ -96,32 +96,32 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
     RET_NAME(GreaterEqual);
     RET_NAME(And);
     RET_NAME(Or);
-    RET_NAME(Not);
     RET_NAME(Add);
     RET_NAME(Sub);
     RET_NAME(Mul);
     RET_NAME(Div);
     RET_NAME(Rem);
+    RET_NAME(Not);
     default: return U"Unknwon"sv;
     }
 }
 
 
-std::u32string_view RawArg::TypeName(const RawArg::Type type) noexcept
+std::u32string_view Expr::TypeName(const Expr::Type type) noexcept
 {
     switch (type)
     {
-    case RawArg::Type::Empty:   return U"empty"sv;
-    case RawArg::Type::Func:    return U"func-call"sv;
-    case RawArg::Type::Unary:   return U"unary-expr"sv;
-    case RawArg::Type::Binary:  return U"binary-expr"sv;
-    case RawArg::Type::Query:   return U"query-expr"sv;
-    case RawArg::Type::Var:     return U"variable"sv;
-    case RawArg::Type::Str:     return U"string"sv;
-    case RawArg::Type::Uint:    return U"uint"sv;
-    case RawArg::Type::Int:     return U"int"sv;
-    case RawArg::Type::FP:      return U"fp"sv;
-    case RawArg::Type::Bool:    return U"bool"sv;
+    case Expr::Type::Empty:   return U"empty"sv;
+    case Expr::Type::Func:    return U"func-call"sv;
+    case Expr::Type::Unary:   return U"unary-expr"sv;
+    case Expr::Type::Binary:  return U"binary-expr"sv;
+    case Expr::Type::Query:   return U"query-expr"sv;
+    case Expr::Type::Var:     return U"variable"sv;
+    case Expr::Type::Str:     return U"string"sv;
+    case Expr::Type::Uint:    return U"uint"sv;
+    case Expr::Type::Int:     return U"int"sv;
+    case Expr::Type::FP:      return U"fp"sv;
+    case Expr::Type::Bool:    return U"bool"sv;
     default:                    return U"error"sv;
     }
 }
@@ -574,7 +574,7 @@ std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 
 void CustomVar::Handler::IncreaseRef(CustomVar&) noexcept { }
 void CustomVar::Handler::DecreaseRef(CustomVar&) noexcept { }
-Arg CustomVar::Handler::IndexerGetter(const CustomVar&, const Arg&, const RawArg&) 
+Arg CustomVar::Handler::IndexerGetter(const CustomVar&, const Arg&, const Expr&) 
 { 
     return {};
 }
@@ -686,29 +686,7 @@ ArgLocator ArgLocator::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
 }
 
 
-void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
-{
-    for (size_t i = 0; i < subq.Size(); ++i)
-    {
-        const auto [type, query] = subq[i];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-            output.push_back(U'[');
-            Stringify(output, query, false);
-            output.push_back(U']');
-            break;
-        case SubQuery::QueryType::Sub:
-            output.push_back(U'.');
-            output.append(query.GetVar<RawArg::Type::Str>());
-            break;
-        default:
-            break;
-        }
-    }
-}
-
-void Serializer::Stringify(std::u32string& output, const RawArg& arg, const bool requestParenthese)
+void Serializer::Stringify(std::u32string& output, const Expr& arg, const bool requestParenthese)
 {
     arg.Visit([&](const auto& data)
         {
@@ -786,8 +764,16 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
 
 void Serializer::Stringify(std::u32string& output, const QueryExpr* expr)
 {
-    Stringify(output, expr->Target, true);
-    Stringify(output, *expr);
+    Stringify(output, expr->Target);
+    Stringify(output, *static_cast<const SubQuery*>(expr));
+}
+
+void Serializer::Stringify(std::u32string& output, const AssignExpr* expr)
+{
+    Stringify(output, expr->Target);
+    Stringify(output, expr->Queries);
+    output.append(U" = "sv);
+    Stringify(output, expr->Statement);
 }
 
 void Serializer::Stringify(std::u32string& output, const LateBindVar& var)
@@ -827,6 +813,28 @@ void Serializer::Stringify(std::u32string& output, const double f64)
 void Serializer::Stringify(std::u32string& output, const bool boolean)
 {
     output.append(boolean ? U"true"sv : U"false"sv);
+}
+
+void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
+{
+    for (size_t i = 0; i < subq.Size(); ++i)
+    {
+        const auto [type, query] = subq[i];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+            output.push_back(U'[');
+            Stringify(output, query, false);
+            output.push_back(U']');
+            break;
+        case SubQuery::QueryType::Sub:
+            output.push_back(U'.');
+            output.append(query.GetVar<Expr::Type::Str>());
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 

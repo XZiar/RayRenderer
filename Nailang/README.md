@@ -98,9 +98,9 @@ Meta-function is indeed a function call with prefix'`@`'. It must be used standa
 
 The return value of meta-function is discard. Runtime is required to evalute the function and modify the program states.
 
-### Assignment
+### AssignExpr
 
-Assignment is a command, means assign a value to a variable. The syntax is `(var) (op) (statement);`.
+AssignExpr is a command, means assign a value to a variable. The syntax is `(var) (op) (statement);`.
 
 The `op` is usually `=`, but self-modifying operator is also introduced for better readibility.
 
@@ -242,13 +242,13 @@ It is a trunk-based storage with no de-allocation support. All AST info are stor
 
 EvaluateContext is to store runtime information, including variables and local functions.
 
-### `RawArg` and `Arg`
+### `Expr` and `Arg`
 
-At AST level, literals and variables are stored inside `RawArg`. But actual function will accept `Arg`, so there will be a conversion.
+At AST level, literals and variables are stored inside `Expr`. But actual function will accept `Arg`, so there will be a conversion.
 
-The main differences between `RawArg` and `Arg` are:
+The main differences between `Expr` and `Arg` are:
 
- * `RawArg` support `LateBindVar`, which is simply the name of the variable. But `Arg` will evaluate all `LateBindVar`s into actual datatype. It is still possible to delay the evaluation by introducing `Custom Type`. 
+ * `Expr` support `LateBindVar`, which is simply the name of the variable. But `Arg` will evaluate all `LateBindVar`s into actual datatype. It is still possible to delay the evaluation by introducing `Custom Type`. 
  * `Rawarg` is constant, so the name of variable will be stored at source itself, the string content will be stored at [MemPool](#mempool) if needed. But `Arg` is dynamic, so its content will be stored at heap individually.
 
 ### Type Promotion

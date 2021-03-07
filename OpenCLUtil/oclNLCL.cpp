@@ -12,13 +12,13 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
 using xziar::nailang::ArgLocator;
-using xziar::nailang::RawArg;
+using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::SubQuery;
 using xziar::nailang::LateBindVar;
 using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
-using xziar::nailang::BlockContent;
+using xziar::nailang::Statement;
 using xziar::nailang::FuncCall;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
@@ -54,7 +54,7 @@ struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
             const auto extName = common::str::to_string(name, Charset::UTF8);
             return exts.Has(extName);
         }
-        Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
+        Arg IndexerGetter(const CustomVar& var, const Arg& idx, const Expr& src) override
         {
             const auto& exts = reinterpret_cast<const oclDevice_*>(var.Meta0)->Extensions;
             const auto tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(exts.Size(), idx, &src);

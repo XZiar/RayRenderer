@@ -11,8 +11,8 @@ using namespace std::string_view_literals;
 using common::parser::ParserContext;
 using common::parser::ContextReader;
 using xziar::nailang::MemoryPool;
-using xziar::nailang::BlockParser;
-using xziar::nailang::ComplexArgParser;
+using xziar::nailang::NailangParser;
+using xziar::nailang::NailangParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::LateBindVar;
 using xziar::nailang::FixedArray;
@@ -21,12 +21,12 @@ using xziar::nailang::UnaryExpr;
 using xziar::nailang::SubQuery;
 using xziar::nailang::QueryExpr;
 using xziar::nailang::FuncCall;
-using xziar::nailang::RawArg;
+using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::Arg;
 using xziar::nailang::ArgLocator;
 using xziar::nailang::NilCheck;
-using xziar::nailang::Assignment;
+using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
@@ -89,25 +89,25 @@ public:
         return RootContext->LocateArg(name, true).Set(std::move(val));
         //return *RootContext->LocateArg(name, true) = std::move(val);
     }
-    void Assign(const Assignment& assign)
+    void Assign(const AssignExpr& assign)
     {
         SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
     }
-    void QuickSetArg(std::u32string_view name, RawArg val, bool create = false)
+    void QuickSetArg(std::u32string_view name, Expr val, bool create = false)
     {
         ParserContext context(name);
-        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
+        const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
         std::u32string_view varName;
         SubQuery query;
-        if (var->TypeData == RawArg::Type::Var)
-            varName = var->GetVar<RawArg::Type::Var>();
+        if (var.TypeData == Expr::Type::Var)
+            varName = var.GetVar<Expr::Type::Var>();
         else
         {
-            const auto& qexpr = *var->GetVar<RawArg::Type::Query>();
-            varName = qexpr.Target.GetVar<RawArg::Type::Var>();
+            const auto& qexpr = *var.GetVar<Expr::Type::Query>();
+            varName = qexpr.Target.GetVar<Expr::Type::Var>();
             query = qexpr.Sub(0);
         }
-        Assignment assign(varName);
+        AssignExpr assign(varName);
         assign.Queries = query;
         assign.Statement = val;
         NilCheck::Behavior notnull = create ? NilCheck::Behavior::Throw : NilCheck::Behavior::Pass,
@@ -118,8 +118,8 @@ public:
     Arg QuickGetArg(std::u32string_view name)
     {
         ParserContext context(name);
-        const auto var = xziar::nailang::ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
-        return EvaluateArg(var.value());
+        const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
+        return EvaluateArg(var);
     }
 };
 
@@ -204,9 +204,9 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
     const auto ParseEval = [&](const std::u32string_view src) 
     {
         ParserContext context(src);
-        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
         NailangRT runtime;
-        return runtime.EvaluateArg(*rawarg);
+        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
+        return runtime.EvaluateArg(rawarg);
     };
     {
         const auto arg = ParseEval(U"!false;"sv);
@@ -300,7 +300,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    /*Arg IndexerGetter(const CustomVar& var, const Arg& idx, const RawArg& src) override
+    /*Arg IndexerGetter(const CustomVar& var, const Arg& idx, const Expr& src) override
     {
         ArrRef(arr, var);
         const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, &src);
@@ -341,7 +341,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         }
         case SubQuery::QueryType::Sub:
         {
-            const auto field = query.GetVar<RawArg::Type::Str>();
+            const auto field = query.GetVar<Expr::Type::Str>();
             if (field == U"Length"sv)
                 return { static_cast<uint64_t>(arr.Data.size()), 1u };
             float* ptr = nullptr;
@@ -445,8 +445,8 @@ TEST(NailangRuntime, Indexer)
     const auto ParseEval = [&](const std::u32string_view src)
     {
         ParserContext context(src);
-        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
-        return runtime.EvaluateArg(*rawarg);
+        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
+        return runtime.EvaluateArg(rawarg);
     };
     {
         const auto arg = ParseEval(U"tmp[0];"sv);
@@ -563,9 +563,9 @@ TEST(NailangRuntime, MathFunc)
     const auto ParseEval = [&](const std::u32string_view src)
     {
         ParserContext context(src);
-        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
         NailangRT runtime;
-        return runtime.EvaluateArg(*rawarg);
+        return runtime.EvaluateArg(rawarg);
     };
     {
         const auto arg = ParseEval(U"$Math.Max(1,2);"sv);
@@ -649,8 +649,8 @@ TEST(NailangRuntime, CommonFunc)
     const auto ParseEval = [&](const std::u32string_view src)
     {
         ParserContext context(src);
-        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
-        return runtime.EvaluateArg(*rawarg);
+        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
+        return runtime.EvaluateArg(rawarg);
     };
     {
         const auto arg = ParseEval(U"$Select(1>2, 1, 2);"sv);
@@ -693,9 +693,9 @@ TEST(NailangRuntime, MathIntrinFunc)
     const auto ParseEval = [&](const std::u32string_view src)
     {
         ParserContext context(src);
-        const auto rawarg = ComplexArgParser::ParseSingleStatement(pool, context);
+        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
         NailangRT runtime;
-        return runtime.EvaluateArg(*rawarg);
+        return runtime.EvaluateArg(rawarg);
     };
     for (const auto& [inst, var] : common::MiscIntrin.GetIntrinMap())
     {
@@ -813,14 +813,14 @@ TEST(NailangRuntime, MathIntrinFunc)
 //}
 
 
-struct BlkParser : public BlockParser
+struct BlkParser : public NailangParser
 {
-    using BlockParser::BlockParser;
-    static Assignment GetAssignment(MemoryPool& pool, const std::u32string_view var, const std::u32string_view src)
+    using NailangParser::NailangParser;
+    static AssignExpr GetAssignExpr(MemoryPool& pool, const std::u32string_view var, const std::u32string_view src)
     {
         ParserContext context(src);
         BlkParser parser(pool, context);
-        return parser.ParseAssignment(var);
+        return parser.ParseAssignExpr(var);
     }
     static Block GetBlock(MemoryPool& pool, const std::u32string_view src)
     {
@@ -835,7 +835,7 @@ struct BlkParser : public BlockParser
 static void PEAssign(NailangRT& runtime, MemoryPool& pool, 
     const std::u32string_view var, const std::u32string_view src)
 {
-    const Assignment assign = BlkParser::GetAssignment(pool, var, src);
+    const AssignExpr assign = BlkParser::GetAssignExpr(pool, var, src);
     runtime.Assign(assign);
 }
 

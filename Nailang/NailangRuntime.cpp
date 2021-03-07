@@ -42,9 +42,9 @@ std::u32string_view SubQuery::ExpectSubField(size_t idx) const
     Expects(idx < Queries.size());
     if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
         COMMON_THROW(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
-    return Queries[idx].GetVar<RawArg::Type::Str>();
+    return Queries[idx].GetVar<Expr::Type::Str>();
 }
-const RawArg& SubQuery::ExpectIndex(size_t idx) const
+const Expr& SubQuery::ExpectIndex(size_t idx) const
 {
     Expects(idx < Queries.size());
     if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
@@ -75,7 +75,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
         }
         case SubQuery::QueryType::Sub:
         {
-            const auto field = query.GetVar<RawArg::Type::Str>();
+            const auto field = query.GetVar<Expr::Type::Str>();
             if (field == U"Length"sv)
                 return { arr.Length, 1u };
         } break;
@@ -100,7 +100,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
         }
         case SubQuery::QueryType::Sub:
         {
-            const auto field = query.GetVar<RawArg::Type::Str>();
+            const auto field = query.GetVar<Expr::Type::Str>();
             if (field == U"Length"sv)
                 return { uint64_t(str.size()), 1u };
         } break;
@@ -112,7 +112,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
 }
 
 
-Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const RawArg& arg)
+Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const Expr& arg)
 {
     return runtime.EvaluateArg(arg);
 }
@@ -137,7 +137,7 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
     } break;
     case SubQuery::QueryType::Sub:
     {
-        auto field = query.GetVar<RawArg::Type::Str>();
+        auto field = query.GetVar<Expr::Type::Str>();
         auto result = SubfieldGetter(var, field);
         if (!result.IsEmpty())
             return { std::move(result), 1u };
@@ -180,7 +180,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         }
         case SubQuery::QueryType::Sub:
         {
-            auto field = query.GetVar<RawArg::Type::Str>();
+            auto field = query.GetVar<Expr::Type::Str>();
             if (field == U"Length")
                 return { uint64_t(var.Meta1), 1 };
         } break;
@@ -200,7 +200,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         } break;
         case SubQuery::QueryType::Sub:
         {
-            auto field = query.GetVar<RawArg::Type::Str>();
+            auto field = query.GetVar<Expr::Type::Str>();
             if (const auto accessor = FindMember(field); accessor)
             {
                 const auto ptr = reinterpret_cast<void*>(var.Meta0);
@@ -238,13 +238,13 @@ LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name) const
     return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
 }
 
-bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const RawArg> args)
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const Expr> args)
 {
     const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
         size = gsl::narrow_cast<uint32_t>(args.size());
     LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
     for (const auto& arg : args)
-        LocalFuncArgNames.emplace_back(arg.GetVar<RawArg::Type::Var>());
+        LocalFuncArgNames.emplace_back(arg.GetVar<Expr::Type::Var>());
     return SetFuncInside(block->Name, { block, offset, size });
 }
 
@@ -515,7 +515,7 @@ std::optional<Arg> EmbedOpEval::Not(const Arg& arg) noexcept
 #undef LR_BOTH
 
 
-size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const RawArg* src)
+size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src)
 {
     if (!idx.IsInteger())
     {
@@ -585,8 +585,8 @@ class NailangRuntimeBase::ExprHolder
 {
     friend class NailangRuntimeBase;
     NailangRuntimeBase& Host;
-    RawArg PrevExpr;
-    constexpr ExprHolder(NailangRuntimeBase* host, const RawArg& expr) noexcept :
+    Expr PrevExpr;
+    constexpr ExprHolder(NailangRuntimeBase* host, const Expr& expr) noexcept :
         Host(*host), PrevExpr(Host.CurFrame->CurExpr)
     {
         Host.CurFrame->CurExpr = expr;
@@ -681,15 +681,15 @@ NailangRuntimeBase::~NailangRuntimeBase()
 { }
 
 
-static constexpr auto ContentTypeName(const BlockContent::Type type) noexcept
+static constexpr auto ContentTypeName(const Statement::Type type) noexcept
 {
     switch (type)
     {
-    case BlockContent::Type::Assignment: return U"assignment"sv;
-    case BlockContent::Type::FuncCall:   return U"funccall"sv;
-    case BlockContent::Type::RawBlock:   return U"rawblock"sv;
-    case BlockContent::Type::Block:      return U"block"sv;
-    default:                             return U"error"sv;
+    case Statement::Type::Assign:   return U"assignment"sv;
+    case Statement::Type::FuncCall: return U"funccall"sv;
+    case Statement::Type::RawBlock: return U"rawblock"sv;
+    case Statement::Type::Block:    return U"block"sv;
+    default:                        return U"error"sv;
     }
 }
 
@@ -712,12 +712,12 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         detail::ExceptionTarget{}, &call);
 }
 
-void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const RawArg::Type type, size_t idx) const
+void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Expr::Type type, size_t idx) const
 {
     const auto& arg = call.Args[idx];
     if (arg.TypeData != type)
         NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} rawarg, which gives [{}], source is [{}].",
-            RawArg::TypeName(type), call.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(arg)),
+            Expr::TypeName(type), call.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(arg)),
             arg);
 }
 
@@ -756,16 +756,16 @@ void NailangRuntimeBase::ThrowIfNotFuncTarget(const FuncCall& call, const FuncNa
     }
 }
 
-void NailangRuntimeBase::ThrowIfBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
+void NailangRuntimeBase::ThrowIfStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const
 {
-    if (target.GetType() == type)
+    if (target.TypeData == type)
         NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] cannot be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
             meta);
 }
 
-void NailangRuntimeBase::ThrowIfNotBlockContent(const FuncCall& meta, const BlockContent target, const BlockContent::Type type) const
+void NailangRuntimeBase::ThrowIfNotStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const
 {
-    if (target.GetType() != type)
+    if (target.TypeData != type)
         NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] can only be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
             meta);
 }
@@ -779,7 +779,7 @@ bool NailangRuntimeBase::ThrowIfNotBool(const Arg& arg, const std::u32string_vie
     return ret.value();
 }
 
-void NailangRuntimeBase::CheckFuncArgs(common::span<const RawArg::Type> types, const ArgLimits limit, const FuncCall& call)
+void NailangRuntimeBase::CheckFuncArgs(common::span<const Expr::Type> types, const ArgLimits limit, const FuncCall& call)
 {
     ThrowByArgCount(call, types.size(), limit);
     const auto size = std::min(types.size(), call.Args.size());
@@ -807,7 +807,6 @@ void NailangRuntimeBase::ExecuteFrame()
     for (size_t idx = 0; idx < CurFrame->BlockScope->Size();)
     {
         const auto& [metas, content] = (*CurFrame->BlockScope)[idx];
-        CurFrame->CurContent = &content;
         if (HandleMetaFuncs(metas, content))
         {
             HandleContent(content, metas);
@@ -840,7 +839,7 @@ std::variant<std::monostate, bool, xziar::nailang::TempFuncName> NailangRuntimeB
     return {};
 }
 
-bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const BlockContent& target)
+bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const Statement& target)
 {
     for (const auto& meta : metas)
     {
@@ -870,16 +869,17 @@ bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, con
     return true;
 }
 
-void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span<const FuncCall> metas)
+void NailangRuntimeBase::HandleContent(const Statement& content, common::span<const FuncCall> metas)
 {
-    switch (content.GetType())
+    CurFrame->CurContent = &content;
+    switch (content.TypeData)
     {
-    case BlockContent::Type::Assignment:
+    case Statement::Type::Assign:
     {
-        const auto& assign = *content.Get<Assignment>();
+        const auto& assign = *content.Get<AssignExpr>();
         SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
     } break;
-    case BlockContent::Type::Block:
+    case Statement::Type::Block:
     {
         const auto prevFrame = PushFrame();
         CurFrame->BlockScope = content.Get<Block>();
@@ -897,14 +897,14 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
             break;
         }
     } break;
-    case BlockContent::Type::FuncCall:
+    case Statement::Type::FuncCall:
     {
         const auto& fcall = content.Get<FuncCall>();
         Expects(fcall->Name->Info() == FuncName::FuncInfo::Empty);
         ExprHolder callHost(this, &fcall);
         EvaluateFunc(*fcall, metas);
     } break;
-    case BlockContent::Type::RawBlock:
+    case Statement::Type::RawBlock:
     {
         OnRawBlock(*content.Get<RawBlock>(), metas);
     } break;
@@ -914,7 +914,7 @@ void NailangRuntimeBase::HandleContent(const BlockContent& content, common::span
     }
 }
 
-void NailangRuntimeBase::OnLoop(const RawArg& condition, const BlockContent& target, common::span<const FuncCall> metas)
+void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, common::span<const FuncCall> metas)
 {
     const auto prevFrame = PushFrame(FrameFlags::InLoop);
     while (true)
@@ -939,7 +939,7 @@ void NailangRuntimeBase::OnLoop(const RawArg& condition, const BlockContent& tar
     }
 }
 
-std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const RawArg> args)
+std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const Expr> args)
 {
     std::vector<Arg> results;
     results.reserve(args.size());
@@ -997,15 +997,15 @@ TempFuncName NailangRuntimeBase::CreateTempFuncName(std::u32string_view name, Fu
     }
     return FuncName::CreateTemp(name, info);
 }
-LateBindVar NailangRuntimeBase::DecideDynamicVar(const RawArg& arg, const std::u16string_view reciever) const
+LateBindVar NailangRuntimeBase::DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const
 {
     switch (arg.TypeData)
     {
-    case RawArg::Type::Var: 
-        return arg.GetVar<RawArg::Type::Var>();
-    case RawArg::Type::Str: 
+    case Expr::Type::Var: 
+        return arg.GetVar<Expr::Type::Var>();
+    case Expr::Type::Str: 
     {
-        const auto name = arg.GetVar<RawArg::Type::Str>();
+        const auto name = arg.GetVar<Expr::Type::Str>();
         const auto res  = tokenizer::VariableTokenizer::CheckName(name);
         if (res.has_value())
             NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
@@ -1047,7 +1047,7 @@ ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool crea
     return RootContext->LocateArg(var, create);
 }
 
-static common::StackTraceItem CreateStack(const Assignment* assign, const common::SharedString<char16_t>& fname) noexcept
+static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
 {
     if (!assign)
         return { fname, u"<empty assign>"sv, 0 };
@@ -1077,7 +1077,7 @@ static common::StackTraceItem CreateStack(const Block* block, const common::Shar
 
 void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
 {
-    if (auto& info = ex.GetInfo(); !info.Scope && CurFrame && CurFrame->CurExpr.TypeData != RawArg::Type::Empty)
+    if (auto& info = ex.GetInfo(); !info.Scope && CurFrame && CurFrame->CurExpr)
         info.Scope = CurFrame->CurExpr;
 
     auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
@@ -1118,7 +1118,7 @@ Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
         NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
     return ret.ExtractGet();
 }
-bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, RawArg> arg, NilCheck nilCheck)
+bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, Expr> arg, NilCheck nilCheck)
 {
     using Behavior = NilCheck::Behavior;
     const auto DirectSet = [&](auto&& target)
@@ -1162,9 +1162,9 @@ bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::vari
             {
                 msg = u", expect perform subquery on it"sv;
             }
-            else if (arg.index() == 1 && std::get<1>(arg).TypeData == RawArg::Type::Binary)
+            else if (arg.index() == 1 && std::get<1>(arg).TypeData == Expr::Type::Binary)
             {
-                const auto op = std::get<1>(arg).GetVar<RawArg::Type::Binary>()->Operator;
+                const auto op = std::get<1>(arg).GetVar<Expr::Type::Binary>()->Operator;
                 msg = FMTSTR(u", expect perform [{}] on it"sv, EmbedOpHelper::GetOpName(op));
             }
             NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exists{}"sv, var, msg), arg);
@@ -1187,7 +1187,7 @@ LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
     }
     return RootContext->LookUpFunc(name);
 }
-bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const RawArg> args)
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const Expr> args)
 {
     if (!CurFrame)
         NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
@@ -1204,7 +1204,7 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32
     return false;
 }
 
-NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const BlockContent& content, common::span<const FuncCall> allMetas)
+NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const Statement& content, common::span<const FuncCall> allMetas)
 {
     if (meta.Name->PartCount > 1)
         return MetaFuncResult::Unhandled;
@@ -1223,12 +1223,12 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     }
     HashCase(metaName, U"DefFunc")
     {
-        ThrowIfNotBlockContent(meta, content, BlockContent::Type::Block);
+        ThrowIfNotStatement(meta, content, Statement::Type::Block);
         for (const auto& arg : meta.Args)
         {
-            if (arg.TypeData != RawArg::Type::Var)
+            if (arg.TypeData != Expr::Type::Var)
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
-            const auto& var = arg.GetVar<RawArg::Type::Var>();
+            const auto& var = arg.GetVar<Expr::Type::Var>();
             if (HAS_FIELD(var.Info, LateBindVar::VarInfo::PrefixMask))
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, &meta);
         }
@@ -1237,7 +1237,7 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     }
     HashCase(metaName, U"While")
     {
-        ThrowIfBlockContent(meta, content, BlockContent::Type::RawBlock);
+        ThrowIfStatement(meta, content, Statement::Type::RawBlock);
         ThrowByArgCount(meta, 1);
         OnLoop(meta.Args[0], content, allMetas);
         return MetaFuncResult::Skip;
@@ -1585,9 +1585,9 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     return {};
 }
 
-Arg NailangRuntimeBase::EvaluateArg(const RawArg& arg)
+Arg NailangRuntimeBase::EvaluateArg(const Expr& arg)
 {
-    using Type = RawArg::Type;
+    using Type = Expr::Type;
     ExprHolder callHost(this, arg);
     switch (arg.TypeData)
     {
@@ -1630,7 +1630,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
 {
     if (expr.Operator == EmbedOps::Not)
         return EmbedOpEval::Not(EvaluateArg(expr.Oprend));
-    NLRT_THROW_EX(u"Unexpected unary op"sv, RawArg(&expr));
+    NLRT_THROW_EX(u"Unexpected unary op"sv, Expr(&expr));
     return {};
 }
 
@@ -1672,7 +1672,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr
         return false;
     }
     default:
-        NLRT_THROW_EX(u"Unexpected binary op"sv, RawArg(&expr));
+        NLRT_THROW_EX(u"Unexpected binary op"sv, Expr(&expr));
         return {};
     }
 }
@@ -1704,7 +1704,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
             HandleException(nre);
         }
         if (step == 0)
-            NLRT_THROW_EX(FMTSTR(u"Fail to evaluate query [{}]"sv, Serializer::Stringify(subq)), target, RawArg{ &expr });
+            NLRT_THROW_EX(FMTSTR(u"Fail to evaluate query [{}]"sv, Serializer::Stringify(subq)), target, Expr{ &expr });
         i += step;
     }
     return target;*/
@@ -1721,7 +1721,7 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
     auto frame = PushFrame(ctx, FrameFlags::FlowScope);
     if (checkMetas)
     {
-        auto target = BlockContentItem::Generate(&block, 0, 0);
+        Statement target(&block);
         if (!HandleMetaFuncs(metas, target))
             return;
     }
@@ -1733,11 +1733,11 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
 Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const bool innerScope)
 {
     common::parser::ParserContext context(content);
-    const auto rawarg = ComplexArgParser::ParseSingleArg(MemPool, context, ""sv, U""sv);
-    if (rawarg.has_value())
+    const auto rawarg = NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
+    if (rawarg)
     {
         auto frame = PushFrame(innerScope, FrameFlags::FlowScope);
-        return EvaluateArg(rawarg.value());
+        return EvaluateArg(rawarg);
     }
     else
         return {};
@@ -1745,9 +1745,9 @@ Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const 
 
 Arg NailangRuntimeBase::EvaluateRawStatements(std::u32string_view content, const bool innerScope)
 {
-    struct EmbedBlkParser : public BlockParser
+    struct EmbedBlkParser : public NailangParser
     {
-        using BlockParser::BlockParser;
+        using NailangParser::NailangParser;
         static Block GetBlock(MemoryPool& pool, const std::u32string_view src)
         {
             common::parser::ParserContext context(src);
