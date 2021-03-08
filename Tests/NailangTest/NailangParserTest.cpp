@@ -169,9 +169,9 @@ TEST(NailangParser, ParseExpr)
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
         ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
         const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
-        CHECK_DIRECT_ARG(stmt.LeftOprend, Uint, 1u);
+        CHECK_DIRECT_ARG(stmt.LeftOperand, Uint, 1u);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 2);
+        CHECK_DIRECT_ARG(stmt.RightOperand, Int, 2);
     }
     {
         constexpr auto src = U"1?2:3"sv;
@@ -180,8 +180,8 @@ TEST(NailangParser, ParseExpr)
         ASSERT_EQ(expr.TypeData, Expr::Type::Ternary);
         const auto& stmt = *expr.GetVar<Expr::Type::Ternary>();
         CHECK_DIRECT_ARG(stmt.Condition,   Int, 1);
-        CHECK_DIRECT_ARG(stmt.LeftOprend,  Int, 2);
-        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 3);
+        CHECK_DIRECT_ARG(stmt.LeftOperand,  Int, 2);
+        CHECK_DIRECT_ARG(stmt.RightOperand, Int, 3);
     }
     {
         constexpr auto src = U"1?:here:3"sv;
@@ -190,8 +190,8 @@ TEST(NailangParser, ParseExpr)
         ASSERT_EQ(expr.TypeData, Expr::Type::Ternary);
         const auto& stmt = *expr.GetVar<Expr::Type::Ternary>();
         CHECK_DIRECT_ARG(stmt.Condition,   Int, 1);
-        CHECK_VAR_ARG(stmt.LeftOprend, U"here"sv, Local);
-        CHECK_DIRECT_ARG(stmt.RightOprend, Int, 3);
+        CHECK_VAR_ARG(stmt.LeftOperand, U"here"sv, Local);
+        CHECK_DIRECT_ARG(stmt.RightOperand, Int, 3);
     }
     {
         constexpr auto src = U"val[x+y]+ 12.8"sv;
@@ -199,19 +199,19 @@ TEST(NailangParser, ParseExpr)
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
         ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
         const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
-        EXPECT_EQ(stmt.LeftOprend.TypeData, Expr::Type::Query);
+        EXPECT_EQ(stmt.LeftOperand.TypeData, Expr::Type::Query);
         EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt.RightOprend, FP, 12.8);
+        CHECK_DIRECT_ARG(stmt.RightOperand, FP, 12.8);
 
-        const auto& stmt1 = *stmt.LeftOprend.GetVar<Expr::Type::Query>();
+        const auto& stmt1 = *stmt.LeftOperand.GetVar<Expr::Type::Query>();
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
         EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
         ASSERT_EQ(stmt1[0].second.TypeData, Expr::Type::Binary);
 
         const auto& stmt2 = *stmt1[0].second.GetVar<Expr::Type::Binary>();
-        CHECK_VAR_ARG(stmt2.LeftOprend, U"x"sv, Empty);
+        CHECK_VAR_ARG(stmt2.LeftOperand, U"x"sv, Empty);
         EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
-        CHECK_VAR_ARG(stmt2.RightOprend, U"y"sv, Empty);
+        CHECK_VAR_ARG(stmt2.RightOperand, U"y"sv, Empty);
     }
     {
         constexpr auto src = U"!val[x[3+4][5]]"sv;
@@ -220,9 +220,9 @@ TEST(NailangParser, ParseExpr)
         ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
         const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
         EXPECT_EQ(stmt.Operator, EmbedOps::Not);
-        ASSERT_EQ(stmt.Oprend.TypeData, Expr::Type::Query);
+        ASSERT_EQ(stmt.Operand.TypeData, Expr::Type::Query);
 
-        const auto& stmt1 = *stmt.Oprend.GetVar<Expr::Type::Query>();
+        const auto& stmt1 = *stmt.Operand.GetVar<Expr::Type::Query>();
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
         ASSERT_EQ(stmt1.Queries.size(), 1u);
         EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
@@ -235,9 +235,9 @@ TEST(NailangParser, ParseExpr)
         ASSERT_EQ(stmt2[0].second.TypeData, Expr::Type::Binary);
 
         const auto& stmt3 = *stmt2[0].second.GetVar<Expr::Type::Binary>();
-        CHECK_DIRECT_ARG(stmt3.LeftOprend, Int, 3);
+        CHECK_DIRECT_ARG(stmt3.LeftOperand, Int, 3);
         EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
-        CHECK_DIRECT_ARG(stmt3.RightOprend, Int, 4);
+        CHECK_DIRECT_ARG(stmt3.RightOperand, Int, 4);
 
         EXPECT_EQ(stmt2[1].first, SubQuery::QueryType::Index);
         CHECK_DIRECT_ARG(stmt2[1].second, Int, 5);
@@ -276,13 +276,13 @@ TEST(NailangParser, ParseFuncBody)
         {
             const auto& stmt = *func.Args[0].GetVar<Expr::Type::Unary>();
             EXPECT_EQ(stmt.Operator, EmbedOps::Not);
-            CHECK_DIRECT_ARG(stmt.Oprend, Bool, false);
+            CHECK_DIRECT_ARG(stmt.Operand, Bool, false);
         }
         {
             const auto& stmt = *func.Args[1].GetVar<Expr::Type::Binary>();
-            CHECK_DIRECT_ARG(stmt.LeftOprend, FP, 3.5);
+            CHECK_DIRECT_ARG(stmt.LeftOperand, FP, 3.5);
             EXPECT_EQ(stmt.Operator, EmbedOps::Add);
-            CHECK_VAR_ARG(stmt.RightOprend, U"var"sv, Empty);
+            CHECK_VAR_ARG(stmt.RightOperand, U"var"sv, Empty);
         }
     }
     {
@@ -295,10 +295,10 @@ TEST(NailangParser, ParseFuncBody)
         ASSERT_EQ(func.Args[1].TypeData, Expr::Type::Func);
         {
             const auto& stmt = *func.Args[0].GetVar<Expr::Type::Binary>();
-            CHECK_DIRECT_ARG(stmt.LeftOprend, Int, 6);
+            CHECK_DIRECT_ARG(stmt.LeftOperand, Int, 6);
             EXPECT_EQ(stmt.Operator, EmbedOps::GreaterEqual);
-            ASSERT_EQ(stmt.RightOprend.TypeData, Expr::Type::Func);
-            const auto& fcall = *stmt.RightOprend.GetVar<Expr::Type::Func>();
+            ASSERT_EQ(stmt.RightOperand.TypeData, Expr::Type::Func);
+            const auto& fcall = *stmt.RightOperand.GetVar<Expr::Type::Func>();
             EXPECT_EQ(*fcall.Name, U"foo"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Local);
@@ -310,15 +310,15 @@ TEST(NailangParser, ParseFuncBody)
             CHECK_VAR_ARG(fcall.Args[0], U"bar", Root);
             ASSERT_EQ(fcall.Args[1].TypeData, Expr::Type::Binary);
             const auto& stmt = *fcall.Args[1].GetVar<Expr::Type::Binary>();
-            ASSERT_EQ(stmt.LeftOprend.TypeData, Expr::Type::Binary);
+            ASSERT_EQ(stmt.LeftOperand.TypeData, Expr::Type::Binary);
             {
-                const auto& stmt2 = *stmt.LeftOprend.GetVar<Expr::Type::Binary>();
-                CHECK_DIRECT_ARG(stmt2.LeftOprend, Int, 4);
+                const auto& stmt2 = *stmt.LeftOperand.GetVar<Expr::Type::Binary>();
+                CHECK_DIRECT_ARG(stmt2.LeftOperand, Int, 4);
                 EXPECT_EQ(stmt2.Operator, EmbedOps::Sub);
-                CHECK_DIRECT_ARG(stmt2.RightOprend, Int, 5);
+                CHECK_DIRECT_ARG(stmt2.RightOperand, Int, 5);
             }
             EXPECT_EQ(stmt.Operator, EmbedOps::Equal);
-            CHECK_DIRECT_ARG(stmt.RightOprend, Int, 9);
+            CHECK_DIRECT_ARG(stmt.RightOperand, Int, 9);
         }
     }
 }
@@ -462,14 +462,14 @@ empty
             EXPECT_EQ(assign.Statement.TypeData, Expr::Type::Binary);
             {
                 const auto& stmt_ = *assign.Statement.GetVar<Expr::Type::Binary>();
-                CHECK_VAR_ARG(stmt_.LeftOprend, U"hey", Empty);
+                CHECK_VAR_ARG(stmt_.LeftOperand, U"hey", Empty);
                 EXPECT_EQ(stmt_.Operator, EmbedOps::Div);
-                EXPECT_EQ(stmt_.RightOprend.TypeData, Expr::Type::Binary);
+                EXPECT_EQ(stmt_.RightOperand.TypeData, Expr::Type::Binary);
                 {
-                    const auto& stmt2 = *stmt_.RightOprend.GetVar<Expr::Type::Binary>();
-                    CHECK_DIRECT_ARG(stmt2.LeftOprend, Uint, 9u);
+                    const auto& stmt2 = *stmt_.RightOperand.GetVar<Expr::Type::Binary>();
+                    CHECK_DIRECT_ARG(stmt2.LeftOperand, Uint, 9u);
                     EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
-                    CHECK_DIRECT_ARG(stmt2.RightOprend, Uint, 1u);
+                    CHECK_DIRECT_ARG(stmt2.RightOperand, Uint, 1u);
                 }
             }
         }

@@ -69,7 +69,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = runtime.EvaluateArg(query);
+            const auto val = runtime.EvaluateExpr(query);
             const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
             return arr.Access(idx);
         }
@@ -91,7 +91,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = runtime.EvaluateArg(query);
+            const auto val = runtime.EvaluateExpr(query);
             const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
             if (TypeData == Type::U32Str)
                 return { std::u32string(1, str[idx]), 1u };
@@ -110,11 +110,49 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
     }
     return {};
 }
-
-
-Arg CustomVar::Handler::EvaluateArg(NailangRuntimeBase& runtime, const Expr& arg)
+Arg Arg::HandleUnary(const EmbedOps op)
 {
-    return runtime.EvaluateArg(arg);
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleUnary>(op);
+    }
+    if (op == EmbedOps::Not)
+        return EmbedOpEval::Not(*this);
+    return {};
+}
+Arg Arg::HandleBinary(const EmbedOps op, const Arg& right)
+{
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleBinary>(op, right);
+    }
+    switch (op)
+    {
+#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(*this, right)
+        EVAL_BIN_OP(Equal);
+        EVAL_BIN_OP(NotEqual);
+        EVAL_BIN_OP(Less);
+        EVAL_BIN_OP(LessEqual);
+        EVAL_BIN_OP(Greater);
+        EVAL_BIN_OP(GreaterEqual);
+        EVAL_BIN_OP(Add);
+        EVAL_BIN_OP(Sub);
+        EVAL_BIN_OP(Mul);
+        EVAL_BIN_OP(Div);
+        EVAL_BIN_OP(Rem);
+        EVAL_BIN_OP(And);
+        EVAL_BIN_OP(Or);
+#undef EVAL_BIN_OP
+    default: return {};
+    }
+}
+
+
+Arg CustomVar::Handler::EvaluateExpr(NailangRuntimeBase& runtime, const Expr& arg)
+{
+    return runtime.EvaluateExpr(arg);
 }
 
 void CustomVar::Handler::HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex)
@@ -130,7 +168,7 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
     {
     case SubQuery::QueryType::Index:
     {
-        const auto idx = EvaluateArg(runtime, query);
+        const auto idx = EvaluateExpr(runtime, query);
         auto result = IndexerGetter(var, idx, query);
         if (!result.IsEmpty())
             return { std::move(result), 1u };
@@ -143,6 +181,43 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
             return { std::move(result), 1u };
     } break;
     default: break;
+    }
+    return {};
+}
+Arg CustomVar::Handler::HandleUnary(const CustomVar&, const EmbedOps)
+{
+    return {};
+}
+Arg CustomVar::Handler::HandleBinary(const CustomVar& var, const EmbedOps op, const Arg& right)
+{
+    switch (op)
+    {
+    case EmbedOps::Equal:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsEqual();
+        break;
+    case EmbedOps::NotEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsNotEqual();
+        break;
+    case EmbedOps::Less:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsLess();
+        break;
+    case EmbedOps::LessEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsLessEqual();
+        break;
+    case EmbedOps::Greater:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsGreater();
+        break;
+    case EmbedOps::GreaterEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsGreaterEqual();
+        break;
+    default:
+        break;
     }
     return {};
 }
@@ -159,7 +234,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         {
         case SubQuery::QueryType::Index:
         {
-            const auto idx  = EvaluateArg(runtime, query);
+            const auto idx  = EvaluateExpr(runtime, query);
             size_t tidx = 0;
             if (ExtendIndexer)
             {
@@ -193,7 +268,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
         {
         case SubQuery::QueryType::Index:
         {
-            const auto idx = EvaluateArg(runtime, query);
+            const auto idx = EvaluateExpr(runtime, query);
             auto result = IndexerGetter(var, idx, query);
             if (!result.IsEmpty())
                 return { std::move(result), 1u };
@@ -360,7 +435,7 @@ size_t CompactEvaluateContext::GetFuncCount() const noexcept
 
 
 #define LR_BOTH(left, right, func) left.func() && right.func()
-std::optional<Arg> EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
 {
     if (LR_BOTH(left, right, IsInteger))
         return left.GetUint() == right.GetUint();
@@ -374,15 +449,15 @@ std::optional<Arg> EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcep
         return left.GetFP() == right.GetFP();
     return {};
 }
-std::optional<Arg> EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noexcept
 {
     const auto ret = Equal(left, right);
-    if (ret.has_value())
-        return !ret->GetVar<Arg::Type::Bool>();
+    if (ret.IsBool())
+        return !ret.GetVar<Arg::Type::Bool>();
     return ret;
 }
 template<typename F>
-forceinline static std::optional<Arg> NumOp(const Arg& left, const Arg& right, F func) noexcept
+forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
 {
     using Type = Arg::Type;
     switch (left.TypeData)
@@ -425,7 +500,7 @@ forceinline static std::optional<Arg> NumOp(const Arg& left, const Arg& right, F
     return {};
 }
 
-std::optional<Arg> EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -439,7 +514,7 @@ std::optional<Arg> EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
                 return l < r; 
         });
 }
-std::optional<Arg> EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) -> bool
         {
@@ -454,14 +529,14 @@ std::optional<Arg> EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noe
         });
 }
 
-std::optional<Arg> EmbedOpEval::And(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::And(const Arg& left, const Arg& right) noexcept
 {
     const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
         return *left_ && *right_;
     return {};
 }
-std::optional<Arg> EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
 {
     const auto left_ = left.GetBool(), right_ = right.GetBool();
     if (left_.has_value() && right_.has_value())
@@ -469,7 +544,7 @@ std::optional<Arg> EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
     return {};
 }
 
-std::optional<Arg> EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
 {
     if (LR_BOTH(left, right, IsStr))
     {
@@ -482,19 +557,19 @@ std::optional<Arg> EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
     }
     return NumOp(left, right, [](const auto l, const auto r) { return l + r; });
 }
-std::optional<Arg> EmbedOpEval::Sub(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Sub(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l - r; });
 }
-std::optional<Arg> EmbedOpEval::Mul(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Mul(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l * r; });
 }
-std::optional<Arg> EmbedOpEval::Div(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Div(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) { return l / r; });
 }
-std::optional<Arg> EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
+Arg EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
 {
     return NumOp(left, right, [](const auto l, const auto r) 
         {
@@ -505,7 +580,7 @@ std::optional<Arg> EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
         });
 }
 
-std::optional<Arg> EmbedOpEval::Not(const Arg& arg) noexcept
+Arg EmbedOpEval::Not(const Arg& arg) noexcept
 {
     const auto arg_ = arg.GetBool();
     if (arg_.has_value())
@@ -791,7 +866,7 @@ void NailangRuntimeBase::EvaluateFuncArgs(Arg* args, const Arg::Type* types, con
 {
     for (size_t i = 0; i < size; ++i)
     {
-        args[i] = EvaluateArg(call.Args[i]);
+        args[i] = EvaluateExpr(call.Args[i]);
         if (types != nullptr)
             ThrowByArgType(call, args[i], types[i], i);
     }
@@ -919,7 +994,7 @@ void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, 
     const auto prevFrame = PushFrame(FrameFlags::InLoop);
     while (true)
     {
-        const auto cond = EvaluateArg(condition);
+        const auto cond = EvaluateExpr(condition);
         if (ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
         {
             HandleContent(target, metas);
@@ -944,7 +1019,7 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
     std::vector<Arg> results;
     results.reserve(args.size());
     for (const auto& arg : args)
-        results.emplace_back(EvaluateArg(arg));
+        results.emplace_back(EvaluateExpr(arg));
     return FormatString(formatter, results);
 }
 std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
@@ -1128,7 +1203,7 @@ bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, std::vari
         if (arg.index() == 0)
             return target.Set(std::get<0>(std::move(arg)));
         else
-            return target.Set(EvaluateArg(std::get<1>(arg)));
+            return target.Set(EvaluateExpr(std::get<1>(arg)));
     };
     auto ret = LocateArg(var, false);
     if (ret)
@@ -1280,11 +1355,9 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
     // suitable for all
     if (call.Name->PartCount == 2 && call.Name->GetPart(0) == U"Math"sv)
     {
-        if (auto ret = EvaluateExtendMathFunc(call, metas); ret)
+        if (auto ret = EvaluateExtendMathFunc(call, metas); !ret.IsEmpty())
         {
-            if (!ret->IsEmpty())
-                return ret.value();
-            NLRT_THROW_EX(FMTSTR(u"Math func's arg type does not match requirement, [{}]"sv, Serializer::Stringify(&call)), call);
+            return ret;
         }
     }
     if (call.Name->PartCount == 1)
@@ -1294,8 +1367,8 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         HashCase(fullName, U"Select")
         {
             ThrowByArgCount(call, 3);
-            const auto& selected = ThrowIfNotBool(EvaluateArg(call.Args[0]), U""sv) ? call.Args[1] : call.Args[2];
-            return EvaluateArg(selected);
+            const auto& selected = ThrowIfNotBool(EvaluateExpr(call.Args[0]), U""sv) ? call.Args[1] : call.Args[2];
+            return EvaluateExpr(selected);
         }
         HashCase(fullName, U"Exists")
         {
@@ -1316,12 +1389,12 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             if (auto ret = LookUpArg(var); !ret.IsEmpty())
                 return ret;
             else
-                return EvaluateArg(call.Args[1]);
+                return EvaluateExpr(call.Args[1]);
         }
         HashCase(fullName, U"Format")
         {
             ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-            const auto fmtStr = EvaluateArg(call.Args[0]).GetStr();
+            const auto fmtStr = EvaluateExpr(call.Args[0]).GetStr();
             if (!fmtStr)
                 NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
             return FormatString(fmtStr.value(), call.Args.subspan(1));
@@ -1379,7 +1452,7 @@ Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall&
     auto newCtx = ConstructEvalContext();
     for (const auto& [varName, rawarg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(call.Args)))
     {
-        newCtx->LocateArg(varName, true).Set(EvaluateArg(rawarg));
+        newCtx->LocateArg(varName, true).Set(EvaluateExpr(rawarg));
     }
     auto newFrame = PushFrame(std::move(newCtx), FrameFlags::FuncCall);
     CurFrame->BlockScope = func.Body;
@@ -1394,7 +1467,7 @@ Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<c
     return {};
 }
 
-std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall>)
+Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall>)
 {
     using Type = Arg::Type;
     const auto mathName = call.Name->GetPart(1);
@@ -1403,26 +1476,30 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
     HashCase(mathName, U"Max")
     {
         ThrowByArgCount(call, 1, ArgLimits::AtLeast);
-        auto ret = EvaluateArg(call.Args[0]);
+        auto ret = EvaluateExpr(call.Args[0]);
         for (size_t i = 1; i < call.Args.size(); ++i)
         {
-            auto ret2 = EvaluateArg(call.Args[i]);
+            auto ret2 = EvaluateExpr(call.Args[i]);
             const auto isLess = EmbedOpEval::Less(ret, ret2);
-            if (!isLess.has_value()) return Arg{};
-            if (isLess->GetBool().value()) ret = std::move(ret2);
+            if (isLess.IsEmpty())
+                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, ret.GetTypeName(), ret2.GetTypeName()), call);
+            if (isLess.GetBool().value()) 
+                ret = std::move(ret2);
         }
         return ret;
     }
     HashCase(mathName, U"Min")
     {
         ThrowByArgCount(call, 1, ArgLimits::AtLeast);
-        auto ret = EvaluateArg(call.Args[0]);
+        auto ret = EvaluateExpr(call.Args[0]);
         for (size_t i = 1; i < call.Args.size(); ++i)
         {
-            auto ret2 = EvaluateArg(call.Args[i]);
+            auto ret2 = EvaluateExpr(call.Args[i]);
             const auto isLess = EmbedOpEval::Less(ret2, ret);
-            if (!isLess.has_value()) return Arg{};
-            if (isLess->GetBool().value()) ret = std::move(ret2);
+            if (isLess.IsEmpty())
+                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, ret.GetTypeName(), ret2.GetTypeName()), call);
+            if (isLess.GetBool().value()) 
+                ret = std::move(ret2);
         }
         return ret;
     }
@@ -1436,8 +1513,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return std::sqrt(arg.GetVar<Type::Int>());
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Ceil")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1448,8 +1524,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return arg;
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Floor")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1460,8 +1535,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return arg;
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Round")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1472,8 +1546,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return arg;
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Log")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1484,8 +1557,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return std::log(arg.GetVar<Type::Int>());
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Log2")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1496,8 +1568,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return std::log2(arg.GetVar<Type::Int>());
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Log10")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
@@ -1508,8 +1579,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:     return std::log10(arg.GetVar<Type::Int>());
         default:            break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Lerp")
     {
         const auto args = EvaluateFuncArgs<3>(call, { Arg::Type::Number, Arg::Type::Number, Arg::Type::Number });
@@ -1522,8 +1592,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
 #else
             return x.value() * (1. - a.value()) + y.value() * a.value();
 #endif
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"Pow")
     {
         const auto args = EvaluateFuncArgs<2>(call, { Arg::Type::Number, Arg::Type::Number });
@@ -1531,8 +1600,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         const auto y = args[1].GetFP();
         if (x && y)
             return std::pow(x.value(), y.value());
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"LeadZero")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
@@ -1542,8 +1610,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Int>()));
         default:         break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"TailZero")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
@@ -1553,8 +1620,7 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Int>()));
         default:         break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"PopCount")
     {
         const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
@@ -1564,28 +1630,26 @@ std::optional<Arg> NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& ca
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Int>()));
         default:         break;
         }
-        return Arg{};
-    }
+    } break;
     HashCase(mathName, U"ToUint")
     {
         const auto arg = EvaluateFirstFuncArg(call).GetUint();
         if (arg)
-            return arg;
-        return Arg{};
-    }
+            return arg.value();
+    } break;
     HashCase(mathName, U"ToInt")
     {
         const auto arg = EvaluateFirstFuncArg(call).GetInt();
         if (arg)
-            return arg;
-        return Arg{};
+            return arg.value();
+    } break;
+    default: return {};
     }
-    default: break;
-    }
+    NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", call.FullFuncName()), call);
     return {};
 }
 
-Arg NailangRuntimeBase::EvaluateArg(const Expr& arg)
+Arg NailangRuntimeBase::EvaluateExpr(const Expr& arg)
 {
     using Type = Expr::Type;
     ExprHolder callHost(this, arg);
@@ -1598,89 +1662,84 @@ Arg NailangRuntimeBase::EvaluateArg(const Expr& arg)
         return EvaluateFunc(*fcall, {});
     }
     case Type::Unary:
-        if (auto ret = EvaluateUnaryExpr(*arg.GetVar<Type::Unary>()); ret.has_value())
-            return std::move(ret.value());
-        else
-            NLRT_THROW_EX(u"Unary expr's arg type does not match requirement"sv, arg);
-        break;
+        return EvaluateUnaryExpr(*arg.GetVar<Type::Unary>());
     case Type::Binary:
-        if (auto ret = EvaluateBinaryExpr(*arg.GetVar<Type::Binary>()); ret.has_value())
-            return std::move(ret.value());
-        else
-            NLRT_THROW_EX(u"Binary expr's arg type does not match requirement"sv, arg);
-        break;
+        return EvaluateBinaryExpr(*arg.GetVar<Type::Binary>());
+    case Type::Ternary:
+        return EvaluateTernaryExpr(*arg.GetVar<Type::Ternary>());
     case Type::Query:
-        if (auto ret = EvaluateQueryExpr(*arg.GetVar<Type::Query>()); ret.has_value())
-            return std::move(ret.value());
-        else
-            NLRT_THROW_EX(u"Query expr's arg type does not match requirement"sv, arg);
-        break;
+        return EvaluateQueryExpr(*arg.GetVar<Type::Query>());
     case Type::Var:     return LookUpArg(arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
     case Type::FP:      return arg.GetVar<Type::FP>();
     case Type::Bool:    return arg.GetVar<Type::Bool>();
-    default:            assert(false); /*Expects(false);*/ break;
+    default:            assert(false); return {};
     }
-    return {};
+    
 }
 
-std::optional<Arg> NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
+Arg NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
 {
     if (expr.Operator == EmbedOps::Not)
-        return EmbedOpEval::Not(EvaluateArg(expr.Oprend));
-    NLRT_THROW_EX(u"Unexpected unary op"sv, Expr(&expr));
+    {
+        auto val = EvaluateExpr(expr.Operand);
+        auto ret = val.HandleUnary(expr.Operator);
+        if (!ret.IsEmpty())
+            return std::move(ret);
+        NLRT_THROW_EX(FMTSTR(u"Cannot perform unary expr [{}] on type [{}]"sv, 
+            EmbedOpHelper::GetOpName(expr.Operator), val.GetTypeName()), Expr(&expr));
+    }
+    else
+        NLRT_THROW_EX(FMTSTR(u"Unexpected unary op [{}]"sv, EmbedOpHelper::GetOpName(expr.Operator)), Expr(&expr));
     return {};
 }
 
-std::optional<Arg> NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)
+Arg NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)
 {
-    switch (expr.Operator)
+    Arg left = EvaluateExpr(expr.LeftOperand), right;
+    if (expr.Operator == EmbedOps::And)
     {
-#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(EvaluateArg(expr.LeftOprend), EvaluateArg(expr.RightOprend))
-    EVAL_BIN_OP(Equal);
-    EVAL_BIN_OP(NotEqual);
-    EVAL_BIN_OP(Less);
-    EVAL_BIN_OP(LessEqual);
-    EVAL_BIN_OP(Greater);
-    EVAL_BIN_OP(GreaterEqual);
-    EVAL_BIN_OP(Add);
-    EVAL_BIN_OP(Sub);
-    EVAL_BIN_OP(Mul);
-    EVAL_BIN_OP(Div);
-    EVAL_BIN_OP(Rem);
-#undef EVAL_BIN_OP
-    case EmbedOps::And: 
+        if (const auto l = left.GetBool(); l.has_value())
+        {
+            if (!l.value()) return false;
+            right = EvaluateExpr(expr.RightOperand);
+            if (const auto r = right.GetBool(); r.has_value())
+                return r.value();
+        }
+    }
+    else if(expr.Operator == EmbedOps::Or)
     {
-        const auto left = EvaluateArg(expr.LeftOprend).GetBool();
-        if (!left.has_value()) return {};
-        if (!left.value()) return false;
-        const auto right = EvaluateArg(expr.RightOprend).GetBool();
-        if (!right.has_value()) return {};
-        if (!right.value()) return false;
-        return true;
+        if (const auto l = left.GetBool(); l.has_value())
+        {
+            if (l.value()) return true;
+            right = EvaluateExpr(expr.RightOperand);
+            if (const auto r = right.GetBool(); r.has_value())
+                return r.value();
+        }
     }
-    case EmbedOps::Or:
-    {
-        const auto left = EvaluateArg(expr.LeftOprend).GetBool();
-        if (!left.has_value()) return {};
-        if (left.value()) return true;
-        const auto right = EvaluateArg(expr.RightOprend).GetBool();
-        if (!right.has_value()) return {};
-        if (right.value()) return true;
-        return false;
-    }
-    default:
-        NLRT_THROW_EX(u"Unexpected binary op"sv, Expr(&expr));
-        return {};
-    }
+    if (right.IsEmpty())
+        right = EvaluateExpr(expr.RightOperand);
+    Arg ret = left.HandleBinary(expr.Operator, right);
+    if (!ret.IsEmpty())
+        return ret;
+    NLRT_THROW_EX(FMTSTR(u"Cannot perform binary expr [{}] on type [{}],[{}]"sv,
+        EmbedOpHelper::GetOpName(expr.Operator), left.GetTypeName(), right.GetTypeName()), Expr(&expr));
+    return {};
 }
 
-std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
+Arg NailangRuntimeBase::EvaluateTernaryExpr(const TernaryExpr& expr)
+{
+    const auto cond = ThrowIfNotBool(EvaluateExpr(expr.Condition), U"condition of ternary operator"sv);
+    const auto& selected = cond ? expr.LeftOperand : expr.RightOperand;
+    return EvaluateExpr(selected);
+}
+
+Arg NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
 {
     Expects(expr.Size() > 0);
-    auto target = EvaluateArg(expr.Target);
+    auto target = EvaluateExpr(expr.Target);
     try
     {
         return ArgQuery::LocateRead(target, expr, *this, [](ArgLocator ret) { return ret.ExtractGet(); });
@@ -1690,24 +1749,6 @@ std::optional<Arg> NailangRuntimeBase::EvaluateQueryExpr(const QueryExpr& expr)
         HandleException(nre);
         return {};
     }
-    /*auto target = EvaluateArg(expr.Target);
-    for (size_t i = 0; i < expr.Size(); ++i)
-    {
-        size_t step = 0;
-        const auto subq = expr.Sub(i);
-        try 
-        {
-            std::tie(target, step) = target.HandleGetter(subq, *this);
-        }
-        catch (const NailangRuntimeException& nre)
-        {
-            HandleException(nre);
-        }
-        if (step == 0)
-            NLRT_THROW_EX(FMTSTR(u"Fail to evaluate query [{}]"sv, Serializer::Stringify(subq)), target, Expr{ &expr });
-        i += step;
-    }
-    return target;*/
 }
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
@@ -1737,7 +1778,7 @@ Arg NailangRuntimeBase::EvaluateRawStatement(std::u32string_view content, const 
     if (rawarg)
     {
         auto frame = PushFrame(innerScope, FrameFlags::FlowScope);
-        return EvaluateArg(rawarg);
+        return EvaluateExpr(rawarg);
     }
     else
         return {};

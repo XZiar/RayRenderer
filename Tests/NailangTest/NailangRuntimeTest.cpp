@@ -80,7 +80,7 @@ public:
 
     using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::LookUpArg;
-    using NailangRuntimeBase::EvaluateArg;
+    using NailangRuntimeBase::EvaluateExpr;
     using NailangRuntimeBase::HandleContent;
 
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
@@ -119,7 +119,7 @@ public:
     {
         ParserContext context(name);
         const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
-        return EvaluateArg(var);
+        return EvaluateExpr(var);
     }
 };
 
@@ -151,16 +151,14 @@ TEST(NailangRuntime, EvalEmbedOp)
 {                                                   \
     Arg left(l), right(r);                          \
     const auto ret = EmbedOpEval::op(left, right);  \
-    ASSERT_TRUE(ret.has_value());                   \
-    CHECK_ARG(ret.value(), type, ans);              \
+    CHECK_ARG(ret, type, ans);                      \
 } while(0)                                          
 
 #define TEST_UN(val, op, type, ans) do      \
 {                                           \
     Arg arg(val);                           \
     const auto ret = EmbedOpEval::op(arg);  \
-    ASSERT_TRUE(ret.has_value());           \
-    CHECK_ARG(ret.value(), type, ans);      \
+    CHECK_ARG(ret, type, ans);              \
 } while(0)                                  \
 
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,          Bool, false);
@@ -206,7 +204,7 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
         ParserContext context(src);
         NailangRT runtime;
         const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
-        return runtime.EvaluateArg(rawarg);
+        return runtime.EvaluateExpr(rawarg);
     };
     {
         const auto arg = ParseEval(U"!false;"sv);
@@ -323,7 +321,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = EvaluateArg(runtime, query);
+            const auto val = EvaluateExpr(runtime, query);
             const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), val, &query);
             return
             {
@@ -446,7 +444,7 @@ TEST(NailangRuntime, Indexer)
     {
         ParserContext context(src);
         const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
-        return runtime.EvaluateArg(rawarg);
+        return runtime.EvaluateExpr(rawarg);
     };
     {
         const auto arg = ParseEval(U"tmp[0];"sv);
@@ -565,7 +563,7 @@ TEST(NailangRuntime, MathFunc)
         ParserContext context(src);
         const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
         NailangRT runtime;
-        return runtime.EvaluateArg(rawarg);
+        return runtime.EvaluateExpr(rawarg);
     };
     {
         const auto arg = ParseEval(U"$Math.Max(1,2);"sv);
@@ -650,7 +648,7 @@ TEST(NailangRuntime, CommonFunc)
     {
         ParserContext context(src);
         const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
-        return runtime.EvaluateArg(rawarg);
+        return runtime.EvaluateExpr(rawarg);
     };
     {
         const auto arg = ParseEval(U"$Select(1>2, 1, 2);"sv);
@@ -695,7 +693,7 @@ TEST(NailangRuntime, MathIntrinFunc)
         ParserContext context(src);
         const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
         NailangRT runtime;
-        return runtime.EvaluateArg(rawarg);
+        return runtime.EvaluateExpr(rawarg);
     };
     for (const auto& [inst, var] : common::MiscIntrin.GetIntrinMap())
     {

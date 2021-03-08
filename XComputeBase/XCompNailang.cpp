@@ -634,7 +634,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
         const auto arr = GeneralVec::ToArray(vec);
         if (argc == 1)
         {
-            auto val = EvaluateArg(call.Args[0]);
+            auto val = EvaluateExpr(call.Args[0]);
             for (uint32_t i = 0; i < info.Dim0; ++i)
             {
                 arr.Set(i, val);
@@ -645,7 +645,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
             Expects(argc == info.Dim0);
             for (uint32_t i = 0; i < argc; ++i)
             {
-                arr.Set(i, EvaluateArg(call.Args[i]));
+                arr.Set(i, EvaluateExpr(call.Args[i]));
             }
         }
     }
@@ -758,7 +758,7 @@ void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
     common::str::StrVariant<char32_t> source(block.Block->Source);
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        SetArg(var, {}, EvaluateArg(arg));
+        SetArg(var, {}, EvaluateExpr(arg));
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
@@ -1024,7 +1024,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, c
     args.reserve(func.Args.size() - offset);
     for (size_t idx = offset; idx < func.Args.size(); ++idx)
     {
-        const auto& arg = args.emplace_back(EvaluateArg(func.Args[idx]));
+        const auto& arg = args.emplace_back(EvaluateExpr(func.Args[idx]));
         ThrowByArgType(func, arg, Arg::Type::String, idx);
     }
     return { std::move(args), std::move(name), std::move(dtype), argType, texType };
@@ -1073,7 +1073,7 @@ void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 {
     auto frame = PushFrame(FrameFlags::FlowScope);
 
-    if (!HandleMetaFuncs(metas, Statement::Generate(&block)))
+    if (!HandleMetaFuncs(metas, &block))
         return;
     
     const auto type = GetBlockType(block, metas);
@@ -1265,7 +1265,7 @@ ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangRunt
     {
     case SubQuery::QueryType::Index:
         tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
-            EvaluateArg(runtime, query), &query);
+            EvaluateExpr(runtime, query), &query);
         break;
     case SubQuery::QueryType::Sub:
     {
@@ -1312,8 +1312,11 @@ CompareResult GeneralVecRef::CompareSameClass(const CustomVar& var, const Custom
     const auto ldata = static_cast<uintptr_t>(lhs.DataPtr), rdata = static_cast<uintptr_t>(rhs.DataPtr);
     for (size_t idx = 0; idx < lhs.Length; ++idx)
     {
-        const auto lval = getter(ldata, idx), rval = getter(rdata, idx);
-        if (const auto res = xziar::nailang::EmbedOpEval::Equal(lval, rval); !res->GetBool().value())
+        auto lval = getter(ldata, idx), rval = getter(rdata, idx);
+        const auto res = lval.HandleBinary(xziar::nailang::EmbedOps::Equal, rval);
+        if (res.IsEmpty())
+            return {};
+        if (!res.GetBool().value())
             return { CompareResultCore::NotEqual | CompareResultCore::Equality };
     }
     return { CompareResultCore::Equal | CompareResultCore::Equality };

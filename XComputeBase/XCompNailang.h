@@ -571,7 +571,7 @@ public:
         constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
         {
-            if (tmp.GetType() != contentType)
+            if (tmp.TypeData != contentType)
                 continue;
             const auto& block = *tmp.template Get<Target>();
             func(block, meta);
@@ -588,7 +588,7 @@ public:
         constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
         for (const auto& [meta, tmp] : Program)
         {
-            if (tmp.GetType() != contentType)
+            if (tmp.TypeData != contentType)
                 continue;
             const auto& block = *tmp.template Get<Target>();
             if (block.Type == type)

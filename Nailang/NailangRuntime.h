@@ -94,20 +94,20 @@ public:
 
 struct NAILANGAPI EmbedOpEval
 {
-    [[nodiscard]] static std::optional<Arg> Equal        (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> NotEqual     (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Less         (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> LessEqual    (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
-    [[nodiscard]] static std::optional<Arg> GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
-    [[nodiscard]] static std::optional<Arg> And          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Or           (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Add          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Sub          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Mul          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Div          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Rem          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static std::optional<Arg> Not          (const Arg& arg) noexcept;
+    [[nodiscard]] static Arg Equal        (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Less         (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
+    [[nodiscard]] static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
+    [[nodiscard]] static Arg And          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Or           (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Add          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Sub          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Mul          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Div          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
+    [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
 };
 
 
@@ -356,14 +356,14 @@ protected:
         if (limit == ArgLimits::AtMost && call.Args.size() == 0)
             return {};
         ThrowByArgCount(call, 1, limit);
-        return EvaluateArg(call.Args[0]);
+        return EvaluateExpr(call.Args[0]);
     }
     [[nodiscard]] forceinline Arg EvaluateFirstFuncArg(const FuncCall& call, Arg::Type type, ArgLimits limit = ArgLimits::Exact)
     {
         if (limit == ArgLimits::AtMost && call.Args.size() == 0)
             return {};
         ThrowByArgCount(call, 1, limit);
-        auto arg = EvaluateArg(call.Args[0]);
+        auto arg = EvaluateExpr(call.Args[0]);
         ThrowByArgType(call, arg, type, 0);
         return arg;
     }
@@ -388,10 +388,9 @@ protected:
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
-    //[[nodiscard]] Arg* LocateArgWrite(const LateBindVar& var, const bool create) const;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
 
-                  virtual void HandleException(const NailangRuntimeException& ex) const;
+    [[noreturn]]  virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
                   virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, Expr> arg, NilCheck nilCheck = {});
@@ -402,11 +401,12 @@ protected:
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
     [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas);
     [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual std::optional<Arg> EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall> metas);
-                  virtual Arg  EvaluateArg(const Expr& arg);
-    [[nodiscard]] virtual std::optional<Arg> EvaluateUnaryExpr(const UnaryExpr& expr);
-    [[nodiscard]] virtual std::optional<Arg> EvaluateBinaryExpr(const BinaryExpr& expr);
-    [[nodiscard]] virtual std::optional<Arg> EvaluateQueryExpr(const QueryExpr& expr);
+    [[nodiscard]] virtual Arg  EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall> metas);
+                  virtual Arg  EvaluateExpr(const Expr& arg);
+    [[nodiscard]] virtual Arg  EvaluateUnaryExpr(const UnaryExpr& expr);
+    [[nodiscard]] virtual Arg  EvaluateBinaryExpr(const BinaryExpr& expr);
+    [[nodiscard]] virtual Arg  EvaluateTernaryExpr(const TernaryExpr& expr);
+    [[nodiscard]] virtual Arg  EvaluateQueryExpr(const QueryExpr& expr);
                   virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
 public:
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);

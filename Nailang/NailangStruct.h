@@ -835,7 +835,10 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<double>              GetFP()     const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
-    [[nodiscard]] NAILANGAPI ArgLocator             HandleQuery(SubQuery, NailangRuntimeBase&);
+
+    [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangRuntimeBase&);
+    [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op);
+    [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right);
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
@@ -845,7 +848,7 @@ MAKE_ENUM_BITFIELD(Arg::Type)
 struct NAILANGAPI CustomVar::Handler
 {
 protected:
-    static Arg EvaluateArg(NailangRuntimeBase& runtime, const Expr& arg);
+    static Arg EvaluateExpr(NailangRuntimeBase& runtime, const Expr& arg);
     static void HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex);
 public:
     virtual void IncreaseRef(CustomVar&) noexcept;
@@ -853,6 +856,8 @@ public:
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
+    [[nodiscard]] virtual Arg HandleUnary(const CustomVar&, const EmbedOps op);
+    [[nodiscard]] virtual Arg HandleBinary(const CustomVar&, const EmbedOps op, const Arg& right);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual CompareResult CompareSameClass(const CustomVar&, const CustomVar&);
     [[nodiscard]] virtual CompareResult Compare(const CustomVar&, const Arg&);
@@ -1026,23 +1031,23 @@ struct FuncCall : public WithPos
 };
 struct UnaryExpr
 {
-    Expr Oprend;
+    Expr Operand;
     EmbedOps Operator;
     UnaryExpr(const EmbedOps op, const Expr& oprend) noexcept :
-        Oprend(oprend), Operator(op) { }
+        Operand(oprend), Operator(op) { }
 };
 struct BinaryExpr
 {
-    Expr LeftOprend, RightOprend;
+    Expr LeftOperand, RightOperand;
     EmbedOps Operator;
     BinaryExpr(const EmbedOps op, const Expr& left, const Expr& right) noexcept :
-        LeftOprend(left), RightOprend(right), Operator(op) { }
+        LeftOperand(left), RightOperand(right), Operator(op) { }
 };
 struct TernaryExpr
 {
-    Expr Condition, LeftOprend, RightOprend;
+    Expr Condition, LeftOperand, RightOperand;
     TernaryExpr(const Expr& cond, const Expr& left, const Expr& right) noexcept :
-        Condition(cond), LeftOprend(left), RightOprend(right) { }
+        Condition(cond), LeftOperand(left), RightOperand(right) { }
 };
 struct QueryExpr : public SubQuery
 {

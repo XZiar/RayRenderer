@@ -115,6 +115,7 @@ std::u32string_view Expr::TypeName(const Expr::Type type) noexcept
     case Expr::Type::Func:    return U"func-call"sv;
     case Expr::Type::Unary:   return U"unary-expr"sv;
     case Expr::Type::Binary:  return U"binary-expr"sv;
+    case Expr::Type::Ternary: return U"ternary-expr"sv;
     case Expr::Type::Query:   return U"query-expr"sv;
     case Expr::Type::Var:     return U"variable"sv;
     case Expr::Type::Str:     return U"string"sv;
@@ -122,7 +123,7 @@ std::u32string_view Expr::TypeName(const Expr::Type type) noexcept
     case Expr::Type::Int:     return U"int"sv;
     case Expr::Type::FP:      return U"fp"sv;
     case Expr::Type::Bool:    return U"bool"sv;
-    default:                    return U"error"sv;
+    default:                  return U"error"sv;
     }
 }
 
@@ -720,7 +721,7 @@ void Serializer::Stringify(std::u32string& output, const UnaryExpr* expr)
     {
     case EmbedOps::Not:
         output.append(U"!"sv);
-        Stringify(output, expr->Oprend, true);
+        Stringify(output, expr->Operand, true);
         break;
     default:
         Expects(false);
@@ -755,9 +756,9 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
 #undef SET_OP_STR
     if (requestParenthese)
         output.push_back(U'(');
-    Stringify(output, expr->LeftOprend, true);
+    Stringify(output, expr->LeftOperand, true);
     output.append(opStr);
-    Stringify(output, expr->RightOprend, true);
+    Stringify(output, expr->RightOperand, true);
     if (requestParenthese)
         output.push_back(U')');
 }

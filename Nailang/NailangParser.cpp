@@ -416,7 +416,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                     OnUnExpectedToken(token, u"expect operand before ?(conditional) operator"sv);
                 op.SetTernary(1);
             }
-            if (token.GetChar() == U':')
+            else if (token.GetChar() == U':')
             {
                 if (!op || op.Val != 1)
                     OnUnExpectedToken(token, op ? u"already has ':'"sv : u"expect '?' before ':'"sv);
@@ -455,7 +455,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                 OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
             if (!targetOpr)
                 OnUnExpectedToken(token, u"Indexer should follow a Expr"sv);
-            if (query.CheckNonLiteralLimit(targetOpr))
+            if (!query.CheckNonLiteralLimit(targetOpr))
                 OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
             auto index = ParseExprChecked("]"sv, U"]"sv);
             if (!index)
@@ -466,7 +466,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         {
             if (!targetOpr)
                 OnUnExpectedToken(token, u"SubField should follow a Expr"sv);
-            if (query.CheckNonLiteralLimit(targetOpr))
+            if (!query.CheckNonLiteralLimit(targetOpr))
                 OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
             query.PushSubField(token.GetString());
         } break;

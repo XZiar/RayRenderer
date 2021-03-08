@@ -58,7 +58,7 @@ void XCNLDebugExt::DefineMessage(XCNLRuntime& runtime, const xziar::nailang::Fun
     size_t i = 2;
     for (const auto& rawarg : call.Args.subspan(2))
     {
-        const auto arg = Runtime.EvaluateArg(rawarg);
+        const auto arg = Runtime.EvaluateExpr(rawarg);
         if (!arg.IsStr())
             NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]",
                 i, arg.GetTypeName()), call);
