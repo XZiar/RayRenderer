@@ -143,12 +143,12 @@ struct ExceptionTarget
         case 1:
             switch (std::get<1>(Target).TypeData)
             {
-            case Statement::Type::Assign:     return Type::AssignExpr;
-            case Statement::Type::FuncCall:   return Type::FuncCall;
-            case Statement::Type::RawBlock:   return Type::RawBlock;
-            case Statement::Type::Block:      return Type::Block;
+            case Statement::Type::Assign:   return Type::AssignExpr;
+            case Statement::Type::FuncCall: return Type::FuncCall;
+            case Statement::Type::RawBlock: return Type::RawBlock;
+            case Statement::Type::Block:    return Type::Block;
+            default:                        return Type::Empty;
             }
-            return Type::Empty;
         default: return Type::Empty;
         }
     }
@@ -290,7 +290,7 @@ protected:
         std::shared_ptr<EvaluateContext> Context;
         common::span<const FuncCall> MetaScope;
         const Block* BlockScope = nullptr;
-        const Statement* CurContent  = nullptr;
+        const Statement* CurContent = nullptr;
         Expr CurExpr;
         Arg ReturnArg;
         FrameFlags Flags;

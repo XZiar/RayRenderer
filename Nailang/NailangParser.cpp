@@ -314,6 +314,47 @@ struct ExprOp
     }
 };
 
+struct QueriesHolder
+{
+    std::vector<Expr> Queries;
+    void PushSubField(std::u32string_view subField)
+    {
+        SubQuery::PushQuery(Queries, subField);
+    }
+    void PushIndexer(const Expr& indexer)
+    {
+        SubQuery::PushQuery(Queries, indexer);
+    }
+    void CommitTo(MemoryPool& pool, Expr& opr)
+    {
+        if (!Queries.empty())
+        {
+            Expects(opr);
+            Expects(opr.TypeData != Expr::Type::Query);
+            const auto sp = pool.CreateArray(Queries);
+            opr = pool.Create<QueryExpr>(opr, sp);
+            Queries.clear();
+        }
+    }
+    bool CheckNonLiteralLimit(const Expr& opr) const noexcept
+    {
+        if (Queries.empty()) // first query
+        {
+            switch (opr.TypeData)
+            {
+            case Expr::Type::Func:
+            case Expr::Type::Unary:
+            case Expr::Type::Binary:
+            case Expr::Type::Var:
+                return true;
+            default:
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
 std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
 {
     using common::parser::detail::TokenMatcherHelper;
@@ -329,39 +370,10 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
 
     Expr oprend[3];
-    std::vector<Expr> tmpQueries;
+    QueriesHolder query;
     uint32_t oprIdx = 0;
     ExprOp op;
     char32_t stopChar = common::parser::special::CharEnd;
-
-    const auto CleanupQueries = [&](Expr& opr)
-    {
-        if (!tmpQueries.empty())
-        {
-            Expects(opr);
-            Expects(opr.TypeData != Expr::Type::Query);
-            const auto sp = MemPool.CreateArray(tmpQueries);
-            opr = MemPool.Create<QueryExpr>(opr, sp);
-            tmpQueries.clear();
-        }
-    };
-    const auto EnsureNotLiteralType = [&](const auto oprType, const auto token)
-    {
-        if (tmpQueries.empty()) // first query
-        {
-            switch (oprType)
-            {
-            case Expr::Type::Func:
-            case Expr::Type::Unary:
-            case Expr::Type::Binary:
-            case Expr::Type::Var:
-                break;
-            default:
-                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
-                break;
-            }
-        }
-    };
 
     bool shouldContinue = true;
     while (shouldContinue)
@@ -412,7 +424,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                     OnUnExpectedToken(token, u"expect left operand before :(conditional) operator"sv);
                 op.SetTernary(2);
             }
-            CleanupQueries(targetOpr);
+            query.CommitTo(MemPool, targetOpr);
             oprIdx++;
         } break;
         case EID(NailangToken::EmbedOp):
@@ -434,7 +446,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                 break;
             }
             op = opval;
-            CleanupQueries(targetOpr);
+            query.CommitTo(MemPool, targetOpr);
             oprIdx++;
         } break;
         case EID(NailangToken::SquareBracket): // Indexer
@@ -443,18 +455,20 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                 OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
             if (!targetOpr)
                 OnUnExpectedToken(token, u"Indexer should follow a Expr"sv);
-            EnsureNotLiteralType(targetOpr.TypeData, token);
+            if (query.CheckNonLiteralLimit(targetOpr))
+                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
             auto index = ParseExprChecked("]"sv, U"]"sv);
             if (!index)
                 OnUnExpectedToken(token, u"lack of index"sv);
-            SubQuery::PushQuery(tmpQueries, index);
+            query.PushIndexer(index);
         } break;
         case EID(NailangToken::SubField): // SubField
         {
             if (!targetOpr)
                 OnUnExpectedToken(token, u"SubField should follow a Expr"sv);
-            EnsureNotLiteralType(targetOpr.TypeData, token);
-            SubQuery::PushQuery(tmpQueries, token.GetString());
+            if (query.CheckNonLiteralLimit(targetOpr))
+                OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
+            query.PushSubField(token.GetString());
         } break;
         default:
         {
@@ -482,7 +496,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         }
     }
     // exit from delim or end
-    CleanupQueries(oprend[oprIdx]);
+    query.CommitTo(MemPool, oprend[oprIdx]);
     switch (op.TypeData)
     {
     case ExprOp::Type::Empty:

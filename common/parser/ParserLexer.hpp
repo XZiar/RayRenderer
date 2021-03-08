@@ -35,11 +35,50 @@ inline constexpr bool CheckRepeatTypes() noexcept
 }
 
 
-struct TokenizerData
+template<typename... Ts>
+inline constexpr auto GenerateStateNeedness() noexcept
 {
-    uint32_t State;
-    std::array<tokenizer::TokenizerResult, 2> Result = { tokenizer::TokenizerResult::Pending, tokenizer::TokenizerResult::Pending };
-    std::array<uint8_t, 2> Dummy = { 0, 0 };
+    std::array<bool, sizeof...(Ts)> ret = { false };
+    size_t i = 0;
+    (..., void(ret[i++] = !std::is_same_v<typename Ts::StateData, void>));
+    return ret;
+}
+template<size_t N>
+inline constexpr auto GenerateStateIndexes(const std::array<bool, N>& needness) noexcept
+{
+    std::array<uint32_t, N> dst = { 0 };
+    uint32_t idx = 0;
+    for (size_t i = 0; i < N; ++i)
+    {
+        dst[i] = idx;
+        if (needness[i])
+            idx++;
+    }
+    return dst;
+}
+template<size_t N>
+inline constexpr size_t GenerateStateCount(const std::array<bool, N>& needness) noexcept
+{
+    size_t count = 0;
+    for (size_t i = 0; i < N; ++i)
+    {
+        count += needness[i];
+    }
+    return count;
+}
+
+template<size_t TKCount, size_t StateCount>
+struct TokenizerTemp
+{
+    std::array<uint32_t, StateCount> States;
+    std::array<tokenizer::TokenizerResult, TKCount * 2> Results;
+    constexpr TokenizerTemp() noexcept
+    {
+        for (size_t i = 0; i < StateCount; ++i)
+            States[i] = 0;
+        for (size_t i = 0; i < TKCount * 2; ++i)
+            Results[i] = tokenizer::TokenizerResult::Pending;
+    }
 };
 
 }
@@ -54,9 +93,13 @@ private:
 
     static constexpr auto TKCount = sizeof...(TKs);
     static constexpr auto Indexes = std::make_index_sequence<sizeof...(TKs)>{};
-    using ResultArray = std::array<detail::TokenizerData, TKCount>;
     template<size_t N>
     using TKType = std::tuple_element_t<N, std::tuple<TKs...>>;
+
+    static constexpr auto StateNeedness = detail::GenerateStateNeedness<TKs...>();
+    static constexpr auto StateIndexes  = detail::GenerateStateIndexes(StateNeedness);
+    static constexpr auto StateCount    = detail::GenerateStateCount(StateNeedness);
+    using TKTempData = detail::TokenizerTemp<TKCount, StateCount>;
 
     template<typename TDst, typename TVal>
     forceinline static constexpr void SetTokenizer_([[maybe_unused]] TDst& dst, [[maybe_unused]] TVal&& val) noexcept
@@ -77,25 +120,39 @@ private:
         return tokenizers;
     }
 
-    template<size_t N = 0>
-    [[nodiscard]] forceinline constexpr MatchResults InvokeTokenizer(ResultArray& status, const char32_t ch, const size_t idx, size_t pendings = 0, size_t waitlist = 0) const noexcept
+    template<size_t N>
+    forceinline constexpr void InvokeTokenizer(TKTempData& temps, const char32_t ch, const size_t idx) const noexcept
     {
         using tokenizer::TokenizerResult;
-        auto& result = status[N].Result[idx & 1];
-        const auto prev = status[N].Result[(idx & 1) ? 0 : 1];
+        auto& result = temps.Results[N * 2 + (idx & 1)];
+        const auto prev = temps.Results[N * 2 + ((idx & 1) ? 0 : 1)];
         if (prev == TokenizerResult::Pending || prev == TokenizerResult::Waitlist)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
-            using StateData = typename TKType<N>::StateData;
-            auto& state = status[N].State;
-            const auto oldState = state;
-            if constexpr (std::is_same_v<StateData, void>)
+            if constexpr (!StateNeedness[N])
                 result = tokenizer.OnChar(ch, idx);
             else
             {
-                const auto ret = tokenizer.OnChar(static_cast<StateData>(status[N].State), ch, idx);
-                state = static_cast<uint32_t>(ret.first), result = ret.second;
+                using StateData = typename TKType<N>::StateData;
+                auto& state = temps.States[StateIndexes[N]];
+                const auto ret = tokenizer.OnChar(static_cast<StateData>(state), ch, idx);
+                result = ret.second;
+                if (result != TokenizerResult::NotMatch && result != TokenizerResult::Wrong)
+                    state = static_cast<uint32_t>(ret.first);
             }
+        }
+        else
+            result = TokenizerResult::NotMatch;
+    }
+    template<size_t... I>
+    [[nodiscard]] forceinline constexpr MatchResults InvokeTokenizers(TKTempData& temps, const char32_t ch, const size_t idx, std::index_sequence<I...>) const noexcept
+    {
+        using tokenizer::TokenizerResult;
+        (..., InvokeTokenizer<I>(temps, ch, idx));
+        uint32_t pendings = 0, waitlist = 0;
+        for (size_t i = 0; i < TKCount; ++i)
+        {
+            const auto result = temps.Results[i * 2 + (idx & 1)];
             switch (result)
             {
             case TokenizerResult::FullMatch:
@@ -105,26 +162,18 @@ private:
             case TokenizerResult::Pending:
                 pendings++; break;
             default:
-                state = oldState;
                 break;
             }
         }
-        else
-            result = TokenizerResult::NotMatch;
-        if constexpr (N + 1 < TKCount)
-            return InvokeTokenizer<N + 1>(status, ch, idx, pendings, waitlist);
-        else
-        {
-            if (waitlist > 0) return MatchResults::Waitlist;
-            if (pendings > 0) return MatchResults::Pending;
-            return MatchResults::NoMatch;
-        }
+        if (waitlist > 0) return MatchResults::Waitlist;
+        if (pendings > 0) return MatchResults::Pending;
+        return MatchResults::NoMatch;
     }
 
     template<size_t N = 0>
-    [[nodiscard]] inline constexpr ParserToken OutputToken(const ResultArray& status, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) const noexcept
+    [[nodiscard]] inline constexpr ParserToken OutputToken(const TKTempData& temps, const size_t offset, ContextReader& reader, std::u32string_view tksv, const tokenizer::TokenizerResult target) const noexcept
     {
-        const auto result = status[N].Result[offset];
+        const auto result = temps.Results[N * 2 + offset];
         if (result == target)
         {
             auto& tokenizer = std::get<N>(Tokenizers);
@@ -132,10 +181,10 @@ private:
             if constexpr (std::is_same_v<StateData, void>)
                 return tokenizer.GetToken(reader, tksv);
             else
-                return tokenizer.GetToken(static_cast<StateData>(status[N].State), reader, tksv);
+                return tokenizer.GetToken(static_cast<StateData>(temps.States[StateIndexes[N]]), reader, tksv);
         }
         if constexpr (N + 1 < TKCount)
-            return OutputToken<N + 1>(status, offset, reader, tksv, target);
+            return OutputToken<N + 1>(temps, offset, reader, tksv, target);
         else
             return ParserToken(BaseToken::Error);
     }
@@ -179,8 +228,7 @@ public:
         reader.ReadWhile(isIgnore);
 
         const auto row = context.Row, col = context.Col;
-        ResultArray status = { {} };
-        status.fill({});
+        TKTempData data;
         size_t count = 0;
         MatchResults prev = MatchResults::NoMatch, mth = prev;
         char32_t ch = '\0';
@@ -194,7 +242,7 @@ public:
                 break;
 
             prev = mth;
-            mth = InvokeTokenizer(status, ch, count);
+            mth = InvokeTokenizers(data, ch, count, Indexes);
 
             if (prev != MatchResults::NoMatch && mth == MatchResults::NoMatch) // max matched
                 break;
@@ -213,9 +261,9 @@ public:
         switch (mth == MatchResults::NoMatch ? prev : mth)
         {
         case MatchResults::FullMatch:
-            return { row, col, OutputToken(status, offset, reader, tokenTxt, TokenizerResult::FullMatch) };
+            return { row, col, OutputToken(data, offset, reader, tokenTxt, TokenizerResult::FullMatch) };
         case MatchResults::Waitlist:
-            return { row, col, OutputToken(status, offset, reader, tokenTxt, TokenizerResult::Waitlist)  };
+            return { row, col, OutputToken(data, offset, reader, tokenTxt, TokenizerResult::Waitlist) };
         default:
             if (count == 0 && ch == special::CharEnd)
                 return { row, col, { BaseToken::End } };

@@ -899,9 +899,9 @@ void NailangRuntimeBase::HandleContent(const Statement& content, common::span<co
     } break;
     case Statement::Type::FuncCall:
     {
-        const auto& fcall = content.Get<FuncCall>();
+        const auto fcall = content.Get<FuncCall>();
         Expects(fcall->Name->Info() == FuncName::FuncInfo::Empty);
-        ExprHolder callHost(this, &fcall);
+        ExprHolder callHost(this, fcall);
         EvaluateFunc(*fcall, metas);
     } break;
     case Statement::Type::RawBlock:

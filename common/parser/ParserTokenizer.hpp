@@ -186,7 +186,7 @@ struct ASCIIChecker
 namespace tokenizer
 {
 
-enum class TokenizerResult : uint8_t { Pending, Waitlist, NotMatch, Wrong, FullMatch };
+enum class TokenizerResult : uint8_t { Pending, Waitlist, FullMatch, NotMatch, Wrong };
 
 
 class TokenizerBase {};
