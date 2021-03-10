@@ -265,7 +265,7 @@ struct LateBindVar
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
 
 
-enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, Not };
+enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, ValueOr, Not };
 struct EmbedOpHelper
 {
     [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept

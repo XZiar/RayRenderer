@@ -651,22 +651,26 @@ TEST(NailangRuntime, CommonFunc)
         return runtime.EvaluateExpr(rawarg);
     };
     {
-        const auto arg = ParseEval(U"$Select(1>2, 1, 2);"sv);
-        CHECK_ARG(arg, Int, 2);
-    }
-    {
         const auto arg1 = ParseEval(U"$Exists(notexist);"sv);
         CHECK_ARG(arg1, Bool, false);
         runtime.SetRootArg(U"notexist", false);
         const auto arg2 = ParseEval(U"$Exists(notexist);"sv);
         CHECK_ARG(arg2, Bool, true);
+        const auto arg3 = ParseEval(U"$Exists(\"notexist\");"sv);
+        CHECK_ARG(arg3, Bool, true);
+        runtime.SetRootArg(U"notexist", {});
+        const auto arg4 = ParseEval(U"$Exists(\"notexist\");"sv);
+        CHECK_ARG(arg4, Bool, false);
     }
     {
-        const auto arg1 = ParseEval(U"$Exists(\"notexist\");"sv);
-        CHECK_ARG(arg1, Bool, true);
+        const auto arg1 = ParseEval(U"tmp1 ?? notexist;"sv);
+        CHECK_ARG(arg1, Int, -512);
+        const auto arg2 = ParseEval(U"notexist ?? tmp2;"sv);
+        CHECK_ARG(arg2, U32Sv, U"Error"sv);
+        runtime.SetRootArg(U"notexist", 3.0);
+        const auto arg3 = ParseEval(U"notexist ?? tmp2;"sv);
+        CHECK_ARG(arg3, FP, 3.0);
         runtime.SetRootArg(U"notexist", {});
-        const auto arg2 = ParseEval(U"$Exists(\"notexist\");"sv);
-        CHECK_ARG(arg2, Bool, false);
     }
     {
         const auto arg1 = ParseEval(U"$ExistsDynamic(\"tmp\" + \"1\");"sv);

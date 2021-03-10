@@ -101,6 +101,7 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
     RET_NAME(Mul);
     RET_NAME(Div);
     RET_NAME(Rem);
+    RET_NAME(ValueOr);
     RET_NAME(Not);
     default: return U"Unknwon"sv;
     }

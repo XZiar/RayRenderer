@@ -112,7 +112,7 @@ static void TestNailang()
             const auto all = NailangParser::ParseAllAsBlock(pool, context);
             for (const auto [meta, content] : all)
             {
-                switch (content.GetType())
+                switch (content.TypeData)
                 {
                 case xziar::nailang::Statement::Type::RawBlock:
                     ShowContent(pool, meta, *content.Get<RawBlock>(), u"");

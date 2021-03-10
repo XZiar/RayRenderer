@@ -20,36 +20,19 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  setup:
+  download_dep:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-        with:
-          submodules: "true"
-
       - name: Make temp dir
         run: |
-          echo "ubt_codename=$(lsb_release -c -s)" >> $GITHUB_ENV
-          echo "ubt_release=$(lsb_release -r -s)" >> $GITHUB_ENV
           mkdir tmp
           mkdir ~/dependency
           cd ~/dependency
           mkdir include
           mkdir bin
-          echo "CPP_DEPENDENCY_PATH=$(pwd)" >> $GITHUB_ENV
 
-      - name: Install packages
-        run: | 
-          sudo apt update -q
-          [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
-          sudo apt install util-linux nasm unzip python3 python3-pip
-          sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev
-          python3 -m pip install pip
-          python3 -m pip install chardet
-          
       - name: Cache boost library
         id: cache-boost
         uses: actions/cache@v2
@@ -80,15 +63,9 @@ jobs:
           mkdir ispc
           tar xzf ispc.tar.gz -C ./ispc
           mv ./ispc ~/dependency/bin/
-              
-      - name: Setup environment
-        run: |
-          echo $CPP_DEPENDENCY_PATH
-          echo "ISPCCOMPILER=$(find ~/dependency/bin -type f -name ispc)" >> $GITHUB_ENV
-          echo $ISPCCOMPILER
 
   build:
-    needs: setup
+    needs: download_dep
     runs-on: ubuntu-latest
     
     strategy:
@@ -150,20 +127,57 @@ jobs:
             pkg: "clang-8 lld-8"
     
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          submodules: "true"
+          
+      - name: Make temp dir
+        run: |
+          echo "ubt_codename=$(lsb_release -c -s)" >> $GITHUB_ENV
+          echo "ubt_release=$(lsb_release -r -s)" >> $GITHUB_ENV
+          mkdir tmp
+          mkdir ~/dependency
+          cd ~/dependency
+          mkdir include
+          mkdir bin
+          echo "CPP_DEPENDENCY_PATH=$(pwd)" >> $GITHUB_ENV
+          
       - name: Prepare for clang
         if: ${{matrix.env_clang}}
         working-directory: ./tmp
         run: |
           wget --no-show-progress -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
           sudo add-apt-repository "deb http://apt.llvm.org/$ubt_codename/llvm-toolchain-$ubt_codename-${{matrix.env_clang_ver}} main" -y
-        
+
       - name: Install packages
         run: | 
           sudo apt update -q
-          sudo apt install ${{matrix.pkg}}
+          [[ $(echo "$ubt_release >= 19.10" | bc -l) = 0 ]] && lrlver="7" || lrlver="8"
+          sudo apt install util-linux nasm unzip python3 python3-pip ${{matrix.pkg}}
+          sudo apt install libreadline$lrlver libreadline-dev libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libgl1-mesa-dev libglu1-mesa-dev libxi-dev libxxf86vm-dev
+          python3 -m pip install pip
+          python3 -m pip install chardet
+
+      - name: Cache boost library
+        id: cache-boost
+        uses: actions/cache@v2
+        with:
+          path: ~/dependency/include/boost
+          key: cache-boost-${{ env.boost_ver1 }}
           
+      - name: Cache ispc
+        id: cache-ispc
+        uses: actions/cache@v2
+        with:
+          path: ~/dependency/bin/ispc
+          key: cache-ispc-${{ env.ispc_ver }}
+              
       - name: Setup environment
         run: |
+          echo $CPP_DEPENDENCY_PATH
+          echo "ISPCCOMPILER=$(find ~/dependency/bin -type f -name ispc)" >> $GITHUB_ENV
+          echo $ISPCCOMPILER
           echo "CCOMPILER=${{matrix.env_cc}}" >> $GITHUB_ENV
           echo "ASMCOMPILER=${{matrix.env_asm}}" >> $GITHUB_ENV
           echo "CPPCOMPILER=${{matrix.env_cpp}}" >> $GITHUB_ENV

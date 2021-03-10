@@ -787,6 +787,17 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         detail::ExceptionTarget{}, &call);
 }
 
+void NailangRuntimeBase::ThrowByParamTypes(const FuncEvalPack& func, common::span<const Arg::Type> types, size_t offset, const ArgLimits limit) const
+{
+    ThrowByArgCount(func, types.size() + offset, limit);
+    Ensures(func.Params.size() >= offset);
+    const auto size = std::min(types.size() + offset, func.Params.size()) - offset;
+    for (size_t i = 0; i < size; ++i)
+    {
+        ThrowByArgType(func, func.Params[offset + i], types[i], offset + i);
+    }
+}
+
 void NailangRuntimeBase::ThrowByArgType(const FuncCall& call, const Expr::Type type, size_t idx) const
 {
     const auto& arg = call.Args[idx];
@@ -1321,13 +1332,91 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
     return MetaFuncResult::Unhandled;
 }
 
+Arg NailangRuntimeBase::EvaluateFunc(FuncEvalPack& func)
+{
+    Expects(func.Name->PartCount > 0);
+    if (func.Name->PartCount == 1)
+    {
+        switch (const auto name = func.NamePart(0); DJBHash::HashC(name))
+        {
+        HashCase(name, U"ExistsDynamic")
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            const LateBindVar var(func.Params[0].GetStr().value());
+            return !LookUpArg(var).IsEmpty();
+        }
+        HashCase(name, U"Format")
+        {
+            ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::Empty });
+            return FormatString(func.Params[0].GetStr().value(), func.Params.subspan(1));
+        }
+        HashCase(name, U"ParseInt")
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            int64_t ret = 0;
+            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
+                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseInt] is not integer : [{}]"sv, str), func);
+            return ret;
+        }
+        HashCase(name, U"ParseUint")
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            uint64_t ret = 0;
+            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
+                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseUint] is not integer : [{}]"sv, str), func);
+            return ret;
+        }
+        HashCase(name, U"ParseFloat")
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            double ret = 0;
+            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, false).first)
+                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not floatpoint : [{}]"sv, str), func);
+            return ret;
+        }
+        HashCase(name, U"ParseSciFloat")
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            double ret = 0;
+            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, true).first)
+                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not scientific floatpoint : [{}]"sv, str), func);
+            return ret;
+        }
+        default: break;
+        }
+    }
+    else
+    {
+        if (func.NamePart(0) == U"Math"sv)
+        {
+            if (auto ret = EvaluateExtendMathFunc(func); !ret.IsEmpty())
+            {
+                return ret;
+            }
+        }
+    }
+    if (const auto lcFunc = LookUpFunc(func.FullFuncName()); lcFunc)
+    {
+        return EvaluateLocalFunc(lcFunc, func);
+    }
+    return EvaluateUnknwonFunc(func);
+}
+
+
 Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas)
 {
+    Expects(call.Name->PartCount > 0);
     const auto fullName = call.FullFuncName();
+    if (call.Name->Info() == FuncName::FuncInfo::Meta)
+    {
+        NLRT_THROW_EX(FMTSTR(u"MetaFunc [{}] can not be evaluated here.", fullName), call);
+    }
     // only for plain function
     if (call.Name->Info() == FuncName::FuncInfo::Empty && call.Name->PartCount == 1)
     {
-        if (fullName == U"Break"sv)
+        switch (DJBHash::HashC(fullName))
+        {
+        HashCase(fullName, U"Break")
         {
             ThrowByArgCount(call, 0);
             if (!CurFrame->IsInLoop())
@@ -1335,7 +1424,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             CurFrame->Status = ProgramStatus::Break;
             return {};
         }
-        else if (fullName == U"Return"sv)
+        HashCase(fullName, U"Return")
         {
             if (const auto scope = CurFrame->GetCallScope(); scope)
                 scope->ReturnArg = EvaluateFirstFuncArg(call, ArgLimits::AtMost);
@@ -1344,45 +1433,27 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             CurFrame->Status = ProgramStatus::Return;
             return {};
         }
-        else if (fullName == U"Throw"sv)
+        HashCase(fullName, U"Throw")
         {
             const auto arg = EvaluateFirstFuncArg(call);
             this->HandleException(CREATE_EXCEPTION(NailangCodeException, arg.ToString().StrView(), call));
             CurFrame->Status = ProgramStatus::Return;
             return {};
         }
-    }
-    // suitable for all
-    if (call.Name->PartCount == 2 && call.Name->GetPart(0) == U"Math"sv)
-    {
-        if (auto ret = EvaluateExtendMathFunc(call, metas); !ret.IsEmpty())
-        {
-            return ret;
+        default: break;
         }
     }
-    if (call.Name->PartCount == 1)
+    else if (call.Name->Info() == FuncName::FuncInfo::ExprPart && call.Name->PartCount == 1)
     {
         switch (DJBHash::HashC(fullName))
         {
-        HashCase(fullName, U"Select")
-        {
-            ThrowByArgCount(call, 3);
-            const auto& selected = ThrowIfNotBool(EvaluateExpr(call.Args[0]), U""sv) ? call.Args[1] : call.Args[2];
-            return EvaluateExpr(selected);
-        }
         HashCase(fullName, U"Exists")
         {
             ThrowByArgCount(call, 1);
             const auto var = DecideDynamicVar(call.Args[0], u"Exists"sv);
             return !LookUpArg(var).IsEmpty();
         }
-        HashCase(fullName, U"ExistsDynamic")
-        {
-            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const LateBindVar var(arg.GetStr().value());
-            return !LookUpArg(var).IsEmpty();
-        }
-        HashCase(fullName, U"ValueOr")
+        /*HashCase(name, U"ValueOr")
         {
             ThrowByArgCount(call, 2);
             const auto var = DecideDynamicVar(call.Args[0], u"ValueOr"sv);
@@ -1390,123 +1461,80 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
                 return ret;
             else
                 return EvaluateExpr(call.Args[1]);
-        }
-        HashCase(fullName, U"Format")
-        {
-            ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-            const auto fmtStr = EvaluateExpr(call.Args[0]).GetStr();
-            if (!fmtStr)
-                NLRT_THROW_EX(u"Arg[0] of [Format] should be string"sv, call);
-            return FormatString(fmtStr.value(), call.Args.subspan(1));
-        }
-        HashCase(fullName, U"ParseInt")
-        {
-            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto str = common::str::to_string(arg.GetStr().value());
-            int32_t ret = 0;
-            if (!common::StrToInt(str, ret).first)
-                NLRT_THROW_EX(u"Arg of [ParseInt] is not integer"sv, call);
-            return static_cast<int64_t>(ret);
-        }
-        HashCase(fullName, U"ParseUint")
-        {
-            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto str = common::str::to_string(arg.GetStr().value());
-            uint32_t ret = 0;
-            if (!common::StrToInt(str, ret).first)
-                NLRT_THROW_EX(u"Arg of [ParseUint] is not unsigned integer"sv, call);
-            return static_cast<uint64_t>(ret);
-        }
-        HashCase(fullName, U"ParseFloat")
-        {
-            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto str = common::str::to_string(arg.GetStr().value());
-            double ret = 0;
-            if (!common::StrToFP(str, ret, false).first)
-                NLRT_THROW_EX(u"Arg of [ParseFloat] is not floatpoint"sv, call);
-            return ret;
-        }
-        HashCase(fullName, U"ParseSciFloat")
-        {
-            const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto str = common::str::to_string(arg.GetStr().value());
-            double ret = 0;
-            if (!common::StrToFP(str, ret, true).first)
-                NLRT_THROW_EX(u"Arg of [ParseSciFloat] is not scientific floatpoint"sv, call);
-            return ret;
-        }
+        }*/
         default: break;
         }
     }
-    if (const auto lcFunc = LookUpFunc(fullName); lcFunc)
-    {
-        return EvaluateLocalFunc(lcFunc, call, metas);
-    }
-    return EvaluateUnknwonFunc(call, metas);
+    std::vector<Arg> params;
+    params.reserve(call.Args.size());
+    for (const auto& arg : call.Args)
+        params.emplace_back(EvaluateExpr(arg));
+    FuncEvalPack pack(call, params, metas);
+    return EvaluateFunc(pack);
 }
 
-Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas)
+Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
 {
-    ThrowByArgCount(call, func.ArgNames.size());
+    ThrowByArgCount(pack, func.ArgNames.size());
 
     auto newCtx = ConstructEvalContext();
-    for (const auto& [varName, rawarg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(call.Args)))
+    for (const auto& [varName, arg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(pack.Params)))
     {
-        newCtx->LocateArg(varName, true).Set(EvaluateExpr(rawarg));
+        newCtx->LocateArg(varName, true).Set(arg);
     }
     auto newFrame = PushFrame(std::move(newCtx), FrameFlags::FuncCall);
     CurFrame->BlockScope = func.Body;
-    CurFrame->MetaScope = metas;
+    CurFrame->MetaScope  = pack.Metas;
     ExecuteFrame();
     return std::move(CurFrame->ReturnArg);
 }
 
-Arg NailangRuntimeBase::EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall>)
+Arg NailangRuntimeBase::EvaluateUnknwonFunc(FuncEvalPack& func)
 {
-    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved.", call.FullFuncName(), call.Args.size()), call);
+    NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved.", func.FullFuncName(), func.Args.size()), func);
     return {};
 }
 
-Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall>)
+Arg NailangRuntimeBase::EvaluateExtendMathFunc(FuncEvalPack& func)
 {
     using Type = Arg::Type;
-    const auto mathName = call.Name->GetPart(1);
+    const auto mathName = func.NamePart(1);
     switch (DJBHash::HashC(mathName))
     {
     HashCase(mathName, U"Max")
     {
-        ThrowByArgCount(call, 1, ArgLimits::AtLeast);
-        auto ret = EvaluateExpr(call.Args[0]);
-        for (size_t i = 1; i < call.Args.size(); ++i)
+        ThrowByArgCount(func, 1, ArgLimits::AtLeast);
+        size_t maxIdx = 0;
+        for (size_t i = 1; i < func.Params.size(); ++i)
         {
-            auto ret2 = EvaluateExpr(call.Args[i]);
-            const auto isLess = EmbedOpEval::Less(ret, ret2);
+            const auto& left = func.Params[maxIdx], &right = func.Params[i];
+            const auto isLess = EmbedOpEval::Less(left, right);
             if (isLess.IsEmpty())
-                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, ret.GetTypeName(), ret2.GetTypeName()), call);
+                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
             if (isLess.GetBool().value()) 
-                ret = std::move(ret2);
+                maxIdx = i;
         }
-        return ret;
+        return func.Params[maxIdx];
     }
     HashCase(mathName, U"Min")
     {
-        ThrowByArgCount(call, 1, ArgLimits::AtLeast);
-        auto ret = EvaluateExpr(call.Args[0]);
-        for (size_t i = 1; i < call.Args.size(); ++i)
+        ThrowByArgCount(func, 1, ArgLimits::AtLeast);
+        size_t minIdx = 0;
+        for (size_t i = 1; i < func.Params.size(); ++i)
         {
-            auto ret2 = EvaluateExpr(call.Args[i]);
-            const auto isLess = EmbedOpEval::Less(ret2, ret);
+            const auto& left = func.Params[i], & right = func.Params[minIdx];
+            const auto isLess = EmbedOpEval::Less(left, right);
             if (isLess.IsEmpty())
-                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, ret.GetTypeName(), ret2.GetTypeName()), call);
-            if (isLess.GetBool().value()) 
-                ret = std::move(ret2);
+                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
+            if (isLess.GetBool().value())
+                minIdx = i;
         }
-        return ret;
+        return func.Params[minIdx];
     }
     HashCase(mathName, U"Sqrt")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::sqrt(arg.GetVar<Type::FP>());
         case Type::Uint:    return std::sqrt(arg.GetVar<Type::Uint>());
@@ -1516,8 +1544,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Ceil")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::ceil(arg.GetVar<Type::FP>());
         case Type::Uint:
@@ -1527,8 +1555,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Floor")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::floor(arg.GetVar<Type::FP>());
         case Type::Uint:
@@ -1538,8 +1566,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Round")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::round(arg.GetVar<Type::FP>());
         case Type::Uint:
@@ -1549,8 +1577,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Log")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::log(arg.GetVar<Type::FP>());
         case Type::Uint:    return std::log(arg.GetVar<Type::Uint>());
@@ -1560,8 +1588,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Log2")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::log2(arg.GetVar<Type::FP>());
         case Type::Uint:    return std::log2(arg.GetVar<Type::Uint>());
@@ -1571,8 +1599,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Log10")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Number);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Number });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::FP:      return std::log10(arg.GetVar<Type::FP>());
         case Type::Uint:    return std::log10(arg.GetVar<Type::Uint>());
@@ -1582,10 +1610,10 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Lerp")
     {
-        const auto args = EvaluateFuncArgs<3>(call, { Arg::Type::Number, Arg::Type::Number, Arg::Type::Number });
-        const auto x = args[0].GetFP();
-        const auto y = args[1].GetFP();
-        const auto a = args[2].GetFP();
+        ThrowByParamTypes<3>(func, { Arg::Type::Number, Arg::Type::Number, Arg::Type::Number });
+        const auto x = func.Params[0].GetFP();
+        const auto y = func.Params[1].GetFP();
+        const auto a = func.Params[2].GetFP();
         if (x && y && a)
 #if defined(__cpp_lib_interpolate) && __cpp_lib_interpolate >= 201902L
             return std::lerp(x.value(), y.value(), a.value());
@@ -1595,16 +1623,16 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"Pow")
     {
-        const auto args = EvaluateFuncArgs<2>(call, { Arg::Type::Number, Arg::Type::Number });
-        const auto x = args[0].GetFP();
-        const auto y = args[1].GetFP();
+        ThrowByParamTypes<2>(func, { Arg::Type::Number, Arg::Type::Number });
+        const auto x = func.Params[0].GetFP();
+        const auto y = func.Params[1].GetFP();
         if (x && y)
             return std::pow(x.value(), y.value());
     } break;
     HashCase(mathName, U"LeadZero")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Uint>()));
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.LeadZero(arg.GetVar<Type::Int>()));
@@ -1613,8 +1641,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"TailZero")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Uint>()));
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.TailZero(arg.GetVar<Type::Int>()));
@@ -1623,8 +1651,8 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"PopCount")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::Integer);
-        switch (arg.TypeData)
+        ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+        switch (const auto& arg = func.Params[0]; arg.TypeData)
         {
         case Type::Uint: return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Uint>()));
         case Type::Int:  return static_cast<uint64_t>(common::MiscIntrin.PopCount(arg.GetVar<Type::Int>()));
@@ -1633,19 +1661,21 @@ Arg NailangRuntimeBase::EvaluateExtendMathFunc(const FuncCall& call, common::spa
     } break;
     HashCase(mathName, U"ToUint")
     {
-        const auto arg = EvaluateFirstFuncArg(call).GetUint();
+        ThrowByArgCount(func, 1);
+        const auto arg = func.Params[0].GetUint();
         if (arg)
             return arg.value();
     } break;
     HashCase(mathName, U"ToInt")
     {
-        const auto arg = EvaluateFirstFuncArg(call).GetInt();
+        ThrowByArgCount(func, 1);
+        const auto arg = func.Params[0].GetInt();
         if (arg)
             return arg.value();
     } break;
     default: return {};
     }
-    NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", call.FullFuncName()), call);
+    NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", func.FullFuncName()), func);
     return {};
 }
 
@@ -1698,6 +1728,12 @@ Arg NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
 
 Arg NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)
 {
+    if (expr.Operator == EmbedOps::ValueOr)
+    {
+        Expects(expr.LeftOperand.TypeData == Expr::Type::Var);
+        auto val = LookUpArg(expr.LeftOperand.GetVar<Expr::Type::Var>());
+        return val.IsEmpty() ? EvaluateExpr(expr.RightOperand) : val;
+    }
     Arg left = EvaluateExpr(expr.LeftOperand), right;
     if (expr.Operator == EmbedOps::And)
     {

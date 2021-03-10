@@ -176,7 +176,7 @@ public:
     }
     static constexpr std::optional<size_t> CheckName(const std::u32string_view name) noexcept
     {
-        constexpr VariableTokenizer Self;
+        constexpr VariableTokenizer Self = {};
         if (name.empty()) 
             return SIZE_MAX;
         uint32_t state = 0;
@@ -239,6 +239,7 @@ public:
             case U'*':  return { ch, TokenizerResult::Waitlist };
             case U'/':  return { ch, TokenizerResult::Waitlist };
             case U'%':  return { ch, TokenizerResult::Waitlist };
+            case U'?':  return { ch, TokenizerResult::Pending  };
             default:    return { ch, TokenizerResult::NotMatch };
             }
         case 1:
@@ -250,6 +251,7 @@ public:
             case U'>': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
             case U'&': return { ch, ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
             case U'|': return { ch, ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            case U'?': return { ch, ch == U'?' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
             default:   return { ch, TokenizerResult::NotMatch };
             }
         default:
@@ -275,6 +277,7 @@ public:
         RET_OP("*",  Mul);
         RET_OP("/",  Div);
         RET_OP("%",  Rem);
+        RET_OP("??", ValueOr);
         RET_OP("!",  Not);
         default:     return ParserToken(BaseToken::Error, txt);
         }

@@ -174,6 +174,16 @@ TEST(NailangParser, ParseExpr)
         CHECK_DIRECT_ARG(stmt.RightOperand, Int, 2);
     }
     {
+        constexpr auto src = U"here??not"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
+        CHECK_VAR_ARG(stmt.LeftOperand, U"here"sv, Empty);
+        EXPECT_EQ(stmt.Operator, EmbedOps::ValueOr);
+        CHECK_VAR_ARG(stmt.RightOperand, U"not"sv, Empty);
+    }
+    {
         constexpr auto src = U"1?2:3"sv;
         ParserContext context(src);
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);

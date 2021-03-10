@@ -127,6 +127,9 @@ struct ExceptionTarget
     template<typename T>
     constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::is_specialization<std::decay_t<T>, std::variant>::value>* = nullptr) noexcept
         : Target{ common::VariantHelper<VType>::Convert(std::forward<T>(arg)) } {}
+    template<typename T>
+    constexpr ExceptionTarget(T&& arg, std::enable_if_t<std::is_base_of_v<FuncCall, std::decay_t<T>> && !std::is_same_v<std::decay_t<T>, FuncCall>>* = nullptr) noexcept
+        : Target{ static_cast<const FuncCall&>(arg) } {}
 
     constexpr explicit operator bool() const noexcept { return Target.index() != 0; }
     [[nodiscard]] constexpr Type GetType() const noexcept
@@ -261,6 +264,16 @@ struct NAILANGAPI NailangHelper
 };
 
 
+struct FuncEvalPack : public FuncCall
+{
+    common::span<const FuncCall> Metas;
+    common::span<Arg> Params;
+    constexpr FuncEvalPack(const FuncCall& call, common::span<Arg> params, common::span<const FuncCall> metas = {}) noexcept :
+        FuncCall(call), Metas(metas), Params(params) { }
+    auto NamePart(size_t idx) const { return Name->GetPart(idx); }
+    constexpr size_t NamePartCount() const noexcept { return Name->PartCount; }
+};
+
 class NAILANGAPI NailangRuntimeBase
 {
     friend Arg;
@@ -320,6 +333,12 @@ protected:
     BlockFrame* CurFrame = nullptr;
     MemoryPool MemPool;
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
+    void ThrowByParamTypes(const FuncEvalPack& func, common::span<const Arg::Type> types, size_t offset = 0, const ArgLimits limit = ArgLimits::Exact) const;
+    template<size_t N, ArgLimits Limit = ArgLimits::Exact>
+    void ThrowByParamTypes(const FuncEvalPack& func, const std::array<Arg::Type, N>& types, size_t offset = 0) const
+    {
+        ThrowByParamTypes(func, types, offset, Limit);
+    }
     void ThrowByArgType(const FuncCall& call, const Expr::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;
     void ThrowByArgType(const FuncCall& call, const Arg& arg, const Arg::Type type, size_t idx) const;
@@ -398,10 +417,11 @@ protected:
                   virtual bool SetFunc(const Block* block, common::span<const Expr> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, common::span<const FuncCall> metas);
+                  virtual Arg  EvaluateFunc(FuncEvalPack& func);
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, const FuncCall& call, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(const FuncCall& call, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual Arg  EvaluateExtendMathFunc(const FuncCall& call, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
+    [[nodiscard]] virtual Arg  EvaluateUnknwonFunc(FuncEvalPack& func);
+    [[nodiscard]] virtual Arg  EvaluateExtendMathFunc(FuncEvalPack& func);
                   virtual Arg  EvaluateExpr(const Expr& arg);
     [[nodiscard]] virtual Arg  EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual Arg  EvaluateBinaryExpr(const BinaryExpr& expr);

@@ -443,6 +443,13 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                     OnUnExpectedToken(token, u"no support for nested operator"sv);
                 if (!targetOpr)
                     OnUnExpectedToken(token, u"expect 1 operand before operator"sv);
+                if (opval == EmbedOps::ValueOr)
+                {
+                    if (targetOpr.TypeData != Expr::Type::Var)
+                        OnUnExpectedToken(token, u"expect latebindvar before ?? operator"sv);
+                    if (!query.Queries.empty())
+                        OnUnExpectedToken(token, u"expect no query before ?? operator"sv);
+                }
                 break;
             }
             op = opval;
