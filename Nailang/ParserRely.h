@@ -16,6 +16,7 @@ using common::parser::tokenizer::IntTokenizer;
 using common::parser::tokenizer::FPTokenizer;
 using common::parser::tokenizer::BoolTokenizer;
 using common::parser::tokenizer::ASCII2PartTokenizer;
+using common::parser::ASCIICheckerNBit;
 using common::parser::ASCIIChecker;
 using common::parser::BaseToken;
 using common::parser::ParserToken;
@@ -24,6 +25,8 @@ using common::parser::ParserBase;
 using common::parser::ParserLexerBase;
 
 
+enum class ExtraOps : uint16_t { Quest = 256, Colon };
+
 namespace tokenizer
 {
 
@@ -31,7 +34,7 @@ enum class NailangToken : uint16_t
 {
     __RangeMin = common::enum_cast(BaseToken::__RangeMax),
 
-    Raw, Block, MetaFunc, Func, Var, SubField, EmbedOp, CondOp, Parenthese, SquareBracket, CurlyBrace, Assign,
+    Raw, Block, MetaFunc, Func, Var, SubField, OpSymbol, Parenthese, SquareBracket, CurlyBrace, Assign,
 
     __RangeMax = 192
 };
@@ -68,8 +71,6 @@ class ParentheseTokenizer    : public KeyCharTokenizer<true,  NailangToken::Pare
 class SquareBracketTokenizer : public KeyCharTokenizer<true,  NailangToken::SquareBracket, U'[', U']'>
 { };
 class CurlyBraceTokenizer    : public KeyCharTokenizer<true,  NailangToken::CurlyBrace,    U'{', U'}'>
-{ };
-class TernaryCondTokenizer   : public KeyCharTokenizer<false, NailangToken::CondOp,        U'?', U':'>
 { };
 
 template<char32_t Pfx>
@@ -216,32 +217,42 @@ public:
     }
 };
 
-class EmbedOpTokenizer
+
+class OpSymbolTokenizer
 {
+    static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
+    {
+        using common::enum_cast;
+        static_assert(enum_cast(TokenizerResult::Pending)  <= 0b11);
+        static_assert(enum_cast(TokenizerResult::Waitlist) <= 0b11);
+        static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
+        std::pair<char, uint8_t> mappings[] = 
+        {
+            { '=', enum_cast(TokenizerResult::Pending ) },
+            { '!', enum_cast(TokenizerResult::Waitlist) },
+            { '<', enum_cast(TokenizerResult::Waitlist) },
+            { '>', enum_cast(TokenizerResult::Waitlist) },
+            { '&', enum_cast(TokenizerResult::Pending ) },
+            { '|', enum_cast(TokenizerResult::Pending ) },
+            { '+', enum_cast(TokenizerResult::Waitlist) },
+            { '-', enum_cast(TokenizerResult::Waitlist) },
+            { '*', enum_cast(TokenizerResult::Waitlist) },
+            { '/', enum_cast(TokenizerResult::Waitlist) },
+            { '%', enum_cast(TokenizerResult::Waitlist) },
+            { '?', enum_cast(TokenizerResult::Waitlist) },
+            { ':', enum_cast(TokenizerResult::Waitlist) },
+        };
+        return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
+    }();
 public:
     using StateData = char32_t;
-    constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
+    forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
     {
         Expects((idx == 0) == (prevChar == 0));
         switch (idx)
         {
         case 0: // just begin
-            switch (ch)
-            {
-            case U'=':  return { ch, TokenizerResult::Pending  };
-            case U'!':  return { ch, TokenizerResult::Waitlist };
-            case U'<':  return { ch, TokenizerResult::Waitlist };
-            case U'>':  return { ch, TokenizerResult::Waitlist };
-            case U'&':  return { ch, TokenizerResult::Pending  };
-            case U'|':  return { ch, TokenizerResult::Pending  };
-            case U'+':  return { ch, TokenizerResult::Waitlist };
-            case U'-':  return { ch, TokenizerResult::Waitlist };
-            case U'*':  return { ch, TokenizerResult::Waitlist };
-            case U'/':  return { ch, TokenizerResult::Waitlist };
-            case U'%':  return { ch, TokenizerResult::Waitlist };
-            case U'?':  return { ch, TokenizerResult::Pending  };
-            default:    return { ch, TokenizerResult::NotMatch };
-            }
+            return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
         case 1:
             switch (prevChar)
             {
@@ -261,24 +272,26 @@ public:
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::EmbedOp, common::enum_cast(EmbedOps::op))
+#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::OpSymbol, common::enum_cast(op))
         switch (common::DJBHash::HashC(txt))
         {
-        RET_OP("==", Equal);
-        RET_OP("!=", NotEqual);
-        RET_OP("<",  Less);
-        RET_OP("<=", LessEqual);
-        RET_OP(">",  Greater);
-        RET_OP(">=", GreaterEqual);
-        RET_OP("&&", And);
-        RET_OP("||", Or);
-        RET_OP("+",  Add);
-        RET_OP("-",  Sub);
-        RET_OP("*",  Mul);
-        RET_OP("/",  Div);
-        RET_OP("%",  Rem);
-        RET_OP("??", ValueOr);
-        RET_OP("!",  Not);
+        RET_OP("==", EmbedOps::Equal);
+        RET_OP("!=", EmbedOps::NotEqual);
+        RET_OP("<",  EmbedOps::Less);
+        RET_OP("<=", EmbedOps::LessEqual);
+        RET_OP(">",  EmbedOps::Greater);
+        RET_OP(">=", EmbedOps::GreaterEqual);
+        RET_OP("&&", EmbedOps::And);
+        RET_OP("||", EmbedOps::Or);
+        RET_OP("+",  EmbedOps::Add);
+        RET_OP("-",  EmbedOps::Sub);
+        RET_OP("*",  EmbedOps::Mul);
+        RET_OP("/",  EmbedOps::Div);
+        RET_OP("%",  EmbedOps::Rem);
+        RET_OP("??", EmbedOps::ValueOr);
+        RET_OP("!",  EmbedOps::Not);
+        RET_OP("?",  ExtraOps::Quest);
+        RET_OP(":",  ExtraOps::Colon);
         default:     return ParserToken(BaseToken::Error, txt);
         }
 #undef RET_OP
@@ -288,28 +301,36 @@ public:
 enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
 class AssignOpTokenizer
 {
+    static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
+    {
+        using common::enum_cast;
+        static_assert(enum_cast(TokenizerResult::Pending)  <= 0b11);
+        static_assert(enum_cast(TokenizerResult::Waitlist) <= 0b11);
+        static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
+        std::pair<char, uint8_t> mappings[] = 
+        {
+            { '=', enum_cast(TokenizerResult::Waitlist) },
+            { '&', enum_cast(TokenizerResult::Pending ) },
+            { '|', enum_cast(TokenizerResult::Pending ) },
+            { '+', enum_cast(TokenizerResult::Pending ) },
+            { '-', enum_cast(TokenizerResult::Pending ) },
+            { '*', enum_cast(TokenizerResult::Pending ) },
+            { '/', enum_cast(TokenizerResult::Pending ) },
+            { '%', enum_cast(TokenizerResult::Pending ) },
+            { '?', enum_cast(TokenizerResult::Pending ) },
+            { ':', enum_cast(TokenizerResult::Pending ) },
+        };
+        return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
+    }();
 public:
     using StateData = char32_t;
-    constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
+    forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
     {
         Expects((idx == 0) == (prevChar == 0));
         switch (idx)
         {
         case 0: // just begin
-            switch (ch)
-            {
-            case U'=':  return { ch, TokenizerResult::Waitlist };
-            case U'&':  return { ch, TokenizerResult::Pending };
-            case U'|':  return { ch, TokenizerResult::Pending };
-            case U'+':  return { ch, TokenizerResult::Pending };
-            case U'-':  return { ch, TokenizerResult::Pending };
-            case U'*':  return { ch, TokenizerResult::Pending };
-            case U'/':  return { ch, TokenizerResult::Pending };
-            case U'%':  return { ch, TokenizerResult::Pending };
-            case U'?':  return { ch, TokenizerResult::Pending };
-            case U':':  return { ch, TokenizerResult::Pending };
-            default:    return { ch, TokenizerResult::NotMatch };
-            }
+            return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
         case 1:
             if (prevChar != U'=' && ch == U'=')
                 return { ch, TokenizerResult::Waitlist };

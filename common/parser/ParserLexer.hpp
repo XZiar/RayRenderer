@@ -266,7 +266,7 @@ public:
             return { row, col, OutputToken(data, offset, reader, tokenTxt, TokenizerResult::Waitlist) };
         default:
             if (count == 0 && ch == special::CharEnd)
-                return { row, col, { BaseToken::End } };
+                return { row, col, { BaseToken::End, ch } };
             else
                 return { row, col, { BaseToken::Unknown, tokenTxt } };
         }

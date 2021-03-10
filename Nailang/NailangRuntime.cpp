@@ -1339,7 +1339,7 @@ Arg NailangRuntimeBase::EvaluateFunc(FuncEvalPack& func)
     {
         switch (const auto name = func.NamePart(0); DJBHash::HashC(name))
         {
-        HashCase(name, U"ExistsDynamic")
+        HashCase(name, U"Exists")
         {
             ThrowByParamTypes<1>(func, { Arg::Type::String });
             const LateBindVar var(func.Params[0].GetStr().value());
@@ -1440,28 +1440,6 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
             CurFrame->Status = ProgramStatus::Return;
             return {};
         }
-        default: break;
-        }
-    }
-    else if (call.Name->Info() == FuncName::FuncInfo::ExprPart && call.Name->PartCount == 1)
-    {
-        switch (DJBHash::HashC(fullName))
-        {
-        HashCase(fullName, U"Exists")
-        {
-            ThrowByArgCount(call, 1);
-            const auto var = DecideDynamicVar(call.Args[0], u"Exists"sv);
-            return !LookUpArg(var).IsEmpty();
-        }
-        /*HashCase(name, U"ValueOr")
-        {
-            ThrowByArgCount(call, 2);
-            const auto var = DecideDynamicVar(call.Args[0], u"ValueOr"sv);
-            if (auto ret = LookUpArg(var); !ret.IsEmpty())
-                return ret;
-            else
-                return EvaluateExpr(call.Args[1]);
-        }*/
         default: break;
         }
     }
@@ -1712,18 +1690,27 @@ Arg NailangRuntimeBase::EvaluateExpr(const Expr& arg)
 
 Arg NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
 {
-    if (expr.Operator == EmbedOps::Not)
+    Expects(EmbedOpHelper::IsUnaryOp(expr.Operator));
+    switch (expr.Operator)
+    {
+    case EmbedOps::CheckExist:
+    {
+        Ensures(expr.Operand.TypeData == Expr::Type::Var);
+        return !LookUpArg(expr.Operand.GetVar<Expr::Type::Var>()).IsEmpty();
+    }
+    case EmbedOps::Not:
     {
         auto val = EvaluateExpr(expr.Operand);
         auto ret = val.HandleUnary(expr.Operator);
-        if (!ret.IsEmpty())
-            return std::move(ret);
-        NLRT_THROW_EX(FMTSTR(u"Cannot perform unary expr [{}] on type [{}]"sv, 
+        if (ret.IsEmpty())
+        NLRT_THROW_EX(FMTSTR(u"Cannot perform unary expr [{}] on type [{}]"sv,
             EmbedOpHelper::GetOpName(expr.Operator), val.GetTypeName()), Expr(&expr));
+        return ret;
     }
-    else
+    default:
         NLRT_THROW_EX(FMTSTR(u"Unexpected unary op [{}]"sv, EmbedOpHelper::GetOpName(expr.Operator)), Expr(&expr));
-    return {};
+        return {};
+    }
 }
 
 Arg NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)

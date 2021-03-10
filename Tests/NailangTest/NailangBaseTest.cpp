@@ -79,24 +79,23 @@ TEST(NailangBase, MemoryPool)
 #undef EXPECT_ALIGN
 }
 
-TEST(NailangBase, EmbedOpTokenizer)
+TEST(NailangBase, OpSymbolTokenizer)
 {
     using common::parser::BaseToken;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
-        return TKParse<xziar::nailang::tokenizer::EmbedOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
+        return TKParse<xziar::nailang::tokenizer::OpSymbolTokenizer, common::parser::tokenizer::IntTokenizer>(src);
     };
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
-#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, EmbedOp, GetInt, common::enum_cast(xziar::nailang::EmbedOps::type))
+#define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, OpSymbol, GetInt, common::enum_cast(xziar::nailang::type))
 
-#define CHECK_BIN_OP(src, type) do          \
-    {                                       \
-        const auto tokens = ParseAll(src);  \
-        CHECK_BASE_INT(tokens[0], 1);       \
-        CHECK_EMBED_OP(tokens[1], type);    \
-        CHECK_BASE_INT(tokens[2], 2);       \
-    } while(0)                              \
-
+#define CHECK_BIN_OP(src, type) do                  \
+    {                                               \
+        const auto tokens = ParseAll(src);          \
+        CHECK_BASE_INT(tokens[0], 1);               \
+        CHECK_EMBED_OP(tokens[1], EmbedOps::type);  \
+        CHECK_BASE_INT(tokens[2], 2);               \
+    } while(0)
 
     CHECK_BIN_OP(U"1==2"sv,   Equal);
     CHECK_BIN_OP(U"1 == 2"sv, Equal);
@@ -113,9 +112,22 @@ TEST(NailangBase, EmbedOpTokenizer)
     CHECK_BIN_OP(U"1 / 2"sv,  Div);
     CHECK_BIN_OP(U"1 % 2"sv,  Rem);
     {
-        const auto tokens = ParseAll(U"!1"sv);
-        CHECK_EMBED_OP(tokens[0], Not);
+        const auto tokens = ParseAll(U"?1"sv);
+        CHECK_EMBED_OP(tokens[0], ExtraOps::Quest);
         CHECK_BASE_INT(tokens[1], 1);
+    }
+    {
+        const auto tokens = ParseAll(U"!1"sv);
+        CHECK_EMBED_OP(tokens[0], EmbedOps::Not);
+        CHECK_BASE_INT(tokens[1], 1);
+    }
+    {
+        const auto tokens = ParseAll(U"1? 2 : 3"sv);
+        CHECK_BASE_INT(tokens[0], 1);
+        CHECK_EMBED_OP(tokens[1], ExtraOps::Quest);
+        CHECK_BASE_INT(tokens[2], 2);
+        CHECK_EMBED_OP(tokens[3], ExtraOps::Colon);
+        CHECK_BASE_INT(tokens[4], 3);
     }
     {
         const auto tokens = ParseAll(U"1+=2"sv);

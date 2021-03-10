@@ -199,52 +199,81 @@ TEST(NailangRuntime, EvalEmbedOp)
 TEST(NailangRuntime, ParseEvalEmbedOp)
 {
     MemoryPool pool;
-    const auto ParseEval = [&](const std::u32string_view src) 
+    NailangRT runtime;
+    const auto ParseEval = [&](const std::u32string_view src)
     {
         ParserContext context(src);
-        NailangRT runtime;
-        const auto rawarg = NailangParser::ParseSingleExpr(pool, context);
+        NailangParser parser(pool, context);
+        const auto [rawarg, delim] = parser.ParseExpr("");
+        EXPECT_EQ(delim, common::parser::special::CharEnd);
         return runtime.EvaluateExpr(rawarg);
     };
     {
-        const auto arg = ParseEval(U"!false;"sv);
+        const auto arg = ParseEval(U"!false"sv);
         CHECK_ARG(arg, Bool, true);
     }
     {
-        const auto arg = ParseEval(U"!3.5;"sv);
+        const auto arg = ParseEval(U"!3.5"sv);
         CHECK_ARG(arg, Bool, false);
     }
     {
-        const auto arg = ParseEval(U"!\"hero\";"sv);
+        const auto arg = ParseEval(U"!\"hero\""sv);
         CHECK_ARG(arg, Bool, false);
     }
     {
-        const auto arg = ParseEval(U"1+2;"sv);
+        const auto arg = ParseEval(U"1+2"sv);
         CHECK_ARG(arg, Int, 3);
     }
     {
-        const auto arg = ParseEval(U"4u-4.5;"sv);
+        const auto arg = ParseEval(U"4u-4.5"sv);
         CHECK_ARG(arg, FP, -0.5);
     }
     {
-        const auto arg = ParseEval(U"3*-3;"sv);
+        const auto arg = ParseEval(U"3*-3"sv);
         CHECK_ARG(arg, Int, -9);
     }
     {
-        const auto arg = ParseEval(U"5/6;"sv);
+        const auto arg = ParseEval(U"5/6"sv);
         CHECK_ARG(arg, Int, 0);
     }
     {
-        const auto arg = ParseEval(U"7%3;"sv);
+        const auto arg = ParseEval(U"7%3"sv);
         CHECK_ARG(arg, Int, 1);
     }
     { 
-        const auto arg = ParseEval(U"12.5 % 6;"sv);
+        const auto arg = ParseEval(U"12.5 % 6"sv);
         CHECK_ARG(arg, FP, 0.5);
     }
     {
-        const auto arg = ParseEval(U"\"abc\" + \"ABC\";"sv);
+        const auto arg = ParseEval(U"(\"abc\" + \"ABC\")"sv);
         CHECK_ARG(arg, U32Str, U"abcABC"sv);
+    }
+    {
+        const auto arg = ParseEval(U"true ? 1 :2"sv);
+        CHECK_ARG(arg, Int, 1);
+    }
+    {
+        const auto arg = ParseEval(U"notexists??3"sv);
+        CHECK_ARG(arg, Int, 3);
+    }
+    {
+        const auto arg1 = ParseEval(U"?notexist"sv);
+        CHECK_ARG(arg1, Bool, false);
+        runtime.SetRootArg(U"notexist", false);
+        const auto arg2 = ParseEval(U"?notexist"sv);
+        CHECK_ARG(arg2, Bool, true);
+        runtime.SetRootArg(U"notexist", {});
+    }
+    {
+        runtime.SetRootArg(U"tmp1", int64_t(-512));
+        const auto arg1 = ParseEval(U"tmp1 ?? notexist"sv);
+        CHECK_ARG(arg1, Int, -512);
+        const auto arg2 = ParseEval(U"notexist ?? \"Error\""sv);
+        CHECK_ARG(arg2, U32Sv, U"Error"sv);
+        runtime.SetRootArg(U"notexist", 3.0);
+        const auto arg3 = ParseEval(U"notexist ?? tmp2"sv);
+        CHECK_ARG(arg3, FP, 3.0);
+        runtime.SetRootArg(U"notexist", {});
     }
 }
 
@@ -298,21 +327,6 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    /*Arg IndexerGetter(const CustomVar& var, const Arg& idx, const Expr& src) override
-    {
-        ArrRef(arr, var);
-        const auto idx_ = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), idx, &src);
-        return arr.Data[idx_];
-    }
-    Arg SubfieldGetter(const CustomVar& var, std::u32string_view field) override
-    {
-        if (field == U"Length"sv)
-        {
-            ArrRef(arr, var);
-            return static_cast<uint64_t>(arr.Data.size());
-        }
-        return {};
-    }*/
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override
     {
         ArrRef(arr, var);
@@ -651,32 +665,18 @@ TEST(NailangRuntime, CommonFunc)
         return runtime.EvaluateExpr(rawarg);
     };
     {
-        const auto arg1 = ParseEval(U"$Exists(notexist);"sv);
+        const auto arg1 = ParseEval(U"$Exists(\"notexist\");"sv);
         CHECK_ARG(arg1, Bool, false);
         runtime.SetRootArg(U"notexist", false);
-        const auto arg2 = ParseEval(U"$Exists(notexist);"sv);
+        const auto arg2 = ParseEval(U"$Exists(\"notexist\");"sv);
         CHECK_ARG(arg2, Bool, true);
+        runtime.SetRootArg(U"notexist", {});
         const auto arg3 = ParseEval(U"$Exists(\"notexist\");"sv);
-        CHECK_ARG(arg3, Bool, true);
-        runtime.SetRootArg(U"notexist", {});
-        const auto arg4 = ParseEval(U"$Exists(\"notexist\");"sv);
-        CHECK_ARG(arg4, Bool, false);
-    }
-    {
-        const auto arg1 = ParseEval(U"tmp1 ?? notexist;"sv);
-        CHECK_ARG(arg1, Int, -512);
-        const auto arg2 = ParseEval(U"notexist ?? tmp2;"sv);
-        CHECK_ARG(arg2, U32Sv, U"Error"sv);
-        runtime.SetRootArg(U"notexist", 3.0);
-        const auto arg3 = ParseEval(U"notexist ?? tmp2;"sv);
-        CHECK_ARG(arg3, FP, 3.0);
-        runtime.SetRootArg(U"notexist", {});
-    }
-    {
-        const auto arg1 = ParseEval(U"$ExistsDynamic(\"tmp\" + \"1\");"sv);
-        CHECK_ARG(arg1, Bool, true);
-        const auto arg2 = ParseEval(U"$ExistsDynamic(\"tmp\" + \"3\");"sv);
-        CHECK_ARG(arg2, Bool, false);
+        CHECK_ARG(arg3, Bool, false);
+        const auto arg4 = ParseEval(U"$Exists(\"tmp\" + \"1\");"sv);
+        CHECK_ARG(arg4, Bool, true);
+        const auto arg5 = ParseEval(U"$Exists(\"tmp\" + \"3\");"sv);
+        CHECK_ARG(arg5, Bool, false);
     }
     {
         const auto arg = ParseEval(UR"($Format("Hello {}", "World");)"sv);

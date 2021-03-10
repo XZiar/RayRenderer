@@ -58,7 +58,7 @@ std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
         RET_TK_ID(Func);
         RET_TK_ID(Var);
         RET_TK_ID(SubField);
-        RET_TK_ID(EmbedOp);
+        RET_TK_ID(OpSymbol);
         RET_TK_ID(Parenthese);
         RET_TK_ID(SquareBracket);
         RET_TK_ID(CurlyBrace);
@@ -297,20 +297,36 @@ AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pa
 
 struct ExprOp
 {
-    enum class Type : uint8_t { Empty, Unary, Binary, Ternary };
-    Type TypeData = Type::Empty;
-    uint8_t Val = 0;
-    [[nodiscard]] constexpr explicit operator bool() const noexcept { return TypeData != Type::Empty; }
-    [[nodiscard]] constexpr EmbedOps GetEmbedOp() const noexcept { return static_cast<EmbedOps>(Val); }
-    constexpr void operator=(EmbedOps op) noexcept 
-    {
-        TypeData = EmbedOpHelper::IsUnaryOp(op) ? Type::Unary : Type::Binary;
-        Val = common::enum_cast(op);
+    uint32_t Val = UINT32_MAX;
+    [[nodiscard]] constexpr explicit operator bool() const noexcept 
+    { 
+        return Val != UINT32_MAX;
     }
-    constexpr void SetTernary(uint8_t stage) noexcept
+    [[nodiscard]] constexpr EmbedOps GetEmbedOp() const noexcept 
     {
-        TypeData = Type::Ternary;
-        Val = stage;
+        Expects(Val <= 255);
+        return static_cast<EmbedOps>(Val);
+    }
+    [[nodiscard]] constexpr ExtraOps GetExtraOp() const noexcept
+    {
+        Expects(Val >= 256);
+        return static_cast<ExtraOps>(Val);
+    }
+    template<typename T>
+    [[nodiscard]] constexpr bool operator==(T val) const noexcept
+    {
+        static_assert(std::is_enum_v<T>);
+        return Val == common::enum_cast(val);
+    }
+    template<typename T>
+    [[nodiscard]] constexpr bool operator!=(T val) const noexcept
+    {
+        static_assert(std::is_enum_v<T>);
+        return Val != common::enum_cast(val);
+    }
+    constexpr void operator=(uint64_t val) noexcept 
+    {
+        Val = static_cast<uint32_t>(val);
     }
 };
 
@@ -364,12 +380,12 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
     const auto ArgLexer = ParserLexerBase<CommentTokenizer,
         DelimTokenizer, tokenizer::ParentheseTokenizer, tokenizer::NormalFuncPrefixTokenizer,
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer,
-        tokenizer::VariableTokenizer, tokenizer::TernaryCondTokenizer, tokenizer::EmbedOpTokenizer,
+        tokenizer::VariableTokenizer, tokenizer::OpSymbolTokenizer,
         tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
-    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, tokenizer::TernaryCondTokenizer,
-        tokenizer::EmbedOpTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
+    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
+        tokenizer::OpSymbolTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
 
-    Expr oprend[3];
+    Expr operand[3];
     QueriesHolder query;
     uint32_t oprIdx = 0;
     ExprOp op;
@@ -378,7 +394,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
     bool shouldContinue = true;
     while (shouldContinue)
     {
-        auto& targetOpr = oprend[oprIdx];
+        auto& targetOpr = operand[oprIdx];
         const bool isAtOp = targetOpr && !op;
         auto token = isAtOp ?
             GetNextToken(OpLexer, IgnoreBlank, IgnoreCommentToken) :
@@ -401,60 +417,68 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         case EID(NailangToken::Parenthese):
         {
             if (targetOpr)
-                OnUnExpectedToken(token, u"already has oprend"sv);
+                OnUnExpectedToken(token, u"already has operand"sv);
             if (token.GetChar() == U')')
                 OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
             targetOpr = ParseExprChecked(")"sv, U")"sv);
         } break;
-        case EID(NailangToken::CondOp):
+        case EID(NailangToken::OpSymbol):
         {
-            if (token.GetChar() == U'?')
-            {
-                if (op) // requires explicit "()" when combined with ther ops
-                    OnUnExpectedToken(token, u"already has op"sv);
-                if (!targetOpr)
-                    OnUnExpectedToken(token, u"expect operand before ?(conditional) operator"sv);
-                op.SetTernary(1);
-            }
-            else if (token.GetChar() == U':')
-            {
-                if (!op || op.Val != 1)
-                    OnUnExpectedToken(token, op ? u"already has ':'"sv : u"expect '?' before ':'"sv);
-                if (!targetOpr)
-                    OnUnExpectedToken(token, u"expect left operand before :(conditional) operator"sv);
-                op.SetTernary(2);
-            }
-            query.CommitTo(MemPool, targetOpr);
-            oprIdx++;
-        } break;
-        case EID(NailangToken::EmbedOp):
-        {
+            const auto opval = static_cast<uint32_t>(token.GetUInt());
             if (op)
-                OnUnExpectedToken(token, u"already has op"sv);
-            const auto opval = static_cast<EmbedOps>(token.GetUInt());
-            switch (opval)
             {
-            case EmbedOps::Not:
-                if (oprIdx != 0)
-                    OnUnExpectedToken(token, u"expect no operand before ! operator"sv);
-                break;
-            default:
-                if (oprIdx != 0)
-                    OnUnExpectedToken(token, u"no support for nested operator"sv);
+                if (op != ExtraOps::Quest)
+                    OnUnExpectedToken(token, u"already has op"sv);
+                // handle ternary operator
+                Ensures(oprIdx == 1);
+                if (opval != common::enum_cast(ExtraOps::Colon))
+                    OnUnExpectedToken(token, u"expect ':' after '?' to finish ternary expr"sv);
                 if (!targetOpr)
-                    OnUnExpectedToken(token, u"expect 1 operand before operator"sv);
-                if (opval == EmbedOps::ValueOr)
-                {
-                    if (targetOpr.TypeData != Expr::Type::Var)
-                        OnUnExpectedToken(token, u"expect latebindvar before ?? operator"sv);
-                    if (!query.Queries.empty())
-                        OnUnExpectedToken(token, u"expect no query before ?? operator"sv);
-                }
-                break;
+                    OnUnExpectedToken(token, u"expect left operand between '?' and ':' for ternary expr"sv);
+                op = opval;
+                query.CommitTo(MemPool, targetOpr);
+                oprIdx++;
             }
-            op = opval;
-            query.CommitTo(MemPool, targetOpr);
-            oprIdx++;
+            else
+            {
+                Ensures(oprIdx == 0);
+                if (opval == common::enum_cast(ExtraOps::Quest))
+                {
+                    if (targetOpr) // enter ternary
+                    {
+                        op = opval;
+                        query.CommitTo(MemPool, targetOpr);
+                        oprIdx++;
+                    }
+                    else // unary
+                    {
+                        op = common::enum_cast(EmbedOps::CheckExist);
+                        oprIdx++;
+                    }
+                }
+                else if (opval == common::enum_cast(EmbedOps::Not)) // unary
+                {
+                    if (targetOpr)
+                        OnUnExpectedToken(token, u"expect no operand before ! operator"sv);
+                    op = opval;
+                    oprIdx++;
+                }
+                else // binary
+                {
+                    if (!targetOpr)
+                        OnUnExpectedToken(token, u"expect 1 operand before operator"sv);
+                    if (opval == common::enum_cast(EmbedOps::ValueOr))
+                    {
+                        if (targetOpr.TypeData != Expr::Type::Var)
+                            OnUnExpectedToken(token, u"expect latebindvar before ?? operator"sv);
+                        if (!query.Queries.empty())
+                            OnUnExpectedToken(token, u"expect no query before ?? operator"sv);
+                    }
+                    op = opval;
+                    query.CommitTo(MemPool, targetOpr);
+                    oprIdx++;
+                }
+            }
         } break;
         case EID(NailangToken::SquareBracket): // Indexer
         {
@@ -480,7 +504,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         default:
         {
             if (targetOpr)
-                OnUnExpectedToken(token, u"already has oprend"sv);
+                OnUnExpectedToken(token, u"already has operand"sv);
             switch (token.GetID())
             {
                 case EID(BaseToken::Uint)    : targetOpr = token.GetUInt();      break;
@@ -503,31 +527,33 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         }
     }
     // exit from delim or end
-    query.CommitTo(MemPool, oprend[oprIdx]);
-    switch (op.TypeData)
+    query.CommitTo(MemPool, operand[oprIdx]);
+    if (!op)
     {
-    case ExprOp::Type::Empty:
         Ensures(oprIdx == 0);
-        return { oprend[0], stopChar };
-    case ExprOp::Type::Ternary:
-        if (op.Val != 2)
+        return { operand[0], stopChar };
+    }
+    if (op.Val >= 256) // ternary
+    {
+        if (op != ExtraOps::Colon)
             NLPS_THROW_EX(u"Incomplete ternary operator"sv);
-        if (!oprend[2])
-            NLPS_THROW_EX(u"Lack right oprend for ternary operator"sv);
-        return { MemPool.Create<TernaryExpr>(oprend[0], oprend[1], oprend[2]), stopChar };
-    case ExprOp::Type::Binary:
+        Ensures(oprIdx == 2);
+        if (!operand[2])
+            NLPS_THROW_EX(u"Lack right operand for ternary operator"sv);
+        return { MemPool.Create<TernaryExpr>(operand[0], operand[1], operand[2]), stopChar };
+    }
+    if (op.Val >= 128)
+    {
         Ensures(oprIdx == 1);
-        if (!oprend[1])
-            NLPS_THROW_EX(u"Lack 2nd oprend for binary operator"sv);
-        return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), oprend[0], oprend[1]), stopChar };
-    case ExprOp::Type::Unary:
+        if (!operand[1])
+            NLPS_THROW_EX(u"Lack operand for unary operator"sv);
+        return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), operand[1]), stopChar };
+    }
+    {
         Ensures(oprIdx == 1);
-        if (!oprend[1])
-            NLPS_THROW_EX(u"Lack oprend for unary operator"sv);
-        return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), oprend[1]), stopChar };
-    default:
-        Ensures(false);
-        return { {}, stopChar };
+        if (!operand[1])
+            NLPS_THROW_EX(u"Lack 2nd operand for binary operator"sv);
+        return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), operand[0], operand[1]), stopChar };
     }
 }
 

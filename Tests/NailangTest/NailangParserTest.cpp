@@ -184,6 +184,15 @@ TEST(NailangParser, ParseExpr)
         CHECK_VAR_ARG(stmt.RightOperand, U"not"sv, Empty);
     }
     {
+        constexpr auto src = U"?here"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::CheckExist);
+        CHECK_VAR_ARG(stmt.Operand, U"here"sv, Empty);
+    }
+    {
         constexpr auto src = U"1?2:3"sv;
         ParserContext context(src);
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);

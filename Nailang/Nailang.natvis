@@ -27,8 +27,8 @@
   <Type Name="xziar::nailang::tokenizer::VariableTokenizer">
     <DisplayString>VariableTokenizer</DisplayString>
   </Type>
-  <Type Name="xziar::nailang::tokenizer::EmbedOpTokenizer">
-    <DisplayString>EmbedOpTokenizer</DisplayString>
+  <Type Name="xziar::nailang::tokenizer::OpSymbolTokenizer">
+    <DisplayString>OpSymbolTokenizer</DisplayString>
   </Type>
   <Type Name="xziar::nailang::tokenizer::AssignOpTokenizer">
     <DisplayString>AssignOpTokenizer</DisplayString>

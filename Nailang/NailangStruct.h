@@ -265,12 +265,18 @@ struct LateBindVar
 MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
 
 
-enum class EmbedOps : uint8_t { Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, ValueOr, Not };
+enum class EmbedOps : uint8_t 
+{ 
+    // binary
+    Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, ValueOr, 
+    // unary
+    CheckExist = 128, Not 
+};
 struct EmbedOpHelper
 {
     [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept
     {
-        return op == EmbedOps::Not;
+        return common::enum_cast(op) >= 128;
     }
     [[nodiscard]] static std::u32string_view GetOpName(EmbedOps op) noexcept;
 };
@@ -1033,8 +1039,8 @@ struct UnaryExpr
 {
     Expr Operand;
     EmbedOps Operator;
-    UnaryExpr(const EmbedOps op, const Expr& oprend) noexcept :
-        Operand(oprend), Operator(op) { }
+    UnaryExpr(const EmbedOps op, const Expr& operand) noexcept :
+        Operand(operand), Operator(op) { }
 };
 struct BinaryExpr
 {
