@@ -356,8 +356,7 @@ public:
     {
         return {};
     }
-    [[nodiscard]] virtual std::optional<xziar::nailang::Arg> XCNLFunc(XCNLRuntime&, const xziar::nailang::FuncCall&,
-        common::span<const xziar::nailang::FuncCall>)
+    [[nodiscard]] virtual std::optional<xziar::nailang::Arg> XCNLFunc(XCNLRuntime&, xziar::nailang::FuncEvalPack&)
     {
         return {};
     }
@@ -487,7 +486,7 @@ protected:
     [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, 
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
 
-    [[nodiscard]] std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs metas);
+    [[nodiscard]] std::optional<xziar::nailang::Arg> CommonFunc(const std::u32string_view name, xziar::nailang::FuncEvalPack& func);
     [[nodiscard]] std::optional<xziar::nailang::Arg> CreateGVec(const std::u32string_view type, const FuncCall& call);
     [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
         U32StrSpan args, BlockCookie& cookie);
@@ -502,20 +501,20 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, U32StrSpan args) override;
 
     void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
-    xziar::nailang::Arg EvaluateFunc(const FuncCall& call, MetaFuncs metas) override;
+    xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
 
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     [[nodiscard]] virtual std::unique_ptr<OutputBlock::BlockInfo> PrepareBlockInfo(OutputBlock& blk);
     [[nodiscard]] virtual std::unique_ptr<BlockCookie> PrepareInstance(const OutputBlock& block) = 0;
     virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg* source);
-    virtual void HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx);
+    virtual void HandleInstanceMeta(xziar::nailang::FuncPack& meta, InstanceContext& ctx);
     virtual void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
     virtual void OutputStruct   (BlockCookie& cookie, std::u32string& dst) = 0;
     virtual void OutputInstance (BlockCookie& cookie, std::u32string& dst) = 0;
     virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
     //virtual void HandleOutputBlockMeta(const FuncCall& meta, InstanceCookie& cookie);
 private:
-    InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, const FuncCall& func);
+    InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, xziar::nailang::FuncPack& func);
 public:
     XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx);
     ~XCNLRuntime() override;

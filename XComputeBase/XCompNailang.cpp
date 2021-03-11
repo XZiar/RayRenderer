@@ -22,6 +22,8 @@ using xziar::nailang::CompareResult;
 using xziar::nailang::NativeWrapper;
 using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
+using xziar::nailang::FuncPack;
+using xziar::nailang::FuncEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
@@ -560,30 +562,30 @@ std::optional<common::mlog::LogLevel> ParseLogLevel(const Arg& arg) noexcept
         return LogLevelParser(str.value());
     return {};
 }
-std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const FuncCall& call, MetaFuncs)
+std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncEvalPack& func)
 {
     switch (common::DJBHash::HashC(name))
     {
     HashCase(name, U"GetVecTypeName")
     {
-        const auto arg = EvaluateFirstFuncArg(call, Arg::Type::String);
-        return GetVecTypeName(arg.GetStr().value());
+        ThrowByParamTypes<1>(func, { Arg::Type::String });
+        return GetVecTypeName(func.Params[0].GetStr().value());
     }
     HashCase(name, U"Log")
     {
-        ThrowIfNotFuncTarget(call, FuncInfo::Empty);
-        const auto args2 = EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
-        const auto logLevel = ParseLogLevel(args2[0]);
+        ThrowIfNotFuncTarget(func, FuncInfo::Empty);
+        ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
+        const auto logLevel = ParseLogLevel(func.Params[0]);
         if (!logLevel)
-            NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, call);
-        const auto fmtStr = args2[1].GetStr().value();
-        if (call.Args.size() == 2)
+            NLRT_THROW_EX(u"Arg[0] of [Log] should be LogLevel"sv, func);
+        const auto fmtStr = func.Params[1].GetStr().value();
+        if (func.Params.size() == 2)
             InnerLog(logLevel.value(), fmtStr);
         else
         {
             try
             {
-                const auto str = FormatString(fmtStr, call.Args.subspan(2));
+                const auto str = FormatString(fmtStr, func.Params.subspan(2));
                 InnerLog(logLevel.value(), str);
             }
             catch (const xziar::nailang::NailangFormatException& nfe)
@@ -591,7 +593,8 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, const
                 Logger.error(u"Error when formating inner log: {}\n", nfe.Message());
             }
         }
-    } return Arg{};
+        return Arg{};
+    }
     default: break;
     }
     return {};
@@ -782,14 +785,16 @@ void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
         ext->BeginInstance(*this, kerCtx);
     }
 
-    for (const auto& meta : cookie.Block.MetaFunc)
+    for (auto meta : cookie.Block.MetaFunc)
     {
-        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
-        {
-        case 0:     HandleInstanceMeta(meta, kerCtx); break;
-        case 2:     HandleInstanceMeta({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, kerCtx); break;
-        default:    break;
-        }
+        const auto metaIf = HandleMetaIf(meta);
+        if (metaIf.index() == 0)
+            continue;
+        if (metaIf.index() == 2)
+            meta = { std::get<2>(metaIf).Ptr(), meta.Args.subspan(2), meta.Position };
+        auto args = EvalFuncAllArgs(meta);
+        FuncPack pack(meta, args);
+        HandleInstanceMeta(pack, kerCtx);
     }
 
     DirectOutput(cookie, kerCtx.Content);
@@ -891,38 +896,34 @@ void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
     ProcessRawBlock(block, metas);
 }
 
-Arg XCNLRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
+Arg XCNLRuntime::EvaluateFunc(FuncEvalPack& func)
 {
-    const auto& fname = call.GetName();
-    if (fname[0] == U"xcomp"sv)
+    if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
     {
-        if (call.Name->PartCount == 2)
+        if (func.NamePart(1) == U"vec"sv)
         {
-            auto ret = CommonFunc(fname[1], call, metas);
+            auto ret = CreateGVec(func.NamePart(2), func);
             if (ret.has_value())
                 return std::move(ret.value());
         }
-        else if (call.Name->PartCount == 3)
+        if (func.NamePart(1) == U"Arg"sv)
         {
-            if (fname[1] == U"vec"sv)
-            {
-                auto ret = CreateGVec(fname[2], call);
-                if (ret.has_value())
-                    return std::move(ret.value());
-            }
-            else if (fname[1] == U"Arg"sv)
-            {
-                return InstanceArgCustomVar::Create(ParseInstanceArg(fname[2], call));
-            }
+            return InstanceArgCustomVar::Create(ParseInstanceArg(func.NamePart(2), func));
+        }
+        else if (func.NamePartCount() == 2)
+        {
+            auto ret = CommonFunc(func.NamePart(1), func);
+            if (ret.has_value())
+                return std::move(ret.value());
         }
     }
     for (const auto& ext : XCContext.Extensions)
     {
-        auto ret = ext->XCNLFunc(*this, call, metas);
+        auto ret = ext->XCNLFunc(*this, func);
         if (ret)
             return std::move(ret.value());
     }
-    return NailangRuntimeBase::EvaluateFunc(call, metas);
+    return NailangRuntimeBase::EvaluateFunc(func);
 }
 
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
@@ -965,7 +966,7 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
 void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&, const xziar::nailang::Arg*)
 { }
 
-InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, const FuncCall& func)
+InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, FuncPack& func)
 {
     std::u32string name;
     std::u32string dtype;
@@ -976,34 +977,36 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, c
     {
     HashCase(argTypeName, U"Buf")
     {
-        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
-        dtype = args[0].GetStr().value();
-        name  = args[1].GetStr().value();
+        ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
+        dtype = func.Params[0].GetStr().value();
+        name  = func.Params[1].GetStr().value();
         offset = 2;
         argType = InstanceArgInfo::Types::RawBuf;
     } break;
     HashCase(argTypeName, U"Typed")
     {
+        ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
         const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
-        dtype = args[0].GetStr().value();
-        name  = args[1].GetStr().value();
+        dtype = func.Params[0].GetStr().value();
+        name  = func.Params[1].GetStr().value();
         offset = 2;
         argType = InstanceArgInfo::Types::TypedBuf;
     } break;
     HashCase(argTypeName, U"Simple")
     {
+        ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
         const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
-        dtype = args[0].GetStr().value();
-        name  = args[1].GetStr().value();
+        dtype = func.Params[0].GetStr().value();
+        name  = func.Params[1].GetStr().value();
         offset = 2;
         argType = InstanceArgInfo::Types::Simple;
     } break;
     HashCase(argTypeName, U"Tex")
     {
-        const auto args = EvaluateFuncArgs<3, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        const auto tname = args[0].GetStr().value();
-        dtype = args[1].GetStr().value();
-        name  = args[2].GetStr().value();
+        ThrowByParamTypes<3, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        const auto tname = func.Params[0].GetStr().value();
+        dtype = func.Params[1].GetStr().value();
+        name  = func.Params[2].GetStr().value();
         constexpr auto TexTypeParser = SWITCH_PACK(Hash,
             (U"tex1d",      InstanceArgInfo::TexTypes::Tex1D),
             (U"tex2d",      InstanceArgInfo::TexTypes::Tex2D),
@@ -1011,7 +1014,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, c
             (U"tex1darr",   InstanceArgInfo::TexTypes::Tex1DArray),
             (U"tex2darr",   InstanceArgInfo::TexTypes::Tex2DArray));
         if (const auto ttype = TexTypeParser(tname); !ttype)
-            NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, tname), &func);
+            NLRT_THROW_EX(FMTSTR(u"Unrecognized Texture Type [{}]"sv, tname), func);
         else
             texType = ttype.value();
         offset = 3;
@@ -1024,13 +1027,13 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, c
     args.reserve(func.Args.size() - offset);
     for (size_t idx = offset; idx < func.Args.size(); ++idx)
     {
-        const auto& arg = args.emplace_back(EvaluateExpr(func.Args[idx]));
+        const auto& arg = args.emplace_back(std::move(func.Params[idx]));
         ThrowByArgType(func, arg, Arg::Type::String, idx);
     }
     return { std::move(args), std::move(name), std::move(dtype), argType, texType };
 }
 
-void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
+void XCNLRuntime::HandleInstanceMeta(FuncPack& meta, InstanceContext& ctx)
 {
     for (const auto& ext : XCContext.Extensions)
     {
@@ -1047,12 +1050,11 @@ void XCNLRuntime::HandleInstanceMeta(const FuncCall& meta, InstanceContext& ctx)
         }
         else
         {
-            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::Custom);
-            const auto& var = arg.GetCustom();
-            if (!var.IsType<InstanceArgCustomVar>())
-                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, var.Host->GetTypeName()), &meta);
-            const auto& info = InstanceArgCustomVar::GetArgInfo(var);
-            HandleInstanceArg(info, ctx, meta, &arg);
+            if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
+                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, 
+                    meta.Params.size() == 1 ? meta.Params[0].GetTypeName() : U"<empty>"sv), meta);
+            const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
+            HandleInstanceArg(info, ctx, meta, &meta.Params[0]);
         }
     }
 }

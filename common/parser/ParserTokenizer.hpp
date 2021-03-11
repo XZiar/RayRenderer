@@ -141,47 +141,6 @@ struct DetailToken : public ParserToken
 #   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
 #endif
 
-//template<bool Result = true>
-//struct ASCIIChecker
-//{
-//#if COMMON_OSBIT == 32
-//    using EleType = uint32_t;
-//#elif COMMON_OSBIT == 64
-//    using EleType = uint64_t;
-//#endif
-//    static constexpr uint8_t EleBits = sizeof(EleType) * 8;
-//    std::array<EleType, 128 / EleBits> LUT = { 0 };
-//    constexpr ASCIIChecker(const std::string_view str) noexcept
-//    {
-//        for (auto& ele : LUT)
-//            ele = Result ? std::numeric_limits<EleType>::min() : std::numeric_limits<EleType>::max();
-//        for (const auto ch : str)
-//        {
-//            if (ch >= 0) // char is signed
-//            {
-//                auto& ele = LUT[ch / EleBits];
-//                const auto obj = EleType(1) << (ch % EleBits);
-//                if constexpr (Result)
-//                    ele |= obj;
-//                else
-//                    ele &= (~obj);
-//            }
-//        }
-//    }
-//
-//    [[nodiscard]] constexpr bool operator()(const char32_t ch) const noexcept
-//    {
-//        if (ch >= 0 && ch < 128)
-//        {
-//            const auto ele = LUT[ch / EleBits];
-//            const auto ret = ele >> (ch % EleBits);
-//            return ret & 0x1 ? true : false;
-//        }
-//        else
-//            return !Result;
-//    }
-//};
-
 template<size_t N>
 struct ASCIICheckerNBit
 {

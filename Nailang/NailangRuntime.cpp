@@ -787,7 +787,7 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         detail::ExceptionTarget{}, &call);
 }
 
-void NailangRuntimeBase::ThrowByParamTypes(const FuncEvalPack& func, common::span<const Arg::Type> types, size_t offset, const ArgLimits limit) const
+void NailangRuntimeBase::ThrowByParamTypes(const FuncPack& func, common::span<const Arg::Type> types, size_t offset, const ArgLimits limit) const
 {
     ThrowByArgCount(func, types.size() + offset, limit);
     Ensures(func.Params.size() >= offset);
@@ -927,20 +927,16 @@ std::variant<std::monostate, bool, xziar::nailang::TempFuncName> NailangRuntimeB
 
 bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const Statement& target)
 {
-    for (const auto& meta : metas)
+    MetaSet allMetas(metas);
+    for (auto meta : allMetas)
     {
-        Expects(meta.Name->Info() == FuncName::FuncInfo::Meta);
-        ExprHolder callHost(this, &meta);
-        auto result = MetaFuncResult::Unhandled;
-        switch (const auto newMeta = HandleMetaIf(meta); newMeta.index())
-        {
-        case 0: 
-            result = HandleMetaFunc(meta, target, metas); break;
-        case 2:
-            result = HandleMetaFunc({ std::get<2>(newMeta).Ptr(), meta.Args.subspan(2) }, target, metas); break;
-        default:
-            break;
-        }
+        if (meta.IsUsed())
+            continue;
+        Expects(meta->Name->Info() == FuncName::FuncInfo::Meta);
+        //ExprHolder callHost(this, &meta);
+        const auto result = HandleMetaFunc(*meta, target, allMetas);
+        if (result != MetaFuncResult::Unhandled)
+            meta.SetUsed();
         switch (result)
         {
         case MetaFuncResult::Return:
@@ -1000,7 +996,7 @@ void NailangRuntimeBase::HandleContent(const Statement& content, common::span<co
     }
 }
 
-void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, common::span<const FuncCall> metas)
+void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, MetaSet& allMetas)
 {
     const auto prevFrame = PushFrame(FrameFlags::InLoop);
     while (true)
@@ -1008,7 +1004,7 @@ void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, 
         const auto cond = EvaluateExpr(condition);
         if (ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
         {
-            HandleContent(target, metas);
+            HandleContent(target, allMetas.Metas);
             switch (CurFrame->Status)
             {
             case ProgramStatus::Return:
@@ -1131,6 +1127,15 @@ ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool crea
             break; // cannot beyond  
     }
     return RootContext->LocateArg(var, create);
+}
+
+std::vector<Arg> NailangRuntimeBase::EvalFuncAllArgs(const FuncCall& call)
+{
+    std::vector<Arg> params;
+    params.reserve(call.Args.size());
+    for (const auto& arg : call.Args)
+        params.emplace_back(EvaluateExpr(arg));
+    return params;
 }
 
 static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
@@ -1290,24 +1295,45 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32
     return false;
 }
 
-NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const Statement& content, common::span<const FuncCall> allMetas)
+NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(MetaEvalPack& meta)
 {
-    if (meta.Name->PartCount > 1)
-        return MetaFuncResult::Unhandled;
     const auto metaName = meta.FullFuncName();
-    switch (DJBHash::HashC(metaName))
+    if (metaName == U"Skip")
     {
-    HashCase(metaName, U"Skip")
-    {
-        const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::Boolable, ArgLimits::AtMost);
-        return arg.IsEmpty() || arg.GetBool().value() ? MetaFuncResult::Skip : MetaFuncResult::Next;
+        ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Boolable });
+        return (meta.Params.empty() || meta.Params[0].GetBool().value()) ? MetaFuncResult::Skip : MetaFuncResult::Next;
     }
-    HashCase(metaName, U"If")
+    else if (metaName == U"If")
     {
-        const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::Boolable);
-        return arg.GetBool().value() ? MetaFuncResult::Next : MetaFuncResult::Skip;
+        ThrowByParamTypes<1>(meta, { Arg::Type::Boolable });
+        return meta.Params[0].GetBool().value() ? MetaFuncResult::Next : MetaFuncResult::Skip;
     }
-    HashCase(metaName, U"DefFunc")
+    return MetaFuncResult::Unhandled;
+}
+
+NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const FuncCall& meta, const Statement& content, MetaSet& allMetas)
+{
+    const auto metaName = meta.FullFuncName();
+    if (metaName == U"While")
+    {
+        ThrowIfStatement(meta, content, Statement::Type::RawBlock);
+        ThrowByArgCount(meta, 1);
+        OnLoop(meta.Args[0], content, allMetas);
+        return MetaFuncResult::Skip;
+    }
+    else if (metaName == U"MetaIf")
+    {
+        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
+        if (args[0].GetBool().value())
+        {
+            const auto name = args[1].GetStr().value();
+            const auto funcName = CreateTempFuncName(name, FuncName::FuncInfo::Meta);
+            const FuncCall newMeta(funcName.Ptr(), meta.Args.subspan(2), meta.Position);
+            return HandleMetaFunc(newMeta, content, allMetas);
+        }
+        return MetaFuncResult::Next;
+    }
+    else if (metaName == U"DefFunc")
     {
         ThrowIfNotStatement(meta, content, Statement::Type::Block);
         for (const auto& arg : meta.Args)
@@ -1321,15 +1347,9 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
         SetFunc(content.Get<Block>(), meta.Args);
         return MetaFuncResult::Skip;
     }
-    HashCase(metaName, U"While")
-    {
-        ThrowIfStatement(meta, content, Statement::Type::RawBlock);
-        ThrowByArgCount(meta, 1);
-        OnLoop(meta.Args[0], content, allMetas);
-        return MetaFuncResult::Skip;
-    }
-    }
-    return MetaFuncResult::Unhandled;
+    auto params = EvalFuncAllArgs(meta);
+    MetaEvalPack pack(meta, params, allMetas, content);
+    return HandleMetaFunc(pack);
 }
 
 Arg NailangRuntimeBase::EvaluateFunc(FuncEvalPack& func)
@@ -1443,10 +1463,7 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
         default: break;
         }
     }
-    std::vector<Arg> params;
-    params.reserve(call.Args.size());
-    for (const auto& arg : call.Args)
-        params.emplace_back(EvaluateExpr(arg));
+    auto params = EvalFuncAllArgs(call);
     FuncEvalPack pack(call, params, metas);
     return EvaluateFunc(pack);
 }

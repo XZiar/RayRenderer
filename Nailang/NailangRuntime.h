@@ -264,15 +264,60 @@ struct NAILANGAPI NailangHelper
 };
 
 
-struct FuncEvalPack : public FuncCall
+struct FuncPack : public FuncCall
 {
-    common::span<const FuncCall> Metas;
     common::span<Arg> Params;
-    constexpr FuncEvalPack(const FuncCall& call, common::span<Arg> params, common::span<const FuncCall> metas = {}) noexcept :
-        FuncCall(call), Metas(metas), Params(params) { }
+    constexpr FuncPack(const FuncCall& call, common::span<Arg> params) noexcept :
+        FuncCall(call), Params(params) { }
     auto NamePart(size_t idx) const { return Name->GetPart(idx); }
     constexpr size_t NamePartCount() const noexcept { return Name->PartCount; }
 };
+struct FuncEvalPack : public FuncPack
+{
+    common::span<const FuncCall> Metas;
+    constexpr FuncEvalPack(const FuncCall& call, common::span<Arg> params, common::span<const FuncCall> metas = {}) noexcept :
+        FuncPack(call, params), Metas(metas) { }
+};
+class MetaSet
+{
+private:
+    struct MetaFuncWrapper
+    {
+        MetaSet& Host;
+        size_t Index;
+        constexpr const FuncCall* operator->() const noexcept { return &Host.Metas[Index]; }
+        constexpr const FuncCall& operator*()  const noexcept { return  Host.Metas[Index]; }
+        bool IsUsed() const noexcept { return Host.AccessBitmap[Index]; }
+        void SetUsed() noexcept { Host.AccessBitmap[Index] = true; }
+    };
+    [[nodiscard]] constexpr MetaFuncWrapper Get(size_t index) noexcept
+    {
+        return { *this, index };
+    }
+    using ItType = common::container::IndirectIterator<MetaSet, MetaFuncWrapper, &MetaSet::Get>;
+    friend ItType;
+    std::vector<bool> AccessBitmap;
+public:
+    common::span<const FuncCall> Metas;
+    MetaSet(common::span<const FuncCall> metas) noexcept : AccessBitmap(metas.size(), false), Metas(metas)
+    { }
+    [[nodiscard]] constexpr ItType begin() noexcept
+    {
+        return { this, 0 };
+    }
+    [[nodiscard]] constexpr ItType end() noexcept
+    {
+        return { this, Metas.size() };
+    }
+};
+struct MetaEvalPack : public FuncPack
+{
+    MetaSet& Metas;
+    const Statement& Target;
+    constexpr MetaEvalPack(const FuncCall& call, common::span<Arg> params, MetaSet& metas, const Statement& target) noexcept :
+        FuncPack(call, params), Metas(metas), Target(target) { }
+};
+
 
 class NAILANGAPI NailangRuntimeBase
 {
@@ -333,9 +378,9 @@ protected:
     BlockFrame* CurFrame = nullptr;
     MemoryPool MemPool;
     void ThrowByArgCount(const FuncCall& call, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
-    void ThrowByParamTypes(const FuncEvalPack& func, common::span<const Arg::Type> types, size_t offset = 0, const ArgLimits limit = ArgLimits::Exact) const;
+    void ThrowByParamTypes(const FuncPack& func, common::span<const Arg::Type> types, size_t offset = 0, const ArgLimits limit = ArgLimits::Exact) const;
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    void ThrowByParamTypes(const FuncEvalPack& func, const std::array<Arg::Type, N>& types, size_t offset = 0) const
+    void ThrowByParamTypes(const FuncPack& func, const std::array<Arg::Type, N>& types, size_t offset = 0) const
     {
         ThrowByParamTypes(func, types, offset, Limit);
     }
@@ -401,13 +446,14 @@ protected:
     [[nodiscard]] std::variant<std::monostate, bool, xziar::nailang::TempFuncName> HandleMetaIf(const FuncCall& meta);
     [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const Statement& target);
                   void HandleContent    (const Statement& content, common::span<const FuncCall> metas);
-                  void OnLoop           (const Expr& condition, const Statement& target, common::span<const FuncCall> metas);
+                  void OnLoop           (const Expr& condition, const Statement& target, MetaSet& allMetas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Expr> args);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
+    [[nodiscard]] std::vector<Arg> EvalFuncAllArgs(const FuncCall& call);
 
     [[noreturn]]  virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
@@ -416,7 +462,8 @@ protected:
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
                   virtual bool SetFunc(const Block* block, common::span<const Expr> args);
                   virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
-    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
                   virtual Arg  EvaluateFunc(FuncEvalPack& func);
                   virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
     [[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
