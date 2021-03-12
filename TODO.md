@@ -75,10 +75,10 @@
   - [x] Allow fake arg when try to set value of an arg
   - [x] Add register-based customvar handler
   - [ ] Design component of `Literal`, included in different `Expr`, `Expr` will be the `Statement`, with 8bit extra type info from original meta-info field
-  - [ ] Evaluate `Expr`(or `RawArg`) before calling the function
+  - [x] Evaluate `Expr`(or `RawArg`) before calling the function
   - [x] Add ternary operator
   - [ ] CustomVar also report `TypeData` for easier type conversion
-  - [ ] Add capture support when define func
+  - [x] Add capture support when define func
   - [ ] Seperate Executor and Runtime
 
 * XCompute

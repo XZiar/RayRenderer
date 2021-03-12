@@ -449,7 +449,6 @@ protected:
 
                   void ExecuteFrame();
     [[nodiscard]] std::variant<std::monostate, bool, xziar::nailang::TempFuncName> HandleMetaIf(const FuncCall& meta);
-    [[nodiscard]] bool HandleMetaFuncs  (common::span<const FuncCall> metas, const Statement& target);
                   void HandleContent    (const Statement& content, common::span<const FuncCall> metas);
                   void OnLoop           (const Expr& condition, const Statement& target, MetaSet& allMetas);
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Expr> args);
@@ -462,11 +461,12 @@ protected:
 
     [[noreturn]]  virtual void HandleException(const NailangRuntimeException& ex) const;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
-    [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
+    [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var, const bool checkNull = true) const;
                   virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, Expr> arg, NilCheck nilCheck = {});
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
                   virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
                   virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
+    [[nodiscard]] virtual bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target); // return if need eval target
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
                   virtual Arg  EvaluateFunc(FuncEvalPack& func);

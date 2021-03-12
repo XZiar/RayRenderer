@@ -246,6 +246,10 @@ TEST(NailangBase, Serializer)
         EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
     }
     {
+        xziar::nailang::UnaryExpr expr(EmbedOps::CheckExist, a6);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"?`cdef"sv);
+    }
+    {
         std::vector<Expr> queries;
         xziar::nailang::SubQuery::PushQuery(queries, a3);
         xziar::nailang::QueryExpr expr(a5, queries);
@@ -280,6 +284,10 @@ TEST(NailangBase, Serializer)
         EXPECT_EQ(Serializer::Stringify(&expr), U"false != 1234"sv);
     }
     {
+        xziar::nailang::TernaryExpr expr(a1, a2, a3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"true ? false : 1234"sv);
+    }
+    {
         xziar::nailang::BinaryExpr expr0(EmbedOps::Equal, a1, a2);
         xziar::nailang::UnaryExpr expr(EmbedOps::Not, &expr0);
         EXPECT_EQ(Serializer::Stringify(&expr), U"!(true == false)"sv);
@@ -288,6 +296,18 @@ TEST(NailangBase, Serializer)
         xziar::nailang::BinaryExpr expr0(EmbedOps::Or, a1, a2);
         xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
         EXPECT_EQ(Serializer::Stringify(&expr), U"(true || false) && 1234"sv);
+    }
+    {
+        xziar::nailang::TernaryExpr expr0(a1, a2, a3);
+        xziar::nailang::BinaryExpr expr(EmbedOps::And, &expr0, a3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"(true ? false : 1234) && 1234"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::Equal, a1, a2);
+        xziar::nailang::BinaryExpr expr1(EmbedOps::NotEqual, a2, a3);
+        xziar::nailang::TernaryExpr expr2(&expr0, &expr1, a3);
+        xziar::nailang::BinaryExpr expr(EmbedOps::ValueOr, a6, &expr2);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef ?? ((true == false) ? (false != 1234) : 1234)"sv);
     }
     {
         const auto name = FuncName::CreateTemp(U"Func"sv, FuncName::FuncInfo::Empty);

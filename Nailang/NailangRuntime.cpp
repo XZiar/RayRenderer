@@ -333,7 +333,7 @@ std::pair<uint32_t, uint32_t> BasicEvaluateContext::InsertNames(
     for (const auto& argName : argNames)
     {
         if constexpr(std::is_same_v<T, Expr>)
-            LocalFuncArgNames.push_back(argName.GetVar<Expr::Type::Var>());
+            LocalFuncArgNames.push_back(argName.template GetVar<Expr::Type::Var>().Name);
         else
             LocalFuncArgNames.push_back(argName);
     }
@@ -925,7 +925,8 @@ void NailangRuntimeBase::ExecuteFrame()
     for (size_t idx = 0; idx < CurFrame->BlockScope->Size();)
     {
         const auto& [metas, content] = (*CurFrame->BlockScope)[idx];
-        if (HandleMetaFuncs(metas, content))
+        MetaSet allMetas(metas);
+        if (HandleMetaFuncs(allMetas, content))
         {
             HandleContent(content, metas);
         }
@@ -955,32 +956,6 @@ std::variant<std::monostate, bool, xziar::nailang::TempFuncName> NailangRuntimeB
         return false;
     }
     return {};
-}
-
-bool NailangRuntimeBase::HandleMetaFuncs(common::span<const FuncCall> metas, const Statement& target)
-{
-    MetaSet allMetas(metas);
-    for (auto meta : allMetas)
-    {
-        if (meta.IsUsed())
-            continue;
-        Expects(meta->Name->Info() == FuncName::FuncInfo::Meta);
-        //ExprHolder callHost(this, &meta);
-        const auto result = HandleMetaFunc(*meta, target, allMetas);
-        if (result != MetaFuncResult::Unhandled)
-            meta.SetUsed();
-        switch (result)
-        {
-        case MetaFuncResult::Return:
-            CurFrame->Status = ProgramStatus::Return; return false;
-        case MetaFuncResult::Skip:
-            CurFrame->Status = ProgramStatus::Next;   return false;
-        case MetaFuncResult::Next:
-        default:
-            CurFrame->Status = ProgramStatus::Next;   break;
-        }
-    }
-    return true;
 }
 
 void NailangRuntimeBase::HandleContent(const Statement& content, common::span<const FuncCall> metas)
@@ -1232,11 +1207,15 @@ std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() cons
     return std::make_shared<CompactEvaluateContext>();
 }
 
-Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var) const
+Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var, const bool checkNull) const
 {
     auto ret = LocateArg(var, false);
     if (!ret)
+    {
+        if (checkNull)
+            NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exist", var));
         return {};
+    }
     if (!ret.CanRead())
         NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
     return ret.ExtractGet();
@@ -1327,6 +1306,31 @@ bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std:
     return false;
 }
 
+bool NailangRuntimeBase::HandleMetaFuncs(MetaSet& allMetas, const Statement& target)
+{
+    for (auto meta : allMetas)
+    {
+        if (meta.IsUsed())
+            continue;
+        Expects(meta->Name->Info() == FuncName::FuncInfo::Meta);
+        //ExprHolder callHost(this, &meta);
+        const auto result = HandleMetaFunc(*meta, target, allMetas);
+        if (result != MetaFuncResult::Unhandled)
+            meta.SetUsed();
+        switch (result)
+        {
+        case MetaFuncResult::Return:
+            CurFrame->Status = ProgramStatus::Return; return false;
+        case MetaFuncResult::Skip:
+            CurFrame->Status = ProgramStatus::Next;   return false;
+        case MetaFuncResult::Next:
+        default:
+            CurFrame->Status = ProgramStatus::Next;   break;
+        }
+    }
+    return true;
+}
+
 NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(MetaEvalPack& meta)
 {
     const auto metaName = meta.FullFuncName();
@@ -1408,7 +1412,7 @@ Arg NailangRuntimeBase::EvaluateFunc(FuncEvalPack& func)
         {
             ThrowByParamTypes<1>(func, { Arg::Type::String });
             const LateBindVar var(func.Params[0].GetStr().value());
-            return !LookUpArg(var).IsEmpty();
+            return static_cast<bool>(LocateArg(var, false));
         }
         HashCase(name, U"Format")
         {
@@ -1758,7 +1762,7 @@ Arg NailangRuntimeBase::EvaluateUnaryExpr(const UnaryExpr& expr)
     case EmbedOps::CheckExist:
     {
         Ensures(expr.Operand.TypeData == Expr::Type::Var);
-        return !LookUpArg(expr.Operand.GetVar<Expr::Type::Var>()).IsEmpty();
+        return static_cast<bool>(LocateArg(expr.Operand.GetVar<Expr::Type::Var>(), false));
     }
     case EmbedOps::Not:
     {
@@ -1780,7 +1784,7 @@ Arg NailangRuntimeBase::EvaluateBinaryExpr(const BinaryExpr& expr)
     if (expr.Operator == EmbedOps::ValueOr)
     {
         Expects(expr.LeftOperand.TypeData == Expr::Type::Var);
-        auto val = LookUpArg(expr.LeftOperand.GetVar<Expr::Type::Var>());
+        auto val = LookUpArg(expr.LeftOperand.GetVar<Expr::Type::Var>(), false); // skip null check, but require read
         return val.IsEmpty() ? EvaluateExpr(expr.RightOperand) : val;
     }
     Arg left = EvaluateExpr(expr.LeftOperand), right;
@@ -1848,7 +1852,8 @@ void NailangRuntimeBase::ExecuteBlock(const Block& block, common::span<const Fun
     if (checkMetas)
     {
         Statement target(&block);
-        if (!HandleMetaFuncs(metas, target))
+        MetaSet allMetas(metas);
+        if (!HandleMetaFuncs(allMetas, target))
             return;
     }
     CurFrame->MetaScope  = metas;

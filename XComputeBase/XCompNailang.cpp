@@ -898,10 +898,13 @@ void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
 
 XCNLRuntime::MetaFuncResult XCNLRuntime::HandleMetaFunc(const FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas)
 {
-    const auto metaName = meta.FullFuncName();
-    if (metaName == U"xcomp.PreAssign")
+    switch (const auto name = meta.FullFuncName(); common::DJBHash::HashC(name))
     {
-        return MetaFuncResult::Unhandled;
+    HashCase(name, U"xcomp.ReplaceVariable")    return MetaFuncResult::Unhandled;
+    HashCase(name, U"xcomp.ReplaceFunction")    return MetaFuncResult::Unhandled;
+    HashCase(name, U"xcomp.Replace")            return MetaFuncResult::Unhandled;
+    HashCase(name, U"xcomp.PreAssign")          return MetaFuncResult::Unhandled;
+    default: break;
     }
     return NailangRuntimeBase::HandleMetaFunc(meta, target, allMetas);
 }
@@ -1085,7 +1088,8 @@ void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
 {
     auto frame = PushFrame(FrameFlags::FlowScope);
 
-    if (!HandleMetaFuncs(metas, &block))
+    xziar::nailang::MetaSet allMetas(metas);
+    if (!HandleMetaFuncs(allMetas, &block))
         return;
     
     const auto type = GetBlockType(block, metas);

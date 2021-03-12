@@ -697,6 +697,8 @@ void Serializer::Stringify(std::u32string& output, const Expr& arg, const bool r
                 Expects(false);
             else if constexpr (std::is_same_v<T, const BinaryExpr*>)
                 Stringify(output, data, requestParenthese);
+            else if constexpr (std::is_same_v<T, const TernaryExpr*>)
+                Stringify(output, data, requestParenthese);
             else
                 Stringify(output, data);
         });
@@ -722,6 +724,10 @@ void Serializer::Stringify(std::u32string& output, const UnaryExpr* expr)
     {
     case EmbedOps::Not:
         output.append(U"!"sv);
+        Stringify(output, expr->Operand, true);
+        break;
+    case EmbedOps::CheckExist:
+        output.append(U"?"sv);
         Stringify(output, expr->Operand, true);
         break;
     default:
@@ -750,6 +756,7 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         SET_OP_STR(Mul,         " * ");
         SET_OP_STR(Div,         " / ");
         SET_OP_STR(Rem,         " % ");
+        SET_OP_STR(ValueOr,     " ?? ");
     default:
         assert(false); // Expects(false);
         return;
@@ -759,6 +766,19 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         output.push_back(U'(');
     Stringify(output, expr->LeftOperand, true);
     output.append(opStr);
+    Stringify(output, expr->RightOperand, true);
+    if (requestParenthese)
+        output.push_back(U')');
+}
+
+void Serializer::Stringify(std::u32string& output, const TernaryExpr* expr, const bool requestParenthese)
+{
+    if (requestParenthese)
+        output.push_back(U'(');
+    Stringify(output, expr->Condition, true);
+    output.append(U" ? "sv);
+    Stringify(output, expr->LeftOperand, true);
+    output.append(U" : "sv);
     Stringify(output, expr->RightOperand, true);
     if (requestParenthese)
         output.push_back(U')');

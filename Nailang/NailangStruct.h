@@ -1211,6 +1211,7 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const Expr& expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const FuncCall* call);
     static void Stringify(std::u32string& output, const UnaryExpr* expr);
+    static void Stringify(std::u32string& output, const TernaryExpr* expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const BinaryExpr* expr, const bool requestParenthese = false);
     static void Stringify(std::u32string& output, const QueryExpr* expr);
     static void Stringify(std::u32string& output, const AssignExpr* expr);
