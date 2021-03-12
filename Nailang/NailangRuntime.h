@@ -19,6 +19,7 @@ struct LocalFunc
 {
     const Block* Body;
     common::span<const std::u32string_view> ArgNames;
+    common::span<const Arg> CapturedArgs;
 
     [[nodiscard]] constexpr explicit operator bool() const noexcept { return Body != nullptr; }
 };
@@ -31,8 +32,8 @@ public:
     virtual ~EvaluateContext();
     [[nodiscard]] virtual ArgLocator LocateArg(const LateBindVar& var, const bool create) noexcept = 0;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
-    virtual bool SetFunc(const Block* block, common::span<const Expr> args) = 0;
-    virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args) = 0;
+    virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args) = 0;
+    virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args) = 0;
     [[nodiscard]] virtual size_t GetArgCount() const noexcept = 0;
     [[nodiscard]] virtual size_t GetFuncCount() const noexcept = 0;
 };
@@ -41,16 +42,22 @@ class NAILANGAPI BasicEvaluateContext : public EvaluateContext
 {
 private:
     std::vector<std::u32string_view> LocalFuncArgNames;
+    std::vector<Arg> LocalFuncCapturedArgs;
+    std::pair<uint32_t, uint32_t> InsertCaptures(
+        common::span<std::pair<std::u32string_view, Arg>> capture);
+    template<typename T>
+    std::pair<uint32_t, uint32_t> InsertNames(
+        common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const T> argNames);
 protected:
-    using LocalFuncHolder = std::tuple<const Block*, uint32_t, uint32_t>;
+    using LocalFuncHolder = std::tuple<const Block*, std::pair<uint32_t, uint32_t>, std::pair<uint32_t, uint32_t>>;
     [[nodiscard]] virtual LocalFuncHolder LookUpFuncInside(std::u32string_view name) const = 0;
     virtual bool SetFuncInside(std::u32string_view name, LocalFuncHolder func) = 0;
 public:
     ~BasicEvaluateContext() override;
 
     [[nodiscard]] LocalFunc LookUpFunc(std::u32string_view name) const override;
-    bool SetFunc(const Block* block, common::span<const Expr> args) override;
-    bool SetFunc(const Block* block, common::span<const std::u32string_view> args) override;
+    bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args) override;
+    bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args) override;
 };
 
 class NAILANGAPI LargeEvaluateContext : public BasicEvaluateContext
@@ -116,7 +123,7 @@ namespace detail
 struct ExceptionTarget
 {
     enum class Type { Empty, Arg, Expr, AssignExpr, FuncCall, RawBlock, Block };
-    using VType = std::variant<std::monostate, Statement, Arg, Expr, const FuncCall*, FuncCall, const RawBlock*, const Block*>;
+    using VType = std::variant<std::monostate, Statement, Arg, Expr, FuncCall, const RawBlock*, const Block*>;
     VType Target;
 
     constexpr ExceptionTarget() noexcept {}
@@ -140,9 +147,8 @@ struct ExceptionTarget
         case 2:  return Type::Arg;
         case 3:  return Type::Expr;
         case 4:  return Type::FuncCall;
-        case 5:  return Type::FuncCall;
-        case 6:  return Type::RawBlock;
-        case 7:  return Type::Block;
+        case 5:  return Type::RawBlock;
+        case 6:  return Type::Block;
         case 1:
             switch (std::get<1>(Target).TypeData)
             {
@@ -171,7 +177,7 @@ struct ExceptionTarget
         {
             switch (Target.index())
             {
-            case 6:  return std::get<6>(Target);
+            case 5:  return std::get<5>(Target);
             case 1:  return std::get<1>(Target).Get<RawBlock>();
             default: return nullptr;
             }
@@ -180,7 +186,7 @@ struct ExceptionTarget
         {
             switch (Target.index())
             {
-            case 7:  return std::get<7>(Target);
+            case 6:  return std::get<6>(Target);
             case 1:  return std::get<1>(Target).Get<Block>();
             default: return nullptr;
             }
@@ -189,8 +195,7 @@ struct ExceptionTarget
         {
             switch (Target.index())
             {
-            case 4:  return  std::get<4>(Target);
-            case 5:  return &std::get<5>(Target);
+            case 4:  return &std::get<4>(Target);
             case 1:  return  std::get<1>(Target).Get<FuncCall>();
             default: return nullptr;
             }
@@ -460,8 +465,8 @@ protected:
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var) const;
                   virtual bool SetArg(const LateBindVar& var, SubQuery subq, std::variant<Arg, Expr> arg, NilCheck nilCheck = {});
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
-                  virtual bool SetFunc(const Block* block, common::span<const Expr> args);
-                  virtual bool SetFunc(const Block* block, common::span<const std::u32string_view> args);
+                  virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
+                  virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
                   virtual Arg  EvaluateFunc(FuncEvalPack& func);

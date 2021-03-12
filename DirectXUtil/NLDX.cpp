@@ -19,6 +19,9 @@ using xziar::nailang::Block;
 using xziar::nailang::RawBlock;
 using xziar::nailang::Statement;
 using xziar::nailang::FuncCall;
+using xziar::nailang::FuncPack;
+using xziar::nailang::FuncEvalPack;
+using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
 using xziar::nailang::NailangRuntimeBase;
@@ -193,18 +196,18 @@ void NLDXRuntime::OnReplaceFunction(std::u32string& output, void* cookie, const 
     return XCNLRuntime::OnReplaceFunction(output, cookie, func, args);
 }
 
-Arg NLDXRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
+Arg NLDXRuntime::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
 {
-    const auto& fname = call.GetName();
-    if (call.Name->PartCount == 2 && fname[0] == U"dxu"sv)
+    const auto& fname = func.GetName();
+    if (func.Name->PartCount == 2 && fname[0] == U"dxu"sv)
     {
         const auto subName = fname[1];
         switch (common::DJBHash::HashC(subName))
         {
         HashCase(subName, U"CompilerFlag")
         {
-            const auto arg  = EvaluateFirstFuncArg(call, Arg::Type::String);
-            const auto flag = common::str::to_string(arg.GetStr().value(), Charset::UTF8, Charset::UTF32);
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            const auto flag = common::str::to_string(func.Params[0].GetStr().value(), Charset::UTF8, Charset::UTF32);
             for (const auto& item : Context.CompilerFlags)
             {
                 if (item == flag)
@@ -214,11 +217,11 @@ Arg NLDXRuntime::EvaluateFunc(const FuncCall& call, MetaFuncs metas)
         } return {};
         default: break;
         }
-        auto ret = CommonFunc(fname[1], call, metas);
+        auto ret = CommonFunc(fname[1], func);
         if (ret.has_value())
             return std::move(ret.value());
     }
-    return XCNLRuntime::EvaluateFunc(call, metas);
+    return XCNLRuntime::EvaluateFunc(func);
 }
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
@@ -243,7 +246,7 @@ std::unique_ptr<xcomp::BlockCookie> NLDXRuntime::PrepareInstance(const xcomp::Ou
     return std::make_unique<KernelCookie>(block, static_cast<uint8_t>(kerId));
 }
 
-void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const Arg* source)
+void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncPack& meta, const Arg* source)
 {
     using xcomp::InstanceArgInfo;
     using TexTypes = xcomp::InstanceArgInfo::TexTypes;
@@ -304,7 +307,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     {                                                                                       \
         if (!ParseNumber(extra.substr(pfx_##name.size()), name))                            \
             NLRT_THROW_EX(FMTSTR(u"BufArg [{}] has invalid flag on [{}]: [{}]."sv,          \
-                arg.Name, U"" STRINGIZE(name) ""sv, extra), &meta);                         \
+                arg.Name, U"" STRINGIZE(name) ""sv, extra), meta);                          \
     }
             CHECK_FLAG(space)
             else CHECK_FLAG(reg)
@@ -340,7 +343,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     case InstanceArgInfo::Types::Simple:
     {
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
-            NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), &meta);
+            NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
         const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
         Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
     } return;
@@ -419,7 +422,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
 //    return txt;
 //}
 
-void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx)
+void NLDXRuntime::HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx)
 {
     auto& kerCtx = static_cast<KernelContext&>(ctx);
     const auto& fname = meta.GetName();
@@ -429,32 +432,32 @@ void NLDXRuntime::HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContex
         {
         HashCase(subName, U"RequestWorkgroupSize")
         {
-            const auto args = EvaluateFuncArgs<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
-            const auto x = args[0].GetUint().value_or(1),
-                y = args[1].GetUint().value_or(1),
-                z = args[2].GetUint().value_or(1);
+            ThrowByParamTypes<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
+            const auto x = meta.Params[0].GetUint().value_or(1),
+                y = meta.Params[1].GetUint().value_or(1),
+                z = meta.Params[2].GetUint().value_or(1);
             kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
             kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"[numthreads({}, {}, {})]"sv, x, y, z));
         } return;
         HashCase(subName, U"UseGroupId")
         {
-            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::String, ArgLimits::AtMost);
-            kerCtx.GroupIdVar = arg.GetStr().value_or(U"dxu_groupid"sv);
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.GroupIdVar = meta.Params.empty() ? U"dxu_groupid"sv : meta.Params[0].GetStr().value();
         } return;
         HashCase(subName, U"UseItemId")
         {
-            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::String, ArgLimits::AtMost);
-            kerCtx.ItemIdVar = arg.GetStr().value_or(U"dxu_itemid"sv);
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.ItemIdVar = meta.Params.empty() ? U"dxu_itemid"sv : meta.Params[0].GetStr().value();
         } return;
         HashCase(subName, U"UseGlobalId")
         {
-            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::String, ArgLimits::AtMost);
-            kerCtx.GlobalIdVar = arg.GetStr().value_or(U"dxu_globalid"sv);
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.GlobalIdVar = meta.Params.empty() ? U"dxu_globalid"sv : meta.Params[0].GetStr().value();
         } return;
         HashCase(subName, U"UseTId")
         {
-            const auto arg = EvaluateFirstFuncArg(meta, Arg::Type::String, ArgLimits::AtMost);
-            kerCtx.TIdVar = arg.GetStr().value_or(U"dxu_threadid"sv);
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.TIdVar = meta.Params.empty() ? U"dxu_threadid"sv : meta.Params[0].GetStr().value();
         } return;
         default:
             break;

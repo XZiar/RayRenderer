@@ -194,8 +194,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         return {};
     }
 
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall>) override
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& call) override
     {
         auto& Runtime = static_cast<Runtime_&>(runtime);
         const std::u32string_view name = call.FullFuncName();
@@ -215,7 +214,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         return {};
     }
 
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx) override
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override
     {
         Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
         auto& Runtime = static_cast<Runtime_&>(runtime);
@@ -224,8 +223,8 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         {
             if (AllowDebug)
             {
-                const auto size = Runtime.EvaluateFirstFuncArg(meta, Arg::Type::Integer, ArgLimits::AtMost).GetUint();
-                DebugBufferSize = gsl::narrow_cast<uint32_t>(size.value_or(512));
+                Runtime.ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer });
+                DebugBufferSize = meta.Params.empty() ? 512u : gsl::narrow_cast<uint32_t>(meta.Params[0].GetUint().value());
             }
             else
                 Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");

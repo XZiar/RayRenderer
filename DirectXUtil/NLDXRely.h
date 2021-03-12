@@ -122,12 +122,12 @@ protected:
 
     void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
 
-    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) override;
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
     [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
-    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg*) final;
-    void HandleInstanceMeta(const FuncCall& meta, xcomp::InstanceContext& ctx) override;
+    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) override;
+    void HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
     void OutputStruct  (xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;

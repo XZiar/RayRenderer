@@ -307,30 +307,62 @@ EvaluateContext::~EvaluateContext()
 BasicEvaluateContext::~BasicEvaluateContext()
 { }
 
+std::pair<uint32_t, uint32_t> BasicEvaluateContext::InsertCaptures(
+    common::span<std::pair<std::u32string_view, Arg>> capture)
+{
+    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncCapturedArgs.size()),
+        size = gsl::narrow_cast<uint32_t>(capture.size());
+    LocalFuncCapturedArgs.reserve(static_cast<size_t>(offset) + size);
+    for (auto& [name, arg] : capture)
+    {
+        LocalFuncCapturedArgs.push_back(std::move(arg));
+    }
+    return { offset, size };
+}
+template<typename T>
+std::pair<uint32_t, uint32_t> BasicEvaluateContext::InsertNames(
+    common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const T> argNames)
+{
+    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
+        size = gsl::narrow_cast<uint32_t>(capture.size() + argNames.size());
+    LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
+    for (const auto& [name, arg] : capture)
+    {
+        LocalFuncArgNames.push_back(name);
+    }
+    for (const auto& argName : argNames)
+    {
+        if constexpr(std::is_same_v<T, Expr>)
+            LocalFuncArgNames.push_back(argName.GetVar<Expr::Type::Var>());
+        else
+            LocalFuncArgNames.push_back(argName);
+    }
+    return { offset, size };
+}
+
 LocalFunc BasicEvaluateContext::LookUpFunc(std::u32string_view name) const
 {
-    const auto [ptr, offset, size] = LookUpFuncInside(name);
-    return { ptr, common::to_span(LocalFuncArgNames).subspan(offset, size) };
+    const auto [ptr, argRange, nameRange] = LookUpFuncInside(name);
+    return 
+    { 
+        ptr, 
+        common::to_span(LocalFuncArgNames).subspan(nameRange.first, nameRange.second),
+        common::to_span(LocalFuncCapturedArgs).subspan(argRange.first, argRange.second)
+    };
 }
 
-bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const Expr> args)
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args)
 {
-    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
-        size = gsl::narrow_cast<uint32_t>(args.size());
-    LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
-    for (const auto& arg : args)
-        LocalFuncArgNames.emplace_back(arg.GetVar<Expr::Type::Var>());
-    return SetFuncInside(block->Name, { block, offset, size });
+    const auto argRange  = InsertCaptures(capture);
+    const auto nameRange = InsertNames(capture, args);
+    return SetFuncInside(block->Name, { block, argRange, nameRange });
 }
 
-bool BasicEvaluateContext::SetFunc(const Block* block, common::span<const std::u32string_view> args)
+bool BasicEvaluateContext::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args)
 {
-    const uint32_t offset = gsl::narrow_cast<uint32_t>(LocalFuncArgNames.size()),
-        size = gsl::narrow_cast<uint32_t>(args.size());
-    LocalFuncArgNames.reserve(static_cast<size_t>(offset) + size);
-    for (const auto& name : args)
-        LocalFuncArgNames.emplace_back(name);
-    return SetFuncInside(block->Name, { block, offset, size });
+    const auto argRange = InsertCaptures(capture);
+    const auto nameRange = InsertNames(capture, args);
+    return SetFuncInside(block->Name, { block, argRange, nameRange });
 }
 
 
@@ -346,7 +378,7 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
 {
     const auto it = LocalFuncMap.find(name);
     if (it == LocalFuncMap.end())
-        return { nullptr, 0, 0 };
+        return { nullptr, {0,0}, {0,0} };
     return it->second;
 }
 
@@ -397,7 +429,7 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
         {
             return val;
         }
-    return { nullptr, 0, 0 };
+    return { nullptr, {0,0}, {0,0} };
 }
 
 ArgLocator CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
@@ -784,7 +816,7 @@ void NailangRuntimeBase::ThrowByArgCount(const FuncCall& call, const size_t coun
         prefix = U"at least"; break;
     }
     NLRT_THROW_EX(FMTSTR(u"Func [{}] requires {} [{}] args, which gives [{}].", call.FullFuncName(), prefix, count, call.Args.size()),
-        detail::ExceptionTarget{}, &call);
+        detail::ExceptionTarget{}, call);
 }
 
 void NailangRuntimeBase::ThrowByParamTypes(const FuncPack& func, common::span<const Arg::Type> types, size_t offset, const ArgLimits limit) const
@@ -1278,20 +1310,20 @@ LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
     }
     return RootContext->LookUpFunc(name);
 }
-bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const Expr> args)
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args)
 {
     if (!CurFrame)
         NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
     else
-        return CurFrame->Context->SetFunc(block, args);
+        return CurFrame->Context->SetFunc(block, capture, args);
     return false;
 }
-bool NailangRuntimeBase::SetFunc(const Block* block, common::span<const std::u32string_view> args)
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args)
 {
     if (!CurFrame)
         NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
     else
-        return CurFrame->Context->SetFunc(block, args);
+        return CurFrame->Context->SetFunc(block, capture, args);
     return false;
 }
 
@@ -1339,12 +1371,25 @@ NailangRuntimeBase::MetaFuncResult NailangRuntimeBase::HandleMetaFunc(const Func
         for (const auto& arg : meta.Args)
         {
             if (arg.TypeData != Expr::Type::Var)
-                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, &meta);
+                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg must be [LateBindVar]"sv, arg, meta);
             const auto& var = arg.GetVar<Expr::Type::Var>();
             if (HAS_FIELD(var.Info, LateBindVar::VarInfo::PrefixMask))
-                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, &meta);
+                NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, meta);
         }
-        SetFunc(content.Get<Block>(), meta.Args);
+        std::vector<std::pair<std::u32string_view, Arg>> captures;
+        for (auto m : allMetas)
+        {
+            if (m->GetName() == U"Capture"sv)
+            {
+                CheckFuncArgs<1, ArgLimits::AtLeast>(*m, { Expr::Type::Var });
+                auto argName = m->Args[0].GetVar<Expr::Type::Var>();
+                if (m->Args.size() > 1 && HAS_FIELD(argName.Info, LateBindVar::VarInfo::PrefixMask))
+                    NLRT_THROW_EX(u"MetaFunc[Capture]'s arg name must not contain [Root|Local] flag"sv, *m, meta);
+                captures.emplace_back(argName.Name, EvaluateExpr(m->Args.back()));
+                m.SetUsed();
+            }
+        }
+        SetFunc(content.Get<Block>(), captures, meta.Args);
         return MetaFuncResult::Skip;
     }
     auto params = EvalFuncAllArgs(meta);
@@ -1470,14 +1515,14 @@ Arg NailangRuntimeBase::EvaluateFunc(const FuncCall& call, common::span<const Fu
 
 Arg NailangRuntimeBase::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
 {
-    ThrowByArgCount(pack, func.ArgNames.size());
-
+    ThrowByArgCount(pack, func.ArgNames.size() - func.CapturedArgs.size());
     auto newCtx = ConstructEvalContext();
-    for (const auto& [varName, arg] : common::linq::FromIterable(func.ArgNames).Pair(common::linq::FromIterable(pack.Params)))
-    {
-        newCtx->LocateArg(varName, true).Set(arg);
-    }
-    auto newFrame = PushFrame(std::move(newCtx), FrameFlags::FuncCall);
+    size_t i = 0;
+    for (; i < func.CapturedArgs.size(); ++i)
+        newCtx->LocateArg(func.ArgNames[i], true).Set(func.CapturedArgs[i]);
+    for (size_t j = 0; i < func.ArgNames.size(); ++i, ++j)
+        newCtx->LocateArg(func.ArgNames[i], true).Set(std::move(pack.Params[j]));
+    auto oldFrame = PushFrame(std::move(newCtx), FrameFlags::FuncCall);
     CurFrame->BlockScope = func.Body;
     CurFrame->MetaScope  = pack.Metas;
     ExecuteFrame();

@@ -24,6 +24,7 @@ using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::FuncEvalPack;
+using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
@@ -784,16 +785,15 @@ void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
     {
         ext->BeginInstance(*this, kerCtx);
     }
-
-    for (auto meta : cookie.Block.MetaFunc)
+    xziar::nailang::MetaSet allMetas(cookie.Block.MetaFunc);
+    for (auto meta : allMetas)
     {
-        const auto metaIf = HandleMetaIf(meta);
-        if (metaIf.index() == 0)
+        const auto metaIf = HandleMetaIf(*meta);
+        if (metaIf.index() == 1)
             continue;
-        if (metaIf.index() == 2)
-            meta = { std::get<2>(metaIf).Ptr(), meta.Args.subspan(2), meta.Position };
-        auto args = EvalFuncAllArgs(meta);
-        FuncPack pack(meta, args);
+        const auto func = metaIf.index() == 0 ? *meta : FuncCall{ std::get<2>(metaIf).Ptr(), meta->Args.subspan(2), meta->Position };
+        auto args = EvalFuncAllArgs(func);
+        MetaEvalPack pack(func, args, allMetas, cookie.Block.Block);
         HandleInstanceMeta(pack, kerCtx);
     }
 
@@ -896,6 +896,16 @@ void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
     ProcessRawBlock(block, metas);
 }
 
+XCNLRuntime::MetaFuncResult XCNLRuntime::HandleMetaFunc(const FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas)
+{
+    const auto metaName = meta.FullFuncName();
+    if (metaName == U"xcomp.PreAssign")
+    {
+        return MetaFuncResult::Unhandled;
+    }
+    return NailangRuntimeBase::HandleMetaFunc(meta, target, allMetas);
+}
+
 Arg XCNLRuntime::EvaluateFunc(FuncEvalPack& func)
 {
     if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
@@ -963,7 +973,7 @@ std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBloc
     return std::move(blk.ExtraInfo);
 }
 
-void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncCall&, const xziar::nailang::Arg*)
+void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncPack&, const xziar::nailang::Arg*)
 { }
 
 InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, FuncPack& func)
@@ -1033,7 +1043,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
     return { std::move(args), std::move(name), std::move(dtype), argType, texType };
 }
 
-void XCNLRuntime::HandleInstanceMeta(FuncPack& meta, InstanceContext& ctx)
+void XCNLRuntime::HandleInstanceMeta(MetaEvalPack& meta, InstanceContext& ctx)
 {
     for (const auto& ext : XCContext.Extensions)
     {

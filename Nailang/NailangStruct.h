@@ -355,7 +355,8 @@ public:
     template<Type T>
     [[nodiscard]] constexpr decltype(auto) GetVar() const noexcept
     {
-        Expects(TypeData == T);if constexpr (T == Type::Var)
+        Expects(TypeData == T);
+        if constexpr (T == Type::Var)
             return LateBindVar(reinterpret_cast<const char32_t*>(Data1.Uint), Data2, static_cast<LateBindVar::VarInfo>(Data3));
         else if constexpr (T == Type::Str)
             return std::u32string_view{ reinterpret_cast<const char32_t*>(Data1.Uint), Data2 };

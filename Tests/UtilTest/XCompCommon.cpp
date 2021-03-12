@@ -84,18 +84,18 @@ public:
 
     void  BeginXCNL(XCNLRuntime&) override { }
     void FinishXCNL(XCNLRuntime&) override { }
-    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, const FuncCall& call, common::span<const FuncCall>) override
+    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& func) override
     {
         auto& Runtime = static_cast<RuntimeCaller&>(runtime);
-        const auto& fname = call.GetName();
+        const auto& fname = func.GetName();
         if (fname[0] == U"xcstub"sv)
         {
             const auto sub = fname[1];
             if (sub == U"AddRun"sv)
             {
-                const auto args = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::String, Arg::Type::String });
-                const auto name = args[0].GetStr().value();
-                const auto kerName = common::str::to_string(args[1].GetStr().value(), Charset::UTF8);
+                Runtime.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
+                const auto name = func.Params[0].GetStr().value();
+                const auto kerName = common::str::to_string(func.Params[1].GetStr().value(), Charset::UTF8);
                 const auto cookie = Helper.TryFindKernel(Context, kerName);
                 if (!cookie.has_value())
                     COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
@@ -105,37 +105,39 @@ public:
             }
             else if (sub == U"BufArg"sv)
             {
-                const auto size = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+                const auto size = Runtime.EvaluateFirstFuncArg(func, Arg::Type::Integer).GetUint().value();
                 return ArgWrapperHandler::CreateBuffer(gsl::narrow_cast<uint32_t>(size));
             }
             else if (sub == U"ImgArg"sv)
             {
-                const auto args = Runtime.EvaluateFuncArgs<2>(call, { Arg::Type::Integer, Arg::Type::Integer });
-                const auto width = gsl::narrow_cast<uint32_t>(args[0].GetUint().value());
-                const auto height = gsl::narrow_cast<uint32_t>(args[1].GetUint().value());
+                Runtime.ThrowByParamTypes<2>(func, { Arg::Type::Integer, Arg::Type::Integer });
+                const auto width  = gsl::narrow_cast<uint32_t>(func.Params[0].GetUint().value());
+                const auto height = gsl::narrow_cast<uint32_t>(func.Params[1].GetUint().value());
                 return ArgWrapperHandler::CreateImage(width, height);
             }
             else if (sub == U"ValArg"sv)
             {
                 const auto type = fname[2];
+                Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
                 if (type == U"u8")
                 {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal8(gsl::narrow_cast<uint8_t>(val));
                 }
                 else if (type == U"u16")
                 {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal16(gsl::narrow_cast<uint16_t>(val));
                 }
                 else if (type == U"u32")
                 {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal32(gsl::narrow_cast<uint32_t>(val));
                 }
                 else if (type == U"u64")
                 {
-                    const auto val = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Integer).GetUint().value();
+                    const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal64(gsl::narrow_cast<uint64_t>(val));
                 }
                 COMMON_THROW(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type));

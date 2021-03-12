@@ -45,12 +45,11 @@ struct NLCLSubgroupExtension : public NLCLExtension
     
     void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
     void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext& ctx) override;
+    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
 
     [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, 
         const common::span<const std::u32string_view> args) override;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& call,
-        common::span<const xziar::nailang::FuncCall>) override;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& call) override;
 
     static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
     static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);

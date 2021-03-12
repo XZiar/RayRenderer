@@ -351,7 +351,7 @@ public:
     virtual void FinishXCNL(XCNLRuntime&) { }
     virtual void  BeginInstance(XCNLRuntime&, InstanceContext&) { } 
     virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
-    virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::FuncCall&, InstanceContext&) { }
+    virtual void InstanceMeta(XCNLRuntime&, const xziar::nailang::MetaEvalPack&, InstanceContext&) { }
     [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRuntime&, std::u32string_view, U32StrSpan)
     {
         return {};
@@ -501,13 +501,14 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, U32StrSpan args) override;
 
     void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(const FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) override;
     xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
 
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     [[nodiscard]] virtual std::unique_ptr<OutputBlock::BlockInfo> PrepareBlockInfo(OutputBlock& blk);
     [[nodiscard]] virtual std::unique_ptr<BlockCookie> PrepareInstance(const OutputBlock& block) = 0;
-    virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const FuncCall& meta, const xziar::nailang::Arg* source);
-    virtual void HandleInstanceMeta(xziar::nailang::FuncPack& meta, InstanceContext& ctx);
+    virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source);
+    virtual void HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta, InstanceContext& ctx);
     virtual void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
     virtual void OutputStruct   (BlockCookie& cookie, std::u32string& dst) = 0;
     virtual void OutputInstance (BlockCookie& cookie, std::u32string& dst) = 0;
@@ -527,6 +528,7 @@ struct XCNLExtension::RuntimeCaller : public XCNLRuntime
 {
 public:
     using XCNLRuntime::HandleException;
+    using XCNLRuntime::ThrowByParamTypes;
     using XCNLRuntime::EvaluateFuncArgs;
     using XCNLRuntime::EvaluateFirstFuncArg;
 };

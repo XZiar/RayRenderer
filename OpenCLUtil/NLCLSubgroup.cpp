@@ -38,6 +38,8 @@ using xcomp::ReplaceResult;
 using xziar::nailang::Arg;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FuncCall;
+using xziar::nailang::FuncEvalPack;
+using xziar::nailang::MetaEvalPack;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
@@ -67,21 +69,21 @@ void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::I
     SubgroupSize = 0;
 }
 
-void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
+void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext&)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
     if (meta.GetName() == U"oclu.SubgroupSize"sv || meta.GetName() == U"xcomp.SubgroupSize"sv)
     {
-        const auto sgSize = Runtime.EvaluateFirstFuncArg(meta, Arg::Type::Integer).GetUint().value();
-        SubgroupSize = gsl::narrow_cast<uint8_t>(sgSize);
+        Runtime.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
+        SubgroupSize = gsl::narrow_cast<uint8_t>(meta.Params[0].GetUint().value());
     }
     else if (meta.GetName() == U"oclu.SubgroupExt"sv)
     {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context,
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
+        Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String }); 
+        const auto mimic = meta.Params.size() >= 1 ? meta.Params[0].GetStr().value() : std::u32string_view{};
+        const auto args  = meta.Params.size() >= 2 ? meta.Params[1].GetStr().value() : std::u32string_view{};
+        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context, mimic, args);
     }
 }
 
@@ -194,25 +196,24 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
     return {};
 }
 
-std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>)
+std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& func)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (call.GetName()== U"oclu.AddSubgroupPatch"sv)
+    if (func.GetName() == U"oclu.AddSubgroupPatch"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        Runtime.ThrowByArgCount(call, 2, ArgLimits::AtLeast);
-        const auto args = Runtime.EvaluateFuncArgs<4, ArgLimits::AtMost>(call, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
-        const auto isShuffle = args[0].GetBool().value();
-        const auto vstr  = args[1].GetStr().value();
+        Runtime.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        Runtime.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
+        Runtime.ThrowByParamTypes<4, ArgLimits::AtMost>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        const auto isShuffle = func.Params[0].GetBool().value();
+        const auto vstr  = func.Params[1].GetStr().value();
         const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
 
         KernelContext kerCtx;
         SubgroupSize = 32;
-        const auto provider = Generate(Logger, Runtime.Context,
-            args[2].GetStr().value_or(std::u32string_view{}),
-            args[3].GetStr().value_or(std::u32string_view{}));
+        const auto mimic = func.Params.size() >= 3 ? func.Params[3].GetStr().value() : std::u32string_view{};
+        const auto args  = func.Params.size() >= 4 ? func.Params[4].GetStr().value() : std::u32string_view{};
+        const auto provider = Generate(Logger, Runtime.Context, mimic, args);
         const auto ret = isShuffle ?
             provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
             provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);

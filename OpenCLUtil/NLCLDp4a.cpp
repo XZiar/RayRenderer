@@ -9,6 +9,8 @@ using xcomp::ReplaceResult;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::Arg;
 using xziar::nailang::FuncCall;
+using xziar::nailang::FuncEvalPack;
+using xziar::nailang::MetaEvalPack;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
@@ -33,15 +35,15 @@ void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::Insta
     Provider.reset();
 }
 
-void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::FuncCall& meta, xcomp::InstanceContext&)
+void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const MetaEvalPack& meta, xcomp::InstanceContext&)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
-        const auto args = Runtime.EvaluateFuncArgs<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        Provider = Generate(
-            args[0].GetStr().value_or(std::u32string_view{}),
-            args[1].GetStr().value_or(std::u32string_view{}));
+        Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        const auto mimic = meta.Params.size() >= 1 ? meta.Params[0].GetStr().value() : std::u32string_view{};
+        const auto args  = meta.Params.size() >= 2 ? meta.Params[1].GetStr().value() : std::u32string_view{};
+        Provider = Generate(mimic, args);
     }
 }
 
@@ -71,15 +73,15 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u
     return {};
 }
 
-std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, const FuncCall& call,
-    common::span<const FuncCall>)
+std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, FuncEvalPack& func)
 {
     auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     using namespace xziar::nailang;
-    if (call.GetName()== U"oclu.IntelDp4a"sv)
+    if (func.GetName() == U"oclu.IntelDp4a"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-        HasIntelDp4a = Runtime.EvaluateFirstFuncArg(call, Arg::Type::Bool).GetBool().value();
+        Runtime.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
+        HasIntelDp4a = func.Params[0].GetBool().value();
         return Arg{};
     }
     return {};

@@ -71,6 +71,9 @@
   <Type Name="xziar::nailang::BinaryExpr">
     <DisplayString>{{ Binary[{Operator,en}] }}</DisplayString>
   </Type>
+  <Type Name="xziar::nailang::TernaryExpr">
+    <DisplayString>{{ Ternary }}</DisplayString>
+  </Type>
   <Type Name="xziar::nailang::SubQuery">
     <DisplayString>{{ SubQuery [{Queries.storage_.size_}] queries }}</DisplayString>
     <Expand>
@@ -191,9 +194,10 @@
     </Expand>
   </Type>
   <Type Name="xziar::nailang::EvaluateContext::LocalFunc">
-    <DisplayString>{{ LocalFunc[{Body->Name,s32}, {ArgNames.storage_.size_} args] }}</DisplayString>
+    <DisplayString>{{ LocalFunc[{Body->Name,s32}, {CapturedArgs.storage_.size_} captures, {ArgNames.storage_.size_ - CapturedArgs.storage_.size_} args] }}</DisplayString>
     <Expand>
       <Item Name="[FuncBlock]">*Body</Item>
+      <Item Name="[Captures]">CapturedArgs</Item>
       <Item Name="[ArgNames]">ArgNames</Item>
     </Expand>
   </Type>
@@ -264,10 +268,9 @@
     <DisplayString Condition="Target.index() == 0">{{ Empty }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 2">{{ Arg [{Target._Tail._Tail._Head}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 3">{{ Expr [{Target._Tail._Tail._Head}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 4">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 5">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Tail._Head.Name,s32}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 6">{{ RawBlock [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
-    <DisplayString Optional="true" Condition="Target.index() == 7">{{ Block [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 4">{{ FuncCall [{Target._Tail._Tail._Tail._Tail._Head.Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 5">{{ RawBlock [{Target._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
+    <DisplayString Optional="true" Condition="Target.index() == 6">{{ Block [{Target._Tail._Tail._Tail._Tail._Tail._Tail._Head->Name,s32}] }}</DisplayString>
     <DisplayString Optional="true" Condition="Target.index() == 1 &amp;&amp; Target._Tail._Head.GetType() == Statement::Type::FuncCall">
       {{ FuncCall [Target._Tail._Head.Get&lt;Statement::Type::FuncCall&gt;()->Name,s32] }}
     </DisplayString>
