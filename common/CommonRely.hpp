@@ -305,58 +305,6 @@ struct clz::make_enabler : public clz           \
 
 
 
-/* param pack helper */
-
-#include <tuple>
-namespace common
-{
-struct ParamPack
-{
-    template<typename T, typename... Ts>
-    struct FirstType
-    {
-        using Type = T;
-    };
-
-#if COMMON_CPP_17
-    template<typename... Ts>
-    struct LastType
-    {
-        using Type = typename decltype((FirstType<Ts>{}, ...))::Type;
-    };
-#else
-    template <typename... Args>
-    struct LastType;
-    template <typename T>
-    struct LastType<T>
-    {
-        using Type = T;
-    };
-    template <typename T, typename... Args>
-    struct LastType<T, Args...>
-    {
-        using Type = typename LastType<Args...>::Type;
-    };
-#endif
-
-    template<size_t N, typename... Ts>
-    struct NthType
-    {
-        using Tuple = std::tuple<FirstType<Ts>...>;
-        using Type = typename std::tuple_element<N, Tuple>::type::Type;
-    };
-};
-
-template<typename F>
-inline constexpr auto UnpackedFunc(F&& func) noexcept
-{
-    return[=](auto&& tuple) { return std::apply(func, tuple); };
-}
-
-}
-
-
-
 namespace common
 {
 
@@ -693,57 +641,4 @@ template<typename X>
 inline constexpr bool CanToSpan = !std::is_same_v<decltype(to_span<X&, detail::SkipToSpan>(std::declval<X&>())), void>;
 }
 
-
-
-/* variant extra support */
-
-#   include <variant>
-namespace common
-{
-#if defined(__cpp_lib_variant)
-template <typename> struct variant_tag { };
-template <typename T, typename... Ts>
-inline constexpr size_t get_variant_index(variant_tag<std::variant<Ts...>>) noexcept
-{
-    return std::variant<variant_tag<Ts>...>(variant_tag<T>()).index();
-}
-template <typename T, typename V>
-inline constexpr size_t get_variant_index_v() noexcept
-{
-    return get_variant_index<T>(variant_tag<V>());
-}
-
-template<typename V>
-struct VariantHelper
-{
-    static constexpr auto Indexes = std::make_index_sequence<std::variant_size_v<V>>{};
-    template<typename U, size_t... I>
-    static constexpr bool Contains_(std::index_sequence<I...>) noexcept
-    {
-        return (std::is_same_v<std::variant_alternative_t<I, V>, U> || ...);
-    }
-    template<typename U>
-    static constexpr bool Contains() noexcept
-    {
-        return Contains_<U>(Indexes);
-    }
-    template<typename V2, size_t... I>
-    static constexpr bool ContainsAll_(std::index_sequence<I...>) noexcept
-    {
-        return (Contains<std::variant_alternative_t<I, V2>>() && ...);
-    }
-    template<typename V2>
-    static constexpr bool ContainsAll() noexcept
-    {
-        return ContainsAll_<V2>(std::make_index_sequence<std::variant_size_v<V2>>{});
-    }
-    template<typename V2>
-    static constexpr V Convert(V2&& var)
-    {
-        static_assert(ContainsAll<V2>(), "Not all types in V2 exists in V");
-        return std::visit([](auto&& arg) -> V { return std::forward<decltype(arg)>(arg); }, var);
-    }
-};
-#endif
-}
 

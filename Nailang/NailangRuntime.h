@@ -2,6 +2,7 @@
 #include "NailangStruct.h"
 #include "common/Exceptions.hpp"
 #include "common/StringPool.hpp"
+#include "common/STLEx.hpp"
 #include <map>
 #include <vector>
 #include <memory>
@@ -276,6 +277,84 @@ struct FuncPack : public FuncCall
         FuncCall(call), Params(params) { }
     auto NamePart(size_t idx) const { return Name->GetPart(idx); }
     constexpr size_t NamePartCount() const noexcept { return Name->PartCount; }
+    common::Optional<Arg&> TryGet(size_t idx) noexcept
+    {
+        if (idx < Params.size())
+            return { std::in_place_t{}, &Params[idx] };
+        else
+            return {};
+    }
+    common::Optional<const Arg&> TryGet(size_t idx) const noexcept
+    {
+        if (idx < Params.size())
+            return { std::in_place_t{}, &Params[idx] };
+        else
+            return {};
+    }
+    template<typename... Args, typename R>
+    common::OptionalT<R> TryGet(size_t idx, R(Arg::* func)(Args...), Args&&... args)
+    {
+        if (idx < Params.size())
+            return { common::detail::OptionalT<R>::Create((Params[idx].*func)(std::forward<Args>(args)...)) };
+        else
+            return {};
+    }
+    template<typename... Args, typename R>
+    common::OptionalT<R> TryGet(size_t idx, R(Arg::* func)(Args...) noexcept, Args&&... args) noexcept
+    {
+        if (idx < Params.size())
+            return { common::detail::OptionalT<R>::Create((Params[idx].*func)(std::forward<Args>(args)...)) };
+        else
+            return {};
+    }
+    template<typename... Args, typename R>
+    common::OptionalT<R> TryGet(size_t idx, R(Arg::* func)(Args...) const, Args&&... args) const
+    {
+        if (idx < Params.size())
+            return { common::detail::OptionalT<R>::Create((Params[idx].*func)(std::forward<Args>(args)...)) };
+        else
+            return {};
+    }
+    template<typename... Args, typename R>
+    common::OptionalT<R> TryGet(size_t idx, R(Arg::* func)(Args...) const noexcept, Args&&... args) const noexcept
+    {
+        if (idx < Params.size())
+            return { common::detail::OptionalT<R>::Create((Params[idx].*func)(std::forward<Args>(args)...)) };
+        else
+            return {};
+    }
+    template<typename... Args, typename R>
+    R TryGetOr(size_t idx, R(Arg::* func)(Args...), R def, Args&&... args)
+    {
+        if (idx < Params.size())
+            return (Params[idx].*func)(std::forward<Args>(args)...);
+        else
+            return std::move(def);
+    }
+    template<typename... Args, typename R>
+    R TryGetOr(size_t idx, R(Arg::* func)(Args...) noexcept, R def, Args&&... args) noexcept
+    {
+        if (idx < Params.size())
+            return (Params[idx].*func)(std::forward<Args>(args)...);
+        else
+            return std::move(def);
+    }
+    template<typename... Args, typename R>
+    R TryGetOr(size_t idx, R(Arg::* func)(Args...) const, R def, Args&&... args) const
+    {
+        if (idx < Params.size())
+            return (Params[idx].*func)(std::forward<Args>(args)...);
+        else
+            return std::move(def);
+    }
+    template<typename... Args, typename R>
+    R TryGetOr(size_t idx, R(Arg::* func)(Args...) const noexcept, R def, Args&&... args) const noexcept
+    {
+        if (idx < Params.size())
+            return (Params[idx].*func)(std::forward<Args>(args)...);
+        else
+            return std::move(def);
+    }
 };
 struct FuncEvalPack : public FuncPack
 {
@@ -292,8 +371,8 @@ private:
         size_t Index;
         constexpr const FuncCall* operator->() const noexcept { return &Host.Metas[Index]; }
         constexpr const FuncCall& operator*()  const noexcept { return  Host.Metas[Index]; }
-        bool IsUsed() const noexcept { return Host.AccessBitmap[Index]; }
-        void SetUsed() noexcept { Host.AccessBitmap[Index] = true; }
+        bool IsUsed() const noexcept { return Host.AccessBitmap.Get(Index); }
+        void SetUsed() noexcept { Host.AccessBitmap.Set(Index, true); }
     };
     [[nodiscard]] constexpr MetaFuncWrapper Get(size_t index) noexcept
     {
@@ -301,7 +380,7 @@ private:
     }
     using ItType = common::container::IndirectIterator<MetaSet, MetaFuncWrapper, &MetaSet::Get>;
     friend ItType;
-    std::vector<bool> AccessBitmap;
+    common::SmallBitset AccessBitmap;
 public:
     common::span<const FuncCall> Metas;
     MetaSet(common::span<const FuncCall> metas) noexcept : AccessBitmap(metas.size(), false), Metas(metas)
@@ -388,6 +467,12 @@ protected:
     void ThrowByParamTypes(const FuncPack& func, const std::array<Arg::Type, N>& types, size_t offset = 0) const
     {
         ThrowByParamTypes(func, types, offset, Limit);
+    }
+    template<size_t Min, size_t Max>
+    void ThrowByParamTypes(const FuncPack& func, const std::array<Arg::Type, Max>& types, size_t offset = 0) const
+    {
+        ThrowByArgCount(func, Min, ArgLimits::AtLeast);
+        ThrowByParamTypes(func, types, offset, ArgLimits::AtMost);
     }
     void ThrowByArgType(const FuncCall& call, const Expr::Type type, size_t idx) const;
     void ThrowByArgType(const Arg& arg, const Arg::Type type) const;

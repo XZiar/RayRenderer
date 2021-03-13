@@ -81,8 +81,8 @@ void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xzia
     else if (meta.GetName() == U"oclu.SubgroupExt"sv)
     {
         Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String }); 
-        const auto mimic = meta.Params.size() >= 1 ? meta.Params[0].GetStr().value() : std::u32string_view{};
-        const auto args  = meta.Params.size() >= 2 ? meta.Params[1].GetStr().value() : std::u32string_view{};
+        const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
+        const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
         Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context, mimic, args);
     }
 }
@@ -203,16 +203,16 @@ std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, 
     if (func.GetName() == U"oclu.AddSubgroupPatch"sv)
     {
         Runtime.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
-        Runtime.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
-        Runtime.ThrowByParamTypes<4, ArgLimits::AtMost>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        //Runtime.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
+        Runtime.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = func.Params[0].GetBool().value();
         const auto vstr  = func.Params[1].GetStr().value();
         const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
 
         KernelContext kerCtx;
         SubgroupSize = 32;
-        const auto mimic = func.Params.size() >= 3 ? func.Params[3].GetStr().value() : std::u32string_view{};
-        const auto args  = func.Params.size() >= 4 ? func.Params[4].GetStr().value() : std::u32string_view{};
+        const auto mimic = func.TryGet(2, &Arg::GetStr).Or({});
+        const auto args  = func.TryGet(3, &Arg::GetStr).Or({});
         const auto provider = Generate(Logger, Runtime.Context, mimic, args);
         const auto ret = isShuffle ?
             provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :

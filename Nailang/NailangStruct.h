@@ -25,6 +25,7 @@
 #include "common/StringPool.hpp"
 #include "common/SharedString.hpp"
 #include "common/EasyIterator.hpp"
+#include "common/STLEx.hpp"
 #ifndef HALF_ENABLE_F16C_INTRINSICS
 #   define HALF_ENABLE_F16C_INTRINSICS __F16C__
 #endif

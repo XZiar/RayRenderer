@@ -41,8 +41,8 @@ void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const MetaEval
     if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
         Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
-        const auto mimic = meta.Params.size() >= 1 ? meta.Params[0].GetStr().value() : std::u32string_view{};
-        const auto args  = meta.Params.size() >= 2 ? meta.Params[1].GetStr().value() : std::u32string_view{};
+        const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
+        const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
         Provider = Generate(mimic, args);
     }
 }

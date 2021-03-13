@@ -3,6 +3,7 @@
 #include "ContainerEx.hpp"
 #include "Exceptions.hpp"
 #include "Linq2.hpp"
+#include "STLEx.hpp"
 #include "3DBasic/miniBLAS.hpp"
 #include <string>
 #include <string_view>

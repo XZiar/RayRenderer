@@ -904,6 +904,7 @@ XCNLRuntime::MetaFuncResult XCNLRuntime::HandleMetaFunc(const FuncCall& meta, co
     HashCase(name, U"xcomp.ReplaceFunction")    return MetaFuncResult::Unhandled;
     HashCase(name, U"xcomp.Replace")            return MetaFuncResult::Unhandled;
     HashCase(name, U"xcomp.PreAssign")          return MetaFuncResult::Unhandled;
+    HashCase(name, U"xcomp.TemplateArgs")       return MetaFuncResult::Unhandled;
     default: break;
     }
     return NailangRuntimeBase::HandleMetaFunc(meta, target, allMetas);
@@ -1065,7 +1066,7 @@ void XCNLRuntime::HandleInstanceMeta(MetaEvalPack& meta, InstanceContext& ctx)
         {
             if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
                 NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, 
-                    meta.Params.size() == 1 ? meta.Params[0].GetTypeName() : U"<empty>"sv), meta);
+                    meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
             const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
             HandleInstanceArg(info, ctx, meta, &meta.Params[0]);
         }

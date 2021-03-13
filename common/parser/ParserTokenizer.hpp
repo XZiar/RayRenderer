@@ -206,7 +206,7 @@ struct ASCIIChecker : ASCIICheckerNBit<1>
             if (ch >= 0) // char is signed
             {
                 auto& ele = LUT[ch / EleBits];
-                const auto obj = EleType(1) << (ch % EleBits);
+                const auto obj = KeepMask << (ch % EleBits);
                 if constexpr (Result)
                     ele |= obj;
                 else
@@ -222,8 +222,8 @@ struct ASCIIChecker : ASCIICheckerNBit<1>
         else
         {
             const auto ele = LUT[ch32 / EleBits];
-            const auto ret = ele >> (ch32 % EleBits);
-            return (ret & 0x1) ? true : false;
+            const auto bit = KeepMask << (ch32 % EleBits);
+            return ele & bit;
         }
     }
 };

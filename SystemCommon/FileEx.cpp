@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <variant>
 
 
 #if defined(_WIN32)
