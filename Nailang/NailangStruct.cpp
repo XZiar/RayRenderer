@@ -676,13 +676,13 @@ bool ArgLocator::Set(Arg val)
         return false;
     }
 }
-ArgLocator ArgLocator::HandleQuery(SubQuery subq, NailangRuntimeBase& runtime)
+ArgLocator ArgLocator::HandleQuery(SubQuery subq, NailangExecutor& executor)
 {
     switch (Type)
     {
-    case LocateType::Ptr:    return reinterpret_cast<Arg*>(static_cast<uintptr_t>(*Val.GetUint()))->HandleQuery(subq, runtime);
-    case LocateType::GetSet: return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(*Val.GetUint()))->Get().HandleQuery(subq, runtime);
-    case LocateType::Arg:    return Val.HandleQuery(subq, runtime);
+    case LocateType::Ptr:    return reinterpret_cast<Arg*>(static_cast<uintptr_t>(*Val.GetUint()))->HandleQuery(subq, executor);
+    case LocateType::GetSet: return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(*Val.GetUint()))->Get().HandleQuery(subq, executor);
+    case LocateType::Arg:    return Val.HandleQuery(subq, executor);
     default:                 return {};
     }
 }

@@ -439,7 +439,7 @@ struct SubQuery
     common::span<const Expr> Queries;
     constexpr SubQuery Sub(const size_t offset = 1) const noexcept
     {
-        Expects(offset < Queries.size());
+        Expects(offset <= Queries.size());
         return { Queries.subspan(offset) };
     }
     constexpr std::pair<QueryType, Expr> operator[](size_t idx) const noexcept
@@ -448,7 +448,7 @@ struct SubQuery
         return { static_cast<QueryType>(Queries[idx].ExtraFlag), Queries[idx] };
     }
     NAILANGAPI std::u32string_view ExpectSubField(size_t idx) const;
-    NAILANGAPI const Expr&       ExpectIndex(size_t idx) const;
+    NAILANGAPI const Expr&         ExpectIndex(size_t idx) const;
     constexpr size_t Size() const noexcept
     {
         return Queries.size();
@@ -642,6 +642,8 @@ struct FixedArray
     }
 };
 
+struct NAILANGAPI NailangHelper;
+class NAILANGAPI NailangExecutor;
 class NAILANGAPI NailangRuntimeBase;
 class NAILANGAPI NailangRuntimeException;
 struct Arg
@@ -844,7 +846,7 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
 
-    [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangRuntimeBase&);
+    [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangExecutor&);
     [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op);
     [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right);
 
@@ -856,14 +858,14 @@ MAKE_ENUM_BITFIELD(Arg::Type)
 struct NAILANGAPI CustomVar::Handler
 {
 protected:
-    static Arg EvaluateExpr(NailangRuntimeBase& runtime, const Expr& arg);
-    static void HandleException(NailangRuntimeBase& runtime, const NailangRuntimeException& ex);
+    // static Arg EvaluateExpr(NailangExecutor& runtime, const Expr& arg);
+    // static void HandleException(NailangExecutor& runtime, const NailangRuntimeException& ex);
 public:
     virtual void IncreaseRef(CustomVar&) noexcept;
     virtual void DecreaseRef(CustomVar&) noexcept;
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
-    [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangRuntimeBase&);
+    [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangExecutor&);
     [[nodiscard]] virtual Arg HandleUnary(const CustomVar&, const EmbedOps op);
     [[nodiscard]] virtual Arg HandleBinary(const CustomVar&, const EmbedOps op, const Arg& right);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
@@ -893,6 +895,7 @@ public:
 
 class NAILANGAPI ArgLocator
 {
+    friend NailangHelper;
 public:
     enum class LocateFlags : uint16_t 
     { 
@@ -955,7 +958,8 @@ public:
     Arg Get() const;
     Arg ExtractGet();
     bool Set(Arg val);
-    [[nodiscard]] ArgLocator HandleQuery(SubQuery, NailangRuntimeBase&);
+    constexpr uint32_t GetConsumed() const noexcept { return Consumed; }
+    [[nodiscard]] ArgLocator HandleQuery(SubQuery, NailangExecutor&);
 };
 
 #if COMPILER_MSVC
@@ -1291,7 +1295,7 @@ public:
     AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
     AutoVarHandlerBase& operator=(AutoVarHandlerBase&&) = delete;
 
-    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override;
+    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override;
     bool HandleAssign(CustomVar& var, Arg val) override;
     std::u32string_view GetTypeName() noexcept override;
 };

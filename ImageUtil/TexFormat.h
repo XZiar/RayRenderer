@@ -256,8 +256,7 @@ struct TexFormatUtil
         case TextureFormat::DTYPE_U8 | TextureFormat::DTYPE_PLAIN_RAW:
         case TextureFormat::DTYPE_I8:
             if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE; 
-            //only pass through when relaxConvert
-            //[[fallthrough]]
+            [[fallthrough]];
         case TextureFormat::DTYPE_U8:       floatType = ImageDataType::EMPTY_MASK; break;
         case TextureFormat::DTYPE_FLOAT:    floatType = ImageDataType::FLOAT_MASK; break;
         default:                                return ImageDataType::UNKNOWN_RESERVE;
@@ -267,8 +266,7 @@ struct TexFormatUtil
         case TextureFormat::CHANNEL_G:
         case TextureFormat::CHANNEL_B:
             if (!relaxConvert) return ImageDataType::UNKNOWN_RESERVE;
-            //only pass through when relaxConvert
-            //[[fallthrough]]
+            [[fallthrough]];
         case TextureFormat::CHANNEL_R:      return ImageDataType::GRAY | floatType;
         case TextureFormat::CHANNEL_RG:     return ImageDataType::RA   | floatType;
         case TextureFormat::CHANNEL_RGB:    return ImageDataType::RGB  | floatType;

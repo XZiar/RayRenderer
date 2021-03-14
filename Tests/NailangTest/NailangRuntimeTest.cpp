@@ -28,6 +28,8 @@ using xziar::nailang::ArgLocator;
 using xziar::nailang::NilCheck;
 using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
+using xziar::nailang::NailangFrame;
+using xziar::nailang::NailangExecutor;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::EvaluateContext;
 using xziar::nailang::BasicEvaluateContext;
@@ -70,18 +72,19 @@ public:
 class NailangRT : public NailangRuntimeBase
 {
 public:
-    BlockFrame BaseFrame;
-    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, FrameFlags::Empty)
+    NailangFrame BaseFrame;
+    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, NailangFrame::FrameFlags::Empty)
     {
+        BaseFrame.Executor = BasicExecutor.get();
         CurFrame = &BaseFrame;
     }
 
     using NailangRuntimeBase::RootContext;
 
-    using NailangRuntimeBase::EvaluateFunc;
+    //using NailangRuntimeBase::EvaluateFunc;
     using NailangRuntimeBase::LookUpArg;
-    using NailangRuntimeBase::EvaluateExpr;
-    using NailangRuntimeBase::HandleContent;
+    //using NailangRuntimeBase::EvaluateExpr;
+    //using NailangRuntimeBase::HandleContent;
 
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
     auto SetRootArg(std::u32string_view name, Arg val)
@@ -119,7 +122,11 @@ public:
     {
         ParserContext context(name);
         const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
-        return EvaluateExpr(var);
+        return BasicExecutor->EvaluateExpr(var);
+    }
+    Arg EvaluateExpr(const Expr& arg) 
+    {
+        return BasicExecutor->EvaluateExpr(arg);
     }
 };
 
@@ -327,7 +334,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime) override
+    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override
     {
         ArrRef(arr, var);
         const auto [type, query] = subq[0];
@@ -335,7 +342,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = EvaluateExpr(runtime, query);
+            const auto val = executor.EvaluateExpr(query);
             const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), val, &query);
             return
             {
@@ -910,7 +917,7 @@ TEST(NailangRuntime, DefFunc)
 }
 
 
-uint64_t RunGCD(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
+uint64_t Run2Arg(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_t n)
 {
     auto ctx = std::make_shared<CompactEvaluateContext>();
     ctx->LocateArg(U"m"sv, true).Set(m);
@@ -957,9 +964,9 @@ tmp := 1;
 
     ASSERT_EQ(algoBlock.Size(), 2u);
 
-    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd( 5u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock,  5u, 5u), std::gcd( 5u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
 }
 
 TEST(NailangRuntime, gcd2)
@@ -1000,9 +1007,9 @@ TEST(NailangRuntime, gcd2)
 
     ASSERT_EQ(algoBlock.Size(), 1u);
 
-    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
 }
 
 
@@ -1043,7 +1050,61 @@ m = $gcd(m,n);
 
     ASSERT_EQ(algoBlock.Size(), 2u);
 
-    EXPECT_EQ(RunGCD(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
-    EXPECT_EQ(RunGCD(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock,  5u, 5u), std::gcd(5u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 15u, 5u), std::gcd(15u, 5u));
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 17u, 5u), std::gcd(17u, 5u));
+}
+
+TEST(NailangRuntime, sumOdd)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+
+    constexpr auto sumTxt = UR"(
+:sum := 0;
+:txt := "";
+@While(m < n)
+#Block("")
+{
+    @If(m % 2)
+    #Block("")
+    {
+        m += 1;
+        $Continue();
+    }
+    //txt += $Format("sum[{}] + m[{}]\n", sum, m);
+    sum += m;
+    m += 1;
+}
+m = sum;
+)"sv;
+
+    constexpr auto refSum = [](auto m, auto n)
+    {
+        uint32_t sum = 0;
+        while (m < n)
+        {
+            if (m % 2)
+            {
+                m += 1;
+                continue;
+            }
+            sum += m;
+            m += 1;
+        }
+        m = sum;
+        return m;
+    };
+
+    EXPECT_EQ(refSum(0u, 10u), 20u);
+    EXPECT_EQ(refSum(1u, 10u), 20u);
+    EXPECT_EQ(refSum(3u, 10u), 18u);
+
+    const auto algoBlock = BlkParser::GetBlock(pool, sumTxt);
+
+    ASSERT_EQ(algoBlock.Size(), 4u);
+
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 0u, 10u), 20u);
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 1u, 10u), 20u);
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 3u, 10u), 18u);
 }
