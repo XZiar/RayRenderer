@@ -44,38 +44,36 @@ static NamedVecPair GenerateInput(XCNLRuntime_& Runtime, std::u32string_view str
     return { name, vtype };
 }
 
-void XCNLDebugExt::DefineMessage(XCNLRuntime& runtime, const xziar::nailang::FuncCall& call)
+void XCNLDebugExt::DefineMessage(XCNLExecutor& executor, const xziar::nailang::FuncPack& func)
 {
     using namespace xziar::nailang;
-    auto& Runtime = static_cast<XCNLRuntime_&>(runtime);
-    Runtime.ThrowIfNotFuncTarget(call, FuncName::FuncInfo::Empty);
-    Runtime.ThrowByArgCount(call, 3, ArgLimits::AtLeast);
-    const auto arg2 = Runtime.EvaluateFuncArgs<2, ArgLimits::AtLeast>(call, { Arg::Type::String, Arg::Type::String });
-    const auto id = arg2[0].GetStr().value();
-    const auto formatter = arg2[1].GetStr().value();
+    auto& Runtime = static_cast<XCNLRuntime_&>(executor.GetRuntime());
+    executor.ThrowIfNotFuncTarget(func, FuncName::FuncInfo::Empty);
+    executor.ThrowByParamTypes<3, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
+    const auto id = func.Params[0].GetStr().value();
+    const auto formatter = func.Params[1].GetStr().value();
     std::vector<NamedVecPair> argInfos;
-    argInfos.reserve(call.Args.size() - 2);
+    argInfos.reserve(func.Args.size() - 2);
     size_t i = 2;
-    for (const auto& rawarg : call.Args.subspan(2))
+    for (const auto& arg : common::to_span(func.Params).subspan(2))
     {
-        const auto arg = Runtime.EvaluateExpr(rawarg);
         if (!arg.IsStr())
             NLRT_THROW_EX(FMTSTR(u"Arg[{}] of [DefineDebugString] should be string, which gives [{}]",
-                i, arg.GetTypeName()), call);
+                i, arg.GetTypeName()), func);
         argInfos.push_back(GenerateInput(Runtime, arg.GetStr().value(), [&]()
             {
                 return FMTSTR(u"Arg[{}] of [DefineDebugString]"sv, i);
             }));
     }
     if (!DebugInfos.try_emplace(std::u32string(id), formatter, std::move(argInfos)).second)
-        NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), call);
+        NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), func);
 }
 
-const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
+const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawCodeExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
     using namespace xziar::nailang;
-    auto& Runtime = static_cast<XCNLRuntime_&>(runtime);
-    Runtime.ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtLeast);
+    auto& Runtime = static_cast<XCNLRuntime_&>(executor.GetRuntime());
+    executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtLeast);
     if (args.size() % 2)
         NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [DebugStr] requires even number of args, which gives [{}]."sv, args.size()));
     if (args[1].size() < 2 || args[1].front() != U'"' || args[1].back() != U'"')

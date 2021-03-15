@@ -843,6 +843,30 @@ bool NailangBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varNa
     return ret.value();
 }
 
+LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const
+{
+    switch (arg.TypeData)
+    {
+    case Expr::Type::Var: 
+        return arg.GetVar<Expr::Type::Var>();
+    case Expr::Type::Str: 
+    {
+        const auto name = arg.GetVar<Expr::Type::Str>();
+        const auto res  = tokenizer::VariableTokenizer::CheckName(name);
+        if (res.has_value())
+            NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
+                arg);
+        return name;
+    }
+    default:
+        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
+            arg);
+        break;
+    }
+    Expects(false);
+    return U""sv;
+}
+
 
 void NailangExecutor::EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size)
 {
@@ -1473,30 +1497,11 @@ void NailangExecutor::HandleException(const NailangRuntimeException& ex) const
 }
 
 
-NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const NailangFrame::FrameFlags flags) :
-    Host(*host), Frame(host->CurFrame, ctx, flags)
-{
-    Expects(ctx);
-    Host.CurFrame = &Frame;
-}
-NailangRuntimeBase::FrameHolder::~FrameHolder()
-{
-    Expects(Host.CurFrame == &Frame);
-    Host.CurFrame = Frame.PrevFrame;
-}
-
-
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
     RootContext(std::move(context)), BasicExecutor(std::make_unique<NailangExecutor>(this))
 { }
 NailangRuntimeBase::~NailangRuntimeBase()
 { }
-
-
-NailangRuntimeBase::FrameHolder NailangRuntimeBase::PushFrame(std::shared_ptr<EvaluateContext> ctx, const NailangFrame::FrameFlags flags)
-{
-    return FrameHolder(this, std::move(ctx), flags);
-}
 
 static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
 {
@@ -1599,29 +1604,6 @@ TempFuncName NailangRuntimeBase::CreateTempFuncName(std::u32string_view name, Fu
         HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
     }
     return FuncName::CreateTemp(name, info);
-}
-LateBindVar NailangRuntimeBase::DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const
-{
-    switch (arg.TypeData)
-    {
-    case Expr::Type::Var: 
-        return arg.GetVar<Expr::Type::Var>();
-    case Expr::Type::Str: 
-    {
-        const auto name = arg.GetVar<Expr::Type::Str>();
-        const auto res  = tokenizer::VariableTokenizer::CheckName(name);
-        if (res.has_value())
-            NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
-                arg);
-        return name;
-    }
-    default:
-        NLRT_THROW_EX(FMTSTR(u"[{}] only accept [Var]/[String], which gives [{}].", reciever, arg.GetTypeName()),
-            arg);
-        break;
-    }
-    Expects(false);
-    return U""sv;
 }
 
 ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool create) const
@@ -1765,7 +1747,7 @@ void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall
 
 void NailangRuntimeBase::OnBlock(const Block& block, common::span<const FuncCall> metas)
 {
-    const auto prevFrame = PushFrame();
+    const auto prevFrame = PushFrame(NailangFrame::FrameFlags::Empty);
     CurFrame->BlockScope = &block;
     CurFrame->MetaScope = metas;
     prevFrame->Executor->ExecuteFrame();

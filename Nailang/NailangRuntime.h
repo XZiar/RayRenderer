@@ -522,6 +522,7 @@ class NAILANGAPI NailangBase
 {
 protected:
     [[noreturn]] virtual void HandleException(const NailangRuntimeException& ex) const = 0;
+
     void ThrowByArgCount(const FuncCall& func, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const FuncCall& func, const Expr::Type type, size_t idx) const;
     void ThrowByArgTypes(const FuncCall& func, common::span<const Expr::Type> types, const ArgLimits limit, size_t offset = 0) const;
@@ -553,6 +554,8 @@ protected:
     void ThrowIfStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const;
     void ThrowIfNotStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
+
+    [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
 };
 
 class NAILANGAPI NailangExecutor : protected NailangBase
@@ -610,21 +613,33 @@ public:
 };
 
 
-class NAILANGAPI NailangRuntimeBase : private NailangBase
+class NAILANGAPI NailangRuntimeBase : protected NailangBase
 {
     friend NailangExecutor;
 protected:
-    class NAILANGAPI FrameHolder
+    template<typename T>
+    class FrameHolder
     {
-        friend class NailangRuntimeBase;
+        static_assert(std::is_base_of_v<NailangFrame, T>);
+        friend NailangRuntimeBase;
         NailangRuntimeBase& Host;
-        NailangFrame Frame;
-        FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const NailangFrame::FrameFlags flags);
+        T Frame;
+        template<typename... Args>
+        forceinline FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, NailangFrame::FrameFlags flags,
+            Args&&... args) : Host(*host), Frame(host->CurFrame, ctx, flags, std::forward<Args>(args)...)
+        {
+            Expects(ctx);
+            Host.CurFrame = &Frame;
+        }
     public:
         COMMON_NO_COPY(FrameHolder)
         COMMON_NO_MOVE(FrameHolder)
-        ~FrameHolder();
-        constexpr NailangFrame* operator->() const noexcept
+        ~FrameHolder()
+        {
+            Expects(Host.CurFrame == &Frame);
+            Host.CurFrame = Frame.PrevFrame;
+        }
+        forceinline constexpr NailangFrame* operator->() const noexcept
         {
             return Frame.PrevFrame;
         }
@@ -635,21 +650,26 @@ protected:
     NailangFrame* CurFrame = nullptr;
     MemoryPool MemPool;
 
-    [[nodiscard]] FrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, const NailangFrame::FrameFlags flags = NailangFrame::FrameFlags::Empty);
-    [[nodiscard]] forceinline FrameHolder PushFrame(const NailangFrame::FrameFlags flags = NailangFrame::FrameFlags::Empty)
+    template<typename T = NailangFrame, typename... Args>
+    [[nodiscard]] forceinline FrameHolder<T> PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flags, Args&&... args)
     {
-        return PushFrame(ConstructEvalContext(), flags);
+        return { this, std::move(ctx), flags, std::forward<Args>(args)... };
     }
-    [[nodiscard]] forceinline FrameHolder PushFrame(const bool innerScope, const NailangFrame::FrameFlags flags = NailangFrame::FrameFlags::Empty)
+    template<typename T = NailangFrame, typename... Args>
+    [[nodiscard]] forceinline FrameHolder<T> PushFrame(NailangFrame::FrameFlags flags, Args&&... args)
     {
-        return PushFrame(innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), flags);
+        return { this, ConstructEvalContext(), flags, std::forward<Args>(args)... };
+    }
+    template<typename T = NailangFrame, typename... Args>
+    [[nodiscard]] forceinline FrameHolder<T> PushFrame(const bool innerScope, NailangFrame::FrameFlags flags, Args&&... args)
+    {
+        return { this, innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), flags, std::forward<Args>(args)... };
     }
 
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
     //[[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
-    [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
     [[nodiscard]] ArgLocator LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
     bool SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck = {});
@@ -662,10 +682,10 @@ protected:
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
     virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void OnBlock(const Block& block, common::span<const FuncCall> metas);
-    //virtual void OnLoop(const Expr& condition, const Statement& target);
     [[nodiscard]] virtual Arg OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
 
 public:
+    template<typename T> using FrameT = FrameHolder<T>;
     NailangRuntimeBase(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntimeBase();
     void ExecuteBlock(const Block& block, common::span<const FuncCall> metas, std::shared_ptr<EvaluateContext> ctx, const bool checkMetas = true);

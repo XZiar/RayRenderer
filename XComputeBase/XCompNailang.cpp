@@ -24,8 +24,11 @@ using xziar::nailang::FixedArray;
 using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::FuncEvalPack;
+using xziar::nailang::MetaSet;
 using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
+using xziar::nailang::NailangFrame;
+using xziar::nailang::NailangExecutor;
 using xziar::nailang::NailangRuntimeBase;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
@@ -469,25 +472,88 @@ void XCNLContext::Write(std::u32string& output, const NamedText& item) const
 }
 
 
-XCNLRuntime::XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx) :
-    NailangRuntimeBase(evalCtx), XCContext(*evalCtx), Logger(logger)
+Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
+{
+    if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
+    {
+        if (func.NamePart(1) == U"vec"sv)
+        {
+            auto ret = GetRuntime().CreateGVec(func.NamePart(2), func);
+            if (ret.has_value())
+                return std::move(ret.value());
+        }
+        if (func.NamePart(1) == U"Arg"sv)
+        {
+            return InstanceArgCustomVar::Create(GetRuntime().ParseInstanceArg(func.NamePart(2), func));
+        }
+        else if (func.NamePartCount() == 2)
+        {
+            auto ret = GetRuntime().CommonFunc(func.NamePart(1), func);
+            if (ret.has_value())
+                return std::move(ret.value());
+        }
+    }
+    for (const auto& ext : GetExtensions())
+    {
+        auto ret = ext->XCNLFunc(*this, func);
+        if (ret)
+            return std::move(ret.value());
+    }
+    return NailangExecutor::EvaluateFunc(func);
+}
+
+
+XCNLRawCodePrepare::XCNLRawCodePrepare(XCNLRuntime* runtime, const RawBlock* block, common::span<const FuncCall> meta,
+    OutputBlock::BlockType type) : XCNLExecutor(runtime), Block(block, meta, type)
 { }
-XCNLRuntime::~XCNLRuntime()
+XCNLRawCodePrepare::~XCNLRawCodePrepare()
 { }
 
-void XCNLRuntime::HandleException(const xziar::nailang::NailangParseException& ex) const
+XCNLRawCodePrepare::MetaFuncResult XCNLRawCodePrepare::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
 {
-    Logger.error(u"{}\n", ex.Message());
+    switch (const auto name = meta.FullFuncName(); common::DJBHash::HashC(name))
+    {
+    HashCase(name, U"xcomp.ReplaceVariable")
+        Block.ReplaceVar = true; 
+        return MetaFuncResult::Next;
+    HashCase(name, U"xcomp.ReplaceFunction")
+        Block.ReplaceFunc = true;
+        return MetaFuncResult::Next;
+    HashCase(name, U"xcomp.Replace")
+        Block.ReplaceVar = Block.ReplaceFunc = true;
+        return MetaFuncResult::Next;
+    HashCase(name, U"xcomp.PreAssign")
+        ThrowByArgCount(meta, 2, ArgLimits::Exact);
+        ThrowByArgType(meta, Expr::Type::Var, 0);
+        Block.PreAssignArgs.emplace_back(meta.Args[0].GetVar<Expr::Type::Var>(), meta.Args[1]);
+        return MetaFuncResult::Next;
+    HashCase(name, U"xcomp.TemplateArgs")
+    {
+        if (Block.Type != OutputBlock::BlockType::Template)
+            NLRT_THROW_EX(FMTSTR(u"xcomp.TemplateArgs cannot be applied to [{}], which type is [{}]"sv,
+                Block.Name(), Block.GetBlockTypeName()), meta, Block.Block);
+        for (uint32_t i = 0; i < meta.Args.size(); ++i)
+        {
+            if (meta.Args[i].TypeData != Expr::Type::Var)
+                NLRT_THROW_EX(FMTSTR(u"xcomp.TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
+                    i, meta.Args[i].GetTypeName()), meta, Block.Block);
+        }
+        Block.ExtraInfo = std::make_unique<TemplateBlockInfo>(meta.Args);
+        return MetaFuncResult::Next;
+    }
+    default: break;
+    }
+    return XCNLExecutor::HandleMetaFunc(meta, target, allMetas);
+}
+
+
+void XCNLRawExecutor::HandleException(const xziar::nailang::NailangParseException & ex) const
+{
+    GetRuntime().Logger.error(u"{}\n", ex.Message());
     ReplaceEngine::HandleException(ex);
 }
 
-void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
-{
-    Logger.error(u"{}\n", ex.Message());
-    NailangRuntimeBase::HandleException(ex);
-}
-
-void XCNLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, U32StrSpan args,
+void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U32StrSpan args,
     const size_t count, const ArgLimits limit) const
 {
     std::u32string_view prefix;
@@ -504,6 +570,315 @@ void XCNLRuntime::ThrowByReplacerArgCount(const std::u32string_view call, U32Str
         prefix = U"at least"; break;
     }
     NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, call, prefix, count, args.size()));
+}
+
+NailangRuntimeBase::FrameT<XCNLRawExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block)
+{
+    return GetRuntime().PushFrame<RawFrame>(true, xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block);
+}
+
+std::optional<common::str::StrVariant<char32_t>> XCNLRawExecutor::CommonReplaceFunc(const std::u32string_view name,
+    const std::u32string_view call, U32StrSpan args)
+{
+    auto& runtime = GetRuntime();
+    switch (common::DJBHash::HashC(name))
+    {
+    HashCase(name, U"GetVecTypeName")
+    {
+        ThrowByReplacerArgCount(call, args, 1, ArgLimits::Exact);
+        return runtime.GetVecTypeName(args[0]);
+    }
+    HashCase(name, U"CodeBlock")
+    {
+        ThrowByReplacerArgCount(call, args, 1, ArgLimits::AtLeast);
+        const OutputBlock* block = nullptr;
+        for (const auto& blk : runtime.XCContext.TemplateBlocks)
+            if (blk.Block->Name == args[0])
+            {
+                block = &blk; break;
+            }
+        if (block)
+        {
+            const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
+            ThrowByReplacerArgCount(call, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
+            auto prevFrame = PushFrame(*block);
+            for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
+            {
+                auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
+                var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
+                constexpr NilCheck nilcheck(NilCheck::Behavior::Throw, NilCheck::Behavior::Pass);
+                runtime.SetArg(var, {}, Arg(args[i + 1]), nilcheck);
+            }
+            auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
+            DirectOutput(output);
+            return output;
+        }
+        break;
+    }
+    default: break;
+    }
+    return {};
+}
+
+ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args)
+{
+    auto& runtime = GetRuntime();
+    for (const auto& ext : GetExtensions())
+    {
+        if (!ext) continue;
+        auto ret = ext->ReplaceFunc(*this, func, args);
+        const auto str = ret.GetStr();
+        if (!ret && ret.CheckAllowFallback())
+        {
+            if (!str.empty())
+                runtime.Logger.warning(FMT_STRING(u"when replace-func [{}]: {}\r\n"), func, ret.GetStr());
+            continue;
+        }
+        if (ret)
+        {
+            if (const auto dep = ret.GetDepends(); dep)
+            {
+                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
+                if (!dep->PatchedBlock.empty())
+                {
+                    txt += u"Depend on PatchedBlock:\r\n";
+                    for (const auto& name : dep->PatchedBlock)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                if (!dep->BodyPrefixes.empty())
+                {
+                    txt += u"Depend on BodyPrefix:\r\n";
+                    for (const auto& name : dep->BodyPrefixes)
+                        APPEND_FMT(txt, u" - [{}]\r\n", name);
+                }
+                runtime.Logger.verbose(txt);
+            }
+        }
+        return ret;
+    }
+    return { FMTSTR(U"[{}] with [{}]args not resolved", func, args.size()), false };
+}
+
+void XCNLRawExecutor::OnReplaceOptBlock(std::u32string& output, void*, std::u32string_view cond, std::u32string_view content)
+{
+    if (cond.back() == U';')
+        cond.remove_suffix(1);
+    if (cond.empty())
+    {
+        NLRT_THROW_EX(u"Empty condition occurred when replace-opt-block"sv);
+        return;
+    }
+
+    common::parser::ParserContext context(cond);
+    const auto rawarg = xziar::nailang::NailangParser::ParseSingleExpr(GetRuntime().MemPool, context, ""sv, U""sv);
+    Arg ret;
+    if (rawarg)
+    {
+        ret = EvaluateExpr(rawarg);
+    }
+    if (ret.IsEmpty())
+    {
+        NLRT_THROW_EX(u"No value returned as condition when replace-opt-block"sv);
+        return;
+    }
+    else if (!HAS_FIELD(ret.TypeData, Arg::Type::Boolable))
+    {
+        NLRT_THROW_EX(u"Evaluated condition is not boolable when replace-opt-block"sv);
+        return;
+    }
+    else if (ret.GetBool().value())
+    {
+        output.append(content);
+    }
+}
+
+void XCNLRawExecutor::OnReplaceVariable(std::u32string& output, [[maybe_unused]] void* cookie, std::u32string_view var)
+{
+    if (var.size() == 0)
+        NLRT_THROW_EX(u"replace-variable does not accept empty"sv);
+    auto& runtime = GetRuntime();
+    if (var[0] == U'@')
+    {
+        const auto str = runtime.GetVecTypeName(var.substr(1), u"replace-variable"sv);
+        output.append(str);
+    }
+    else // '@' and '#' not allowed in var anyway
+    {
+        bool toVecName = false;
+        if (var[0] == U'#')
+            toVecName = true, var.remove_prefix(1);
+        const auto var_ = DecideDynamicVar(var, u"ReplaceVariable"sv);
+        const auto val = runtime.LookUpArg(var_);
+        if (val.IsEmpty() || val.TypeData == Arg::Type::Var)
+        {
+            NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
+            return;
+        }
+        if (toVecName)
+        {
+            if (!val.IsStr())
+                NLRT_THROW_EX(FMTSTR(u"Arg [{}] is not a vetype string when replace-variable"sv, var));
+            const auto str = runtime.GetVecTypeName(val.GetStr().value(), u"replace-variable"sv);
+            output.append(str);
+        }
+        else
+            output.append(val.ToString().StrView());
+    }
+}
+
+void XCNLRawExecutor::OnReplaceFunction(std::u32string& output, void*, std::u32string_view func, common::span<const std::u32string_view> args)
+{
+    if (IsBeginWith(func, U"xcomp."sv))
+    {
+        const auto subName = func.substr(6);
+        auto ret = CommonReplaceFunc(subName, func, args);
+        if (ret.has_value())
+        {
+            output.append(ret->StrView());
+            return;
+        }
+    }
+
+    {
+        const auto ret = ExtensionReplaceFunc(func, args);
+        if (ret)
+        {
+            output.append(ret.GetStr());
+        }
+        else
+        {
+            NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), ret.GetStr()));
+        }
+    }
+}
+
+void XCNLRawExecutor::OutputConditions(common::span<const xziar::nailang::FuncCall> metas, std::u32string& dst)
+{
+    // std::set<std::u32string_view> lateVars;
+    for (const auto& meta : metas)
+    {
+        std::u32string_view prefix;
+        if (meta.GetName() == U"If"sv)
+            prefix = U"If "sv;
+        else if (meta.GetName() == U"Skip"sv)
+            prefix = U"Skip if "sv;
+        else
+            continue;
+        if (meta.Args.size() == 1)
+            APPEND_FMT(dst, U"    /* {:7} :  {} */\r\n"sv, prefix, xziar::nailang::Serializer::Stringify(meta.Args[0]));
+    }
+}
+
+void XCNLRawExecutor::BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const
+{
+    APPEND_FMT(dst, U"\r\n/* From {} Block [{}] */\r\n"sv, block.GetBlockTypeName(), block.Block->Name);
+
+    // std::set<std::u32string_view> lateVars;
+
+    OutputConditions(block.MetaFunc, dst);
+}
+
+void XCNLRawExecutor::DirectOutput(std::u32string& dst)
+{
+    auto& runtime = GetRuntime();
+    Expects(runtime.CurFrame != nullptr);
+    auto& frame = GetFrame();
+    OutputConditions(frame.Block.MetaFunc, dst);
+    common::str::StrVariant<char32_t> source(frame.GetBlock().Source);
+    for (const auto& [var, arg] : frame.Block.PreAssignArgs)
+    {
+        runtime.SetArg(var, {}, EvaluateExpr(arg));
+    }
+    if (frame.Block.ReplaceVar || frame.Block.ReplaceFunc)
+        source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
+    if (frame.Block.ReplaceVar)
+        source = ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
+    if (frame.Block.ReplaceFunc)
+        source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv);
+    dst.append(source.StrView());
+}
+
+void XCNLRawCodeExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& dst)
+{
+    auto prevFrame = PushFrame(block);
+    BeforeOutputBlock(block, dst);
+    DirectOutput(dst);
+}
+
+void XCNLRawCodeExecutor::ProcessStruct(const OutputBlock& block, std::u32string& dst)
+{
+    auto prevFrame = PushFrame(block);
+    BeforeOutputBlock(block, dst);
+    DirectOutput(dst);
+}
+
+
+XCNLRawInstanceExecutor::MetaFuncResult XCNLRawInstanceExecutor::HandleMetaFunc(MetaEvalPack& meta)
+{
+    auto& runtime = GetRuntime();
+    auto& frame = GetFrame();
+    for (const auto& ext : GetExtensions())
+    {
+        ext->InstanceMeta(*this, meta, frame.Instance);
+    }
+    const auto& fname = meta.GetName();
+    if (meta.Name->PartCount >= 2 && fname.GetRange(0, 2) == U"xcomp.Arg"sv)
+    {
+        if (meta.Name->PartCount == 3)
+        {
+            auto data = runtime.ParseInstanceArg(fname[2], meta);
+            InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
+            runtime.HandleInstanceArg(info, frame.Instance, meta, nullptr);
+        }
+        else
+        {
+            if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
+                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv,
+                    meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
+            const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
+            runtime.HandleInstanceArg(info, frame.Instance, meta, &meta.Params[0]);
+        }
+        return MetaFuncResult::Next;
+    }
+    return XCNLRawExecutor::HandleMetaFunc(meta);
+}
+
+void XCNLRawInstanceExecutor::ProcessInstance(const OutputBlock& block, std::u32string& output)
+{
+    Expects(block.Type == OutputBlock::BlockType::Instance);
+    BeforeOutputBlock(block, output);
+
+    const auto kerCtx = PrepareInstance(block);
+    auto& runtime = GetRuntime();
+    auto prevFrame = runtime.PushFrame<InstanceFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block, kerCtx.get());
+    for (const auto& ext : GetExtensions())
+    {
+        ext->BeginInstance(runtime, *kerCtx);
+    }
+    xziar::nailang::MetaSet allMetas(block.MetaFunc);
+    HandleMetaFuncs(allMetas, {});
+
+    DirectOutput(kerCtx->Content);
+
+    for (const auto& ext : GetExtensions())
+    {
+        ext->FinishInstance(runtime, *kerCtx);
+    }
+
+    OutputInstance(block, output);
+}
+
+
+XCNLRuntime::XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx) :
+    NailangRuntimeBase(evalCtx), XCContext(*evalCtx), Logger(logger)
+{ }
+XCNLRuntime::~XCNLRuntime()
+{ }
+
+void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
+{
+    Logger.error(u"{}\n", ex.Message());
+    NailangRuntimeBase::HandleException(ex);
 }
 
 void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
@@ -600,16 +975,16 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncE
     }
     return {};
 }
-std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const FuncCall& call)
+std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
 {
     auto [info, least] = xcomp::ParseVDataType(type);
     if (info.Bit == 0)
-        NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), call);
+        NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), func);
     if (info.Dim0 < 2 || info.Dim0 > 4)
-        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, info.Dim0), call);
-    const auto argc = call.Args.size();
+        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, info.Dim0), func);
+    const auto argc = func.Args.size();
     if (argc != 0 && argc != 1 && argc != info.Dim0)
-        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, info.Dim0, argc), call);
+        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, info.Dim0, argc), func);
 
     VecDataInfo sinfo{ info.Type, info.Bit, 1, 0 };
     auto atype = FixedArray::Type::Any;
@@ -638,10 +1013,9 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
         const auto arr = GeneralVec::ToArray(vec);
         if (argc == 1)
         {
-            auto val = EvaluateExpr(call.Args[0]);
             for (uint32_t i = 0; i < info.Dim0; ++i)
             {
-                arr.Set(i, val);
+                arr.Set(i, func.Params[0]);
             }
         }
         else
@@ -649,295 +1023,22 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, const
             Expects(argc == info.Dim0);
             for (uint32_t i = 0; i < argc; ++i)
             {
-                arr.Set(i, EvaluateExpr(call.Args[i]));
+                arr.Set(i, std::move(func.Params[i]));
             }
         }
     }
     return std::move(vec);
 }
 
-std::optional<common::str::StrVariant<char32_t>> XCNLRuntime::CommonReplaceFunc(const std::u32string_view name, const std::u32string_view call,
-    U32StrSpan args, BlockCookie& cookie)
-{
-    switch (common::DJBHash::HashC(name))
-    {
-    HashCase(name, U"GetVecTypeName")
-    {
-        ThrowByReplacerArgCount(call, args, 1, ArgLimits::Exact);
-        return GetVecTypeName(args[0]);
-    }
-    HashCase(name, U"CodeBlock")
-    {
-        ThrowByReplacerArgCount(call, args, 1, ArgLimits::AtLeast);
-        const OutputBlock* block = nullptr;
-        for (const auto& blk : XCContext.TemplateBlocks)
-            if (blk.Block->Name == args[0])
-            {
-                block = &blk; break;
-            }
-        if (block)
-        {
-            const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
-            ThrowByReplacerArgCount(call, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
-            auto frame = PushFrame(extra.ReplaceArgs.size() > 0, FrameFlags::FlowScope);
-            for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
-            {
-                auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
-                var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
-                constexpr NilCheck nilcheck(NilCheck::Behavior::Throw, NilCheck::Behavior::Pass);
-                SetArg(var, {}, Arg(args[i + 1]), nilcheck);
-            }
-            auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
-            NestedCookie newCookie(cookie, *block);
-            DirectOutput(newCookie, output);
-            return output;
-        }
-        break;
-    }
-    default: break;
-    }
-    return {};
-}
-
-ReplaceResult XCNLRuntime::ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args)
-{
-    for (const auto& ext : XCContext.Extensions)
-    {
-        if (!ext) continue;
-        auto ret = ext->ReplaceFunc(*this, func, args);
-        const auto str = ret.GetStr();
-        if (!ret && ret.CheckAllowFallback())
-        {
-            if (!str.empty())
-                Logger.warning(FMT_STRING(u"when replace-func [{}]: {}\r\n"), func, ret.GetStr());
-            continue;
-        }
-        if (ret)
-        {
-            if (const auto dep = ret.GetDepends(); dep)
-            {
-                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
-                if (!dep->PatchedBlock.empty())
-                {
-                    txt += u"Depend on PatchedBlock:\r\n";
-                    for (const auto& name : dep->PatchedBlock)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                if (!dep->BodyPrefixes.empty())
-                {
-                    txt += u"Depend on BodyPrefix:\r\n";
-                    for (const auto& name : dep->BodyPrefixes)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                Logger.verbose(txt);
-            }
-        }
-        return ret;
-    }
-    return { FMTSTR(U"[{}] with [{}]args not resolved", func, args.size()), false };
-}
-
-void XCNLRuntime::OutputConditions(MetaFuncs metas, std::u32string& dst) const
-{
-    // std::set<std::u32string_view> lateVars;
-    for (const auto& meta : metas)
-    {
-        std::u32string_view prefix;
-        if (meta.GetName() == U"If"sv)
-            prefix = U"If "sv;
-        else if (meta.GetName() == U"Skip"sv)
-            prefix = U"Skip if "sv;
-        else
-            continue;
-        if (meta.Args.size() == 1)
-            APPEND_FMT(dst, U"    /* {:7} :  {} */\r\n"sv, prefix, xziar::nailang::Serializer::Stringify(meta.Args[0]));
-    }
-}
-
-void XCNLRuntime::DirectOutput(BlockCookie& cookie, std::u32string& dst)
-{
-    Expects(CurFrame != nullptr);
-    const auto& block = cookie.Block;
-    OutputConditions(block.MetaFunc, dst);
-    common::str::StrVariant<char32_t> source(block.Block->Source);
-    for (const auto& [var, arg] : block.PreAssignArgs)
-    {
-        SetArg(var, {}, EvaluateExpr(arg));
-    }
-    if (block.ReplaceVar || block.ReplaceFunc)
-        source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
-    if (block.ReplaceVar)
-        source = ProcessVariable(source.StrView(), U"$$!{"sv, U"}"sv);
-    if (block.ReplaceFunc)
-        source = ProcessFunction(source.StrView(), U"$$!"sv, U""sv, &cookie);
-    dst.append(source.StrView());
-}
 
 void XCNLRuntime::ProcessStruct(const Block& block, common::span<const FuncCall> metas)
 {
 
 }
 
-void XCNLRuntime::ProcessInstance(BlockCookie& cookie)
-{
-    auto& kerCtx = *cookie.GetInstanceCtx();
-    for (const auto& ext : XCContext.Extensions)
-    {
-        ext->BeginInstance(*this, kerCtx);
-    }
-    xziar::nailang::MetaSet allMetas(cookie.Block.MetaFunc);
-    for (auto meta : allMetas)
-    {
-        const auto metaIf = HandleMetaIf(*meta);
-        if (metaIf.index() == 1)
-            continue;
-        const auto func = metaIf.index() == 0 ? *meta : FuncCall{ std::get<2>(metaIf).Ptr(), meta->Args.subspan(2), meta->Position };
-        auto args = EvalFuncAllArgs(func);
-        MetaEvalPack pack(func, args, allMetas, cookie.Block.Block);
-        HandleInstanceMeta(pack, kerCtx);
-    }
-
-    DirectOutput(cookie, kerCtx.Content);
-
-    for (const auto& ext : XCContext.Extensions)
-    {
-        ext->FinishInstance(*this, kerCtx);
-    }
-}
-
-void XCNLRuntime::OnReplaceOptBlock(std::u32string& output, void*, std::u32string_view cond, std::u32string_view content)
-{
-    if (cond.back() == U';')
-        cond.remove_suffix(1);
-    if (cond.empty())
-    {
-        NLRT_THROW_EX(u"Empty condition occurred when replace-opt-block"sv);
-        return;
-    }
-    Arg ret = EvaluateRawStatement(cond);
-    if (ret.IsEmpty())
-    {
-        NLRT_THROW_EX(u"No value returned as condition when replace-opt-block"sv);
-        return;
-    }
-    else if (!HAS_FIELD(ret.TypeData, Arg::Type::Boolable))
-    {
-        NLRT_THROW_EX(u"Evaluated condition is not boolable when replace-opt-block"sv);
-        return;
-    }
-    else if (ret.GetBool().value())
-    {
-        output.append(content);
-    }
-}
-
-void XCNLRuntime::OnReplaceVariable(std::u32string& output, [[maybe_unused]] void* cookie, std::u32string_view var)
-{
-    if (var.size() == 0)
-        NLRT_THROW_EX(u"replace-variable does not accept empty"sv);
-
-    if (var[0] == U'@')
-    {
-        const auto str = GetVecTypeName(var.substr(1), u"replace-variable"sv);
-        output.append(str);
-    }
-    else // '@' and '#' not allowed in var anyway
-    {
-        bool toVecName = false;
-        if (var[0] == U'#')
-            toVecName = true, var.remove_prefix(1);
-        const auto var_ = DecideDynamicVar(var, u"ReplaceVariable"sv);
-        const auto val = LookUpArg(var_);
-        if (val.IsEmpty() || val.TypeData == Arg::Type::Var)
-        {
-            NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
-            return;
-        }
-        if (toVecName)
-        {
-            if (!val.IsStr())
-                NLRT_THROW_EX(FMTSTR(u"Arg [{}] is not a vetype string when replace-variable"sv, var));
-            const auto str = GetVecTypeName(val.GetStr().value(), u"replace-variable"sv);
-            output.append(str);
-        }
-        else
-            output.append(val.ToString().StrView());
-    }
-}
-
-void XCNLRuntime::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, U32StrSpan args)
-{
-    if (IsBeginWith(func, U"xcomp."sv))
-    {
-        const auto subName = func.substr(6);
-        auto ret = CommonReplaceFunc(subName, func, args, *reinterpret_cast<BlockCookie*>(cookie));
-        if (ret.has_value())
-        {
-            output.append(ret->StrView());
-            return;
-        }
-    }
-
-    {
-        const auto ret = ExtensionReplaceFunc(func, args);
-        if (ret)
-        {
-            output.append(ret.GetStr());
-        }
-        else
-        {
-            NLRT_THROW_EX(FMTSTR(u"replace-func [{}] with [{}]args error: {}", func, args.size(), ret.GetStr()));
-        }
-    }
-}
-
 void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
 {
     ProcessRawBlock(block, metas);
-}
-
-XCNLRuntime::MetaFuncResult XCNLRuntime::HandleMetaFunc(const FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas)
-{
-    switch (const auto name = meta.FullFuncName(); common::DJBHash::HashC(name))
-    {
-    HashCase(name, U"xcomp.ReplaceVariable")    return MetaFuncResult::Unhandled;
-    HashCase(name, U"xcomp.ReplaceFunction")    return MetaFuncResult::Unhandled;
-    HashCase(name, U"xcomp.Replace")            return MetaFuncResult::Unhandled;
-    HashCase(name, U"xcomp.PreAssign")          return MetaFuncResult::Unhandled;
-    HashCase(name, U"xcomp.TemplateArgs")       return MetaFuncResult::Unhandled;
-    default: break;
-    }
-    return NailangRuntimeBase::HandleMetaFunc(meta, target, allMetas);
-}
-
-Arg XCNLRuntime::EvaluateFunc(FuncEvalPack& func)
-{
-    if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
-    {
-        if (func.NamePart(1) == U"vec"sv)
-        {
-            auto ret = CreateGVec(func.NamePart(2), func);
-            if (ret.has_value())
-                return std::move(ret.value());
-        }
-        if (func.NamePart(1) == U"Arg"sv)
-        {
-            return InstanceArgCustomVar::Create(ParseInstanceArg(func.NamePart(2), func));
-        }
-        else if (func.NamePartCount() == 2)
-        {
-            auto ret = CommonFunc(func.NamePart(1), func);
-            if (ret.has_value())
-                return std::move(ret.value());
-        }
-    }
-    for (const auto& ext : XCContext.Extensions)
-    {
-        auto ret = ext->XCNLFunc(*this, func);
-        if (ret)
-            return std::move(ret.value());
-    }
-    return NailangRuntimeBase::EvaluateFunc(func);
 }
 
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
@@ -951,30 +1052,6 @@ OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFunc
     default:                                break;
     }
     return OutputBlock::BlockType::None;
-}
-
-std::unique_ptr<OutputBlock::BlockInfo> XCNLRuntime::PrepareBlockInfo(OutputBlock& blk)
-{
-    if (blk.Type == OutputBlock::BlockType::Template)
-    {
-        common::span<const Expr> tpArgs;
-        for (const auto& meta : blk.MetaFunc)
-        {
-            if (meta.GetName() == U"xcomp.TemplateArgs")
-            {
-                for (uint32_t i = 0; i < meta.Args.size(); ++i)
-                {
-                    if (meta.Args[i].TypeData != Expr::Type::Var)
-                        NLRT_THROW_EX(FMTSTR(u"TemplateArgs's arg[{}] is [{}]. not [Var]"sv,
-                            i, meta.Args[i].GetTypeName()), meta, blk.Block);
-                }
-                tpArgs = meta.Args;
-                break;
-            }
-        }
-        return std::make_unique<TemplateBlockInfo>(tpArgs);
-    }
-    return std::move(blk.ExtraInfo);
 }
 
 void XCNLRuntime::HandleInstanceArg(const InstanceArgInfo&, InstanceContext&, const FuncPack&, const xziar::nailang::Arg*)
@@ -1000,7 +1077,6 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
     HashCase(argTypeName, U"Typed")
     {
         ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
-        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
         dtype = func.Params[0].GetStr().value();
         name  = func.Params[1].GetStr().value();
         offset = 2;
@@ -1009,7 +1085,6 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
     HashCase(argTypeName, U"Simple")
     {
         ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
-        const auto args = EvaluateFuncArgs<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
         dtype = func.Params[0].GetStr().value();
         name  = func.Params[1].GetStr().value();
         offset = 2;
@@ -1042,44 +1117,9 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
     for (size_t idx = offset; idx < func.Args.size(); ++idx)
     {
         const auto& arg = args.emplace_back(std::move(func.Params[idx]));
-        ThrowByArgType(func, arg, Arg::Type::String, idx);
+        ThrowByParamType(func, arg, Arg::Type::String, idx);
     }
     return { std::move(args), std::move(name), std::move(dtype), argType, texType };
-}
-
-void XCNLRuntime::HandleInstanceMeta(MetaEvalPack& meta, InstanceContext& ctx)
-{
-    for (const auto& ext : XCContext.Extensions)
-    {
-        ext->InstanceMeta(*this, meta, ctx);
-    }
-    const auto& fname = meta.GetName();
-    if (meta.Name->PartCount >= 2 && fname.GetRange(0, 2) == U"xcomp.Arg"sv)
-    {
-        if (meta.Name->PartCount == 3)
-        {
-            auto data = ParseInstanceArg(fname[2], meta);
-            InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
-            HandleInstanceArg(info, ctx, meta, nullptr);
-        }
-        else
-        {
-            if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
-                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv, 
-                    meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
-            const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
-            HandleInstanceArg(info, ctx, meta, &meta.Params[0]);
-        }
-    }
-}
-
-void XCNLRuntime::BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const
-{
-    APPEND_FMT(dst, U"\r\n/* From {} Block [{}] */\r\n"sv, block.GetBlockTypeName(), block.Block->Name);
-
-    // std::set<std::u32string_view> lateVars;
-
-    OutputConditions(block.MetaFunc, dst);
 }
 
 void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
@@ -1087,36 +1127,18 @@ void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
 
 void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
-    auto frame = PushFrame(FrameFlags::FlowScope);
-
-    xziar::nailang::MetaSet allMetas(metas);
-    if (!HandleMetaFuncs(allMetas, &block))
-        return;
-    
     const auto type = GetBlockType(block, metas);
     if (type == OutputBlock::BlockType::None)
         return;
+    auto prevFrame = PushFrame(NailangFrame::FrameFlags::FlowScope);
+    XCNLRawCodePrepare executor(this, &block, metas, type);
+    CurFrame->Executor = &executor;
+    xziar::nailang::MetaSet allMetas(metas);
+    if (!executor.HandleMetaFuncs(allMetas, { &block }))
+        return;
+
     auto& dst = type == OutputBlock::BlockType::Template ? XCContext.TemplateBlocks : XCContext.OutputBlocks;
-    dst.emplace_back(&block, metas, type);
-    auto& blk = dst.back();
-
-    for (const auto& fcall : metas)
-    {
-        if (*fcall.Name == U"xcomp.ReplaceVariable"sv)
-            blk.ReplaceVar = true;
-        else if (*fcall.Name == U"xcomp.ReplaceFunction"sv)
-            blk.ReplaceFunc = true;
-        else if (*fcall.Name == U"xcomp.Replace"sv)
-            blk.ReplaceVar = blk.ReplaceFunc = true;
-        else if (*fcall.Name == U"xcomp.PreAssign"sv)
-        {
-            ThrowByArgCount(fcall, 2, ArgLimits::Exact);
-            ThrowByArgType(fcall, Expr::Type::Var, 0);
-            blk.PreAssignArgs.emplace_back(fcall.Args[0].GetVar<Expr::Type::Var>(), fcall.Args[1]);
-        }
-    }
-
-    blk.ExtraInfo = PrepareBlockInfo(blk);
+    dst.push_back(std::move(executor.Block));
 }
 
 std::string XCNLRuntime::GenerateOutput()
@@ -1130,21 +1152,23 @@ std::string XCNLRuntime::GenerateOutput()
             Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", block.Block->Type, block.Block->Name); break;
             continue;
         }
-        BeforeOutputBlock(block, output);
-        auto frame = PushFrame(FrameFlags::FlowScope);
         if (block.Type == OutputBlock::BlockType::Instance)
         {
-            auto cookie = PrepareInstance(block);
-            OutputInstance(*cookie, output);
+            RawInstanceExecutor->ProcessInstance(block, output);
+            //OutputInstance(block, output);
         }
         else
         {
-            BlockCookie cookie(block);
             switch (block.Type)
             {
-            case OutputBlock::BlockType::Global:    DirectOutput(cookie, output); continue;
-            case OutputBlock::BlockType::Struct:    OutputStruct(cookie, output); continue;
-            default:                                Expects(false); break;
+            case OutputBlock::BlockType::Global:
+                RawCodeExecutor->ProcessGlobal(block, output);
+                break;
+            case OutputBlock::BlockType::Struct:
+                RawCodeExecutor->ProcessStruct(block, output);
+                break;
+            default:
+                Expects(false); break;
             }
         }
     }
@@ -1273,7 +1297,7 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const FixedArray& arr, std::
     return tidx;
 }
 
-ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangRuntimeBase& runtime)
+ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor)
 {
     const auto arr = ToArray(var);
     const auto [type, query] = subq[0];
@@ -1282,7 +1306,7 @@ ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangRunt
     {
     case SubQuery::QueryType::Index:
         tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
-            EvaluateExpr(runtime, query), &query);
+            executor.EvaluateExpr(query), &query);
         break;
     case SubQuery::QueryType::Sub:
     {
