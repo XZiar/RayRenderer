@@ -721,6 +721,27 @@ auto NailangHelper::LocateAndExecute(ArgLocator& target, SubQuery query, Nailang
 }
 
 
+class NailangFrame::FuncInfoHolder
+{
+    friend NailangFrame;
+    friend NailangExecutor;
+    NailangFrame& Host;
+    FuncStackInfo Info;
+    constexpr FuncInfoHolder(NailangFrame* host, const FuncCall* func) : Host(*host), Info{ Host.FuncInfo, func }
+    {
+        Host.FuncInfo = &Info;
+    }
+public:
+    COMMON_NO_COPY(FuncInfoHolder)
+    COMMON_NO_MOVE(FuncInfoHolder)
+    ~FuncInfoHolder()
+    {
+        Expects(Host.FuncInfo == &Info);
+        Host.FuncInfo = Info.PrevInfo;
+    }
+};
+
+
 static constexpr auto ContentTypeName(const Statement::Type type) noexcept
 {
     switch (type)
@@ -854,13 +875,9 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas, const Statement& target
             meta.SetUsed();
         switch (result)
         {
-        case MetaFuncResult::Return:
-            SetProgStatus(NailangFrame::ProgramStatus::Return); return false;
-        case MetaFuncResult::Skip:
-            SetProgStatus(NailangFrame::ProgramStatus::Next);   return false;
-        case MetaFuncResult::Next:
-        default:
-            SetProgStatus(NailangFrame::ProgramStatus::Next);   break;
+        case MetaFuncResult::Return:    GetFrame().SetReturn({}); return false;
+        case MetaFuncResult::Skip:      return false;
+        default:                        break;
         }
     }
     return true;
@@ -872,7 +889,27 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
     {
         ThrowIfStatement(meta, content, Statement::Type::RawBlock);
         ThrowByArgCount(meta, 1);
-        Runtime->OnLoop(meta.Args[0], content, allMetas);
+        const auto& condition = meta.Args[0];
+
+        const auto prevFrame = Runtime->PushFrame(NailangFrame::FrameFlags::LoopScope);
+        auto& frame = GetFrame();
+        frame.BlockScope = prevFrame->BlockScope;
+        frame.CurContent = &content;
+        frame.Executor = this;
+        while (true)
+        {
+            if (const auto cond = EvaluateExpr(condition); ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
+            {
+                Expects(frame.Status == NailangFrame::ProgramStatus::Next);
+                HandleContent(*frame.CurContent, {});
+                if (frame.Has(NailangFrame::ProgramStatus::LoopEnd))
+                    break;
+                frame.Status = NailangFrame::ProgramStatus::Next; // reset state
+            }
+            else
+                break;
+        }
+        //Runtime->OnLoop(meta.Args[0], content);
         return MetaFuncResult::Skip;
     }
     else if (metaName == U"MetaIf")
@@ -929,7 +966,20 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(MetaEvalPack& me
     else if (metaName == U"If")
     {
         ThrowByParamTypes<1>(meta, { Arg::Type::Boolable });
-        return meta.Params[0].GetBool().value() ? MetaFuncResult::Next : MetaFuncResult::Skip;
+        const auto check = meta.Params[0].GetBool().value();
+        GetFrame().IfRecord = check ? 0b1100u : 0b1000u; // expecting to be right shifted
+        return check ? MetaFuncResult::Next : MetaFuncResult::Skip;
+    }
+    else if (metaName == U"Else")
+    {
+        ThrowByArgCount(meta, 0);
+        switch (GetFrame().IfRecord)
+        {
+        case 0b11:  return MetaFuncResult::Skip;
+        case 0b10:  return MetaFuncResult::Next;
+        default:
+            NLRT_THROW_EX(u"MetaFunc [Else] can not be followed by [If].", meta);
+        }
     }
     return MetaFuncResult::Unhandled;
 }
@@ -963,40 +1013,53 @@ Arg NailangExecutor::EvaluateExpr(const Expr& arg)
     }
 }
 
-Arg NailangExecutor::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas)
+Arg NailangExecutor::EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas)
 {
-    Expects(call.Name->PartCount > 0);
-    const auto fullName = call.FullFuncName();
-    if (call.Name->Info() == FuncName::FuncInfo::Meta)
+    Expects(func.Name->PartCount > 0);
+    const auto fullName = func.FullFuncName();
+    if (func.Name->Info() == FuncName::FuncInfo::Meta)
     {
-        NLRT_THROW_EX(FMTSTR(u"MetaFunc [{}] can not be evaluated here.", fullName), call);
+        NLRT_THROW_EX(FMTSTR(u"MetaFunc [{}] can not be evaluated here.", fullName), func);
     }
+    NailangFrame::FuncInfoHolder holder(&GetFrame(), &func);
     // only for plain function
-    if (call.Name->Info() == FuncName::FuncInfo::Empty && call.Name->PartCount == 1)
+    if (func.Name->Info() == FuncName::FuncInfo::Empty && func.Name->PartCount == 1)
     {
         switch (DJBHash::HashC(fullName))
         {
         HashCase(fullName, U"Return")
         {
-            if (const auto scope = GetFrame().GetCallScope(); scope)
-                scope->ReturnArg = EvalFuncSingleArg(call, Arg::Type::Empty, ArgLimits::AtMost);
-            else
-                NLRT_THROW_EX(u"[Return] can only be used inside FlowScope"sv, call);
-            SetProgStatus(NailangFrame::ProgramStatus::Return);
+            const auto dst = GetFrame().SetReturn(EvalFuncSingleArg(func, Arg::Type::Empty, ArgLimits::AtMost));
+            if (!dst)
+                NLRT_THROW_EX(u"[Return] can only be used inside FlowScope"sv, func);
+            return {};
+        }
+        HashCase(fullName, U"Break")
+        {
+            const auto dst = GetFrame().SetBreak();
+            if (!dst)
+                NLRT_THROW_EX(u"[Break] can only be used inside LoopScope"sv, func);
+            return {};
+        }
+        HashCase(fullName, U"Continue")
+        {
+            const auto dst = GetFrame().SetContinue();
+            if (!dst)
+                NLRT_THROW_EX(u"[Continue] can only be used inside LoopScope"sv, func);
             return {};
         }
         HashCase(fullName, U"Throw")
         {
-            const auto arg = EvalFuncSingleArg(call, Arg::Type::Empty, ArgLimits::AtMost);
-            Runtime->HandleException(CREATE_EXCEPTION(NailangCodeException, arg.ToString().StrView(), call));
-            SetProgStatus(NailangFrame::ProgramStatus::Return);
+            const auto arg = EvalFuncSingleArg(func, Arg::Type::Empty, ArgLimits::AtMost);
+            GetFrame().SetReturn({});
+            Runtime->HandleException(CREATE_EXCEPTION(NailangCodeException, arg.ToString().StrView(), func));
             return {};
         }
         default: break;
         }
     }
-    auto params = EvalFuncAllArgs(call);
-    FuncEvalPack pack(call, params, metas);
+    auto params = EvalFuncAllArgs(func);
+    FuncEvalPack pack(func, params, metas);
     return EvaluateFunc(pack);
 }
 Arg NailangExecutor::EvaluateFunc(FuncEvalPack& func)
@@ -1360,14 +1423,11 @@ void NailangExecutor::ExecuteFrame()
         {
             HandleContent(content, metas);
         }
-        switch (frame.Status)
-        {
-        case NailangFrame::ProgramStatus::Return:
-        case NailangFrame::ProgramStatus::End:
+        frame.IfRecord >>= 2;
+        if (frame.Has(NailangFrame::ProgramStatus::End))
             return;
-        case NailangFrame::ProgramStatus::Next:
-            idx++; break;
-        }
+        else
+            idx++;
     }
     return;
 }
@@ -1413,70 +1473,6 @@ void NailangExecutor::HandleException(const NailangRuntimeException& ex) const
 }
 
 
-NailangLoopExecutor::NailangLoopExecutor(NailangRuntimeBase* runtime, NailangExecutor* prev) noexcept :
-    NailangExecutor(runtime), Prev(*prev)
-{ }
-NailangLoopExecutor::~NailangLoopExecutor()
-{ }
-
-bool NailangLoopExecutor::HandleMetaFuncs(MetaSet& allMetas, const Statement& target)
-{
-    return Prev.HandleMetaFuncs(allMetas, target);
-}
-Arg NailangLoopExecutor::EvaluateExpr(const Expr& arg)
-{
-    return Prev.EvaluateExpr(arg);
-}
-Arg NailangLoopExecutor::EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas)
-{
-    if (call.Name->Info() == FuncName::FuncInfo::Empty && call.Name->PartCount == 1)
-    {
-        const auto fullName = call.FullFuncName();
-        if (fullName == U"Break"sv)
-        {
-            SetProgStatus(NailangFrame::ProgramStatus::Return);
-            RetReason = ReturnReason::Break;
-            return {};
-        }
-        else if (fullName == U"Continue"sv)
-        {
-            SetProgStatus(NailangFrame::ProgramStatus::Return);
-            RetReason = ReturnReason::Continue;
-            return {};
-        }
-    }
-    return Prev.EvaluateFunc(call, metas);
-}
-void NailangLoopExecutor::ExecuteLoop(const Expr& condition)
-{
-    auto& frame = GetFrame();
-    frame.Executor = this;
-    while (true)
-    {
-        if (const auto cond = EvaluateExpr(condition); ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
-        {
-            frame.Status = NailangFrame::ProgramStatus::Next;
-            HandleContent(*frame.CurContent, {});
-            if (frame.Status == NailangFrame::ProgramStatus::Return)
-            {
-                switch (RetReason)
-                {
-                case ReturnReason::Break:
-                    frame.Status = NailangFrame::ProgramStatus::End;
-                    [[fallthrough]];
-                case ReturnReason::Return:
-                    return;
-                default:
-                    frame.Status = NailangFrame::ProgramStatus::Next; break;
-                }
-            }
-        }
-        else
-            return;
-    }
-}
-
-
 NailangRuntimeBase::FrameHolder::FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const NailangFrame::FrameFlags flags) :
     Host(*host), Frame(host->CurFrame, ctx, flags)
 {
@@ -1490,27 +1486,6 @@ NailangRuntimeBase::FrameHolder::~FrameHolder()
 }
 
 
-class NailangRuntimeBase::ExprHolder
-{
-    friend class NailangRuntimeBase;
-    NailangRuntimeBase& Host;
-    Expr PrevExpr;
-    constexpr ExprHolder(NailangRuntimeBase* host, const Expr& expr) noexcept :
-        Host(*host), PrevExpr(Host.CurFrame->CurExpr)
-    {
-        Host.CurFrame->CurExpr = expr;
-    }
-    COMMON_NO_COPY(ExprHolder)
-    COMMON_NO_MOVE(ExprHolder)
-public:
-    ~ExprHolder()
-    {
-        Expects(Host.CurFrame);
-        Host.CurFrame->CurExpr = PrevExpr;
-    }
-};
-
-
 NailangRuntimeBase::NailangRuntimeBase(std::shared_ptr<EvaluateContext> context) : 
     RootContext(std::move(context)), BasicExecutor(std::make_unique<NailangExecutor>(this))
 { }
@@ -1521,6 +1496,69 @@ NailangRuntimeBase::~NailangRuntimeBase()
 NailangRuntimeBase::FrameHolder NailangRuntimeBase::PushFrame(std::shared_ptr<EvaluateContext> ctx, const NailangFrame::FrameFlags flags)
 {
     return FrameHolder(this, std::move(ctx), flags);
+}
+
+static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!assign)
+        return { fname, u"<empty assign>"sv, 0 };
+    std::u32string target = U"<Assign>";
+    Serializer::Stringify(target, assign->Target);
+    Serializer::Stringify(target, assign->Queries);
+    return { fname, common::str::to_u16string(target), assign->Position.first };
+}
+static common::StackTraceItem CreateStack(const FuncCall* fcall, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!fcall)
+        return { fname, u"<empty func>"sv, 0 };
+    return { fname, common::str::to_u16string(fcall->FullFuncName()), fcall->Position.first };
+}
+static common::StackTraceItem CreateStack(const RawBlock* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty raw block>"sv, 0 };
+    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
+}
+static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty block>"sv, 0 };
+    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
+}
+
+void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
+{
+    if (auto& info = ex.GetInfo(); !info.Scope && CurFrame && CurFrame->CurContent)
+        info.Scope = *CurFrame->CurContent;
+
+    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
+        (const Block* blk) mutable -> common::SharedString<char16_t>
+    {
+        if (!blk) return {};
+        for (const auto& [name, str] : nameCache)
+            if (name == blk->FileName)
+                return str;
+        common::SharedString<char16_t> str(blk->FileName);
+        nameCache.emplace_back(blk->FileName, str);
+        return str;
+    };
+    std::vector<common::StackTraceItem> traces;
+    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
+    {
+        auto fname = GetFileName(frame->BlockScope);
+        const FuncCall* lastFunc = nullptr;
+        for (auto finfo = frame->FuncInfo; finfo; finfo = finfo->PrevInfo)
+        {
+            traces.emplace_back(CreateStack(finfo->Func, fname));
+            lastFunc = finfo->Func;
+        }
+        if (frame->CurContent && (*frame->CurContent) != lastFunc)
+        {
+            traces.emplace_back(frame->CurContent->Visit([&](const auto* ptr) { return CreateStack(ptr, fname); }));
+        }
+    }
+    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), traces.begin(), traces.end());
+    throw ex;
 }
 
 std::u32string NailangRuntimeBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
@@ -1549,18 +1587,7 @@ std::u32string NailangRuntimeBase::FormatString(const std::u32string_view format
         return {};
     }
 }
-FuncName* NailangRuntimeBase::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info)
-{
-    try
-    {
-        return FuncName::Create(MemPool, name, info);
-    }
-    catch (const NailangPartedNameException&)
-    {
-        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
-    }
-    return nullptr;
-}
+
 TempFuncName NailangRuntimeBase::CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info) const
 {
     try
@@ -1596,7 +1623,6 @@ LateBindVar NailangRuntimeBase::DecideDynamicVar(const Expr& arg, const std::u16
     Expects(false);
     return U""sv;
 }
-
 
 ArgLocator NailangRuntimeBase::LocateArg(const LateBindVar& var, const bool create) const
 {
@@ -1660,62 +1686,46 @@ ArgLocator NailangRuntimeBase::LocateArgForWrite(const LateBindVar& var, NilChec
         }
     }
 }
-
-static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
+bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck)
 {
-    if (!assign)
-        return { fname, u"<empty assign>"sv, 0 };
-    std::u32string target = U"<Assign>";
-    Serializer::Stringify(target, assign->Target);
-    Serializer::Stringify(target, assign->Queries);
-    return { fname, common::str::to_u16string(target), assign->Position.first };
-}
-static common::StackTraceItem CreateStack(const FuncCall* fcall, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!fcall)
-        return { fname, u"<empty func>"sv, 0 };
-    return { fname, common::str::to_u16string(fcall->FullFuncName()), fcall->Position.first };
-}
-static common::StackTraceItem CreateStack(const RawBlock* block, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!block)
-        return { fname, u"<empty raw block>"sv, 0 };
-    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
-}
-static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!block)
-        return { fname, u"<empty block>"sv, 0 };
-    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
-}
-
-void NailangRuntimeBase::HandleException(const NailangRuntimeException& ex) const
-{
-    if (auto& info = ex.GetInfo(); !info.Scope && CurFrame && CurFrame->CurExpr)
-        info.Scope = CurFrame->CurExpr;
-
-    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
-        (const Block* blk) mutable -> common::SharedString<char16_t>
-    {
-        if (!blk) return {};
-        for (const auto& [name, str] : nameCache)
-            if (name == blk->FileName)
-                return str;
-        return blk->FileName;
-    };
-    std::vector<common::StackTraceItem> traces;
-    for (auto frame = CurFrame; frame; frame = frame->PrevFrame)
-    {
-        auto fname = GetFileName(frame->BlockScope);
-        /*for (const auto expr = frame->CurExpr; call; call = call->PrevFrame)
+    auto target = LocateArgForWrite(var, nilCheck, subq.Size() != 0);
+    return NailangHelper::LocateWrite(target, subq, *CurFrame->Executor, [&](ArgLocator& dst)
         {
-            traces.emplace_back(CreateStack(call->Func, fname));
-        }*/
-        if (frame->CurContent)
-            traces.emplace_back(frame->CurContent->Visit([&](const auto* ptr) { return CreateStack(ptr, fname); }));
-    }
-    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), traces.begin(), traces.end());
-    throw ex;
+            if (!dst.CanAssign())
+                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
+            return dst.Set(std::move(arg));
+        });
+}
+bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck)
+{
+    std::variant<bool, EmbedOps> extra = false;
+    if (subq.Size() > 0)
+        extra = true;
+    else if (expr.TypeData == Expr::Type::Binary)
+        extra = expr.GetVar<Expr::Type::Binary>()->Operator;
+    auto target = LocateArgForWrite(var, nilCheck, extra);
+    return NailangHelper::LocateWrite(target, subq, *CurFrame->Executor, [&](ArgLocator& dst)
+        {
+            if (!dst.CanAssign())
+                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
+            return dst.Set(CurFrame->Executor->EvaluateExpr(expr));
+        });
+}
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args)
+{
+    if (!CurFrame)
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    else
+        return CurFrame->Context->SetFunc(block, capture, args);
+    return false;
+}
+bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args)
+{
+    if (!CurFrame)
+        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
+    else
+        return CurFrame->Context->SetFunc(block, capture, args);
+    return false;
 }
 
 std::shared_ptr<EvaluateContext> NailangRuntimeBase::ConstructEvalContext() const
@@ -1736,31 +1746,6 @@ Arg NailangRuntimeBase::LookUpArg(const LateBindVar& var, const bool checkNull) 
         NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
     return ret.ExtractGet();
 }
-bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck)
-{
-    auto target = LocateArgForWrite(var, nilCheck, subq.Size() != 0);
-    return NailangHelper::LocateWrite(target, subq, *CurFrame->Executor, [&](ArgLocator& dst)
-        {
-            if (!dst.CanAssign())
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
-                return dst.Set(std::move(arg));
-        });
-}
-bool NailangRuntimeBase::SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck)
-{
-    std::variant<bool, EmbedOps> extra = false;
-    if (subq.Size() > 0)
-        extra = true;
-    else if (expr.TypeData == Expr::Type::Binary)
-        extra = expr.GetVar<Expr::Type::Binary>()->Operator;
-    auto target = LocateArgForWrite(var, nilCheck, extra);
-    return NailangHelper::LocateWrite(target, subq, *CurFrame->Executor, [&](ArgLocator& dst)
-        {
-            if (!dst.CanAssign())
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
-            return dst.Set(CurFrame->Executor->EvaluateExpr(expr));
-        });
-}
 
 LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
 {
@@ -1771,22 +1756,6 @@ LocalFunc NailangRuntimeBase::LookUpFunc(std::u32string_view name) const
             return func;
     }
     return RootContext->LookUpFunc(name);
-}
-bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args)
-{
-    if (!CurFrame)
-        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
-    else
-        return CurFrame->Context->SetFunc(block, capture, args);
-    return false;
-}
-bool NailangRuntimeBase::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args)
-{
-    if (!CurFrame)
-        NLRT_THROW_EX(FMTSTR(u"SetFunc [{}] without frame", block->Name));
-    else
-        return CurFrame->Context->SetFunc(block, capture, args);
-    return false;
 }
 
 void NailangRuntimeBase::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
@@ -1800,18 +1769,6 @@ void NailangRuntimeBase::OnBlock(const Block& block, common::span<const FuncCall
     CurFrame->BlockScope = &block;
     CurFrame->MetaScope = metas;
     prevFrame->Executor->ExecuteFrame();
-    CurFrame->PassReturnState();
-}
-
-void NailangRuntimeBase::OnLoop(const Expr& condition, const Statement& target, MetaSet& allMetas)
-{
-    const auto prevFrame = PushFrame();
-    CurFrame->BlockScope = prevFrame->BlockScope;
-    CurFrame->CurContent = &target;
-    //CurFrame->MetaScope = allMetas.Metas;
-    NailangLoopExecutor loopExe(this, prevFrame->Executor);
-    loopExe.ExecuteLoop(condition);
-    CurFrame->PassReturnState();
 }
 
 Arg NailangRuntimeBase::OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
@@ -1827,7 +1784,6 @@ Arg NailangRuntimeBase::OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
     CurFrame->BlockScope = func.Body;
     CurFrame->MetaScope = pack.Metas;
     prevFrame->Executor->ExecuteFrame();
-    // no need to PassReturnState since garuenteed to be FlowScope
     return std::move(CurFrame->ReturnArg);
 }
 

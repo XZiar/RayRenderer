@@ -1062,7 +1062,7 @@ TEST(NailangRuntime, sumOdd)
 
     constexpr auto sumTxt = UR"(
 :sum := 0;
-:txt := "";
+//:txt := "";
 @While(m < n)
 #Block("")
 {
@@ -1102,9 +1102,43 @@ m = sum;
 
     const auto algoBlock = BlkParser::GetBlock(pool, sumTxt);
 
-    ASSERT_EQ(algoBlock.Size(), 4u);
+    ASSERT_EQ(algoBlock.Size(), 3u);
 
     EXPECT_EQ(Run2Arg(runtime, algoBlock, 0u, 10u), 20u);
     EXPECT_EQ(Run2Arg(runtime, algoBlock, 1u, 10u), 20u);
     EXPECT_EQ(Run2Arg(runtime, algoBlock, 3u, 10u), 18u);
+}
+
+TEST(NailangRuntime, NOr2M)
+{
+    MemoryPool pool;
+    NailangRT runtime;
+
+    constexpr auto NOr2MTxt = UR"(
+@If(m > n)
+    m = n;
+@Else()
+    m = 2 * m;
+)"sv;
+
+    constexpr auto refNOr2M = [](auto m, auto n)
+    {
+        if (m > n)
+            m = n;
+        else
+            m = 2 * m;
+        return m;
+    };
+
+    EXPECT_EQ(refNOr2M(5u, 4u),  4u);
+    EXPECT_EQ(refNOr2M(5u, 5u), 10u);
+    EXPECT_EQ(refNOr2M(4u, 5u),  8u);
+
+    const auto algoBlock = BlkParser::GetBlock(pool, NOr2MTxt);
+
+    ASSERT_EQ(algoBlock.Size(), 2u);
+
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 5u, 4u),  4u);
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 5u, 5u), 10u);
+    EXPECT_EQ(Run2Arg(runtime, algoBlock, 4u, 5u),  8u);
 }

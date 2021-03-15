@@ -1114,7 +1114,7 @@ struct Statement
     Type TypeData;
     constexpr Statement() noexcept : Pointer(0), Offset(0), Count(0), TypeData(Type::Empty)
     { }
-    Statement(const FuncCall* ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
+    Statement(const FuncCall  * ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
         Pointer(reinterpret_cast<uintptr_t>(ptr)), Offset(meta.first), Count(meta.second), TypeData(Type::FuncCall)
     { }
     Statement(const AssignExpr* ptr, std::pair<uint32_t, uint16_t> meta = { 0u,(uint16_t)0 }) noexcept :
@@ -1154,6 +1154,27 @@ struct Statement
         case Type::Block:       return visitor(Get<     Block>());
         default:Expects(false); return visitor(static_cast<const AssignExpr*>(nullptr));
         }
+    }
+    [[nodiscard]] forceinline bool operator==(const FuncCall* ptr) const noexcept
+    {
+        return TypeData == Type::FuncCall && Get<FuncCall>() == ptr;
+    }
+    [[nodiscard]] forceinline bool operator==(const AssignExpr* ptr) const noexcept
+    {
+        return TypeData == Type::Assign && Get<AssignExpr>() == ptr;
+    }
+    [[nodiscard]] forceinline bool operator==(const RawBlock* ptr) const noexcept
+    {
+        return TypeData == Type::RawBlock && Get<RawBlock>() == ptr;
+    }
+    [[nodiscard]] forceinline bool operator==(const Block* ptr) const noexcept
+    {
+        return TypeData == Type::Block && Get<Block>() == ptr;
+    }
+    template<typename T>
+    [[nodiscard]] forceinline bool operator!=(const T* ptr) const noexcept
+    {
+        return !operator==(ptr);
     }
     std::pair<uint32_t, uint32_t> GetPosition() const noexcept;
 };

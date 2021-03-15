@@ -417,15 +417,28 @@ class NailangFrame
     friend NailangExecutor;
     friend NailangRuntimeBase;
 private:
-    NailangFrame* PrevFrame;
+    struct FuncStackInfo
+    {
+        const FuncStackInfo* PrevInfo;
+        const FuncCall* Func;
+    };
+    NailangFrame* const PrevFrame;
+    const FuncStackInfo* FuncInfo;
+    class FuncInfoHolder;
 public:
-    enum class ProgramStatus : uint8_t { Next, Return, End };
+    enum class ProgramStatus : uint8_t 
+    { 
+        Next    = 0b00000000, 
+        End     = 0b00000001,
+        LoopEnd = 0b00000010,
+    };
     enum class FrameFlags : uint8_t
     {
         Empty       = 0b00000000,
         FlowScope   = 0b00000001,
         CallScope   = 0b00000010,
         FuncCall    = FlowScope | CallScope,
+        LoopScope   = 0b00000100,
     };
 
     NailangExecutor* Executor;
@@ -433,25 +446,29 @@ public:
     common::span<const FuncCall> MetaScope;
     const Block* BlockScope = nullptr;
     const Statement* CurContent = nullptr;
-    Expr CurExpr;
     Arg ReturnArg;
     FrameFlags Flags;
     ProgramStatus Status = ProgramStatus::Next;
+    uint8_t IfRecord = 0;
 
     NailangFrame(NailangFrame* prev, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
-        PrevFrame(prev), Executor(nullptr), Context(ctx), Flags(flag) { }
+        PrevFrame(prev), FuncInfo(nullptr), Executor(nullptr), Context(ctx), Flags(flag) { }
     [[nodiscard]] constexpr bool Has(FrameFlags flag) const noexcept;
+    [[nodiscard]] constexpr bool Has(ProgramStatus status) const noexcept;
     [[nodiscard]] constexpr NailangFrame* GetCallScope() noexcept;
-    constexpr void PassReturnState() const noexcept
-    {
-        if (Status == ProgramStatus::Return && PrevFrame && !Has(FrameFlags::FlowScope))
-            PrevFrame->Status = ProgramStatus::Return;
-    }
+    NailangFrame* SetReturn(Arg returnVal) noexcept;
+    constexpr NailangFrame* SetBreak() noexcept;
+    constexpr NailangFrame* SetContinue() noexcept;
 };
+MAKE_ENUM_BITFIELD(NailangFrame::ProgramStatus)
 MAKE_ENUM_BITFIELD(NailangFrame::FrameFlags)
 inline constexpr bool NailangFrame::Has(FrameFlags flag) const noexcept
 {
     return HAS_FIELD(Flags, flag);
+}
+inline constexpr bool NailangFrame::Has(ProgramStatus status) const noexcept
+{
+    return HAS_FIELD(Status, status);
 }
 inline constexpr NailangFrame* NailangFrame::GetCallScope() noexcept
 {
@@ -462,6 +479,44 @@ inline constexpr NailangFrame* NailangFrame::GetCallScope() noexcept
     }
     return nullptr;
 }
+inline NailangFrame* NailangFrame::SetReturn(Arg returnVal) noexcept
+{
+    for (auto frame = this; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = ProgramStatus::End | ProgramStatus::LoopEnd;
+        if (HAS_FIELD(frame->Flags, FrameFlags::FlowScope))
+        {
+            frame->ReturnArg = std::move(returnVal);
+            return frame;
+        }
+    }
+    return nullptr;
+}
+inline constexpr NailangFrame* NailangFrame::SetBreak() noexcept
+{
+    for (auto frame = this; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = ProgramStatus::End | ProgramStatus::LoopEnd;
+        if (HAS_FIELD(frame->Flags, FrameFlags::LoopScope))
+        {
+            return frame;
+        }
+    }
+    return nullptr;
+}
+inline constexpr NailangFrame* NailangFrame::SetContinue() noexcept
+{
+    for (auto frame = this; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = ProgramStatus::End;
+        if (HAS_FIELD(frame->Flags, FrameFlags::LoopScope))
+        {
+            return frame;
+        }
+    }
+    return nullptr;
+}
+
 
 class NAILANGAPI NailangBase
 {
@@ -505,7 +560,6 @@ class NAILANGAPI NailangExecutor : protected NailangBase
     friend NailangRuntimeBase;
 protected:
     NailangRuntimeBase* Runtime = nullptr;
-    forceinline constexpr void SetProgStatus(NailangFrame::ProgramStatus status) const noexcept;
     forceinline constexpr NailangFrame& GetFrame() const noexcept;
     void EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
@@ -536,6 +590,8 @@ protected:
     std::vector<Arg> EvalFuncAllArgs(const FuncCall& func);
 public:
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
+    NailangExecutor(NailangRuntimeBase* runtime) noexcept;
+    virtual ~NailangExecutor();
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
     [[nodiscard]] virtual Arg EvaluateFunc(FuncEvalPack& func);
@@ -545,49 +601,28 @@ public:
     [[nodiscard]] virtual Arg EvaluateBinaryExpr(const BinaryExpr& expr);
     [[nodiscard]] virtual Arg EvaluateTernaryExpr(const TernaryExpr& expr);
     [[nodiscard]] virtual Arg EvaluateQueryExpr(const QueryExpr& expr);
+    [[noreturn]] void HandleException(const NailangRuntimeException& ex) const final;
     void ExecuteFrame();
     void HandleContent(const Statement& content, common::span<const FuncCall> metas);
     [[nodiscard]] virtual bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target); // return if need eval target
     [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg);
-    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
-    [[noreturn]] void HandleException(const NailangRuntimeException& ex) const final;
-
-    NailangExecutor(NailangRuntimeBase* runtime) noexcept;
-    virtual ~NailangExecutor();
+    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas);
 };
-class NAILANGAPI NailangLoopExecutor : public NailangExecutor
-{
-private:
-    NailangExecutor& Prev;
-    enum class ReturnReason { Return, Continue, Break };
-    ReturnReason RetReason = ReturnReason::Return;
-public:
-    [[nodiscard]] bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target) final;
-    [[nodiscard]] Arg EvaluateExpr(const Expr& arg) final;
-    [[nodiscard]] Arg EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas) final;
-    void ExecuteLoop(const Expr& condition);
 
-    NailangLoopExecutor(NailangRuntimeBase* runtime, NailangExecutor* prev) noexcept;
-    ~NailangLoopExecutor() override;
-};
 
 class NAILANGAPI NailangRuntimeBase : private NailangBase
 {
     friend NailangExecutor;
-    friend Arg;
-    friend CustomVar::Handler;
-public:
-private:
-    class ExprHolder;
 protected:
-    class FrameHolder;
-    class NAILANGAPI COMMON_EMPTY_BASES FrameHolder : public common::NonCopyable, public common::NonMovable
+    class NAILANGAPI FrameHolder
     {
         friend class NailangRuntimeBase;
         NailangRuntimeBase& Host;
         NailangFrame Frame;
         FrameHolder(NailangRuntimeBase* host, const std::shared_ptr<EvaluateContext>& ctx, const NailangFrame::FrameFlags flags);
     public:
+        COMMON_NO_COPY(FrameHolder)
+        COMMON_NO_MOVE(FrameHolder)
         ~FrameHolder();
         constexpr NailangFrame* operator->() const noexcept
         {
@@ -610,37 +645,24 @@ protected:
         return PushFrame(innerScope ? ConstructEvalContext() : (CurFrame ? CurFrame->Context : RootContext), flags);
     }
 
+    [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
-    [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
+    //[[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
     [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
     [[nodiscard]] ArgLocator LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
+    bool SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck = {});
+    bool SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck = {});
+    bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
+    bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
 
-    [[noreturn]]  void HandleException(const NailangRuntimeException& ex) const override;
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var, const bool checkNull = true) const;
-                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck = {});
-                  virtual bool SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck = {});
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
-                  virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
-                  virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
-    //[[nodiscard]] virtual bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target); // return if need eval target
-    //[[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
-    //[[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
-    //[[nodiscard]] virtual Arg  EvaluateExpr(const Expr& arg);
-    //[[nodiscard]] virtual Arg  EvaluateFunc(const FuncCall& call, common::span<const FuncCall> metas);
-    //[[nodiscard]] virtual Arg  EvaluateFunc(FuncEvalPack& func);
-    //[[nodiscard]] virtual Arg  EvaluateExtendMathFunc(FuncEvalPack& func);
-    //[[nodiscard]] virtual Arg  EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
-    //[[nodiscard]] virtual Arg  EvaluateUnknwonFunc(FuncEvalPack& func);
-    //[[nodiscard]] virtual Arg  EvaluateUnaryExpr(const UnaryExpr& expr);
-    //[[nodiscard]] virtual Arg  EvaluateBinaryExpr(const BinaryExpr& expr);
-    //[[nodiscard]] virtual Arg  EvaluateTernaryExpr(const TernaryExpr& expr);
-    //[[nodiscard]] virtual Arg  EvaluateQueryExpr(const QueryExpr& expr);
     virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void OnBlock(const Block& block, common::span<const FuncCall> metas);
-    virtual void OnLoop(const Expr& condition, const Statement& target, MetaSet& allMetas);
+    //virtual void OnLoop(const Expr& condition, const Statement& target);
     [[nodiscard]] virtual Arg OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
 
 public:
@@ -655,10 +677,6 @@ public:
     Arg EvaluateRawStatements(std::u32string_view content, const bool innerScope = true);
 };
 
-inline constexpr void NailangExecutor::SetProgStatus(NailangFrame::ProgramStatus status) const noexcept
-{
-    Runtime->CurFrame->Status = status;
-}
 inline constexpr NailangFrame& NailangExecutor::GetFrame() const noexcept
 { 
     return *Runtime->CurFrame;
