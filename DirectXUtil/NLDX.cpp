@@ -201,7 +201,7 @@ Arg NLDXExecutor::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
         if (ret.has_value())
             return std::move(ret.value());
     }
-    return NLDXExecutor::EvaluateFunc(func);
+    return XCNLExecutor::EvaluateFunc(func);
 }
 
 

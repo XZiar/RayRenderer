@@ -84,16 +84,15 @@ public:
 
     void  BeginXCNL(XCNLRuntime&) override { }
     void FinishXCNL(XCNLRuntime&) override { }
-    std::optional<Arg> XCNLFunc(XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& func) override
+    std::optional<Arg> XCNLFunc(XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) override
     {
-        auto& Runtime = static_cast<RuntimeCaller&>(runtime);
         const auto& fname = func.GetName();
         if (fname[0] == U"xcstub"sv)
         {
             const auto sub = fname[1];
             if (sub == U"AddRun"sv)
             {
-                Runtime.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
+                executor.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
                 const auto name = func.Params[0].GetStr().value();
                 const auto kerName = common::str::to_string(func.Params[1].GetStr().value(), Charset::UTF8);
                 const auto cookie = Helper.TryFindKernel(Context, kerName);
@@ -105,13 +104,13 @@ public:
             }
             else if (sub == U"BufArg"sv)
             {
-                Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
-                const auto size = Runtime.EvaluateFirstFuncArg(func, Arg::Type::Integer).GetUint().value();
+                executor.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+                const auto size = func.Params[0].GetUint().value();
                 return ArgWrapperHandler::CreateBuffer(gsl::narrow_cast<uint32_t>(size));
             }
             else if (sub == U"ImgArg"sv)
             {
-                Runtime.ThrowByParamTypes<2>(func, { Arg::Type::Integer, Arg::Type::Integer });
+                executor.ThrowByParamTypes<2>(func, { Arg::Type::Integer, Arg::Type::Integer });
                 const auto width  = gsl::narrow_cast<uint32_t>(func.Params[0].GetUint().value());
                 const auto height = gsl::narrow_cast<uint32_t>(func.Params[1].GetUint().value());
                 return ArgWrapperHandler::CreateImage(width, height);
@@ -119,7 +118,7 @@ public:
             else if (sub == U"ValArg"sv)
             {
                 const auto type = fname[2];
-                Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
+                executor.ThrowByParamTypes<1>(func, { Arg::Type::Integer });
                 if (type == U"u8")
                 {
                     const auto val = func.Params[0].GetUint().value();
@@ -140,7 +139,7 @@ public:
                     const auto val = func.Params[0].GetUint().value();
                     return ArgWrapperHandler::CreateVal64(gsl::narrow_cast<uint64_t>(val));
                 }
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type));
+                executor.HandleException(CREATE_EXCEPTION(NailangRuntimeException, FMTSTR(u"Unknown type for ValArg [{}]", type)));
             }
         }
         return {};

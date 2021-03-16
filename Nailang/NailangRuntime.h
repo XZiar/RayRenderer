@@ -520,9 +520,9 @@ inline constexpr NailangFrame* NailangFrame::SetContinue() noexcept
 
 class NAILANGAPI NailangBase
 {
-protected:
+public:
     [[noreturn]] virtual void HandleException(const NailangRuntimeException& ex) const = 0;
-
+    
     void ThrowByArgCount(const FuncCall& func, const size_t count, const ArgLimits limit = ArgLimits::Exact) const;
     void ThrowByArgType(const FuncCall& func, const Expr::Type type, size_t idx) const;
     void ThrowByArgTypes(const FuncCall& func, common::span<const Expr::Type> types, const ArgLimits limit, size_t offset = 0) const;
@@ -558,7 +558,7 @@ protected:
     [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
 };
 
-class NAILANGAPI NailangExecutor : protected NailangBase
+class NAILANGAPI NailangExecutor : public NailangBase
 {
     friend NailangRuntimeBase;
 protected:
@@ -613,7 +613,7 @@ public:
 };
 
 
-class NAILANGAPI NailangRuntimeBase : protected NailangBase
+class NAILANGAPI NailangRuntimeBase : public NailangBase
 {
     friend NailangExecutor;
 protected:

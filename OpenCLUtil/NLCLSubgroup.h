@@ -16,6 +16,13 @@ struct SubgroupAttributes
 enum class SubgroupReduceOp { Sum, Min, Max, And, Or, Xor };
 
 
+struct NLCLExecutor_ : public NLCLExecutor
+{
+    friend SubgroupProvider;
+    friend NLCLSubgroupExtension;
+    friend class NLCLSubgroupLocal;
+    friend class NLCLSubgroupPtx;
+};
 struct NLCLRuntime_ : public NLCLRuntime
 {
     friend SubgroupProvider;
@@ -43,13 +50,13 @@ struct NLCLSubgroupExtension : public NLCLExtension
     { }
     ~NLCLSubgroupExtension() override { }
     
-    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
+    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
+    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
+    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) final;
 
-    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, 
-        const common::span<const std::u32string_view> args) override;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& call) override;
+    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
+        common::span<const std::u32string_view> args) final;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) final;
 
     static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
     static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);

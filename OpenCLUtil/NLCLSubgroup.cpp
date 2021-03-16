@@ -69,25 +69,26 @@ void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::I
     SubgroupSize = 0;
 }
 
-void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext&)
+void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext&)
 {
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    auto& Executor = static_cast<NLCLExecutor_&>(executor);
+    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
     using namespace xziar::nailang;
     if (meta.GetName() == U"oclu.SubgroupSize"sv || meta.GetName() == U"xcomp.SubgroupSize"sv)
     {
-        Runtime.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
+        Executor.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
         SubgroupSize = gsl::narrow_cast<uint8_t>(meta.Params[0].GetUint().value());
     }
     else if (meta.GetName() == U"oclu.SubgroupExt"sv)
     {
-        Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String }); 
+        Executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
         const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
         Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context, mimic, args);
     }
 }
 
-ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
+ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
     if (common::str::IsBeginWith(func, U"oclu."))
         func.remove_prefix(5);
@@ -95,7 +96,8 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
         func.remove_prefix(6);
     else
         return {};
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    auto& Executor = static_cast<NLCLRawExecutor&>(executor);
+    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
     constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
     {
         if (!result && result.GetStr().empty())
@@ -104,7 +106,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
     };
     const auto SubgroupReduce = [&](std::u32string_view name, SubgroupReduceOp op)
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], FMTSTR(u"replace [{}]"sv, name));
         return Provider->SubgroupReduce(op, vtype, args[1]);
     };
@@ -113,56 +115,56 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
     {
     HashCase(func, U"GetSubgroupSize")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupSize(),
             U"[GetSubgroupSize] not supported"sv);
     }
     HashCase(func, U"GetMaxSubgroupSize")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetMaxSubgroupSize(),
             U"[GetMaxSubgroupSize] not supported"sv);
     }
     HashCase(func, U"GetSubgroupCount")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupCount(),
             U"[GetSubgroupCount] not supported"sv);
     }
     HashCase(func, U"GetSubgroupId")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupId(),
             U"[GetSubgroupId] not supported"sv);
     }
     HashCase(func, U"GetSubgroupLocalId")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupLocalId(),
             U"[GetSubgroupLocalId] not supported"sv);
     }
     HashCase(func, U"SubgroupAll")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
         return HandleResult(Provider->SubgroupAll(args[0]),
             U"[SubgroupAll] not supported"sv);
     }
     HashCase(func, U"SubgroupAny")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
         return HandleResult(Provider->SubgroupAny(args[0]),
             U"[SubgroupAny] not supported"sv);
     }
     HashCase(func, U"SubgroupBroadcast")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
         return HandleResult(Provider->SubgroupBroadcast(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupBroadcast with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupShuffle")
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        Executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
         return HandleResult(Provider->SubgroupShuffle(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupShuffle with Type [{}] not supported", args[0]));
@@ -196,15 +198,16 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, st
     return {};
 }
 
-std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& func)
+std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func)
 {
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    auto& Executor = static_cast<NLCLExecutor_&>(executor);
+    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
     using namespace xziar::nailang;
     if (func.GetName() == U"oclu.AddSubgroupPatch"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
-        //Runtime.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
-        Runtime.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        Executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        //Executor.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
+        Executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = func.Params[0].GetBool().value();
         const auto vstr  = func.Params[1].GetStr().value();
         const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);

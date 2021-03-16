@@ -693,7 +693,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
     for (const auto& ext : GetExtensions())
     {
         if (!ext) continue;
-        auto ret = ext->ReplaceFunc(Executor, func, args);
+        auto ret = ext->ReplaceFunc(*this, func, args);
         const auto str = ret.GetStr();
         if (!ret && ret.CheckAllowFallback())
         {

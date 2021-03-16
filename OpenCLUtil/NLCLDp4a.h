@@ -8,6 +8,11 @@ namespace oclu
 struct NLCLDp4aExtension;
 struct Dp4aProvider;
 
+struct NLCLExecutor_ : public NLCLExecutor
+{
+    friend Dp4aProvider;
+    friend NLCLDp4aExtension;
+};
 struct NLCLRuntime_ : public NLCLRuntime
 {
     friend Dp4aProvider;
@@ -41,13 +46,13 @@ public:
     { }
     ~NLCLDp4aExtension() override { }
 
-    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) override;
-    void InstanceMeta(xcomp::XCNLRuntime& runtime, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
+    void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
+    void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
+    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) final;
 
-    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, 
-        const common::span<const std::u32string_view> args) override;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLRuntime& runtime, xziar::nailang::FuncEvalPack& func) override;
+    [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
+        common::span<const std::u32string_view> args) final;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) final;
 
     std::shared_ptr<Dp4aProvider> GetDefaultProvider() const;
     std::shared_ptr<Dp4aProvider> Generate(std::u32string_view mimic, std::u32string_view args) const;

@@ -108,7 +108,9 @@ class DXUAPI NLDXExecutor : public xcomp::XCNLExecutor
 {
     friend NLDXRuntime;
     friend NLDXRawExecutor;
+private:
     NLDXExecutor(NLDXRuntime* runtime);
+protected:
     constexpr NLDXRuntime& GetRuntime() const noexcept;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
 };
@@ -119,6 +121,7 @@ class DXUAPI NLDXRawExecutor : public xcomp::XCNLRawExecutor
     friend NLDXRuntime;
 private:
     NLDXRawExecutor(NLDXExecutor& executor);
+protected:
     constexpr NLDXRuntime& GetRuntime() const noexcept { return static_cast<NLDXExecutor&>(Executor).GetRuntime(); }
     [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;

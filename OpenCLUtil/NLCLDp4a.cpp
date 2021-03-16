@@ -18,7 +18,7 @@ using common::str::Charset;
 
 
 
-#define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define RET_FAIL(func) return {U"No proper ["## #func ##"]"sv, false}
 
@@ -35,12 +35,12 @@ void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::Insta
     Provider.reset();
 }
 
-void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLRuntime& runtime, const MetaEvalPack& meta, xcomp::InstanceContext&)
+void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const MetaEvalPack& meta, xcomp::InstanceContext&)
 {
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    auto& Executor = static_cast<NLCLExecutor_&>(executor);
     if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
-        Runtime.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        Executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
         const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
         Provider = Generate(mimic, args);
@@ -52,9 +52,8 @@ constexpr auto SignednessParser = SWITCH_PACK(Hash,
     (U"ss", Dp4aProvider::Signedness::SS),
     (U"us", Dp4aProvider::Signedness::US),
     (U"su", Dp4aProvider::Signedness::SU));
-ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u32string_view func, const common::span<const std::u32string_view> args)
+ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
     constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
     {
         if (!result && result.GetStr().empty())
@@ -63,9 +62,9 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u
     };
     if (func == U"oclu.Dp4a"sv || func == U"xcomp.Dp4a"sv)
     {
-        Runtime.ThrowByReplacerArgCount(func, args, 4, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 4, ArgLimits::Exact);
         if (const auto signedness = SignednessParser(args[0]); !signedness.has_value())
-            NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
+            executor.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
         else
             return HandleResult(Provider->DP4A(signedness.value(), args.subspan(1)),
                 U"[Dp4a] not supported"sv);
@@ -73,14 +72,14 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRuntime& runtime, std::u
     return {};
 }
 
-std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLRuntime& runtime, FuncEvalPack& func)
+std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLExecutor& executor, FuncEvalPack& func)
 {
-    auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+    auto& Executor = static_cast<NLCLExecutor_&>(executor);
     using namespace xziar::nailang;
     if (func.GetName() == U"oclu.IntelDp4a"sv)
     {
-        Runtime.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
-        Runtime.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
+        Executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        Executor.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
         HasIntelDp4a = func.Params[0].GetBool().value();
         return Arg{};
     }

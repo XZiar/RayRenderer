@@ -13,9 +13,18 @@ namespace oclu
 #   pragma warning(disable:4275 4251)
 #endif
 
+class NLCLExecutor;
+class NLCLRawExecutor;
+class NLCLRuntime;
+class NLCLContext;
+class KernelExtension;
+class NLCLProcessor;
+class NLCLProgStub;
+
 
 struct KernelContext : public xcomp::InstanceContext
 {
+    friend NLCLRawExecutor;
     friend NLCLRuntime;
     friend debug::NLCLDebugExtension;
     ~KernelContext() override {}
@@ -50,23 +59,11 @@ protected:
 };
 
 
-struct KernelCookie : public xcomp::BlockCookie
-{
-    KernelContext Context;
-    KernelCookie(const xcomp::OutputBlock& block) noexcept : xcomp::BlockCookie(block) 
-    {
-        Context.InsatnceName = this->Block.Name();
-    }
-    ~KernelCookie() override { }
-    xcomp::InstanceContext* GetInstanceCtx() noexcept override { return &Context; }
-};
-
-
 class OCLUAPI NLCLExtension : public xcomp::XCNLExtension
 {
-    friend class NLCLRuntime;
-    friend class NLCLProgStub;
-    friend class NLCLContext;
+    friend NLCLRuntime;
+    friend NLCLProgStub;
+    friend NLCLContext;
 protected:
     NLCLContext& Context;
 public:
@@ -77,9 +74,11 @@ public:
 
 class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext
 {
-    friend class NLCLProcessor;
-    friend class NLCLRuntime;
-    friend class NLCLProgStub;
+    friend NLCLExecutor;
+    friend NLCLRawExecutor;
+    friend NLCLProcessor;
+    friend NLCLRuntime;
+    friend NLCLProgStub;
 private:
     struct OCLUVar;
     xziar::nailang::Arg OCLUArg;
@@ -101,36 +100,71 @@ protected:
 };
 
 
+class OCLUAPI NLCLExecutor : public xcomp::XCNLExecutor
+{
+    friend NLCLRuntime;
+    friend NLCLRawExecutor;
+private:
+    NLCLExecutor(NLCLRuntime* runtime);
+protected:
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+public:
+    constexpr NLCLRuntime& GetRuntime() const noexcept;
+};
+
+
+class OCLUAPI NLCLRawExecutor : public xcomp::XCNLRawExecutor
+{
+    friend NLCLRuntime;
+private:
+    NLCLRawExecutor(NLCLExecutor& executor);
+protected:
+    void StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg) const;
+    [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
+    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
+    [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;
+    void ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst) final;
+    void OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst) final;
+public:
+    constexpr NLCLRuntime& GetRuntime() const noexcept { return static_cast<NLCLExecutor&>(Executor).GetRuntime(); }
+    using XCNLRawExecutor::ExtensionReplaceFunc;
+};
+
+
 class OCLUAPI COMMON_EMPTY_BASES NLCLRuntime : public xcomp::XCNLRuntime
 {
-    friend class KernelExtension;
-    friend class NLCLProcessor;
+    friend NLCLExecutor;
+    friend NLCLRawExecutor;
+    friend KernelExtension;
+    friend NLCLProcessor;
+private:
+    xcomp::XCNLExecutor& GetBaseExecutor() noexcept final;
+    xcomp::XCNLRawExecutor& GetRawExecutor() noexcept final;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
     using MetaFuncs = ::common::span<const FuncCall>;
 
     NLCLContext& Context;
-
-    void StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg);
-
-    void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
-
-    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& call) override;
+    NLCLExecutor BaseExecutor;
+    NLCLRawExecutor RawExecutor;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
-    [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg*) final;
-    void HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
-    void OutputStruct  (xcomp::BlockCookie& cookie, std::u32string& dst) override;
-    void OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
 public:
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);
     ~NLCLRuntime() override;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
+    using XCNLRuntime::ParseVecType;
+    using XCNLRuntime::GetVecTypeName;
 };
+
+inline constexpr NLCLRuntime& NLCLExecutor::GetRuntime() const noexcept
+{
+    return static_cast<NLCLRuntime&>(XCNLExecutor::GetRuntime());
+}
 
 
 class OCLUAPI NLCLBaseResult : public NLCLResult

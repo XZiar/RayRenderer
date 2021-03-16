@@ -84,6 +84,7 @@ struct KernelArgInfo : public ArgFlags
 class OCLUAPI KernelArgStore
 {
     friend oclKernel_;
+    friend NLCLRawExecutor;
     friend NLCLRuntime;
     friend KernelContext;
 protected:

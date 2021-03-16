@@ -58,6 +58,8 @@ namespace oclu
 class oclUtil;
 class oclMapPtr_;
 class GLInterop;
+class NLCLExecutor;
+class NLCLRawExecutor;
 class NLCLRuntime;
 struct KernelContext;
 class NLCLContext;

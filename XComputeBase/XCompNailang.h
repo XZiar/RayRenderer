@@ -339,7 +339,7 @@ public:
     virtual void  BeginInstance(XCNLRuntime&, InstanceContext&) { } 
     virtual void FinishInstance(XCNLRuntime&, InstanceContext&) { }
     virtual void InstanceMeta(XCNLExecutor&, const xziar::nailang::MetaEvalPack&, InstanceContext&) { }
-    [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLExecutor&, std::u32string_view, U32StrSpan)
+    [[nodiscard]] virtual ReplaceResult ReplaceFunc(XCNLRawExecutor&, std::u32string_view, U32StrSpan)
     {
         return {};
     }
@@ -484,6 +484,7 @@ class XCOMPBASAPI XCNLExecutorProxy : protected xziar::nailang::NailangBase
 protected:
     XCNLExecutor& Executor;
     XCNLExecutorProxy(XCNLExecutor& executor) : Executor(executor) {}
+public:
     [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const final;
 };
 
@@ -528,10 +529,7 @@ protected:
     [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept { return Executor.GetRuntime(); }
     [[nodiscard]] RawFrame& GetFrame() const noexcept { return static_cast<RawFrame&>(Executor.GetFrame()); }
     [[nodiscard]] constexpr auto& GetExtensions() const noexcept { return Executor.GetExtensions(); }
-    using XCNLExecutorProxy::HandleException;
     void HandleException(const xziar::nailang::NailangParseException& ex) const final;
-    void ThrowByReplacerArgCount(const std::u32string_view call, const U32StrSpan args,
-        const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     xziar::nailang::NailangRuntimeBase::FrameT<RawFrame> PushFrame(const OutputBlock& block);
     [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name,
@@ -545,6 +543,9 @@ protected:
     void DirectOutput(std::u32string& dst);
 public:
     ~XCNLRawExecutor() override;
+    using XCNLExecutorProxy::HandleException;
+    void ThrowByReplacerArgCount(const std::u32string_view call, const U32StrSpan args,
+        const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     virtual void ProcessGlobal(const OutputBlock& block, std::u32string& dst);
     virtual void ProcessStruct(const OutputBlock& block, std::u32string& dst);
     void ProcessInstance(const OutputBlock& block, std::u32string& output);
