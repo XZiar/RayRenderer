@@ -42,7 +42,7 @@ MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
 
 
-#define NLRT_THROW_EX(...) this->HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
@@ -472,6 +472,22 @@ void XCNLContext::Write(std::u32string& output, const NamedText& item) const
 }
 
 
+XCNLExecutor::MetaFuncHandler::~MetaFuncHandler() {}
+
+
+xziar::nailang::NailangRuntimeBase::FrameT<XCNLExecutor::XCNLFrame> XCNLExecutor::PushFrame(xziar::nailang::NailangFrame::FrameFlags flags)
+{
+    return GetRuntime().PushFrame<XCNLFrame>(flags);
+}
+
+XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
+{
+    auto& frame = GetFrame();
+    if (frame.MetaHandler && frame.MetaHandler->HandleMetaFunc(meta))
+        return MetaFuncResult::Next;
+    return XCNLExecutor::HandleMetaFunc(meta);
+}
+
 Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
 {
     if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
@@ -503,30 +519,36 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
 }
 
 
-XCNLRawCodePrepare::XCNLRawCodePrepare(XCNLRuntime* runtime, const RawBlock* block, common::span<const FuncCall> meta,
-    OutputBlock::BlockType type) : XCNLExecutor(runtime), Block(block, meta, type)
+void XCNLExecutorProxy::HandleException(const xziar::nailang::NailangRuntimeException& ex) const
+{
+    Executor.HandleException(ex);
+}
+
+
+XCNLRawCodePrepare::XCNLRawCodePrepare(XCNLExecutor& executor, const RawBlock* block, common::span<const FuncCall> meta,
+    OutputBlock::BlockType type) : XCNLExecutorProxy(executor), Block(block, meta, type)
 { }
 XCNLRawCodePrepare::~XCNLRawCodePrepare()
 { }
 
-XCNLRawCodePrepare::MetaFuncResult XCNLRawCodePrepare::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+bool XCNLRawCodePrepare::HandleMetaFunc(const FuncCall& meta, const Statement&, MetaSet&)
 {
     switch (const auto name = meta.FullFuncName(); common::DJBHash::HashC(name))
     {
     HashCase(name, U"xcomp.ReplaceVariable")
         Block.ReplaceVar = true; 
-        return MetaFuncResult::Next;
+        return true;
     HashCase(name, U"xcomp.ReplaceFunction")
         Block.ReplaceFunc = true;
-        return MetaFuncResult::Next;
+        return true;
     HashCase(name, U"xcomp.Replace")
         Block.ReplaceVar = Block.ReplaceFunc = true;
-        return MetaFuncResult::Next;
+        return true;
     HashCase(name, U"xcomp.PreAssign")
         ThrowByArgCount(meta, 2, ArgLimits::Exact);
         ThrowByArgType(meta, Expr::Type::Var, 0);
         Block.PreAssignArgs.emplace_back(meta.Args[0].GetVar<Expr::Type::Var>(), meta.Args[1]);
-        return MetaFuncResult::Next;
+        return true;
     HashCase(name, U"xcomp.TemplateArgs")
     {
         if (Block.Type != OutputBlock::BlockType::Template)
@@ -539,13 +561,28 @@ XCNLRawCodePrepare::MetaFuncResult XCNLRawCodePrepare::HandleMetaFunc(const Func
                     i, meta.Args[i].GetTypeName()), meta, Block.Block);
         }
         Block.ExtraInfo = std::make_unique<TemplateBlockInfo>(meta.Args);
-        return MetaFuncResult::Next;
+        return true;
     }
     default: break;
     }
-    return XCNLExecutor::HandleMetaFunc(meta, target, allMetas);
+    return false;
 }
 
+bool XCNLRawCodePrepare::HandleMetaFuncs()
+{
+    auto prevFrame = Executor.PushFrame(NailangFrame::FrameFlags::FlowScope);
+    auto& frame = Executor.GetFrame();
+    frame.Executor = &Executor;
+    frame.MetaHandler = this;
+    xziar::nailang::MetaSet allMetas(Block.MetaFunc);
+    return Executor.HandleMetaFuncs(allMetas, { Block.Block });
+}
+
+
+XCNLRawExecutor::XCNLRawExecutor(XCNLExecutor& executor) : XCNLExecutorProxy(executor)
+{ }
+XCNLRawExecutor::~XCNLRawExecutor()
+{ }
 
 void XCNLRawExecutor::HandleException(const xziar::nailang::NailangParseException & ex) const
 {
@@ -574,7 +611,37 @@ void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U3
 
 NailangRuntimeBase::FrameT<XCNLRawExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block)
 {
-    return GetRuntime().PushFrame<RawFrame>(true, xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block);
+    return GetRuntime().PushFrame<RawFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block);
+}
+
+bool XCNLRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+{
+    auto& runtime = GetRuntime();
+    auto& kerCtx = *GetFrame().Instance;
+    for (const auto& ext : GetExtensions())
+    {
+        ext->InstanceMeta(Executor, meta, kerCtx);
+    }
+    const auto& fname = meta.GetName();
+    if (meta.Name->PartCount >= 2 && fname.GetRange(0, 2) == U"xcomp.Arg"sv)
+    {
+        if (meta.Name->PartCount == 3)
+        {
+            auto data = runtime.ParseInstanceArg(fname[2], meta);
+            InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
+            runtime.HandleInstanceArg(info, kerCtx, meta, nullptr);
+        }
+        else
+        {
+            if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
+                runtime.NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv,
+                    meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
+            const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
+            runtime.HandleInstanceArg(info, kerCtx, meta, &meta.Params[0]);
+        }
+        return true;
+    }
+    return false;
 }
 
 std::optional<common::str::StrVariant<char32_t>> XCNLRawExecutor::CommonReplaceFunc(const std::u32string_view name,
@@ -626,7 +693,7 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
     for (const auto& ext : GetExtensions())
     {
         if (!ext) continue;
-        auto ret = ext->ReplaceFunc(*this, func, args);
+        auto ret = ext->ReplaceFunc(Executor, func, args);
         const auto str = ret.GetStr();
         if (!ret && ret.CheckAllowFallback())
         {
@@ -674,7 +741,7 @@ void XCNLRawExecutor::OnReplaceOptBlock(std::u32string& output, void*, std::u32s
     Arg ret;
     if (rawarg)
     {
-        ret = EvaluateExpr(rawarg);
+        ret = Executor.EvaluateExpr(rawarg);
     }
     if (ret.IsEmpty())
     {
@@ -787,7 +854,7 @@ void XCNLRawExecutor::DirectOutput(std::u32string& dst)
     common::str::StrVariant<char32_t> source(frame.GetBlock().Source);
     for (const auto& [var, arg] : frame.Block.PreAssignArgs)
     {
-        runtime.SetArg(var, {}, EvaluateExpr(arg));
+        runtime.SetArg(var, {}, Executor.EvaluateExpr(arg));
     }
     if (frame.Block.ReplaceVar || frame.Block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
@@ -798,65 +865,38 @@ void XCNLRawExecutor::DirectOutput(std::u32string& dst)
     dst.append(source.StrView());
 }
 
-void XCNLRawCodeExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& dst)
+
+void XCNLRawExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& dst)
 {
     auto prevFrame = PushFrame(block);
     BeforeOutputBlock(block, dst);
     DirectOutput(dst);
 }
 
-void XCNLRawCodeExecutor::ProcessStruct(const OutputBlock& block, std::u32string& dst)
+void XCNLRawExecutor::ProcessStruct(const OutputBlock& block, std::u32string& dst)
 {
     auto prevFrame = PushFrame(block);
     BeforeOutputBlock(block, dst);
     DirectOutput(dst);
 }
 
-
-XCNLRawInstanceExecutor::MetaFuncResult XCNLRawInstanceExecutor::HandleMetaFunc(MetaEvalPack& meta)
-{
-    auto& runtime = GetRuntime();
-    auto& frame = GetFrame();
-    for (const auto& ext : GetExtensions())
-    {
-        ext->InstanceMeta(*this, meta, frame.Instance);
-    }
-    const auto& fname = meta.GetName();
-    if (meta.Name->PartCount >= 2 && fname.GetRange(0, 2) == U"xcomp.Arg"sv)
-    {
-        if (meta.Name->PartCount == 3)
-        {
-            auto data = runtime.ParseInstanceArg(fname[2], meta);
-            InstanceArgInfo info(data.Type, data.TexType, data.Name, data.DataType, data.Args);
-            runtime.HandleInstanceArg(info, frame.Instance, meta, nullptr);
-        }
-        else
-        {
-            if (meta.Params.size() != 1 || !meta.Params[0].IsCustomType<InstanceArgCustomVar>())
-                NLRT_THROW_EX(FMTSTR(u"xcom.Arg requires xcomp::arg as argument, get [{}]"sv,
-                    meta.TryGetOr(0, &Arg::GetTypeName, U"<empty>"sv)), meta);
-            const auto& info = InstanceArgCustomVar::GetArgInfo(meta.Params[0].GetCustom());
-            runtime.HandleInstanceArg(info, frame.Instance, meta, &meta.Params[0]);
-        }
-        return MetaFuncResult::Next;
-    }
-    return XCNLRawExecutor::HandleMetaFunc(meta);
-}
-
-void XCNLRawInstanceExecutor::ProcessInstance(const OutputBlock& block, std::u32string& output)
+void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& output)
 {
     Expects(block.Type == OutputBlock::BlockType::Instance);
     BeforeOutputBlock(block, output);
 
     const auto kerCtx = PrepareInstance(block);
     auto& runtime = GetRuntime();
-    auto prevFrame = runtime.PushFrame<InstanceFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block, kerCtx.get());
+    auto prevFrame = PushFrame(block);
+    GetFrame().Instance = kerCtx.get();
+    GetFrame().MetaHandler = this;
+    //auto prevFrame = runtime.PushFrame<InstanceFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block, kerCtx.get());
     for (const auto& ext : GetExtensions())
     {
         ext->BeginInstance(runtime, *kerCtx);
     }
     xziar::nailang::MetaSet allMetas(block.MetaFunc);
-    HandleMetaFuncs(allMetas, {});
+    Executor.HandleMetaFuncs(allMetas, {});
 
     DirectOutput(kerCtx->Content);
 
@@ -1031,7 +1071,7 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, FuncE
 }
 
 
-void XCNLRuntime::ProcessStruct(const Block& block, common::span<const FuncCall> metas)
+void XCNLRuntime::ProcessStruct(const Block&, common::span<const FuncCall>)
 {
 
 }
@@ -1130,46 +1170,35 @@ void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFun
     const auto type = GetBlockType(block, metas);
     if (type == OutputBlock::BlockType::None)
         return;
-    auto prevFrame = PushFrame(NailangFrame::FrameFlags::FlowScope);
-    XCNLRawCodePrepare executor(this, &block, metas, type);
-    CurFrame->Executor = &executor;
-    xziar::nailang::MetaSet allMetas(metas);
-    if (!executor.HandleMetaFuncs(allMetas, { &block }))
+    XCNLRawCodePrepare prepare(GetBaseExecutor(), &block, metas, type);
+    if (!prepare.HandleMetaFuncs())
         return;
 
     auto& dst = type == OutputBlock::BlockType::Template ? XCContext.TemplateBlocks : XCContext.OutputBlocks;
-    dst.push_back(std::move(executor.Block));
+    dst.push_back(std::move(prepare.Block));
 }
 
 std::string XCNLRuntime::GenerateOutput()
 {
     std::u32string prefix, output;
+    auto& rawExe = GetRawExecutor();
 
     for (const auto& block : XCContext.OutputBlocks)
     {
-        if (block.Type == OutputBlock::BlockType::None || block.Type == OutputBlock::BlockType::Template)
+        switch (block.Type)
         {
+        case OutputBlock::BlockType::Instance:
+            rawExe.ProcessInstance(block, output);
+            break;
+        case OutputBlock::BlockType::Global:
+            rawExe.ProcessGlobal(block, output);
+            break;
+        case OutputBlock::BlockType::Struct:
+            rawExe.ProcessStruct(block, output);
+            break;
+        default:
             Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", block.Block->Type, block.Block->Name); break;
-            continue;
-        }
-        if (block.Type == OutputBlock::BlockType::Instance)
-        {
-            RawInstanceExecutor->ProcessInstance(block, output);
-            //OutputInstance(block, output);
-        }
-        else
-        {
-            switch (block.Type)
-            {
-            case OutputBlock::BlockType::Global:
-                RawCodeExecutor->ProcessGlobal(block, output);
-                break;
-            case OutputBlock::BlockType::Struct:
-                RawCodeExecutor->ProcessStruct(block, output);
-                break;
-            default:
-                Expects(false); break;
-            }
+            break;
         }
     }
     for (const auto& ext : XCContext.Extensions)

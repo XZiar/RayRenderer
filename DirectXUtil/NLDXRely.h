@@ -12,8 +12,11 @@ namespace dxu
 #   pragma warning(disable:4275 4251)
 #endif
 
+class NLDXExecutor;
+class NLDXRawExecutor;
 class NLDXRuntime;
 class NLDXContext;
+class KernelExtension;
 
 
 struct ResourceInfo
@@ -37,6 +40,7 @@ struct ConstantInfo
 
 struct KernelContext : public xcomp::InstanceContext
 {
+    friend NLDXRawExecutor;
     friend NLDXRuntime;
     std::u32string GroupIdVar, ItemIdVar, GlobalIdVar, TIdVar;
     KernelContext(uint8_t kerId) noexcept : KernelId(kerId) { }
@@ -54,20 +58,11 @@ protected:
 };
 
 
-struct KernelCookie : public xcomp::BlockCookie
-{
-    KernelContext Context;
-    KernelCookie(const xcomp::OutputBlock& block, uint8_t kerId) noexcept;
-    ~KernelCookie() override { }
-    xcomp::InstanceContext* GetInstanceCtx() noexcept override { return &Context; }
-};
-
-
 class DXUAPI NLDXExtension : public xcomp::XCNLExtension
 {
-    friend class NLDXRuntime;
-    friend class NLDXProgStub;
-    friend class NLDXContext;
+    friend NLDXRuntime;
+    friend NLDXProgStub;
+    friend NLDXContext;
 protected:
     NLDXContext& Context;
 public:
@@ -78,9 +73,11 @@ public:
 
 class DXUAPI COMMON_EMPTY_BASES NLDXContext : public xcomp::XCNLContext
 {
-    friend class NLDXProcessor;
-    friend class NLDXRuntime;
-    friend class NLDXProgStub;
+    friend NLDXExecutor;
+    friend NLDXRawExecutor;
+    friend NLDXProcessor;
+    friend NLDXRuntime;
+    friend NLDXProgStub;
 private:
     struct DXUVar;
     xziar::nailang::Arg DXUArg;
@@ -107,34 +104,60 @@ protected:
 };
 
 
+class DXUAPI NLDXExecutor : public xcomp::XCNLExecutor
+{
+    friend NLDXRuntime;
+    friend NLDXRawExecutor;
+    NLDXExecutor(NLDXRuntime* runtime);
+    constexpr NLDXRuntime& GetRuntime() const noexcept;
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+};
+
+
+class DXUAPI NLDXRawExecutor : public xcomp::XCNLRawExecutor
+{
+    friend NLDXRuntime;
+private:
+    NLDXRawExecutor(NLDXExecutor& executor);
+    constexpr NLDXRuntime& GetRuntime() const noexcept { return static_cast<NLDXExecutor&>(Executor).GetRuntime(); }
+    [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
+    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
+    [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;
+    void ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst) final;
+    void OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst) final;
+};
+
+
 class DXUAPI COMMON_EMPTY_BASES NLDXRuntime : public xcomp::XCNLRuntime
 {
-    friend class KernelExtension;
-    friend class NLDXProcessor;
+    friend NLDXExecutor;
+    friend NLDXRawExecutor;
+    friend KernelExtension;
+    friend NLDXProcessor;
+private:
+    xcomp::XCNLExecutor& GetBaseExecutor() noexcept final;
+    xcomp::XCNLRawExecutor& GetRawExecutor() noexcept final;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
     using MetaFuncs = ::common::span<const FuncCall>;
 
     NLDXContext& Context;
-
-    //std::u32string StringifyKernelResource(const KernelContext& ctx, std::u32string_view kerName);
-
-    void OnReplaceFunction(std::u32string& output, void* cookie, const std::u32string_view func, const common::span<const std::u32string_view> args) override;
-
-    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
+    NLDXExecutor BaseExecutor;
+    NLDXRawExecutor RawExecutor;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
-    [[nodiscard]] std::unique_ptr<xcomp::BlockCookie> PrepareInstance(const xcomp::OutputBlock& block) override;
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) override;
-    void HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override;
-    void OutputStruct  (xcomp::BlockCookie& cookie, std::u32string& dst) override;
-    void OutputInstance(xcomp::BlockCookie& cookie, std::u32string& dst) override;
     void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
 public:
     NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx);
     ~NLDXRuntime() override;
 };
+
+inline constexpr NLDXRuntime& NLDXExecutor::GetRuntime() const noexcept 
+{ 
+    return static_cast<NLDXRuntime&>(XCNLExecutor::GetRuntime()); 
+}
 
 
 class DXUAPI NLDXBaseResult : public NLDXResult

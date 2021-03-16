@@ -19,7 +19,7 @@ struct XCOMPBASAPI XCNLDebugExt
     std::map<std::u32string, DbgContent, std::less<>> DebugInfos;
 
     void DefineMessage(XCNLExecutor& executor, const xziar::nailang::FuncPack& func);
-    const DbgContent& DefineMessage(XCNLRawCodeExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args);
+    const DbgContent& DefineMessage(XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args);
 
     forceinline const MessageBlock& AppendBlock(const std::u32string_view name,
         const std::u32string_view formatter, common::span<const NamedVecPair> args)

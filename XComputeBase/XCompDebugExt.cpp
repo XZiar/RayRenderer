@@ -69,7 +69,7 @@ void XCNLDebugExt::DefineMessage(XCNLExecutor& executor, const xziar::nailang::F
         NLRT_THROW_EX(fmt::format(u"DebugString [{}] repeately defined"sv, id), func);
 }
 
-const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawCodeExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
+const XCNLDebugExt::DbgContent& XCNLDebugExt::DefineMessage(XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
     using namespace xziar::nailang;
     auto& Runtime = static_cast<XCNLRuntime_&>(executor.GetRuntime());
