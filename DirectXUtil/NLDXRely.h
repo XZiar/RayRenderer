@@ -123,6 +123,7 @@ private:
     NLDXRawExecutor(NLDXExecutor& executor);
 protected:
     constexpr NLDXRuntime& GetRuntime() const noexcept { return static_cast<NLDXExecutor&>(Executor).GetRuntime(); }
+    KernelContext& GetCurInstance() const noexcept;
     [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
     [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;

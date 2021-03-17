@@ -72,17 +72,14 @@ public:
 class NailangRT : public xziar::nailang::NailangBasicRuntime
 {
 public:
-    xziar::nailang::NailangFrameStack::NailangFrameHolder BaseFrame;
+    xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangFrame> BaseFrame;
     NailangRT() : NailangBasicRuntime(std::make_shared<EvalCtx>()),
         BaseFrame(Executor.PushFrame(RootContext, NailangFrame::FrameFlags::Empty))
     { }
 
     using NailangRuntime::RootContext;
 
-    //using NailangRuntime::EvaluateFunc;
     using NailangRuntime::LookUpArg;
-    //using NailangRuntime::EvaluateExpr;
-    //using NailangRuntime::HandleContent;
 
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
     auto SetRootArg(std::u32string_view name, Arg val)

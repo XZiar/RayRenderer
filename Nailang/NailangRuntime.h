@@ -413,7 +413,7 @@ struct MetaEvalPack : public FuncPack
 
 
 class NailangFrameStack;
-class NailangFrame
+class NAILANGAPI NailangFrame
 {
     friend NailangExecutor;
     friend NailangRuntime;
@@ -436,34 +436,27 @@ public:
     enum class FrameFlags : uint8_t
     {
         Empty       = 0b00000000,
-        FlowScope   = 0b00000001,
-        CallScope   = 0b00000010,
-        FuncCall    = FlowScope | CallScope,
+        VarScope    = 0b00000001,
+        FlowScope   = 0b00000010,
+        FuncCall    = FlowScope | VarScope,
         LoopScope   = 0b00000100,
     };
 
     NailangFrame* const PrevFrame;
     NailangExecutor* const Executor;
     std::shared_ptr<EvaluateContext> Context;
-    common::span<const FuncCall> MetaScope;
-    const Block* BlockScope = nullptr;
-    const Statement* CurContent = nullptr;
-    Arg ReturnArg;
     FrameFlags Flags;
     ProgramStatus Status = ProgramStatus::Next;
     uint8_t IfRecord = 0;
 
-    NailangFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
-        FuncInfo(nullptr), PrevFrame(prev), Executor(executor), Context(ctx), Flags(flag) { }
+    NailangFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept;
+    virtual ~NailangFrame();
     COMMON_NO_COPY(NailangFrame)
     COMMON_NO_MOVE(NailangFrame)
+    virtual size_t GetSize() const noexcept;
     [[nodiscard]] constexpr bool Has(FrameFlags flag) const noexcept;
     [[nodiscard]] constexpr bool Has(ProgramStatus status) const noexcept;
-    [[nodiscard]] constexpr NailangFrame* GetCallScope() noexcept;
-    /*NailangFrame* SetReturn(Arg returnVal) noexcept;
-    constexpr NailangFrame* SetBreak() noexcept;
-    constexpr NailangFrame* SetContinue() noexcept;*/
-    void Execute();
+    //[[nodiscard]] constexpr NailangFrame* GetCallScope() noexcept;
 };
 MAKE_ENUM_BITFIELD(NailangFrame::ProgramStatus)
 MAKE_ENUM_BITFIELD(NailangFrame::FrameFlags)
@@ -475,22 +468,45 @@ inline constexpr bool NailangFrame::Has(ProgramStatus status) const noexcept
 {
     return HAS_FIELD(Status, status);
 }
-inline constexpr NailangFrame* NailangFrame::GetCallScope() noexcept
+//inline constexpr NailangFrame* NailangFrame::GetCallScope() noexcept
+//{
+//    for (auto frame = this; frame; frame = frame->PrevFrame)
+//    {
+//        if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
+//            return frame;
+//    }
+//    return nullptr;
+//}
+
+class NAILANGAPI NailangBlockFrame : public NailangFrame
 {
-    for (auto frame = this; frame; frame = frame->PrevFrame)
-    {
-        if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
-            return frame;
-    }
-    return nullptr;
-}
+public:
+    const common::span<const FuncCall> MetaScope;
+    const Block* const BlockScope;
+    const Statement* CurContent = nullptr;
+    Arg ReturnArg;
+    NailangBlockFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag,
+        const Block* block, common::span<const FuncCall> metas = {}) noexcept;
+    ~NailangBlockFrame() override;
+    size_t GetSize() const noexcept override;
+    void Execute();
+};
+
+class NAILANGAPI NailangRawBlockFrame : public NailangFrame
+{
+public:
+    common::span<const FuncCall> MetaScope;
+    const RawBlock* const BlockScope;
+    NailangRawBlockFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag,
+        const RawBlock* block, common::span<const FuncCall> metas = {}) noexcept;
+    ~NailangRawBlockFrame() override;
+    size_t GetSize() const noexcept override;
+};
 
 
 class NAILANGAPI NailangFrameStack : protected common::container::TrunckedContainer<std::byte>
 {
     friend NailangRuntime;
-public:
-    class NailangFrameHolder;
 private:
     template<typename T, typename... Args>
     [[nodiscard]] forceinline T* Create(Args&&... args) noexcept
@@ -500,67 +516,48 @@ private:
         return reinterpret_cast<T*>(space.data());
     }
     NailangFrame* TopFrame = nullptr;
+    class FrameHolderBase
+    {
+        friend NailangFrameStack;
+    protected:
+        NailangFrameStack* const Host;
+        NailangFrame* Frame;
+        constexpr FrameHolderBase(NailangFrameStack* host, NailangFrame* frame) noexcept :
+            Host(host), Frame(frame) 
+        { }
+        NAILANGAPI ~FrameHolderBase();
+    };
+public:
     template<typename T>
-    class [[nodiscard]] FrameHolder
+    class [[nodiscard]] FrameHolder : protected FrameHolderBase
     {
         static_assert(std::is_base_of_v<NailangFrame, T>);
         friend NailangFrameStack;
-        friend NailangFrameHolder;
     private:
-        NailangFrameStack& Host;
-        T* Frame;
         template<typename... Args>
         forceinline FrameHolder(NailangFrameStack* host, Args&&... args) noexcept : 
-            Host(*host), Frame(Host.Create<T>(std::forward<Args>(args)...))
-        {
-            Host.TopFrame = Frame;
+            FrameHolderBase(host, host->Create<T>(std::forward<Args>(args)...))
+        { 
+            Host->TopFrame = Frame;
         }
     public:
+        template<typename U>
+        forceinline FrameHolder(FrameHolder<U>&& other) noexcept : FrameHolderBase(other.Host, other.Frame)
+        {
+            static_assert(std::is_base_of_v<T, U>);
+            other.Frame = nullptr;
+        }
         COMMON_NO_COPY(FrameHolder)
         COMMON_NO_MOVE(FrameHolder)
-        ~FrameHolder()
-        {
-            if (!Frame)
-                return;
-            Expects(Host.TopFrame == Frame);
-            Frame->~NailangFrame();
-            Host.TopFrame = Frame->PrevFrame;
-            const auto ret = Host.TryDealloc({ reinterpret_cast<std::byte*>(Frame), sizeof(T) });
-            Ensures(ret);
-        }
         forceinline constexpr T* operator->() const noexcept
         {
-            return Frame;
+            return static_cast<T*>(Frame);
         }
-    };
-public:
-    class [[nodiscard]] NailangFrameHolder
-    {
-        friend NailangFrameStack;
-    private:
-        NailangFrameStack& Host;
-        NailangFrame& Frame;
-        size_t FrameSize;
-    public:
-        template<typename T>
-        forceinline NailangFrameHolder(FrameHolder<T>&& holder) noexcept : 
-            Host(holder.Host), Frame(*holder.Frame), FrameSize(sizeof(T))
+        template<typename U>
+        forceinline U* As() const noexcept
         {
-            holder.Frame = nullptr;
-        }
-        COMMON_NO_COPY(NailangFrameHolder)
-        COMMON_NO_MOVE(NailangFrameHolder)
-        ~NailangFrameHolder()
-        {
-            Expects(Host.TopFrame == &Frame);
-            Frame.~NailangFrame();
-            Host.TopFrame = Frame.PrevFrame;
-            const auto ret = Host.TryDealloc({ reinterpret_cast<std::byte*>(&Frame), FrameSize });
-            Ensures(ret);
-        }
-        forceinline constexpr NailangFrame* operator->() const noexcept
-        {
-            return &Frame;
+            static_assert(std::is_base_of_v<T, U>);
+            return dynamic_cast<U*>(Frame);
         }
     };
     NailangFrameStack() : TrunckedContainer(4096, 4096) {}
@@ -572,43 +569,10 @@ public:
     {
         return { this, std::forward<Args>(args)... };
     }
-    NailangFrame* SetReturn(Arg returnVal) const noexcept
-    {
-        for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
-        {
-            frame->Status = NailangFrame::ProgramStatus::End | NailangFrame::ProgramStatus::LoopEnd;
-            if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::FlowScope))
-            {
-                frame->ReturnArg = std::move(returnVal);
-                return frame;
-            }
-        }
-        return nullptr;
-    }
-    constexpr NailangFrame* SetBreak() const noexcept
-    {
-        for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
-        {
-            frame->Status = NailangFrame::ProgramStatus::End | NailangFrame::ProgramStatus::LoopEnd;
-            if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::LoopScope))
-            {
-                return frame;
-            }
-        }
-        return nullptr;
-    }
-    constexpr NailangFrame* SetContinue() const noexcept
-    {
-        for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
-        {
-            frame->Status = NailangFrame::ProgramStatus::End;
-            if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::LoopScope))
-            {
-                return frame;
-            }
-        }
-        return nullptr;
-    }
+    NailangBlockFrame* SetReturn(Arg returnVal) const noexcept;
+    NailangFrame* SetBreak() const noexcept;
+    NailangFrame* SetContinue() const noexcept;
+    std::vector<common::StackTraceItem> CollectStacks() const noexcept;
 };
 
 
@@ -655,12 +619,13 @@ public:
 class NAILANGAPI NailangExecutor : public NailangBase
 {
     friend NailangRuntime;
-    friend NailangFrame;
+    friend NailangBlockFrame;
 private:
-    void ExecuteFrame(NailangFrame& frame);
+    void ExecuteFrame(NailangBlockFrame& frame);
 protected:
     NailangRuntime* Runtime = nullptr;
-    forceinline constexpr NailangFrame& GetFrame() const noexcept;
+    [[nodiscard]] forceinline constexpr NailangFrame& GetFrame() const noexcept;
+    [[nodiscard]] forceinline constexpr xziar::nailang::NailangFrameStack& GetFrameStack() const noexcept;
     void EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
     [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func)
@@ -692,7 +657,9 @@ public:
     enum class MetaFuncResult : uint8_t { Unhandled, Next, Skip, Return };
     NailangExecutor(NailangRuntime* runtime) noexcept;
     virtual ~NailangExecutor();
-    [[nodiscard]] virtual NailangFrameStack::NailangFrameHolder PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flags);
+    [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangFrame> PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag);
+    [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangBlockFrame> PushBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, const Block* block, common::span<const FuncCall> metas = {});
+    [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangRawBlockFrame> PushRawBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, const RawBlock* block, common::span<const FuncCall> metas = {});
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
     [[nodiscard]] virtual Arg EvaluateFunc(FuncEvalPack& func);
@@ -709,41 +676,13 @@ public:
     [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas);
 };
 
-inline void NailangFrame::Execute() { Executor->ExecuteFrame(*this); }
+inline void NailangBlockFrame::Execute() { Executor->ExecuteFrame(*this); }
 
 
 class NAILANGAPI NailangRuntime : public NailangBase
 {
     friend NailangExecutor;
 protected:
-    template<typename T>
-    class FrameHolder
-    {
-        static_assert(std::is_base_of_v<NailangFrame, T>);
-        friend NailangRuntime;
-        NailangRuntime& Host;
-        T Frame;
-        template<typename... Args>
-        forceinline FrameHolder(NailangRuntime* host, const std::shared_ptr<EvaluateContext>& ctx, NailangFrame::FrameFlags flags,
-            Args&&... args) : Host(*host), Frame(host->CurFrame, ctx, flags, std::forward<Args>(args)...)
-        {
-            Expects(ctx);
-            Host.CurFrame = &Frame;
-        }
-    public:
-        COMMON_NO_COPY(FrameHolder)
-        COMMON_NO_MOVE(FrameHolder)
-        ~FrameHolder()
-        {
-            Expects(Host.CurFrame == &Frame);
-            Host.CurFrame = Frame.PrevFrame;
-        }
-        forceinline constexpr NailangFrame* operator->() const noexcept
-        {
-            return Frame.PrevFrame;
-        }
-    };
-
     MemoryPool MemPool;
     std::shared_ptr<EvaluateContext> RootContext;
     NailangFrameStack FrameStack;
@@ -770,7 +709,6 @@ protected:
     [[nodiscard]] virtual Arg OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
 
 public:
-    template<typename T> using FrameT = FrameHolder<T>;
     NailangRuntime(std::shared_ptr<EvaluateContext> context);
     virtual ~NailangRuntime();
 };
@@ -779,6 +717,11 @@ inline constexpr NailangFrame& NailangExecutor::GetFrame() const noexcept
 { 
     return *Runtime->CurFrame();
 }
+inline constexpr xziar::nailang::NailangFrameStack& NailangExecutor::GetFrameStack() const noexcept
+{
+    return Runtime->FrameStack;
+}
+
 
 class NAILANGAPI NailangBasicRuntime : public NailangRuntime
 {

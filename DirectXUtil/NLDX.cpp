@@ -208,9 +208,14 @@ Arg NLDXExecutor::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
 NLDXRawExecutor::NLDXRawExecutor(NLDXExecutor& executor) : XCNLRawExecutor(executor)
 { }
 
+KernelContext& NLDXRawExecutor::GetCurInstance() const noexcept
+{
+    return static_cast<KernelContext&>(*dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance);
+}
+
 bool NLDXRawExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
 {
-    auto& kerCtx = static_cast<KernelContext&>(*GetFrame().Instance);
+    auto& kerCtx = GetCurInstance();
     const auto& fname = meta.GetName();
     if (meta.Name->PartCount == 2 && fname[0] == U"dxu"sv)
     {
@@ -281,7 +286,7 @@ void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32str
 
 void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst)
 {
-    auto& kerCtx = *static_cast<KernelContext*>(GetFrame().Instance);
+    auto& kerCtx = GetCurInstance();
 
     /*Context.AddPatchedBlock(*this, FMTSTR(U"Resource for [{}]"sv, cookie.Block.Name()), 
         &NLDXRuntime::StringifyKernelResource, kerCtx, cookie.Block.Name());*/

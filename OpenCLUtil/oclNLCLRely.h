@@ -120,6 +120,7 @@ private:
     NLCLRawExecutor(NLCLExecutor& executor);
 protected:
     void StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg) const;
+    KernelContext& GetCurInstance() const noexcept;
     [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
     [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;

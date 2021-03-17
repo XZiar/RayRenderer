@@ -273,6 +273,11 @@ Arg NLCLExecutor::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
 NLCLRawExecutor::NLCLRawExecutor(NLCLExecutor& executor) : XCNLRawExecutor(executor)
 { }
 
+KernelContext& NLCLRawExecutor::GetCurInstance() const noexcept
+{
+    return static_cast<KernelContext&>(*dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance);
+}
+
 constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
     (U"global",     KerArgSpace::Global), 
     (U"__global",   KerArgSpace::Global), 
@@ -292,7 +297,7 @@ constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash,
     (U"",             ImgAccess::ReadWrite));
 bool NLCLRawExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
 {
-    auto& kerCtx = static_cast<KernelContext&>(*GetFrame().Instance);
+    auto& kerCtx = GetCurInstance();
     const auto& fname = meta.GetName();
     if (meta.Name->PartCount == 2 && fname[0] == U"oclu"sv)
     {
@@ -441,7 +446,7 @@ void NLCLRawExecutor::StringifyKernelArg(std::u32string& out, const KernelArgInf
 
 void NLCLRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst)
 {
-    auto& kerCtx = *static_cast<KernelContext*>(GetFrame().Instance);
+    auto& kerCtx = GetCurInstance();
     // attributes
     for (const auto& item : kerCtx.Attributes)
     {

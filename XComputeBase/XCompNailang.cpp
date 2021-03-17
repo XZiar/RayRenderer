@@ -475,23 +475,18 @@ void XCNLContext::Write(std::u32string& output, const NamedText& item) const
 XCNLExecutor::MetaFuncHandler::~MetaFuncHandler() {}
 
 
-xziar::nailang::NailangRuntime::FrameT<XCNLExecutor::XCNLFrame> XCNLExecutor::PushFrame(xziar::nailang::NailangFrame::FrameFlags flags)
-{
-    return GetRuntime().PushFrame<XCNLFrame>(flags);
-}
-
 XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
 {
-    auto& frame = GetFrame();
-    if (frame.MetaHandler && frame.MetaHandler->HandleMetaFunc(meta, target, allMetas))
+    if (auto handler = dynamic_cast<const RawFrame*>(&GetFrame()); handler && handler->MetaHandler &&
+        handler->MetaHandler->HandleMetaFunc(meta, target, allMetas))
         return MetaFuncResult::Next;
     return NailangExecutor::HandleMetaFunc(meta, target, allMetas);
 }
 
 XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
 {
-    auto& frame = GetFrame();
-    if (frame.MetaHandler && frame.MetaHandler->HandleMetaFunc(meta))
+    if (auto handler = dynamic_cast<const RawFrame*>(&GetFrame()); handler && handler->MetaHandler &&
+        handler->MetaHandler->HandleMetaFunc(meta))
         return MetaFuncResult::Next;
     return NailangExecutor::HandleMetaFunc(meta);
 }
@@ -578,10 +573,9 @@ bool XCNLRawCodePrepare::HandleMetaFunc(const FuncCall& meta, const Statement&, 
 
 bool XCNLRawCodePrepare::HandleMetaFuncs()
 {
-    auto prevFrame = Executor.PushFrame(NailangFrame::FrameFlags::FlowScope);
-    auto& frame = Executor.GetFrame();
-    frame.Executor = &Executor;
-    frame.MetaHandler = this;
+    auto frame = Executor.GetFrameStack().PushFrame<XCNLExecutor::RawFrame>(&Executor, 
+        Executor.CreateContext(), NailangFrame::FrameFlags::FlowScope, Block);
+    frame->MetaHandler = this;
     xziar::nailang::MetaSet allMetas(Block.MetaFunc);
     return Executor.HandleMetaFuncs(allMetas, { Block.Block });
 }
@@ -617,15 +611,21 @@ void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U3
     NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, call, prefix, count, args.size()));
 }
 
-NailangRuntime::FrameT<XCNLRawExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block)
+xziar::nailang::NailangFrameStack::FrameHolder<XCNLExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block, InstanceContext* instance)
 {
-    return GetRuntime().PushFrame<RawFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block);
+    auto& stack = Executor.GetFrameStack();
+    if (instance)
+        return stack.PushFrame<InstanceFrame>(Executor.CreateContext(),
+            NailangFrame::FrameFlags::FlowScope, this, block, instance);
+    else
+        return stack.PushFrame<XCNLExecutor::RawFrame>(&Executor, Executor.CreateContext(),
+            NailangFrame::FrameFlags::FlowScope, block);
 }
 
 bool XCNLRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
 {
     auto& runtime = GetRuntime();
-    auto& kerCtx = *GetFrame().Instance;
+    auto& kerCtx = *dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance;
     for (const auto& ext : GetExtensions())
     {
         ext->InstanceMeta(Executor, meta, kerCtx);
@@ -674,15 +674,17 @@ std::optional<common::str::StrVariant<char32_t>> XCNLRawExecutor::CommonReplaceF
             }
         if (block)
         {
-            const auto& extra = static_cast<const TemplateBlockInfo&>(*block->ExtraInfo);
-            ThrowByReplacerArgCount(call, args, extra.ReplaceArgs.size() + 1, ArgLimits::AtLeast);
-            auto prevFrame = PushFrame(*block);
-            for (size_t i = 0; i < extra.ReplaceArgs.size(); ++i)
+            auto frame = PushFrame(*block);
+            if (const auto extra = static_cast<const TemplateBlockInfo*>(block->ExtraInfo.get()); extra)
             {
-                auto var = DecideDynamicVar(extra.ReplaceArgs[i], u"CodeBlock"sv);
-                var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
-                constexpr NilCheck nilcheck(NilCheck::Behavior::Throw, NilCheck::Behavior::Pass);
-                runtime.SetArg(var, {}, Arg(args[i + 1]), nilcheck);
+                ThrowByReplacerArgCount(call, args, extra->ReplaceArgs.size() + 1, ArgLimits::AtLeast);
+                for (size_t i = 0; i < extra->ReplaceArgs.size(); ++i)
+                {
+                    auto var = DecideDynamicVar(extra->ReplaceArgs[i], u"CodeBlock"sv);
+                    var.Info |= xziar::nailang::LateBindVar::VarInfo::Local;
+                    constexpr NilCheck nilcheck(NilCheck::Behavior::Throw, NilCheck::Behavior::Pass);
+                    runtime.SetArg(var, {}, Arg(args[i + 1]), nilcheck);
+                }
             }
             auto output = FMTSTR(U"// template block [{}]\r\n"sv, args[0]);
             DirectOutput(output);
@@ -856,7 +858,7 @@ void XCNLRawExecutor::BeforeOutputBlock(const OutputBlock& block, std::u32string
 void XCNLRawExecutor::DirectOutput(std::u32string& dst)
 {
     auto& runtime = GetRuntime();
-    Expects(runtime.CurFrame != nullptr);
+    Expects(runtime.CurFrame() != nullptr);
     auto& frame = GetFrame();
     OutputConditions(frame.Block.MetaFunc, dst);
     common::str::StrVariant<char32_t> source(frame.GetBlock().Source);
@@ -876,14 +878,14 @@ void XCNLRawExecutor::DirectOutput(std::u32string& dst)
 
 void XCNLRawExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& dst)
 {
-    auto prevFrame = PushFrame(block);
+    auto Frame = PushFrame(block);
     BeforeOutputBlock(block, dst);
     DirectOutput(dst);
 }
 
 void XCNLRawExecutor::ProcessStruct(const OutputBlock& block, std::u32string& dst)
 {
-    auto prevFrame = PushFrame(block);
+    auto Frame = PushFrame(block);
     BeforeOutputBlock(block, dst);
     DirectOutput(dst);
 }
@@ -895,10 +897,7 @@ void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& 
 
     const auto kerCtx = PrepareInstance(block);
     auto& runtime = GetRuntime();
-    auto prevFrame = PushFrame(block);
-    GetFrame().Instance = kerCtx.get();
-    GetFrame().MetaHandler = this;
-    //auto prevFrame = runtime.PushFrame<InstanceFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block, kerCtx.get());
+    auto frame = PushFrame(block, kerCtx.get());
     for (const auto& ext : GetExtensions())
     {
         ext->BeginInstance(runtime, *kerCtx);
@@ -1176,9 +1175,7 @@ void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
 void XCNLRuntime::ExecuteBlock(const Block& block, MetaFuncs metas)
 {
     auto& executor = GetBaseExecutor();
-    auto frame = executor.PushFrame(NailangFrame::FrameFlags::FlowScope);
-    CurFrame->MetaScope = metas;
-    CurFrame->BlockScope = &block;
+    auto frame = executor.PushBlockFrame(ConstructEvalContext(), NailangFrame::FrameFlags::FlowScope, &block, metas);
     if (!metas.empty())
     {
         Statement target(&block);
@@ -1186,7 +1183,7 @@ void XCNLRuntime::ExecuteBlock(const Block& block, MetaFuncs metas)
         if (!executor.HandleMetaFuncs(allMetas, target))
             return;
     }
-    executor.ExecuteFrame();
+    frame->Execute();
 }
 
 void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)

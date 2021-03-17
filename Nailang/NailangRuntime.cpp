@@ -741,10 +741,166 @@ public:
     }
 };
 
+NailangFrame::NailangFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag) noexcept :
+    FuncInfo(nullptr), PrevFrame(prev), Executor(executor), Context(ctx), Flags(flag) 
+{ }
+NailangFrame::~NailangFrame() 
+{ }
+size_t NailangFrame::GetSize() const noexcept 
+{ 
+    return sizeof(NailangFrame);
+}
+
+
+NailangBlockFrame::NailangBlockFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag,
+    const Block* block, common::span<const FuncCall> metas) noexcept :
+    NailangFrame(prev, executor, ctx, flag), MetaScope(metas), BlockScope(block) 
+{ }
+NailangBlockFrame::~NailangBlockFrame() 
+{ }
+size_t NailangBlockFrame::GetSize() const noexcept
+{
+    return sizeof(NailangBlockFrame);
+}
+
+
+NailangRawBlockFrame::NailangRawBlockFrame(NailangFrame* prev, NailangExecutor* executor, const std::shared_ptr<EvaluateContext>& ctx, FrameFlags flag,
+    const RawBlock* block, common::span<const FuncCall> metas) noexcept :
+    NailangFrame(prev, executor, ctx, flag), MetaScope(metas), BlockScope(block)
+{ }
+NailangRawBlockFrame::~NailangRawBlockFrame()
+{ }
+size_t NailangRawBlockFrame::GetSize() const noexcept
+{
+    return sizeof(NailangRawBlockFrame);
+}
+
+
+NailangFrameStack::FrameHolderBase::~FrameHolderBase()
+{
+    if (!Frame)
+        return;
+    Expects(Host && Frame);
+    Expects(Host->TopFrame == Frame);
+    const auto size = Frame->GetSize();
+    Frame->~NailangFrame();
+    Host->TopFrame = Frame->PrevFrame;
+    const auto ret = Host->TryDealloc({ reinterpret_cast<const std::byte*>(Frame), size });
+    Ensures(ret);
+}
 
 NailangFrameStack::~NailangFrameStack()
 {
     Expects(GetAllocatedSlot() == 0);
+}
+
+NailangBlockFrame* NailangFrameStack::SetReturn(Arg returnVal) const noexcept
+{
+    for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = NailangFrame::ProgramStatus::End | NailangFrame::ProgramStatus::LoopEnd;
+        if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::FlowScope))
+        {
+            if (auto blkFrame = dynamic_cast<NailangBlockFrame*>(frame); blkFrame)
+            {
+                blkFrame->ReturnArg = std::move(returnVal);
+                return blkFrame;
+            }
+            return nullptr;
+        }
+    }
+    return nullptr;
+}
+NailangFrame* NailangFrameStack::SetBreak() const noexcept
+{
+    for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = NailangFrame::ProgramStatus::End | NailangFrame::ProgramStatus::LoopEnd;
+        if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::LoopScope))
+        {
+            return frame;
+        }
+    }
+    return nullptr;
+}
+NailangFrame* NailangFrameStack::SetContinue() const noexcept
+{
+    for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
+    {
+        frame->Status = NailangFrame::ProgramStatus::End;
+        if (HAS_FIELD(frame->Flags, NailangFrame::FrameFlags::LoopScope))
+        {
+            return frame;
+        }
+    }
+    return nullptr;
+}
+
+static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!assign)
+        return { fname, u"<empty assign>"sv, 0 };
+    std::u32string target = U"<Assign>";
+    Serializer::Stringify(target, assign->Target);
+    Serializer::Stringify(target, assign->Queries);
+    return { fname, common::str::to_u16string(target), assign->Position.first };
+}
+static common::StackTraceItem CreateStack(const FuncCall* fcall, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!fcall)
+        return { fname, u"<empty func>"sv, 0 };
+    return { fname, common::str::to_u16string(fcall->FullFuncName()), fcall->Position.first };
+}
+static common::StackTraceItem CreateStack(const RawBlock* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty raw block>"sv, 0 };
+    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
+}
+static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
+{
+    if (!block)
+        return { fname, u"<empty block>"sv, 0 };
+    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
+}
+std::vector<common::StackTraceItem> NailangFrameStack::CollectStacks() const noexcept
+{
+    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
+    (const RawBlock* blk) mutable -> common::SharedString<char16_t>
+    {
+        if (!blk) return {};
+        for (const auto& [name, str] : nameCache)
+            if (name == blk->FileName)
+                return str;
+        common::SharedString<char16_t> str(blk->FileName);
+        nameCache.emplace_back(blk->FileName, str);
+        return str;
+    };
+    std::vector<common::StackTraceItem> stacks;
+    for (auto frame = TopFrame; frame; frame = frame->PrevFrame)
+    {
+        common::SharedString<char16_t> fname;
+        const auto blkFrame = dynamic_cast<const NailangBlockFrame*>(frame);
+        if (blkFrame)
+        {
+            fname = GetFileName(blkFrame->BlockScope);
+        }
+        else if (const auto rawFrame = dynamic_cast<const NailangRawBlockFrame*>(frame); rawFrame)
+        {
+            fname = GetFileName(rawFrame->BlockScope);
+        }
+        const FuncCall* lastFunc = nullptr;
+        for (auto finfo = frame->FuncInfo; finfo; finfo = finfo->PrevInfo)
+        {
+            stacks.emplace_back(CreateStack(finfo->Func, fname));
+            lastFunc = finfo->Func;
+        }
+        if (blkFrame && blkFrame->CurContent && (*blkFrame->CurContent) != lastFunc)
+        {
+            stacks.emplace_back(blkFrame->CurContent->Visit([&](const auto* ptr) { return CreateStack(ptr, fname); }));
+        }
+    }
+    return stacks;
 }
 
 
@@ -873,9 +1029,19 @@ LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_
 }
 
 
-NailangFrameStack::NailangFrameHolder NailangExecutor::PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flags)
+NailangFrameStack::FrameHolder<NailangFrame> NailangExecutor::PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag)
 {
-    return Runtime->FrameStack.PushFrame<NailangFrame>(this, ctx, flags);
+    return Runtime->FrameStack.PushFrame<NailangFrame>(this, ctx, flag);
+}
+NailangFrameStack::FrameHolder<NailangBlockFrame> NailangExecutor::PushBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, 
+    const Block* block, common::span<const FuncCall> metas)
+{
+    return Runtime->FrameStack.PushFrame<NailangBlockFrame>(this, ctx, flag, block, metas);
+}
+NailangFrameStack::FrameHolder<NailangRawBlockFrame> NailangExecutor::PushRawBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, 
+    const RawBlock* block, common::span<const FuncCall> metas)
+{
+    return Runtime->FrameStack.PushFrame<NailangRawBlockFrame>(this, ctx, flag, block, metas);
 }
 
 void NailangExecutor::EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size)
@@ -926,14 +1092,12 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
         const auto& condition = meta.Args[0];
 
         auto frame = PushFrame(Runtime->ConstructEvalContext(), NailangFrame::FrameFlags::LoopScope);
-        frame->BlockScope = frame->PrevFrame->BlockScope;
-        frame->CurContent = &content;
         while (true)
         {
             if (const auto cond = EvaluateExpr(condition); ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
             {
                 Expects(frame->Status == NailangFrame::ProgramStatus::Next);
-                HandleContent(*frame->CurContent, {});
+                HandleContent(content, {});
                 if (frame->Has(NailangFrame::ProgramStatus::LoopEnd))
                     break;
                 frame->Status = NailangFrame::ProgramStatus::Next; // reset state
@@ -1438,7 +1602,7 @@ Arg NailangExecutor::EvaluateQueryExpr(const QueryExpr& expr)
     }
 }
 
-void NailangExecutor::ExecuteFrame(NailangFrame& frame)
+void NailangExecutor::ExecuteFrame(NailangBlockFrame& frame)
 {
     Expects(&GetFrame() == &frame);
     for (size_t idx = 0; idx < frame.BlockScope->Size();)
@@ -1452,6 +1616,7 @@ void NailangExecutor::ExecuteFrame(NailangFrame& frame)
         }
         if (shouldExe)
         {
+            frame.CurContent = &content;
             HandleContent(content, metas);
         }
         frame.IfRecord >>= 2;
@@ -1464,8 +1629,6 @@ void NailangExecutor::ExecuteFrame(NailangFrame& frame)
 }
 void NailangExecutor::HandleContent(const Statement& content, common::span<const FuncCall> metas)
 {
-    auto& frame = GetFrame();
-    frame.CurContent = &content;
     switch (content.TypeData)
     {
     case Statement::Type::Assign:
@@ -1520,67 +1683,16 @@ std::shared_ptr<EvaluateContext> NailangRuntime::GetContext(bool innerScope) con
         return RootContext;
 }
 
-static common::StackTraceItem CreateStack(const AssignExpr* assign, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!assign)
-        return { fname, u"<empty assign>"sv, 0 };
-    std::u32string target = U"<Assign>";
-    Serializer::Stringify(target, assign->Target);
-    Serializer::Stringify(target, assign->Queries);
-    return { fname, common::str::to_u16string(target), assign->Position.first };
-}
-static common::StackTraceItem CreateStack(const FuncCall* fcall, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!fcall)
-        return { fname, u"<empty func>"sv, 0 };
-    return { fname, common::str::to_u16string(fcall->FullFuncName()), fcall->Position.first };
-}
-static common::StackTraceItem CreateStack(const RawBlock* block, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!block)
-        return { fname, u"<empty raw block>"sv, 0 };
-    return { fname, FMTSTR(u"<Raw>{}"sv, block->Name), block->Position.first };
-}
-static common::StackTraceItem CreateStack(const Block* block, const common::SharedString<char16_t>& fname) noexcept
-{
-    if (!block)
-        return { fname, u"<empty block>"sv, 0 };
-    return { fname, FMTSTR(u"<Block>{}"sv, block->Name), block->Position.first };
-}
-
 void NailangRuntime::HandleException(const NailangRuntimeException& ex) const
 {
-    const auto theFrame = CurFrame();
-    if (auto& info = ex.GetInfo(); !info.Scope && theFrame && theFrame->CurContent)
-        info.Scope = *theFrame->CurContent;
-
-    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
-        (const Block* blk) mutable -> common::SharedString<char16_t>
+    if (auto& info = ex.GetInfo(); !info.Scope)
     {
-        if (!blk) return {};
-        for (const auto& [name, str] : nameCache)
-            if (name == blk->FileName)
-                return str;
-        common::SharedString<char16_t> str(blk->FileName);
-        nameCache.emplace_back(blk->FileName, str);
-        return str;
-    };
-    std::vector<common::StackTraceItem> traces;
-    for (auto frame = theFrame; frame; frame = frame->PrevFrame)
-    {
-        auto fname = GetFileName(frame->BlockScope);
-        const FuncCall* lastFunc = nullptr;
-        for (auto finfo = frame->FuncInfo; finfo; finfo = finfo->PrevInfo)
-        {
-            traces.emplace_back(CreateStack(finfo->Func, fname));
-            lastFunc = finfo->Func;
-        }
-        if (frame->CurContent && (*frame->CurContent) != lastFunc)
-        {
-            traces.emplace_back(frame->CurContent->Visit([&](const auto* ptr) { return CreateStack(ptr, fname); }));
-        }
+        if (const auto theFrame = dynamic_cast<NailangBlockFrame*>(CurFrame()); theFrame)
+            info.Scope = *theFrame->CurContent;
     }
-    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), traces.begin(), traces.end());
+    auto stacks = FrameStack.CollectStacks();
+    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), 
+        std::make_move_iterator(stacks.begin()), std::make_move_iterator(stacks.end()));
     throw ex;
 }
 
@@ -1644,7 +1756,7 @@ ArgLocator NailangRuntime::LocateArg(const LateBindVar& var, const bool create) 
     {
         if (auto ret = frame->Context->LocateArg(var, create); ret)
             return std::move(ret);
-        if (frame->Has(NailangFrame::FrameFlags::CallScope))
+        if (frame->Has(NailangFrame::FrameFlags::VarScope))
             break; // cannot beyond  
     }
     return RootContext->LocateArg(var, create);
@@ -1764,9 +1876,7 @@ void NailangRuntime::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
 void NailangRuntime::OnBlock(const Block& block, common::span<const FuncCall> metas)
 {
     auto& prevFrame = *CurFrame();
-    auto curFrame = prevFrame.Executor->PushFrame(ConstructEvalContext(), NailangFrame::FrameFlags::Empty);
-    curFrame->BlockScope = &block;
-    curFrame->MetaScope = metas;
+    auto curFrame = prevFrame.Executor->PushBlockFrame(ConstructEvalContext(), NailangFrame::FrameFlags::Empty, &block, metas);
     curFrame->Execute();
 }
 
@@ -1779,28 +1889,10 @@ Arg NailangRuntime::OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
         newCtx->LocateArg(func.ArgNames[i], true).Set(func.CapturedArgs[i]);
     for (size_t j = 0; i < func.ArgNames.size(); ++i, ++j)
         newCtx->LocateArg(func.ArgNames[i], true).Set(std::move(pack.Params[j]));
-    auto& prevFrame = *CurFrame();
-    auto curFrame = prevFrame.Executor->PushFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall);
-    curFrame->BlockScope = func.Body;
-    curFrame->MetaScope = pack.Metas;
+    auto curFrame = CurFrame()->Executor->PushBlockFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall, func.Body, pack.Metas);
     curFrame->Execute();
     return std::move(curFrame->ReturnArg);
 }
-
-//void NailangRuntime::ExecuteBlock(NailangExecutor& executor, const Block& block, common::span<const FuncCall> metas, std::shared_ptr<EvaluateContext> ctx, const bool checkMetas)
-//{
-//    auto frame = PushFrame(ctx, NailangFrame::FrameFlags::FlowScope);
-//    CurFrame->MetaScope = metas;
-//    CurFrame->BlockScope = &block;
-//    if (checkMetas)
-//    {
-//        Statement target(&block);
-//        MetaSet allMetas(metas);
-//        if (!executor.HandleMetaFuncs(allMetas, target))
-//            return;
-//    }
-//    executor.ExecuteFrame();
-//}
 
 
 NailangBasicRuntime::NailangBasicRuntime(std::shared_ptr<EvaluateContext> context) :
@@ -1811,9 +1903,7 @@ NailangBasicRuntime::~NailangBasicRuntime()
 
 void NailangBasicRuntime::ExecuteBlock(const Block& block, common::span<const FuncCall> metas, std::shared_ptr<EvaluateContext> ctx, const bool checkMetas)
 {
-    auto curFrame = Executor.PushFrame(std::move(ctx), NailangFrame::FrameFlags::FlowScope);
-    curFrame->MetaScope = metas;
-    curFrame->BlockScope = &block;
+    auto curFrame = Executor.PushBlockFrame(std::move(ctx), NailangFrame::FrameFlags::FlowScope, &block, metas);
     if (checkMetas && !metas.empty())
     {
         Statement target(&block);
