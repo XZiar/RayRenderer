@@ -169,10 +169,8 @@ inline constexpr NLCLRuntime& NLCLExecutor::GetRuntime() const noexcept
 
 class OCLUAPI NLCLBaseResult : public NLCLResult
 {
-private:
-    mutable NLCLRuntime TempRuntime;
 protected:
-    std::shared_ptr<NLCLContext> Context;
+    mutable xziar::nailang::NailangBasicRuntime Runtime;
 public:
     NLCLBaseResult(const std::shared_ptr<NLCLContext>& context);
     ~NLCLBaseResult() override;
@@ -215,8 +213,6 @@ public:
 class OCLUAPI NLCLProgStub : public xcomp::XCNLProgStub
 {
     friend class NLCLProcessor;
-private:
-    void Prepare();
 public:
     NLCLProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLCLContext> context, common::mlog::MiniLogger<false>& logger);
     NLCLProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLCLContext> context, std::unique_ptr<NLCLRuntime>&& runtime);

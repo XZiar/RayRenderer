@@ -148,7 +148,9 @@ jobs:
         working-directory: ./tmp
         run: |
           wget --no-show-progress -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -c -s)/llvm-toolchain-$(lsb_release -c -s)-${{matrix.env_clang_ver}} main" -y
+          CLANG_REPO="deb http://apt.llvm.org/$(lsb_release -c -s)/ llvm-toolchain-$(lsb_release -c -s)-${{matrix.env_clang_ver}} main"
+          echo $CLANG_REPO
+          sudo add-apt-repository "$CLANG_REPO" -y
 
       - name: Install packages
         run: | 

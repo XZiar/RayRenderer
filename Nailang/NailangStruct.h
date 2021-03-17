@@ -644,7 +644,7 @@ struct FixedArray
 
 struct NAILANGAPI NailangHelper;
 class NAILANGAPI NailangExecutor;
-class NAILANGAPI NailangRuntimeBase;
+class NAILANGAPI NailangRuntime;
 class NAILANGAPI NailangRuntimeException;
 struct Arg
 {

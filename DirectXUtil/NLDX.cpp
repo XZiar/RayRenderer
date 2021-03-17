@@ -24,7 +24,7 @@ using xziar::nailang::FuncEvalPack;
 using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
-using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
@@ -571,13 +571,13 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
 
 
 NLDXBaseResult::NLDXBaseResult(const std::shared_ptr<NLDXContext>& context) :
-    TempRuntime(dxLog(), context), Context(context)
+    Runtime(context)
 { }
 NLDXBaseResult::~NLDXBaseResult()
 { }
 NLDXResult::ResultType NLDXBaseResult::QueryResult(std::u32string_view name) const
 {
-    const auto result = TempRuntime.EvaluateRawStatement(name, false);
+    const auto result = Runtime.EvaluateRawStatement(name);
     return result.Visit([](auto val) -> NLDXResult::ResultType
         {
             using T = std::decay_t<decltype(val)>;
@@ -652,39 +652,16 @@ NLDXProcessor::~NLDXProcessor()
 
 void NLDXProcessor::ConfigureDX(NLDXProgStub& stub) const
 {
-    // Prepare
-    stub.Program->ForEachBlockTypeName<true>(U"xcomp.Prepare"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    stub.Program->ForEachBlockTypeName<true>(U"dxu.Prepare"sv,
-        [&](const Block& block, common::span<const FuncCall> metas) 
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    // Collect
-    stub.Program->ForEachBlockType<false>([&](const RawBlock& block, common::span<const FuncCall> metas)
-        {
-            if (IsBeginWith(block.Type, U"dxu."sv) || IsBeginWith(block.Type, U"xcomp."sv))
-                stub.Runtime->ProcessRawBlock(block, metas);
-        });
+    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"dxu.Prepare"sv };
+    stub.Prepare(preapres);
+    constexpr std::u32string_view collects[] = { U"dxu."sv, U"xcomp."sv };
+    stub.Collect(collects);
 }
-
 std::string NLDXProcessor::GenerateDX(NLDXProgStub& stub) const
 {
     auto str = stub.Runtime->GenerateOutput();
-    // PostAct
-    stub.Program->ForEachBlockTypeName<true>(U"xcomp.PostAct"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    stub.Program->ForEachBlockTypeName<true>(U"dxu.PostAct"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
+    constexpr std::u32string_view postacts[] = { U"xcomp.PostAct"sv, U"dxu.PostAct"sv };
+    stub.PostAct(postacts);
     return str;
 }
 

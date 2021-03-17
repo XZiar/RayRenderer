@@ -25,7 +25,7 @@ using xziar::nailang::FuncEvalPack;
 using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
-using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
@@ -711,13 +711,13 @@ bool NLCLRuntime::EnableExtension(std::u32string_view ext, std::u16string_view d
 
 
 NLCLBaseResult::NLCLBaseResult(const std::shared_ptr<NLCLContext>& context) :
-    TempRuntime(oclLog(), context), Context(context)
+    Runtime(context)
 { }
 NLCLBaseResult::~NLCLBaseResult()
 { }
 NLCLResult::ResultType NLCLBaseResult::QueryResult(std::u32string_view name) const
 {
-    const auto result = TempRuntime.EvaluateRawStatement(name, false);
+    const auto result = Runtime.EvaluateRawStatement(name, false);
     return result.Visit([](auto val) -> NLCLResult::ResultType
         {
             using T = std::decay_t<decltype(val)>;
@@ -792,39 +792,16 @@ NLCLProcessor::~NLCLProcessor()
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {
-    // Prepare
-    stub.Program->ForEachBlockTypeName<true>(U"xcomp.Prepare"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    stub.Program->ForEachBlockTypeName<true>(U"oclu.Prepare"sv,
-        [&](const Block& block, common::span<const FuncCall> metas) 
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    // Collect
-    stub.Program->ForEachBlockType<false>([&](const RawBlock& block, common::span<const FuncCall> metas)
-        {
-            if (IsBeginWith(block.Type, U"oclu."sv) || IsBeginWith(block.Type, U"xcomp."sv))
-                stub.Runtime->ProcessRawBlock(block, metas);
-        });
+    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"oclu.Prepare"sv };
+    stub.Prepare(preapres);
+    constexpr std::u32string_view collects[] = { U"oclu."sv, U"xcomp."sv };
+    stub.Collect(collects);
 }
-
 std::string NLCLProcessor::GenerateCL(NLCLProgStub& stub) const
 {
     auto str = stub.Runtime->GenerateOutput();
-    // PostAct
-    stub.Program->ForEachBlockTypeName<true>(U"xcomp.PostAct"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
-    stub.Program->ForEachBlockTypeName<true>(U"oclu.PostAct"sv,
-        [&](const Block& block, common::span<const FuncCall> metas)
-        {
-            stub.Runtime->ExecuteBlock(block, metas);
-        });
+    constexpr std::u32string_view postacts[] = { U"xcomp.PostAct"sv, U"oclu.PostAct"sv };
+    stub.PostAct(postacts);
     return str;
 }
 

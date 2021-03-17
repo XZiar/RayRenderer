@@ -455,6 +455,7 @@ private:
 class XCOMPBASAPI XCNLExecutor : public xziar::nailang::NailangExecutor
 {
     friend debug::XCNLDebugExt;
+    friend XCNLRuntime;
     friend XCNLRawExecutor;
     friend XCNLRawCodePrepare;
 protected:
@@ -471,8 +472,9 @@ protected:
     };
     [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept;
     [[nodiscard]] XCNLFrame& GetFrame() const noexcept { return static_cast<XCNLFrame&>(NailangExecutor::GetFrame()); }
-    xziar::nailang::NailangRuntimeBase::FrameT<XCNLFrame> PushFrame(xziar::nailang::NailangFrame::FrameFlags flags);
+    xziar::nailang::NailangRuntime::FrameT<XCNLFrame> PushFrame(xziar::nailang::NailangFrame::FrameFlags flags);
     [[nodiscard]] constexpr const std::vector<std::unique_ptr<XCNLExtension>>& GetExtensions() const noexcept;
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) override;
     [[nodiscard]] MetaFuncResult HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
     using NailangExecutor::NailangExecutor;
@@ -530,7 +532,7 @@ protected:
     [[nodiscard]] RawFrame& GetFrame() const noexcept { return static_cast<RawFrame&>(Executor.GetFrame()); }
     [[nodiscard]] constexpr auto& GetExtensions() const noexcept { return Executor.GetExtensions(); }
     void HandleException(const xziar::nailang::NailangParseException& ex) const final;
-    xziar::nailang::NailangRuntimeBase::FrameT<RawFrame> PushFrame(const OutputBlock& block);
+    xziar::nailang::NailangRuntime::FrameT<RawFrame> PushFrame(const OutputBlock& block);
     [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name,
         const std::u32string_view call, U32StrSpan args);
@@ -552,7 +554,7 @@ public:
 };
 
 
-class XCOMPBASAPI COMMON_EMPTY_BASES XCNLRuntime : public xziar::nailang::NailangRuntimeBase, public common::NonCopyable
+class XCOMPBASAPI COMMON_EMPTY_BASES XCNLRuntime : public xziar::nailang::NailangRuntime, public common::NonCopyable
 {
     friend XCNLExecutor;
     friend XCNLRawExecutor;
@@ -590,6 +592,7 @@ private:
     InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, xziar::nailang::FuncPack& func);
 public:
     ~XCNLRuntime() override;
+    void ExecuteBlock(const Block& block, MetaFuncs metas);
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();
@@ -633,41 +636,6 @@ public:
         ExtraExtension.push_back(std::move(creator));
     }
 
-    template<bool IsBlock, typename F>
-    forceinline void ForEachBlockType(F&& func) const
-    {
-        using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
-        static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
-            "need to accept block/rawblock and meta.");
-        using xziar::nailang::Statement;
-        constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
-        for (const auto& [meta, tmp] : Program)
-        {
-            if (tmp.TypeData != contentType)
-                continue;
-            const auto& block = *tmp.template Get<Target>();
-            func(block, meta);
-        }
-    }
-
-    template<bool IsBlock, typename F>
-    forceinline void ForEachBlockTypeName(const std::u32string_view type, F&& func) const
-    {
-        using Target = std::conditional_t<IsBlock, xziar::nailang::Block, xziar::nailang::RawBlock>;
-        static_assert(std::is_invocable_v<F, const Target&, common::span<const xziar::nailang::FuncCall>>,
-            "need to accept block/rawblock and meta.");
-        using xziar::nailang::Statement;
-        constexpr auto contentType = IsBlock ? Statement::Type::Block : Statement::Type::RawBlock;
-        for (const auto& [meta, tmp] : Program)
-        {
-            if (tmp.TypeData != contentType)
-                continue;
-            const auto& block = *tmp.template Get<Target>();
-            if (block.Type == type)
-                func(block, meta);
-        }
-    }
-
     [[nodiscard]] constexpr const xziar::nailang::Block& GetProgram() const noexcept { return Program; }
 
     [[nodiscard]] XCOMPBASAPI static std::shared_ptr<XCNLProgram> Create(std::u32string source, std::u16string fname);
@@ -690,6 +658,10 @@ protected:
     std::shared_ptr<const XCNLProgram> Program;
     std::shared_ptr<XCNLContext> Context;
     std::unique_ptr<XCNLRuntime> Runtime;
+    void ExecuteBlocks(const std::u32string_view type) const;
+    void Prepare(common::span<const std::u32string_view> types) const;
+    void Collect(common::span<const std::u32string_view> prefixes) const;
+    void PostAct(common::span<const std::u32string_view> types) const;
 public:
     XCNLProgStub(const std::shared_ptr<const XCNLProgram>& program, std::shared_ptr<XCNLContext>&& context, std::unique_ptr<XCNLRuntime>&& runtime);
     XCNLProgStub(XCNLProgStub&&) = default;

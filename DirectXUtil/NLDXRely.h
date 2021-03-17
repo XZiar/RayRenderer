@@ -165,10 +165,8 @@ inline constexpr NLDXRuntime& NLDXExecutor::GetRuntime() const noexcept
 
 class DXUAPI NLDXBaseResult : public NLDXResult
 {
-private:
-    mutable NLDXRuntime TempRuntime;
 protected:
-    std::shared_ptr<NLDXContext> Context;
+    mutable xziar::nailang::NailangBasicRuntime Runtime;
 public:
     NLDXBaseResult(const std::shared_ptr<NLDXContext>& context);
     ~NLDXBaseResult() override;
@@ -212,8 +210,6 @@ public:
 class DXUAPI NLDXProgStub : public xcomp::XCNLProgStub
 {
     friend class NLDXProcessor;
-private:
-    void Prepare();
 public:
     NLDXProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLDXContext> context, common::mlog::MiniLogger<false>& logger);
     NLDXProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLDXContext> context, std::unique_ptr<NLDXRuntime>&& runtime);

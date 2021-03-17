@@ -30,7 +30,7 @@ using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
 using xziar::nailang::NailangFrame;
 using xziar::nailang::NailangExecutor;
-using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::NailangRuntime;
 using xziar::nailang::EvaluateContext;
 using xziar::nailang::BasicEvaluateContext;
 using xziar::nailang::LargeEvaluateContext;
@@ -69,22 +69,20 @@ class EvalCtx2 : public CompactEvaluateContext
 public:
     EvalCtx2() { }
 };
-class NailangRT : public NailangRuntimeBase
+class NailangRT : public xziar::nailang::NailangBasicRuntime
 {
 public:
-    NailangFrame BaseFrame;
-    NailangRT() : NailangRuntimeBase(std::make_shared<EvalCtx>()), BaseFrame(nullptr, RootContext, NailangFrame::FrameFlags::Empty)
-    {
-        BaseFrame.Executor = BasicExecutor.get();
-        CurFrame = &BaseFrame;
-    }
+    xziar::nailang::NailangFrameStack::NailangFrameHolder BaseFrame;
+    NailangRT() : NailangBasicRuntime(std::make_shared<EvalCtx>()),
+        BaseFrame(Executor.PushFrame(RootContext, NailangFrame::FrameFlags::Empty))
+    { }
 
-    using NailangRuntimeBase::RootContext;
+    using NailangRuntime::RootContext;
 
-    //using NailangRuntimeBase::EvaluateFunc;
-    using NailangRuntimeBase::LookUpArg;
-    //using NailangRuntimeBase::EvaluateExpr;
-    //using NailangRuntimeBase::HandleContent;
+    //using NailangRuntime::EvaluateFunc;
+    using NailangRuntime::LookUpArg;
+    //using NailangRuntime::EvaluateExpr;
+    //using NailangRuntime::HandleContent;
 
     auto GetCtx() const { return std::dynamic_pointer_cast<EvalCtx>(RootContext); }
     auto SetRootArg(std::u32string_view name, Arg val)
@@ -122,11 +120,11 @@ public:
     {
         ParserContext context(name);
         const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
-        return BasicExecutor->EvaluateExpr(var);
+        return Executor.EvaluateExpr(var);
     }
     Arg EvaluateExpr(const Expr& arg) 
     {
-        return BasicExecutor->EvaluateExpr(arg);
+        return Executor.EvaluateExpr(arg);
     }
 };
 

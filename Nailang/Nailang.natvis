@@ -232,7 +232,7 @@
       </Synthetic>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::NailangRuntimeBase::BlockFrame">
+  <Type Name="xziar::nailang::NailangRuntime::BlockFrame">
     <DisplayString>{{ BlockFrame {Flags,en} }}</DisplayString>
     <Expand>
       <Item Name="PrevFrame">PrevFrame,na</Item>
@@ -258,7 +258,7 @@
       </Synthetic>
     </Expand>
   </Type>
-  <Type Name="xziar::nailang::NailangRuntimeBase" Inheritable="true">
+  <Type Name="xziar::nailang::NailangRuntime" Inheritable="true">
     <Expand>
       <Item Name="RootContext">*RootContext</Item>
       <Item Name="CurFrame">CurFrame,na</Item>

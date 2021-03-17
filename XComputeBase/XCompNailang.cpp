@@ -29,7 +29,7 @@ using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangFrame;
 using xziar::nailang::NailangExecutor;
-using xziar::nailang::NailangRuntimeBase;
+using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
@@ -475,9 +475,17 @@ void XCNLContext::Write(std::u32string& output, const NamedText& item) const
 XCNLExecutor::MetaFuncHandler::~MetaFuncHandler() {}
 
 
-xziar::nailang::NailangRuntimeBase::FrameT<XCNLExecutor::XCNLFrame> XCNLExecutor::PushFrame(xziar::nailang::NailangFrame::FrameFlags flags)
+xziar::nailang::NailangRuntime::FrameT<XCNLExecutor::XCNLFrame> XCNLExecutor::PushFrame(xziar::nailang::NailangFrame::FrameFlags flags)
 {
     return GetRuntime().PushFrame<XCNLFrame>(flags);
+}
+
+XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+{
+    auto& frame = GetFrame();
+    if (frame.MetaHandler && frame.MetaHandler->HandleMetaFunc(meta, target, allMetas))
+        return MetaFuncResult::Next;
+    return NailangExecutor::HandleMetaFunc(meta, target, allMetas);
 }
 
 XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
@@ -485,7 +493,7 @@ XCNLExecutor::MetaFuncResult XCNLExecutor::HandleMetaFunc(xziar::nailang::MetaEv
     auto& frame = GetFrame();
     if (frame.MetaHandler && frame.MetaHandler->HandleMetaFunc(meta))
         return MetaFuncResult::Next;
-    return XCNLExecutor::HandleMetaFunc(meta);
+    return NailangExecutor::HandleMetaFunc(meta);
 }
 
 Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
@@ -609,7 +617,7 @@ void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U3
     NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [{}] requires {} [{}] args, which gives [{}]."sv, call, prefix, count, args.size()));
 }
 
-NailangRuntimeBase::FrameT<XCNLRawExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block)
+NailangRuntime::FrameT<XCNLRawExecutor::RawFrame> XCNLRawExecutor::PushFrame(const OutputBlock& block)
 {
     return GetRuntime().PushFrame<RawFrame>(xziar::nailang::NailangFrame::FrameFlags::FlowScope, this, block);
 }
@@ -910,7 +918,7 @@ void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& 
 
 
 XCNLRuntime::XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx) :
-    NailangRuntimeBase(evalCtx), XCContext(*evalCtx), Logger(logger)
+    NailangRuntime(evalCtx), XCContext(*evalCtx), Logger(logger)
 { }
 XCNLRuntime::~XCNLRuntime()
 { }
@@ -918,7 +926,7 @@ XCNLRuntime::~XCNLRuntime()
 void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
 {
     Logger.error(u"{}\n", ex.Message());
-    NailangRuntimeBase::HandleException(ex);
+    NailangRuntime::HandleException(ex);
 }
 
 void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
@@ -1165,6 +1173,22 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
 void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
 { }
 
+void XCNLRuntime::ExecuteBlock(const Block& block, MetaFuncs metas)
+{
+    auto& executor = GetBaseExecutor();
+    auto frame = executor.PushFrame(NailangFrame::FrameFlags::FlowScope);
+    CurFrame->MetaScope = metas;
+    CurFrame->BlockScope = &block;
+    if (!metas.empty())
+    {
+        Statement target(&block);
+        MetaSet allMetas(metas);
+        if (!executor.HandleMetaFuncs(allMetas, target))
+            return;
+    }
+    executor.ExecuteFrame();
+}
+
 void XCNLRuntime::ProcessRawBlock(const xziar::nailang::RawBlock& block, MetaFuncs metas)
 {
     const auto type = GetBlockType(block, metas);
@@ -1268,6 +1292,49 @@ void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
         {
             Context->Extensions.push_back(std::move(ext));
         }
+    }
+}
+
+void XCNLProgStub::ExecuteBlocks(const std::u32string_view type) const
+{
+    for (const auto& [meta, tmp] : Program->Program)
+    {
+        if (tmp.TypeData != Statement::Type::Block)
+            continue;
+        const auto& block = *tmp.template Get<Block>();
+        if (block.Type == type)
+            Runtime->ExecuteBlock(block, meta);
+    }
+}
+void XCNLProgStub::Prepare(common::span<const std::u32string_view> types) const
+{
+    for (const auto type : types)
+    {
+        ExecuteBlocks(type);
+    }
+}
+void XCNLProgStub::Collect(common::span<const std::u32string_view> prefixes) const
+{
+    for (const auto& [meta, tmp] : Program->Program)
+    {
+        if (tmp.TypeData != Statement::Type::RawBlock)
+            continue;
+        const auto& block = *tmp.template Get<RawBlock>();
+        for (const auto prefix : prefixes)
+        {
+            if (IsBeginWith(block.Type, prefix))
+            {
+                Runtime->ProcessRawBlock(block, meta);
+                break;
+            }
+        }
+    }
+}
+void XCNLProgStub::PostAct(common::span<const std::u32string_view> types) const
+{
+    for (const auto type : types)
+    {
+        ExecuteBlocks(type);
     }
 }
 
