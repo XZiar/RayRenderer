@@ -94,16 +94,6 @@ bool HasSubgroupInfo(const xcomp::debug::InfoProvider& infoProv) noexcept
 }
 
 
-struct NLCLDebugExtension;
-struct NLCLExecutor_ : public NLCLExecutor
-{
-    friend NLCLDebugExtension;
-};
-struct NLCLRuntime_ : public NLCLRuntime
-{
-    friend NLCLDebugExtension;
-};
-
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebugExt
 {
@@ -123,7 +113,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     void FinishXCNL(xcomp::XCNLRuntime& runtime) override
     {
         Expects(dynamic_cast<NLCLRuntime*>(&runtime) != nullptr);
-        auto& Runtime = static_cast<NLCLRuntime_&>(runtime);
+        auto& Runtime = static_cast<NLCLRuntime&>(runtime);
         if (EnableDebug && AnyDebug)
         {
             Runtime.EnableExtension("cl_khr_global_int32_base_atomics"sv, u"Use oclu-debugoutput"sv);
@@ -194,16 +184,15 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         return {};
     }
 
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) override
+    [[nodiscard]] std::optional<xziar::nailang::Arg> ConfigFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) override
     {
-        auto& Executor = static_cast<NLCLExecutor_&>(executor);
-        auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
+        auto& runtime = GetRuntime(executor);
         const std::u32string_view name = call.FullFuncName();
         using namespace xziar::nailang;
         if (name == U"oclu.EnableDebug" || name == U"xcomp.EnableDebug")
         {
-            Executor.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
-            Runtime.Logger.verbose(u"Manually enable debug.\n");
+            executor.ThrowIfNotFuncTarget(call, xziar::nailang::FuncName::FuncInfo::Empty);
+            GetLogger(runtime).verbose(u"Manually enable debug.\n");
             EnableDebug = true;
             return Arg{};
         }
@@ -218,18 +207,17 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override
     {
         Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
-        auto& Executor = static_cast<NLCLExecutor_&>(executor);
-        auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
+        auto& runtime = GetRuntime(executor);
         using namespace xziar::nailang;
         if (meta.GetName() == U"oclu.DebugOutput"sv || meta.GetName() == U"xcomp.DebugOutput"sv)
         {
             if (AllowDebug)
             {
-                Executor.ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer });
+                executor.ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Integer });
                 DebugBufferSize = meta.Params.empty() ? 512u : gsl::narrow_cast<uint32_t>(meta.Params[0].GetUint().value());
             }
             else
-                Runtime.Logger.info(u"DebugOutput is disabled and ignored.\n");
+                GetLogger(runtime).info(u"DebugOutput is disabled and ignored.\n");
         }
     }
 
@@ -346,8 +334,8 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         }
         catch (const xziar::nailang::NailangRuntimeException& ex)
         {
-            auto& Runtime = static_cast<NLCLRuntime_&>(executor.GetRuntime());
-            Runtime.Logger.warning(u"Get Exception when trying to query Subgroup extension: {}\r\n", ex.Message());
+            auto& runtime = static_cast<NLCLRuntime&>(executor.GetRuntime());
+            GetLogger(runtime).warning(u"Get Exception when trying to query Subgroup extension: {}\r\n", ex.Message());
         }
 
         if (HasSgInfo)
@@ -365,7 +353,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     std::u32string DebugStringPatch(NLCLRawExecutor& executor, const std::u32string_view dbgId,
         const std::u32string_view formatter, common::span<const xcomp::debug::NamedVecPair> args) noexcept
     {
-        auto& runtime = static_cast<NLCLRuntime_&>(executor.GetRuntime());
+        auto& runtime = executor.GetRuntime();
         // prepare arg layout
         const auto& dbgBlock = AppendBlock(dbgId, formatter, args);
         const auto& dbgData = dbgBlock.Layout;
@@ -373,7 +361,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         try
         {
             std::vector<std::byte> test(dbgData.TotalSize);
-            runtime.Logger.debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
+            GetLogger(runtime).debug(FMT_STRING(u"DebugString:[{}]\n{}\ntest output:\n{}\n"sv), dbgId, formatter, dbgBlock.GetString(test));
         }
         catch (const fmt::format_error& fe)
         {

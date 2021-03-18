@@ -128,7 +128,7 @@ To make XCNL Runtime more extensible, XCNL support extensions.
 
   Perform initialization.
 
-* **XCNLFunc**
+* **ConfigFunc**
 
   When XCNL code calls a unsolved function.
   

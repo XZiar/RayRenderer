@@ -6,19 +6,6 @@ namespace oclu
 {
 
 struct NLCLDp4aExtension;
-struct Dp4aProvider;
-
-struct NLCLExecutor_ : public NLCLExecutor
-{
-    friend Dp4aProvider;
-    friend NLCLDp4aExtension;
-};
-struct NLCLRuntime_ : public NLCLRuntime
-{
-    friend Dp4aProvider;
-    friend NLCLDp4aExtension;
-};
-
 
 struct Dp4aProvider
 {
@@ -29,7 +16,7 @@ public:
     Dp4aProvider(NLCLContext& context);
     virtual ~Dp4aProvider() { }
     virtual xcomp::ReplaceResult DP4A(Signedness, const common::span<const std::u32string_view>) { return {}; };
-    virtual void OnFinish(NLCLRuntime_&) { }
+    virtual void OnFinish(NLCLRuntime&) { }
 };
 
 struct NLCLDp4aExtension : public NLCLExtension
@@ -52,7 +39,7 @@ public:
 
     [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
         common::span<const std::u32string_view> args) final;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) final;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> ConfigFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) final;
 
     std::shared_ptr<Dp4aProvider> GetDefaultProvider() const;
     std::shared_ptr<Dp4aProvider> Generate(std::u32string_view mimic, std::u32string_view args) const;
@@ -90,7 +77,7 @@ class NLCLDp4aArm : public NLCLDp4aPlain
 protected:
     const bool SupportDPA8, SupportDP8;
     bool EnableDPA8 = false, EnableDP8 = false;
-    void OnFinish(NLCLRuntime_& runtime) override;
+    void OnFinish(NLCLRuntime& runtime) override;
 public:
     NLCLDp4aArm(NLCLContext& context, const bool supportDPA8, const bool supportDP8);
     ~NLCLDp4aArm() override { }

@@ -49,7 +49,7 @@ using DepGen = std::function<std::shared_ptr<const xcomp::ReplaceDepend>()>;
 
 constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 
-#define NLRT_THROW_EX(...) Runtime.HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 #define GEN_DEPEND(...) [=](){ return xcomp::ReplaceDepend::CreateFrom(__VA_ARGS__); }
@@ -59,32 +59,30 @@ void NLCLSubgroupExtension::BeginInstance(xcomp::XCNLRuntime& runtime, xcomp::In
 {
     SubgroupSize = 0;
     Provider = DefaultProvider;
-    Provider->OnBegin(static_cast<NLCLRuntime_&>(runtime), *this, static_cast<KernelContext&>(ctx));
+    Provider->OnBegin(static_cast<NLCLRuntime&>(runtime), *this, static_cast<KernelContext&>(ctx));
 }
 
 void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
 {
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime), *this, static_cast<KernelContext&>(ctx));
+    Provider->OnFinish(static_cast<NLCLRuntime&>(runtime), *this, static_cast<KernelContext&>(ctx));
     Provider.reset();
     SubgroupSize = 0;
 }
 
 void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext&)
 {
-    auto& Executor = static_cast<NLCLExecutor_&>(executor);
-    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
-    using namespace xziar::nailang;
+    auto& runtime = GetRuntime(executor);
     if (meta.GetName() == U"oclu.SubgroupSize"sv || meta.GetName() == U"xcomp.SubgroupSize"sv)
     {
-        Executor.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
+        executor.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
         SubgroupSize = gsl::narrow_cast<uint8_t>(meta.Params[0].GetUint().value());
     }
     else if (meta.GetName() == U"oclu.SubgroupExt"sv)
     {
-        Executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
         const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
-        Provider = NLCLSubgroupExtension::Generate(Runtime.Logger, Runtime.Context, mimic, args);
+        Provider = NLCLSubgroupExtension::Generate(GetLogger(runtime), Context, mimic, args);
     }
 }
 
@@ -97,7 +95,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     else
         return {};
     //auto& Executor = static_cast<NLCLRawExecutor&>(executor);
-    auto& Runtime = static_cast<NLCLRuntime_&>(executor.GetRuntime());
+    auto& runtime = executor.GetRuntime();
     constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
     {
         if (!result && result.GetStr().empty())
@@ -107,7 +105,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     const auto SubgroupReduce = [&](std::u32string_view name, SubgroupReduceOp op)
     {
         executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
-        const auto vtype = Runtime.ParseVecType(args[0], FMTSTR(u"replace [{}]"sv, name));
+        const auto vtype = runtime.ParseVecType(args[0], FMTSTR(u"replace [{}]"sv, name));
         return Provider->SubgroupReduce(op, vtype, args[1]);
     };
 
@@ -158,14 +156,14 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     HashCase(func, U"SubgroupBroadcast")
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-        const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
+        const auto vtype = runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
         return HandleResult(Provider->SubgroupBroadcast(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupBroadcast with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupShuffle")
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-        const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
+        const auto vtype = runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
         return HandleResult(Provider->SubgroupShuffle(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupShuffle with Type [{}] not supported", args[0]));
     }
@@ -198,29 +196,27 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     return {};
 }
 
-std::optional<Arg> NLCLSubgroupExtension::XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func)
+std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func)
 {
-    auto& Executor = static_cast<NLCLExecutor_&>(executor);
-    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
-    using namespace xziar::nailang;
+    auto& runtime = GetRuntime(executor);
     if (func.GetName() == U"oclu.AddSubgroupPatch"sv)
     {
-        Executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
         //Executor.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
-        Executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = func.Params[0].GetBool().value();
         const auto vstr  = func.Params[1].GetStr().value();
-        const auto vtype = Runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
+        const auto vtype = runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
 
         KernelContext kerCtx;
         SubgroupSize = 32;
         const auto mimic = func.TryGet(2, &Arg::GetStr).Or({});
         const auto args  = func.TryGet(3, &Arg::GetStr).Or({});
-        const auto provider = Generate(Logger, Runtime.Context, mimic, args);
+        const auto provider = Generate(Logger, Context, mimic, args);
         const auto ret = isShuffle ?
             provider->SubgroupShuffle(vtype, U"x"sv, U"y"sv) :
             provider->SubgroupBroadcast(vtype, U"x"sv, U"y"sv);
-        provider->OnFinish(Runtime, *this, kerCtx);
+        provider->OnFinish(runtime, *this, kerCtx);
         
         return Arg{};
     }
@@ -282,7 +278,7 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
     Ensures(mType != SubgroupAttributes::MimicType::Auto);
 
     if (cap.SupportSubgroupIntel)
-        return std::make_shared<NLCLSubgroupIntel>(context, cap);
+        return std::make_shared<NLCLSubgroupIntel>(logger, context, cap);
     else if (mType == SubgroupAttributes::MimicType::Ptx)
     {
         uint32_t smVer = 0;
@@ -296,11 +292,11 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
         return std::make_shared<NLCLSubgroupPtx>(logger, context, cap, smVer);
     }
     else if (mType == SubgroupAttributes::MimicType::Local)
-        return std::make_shared<NLCLSubgroupLocal>(context, cap);
+        return std::make_shared<NLCLSubgroupLocal>(logger, context, cap);
     else if (cap.SupportBasicSubgroup)
-        return std::make_shared<NLCLSubgroupKHR>(context, cap);
+        return std::make_shared<NLCLSubgroupKHR>(logger, context, cap);
     else
-        return std::make_shared<SubgroupProvider>(context, cap);
+        return std::make_shared<SubgroupProvider>(logger, context, cap);
 }
 
 forceinline constexpr static bool CheckVNum(const uint32_t num) noexcept
@@ -394,8 +390,8 @@ std::u32string SubgroupProvider::HiLoPatch(const std::u32string_view name, const
     return func;
 }
 
-SubgroupProvider::SubgroupProvider(NLCLContext& context, SubgroupCapbility cap) :
-    Context(context), Cap(cap)
+SubgroupProvider::SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap) :
+    Logger(logger), Context(context), Cap(cap)
 { }
 void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
 {
@@ -406,11 +402,11 @@ void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
     }
     Warnings.push_back(msg.ExtractStr());
 }
-void SubgroupProvider::OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension&, KernelContext&)
+void SubgroupProvider::OnFinish(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&)
 {
     for (const auto& item : Warnings)
     {
-        runtime.Logger.warning(item);
+        Logger.warning(item);
     }
 }
 
@@ -501,15 +497,15 @@ struct SingleArgFunc
 
 
 
-void NLCLSubgroupKHR::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupKHR::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (EnableSubgroup)
-        Runtime.EnableExtension("cl_khr_subgroups"sv);
+        runtime.EnableExtension("cl_khr_subgroups"sv);
     if (EnableFP16)
-        Runtime.EnableExtension("cl_khr_fp16"sv);
+        runtime.EnableExtension("cl_khr_fp16"sv);
     if (EnableFP64)
-        Runtime.EnableExtension("cl_khr_fp64"sv) || Runtime.EnableExtension("cl_amd_fp64"sv);
-    SubgroupProvider::OnFinish(Runtime, ext, kernel);
+        runtime.EnableExtension("cl_khr_fp64"sv) || runtime.EnableExtension("cl_amd_fp64"sv);
+    SubgroupProvider::OnFinish(runtime, ext, kernel);
 }
 
 void NLCLSubgroupKHR::WarnFP(VecDataInfo vtype, const std::u16string_view func)
@@ -669,7 +665,8 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduce(SubgroupReduceOp op, VecDataInfo v
 }
 
 
-NLCLSubgroupIntel::NLCLSubgroupIntel(NLCLContext& context, SubgroupCapbility cap) : NLCLSubgroupKHR(context, cap)
+NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap) : 
+    NLCLSubgroupKHR(logger, context, cap)
 {
     CommonSupport =
     {
@@ -713,23 +710,23 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
     return func;
 }
 
-void NLCLSubgroupIntel::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupIntel::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (EnableSubgroupIntel)
-        Runtime.EnableExtension("cl_intel_subgroups"sv);
+        runtime.EnableExtension("cl_intel_subgroups"sv);
     if (EnableSubgroup16Intel)
-        Runtime.EnableExtension("cl_intel_subgroups_short"sv);
+        runtime.EnableExtension("cl_intel_subgroups_short"sv);
     if (EnableSubgroup8Intel)
-        Runtime.EnableExtension("cl_intel_subgroups_char"sv);
+        runtime.EnableExtension("cl_intel_subgroups_char"sv);
     if (EnableSubgroup)
-        EnableSubgroup = !Runtime.EnableExtension("cl_intel_subgroups"sv);
+        EnableSubgroup = !runtime.EnableExtension("cl_intel_subgroups"sv);
     if (ext.SubgroupSize > 0)
     {
-        if (Runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
+        if (runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
             kernel.AddAttribute(U"reqd_sub_group_size",
                 FMTSTR(U"__attribute__((intel_reqd_sub_group_size({})))", ext.SubgroupSize));
     }
-    NLCLSubgroupKHR::OnFinish(Runtime, ext, kernel);
+    NLCLSubgroupKHR::OnFinish(runtime, ext, kernel);
 }
 
 ReplaceResult NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
@@ -1117,21 +1114,21 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduce(SubgroupReduceOp op, common::sim
 }
 
 
-void NLCLSubgroupLocal::OnBegin(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupLocal::OnBegin(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     KernelName = kernel.InsatnceName;
-    NLCLSubgroupKHR::OnBegin(Runtime, ext, kernel);
+    NLCLSubgroupKHR::OnBegin(runtime, ext, kernel);
 }
-void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
+void NLCLSubgroupLocal::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
     if (NeedSubgroupSize || NeedLocalTemp)
     {
         Expects(kernel.InsatnceName == KernelName);
         const auto sgSize = kernel.GetWorkgroupSize();
         if (sgSize == 0)
-            NLRT_THROW_EX(u"Subgroup mimic [local] need to define GetWorkgroupSize() when under fully mimic");
+            runtime.NLRT_THROW_EX(u"Subgroup mimic [local] need to define GetWorkgroupSize() when under fully mimic");
         if (ext.SubgroupSize && kernel.GetWorkgroupSize() != ext.SubgroupSize)
-            NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
+            runtime.NLRT_THROW_EX(FMTSTR(u"Subgroup mimic [local] requires only 1 subgroup for the whole workgroup, now have subgroup[{}] and workgroup[{}].",
                 ext.SubgroupSize, kernel.GetWorkgroupSize()));
 
         const auto blkId = GenerateKID(U"sgsize"sv);
@@ -1145,10 +1142,10 @@ void NLCLSubgroupLocal::OnFinish(NLCLRuntime_& Runtime, const NLCLSubgroupExtens
         const auto sgSize = kernel.GetWorkgroupSize();
         kernel.AddBodyPrefix(U"oclu_subgroup_mimic_local_slm"sv,
             FMTSTR(U"    local ulong _oclu_subgroup_local[{}];\r\n", std::max<uint32_t>(sgSize, 16)));
-        Runtime.Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
+        Logger.debug(u"Subgroup mimic [local] is enabled with size [{}].\n", sgSize);
     }
     KernelName = {};
-    NLCLSubgroupKHR::OnFinish(Runtime, ext, kernel);
+    NLCLSubgroupKHR::OnFinish(runtime, ext, kernel);
 }
 
 std::u32string NLCLSubgroupLocal::GenerateKID(std::u32string_view type) const noexcept
@@ -1334,12 +1331,12 @@ ReplaceResult NLCLSubgroupLocal::SubgroupShuffle(VecDataInfo vtype, const std::u
 
 // https://intel.github.io/llvm-docs/cuda/opencl-subgroup-vs-cuda-crosslane-op.html
 NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion) :
-    SubgroupProvider(context, cap), SMVersion(smVersion)
+    SubgroupProvider(logger, context, cap), SMVersion(smVersion)
 {
     if (smVersion == 0)
-        logger.warning(u"Trying to use PtxSubgroup on non-NV platform.\n");
+        Logger.warning(u"Trying to use PtxSubgroup on non-NV platform.\n");
     else if (smVersion < 30)
-        logger.warning(u"Trying to use PtxSubgroup on sm{}, shuf is introduced since sm30.\n", smVersion);
+        Logger.warning(u"Trying to use PtxSubgroup on sm{}, shuf is introduced since sm30.\n", smVersion);
     if (smVersion < 70)
         ExtraSync = {};
     else

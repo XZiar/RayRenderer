@@ -220,26 +220,26 @@ NLCLExecutor::NLCLExecutor(NLCLRuntime* runtime) : XCNLExecutor(runtime)
 { }
 
 
-NLCLPrepare::NLCLPrepare(NLCLRuntime* runtime) : NLCLExecutor(runtime)
+NLCLConfigurator::NLCLConfigurator(NLCLRuntime* runtime) : NLCLExecutor(runtime)
 { }
-NLCLPrepare::~NLCLPrepare()
+NLCLConfigurator::~NLCLConfigurator()
 { }
-xcomp::XCNLExecutor& NLCLPrepare::GetExecutor() noexcept
+xcomp::XCNLExecutor& NLCLConfigurator::GetExecutor() noexcept
 {
     return *this;
 }
 
-NLCLPrepare::MetaFuncResult NLCLPrepare::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+NLCLConfigurator::MetaFuncResult NLCLConfigurator::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
 {
     const auto ret = NLCLExecutor::HandleMetaFunc(meta, target, allMetas);
     if (ret != MetaFuncResult::Unhandled)
         return ret;
     if (const auto frame = TryGetOutputFrame(); frame)
-        return XCNLPrepare::HandleRawBlockMeta(meta, frame->Block, allMetas) ? MetaFuncResult::Next : MetaFuncResult::Unhandled;
+        return XCNLConfigurator::HandleRawBlockMeta(meta, frame->Block, allMetas) ? MetaFuncResult::Next : MetaFuncResult::Unhandled;
     return MetaFuncResult::Unhandled;
 }
 
-Arg NLCLPrepare::EvaluateFunc(FuncEvalPack& func)
+Arg NLCLConfigurator::EvaluateFunc(FuncEvalPack& func)
 {
     auto& runtime = GetRuntime();
     const auto& fname = func.GetName();
@@ -304,7 +304,36 @@ const xcomp::XCNLExecutor& NLCLRawExecutor::GetExecutor() const noexcept
     return *this;
 }
 
-std::unique_ptr<xcomp::InstanceContext> NLCLRawExecutor::PrepareInstance(const xcomp::OutputBlock& block)
+void NLCLRawExecutor::StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg) const
+{
+    switch (arg.ArgType)
+    {
+    case KerArgType::Simple:
+        APPEND_FMT(out, U"{:8} {:5}  {} {}", ArgFlags::ToCLString(arg.Space),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    case KerArgType::Buffer:
+        APPEND_FMT(out, U"{:8} {:5} {} {} {} {}", ArgFlags::ToCLString(arg.Space),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            HAS_FIELD(arg.Qualifier, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    case KerArgType::Image:
+        APPEND_FMT(out, U"{:10} {} {}", ArgFlags::ToCLString(arg.Access),
+            common::str::to_u32string(arg.Type, Charset::UTF8),
+            common::str::to_u32string(arg.Name, Charset::UTF8));
+        break;
+    default:
+        NLRT_THROW_EX(u"Does not support KerArg of type[Any]");
+        break;
+    }
+}
+
+std::unique_ptr<xcomp::InstanceContext> NLCLRawExecutor::PrepareInstance(const xcomp::OutputBlock&)
 {
     return std::make_unique<KernelContext>();
 }
@@ -352,59 +381,33 @@ void NLCLRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
         std::move(kerCtx.Args));
 }
 
-void NLCLRawExecutor::StringifyKernelArg(std::u32string& out, const KernelArgInfo& arg) const
+void NLCLRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst)
 {
-    switch (arg.ArgType)
-    {
-    case KerArgType::Simple:
-        APPEND_FMT(out, U"{:8} {:5}  {} {}", ArgFlags::ToCLString(arg.Space),
-            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
-            common::str::to_u32string(arg.Type, Charset::UTF8),
-            common::str::to_u32string(arg.Name, Charset::UTF8));
-        break;
-    case KerArgType::Buffer:
-        APPEND_FMT(out, U"{:8} {:5} {} {} {} {}", ArgFlags::ToCLString(arg.Space),
-            HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
-            HAS_FIELD(arg.Qualifier, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
-            common::str::to_u32string(arg.Type, Charset::UTF8),
-            HAS_FIELD(arg.Qualifier, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
-            common::str::to_u32string(arg.Name, Charset::UTF8));
-        break;
-    case KerArgType::Image:
-        APPEND_FMT(out, U"{:10} {} {}", ArgFlags::ToCLString(arg.Access),
-            common::str::to_u32string(arg.Type, Charset::UTF8),
-            common::str::to_u32string(arg.Name, Charset::UTF8));
-        break;
-    default:
-        NLRT_THROW_EX(u"Does not support KerArg of type[Any]");
-        break;
-    }
+    auto frame = XCNLRawExecutor::PushFrame(block, CreateContext(), nullptr);
+    dst.append(U"typedef struct \r\n{\r\n"sv);
+    DirectOutput(block, dst);
+    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
 }
 
-//KernelContext& NLCLRawExecutor::GetCurInstance() const noexcept
-//{
-//    return static_cast<KernelContext&>(*dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance);
-//}
-
-constexpr auto KerArgSpaceParser = SWITCH_PACK(Hash, 
-    (U"global",     KerArgSpace::Global), 
-    (U"__global",   KerArgSpace::Global), 
-    (U"constant",   KerArgSpace::Constant),
-    (U"__constant", KerArgSpace::Constant),
-    (U"local",      KerArgSpace::Local), 
-    (U"__local",    KerArgSpace::Local), 
-    (U"private",    KerArgSpace::Private),
-    (U"__private",  KerArgSpace::Private),
-    (U"",           KerArgSpace::Private));
-constexpr auto ImgArgAccessParser = SWITCH_PACK(Hash, 
-    (U"read_only",    ImgAccess::ReadOnly),
-    (U"__read_only",  ImgAccess::ReadOnly),
-    (U"write_only",   ImgAccess::WriteOnly),
-    (U"__write_only", ImgAccess::WriteOnly),
-    (U"read_write",   ImgAccess::ReadWrite),
-    (U"",             ImgAccess::ReadWrite));
-NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+bool NLCLRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
 {
+    constexpr auto KerArgSpaceParser = PARSE_PACK(
+        U"global"sv,     KerArgSpace::Global, 
+        U"__global"sv,   KerArgSpace::Global, 
+        U"constant"sv,   KerArgSpace::Constant,
+        U"__constant"sv, KerArgSpace::Constant,
+        U"local"sv,      KerArgSpace::Local, 
+        U"__local"sv,    KerArgSpace::Local, 
+        U"private"sv,    KerArgSpace::Private,
+        U"__private"sv,  KerArgSpace::Private,
+        U""sv,           KerArgSpace::Private);
+    constexpr auto ImgArgAccessParser = PARSE_PACK(
+        U"read_only"sv,    ImgAccess::ReadOnly,
+        U"__read_only"sv,  ImgAccess::ReadOnly,
+        U"write_only"sv,   ImgAccess::WriteOnly,
+        U"__write_only"sv, ImgAccess::WriteOnly,
+        U"read_write"sv,   ImgAccess::ReadWrite,
+        U""sv,             ImgAccess::ReadWrite);
     auto& kerCtx = GetCurInstance();
     const auto& fname = meta.GetName();
     if (meta.Name->PartCount == 2 && fname[0] == U"oclu"sv)
@@ -419,7 +422,7 @@ NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& me
                 z = meta.Params[2].GetUint().value_or(1);
             kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
             kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"__attribute__((reqd_work_group_size({}, {}, {})))"sv, x, y, z));
-        } return MetaFuncResult::Next;
+        } return true;
         HashCase(subName, U"SimpleArg")
         {
             ThrowByParamTypes<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
@@ -439,7 +442,7 @@ NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& me
             kerCtx.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, flags,
                 common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } return MetaFuncResult::Next;
+        } return true;
         HashCase(subName, U"BufArg")
         {
             ThrowByParamTypes<4>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String, Arg::Type::String });
@@ -463,7 +466,7 @@ NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& me
             kerCtx.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
                 common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } return MetaFuncResult::Next;
+        } return true;
         HashCase(subName, U"ImgArg")
         {
             ThrowByParamTypes<3>(meta, { Arg::Type::String, Arg::Type::String, Arg::Type::String });
@@ -475,12 +478,17 @@ NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& me
             kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
                 common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
                 common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
-        } return MetaFuncResult::Next;
+        } return true;
         default:
             break;
         }
     }
-    if (XCNLRawExecutor::HandleInstanceMeta(meta))
+    return XCNLRawExecutor::HandleInstanceMeta(meta);
+}
+
+NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+{
+    if (HandleInstanceMeta(meta))
         return MetaFuncResult::Next;
     return NLCLExecutor::HandleMetaFunc(meta);
 }
@@ -513,22 +521,14 @@ void NLCLRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, st
     return XCNLRawExecutor::OnReplaceFunction(output, cookie, func, args);
 }
 
-void NLCLRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst)
-{
-    auto frame = XCNLRawExecutor::PushFrame(block, CreateContext(), nullptr);
-    dst.append(U"typedef struct \r\n{\r\n"sv);
-    DirectOutput(block, dst);
-    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
-}
-
 
 NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx) :
-    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Prepare(this), RawExecutor(this)
+    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Configurator(this), RawExecutor(this)
 { }
 NLCLRuntime::~NLCLRuntime()
 { }
 
-xcomp::XCNLPrepare& NLCLRuntime::GetPrepare() noexcept { return Prepare; }
+xcomp::XCNLConfigurator& NLCLRuntime::GetConfigurator() noexcept { return Configurator; }
 xcomp::XCNLRawExecutor& NLCLRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

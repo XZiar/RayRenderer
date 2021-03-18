@@ -31,16 +31,15 @@ void NLCLDp4aExtension::BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContex
 
 void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext&)
 {
-    Provider->OnFinish(static_cast<NLCLRuntime_&>(runtime));
+    Provider->OnFinish(static_cast<NLCLRuntime&>(runtime));
     Provider.reset();
 }
 
 void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const MetaEvalPack& meta, xcomp::InstanceContext&)
 {
-    auto& Executor = static_cast<NLCLExecutor_&>(executor);
     if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
-        Executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
+        executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
         const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
         Provider = Generate(mimic, args);
@@ -72,14 +71,12 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, s
     return {};
 }
 
-std::optional<xziar::nailang::Arg> NLCLDp4aExtension::XCNLFunc(xcomp::XCNLExecutor& executor, FuncEvalPack& func)
+std::optional<Arg> NLCLDp4aExtension::ConfigFunc(xcomp::XCNLExecutor& executor, FuncEvalPack& func)
 {
-    auto& Executor = static_cast<NLCLExecutor_&>(executor);
-    using namespace xziar::nailang;
     if (func.GetName() == U"oclu.IntelDp4a"sv)
     {
-        Executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
-        Executor.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
+        executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
+        executor.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
         HasIntelDp4a = func.Params[0].GetBool().value();
         return Arg{};
     }
@@ -272,13 +269,13 @@ ReplaceResult NLCLDp4aArm::DP4A(Signedness signedness, const common::span<const 
         return FMTSTR(U"({} + arm_dot({}, {}))"sv, args[0], args[1], args[2]);
 }
 
-void NLCLDp4aArm::OnFinish(NLCLRuntime_& Runtime)
+void NLCLDp4aArm::OnFinish(NLCLRuntime& runtime)
 {
     if (EnableDPA8)
-        Runtime.EnableExtension("cl_arm_integer_dot_product_accumulate_int8"sv);
+        runtime.EnableExtension("cl_arm_integer_dot_product_accumulate_int8"sv);
     if (EnableDP8)
-        Runtime.EnableExtension("cl_arm_integer_dot_product_int8"sv);
-    NLCLDp4aPlain::OnFinish(Runtime);
+        runtime.EnableExtension("cl_arm_integer_dot_product_int8"sv);
+    NLCLDp4aPlain::OnFinish(runtime);
 }
 
 

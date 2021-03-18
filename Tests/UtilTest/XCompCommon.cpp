@@ -84,7 +84,7 @@ public:
 
     void  BeginXCNL(XCNLRuntime&) override { }
     void FinishXCNL(XCNLRuntime&) override { }
-    std::optional<Arg> XCNLFunc(XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) override
+    std::optional<Arg> ConfigFunc(XCNLExecutor& executor, xziar::nailang::FuncEvalPack& func) override
     {
         const auto& fname = func.GetName();
         if (fname[0] == U"xcstub"sv)

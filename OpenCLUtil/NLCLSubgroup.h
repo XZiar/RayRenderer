@@ -16,21 +16,6 @@ struct SubgroupAttributes
 enum class SubgroupReduceOp { Sum, Min, Max, And, Or, Xor };
 
 
-struct NLCLExecutor_ : public NLCLExecutor
-{
-    friend SubgroupProvider;
-    friend NLCLSubgroupExtension;
-    friend class NLCLSubgroupLocal;
-    friend class NLCLSubgroupPtx;
-};
-struct NLCLRuntime_ : public NLCLRuntime
-{
-    friend SubgroupProvider;
-    friend NLCLSubgroupExtension;
-    friend class NLCLSubgroupLocal;
-    friend class NLCLSubgroupPtx;
-};
-
 struct SubgroupCapbility
 {
     bool SupportSubgroupKHR = false, SupportSubgroupIntel = false, SupportSubgroup8Intel = false, SupportSubgroup16Intel = false,
@@ -56,7 +41,7 @@ struct NLCLSubgroupExtension : public NLCLExtension
 
     [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
         common::span<const std::u32string_view> args) final;
-    [[nodiscard]] std::optional<xziar::nailang::Arg> XCNLFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) final;
+    [[nodiscard]] std::optional<xziar::nailang::Arg> ConfigFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) final;
 
     static SubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
     static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);
@@ -85,11 +70,12 @@ protected:
     [[nodiscard]] static std::u32string HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
         const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
 
+    common::mlog::MiniLogger<false>& Logger;
     NLCLContext& Context;
     const SubgroupCapbility Cap;
     void AddWarning(common::str::StrVariant<char16_t> msg);
 public:
-    SubgroupProvider(NLCLContext& context, SubgroupCapbility cap);
+    SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap);
     virtual ~SubgroupProvider() { }
     virtual xcomp::ReplaceResult GetSubgroupSize() { return {}; };
     virtual xcomp::ReplaceResult GetMaxSubgroupSize() { return {}; };
@@ -101,8 +87,8 @@ public:
     virtual xcomp::ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual xcomp::ReplaceResult SubgroupShuffle(common::simd::VecDataInfo, const std::u32string_view, const std::u32string_view) { return {}; };
     virtual xcomp::ReplaceResult SubgroupReduce(SubgroupReduceOp, common::simd::VecDataInfo, const std::u32string_view) { return {}; };
-    virtual void OnBegin(NLCLRuntime_&, const NLCLSubgroupExtension&, KernelContext&) {}
-    virtual void OnFinish(NLCLRuntime_&, const NLCLSubgroupExtension&, KernelContext&);
+    virtual void OnBegin(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&) {}
+    virtual void OnFinish(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&);
 private:
     std::vector<std::u16string> Warnings;
 };
@@ -112,7 +98,7 @@ class NLCLSubgroupKHR : public SubgroupProvider
 {
 protected:
     bool EnableSubgroup = false, EnableFP16 = false, EnableFP64 = false;
-    void OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void WarnFP(common::simd::VecDataInfo vtype, const std::u16string_view func);
     // internal use, won't check type
     xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, common::simd::VecDataInfo realType, const std::u32string_view ele);
@@ -144,12 +130,12 @@ protected:
     {
         return VectorPatch(funcName, baseFunc, vtype, mid, U", sgId", U", const uint sgId");
     }
-    void OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     xcomp::ReplaceResult DirectShuffle(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx);
     xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
     xcomp::ReplaceResult SubgroupReduceBitwise(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
 public:
-    NLCLSubgroupIntel(NLCLContext& context, SubgroupCapbility cap);
+    NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap);
     ~NLCLSubgroupIntel() override { }
 
     xcomp::ReplaceResult SubgroupBroadcast(common::simd::VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx) override;
@@ -163,8 +149,8 @@ class NLCLSubgroupLocal : public NLCLSubgroupKHR
 protected:
     std::u32string_view KernelName;
     bool NeedSubgroupSize = false, NeedLocalTemp = false;
-    void OnBegin(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
-    void OnFinish(NLCLRuntime_& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnBegin(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
+    void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     std::u32string GenerateKID(std::u32string_view type) const noexcept;
     std::u32string BroadcastPatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     std::u32string ShufflePatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;

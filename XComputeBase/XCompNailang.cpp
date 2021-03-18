@@ -495,7 +495,7 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
     }
     for (const auto& ext : GetExtensions())
     {
-        auto ret = ext->XCNLFunc(*this, func);
+        auto ret = ext->ConfigFunc(*this, func);
         if (ret)
             return std::move(ret.value());
     }
@@ -503,10 +503,10 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
 }
 
 
-XCNLPrepare::XCNLPrepare() {}
-XCNLPrepare::~XCNLPrepare() {}
+XCNLConfigurator::XCNLConfigurator() {}
+XCNLConfigurator::~XCNLConfigurator() {}
 
-bool XCNLPrepare::HandleRawBlockMeta(const FuncCall& meta, OutputBlock& block, MetaSet&)
+bool XCNLConfigurator::HandleRawBlockMeta(const FuncCall& meta, OutputBlock& block, MetaSet&)
 {
     auto& executor = GetExecutor();
     switch (const auto name = meta.FullFuncName(); common::DJBHash::HashC(name))
@@ -544,7 +544,7 @@ bool XCNLPrepare::HandleRawBlockMeta(const FuncCall& meta, OutputBlock& block, M
     return false;
 }
 
-bool XCNLPrepare::PrepareOutputBlock(OutputBlock& block)
+bool XCNLConfigurator::PrepareOutputBlock(OutputBlock& block)
 {
     auto& executor = GetExecutor();
     auto frame = executor.GetFrameStack().PushFrame<OutputBlockFrame>(&executor, executor.CreateContext(), block);
@@ -886,7 +886,8 @@ void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& 
         ext->BeginInstance(runtime, *kerCtx);
     }
     xziar::nailang::MetaSet allMetas(block.MetaFunc);
-    executor.HandleMetaFuncs(allMetas, {});
+    const auto ret = executor.HandleMetaFuncs(allMetas, {});
+    Ensures(ret);
 
     DirectOutput(block, kerCtx->Content);
 
@@ -1165,9 +1166,9 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
 void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
 { }
 
-void XCNLRuntime::ProcessPrepareBlock(const Block& block, MetaFuncs metas)
+void XCNLRuntime::ProcessConfigBlock(const Block& block, MetaFuncs metas)
 {
-    auto& executor = GetPrepare().GetExecutor();
+    auto& executor = GetConfigurator().GetExecutor();
     auto frame = executor.PushBlockFrame(ConstructEvalContext(), NailangFrame::FrameFlags::FlowScope, &block, metas);
     if (!metas.empty())
     {
@@ -1185,7 +1186,7 @@ void XCNLRuntime::ProcessRawBlock(const RawBlock& block, MetaFuncs metas)
     if (type == OutputBlock::BlockType::None)
         return;
     OutputBlock outBlk(&block, metas, type);
-    if (!GetPrepare().PrepareOutputBlock(outBlk))
+    if (!GetConfigurator().PrepareOutputBlock(outBlk))
         return;
 
     auto& dst = type == OutputBlock::BlockType::Template ? XCContext.TemplateBlocks : XCContext.OutputBlocks;
@@ -1293,7 +1294,7 @@ void XCNLProgStub::ExecuteBlocks(const std::u32string_view type) const
             continue;
         const auto& block = *tmp.template Get<Block>();
         if (block.Type == type)
-            Runtime->ProcessPrepareBlock(block, meta);
+            Runtime->ProcessConfigBlock(block, meta);
     }
 }
 void XCNLProgStub::Prepare(common::span<const std::u32string_view> types) const
