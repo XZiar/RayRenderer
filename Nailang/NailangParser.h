@@ -169,7 +169,7 @@ class NAILANGAPI ReplaceEngine
 {
 protected:
     static std::u32string_view TrimStrBlank(const std::u32string_view str) noexcept;
-    virtual void HandleException(const NailangParseException& ex) const;
+    [[noreturn]] virtual void HandleException(const NailangParseException& ex) const;
     virtual void OnReplaceOptBlock(std::u32string& output, void* cookie, std::u32string_view cond, std::u32string_view content);
     virtual void OnReplaceVariable(std::u32string& output, void* cookie, std::u32string_view var);
     virtual void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args);

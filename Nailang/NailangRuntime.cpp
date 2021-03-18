@@ -1069,8 +1069,13 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas, const Statement& target
         if (meta.IsUsed())
             continue;
         Expects(meta->Name->Info() == FuncName::FuncInfo::Meta);
-        //ExprHolder callHost(this, &meta);
-        const auto result = HandleMetaFunc(*meta, target, allMetas);
+        auto result = HandleMetaFunc(*meta, target, allMetas);
+        if (result == MetaFuncResult::Unhandled)
+        {
+            auto params = EvalFuncAllArgs(*meta);
+            MetaEvalPack pack(*meta, params, allMetas, target);
+            result = HandleMetaFunc(pack);
+        }
         if (result != MetaFuncResult::Unhandled)
             meta.SetUsed();
         switch (result)
@@ -1147,9 +1152,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
         Runtime->SetFunc(content.Get<Block>(), captures, meta.Args);
         return MetaFuncResult::Skip;
     }
-    auto params = EvalFuncAllArgs(meta);
-    MetaEvalPack pack(meta, params, allMetas, content);
-    return HandleMetaFunc(pack);
+    return MetaFuncResult::Unhandled;
 }
 NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(MetaEvalPack& meta)
 {

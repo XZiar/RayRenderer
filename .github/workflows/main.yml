@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc7, gcc8, gcc9, clang7, clang8]
+        cxx: [gcc7, gcc8, gcc9, clang8, clang9, clang10]
         include:
           - cxx: gcc7
             env_cc: "gcc-7"
@@ -103,17 +103,6 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-9"
-          - cxx: clang7
-            env_cc: "clang-7"
-            env_asm: "clang++-7"
-            env_cpp: "clang++-7"
-            env_stalink: "ar"
-            env_dynlink: "clang++-7"
-            env_applink: "clang++-7"
-            env_module: "all"
-            env_clang: true
-            env_clang_ver: 7
-            pkg: "clang-7 lld-7"
           - cxx: clang8
             env_cc: "clang-8"
             env_asm: "clang++-8"
@@ -125,6 +114,28 @@ jobs:
             env_clang: true
             env_clang_ver: 8
             pkg: "clang-8 lld-8"
+          - cxx: clang9
+            env_cc: "clang-9"
+            env_asm: "clang++-9"
+            env_cpp: "clang++-9"
+            env_stalink: "ar"
+            env_dynlink: "clang++-9"
+            env_applink: "clang++-9"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 9
+            pkg: "clang-9 lld-9"
+          - cxx: clang10
+            env_cc: "clang-10"
+            env_asm: "clang++-10"
+            env_cpp: "clang++-10"
+            env_stalink: "ar"
+            env_dynlink: "clang++-10"
+            env_applink: "clang++-10"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 10
+            pkg: "clang-10 lld-10"
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -143,14 +154,14 @@ jobs:
           mkdir bin
           echo "CPP_DEPENDENCY_PATH=$(pwd)" >> $GITHUB_ENV
           
-      - name: Prepare for clang
-        if: ${{matrix.env_clang}}
-        working-directory: ./tmp
-        run: |
-          wget --no-show-progress -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-          CLANG_REPO="deb http://apt.llvm.org/$(lsb_release -c -s)/ llvm-toolchain-$(lsb_release -c -s)-${{matrix.env_clang_ver}} main"
-          echo $CLANG_REPO
-          sudo add-apt-repository "$CLANG_REPO" -y
+      # - name: Prepare for clang
+      #   if: ${{matrix.env_clang}}
+      #   working-directory: ./tmp
+      #   run: |
+      #     wget --no-show-progress -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
+      #     CLANG_REPO="deb http://apt.llvm.org/$(lsb_release -c -s)/ llvm-toolchain-$(lsb_release -c -s)-${{matrix.env_clang_ver}} main"
+      #     echo $CLANG_REPO
+      #     sudo add-apt-repository "$CLANG_REPO" -y
 
       - name: Install packages
         run: | 

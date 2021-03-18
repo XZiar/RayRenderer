@@ -257,7 +257,7 @@ AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pa
             {
             case AssignOps::Assign:                                                         break;
             case AssignOps::NewCreate: notnull = Behavior::Throw;                           break;
-            case AssignOps::NilAssign:    null = Behavior::Skip;                            break;
+            case AssignOps::NilAssign: notnull = Behavior::Skip;                            break;
             case AssignOps::AndAssign:    null = Behavior::Throw; selfOp = EmbedOps::And;   break;
             case AssignOps::OrAssign:     null = Behavior::Throw; selfOp = EmbedOps::Or;    break;
             case AssignOps::AddAssign:    null = Behavior::Throw; selfOp = EmbedOps::Add;   break;

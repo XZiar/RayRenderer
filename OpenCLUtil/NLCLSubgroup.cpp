@@ -96,8 +96,8 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
         func.remove_prefix(6);
     else
         return {};
-    auto& Executor = static_cast<NLCLRawExecutor&>(executor);
-    auto& Runtime = static_cast<NLCLRuntime_&>(Executor.GetRuntime());
+    //auto& Executor = static_cast<NLCLRawExecutor&>(executor);
+    auto& Runtime = static_cast<NLCLRuntime_&>(executor.GetRuntime());
     constexpr auto HandleResult = [](ReplaceResult result, common::str::StrVariant<char32_t> msg)
     {
         if (!result && result.GetStr().empty())
@@ -106,7 +106,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     };
     const auto SubgroupReduce = [&](std::u32string_view name, SubgroupReduceOp op)
     {
-        Executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], FMTSTR(u"replace [{}]"sv, name));
         return Provider->SubgroupReduce(op, vtype, args[1]);
     };
@@ -115,56 +115,56 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     {
     HashCase(func, U"GetSubgroupSize")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupSize(),
             U"[GetSubgroupSize] not supported"sv);
     }
     HashCase(func, U"GetMaxSubgroupSize")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetMaxSubgroupSize(),
             U"[GetMaxSubgroupSize] not supported"sv);
     }
     HashCase(func, U"GetSubgroupCount")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupCount(),
             U"[GetSubgroupCount] not supported"sv);
     }
     HashCase(func, U"GetSubgroupId")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupId(),
             U"[GetSubgroupId] not supported"sv);
     }
     HashCase(func, U"GetSubgroupLocalId")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
         return HandleResult(Provider->GetSubgroupLocalId(),
             U"[GetSubgroupLocalId] not supported"sv);
     }
     HashCase(func, U"SubgroupAll")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
         return HandleResult(Provider->SubgroupAll(args[0]),
             U"[SubgroupAll] not supported"sv);
     }
     HashCase(func, U"SubgroupAny")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
         return HandleResult(Provider->SubgroupAny(args[0]),
             U"[SubgroupAny] not supported"sv);
     }
     HashCase(func, U"SubgroupBroadcast")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
         return HandleResult(Provider->SubgroupBroadcast(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupBroadcast with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupShuffle")
     {
-        Executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = Runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
         return HandleResult(Provider->SubgroupShuffle(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupShuffle with Type [{}] not supported", args[0]));

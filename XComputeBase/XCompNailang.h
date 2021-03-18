@@ -24,11 +24,12 @@ class XCNLProgStub;
 class ReplaceDepend;
 
 
-using U32StrSpan = common::span<const std::u32string_view>;
+using U32StrSpan    = ::common::span<const std::u32string_view>;
+using MetaFuncs     = ::common::span<const xziar::nailang::FuncCall>;
+
 
 struct OutputBlock
 {
-    using MetaFuncs = ::common::span<const xziar::nailang::FuncCall>;
     enum class BlockType : uint8_t { None, Global, Struct, Instance, Template };
     struct BlockInfo
     {
@@ -452,94 +453,86 @@ private:
 };
 
 
-class XCOMPBASAPI XCNLExecutor : public xziar::nailang::NailangExecutor
+class XCOMPBASAPI XCNLPrepare
 {
-    friend debug::XCNLDebugExt;
     friend XCNLRuntime;
-    friend XCNLRawExecutor;
-    friend XCNLRawCodePrepare;
+private:
+    [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
 protected:
-    struct MetaFuncHandler
+    struct OutputBlockFrame : public xziar::nailang::NailangRawBlockFrame
     {
-        virtual ~MetaFuncHandler();
-        [[nodiscard]] virtual bool HandleMetaFunc(xziar::nailang::MetaEvalPack&) { return false; }
-        [[nodiscard]] virtual bool HandleMetaFunc(const xziar::nailang::FuncCall&, const xziar::nailang::Statement&, xziar::nailang::MetaSet&) { return false; }
-    };
-    struct RawFrame : public xziar::nailang::NailangRawBlockFrame
-    {
-        MetaFuncHandler* MetaHandler = nullptr;
-        const OutputBlock& Block;
-        RawFrame(NailangFrame* prev, XCNLExecutor* executor, const std::shared_ptr<xziar::nailang::EvaluateContext>& ctx,
-            NailangFrame::FrameFlags flags, const OutputBlock& block) :
-            NailangRawBlockFrame(prev, executor, ctx, flags, block.Block, block.MetaFunc), Block(block)
+        OutputBlock& Block;
+        OutputBlockFrame(NailangFrame* prev, xziar::nailang::NailangExecutor* executor, const std::shared_ptr<xziar::nailang::EvaluateContext>& ctx, OutputBlock& block) :
+            NailangRawBlockFrame(prev, executor, ctx, NailangFrame::FrameFlags::Empty, block.Block, block.MetaFunc), Block(block)
         { }
-        ~RawFrame() override { }
+        ~OutputBlockFrame() override { }
         constexpr const xziar::nailang::RawBlock& GetBlock() const noexcept
         {
             return *Block.Block;
         }
-        size_t GetSize() const noexcept override { return sizeof(RawFrame); }
+        size_t GetSize() const noexcept override { return sizeof(OutputBlockFrame); }
     };
+    XCNLPrepare();
+    forceinline OutputBlockFrame* TryGetOutputFrame() noexcept;
+    bool HandleRawBlockMeta(const xziar::nailang::FuncCall& meta, OutputBlock& block, xziar::nailang::MetaSet&);
+public:
+    virtual ~XCNLPrepare();
+    [[nodiscard]] bool PrepareOutputBlock(OutputBlock& block);
+};
+
+
+class XCOMPBASAPI XCNLExecutor : public xziar::nailang::NailangExecutor
+{
+    friend debug::XCNLDebugExt;
+    friend XCNLPrepare;
+    friend XCNLRawExecutor;
+    friend XCNLRuntime;
+protected:
     [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept;
     [[nodiscard]] constexpr const std::vector<std::unique_ptr<XCNLExtension>>& GetExtensions() const noexcept;
     [[nodiscard]] std::shared_ptr<xziar::nailang::EvaluateContext> CreateContext() const;
-    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) override;
-    [[nodiscard]] MetaFuncResult HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) override;
     using NailangExecutor::NailangExecutor;
 };
 
-
-
-class XCOMPBASAPI XCNLExecutorProxy : protected xziar::nailang::NailangBase
+inline XCNLPrepare::OutputBlockFrame* XCNLPrepare::TryGetOutputFrame() noexcept
 {
-protected:
-    XCNLExecutor& Executor;
-    XCNLExecutorProxy(XCNLExecutor& executor) : Executor(executor) {}
-public:
-    [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const final;
-};
-
-class XCOMPBASAPI XCNLRawCodePrepare : protected XCNLExecutorProxy, protected XCNLExecutor::MetaFuncHandler
-{
-    [[nodiscard]] bool HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) override;
-public:
-    OutputBlock Block;
-    XCNLRawCodePrepare(XCNLExecutor& executor, const xziar::nailang::RawBlock* block, common::span<const xziar::nailang::FuncCall> meta, OutputBlock::BlockType type);
-    ~XCNLRawCodePrepare() override;
-    [[nodiscard]] bool HandleMetaFuncs();
-};
+    return dynamic_cast<OutputBlockFrame*>(&GetExecutor().GetFrame());
+}
 
 
-class XCOMPBASAPI XCNLRawExecutor : protected XCNLExecutorProxy,
-    protected xziar::nailang::ReplaceEngine, protected XCNLExecutor::MetaFuncHandler
+class XCOMPBASAPI XCNLRawExecutor : protected xziar::nailang::ReplaceEngine
 {
     friend debug::XCNLDebugExt;
     friend XCNLRuntime;
 private:
+    [[nodiscard]] virtual const XCNLExecutor& GetExecutor() const noexcept = 0;
+    [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
     [[nodiscard]] virtual std::unique_ptr<InstanceContext> PrepareInstance(const OutputBlock& block) = 0;
     virtual void OutputInstance(const OutputBlock& block, std::u32string& dst) = 0;
 protected:
-    struct InstanceFrame : public XCNLExecutor::RawFrame
+    struct InstanceFrame : public xziar::nailang::NailangRawBlockFrame
     {
+        const OutputBlock& Block;
         InstanceContext* Instance;
-        InstanceFrame(NailangFrame* prev, const std::shared_ptr<xziar::nailang::EvaluateContext>& ctx, NailangFrame::FrameFlags flags,
-            XCNLRawExecutor* executor, const OutputBlock& block, InstanceContext* instance) : 
-            RawFrame(prev, &executor->Executor, ctx, flags, block), Instance(instance)
-        {
-            MetaHandler = executor;
-        }
+        InstanceFrame(NailangFrame* prev, XCNLExecutor* executor, const std::shared_ptr<xziar::nailang::EvaluateContext>& ctx, 
+            const OutputBlock& block, InstanceContext* instance) :
+            NailangRawBlockFrame(prev, executor, ctx, NailangFrame::FrameFlags::Empty, block.Block, block.MetaFunc), 
+            Block(block), Instance(instance)
+        { }
         ~InstanceFrame() override { }
+        constexpr const xziar::nailang::RawBlock& GetBlock() const noexcept
+        {
+            return *Block.Block;
+        }
         size_t GetSize() const noexcept override { return sizeof(InstanceFrame); }
     };
 
-    XCNLRawExecutor(XCNLExecutor& executor);
-    [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept { return Executor.GetRuntime(); }
-    [[nodiscard]] XCNLExecutor::RawFrame& GetFrame() const noexcept { return static_cast<XCNLExecutor::RawFrame&>(Executor.GetFrame()); }
-    [[nodiscard]] constexpr auto& GetExtensions() const noexcept { return Executor.GetExtensions(); }
-    void HandleException(const xziar::nailang::NailangParseException& ex) const final;
-    [[nodiscard]] xziar::nailang::NailangFrameStack::FrameHolder<XCNLExecutor::RawFrame> PushFrame(const OutputBlock& block, InstanceContext* instance = nullptr);
-    [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
+    [[nodiscard]] constexpr auto& GetExtensions() const noexcept { return GetExecutor().GetExtensions(); }
+    [[nodiscard]] InstanceContext& GetInstanceInfo() const;
+    [[nodiscard]] xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangRawBlockFrame> PushFrame(
+        const OutputBlock& block, std::shared_ptr<xziar::nailang::EvaluateContext> ctx, InstanceContext* instance = nullptr);
+    [[nodiscard]] bool HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta);
     [[nodiscard]] std::optional<common::str::StrVariant<char32_t>> CommonReplaceFunc(const std::u32string_view name,
         const std::u32string_view call, U32StrSpan args);
     [[nodiscard]] ReplaceResult ExtensionReplaceFunc(std::u32string_view func, U32StrSpan args);
@@ -548,15 +541,17 @@ protected:
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) override;
     static void OutputConditions(common::span<const xziar::nailang::FuncCall> metas, std::u32string& dst);
     void BeforeOutputBlock(const OutputBlock& block, std::u32string& dst) const;
-    void DirectOutput(std::u32string& dst);
+    void DirectOutput(const OutputBlock& block, std::u32string& dst);
 public:
     ~XCNLRawExecutor() override;
-    using XCNLExecutorProxy::HandleException;
     void ThrowByReplacerArgCount(const std::u32string_view call, const U32StrSpan args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
     virtual void ProcessGlobal(const OutputBlock& block, std::u32string& dst);
     virtual void ProcessStruct(const OutputBlock& block, std::u32string& dst);
     void ProcessInstance(const OutputBlock& block, std::u32string& output);
+    [[noreturn]] void HandleException(const xziar::nailang::NailangParseException& ex) const final;
+    [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const;
+    [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept { return GetExecutor().GetRuntime(); }
 };
 
 
@@ -570,7 +565,6 @@ protected:
     using Block = xziar::nailang::Block;
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
-    using MetaFuncs = ::common::span<const FuncCall>;
 
     XCNLContext& XCContext;
     common::mlog::MiniLogger<false>& Logger;
@@ -593,12 +587,12 @@ protected:
     virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source);
     virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
 private:
-    virtual XCNLExecutor& GetBaseExecutor() noexcept = 0;
+    virtual XCNLPrepare& GetPrepare() noexcept = 0;
     virtual XCNLRawExecutor& GetRawExecutor() noexcept = 0;
     InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, xziar::nailang::FuncPack& func);
 public:
     ~XCNLRuntime() override;
-    void ExecuteBlock(const Block& block, MetaFuncs metas);
+    void ProcessPrepareBlock(const Block& block, MetaFuncs metas);
     void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();

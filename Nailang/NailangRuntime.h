@@ -626,6 +626,7 @@ protected:
     NailangRuntime* Runtime = nullptr;
     [[nodiscard]] forceinline constexpr NailangFrame& GetFrame() const noexcept;
     [[nodiscard]] forceinline constexpr xziar::nailang::NailangFrameStack& GetFrameStack() const noexcept;
+    [[nodiscard]] forceinline std::shared_ptr<xziar::nailang::EvaluateContext> CreateContext() const;
     void EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
     [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func)
@@ -721,6 +722,11 @@ inline constexpr xziar::nailang::NailangFrameStack& NailangExecutor::GetFrameSta
 {
     return Runtime->FrameStack;
 }
+inline std::shared_ptr<xziar::nailang::EvaluateContext> NailangExecutor::CreateContext() const
+{
+    return Runtime->ConstructEvalContext();
+}
+
 
 
 class NAILANGAPI NailangBasicRuntime : public NailangRuntime

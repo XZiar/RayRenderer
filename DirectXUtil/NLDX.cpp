@@ -20,6 +20,7 @@ using xziar::nailang::RawBlock;
 using xziar::nailang::Statement;
 using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
+using xziar::nailang::MetaSet;
 using xziar::nailang::FuncEvalPack;
 using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
@@ -175,7 +176,27 @@ void NLDXContext::AddConstant(const Arg* source, uint8_t kerId, std::string_view
 NLDXExecutor::NLDXExecutor(NLDXRuntime* runtime) : XCNLExecutor(runtime)
 { }
 
-Arg NLDXExecutor::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
+
+NLDXPrepare::NLDXPrepare(NLDXRuntime* runtime) : NLDXExecutor(runtime) 
+{ }
+NLDXPrepare::~NLDXPrepare() 
+{ }
+xcomp::XCNLExecutor& NLDXPrepare::GetExecutor() noexcept
+{
+    return *this;
+}
+
+NLDXPrepare::MetaFuncResult NLDXPrepare::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+{
+    const auto ret = NLDXExecutor::HandleMetaFunc(meta, target, allMetas);
+    if (ret != MetaFuncResult::Unhandled)
+        return ret;
+    if (const auto frame = TryGetOutputFrame(); frame)
+        return XCNLPrepare::HandleRawBlockMeta(meta, frame->Block, allMetas) ? MetaFuncResult::Next : MetaFuncResult::Unhandled;
+    return MetaFuncResult::Unhandled;
+}
+
+Arg NLDXPrepare::EvaluateFunc(FuncEvalPack& func)
 {
     auto& runtime = GetRuntime();
     const auto& fname = func.GetName();
@@ -205,83 +226,27 @@ Arg NLDXExecutor::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
 }
 
 
-NLDXRawExecutor::NLDXRawExecutor(NLDXExecutor& executor) : XCNLRawExecutor(executor)
+NLDXRawExecutor::NLDXRawExecutor(NLDXRuntime* runtime) : NLDXExecutor(runtime)
 { }
-
-KernelContext& NLDXRawExecutor::GetCurInstance() const noexcept
+NLDXRawExecutor::~NLDXRawExecutor() 
+{ }
+xcomp::XCNLExecutor& NLDXRawExecutor::GetExecutor() noexcept
 {
-    return static_cast<KernelContext&>(*dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance);
+    return *this;
 }
-
-bool NLDXRawExecutor::HandleMetaFunc(xziar::nailang::MetaEvalPack& meta)
+const xcomp::XCNLExecutor& NLDXRawExecutor::GetExecutor() const noexcept
 {
-    auto& kerCtx = GetCurInstance();
-    const auto& fname = meta.GetName();
-    if (meta.Name->PartCount == 2 && fname[0] == U"dxu"sv)
-    {
-        switch (const auto subName = fname[1]; common::DJBHash::HashC(subName))
-        {
-        HashCase(subName, U"RequestWorkgroupSize")
-        {
-            ThrowByParamTypes<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
-            const auto x = meta.Params[0].GetUint().value_or(1),
-                y = meta.Params[1].GetUint().value_or(1),
-                z = meta.Params[2].GetUint().value_or(1);
-            kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
-            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"[numthreads({}, {}, {})]"sv, x, y, z));
-        } return true;
-        HashCase(subName, U"UseGroupId")
-        {
-            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
-            kerCtx.GroupIdVar = meta.Params.empty() ? U"dxu_groupid"sv : meta.Params[0].GetStr().value();
-        } return true;
-        HashCase(subName, U"UseItemId")
-        {
-            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
-            kerCtx.ItemIdVar = meta.Params.empty() ? U"dxu_itemid"sv : meta.Params[0].GetStr().value();
-        } return true;
-        HashCase(subName, U"UseGlobalId")
-        {
-            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
-            kerCtx.GlobalIdVar = meta.Params.empty() ? U"dxu_globalid"sv : meta.Params[0].GetStr().value();
-        } return true;
-        HashCase(subName, U"UseTId")
-        {
-            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
-            kerCtx.TIdVar = meta.Params.empty() ? U"dxu_threadid"sv : meta.Params[0].GetStr().value();
-        } return true;
-        default:
-            break;
-        }
-    }
-    return XCNLRawExecutor::HandleMetaFunc(meta);
-}
-
-void NLDXRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
-{
-    if (func == U"unroll"sv)
-    {
-        ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtMost);
-        output.append(U"[unroll]"sv);
-        return;
-    }
-    return XCNLRawExecutor::OnReplaceFunction(output, cookie, func, args);
+    return *this;
 }
 
 std::unique_ptr<xcomp::InstanceContext> NLDXRawExecutor::PrepareInstance(const xcomp::OutputBlock& block)
 {
-    const auto kerId = GetRuntime().Context.KernelNames.size();
+    auto& runtime = GetRuntime();
+    const auto kerId = runtime.Context.KernelNames.size();
     if (kerId >= 250)
         NLRT_THROW_EX(u"Too many kernels being defined, at most 250"sv);
-    GetRuntime().Context.KernelNames.emplace_back(block.Name());
+    runtime.Context.KernelNames.emplace_back(block.Name());
     return std::make_unique<KernelContext>(static_cast<uint8_t>(kerId));
-}
-
-void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst)
-{
-    dst.append(U"typedef struct \r\n{\r\n"sv);
-    DirectOutput(dst);
-    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
 }
 
 void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst)
@@ -325,14 +290,84 @@ void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
     dst.append(U"}\r\n"sv);
 }
 
+//KernelContext& NLDXRawExecutor::GetCurInstance() const noexcept
+//{
+//    return static_cast<KernelContext&>(*dynamic_cast<const InstanceFrame*>(&GetFrame())->Instance);
+//}
+
+NLDXRawExecutor::MetaFuncResult NLDXRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+{
+    auto& kerCtx = GetCurInstance();
+    const auto& fname = meta.GetName();
+    if (meta.Name->PartCount == 2 && fname[0] == U"dxu"sv)
+    {
+        switch (const auto subName = fname[1]; common::DJBHash::HashC(subName))
+        {
+        HashCase(subName, U"RequestWorkgroupSize")
+        {
+            ThrowByParamTypes<3>(meta, { Arg::Type::Integer, Arg::Type::Integer, Arg::Type::Integer });
+            const auto x = meta.Params[0].GetUint().value_or(1),
+                y = meta.Params[1].GetUint().value_or(1),
+                z = meta.Params[2].GetUint().value_or(1);
+            kerCtx.WorkgroupSize = gsl::narrow_cast<uint32_t>(x * y * z);
+            kerCtx.AddAttribute(U"ReqWGSize"sv, FMTSTR(U"[numthreads({}, {}, {})]"sv, x, y, z));
+        } return MetaFuncResult::Next;
+        HashCase(subName, U"UseGroupId")
+        {
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.GroupIdVar = meta.Params.empty() ? U"dxu_groupid"sv : meta.Params[0].GetStr().value();
+        } return MetaFuncResult::Next;
+        HashCase(subName, U"UseItemId")
+        {
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.ItemIdVar = meta.Params.empty() ? U"dxu_itemid"sv : meta.Params[0].GetStr().value();
+        } return MetaFuncResult::Next;
+        HashCase(subName, U"UseGlobalId")
+        {
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.GlobalIdVar = meta.Params.empty() ? U"dxu_globalid"sv : meta.Params[0].GetStr().value();
+        } return MetaFuncResult::Next;
+        HashCase(subName, U"UseTId")
+        {
+            ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::String });
+            kerCtx.TIdVar = meta.Params.empty() ? U"dxu_threadid"sv : meta.Params[0].GetStr().value();
+        } return MetaFuncResult::Next;
+        default:
+            break;
+        }
+    }
+    if (XCNLRawExecutor::HandleInstanceMeta(meta))
+        return MetaFuncResult::Next;
+    return NLDXExecutor::HandleMetaFunc(meta);
+}
+
+void NLDXRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
+{
+    if (func == U"unroll"sv)
+    {
+        ThrowByReplacerArgCount(func, args, 2, ArgLimits::AtMost);
+        output.append(U"[unroll]"sv);
+        return;
+    }
+    return XCNLRawExecutor::OnReplaceFunction(output, cookie, func, args);
+}
+
+void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst)
+{
+    auto frame = XCNLRawExecutor::PushFrame(block, CreateContext(), nullptr);
+    dst.append(U"typedef struct \r\n{\r\n"sv);
+    DirectOutput(block, dst);
+    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
+}
+
 
 NLDXRuntime::NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx) :
-    XCNLRuntime(logger, evalCtx), Context(*evalCtx), BaseExecutor(this), RawExecutor(BaseExecutor)
+    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Prepare(this), RawExecutor(this)
 { }
 NLDXRuntime::~NLDXRuntime()
 { }
 
-xcomp::XCNLExecutor& NLDXRuntime::GetBaseExecutor() noexcept { return BaseExecutor; }
+xcomp::XCNLPrepare& NLDXRuntime::GetPrepare() noexcept { return Prepare; }
 xcomp::XCNLRawExecutor& NLDXRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

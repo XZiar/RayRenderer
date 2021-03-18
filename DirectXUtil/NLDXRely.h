@@ -13,6 +13,7 @@ namespace dxu
 #endif
 
 class NLDXExecutor;
+class NLDXPrepare;
 class NLDXRawExecutor;
 class NLDXRuntime;
 class NLDXContext;
@@ -74,6 +75,7 @@ public:
 class DXUAPI COMMON_EMPTY_BASES NLDXContext : public xcomp::XCNLContext
 {
     friend NLDXExecutor;
+    friend NLDXPrepare;
     friend NLDXRawExecutor;
     friend NLDXProcessor;
     friend NLDXRuntime;
@@ -108,38 +110,55 @@ class DXUAPI NLDXExecutor : public xcomp::XCNLExecutor
 {
     friend NLDXRuntime;
     friend NLDXRawExecutor;
-private:
-    NLDXExecutor(NLDXRuntime* runtime);
 protected:
+    NLDXExecutor(NLDXRuntime* runtime);
     constexpr NLDXRuntime& GetRuntime() const noexcept;
-    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
 };
 
 
-class DXUAPI NLDXRawExecutor : public xcomp::XCNLRawExecutor
+class DXUAPI NLDXPrepare : public NLDXExecutor, public xcomp::XCNLPrepare
+{
+private:
+    [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
+protected:
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) final;
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+public:
+    NLDXPrepare(NLDXRuntime* runtime);
+    ~NLDXPrepare() override;
+};
+
+
+class DXUAPI NLDXRawExecutor : public NLDXExecutor, public xcomp::XCNLRawExecutor
 {
     friend NLDXRuntime;
 private:
-    NLDXRawExecutor(NLDXExecutor& executor);
-protected:
-    constexpr NLDXRuntime& GetRuntime() const noexcept { return static_cast<NLDXExecutor&>(Executor).GetRuntime(); }
-    KernelContext& GetCurInstance() const noexcept;
-    [[nodiscard]] bool HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) override;
-    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
+    NLDXRawExecutor(NLDXRuntime* runtime);
+    [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
+    [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
     [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;
-    void ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst) final;
     void OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst) final;
+protected:
+    forceinline KernelContext& GetCurInstance() const { return static_cast<KernelContext&>(GetInstanceInfo()); }
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) final;
+    void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
+    void ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst) final;
+public:
+    ~NLDXRawExecutor() override;
+    using NLDXExecutor::GetRuntime;
+    using NLDXExecutor::HandleException;
 };
 
 
 class DXUAPI COMMON_EMPTY_BASES NLDXRuntime : public xcomp::XCNLRuntime
 {
     friend NLDXExecutor;
+    friend NLDXPrepare;
     friend NLDXRawExecutor;
     friend KernelExtension;
     friend NLDXProcessor;
 private:
-    xcomp::XCNLExecutor& GetBaseExecutor() noexcept final;
+    xcomp::XCNLPrepare& GetPrepare() noexcept final;
     xcomp::XCNLRawExecutor& GetRawExecutor() noexcept final;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
@@ -147,7 +166,7 @@ protected:
     using MetaFuncs = ::common::span<const FuncCall>;
 
     NLDXContext& Context;
-    NLDXExecutor BaseExecutor;
+    NLDXPrepare Prepare;
     NLDXRawExecutor RawExecutor;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
