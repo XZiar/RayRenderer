@@ -290,6 +290,11 @@ Arg NLCLConfigurator::EvaluateFunc(FuncEvalPack& func)
     return XCNLExecutor::EvaluateFunc(func);
 }
 
+void NLCLConfigurator::EvaluateRawBlock(const RawBlock& block, xcomp::MetaFuncs metas)
+{
+    GetRuntime().CollectRawBlock(block, metas);
+}
+
 
 NLCLRawExecutor::NLCLRawExecutor(NLCLRuntime* runtime) : NLCLExecutor(runtime)
 { }

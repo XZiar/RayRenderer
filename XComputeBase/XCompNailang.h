@@ -473,8 +473,6 @@ protected:
 
     void ProcessStruct(const Block& block, common::span<const FuncCall> metas);
 
-    void OnRawBlock(const RawBlock& block, MetaFuncs metas) override;
-
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source);
     virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
@@ -492,7 +490,7 @@ public:
     [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, 
         std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
     void ProcessConfigBlock(const Block& block, MetaFuncs metas);
-    void ProcessRawBlock(const RawBlock& block, MetaFuncs metas);
+    void CollectRawBlock(const RawBlock& block, MetaFuncs metas);
 
     std::string GenerateOutput();
 };

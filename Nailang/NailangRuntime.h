@@ -456,7 +456,6 @@ public:
     virtual size_t GetSize() const noexcept;
     [[nodiscard]] constexpr bool Has(FrameFlags flag) const noexcept;
     [[nodiscard]] constexpr bool Has(ProgramStatus status) const noexcept;
-    //[[nodiscard]] constexpr NailangFrame* GetCallScope() noexcept;
 };
 MAKE_ENUM_BITFIELD(NailangFrame::ProgramStatus)
 MAKE_ENUM_BITFIELD(NailangFrame::FrameFlags)
@@ -468,15 +467,6 @@ inline constexpr bool NailangFrame::Has(ProgramStatus status) const noexcept
 {
     return HAS_FIELD(Status, status);
 }
-//inline constexpr NailangFrame* NailangFrame::GetCallScope() noexcept
-//{
-//    for (auto frame = this; frame; frame = frame->PrevFrame)
-//    {
-//        if (HAS_FIELD(frame->Flags, FrameFlags::CallScope))
-//            return frame;
-//    }
-//    return nullptr;
-//}
 
 class NAILANGAPI NailangBlockFrame : public NailangFrame
 {
@@ -553,6 +543,10 @@ public:
         {
             return static_cast<T*>(Frame);
         }
+        forceinline constexpr T& operator*() const noexcept
+        {
+            return *static_cast<T*>(Frame);
+        }
         template<typename U>
         forceinline U* As() const noexcept
         {
@@ -613,6 +607,8 @@ public:
     void ThrowIfNotStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
+    [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
+    [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] LateBindVar DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const;
 };
 
@@ -665,6 +661,7 @@ public:
     [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
     [[nodiscard]] virtual Arg EvaluateFunc(FuncEvalPack& func);
     [[nodiscard]] virtual Arg EvaluateExtendMathFunc(FuncEvalPack& func);
+    [[nodiscard]] virtual Arg EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
     [[nodiscard]] virtual Arg EvaluateUnknwonFunc(FuncEvalPack& func);
     [[nodiscard]] virtual Arg EvaluateUnaryExpr(const UnaryExpr& expr);
     [[nodiscard]] virtual Arg EvaluateBinaryExpr(const BinaryExpr& expr);
@@ -675,6 +672,8 @@ public:
     [[nodiscard]] virtual bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target); // return if need eval target
     [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg);
     [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas);
+    virtual void EvaluateRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
+    virtual void EvaluateBlock(const Block& block, common::span<const FuncCall> metas);
 };
 
 inline void NailangBlockFrame::Execute() { Executor->ExecuteFrame(*this); }
@@ -692,9 +691,6 @@ protected:
 
     [[nodiscard]] std::shared_ptr<EvaluateContext> GetContext(bool innerScope) const;
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
-    [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
-    //[[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty);
-    [[nodiscard]] TempFuncName CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info = FuncName::FuncInfo::Empty) const;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
     [[nodiscard]] ArgLocator LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
     bool SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck = {});
@@ -705,9 +701,6 @@ protected:
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
     [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var, const bool checkNull = true) const;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
-    virtual void OnRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
-    virtual void OnBlock(const Block& block, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual Arg OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
 
 public:
     NailangRuntime(std::shared_ptr<EvaluateContext> context);
@@ -726,7 +719,6 @@ inline std::shared_ptr<xziar::nailang::EvaluateContext> NailangExecutor::CreateC
 {
     return Runtime->ConstructEvalContext();
 }
-
 
 
 class NAILANGAPI NailangBasicRuntime : public NailangRuntime

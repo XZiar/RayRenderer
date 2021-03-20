@@ -119,9 +119,9 @@ class DXUAPI NLDXConfigurator : public NLDXExecutor, public xcomp::XCNLConfigura
 {
 private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
-protected:
     [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+    void EvaluateRawBlock(const xziar::nailang::RawBlock& block, xcomp::MetaFuncs metas) final;
 public:
     NLDXConfigurator(NLDXRuntime* runtime);
     ~NLDXConfigurator() override;

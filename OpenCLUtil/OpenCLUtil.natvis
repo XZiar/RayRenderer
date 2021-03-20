@@ -237,9 +237,8 @@
   <Type Name="oclu::NLCLRuntime">
     <DisplayString>{{ NLCLRuntime {{on {Context.Device->Name,su}}} }}</DisplayString>
     <Expand>
-      <Item Name="Context">Context</Item>
       <Item Name="Device">Context.Device,na</Item>
-      <Item Name="CurFrame">CurFrame,na</Item>
+      <ExpandedItem>(xziar::nailang::NailangRuntime*)this,nd</ExpandedItem>
     </Expand>
   </Type>
   

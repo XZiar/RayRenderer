@@ -225,6 +225,11 @@ Arg NLDXConfigurator::EvaluateFunc(FuncEvalPack& func)
     return XCNLExecutor::EvaluateFunc(func);
 }
 
+void NLDXConfigurator::EvaluateRawBlock(const RawBlock& block, xcomp::MetaFuncs metas)
+{
+    GetRuntime().CollectRawBlock(block, metas);
+}
+
 
 NLDXRawExecutor::NLDXRawExecutor(NLDXRuntime* runtime) : NLDXExecutor(runtime)
 { }

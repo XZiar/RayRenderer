@@ -1077,11 +1077,6 @@ void XCNLRuntime::ProcessStruct(const Block&, common::span<const FuncCall>)
 
 }
 
-void XCNLRuntime::OnRawBlock(const RawBlock& block, MetaFuncs metas)
-{
-    ProcessRawBlock(block, metas);
-}
-
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
 {
     switch (common::DJBHash::HashC(block.Type))
@@ -1180,7 +1175,7 @@ void XCNLRuntime::ProcessConfigBlock(const Block& block, MetaFuncs metas)
     frame->Execute();
 }
 
-void XCNLRuntime::ProcessRawBlock(const RawBlock& block, MetaFuncs metas)
+void XCNLRuntime::CollectRawBlock(const RawBlock& block, MetaFuncs metas)
 {
     const auto type = GetBlockType(block, metas);
     if (type == OutputBlock::BlockType::None)
@@ -1315,7 +1310,7 @@ void XCNLProgStub::Collect(common::span<const std::u32string_view> prefixes) con
         {
             if (IsBeginWith(block.Type, prefix))
             {
-                Runtime->ProcessRawBlock(block, meta);
+                Runtime->CollectRawBlock(block, meta);
                 break;
             }
         }

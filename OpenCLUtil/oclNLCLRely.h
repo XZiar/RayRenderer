@@ -117,9 +117,9 @@ class OCLUAPI NLCLConfigurator : public NLCLExecutor, public xcomp::XCNLConfigur
 {
 private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
-protected:
     [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+    void EvaluateRawBlock(const xziar::nailang::RawBlock& block, xcomp::MetaFuncs metas) final;
 public:
     NLCLConfigurator(NLCLRuntime* runtime);
     ~NLCLConfigurator() override;

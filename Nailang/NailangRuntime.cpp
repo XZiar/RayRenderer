@@ -1004,6 +1004,46 @@ bool NailangBase::ThrowIfNotBool(const Arg& arg, const std::u32string_view varNa
     return ret.value();
 }
 
+std::u32string NailangBase::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
+{
+    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
+    for (const auto& arg : args)
+    {
+        switch (arg.TypeData)
+        {
+        case Arg::Type::Bool:   store.push_back(arg.GetVar<Arg::Type::Bool >()); break;
+        case Arg::Type::Uint:   store.push_back(arg.GetVar<Arg::Type::Uint >()); break;
+        case Arg::Type::Int:    store.push_back(arg.GetVar<Arg::Type::Int  >()); break;
+        case Arg::Type::FP:     store.push_back(arg.GetVar<Arg::Type::FP   >()); break;
+        case Arg::Type::U32Sv:  store.push_back(arg.GetVar<Arg::Type::U32Sv>()); break;
+        case Arg::Type::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::Type::U32Str>())); break;
+        default: HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
+        }
+    }
+    try
+    {
+        return fmt::vformat(formatter, store);
+    }
+    catch (const fmt::format_error& err)
+    {
+        HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, err));
+    }
+    return {};
+}
+
+TempFuncName NailangBase::CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info) const
+{
+    try
+    {
+        return FuncName::CreateTemp(name, info);
+    }
+    catch (const NailangPartedNameException&)
+    {
+        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
+    }
+    return FuncName::CreateTemp(name, info);
+}
+
 LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_view reciever) const
 {
     switch (arg.TypeData)
@@ -1110,7 +1150,6 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
             else
                 break;
         }
-        //Runtime->OnLoop(meta.Args[0], content);
         return MetaFuncResult::Skip;
     }
     else if (metaName == U"MetaIf")
@@ -1119,7 +1158,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
         if (args[0].GetBool().value())
         {
             const auto name = args[1].GetStr().value();
-            const auto funcName = Runtime->CreateTempFuncName(name, FuncName::FuncInfo::Meta);
+            const auto funcName = CreateTempFuncName(name, FuncName::FuncInfo::Meta);
             const FuncCall newMeta(funcName.Ptr(), meta.Args.subspan(2), meta.Position);
             return HandleMetaFunc(newMeta, content, allMetas);
         }
@@ -1277,7 +1316,7 @@ Arg NailangExecutor::EvaluateFunc(FuncEvalPack& func)
         HashCase(name, U"Format")
         {
             ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::Empty });
-            return Runtime->FormatString(func.Params[0].GetStr().value(), func.Params.subspan(1));
+            return FormatString(func.Params[0].GetStr().value(), func.Params.subspan(1));
         }
         HashCase(name, U"ParseInt")
         {
@@ -1326,7 +1365,7 @@ Arg NailangExecutor::EvaluateFunc(FuncEvalPack& func)
     }
     if (const auto lcFunc = Runtime->LookUpFunc(func.FullFuncName()); lcFunc)
     {
-        return Runtime->OnLocalFunc(lcFunc, func);
+        return EvaluateLocalFunc(lcFunc, func);
     }
     return EvaluateUnknwonFunc(func);
 }
@@ -1513,6 +1552,19 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
     NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", func.FullFuncName()), func);
     //return {};
 }
+Arg NailangExecutor::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
+{
+    ThrowByArgCount(pack, func.ArgNames.size() - func.CapturedArgs.size());
+    auto newCtx = Runtime->ConstructEvalContext();
+    size_t i = 0;
+    for (; i < func.CapturedArgs.size(); ++i)
+        newCtx->LocateArg(func.ArgNames[i], true).Set(func.CapturedArgs[i]);
+    for (size_t j = 0; i < func.ArgNames.size(); ++i, ++j)
+        newCtx->LocateArg(func.ArgNames[i], true).Set(std::move(pack.Params[j]));
+    auto curFrame = PushBlockFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall, func.Body, pack.Metas);
+    ExecuteFrame(*curFrame);
+    return std::move(curFrame->ReturnArg);
+}
 Arg NailangExecutor::EvaluateUnknwonFunc(FuncEvalPack& func)
 {
     NLRT_THROW_EX(FMTSTR(u"Func [{}] with [{}] args cannot be resolved.", func.FullFuncName(), func.Args.size()), func);
@@ -1605,6 +1657,17 @@ Arg NailangExecutor::EvaluateQueryExpr(const QueryExpr& expr)
     }
 }
 
+void NailangExecutor::EvaluateRawBlock(const RawBlock&, common::span<const FuncCall>)
+{
+    return; // just skip
+}
+
+void NailangExecutor::EvaluateBlock(const Block& block, common::span<const FuncCall> metas)
+{
+    auto curFrame = PushBlockFrame(Runtime->ConstructEvalContext(), NailangFrame::FrameFlags::Empty, &block, metas);
+    ExecuteFrame(*curFrame);
+}
+
 void NailangExecutor::ExecuteFrame(NailangBlockFrame& frame)
 {
     Expects(&GetFrame() == &frame);
@@ -1641,7 +1704,7 @@ void NailangExecutor::HandleContent(const Statement& content, common::span<const
     } break;
     case Statement::Type::Block:
     {
-        Runtime->OnBlock(*content.Get<Block>(), metas);
+        EvaluateBlock(*content.Get<Block>(), metas);
     } break;
     case Statement::Type::FuncCall:
     {
@@ -1652,7 +1715,7 @@ void NailangExecutor::HandleContent(const Statement& content, common::span<const
     } break;
     case Statement::Type::RawBlock:
     {
-        Runtime->OnRawBlock(*content.Get<RawBlock>(), metas);
+        EvaluateRawBlock(*content.Get<RawBlock>(), metas);
     } break;
     default:
         assert(false); /*Expects(false);*/
@@ -1697,46 +1760,6 @@ void NailangRuntime::HandleException(const NailangRuntimeException& ex) const
     ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), 
         std::make_move_iterator(stacks.begin()), std::make_move_iterator(stacks.end()));
     throw ex;
-}
-
-std::u32string NailangRuntime::FormatString(const std::u32string_view formatter, common::span<const Arg> args)
-{
-    fmt::dynamic_format_arg_store<fmt::u32format_context> store;
-    for (const auto& arg : args)
-    {
-        switch (arg.TypeData)
-        {
-        case Arg::Type::Bool:   store.push_back(arg.GetVar<Arg::Type::Bool >()); break;
-        case Arg::Type::Uint:   store.push_back(arg.GetVar<Arg::Type::Uint >()); break;
-        case Arg::Type::Int:    store.push_back(arg.GetVar<Arg::Type::Int  >()); break;
-        case Arg::Type::FP:     store.push_back(arg.GetVar<Arg::Type::FP   >()); break;
-        case Arg::Type::U32Sv:  store.push_back(arg.GetVar<Arg::Type::U32Sv>()); break;
-        case Arg::Type::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::Type::U32Str>())); break;
-        default: HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
-        }
-    }
-    try
-    {
-        return fmt::vformat(formatter, store);
-    }
-    catch (const fmt::format_error& err)
-    {
-        HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, err));
-        return {};
-    }
-}
-
-TempFuncName NailangRuntime::CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info) const
-{
-    try
-    {
-        return FuncName::CreateTemp(name, info);
-    }
-    catch (const NailangPartedNameException&)
-    {
-        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
-    }
-    return FuncName::CreateTemp(name, info);
 }
 
 ArgLocator NailangRuntime::LocateArg(const LateBindVar& var, const bool create) const
@@ -1869,32 +1892,6 @@ LocalFunc NailangRuntime::LookUpFunc(std::u32string_view name) const
             return func;
     }
     return RootContext->LookUpFunc(name);
-}
-
-void NailangRuntime::OnRawBlock(const RawBlock&, common::span<const FuncCall>)
-{
-    return; // just skip
-}
-
-void NailangRuntime::OnBlock(const Block& block, common::span<const FuncCall> metas)
-{
-    auto& prevFrame = *CurFrame();
-    auto curFrame = prevFrame.Executor->PushBlockFrame(ConstructEvalContext(), NailangFrame::FrameFlags::Empty, &block, metas);
-    curFrame->Execute();
-}
-
-Arg NailangRuntime::OnLocalFunc(const LocalFunc& func, FuncEvalPack& pack)
-{
-    ThrowByArgCount(pack, func.ArgNames.size() - func.CapturedArgs.size());
-    auto newCtx = ConstructEvalContext();
-    size_t i = 0;
-    for (; i < func.CapturedArgs.size(); ++i)
-        newCtx->LocateArg(func.ArgNames[i], true).Set(func.CapturedArgs[i]);
-    for (size_t j = 0; i < func.ArgNames.size(); ++i, ++j)
-        newCtx->LocateArg(func.ArgNames[i], true).Set(std::move(pack.Params[j]));
-    auto curFrame = CurFrame()->Executor->PushBlockFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall, func.Body, pack.Metas);
-    curFrame->Execute();
-    return std::move(curFrame->ReturnArg);
 }
 
 

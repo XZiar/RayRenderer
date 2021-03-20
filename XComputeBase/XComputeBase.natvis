@@ -139,10 +139,10 @@
     </Expand>
   </Type>
   
-  <Type Name="xcomp::XCNLRuntime">
+  <Type Name="xcomp::XCNLRuntime" Inheritable="true">
+    <DisplayString>{{ XCNLRuntime }}</DisplayString>
     <Expand>
-      <Item Name="Context">XCContext</Item>
-      <Item Name="CurFrame">CurFrame,na</Item>
+      <ExpandedItem>(xziar::nailang::NailangRuntime*)this,nd</ExpandedItem>
     </Expand>
   </Type>
   

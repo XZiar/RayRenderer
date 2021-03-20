@@ -79,7 +79,7 @@
   - [x] Add ternary operator
   - [ ] CustomVar also report `TypeData` for easier type conversion
   - [x] Add capture support when define func
-  - [ ] Seperate Executor and Runtime
+  - [x] Seperate Executor and Runtime
 
 * XCompute
   - [ ] Merge OpenCLInterop
@@ -112,14 +112,14 @@
   - [x] Re-design ResourceMappingManager
   - [x] Emulate subroutine on unsupported platform
   - [x] Add bindless texture support
-  - [ ] Replace preprocessor-based ExtShader to NLGL-based
-  - [ ] Add proper drawstate setting with NLGL
   - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
   - [ ] Move to use threadpool to provide 1:1 context support, add cmdlist to record api calls and use IPC to execute remotely
   * NLGL
     - [ ] Add basic NLGL
+    - [ ] Add proper drawstate setting with NLGL
+    - [ ] Replace preprocessor-based ExtShader to NLGL-based
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
@@ -136,8 +136,7 @@
     - [x] Mimic subgroup shuffle on unsupported platform (nv)
     - [x] Use extension to provide debug support
     - [x] Add dp4a extension
-    - [ ] Seperate code generation from NLCLRuntime
-    - [ ] Add better kernel argument info parsing in NLCL
+    - [x] Add better kernel argument info parsing in NLCL
     - [x] Seperate into shared compute library
 
 * DirectXUtil
@@ -149,7 +148,7 @@
   - [ ] Add sampler support
   - [ ] Add shared desc heap
   * NLDX
-    - [ ] Add basic NLDX
+    - [x] Add basic NLDX
     - [ ] Mimic subgroup on platform without Wave support
     - [ ] Add Debug support
 
