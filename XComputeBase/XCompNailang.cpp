@@ -559,13 +559,10 @@ XCNLRawExecutor::~XCNLRawExecutor()
 InstanceContext& XCNLRawExecutor::GetInstanceInfo() const
 {
     auto& executor = GetExecutor();
-    for (auto frame = &executor.GetFrame(); frame; frame = frame->PrevFrame)
-    {
-        if (const auto iframe = dynamic_cast<const InstanceFrame*>(&executor.GetFrame()); iframe)
-            return *iframe->Instance;
-    }
+    const auto frame = executor.GetFrameStack().SearchFrameType<const InstanceFrame>();
+    if (frame)
+        return *frame->Instance;
     executor.NLRT_THROW_EX(u"No InstanceFrame found."sv);
-    //return *static_cast<InstanceFrame&>(executor.GetFrame()).Instance;
 }
 
 void XCNLRawExecutor::ThrowByReplacerArgCount(const std::u32string_view call, U32StrSpan args,
@@ -910,6 +907,70 @@ void XCNLRawExecutor::HandleException(const xziar::nailang::NailangRuntimeExcept
 }
 
 
+XCNLStructHandler::~XCNLStructHandler()
+{ }
+
+XCNLStruct& XCNLStructHandler::GetStruct() const
+{
+    auto& executor = GetExecutor();
+    const auto frame = executor.GetFrameStack().SearchFrameType<StructFrame>();
+    if (frame)
+        return frame->Struct;
+    executor.NLRT_THROW_EX(u"No StructFrame found."sv);
+}
+
+bool XCNLStructHandler::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
+{
+    auto& executor = GetExecutor();
+    auto& runtime = GetRuntime();
+    if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
+    {
+        std::u32string_view type, name;
+        uint64_t len = 1;
+        if (func.NamePart(1) == U"Field"sv)
+        {
+            executor.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
+            type = func.Params[0].GetStr().value();
+            name = func.Params[1].GetStr().value();
+        }
+        else if (func.NamePart(1) == U"Array"sv)
+        {
+            executor.ThrowByParamTypes<3>(func, { Arg::Type::String, Arg::Type::Integer, Arg::Type::String });
+            type = func.Params[0].GetStr().value();
+            len  = func.Params[1].GetUint().value();
+            name = func.Params[2].GetStr().value();
+        }
+        else
+            return false;
+        auto& ctx = executor.GetContext();
+        std::optional<CombinedType> typeData;
+        if (const auto vtype = runtime.TryParseVecType(type); vtype)
+        {
+            typeData.emplace(vtype.Info);
+        }
+        else
+        {
+            for (size_t i = 0; i < ctx.CustomStructs.size(); ++i)
+            {
+                if (ctx.CustomStructs[i].GetName() == type)
+                {
+                    typeData.emplace(gsl::narrow_cast<uint16_t>(i));
+                    break;
+                }
+            }
+            // runtime.ThrowByVecType(type, u"not recognized as VecType"sv, );
+        }
+        auto& target = GetStruct();
+        if (!typeData.has_value())
+            executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
+                type, name, target.GetName()));
+        target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
+        return true;
+    }
+    return false;
+}
+
+
 XCNLRuntime::XCNLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<XCNLContext> evalCtx) :
     NailangRuntime(evalCtx), XCContext(*evalCtx), Logger(logger)
 { }
@@ -927,43 +988,46 @@ void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str
     Logger.log(level, u"[XCNL]{}\n", str);
 }
 
-static std::u16string VecTypeErrorStr(const std::u32string_view var, const std::u16string_view reason, const std::variant<std::u16string_view, std::function<std::u16string(void)>>& exInfo)
+common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16string_view extraInfo) const
 {
-    switch (exInfo.index())
-    {
-    case 0:
-        if (const auto str = std::get<0>(exInfo); str.size() == 0)
-            return FMTSTR(u"Type [{}] {}."sv, var, reason);
-        else
-            return FMTSTR(u"Type [{}] {} when {}."sv, var, reason, str);
-    case 1:
-        return FMTSTR(u"Type [{}] {}, {}."sv, var, reason, std::get<1>(exInfo)());
-    default:
-        return {};
-    }
-}
-
-common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var,
-    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const
-{
-    const auto vtype = XCContext.ParseVecType(var);
+    const auto vtype = TryParseVecType(var);
     if (!vtype)
-        NLRT_THROW_EX(VecTypeErrorStr(var, u"not recognized as VecType"sv, extraInfo));
+        ThrowByVecType(var, u"not recognized as VecType"sv, extraInfo);
     if (!vtype.TypeSupport)
         Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
-
     return vtype.Info;
 }
-
-std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname,
-    std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo) const
+common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var, const std::function<std::u16string(void)>& extraInfo) const
+{
+    const auto vtype = TryParseVecType(var);
+    if (!vtype)
+        ThrowByVecType(var, u"not recognized as VecType"sv, extraInfo());
+    if (!vtype.TypeSupport)
+        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
+    return vtype.Info;
+}
+std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname, std::u16string_view extraInfo) const
 {
     const auto vtype = ParseVecType(vname, extraInfo);
-    const auto str = XCContext.GetVecTypeName(vtype);
+    const auto str = GetVecTypeName(vtype);
     if (str.empty())
-        NLRT_THROW_EX(VecTypeErrorStr(vname, u"not supported"sv, extraInfo));
+        ThrowByVecType(vname, u"not recognized as VecType"sv, extraInfo);
     return str;
 }
+std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname, const std::function<std::u16string(void)>& extraInfo) const
+{
+    const auto vtype = ParseVecType(vname, extraInfo);
+    const auto str = GetVecTypeName(vtype);
+    if (str.empty())
+        ThrowByVecType(vname, u"not recognized as VecType"sv, extraInfo());
+    return str;
+}
+void XCNLRuntime::ThrowByVecType(std::variant<std::u32string_view, common::simd::VecDataInfo> src, std::u16string_view reason, std::u16string_view exInfo) const
+{
+    const auto srcName = src.index() == 0 ? std::get<0>(src) : StringifyVDataType(std::get<1>(src));
+    NLRT_THROW_EX(FMTSTR(u"Type [{}] {}{}{}."sv, srcName, reason, exInfo.empty() ? u""sv : u", "sv, exInfo));
+}
+
 
 constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
     (U"error",   common::mlog::LogLevel::Error), 

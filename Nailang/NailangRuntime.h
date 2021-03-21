@@ -567,6 +567,16 @@ public:
     NailangFrame* SetBreak() const noexcept;
     NailangFrame* SetContinue() const noexcept;
     std::vector<common::StackTraceItem> CollectStacks() const noexcept;
+    template<typename T>
+    T* SearchFrameType(NailangFrame* from = nullptr) const noexcept
+    {
+        for (auto frame = from ? from : TopFrame; frame; frame = frame->PrevFrame)
+        {
+            if (const auto dframe = dynamic_cast<T*>(frame); dframe)
+                return dframe;
+        }
+        return nullptr;
+    }
 };
 
 

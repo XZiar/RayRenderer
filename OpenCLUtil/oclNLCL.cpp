@@ -155,66 +155,6 @@ ArgLocator NLCLContext::LocateArg(const LateBindVar& var, bool create) noexcept
     return XCNLContext::LocateArg(var, create);
 }
 
-NLCLContext::VecTypeResult NLCLContext::ParseVecType(const std::u32string_view type) const noexcept
-{
-    auto [info, least] = xcomp::ParseVDataType(type);
-    if (info.Bit == 0)
-        return { info, false };
-    bool typeSupport = true;
-    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
-    {
-        if (info.Bit == 16 && !SupportFP16) // FP16 check
-        {
-            if (least) // promotion
-                info.Bit = 32;
-            else
-                typeSupport = false;
-        }
-        else if (info.Bit == 64 && !SupportFP64)
-        {
-            typeSupport = false;
-        }
-    }
-    return { info, typeSupport };
-}
-
-std::u32string_view NLCLContext::GetCLTypeName(common::simd::VecDataInfo info) noexcept
-{
-#define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
-#define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1)  \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
-    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
-    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
-
-    switch (static_cast<uint32_t>(info))
-    {
-    CASEV(uchar,  Unsigned, 8)
-    CASEV(ushort, Unsigned, 16)
-    CASEV(uint,   Unsigned, 32)
-    CASEV(ulong,  Unsigned, 64)
-    CASEV(char,   Signed,   8)
-    CASEV(short,  Signed,   16)
-    CASEV(int,    Signed,   32)
-    CASEV(long,   Signed,   64)
-    CASEV(half,   Float,    16)
-    CASEV(float,  Float,    32)
-    CASEV(double, Float,    64)
-    default: return {};
-    }
-
-#undef CASEV
-#undef CASE
-}
-
-std::u32string_view NLCLContext::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
-{
-    return GetCLTypeName(info);
-}
-
 
 NLCLExecutor::NLCLExecutor(NLCLRuntime* runtime) : XCNLExecutor(runtime)
 { }
@@ -536,6 +476,38 @@ NLCLRuntime::~NLCLRuntime()
 xcomp::XCNLConfigurator& NLCLRuntime::GetConfigurator() noexcept { return Configurator; }
 xcomp::XCNLRawExecutor& NLCLRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 
+std::u32string_view NLCLRuntime::GetCLTypeName(common::simd::VecDataInfo info) noexcept
+{
+#define CASE(s, type, bit, n) \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
+#define CASEV(pfx, type, bit) \
+    CASE(STRINGIZE(pfx),            type, bit, 1)  \
+    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
+    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
+    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
+    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
+    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
+
+    switch (static_cast<uint32_t>(info))
+    {
+    CASEV(uchar,  Unsigned, 8)
+    CASEV(ushort, Unsigned, 16)
+    CASEV(uint,   Unsigned, 32)
+    CASEV(ulong,  Unsigned, 64)
+    CASEV(char,   Signed,   8)
+    CASEV(short,  Signed,   16)
+    CASEV(int,    Signed,   32)
+    CASEV(long,   Signed,   64)
+    CASEV(half,   Float,    16)
+    CASEV(float,  Float,    32)
+    CASEV(double, Float,    64)
+    default: return {};
+    }
+
+#undef CASEV
+#undef CASE
+}
+
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
 {
     switch (common::DJBHash::HashC(block.Type))
@@ -708,6 +680,33 @@ void NLCLRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
     }
     exts.append(U"\r\n"sv);
     prefix.insert(prefix.begin(), exts.begin(), exts.end());
+}
+
+NLCLRuntime::VecTypeResult NLCLRuntime::TryParseVecType(const std::u32string_view type) const noexcept
+{
+    auto [info, least] = xcomp::ParseVDataType(type);
+    if (info.Bit == 0)
+        return { info, false };
+    bool typeSupport = true;
+    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
+    {
+        if (info.Bit == 16 && !Context.SupportFP16) // FP16 check
+        {
+            if (least) // promotion
+                info.Bit = 32;
+            else
+                typeSupport = false;
+        }
+        else if (info.Bit == 64 && !Context.SupportFP64)
+        {
+            typeSupport = false;
+        }
+    }
+    return { info, typeSupport };
+}
+std::u32string_view NLCLRuntime::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
+{
+    return NLCLRuntime::GetCLTypeName(info);
 }
 
 bool NLCLRuntime::EnableExtension(std::string_view ext, std::u16string_view desc)

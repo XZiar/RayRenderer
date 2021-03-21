@@ -87,9 +87,6 @@ public:
     NLDXContext(DxDevice dev, const common::CLikeDefines& info);
     ~NLDXContext() override;
     [[nodiscard]] xziar::nailang::ArgLocator LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
-    [[nodiscard]] VecTypeResult ParseVecType(const std::u32string_view type) const noexcept override;
-    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
-    [[nodiscard]] static std::u32string_view GetDXTypeName(common::simd::VecDataInfo info) noexcept;
 protected:
     std::vector<std::u32string_view> KernelNames;
     std::vector<ResourceInfo> BindResoures;
@@ -169,12 +166,15 @@ protected:
     NLDXConfigurator Configurator;
     NLDXRawExecutor RawExecutor;
 
-    [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
-    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) override;
-    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
+    [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept final;
+    void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) final;
+    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) final;
 public:
+    [[nodiscard]] static std::u32string_view GetDXTypeName(common::simd::VecDataInfo info) noexcept;
     NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx);
     ~NLDXRuntime() override;
+    [[nodiscard]] VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept final;
+    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept final;
 };
 
 inline constexpr NLDXRuntime& NLDXExecutor::GetRuntime() const noexcept 

@@ -91,9 +91,6 @@ public:
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
     [[nodiscard]] xziar::nailang::ArgLocator LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
-    [[nodiscard]] VecTypeResult ParseVecType(const std::u32string_view type) const noexcept override;
-    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept override;
-    [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
 protected:
     std::vector<bool> EnabledExtensions;
     std::vector<std::string> CompilerFlags;
@@ -169,16 +166,17 @@ protected:
     NLCLConfigurator Configurator;
     NLCLRawExecutor RawExecutor;
 
-    [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept override;
+    [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept final;
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg*) final;
-    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) override;
+    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) final;
 public:
+    [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);
     ~NLCLRuntime() override;
+    [[nodiscard]] VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept final;
+    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept final;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
-    using XCNLRuntime::ParseVecType;
-    using XCNLRuntime::GetVecTypeName;
 };
 
 inline constexpr NLCLRuntime& NLCLExecutor::GetRuntime() const noexcept

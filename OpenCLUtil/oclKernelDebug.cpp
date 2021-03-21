@@ -375,7 +375,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             .append(U"\r\n    global uint* restrict data,"sv);
         for (size_t i = 0; i < args.size(); ++i)
         {
-            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, Context.GetVecTypeName(args[i].second), i);
+            APPEND_FMT(func, U"\r\n    const  {:7} arg{},"sv, NLCLRuntime::GetCLTypeName(args[i].second), i);
         }
         func.pop_back();
         func.append(U")\r\n{"sv);
@@ -387,12 +387,12 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         {
             const auto eleByte = eleBit / 8;
             const VecDataInfo dtype{ VecDataInfo::DataTypes::Unsigned, eleBit,     1, 0 };
-            const auto dstTypeStr = Context.GetVecTypeName(dtype);
+            const auto dstTypeStr = NLCLRuntime::GetCLTypeName(dtype);
             std::u32string getData;
             if (needConv)
             {
                 const VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned, eleBit, vsize, 0 };
-                getData = FMTSTR(U"as_{}(arg{}{})"sv, Context.GetVecTypeName(vtype), argIdx, argAccess);
+                getData = FMTSTR(U"as_{}(arg{}{})"sv, NLCLRuntime::GetCLTypeName(vtype), argIdx, argAccess);
             }
             else
                 getData = FMTSTR(U"arg{}{}"sv, argIdx, argAccess);

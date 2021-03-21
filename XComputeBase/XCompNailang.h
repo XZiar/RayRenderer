@@ -18,6 +18,7 @@ class XCNLProcessor;
 class XCNLExecutor;
 class XCNLConfigurator;
 class XCNLRawExecutor;
+class XCNLStructHandler;
 class XCNLContext;
 class XCNLRuntime;
 class XCNLProgStub;
@@ -227,11 +228,17 @@ struct XCNLStruct
         CombinedType Type;
         uint16_t Length;
         uint16_t Offset;
+        uint32_t MetaInfo;
     };
     common::StringPool<char32_t> StrPool;
     common::StringPiece<char32_t> Name;
     std::vector<Field> Fields;
     std::u32string_view GetName() const noexcept { return StrPool.GetStringView(Name); }
+    void AddField(std::u32string_view name, CombinedType type, uint16_t len)
+    {
+        const auto name_ = StrPool.AllocateString(name);
+        Fields.push_back({ name_, type, len, 0, 0 });
+    }
 };
 
 
@@ -373,6 +380,7 @@ class XCOMPBASAPI XCNLContext : public xziar::nailang::CompactEvaluateContext, p
     friend XCNLProcessor;
     friend XCNLExecutor;
     friend XCNLRawExecutor;
+    friend XCNLStructHandler;
     friend XCNLRuntime;
     friend XCNLProgStub;
 public:
@@ -431,14 +439,6 @@ public:
     {
         return static_cast<T*>(FindExt([](const XCNLExtension* ext) -> bool { return dynamic_cast<const T*>(ext); }));
     }
-    struct VecTypeResult
-    {
-        common::simd::VecDataInfo Info;
-        bool TypeSupport;
-        constexpr explicit operator bool() const noexcept { return Info.Bit != 0; }
-    };
-    [[nodiscard]] virtual VecTypeResult ParseVecType(const std::u32string_view type) const noexcept = 0;
-    [[nodiscard]] virtual std::u32string_view GetVecTypeName(common::simd::VecDataInfo vec) const noexcept = 0;
 protected:
     std::vector<std::unique_ptr<XCNLExtension>> Extensions;
     std::vector<OutputBlock> OutputBlocks;
@@ -481,14 +481,23 @@ private:
     virtual XCNLRawExecutor& GetRawExecutor() noexcept = 0;
     InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, xziar::nailang::FuncPack& func);
 public:
+    struct VecTypeResult
+    {
+        common::simd::VecDataInfo Info;
+        bool TypeSupport;
+        constexpr explicit operator bool() const noexcept { return Info.Bit != 0; }
+    };
     ~XCNLRuntime() override;
     COMMON_NO_COPY(XCNLRuntime)
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
-    [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type,
-        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = {}) const;
-    [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, 
-        std::variant<std::u16string_view, std::function<std::u16string(void)>> extraInfo = u"call [GetVecTypeName]") const;
+    [[nodiscard]] virtual VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept = 0;
+    [[nodiscard]] virtual std::u32string_view GetVecTypeName(common::simd::VecDataInfo vec) const noexcept = 0;
+    [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type, std::u16string_view = {}) const;
+    [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type, const std::function<std::u16string(void)>& extraInfo) const;
+    [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, std::u16string_view extraInfo = u"call [GetVecTypeName]") const;
+    [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, const std::function<std::u16string(void)>& extraInfo) const;
+    [[noreturn]] void ThrowByVecType(std::variant<std::u32string_view, common::simd::VecDataInfo> src, std::u16string_view reason, std::u16string_view exInfo) const;
     void ProcessConfigBlock(const Block& block, MetaFuncs metas);
     void CollectRawBlock(const RawBlock& block, MetaFuncs metas);
 
@@ -506,11 +515,16 @@ class XCOMPBASAPI XCNLExecutor : public xziar::nailang::NailangExecutor
     friend debug::XCNLDebugExt;
     friend XCNLConfigurator;
     friend XCNLRawExecutor;
+    friend XCNLStructHandler;
     friend XCNLRuntime;
 protected:
     [[nodiscard]] constexpr XCNLRuntime& GetRuntime() const noexcept
     {
         return *static_cast<XCNLRuntime*>(Runtime);
+    }
+    [[nodiscard]] constexpr XCNLContext& GetContext() const noexcept
+    {
+        return GetRuntime().XCContext;
     }
     [[nodiscard]] constexpr const std::vector<std::unique_ptr<XCNLExtension>>& GetExtensions() const noexcept
     {
@@ -612,6 +626,38 @@ public:
     [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const;
     [[nodiscard]] XCNLRuntime& GetRuntime() const noexcept 
     { 
+        return GetExecutor().GetRuntime();
+    }
+}; 
+
+
+class XCOMPBASAPI XCNLStructHandler
+{
+    friend debug::XCNLDebugExt;
+    friend XCNLRuntime;
+private:
+    [[nodiscard]] virtual const XCNLExecutor& GetExecutor() const noexcept = 0;
+    [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
+protected:
+    struct StructFrame : public xziar::nailang::NailangBlockFrame
+    {
+        XCNLStruct& Struct;
+        StructFrame(NailangFrame* prev, XCNLExecutor* executor, const std::shared_ptr<xziar::nailang::EvaluateContext>& ctx,
+            xziar::nailang::Block* block, MetaFuncs metas, XCNLStruct& target) :
+            NailangBlockFrame(prev, executor, ctx, NailangFrame::FrameFlags::Empty, block, metas), Struct(target)
+        { }
+        ~StructFrame() override { }
+        size_t GetSize() const noexcept override { return sizeof(StructFrame); }
+    };
+
+    [[nodiscard]] XCNLStruct& GetStruct() const;
+    [[nodiscard]] xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangBlockFrame> PushFrame(
+        XCNLStruct* target, const xziar::nailang::Block* block, MetaFuncs metas);
+    [[nodiscard]] bool EvaluateFunc(xziar::nailang::FuncEvalPack& func);
+public:
+    virtual ~XCNLStructHandler();
+    [[nodiscard]] XCNLRuntime& GetRuntime() const noexcept
+    {
         return GetExecutor().GetRuntime();
     }
 };

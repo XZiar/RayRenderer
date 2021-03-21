@@ -96,62 +96,6 @@ ArgLocator NLDXContext::LocateArg(const LateBindVar& var, bool create) noexcept
     return XCNLContext::LocateArg(var, create);
 }
 
-NLDXContext::VecTypeResult NLDXContext::ParseVecType(const std::u32string_view type) const noexcept
-{
-    auto [info, least] = xcomp::ParseVDataType(type);
-    if (info.Bit == 0)
-        return { info, false };
-    bool typeSupport = true;
-    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
-    {
-        if (info.Bit == 16 && !Device->SupportFP16()) // FP16 check
-        {
-            if (least) // promotion
-                info.Bit = 32;
-            else
-                typeSupport = false;
-        }
-        else if (info.Bit == 64 && !Device->SupportFP64())
-        {
-            typeSupport = false;
-        }
-    }
-    return { info, typeSupport };
-}
-
-std::u32string_view NLDXContext::GetDXTypeName(common::simd::VecDataInfo info) noexcept
-{
-#define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
-#define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1)  \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
-
-    switch (static_cast<uint32_t>(info))
-    {
-    CASEV(uint16_t,     Unsigned, 16)
-    CASEV(uint,         Unsigned, 32)
-    CASEV(uint64_t,     Unsigned, 64)
-    CASEV(int16_t,      Signed,   16)
-    CASEV(int,          Signed,   32)
-    CASEV(int64_t,      Signed,   64)
-    CASEV(float16_t,    Float,    16)
-    CASEV(float,        Float,    32)
-    CASEV(double,       Float,    64)
-    default: return {};
-    }
-
-#undef CASEV
-#undef CASE
-}
-
-std::u32string_view NLDXContext::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
-{
-    return GetDXTypeName(info);
-}
-
 void NLDXContext::AddResource(const Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype,
     uint16_t space, uint16_t reg, uint16_t count, xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type)
 {
@@ -374,6 +318,34 @@ NLDXRuntime::~NLDXRuntime()
 
 xcomp::XCNLConfigurator& NLDXRuntime::GetConfigurator() noexcept { return Configurator; }
 xcomp::XCNLRawExecutor& NLDXRuntime::GetRawExecutor() noexcept { return RawExecutor; }
+
+std::u32string_view NLDXRuntime::GetDXTypeName(common::simd::VecDataInfo info) noexcept
+{
+#define CASE(s, type, bit, n) \
+    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
+#define CASEV(pfx, type, bit) \
+    CASE(STRINGIZE(pfx),            type, bit, 1)  \
+    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
+    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
+    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
+
+    switch (static_cast<uint32_t>(info))
+    {
+    CASEV(uint16_t,     Unsigned, 16)
+    CASEV(uint,         Unsigned, 32)
+    CASEV(uint64_t,     Unsigned, 64)
+    CASEV(int16_t,      Signed,   16)
+    CASEV(int,          Signed,   32)
+    CASEV(int64_t,      Signed,   64)
+    CASEV(float16_t,    Float,    16)
+    CASEV(float,        Float,    32)
+    CASEV(double,       Float,    64)
+    default: return {};
+    }
+
+#undef CASEV
+#undef CASE
+}
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
 {
@@ -612,6 +584,33 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
     }
 
     prefix.insert(prefix.begin(), bindings.begin(), bindings.end());
+}
+
+NLDXRuntime::VecTypeResult NLDXRuntime::TryParseVecType(const std::u32string_view type) const noexcept
+{
+    auto [info, least] = xcomp::ParseVDataType(type);
+    if (info.Bit == 0)
+        return { info, false };
+    bool typeSupport = true;
+    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
+    {
+        if (info.Bit == 16 && !Context.Device->SupportFP16()) // FP16 check
+        {
+            if (least) // promotion
+                info.Bit = 32;
+            else
+                typeSupport = false;
+        }
+        else if (info.Bit == 64 && !Context.Device->SupportFP64())
+        {
+            typeSupport = false;
+        }
+    }
+    return { info, typeSupport };
+}
+std::u32string_view NLDXRuntime::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
+{
+    return GetDXTypeName(info);
 }
 
 

@@ -367,7 +367,7 @@ std::u32string SubgroupProvider::ScalarPatch(const std::u32string_view name, con
     const std::u32string_view extraArg, const std::u32string_view extraParam) noexcept
 {
     Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
     std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
     for (uint8_t i = 0; i < vtype.Dim0; ++i)
         APPEND_FMT(func, U"\r\n    ret.s{0} = {1}(val.s{0}{2});", Idx16Names[i], baseFunc, extraArg);
@@ -380,9 +380,9 @@ std::u32string SubgroupProvider::HiLoPatch(const std::u32string_view name, const
     Expects(vtype.Dim0 % 2 == 0 && vtype.Bit % 2 == 0);
     const VecDataInfo midType{ vtype.Type, static_cast<uint8_t>(vtype.Bit / 2), vtype.Dim0, 0 };
     const VecDataInfo halfType{ vtype.Type, vtype.Bit, static_cast<uint8_t>(vtype.Dim0 / 2), 0 };
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
-    const auto midName = NLCLContext::GetCLTypeName(midType);
-    const auto halfName = NLCLContext::GetCLTypeName(halfType);
+    const auto  vecName = NLCLRuntime::GetCLTypeName(vtype);
+    const auto  midName = NLCLRuntime::GetCLTypeName(midType);
+    const auto halfName = NLCLRuntime::GetCLTypeName(halfType);
     std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, name, extraParam);
     APPEND_FMT(func, U"\r\n    ret.hi = as_{0}({1}(as_{2}(val.hi){3});\r\n    ret.lo = as_{0}({1}(as_{2}(val.lo){3});",
         halfName, baseFunc, midName, extraArg);
@@ -458,7 +458,7 @@ struct SingleArgFunc
             const auto [dst, mid, convert] = std::get<1>(TypeCast);
             if (dst != mid)
                 return FMTSTR(U"{0}_{1}({3}({4}{0}_{2}({5}){6}))"sv,
-                    convert ? U"convert"sv : U"as"sv, NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(mid), 
+                    convert ? U"convert"sv : U"as"sv, NLCLRuntime::GetCLTypeName(dst), NLCLRuntime::GetCLTypeName(mid), 
                     Func, Prefix, Element, Suffix);
         } break;
         case 2:
@@ -466,11 +466,11 @@ struct SingleArgFunc
             const auto [dst, first, then, convFirst] = std::get<2>(TypeCast);
             if (convFirst)
                 return FMTSTR(U"convert_{0}(as_{1}({3}({4}as_{2}(convert_{1}({5})){6})))"sv,
-                    NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
+                    NLCLRuntime::GetCLTypeName(dst), NLCLRuntime::GetCLTypeName(first), NLCLRuntime::GetCLTypeName(then),
                     Func, Prefix, Element, Suffix);
             else
                 return FMTSTR(U"as_{0}(convert_{1}({3}({4}convert_{2}(as_{1}({5})){6})))"sv,
-                    NLCLContext::GetCLTypeName(dst), NLCLContext::GetCLTypeName(first), NLCLContext::GetCLTypeName(then),
+                    NLCLRuntime::GetCLTypeName(dst), NLCLRuntime::GetCLTypeName(first), NLCLRuntime::GetCLTypeName(then),
                     Func, Prefix, Element, Suffix);
         } break;
         default:
@@ -690,7 +690,7 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
 {
     Expects(vtype.Dim0 > 1 && vtype.Dim0 <= 16);
     Expects(vtype.Bit == mid.Bit * mid.Dim0);
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
+    const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
     const auto scalarType = VecDataInfo{ vtype.Type,vtype.Bit,1,0 };
     std::u32string func = FMTSTR(U"inline {0} {1}(const {0} val{2})\r\n{{\r\n    {0} ret;", vecName, funcName, extraParam);
     if (scalarType == mid)
@@ -700,8 +700,8 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
     }
     else
     {
-        const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
-        const auto midName    = NLCLContext::GetCLTypeName(mid);
+        const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
+        const auto midName    = NLCLRuntime::GetCLTypeName(mid);
         for (uint8_t i = 0; i < vtype.Dim0; ++i)
             APPEND_FMT(func, U"\r\n    ret.s{0} = as_{1}({2}(as_{3}(val.s{0}){4}));"sv,
                 Idx16Names[i], scalarName, baseFunc, midName, extraArg);
@@ -864,7 +864,7 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
     Expects(vnum >= 1 && vnum <= 16);
 
     const auto scalarType = VecDataInfo{ VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
-    const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
+    const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
 
     EnableSubgroupIntel = true;
@@ -1156,8 +1156,8 @@ std::u32string NLCLSubgroupLocal::GenerateKID(std::u32string_view type) const no
 std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
-    const auto scalarName = NLCLContext::GetCLTypeName(ToScalar(vtype));
+    const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
+    const auto scalarName = NLCLRuntime::GetCLTypeName(ToScalar(vtype));
     std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)", vecName, funcName);
     func.append(UR"(
 {
@@ -1192,8 +1192,8 @@ std::u32string NLCLSubgroupLocal::BroadcastPatch(const std::u32string_view funcN
 std::u32string NLCLSubgroupLocal::ShufflePatch(const std::u32string_view funcName, const VecDataInfo vtype) noexcept
 {
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);
-    const auto vecName = NLCLContext::GetCLTypeName(vtype);
-    const auto scalarName = NLCLContext::GetCLTypeName(ToScalar(vtype));
+    const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
+    const auto scalarName = NLCLRuntime::GetCLTypeName(ToScalar(vtype));
     std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv, vecName, funcName);
     func.append(UR"(
 {
@@ -1349,7 +1349,7 @@ std::u32string NLCLSubgroupPtx::ShufflePatch(const uint8_t bit) noexcept
     Expects(bit == 32 || bit == 64);
     VecDataInfo vtype{ VecDataInfo::DataTypes::Unsigned,bit,1,0 };
     auto func = FMTSTR(U"inline {0} oclu_subgroup_ptx_shuffle_u{1}(const {0} val, const uint sgId)\r\n{{",
-        NLCLContext::GetCLTypeName(vtype), bit);
+        NLCLRuntime::GetCLTypeName(vtype), bit);
     if (bit == 32)
     {
         func.append(UR"(
@@ -1398,7 +1398,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataIn
     const auto opname     = op == SubgroupReduceOp::Sum ? U"add"sv : opstr;
     const bool isUnsigned = vtype.Type == VecDataInfo::DataTypes::Unsigned;
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, 32, 1, 0 };
-    const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
+    const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}32"sv, opstr, isArith ? (isUnsigned ? U"u" : U"i") : U"");
     auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
@@ -1426,8 +1426,8 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataIn
     else if (totalBits < 32)
     {
         auto str = FMTSTR(U"as_{0}(convert_{1}({2}(convert_uint(as_{1}({3})))))"sv,
-            NLCLContext::GetCLTypeName(vtype),
-            NLCLContext::GetCLTypeName({ VecDataInfo::DataTypes::Unsigned,static_cast<uint8_t>(totalBits),1,0 }),
+            NLCLRuntime::GetCLTypeName(vtype),
+            NLCLRuntime::GetCLTypeName({ VecDataInfo::DataTypes::Unsigned,static_cast<uint8_t>(totalBits),1,0 }),
             scalarFunc, ele);
         return ReplaceResult(std::move(str), dep0.first);
     }
@@ -1472,7 +1472,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupReduceSM30(SubgroupReduceOp op, VecDataIn
     
     const auto opstr      = StringifyReduceOp(op);
     const auto scalarType = VecDataInfo{ isArith ? vtype.Type : VecDataInfo::DataTypes::Unsigned, scalarBit, 1, 0 };
-    const auto scalarName = NLCLContext::GetCLTypeName(scalarType);
+    const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_ptx_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
     auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
