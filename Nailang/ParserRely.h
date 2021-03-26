@@ -103,7 +103,7 @@ public:
         const auto fullname = ReadFullName(reader);
         constexpr auto GetTypeName = [](const auto name, const size_t prefix)
         {
-            return name.size() > prefix&& name[prefix] == U'.' ?
+            return name.size() > prefix && name[prefix] == U'.' ?
                 name.substr(prefix + 1) : U""sv;
         };
         if (common::str::IsBeginWith(fullname, U"Block"sv))

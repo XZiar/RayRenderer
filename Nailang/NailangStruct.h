@@ -1008,12 +1008,23 @@ struct FuncName : public PartedName
 {
     enum class FuncInfo : uint16_t
     {
-        Empty = 0x0, Meta = 0x1, ExprPart = 0x2,
+        MetaFlag = 0b10,
+        Empty = 0b00, ExprPart = 0b01, Meta = MetaFlag | 0b00, PostMeta = MetaFlag | 0b01,
     };
 
     constexpr FuncInfo Info() const noexcept { return static_cast<FuncInfo>(ExternInfo); }
     constexpr common::EnumWrapper<FuncInfo> Info() noexcept { return ExternInfo; }
+    constexpr bool IsMeta() const noexcept;
 
+    static FuncInfo PrepareFuncInfo(std::u32string_view& name, FuncName::FuncInfo info) noexcept
+    {
+        if (info == FuncInfo::Meta && !name.empty() && name[0] == ':')
+        {
+            name.remove_prefix(1);
+            return FuncInfo::PostMeta;
+        }
+        return info;
+    }
     static FuncName* Create(MemoryPool& pool, std::u32string_view name, FuncInfo info)
     {
         if (name.size() == 0)
@@ -1026,6 +1037,10 @@ struct FuncName : public PartedName
     }
 };
 MAKE_ENUM_BITFIELD(FuncName::FuncInfo)
+inline constexpr bool FuncName::IsMeta() const noexcept 
+{ 
+    return HAS_FIELD(Info(), FuncInfo::MetaFlag);
+}
 using TempFuncName = TempPartedName<FuncName>;
 
 

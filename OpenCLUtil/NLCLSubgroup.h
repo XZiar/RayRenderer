@@ -37,7 +37,7 @@ struct NLCLSubgroupExtension : public NLCLExtension
     
     void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
     void FinishInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
-    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) final;
+    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::FuncPack& meta, xcomp::InstanceContext& ctx) final;
 
     [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
         common::span<const std::u32string_view> args) final;

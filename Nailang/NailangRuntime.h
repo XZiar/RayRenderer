@@ -365,21 +365,16 @@ struct FuncPack : public FuncCall
             return std::move(def);
     }
 };
-struct FuncEvalPack : public FuncPack
-{
-    common::span<const FuncCall> Metas;
-    constexpr FuncEvalPack(const FuncCall& call, common::span<Arg> params, common::span<const FuncCall> metas = {}) noexcept :
-        FuncPack(call, params), Metas(metas) { }
-};
 class MetaSet
 {
+    friend NailangExecutor;
 private:
     struct MetaFuncWrapper
     {
         MetaSet& Host;
         size_t Index;
-        constexpr const FuncCall* operator->() const noexcept { return &Host.Metas[Index]; }
-        constexpr const FuncCall& operator*()  const noexcept { return  Host.Metas[Index]; }
+        FuncPack* operator->() const noexcept { return &Host.AllMetas[Index]; }
+        FuncPack& operator*()  const noexcept { return  Host.AllMetas[Index]; }
         bool IsUsed() const noexcept { return Host.AccessBitmap.Get(Index); }
         void SetUsed() noexcept { Host.AccessBitmap.Set(Index, true); }
     };
@@ -390,25 +385,59 @@ private:
     using ItType = common::container::IndirectIterator<MetaSet, MetaFuncWrapper, &MetaSet::Get>;
     friend ItType;
     common::SmallBitset AccessBitmap;
+    std::vector<Arg> Args;
+    std::vector<FuncPack> AllMetas;
+    MemoryPool FuncNamePool;
+    size_t MetaCount;
+    void PrepareBitmap() { AccessBitmap = { MetaCount, false }; }
 public:
-    common::span<const FuncCall> Metas;
-    MetaSet(common::span<const FuncCall> metas) noexcept : AccessBitmap(metas.size(), false), Metas(metas)
+    const common::span<const FuncCall> OriginalMetas;
+    const Statement& Target;
+    MetaSet(common::span<const FuncCall> metas, const Statement& target) noexcept : 
+        FuncNamePool(4096), MetaCount(0), OriginalMetas(metas), Target(target)
     { }
+    common::span<FuncPack> PostMetas() noexcept
+    {
+        return common::to_span(AllMetas).subspan(MetaCount);
+    }
     [[nodiscard]] constexpr ItType begin() noexcept
     {
         return { this, 0 };
     }
     [[nodiscard]] constexpr ItType end() noexcept
     {
-        return { this, Metas.size() };
+        return { this, MetaCount };
+    }
+    forceinline static common::span<FuncPack> GetPostMetas(MetaSet* metas) noexcept
+    {
+        if (metas)
+            return metas->PostMetas();
+        return {};
+    }
+    forceinline static constexpr common::span<const FuncCall> GetOriginalMetas(MetaSet* metas) noexcept
+    {
+        if (metas)
+            return metas->OriginalMetas;
+        return {};
+    }
+    forceinline common::span<Arg> GetParamSpan(size_t offset) noexcept
+    {
+        return common::to_span(Args).subspan(offset);
     }
 };
-struct MetaEvalPack : public FuncPack
+struct FuncEvalPack : public FuncPack
 {
-    MetaSet& Metas;
-    const Statement& Target;
-    constexpr MetaEvalPack(const FuncCall& call, common::span<Arg> params, MetaSet& metas, const Statement& target) noexcept :
-        FuncPack(call, params), Metas(metas), Target(target) { }
+    MetaSet* const Metas;
+    constexpr FuncEvalPack(const FuncCall& call, common::span<Arg> params, MetaSet* metas) noexcept :
+        FuncPack(call, params), Metas(metas) { }
+    forceinline common::span<FuncPack> GetPostMetas() const noexcept
+    {
+        return MetaSet::GetPostMetas(Metas);
+    }
+    forceinline constexpr common::span<const FuncCall> GetOriginalMetas() const noexcept
+    {
+        return MetaSet::GetOriginalMetas(Metas);
+    }
 };
 
 
@@ -613,8 +642,8 @@ public:
         ThrowByParamTypes(func, types, ArgLimits::AtMost, offset);
     }
     void ThrowIfNotFuncTarget(const FuncCall& call, const FuncName::FuncInfo type) const;
-    void ThrowIfStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const;
-    void ThrowIfNotStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const;
+    void ThrowIfStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const;
+    void ThrowIfNotStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const;
     bool ThrowIfNotBool(const Arg& arg, const std::u32string_view varName) const;
 
     [[nodiscard]] std::u32string FormatString(const std::u32string_view formatter, common::span<const Arg> args);
@@ -633,21 +662,21 @@ protected:
     [[nodiscard]] forceinline constexpr NailangFrame& GetFrame() const noexcept;
     [[nodiscard]] forceinline constexpr xziar::nailang::NailangFrameStack& GetFrameStack() const noexcept;
     [[nodiscard]] forceinline std::shared_ptr<xziar::nailang::EvaluateContext> CreateContext() const;
-    void EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size);
+    void EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size, size_t offset = 0);
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func)
+    [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func, size_t offset = 0)
     {
-        ThrowByArgCount(func, N, Limit);
+        ThrowByArgCount(func, N + offset, Limit);
         std::array<Arg, N> args = {};
-        EvalFuncArgs(func, args.data(), nullptr, std::min(N, func.Args.size()));
+        EvalFuncArgs(func, args.data(), nullptr, std::min(N + offset, func.Args.size()), offset);
         return args;
     }
     template<size_t N, ArgLimits Limit = ArgLimits::Exact>
-    [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func, const std::array<Arg::Type, N>& types)
+    [[nodiscard]] forceinline std::array<Arg, N> EvalFuncArgs(const FuncCall& func, const std::array<Arg::Type, N>& types, size_t offset = 0)
     {
-        ThrowByArgCount(func, N, Limit);
+        ThrowByArgCount(func, N + offset, Limit);
         std::array<Arg, N> args = {};
-        EvalFuncArgs(func, args.data(), types.data(), std::min(N, func.Args.size()));
+        EvalFuncArgs(func, args.data(), types.data(), std::min(N + offset, func.Args.size()), offset);
         return args;
     }
     [[nodiscard]] forceinline Arg EvalFuncSingleArg(const FuncCall& func, Arg::Type type, ArgLimits limit = ArgLimits::Exact, size_t offset = 0)
@@ -667,8 +696,8 @@ public:
     [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangFrame> PushFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag);
     [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangBlockFrame> PushBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, const Block* block, common::span<const FuncCall> metas = {});
     [[nodiscard]] virtual NailangFrameStack::FrameHolder<NailangRawBlockFrame> PushRawBlockFrame(std::shared_ptr<EvaluateContext> ctx, NailangFrame::FrameFlags flag, const RawBlock* block, common::span<const FuncCall> metas = {});
-    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas);
-    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(MetaEvalPack& meta);
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas);
+    [[nodiscard]] virtual MetaFuncResult HandleMetaFunc(FuncPack& meta, MetaSet& allMetas);
     [[nodiscard]] virtual Arg EvaluateFunc(FuncEvalPack& func);
     [[nodiscard]] virtual Arg EvaluateExtendMathFunc(FuncEvalPack& func);
     [[nodiscard]] virtual Arg EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
@@ -678,10 +707,10 @@ public:
     [[nodiscard]] virtual Arg EvaluateTernaryExpr(const TernaryExpr& expr);
     [[nodiscard]] virtual Arg EvaluateQueryExpr(const QueryExpr& expr);
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const final;
-    void HandleContent(const Statement& content, common::span<const FuncCall> metas);
-    [[nodiscard]] virtual bool HandleMetaFuncs(MetaSet& allMetas, const Statement& target); // return if need eval target
+    void HandleContent(const Statement& content, MetaSet* metas);
+    [[nodiscard]] bool HandleMetaFuncs(MetaSet& allMetas); // return if need eval target
     [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg);
-    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas);
+    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, MetaSet* metas);
     virtual void EvaluateRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void EvaluateBlock(const Block& block, common::span<const FuncCall> metas);
 };

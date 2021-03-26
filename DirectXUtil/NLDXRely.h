@@ -116,7 +116,7 @@ class DXUAPI NLDXConfigurator : public NLDXExecutor, public xcomp::XCNLConfigura
 {
 private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
-    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, const xziar::nailang::Statement& target, xziar::nailang::MetaSet& allMetas) final;
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, xziar::nailang::MetaSet& allMetas) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
     void EvaluateRawBlock(const xziar::nailang::RawBlock& block, xcomp::MetaFuncs metas) final;
 public:
@@ -135,13 +135,30 @@ private:
     [[nodiscard]] std::unique_ptr<xcomp::InstanceContext> PrepareInstance(const xcomp::OutputBlock& block) final;
     void OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst) final;
     void ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst) final;
-    [[nodiscard]] bool HandleInstanceMeta(xziar::nailang::MetaEvalPack& meta);
-    [[nodiscard]] MetaFuncResult HandleMetaFunc(xziar::nailang::MetaEvalPack& meta) final;
+    [[nodiscard]] bool HandleInstanceMeta(xziar::nailang::FuncPack& meta);
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(xziar::nailang::FuncPack& meta, xziar::nailang::MetaSet& allMetas) final;
     void OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args) final;
 protected:
     forceinline KernelContext& GetCurInstance() const { return static_cast<KernelContext&>(GetInstanceInfo()); }
 public:
     ~NLDXRawExecutor() override;
+    using NLDXExecutor::GetRuntime;
+    using NLDXExecutor::HandleException;
+};
+
+
+class DXUAPI NLDXStructHandler : public NLDXExecutor, public xcomp::XCNLStructHandler
+{
+    friend NLDXRuntime;
+private:
+    NLDXStructHandler(NLDXRuntime* runtime);
+    [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
+    [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
+    void OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
+    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, xziar::nailang::MetaSet& allMetas) final;
+    [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
+public:
+    ~NLDXStructHandler() override;
     using NLDXExecutor::GetRuntime;
     using NLDXExecutor::HandleException;
 };
@@ -157,6 +174,7 @@ class DXUAPI COMMON_EMPTY_BASES NLDXRuntime : public xcomp::XCNLRuntime
 private:
     xcomp::XCNLConfigurator& GetConfigurator() noexcept final;
     xcomp::XCNLRawExecutor& GetRawExecutor() noexcept final;
+    xcomp::XCNLStructHandler& GetStructHandler() noexcept final;
 protected:
     using RawBlock = xziar::nailang::RawBlock;
     using FuncCall = xziar::nailang::FuncCall;
@@ -165,6 +183,7 @@ protected:
     NLDXContext& Context;
     NLDXConfigurator Configurator;
     NLDXRawExecutor RawExecutor;
+    NLDXStructHandler StructHandler;
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept final;
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) final;

@@ -23,7 +23,6 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::MetaSet;
 using xziar::nailang::FuncEvalPack;
-using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
 using xziar::nailang::NailangRuntime;
@@ -169,9 +168,9 @@ xcomp::XCNLExecutor& NLCLConfigurator::GetExecutor() noexcept
     return *this;
 }
 
-NLCLConfigurator::MetaFuncResult NLCLConfigurator::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+NLCLConfigurator::MetaFuncResult NLCLConfigurator::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
 {
-    const auto ret = NLCLExecutor::HandleMetaFunc(meta, target, allMetas);
+    const auto ret = NLCLExecutor::HandleMetaFunc(meta, allMetas);
     if (ret != MetaFuncResult::Unhandled)
         return ret;
     if (const auto frame = TryGetOutputFrame(); frame)
@@ -334,7 +333,7 @@ void NLCLRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32str
     APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
 }
 
-bool NLCLRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
+bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
 {
     constexpr auto KerArgSpaceParser = PARSE_PACK(
         U"global"sv,     KerArgSpace::Global, 
@@ -431,11 +430,11 @@ bool NLCLRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
     return XCNLRawExecutor::HandleInstanceMeta(meta);
 }
 
-NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+NLCLRawExecutor::MetaFuncResult NLCLRawExecutor::HandleMetaFunc(FuncPack& meta, MetaSet& allMetas)
 {
     if (HandleInstanceMeta(meta))
         return MetaFuncResult::Next;
-    return NLCLExecutor::HandleMetaFunc(meta);
+    return NLCLExecutor::HandleMetaFunc(meta, allMetas);
 }
 
 void NLCLRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
@@ -467,14 +466,56 @@ void NLCLRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, st
 }
 
 
+NLCLStructHandler::NLCLStructHandler(NLCLRuntime* runtime) : NLCLExecutor(runtime)
+{ }
+NLCLStructHandler::~NLCLStructHandler()
+{ }
+xcomp::XCNLExecutor& NLCLStructHandler::GetExecutor() noexcept
+{
+    return *this;
+}
+const xcomp::XCNLExecutor& NLCLStructHandler::GetExecutor() const noexcept
+{
+    return *this;
+}
+
+void NLCLStructHandler::OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas)
+{
+
+}
+
+NLCLStructHandler::MetaFuncResult NLCLStructHandler::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
+{
+    const auto ret = NLCLExecutor::HandleMetaFunc(meta, allMetas);
+    if (ret != MetaFuncResult::Unhandled)
+        return ret;
+    if (TryGetStructFrame())
+    {
+
+    }
+    return MetaFuncResult::Unhandled;
+}
+
+Arg NLCLStructHandler::EvaluateFunc(FuncEvalPack& func)
+{
+    auto& runtime = GetRuntime();
+    const auto& fname = func.GetName();
+    if (EvaluateStructFunc(func))
+        return {};
+    return XCNLExecutor::EvaluateFunc(func);
+}
+
+
+
 NLCLRuntime::NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx) :
-    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Configurator(this), RawExecutor(this)
+    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Configurator(this), RawExecutor(this), StructHandler(this)
 { }
 NLCLRuntime::~NLCLRuntime()
 { }
 
 xcomp::XCNLConfigurator& NLCLRuntime::GetConfigurator() noexcept { return Configurator; }
 xcomp::XCNLRawExecutor& NLCLRuntime::GetRawExecutor() noexcept { return RawExecutor; }
+xcomp::XCNLStructHandler& NLCLRuntime::GetStructHandler() noexcept { return StructHandler; }
 
 std::u32string_view NLCLRuntime::GetCLTypeName(common::simd::VecDataInfo info) noexcept
 {

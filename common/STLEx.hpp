@@ -14,6 +14,7 @@ class SmallBitset
 private:
     std::basic_string<char> Real;
 public:
+    SmallBitset() noexcept { }
     SmallBitset(size_t count, bool initial) noexcept :
         Real((count + 7) / 8, static_cast<char>(initial ? 0xffu : 0x0u))
     { }

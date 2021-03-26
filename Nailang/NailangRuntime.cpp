@@ -920,8 +920,9 @@ static constexpr std::u32string_view FuncTypeName(const FuncName::FuncInfo type)
     switch (type)
     {
     case FuncName::FuncInfo::Empty:     return U"Plain"sv;
-    case FuncName::FuncInfo::Meta:      return U"MetaFunc"sv;
     case FuncName::FuncInfo::ExprPart:  return U"Part of expr"sv;
+    case FuncName::FuncInfo::Meta:      return U"MetaFunc"sv;
+    case FuncName::FuncInfo::PostMeta:  return U"MetaFunc"sv;
     default:                            return U"Unknown"sv;
     }
 }
@@ -983,13 +984,13 @@ void NailangBase::ThrowIfNotFuncTarget(const FuncCall& call, const FuncName::Fun
             call);
     }
 }
-void NailangBase::ThrowIfStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const
+void NailangBase::ThrowIfStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const
 {
     if (target.TypeData == type)
         NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] cannot be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
             meta);
 }
-void NailangBase::ThrowIfNotStatement(const FuncCall& meta, const Statement target, const Statement::Type type) const
+void NailangBase::ThrowIfNotStatement(const FuncCall& meta, const Statement& target, const Statement::Type type) const
 {
     if (target.TypeData != type)
         NLRT_THROW_EX(FMTSTR(u"Metafunc [{}] can only be appllied to [{}].", meta.FullFuncName(), ContentTypeName(type)),
@@ -1033,6 +1034,13 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
 
 TempFuncName NailangBase::CreateTempFuncName(std::u32string_view name, FuncName::FuncInfo info) const
 {
+    if (info == FuncName::FuncInfo::Meta && !name.empty() && name[0] == ':')
+    {
+        name.remove_prefix(1);
+        info = FuncName::FuncInfo::PostMeta;
+    }
+    if (name.empty())
+        NLRT_THROW_EX(u"Does not allow empty function name"sv);
     try
     {
         return FuncName::CreateTemp(name, info);
@@ -1084,13 +1092,13 @@ NailangFrameStack::FrameHolder<NailangRawBlockFrame> NailangExecutor::PushRawBlo
     return Runtime->FrameStack.PushFrame<NailangRawBlockFrame>(this, ctx, flag, block, metas);
 }
 
-void NailangExecutor::EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size)
+void NailangExecutor::EvalFuncArgs(const FuncCall& func, Arg* args, const Arg::Type* types, const size_t size, size_t offset)
 {
-    for (size_t i = 0; i < size; ++i)
+    for (size_t i = 0, j = offset; i < size; ++i, ++j)
     {
-        args[i] = EvaluateExpr(func.Args[i]);
+        args[i] = EvaluateExpr(func.Args[j]);
         if (types != nullptr)
-            ThrowByParamType(func, args[i], types[i], i);
+            ThrowByParamType(func, args[i], types[i], j);
     }
 }
 std::vector<Arg> NailangExecutor::EvalFuncAllArgs(const FuncCall& func)
@@ -1102,19 +1110,70 @@ std::vector<Arg> NailangExecutor::EvalFuncAllArgs(const FuncCall& func)
     return params;
 }
 
-bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas, const Statement& target)
+bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
 {
+    std::u32string_view metaName;
+    FuncName::FuncInfo metaFlag;
+    size_t argOffset = 0;
+    const auto CreateNewFunc = [&](const FuncCall& meta) -> FuncCall
+    {
+        if (argOffset == 0)
+            return meta;
+        const auto funcName = FuncName::Create(allMetas.FuncNamePool, metaName, metaFlag);
+        return { funcName, meta.Args.subspan(argOffset), meta.Position };
+    };
+    for (const auto& meta : allMetas.OriginalMetas)
+    {
+        Expects(meta.Name->IsMeta());
+        metaName = meta.FullFuncName();
+        metaFlag = meta.Name->Info();
+        argOffset = 0;
+        while (true)
+        {
+            if (metaFlag == FuncName::FuncInfo::PostMeta)
+            {
+                const auto begin = allMetas.Args.size();
+                for (const auto& arg : meta.Args.subspan(argOffset))
+                    allMetas.Args.emplace_back(EvaluateExpr(arg));
+                allMetas.AllMetas.emplace_back(CreateNewFunc(meta), allMetas.GetParamSpan(begin));
+                break;
+            }
+            if (metaName == U"MetaIf")
+            {
+                ThrowByArgTypes<2, ArgLimits::AtLeast>(meta, { Expr::Type::Empty, Expr::Type::Str }, argOffset);
+                if (ThrowIfNotBool(EvaluateExpr(meta.Args[argOffset]), U""))
+                {
+                    metaName = meta.Args[argOffset + 1].GetVar<Expr::Type::Str>();
+                    metaFlag = FuncName::PrepareFuncInfo(metaName, FuncName::FuncInfo::Meta);
+                    if (metaName.empty())
+                        NLRT_THROW_EX(u"Does not allow empty function name"sv, meta);
+                    argOffset += 2;
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            allMetas.AllMetas.emplace(allMetas.AllMetas.begin() + allMetas.MetaCount, CreateNewFunc(meta), common::span<Arg>{});
+            allMetas.MetaCount++;
+            break;
+        }
+    }
+    allMetas.PrepareBitmap();
     for (auto meta : allMetas)
     {
         if (meta.IsUsed())
             continue;
-        Expects(meta->Name->Info() == FuncName::FuncInfo::Meta);
-        auto result = HandleMetaFunc(*meta, target, allMetas);
+
+        auto result = HandleMetaFunc(static_cast<const FuncCall&>(*meta), allMetas);
         if (result == MetaFuncResult::Unhandled)
         {
-            auto params = EvalFuncAllArgs(*meta);
-            MetaEvalPack pack(*meta, params, allMetas, target);
-            result = HandleMetaFunc(pack);
+            const auto begin = allMetas.Args.size();
+            for (const auto& arg : meta->Args)
+                allMetas.Args.emplace_back(EvaluateExpr(arg));
+            meta->Params = allMetas.GetParamSpan(begin);
+            result = HandleMetaFunc(*meta, allMetas);
         }
         if (result != MetaFuncResult::Unhandled)
             meta.SetUsed();
@@ -1127,12 +1186,12 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas, const Statement& target
     }
     return true;
 }
-NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& meta, const Statement& content, MetaSet& allMetas)
+NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
 {
     const auto metaName = meta.FullFuncName();
     if (metaName == U"While")
     {
-        ThrowIfStatement(meta, content, Statement::Type::RawBlock);
+        ThrowIfStatement(meta, allMetas.Target, Statement::Type::RawBlock);
         ThrowByArgCount(meta, 1);
         const auto& condition = meta.Args[0];
 
@@ -1142,7 +1201,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
             if (const auto cond = EvaluateExpr(condition); ThrowIfNotBool(cond, U"Arg of MetaFunc[While]"))
             {
                 Expects(frame->Status == NailangFrame::ProgramStatus::Next);
-                HandleContent(content, {});
+                HandleContent(allMetas.Target, {});
                 if (frame->Has(NailangFrame::ProgramStatus::LoopEnd))
                     break;
                 frame->Status = NailangFrame::ProgramStatus::Next; // reset state
@@ -1152,7 +1211,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
         }
         return MetaFuncResult::Skip;
     }
-    else if (metaName == U"MetaIf")
+    /*else if (metaName == U"MetaIf")
     {
         const auto args = EvalFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
         if (args[0].GetBool().value())
@@ -1160,13 +1219,13 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
             const auto name = args[1].GetStr().value();
             const auto funcName = CreateTempFuncName(name, FuncName::FuncInfo::Meta);
             const FuncCall newMeta(funcName.Ptr(), meta.Args.subspan(2), meta.Position);
-            return HandleMetaFunc(newMeta, content, allMetas);
+            return HandleMetaFunc(newMeta, allMetas);
         }
         return MetaFuncResult::Next;
-    }
+    }*/
     else if (metaName == U"DefFunc")
     {
-        ThrowIfNotStatement(meta, content, Statement::Type::Block);
+        ThrowIfNotStatement(meta, allMetas.Target, Statement::Type::Block);
         for (const auto& arg : meta.Args)
         {
             if (arg.TypeData != Expr::Type::Var)
@@ -1188,12 +1247,12 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
                 m.SetUsed();
             }
         }
-        Runtime->SetFunc(content.Get<Block>(), captures, meta.Args);
+        Runtime->SetFunc(allMetas.Target.Get<Block>(), captures, meta.Args);
         return MetaFuncResult::Skip;
     }
     return MetaFuncResult::Unhandled;
 }
-NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(MetaEvalPack& meta)
+NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(FuncPack& meta, MetaSet&)
 {
     const auto metaName = meta.FullFuncName();
     if (metaName == U"Skip")
@@ -1231,7 +1290,7 @@ Arg NailangExecutor::EvaluateExpr(const Expr& arg)
     {
         const auto& fcall = arg.GetVar<Type::Func>();
         Expects(fcall->Name->Info() == FuncName::FuncInfo::ExprPart);
-        return EvaluateFunc(*fcall, {});
+        return EvaluateFunc(*fcall, nullptr);
     }
     case Type::Unary:
         return EvaluateUnaryExpr(*arg.GetVar<Type::Unary>());
@@ -1251,11 +1310,11 @@ Arg NailangExecutor::EvaluateExpr(const Expr& arg)
     }
 }
 
-Arg NailangExecutor::EvaluateFunc(const FuncCall& func, common::span<const FuncCall> metas)
+Arg NailangExecutor::EvaluateFunc(const FuncCall& func, MetaSet* metas)
 {
     Expects(func.Name->PartCount > 0);
     const auto fullName = func.FullFuncName();
-    if (func.Name->Info() == FuncName::FuncInfo::Meta)
+    if (func.Name->IsMeta())
     {
         NLRT_THROW_EX(FMTSTR(u"MetaFunc [{}] can not be evaluated here.", fullName), func);
     }
@@ -1561,7 +1620,7 @@ Arg NailangExecutor::EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack
         newCtx->LocateArg(func.ArgNames[i], true).Set(func.CapturedArgs[i]);
     for (size_t j = 0; i < func.ArgNames.size(); ++i, ++j)
         newCtx->LocateArg(func.ArgNames[i], true).Set(std::move(pack.Params[j]));
-    auto curFrame = PushBlockFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall, func.Body, pack.Metas);
+    auto curFrame = PushBlockFrame(std::move(newCtx), NailangFrame::FrameFlags::FuncCall, func.Body, {});
     ExecuteFrame(*curFrame);
     return std::move(curFrame->ReturnArg);
 }
@@ -1675,15 +1734,15 @@ void NailangExecutor::ExecuteFrame(NailangBlockFrame& frame)
     {
         const auto& [metas, content] = (*frame.BlockScope)[idx];
         bool shouldExe = true;
+        MetaSet allMetas(metas, content);
         if (!metas.empty())
         {
-            MetaSet allMetas(metas);
-            shouldExe = HandleMetaFuncs(allMetas, content);
+            shouldExe = HandleMetaFuncs(allMetas);
         }
         if (shouldExe)
         {
             frame.CurContent = &content;
-            HandleContent(content, metas);
+            HandleContent(content, &allMetas);
         }
         frame.IfRecord >>= 2;
         if (frame.Has(NailangFrame::ProgramStatus::End))
@@ -1693,7 +1752,7 @@ void NailangExecutor::ExecuteFrame(NailangBlockFrame& frame)
     }
     return;
 }
-void NailangExecutor::HandleContent(const Statement& content, common::span<const FuncCall> metas)
+void NailangExecutor::HandleContent(const Statement& content, MetaSet* metas)
 {
     switch (content.TypeData)
     {
@@ -1704,7 +1763,7 @@ void NailangExecutor::HandleContent(const Statement& content, common::span<const
     } break;
     case Statement::Type::Block:
     {
-        EvaluateBlock(*content.Get<Block>(), metas);
+        EvaluateBlock(*content.Get<Block>(), MetaSet::GetOriginalMetas(metas));
     } break;
     case Statement::Type::FuncCall:
     {
@@ -1715,7 +1774,7 @@ void NailangExecutor::HandleContent(const Statement& content, common::span<const
     } break;
     case Statement::Type::RawBlock:
     {
-        EvaluateRawBlock(*content.Get<RawBlock>(), metas);
+        EvaluateRawBlock(*content.Get<RawBlock>(), MetaSet::GetOriginalMetas(metas));
     } break;
     default:
         assert(false); /*Expects(false);*/
@@ -1907,8 +1966,8 @@ void NailangBasicRuntime::ExecuteBlock(const Block& block, common::span<const Fu
     if (checkMetas && !metas.empty())
     {
         Statement target(&block);
-        MetaSet allMetas(metas);
-        if (!Executor.HandleMetaFuncs(allMetas, target))
+        MetaSet allMetas(metas, target);
+        if (!Executor.HandleMetaFuncs(allMetas))
             return;
     }
     curFrame->Execute();

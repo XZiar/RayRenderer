@@ -39,7 +39,6 @@ using xziar::nailang::Arg;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::FuncCall;
 using xziar::nailang::FuncEvalPack;
-using xziar::nailang::MetaEvalPack;
 using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
@@ -69,7 +68,7 @@ void NLCLSubgroupExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::I
     SubgroupSize = 0;
 }
 
-void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext&)
+void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::FuncPack& meta, xcomp::InstanceContext&)
 {
     auto& runtime = GetRuntime(executor);
     if (meta.GetName() == U"oclu.SubgroupSize"sv || meta.GetName() == U"xcomp.SubgroupSize"sv)

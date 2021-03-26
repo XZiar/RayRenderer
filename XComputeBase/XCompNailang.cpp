@@ -25,7 +25,6 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::FuncEvalPack;
 using xziar::nailang::MetaSet;
-using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::NailangFrame;
 using xziar::nailang::NailangExecutor;
@@ -465,6 +464,18 @@ XCNLExtension* XCNLContext::FindExt(std::function<bool(const XCNLExtension*)> fu
     return nullptr;
 }
 
+size_t XCNLContext::FindStruct(std::u32string_view name) const
+{
+    size_t i = 0;
+    for (const auto& target : CustomStructs)
+    {
+        if (target.GetName() == name)
+            return i;
+        i++;
+    }
+    return SIZE_MAX;
+}
+
 void XCNLContext::Write(std::u32string& output, const NamedText& item) const
 {
     APPEND_FMT(output, U"/* Patched Block [{}] */\r\n"sv, GetID(item));
@@ -478,13 +489,22 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
     {
         if (func.NamePart(1) == U"vec"sv)
         {
-            auto ret = GetRuntime().CreateGVec(func.NamePart(2), func);
-            if (ret.has_value())
-                return std::move(ret.value());
+            return GetRuntime().CreateGVec(func.NamePart(2), func);
         }
-        if (func.NamePart(1) == U"Arg"sv)
+        else if (func.NamePart(1) == U"Arg"sv)
         {
             return InstanceArgCustomVar::Create(GetRuntime().ParseInstanceArg(func.NamePart(2), func));
+        }
+        else if (func.NamePart(1) == U"PrintStruct"sv)
+        {
+            ThrowByParamTypes<1>(func, { Arg::Type::String });
+            const auto& ctx = GetContext();
+            const auto name = func.Params[0].GetStr().value();
+            const auto idx = ctx.FindStruct(name);
+            if (idx == SIZE_MAX)
+                NLRT_THROW_EX(FMTSTR(u"Cannot find struct named [{}]"sv, name), func);
+            GetRuntime().PrintStruct(ctx.CustomStructs[idx]);
+            return {};
         }
         else if (func.NamePartCount() == 2)
         {
@@ -548,8 +568,9 @@ bool XCNLConfigurator::PrepareOutputBlock(OutputBlock& block)
 {
     auto& executor = GetExecutor();
     auto frame = executor.GetFrameStack().PushFrame<OutputBlockFrame>(&executor, executor.CreateContext(), block);
-    xziar::nailang::MetaSet allMetas(block.MetaFunc);
-    return executor.HandleMetaFuncs(allMetas, { block.Block });
+    const Statement tmp = { block.Block };
+    xziar::nailang::MetaSet allMetas(block.MetaFunc, tmp);
+    return executor.HandleMetaFuncs(allMetas);
 }
 
 
@@ -595,7 +616,7 @@ xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangRawBlockFr
         return executor.PushRawBlockFrame(std::move(ctx), NailangFrame::FrameFlags::VarScope, block.Block, block.MetaFunc);
 }
 
-bool XCNLRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
+bool XCNLRawExecutor::HandleInstanceMeta(FuncPack& meta)
 {
     auto& executor = GetExecutor();
     auto& runtime = GetRuntime();
@@ -882,8 +903,9 @@ void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& 
     {
         ext->BeginInstance(runtime, *kerCtx);
     }
-    xziar::nailang::MetaSet allMetas(block.MetaFunc);
-    const auto ret = executor.HandleMetaFuncs(allMetas, {});
+    const Statement tmp;
+    xziar::nailang::MetaSet allMetas(block.MetaFunc, tmp);
+    const auto ret = executor.HandleMetaFuncs(allMetas);
     Ensures(ret);
 
     DirectOutput(block, kerCtx->Content);
@@ -919,7 +941,37 @@ XCNLStruct& XCNLStructHandler::GetStruct() const
     executor.NLRT_THROW_EX(u"No StructFrame found."sv);
 }
 
-bool XCNLStructHandler::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
+std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept
+{
+    if (field.Type.IsCustomType())
+    {
+        const auto& type = GetExecutor().GetContext().CustomStructs[field.Type.GetCustomTypeIdx().value()];
+        return { type.Alignment, type.Size };
+    }
+    else
+    {
+        const auto& type = field.Type.GetVecType().value();
+        const auto alignment = type.Bit / 8;
+        return { alignment, type.Dim0 * type.Dim1 * alignment };
+    }
+}
+
+void XCNLStructHandler::FillFieldOffsets(XCNLStruct& target)
+{
+    uint32_t maxAlign = 0, offset = 0;
+    for (auto& field : target.Fields)
+    {
+        const auto [align, eleSize] = GetBasicFieldAlignment(field);
+        maxAlign = std::max<uint32_t>(maxAlign, align);
+        const auto newOffset = (offset + align - 1) / align * align;
+        field.Offset = static_cast<uint16_t>(newOffset);
+        offset = newOffset + eleSize * field.Length;
+    }
+    target.Alignment = maxAlign;
+    target.Size = (offset + maxAlign - 1) / maxAlign * maxAlign;
+}
+
+bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
 {
     auto& executor = GetExecutor();
     auto& runtime = GetRuntime();
@@ -950,21 +1002,17 @@ bool XCNLStructHandler::EvaluateFunc(xziar::nailang::FuncEvalPack& func)
         }
         else
         {
-            for (size_t i = 0; i < ctx.CustomStructs.size(); ++i)
-            {
-                if (ctx.CustomStructs[i].GetName() == type)
-                {
-                    typeData.emplace(gsl::narrow_cast<uint16_t>(i));
-                    break;
-                }
-            }
+            const auto idx = ctx.FindStruct(type);
+            if (idx <= UINT16_MAX)
+                typeData.emplace(gsl::narrow_cast<uint16_t>(idx));
             // runtime.ThrowByVecType(type, u"not recognized as VecType"sv, );
         }
         auto& target = GetStruct();
         if (!typeData.has_value())
             executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
                 type, name, target.GetName()));
-        target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
+        auto& field = target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
+        OnNewField(target, field, *func.Metas);
         return true;
     }
     return false;
@@ -986,6 +1034,24 @@ void XCNLRuntime::HandleException(const NailangRuntimeException& ex) const
 void XCNLRuntime::InnerLog(common::mlog::LogLevel level, std::u32string_view str)
 {
     Logger.log(level, u"[XCNL]{}\n", str);
+}
+
+void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
+{
+    auto str = FMTSTR(u"Struct [{}], align[{}] size[{}]:\n"sv, target.GetName(), target.Alignment, target.Size);
+    for (const auto& field : target.Fields)
+    {
+        std::u32string_view typeName;
+        if (field.Type.IsCustomType())
+            typeName = XCContext.CustomStructs[*field.Type.GetCustomTypeIdx()].GetName();
+        else
+            typeName = StringifyVDataType(*field.Type.GetVecType());
+        APPEND_FMT(str, u"[{:4}] {} {}"sv, field.Offset, typeName, target.StrPool.GetStringView(field.Name));
+        if (field.Length > 1)
+            APPEND_FMT(str, u"[{}]"sv, field.Length);
+        str.append(u"\n");
+    }
+    Logger.verbose(str);
 }
 
 common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16string_view extraInfo) const
@@ -1080,7 +1146,7 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncE
     }
     return {};
 }
-std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
+Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
 {
     auto [info, least] = xcomp::ParseVDataType(type);
     if (info.Bit == 0)
@@ -1133,12 +1199,6 @@ std::optional<Arg> XCNLRuntime::CreateGVec(const std::u32string_view type, FuncE
         }
     }
     return std::move(vec);
-}
-
-
-void XCNLRuntime::ProcessStruct(const Block&, common::span<const FuncCall>)
-{
-
 }
 
 OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFuncs) const noexcept
@@ -1232,11 +1292,30 @@ void XCNLRuntime::ProcessConfigBlock(const Block& block, MetaFuncs metas)
     if (!metas.empty())
     {
         Statement target(&block);
-        MetaSet allMetas(metas);
-        if (!executor.HandleMetaFuncs(allMetas, target))
+        MetaSet allMetas(metas, target);
+        if (!executor.HandleMetaFuncs(allMetas))
             return;
     }
     frame->Execute();
+}
+
+void XCNLRuntime::ProcessStructBlock(const Block& block, MetaFuncs metas)
+{
+    auto& handler = GetStructHandler();
+    auto& executor = handler.GetExecutor();
+    XCNLStruct theStruct(block.Name);
+    auto frame = FrameStack.PushFrame<XCNLStructHandler::StructFrame>(&executor, ConstructEvalContext(),
+        &block, metas, theStruct);
+    if (!metas.empty())
+    {
+        Statement target(&block);
+        MetaSet allMetas(metas, target);
+        if (!executor.HandleMetaFuncs(allMetas))
+            return;
+    }
+    frame->Execute();
+    handler.FillFieldOffsets(theStruct);
+    XCContext.CustomStructs.push_back(std::move(theStruct));
 }
 
 void XCNLRuntime::CollectRawBlock(const RawBlock& block, MetaFuncs metas)

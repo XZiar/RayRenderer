@@ -22,7 +22,6 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::MetaSet;
 using xziar::nailang::FuncEvalPack;
-using xziar::nailang::MetaEvalPack;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::AutoVarHandler;
 using xziar::nailang::NailangRuntime;
@@ -130,9 +129,9 @@ xcomp::XCNLExecutor& NLDXConfigurator::GetExecutor() noexcept
     return *this;
 }
 
-NLDXConfigurator::MetaFuncResult NLDXConfigurator::HandleMetaFunc(const FuncCall& meta, const Statement& target, MetaSet& allMetas)
+NLDXConfigurator::MetaFuncResult NLDXConfigurator::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
 {
-    const auto ret = NLDXExecutor::HandleMetaFunc(meta, target, allMetas);
+    const auto ret = NLDXExecutor::HandleMetaFunc(meta, allMetas);
     if (ret != MetaFuncResult::Unhandled)
         return ret;
     if (const auto frame = TryGetOutputFrame(); frame)
@@ -247,7 +246,7 @@ void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32str
     APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
 }
 
-bool NLDXRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
+bool NLDXRawExecutor::HandleInstanceMeta(FuncPack& meta)
 {
     auto& kerCtx = GetCurInstance();
     const auto& fname = meta.GetName();
@@ -291,11 +290,11 @@ bool NLDXRawExecutor::HandleInstanceMeta(MetaEvalPack& meta)
     return XCNLRawExecutor::HandleInstanceMeta(meta);
 }
 
-NLDXRawExecutor::MetaFuncResult NLDXRawExecutor::HandleMetaFunc(MetaEvalPack& meta)
+NLDXRawExecutor::MetaFuncResult NLDXRawExecutor::HandleMetaFunc(FuncPack& meta, MetaSet& allMetas)
 {
     if (HandleInstanceMeta(meta))
         return MetaFuncResult::Next;
-    return NLDXExecutor::HandleMetaFunc(meta);
+    return NLDXExecutor::HandleMetaFunc(meta, allMetas);
 }
 
 void NLDXRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, std::u32string_view func, common::span<const std::u32string_view> args)
@@ -310,14 +309,55 @@ void NLDXRawExecutor::OnReplaceFunction(std::u32string& output, void* cookie, st
 }
 
 
+NLDXStructHandler::NLDXStructHandler(NLDXRuntime* runtime) : NLDXExecutor(runtime)
+{ }
+NLDXStructHandler::~NLDXStructHandler()
+{ }
+xcomp::XCNLExecutor& NLDXStructHandler::GetExecutor() noexcept
+{
+    return *this;
+}
+const xcomp::XCNLExecutor& NLDXStructHandler::GetExecutor() const noexcept
+{
+    return *this;
+}
+
+void NLDXStructHandler::OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas)
+{
+
+}
+
+NLDXStructHandler::MetaFuncResult NLDXStructHandler::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
+{
+    const auto ret = NLDXExecutor::HandleMetaFunc(meta, allMetas);
+    if (ret != MetaFuncResult::Unhandled)
+        return ret;
+    if (TryGetStructFrame())
+    {
+
+    }
+    return MetaFuncResult::Unhandled;
+}
+
+Arg NLDXStructHandler::EvaluateFunc(FuncEvalPack& func)
+{
+    auto& runtime = GetRuntime();
+    const auto& fname = func.GetName();
+    if (EvaluateStructFunc(func))
+        return {};
+    return XCNLExecutor::EvaluateFunc(func);
+}
+
+
 NLDXRuntime::NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx) :
-    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Configurator(this), RawExecutor(this)
+    XCNLRuntime(logger, evalCtx), Context(*evalCtx), Configurator(this), RawExecutor(this), StructHandler(this)
 { }
 NLDXRuntime::~NLDXRuntime()
 { }
 
 xcomp::XCNLConfigurator& NLDXRuntime::GetConfigurator() noexcept { return Configurator; }
 xcomp::XCNLRawExecutor& NLDXRuntime::GetRawExecutor() noexcept { return RawExecutor; }
+xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return StructHandler; }
 
 std::u32string_view NLDXRuntime::GetDXTypeName(common::simd::VecDataInfo info) noexcept
 {

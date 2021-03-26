@@ -145,6 +145,9 @@ void NailangParser::EatSemiColon()
 
 FuncName* NailangParser::CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const
 {
+    info = FuncName::PrepareFuncInfo(name, info);
+    if (name.empty())
+        NLPS_THROW_EX(u"Does not allow empty function name"sv);
     try
     {
         return FuncName::Create(MemPool, name, info);

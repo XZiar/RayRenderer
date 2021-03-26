@@ -204,7 +204,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         return {};
     }
 
-    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::MetaEvalPack& meta, xcomp::InstanceContext& ctx) override
+    void InstanceMeta(xcomp::XCNLExecutor& executor, const xziar::nailang::FuncPack& meta, xcomp::InstanceContext& ctx) override
     {
         Expects(dynamic_cast<KernelContext*>(&ctx) != nullptr);
         auto& runtime = GetRuntime(executor);

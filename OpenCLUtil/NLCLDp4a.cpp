@@ -9,8 +9,8 @@ using xcomp::ReplaceResult;
 using xziar::nailang::ArgLimits;
 using xziar::nailang::Arg;
 using xziar::nailang::FuncCall;
+using xziar::nailang::FuncPack;
 using xziar::nailang::FuncEvalPack;
-using xziar::nailang::MetaEvalPack;
 using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
@@ -35,7 +35,7 @@ void NLCLDp4aExtension::FinishInstance(xcomp::XCNLRuntime& runtime, xcomp::Insta
     Provider.reset();
 }
 
-void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const MetaEvalPack& meta, xcomp::InstanceContext&)
+void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const FuncPack& meta, xcomp::InstanceContext&)
 {
     if (meta.GetName() == U"oclu.Dp4aExt"sv)
     {
