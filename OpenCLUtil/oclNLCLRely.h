@@ -110,7 +110,7 @@ public:
 };
 
 
-class OCLUAPI NLCLConfigurator : public NLCLExecutor, public xcomp::XCNLConfigurator
+class OCLUAPI NLCLConfigurator final : public NLCLExecutor, public xcomp::XCNLConfigurator
 {
 private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
@@ -123,7 +123,7 @@ public:
 };
 
 
-class OCLUAPI NLCLRawExecutor : public NLCLExecutor, public xcomp::XCNLRawExecutor
+class OCLUAPI NLCLRawExecutor final : public NLCLExecutor, public xcomp::XCNLRawExecutor
 {
     friend NLCLRuntime;
 private:
@@ -147,7 +147,7 @@ public:
 };
 
 
-class OCLUAPI NLCLStructHandler : public NLCLExecutor, public xcomp::XCNLStructHandler
+class OCLUAPI NLCLStructHandler final : public NLCLExecutor, public xcomp::XCNLStructHandler
 {
     friend NLCLRuntime;
 private:
@@ -164,7 +164,7 @@ public:
 };
 
 
-class OCLUAPI COMMON_EMPTY_BASES NLCLRuntime : public xcomp::XCNLRuntime
+class OCLUAPI COMMON_EMPTY_BASES NLCLRuntime final : public xcomp::XCNLRuntime
 {
     friend NLCLExtension;
     friend NLCLExecutor;

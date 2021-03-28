@@ -1115,13 +1115,6 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
     std::u32string_view metaName;
     FuncName::FuncInfo metaFlag;
     size_t argOffset = 0;
-    const auto CreateNewFunc = [&](const FuncCall& meta) -> FuncCall
-    {
-        if (argOffset == 0)
-            return meta;
-        const auto funcName = FuncName::Create(allMetas.FuncNamePool, metaName, metaFlag);
-        return { funcName, meta.Args.subspan(argOffset), meta.Position };
-    };
     for (const auto& meta : allMetas.OriginalMetas)
     {
         Expects(meta.Name->IsMeta());
@@ -1130,15 +1123,8 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
         argOffset = 0;
         while (true)
         {
-            if (metaFlag == FuncName::FuncInfo::PostMeta)
-            {
-                const auto begin = allMetas.Args.size();
-                for (const auto& arg : meta.Args.subspan(argOffset))
-                    allMetas.Args.emplace_back(EvaluateExpr(arg));
-                allMetas.AllMetas.emplace_back(CreateNewFunc(meta), allMetas.GetParamSpan(begin));
-                break;
-            }
-            if (metaName == U"MetaIf")
+            const bool isPostMeta = metaFlag == FuncName::FuncInfo::PostMeta;
+            if (!isPostMeta && metaName == U"MetaIf")
             {
                 ThrowByArgTypes<2, ArgLimits::AtLeast>(meta, { Expr::Type::Empty, Expr::Type::Str }, argOffset);
                 if (ThrowIfNotBool(EvaluateExpr(meta.Args[argOffset]), U""))
@@ -1155,8 +1141,10 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
                     break;
                 }
             }
-            allMetas.AllMetas.emplace(allMetas.AllMetas.begin() + allMetas.MetaCount, CreateNewFunc(meta), common::span<Arg>{});
-            allMetas.MetaCount++;
+            if (argOffset != 0)
+                allMetas.AllocateMeta(isPostMeta, metaName, metaFlag, meta.Args.subspan(argOffset), meta.Position);
+            else
+                allMetas.AllocateMeta(isPostMeta, meta);
             break;
         }
     }
@@ -1169,10 +1157,7 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
         auto result = HandleMetaFunc(static_cast<const FuncCall&>(*meta), allMetas);
         if (result == MetaFuncResult::Unhandled)
         {
-            const auto begin = allMetas.Args.size();
-            for (const auto& arg : meta->Args)
-                allMetas.Args.emplace_back(EvaluateExpr(arg));
-            meta->Params = allMetas.GetParamSpan(begin);
+            allMetas.FillFuncPack(*meta, *this);
             result = HandleMetaFunc(*meta, allMetas);
         }
         if (result != MetaFuncResult::Unhandled)
@@ -1183,6 +1168,11 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
         case MetaFuncResult::Skip:      return false;
         default:                        break;
         }
+    }
+    // fill args of PostMeta
+    for (auto& pack : allMetas.PostMetas())
+    {
+        allMetas.FillFuncPack(pack, *this);
     }
     return true;
 }
@@ -1211,18 +1201,6 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
         }
         return MetaFuncResult::Skip;
     }
-    /*else if (metaName == U"MetaIf")
-    {
-        const auto args = EvalFuncArgs<2, ArgLimits::AtLeast>(meta, { Arg::Type::Boolable, Arg::Type::String });
-        if (args[0].GetBool().value())
-        {
-            const auto name = args[1].GetStr().value();
-            const auto funcName = CreateTempFuncName(name, FuncName::FuncInfo::Meta);
-            const FuncCall newMeta(funcName.Ptr(), meta.Args.subspan(2), meta.Position);
-            return HandleMetaFunc(newMeta, allMetas);
-        }
-        return MetaFuncResult::Next;
-    }*/
     else if (metaName == U"DefFunc")
     {
         ThrowIfNotStatement(meta, allMetas.Target, Statement::Type::Block);

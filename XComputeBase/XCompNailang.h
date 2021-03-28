@@ -451,7 +451,7 @@ protected:
     std::vector<OutputBlock> OutputBlocks;
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<NamedText> PatchedBlocks;
-    std::vector<XCNLStruct> CustomStructs;
+    std::vector<std::unique_ptr<XCNLStruct>> CustomStructs;
 private:
     COMMON_NO_COPY(XCNLContext)
     std::vector<std::shared_ptr<const ReplaceDepend>> PatchedSelfDepends;
@@ -646,6 +646,7 @@ class XCOMPBASAPI XCNLStructHandler
 private:
     [[nodiscard]] virtual const XCNLExecutor& GetExecutor() const noexcept = 0;
     [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
+    [[nodiscard]] virtual std::unique_ptr<XCNLStruct> GenerateStruct(std::u32string_view name);
     virtual void OnNewField(const XCNLStruct&, XCNLStruct::Field&, xziar::nailang::MetaSet&) {}
     virtual void FillFieldOffsets(XCNLStruct& target);
 protected:

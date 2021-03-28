@@ -469,7 +469,7 @@ size_t XCNLContext::FindStruct(std::u32string_view name) const
     size_t i = 0;
     for (const auto& target : CustomStructs)
     {
-        if (target.GetName() == name)
+        if (target->GetName() == name)
             return i;
         i++;
     }
@@ -503,7 +503,7 @@ Arg XCNLExecutor::EvaluateFunc(FuncEvalPack& func)
             const auto idx = ctx.FindStruct(name);
             if (idx == SIZE_MAX)
                 NLRT_THROW_EX(FMTSTR(u"Cannot find struct named [{}]"sv, name), func);
-            GetRuntime().PrintStruct(ctx.CustomStructs[idx]);
+            GetRuntime().PrintStruct(*ctx.CustomStructs[idx]);
             return {};
         }
         else if (func.NamePartCount() == 2)
@@ -946,14 +946,19 @@ std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XC
     if (field.Type.IsCustomType())
     {
         const auto& type = GetExecutor().GetContext().CustomStructs[field.Type.GetCustomTypeIdx().value()];
-        return { type.Alignment, type.Size };
+        return { type->Alignment, type->Size };
     }
     else
     {
         const auto& type = field.Type.GetVecType().value();
         const auto alignment = type.Bit / 8;
-        return { alignment, type.Dim0 * type.Dim1 * alignment };
+        return { alignment, type.Dim0 * std::max<uint8_t>(type.Dim1, 1) * alignment };
     }
+}
+
+std::unique_ptr<XCNLStruct> XCNLStructHandler::GenerateStruct(std::u32string_view name)
+{
+    return std::make_unique<XCNLStruct>(name);
 }
 
 void XCNLStructHandler::FillFieldOffsets(XCNLStruct& target)
@@ -961,7 +966,8 @@ void XCNLStructHandler::FillFieldOffsets(XCNLStruct& target)
     uint32_t maxAlign = 0, offset = 0;
     for (auto& field : target.Fields)
     {
-        const auto [align, eleSize] = GetBasicFieldAlignment(field);
+        const auto [align_, eleSize] = GetBasicFieldAlignment(field);
+        const auto align = field.Offset == 0 ? align_ : field.Offset;
         maxAlign = std::max<uint32_t>(maxAlign, align);
         const auto newOffset = (offset + align - 1) / align * align;
         field.Offset = static_cast<uint16_t>(newOffset);
@@ -1005,13 +1011,17 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
             const auto idx = ctx.FindStruct(type);
             if (idx <= UINT16_MAX)
                 typeData.emplace(gsl::narrow_cast<uint16_t>(idx));
-            // runtime.ThrowByVecType(type, u"not recognized as VecType"sv, );
         }
         auto& target = GetStruct();
         if (!typeData.has_value())
             executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
                 type, name, target.GetName()));
         auto& field = target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
+        if (const auto alignMeta = func.Metas->FindPostMeta(U"xcomp.Align"sv); alignMeta)
+        {
+            executor.ThrowByParamTypes<1>(*alignMeta, { Arg::Type::Integer });
+            field.Offset = static_cast<uint16_t>(alignMeta->Params[0].GetUint().value());
+        }
         OnNewField(target, field, *func.Metas);
         return true;
     }
@@ -1043,7 +1053,7 @@ void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
     {
         std::u32string_view typeName;
         if (field.Type.IsCustomType())
-            typeName = XCContext.CustomStructs[*field.Type.GetCustomTypeIdx()].GetName();
+            typeName = XCContext.CustomStructs[*field.Type.GetCustomTypeIdx()]->GetName();
         else
             typeName = StringifyVDataType(*field.Type.GetVecType());
         APPEND_FMT(str, u"[{:4}] {} {}"sv, field.Offset, typeName, target.StrPool.GetStringView(field.Name));
@@ -1303,9 +1313,9 @@ void XCNLRuntime::ProcessStructBlock(const Block& block, MetaFuncs metas)
 {
     auto& handler = GetStructHandler();
     auto& executor = handler.GetExecutor();
-    XCNLStruct theStruct(block.Name);
+    auto theStruct = handler.GenerateStruct(block.Name);
     auto frame = FrameStack.PushFrame<XCNLStructHandler::StructFrame>(&executor, ConstructEvalContext(),
-        &block, metas, theStruct);
+        &block, metas, *theStruct);
     if (!metas.empty())
     {
         Statement target(&block);
@@ -1314,7 +1324,7 @@ void XCNLRuntime::ProcessStructBlock(const Block& block, MetaFuncs metas)
             return;
     }
     frame->Execute();
-    handler.FillFieldOffsets(theStruct);
+    handler.FillFieldOffsets(*theStruct);
     XCContext.CustomStructs.push_back(std::move(theStruct));
 }
 
@@ -1431,7 +1441,12 @@ void XCNLProgStub::ExecuteBlocks(const std::u32string_view type) const
         if (tmp.TypeData != Statement::Type::Block)
             continue;
         const auto& block = *tmp.template Get<Block>();
-        if (block.Type == type)
+        if (block.Type != type)
+            continue;
+        const auto blkType = Runtime->GetBlockType(block, {});
+        if (blkType == OutputBlock::BlockType::Struct)
+            Runtime->ProcessStructBlock(block, meta);
+        else
             Runtime->ProcessConfigBlock(block, meta);
     }
 }

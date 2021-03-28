@@ -112,7 +112,7 @@ protected:
 };
 
 
-class DXUAPI NLDXConfigurator : public NLDXExecutor, public xcomp::XCNLConfigurator
+class DXUAPI NLDXConfigurator final : public NLDXExecutor, public xcomp::XCNLConfigurator
 {
 private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
@@ -125,7 +125,7 @@ public:
 };
 
 
-class DXUAPI NLDXRawExecutor : public NLDXExecutor, public xcomp::XCNLRawExecutor
+class DXUAPI NLDXRawExecutor final : public NLDXExecutor, public xcomp::XCNLRawExecutor
 {
     friend NLDXRuntime;
 private:
@@ -147,13 +147,14 @@ public:
 };
 
 
-class DXUAPI NLDXStructHandler : public NLDXExecutor, public xcomp::XCNLStructHandler
+class DXUAPI NLDXStructHandler final : public NLDXExecutor, public xcomp::XCNLStructHandler
 {
     friend NLDXRuntime;
 private:
     NLDXStructHandler(NLDXRuntime* runtime);
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
     [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
+    //[[nodiscard]] std::unique_ptr<xcomp::XCNLStruct> GenerateStruct(std::u32string_view name) final;
     void OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
     [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, xziar::nailang::MetaSet& allMetas) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
@@ -164,7 +165,7 @@ public:
 };
 
 
-class DXUAPI COMMON_EMPTY_BASES NLDXRuntime : public xcomp::XCNLRuntime
+class DXUAPI COMMON_EMPTY_BASES NLDXRuntime final : public xcomp::XCNLRuntime
 {
     friend NLDXExtension;
     friend NLDXExecutor;

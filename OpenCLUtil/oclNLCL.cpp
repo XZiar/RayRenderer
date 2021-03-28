@@ -876,7 +876,7 @@ NLCLProcessor::~NLCLProcessor()
 
 void NLCLProcessor::ConfigureCL(NLCLProgStub& stub) const
 {
-    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"oclu.Prepare"sv };
+    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"oclu.Prepare"sv, U"xcomp.Struct" };
     stub.Prepare(preapres);
     constexpr std::u32string_view collects[] = { U"oclu."sv, U"xcomp."sv };
     stub.Collect(collects);

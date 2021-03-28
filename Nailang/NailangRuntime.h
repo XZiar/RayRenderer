@@ -389,6 +389,20 @@ private:
     std::vector<FuncPack> AllMetas;
     MemoryPool FuncNamePool;
     size_t MetaCount;
+    void AllocateMeta(bool isPostMeta, const FuncCall& func)
+    {
+        auto it = isPostMeta ? AllMetas.end() : (AllMetas.begin() + MetaCount);
+        AllMetas.emplace(it, func, common::span<Arg>{});
+        if (!isPostMeta)
+            MetaCount++;
+    }
+    template<typename... Args>
+    forceinline void AllocateMeta(bool isPostMeta, const std::u32string_view metaName, FuncName::FuncInfo metaFlag, Args&&... args)
+    {
+        const auto funcName = FuncName::Create(FuncNamePool, metaName, metaFlag);
+        AllocateMeta(isPostMeta, { funcName, std::forward<Args>(args)... });
+    }
+    forceinline void FillFuncPack(FuncPack& pack, NailangExecutor& executor);
     void PrepareBitmap() { AccessBitmap = { MetaCount, false }; }
 public:
     const common::span<const FuncCall> OriginalMetas;
@@ -399,6 +413,15 @@ public:
     common::span<FuncPack> PostMetas() noexcept
     {
         return common::to_span(AllMetas).subspan(MetaCount);
+    }
+    FuncPack* FindPostMeta(std::u32string_view name) noexcept
+    {
+        for (auto& meta : PostMetas())
+        {
+            if (meta.FullFuncName() == name)
+                return &meta;
+        }
+        return nullptr;
     }
     [[nodiscard]] constexpr ItType begin() noexcept
     {
@@ -419,10 +442,6 @@ public:
         if (metas)
             return metas->OriginalMetas;
         return {};
-    }
-    forceinline common::span<Arg> GetParamSpan(size_t offset) noexcept
-    {
-        return common::to_span(Args).subspan(offset);
     }
 };
 struct FuncEvalPack : public FuncPack
@@ -715,6 +734,13 @@ public:
     virtual void EvaluateBlock(const Block& block, common::span<const FuncCall> metas);
 };
 
+inline void MetaSet::FillFuncPack(FuncPack& pack, NailangExecutor& executor)
+{
+    const auto begin = Args.size();
+    for (const auto& arg : pack.Args)
+        Args.emplace_back(executor.EvaluateExpr(arg));
+    pack.Params = common::to_span(Args).subspan(begin);
+}
 inline void NailangBlockFrame::Execute() { Executor->ExecuteFrame(*this); }
 
 
