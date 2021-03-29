@@ -517,37 +517,34 @@ xcomp::XCNLConfigurator& NLCLRuntime::GetConfigurator() noexcept { return Config
 xcomp::XCNLRawExecutor& NLCLRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 xcomp::XCNLStructHandler& NLCLRuntime::GetStructHandler() noexcept { return StructHandler; }
 
+#define GENV(s, type, bit, n) { static_cast<uint32_t>(xcomp::VTypeInfo{ VecDataInfo::DataTypes::type, n, 0, bit }), U"" STRINGIZE(s) ""sv }
+#define PERPFX(pfx, type, bit) \
+    GENV(pfx,            type, bit, 1), \
+    GENV(PPCAT(pfx, 2),  type, bit, 2), \
+    GENV(PPCAT(pfx, 3),  type, bit, 3), \
+    GENV(PPCAT(pfx, 4),  type, bit, 4), \
+    GENV(PPCAT(pfx, 8),  type, bit, 8), \
+    GENV(PPCAT(pfx, 16), type, bit, 16)
+static constexpr std::pair<uint32_t, std::u32string_view> CLTypeMappings[] =
+{
+    PERPFX(uchar,  Unsigned, 8),
+    PERPFX(ushort, Unsigned, 16),
+    PERPFX(uint,   Unsigned, 32),
+    PERPFX(ulong,  Unsigned, 64),
+    PERPFX(char,   Signed,   8),
+    PERPFX(short,  Signed,   16),
+    PERPFX(int,    Signed,   32),
+    PERPFX(long,   Signed,   64),
+    PERPFX(half,   Float,    16),
+    PERPFX(float,  Float,    32),
+    PERPFX(double, Float,    64),
+};
+#undef PERPFX
+#undef GENV
 std::u32string_view NLCLRuntime::GetCLTypeName(xcomp::VTypeInfo info) noexcept
 {
-#define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(xcomp::VTypeInfo{xcomp::VTypeInfo::DataTypes::type, n, 0, bit}): return U"" STRINGIZE(s) ""sv;
-
-#define CASEV(pfx, type, bit) \
-    CASE(pfx,            type, bit, 1)  \
-    CASE(PPCAT(pfx, 2),  type, bit, 2)  \
-    CASE(PPCAT(pfx, 3),  type, bit, 3)  \
-    CASE(PPCAT(pfx, 4),  type, bit, 4)  \
-    CASE(PPCAT(pfx, 8),  type, bit, 8)  \
-    CASE(PPCAT(pfx, 16), type, bit, 16) \
-
-    switch (static_cast<uint32_t>(info))
-    {
-    CASEV(uchar,  Unsigned, 8)
-    CASEV(ushort, Unsigned, 16)
-    CASEV(uint,   Unsigned, 32)
-    CASEV(ulong,  Unsigned, 64)
-    CASEV(char,   Signed,   8)
-    CASEV(short,  Signed,   16)
-    CASEV(int,    Signed,   32)
-    CASEV(long,   Signed,   64)
-    CASEV(half,   Float,    16)
-    CASEV(float,  Float,    32)
-    CASEV(double, Float,    64)
-    default: return {};
-    }
-
-#undef CASEV
-#undef CASE
+    constexpr auto Mapping = common::container::BuildTableStore<CLTypeMappings>();
+    return Mapping(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
@@ -728,7 +725,7 @@ xcomp::VTypeInfo NLCLRuntime::TryParseVecType(const std::u32string_view type, bo
 {
     auto info = xcomp::ParseVDataType(type);
     if (!info)
-        info;
+        return info;
     const bool isMinBits = info.HasFlag(xcomp::VTypeInfo::TypeFlags::MinBits);
     bool typeSupport = true;
     if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling

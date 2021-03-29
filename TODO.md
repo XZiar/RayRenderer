@@ -71,10 +71,8 @@
   - [x] Add array type
   - [x] Add array access by `[]`
   - [ ] Add member func call for arg by `()`
-  - [ ] Design custom type with func-table
   - [x] Allow fake arg when try to set value of an arg
   - [x] Add register-based customvar handler
-  - [ ] Design component of `Literal`, included in different `Expr`, `Expr` will be the `Statement`, with 8bit extra type info from original meta-info field
   - [x] Evaluate `Expr`(or `RawArg`) before calling the function
   - [x] Add ternary operator
   - [ ] CustomVar also report `TypeData` for easier type conversion
@@ -88,8 +86,9 @@
   - [ ] Add interop between opencl and directx (delay load + conditional compiling)
   - [x] Add support of output debug data into SpreadsheetML format
   - [x] Add common syntax to define args of the instance
-  - [ ] Add common syntax to define structure
+  - [x] Add common syntax to define structure
   - [x] Expose common API to inject custom extensions
+  - [ ] Add support for matrix datatype
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
   - [ ] Add common interface for texture/buffer, SRV/UAV
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.

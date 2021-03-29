@@ -42,11 +42,13 @@ namespace xcomp
 
 struct VTypeInfo
 {
+    static constexpr uint8_t DimPackMap[33] = { 0,1,2,3,4,0,0,0,5,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7 };
+    static constexpr uint8_t DimUnPackMap[16] = { 0,1,2,3,4,8,16,32,0,0,0,0,0,0,0,0 };
     static constexpr uint8_t PackDims(uint32_t dim0, uint32_t dim1) noexcept
     {
-        dim0 -= 1;
-        dim1 -= 1;
-        return static_cast<uint8_t>((dim0 & 0xfu) | (dim1 << 4));
+        const auto dim0_ = dim0 <= 32 ? DimPackMap[dim0] : 0u;
+        const auto dim1_ = dim1 <= 32 ? DimPackMap[dim1] : 0u;
+        return static_cast<uint8_t>(dim0_ | (dim1_ << 4));
     }
     using DataTypes = common::simd::VecDataInfo::DataTypes;
     enum class TypeFlags : uint8_t { Empty = 0, Unsupport = 0b00000001, MinBits = 0b00000010 };
@@ -54,6 +56,9 @@ struct VTypeInfo
     uint8_t Bits;
     TypeFlags Flag;
     DataTypes Type;
+    constexpr VTypeInfo() noexcept :
+        Dims(0), Bits(0), Flag(VTypeInfo::TypeFlags::Empty), Type(DataTypes::Empty)
+    { }
     constexpr VTypeInfo(DataTypes type, uint8_t dim0, uint8_t dim1, uint8_t bits, TypeFlags flag = VTypeInfo::TypeFlags::Empty) noexcept :
         Dims(PackDims(dim0, dim1)), Bits(bits), Flag(flag), Type(type)
     { }
@@ -93,11 +98,11 @@ struct VTypeInfo
     }
     forceinline constexpr uint8_t Dim0() const noexcept
     {
-        return (Dims & 0xfu) + 1;
+        return DimUnPackMap[Dims & 0xfu];
     }
     forceinline constexpr uint8_t Dim1() const noexcept
     {
-        return (Dims >> 4) + 1;
+        return DimUnPackMap[Dims >> 4];
     }
     forceinline constexpr void SetDims(uint8_t dim0, uint8_t dim1) noexcept
     {

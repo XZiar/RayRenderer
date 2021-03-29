@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CommonRely.hpp"
 #include <cstdint>
 #include <optional>
 #include <tuple>
@@ -337,126 +338,92 @@ struct ValSet : public detail::KVSet<Map, false>
     ValSet(Map& themap) : detail::KVSet<Map, false>(themap) { }
 };
 
+
 namespace detail
 {
-template<typename E>
-struct SlaveVectorHelper
+template<typename K, typename V>
+struct StaticLookupItem
 {
-    using T = E;
-};
-template<typename E>
-struct SlaveVectorHelper<std::unique_ptr<E>>
-{
-    using T = E;
+    static_assert(std::is_integral_v<K>);
+    K Key;
+    V Value;
+    constexpr StaticLookupItem() noexcept : Key(0), Value(V{}) { }
+    constexpr StaticLookupItem(K key, V val) noexcept : Key(key), Value(val) { }
+    constexpr bool operator<(const StaticLookupItem<K, V>& item) const noexcept
+    {
+        return Key < item.Key;
+    }
+    constexpr bool operator<(const K key) const noexcept
+    {
+        return Key < key;
+    }
+    template<size_t N>
+    static constexpr bool CheckUnique(const std::pair<K,V> (&items)[N]) noexcept
+    {
+        for (size_t i = 0; i < N; ++i)
+            for (size_t j = 0; j < i; ++j)
+                if (items[i].first == items[j].first)
+                    return false;
+        return true;
+    }
 };
 }
-template<typename HostT, typename E>
-struct SlaveVector
+
+template<typename K, typename V, size_t N>
+struct StaticLookupTable
 {
-private:
-    using T = typename detail::SlaveVectorHelper<E>::T;
-    class SlaveIterator
+    std::array<detail::StaticLookupItem<K, V>, N> Items = {};
+    template<typename T>
+    constexpr std::optional<V> operator()(const T& key) const noexcept
     {
-    private:
-        std::shared_ptr<const HostT> Host;
-        typename std::vector<E>::const_iterator It;
-    public:
-        using iterator_category = typename decltype(It)::iterator_category;
-        using value_type = std::shared_ptr<const T>;
-        using difference_type = std::ptrdiff_t;
-
-        SlaveIterator(const std::shared_ptr<const HostT>& host, typename std::vector<E>::const_iterator it)
-            : Host(host), It(it) { }
-
-        SlaveIterator& operator++()
+        const auto keyNum = static_cast<K>(key);
+        size_t left = 0, right = N;
+        while (left < right)
         {
-            It++; return *this;
-        }
-        SlaveIterator operator++(int)
-        {
-            SlaveIterator ret(Host, It);
-            It++; 
-            return ret;
-        }
-        bool operator!=(const SlaveIterator& other) const { return It != other.It; }
-        std::shared_ptr<const T> operator*() const
-        {
-            if constexpr(std::is_same_v<E, T>)
-                return std::shared_ptr<const T>(Host, &*It);
+            size_t idx = (left + right) / 2;
+            if (Items[idx].Key < keyNum)
+                left = idx + 1;
             else
-                return std::shared_ptr<const T>(Host, (*It).get());
+                right = idx;
         }
-    };
-
-    class SlaveEnumerableSource
-    {
-    private:
-        std::shared_ptr<const HostT> Host;
-        size_t Index = 0;
-    public:
-        using OutType = std::shared_ptr<const T>;
-        static constexpr bool ShouldCache = false;
-        static constexpr bool InvolveCache = true;
-        static constexpr bool IsCountable = true;
-        static constexpr bool CanSkipMultiple = true;
-
-        SlaveEnumerableSource(const std::shared_ptr<const HostT>& host)
-            : Host(host) { }
-
-        constexpr OutType GetCurrent() const noexcept
+        if (right < N && Items[right].Key == keyNum)
         {
-            if constexpr (std::is_same_v<E, T>)
-                return std::shared_ptr<const T>(Host, &Host->Vec[Index]);
-            else
-                return std::shared_ptr<const T>(Host, Host->Vec[Index].get());
+            return Items[right].Value;
         }
-        constexpr void MoveNext() noexcept { Index++; }
-        constexpr bool IsEnd() const noexcept
-        {
-            return Index >= Host->Vec.size();
-        }
-
-        constexpr size_t Count() const noexcept
-        {
-            const auto size = Host->Vec.size();
-            return size > Index ? size - Index : 0;
-        }
-        constexpr void MoveMultiple(const size_t count) noexcept
-        {
-            Index += count;
-        }
-    };
-
-    std::shared_ptr<const HostT> Host;
-    const std::vector<E>& Vec;
-public:
-    SlaveVector(std::shared_ptr<const HostT> host, const std::vector<E>& vec)
-        : Host(host), Vec(vec) { }
-    SlaveIterator begin() const
-    {
-        return SlaveIterator(Host, Vec.cbegin());
-    }
-    SlaveIterator end() const
-    {
-        return SlaveIterator(Host, Vec.cend());
-    }
-    SlaveEnumerableSource GetEnumerator() const
-    {
-        return SlaveEnumerableSource(Host);
-    }
-    size_t Size() const noexcept
-    {
-        return Vec.size();
-    }
-    operator std::vector<std::shared_ptr<const T>>() const
-    {
-        std::vector<std::shared_ptr<const T>> vec;
-        vec.reserve(Vec.size());
-        for (auto x : *this)
-            vec.emplace_back(x);
-        return vec;
+        return {};
     }
 };
+
+template<auto& Items>
+constexpr inline auto BuildTableStore() noexcept
+{
+    using T = std::remove_reference_t<decltype(Items)>;
+    using U = remove_cvref_t<std::remove_extent_t<T>>;
+    constexpr auto N = std::extent_v<T>;
+    static_assert(is_specialization<U, std::pair>::value, "elements should be std::pair");
+    using K = typename U::first_type;
+    using V = typename U::second_type;
+    static_assert(detail::StaticLookupItem<K, V>::CheckUnique(Items), "cannot contain repeat key");
+    StaticLookupTable<K, V, N> table;
+    for (size_t i = 0; i < N; ++i)
+    {
+        table.Items[i].Key   = Items[i].first;
+        table.Items[i].Value = Items[i].second;
+    }
+#if defined(__cpp_lib_constexpr_algorithms) && __cpp_lib_constexpr_algorithms >= 201806L
+    std::sort(table.Items.begin(), table.Items.end());
+#else
+    for (size_t i = 0; i < N - 1; i++)
+        for (size_t j = 0; j < N - 1 - i; j++)
+            if (table.Items[j + 1] < table.Items[j])
+            {
+                const auto tmp = table.Items[j];
+                table.Items[j] = table.Items[j + 1];
+                table.Items[j + 1] = tmp;
+            }
+#endif
+    return table;
+}
 
 
 }

@@ -452,36 +452,34 @@ xcomp::XCNLConfigurator& NLDXRuntime::GetConfigurator() noexcept { return Config
 xcomp::XCNLRawExecutor& NLDXRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return StructHandler; }
 
+#define GENV(s, type, bit, minBits, n) { static_cast<uint32_t>(xcomp::VTypeInfo{ VecDataInfo::DataTypes::type, n, 0, bit, \
+    minBits ? xcomp::VTypeInfo::TypeFlags::MinBits : xcomp::VTypeInfo::TypeFlags::Empty }), U"" STRINGIZE(s) ""sv }
+#define PERPFX(pfx, type, bit, minBits) \
+    GENV(pfx,            type, bit, minBits, 1), \
+    GENV(PPCAT(pfx, 2),  type, bit, minBits, 2), \
+    GENV(PPCAT(pfx, 3),  type, bit, minBits, 3), \
+    GENV(PPCAT(pfx, 4),  type, bit, minBits, 4)
+static constexpr std::pair<uint32_t, std::u32string_view> DXTypeMappings[] =
+{
+    PERPFX(min16uint,    Unsigned, 16, true),
+    PERPFX(uint16_t,     Unsigned, 16, false),
+    PERPFX(uint,         Unsigned, 32, false),
+    PERPFX(uint64_t,     Unsigned, 64, false),
+    PERPFX(min16int,     Signed,   16, true),
+    PERPFX(int16_t,      Signed,   16, false),
+    PERPFX(int,          Signed,   32, false),
+    PERPFX(int64_t,      Signed,   64, false),
+    PERPFX(min16float,   Float,    16, true),
+    PERPFX(float16_t,    Float,    16, false),
+    PERPFX(float,        Float,    32, false),
+    PERPFX(double,       Float,    64, false),
+};
+#undef PERPFX
+#undef GENV
 std::u32string_view NLDXRuntime::GetDXTypeName(xcomp::VTypeInfo info) noexcept
 {
-#define CASE(s, type, bit, minBits, n) case static_cast<uint32_t>(xcomp::VTypeInfo{ \
-    xcomp::VTypeInfo::DataTypes::type, n, 0, bit, minBits ? xcomp::VTypeInfo::TypeFlags::MinBits : xcomp::VTypeInfo::TypeFlags::Empty}):    \
-        return U"" STRINGIZE(s) ""sv;
-#define CASEV(pfx, type, bit, minBits) \
-    CASE(pfx,            type, bit, minBits, 1)  \
-    CASE(PPCAT(pfx, 2),  type, bit, minBits, 2)  \
-    CASE(PPCAT(pfx, 3),  type, bit, minBits, 3)  \
-    CASE(PPCAT(pfx, 4),  type, bit, minBits, 4)  \
-
-    switch (static_cast<uint32_t>(info))
-    {
-    CASEV(min16uint,    Unsigned, 16, true)
-    CASEV(uint16_t,     Unsigned, 16, false)
-    CASEV(uint,         Unsigned, 32, false)
-    CASEV(uint64_t,     Unsigned, 64, false)
-    CASEV(min16int,     Signed,   16, true)
-    CASEV(int16_t,      Signed,   16, false)
-    CASEV(int,          Signed,   32, false)
-    CASEV(int64_t,      Signed,   64, false)
-    CASEV(min16float,   Float,    16, true)
-    CASEV(float16_t,    Float,    16, false)
-    CASEV(float,        Float,    32, false)
-    CASEV(double,       Float,    64, false)
-    default: return {};
-    }
-
-#undef CASEV
-#undef CASE
+    constexpr auto Mapping = common::container::BuildTableStore<DXTypeMappings>();
+    return Mapping(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept
@@ -754,7 +752,7 @@ xcomp::VTypeInfo NLDXRuntime::TryParseVecType(const std::u32string_view type, bo
 {
     auto info = xcomp::ParseVDataType(type);
     if (!info)
-        info;
+        return info;
     const bool isMinBits = info.HasFlag(xcomp::VTypeInfo::TypeFlags::MinBits);
     bool typeSupport = true;
     if (info.Type == xcomp::VTypeInfo::DataTypes::BFloat)
