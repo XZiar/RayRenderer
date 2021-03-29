@@ -479,9 +479,10 @@ const xcomp::XCNLExecutor& NLCLStructHandler::GetExecutor() const noexcept
     return *this;
 }
 
-void NLCLStructHandler::OnNewField(const xcomp::XCNLStruct&, xcomp::XCNLStruct::Field&, MetaSet&)
+void NLCLStructHandler::OnNewField(xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, MetaSet&)
 {
-
+    if (const auto dims = target.GetFieldDims(field); dims.Dims.size() > 1)
+        NLRT_THROW_EX(FMTSTR(u"Field [{}] is {}D-array, which is not supported.", target.GetFieldName(field), dims.Dims.size()));
 }
 
 void NLCLStructHandler::OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output)

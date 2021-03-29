@@ -38,6 +38,16 @@ using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
+std::string_view NLDXStruct::GetLayoutName() const noexcept
+{
+    switch (Layout)
+    {
+    case LayoutTarget::StructBuf:   return "structbuf"sv;
+    case LayoutTarget::ConstBuf:    return "cbuf"sv;
+    default:                        return "error"sv;
+    }
+}
+
 
 NLDXExtension::NLDXExtension(NLDXContext& context) : xcomp::XCNLExtension(context), Context(context)
 { }
@@ -79,7 +89,7 @@ struct NLDXContext::DXUVar : public AutoVarHandler<NLDXContext>
 
 
 NLDXContext::NLDXContext(DxDevice dev, const common::CLikeDefines& info) :
-    xcomp::XCNLContext(info), Device(dev), AllowDebug(false)
+    xcomp::XCNLContext(info), Device(dev), AllowDebug(false), Enable16Bit(false)
 {
     AllowDebug = info["debug"].has_value();
     static DXUVar DXUVarHandler;
@@ -365,17 +375,34 @@ std::unique_ptr<xcomp::XCNLStruct> NLDXStructHandler::GenerateStruct(std::u32str
     return ret;
 }
 
-void NLDXStructHandler::OnNewField(const xcomp::XCNLStruct& target_, xcomp::XCNLStruct::Field& field, MetaSet&)
+void NLDXStructHandler::OnNewField(xcomp::XCNLStruct& target_, xcomp::XCNLStruct::Field& field, MetaSet&)
 {
-    auto& target = static_cast<const NLDXStruct&>(target_);
+    auto& target = static_cast<NLDXStruct&>(target_);
+    if (field.Type.IsCustomType())
+    {
+        if (const auto& fType = static_cast<const NLDXStruct&>(*GetCustomStructs()[field.Type.ToIndex()]); fType.Layout != target.Layout)
+            NLRT_THROW_EX(FMTSTR(u"Field [{}] is custom type [{}] of layout [{}], which not the same as target struct [{}] of layout [{}]."sv,
+                target.GetFieldName(field), fType.GetName(), fType.GetLayoutName(), target.GetName(), target.GetLayoutName()));
+    }
     if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
     {
-        if (field.Length > 1)
+        if (const auto dims = target.GetFieldDims(field); !dims.Dims.empty())
         {
-            if (const auto size = field.GetElementSize(GetCustomStructs()); size % 16 != 0)
+            const auto eleSize = field.GetElementInfo(GetCustomStructs()).second;
+            if (eleSize % 16 != 0)
             {
-                GetLogger().warning(u"Field [{}] of cbuffer struct [{}] is an array with element size [{}], may causing unexpected padding.\n",
-                    target.StrPool.GetStringView(field.Name), target.GetName(), size);
+                GetLogger().warning(u"Field [{}] of cbuffer struct [{}] is an {}D-array with element size [{}], may causing unexpected padding.\n",
+                    target.GetFieldName(field), target.GetName(), dims.Dims.size(), eleSize);
+            }
+            // handle array alignment
+            size_t curAlign = eleSize >= 16 ? 1 : 16 / eleSize; // each element is a slot
+            size_t idx = 0;
+            for (auto& dim : dims.Dims)
+            {
+                dim.StrideAlign = static_cast<uint16_t>(curAlign);
+                curAlign *= dim.Size;
+                if (curAlign >= UINT16_MAX)
+                    NLRT_THROW_EX(FMTSTR(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", target.GetFieldName(field), idx, curAlign));
             }
         }
     }
@@ -391,10 +418,11 @@ void NLDXStructHandler::FillFieldOffsets(xcomp::XCNLStruct& target_)
     uint32_t offset = 0;
     for (auto& field : target.Fields)
     {
-        const auto [align_, eleSize] = GetBasicFieldAlignment(field);
-        const auto align = std::max<uint32_t>(field.Offset == 0 ? align_ : field.Offset, 4);
+        const auto [align_, eleSize] = field.GetElementInfo(GetCustomStructs());
+        const auto align = std::min(4u, align_); // maximum align is 4 (even for 64bit type)
         const auto newOffset = (offset + align - 1) / align * align;
-        if (field.Length == 1 && newOffset % 16 + eleSize <= 16) // fit into the slot
+        const auto dims = target.GetFieldDims(field);
+        if (dims.Dims.empty() && (newOffset % 16 + eleSize) <= 16) // fit into the slot
         {
             field.Offset = static_cast<uint16_t>(newOffset);
             offset = newOffset + eleSize;
@@ -403,8 +431,7 @@ void NLDXStructHandler::FillFieldOffsets(xcomp::XCNLStruct& target_)
         {
             field.Offset = static_cast<uint16_t>((newOffset / 16 + 1) * 16);
             const auto EleSlots = (eleSize + 15) / 16;
-            field.MetaInfo = EleSlots;
-            offset = field.Offset + (EleSlots * 16 * (field.Length - 1)) + eleSize;
+            offset = field.Offset + (EleSlots * 16 * (dims.GetTotalElements() - 1)) + eleSize;
         }
     }
     target.Alignment = 16; // vec4
@@ -461,14 +488,17 @@ xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return Stru
     GENV(PPCAT(pfx, 4),  type, bit, minBits, 4)
 static constexpr std::pair<uint32_t, std::u32string_view> DXTypeMappings[] =
 {
+    PERPFX(min12uint,    Unsigned, 12, true),
     PERPFX(min16uint,    Unsigned, 16, true),
     PERPFX(uint16_t,     Unsigned, 16, false),
     PERPFX(uint,         Unsigned, 32, false),
     PERPFX(uint64_t,     Unsigned, 64, false),
+    PERPFX(min12int,     Signed,   12, true),
     PERPFX(min16int,     Signed,   16, true),
     PERPFX(int16_t,      Signed,   16, false),
     PERPFX(int,          Signed,   32, false),
     PERPFX(int64_t,      Signed,   64, false),
+    PERPFX(min10float,   Float,    10, true),
     PERPFX(min16float,   Float,    16, true),
     PERPFX(float16_t,    Float,    16, false),
     PERPFX(float,        Float,    32, false),
@@ -757,6 +787,23 @@ xcomp::VTypeInfo NLDXRuntime::TryParseVecType(const std::u32string_view type, bo
     bool typeSupport = true;
     if (info.Type == xcomp::VTypeInfo::DataTypes::BFloat)
         typeSupport = false;
+    else if (info.Bits == 8) // 8bit handling
+    {
+        if (Context.Enable16Bit)
+        {
+            info.Flag &= ~xcomp::VTypeInfo::TypeFlags::MinBits; // remove minBits
+            info.Bits = 16; // promote to 16bit
+        }
+        else if (allowMinBits)
+        {
+            info.Flag |= xcomp::VTypeInfo::TypeFlags::MinBits; // force use minBits
+            info.Bits = static_cast<uint8_t>(info.Type == xcomp::VTypeInfo::DataTypes::Float ? 10 : 12); // promote to 10bit FP or 12bit int
+        }
+        else if (isMinBits) // disallow minbits, promote
+            info.Bits = 32;
+        else // disallow minbits, cannot support
+            typeSupport = false;
+    }
     else if (info.Bits == 16) // 16bit handling
     {
         if (Context.Enable16Bit)

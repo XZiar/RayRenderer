@@ -5,6 +5,8 @@
 #include "Nailang/NailangRuntime.h"
 #include "common/CLikeConfig.hpp"
 
+#include <boost/container/small_vector.hpp>
+
 
 namespace xcomp
 {
@@ -178,45 +180,95 @@ struct InstanceArgData;
 
 struct XCNLStruct
 {
+    struct ArrayDim
+    {
+        uint16_t Size;
+        uint16_t StrideAlign;
+    };
+    template<bool IsConst>
+    struct DimInfo
+    {
+        common::span<std::conditional_t<IsConst, const ArrayDim, ArrayDim>> Dims;
+        constexpr uint32_t GetTotalElements() const noexcept
+        {
+            uint32_t cnt = 1;
+            for (const auto& dim : Dims)
+                cnt *= dim.Size;
+            return cnt;
+        }
+        constexpr uint32_t GetAlignCounts() const noexcept
+        {
+            if (Dims.empty())
+                return 1;
+            const auto& dim = Dims.back();
+            return dim.Size * dim.StrideAlign;
+        }
+    };
     struct Field
     {
         common::StringPiece<char32_t> Name;
         VTypeInfo Type;
-        uint16_t Length;
+        uint16_t ArrayInfo;
         uint16_t Offset;
         uint32_t MetaInfo;
-        constexpr Field(common::StringPiece<char32_t> name, VTypeInfo type, uint16_t len) noexcept :
-            Name(name), Type(type), Length(len), Offset(0), MetaInfo(0)
+        constexpr Field(common::StringPiece<char32_t> name, VTypeInfo type, uint16_t arrayInfo) noexcept :
+            Name(name), Type(type), ArrayInfo(arrayInfo), Offset(0), MetaInfo(0)
         { }
         template<typename T>
-        [[nodiscard]] uint32_t GetElementSize(const T& structs) const noexcept
+        [[nodiscard]] std::pair<uint32_t, uint32_t> GetElementInfo(const T& structs) const noexcept
         {
             if (Type.IsCustomType())
             {
                 const auto& target = structs[Type.ToIndex()];
                 if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(target)>>)
-                    return target.Size;
+                    return { target.Alignment, target.Size };
                 else if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(*target)>>)
-                    return (*target).Size;
+                    return { (*target).Alignment, (*target).Size };
                 else
                     static_assert(!common::AlwaysTrue<T>, "structs should be a container of Type that inherit XCNLStruct or contains XCNLStruct");
             }
             else
-                return Type.Bits / 8;
+                return { Type.Bits / 8u, Type.Dim0() * std::max<uint8_t>(Type.Dim1(), 1) * Type.Bits / 8u };
         }
     };
     common::StringPool<char32_t> StrPool;
     common::StringPiece<char32_t> Name;
-    std::vector<Field> Fields;
+    boost::container::small_vector<Field, 8> Fields;
+    boost::container::small_vector<uint16_t, 16> ArrayInfos;
     uint32_t Alignment = 0;
     uint32_t Size = 0;
     XCNLStruct(std::u32string_view name) : Name(StrPool.AllocateString(name))
     { }
     std::u32string_view GetName() const noexcept { return StrPool.GetStringView(Name); }
-    [[nodiscard]] Field& AddField(std::u32string_view name, VTypeInfo type, uint16_t len)
+    std::u32string_view GetFieldName(const Field& field) const noexcept { return StrPool.GetStringView(field.Name); }
+    DimInfo<true> GetFieldDims(const Field& field) const noexcept
+    {
+        if (field.ArrayInfo == UINT16_MAX) return { {} };
+        const auto cnt = ArrayInfos[field.ArrayInfo];
+        return { { reinterpret_cast<const ArrayDim*>(&ArrayInfos[field.ArrayInfo + 1u]), cnt } };
+    }
+    DimInfo<false> GetFieldDims(const Field& field) noexcept
+    {
+        if (field.ArrayInfo == UINT16_MAX) return { {} };
+        const auto cnt = ArrayInfos[field.ArrayInfo];
+        return { { reinterpret_cast<ArrayDim*>(&ArrayInfos[field.ArrayInfo + 1u]), cnt } };
+    }
+    [[nodiscard]] Field& AddField(std::u32string_view name, VTypeInfo type, uint16_t arrayInfo)
     {
         const auto name_ = StrPool.AllocateString(name);
-        return Fields.emplace_back(name_, type, len);
+        return Fields.emplace_back(name_, type, arrayInfo);
+    }
+    [[nodiscard]] size_t AddArrayInfos(common::span<const ArrayDim> dims)
+    {
+        if (dims.empty()) return SIZE_MAX;
+        const auto idxVal = ArrayInfos.size();
+        ArrayInfos.push_back(gsl::narrow_cast<uint16_t>(dims.size()));
+        for (const auto& dim : dims)
+        {
+            ArrayInfos.push_back(dim.Size);
+            ArrayInfos.push_back(dim.StrideAlign);
+        }
+        return idxVal;
     }
 };
 
@@ -625,7 +677,7 @@ private:
     [[nodiscard]] virtual const XCNLExecutor& GetExecutor() const noexcept = 0;
     [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
     [[nodiscard]] virtual std::unique_ptr<XCNLStruct> GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet& metas);
-    virtual void OnNewField(const XCNLStruct&, XCNLStruct::Field&, xziar::nailang::MetaSet&) {}
+    virtual void OnNewField(XCNLStruct&, XCNLStruct::Field&, xziar::nailang::MetaSet&) {}
     virtual void OutputStruct(const XCNLStruct& target, std::u32string& output) = 0;
 protected:
     virtual void FillFieldOffsets(XCNLStruct& target);
@@ -648,7 +700,6 @@ protected:
     {
         return GetExecutor().GetContext().CustomStructs;
     }
-    [[nodiscard]] std::pair<uint32_t, uint32_t> GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept;
     void StringifyBasicField(const XCNLStruct::Field& field, const XCNLStruct& target, std::u32string& output) const noexcept;
     [[nodiscard]] xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangBlockFrame> PushFrame(
         XCNLStruct* target, const xziar::nailang::Block* block, MetaFuncs metas);

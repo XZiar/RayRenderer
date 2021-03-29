@@ -940,20 +940,6 @@ XCNLStruct& XCNLStructHandler::GetStruct() const
     executor.NLRT_THROW_EX(u"No StructFrame found."sv);
 }
 
-std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept
-{
-    if (field.Type.IsCustomType())
-    {
-        const auto& type = GetCustomStructs()[field.Type.ToIndex()];
-        return { type->Alignment, type->Size };
-    }
-    else
-    {
-        const auto alignment = field.Type.Bits / 8;
-        return { alignment, field.Type.Dim0() * std::max<uint8_t>(field.Type.Dim1(), 1) * alignment };
-    }
-}
-
 void XCNLStructHandler::StringifyBasicField(const XCNLStruct::Field& field, const XCNLStruct& target, std::u32string& output) const noexcept
 {
     std::u32string_view typeName;
@@ -961,9 +947,10 @@ void XCNLStructHandler::StringifyBasicField(const XCNLStruct::Field& field, cons
         typeName = GetCustomStructs()[field.Type.ToIndex()]->GetName();
     else
         typeName = GetRuntime().GetVecTypeName(field.Type);
-    APPEND_FMT(output, u"{} {}"sv, typeName, target.StrPool.GetStringView(field.Name));
-    if (field.Length > 1)
-        APPEND_FMT(output, u"[{}]"sv, field.Length);
+    APPEND_FMT(output, u"{} {}"sv, typeName, target.GetFieldName(field));
+    const auto dims = target.GetFieldDims(field);
+    for (const auto& dim : dims.Dims)
+        APPEND_FMT(output, u"[{}]"sv, dim.Size);
 }
 
 std::unique_ptr<XCNLStruct> XCNLStructHandler::GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet&)
@@ -976,12 +963,13 @@ void XCNLStructHandler::FillFieldOffsets(XCNLStruct& target)
     uint32_t maxAlign = 0, offset = 0;
     for (auto& field : target.Fields)
     {
-        const auto [align_, eleSize] = GetBasicFieldAlignment(field);
+        const auto [align_, eleSize] = field.GetElementInfo(GetCustomStructs());
         const auto align = field.Offset == 0 ? align_ : field.Offset;
         maxAlign = std::max<uint32_t>(maxAlign, align);
         const auto newOffset = (offset + align - 1) / align * align;
         field.Offset = static_cast<uint16_t>(newOffset);
-        offset = newOffset + eleSize * field.Length;
+        const auto cnt = target.GetFieldDims(field).GetAlignCounts();
+        offset = newOffset + eleSize * cnt;
     }
     target.Alignment = maxAlign;
     target.Size = (offset + maxAlign - 1) / maxAlign * maxAlign;
@@ -994,19 +982,25 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
     if (func.NamePartCount() >= 2 && func.NamePart(0) == U"xcomp"sv)
     {
         std::u32string_view type, name;
-        uint64_t len = 1;
+        boost::container::small_vector<XCNLStruct::ArrayDim, 16> dims;
         if (func.NamePart(1) == U"Field"sv)
         {
-            executor.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
+            executor.ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::String });
             type = func.Params[0].GetStr().value();
             name = func.Params[1].GetStr().value();
-        }
-        else if (func.NamePart(1) == U"Array"sv)
-        {
-            executor.ThrowByParamTypes<3>(func, { Arg::Type::String, Arg::Type::Integer, Arg::Type::String });
-            type = func.Params[0].GetStr().value();
-            len  = func.Params[1].GetUint().value();
-            name = func.Params[2].GetStr().value();
+            size_t idx = 0;
+            uint64_t curAlign = 1;
+            for (const auto& arg : func.Params.subspan(2))
+            {
+                executor.ThrowByParamType(func, arg, Arg::Type::Integer, idx + 2);
+                const auto len = arg.GetUint().value();
+                if (len >= UINT16_MAX)
+                    executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s dim[{}] exceed limit, get[{}].", name, idx, len), func);
+                dims.emplace_back(static_cast<uint16_t>(len), static_cast<uint16_t>(curAlign));
+                curAlign *= len;
+                if (curAlign >= UINT16_MAX)
+                    executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", name, idx, curAlign), func);
+            }
         }
         else
             return false;
@@ -1026,7 +1020,11 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
         if (!typeData.has_value())
             executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
                 type, name, target.GetName()));
-        auto& field = target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
+        const auto arrInfo = target.AddArrayInfos(dims);
+        if (arrInfo >= UINT16_MAX && arrInfo != SIZE_MAX)
+            executor.NLRT_THROW_EX(FMTSTR(u"Arrar info exceed limtis for [{}] at field [{}].", target.GetName(), name), func);
+
+        auto& field = target.AddField(name, *typeData, static_cast<uint16_t>(arrInfo));
         for (auto& meta : func.Metas->PostMetas())
         {
             if (meta.FullFuncName() == U"xcomp.Align"sv)
@@ -1069,9 +1067,10 @@ void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
             typeName = XCContext.CustomStructs[field.Type.ToIndex()]->GetName();
         else
             typeName = StringifyVDataType(field.Type);
-        APPEND_FMT(str, u"[{:4}] {} {}"sv, field.Offset, typeName, target.StrPool.GetStringView(field.Name));
-        if (field.Length > 1)
-            APPEND_FMT(str, u"[{}]"sv, field.Length);
+        APPEND_FMT(str, u"[{:4}] {} {}"sv, field.Offset, typeName, target.GetFieldName(field));
+        const auto dims = target.GetFieldDims(field);
+        for (const auto& dim : dims.Dims)
+            APPEND_FMT(str, u"[{}]"sv, dim.Size);
         str.append(u"\n");
     }
     Logger.verbose(str);

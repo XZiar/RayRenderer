@@ -154,7 +154,7 @@ private:
     NLCLStructHandler(NLCLRuntime* runtime);
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
     [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
-    void OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
+    void OnNewField(xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
     void OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
 public:

@@ -76,6 +76,7 @@ struct NLDXStruct : public xcomp::XCNLStruct
     enum class LayoutTarget : uint8_t { StructBuf, ConstBuf };
     LayoutTarget Layout = LayoutTarget::StructBuf;
     using XCNLStruct::XCNLStruct;
+    std::string_view GetLayoutName() const noexcept;
 };
 
 
@@ -166,7 +167,7 @@ private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
     [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
     [[nodiscard]] std::unique_ptr<xcomp::XCNLStruct> GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet& metas) final;
-    void OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
+    void OnNewField(xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
     void FillFieldOffsets(xcomp::XCNLStruct& target) final;
     void OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
