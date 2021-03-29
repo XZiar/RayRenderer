@@ -95,6 +95,13 @@ ArgLocator NLDXContext::LocateArg(const LateBindVar& var, bool create) noexcept
     return XCNLContext::LocateArg(var, create);
 }
 
+size_t NLDXContext::GetKernelCount() const noexcept
+{
+    return common::linq::FromIterable(OutputBlocks)
+        .Where([](const auto& blk) { return blk.Type == xcomp::OutputBlock::BlockType::Instance; })
+        .Count();
+}
+
 void NLDXContext::AddResource(const Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype,
     uint16_t space, uint16_t reg, uint16_t count, xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type)
 {
@@ -197,9 +204,13 @@ std::unique_ptr<xcomp::InstanceContext> NLDXRawExecutor::PrepareInstance(const x
     return std::make_unique<KernelContext>(static_cast<uint8_t>(kerId));
 }
 
-void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32string& dst)
+void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32string& output)
 {
+    const auto kerCount = static_cast<NLDXContext&>(GetContext()).GetKernelCount();
     auto& kerCtx = GetCurInstance();
+
+    if (kerCount > 1)
+        APPEND_FMT(output, U"#if defined(DXU_KERNEL_{})\r\n"sv, block.Name());
 
     /*Context.AddPatchedBlock(*this, FMTSTR(U"Resource for [{}]"sv, cookie.Block.Name()), 
         &NLDXRuntime::StringifyKernelResource, kerCtx, cookie.Block.Name());*/
@@ -207,9 +218,9 @@ void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
     // attributes
     for (const auto& item : kerCtx.Attributes)
     {
-        dst.append(item.Content).append(U"\r\n"sv);
+        output.append(item.Content).append(U"\r\n"sv);
     }
-    APPEND_FMT(dst, U"void {} ("sv, block.Name());
+    APPEND_FMT(output, U"void {} ("sv, block.Name());
     constexpr std::tuple<std::u32string KernelContext::*, std::u32string_view, std::u32string_view> Semantics[] =
     {
         { &KernelContext::GroupIdVar,   U"uint3"sv, U"SV_GroupID"sv },
@@ -222,28 +233,32 @@ void NLDXRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
     {
         if (const auto& name = kerCtx.*accessor; !name.empty())
         {
-            APPEND_FMT(dst, U"\r\n    {:5} {} : {},", type, name, sem);
+            APPEND_FMT(output, U"\r\n    {:5} {} : {},", type, name, sem);
         }
     }
 
-    if (dst.back() == U',')
-        dst.pop_back(); // remove additional ','
-    dst.append(U")\r\n{\r\n"sv);
+    if (output.back() == U',')
+        output.pop_back(); // remove additional ','
+    output.append(U")\r\n{\r\n"sv);
     // prefixes
-    kerCtx.WritePrefixes(dst);
+    kerCtx.WritePrefixes(output);
     // content
-    dst.append(kerCtx.Content);
+    output.append(kerCtx.Content);
     // suffixes
-    kerCtx.WriteSuffixes(dst);
-    dst.append(U"}\r\n"sv);
+    kerCtx.WriteSuffixes(output);
+    output.append(U"}\r\n"sv);
+    if (kerCount > 1)
+        output.append(U"#endif\r\n"sv);
 }
 
-void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& dst)
+void NLDXRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32string& output)
 {
     auto frame = XCNLRawExecutor::PushFrame(block, CreateContext(), nullptr);
-    dst.append(U"typedef struct \r\n{\r\n"sv);
-    DirectOutput(block, dst);
-    APPEND_FMT(dst, U"}} {};\r\n"sv, block.Block->Name);
+
+    APPEND_FMT(output, U"struct {}"sv, block.Block->Name);
+    output.append(U"\r\n{\r\n"sv);
+    DirectOutput(block, output);
+    output.append(U"};\r\n"sv);
 }
 
 bool NLDXRawExecutor::HandleInstanceMeta(FuncPack& meta)
@@ -322,27 +337,91 @@ const xcomp::XCNLExecutor& NLDXStructHandler::GetExecutor() const noexcept
     return *this;
 }
 
-void NLDXStructHandler::OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas)
+std::unique_ptr<xcomp::XCNLStruct> NLDXStructHandler::GenerateStruct(std::u32string_view name, MetaSet& metas)
 {
-
+    auto ret = std::make_unique<NLDXStruct>(name);
+    for (auto& meta : metas.PostMetas())
+    {
+        if (meta.FullFuncName() == U"dxu.Layout"sv)
+        {
+            ThrowByParamTypes<1>(meta, { Arg::Type::String });
+            if (const auto layout = meta.Params[0].GetStr().value(); layout == U"cbuf"sv)
+                ret->Layout = NLDXStruct::LayoutTarget::ConstBuf;
+            else if (layout == U"structbuf"sv)
+                ret->Layout = NLDXStruct::LayoutTarget::StructBuf;
+            else
+                NLRT_THROW_EX(FMTSTR(u"Unrecognized layout [{}] for struct [{}]."sv,
+                    layout, name), meta);
+        }
+    }
+    return ret;
 }
 
-NLDXStructHandler::MetaFuncResult NLDXStructHandler::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
+void NLDXStructHandler::OnNewField(const xcomp::XCNLStruct& target_, xcomp::XCNLStruct::Field& field, MetaSet&)
 {
-    const auto ret = NLDXExecutor::HandleMetaFunc(meta, allMetas);
-    if (ret != MetaFuncResult::Unhandled)
-        return ret;
-    if (TryGetStructFrame())
+    auto& target = static_cast<const NLDXStruct&>(target_);
+    if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
     {
-
+        if (field.Length > 1)
+        {
+            if (const auto size = field.GetElementSize(GetCustomStructs()); size % 16 != 0)
+            {
+                GetLogger().warning(u"Field [{}] of cbuffer struct [{}] is an array with element size [{}], may causing unexpected padding.\n",
+                    target.StrPool.GetStringView(field.Name), target.GetName(), size);
+            }
+        }
     }
-    return MetaFuncResult::Unhandled;
+}
+
+void NLDXStructHandler::FillFieldOffsets(xcomp::XCNLStruct& target_)
+{
+    auto& target = static_cast<NLDXStruct&>(target_);
+    if (target.Layout == NLDXStruct::LayoutTarget::StructBuf)
+        return XCNLStructHandler::FillFieldOffsets(target_);
+    // cbuffer has more strict layout requirement
+    // https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules
+    uint32_t offset = 0;
+    for (auto& field : target.Fields)
+    {
+        const auto [align_, eleSize] = GetBasicFieldAlignment(field);
+        const auto align = std::max<uint32_t>(field.Offset == 0 ? align_ : field.Offset, 4);
+        const auto size = eleSize * field.Length;
+        const auto newOffset = (offset + align - 1) / align * align;
+        if (newOffset % 16 + size <= 16) // fit into the slot
+        {
+            field.Offset = static_cast<uint16_t>(newOffset);
+            offset = newOffset + size;
+        }
+        else // start new slot
+        {
+            field.Offset = static_cast<uint16_t>((newOffset / 16 + 1) * 16);
+            offset = field.Offset + size;
+        }
+    }
+    target.Alignment = 16; // vec4
+    target.Size = offset;
+}
+
+void NLDXStructHandler::OutputStruct(const xcomp::XCNLStruct& target_, std::u32string& output)
+{
+    auto& target = static_cast<const NLDXStruct&>(target_);
+    if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
+        return;
+    APPEND_FMT(output, U"struct {}"sv, target.GetName());
+    output.append(U"\r\n{\r\n"sv);
+    for (const auto& field : target.Fields)
+    {
+        output.append(U"\t");
+        StringifyBasicField(field, target, output);
+        output.append(U";\r\n");
+    }
+    output.append(U"};\r\n"sv);
 }
 
 Arg NLDXStructHandler::EvaluateFunc(FuncEvalPack& func)
 {
-    auto& runtime = GetRuntime();
-    const auto& fname = func.GetName();
+    //auto& runtime = GetRuntime();
+    //const auto& fname = func.GetName();
     if (EvaluateStructFunc(func))
         return {};
     return XCNLExecutor::EvaluateFunc(func);
@@ -434,6 +513,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             return;
     }
 
+    common::SmallBitset useBitmap(arg.Extra.size(), false);
     const auto ParseCommonInfo = [&](const std::vector<std::u32string_view>& extras)
     {
         constexpr auto ParseNumber = [](std::u32string_view str, uint16_t& target) 
@@ -453,9 +533,12 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         };
         using common::str::IsBeginWith;
         std::u32string unknwonExtra;
+        size_t idx = 0;
         uint16_t space = UINT16_MAX, reg = UINT16_MAX, count = 1;
         for (const auto extra : extras)
         {
+            if (useBitmap.Get(idx++))
+                continue;
 #define CHECK_FLAG(name)                                                                    \
     if (const auto pfx_##name = U"" STRINGIZE(name) "="sv; IsBeginWith(extra, pfx_##name))  \
     {                                                                                       \
@@ -514,7 +597,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     }
 }
 
-void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
+void NLDXRuntime::BeforeFinishOutput(std::u32string&, std::u32string& structs, std::u32string&, std::u32string&)
 {
     std::u32string bindings = U"\r\n/* Bounded Resources */\r\n"s;
 
@@ -623,7 +706,7 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
         bindings.append(U"};\r\n\r\n");
     }
 
-    prefix.insert(prefix.begin(), bindings.begin(), bindings.end());
+    structs.append(bindings);
 }
 
 NLDXRuntime::VecTypeResult NLDXRuntime::TryParseVecType(const std::u32string_view type) const noexcept
@@ -736,7 +819,7 @@ NLDXProcessor::~NLDXProcessor()
 
 void NLDXProcessor::ConfigureDX(NLDXProgStub& stub) const
 {
-    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"dxu.Prepare"sv };
+    constexpr std::u32string_view preapres[] = { U"xcomp.Prepare"sv, U"dxu.Prepare"sv, U"xcomp.Struct" };
     stub.Prepare(preapres);
     constexpr std::u32string_view collects[] = { U"dxu."sv, U"xcomp."sv };
     stub.Collect(collects);
@@ -762,6 +845,7 @@ std::unique_ptr<NLDXResult> NLDXProcessor::CompileIntoProgram(NLDXProgStub& stub
         std::vector<std::pair<std::string, DxShader>> shaders;
         for (const auto kerName : nldxCtx.KernelNames)
         {
+            config.EntryPoint = common::str::to_u16string(kerName);
             auto kerNameU8 = common::str::to_string(kerName, common::str::Charset::UTF8);
             const auto defName = "DXU_KERNEL_" + kerNameU8;
             config.Defines.Add(defName);

@@ -876,18 +876,18 @@ void XCNLRawExecutor::DirectOutput(const OutputBlock& block, std::u32string& dst
     dst.append(source.StrView());
 }
 
-void XCNLRawExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& dst)
+void XCNLRawExecutor::ProcessGlobal(const OutputBlock& block, std::u32string& output)
 {
     auto frame = PushFrame(block, GetExecutor().CreateContext(), nullptr);
-    BeforeOutputBlock(block, dst);
-    DirectOutput(block, dst);
+    BeforeOutputBlock(block, output);
+    DirectOutput(block, output);
 }
 
-void XCNLRawExecutor::ProcessStruct(const OutputBlock& block, std::u32string& dst)
+void XCNLRawExecutor::ProcessStruct(const OutputBlock& block, std::u32string& output)
 {
     auto frame = PushFrame(block, GetExecutor().CreateContext(), nullptr);
-    BeforeOutputBlock(block, dst);
-    DirectOutput(block, dst);
+    BeforeOutputBlock(block, output);
+    DirectOutput(block, output);
 }
 
 void XCNLRawExecutor::ProcessInstance(const OutputBlock& block, std::u32string& output)
@@ -943,9 +943,9 @@ XCNLStruct& XCNLStructHandler::GetStruct() const
 
 std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept
 {
-    if (field.Type.IsCustomType())
+    if (const auto tidx = field.Type.GetCustomTypeIdx(); tidx.has_value())
     {
-        const auto& type = GetExecutor().GetContext().CustomStructs[field.Type.GetCustomTypeIdx().value()];
+        const auto& type = GetCustomStructs()[*tidx];
         return { type->Alignment, type->Size };
     }
     else
@@ -956,7 +956,19 @@ std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XC
     }
 }
 
-std::unique_ptr<XCNLStruct> XCNLStructHandler::GenerateStruct(std::u32string_view name)
+void XCNLStructHandler::StringifyBasicField(const XCNLStruct::Field& field, const XCNLStruct& target, std::u32string& output) const noexcept
+{
+    std::u32string_view typeName;
+    if (const auto tidx = field.Type.GetCustomTypeIdx(); tidx.has_value())
+        typeName = GetCustomStructs()[*tidx]->GetName();
+    else
+        typeName = GetRuntime().GetVecTypeName(*field.Type.GetVecType());
+    APPEND_FMT(output, u"{} {}"sv, typeName, target.StrPool.GetStringView(field.Name));
+    if (field.Length > 1)
+        APPEND_FMT(output, u"[{}]"sv, field.Length);
+}
+
+std::unique_ptr<XCNLStruct> XCNLStructHandler::GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet&)
 {
     return std::make_unique<XCNLStruct>(name);
 }
@@ -1017,10 +1029,13 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
             executor.NLRT_THROW_EX(FMTSTR(u"Unrecoginized type [{}] when defining the field [{}] of struct [{}].", 
                 type, name, target.GetName()));
         auto& field = target.AddField(name, *typeData, gsl::narrow_cast<uint16_t>(len));
-        if (const auto alignMeta = func.Metas->FindPostMeta(U"xcomp.Align"sv); alignMeta)
+        for (auto& meta : func.Metas->PostMetas())
         {
-            executor.ThrowByParamTypes<1>(*alignMeta, { Arg::Type::Integer });
-            field.Offset = static_cast<uint16_t>(alignMeta->Params[0].GetUint().value());
+            if (meta.FullFuncName() == U"xcomp.Align"sv)
+            {
+                executor.ThrowByParamTypes<1>(meta, { Arg::Type::Integer });
+                field.Offset = static_cast<uint16_t>(meta.Params[0].GetUint().value());
+            }
         }
         OnNewField(target, field, *func.Metas);
         return true;
@@ -1215,6 +1230,7 @@ OutputBlock::BlockType XCNLRuntime::GetBlockType(const RawBlock& block, MetaFunc
 {
     switch (common::DJBHash::HashC(block.Type))
     {
+    HashCase(block.Type, U"xcomp.Prefix")   return OutputBlock::BlockType::Prefix;
     HashCase(block.Type, U"xcomp.Global")   return OutputBlock::BlockType::Global;
     HashCase(block.Type, U"xcomp.Struct")   return OutputBlock::BlockType::Struct;
     HashCase(block.Type, U"xcomp.Kernel")   return OutputBlock::BlockType::Instance;
@@ -1292,7 +1308,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
     return { std::move(args), std::move(name), std::move(dtype), argType, texType };
 }
 
-void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&)
+void XCNLRuntime::BeforeFinishOutput(std::u32string&, std::u32string&, std::u32string&, std::u32string&)
 { }
 
 void XCNLRuntime::ProcessConfigBlock(const Block& block, MetaFuncs metas)
@@ -1313,16 +1329,14 @@ void XCNLRuntime::ProcessStructBlock(const Block& block, MetaFuncs metas)
 {
     auto& handler = GetStructHandler();
     auto& executor = handler.GetExecutor();
-    auto theStruct = handler.GenerateStruct(block.Name);
+    auto dummyFrame = executor.PushBlockFrame(ConstructEvalContext(), NailangFrame::FrameFlags::FlowScope, &block, metas);
+    Statement target(&block);
+    MetaSet allMetas(metas, target);
+    if (!metas.empty() && !executor.HandleMetaFuncs(allMetas))
+        return;
+    auto theStruct = handler.GenerateStruct(block.Name, allMetas);
     auto frame = FrameStack.PushFrame<XCNLStructHandler::StructFrame>(&executor, ConstructEvalContext(),
         &block, metas, *theStruct);
-    if (!metas.empty())
-    {
-        Statement target(&block);
-        MetaSet allMetas(metas, target);
-        if (!executor.HandleMetaFuncs(allMetas))
-            return;
-    }
     frame->Execute();
     handler.FillFieldOffsets(*theStruct);
     XCContext.CustomStructs.push_back(std::move(theStruct));
@@ -1343,38 +1357,49 @@ void XCNLRuntime::CollectRawBlock(const RawBlock& block, MetaFuncs metas)
 
 std::string XCNLRuntime::GenerateOutput()
 {
-    std::u32string prefix, output;
+    std::u32string prefixes, structs, globals, kernels;
     auto& rawExe = GetRawExecutor();
 
     for (const auto& block : XCContext.OutputBlocks)
     {
-        switch (block.Type)
-        {
-        case OutputBlock::BlockType::Instance:
-            rawExe.ProcessInstance(block, output);
-            break;
-        case OutputBlock::BlockType::Global:
-            rawExe.ProcessGlobal(block, output);
-            break;
-        case OutputBlock::BlockType::Struct:
-            rawExe.ProcessStruct(block, output);
-            break;
-        default:
-            Logger.warning(u"Unexpected RawBlock (Type[{}], Name[{}]) when generating output.\n", block.Block->Type, block.Block->Name); break;
-            break;
-        }
+        if (block.Type == OutputBlock::BlockType::Prefix)
+            rawExe.ProcessGlobal(block, prefixes);
+    }
+    for (const auto& target : XCContext.CustomStructs)
+    {
+        GetStructHandler().OutputStruct(*target, structs);
+    }
+    for (const auto& block : XCContext.OutputBlocks)
+    {
+        if (block.Type == OutputBlock::BlockType::Struct)
+            rawExe.ProcessStruct(block, structs);
+    }
+    for (const auto& block : XCContext.OutputBlocks)
+    {
+        if (block.Type == OutputBlock::BlockType::Global)
+            rawExe.ProcessGlobal(block, globals);
+    }
+    for (const auto& block : XCContext.OutputBlocks)
+    {
+        if (block.Type == OutputBlock::BlockType::Instance)
+            rawExe.ProcessInstance(block, kernels);
     }
     for (const auto& ext : XCContext.Extensions)
     {
         ext->FinishXCNL(*this);
     }
 
-    BeforeFinishOutput(prefix, output);
+    BeforeFinishOutput(prefixes, structs, globals, kernels);
 
     // Output patched blocks
-    XCContext.WritePatchedBlock(prefix);
+    XCContext.WritePatchedBlock(structs);
+    std::string output;
+    for (const auto part : std::array<std::u32string_view, 4>{ prefixes, structs, globals, kernels })
+    {
+        output.append(common::str::to_string(part, Charset::UTF8, Charset::UTF32));
+    }
 
-    return common::str::to_string(prefix + output, Charset::UTF8, Charset::UTF32);
+    return output;
 }
 
 

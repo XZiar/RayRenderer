@@ -155,7 +155,7 @@ private:
     [[nodiscard]] XCNLExecutor& GetExecutor() noexcept final;
     [[nodiscard]] const XCNLExecutor& GetExecutor() const noexcept final;
     void OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas) final;
-    [[nodiscard]] MetaFuncResult HandleMetaFunc(const xziar::nailang::FuncCall& meta, xziar::nailang::MetaSet& allMetas) final;
+    void OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output) final;
     [[nodiscard]] xziar::nailang::Arg EvaluateFunc(xziar::nailang::FuncEvalPack& func) final;
 public:
     ~NLCLStructHandler() override;
@@ -187,7 +187,7 @@ protected:
 
     [[nodiscard]] xcomp::OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept final;
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg*) final;
-    void BeforeFinishOutput(std::u32string& prefix, std::u32string& content) final;
+    void BeforeFinishOutput(std::u32string& prefixes, std::u32string& structs, std::u32string& globals, std::u32string& kernels) final;
 public:
     [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);

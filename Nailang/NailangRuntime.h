@@ -414,15 +414,6 @@ public:
     {
         return common::to_span(AllMetas).subspan(MetaCount);
     }
-    FuncPack* FindPostMeta(std::u32string_view name) noexcept
-    {
-        for (auto& meta : PostMetas())
-        {
-            if (meta.FullFuncName() == name)
-                return &meta;
-        }
-        return nullptr;
-    }
     [[nodiscard]] constexpr ItType begin() noexcept
     {
         return { this, 0 };

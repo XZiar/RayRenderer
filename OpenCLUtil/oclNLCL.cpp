@@ -479,27 +479,27 @@ const xcomp::XCNLExecutor& NLCLStructHandler::GetExecutor() const noexcept
     return *this;
 }
 
-void NLCLStructHandler::OnNewField(const xcomp::XCNLStruct& target, xcomp::XCNLStruct::Field& field, xziar::nailang::MetaSet& allMetas)
+void NLCLStructHandler::OnNewField(const xcomp::XCNLStruct&, xcomp::XCNLStruct::Field&, MetaSet&)
 {
 
 }
 
-NLCLStructHandler::MetaFuncResult NLCLStructHandler::HandleMetaFunc(const FuncCall& meta, MetaSet& allMetas)
+void NLCLStructHandler::OutputStruct(const xcomp::XCNLStruct& target, std::u32string& output)
 {
-    const auto ret = NLCLExecutor::HandleMetaFunc(meta, allMetas);
-    if (ret != MetaFuncResult::Unhandled)
-        return ret;
-    if (TryGetStructFrame())
+    output.append(U"typedef struct \r\n{\r\n"sv);
+    for (const auto& field : target.Fields)
     {
-
+        output.append(U"\t");
+        StringifyBasicField(field, target, output);
+        output.append(U";\r\n");
     }
-    return MetaFuncResult::Unhandled;
+    APPEND_FMT(output, U"}} {};\r\n"sv, target.GetName());
 }
 
 Arg NLCLStructHandler::EvaluateFunc(FuncEvalPack& func)
 {
-    auto& runtime = GetRuntime();
-    const auto& fname = func.GetName();
+    //auto& runtime = GetRuntime();
+    //const auto& fname = func.GetName();
     if (EvaluateStructFunc(func))
         return {};
     return XCNLExecutor::EvaluateFunc(func);
@@ -702,7 +702,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     }
 }
 
-void NLCLRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
+void NLCLRuntime::BeforeFinishOutput(std::u32string& prefixes, std::u32string&, std::u32string&, std::u32string&)
 {
     std::u32string exts = U"/* Extensions */\r\n"s;
     // Output extensions
@@ -720,7 +720,7 @@ void NLCLRuntime::BeforeFinishOutput(std::u32string& prefix, std::u32string&)
                 });
     }
     exts.append(U"\r\n"sv);
-    prefix.insert(prefix.begin(), exts.begin(), exts.end());
+    prefixes.insert(prefixes.begin(), exts.begin(), exts.end());
 }
 
 NLCLRuntime::VecTypeResult NLCLRuntime::TryParseVecType(const std::u32string_view type) const noexcept

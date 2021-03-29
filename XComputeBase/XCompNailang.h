@@ -31,7 +31,7 @@ using MetaFuncs     = ::common::span<const xziar::nailang::FuncCall>;
 
 struct OutputBlock
 {
-    enum class BlockType : uint8_t { None, Global, Struct, Instance, Template };
+    enum class BlockType : uint8_t { None, Prefix, Global, Struct, Instance, Template };
     struct BlockInfo
     {
         virtual ~BlockInfo() { }
@@ -232,6 +232,22 @@ struct XCNLStruct
         constexpr Field(common::StringPiece<char32_t> name, CombinedType type, uint16_t len) noexcept :
             Name(name), Type(type), Length(len), Offset(0), MetaInfo(0)
         { }
+        template<typename T>
+        [[nodiscard]] uint32_t GetElementSize(const T& structs) const noexcept
+        {
+            if (const auto tidx = Type.GetCustomTypeIdx(); tidx.has_value())
+            {
+                const auto& target = structs[*tidx];
+                if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(target)>>)
+                    return target.Size;
+                else if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(*target)>>)
+                    return (*target).Size;
+                else
+                    static_assert(!common::AlwaysTrue<T>, "structs should be a container of Type that inherit XCNLStruct or contains XCNLStruct");
+            }
+            else
+                return Type.GetVecType()->Bit / 8;
+        }
     };
     common::StringPool<char32_t> StrPool;
     common::StringPiece<char32_t> Name;
@@ -481,7 +497,7 @@ protected:
 
     [[nodiscard]] virtual OutputBlock::BlockType GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept;
     virtual void HandleInstanceArg(const InstanceArgInfo& arg, InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source);
-    virtual void BeforeFinishOutput(std::u32string& prefix, std::u32string& content);
+    virtual void BeforeFinishOutput(std::u32string& prefixes, std::u32string& structs, std::u32string& globals, std::u32string& kernels);
 private:
     virtual XCNLConfigurator& GetConfigurator() noexcept = 0;
     virtual XCNLRawExecutor& GetRawExecutor() noexcept = 0;
@@ -498,7 +514,7 @@ public:
     COMMON_NO_COPY(XCNLRuntime)
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
-    void PrintStruct(const XCNLStruct& target) const;
+    virtual void PrintStruct(const XCNLStruct& target) const;
     [[nodiscard]] virtual VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept = 0;
     [[nodiscard]] virtual std::u32string_view GetVecTypeName(common::simd::VecDataInfo vec) const noexcept = 0;
     [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type, std::u16string_view = {}) const;
@@ -534,6 +550,10 @@ protected:
     [[nodiscard]] constexpr XCNLContext& GetContext() const noexcept
     {
         return GetRuntime().XCContext;
+    }
+    [[nodiscard]] constexpr common::mlog::MiniLogger<false>& GetLogger() const noexcept
+    {
+        return GetRuntime().Logger;
     }
     [[nodiscard]] constexpr const std::vector<std::unique_ptr<XCNLExtension>>& GetExtensions() const noexcept
     {
@@ -628,8 +648,8 @@ public:
     ~XCNLRawExecutor() override;
     void ThrowByReplacerArgCount(const std::u32string_view call, const U32StrSpan args,
         const size_t count, const xziar::nailang::ArgLimits limit = xziar::nailang::ArgLimits::Exact) const;
-    virtual void ProcessGlobal(const OutputBlock& block, std::u32string& dst);
-    virtual void ProcessStruct(const OutputBlock& block, std::u32string& dst);
+    virtual void ProcessGlobal(const OutputBlock& block, std::u32string& output);
+    virtual void ProcessStruct(const OutputBlock& block, std::u32string& output);
     void ProcessInstance(const OutputBlock& block, std::u32string& output);
     [[noreturn]] void HandleException(const xziar::nailang::NailangParseException& ex) const final;
     [[noreturn]] void HandleException(const xziar::nailang::NailangRuntimeException& ex) const;
@@ -646,10 +666,11 @@ class XCOMPBASAPI XCNLStructHandler
 private:
     [[nodiscard]] virtual const XCNLExecutor& GetExecutor() const noexcept = 0;
     [[nodiscard]] virtual XCNLExecutor& GetExecutor() noexcept = 0;
-    [[nodiscard]] virtual std::unique_ptr<XCNLStruct> GenerateStruct(std::u32string_view name);
+    [[nodiscard]] virtual std::unique_ptr<XCNLStruct> GenerateStruct(std::u32string_view name, xziar::nailang::MetaSet& metas);
     virtual void OnNewField(const XCNLStruct&, XCNLStruct::Field&, xziar::nailang::MetaSet&) {}
-    virtual void FillFieldOffsets(XCNLStruct& target);
+    virtual void OutputStruct(const XCNLStruct& target, std::u32string& output) = 0;
 protected:
+    virtual void FillFieldOffsets(XCNLStruct& target);
     struct StructFrame : public xziar::nailang::NailangBlockFrame
     {
         XCNLStruct& Struct;
@@ -665,7 +686,12 @@ protected:
         return dynamic_cast<StructFrame*>(&GetExecutor().GetFrame());
     }
     [[nodiscard]] XCNLStruct& GetStruct() const;
+    [[nodiscard]] common::span<std::unique_ptr<XCNLStruct>> GetCustomStructs() const noexcept
+    {
+        return GetExecutor().GetContext().CustomStructs;
+    }
     [[nodiscard]] std::pair<uint32_t, uint32_t> GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept;
+    void StringifyBasicField(const XCNLStruct::Field& field, const XCNLStruct& target, std::u32string& output) const noexcept;
     [[nodiscard]] xziar::nailang::NailangFrameStack::FrameHolder<xziar::nailang::NailangBlockFrame> PushFrame(
         XCNLStruct* target, const xziar::nailang::Block* block, MetaFuncs metas);
     [[nodiscard]] bool EvaluateStructFunc(xziar::nailang::FuncEvalPack& func);
