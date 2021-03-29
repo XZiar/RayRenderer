@@ -6,7 +6,6 @@ namespace xcomp::debug
 {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
-using common::simd::VecDataInfo;
 
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
@@ -33,7 +32,7 @@ static NamedVecPair GenerateInput(XCNLRuntime& runtime, std::u32string_view str,
         }
         str.remove_prefix(idx + 1);
     }
-    const auto vtype = runtime.ParseVecType(str, errInfo);
+    const auto vtype = runtime.ParseVecDataInfo(str, errInfo);
     return { name, vtype };
 }
 

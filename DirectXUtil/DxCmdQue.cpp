@@ -123,7 +123,7 @@ void DxCmdList_::InitResTable(const DxCmdList_& list)
 bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState)
 {
     static constexpr auto CopyAllowState    = ResourceState::CopyDst | ResourceState::CopySrc;
-    static constexpr auto ComputeAllowState =
+    static constexpr auto ComputeAllowState = ResourceState::ConstBuffer |
         ResourceState::UnorderAccess | ResourceState::NonPSRes | ResourceState::CopyDst | ResourceState::CopySrc;
     // capability check
     switch (Type)

@@ -517,17 +517,18 @@ xcomp::XCNLConfigurator& NLCLRuntime::GetConfigurator() noexcept { return Config
 xcomp::XCNLRawExecutor& NLCLRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 xcomp::XCNLStructHandler& NLCLRuntime::GetStructHandler() noexcept { return StructHandler; }
 
-std::u32string_view NLCLRuntime::GetCLTypeName(common::simd::VecDataInfo info) noexcept
+std::u32string_view NLCLRuntime::GetCLTypeName(xcomp::VTypeInfo info) noexcept
 {
 #define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
+    case static_cast<uint32_t>(xcomp::VTypeInfo{xcomp::VTypeInfo::DataTypes::type, n, 0, bit}): return U"" STRINGIZE(s) ""sv;
+
 #define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1)  \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
-    CASE(STRINGIZE(PPCAT(pfx, 8)),  type, bit, 8)  \
-    CASE(STRINGIZE(PPCAT(pfx, 16)), type, bit, 16) \
+    CASE(pfx,            type, bit, 1)  \
+    CASE(PPCAT(pfx, 2),  type, bit, 2)  \
+    CASE(PPCAT(pfx, 3),  type, bit, 3)  \
+    CASE(PPCAT(pfx, 4),  type, bit, 4)  \
+    CASE(PPCAT(pfx, 8),  type, bit, 8)  \
+    CASE(PPCAT(pfx, 16), type, bit, 16) \
 
     switch (static_cast<uint32_t>(info))
     {
@@ -723,29 +724,33 @@ void NLCLRuntime::BeforeFinishOutput(std::u32string& prefixes, std::u32string&, 
     prefixes.insert(prefixes.begin(), exts.begin(), exts.end());
 }
 
-NLCLRuntime::VecTypeResult NLCLRuntime::TryParseVecType(const std::u32string_view type) const noexcept
+xcomp::VTypeInfo NLCLRuntime::TryParseVecType(const std::u32string_view type, bool) const noexcept
 {
-    auto [info, least] = xcomp::ParseVDataType(type);
-    if (info.Bit == 0)
-        return { info, false };
+    auto info = xcomp::ParseVDataType(type);
+    if (!info)
+        info;
+    const bool isMinBits = info.HasFlag(xcomp::VTypeInfo::TypeFlags::MinBits);
     bool typeSupport = true;
     if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
     {
-        if (info.Bit == 16 && !Context.SupportFP16) // FP16 check
+        if (info.Bits == 16 && !Context.SupportFP16) // FP16 check
         {
-            if (least) // promotion
-                info.Bit = 32;
+            if (isMinBits) // promotion
+                info.Bits = 32;
             else
                 typeSupport = false;
         }
-        else if (info.Bit == 64 && !Context.SupportFP64)
+        else if (info.Bits == 64 && !Context.SupportFP64)
         {
             typeSupport = false;
         }
     }
-    return { info, typeSupport };
+    info.Flag &= ~xcomp::VTypeInfo::TypeFlags::MinBits;
+    if (!typeSupport)
+        info.Flag |= xcomp::VTypeInfo::TypeFlags::Unsupport;
+    return info;
 }
-std::u32string_view NLCLRuntime::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
+std::u32string_view NLCLRuntime::GetVecTypeName(xcomp::VTypeInfo info) const noexcept
 {
     return NLCLRuntime::GetCLTypeName(info);
 }

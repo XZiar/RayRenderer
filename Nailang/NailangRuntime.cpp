@@ -1148,10 +1148,10 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
             break;
         }
     }
-    allMetas.PrepareBitmap();
-    for (auto meta : allMetas)
+    allMetas.PrepareLiveMetas();
+    for (auto meta : allMetas.LiveMetas())
     {
-        if (meta.IsUsed())
+        if (meta.CheckFlag())
             continue;
 
         auto result = HandleMetaFunc(static_cast<const FuncCall&>(*meta), allMetas);
@@ -1160,8 +1160,7 @@ bool NailangExecutor::HandleMetaFuncs(MetaSet& allMetas)
             allMetas.FillFuncPack(*meta, *this);
             result = HandleMetaFunc(*meta, allMetas);
         }
-        if (result != MetaFuncResult::Unhandled)
-            meta.SetUsed();
+        meta.SetFlag(result != MetaFuncResult::Unhandled);
         switch (result)
         {
         case MetaFuncResult::Return:    Runtime->FrameStack.SetReturn({}); return false;
@@ -1213,7 +1212,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
                 NLRT_THROW_EX(u"MetaFunc[DefFunc]'s arg name must not contain [Root|Local] flag"sv, arg, meta);
         }
         std::vector<std::pair<std::u32string_view, Arg>> captures;
-        for (auto m : allMetas)
+        for (auto m : allMetas.LiveMetas())
         {
             if (m->GetName() == U"Capture"sv)
             {
@@ -1222,7 +1221,7 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(const FuncCall& 
                 if (m->Args.size() > 1 && HAS_FIELD(argName.Info, LateBindVar::VarInfo::PrefixMask))
                     NLRT_THROW_EX(u"MetaFunc[Capture]'s arg name must not contain [Root|Local] flag"sv, *m, meta);
                 captures.emplace_back(argName.Name, EvaluateExpr(m->Args.back()));
-                m.SetUsed();
+                m.SetFlag(true);
             }
         }
         Runtime->SetFunc(allMetas.Target.Get<Block>(), captures, meta.Args);

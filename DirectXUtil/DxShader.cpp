@@ -250,6 +250,8 @@ void DxShaderStub_::Build(const DxShaderConfig& config)
     const auto reqSmVer = config.SMVersion ? config.SMVersion : Device->SMVer;
     thread_local DXCCompiler Compiler;
     const auto smVer = std::min(reqSmVer, Compiler.GetMaxSmVer());
+    if (smVer < config.SMVersion)
+        dxLog().warning(u"request [SM{}] but only support [SM{}]\n", config.SMVersion / 10.f, smVer / 10.f);
     const auto [result, hr] = Compiler.Compile(Type, Source, config, smVer);
     std::u16string errorBuf;
     if (result)

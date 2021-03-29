@@ -344,9 +344,9 @@ static void DXStub()
         try
         {
             const auto& capture = DxCapture::Get();
-            const auto cap = capture.CaptureRange();
             while (true)
             {
+                const auto cap = capture.CaptureRange();
                 common::mlog::SyncConsoleBackend();
                 string fpath = common::console::ConsoleEx::ReadLine("input hlsl file:");
                 if (fpath == "BREAK")

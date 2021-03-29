@@ -176,68 +176,24 @@ MAKE_ENUM_BITFIELD(InstanceArgInfo::Flags)
 struct InstanceArgData;
 
 
-struct CombinedType
-{
-private:
-    common::simd::VecDataInfo TypeData;
-    forceinline constexpr uint32_t ToIndex() const noexcept
-    {
-        return (static_cast<uint32_t>(TypeData.Bit) << 0)
-            | (static_cast<uint32_t>(TypeData.Dim0) << 8) | (static_cast<uint32_t>(TypeData.Dim1) << 16);
-    }
-public:
-    constexpr CombinedType(common::simd::VecDataInfo type) noexcept : TypeData(type)
-    {
-        Expects(!IsCustomType());
-    }
-    constexpr CombinedType(uint32_t idx) noexcept :
-        TypeData{ common::simd::VecDataInfo::DataTypes::Custom, static_cast<uint8_t>(idx),
-        static_cast<uint8_t>(idx >> 8), static_cast<uint8_t>(idx >> 16) }
-    {
-        Expects(idx <= 0xffffff);
-    }
-    forceinline constexpr bool IsCustomType() const noexcept
-    {
-        return TypeData.Type == common::simd::VecDataInfo::DataTypes::Custom;
-    }
-    forceinline constexpr std::optional<common::simd::VecDataInfo> GetVecType() const noexcept
-    {
-        if (!IsCustomType())
-            return TypeData;
-        return {};
-    }
-    forceinline constexpr std::optional<uint32_t> GetCustomTypeIdx() const noexcept
-    {
-        if (IsCustomType())
-            return ToIndex();
-        return {};
-    }
-    forceinline constexpr std::variant<common::simd::VecDataInfo, uint32_t> GetType() const noexcept
-    {
-        if (IsCustomType())
-            return ToIndex();
-        else
-            return TypeData;
-    }
-};
 struct XCNLStruct
 {
     struct Field
     {
         common::StringPiece<char32_t> Name;
-        CombinedType Type;
+        VTypeInfo Type;
         uint16_t Length;
         uint16_t Offset;
         uint32_t MetaInfo;
-        constexpr Field(common::StringPiece<char32_t> name, CombinedType type, uint16_t len) noexcept :
+        constexpr Field(common::StringPiece<char32_t> name, VTypeInfo type, uint16_t len) noexcept :
             Name(name), Type(type), Length(len), Offset(0), MetaInfo(0)
         { }
         template<typename T>
         [[nodiscard]] uint32_t GetElementSize(const T& structs) const noexcept
         {
-            if (const auto tidx = Type.GetCustomTypeIdx(); tidx.has_value())
+            if (Type.IsCustomType())
             {
-                const auto& target = structs[*tidx];
+                const auto& target = structs[Type.ToIndex()];
                 if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(target)>>)
                     return target.Size;
                 else if constexpr (std::is_base_of_v<XCNLStruct, std::decay_t<decltype(*target)>>)
@@ -246,7 +202,7 @@ struct XCNLStruct
                     static_assert(!common::AlwaysTrue<T>, "structs should be a container of Type that inherit XCNLStruct or contains XCNLStruct");
             }
             else
-                return Type.GetVecType()->Bit / 8;
+                return Type.Bits / 8;
         }
     };
     common::StringPool<char32_t> StrPool;
@@ -257,7 +213,7 @@ struct XCNLStruct
     XCNLStruct(std::u32string_view name) : Name(StrPool.AllocateString(name))
     { }
     std::u32string_view GetName() const noexcept { return StrPool.GetStringView(Name); }
-    [[nodiscard]] Field& AddField(std::u32string_view name, CombinedType type, uint16_t len)
+    [[nodiscard]] Field& AddField(std::u32string_view name, VTypeInfo type, uint16_t len)
     {
         const auto name_ = StrPool.AllocateString(name);
         return Fields.emplace_back(name_, type, len);
@@ -468,11 +424,11 @@ protected:
     std::vector<OutputBlock> TemplateBlocks;
     std::vector<NamedText> PatchedBlocks;
     std::vector<std::unique_ptr<XCNLStruct>> CustomStructs;
+    [[nodiscard]] size_t FindStruct(std::u32string_view name) const;
 private:
     COMMON_NO_COPY(XCNLContext)
     std::vector<std::shared_ptr<const ReplaceDepend>> PatchedSelfDepends;
     [[nodiscard]] XCNLExtension* FindExt(std::function<bool(const XCNLExtension*)> func) const;
-    [[nodiscard]] size_t FindStruct(std::u32string_view name) const;
     void Write(std::u32string& output, const NamedText& item) const override;
 };
 
@@ -504,24 +460,26 @@ private:
     virtual XCNLStructHandler& GetStructHandler() noexcept = 0;
     InstanceArgData ParseInstanceArg(std::u32string_view argTypeName, xziar::nailang::FuncPack& func);
 public:
-    struct VecTypeResult
-    {
-        common::simd::VecDataInfo Info;
-        bool TypeSupport;
-        constexpr explicit operator bool() const noexcept { return Info.Bit != 0; }
-    };
     ~XCNLRuntime() override;
     COMMON_NO_COPY(XCNLRuntime)
     void HandleException(const xziar::nailang::NailangRuntimeException& ex) const override;
     void InnerLog(common::mlog::LogLevel level, std::u32string_view str);
     virtual void PrintStruct(const XCNLStruct& target) const;
-    [[nodiscard]] virtual VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept = 0;
-    [[nodiscard]] virtual std::u32string_view GetVecTypeName(common::simd::VecDataInfo vec) const noexcept = 0;
-    [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type, std::u16string_view = {}) const;
-    [[nodiscard]] common::simd::VecDataInfo ParseVecType(const std::u32string_view type, const std::function<std::u16string(void)>& extraInfo) const;
+    [[nodiscard]] virtual VTypeInfo TryParseVecType(const std::u32string_view type, bool allowMinBits = true) const noexcept = 0;
+    [[nodiscard]] virtual std::u32string_view GetVecTypeName(VTypeInfo vec) const noexcept = 0;
+    [[nodiscard]] VTypeInfo ParseVecType(const std::u32string_view type, std::u16string_view = {}, bool allowMinBits = true) const;
+    [[nodiscard]] VTypeInfo ParseVecType(const std::u32string_view type, const std::function<std::u16string(void)>& extraInfo, bool allowMinBits = true) const;
+    [[nodiscard]] common::simd::VecDataInfo ParseVecDataInfo(const std::u32string_view type, std::u16string_view extraInfo = {}) const
+    {
+        return ParseVecType(type, extraInfo, false).ToVecDataInfo();
+    }
+    [[nodiscard]] common::simd::VecDataInfo ParseVecDataInfo(const std::u32string_view type, const std::function<std::u16string(void)>& extraInfo) const
+    {
+        return ParseVecType(type, extraInfo, false).ToVecDataInfo();
+    }
     [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, std::u16string_view extraInfo = u"call [GetVecTypeName]") const;
     [[nodiscard]] std::u32string_view GetVecTypeName(const std::u32string_view vname, const std::function<std::u16string(void)>& extraInfo) const;
-    [[noreturn]] void ThrowByVecType(std::variant<std::u32string_view, common::simd::VecDataInfo> src, std::u16string_view reason, std::u16string_view exInfo) const;
+    [[noreturn]] void ThrowByVecType(std::variant<std::u32string_view, VTypeInfo> src, std::u16string_view reason, std::u16string_view exInfo) const;
     void ProcessConfigBlock(const Block& block, MetaFuncs metas);
     void ProcessStructBlock(const Block& block, MetaFuncs metas);
     void CollectRawBlock(const RawBlock& block, MetaFuncs metas);

@@ -104,7 +104,7 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     const auto SubgroupReduce = [&](std::u32string_view name, SubgroupReduceOp op)
     {
         executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
-        const auto vtype = runtime.ParseVecType(args[0], FMTSTR(u"replace [{}]"sv, name));
+        const auto vtype = runtime.ParseVecDataInfo(args[0], FMTSTR(u"replace [{}]"sv, name));
         return Provider->SubgroupReduce(op, vtype, args[1]);
     };
 
@@ -155,14 +155,14 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     HashCase(func, U"SubgroupBroadcast")
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-        const auto vtype = runtime.ParseVecType(args[0], u"replace [SubgroupBroadcast]"sv);
+        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [SubgroupBroadcast]"sv);
         return HandleResult(Provider->SubgroupBroadcast(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupBroadcast with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupShuffle")
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
-        const auto vtype = runtime.ParseVecType(args[0], u"replace [SubgroupShuffle]"sv);
+        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [SubgroupShuffle]"sv);
         return HandleResult(Provider->SubgroupShuffle(vtype, args[1], args[2]),
             FMTSTR(U"SubgroupShuffle with Type [{}] not supported", args[0]));
     }
@@ -205,7 +205,7 @@ std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& execut
         executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = func.Params[0].GetBool().value();
         const auto vstr  = func.Params[1].GetStr().value();
-        const auto vtype = runtime.ParseVecType(vstr, u"call [AddSubgroupPatch]"sv);
+        const auto vtype = runtime.ParseVecDataInfo(vstr, u"call [AddSubgroupPatch]"sv);
 
         KernelContext kerCtx;
         SubgroupSize = 32;

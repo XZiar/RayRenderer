@@ -100,7 +100,7 @@ inline constexpr auto GetSIMDIntrin() noexcept
 
 struct VecDataInfo
 {
-    enum class DataTypes : uint8_t { Custom, Unsigned, Signed, Float, BFloat };
+    enum class DataTypes : uint8_t { Empty = 0, Custom, Unsigned, Signed, Float, BFloat };
     DataTypes Type;
     uint8_t Bit;
     uint8_t Dim0;

@@ -104,7 +104,9 @@ protected:
     std::vector<std::pair<xziar::nailang::Arg, uint32_t>> ReusableSCIds;
     std::vector<std::string> CompilerFlags;
     common::StringPool<char> StrPool;
+    uint32_t MinSMVer = 0;
     bool AllowDebug;
+    bool Enable16Bit;
     void AddResource(const xziar::nailang::Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype, 
         uint16_t space, uint16_t reg, uint16_t count, xcomp::InstanceArgInfo::TexTypes texType, BoundedResourceType type);
     void AddConstant(const xziar::nailang::Arg* source, uint8_t kerId, std::string_view name, std::string_view dtype, uint16_t count);
@@ -172,6 +174,7 @@ public:
     ~NLDXStructHandler() override;
     using NLDXExecutor::GetRuntime;
     using NLDXExecutor::HandleException;
+    void OutputStructContent(const NLDXStruct& target, std::u32string& output) const;
 };
 
 
@@ -200,11 +203,11 @@ protected:
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg* source) final;
     void BeforeFinishOutput(std::u32string& prefixes, std::u32string& structs, std::u32string& globals, std::u32string& kernels) final;
 public:
-    [[nodiscard]] static std::u32string_view GetDXTypeName(common::simd::VecDataInfo info) noexcept;
+    [[nodiscard]] static std::u32string_view GetDXTypeName(xcomp::VTypeInfo info) noexcept;
     NLDXRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLDXContext> evalCtx);
     ~NLDXRuntime() override;
-    [[nodiscard]] VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept final;
-    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept final;
+    [[nodiscard]] xcomp::VTypeInfo TryParseVecType(const std::u32string_view type, bool allowMinBits) const noexcept final;
+    [[nodiscard]] std::u32string_view GetVecTypeName(xcomp::VTypeInfo info) const noexcept final;
 };
 
 inline constexpr NLDXRuntime& NLDXExecutor::GetRuntime() const noexcept 

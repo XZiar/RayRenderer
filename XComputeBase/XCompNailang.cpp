@@ -34,7 +34,6 @@ using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
 using common::str::Charset;
 using common::str::IsBeginWith;
-using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
 MAKE_ENABLER_IMPL(ReplaceDepend)
@@ -943,26 +942,25 @@ XCNLStruct& XCNLStructHandler::GetStruct() const
 
 std::pair<uint32_t, uint32_t> XCNLStructHandler::GetBasicFieldAlignment(const XCNLStruct::Field& field) const noexcept
 {
-    if (const auto tidx = field.Type.GetCustomTypeIdx(); tidx.has_value())
+    if (field.Type.IsCustomType())
     {
-        const auto& type = GetCustomStructs()[*tidx];
+        const auto& type = GetCustomStructs()[field.Type.ToIndex()];
         return { type->Alignment, type->Size };
     }
     else
     {
-        const auto& type = field.Type.GetVecType().value();
-        const auto alignment = type.Bit / 8;
-        return { alignment, type.Dim0 * std::max<uint8_t>(type.Dim1, 1) * alignment };
+        const auto alignment = field.Type.Bits / 8;
+        return { alignment, field.Type.Dim0() * std::max<uint8_t>(field.Type.Dim1(), 1) * alignment };
     }
 }
 
 void XCNLStructHandler::StringifyBasicField(const XCNLStruct::Field& field, const XCNLStruct& target, std::u32string& output) const noexcept
 {
     std::u32string_view typeName;
-    if (const auto tidx = field.Type.GetCustomTypeIdx(); tidx.has_value())
-        typeName = GetCustomStructs()[*tidx]->GetName();
+    if (field.Type.IsCustomType())
+        typeName = GetCustomStructs()[field.Type.ToIndex()]->GetName();
     else
-        typeName = GetRuntime().GetVecTypeName(*field.Type.GetVecType());
+        typeName = GetRuntime().GetVecTypeName(field.Type);
     APPEND_FMT(output, u"{} {}"sv, typeName, target.StrPool.GetStringView(field.Name));
     if (field.Length > 1)
         APPEND_FMT(output, u"[{}]"sv, field.Length);
@@ -1013,10 +1011,10 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
         else
             return false;
         auto& ctx = executor.GetContext();
-        std::optional<CombinedType> typeData;
-        if (const auto vtype = runtime.TryParseVecType(type); vtype)
+        std::optional<VTypeInfo> typeData;
+        if (const auto vtype = runtime.TryParseVecType(type, false); vtype)
         {
-            typeData.emplace(vtype.Info);
+            typeData.emplace(vtype);
         }
         else
         {
@@ -1068,9 +1066,9 @@ void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
     {
         std::u32string_view typeName;
         if (field.Type.IsCustomType())
-            typeName = XCContext.CustomStructs[*field.Type.GetCustomTypeIdx()]->GetName();
+            typeName = XCContext.CustomStructs[field.Type.ToIndex()]->GetName();
         else
-            typeName = StringifyVDataType(*field.Type.GetVecType());
+            typeName = StringifyVDataType(field.Type);
         APPEND_FMT(str, u"[{:4}] {} {}"sv, field.Offset, typeName, target.StrPool.GetStringView(field.Name));
         if (field.Length > 1)
             APPEND_FMT(str, u"[{}]"sv, field.Length);
@@ -1079,23 +1077,31 @@ void XCNLRuntime::PrintStruct(const XCNLStruct& target) const
     Logger.verbose(str);
 }
 
-common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16string_view extraInfo) const
+VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, std::u16string_view extraInfo, bool allowMinBits) const
 {
-    const auto vtype = TryParseVecType(var);
+    const auto vtype = TryParseVecType(var, allowMinBits);
     if (!vtype)
         ThrowByVecType(var, u"not recognized as VecType"sv, extraInfo);
-    if (!vtype.TypeSupport)
-        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
-    return vtype.Info;
+    if (vtype.IsCustomType())
+        ThrowByVecType(var, u"should not be parsed as CustomType"sv, extraInfo);
+    if (!allowMinBits && vtype.HasFlag(VTypeInfo::TypeFlags::MinBits))
+        ThrowByVecType(var, u"should not be MinBits Type"sv, extraInfo);
+    if (!vtype.IsSupportVec())
+        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
+    return vtype;
 }
-common::simd::VecDataInfo XCNLRuntime::ParseVecType(const std::u32string_view var, const std::function<std::u16string(void)>& extraInfo) const
+VTypeInfo XCNLRuntime::ParseVecType(const std::u32string_view var, const std::function<std::u16string(void)>& extraInfo, bool allowMinBits) const
 {
-    const auto vtype = TryParseVecType(var);
+    const auto vtype = TryParseVecType(var, allowMinBits);
     if (!vtype)
         ThrowByVecType(var, u"not recognized as VecType"sv, extraInfo());
-    if (!vtype.TypeSupport)
-        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype.Info), var);
-    return vtype.Info;
+    if (vtype.IsCustomType())
+        ThrowByVecType(var, u"should not be parsed as CustomType"sv, extraInfo());
+    if (!allowMinBits && vtype.HasFlag(VTypeInfo::TypeFlags::MinBits))
+        ThrowByVecType(var, u"should not be MinBits Type"sv, extraInfo());
+    if (!vtype.IsSupportVec())
+        Logger.warning(u"Potential use of unsupported type[{}] with [{}].\n", StringifyVDataType(vtype), var);
+    return vtype;
 }
 std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname, std::u16string_view extraInfo) const
 {
@@ -1113,7 +1119,7 @@ std::u32string_view XCNLRuntime::GetVecTypeName(const std::u32string_view vname,
         ThrowByVecType(vname, u"not recognized as VecType"sv, extraInfo());
     return str;
 }
-void XCNLRuntime::ThrowByVecType(std::variant<std::u32string_view, common::simd::VecDataInfo> src, std::u16string_view reason, std::u16string_view exInfo) const
+void XCNLRuntime::ThrowByVecType(std::variant<std::u32string_view, VTypeInfo> src, std::u16string_view reason, std::u16string_view exInfo) const
 {
     const auto srcName = src.index() == 0 ? std::get<0>(src) : StringifyVDataType(std::get<1>(src));
     NLRT_THROW_EX(FMTSTR(u"Type [{}] {}{}{}."sv, srcName, reason, exInfo.empty() ? u""sv : u", "sv, exInfo));
@@ -1173,19 +1179,21 @@ std::optional<Arg> XCNLRuntime::CommonFunc(const std::u32string_view name, FuncE
 }
 Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
 {
-    auto [info, least] = xcomp::ParseVDataType(type);
-    if (info.Bit == 0)
+    auto info = xcomp::ParseVDataType(type);
+    if (!info)
         NLRT_THROW_EX(FMTSTR(u"Type [{}] not recognized"sv, type), func);
-    if (info.Dim0 < 2 || info.Dim0 > 4)
-        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, info.Dim0), func);
+    Expects(!info.IsCustomType());
+    const auto dim0 = info.Dim0();
+    if (dim0 < 2 || dim0 > 4)
+        NLRT_THROW_EX(FMTSTR(u"Vec only support [2~4] as length, get [{}]."sv, dim0), func);
     const auto argc = func.Args.size();
-    if (argc != 0 && argc != 1 && argc != info.Dim0)
-        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, info.Dim0, argc), func);
+    if (argc != 0 && argc != 1 && argc != dim0)
+        NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, dim0, argc), func);
 
-    VecDataInfo sinfo{ info.Type, info.Bit, 1, 0 };
+    VTypeInfo sinfo{ info.Type, 1, 0, info.Bits };
     auto atype = FixedArray::Type::Any;
 #define GENV(vtype, bit, at) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::vtype, bit, 1, 0}): atype = FixedArray::Type::at; break;
+    case static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}): atype = FixedArray::Type::at; break;
     switch (static_cast<uint32_t>(sinfo))
     {
     GENV(Unsigned, 8,  U8);
@@ -1203,20 +1211,20 @@ Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
     }
 #undef GENV
 
-    auto vec = GeneralVec::Create(atype, info.Dim0);
+    auto vec = GeneralVec::Create(atype, dim0);
     if (argc > 0)
     {
         const auto arr = GeneralVec::ToArray(vec);
         if (argc == 1)
         {
-            for (uint32_t i = 0; i < info.Dim0; ++i)
+            for (uint32_t i = 0; i < dim0; ++i)
             {
                 arr.Set(i, func.Params[0]);
             }
         }
         else
         {
-            Expects(argc == info.Dim0);
+            Expects(argc == dim0);
             for (uint32_t i = 0; i < argc; ++i)
             {
                 arr.Set(i, std::move(func.Params[i]));

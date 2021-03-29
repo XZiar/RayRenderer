@@ -166,6 +166,14 @@ Arg NLDXConfigurator::EvaluateFunc(FuncEvalPack& func)
             }
             runtime.Context.CompilerFlags.push_back(flag);
         } return {};
+        HashCase(subName, U"Enable16Bit")
+        {
+            if (runtime.Context.Device->SMVer < 62)
+                NLRT_THROW_EX(FMTSTR(u"16Bit support requires SM6.2, but Device [{}] only support [SM{}].", 
+                    runtime.Context.Device->AdapterName, runtime.Context.Device->SMVer / 10.f), func);
+            runtime.Context.MinSMVer = std::max(runtime.Context.MinSMVer, 62u);
+            runtime.Context.Enable16Bit = true;
+        } return {};
         default: break;
         }
         auto ret = runtime.CommonFunc(fname[1], func);
@@ -385,30 +393,27 @@ void NLDXStructHandler::FillFieldOffsets(xcomp::XCNLStruct& target_)
     {
         const auto [align_, eleSize] = GetBasicFieldAlignment(field);
         const auto align = std::max<uint32_t>(field.Offset == 0 ? align_ : field.Offset, 4);
-        const auto size = eleSize * field.Length;
         const auto newOffset = (offset + align - 1) / align * align;
-        if (newOffset % 16 + size <= 16) // fit into the slot
+        if (field.Length == 1 && newOffset % 16 + eleSize <= 16) // fit into the slot
         {
             field.Offset = static_cast<uint16_t>(newOffset);
-            offset = newOffset + size;
+            offset = newOffset + eleSize;
         }
         else // start new slot
         {
             field.Offset = static_cast<uint16_t>((newOffset / 16 + 1) * 16);
-            offset = field.Offset + size;
+            const auto EleSlots = (eleSize + 15) / 16;
+            field.MetaInfo = EleSlots;
+            offset = field.Offset + (EleSlots * 16 * (field.Length - 1)) + eleSize;
         }
     }
     target.Alignment = 16; // vec4
     target.Size = offset;
 }
 
-void NLDXStructHandler::OutputStruct(const xcomp::XCNLStruct& target_, std::u32string& output)
+void NLDXStructHandler::OutputStructContent(const NLDXStruct& target, std::u32string& output) const
 {
-    auto& target = static_cast<const NLDXStruct&>(target_);
-    if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
-        return;
-    APPEND_FMT(output, U"struct {}"sv, target.GetName());
-    output.append(U"\r\n{\r\n"sv);
+    output.append(U"{\r\n"sv);
     for (const auto& field : target.Fields)
     {
         output.append(U"\t");
@@ -416,6 +421,15 @@ void NLDXStructHandler::OutputStruct(const xcomp::XCNLStruct& target_, std::u32s
         output.append(U";\r\n");
     }
     output.append(U"};\r\n"sv);
+}
+
+void NLDXStructHandler::OutputStruct(const xcomp::XCNLStruct& target_, std::u32string& output)
+{
+    auto& target = static_cast<const NLDXStruct&>(target_);
+    /*if (target.Layout == NLDXStruct::LayoutTarget::ConstBuf)
+        return;*/
+    APPEND_FMT(output, U"struct {}\r\n"sv, target.GetName());
+    OutputStructContent(target, output);
 }
 
 Arg NLDXStructHandler::EvaluateFunc(FuncEvalPack& func)
@@ -438,27 +452,31 @@ xcomp::XCNLConfigurator& NLDXRuntime::GetConfigurator() noexcept { return Config
 xcomp::XCNLRawExecutor& NLDXRuntime::GetRawExecutor() noexcept { return RawExecutor; }
 xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return StructHandler; }
 
-std::u32string_view NLDXRuntime::GetDXTypeName(common::simd::VecDataInfo info) noexcept
+std::u32string_view NLDXRuntime::GetDXTypeName(xcomp::VTypeInfo info) noexcept
 {
-#define CASE(s, type, bit, n) \
-    case static_cast<uint32_t>(VecDataInfo{VecDataInfo::DataTypes::type, bit, n, 0}): return PPCAT(PPCAT(U,s),sv);
-#define CASEV(pfx, type, bit) \
-    CASE(STRINGIZE(pfx),            type, bit, 1)  \
-    CASE(STRINGIZE(PPCAT(pfx, 2)),  type, bit, 2)  \
-    CASE(STRINGIZE(PPCAT(pfx, 3)),  type, bit, 3)  \
-    CASE(STRINGIZE(PPCAT(pfx, 4)),  type, bit, 4)  \
+#define CASE(s, type, bit, minBits, n) case static_cast<uint32_t>(xcomp::VTypeInfo{ \
+    xcomp::VTypeInfo::DataTypes::type, n, 0, bit, minBits ? xcomp::VTypeInfo::TypeFlags::MinBits : xcomp::VTypeInfo::TypeFlags::Empty}):    \
+        return U"" STRINGIZE(s) ""sv;
+#define CASEV(pfx, type, bit, minBits) \
+    CASE(pfx,            type, bit, minBits, 1)  \
+    CASE(PPCAT(pfx, 2),  type, bit, minBits, 2)  \
+    CASE(PPCAT(pfx, 3),  type, bit, minBits, 3)  \
+    CASE(PPCAT(pfx, 4),  type, bit, minBits, 4)  \
 
     switch (static_cast<uint32_t>(info))
     {
-    CASEV(uint16_t,     Unsigned, 16)
-    CASEV(uint,         Unsigned, 32)
-    CASEV(uint64_t,     Unsigned, 64)
-    CASEV(int16_t,      Signed,   16)
-    CASEV(int,          Signed,   32)
-    CASEV(int64_t,      Signed,   64)
-    CASEV(float16_t,    Float,    16)
-    CASEV(float,        Float,    32)
-    CASEV(double,       Float,    64)
+    CASEV(min16uint,    Unsigned, 16, true)
+    CASEV(uint16_t,     Unsigned, 16, false)
+    CASEV(uint,         Unsigned, 32, false)
+    CASEV(uint64_t,     Unsigned, 64, false)
+    CASEV(min16int,     Signed,   16, true)
+    CASEV(int16_t,      Signed,   16, false)
+    CASEV(int,          Signed,   32, false)
+    CASEV(int64_t,      Signed,   64, false)
+    CASEV(min16float,   Float,    16, true)
+    CASEV(float16_t,    Float,    16, false)
+    CASEV(float,        Float,    32, false)
+    CASEV(double,       Float,    64, false)
     default: return {};
     }
 
@@ -513,8 +531,8 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             return;
     }
 
-    common::SmallBitset useBitmap(arg.Extra.size(), false);
-    const auto ParseCommonInfo = [&](const std::vector<std::u32string_view>& extras)
+    xziar::nailang::FlaggedItems<const std::u32string_view> extras(arg.Extra);
+    const auto ParseCommonInfo = [&]()
     {
         constexpr auto ParseNumber = [](std::u32string_view str, uint16_t& target) 
         {
@@ -533,23 +551,23 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         };
         using common::str::IsBeginWith;
         std::u32string unknwonExtra;
-        size_t idx = 0;
         uint16_t space = UINT16_MAX, reg = UINT16_MAX, count = 1;
-        for (const auto extra : extras)
+        for (auto extra : extras)
         {
-            if (useBitmap.Get(idx++))
+            if (extra.CheckFlag())
                 continue;
 #define CHECK_FLAG(name)                                                                    \
-    if (const auto pfx_##name = U"" STRINGIZE(name) "="sv; IsBeginWith(extra, pfx_##name))  \
+    if (const auto pfx_##name = U"" STRINGIZE(name) "="sv; IsBeginWith(*extra, pfx_##name)) \
     {                                                                                       \
-        if (!ParseNumber(extra.substr(pfx_##name.size()), name))                            \
+        if (!ParseNumber(extra->substr(pfx_##name.size()), name))                           \
             NLRT_THROW_EX(FMTSTR(u"BufArg [{}] has invalid flag on [{}]: [{}]."sv,          \
-                arg.Name, U"" STRINGIZE(name) ""sv, extra), meta);                          \
+                arg.Name, U"" STRINGIZE(name) ""sv, *extra), meta);                         \
+            extra.SetFlag(true);                                                            \
     }
             CHECK_FLAG(space)
             else CHECK_FLAG(reg)
             else CHECK_FLAG(count)
-            else unknwonExtra.append(extra).append(U"], [");
+            else unknwonExtra.append(*extra).append(U"], [");
         }
         if (!unknwonExtra.empty())
         {
@@ -563,9 +581,30 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     {
     case InstanceArgInfo::Types::RawBuf:
     {
-        BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
-            BoundedResourceType::RWStructBuf : BoundedResourceType::StructBuf;
-        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        bool isCBuffer = false;
+        for (auto extra : extras)
+        {
+            if (*extra == U"cbuffer"sv)
+            {
+                isCBuffer = true;
+                extra.SetFlag(true);
+            }
+        }
+        const bool isWritable = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write);
+        BoundedResourceType type = isCBuffer ? BoundedResourceType::CBuffer : 
+            (isWritable ? BoundedResourceType::RWStructBuf : BoundedResourceType::StructBuf);
+        const auto [space, reg, count] = ParseCommonInfo();
+        if (isCBuffer)
+        {
+            if (isWritable)
+                NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
+            // cbuffer array supported by SM5.1
+            // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#constant-buffers
+            /*if (count > 1)
+                NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] cannot be array since it's flagged as cbuffer"sv, arg.Name), meta);*/
+            if (Context.FindStruct(arg.DataType) == SIZE_MAX)
+                NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] has unrecoginized struct datatype [{}]"sv, arg.Name, arg.DataType), meta);
+        }
         Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
@@ -573,7 +612,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     {
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
-        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        const auto [space, reg, count] = ParseCommonInfo();
         Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
@@ -581,14 +620,14 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     {
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
             NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
-        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        const auto [space, reg, count] = ParseCommonInfo();
         Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
     } return;
     case InstanceArgInfo::Types::Texture:
     {
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
-        const auto [space, reg, count] = ParseCommonInfo(arg.Extra);
+        const auto [space, reg, count] = ParseCommonInfo();
         Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
@@ -658,6 +697,7 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string&, std::u32string& structs, s
                 case BoundedResourceType::RWStructBuf:  return U"RWStructuredBuffer"sv;
                 case BoundedResourceType::Typed:        return U"Buffer"sv;
                 case BoundedResourceType::RWTyped:      return U"RWBuffer"sv;
+                case BoundedResourceType::CBuffer:      return U"ConstantBuffer"sv;
                 default:                                return U""sv;
                 }
             }
@@ -674,7 +714,8 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string&, std::u32string& structs, s
             if (res.BindReg != UINT16_MAX)
             {
                 const bool isRW = HAS_FIELD(res.Type, BoundedResourceType::RWMask);
-                APPEND_FMT(bindings, U" : register({}{}", isRW ? U"u"sv : U"t"sv, res.BindReg);
+                const bool isCBuffer = res.Type == BoundedResourceType::CBuffer;
+                APPEND_FMT(bindings, U" : register({}{}", isCBuffer ? U"b"sv : (isRW ? U"u"sv : U"t"sv), res.BindReg);
                 if (res.Space != UINT16_MAX)
                 {
                     APPEND_FMT(bindings, U", space{}", res.Space);
@@ -709,29 +750,42 @@ void NLDXRuntime::BeforeFinishOutput(std::u32string&, std::u32string& structs, s
     structs.append(bindings);
 }
 
-NLDXRuntime::VecTypeResult NLDXRuntime::TryParseVecType(const std::u32string_view type) const noexcept
+xcomp::VTypeInfo NLDXRuntime::TryParseVecType(const std::u32string_view type, bool allowMinBits) const noexcept
 {
-    auto [info, least] = xcomp::ParseVDataType(type);
-    if (info.Bit == 0)
-        return { info, false };
+    auto info = xcomp::ParseVDataType(type);
+    if (!info)
+        info;
+    const bool isMinBits = info.HasFlag(xcomp::VTypeInfo::TypeFlags::MinBits);
     bool typeSupport = true;
-    if (info.Type == common::simd::VecDataInfo::DataTypes::Float) // FP ext handling
+    if (info.Type == xcomp::VTypeInfo::DataTypes::BFloat)
+        typeSupport = false;
+    else if (info.Bits == 16) // 16bit handling
     {
-        if (info.Bit == 16 && !Context.Device->SupportFP16()) // FP16 check
-        {
-            if (least) // promotion
-                info.Bit = 32;
-            else
-                typeSupport = false;
-        }
-        else if (info.Bit == 64 && !Context.Device->SupportFP64())
-        {
+        if (Context.Enable16Bit)
+            info.Flag &= ~xcomp::VTypeInfo::TypeFlags::MinBits; // simply remove minBits
+        else if (allowMinBits)
+            info.Flag |= xcomp::VTypeInfo::TypeFlags::MinBits; // simply add minBits
+        else if (isMinBits) // disallow minbits, promote
+            info.Bits = 32;
+        else // disallow minbits, cannot support
             typeSupport = false;
-        }
     }
-    return { info, typeSupport };
+    else if (info.Bits == 64) // 64bit handling
+    {
+        if (info.Type == xcomp::VTypeInfo::DataTypes::Float) // FP64
+            typeSupport = Context.Device->SupportFP64();
+        else // INT64
+            typeSupport = Context.Device->SupportINT64();
+    }
+    if (info.Dim0() > 4)
+        typeSupport = false;
+    if (!allowMinBits)
+        info.Flag &= ~xcomp::VTypeInfo::TypeFlags::MinBits;
+    if (!typeSupport)
+        info.Flag |= xcomp::VTypeInfo::TypeFlags::Unsupport;
+    return info;
 }
-std::u32string_view NLDXRuntime::GetVecTypeName(common::simd::VecDataInfo info) const noexcept
+std::u32string_view NLDXRuntime::GetVecTypeName(xcomp::VTypeInfo info) const noexcept
 {
     return GetDXTypeName(info);
 }
@@ -838,6 +892,9 @@ std::unique_ptr<NLDXResult> NLDXProcessor::CompileIntoProgram(NLDXProgStub& stub
     try
     {
         auto& nldxCtx = *stub.GetContext().get();
+        config.SMVersion = std::max(nldxCtx.MinSMVer, config.SMVersion);
+        if (nldxCtx.Enable16Bit)
+            config.Flags.insert("-enable-16bit-types");
         for (const auto& flag : nldxCtx.CompilerFlags)
         {
             config.Flags.insert(flag);

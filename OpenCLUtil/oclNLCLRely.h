@@ -189,11 +189,11 @@ protected:
     void HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::InstanceContext& ctx, const xziar::nailang::FuncPack& meta, const xziar::nailang::Arg*) final;
     void BeforeFinishOutput(std::u32string& prefixes, std::u32string& structs, std::u32string& globals, std::u32string& kernels) final;
 public:
-    [[nodiscard]] static std::u32string_view GetCLTypeName(common::simd::VecDataInfo info) noexcept;
+    [[nodiscard]] static std::u32string_view GetCLTypeName(xcomp::VTypeInfo info) noexcept;
     NLCLRuntime(common::mlog::MiniLogger<false>& logger, std::shared_ptr<NLCLContext> evalCtx);
     ~NLCLRuntime() override;
-    [[nodiscard]] VecTypeResult TryParseVecType(const std::u32string_view type) const noexcept final;
-    [[nodiscard]] std::u32string_view GetVecTypeName(common::simd::VecDataInfo info) const noexcept final;
+    [[nodiscard]] xcomp::VTypeInfo TryParseVecType(const std::u32string_view type, bool allowMinBits) const noexcept final;
+    [[nodiscard]] std::u32string_view GetVecTypeName(xcomp::VTypeInfo info) const noexcept final;
     bool EnableExtension(std::string_view ext, std::u16string_view desc = {});
     bool EnableExtension(std::u32string_view ext, std::u16string_view desc = {});
 };

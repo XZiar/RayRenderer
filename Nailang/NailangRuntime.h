@@ -365,29 +365,51 @@ struct FuncPack : public FuncCall
             return std::move(def);
     }
 };
+
+
+template<typename T>
+class FlaggedItems
+{
+protected:
+    struct ItemWrapper
+    {
+        const FlaggedItems& Host;
+        size_t Index;
+        T* operator->() const noexcept { return &Host.Container[Index]; }
+        T& operator*()  const noexcept { return  Host.Container[Index]; }
+        bool CheckFlag() const noexcept { return Host.FlagBitmap.Get(Index); }
+        void SetFlag(bool value) noexcept { Host.FlagBitmap.Set(Index, value); }
+    };
+    [[nodiscard]] constexpr ItemWrapper Get(size_t index) const noexcept
+    {
+        return { *this, index };
+    }
+    using ItType = common::container::IndirectIterator<const FlaggedItems<T>, ItemWrapper, &FlaggedItems<T>::Get>;
+    friend ItType;
+    mutable common::SmallBitset FlagBitmap;
+    common::span<T> Container;
+public:
+    FlaggedItems() noexcept { }
+    FlaggedItems(common::span<T> items) noexcept : FlagBitmap(items.size(), false), Container(items) { }
+    [[nodiscard]] constexpr ItType begin() const noexcept
+    {
+        return { this, 0 };
+    }
+    [[nodiscard]] constexpr ItType end() const noexcept
+    {
+        return { this, Container.size() };
+    }
+};
+
+
 class MetaSet
 {
     friend NailangExecutor;
 private:
-    struct MetaFuncWrapper
-    {
-        MetaSet& Host;
-        size_t Index;
-        FuncPack* operator->() const noexcept { return &Host.AllMetas[Index]; }
-        FuncPack& operator*()  const noexcept { return  Host.AllMetas[Index]; }
-        bool IsUsed() const noexcept { return Host.AccessBitmap.Get(Index); }
-        void SetUsed() noexcept { Host.AccessBitmap.Set(Index, true); }
-    };
-    [[nodiscard]] constexpr MetaFuncWrapper Get(size_t index) noexcept
-    {
-        return { *this, index };
-    }
-    using ItType = common::container::IndirectIterator<MetaSet, MetaFuncWrapper, &MetaSet::Get>;
-    friend ItType;
-    common::SmallBitset AccessBitmap;
     std::vector<Arg> Args;
     std::vector<FuncPack> AllMetas;
     MemoryPool FuncNamePool;
+    FlaggedItems<FuncPack> RealMetas;
     size_t MetaCount;
     void AllocateMeta(bool isPostMeta, const FuncCall& func)
     {
@@ -403,24 +425,20 @@ private:
         AllocateMeta(isPostMeta, { funcName, std::forward<Args>(args)... });
     }
     forceinline void FillFuncPack(FuncPack& pack, NailangExecutor& executor);
-    void PrepareBitmap() { AccessBitmap = { MetaCount, false }; }
+    void PrepareLiveMetas() noexcept { RealMetas = common::to_span(AllMetas).subspan(0, MetaCount); }
 public:
     const common::span<const FuncCall> OriginalMetas;
     const Statement& Target;
     MetaSet(common::span<const FuncCall> metas, const Statement& target) noexcept : 
         FuncNamePool(4096), MetaCount(0), OriginalMetas(metas), Target(target)
     { }
+    const FlaggedItems<FuncPack>& LiveMetas() noexcept
+    {
+        return RealMetas;
+    }
     common::span<FuncPack> PostMetas() noexcept
     {
         return common::to_span(AllMetas).subspan(MetaCount);
-    }
-    [[nodiscard]] constexpr ItType begin() noexcept
-    {
-        return { this, 0 };
-    }
-    [[nodiscard]] constexpr ItType end() noexcept
-    {
-        return { this, MetaCount };
     }
     forceinline static common::span<FuncPack> GetPostMetas(MetaSet* metas) noexcept
     {
