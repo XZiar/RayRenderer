@@ -1,5 +1,6 @@
 #include "DxPch.h"
 #include <DXProgrammableCapture.h>
+#include <pix3.h>
 
 #if defined(_WIN32)
 #   pragma comment (lib, "D3d12.lib")
@@ -73,6 +74,66 @@ DxException::DxException(common::HResultHolder hresult, std::u16string msg) : Dx
 
 namespace detail
 {
+
+namespace pix
+{
+static HMODULE& GetPixDll()
+{
+    static HMODULE pixModule = nullptr;
+    return pixModule;
+}
+void LoadPixDll(common::fs::path dllPath)
+{
+    auto& pixDll = GetPixDll();
+    if (pixDll == nullptr)
+    {
+        if (common::fs::exists(dllPath))
+            pixDll = LoadLibrary(dllPath.replace_filename(L"WinPixEventRuntime.dll").c_str());
+        else
+            pixDll = LoadLibrary(L"WinPixEventRuntime.dll");
+    }
+}
+bool CheckPixLoad()
+{
+    static auto& pixDll = []() -> HMODULE& { LoadPixDll({}); return GetPixDll(); }();
+    return pixDll != nullptr;
+}
+void BeginEvent(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str)
+{
+    if (CheckPixLoad())
+        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+}
+void BeginEvent(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str)
+{
+    if (CheckPixLoad())
+        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+}
+void EndEvent(ID3D12CommandQueue* context)
+{
+    if (CheckPixLoad())
+        PIXEndEvent(context);
+}
+void EndEvent(ID3D12GraphicsCommandList* context)
+{
+    if (CheckPixLoad())
+        PIXEndEvent(context);
+}
+void SetMarker(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str)
+{
+    if (CheckPixLoad())
+        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+}
+void SetMarker(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str)
+{
+    if (CheckPixLoad())
+        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+}
+void NotifyWakeFromFenceSignal(HANDLE handle)
+{
+    if (CheckPixLoad())
+        PIXNotifyWakeFromFenceSignal(handle);
+}
+}
 
 uint32_t TexFormatToDXGIFormat(xziar::img::TextureFormat format) noexcept
 {
@@ -185,6 +246,26 @@ std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept
     }
 }
 
+}
+
+bool LoadPixDll(const common::fs::path& dllPath)
+{
+    detail::pix::LoadPixDll(dllPath);
+    return detail::pix::CheckPixLoad();
+}
+bool InJectRenderDoc(common::fs::path dllPath)
+{
+#if COMMON_OS_WIN
+    if (common::fs::exists(dllPath))
+        return LoadLibrary(dllPath.replace_filename(L"renderdoc.dll").c_str()) != nullptr;
+    else
+        return LoadLibrary(L"renderdoc.dll") != nullptr;
+#else
+    if (common::fs::exists(dllPath))
+        return dlopen(dllPath.replace_filename("renderdoc.so").c_str(), RTLD_LAZY) != nullptr;
+    else
+        dlopen("renderdoc.so", RTLD_LAZY) != nullptr;
+#endif
 }
 
 

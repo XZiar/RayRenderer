@@ -93,15 +93,15 @@ void* DxCmdList_::GetD3D12Object() const noexcept
 }
 void DxCmdList_::BeginEvent(std::u16string_view msg) const
 {
-    PIXBeginEvent(CmdList.Ptr(), 0, reinterpret_cast<const wchar_t*>(msg.data()));
+    detail::pix::BeginEvent(CmdList.Ptr(), 0, msg);
 }
 void DxCmdList_::EndEvent() const
 {
-    PIXEndEvent(CmdList.Ptr());
+    detail::pix::EndEvent(CmdList.Ptr());
 }
 void DxCmdList_::AddMarker(std::u16string name) const
 {
-    PIXSetMarker(CmdList.Ptr(), 0, reinterpret_cast<const wchar_t*>(name.c_str()));
+    detail::pix::SetMarker(CmdList.Ptr(), 0, name);
 }
 
 void DxCmdList_::InitResTable(const ResStateList& list)
@@ -337,15 +337,15 @@ void* DxCmdQue_::GetD3D12Object() const noexcept
 }
 void DxCmdQue_::BeginEvent(std::u16string_view msg) const
 {
-    PIXBeginEvent(CmdQue.Ptr(), 0, reinterpret_cast<const wchar_t*>(msg.data()));
+    detail::pix::BeginEvent(CmdQue.Ptr(), 0, msg);
 }
 void DxCmdQue_::EndEvent() const
 {
-    PIXEndEvent(CmdQue.Ptr());
+    detail::pix::EndEvent(CmdQue.Ptr());
 }
 void DxCmdQue_::AddMarker(std::u16string name) const
 {
-    PIXSetMarker(CmdQue.Ptr(), 0, reinterpret_cast<const wchar_t*>(name.c_str()));
+    detail::pix::SetMarker(CmdQue.Ptr(), 0, name);
 }
 
 void DxCmdQue_::ExecuteList(DxCmdList_& list) const

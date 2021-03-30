@@ -22,7 +22,6 @@
 #include <d3d12shader.h>
 #include <dxgi1_6.h>
 #include "d3dx12.h"
-#include <pix3.h>
 
 //fucking wingdi defines some terrible macro
 #undef ERROR
@@ -38,6 +37,19 @@ namespace dxu
 
 namespace detail
 {
+
+namespace pix
+{
+void LoadPixDll(common::fs::path dllPath);
+bool CheckPixLoad();
+void BeginEvent(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str);
+void BeginEvent(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str);
+void EndEvent(ID3D12CommandQueue* context);
+void EndEvent(ID3D12GraphicsCommandList* context);
+void SetMarker(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str);
+void SetMarker(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str);
+void NotifyWakeFromFenceSignal(HANDLE handle);
+}
 
 struct IIDPPVPair
 {

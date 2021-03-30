@@ -29,7 +29,7 @@ static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<c
     switch (WaitForSingleObject(handle, ms))
     {
     case WAIT_OBJECT_0:     
-        PIXNotifyWakeFromFenceSignal(handle);
+        detail::pix::NotifyWakeFromFenceSignal(handle);
         return common::PromiseState::Executed;
     case WAIT_TIMEOUT:
         return common::PromiseState::Executing;

@@ -300,6 +300,8 @@ struct PipelineState;
 DXUAPI [[nodiscard]] std::string_view GetBoundedResTypeName(const BoundedResourceType type) noexcept;
 }
 
+DXUAPI bool LoadPixDll(const common::fs::path& dllPath);
+DXUAPI bool InJectRenderDoc(common::fs::path dllPath);
 
 //struct ContextCapability
 //{
