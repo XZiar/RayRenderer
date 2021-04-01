@@ -49,6 +49,7 @@ public:
         if (HAS_FIELD(MapType, MapFlags::WriteOnly))
         {
             RealResource.CopyFrom(CopyList, Offset, MappedResource, 0, MemSpace.size());
+            CopyList->Close();
             CmdQue->ExecuteAnyList(CopyList)->WaitFinish();
         }
         Unmap();
@@ -67,6 +68,7 @@ public:
             cmdList->FlushResourceState();
             mapped->CopyRegionFrom(cmdList, 0, *res, offset, size);*/
             mapped->CopyFrom_(cmdList, 0, *res, offset, size, true, false);
+            cmdList->Close();
             que->ExecuteAnyList(cmdList)->WaitFinish();
             cmdList->Reset(false);
         }
@@ -167,6 +169,7 @@ common::PromiseResult<void> DxBuffer_::ReadSpan_(const DxCmdQue& que, common::sp
         //cmdList->FlushResourceState();
         //mapped->CopyRegionFrom(cmdList, 0, *this, offset, buf.size());
         mapped->CopyFrom_(cmdList, 0, *this, offset, buf.size(), true, false);
+        cmdList->Close();
         return common::StagedResult::TwoStage(
             que->ExecuteAnyList(cmdList),
             [=]() mutable
@@ -201,6 +204,7 @@ common::PromiseResult<void> DxBuffer_::WriteSpan_(const DxCmdQue& que, common::s
         auto cmdList = que->CreateList();
         cmdList->SetName(FMTSTR(u"CopyList for write [{}]", GetName()));
         CopyFrom_(cmdList, offset, *tmpBuf, 0, buf.size(), false, true);
+        cmdList->Close();
         const auto pms = que->ExecuteAnyList(cmdList);
         pms->OnComplete([=]() mutable
             {

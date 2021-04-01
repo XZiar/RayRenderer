@@ -16,6 +16,9 @@
 
 #include <algorithm>
 
+#include <boost/range/adaptor/reversed.hpp>
+
+
 #define COM_NO_WINDOWS_H
 #define NOMINMAX 1
 #include <d3d12.h>
@@ -76,6 +79,7 @@ struct type : public dxtype             \
 
 ProxyType(Adapter,              IDXGIAdapter1);
 ProxyType(Device,               ID3D12Device);
+ProxyType(QueryHeap,            ID3D12QueryHeap);
 ProxyType(CmdAllocator,         ID3D12CommandAllocator);
 // althought have different list types, they all called "GraphicsCommandList"
 ProxyType(CmdList,              ID3D12GraphicsCommandList);

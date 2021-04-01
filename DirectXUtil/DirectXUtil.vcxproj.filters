@@ -54,6 +54,9 @@
     <ClInclude Include="NLDXRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="DxQuery.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DxDevice.cpp">
@@ -84,6 +87,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="NLDX.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DxQuery.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

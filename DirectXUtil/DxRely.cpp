@@ -62,13 +62,17 @@ void DxNamable::SetName(std::u16string name)
 }
 
 
-DxException::DxException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, msg)
+DxException::DxException(std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, std::move(msg))
 { }
-
-DxException::DxException(common::HResultHolder hresult, std::u16string msg) : DxException(msg)
+DxException::DxException(common::HResultHolder hresult, std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, std::move(msg))
 {
     Attach("HResult", hresult);
     Attach("detail", hresult.ToStr());
+}
+DxException::DxException(common::Win32ErrorHolder error, std::u16string msg) : common::BaseException(T_<ExceptionInfo>{}, std::move(msg))
+{
+    Attach("Win32Error", error);
+    Attach("detail", error.ToStr());
 }
 
 

@@ -10,6 +10,7 @@ namespace dxu
 {
 class DxDevice_;
 using DxDevice = const DxDevice_*;
+class DxQueryProvider;
 class DxCmdQue_;
 class DxCmdList_;
 class DxResource_;
@@ -19,6 +20,7 @@ class DxBindingManager;
 
 class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public common::NonMovable
 {
+    friend DxQueryProvider;
     friend DxCmdQue_;
     friend DxCmdList_;
     friend DxResource_;

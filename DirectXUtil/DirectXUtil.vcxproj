@@ -50,6 +50,7 @@
     <ClInclude Include="DxBuffer.h" />
     <ClInclude Include="DxProgram.h" />
     <ClInclude Include="DxPromise.h" />
+    <ClInclude Include="DxQuery.h" />
     <ClInclude Include="DxResource.h" />
     <ClInclude Include="DxCmdQue.h" />
     <ClInclude Include="DxDevice.h" />
@@ -64,6 +65,7 @@
     <ClCompile Include="DxBuffer.cpp" />
     <ClCompile Include="DxProgram.cpp" />
     <ClCompile Include="DxPromise.cpp" />
+    <ClCompile Include="DxQuery.cpp" />
     <ClCompile Include="DxResource.cpp" />
     <ClCompile Include="DxCmdQue.cpp" />
     <ClCompile Include="DxDevice.cpp" />

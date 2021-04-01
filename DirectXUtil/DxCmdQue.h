@@ -2,6 +2,7 @@
 #include "DxRely.h"
 #include "DxDevice.h"
 #include "DxPromise.h"
+#include "DxQuery.h"
 
 
 #if COMPILER_MSVC
@@ -66,6 +67,7 @@ public:
 
 class DXUAPI DxCmdList_ : public DxNamable, public detail::DebugEventHolder
 {
+    friend DxQueryProvider;
     friend DxCmdQue_;
     friend DxResource_;
     friend DxProgram_;
@@ -86,10 +88,12 @@ protected:
     };
     PtrProxy<detail::CmdAllocator> CmdAllocator;
     PtrProxy<detail::CmdList> CmdList;
+    DxDevice Device;
+    std::shared_ptr<DxQueryProvider> QueryProvider;
     std::vector<ResStateRecord> ResStateTable;
     ResStateList EndResStates;
     const ListType Type;
-    std::atomic<bool> HasClosed;
+    bool HasClosed;
     
     DxCmdList_(DxDevice device, ListType type);
     COMMON_NO_COPY(DxCmdList_)
@@ -108,6 +112,7 @@ protected:
         InitResTable(std::forward<T>(begin));
         EndResStates = std::forward<T>(end);
     }
+    DxQueryProvider& GetQueryProvider();
     bool UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState);
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
@@ -115,9 +120,13 @@ public:
     void AddMarker(std::u16string name) const final;
     void FlushResourceState();
     ResStateList GenerateStateList() const;
-    bool IsClosed() const noexcept;
-    void EnsureClosed();
+    [[nodiscard]] bool IsClosed() const noexcept { return HasClosed; }
+    void Close();
     void Reset(const bool resetResState = true);
+    [[nodiscard]] DxTimestampToken CaptureTimestamp()
+    {
+        return GetQueryProvider().AllocateTimeQuery(*this);
+    }
 };
 MAKE_ENUM_BITFIELD(DxCmdList_::Capability)
 
@@ -175,12 +184,14 @@ public:
 
 class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public detail::DebugEventHolder
 {
-    friend class DxPromiseCore;
+    friend DxQueryProvider;
+    friend DxPromiseCore;
 private:
     mutable std::atomic<uint64_t> FenceNum;
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
     void BeginEvent(std::u16string_view msg) const final;
     void EndEvent() const final;
+    static void EnsureClosed(const DxCmdList_& list);
 protected:
     enum class QueType { Copy, Compute, Direct };
     COMMON_NO_COPY(DxCmdQue_)
@@ -191,8 +202,17 @@ protected:
     PtrProxy<detail::Fence> Fence; 
 
     virtual QueType GetType() const noexcept = 0;
-    void ExecuteList(DxCmdList_& list) const;
-    common::PromiseResult<void> Signal() const;
+    void ExecuteList(const DxCmdList_& list) const;
+    std::variant<uint64_t, DxException> SignalNum() const;
+    template<typename T = void, typename... Args>
+    common::PromiseResult<T> Signal(Args&&... args) const
+    {
+        auto ret = SignalNum();
+        if (ret.index() == 0)
+            return DxPromise<T>::Create(*this, std::get<0>(ret), std::forward<Args>(args)...);
+        else
+            return DxPromise<T>::CreateError(std::get<1>(ret));
+    }
     void Wait(const common::PromiseProvider& pms) const;
 public:
     ~DxCmdQue_() override;
@@ -214,10 +234,11 @@ public:
         ExecuteList(*list);
         return Signal();
     }
+    common::PromiseResult<DxQueryResolver> ExecuteAnyListWithQuery(const DxCmdList& list) const;
     template<typename T>
     void Wait(const common::PromiseResult<T>& pms) const
     {
-        Wait(pms->GetPromise());
+        Wait(pms->GetRootPromise());
     }
 };
 
@@ -230,6 +251,7 @@ protected:
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy;
     common::PromiseResult<void> Execute(const DxCopyCmdList& list) const { return ExecuteAnyList(list); }
+    common::PromiseResult<DxQueryResolver> ExecuteWithQuery(const DxCopyCmdList& list) const { return ExecuteAnyListWithQuery(list); }
 
     [[nodiscard]] static DxCopyCmdQue Create(DxDevice device, bool diableTimeout = false);
 };
@@ -243,6 +265,7 @@ private:
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy | DxCmdList_::Capability::Compute;
     common::PromiseResult<void> Execute(const DxComputeCmdList& list) const { return ExecuteAnyList(list); }
+    common::PromiseResult<DxQueryResolver> ExecuteWithQuery(const DxComputeCmdList& list) const { return ExecuteAnyListWithQuery(list); }
 
     [[nodiscard]] static DxComputeCmdQue Create(DxDevice device, bool diableTimeout = false);
 };
@@ -256,6 +279,7 @@ private:
 public:
     static constexpr auto CmdCaps = DxCmdList_::Capability::Copy | DxCmdList_::Capability::Compute | DxCmdList_::Capability::Graphic;
     common::PromiseResult<void> Execute(const DxDirectCmdList& list) const { return ExecuteAnyList(list); }
+    common::PromiseResult<DxQueryResolver> ExecuteWithQuery(const DxDirectCmdList& list) const { return ExecuteAnyListWithQuery(list); }
 
     [[nodiscard]] static DxDirectCmdQue Create(DxDevice device, bool diableTimeout = false);
 };

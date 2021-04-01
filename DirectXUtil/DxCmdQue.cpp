@@ -4,6 +4,7 @@
 
 namespace dxu
 {
+MAKE_ENABLER_IMPL(DxQueryProvider);
 MAKE_ENABLER_IMPL(DxCopyCmdList_);
 MAKE_ENABLER_IMPL(DxComputeCmdList_);
 MAKE_ENABLER_IMPL(DxDirectCmdList_);
@@ -69,7 +70,7 @@ DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const Resourc
 { }
 
 
-DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Type(type), HasClosed{false}
+DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Device(device), Type(type), HasClosed{false}
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -118,6 +119,13 @@ void DxCmdList_::InitResTable(const DxCmdList_& list)
     if (!list.IsClosed())
         COMMON_THROW(DxException, u"PrevList not closed");
     ResStateTable = list.ResStateTable;
+}
+
+DxQueryProvider& DxCmdList_::GetQueryProvider()
+{
+    if (!QueryProvider)
+        QueryProvider = MAKE_ENABLER_SHARED(DxQueryProvider, (Device));
+    return *QueryProvider;
 }
 
 bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState)
@@ -254,19 +262,15 @@ ResStateList DxCmdList_::GenerateStateList() const
     return list;
 }
 
-
-bool DxCmdList_::IsClosed() const noexcept
+void DxCmdList_::Close()
 {
-    return HasClosed.load();
-}
-
-void DxCmdList_::EnsureClosed()
-{
-    if (!HasClosed.exchange(true))
+    if (!HasClosed)
     {
         if (!CheckRangeEmpty())
             dxLog().error(u"some range not closed with cmdlist [{}]", GetName());
         THROW_HR(CmdList->Close(), u"Failed to close CmdList");
+        if (QueryProvider)
+            QueryProvider->Finish();
         // Decay states
         if (Type == ListType::Copy) // Resources being accessed on a Copy queue
             ResStateTable.clear();
@@ -285,13 +289,15 @@ void DxCmdList_::EnsureClosed()
             }
             ResStateTable.swap(newStates);
         }
+        HasClosed = true;
     }
 }
 
 void DxCmdList_::Reset(const bool resetResState)
 {
     THROW_HR(CmdList->Reset(CmdAllocator, nullptr), u"Failed to reset CmdList");
-    HasClosed.store(false);
+    HasClosed = false;
+    QueryProvider.reset();
     if (resetResState)
         ResStateTable.clear();
 }
@@ -348,19 +354,25 @@ void DxCmdQue_::AddMarker(std::u16string name) const
     detail::pix::SetMarker(CmdQue.Ptr(), 0, name);
 }
 
-void DxCmdQue_::ExecuteList(DxCmdList_& list) const
+void DxCmdQue_::EnsureClosed(const DxCmdList_& list)
 {
-    list.EnsureClosed();
+    if (!list.IsClosed())
+        COMMON_THROWEX(DxException, u"Cmdlist has not been closed");
+}
+
+void DxCmdQue_::ExecuteList(const DxCmdList_& list) const
+{
+    EnsureClosed(list);
     ID3D12CommandList* ptr = list.CmdList;
     CmdQue->ExecuteCommandLists(1, &ptr);
 }
 
-common::PromiseResult<void> DxCmdQue_::Signal() const
+std::variant<uint64_t, DxException> DxCmdQue_::SignalNum() const
 {
-    auto num = FenceNum++;
+    auto num = ++FenceNum;
     if (const common::HResultHolder hr = CmdQue->Signal(Fence, num); !hr)
-        return DxPromise<void>::CreateError(CREATE_EXCEPTION(DxException, hr, u""));
-    return DxPromise<void>::Create(*this, num);
+        return CREATE_EXCEPTION(DxException, hr, u"Failed to Signal the cmdque");
+    return num;
 }
 
 void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
@@ -384,6 +396,18 @@ void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
         dxLog().warning(u"Non-dx promise detected to be wait for, will be ignored!\n");
     }
 }
+
+common::PromiseResult<DxQueryResolver> DxCmdQue_::ExecuteAnyListWithQuery(const DxCmdList& list) const
+{
+    EnsureClosed(*list);
+    auto record = list->QueryProvider->GenerateResolve(*this);
+    ExecuteList(*list);
+    ExecuteList(*record.ResolveList);
+    return common::StagedResult::TwoStage(
+        Signal<DxQueryProvider::ResolveRecord>(std::move(record)), 
+        [](auto record) -> DxQueryResolver { return record; });
+}
+
 
 DxCopyCmdQue DxCopyCmdQue_::Create(DxDevice device, bool diableTimeout)
 {

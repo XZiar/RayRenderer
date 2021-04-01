@@ -20,7 +20,10 @@ DxPromiseCore::DxPromiseCore(const bool isException) :
 DxPromiseCore::~DxPromiseCore()
 {
     if (Handle)
+    {
+        //[[maybe_unused]] auto _ = UnregisterWait((HANDLE)Handle);
         CloseHandle((HANDLE)Handle);
+    }
 }
 
 static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<common::ExceptionBasicInfo>& ex)
@@ -42,6 +45,12 @@ static common::PromiseState WaitHandle(void* handle, DWORD ms, std::shared_ptr<c
     return common::PromiseState::Error;
 }
 
+void DxPromiseCore::EventCallback(void* context, [[maybe_unused]] unsigned char isTimeout)
+{
+    auto& pms = *reinterpret_cast<DxPromiseCore*>(context);
+    detail::pix::NotifyWakeFromFenceSignal(pms.Handle);
+}
+
 [[nodiscard]] common::PromiseState DxPromiseCore::GetState() noexcept
 {
     using common::PromiseState;
@@ -55,11 +64,22 @@ void DxPromiseCore::PreparePms()
     if (IsException)
         return;
     Expects(Handle == nullptr);
-    Handle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-    if (const common::HResultHolder hr = CmdQue->Fence->SetEventOnCompletion(Num, Handle); !hr)
+    const auto eventHandle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+    if (eventHandle == nullptr)
+    {
+        WaitException = CREATE_EXCEPTION(DxException, common::Win32ErrorHolder::GetLastError(), u"Failed to create Win32Event").InnerInfo();
+        return;
+    }
+    /*if (RegisterWaitForSingleObject(&Handle, eventHandle, EventCallback, this, INFINITE, WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE) == 0)
+    {
+        WaitException = CREATE_EXCEPTION(DxException, common::Win32ErrorHolder::GetLastError(), u"Failed to create register callback").InnerInfo();
+        return;
+    }*/
+    if (const common::HResultHolder hr = CmdQue->Fence->SetEventOnCompletion(Num, eventHandle); !hr)
     {
         WaitException = CREATE_EXCEPTION(DxException, hr, u"Failed to call SetEventOnCompletion").InnerInfo();
     }
+    Handle = eventHandle;
 }
 
 common::PromiseState DxPromiseCore::WaitPms() noexcept

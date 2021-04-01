@@ -14,6 +14,7 @@ namespace dxu
 class DxResource_;
 using DxResource = std::shared_ptr<DxResource_>;
 class DxBuffer_;
+class DxQueryProvider;
 class DxBindingManager;
 
 
@@ -59,6 +60,7 @@ MAKE_ENUM_BITFIELD(MapFlags)
 
 class DXUAPI DxResource_ : public DxNamable, public std::enable_shared_from_this<DxResource_>
 {
+    friend DxQueryProvider;
     friend DxBindingManager;
     friend DxCmdList_;
     friend ResStateList;

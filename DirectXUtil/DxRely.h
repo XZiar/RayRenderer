@@ -67,6 +67,8 @@
 #include <variant>
 #include <atomic>
 
+#include <boost/container/small_vector.hpp>
+
 
 #if COMPILER_MSVC
 #   pragma warning(push)
@@ -101,8 +103,18 @@ struct PtrProxy
             Pointer = nullptr;
         }
     }
-    PtrProxy<T>& operator=(const PtrProxy<T>&) noexcept = delete;
-    PtrProxy<T>& operator=(PtrProxy<T>&&) noexcept = delete;
+    PtrProxy<T>& operator=(const PtrProxy<T>& ptr) noexcept
+    {
+        auto tmp = ptr;
+        std::swap(tmp.Pointer, Pointer);
+        return *this;
+    }
+    PtrProxy<T>& operator=(PtrProxy<T>&& ptr) noexcept
+    {
+        std::swap(ptr.Pointer, Pointer);
+        ptr.~PtrProxy();
+        return *this;
+    }
     T* Ptr() const noexcept 
     {
         return reinterpret_cast<T*>(Pointer);
@@ -207,6 +219,7 @@ private:
     );
     DxException(std::u16string msg);
     DxException(common::HResultHolder hresult, std::u16string msg);
+    DxException(common::Win32ErrorHolder error, std::u16string msg);
 };
 
 
@@ -285,6 +298,7 @@ struct IIDData;
 
 struct Adapter;
 struct Device;
+struct QueryHeap;
 struct CmdAllocator;
 struct CmdList;
 struct CmdQue;

@@ -17,6 +17,8 @@ class DxCmdQue_;
 class DXUAPI DxPromiseCore : public common::PromiseProvider
 {
     friend class DxCmdQue_;
+private:
+    static void EventCallback(void* context, unsigned char isTimeout);
 protected:
     std::shared_ptr<const DxCmdQue_> CmdQue;
     uint64_t Num;

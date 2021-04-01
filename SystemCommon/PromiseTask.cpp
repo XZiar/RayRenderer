@@ -100,39 +100,89 @@ void PromiseProvider::MakeActive(PmsCore && pms)
     PromiseActiveProxy::Attach(std::move(pms));
 }
 
+void PromiseProvider::Prepare()
+{
+    if (!Flags.Check(PromiseFlags::Prepared))
+    {
+        auto lock = PromiseLock.WriteScope();
+        if (!Flags.Check(PromiseFlags::Prepared))
+        {
+            PreparePms();
+            Flags.Add(PromiseFlags::Prepared);
+        }
+    }
+}
+
 
 PromiseResultCore::~PromiseResultCore()
 { }
 
-void PromiseResultCore::Prepare()
+PromiseProvider& PromiseResultCore::GetRootPromise() noexcept
 {
-    auto& pms = GetPromise();
-    if (!pms.Flags.Check(PromiseFlags::Prepared))
+    auto pms = &GetPromise();
+    while (true)
     {
-        auto lock = pms.PromiseLock.WriteScope();
-        if (!pms.Flags.Check(PromiseFlags::Prepared))
-        {
-            pms.PreparePms();
-            pms.Flags.Add(PromiseFlags::Prepared);
-        }
+        const auto parent = pms->GetParentProvider();
+        if (!parent)
+            return *pms;
+        pms = parent;
     }
 }
 
 PromiseState PromiseResultCore::State()
 {
-    Prepare();
-    return GetPromise().GetState();
+    auto& pms = GetPromise();
+    pms.Prepare();
+    return pms.GetState();
 }
 
 void PromiseResultCore::WaitFinish()
 {
-    Prepare();
-    GetPromise().WaitPms();
+    auto& pms = GetPromise();
+    pms.Prepare();
+    pms.WaitPms();
 }
 
 uint64_t PromiseResultCore::ElapseNs() noexcept 
 { 
     return GetPromise().ElapseNs();
+}
+
+
+PromiseState StagedResult::PostPmsProvider::GetState() noexcept
+{
+    const auto state = Host.GetProvider().GetState();
+    if (state >= PromiseState::Executed && state <= PromiseState::Success)
+        Host.PostProcess();
+    return state;
+}
+
+void StagedResult::PostPmsProvider::PreparePms() 
+{ 
+    return Host.GetProvider().Prepare();
+}
+
+void StagedResult::PostPmsProvider::MakeActive(PmsCore&& pms) 
+{ 
+    return Host.GetProvider().MakeActive(std::move(pms));
+}
+
+PromiseState StagedResult::PostPmsProvider::WaitPms() noexcept
+{
+    const auto state = Host.GetProvider().WaitPms();
+    if (state >= PromiseState::Executed && state <= PromiseState::Success)
+        Host.PostProcess();
+    return state;
+}
+
+uint64_t StagedResult::PostPmsProvider::ElapseNs() noexcept 
+{ 
+    return Host.GetProvider().ElapseNs();
+}
+
+PromiseProvider* StagedResult::PostPmsProvider::GetParentProvider() const noexcept 
+{ 
+    return &Host.GetProvider();
 }
 
 

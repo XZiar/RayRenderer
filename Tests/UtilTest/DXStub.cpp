@@ -242,12 +242,17 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
         common::mlog::SyncConsoleBackend();
     }
     const auto call = prepare.Finish();
+    const auto tsBegin = cmdlist->CaptureTimestamp();
     {
         const auto rgExe = cmdlist->DeclareRange(u"Execute shader");
         call.Execute(cmdlist, { 1024, 1, 1 });
     }
-    cmdlist->EnsureClosed();
-    cmdque->Execute(cmdlist)->WaitFinish();
+    const auto tsEnd = cmdlist->CaptureTimestamp();
+    cmdlist->Close();
+    const auto query = cmdque->ExecuteWithQuery(cmdlist)->Get();
+    const auto timeBegin = query.ResolveQuery(tsBegin);
+    const auto timeEnd   = query.ResolveQuery(tsEnd);
+    log().debug(u"kernel execution: [{} ~ {}] = [{}]ns.\n", timeBegin, timeEnd, timeEnd - timeBegin);
     {
         const auto rgExe = cmdque->DeclareRange(u"Readback buffer");
         for (const auto& buf : bufs)

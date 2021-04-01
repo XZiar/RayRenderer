@@ -137,11 +137,13 @@ public:
     virtual void PreparePms();
     virtual void MakeActive(PmsCore&& pms);
     virtual PromiseState WaitPms() noexcept = 0;
-    [[nodiscard]] virtual uint64_t ElapseNs() noexcept { return 0; };
+    [[nodiscard]] virtual uint64_t ElapseNs() noexcept { return 0; }
+    [[nodiscard]] virtual PromiseProvider* GetParentProvider() const noexcept { return nullptr; }
+    void Prepare();
 };
 
 template<typename T>
-class CachedPromiseProvider : public T
+class CachedPromiseProvider final : public T
 {
     static_assert(std::is_base_of_v<PromiseProvider, T>);
 private:
@@ -149,14 +151,14 @@ private:
 public:
     using T::T;
     ~CachedPromiseProvider() override { }
-    [[nodiscard]] PromiseState GetState() noexcept override
+    [[nodiscard]] PromiseState GetState() noexcept final
     {
         if (CachedState >= PromiseState::Executed)
             return CachedState;
         else
             return CachedState = T::GetState();
     }
-    PromiseState WaitPms() noexcept override
+    PromiseState WaitPms() noexcept final
     {
         if (CachedState >= PromiseState::Executed)
             return CachedState;
@@ -199,7 +201,11 @@ public:
     {
         return dynamic_cast<T*>(&GetPromise());
     }
-    void Prepare();
+    [[nodiscard]] PromiseProvider& GetRootPromise() noexcept;
+    forceinline void Prepare()
+    {
+        GetPromise().Prepare();
+    }
     [[nodiscard]] PromiseState State();
     void WaitFinish();
     [[nodiscard]] uint64_t ElapseNs() noexcept;
@@ -361,28 +367,17 @@ private:
         virtual void PostProcess() = 0;
         virtual PromiseProvider& GetProvider() = 0;
     };
-    struct PostPmsProvider : public PromiseProvider
+    struct SYSCOMMONAPI PostPmsProvider : public PromiseProvider
     {
         PostExecutor& Host;
         PostPmsProvider(PostExecutor& host) noexcept : Host(host) {}
         ~PostPmsProvider() override {}
-        [[nodiscard]] PromiseState GetState() noexcept  override
-        { 
-            const auto state = Host.GetProvider().GetState(); 
-            if (state >= PromiseState::Executed && state <= PromiseState::Success)
-                Host.PostProcess();
-            return state;
-        }
-        void PreparePms() override { return Host.GetProvider().PreparePms(); }
-        void MakeActive(PmsCore&& pms) override { return Host.GetProvider().MakeActive(std::move(pms)); }
-        PromiseState WaitPms() noexcept override
-        { 
-            const auto state = Host.GetProvider().WaitPms();
-            if (state >= PromiseState::Executed && state <= PromiseState::Success)
-                Host.PostProcess();
-            return state;
-        }
-        [[nodiscard]] uint64_t ElapseNs() noexcept override { return Host.GetProvider().ElapseNs(); }
+        [[nodiscard]] PromiseState GetState() noexcept override;
+        void PreparePms() final;
+        void MakeActive(PmsCore&& pms) final;
+        PromiseState WaitPms() noexcept override;
+        [[nodiscard]] uint64_t ElapseNs() noexcept final;
+        [[nodiscard]] PromiseProvider* GetParentProvider() const noexcept final;
     };
     template<typename RetType, typename MidType>
     class StagedResult_ final : public detail::PromiseResult_<RetType>, private PostExecutor

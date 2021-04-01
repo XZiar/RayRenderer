@@ -326,9 +326,15 @@ void DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdList& cmdlist, const
 
 common::PromiseResult<void> DxComputeProgram_::DxComputeCall::ExecuteIn(const DxCmdQue& que, const std::array<uint32_t, 3>& threadgroups) const
 {
-    const auto cmdlist = que->CreateList();
-    ExecuteIn(cmdlist, threadgroups);
-    return que->ExecuteAnyList(cmdlist);
+    auto cmdList = que->CreateList();
+    ExecuteIn(cmdList, threadgroups);
+    cmdList->Close();
+    const auto pms = que->ExecuteAnyList(cmdList);
+    pms->OnComplete([=]() mutable
+        {
+            cmdList.reset();
+        });
+    return pms;
 }
 
 
