@@ -35,8 +35,10 @@ public:
 
     [[nodiscard]] static common::span<const DxDevice> GetDevices();
 public:
-    enum class Architecture : uint8_t { None = 0x0, TBR = 0x1, UMA = 0x2, CacheCoherent = 0x4, IsolatedMMU = 0x8 };
-    enum class ShaderDType  : uint8_t { None = 0x0, FP64 = 0x1, INT64 = 0x2, FP16 = 0x4, INT16 = 0x8 };
+    enum class Architecture    : uint8_t { None = 0x0, TBR = 0x1, UMA = 0x2, CacheCoherent = 0x4, IsolatedMMU = 0x8 };
+    enum class ShaderDType     : uint8_t { None = 0x0, FP64 = 0x1, INT64 = 0x2, FP16 = 0x4, INT16 = 0x8 };
+    enum class OptionalSupport : uint8_t 
+    { None = 0x0, DepthBoundTest = 0x1, CopyQueueTimeQuery = 0x2, BackgroundProcessing = 0x4 };
     std::u16string AdapterName;
     uint32_t SMVer;
     uint32_t WaveSize;
@@ -49,14 +51,17 @@ public:
     constexpr bool SupportINT64() const noexcept;
     constexpr bool SupportFP16() const noexcept;
     constexpr bool SupportINT16() const noexcept;
+    constexpr OptionalSupport GetOptionalSupport() const noexcept { return OptSupport; }
 private:
     MAKE_ENABLER();
     Architecture Arch;
     ShaderDType DtypeSupport;
+    OptionalSupport OptSupport;
     DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name);
 };
 MAKE_ENUM_BITFIELD(DxDevice_::Architecture)
 MAKE_ENUM_BITFIELD(DxDevice_::ShaderDType)
+MAKE_ENUM_BITFIELD(DxDevice_::OptionalSupport)
 
 constexpr inline bool DxDevice_::IsTBR() const noexcept 
 { 
@@ -90,6 +95,7 @@ constexpr inline bool DxDevice_::SupportINT16() const noexcept
 {
     return HAS_FIELD(DtypeSupport, ShaderDType::INT16);
 }
+
 
 }
 

@@ -42,7 +42,7 @@ DxQueryProvider::QueryBlock* DxQueryProvider::GetQueryBlock(uint8_t type, uint32
     return &heap;
 }
 
-DxTimestampToken DxQueryProvider::AllocateTimeQuery(DxCmdList_& cmdList)
+DxTimestampToken DxQueryProvider::AllocateTimeQuery(const DxCmdList_& cmdList)
 {
     const auto heap = GetQueryBlock(static_cast<uint8_t>(D3D12_QUERY_HEAP_TYPE_TIMESTAMP));
     const auto offset = heap->Usage++;
@@ -71,6 +71,7 @@ DxQueryProvider::ResolveRecord DxQueryProvider::GenerateResolve(const DxCmdQue_&
 {
     auto cmdList = que.CreateList();
     auto buf = DxBuffer_::Create(Device, HeapType::Readback, HeapFlags::Empty, TotalSize * sizeof(uint64_t), ResourceFlags::Empty);
+    buf->TransitState(cmdList, ResourceState::CopyDst, true);
     for (const auto& heap : Heaps)
     {
         if (heap.Usage == 0)
@@ -85,15 +86,14 @@ DxQueryProvider::ResolveRecord DxQueryProvider::GenerateResolve(const DxCmdQue_&
         }
     }
     cmdList->Close();
-    uint64_t timestampFreq = 0;
-    THROW_HR(que.CmdQue->GetTimestampFrequency(&timestampFreq), u"Failed to get timestamp frequency");
-    return { shared_from_this(), std::move(buf), std::move(cmdList), timestampFreq };
+    return { shared_from_this(), std::move(buf), std::move(cmdList), 10e9 / static_cast<double>(que.GetTimestampFreq()) };
 }
 
 
+DxQueryResolver::DxQueryResolver() noexcept : TimestampRatio(0)
+{ }
 DxQueryResolver::DxQueryResolver(DxQueryProvider::ResolveRecord& record) :
-    Provider(std::move(record.Provider)), Result(std::make_unique<uint64_t[]>(Provider->TotalSize)), 
-    TimestampRatio(10e9 / static_cast<double>(record.TimestampFreq))
+    Provider(std::move(record.Provider)), Result(std::make_unique<uint64_t[]>(Provider->TotalSize)), TimestampRatio(record.TimestampRatio)
 { 
     const auto bytes = Provider->TotalSize * sizeof(uint64_t);
     const auto result = record.Result->Map(0, bytes);
@@ -102,6 +102,8 @@ DxQueryResolver::DxQueryResolver(DxQueryProvider::ResolveRecord& record) :
 
 uint64_t DxQueryResolver::ResolveQuery(const DxTimestampToken& token) const
 {
+    if (!Provider)
+        return 0;
     Expects(token.Provider == Provider.get());
     const auto idx = Provider->Heaps[token.BlockIdx].Offset + token.BlockOffset * 1;
     const auto tick = Result[idx];

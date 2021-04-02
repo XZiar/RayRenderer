@@ -64,7 +64,7 @@ public:
     container::ResourceDict Resources;
     ExceptionBasicInfo(const std::u16string_view msg) noexcept : ExceptionBasicInfo(TYPENAME, msg) { }
     virtual ~ExceptionBasicInfo() {}
-    virtual void ThrowReal();
+    [[noreturn]] virtual void ThrowReal();
     [[nodiscard]] BaseException GetException();
     template<typename T>
     auto Cast() const noexcept
@@ -109,7 +109,7 @@ public:
     {
         return Info;
     }
-    void ThrowSelf() const
+    [[noreturn]] void ThrowSelf() const
     {
         Info->ThrowReal();
     }
@@ -182,7 +182,7 @@ public:
     }
 };
 
-inline void ExceptionBasicInfo::ThrowReal()
+[[noreturn]] inline void ExceptionBasicInfo::ThrowReal()
 {
     throw BaseException(std::nullopt, this->shared_from_this());
 }

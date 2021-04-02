@@ -25,7 +25,7 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
     Adapter(std::move(adapter)), Device(std::move(device)), AdapterName(name), 
     SMVer(0), WaveSize(0), 
     HeapUpload(QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), HeapDefault(QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
-    Arch(Architecture::None), DtypeSupport(ShaderDType::None)
+    Arch(Architecture::None), DtypeSupport(ShaderDType::None), OptSupport(OptionalSupport::None)
 {
 #define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)
 #define CheckFeat2(dev, feat, ...) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev, __VA_ARGS__)
@@ -42,9 +42,21 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
         if (feat->WaveOps) WaveSize = feat->WaveLaneCountMin;
         if (feat->Int64ShaderOps) DtypeSupport |= ShaderDType::INT64;
     }
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS2))
+    {
+        if (feat->DepthBoundsTestSupported) OptSupport |= OptionalSupport::DepthBoundTest;
+    }
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS3))
+    {
+        if (feat->CopyQueueTimestampQueriesSupported) OptSupport |= OptionalSupport::CopyQueueTimeQuery;
+    }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS4))
     {
         if (feat->Native16BitShaderOpsSupported) DtypeSupport |= ShaderDType::FP16 | ShaderDType::INT16;
+    }
+    if (const auto feat = CheckFeat(Device, D3D12_OPTIONS6))
+    {
+        if (feat->BackgroundProcessingSupported) OptSupport |= OptionalSupport::BackgroundProcessing;
     }
     
     if (const auto feat1 = CheckFeat(Device, ARCHITECTURE1))

@@ -996,7 +996,7 @@ bool XCNLStructHandler::EvaluateStructFunc(xziar::nailang::FuncEvalPack& func)
                 const auto len = arg.GetUint().value();
                 if (len >= UINT16_MAX)
                     executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s dim[{}] exceed limit, get[{}].", name, idx, len), func);
-                dims.emplace_back(static_cast<uint16_t>(len), static_cast<uint16_t>(curAlign));
+                dims.push_back({ static_cast<uint16_t>(len), static_cast<uint16_t>(curAlign) });
                 curAlign *= len;
                 if (curAlign >= UINT16_MAX)
                     executor.NLRT_THROW_EX(FMTSTR(u"Field [{}]'s array size exceed limit at dim[{}], get[{}].", name, idx, curAlign), func);

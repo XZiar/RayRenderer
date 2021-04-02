@@ -85,23 +85,18 @@ public:
         {
         case 0:
             COMMON_THROW(common::BaseException, u"Result unset");
-            break;
         case 1:
             std::rethrow_exception(std::get<1>(Result).Exception);
-            break;
         case 2:
             std::get<2>(Result).Exception->ThrowReal();
+        default:
             break;
-        case 3:
-            if constexpr (std::is_same_v<T, void>)
-                return;
-            else
-                return std::get<3>(std::move(Result));
         }
+        Ensures(Result.index() == 3);
         if constexpr (std::is_same_v<T, void>)
             return;
         else
-            return {};
+            return std::get<3>(std::move(Result));
     }
     [[nodiscard]] bool IsException() const noexcept
     {

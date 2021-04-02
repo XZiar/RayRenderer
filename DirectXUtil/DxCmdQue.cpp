@@ -70,7 +70,9 @@ DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const Resourc
 { }
 
 
-DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Device(device), Type(type), HasClosed{false}
+DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Device(device), Type(type), 
+    SupportTimestamp(Type != ListType::Copy || HAS_FIELD(Device->GetOptionalSupport(), DxDevice_::OptionalSupport::CopyQueueTimeQuery)), 
+    HasClosed(false)
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -207,29 +209,15 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
 
     record->IsPromote = isPromote;
     record->State     = newState;
-    /*if (!isPromote)
-    {
-        D3D12_RESOURCE_TRANSITION_BARRIER trans =
-        {
-            res->Resource,
-            0,
-            static_cast<D3D12_RESOURCE_STATES>(oldState),
-            static_cast<D3D12_RESOURCE_STATES>(newState)
-        };
-        D3D12_RESOURCE_BARRIER barrier =
-        {
-            D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-            D3D12_RESOURCE_BARRIER_FLAG_NONE,
-            trans
-        };
-        CmdList->ResourceBarrier(1, &barrier);
-    }*/
+
+    //actual barrier being delayed
+
     return false;
 }
 
 void DxCmdList_::FlushResourceState()
 {
-    std::vector<D3D12_RESOURCE_BARRIER> barriers;
+    boost::container::small_vector<D3D12_RESOURCE_BARRIER, 8> barriers;
     for (auto& record : ResStateTable)
     {
         if (record.FromState != ResourceState::Invalid && !record.IsPromote)
@@ -260,6 +248,13 @@ ResStateList DxCmdList_::GenerateStateList() const
         list.AddState(record.Resource, record.State);
     }
     return list;
+}
+
+DxTimestampToken DxCmdList_::CaptureTimestamp()
+{
+    if (!SupportTimestamp)
+        COMMON_THROW(DxException, u"Doesnot support Timestamp Query on CopyQueue");
+    return GetQueryProvider().AllocateTimeQuery(*this);
 }
 
 void DxCmdList_::Close()
@@ -319,7 +314,7 @@ DxDirectCmdList DxDirectCmdList_::Create(DxDevice device)
 }
 
 
-DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0), Device(device)
+DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceNum(0), TimestampFreq(0), Device(device)
 { 
     D3D12_COMMAND_QUEUE_DESC desc = {};
     desc.Flags = diableTimeout ? D3D12_COMMAND_QUEUE_FLAG_DISABLE_GPU_TIMEOUT : D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -332,6 +327,8 @@ DxCmdQue_::DxCmdQue_(DxDevice device, QueType type, bool diableTimeout) : FenceN
     }
     THROW_HR(device->Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&CmdQue)), u"Failed to create command que");
     THROW_HR(device->Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence)), u"Failed to create fence");
+    if (type != QueType::Copy || HAS_FIELD(device->GetOptionalSupport(), DxDevice_::OptionalSupport::CopyQueueTimeQuery))
+        THROW_HR(CmdQue->GetTimestampFrequency(&TimestampFreq), u"Failed to get timestamp frequency");
 }
 DxCmdQue_::~DxCmdQue_()
 {
@@ -400,12 +397,20 @@ void DxCmdQue_::Wait(const common::PromiseProvider& pms) const
 common::PromiseResult<DxQueryResolver> DxCmdQue_::ExecuteAnyListWithQuery(const DxCmdList& list) const
 {
     EnsureClosed(*list);
-    auto record = list->QueryProvider->GenerateResolve(*this);
-    ExecuteList(*list);
-    ExecuteList(*record.ResolveList);
-    return common::StagedResult::TwoStage(
-        Signal<DxQueryProvider::ResolveRecord>(std::move(record)), 
-        [](auto record) -> DxQueryResolver { return record; });
+    if (list->QueryProvider)
+    {
+        auto record = list->QueryProvider->GenerateResolve(*this);
+        ExecuteList(*list);
+        ExecuteList(*record.ResolveList);
+        return common::StagedResult::TwoStage(
+            Signal<DxQueryProvider::ResolveRecord>(std::move(record)),
+            [](auto record) -> DxQueryResolver { return record; });
+    }
+    else
+    {
+        ExecuteList(*list);
+        return Signal<DxQueryResolver>(DxQueryResolver{});
+    }
 }
 
 

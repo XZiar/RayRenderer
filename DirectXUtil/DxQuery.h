@@ -48,7 +48,7 @@ private:
         std::shared_ptr<const DxQueryProvider> Provider;
         std::shared_ptr<DxBuffer_> Result;
         std::shared_ptr<DxCmdList_> ResolveList;
-        uint64_t TimestampFreq;
+        double TimestampRatio;
     };
     struct QueryBlock
     {
@@ -66,7 +66,7 @@ private:
     QueryBlock* GetQueryBlock(uint8_t type, uint32_t initSize = 32);
 public:
     ~DxQueryProvider();
-    [[nodiscard]] DxTimestampToken AllocateTimeQuery(DxCmdList_& cmdList);
+    [[nodiscard]] DxTimestampToken AllocateTimeQuery(const DxCmdList_& cmdList);
     void Finish();
     [[nodiscard]] ResolveRecord GenerateResolve(const DxCmdQue_& que) const;
 };
@@ -74,14 +74,19 @@ public:
 
 class DXUAPI DxQueryResolver
 {
-    friend DxCmdList_;
+    friend DxCmdQue_;
 private:
     std::shared_ptr<const DxQueryProvider> Provider;
     std::unique_ptr<uint64_t[]> Result;
     double TimestampRatio;
-public:
+    DxQueryResolver() noexcept;
     DxQueryResolver(DxQueryProvider::ResolveRecord& record);
-    uint64_t ResolveQuery(const DxTimestampToken& token) const;
+public:
+    [[nodiscard]] uint64_t ResolveQuery(const DxTimestampToken& token) const;
+    [[nodiscard]] explicit operator bool() const noexcept
+    {
+        return static_cast<bool>(Provider);
+    }
 };
 
 

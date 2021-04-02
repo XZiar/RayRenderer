@@ -146,6 +146,7 @@
   - [ ] Add texture support
   - [ ] Add sampler support
   - [ ] Add shared desc heap
+  - [ ] Move to dx12 namespace and create similar framework for dx11 in dx11 namespace (can share some common struct)
   * NLDX
     - [x] Add basic NLDX
     - [ ] Mimic subgroup on platform without Wave support

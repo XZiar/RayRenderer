@@ -93,6 +93,7 @@ protected:
     std::vector<ResStateRecord> ResStateTable;
     ResStateList EndResStates;
     const ListType Type;
+    const bool SupportTimestamp;
     bool HasClosed;
     
     DxCmdList_(DxDevice device, ListType type);
@@ -112,21 +113,18 @@ protected:
         InitResTable(std::forward<T>(begin));
         EndResStates = std::forward<T>(end);
     }
-    DxQueryProvider& GetQueryProvider();
+    [[nodiscard]] DxQueryProvider& GetQueryProvider();
     bool UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState);
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
     ~DxCmdList_() override;
     void AddMarker(std::u16string name) const final;
     void FlushResourceState();
-    ResStateList GenerateStateList() const;
+    [[nodiscard]] ResStateList GenerateStateList() const;
+    [[nodiscard]] DxTimestampToken CaptureTimestamp();
     [[nodiscard]] bool IsClosed() const noexcept { return HasClosed; }
     void Close();
     void Reset(const bool resetResState = true);
-    [[nodiscard]] DxTimestampToken CaptureTimestamp()
-    {
-        return GetQueryProvider().AllocateTimeQuery(*this);
-    }
 };
 MAKE_ENUM_BITFIELD(DxCmdList_::Capability)
 
@@ -188,6 +186,7 @@ class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public detail::Deb
     friend DxPromiseCore;
 private:
     mutable std::atomic<uint64_t> FenceNum;
+    uint64_t TimestampFreq;
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
     void BeginEvent(std::u16string_view msg) const final;
     void EndEvent() const final;
@@ -216,6 +215,7 @@ protected:
     void Wait(const common::PromiseProvider& pms) const;
 public:
     ~DxCmdQue_() override;
+    constexpr uint64_t GetTimestampFreq() const noexcept { return TimestampFreq; }
     void AddMarker(std::u16string name) const final;
     template<typename... Args>
     DxCmdList CreateList(Args&&... args) const
