@@ -65,8 +65,33 @@ class DXUAPI DxResource_ : public DxNamable, public std::enable_shared_from_this
     friend DxCmdList_;
     friend ResStateList;
 private:
+    class DXUAPI StateTransitHolder
+    {
+        friend DxResource_;
+        std::shared_ptr<const DxResource_> Resource;
+        DxCmdList CmdList;
+        ResourceState State;
+        StateTransitHolder(ResourceState state) noexcept : State(state) {}
+        StateTransitHolder(std::shared_ptr<const DxResource_> res, const DxCmdList& list, ResourceState state) noexcept :
+            Resource(std::move(res)), CmdList(list), State(state) {}
+    public:
+        COMMON_NO_COPY(StateTransitHolder)
+        COMMON_DEF_MOVE(StateTransitHolder)
+        ~StateTransitHolder();
+        void Finish();
+    };
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
     [[nodiscard]] virtual bool IsBufOrSATex() const noexcept; // Buffers and Simultaneous-Access Textures
+    /**
+     * @brief perform heap-type-based state passing and basic check about invalid state
+     * @param newState target state
+     * @return whether should perform transit 
+    */
+    bool TransitStateCheck(ResourceState newState) const;
+    /**
+     * @return whether the transit begins
+    */
+    bool BeginTransitState_(const DxCmdList& list, ResourceState newState, bool fromInitState) const;
 protected:
     MAKE_ENABLER();
     DxResource_(DxDevice device, HeapProps heapProps, HeapFlags heapFlag, const detail::ResourceDesc& desc, ResourceState initState);
@@ -82,6 +107,18 @@ public:
     COMMON_NO_COPY(DxResource_)
     COMMON_NO_MOVE(DxResource_)
     void TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState = false) const;
+    template<bool NeedHolder = false>
+    std::conditional_t<NeedHolder, StateTransitHolder, void> BeginTransitState(const DxCmdList& list, ResourceState newState, bool fromInitState = false) const
+    {
+        [[maybe_unused]] const auto ret = BeginTransitState_(list, newState, fromInitState);
+        if constexpr (NeedHolder)
+        {
+            if (ret)
+                return { shared_from_this(), list, newState };
+            else
+                return newState;
+        }
+    }
     [[nodiscard]] uint64_t GetGPUVirtualAddress() const;
     [[nodiscard]] constexpr bool CanBindToShader() const noexcept
     {

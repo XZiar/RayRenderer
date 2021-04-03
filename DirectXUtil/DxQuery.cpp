@@ -44,7 +44,9 @@ DxQueryProvider::QueryBlock* DxQueryProvider::GetQueryBlock(uint8_t type, uint32
 
 DxTimestampToken DxQueryProvider::AllocateTimeQuery(const DxCmdList_& cmdList)
 {
-    const auto heap = GetQueryBlock(static_cast<uint8_t>(D3D12_QUERY_HEAP_TYPE_TIMESTAMP));
+    const auto heapType = cmdList.Type == DxCmdList_::ListType::Copy ?
+        D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP : D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+    const auto heap = GetQueryBlock(static_cast<uint8_t>(heapType));
     const auto offset = heap->Usage++;
     cmdList.CmdList->EndQuery(heap->Heap, D3D12_QUERY_TYPE_TIMESTAMP, offset);
     return { this, gsl::narrow_cast<uint32_t>(heap - &Heaps.front()), offset };
@@ -58,6 +60,7 @@ void DxQueryProvider::Finish()
         heap.Offset = TotalSize;
         switch (heap.Type)
         {
+        case D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP:
         case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:
             TotalSize += heap.Usage * 1;
             break;
@@ -78,6 +81,7 @@ DxQueryProvider::ResolveRecord DxQueryProvider::GenerateResolve(const DxCmdQue_&
             continue;
         switch (heap.Type)
         {
+        case D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP:
         case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:
             cmdList->CmdList->ResolveQueryData(heap.Heap, D3D12_QUERY_TYPE_TIMESTAMP, 0, heap.Usage, buf->Resource, heap.Offset * sizeof(uint64_t));
             break;

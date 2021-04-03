@@ -71,6 +71,13 @@ class DXUAPI DxCmdList_ : public DxNamable, public detail::DebugEventHolder
     friend DxCmdQue_;
     friend DxResource_;
     friend DxProgram_;
+public:
+    enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
+    enum class ResStateUpdFlag : uint32_t
+    {
+        FromDefault = 0x0, FromInit = 0x1, SplitBegin = 0x2,
+    };
+    enum class RecordStatus : uint8_t { Default = 0, Promoted = 1, InSplit = 2, WaitPromote, WaitTransit, WaitBegin, WaitEnd };
 private:
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
     void BeginEvent(std::u16string_view msg) const final;
@@ -82,8 +89,10 @@ protected:
         const DxResource_* Resource;
         ResourceState State;
         ResourceState FromState;
-        bool IsPromote;
+        //bool IsPromote;
         bool IsBufOrSATex;
+        //RecordStatus Prev;
+        RecordStatus Status;
         ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
     };
     PtrProxy<detail::CmdAllocator> CmdAllocator;
@@ -94,6 +103,7 @@ protected:
     ResStateList EndResStates;
     const ListType Type;
     const bool SupportTimestamp;
+    bool HasResourceChange;
     bool HasClosed;
     
     DxCmdList_(DxDevice device, ListType type);
@@ -114,9 +124,15 @@ protected:
         EndResStates = std::forward<T>(end);
     }
     [[nodiscard]] DxQueryProvider& GetQueryProvider();
-    bool UpdateResState(const DxResource_* res, const ResourceState newState, bool fromInitState);
+    /**
+     * @brief update resource state
+     * @param res target DxResource
+     * @param newState target state
+     * @param updFlag flags
+     * @return wheather the update completes
+    */
+    bool UpdateResState(const DxResource_* res, const ResourceState newState, ResStateUpdFlag updFlag);
 public:
-    enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
     ~DxCmdList_() override;
     void AddMarker(std::u16string name) const final;
     void FlushResourceState();
@@ -127,6 +143,7 @@ public:
     void Reset(const bool resetResState = true);
 };
 MAKE_ENUM_BITFIELD(DxCmdList_::Capability)
+MAKE_ENUM_BITFIELD(DxCmdList_::ResStateUpdFlag)
 
 class DXUAPI COMMON_EMPTY_BASES DxCopyCmdList_ : public DxCmdList_
 {

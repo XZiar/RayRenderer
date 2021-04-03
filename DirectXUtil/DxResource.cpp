@@ -68,6 +68,23 @@ DxResource_::~DxResource_()
 {
 }
 
+DxResource_::StateTransitHolder::~StateTransitHolder()
+{
+    if (Resource)
+        dxLog().warning(u"Resource [{}] has unfinished transit to [{}].\n",
+            Resource->GetName(), common::enum_cast(State));
+}
+void DxResource_::StateTransitHolder::Finish()
+{
+    if (Resource)
+    {
+        const auto ret = CmdList->UpdateResState(Resource.get(), State, DxCmdList_::ResStateUpdFlag::FromDefault);
+        Ensures(ret);
+        Resource.reset();
+        CmdList.reset();
+    }
+}
+
 void* DxResource_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(Resource.Ptr());
@@ -78,12 +95,7 @@ bool DxResource_::IsBufOrSATex() const noexcept
     return false;
 }
 
-void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const
-{
-    list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
-}
-
-void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
+bool DxResource_::TransitStateCheck(ResourceState newState) const
 {
     // common check
     switch (HeapInfo.Type)
@@ -91,11 +103,11 @@ void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bo
     case HeapType::Readback:
         if (newState != ResourceState::CopyDst)
             COMMON_THROW(DxException, u"committed resources created in READBACK heaps must start in and cannot change from the COPY_DEST state");
-        return; // skip because cannot change state
+        return false; // skip because cannot change state
     case HeapType::Upload:
         if (HAS_FIELD(newState, ~ResourceState::Read))
             COMMON_THROW(DxException, u"resources created on UPLOAD heaps must start in and cannot change from the GENERIC_READ state");
-        return; // skip because cannot change state
+        return false; // skip because cannot change state
     default:
         break;
     }
@@ -103,7 +115,28 @@ void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bo
     if (isBufOrSATex && HAS_FIELD(newState, ResourceState::DepthWrite | ResourceState::DepthRead))
         COMMON_THROW(DxException, FMTSTR(u"Buffer and Simultaneous-Access Texture can not set to type [DepthWrite|DepthRead], get[{}]",
             common::enum_cast(newState)));
-    list->UpdateResState(this, newState, fromInitState);
+    return true;
+}
+
+bool DxResource_::BeginTransitState_(const DxCmdList& list, ResourceState newState, bool fromInitState) const
+{
+    if (TransitStateCheck(newState))
+    {
+        return !list->UpdateResState(this, newState, (fromInitState ? DxCmdList_::ResStateUpdFlag::FromInit : DxCmdList_::ResStateUpdFlag::FromDefault)
+            | DxCmdList_::ResStateUpdFlag::SplitBegin);
+    }
+    return false;
+}
+
+void DxResource_::CopyRegionFrom(const DxCmdList& list, const uint64_t offset, const DxResource_& src, const uint64_t srcOffset, const uint64_t numBytes) const
+{
+    list->CmdList->CopyBufferRegion(Resource, offset, src.Resource, srcOffset, numBytes);
+}
+
+void DxResource_::TransitState(const DxCmdList& list, ResourceState newState, bool fromInitState) const
+{
+    if (TransitStateCheck(newState))
+        list->UpdateResState(this, newState, fromInitState ? DxCmdList_::ResStateUpdFlag::FromInit : DxCmdList_::ResStateUpdFlag::FromDefault);
 }
 
 uint64_t DxResource_::GetGPUVirtualAddress() const
