@@ -11,8 +11,10 @@ MAKE_ENABLER_IMPL(DxDirectCmdList_);
 MAKE_ENABLER_IMPL(DxCopyCmdQue_);
 MAKE_ENABLER_IMPL(DxComputeCmdQue_);
 MAKE_ENABLER_IMPL(DxDirectCmdQue_);
+struct DxCmdList_::BarrierType : public D3D12_RESOURCE_BARRIER {};
 using namespace std::string_view_literals;
 using common::enum_cast;
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 namespace detail
@@ -67,13 +69,13 @@ constexpr static bool IsReadOnlyState(const ResourceState state)
 
 
 DxCmdList_::ResStateRecord::ResStateRecord(const DxResource_* res, const ResourceState state) noexcept :
-    Resource(res), State(state), FromState(state), IsBufOrSATex(res->IsBufOrSATex())/*, Prev(RecordStatus::Default)*/, Status(RecordStatus::Default)
+    Resource(res), State(state), FromState(state), FlushIdx(0), IsBufOrSATex(res->IsBufOrSATex()), Status(RecordStatus::Transit)
 { }
 
 
 DxCmdList_::DxCmdList_(DxDevice device, ListType type) : Device(device), Type(type), 
     SupportTimestamp(Type != ListType::Copy || HAS_FIELD(Device->GetOptionalSupport(), DxDevice_::OptionalSupport::CopyQueueTimeQuery)), 
-    HasResourceChange(false), HasClosed(false)
+    NeedFlushResState(false), HasClosed(false), RecordFlushStack(false), FlushIdx(1)
 {
     D3D12_COMMAND_LIST_TYPE listType = D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_COPY;
     switch (type)
@@ -165,61 +167,71 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     const auto isBegin = HAS_FIELD(updFlag, ResStateUpdFlag::SplitBegin);
     if (record)
     {
+        Expects(FlushIdx >= record->FlushIdx);
+        const auto isCommitted = FlushIdx > record->FlushIdx;
         const auto stateMatch = record->State == newState;
-        switch (record->Status)
+        if (isCommitted)
         {
-        case RecordStatus::InSplit:
-            if (stateMatch)
+            switch (record->Status)
             {
-                if (!isBegin) // finish the split transit
+            case RecordStatus::Begin:
+                if (stateMatch)
                 {
-                    HasResourceChange = true;
-                    record->Status = RecordStatus::WaitEnd;
+                    if (!isBegin) // finish the split transit
+                    {
+                        record->FlushIdx = FlushIdx;
+                        record->Status = RecordStatus::End;
+                        NeedFlushResState = true;
+                    }
+                    // otherwise is duplicated, just ignore
+                    return false;
                 }
-                // otherwise is duplicated, just ignore
-                return false;
-            }
-            else
-            {
-                if (isBegin)
-                    COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has not finish transition from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
-                        res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState)));
                 else
-                    COMMON_THROW(DxException, FMTSTR(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
-                        res->GetName(), enum_cast(newState), enum_cast(record->FromState), enum_cast(record->State)));
-            }
-        case RecordStatus::WaitPromote:
-        case RecordStatus::WaitTransit:
-            /*dxLog().warning(FMT_STRING(u"Resource [{}] was repeatly transit from [{:0X}]->...->[{:0X}]->[{:0X}], will override."),
-                res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState));*/
-            COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to transit from [{:0X}] to [{:0X}], now try to {}transit to [{:0X}]",
-                res->GetName(), enum_cast(record->FromState), enum_cast(record->State), isBegin ? u"begin "sv : u""sv, enum_cast(newState)));
-        case RecordStatus::WaitBegin:
-            if (stateMatch)
-            {
-                if (!isBegin) // decay to single transit
                 {
-                    HasResourceChange = true;
-                    record->Status = RecordStatus::WaitTransit;
+                    if (isBegin)
+                        COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has not finish transition from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
+                            res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState)));
+                    else
+                        COMMON_THROW(DxException, FMTSTR(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
+                            res->GetName(), enum_cast(newState), enum_cast(record->FromState), enum_cast(record->State)));
                 }
-                // otherwise is duplicated, just ignore
-                return false;
+            default:
+                break; 
             }
-            else
+        }
+        else
+        {
+            switch (record->Status)
             {
-                if (isBegin)
-                    COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to begin transit from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
-                        res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState)));
+            case RecordStatus::Begin:
+                if (stateMatch)
+                {
+                    if (!isBegin) // decay to single transit
+                    {
+                        record->FlushIdx = FlushIdx;
+                        record->Status = RecordStatus::Transit;
+                        NeedFlushResState = true;
+                    }
+                    // otherwise is duplicated, just ignore
+                    return false;
+                }
                 else
-                    COMMON_THROW(DxException, FMTSTR(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
-                        res->GetName(), enum_cast(newState), enum_cast(record->FromState), enum_cast(record->State)));
+                {
+                    if (isBegin)
+                        COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to begin transit from [{:0X}] to [{:0X}], now try to begin transit to [{:0X}]",
+                            res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState)));
+                    else
+                        COMMON_THROW(DxException, FMTSTR(u"Resource [{}] transit to unexpected state [{:0X}], expect from [{:0X}] to [{:0X}]",
+                            res->GetName(), enum_cast(newState), enum_cast(record->FromState), enum_cast(record->State)));
+                }
+            default:
+                /*dxLog().warning(FMT_STRING(u"Resource [{}] was repeatly transit from [{:0X}]->...->[{:0X}]->[{:0X}], will override."),
+                    res->GetName(), enum_cast(record->FromState), enum_cast(record->State), enum_cast(newState));*/
+                COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to {}transit from [{:0X}] to [{:0X}], now try to {}transit to [{:0X}]",
+                    res->GetName(), record->Status == RecordStatus::End ? u"end "sv : u""sv,
+                    enum_cast(record->FromState), enum_cast(record->State), isBegin ? u"begin "sv : u""sv, enum_cast(newState)));
             }
-        case RecordStatus::WaitEnd:
-            COMMON_THROW(DxException, FMTSTR(u"Resource [{}] has been requested to end transit from [{:0X}] to [{:0X}], now try to {}transit to [{:0X}]",
-                res->GetName(), enum_cast(record->FromState), enum_cast(record->State), isBegin ? u"begin "sv : u""sv, enum_cast(newState)));
-        default:
-            record->FromState = record->State;
-            break;
+
         }
     }
     else
@@ -239,7 +251,7 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
     }
 
     // must be a new transit
-    Ensures(record->Status == RecordStatus::Default || record->Status == RecordStatus::Promoted);
+    Ensures(record->Status == RecordStatus::Promote || record->Status == RecordStatus::Transit);
     Ensures(record->FromState != ResourceState::Invalid);
 
     bool isPromote = false;
@@ -255,27 +267,32 @@ bool DxCmdList_::UpdateResState(const DxResource_* res, const ResourceState newS
             isPromote = true;
         }
     }
-    else if (record->Status == RecordStatus::Promoted)
+    else if (record->Status == RecordStatus::Promote)
     {
         if (IsReadOnlyState(record->FromState) && IsReadOnlyState(newState))
         { // promotion from one promoted read state into multiple read state is valid
             isPromote = true;
         }
     }
-    //record->Prev   = record->Status;
-    HasResourceChange = true;
-    record->Status = isPromote ? RecordStatus::Promoted : (isBegin ? RecordStatus::WaitBegin : RecordStatus::WaitTransit);
-    record->State  = newState;
+    record->FlushIdx  = FlushIdx; // override to indicate change happens here
+    record->Status    = isPromote ? RecordStatus::Promote : (isBegin ? RecordStatus::Begin : RecordStatus::Transit);
+    record->FromState = record->State;
+    record->State     = newState;
+    NeedFlushResState = !isPromote; // do not request flush for promoted change
     return isPromote;
 }
 
 void DxCmdList_::FlushResourceState()
 {
-    if (!HasResourceChange) return;
+    const auto targetIdx = FlushIdx++;
+    std::vector<ResStateRecord>* savedRecords = nullptr;
+    if (RecordFlushStack)
+        savedRecords = &FlushRecord.Emplace();
+    if (NeedFlushResState) return;
     boost::container::small_vector<D3D12_RESOURCE_BARRIER, 8> barriers;
     for (auto& record : ResStateTable)
     {
-        if (enum_cast(record.Status) > enum_cast(RecordStatus::WaitPromote))
+        if (record.FlushIdx == targetIdx && record.Status != RecordStatus::Promote)
         {
             auto& barrier = barriers.emplace_back();
             barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -285,31 +302,32 @@ void DxCmdList_::FlushResourceState()
             barrier.Transition.StateAfter = static_cast<D3D12_RESOURCE_STATES>(record.State);
             switch (record.Status)
             {
-            case RecordStatus::WaitTransit:
+            case RecordStatus::Transit:
                 barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-                record.Status = RecordStatus::Default;
                 break;
-            case RecordStatus::WaitBegin:
+            case RecordStatus::Begin:
                 barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY;
-                record.Status = RecordStatus::InSplit;
                 break;
-            case RecordStatus::WaitEnd:
+            case RecordStatus::End:
                 barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_END_ONLY;
-                record.Status = RecordStatus::Default;
                 break;
             default:
                 break;
             }
         }
-        else if (record.Status == RecordStatus::WaitPromote)
-        {
-            record.Status = RecordStatus::Promoted;
-        }
     }
-    HasResourceChange = false;
+    NeedFlushResState = false;
     if (barriers.size() > 0)
     {
         CmdList->ResourceBarrier(gsl::narrow_cast<uint32_t>(barriers.size()), barriers.data());
+    }
+    if (RecordFlushStack)
+    {
+        for (auto& record : ResStateTable)
+        {
+            if (record.FlushIdx == targetIdx)
+                savedRecords->push_back(record);
+        }
     }
 }
 
@@ -341,6 +359,8 @@ void DxCmdList_::Close()
         THROW_HR(CmdList->Close(), u"Failed to close CmdList");
         if (QueryProvider)
             QueryProvider->Finish();
+        if (RecordFlushStack)
+            PrintFlushRecord();
         // Decay states
         if (Type == ListType::Copy) // Resources being accessed on a Copy queue
             ResStateTable.clear();
@@ -349,7 +369,7 @@ void DxCmdList_::Close()
             std::vector<ResStateRecord> newStates;
             for (const auto& record : ResStateTable)
             {
-                if (enum_cast(record.Status) >= enum_cast(RecordStatus::InSplit))
+                if (record.FlushIdx == FlushIdx && record.Status != RecordStatus::Promote)
                 {
                     dxLog().warning(u"resource [{}] has unfinished transit from [{:0X}] to [{:0X}]", 
                         record.Resource->GetName(), enum_cast(record.FromState), enum_cast(record.State));
@@ -359,12 +379,15 @@ void DxCmdList_::Close()
                     // Buffer resources on any queue type, or
                     // Texture resources on any queue type that have the D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS flag set
                     continue;
-                if (record.Status == RecordStatus::Promoted && IsReadOnlyState(record.State)) // Any resource implicitly promoted to a read-only state
+                if (record.Status == RecordStatus::Promote && IsReadOnlyState(record.State)) // Any resource implicitly promoted to a read-only state
                     continue;
-                newStates.emplace_back(record);
+                auto& target = newStates.emplace_back(record);
+                target.FlushIdx = 0;
+                target.Status = RecordStatus::Transit;
             }
             ResStateTable.swap(newStates);
         }
+        NeedFlushResState = false;
         HasClosed = true;
     }
 }
@@ -373,9 +396,43 @@ void DxCmdList_::Reset(const bool resetResState)
 {
     THROW_HR(CmdList->Reset(CmdAllocator, nullptr), u"Failed to reset CmdList");
     HasClosed = false;
+    FlushIdx = 1;
     QueryProvider.reset();
     if (resetResState)
         ResStateTable.clear();
+}
+
+void DxCmdList_::PrintFlushRecord() const
+{
+    std::u16string allText = u"FlushRecord:\n";
+    size_t idx = 1;
+    for (const auto& record : FlushRecord)
+    {
+        APPEND_FMT(allText, u"Flush [{}] with [{}] resouce change:\n"sv, idx++, record->size());
+        for (const auto& item : *record)
+        {
+            std::u16string_view op;
+            switch (item.Status)
+            {
+            case RecordStatus::Promote: op = u"Promote"sv; break;
+            case RecordStatus::Transit: op = u"Transit"sv; break;
+            case RecordStatus::Begin:   op = u" Begin "sv; break;
+            case RecordStatus::End:     op = u"  End  "sv; break;
+            default:                    op = u" Error "sv; break;
+            }
+            APPEND_FMT(allText, u"--[{}]Resource [{}] from [{}] to [{}]\n"sv, 
+                op, item.Resource->GetName(), enum_cast(item.FromState), enum_cast(item.State));
+        }
+        allText += u"-Stacks:\n";
+        for (size_t i = 0; i < 5 && i < record.Stack().size(); ++i)
+        {
+            const auto& stack = record.Stack()[i];
+            APPEND_FMT(allText, u"[{}:{}] {}\n"sv, stack.File, stack.Line, stack.Func);
+        }
+        allText += u"\n";
+    }
+    allText += u"\n";
+    dxLog().info(allText);
 }
 
 

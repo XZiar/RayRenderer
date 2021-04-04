@@ -202,6 +202,7 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
         }
     }
     const auto cmdlist = DxComputeCmdList_::Create(dev);
+    cmdlist->SetRecordFlush(true);
     auto prepare = prog->Prepare();
     std::vector<DxBuffer> bufs;
     {

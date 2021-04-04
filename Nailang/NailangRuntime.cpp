@@ -1,6 +1,7 @@
 #include "NailangRuntime.h"
 #include "NailangParser.h"
 #include "ParserRely.h"
+#include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Format.h"
@@ -19,7 +20,7 @@ using common::DJBHash;
 using common::str::HashedStrView;
 
 
-#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(NailangRuntimeException, __VA_ARGS__))
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTIONEX(NailangRuntimeException, __VA_ARGS__))
 
 NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err)
     : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, err.what()), formatter)
@@ -41,14 +42,14 @@ std::u32string_view SubQuery::ExpectSubField(size_t idx) const
 {
     Expects(idx < Queries.size());
     if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
-        COMMON_THROW(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
+        COMMON_THROWEX(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
     return Queries[idx].GetVar<Expr::Type::Str>();
 }
 const Expr& SubQuery::ExpectIndex(size_t idx) const
 {
     Expects(idx < Queries.size());
     if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
-        COMMON_THROW(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
+        COMMON_THROWEX(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
     return Queries[idx];
 }
 
@@ -232,7 +233,7 @@ ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, Nailan
                 if (idx_.has_value())
                     tidx = *idx_;
                 else
-                    COMMON_THROW(NailangRuntimeException,
+                    COMMON_THROWEX(NailangRuntimeException,
                         FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idx.ToString().StrView(), var.Meta1), query);
             }
             else
@@ -618,9 +619,9 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
     {
         auto err = FMTSTR(u"Require integer as indexer, get[{}]"sv, idx.GetTypeName());
         if (src)
-            COMMON_THROW(NailangRuntimeException, err, *src);
+            COMMON_THROWEX(NailangRuntimeException, err, *src);
         else
-            COMMON_THROW(NailangRuntimeException, err);
+            COMMON_THROWEX(NailangRuntimeException, err);
     }
     bool isReverse = false;
     uint64_t realIdx = 0;
@@ -633,7 +634,7 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
         realIdx = std::abs(tmp);
     }
     if (realIdx >= size)
-        COMMON_THROW(NailangRuntimeException,
+        COMMON_THROWEX(NailangRuntimeException,
             FMTSTR(u"index out of bound, access [{}{}] of length [{}]"sv, isReverse ? u"-"sv : u""sv, realIdx, size));
     return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
@@ -646,10 +647,10 @@ bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecu
         auto next = target.HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if (!next)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
                 Serializer::Stringify(subq)));
         if (!next.IsMutable())
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
                 Serializer::Stringify(subq)));
         return LocateWrite(next, subq, executor, func);
     }
@@ -666,10 +667,10 @@ Arg NailangHelper::LocateRead(ArgLocator& target, SubQuery query, NailangExecuto
         auto next = target.HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if (!next)
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
                 Serializer::Stringify(subq)));
         if (!next.CanRead())
-            COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
                 Serializer::Stringify(subq)));
         return LocateRead(next, subq, executor, func);
     }
@@ -685,10 +686,10 @@ Arg NailangHelper::LocateRead(Arg& target, SubQuery query, NailangExecutor& exec
     auto next = target.HandleQuery(query, executor);
     auto subq = query.Sub(next.GetConsumed());
     if (!next)
-        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
             Serializer::Stringify(subq)));
     if (!next.CanRead())
-        COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
             Serializer::Stringify(subq)));
     return LocateRead(next, subq, executor, func);
 }
@@ -703,13 +704,13 @@ auto NailangHelper::LocateAndExecute(ArgLocator& target, SubQuery query, Nailang
         if constexpr (IsWrite)
         {
             if (!next.IsMutable())
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
+                COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
                     Serializer::Stringify(subq)));
         }
         else
         {
             if (!next.CanRead())
-                COMMON_THROW(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+                COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
                     Serializer::Stringify(subq)));
         }
         return LocateAndExecute<IsWrite>(next, subq, executor, func);
@@ -1018,7 +1019,7 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
         case Arg::Type::FP:     store.push_back(arg.GetVar<Arg::Type::FP   >()); break;
         case Arg::Type::U32Sv:  store.push_back(arg.GetVar<Arg::Type::U32Sv>()); break;
         case Arg::Type::U32Str: store.push_back(std::u32string(arg.GetVar<Arg::Type::U32Str>())); break;
-        default: HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
+        default: HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, arg, u"Unsupported DataType")); break;
         }
     }
     try
@@ -1027,7 +1028,7 @@ std::u32string NailangBase::FormatString(const std::u32string_view formatter, co
     }
     catch (const fmt::format_error& err)
     {
-        HandleException(CREATE_EXCEPTION(NailangFormatException, formatter, err));
+        HandleException(CREATE_EXCEPTIONEX(NailangFormatException, formatter, err));
     }
     return {};
 }
@@ -1047,7 +1048,7 @@ TempFuncName NailangBase::CreateTempFuncName(std::u32string_view name, FuncName:
     }
     catch (const NailangPartedNameException&)
     {
-        HandleException(CREATE_EXCEPTION(NailangRuntimeException, u"FuncCall's name not valid"sv));
+        NLRT_THROW_EX(u"FuncCall's name not valid"sv);
     }
     return FuncName::CreateTemp(name, info);
 }

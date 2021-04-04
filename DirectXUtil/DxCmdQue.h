@@ -3,6 +3,7 @@
 #include "DxDevice.h"
 #include "DxPromise.h"
 #include "DxQuery.h"
+#include "SystemCommon/StackTrace.h"
 
 
 #if COMPILER_MSVC
@@ -73,25 +74,18 @@ class DXUAPI DxCmdList_ : public DxNamable, public detail::DebugEventHolder
     friend DxProgram_;
 public:
     enum class Capability : uint32_t { Copy = 0x1, Compute = 0x2, Graphic = 0x4 };
-    enum class ResStateUpdFlag : uint32_t
-    {
-        FromDefault = 0x0, FromInit = 0x1, SplitBegin = 0x2,
-    };
-    enum class RecordStatus : uint8_t { Default = 0, Promoted = 1, InSplit = 2, WaitPromote, WaitTransit, WaitBegin, WaitEnd };
-private:
-    [[nodiscard]] void* GetD3D12Object() const noexcept final;
-    void BeginEvent(std::u16string_view msg) const final;
-    void EndEvent() const final;
+    enum class ResStateUpdFlag : uint32_t { FromDefault = 0x0, FromInit = 0x1, SplitBegin = 0x2 };
+    enum class RecordStatus : uint8_t { Promote = 0, Transit, Begin, End };
 protected:
     enum class ListType { Copy, Compute, Bundle, Direct };
+    struct BarrierType;
     struct ResStateRecord
     {
         const DxResource_* Resource;
         ResourceState State;
         ResourceState FromState;
-        //bool IsPromote;
+        uint32_t FlushIdx;
         bool IsBufOrSATex;
-        //RecordStatus Prev;
         RecordStatus Status;
         ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
     };
@@ -101,10 +95,12 @@ protected:
     std::shared_ptr<DxQueryProvider> QueryProvider;
     std::vector<ResStateRecord> ResStateTable;
     ResStateList EndResStates;
+    common::StackDataset<std::vector<ResStateRecord>> FlushRecord;
     const ListType Type;
     const bool SupportTimestamp;
-    bool HasResourceChange;
+    bool NeedFlushResState;
     bool HasClosed;
+    bool RecordFlushStack;
     
     DxCmdList_(DxDevice device, ListType type);
     COMMON_NO_COPY(DxCmdList_)
@@ -141,6 +137,13 @@ public:
     [[nodiscard]] bool IsClosed() const noexcept { return HasClosed; }
     void Close();
     void Reset(const bool resetResState = true);
+    void SetRecordFlush(bool enable) noexcept { RecordFlushStack = enable; }
+    void PrintFlushRecord() const;
+private:
+    uint32_t FlushIdx;
+    [[nodiscard]] void* GetD3D12Object() const noexcept final;
+    void BeginEvent(std::u16string_view msg) const final;
+    void EndEvent() const final;
 };
 MAKE_ENUM_BITFIELD(DxCmdList_::Capability)
 MAKE_ENUM_BITFIELD(DxCmdList_::ResStateUpdFlag)
