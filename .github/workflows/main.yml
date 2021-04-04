@@ -208,11 +208,11 @@ jobs:
 
       - name: Build Debug modules
         run: |
-          python3 xzbuild.py rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5
+          python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5
           
       - name: Build Release modules
         run: |     
-          python3 xzbuild.py rebuildall "BasicsTest,SystemCommonTest,NailangTest" Release /threads=x1.5
+          python3 xzbuild rebuildall "BasicsTest,SystemCommonTest,NailangTest" Release /threads=x1.5
           
       - name: Run Tests
         run: |            

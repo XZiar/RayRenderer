@@ -1,12 +1,10 @@
 import abc
 import glob
 import inspect
-import json
 import os
-import sys
-import time
-from collections import OrderedDict
-from ._Rely import *
+
+from . import COLOR, writeItems, writeItem
+from . import PowerList as PList
 from .Environment import findAppInPath
 
 
@@ -44,7 +42,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
                 return tuple(list(os.path.join(dir, i) for i in x) for x in ret)
             return ret
         target = targets[self.prefix()]
-        a,d = solveElementList(target, "sources", env, adddir)
+        a,d = PList.solveElementList(target, "sources", env, adddir)
         adds = set(f for i in a for f in glob.glob(i))
         dels = set(f for i in d for f in glob.glob(i))
         forceadd = adds & set(a)
@@ -56,8 +54,8 @@ class BuildTarget(metaclass=abc.ABCMeta):
         '''solve sources and flags'''
         self.solveSource(targets, env)
         target = targets[self.prefix()]
-        a,d = solveElementList(target, "flags", env)
-        self.flags = combineElements(self.flags, a, d)
+        a,d = PList.solveElementList(target, "flags", env)
+        self.flags = PList.combineElements(self.flags, a, d)
 
     @staticmethod
     def preparePaths(paths: list, env:dict) -> list :
@@ -98,29 +96,29 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         cxx = targets.get("cxx")
         if cxx is not None:
             self.visibility = cxx.get("visibility", self.visibility)
-            a,_ = solveElementList(cxx, "debug", env)
+            a,_ = PList.solveElementList(cxx, "debug", env)
             self.debugLevel = a[0] if len(a)>0 else self.debugLevel
-            a,_ = solveElementList(cxx, "optimize", env)
+            a,_ = PList.solveElementList(cxx, "optimize", env)
             self.optimize = a[0] if len(a)>0 else self.optimize
-            a,d = solveElementList(cxx, "flags", env)
-            self.flags = combineElements(self.flags, a, d)
-            a,d = solveElementList(cxx, "defines", env)
-            self.defines = combineElements(self.defines, a, d)
-            a,d = solveElementList(cxx, "incpath", env)
-            self.incpath = combineElements(self.incpath, a, d)
+            a,d = PList.solveElementList(cxx, "flags", env)
+            self.flags = PList.combineElements(self.flags, a, d)
+            a,d = PList.solveElementList(cxx, "defines", env)
+            self.defines = PList.combineElements(self.defines, a, d)
+            a,d = PList.solveElementList(cxx, "incpath", env)
+            self.incpath = PList.combineElements(self.incpath, a, d)
         super().solveTarget(targets, env)
         target = targets[self.prefix()]
         self.pch = target.get("pch", "")
         self.version = target.get("version", self.langVersion())
         self.visibility = target.get("visibility", self.visibility)
-        a,_ = solveElementList(target, "debug", env)
+        a,_ = PList.solveElementList(target, "debug", env)
         self.debugLevel = a[0] if len(a)>0 else self.debugLevel
-        a,_ = solveElementList(target, "optimize", env)
+        a,_ = PList.solveElementList(target, "optimize", env)
         self.optimize = a[0] if len(a)>0 else self.optimize
-        a,d = solveElementList(target, "defines", env)
-        self.defines = combineElements(self.defines, a, d)
-        a,d = solveElementList(target, "incpath", env)
-        self.incpath = combineElements(self.incpath, a, d)
+        a,d = PList.solveElementList(target, "defines", env)
+        self.defines = PList.combineElements(self.defines, a, d)
+        a,d = PList.solveElementList(target, "incpath", env)
+        self.incpath = PList.combineElements(self.incpath, a, d)
 
         self.flags += [f"-fvisibility={self.visibility}"]
         self.incpath = BuildTarget.preparePaths(self.incpath, env)
@@ -176,7 +174,7 @@ class NASMTarget(BuildTarget):
             self.flags += ["-f elf32"]
         super().solveTarget(targets, env)
         target = targets["nasm"]
-        a,d = solveElementList(target, "incpath", env)
+        a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = list(set(a) - set(d))
         self.incpath = BuildTarget.preparePaths(self.incpath, env)
 
@@ -270,20 +268,20 @@ class CUDATarget(BuildTarget):
             self.defines += ["NDEBUG"]
         cuda = targets.get("cuda")
         if cuda is not None:
-            a,_ = solveElementList(cuda, "hostDebug", env)
+            a,_ = PList.solveElementList(cuda, "hostDebug", env)
             self.hostDebug = a[0] if len(a)>0 else self.hostDebug
-            a,_ = solveElementList(cuda, "deviceDebug", env)
+            a,_ = PList.solveElementList(cuda, "deviceDebug", env)
             self.deviceDebug = a[0] if len(a)>0 else self.deviceDebug
-            a,_ = solveElementList(cuda, "optimize", env)
+            a,_ = PList.solveElementList(cuda, "optimize", env)
             self.optimize = a[0] if len(a)>0 else self.optimize
-            a,d = solveElementList(cuda, "flags", env)
-            self.flags = combineElements(self.flags, a, d)
-            a,d = solveElementList(cuda, "defines", env)
-            self.defines = combineElements(self.defines, a, d)
-            a,d = solveElementList(cuda, "incpath", env)
-            self.incpath = combineElements(self.incpath, a, d)
-            a,d = solveElementList(cuda, "arch", env)
-            self.arch = combineElements(self.arch, a, d)
+            a,d = PList.solveElementList(cuda, "flags", env)
+            self.flags = PList.combineElements(self.flags, a, d)
+            a,d = PList.solveElementList(cuda, "defines", env)
+            self.defines = PList.combineElements(self.defines, a, d)
+            a,d = PList.solveElementList(cuda, "incpath", env)
+            self.incpath = PList.combineElements(self.incpath, a, d)
+            a,d = PList.solveElementList(cuda, "arch", env)
+            self.arch = PList.combineElements(self.arch, a, d)
             self.version = cuda.get("version", "-std=c++14")
         super().solveTarget(targets, env)
         self.incpath = BuildTarget.preparePaths(self.incpath, env)

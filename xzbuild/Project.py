@@ -1,25 +1,18 @@
-import abc
-import glob
-import inspect
 import json
 import os
-import platform
-import re
-import subprocess
-import sys
 import time
-from collections import deque
-from collections.abc import MutableMapping
-from ._Rely import writeItems,writeItem
+from . import writeItems,writeItem
 from .Target import _AllTargets
 
 
 class Project:
     def __init__(self, data:dict, path:str):
+        #print(f"Project at [{path}]")
         self.raw = data
         self.name = data["name"]
         self.type = data["type"]
-        self.path = path[2:] if path.startswith("./") or path.startswith(".\\") else path
+        self.buildPath = os.path.normpath(path)
+        self.srcPath = os.path.normpath(os.path.join(path, data.get("srcPath", "")))
         self.dependency = []
         self.version = data.get("version", "")
         self.desc = data.get("description", "")
@@ -34,10 +27,10 @@ class Project:
             self.linkflags += [f"-Wl,--version-script -Wl,{self.expmap}"]
         pass
 
-    def solveTarget(self, env:dict):
+    def solveTargets(self, env:dict):
         if env["compiler"] == "clang":
             self.linkflags += ["-fuse-ld=lld"]
-        os.chdir(os.path.join(env["rootDir"], self.path))
+        os.chdir(os.path.join(env["rootDir"], self.srcPath))
         targets = self.raw.get("targets", [])
         existTargets = [t for t in _AllTargets if t.prefix() in targets]
         self.targets = [t(targets, env) for t in existTargets]
@@ -77,7 +70,7 @@ class Project:
         self.libStatic  += [proj.name for proj in deps if proj.type == "static"]
         self.libDynamic += [proj.name for proj in deps if proj.type == "dynamic"]
 
-        objdir = os.path.join(env["rootDir"], self.path, env["objpath"])
+        objdir = os.path.join(env["rootDir"], self.buildPath, env["objpath"])
         os.makedirs(objdir, exist_ok=True)
         with open(os.path.join(objdir, "xzbuild.proj.mk"), 'w') as file:
             file.write("# xzbuild per project file\n")

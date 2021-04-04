@@ -32,10 +32,24 @@ def _checkExists(prog:str) -> bool:
             return False
     return True
 
+def splitPaths(path:str):
+    if path == None:
+        return []
+    return [p for p in path.split(os.pathsep) if p]
+
+def findFileInPath(fname:str):
+    paths = splitPaths(os.environ["PATH"])
+    return [p for p in paths if os.path.isfile(os.path.join(p, fname))]
+    #return next((p for p in paths if os.path.isfile(os.path.join(p, fname))), None)
+
+def findAppInPath(appname:str):
+    osname = platform.system()
+    return findFileInPath(appname+".exe" if osname == "Windows" else appname)
 
 def collectEnv(paras:dict) -> dict:
     solDir = os.getcwd()
-    env = {"rootDir": solDir, "target": "Debug", "paras": paras}
+    xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
+    env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
     env["verbose"] = "verbose" in paras
     env["arch"] = paras.get("arch", "native")
     is64Bits = sys.maxsize > 2**32
@@ -77,18 +91,3 @@ def writeEnv(env:dict):
         file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
         file.write("xz_libDir\t = {}\n".format(" ".join(env["libDirs"])))
         file.write("STATICLINKER\t = {}\n".format(env["arlinker"]))
-
-def splitPaths(path:str):
-    if path == None:
-        return []
-    return [p for p in path.split(os.pathsep) if p]
-
-def findFileInPath(fname:str):
-    paths = splitPaths(os.environ["PATH"])
-    return [p for p in paths if os.path.isfile(os.path.join(p, fname))]
-    #return next((p for p in paths if os.path.isfile(os.path.join(p, fname))), None)
-
-def findAppInPath(appname:str):
-    osname = platform.system()
-    return findFileInPath(appname+".exe" if osname == "Windows" else appname)
-

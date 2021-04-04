@@ -6,16 +6,12 @@ import re
 import sys
 from subprocess import call
 
-class COLOR:
-    black	= "\033[90m"
-    red		= "\033[91m"
-    green	= "\033[92m"
-    yellow	= "\033[93m"
-    clue	= "\033[94m"
-    magenta	= "\033[95m"
-    cyan	= "\033[96m"
-    white	= "\033[97m"
-    clear	= "\033[39m"
+# enable package import when executed directly
+if not __package__:
+    path = os.path.join(os.path.dirname(__file__), os.pardir)
+    sys.path.insert(0, path)
+
+from xzbuild import COLOR
 
 class Resource:
     def __init__(self, idr:str, fname:str, objdir:str):
@@ -33,7 +29,7 @@ if __name__ == "__main__":
     objdir = sys.argv[3]
     elfType = "elf32-i386" if platform == "x86" else "elf64-x86-64" if platform == "x64" else None
     binType = "i386" if platform == "x86" else "i386:x86-64" if platform == "x64" else None
-    print("{clr.green}Compiling Resource File {clr.magenta}[{}]{clr.clear} for {clr.magenta}[{}]{clr.clear} to [{}]".format(rcfile, platform, objdir, clr=COLOR))
+    print(f"{COLOR.green}Compiling Resource File {COLOR.magenta}[{rcfile}]{COLOR.clear} for {COLOR.magenta}[{platform}]{COLOR.clear} to [{objdir}]")
     with open(rcfile, "rb") as fp:
         rawdata = fp.read()
     enc = chardet.detect(rawdata)["encoding"]

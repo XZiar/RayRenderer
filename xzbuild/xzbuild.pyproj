@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{f35f7ffe-f897-4b8b-bf18-def7eba9e60f}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>Project.py</StartupFile>
+    <StartupFile>__main__.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -23,9 +23,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Project.py" />
+    <Compile Include="ResourceCompiler.py" />
     <Compile Include="Target.py" />
-    <Compile Include="_Rely.py" />
+    <Compile Include="Environment.py" />
+    <Compile Include="PowerList.py" />
     <Compile Include="__init__.py" />
+    <Compile Include="__main__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="XZBuildMakeCore.mk" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>

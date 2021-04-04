@@ -13,9 +13,10 @@ define CLR_TEXT
 $(1)$(2)$(CLR_CLEAR)
 endef
 
-
-include $(SOLPATH)/$(OBJPATH)/xzbuild.sol.mk # per solution xzbuild settings
-include ./$(OBJPATH)/xzbuild.proj.mk # per project xzbuild settings
+APPDIR		 = $(SOLDIR)/$(OBJPATH)
+OBJDIR		 = $(SOLDIR)/$(BUILDPATH)/$(OBJPATH)
+include $(APPDIR)/xzbuild.sol.mk # per solution xzbuild settings
+include $(OBJDIR)/xzbuild.proj.mk # per project xzbuild settings
 
 CPPCOMPILER		?= g++
 CCOMPILER		?= gcc
@@ -40,9 +41,8 @@ cuda_rcs	?=
 rc_srcs		?=
 ispc_srcs	?=
 
-APPPATH		 = $(SOLPATH)/$(OBJPATH)/
-INCPATH		 = -I"$(SOLPATH)" -I"$(SOLPATH)/3rdParty" $(patsubst %, -I"%", $(xz_incDir))
-LDPATH		 = -L"$(APPPATH)" -L.  $(patsubst %, -L"%", $(xz_libDir))
+INCPATH		 = -I"$(SOLDIR)" -I"$(SOLDIR)/3rdParty" $(patsubst %, -I"%", $(xz_incDir))
+LDPATH		 = -L"$(APPDIR)" -L.  $(patsubst %, -L"%", $(xz_libDir))
 DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
 STALIBS		:= $(patsubst %, -l%, $(libStatic))
 CDEFFLAGS	:= $(patsubst %, -D%, $(c_defs))
@@ -55,32 +55,32 @@ ASMINCPATHS	:= $(patsubst %, -I"%", $(asm_incpaths)) $(INCPATH)
 NASMINCPATHS	:= $(patsubst %, -I"%", $(nasm_incpaths)) $(INCPATH)
 
 ### section OBJs
-CXXOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs) $(cuda_srcs))
-ISPCOBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(ispc_srcs))
-ASMOBJS		 = $(patsubst %, $(OBJPATH)/%.o, $(asm_srcs))
-NASMOBJS	 = $(patsubst %, $(OBJPATH)/%.o, $(nasm_srcs))
+CXXOBJS		 = $(patsubst %, $(OBJDIR)/%.o, $(c_srcs) $(cpp_srcs) $(rc_srcs) $(cuda_srcs))
+ISPCOBJS	 = $(patsubst %, $(OBJDIR)/%.o, $(ispc_srcs))
+ASMOBJS		 = $(patsubst %, $(OBJDIR)/%.o, $(asm_srcs))
+NASMOBJS	 = $(patsubst %, $(OBJDIR)/%.o, $(nasm_srcs))
 OTHEROBJS	 = $(ASMOBJS) $(NASMOBJS)
 
 
 ### section PCH
-PCH_CPP		 = $(patsubst %, $(OBJPATH)/%.gch, $(cpp_pch))
-PCH_C		 = $(patsubst %, $(OBJPATH)/%.gch, $(c_pch))
+PCH_CPP		 = $(patsubst %, $(OBJDIR)/%.gch, $(cpp_pch))
+PCH_C		 = $(patsubst %, $(OBJDIR)/%.gch, $(c_pch))
 PCH_PCH		 = $(PCH_CPP) $(PCH_C)
 ifeq ($(xz_compiler), clang)
 	PCHFIX	:= -Wno-pragma-once-outside-header
 endif
 ifneq ($(PCH_CPP), )
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	CPPPCH 	:= -I"$(OBJPATH)"
+	CPPPCH 	:= -I"$(OBJDIR)"
 else ifeq ($(xz_compiler), clang)
-	CPPPCH	:= -include $(cpp_pch) -include-pch $(patsubst %, $(OBJPATH)/%.gch, $(cpp_pch))
+	CPPPCH	:= -include $(cpp_pch) -include-pch $(patsubst %, $(OBJDIR)/%.gch, $(cpp_pch))
 endif
 endif
 ifneq ($(PCH_C), )
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
-	CPCH 	:= -I"$(OBJPATH)"
+	CPCH 	:= -I"$(OBJDIR)"
 else ifeq ($(xz_compiler), clang)
-	CPCH	:= -include $(c_pch) -include-pch $(patsubst %, $(OBJPATH)/%.gch, $(c_pch))
+	CPCH	:= -include $(c_pch) -include-pch $(patsubst %, $(OBJDIR)/%.gch, $(c_pch))
 endif
 endif
 
@@ -88,7 +88,7 @@ endif
 ###============================================================================
 ### create directory
 DIRS		 = $(dir $(ISPCOBJS) $(CXXOBJS) $(OTHEROBJS) $(PCH_PCH))
-$(shell mkdir -p $(OBJPATH) $(DIRS))
+$(shell mkdir -p $(OBJDIR) $(DIRS))
 
 
 ###============================================================================
@@ -114,11 +114,11 @@ endif
 ###============================================================================
 ### stage targets
 ifeq ($(BUILD_TYPE), static)
-APP		:= $(APPPATH)lib$(NAME).a
+APP		:= $(APPDIR)/lib$(NAME).a
 else ifeq ($(BUILD_TYPE), dynamic)
-APP		:= $(APPPATH)lib$(NAME).so
+APP		:= $(APPDIR)/lib$(NAME).so
 else ifeq ($(BUILD_TYPE), executable)
-APP		:= $(APPPATH)$(NAME)
+APP		:= $(APPDIR)/$(NAME)
 else
 $(error unknown build type)
 endif
@@ -160,7 +160,7 @@ endif
 
 ###============================================================================
 ### pch targets
-$(OBJPATH)/%.gch: % $(DEP_MK)
+$(OBJDIR)/%.gch: % $(DEP_MK)
 ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
 	@echo "" > $(basename $@)
 endif
@@ -176,50 +176,50 @@ endif
 
 ###============================================================================
 ### cxx targets
-$(OBJPATH)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
+$(OBJDIR)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
 	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
-$(OBJPATH)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
+$(OBJDIR)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
 	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
-$(OBJPATH)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
+$(OBJDIR)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
 	$(eval $@_bcmd := $(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,    c, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### asm targets
-$(OBJPATH)/%.asm.o: %.asm $(DEP_MK)
+$(OBJDIR)/%.asm.o: %.asm $(DEP_MK)
 	$(eval $@_bcmd := $(NASMCOMPILER) $(NASMINCPATHS) $(nasm_flags) $< -o $@)
 	$(call BuildProgress,compile, nasm, $<, $($@_bcmd))
 
-$(OBJPATH)/%.S.o: %.S $(DEP_MK)
+$(OBJDIR)/%.S.o: %.S $(DEP_MK)
 	$(eval $@_bcmd := $(ASMCOMPILER) $(ASMINCPATHS) $(asm_flags) -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  asm, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### rc targets
-$(OBJPATH)/%.rc.o: %.rc $(DEP_MK)
-	python3 $(SOLPATH)/ResourceCompiler.py $< $(xz_platform) $(OBJPATH)
+$(OBJDIR)/%.rc.o: %.rc $(DEP_MK)
+	python3 $(SOLDIR)/$(xz_xzbuildPath)/ResourceCompiler.py $< $(xz_platform) $(OBJDIR)
 
 
 ###============================================================================
 ### ispc targets
 # ispc's dependency file is still buggy, so only generate it but not use it
-$(OBJPATH)/%.ispc.o: %.ispc $(DEP_MK)
-	$(eval $@_bcmd := $(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJPATH)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@)
+$(OBJDIR)/%.ispc.o: %.ispc $(DEP_MK)
+	$(eval $@_bcmd := $(ISPCCOMPILER) $< -M -MF $(patsubst %.ispc.o, %.ispc.d, $@) -o $(OBJDIR)/$*.o -h $*_ispc.h $(ispc_flags) -MT $@)
 	$(call BuildProgress,compile, ispc, $<, $($@_bcmd))
 #	sed -i '1s/^(null):/$@:/g' $(patsubst %.ispc.o, %.ispc.d, $@)
-	$(eval $@_bcmd := ld -r $(patsubst %, $(OBJPATH)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@)
+	$(eval $@_bcmd := ld -r $(patsubst %, $(OBJDIR)/$*_%.o, $(ispc_targets)) $(patsubst %.ispc.o, %.o, $@) -o $@)
 	$(call BuildProgress,merge  , ispc, $<, $($@_bcmd))
 
 
 ###============================================================================
 ### cuda targets
-$(OBJPATH)/%.cu.o: %.cu $(PCH_CPP) $(DEP_MK)
+$(OBJDIR)/%.cu.o: %.cu $(PCH_CPP) $(DEP_MK)
 	$(eval $@_bcmd := $(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -MM -MF $(patsubst %.cu.o, %.cu.d, $@))
 	$(call BuildProgress,depend , cuda, $<, $($@_bcmd))
 	$(eval $@_bcmd := $(CUDACOMPILER) $(CUDAINCPATHS) $(cuda_flags) $(CUDADEFFLAGS) -c $< -o $@)

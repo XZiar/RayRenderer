@@ -1,37 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import glob
-import json
 import os
 import re
 import subprocess
 import sys
-import time
 from collections import deque
 
-from xzbuild._Rely import COLOR
+# enable package import when executed directly
+if not __package__:
+    path = os.path.join(os.path.dirname(__file__), os.pardir)
+    sys.path.insert(0, path)
+
+from xzbuild import COLOR
 from xzbuild.Target import _AllTargets
 from xzbuild.Project import Project, ProjectSet
 from xzbuild.Environment import collectEnv, writeEnv
 
 def help():
-    print(f"{COLOR.white}python3 xzbuild.py {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project,[project]|all> "
+    print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project,[project]|all> "
           f"{COLOR.magenta}[<Debug|Release>] [<x64|x86>]{COLOR.clear}")
-    print(f"{COLOR.white}python3 xzbuild.py {COLOR.cyan}<list> {COLOR.magenta}[<project>]{COLOR.clear}")
-    print(f"{COLOR.white}python3 xzbuild.py {COLOR.cyan}<help>{COLOR.clear}")
+    print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<list> {COLOR.magenta}[<project>]{COLOR.clear}")
+    print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<help>{COLOR.clear}")
     pass
 
 def makeit(proj:Project, env:dict, action:str):
     # action = [build|clean|rebuild]
     rootDir = env["rootDir"]
+    xzbuildPath = env["xzbuildPath"]
+    objPath = env["objpath"]
     buildtype = "static library" if proj.type == "static" else ("dynamic library" if proj.type == "dynamic" else "executable binary")
     print(f'{COLOR.Green(action)} {COLOR.Magenta(buildtype)} [{COLOR.Cyan(proj.name)}] '
           f'[{COLOR.Magenta(env["target"])} version on {COLOR.Magenta(env["platform"])}] '
-          f'to {COLOR.Green(os.path.join(rootDir, env["objpath"]))}')
-    proj.solveTarget(env)
+          f'at SOL/{COLOR.Green(proj.buildPath)} '
+          f'to SOL/{COLOR.Green(objPath)}')
+    proj.solveTargets(env)
     proj.writeMakefile(env)
-    projDir = os.path.join(rootDir, proj.path)
-    os.chdir(projDir)
+    srcDir = os.path.join(rootDir, proj.srcPath)
+    os.chdir(srcDir)
     doClean = 0
     buildObj = ""
     if env["verbose"] and (action == "build" or action == "rebuild"):
@@ -41,7 +46,7 @@ def makeit(proj:Project, env:dict, action:str):
         doClean = 1
     if action == "clean":
         buildObj = "clean"
-    cmd = f'make {buildObj} OBJPATH="{env["objpath"]}" SOLPATH="{rootDir}" CLEAN={doClean} -f {rootDir}/XZBuildMakeCore.mk -j{env["threads"]} VERBOSE={1 if env["verbose"] else 0}'
+    cmd = f'make {buildObj} SOLDIR="{rootDir}" OBJPATH="{objPath}" BUILDPATH="{proj.buildPath}" CLEAN={doClean} -f {rootDir}/{xzbuildPath}/XZBuildMakeCore.mk -j{env["threads"]} VERBOSE={1 if env["verbose"] else 0}'
     #print(cmd)
     ret = subprocess.call(cmd, shell=True) == 0
     os.chdir(rootDir)
@@ -157,7 +162,7 @@ def main(argv:list, paras:dict):
 
         if action == "test":
             for proj in projects:
-                proj.solveTarget(env)
+                proj.solveTargets(env)
                 print(f"{proj.name}\n{str(proj)}\n\n")
                 proj.writeMakefile(env)
         elif action == "list":
@@ -189,8 +194,7 @@ def main(argv:list, paras:dict):
         return -1
     pass
 
-if __name__ == "__main__":
-    args  = [x for x in sys.argv[1:] if not x.startswith("/")]
-    paras = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
-    paras = {p[0]:"=".join(p[1:]) for p in paras}
-    sys.exit(main(args, paras))
+args  = [x for x in sys.argv[1:] if not x.startswith("/")]
+paras = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
+paras = {p[0]:"=".join(p[1:]) for p in paras}
+sys.exit(main(args, paras))
