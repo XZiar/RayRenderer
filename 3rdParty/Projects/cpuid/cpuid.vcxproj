@@ -57,23 +57,15 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\libcpuid\libcpuid</RealSourceDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(RealSourceDir);$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
@@ -145,41 +137,38 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="../../libcpuid/libcpuid/amd_code_t.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/asm-bits.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/intel_code_t.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_constants.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_internal.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_types.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_util.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/rdtsc.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/recog_amd.h" />
-    <ClInclude Include="../../libcpuid/libcpuid/recog_intel.h" />
+    <ClInclude Include="$(RealSourceDir)\amd_code_t.h" />
+    <ClInclude Include="$(RealSourceDir)\asm-bits.h" />
+    <ClInclude Include="$(RealSourceDir)\intel_code_t.h" />
+    <ClInclude Include="$(RealSourceDir)\libcpuid.h" />
+    <ClInclude Include="$(RealSourceDir)\libcpuid_constants.h" />
+    <ClInclude Include="$(RealSourceDir)\libcpuid_internal.h" />
+    <ClInclude Include="$(RealSourceDir)\libcpuid_types.h" />
+    <ClInclude Include="$(RealSourceDir)\libcpuid_util.h" />
+    <ClInclude Include="$(RealSourceDir)\rdtsc.h" />
+    <ClInclude Include="$(RealSourceDir)\recog_amd.h" />
+    <ClInclude Include="$(RealSourceDir)\recog_intel.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="../../libcpuid/libcpuid/asm-bits.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/cpuid_main.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/libcpuid_util.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/msrdriver.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/rdmsr.c">
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    <ClCompile Include="$(RealSourceDir)\asm-bits.c" />
+    <ClCompile Include="$(RealSourceDir)\cpuid_main.c" />
+    <ClCompile Include="$(RealSourceDir)\libcpuid_util.c" />
+    <ClCompile Include="$(RealSourceDir)\msrdriver.c" />
+    <ClCompile Include="$(RealSourceDir)\rdmsr.c">
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/rdtsc.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/recog_amd.c" />
-    <ClCompile Include="../../libcpuid/libcpuid/recog_intel.c" />
+    <ClCompile Include="$(RealSourceDir)\rdtsc.c" />
+    <ClCompile Include="$(RealSourceDir)\recog_amd.c" />
+    <ClCompile Include="$(RealSourceDir)\recog_intel.c" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="../../libcpuid/libcpuid/masm-x64.asm">
+    <MASM Include="$(RealSourceDir)\masm-x64.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <None Include="../../libcpuid/Readme.md" />
+    <None Include="$(RealSourceDir)\..\Readme.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

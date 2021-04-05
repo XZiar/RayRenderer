@@ -14,7 +14,7 @@
         "c":
         {
             "sources": ["*.c", "intel/*.c"],
-            "incpath": ["../zlib-ng"]
+            "incpath": ["../zlib-ng", "../Projects/zlib-ng"]
         }
     }
 }

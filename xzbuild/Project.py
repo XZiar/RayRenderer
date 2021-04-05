@@ -2,6 +2,7 @@ import json
 import os
 import time
 from . import writeItems,writeItem
+from . import PowerList as PList
 from .Target import _AllTargets
 
 
@@ -33,9 +34,11 @@ class Project:
         os.chdir(os.path.join(env["rootDir"], self.srcPath))
         targets = self.raw.get("targets", [])
         existTargets = [t for t in _AllTargets if t.prefix() in targets]
-        self.targets = [t(targets, env) for t in existTargets]
         for t in existTargets:
             t.modifyProject(self, env)
+        self.targets = [t(targets, env) for t in existTargets]
+        for t in self.targets:
+            t.finishTarget(self, env)
         os.chdir(env["rootDir"])
 
     def solveDependency(self, projs:"ProjectSet"):
@@ -133,3 +136,18 @@ class ProjectSet:
         target = [(r, readMetaFile(r)) for r,d,f in os.walk(dir) if "xzbuild.proj.json" in f]
         projects = ProjectSet([Project(proj, d) for d,proj in target])
         return projects
+
+    @staticmethod
+    def loadSolution(env: dict):
+        solDir = env["rootDir"]
+        def combinePath(field: str, env: dict, sol: dict):
+            a,d = PList.solveElementList(sol, field, env)
+            a = [x if os.path.isabs(x) else os.path.join(solDir, x) for x in a]
+            d = [x if os.path.isabs(x) else os.path.join(solDir, x) for x in d]
+            env[field] = PList.combineElements(env[field], a, d)
+        solFile = os.path.join(solDir, "xzbuild.sol.json")
+        if os.path.isfile(solFile):
+            with open(solFile, 'r') as f:
+                solData = json.load(f)
+            combinePath("incDirs", env, solData)
+            combinePath("libDirs", env, solData)

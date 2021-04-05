@@ -18,7 +18,7 @@
                 "FT2_BUILD_LIBRARY", 
                 {"ifeq":{"target":"debug"}, "+": ["FT_DEBUG_LEVEL_ERROR", "FT_DEBUG_LEVEL_TRACE"]}
             ],
-            "incpath": [".", "../zlib-ng", "../libpng"]
+            "incpath": [".", "../zlib-ng", "../Projects/zlib-ng", "../libpng"]
         },
         "c":
         {

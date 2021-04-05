@@ -147,10 +147,7 @@ def main(argv:list, paras:dict):
             help()
             return 0
 
-        # initialize environent data
-        projects = ProjectSet.gatherFrom()
-        projects.solveDependency()
-        
+        # initialize environment data
         env = collectEnv(paras)
         if len(argv) > 3: env["platform"] = argv[3]             
         if len(argv) > 2: env["target"] = argv[2]             
@@ -159,6 +156,9 @@ def main(argv:list, paras:dict):
             t.initEnv(env)
 
         objproj = argv[1] if len(argv) > 1 else None
+        projects = ProjectSet.gatherFrom()
+        projects.solveDependency()
+        ProjectSet.loadSolution(env)
 
         if action == "test":
             for proj in projects:

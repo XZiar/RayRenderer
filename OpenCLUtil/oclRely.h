@@ -27,7 +27,6 @@
 #include "common/Delegate.hpp"
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
-#include "gsl/gsl_assert"
 
 #include <cstdio>
 #include <memory>

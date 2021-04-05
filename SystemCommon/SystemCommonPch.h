@@ -5,7 +5,6 @@
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
-#include "gsl/gsl_assert"
 #include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 
 #include <cassert>

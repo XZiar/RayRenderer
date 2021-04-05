@@ -2,8 +2,9 @@
     "name": "zlib-ng",
     "type": "static",
     "description": "zlib replacement with optimizations for \"next generation\" systems",
-    "version": "1.9.9",
+    "version": "2.0.2",
     "dependency": [],
+    "srcPath": "../../zlib-ng",
     "library": 
     {
         "static": [],
@@ -15,16 +16,33 @@
         {
             "defines": 
             [
+                {"ifin": {"intrin": "avx2"}, "+": ["X86_AVX2", "X86_AVX2_ADLER32"]},
+                {"ifin": {"intrin": "avx"}, "+": ["X86_AVX_CHUNKSET"]},
                 {"ifin": {"intrin": "pclmul"}, "+": ["X86_PCLMULQDQ_CRC"]},
-                {"ifin": {"intrin": "sse42"}, "+": ["X86_SSE4_2_CRC_HASH", "X86_SSE4_2_CRC_INTRIN"]},
-                "_LARGEFILE64_SOURCE=1", "WITH_GZFILEOP",
-                "HAVE_HIDDEN", "HAVE_INTERNAL", "HAVE_BUILTIN_CTZL",
-                "HAVE_UNISTD_H", "HAVE_STDARG_H",
-                "ZLIB_COMPAT", "UNALIGNED_OK",
-                "X86_NOCHECK_SSE2", "X86_CPUID", "X86_SSE2", "X86_QUICK_STRATEGY"
+                {"ifin": {"intrin": "sse42"}, "+": ["X86_SSE42_CRC_HASH", "X86_SSE42_CRC_INTRIN", "X86_SSE42_CMP_STR"]},
+                {"ifin": {"intrin": "ssse3"}, "+": ["X86_SSSE3", "X86_SSSE3_ADLER32"]},
+                {"ifin": {"intrin": "sse2"}, "+": ["X86_SSE2", "X86_SSE2_CHUNKSET", "X86_SSE2_SLIDEHASH"]},
+                "HAVE_VISIBILITY_HIDDEN", "HAVE_VISIBILITY_INTERNAL", "HAVE_BUILTIN_CTZ", "HAVE_BUILTIN_CTZL",
+                "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H",
+                "ZLIB_COMPAT", "WITH_GZFILEOP", "UNALIGNED_OK", "UNALIGNED64_OK",
+                "X86_FEATURES", "X86_QUICK_STRATEGY"
             ],
-            "sources": ["*.c", "arch/i386/*.c"],
-            "incpath": ["."]
+            "sources": 
+            [
+                "*.c", 
+                "arch/x86/*.c",
+                {
+                    "ifnin": {"intrin": "avx2"}, 
+                    "dir": "arch/x86",
+                    "-": ["adler32_avx.c", "chunkset_avx.c", "slide_avx.c", "compare258_avx.c"]
+                },
+                {
+                    "ifnin": {"intrin": "ssse3"}, 
+                    "dir": "arch/x86",
+                    "-": ["adler32_ssse3.c"]
+                }
+            ],
+            "incpath": [".", "$(BuildDir)"]
         }
     }
 }

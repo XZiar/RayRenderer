@@ -21,7 +21,7 @@ uint64_t AsyncTaskPromiseProvider::E2EElapseNs() noexcept
 }
 
 
-AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t stackSize, uint32_t tuid) : 
+AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t tuid, uint32_t stackSize) :
     Name(name), TaskUid(tuid),
     StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) 
 { }

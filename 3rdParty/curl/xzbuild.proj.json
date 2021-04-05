@@ -25,7 +25,7 @@
                 {"ifeq": {"target": "Debug"}, "+": "DEBUGBUILD"}
             ],
             "version": "",
-            "incpath": ["./include", ".", "../zlib-ng", "../libressl/include"],
+            "incpath": ["./include", ".", "../zlib-ng", "../Projects/zlib-ng", "../libressl/include"],
             "flags": 
             [
                 "-Wpointer-arith", "-Wwrite-strings", "-Wunused", "-Wshadow", "-Winline", "-Wnested-externs", "-Wmissing-declarations", "-Wmissing-prototypes", "-Wno-long-long", "-Wfloat-equal",

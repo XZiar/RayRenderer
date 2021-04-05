@@ -15,68 +15,68 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_util.h">
+    <ClInclude Include="$(RealSourceDir)\libcpuid_util.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/rdtsc.h">
+    <ClInclude Include="$(RealSourceDir)\rdtsc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/recog_amd.h">
+    <ClInclude Include="$(RealSourceDir)\recog_amd.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/recog_intel.h">
+    <ClInclude Include="$(RealSourceDir)\recog_intel.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/asm-bits.h">
+    <ClInclude Include="$(RealSourceDir)\asm-bits.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid.h">
+    <ClInclude Include="$(RealSourceDir)\libcpuid.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_constants.h">
+    <ClInclude Include="$(RealSourceDir)\libcpuid_constants.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_types.h">
+    <ClInclude Include="$(RealSourceDir)\libcpuid_types.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_internal.h">
+    <ClInclude Include="$(RealSourceDir)\libcpuid_internal.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/intel_code_t.h">
+    <ClInclude Include="$(RealSourceDir)\intel_code_t.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="../../libcpuid/libcpuid/amd_code_t.h">
+    <ClInclude Include="$(RealSourceDir)\amd_code_t.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="../../libcpuid/libcpuid/msrdriver.c">
+    <ClCompile Include="$(RealSourceDir)\msrdriver.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/rdmsr.c">
+    <ClCompile Include="$(RealSourceDir)\rdmsr.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/rdtsc.c">
+    <ClCompile Include="$(RealSourceDir)\rdtsc.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/recog_amd.c">
+    <ClCompile Include="$(RealSourceDir)\recog_amd.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/recog_intel.c">
+    <ClCompile Include="$(RealSourceDir)\recog_intel.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/asm-bits.c">
+    <ClCompile Include="$(RealSourceDir)\asm-bits.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/cpuid_main.c">
+    <ClCompile Include="$(RealSourceDir)\cpuid_main.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="../../libcpuid/libcpuid/libcpuid_util.c">
+    <ClCompile Include="$(RealSourceDir)\libcpuid_util.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="../../libcpuid/libcpuid/masm-x64.asm">
+    <MASM Include="$(RealSourceDir)\masm-x64.asm">
       <Filter>源文件</Filter>
     </MASM>
   </ItemGroup>

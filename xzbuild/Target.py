@@ -21,6 +21,12 @@ class BuildTarget(metaclass=abc.ABCMeta):
     def modifyProject(proj, env:dict):
         '''modify parent project'''
         pass
+
+    @staticmethod
+    def preparePaths(proj, env:dict, paths:list):
+        solDir = env["rootDir"]
+        buildDir = os.path.join(solDir, proj.buildPath)
+        return [path.replace("$(SolutionDir)", solDir).replace("$(BuildDir)", buildDir) for path in paths]
     
     def write(self, file):
         file.write(f"\n\n# For target [{self.prefix()}]\n")
@@ -57,10 +63,9 @@ class BuildTarget(metaclass=abc.ABCMeta):
         a,d = PList.solveElementList(target, "flags", env)
         self.flags = PList.combineElements(self.flags, a, d)
 
-    @staticmethod
-    def preparePaths(paths: list, env:dict) -> list :
-        solDir = env["rootDir"]
-        return [path.replace("$(SolutionDir)", solDir) for path in paths]
+    def finishTarget(self, proj, env:dict):
+        '''finish solving target with project info'''
+        pass
 
     def __repr__(self):
         return str(vars(self))
@@ -119,9 +124,10 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.defines = PList.combineElements(self.defines, a, d)
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = PList.combineElements(self.incpath, a, d)
-
         self.flags += [f"-fvisibility={self.visibility}"]
-        self.incpath = BuildTarget.preparePaths(self.incpath, env)
+
+    def finishTarget(self, proj, env:dict):
+        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
 
     def write(self, file):
         super().write(file)
@@ -176,7 +182,9 @@ class NASMTarget(BuildTarget):
         target = targets["nasm"]
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = list(set(a) - set(d))
-        self.incpath = BuildTarget.preparePaths(self.incpath, env)
+
+    def finishTarget(self, proj, env:dict):
+        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
 
     def write(self, file):
         super().write(file)
@@ -284,7 +292,9 @@ class CUDATarget(BuildTarget):
             self.arch = PList.combineElements(self.arch, a, d)
             self.version = cuda.get("version", "-std=c++14")
         super().solveTarget(targets, env)
-        self.incpath = BuildTarget.preparePaths(self.incpath, env)
+
+    def finishTarget(self, proj, env:dict):
+        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
 
     def write(self, file):
         super().write(file)

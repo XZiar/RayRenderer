@@ -22,7 +22,6 @@
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/SIMD.hpp"
-#include "gsl/gsl_assert"
 
 #include <cstdio>
 #include <type_traits>

@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
+    <Filter Include="Source Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="头文件">
+    <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
@@ -15,141 +15,192 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="LICENSE.md" />
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\LICENSE.md" />
+    <None Include="$(RealSourceDir)\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="inflate.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="inftrees.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="trees.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zlib.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zlib-ng.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zutil.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="crc32.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="deflate.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="functable.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="gzguts.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="inffast.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="inffixed.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zconf-ng.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zconf.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zbuild.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="adler32_p.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="deflate_p.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="inflate_p.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="zendian.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
+    <ClCompile Include="$(RealSourceDir)\adler32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\chunkset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\compare258.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\compress.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\crc32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\crc32_comb.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\deflate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\deflate_fast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\deflate_medium.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\deflate_quick.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\deflate_slow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\functable.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\infback.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\inffast.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\inflate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\inftrees.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\insert_string.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\trees.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\uncompr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\zutil.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\x86.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\slide_avx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\compare258_avx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_avx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\insert_string_sse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\compare258_sse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_sse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\slide_sse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_ssse3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\crc_folding.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\gzlib.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\gzread.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\gzwrite.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="infback.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="inffast.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="inflate.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="inftrees.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="trees.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="uncompr.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="zutil.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="adler32.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="compress.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="crc32.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="deflate.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="deflate_fast.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="deflate_medium.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="deflate_slow.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="functable.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gzclose.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gzlib.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gzread.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="gzwrite.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\x86.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\deflate_quick.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\fill_window_sse.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\insert_string_sse.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="arch\i386\crc_folding.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
+    <ClInclude Include="$(RealSourceDir)\arch\x86\x86.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\fallback_builtins.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="zconf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\zlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\adler32_p.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\chunkset_tpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\crc32_p.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\crc32_tbl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\crc32_comb_tbl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\deflate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\deflate_p.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\functable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\inffast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\inffixed_tbl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\inflate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\inflate_p.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\inftrees.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\insert_string_tpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\match_tpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\trees.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\trees_emit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\trees_tbl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\zbuild.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\zendian.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\zutil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\gzguts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

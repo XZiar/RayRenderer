@@ -57,34 +57,14 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\zlib-ng</RealSourceDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
+  <PropertyGroup>
+    <IncludePath>$(RealSourceDir);$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -93,7 +73,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_DEBUG;ZLIB_COMPAT;WITH_GZFILEOP;UNALIGNED_OK;UNALIGNED64_OK;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_FEATURES;X86_AVX2;X86_AVX2_ADLER32;X86_AVX_CHUNKSET;X86_SSE42_CRC_HASH;X86_SSE42_CRC_INTRIN;X86_SSE42_CMP_STR;X86_SSE2;X86_SSE2_CHUNKSET;X86_SSE2_SLIDEHASH;X86_SSSE3;X86_SSSE3_ADLER32;X86_PCLMULQDQ_CRC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
@@ -116,7 +96,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;_DEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;ZLIB_DEBUG;ZLIB_COMPAT;WITH_GZFILEOP;UNALIGNED_OK;UNALIGNED64_OK;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_FEATURES;X86_SSE42_CRC_HASH;X86_SSE42_CRC_INTRIN;X86_SSE42_CMP_STR;X86_SSE2;X86_SSE2_CHUNKSET;X86_SSE2_SLIDEHASH;X86_NOCHECK_SSE2;X86_SSSE3;X86_SSSE3_ADLER32;X86_PCLMULQDQ_CRC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
@@ -140,7 +120,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;ZLIB_COMPAT;WITH_GZFILEOP;UNALIGNED_OK;UNALIGNED64_OK;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_FEATURES;X86_SSE42_CRC_HASH;X86_SSE42_CRC_INTRIN;X86_SSE42_CMP_STR;X86_SSE2;X86_SSE2_CHUNKSET;X86_SSE2_SLIDEHASH;X86_NOCHECK_SSE2;X86_SSSE3;X86_SSSE3_ADLER32;X86_PCLMULQDQ_CRC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
@@ -167,7 +147,7 @@
       <SDLCheck>true</SDLCheck>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>WIN32;X86_SSE2;_WINDOWS;ZLIB_COMPAT;WITH_GZFILEOP;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_NOCHECK_SSE2;X86_QUICK_STRATEGY;UNALIGNED_OK;X86_CPUID;X86_SSE4_2_CRC_HASH;X86_SSE4_2_CRC_INTRIN;X86_PCLMULQDQ_CRC;NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;ZLIB_COMPAT;WITH_GZFILEOP;UNALIGNED_OK;UNALIGNED64_OK;NO_FSEEKO;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_FEATURES;X86_AVX2;X86_AVX2_ADLER32;X86_AVX_CHUNKSET;X86_SSE42_CRC_HASH;X86_SSE42_CRC_INTRIN;X86_SSE42_CMP_STR;X86_SSE2;X86_SSE2_CHUNKSET;X86_SSE2_SLIDEHASH;X86_SSSE3;X86_SSSE3_ADLER32;X86_PCLMULQDQ_CRC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <CompileAsManaged>false</CompileAsManaged>
       <ConformanceMode>true</ConformanceMode>
@@ -187,56 +167,79 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="LICENSE.md" />
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\LICENSE.md" />
+    <None Include="$(RealSourceDir)\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="adler32_p.h" />
-    <ClInclude Include="crc32.h" />
-    <ClInclude Include="deflate.h" />
-    <ClInclude Include="deflate_p.h" />
-    <ClInclude Include="functable.h" />
-    <ClInclude Include="gzguts.h" />
-    <ClInclude Include="inffast.h" />
-    <ClInclude Include="inffixed.h" />
-    <ClInclude Include="inflate.h" />
-    <ClInclude Include="inflate_p.h" />
-    <ClInclude Include="inftrees.h" />
-    <ClInclude Include="trees.h" />
-    <ClInclude Include="zbuild.h" />
-    <ClInclude Include="zconf-ng.h" />
+    <ClCompile Include="$(RealSourceDir)\adler32.c" />
+    <ClCompile Include="$(RealSourceDir)\chunkset.c" />
+    <ClCompile Include="$(RealSourceDir)\compare258.c" />
+    <ClCompile Include="$(RealSourceDir)\compress.c" />
+    <ClCompile Include="$(RealSourceDir)\crc32.c" />
+    <ClCompile Include="$(RealSourceDir)\crc32_comb.c" />
+    <ClCompile Include="$(RealSourceDir)\deflate.c" />
+    <ClCompile Include="$(RealSourceDir)\deflate_fast.c" />
+    <ClCompile Include="$(RealSourceDir)\deflate_medium.c" />
+    <ClCompile Include="$(RealSourceDir)\deflate_quick.c" />
+    <ClCompile Include="$(RealSourceDir)\deflate_slow.c" />
+    <ClCompile Include="$(RealSourceDir)\functable.c" />
+    <ClCompile Include="$(RealSourceDir)\infback.c" />
+    <ClCompile Include="$(RealSourceDir)\inffast.c" />
+    <ClCompile Include="$(RealSourceDir)\inflate.c" />
+    <ClCompile Include="$(RealSourceDir)\inftrees.c" />
+    <ClCompile Include="$(RealSourceDir)\insert_string.c" />
+    <ClCompile Include="$(RealSourceDir)\trees.c" />
+    <ClCompile Include="$(RealSourceDir)\uncompr.c" />
+    <ClCompile Include="$(RealSourceDir)\zutil.c" />
+    <ClInclude Include="$(RealSourceDir)\arch\x86\x86.h" />
+    <ClInclude Include="$(RealSourceDir)\fallback_builtins.h" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\x86.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\slide_avx.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_avx.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\compare258_avx.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_avx.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\x86\insert_string_sse.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\compare258_sse.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\chunkset_sse.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\slide_sse.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\adler32_ssse3.c" />
+    <ClCompile Include="$(RealSourceDir)\arch\x86\crc_folding.c" />
     <ClInclude Include="zconf.h" />
-    <ClInclude Include="zendian.h" />
-    <ClInclude Include="zlib-ng.h" />
-    <ClInclude Include="zlib.h" />
-    <ClInclude Include="zutil.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="adler32.c" />
-    <ClCompile Include="arch\i386\crc_folding.c" />
-    <ClCompile Include="arch\i386\deflate_quick.c" />
-    <ClCompile Include="arch\i386\fill_window_sse.c" />
-    <ClCompile Include="arch\i386\insert_string_sse.c" />
-    <ClCompile Include="arch\i386\x86.c" />
-    <ClCompile Include="compress.c" />
-    <ClCompile Include="crc32.c" />
-    <ClCompile Include="deflate.c" />
-    <ClCompile Include="deflate_fast.c" />
-    <ClCompile Include="deflate_medium.c" />
-    <ClCompile Include="deflate_slow.c" />
-    <ClCompile Include="functable.c" />
-    <ClCompile Include="gzclose.c" />
-    <ClCompile Include="gzlib.c" />
-    <ClCompile Include="gzread.c" />
-    <ClCompile Include="gzwrite.c" />
-    <ClCompile Include="infback.c" />
-    <ClCompile Include="inffast.c" />
-    <ClCompile Include="inflate.c" />
-    <ClCompile Include="inftrees.c" />
-    <ClCompile Include="trees.c" />
-    <ClCompile Include="uncompr.c" />
-    <ClCompile Include="zutil.c" />
+    <ClInclude Include="$(RealSourceDir)\zlib.h" />
+    <ClInclude Include="$(RealSourceDir)\adler32_p.h" />
+    <ClInclude Include="$(RealSourceDir)\chunkset_tpl.h" />
+    <ClInclude Include="$(RealSourceDir)\crc32_p.h" />
+    <ClInclude Include="$(RealSourceDir)\crc32_tbl.h" />
+    <ClInclude Include="$(RealSourceDir)\crc32_comb_tbl.h" />
+    <ClInclude Include="$(RealSourceDir)\deflate.h" />
+    <ClInclude Include="$(RealSourceDir)\deflate_p.h" />
+    <ClInclude Include="$(RealSourceDir)\functable.h" />
+    <ClInclude Include="$(RealSourceDir)\inffast.h" />
+    <ClInclude Include="$(RealSourceDir)\inffixed_tbl.h" />
+    <ClInclude Include="$(RealSourceDir)\inflate.h" />
+    <ClInclude Include="$(RealSourceDir)\inflate_p.h" />
+    <ClInclude Include="$(RealSourceDir)\inftrees.h" />
+    <ClInclude Include="$(RealSourceDir)\insert_string_tpl.h" />
+    <ClInclude Include="$(RealSourceDir)\match_tpl.h" />
+    <ClInclude Include="$(RealSourceDir)\trees.h" />
+    <ClInclude Include="$(RealSourceDir)\trees_emit.h" />
+    <ClInclude Include="$(RealSourceDir)\trees_tbl.h" />
+    <ClInclude Include="$(RealSourceDir)\zbuild.h" />
+    <ClInclude Include="$(RealSourceDir)\zendian.h" />
+    <ClInclude Include="$(RealSourceDir)\zutil.h" />
+    <ClInclude Include="$(RealSourceDir)\gzguts.h" />
+    <ClCompile Include="$(RealSourceDir)\gzlib.c" />
+    <ClCompile Include="$(RealSourceDir)\gzread.c" />
+    <ClCompile Include="$(RealSourceDir)\gzwrite.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

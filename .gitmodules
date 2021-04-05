@@ -18,3 +18,12 @@
 	shallow = true
 	path = 3rdParty/libcpuid
 	url = https://github.com/anrieff/libcpuid.git
+[submodule "3rdParty/zlib-ng"]
+	shallow = true
+	path = 3rdParty/zlib-ng
+	url = https://github.com/zlib-ng/zlib-ng.git
+	branch = stable
+[submodule "3rdParty/GSL"]
+	shallow = true
+	path = 3rdParty/GSL
+	url = https://github.com/microsoft/GSL.git

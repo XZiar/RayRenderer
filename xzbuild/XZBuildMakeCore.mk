@@ -41,7 +41,7 @@ cuda_rcs	?=
 rc_srcs		?=
 ispc_srcs	?=
 
-INCPATH		 = -I"$(SOLDIR)" -I"$(SOLDIR)/3rdParty" $(patsubst %, -I"%", $(xz_incDir))
+INCPATH		 = $(patsubst %, -I"%", $(xz_incDir))
 LDPATH		 = -L"$(APPDIR)" -L.  $(patsubst %, -L"%", $(xz_libDir))
 DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
 STALIBS		:= $(patsubst %, -l%, $(libStatic))
