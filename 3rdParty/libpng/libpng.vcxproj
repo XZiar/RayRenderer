@@ -208,7 +208,7 @@
     <ClCompile Include="pngwutil.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\zlib-ng\zlib-ng.vcxproj">
+    <ProjectReference Include="..\Projects\zlib-ng\zlib-ng.vcxproj">
       <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
   </ItemGroup>

@@ -314,7 +314,7 @@
     <ProjectReference Include="..\libressl\libressl.vcxproj">
       <Project>{336cc8aa-fe6a-4f02-9175-96ff19e06410}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\zlib-ng\zlib-ng.vcxproj">
+    <ProjectReference Include="..\Projects\zlib-ng\zlib-ng.vcxproj">
       <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
   </ItemGroup>
