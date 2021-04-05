@@ -31,16 +31,17 @@ uint32_t RegisterIntrinTest(const char* testsuite, const char* fileName, const i
 template<typename T>
 class IntrinFixture : public testing::Test
 {
-    common::span<const std::pair<std::string_view, std::string_view>> Info;
+    const std::pair<std::string_view, std::string_view> Info;
 
     void SetUp() override
     {
-        Intrin = std::make_unique<T>(Info);
+        Intrin = std::make_unique<T>(common::span<decltype(Info)>{ &Info,1 });
     }
     void TestBody() override
     {
         const auto result = Intrin->GetIntrinMap();
-        ASSERT_THAT(result, testing::ElementsAre(Info[0]));
+        ASSERT_EQ(result.size(), 1u);
+        ASSERT_EQ(result[0], Info);
         InnerTest();
     }
 protected:
@@ -48,8 +49,7 @@ protected:
     virtual void InnerTest() = 0;
 public:
     using HostType = T;
-    IntrinFixture(const std::pair<std::string_view, std::string_view>& item) :
-        Info(&item, 1)
+    IntrinFixture(const std::pair<std::string_view, std::string_view> item) : Info(item)
     { }
 };
 
