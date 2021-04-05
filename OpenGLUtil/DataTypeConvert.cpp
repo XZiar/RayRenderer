@@ -1,7 +1,7 @@
 #include "oglPch.h"
 #include "DataTypeConvert.h"
 #include "common/SIMD.hpp"
-#include "cpuid/libcpuid.h"
+#include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 
 #if defined(__F16C__)
 #   pragma message("Compiling OpenGLUtil with F16C support")

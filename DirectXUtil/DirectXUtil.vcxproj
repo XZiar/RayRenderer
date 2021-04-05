@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\cpuid\cpuid.vcxproj">
-      <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
       <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
     </ProjectReference>

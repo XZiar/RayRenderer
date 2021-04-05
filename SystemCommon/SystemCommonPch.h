@@ -6,7 +6,7 @@
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
 #include "gsl/gsl_assert"
-#include "cpuid/libcpuid.h"
+#include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 
 #include <cassert>
 #include <thread>

@@ -94,7 +94,7 @@ $(shell mkdir -p $(OBJDIR) $(DIRS))
 ###============================================================================
 ### dependent includes
 DEPS 		 = $(patsubst %.o, %.d, $(CXXOBJS) $(ASMOBJS)) $(patsubst %.gch, %.d, $(PCH_PCH))
-DEP_MK	:= xzbuild.proj.json
+DEP_MK	:= $(SOLDIR)/$(BUILDPATH)/xzbuild.proj.json
 
 
 ###============================================================================

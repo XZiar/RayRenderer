@@ -2,8 +2,9 @@
     "name": "cpuid",
     "type": "static",
     "description": "A small C library for x86 CPU detection and feature extraction",
-    "version": "0.4.1",
+    "version": "0.5.1",
     "dependency": [],
+    "srcPath": "../../libcpuid/libcpuid",
     "library": 
     {
         "static": [],
@@ -13,7 +14,7 @@
     {
         "cxx":
         {
-            "defines": ["_LIB", "HAVE_CONFIG_H"],
+            "defines": ["_LIB", "VERSION='\"0.5.1\"'"],
             "flags": ["-Wno-format", "-Wno-overlength-strings"]
         },
         "c":

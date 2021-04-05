@@ -59,19 +59,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
+    <Import Project="..\..\..\SolutionInclude.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
+    <Import Project="..\..\..\SolutionInclude.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
+    <Import Project="..\..\..\SolutionInclude.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\SolutionInclude.props" />
+    <Import Project="..\..\..\SolutionInclude.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -85,7 +85,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.4.0";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
@@ -104,7 +104,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.4.0";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
@@ -119,7 +119,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.4.0";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
@@ -135,7 +135,7 @@
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
-      <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.4.0";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
@@ -145,37 +145,41 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="amd_code_t.h" />
-    <ClInclude Include="asm-bits.h" />
-    <ClInclude Include="config.h" />
-    <ClInclude Include="intel_code_t.h" />
-    <ClInclude Include="libcpuid.h" />
-    <ClInclude Include="libcpuid_constants.h" />
-    <ClInclude Include="libcpuid_internal.h" />
-    <ClInclude Include="libcpuid_types.h" />
-    <ClInclude Include="libcpuid_util.h" />
-    <ClInclude Include="rdtsc.h" />
-    <ClInclude Include="recog_amd.h" />
-    <ClInclude Include="recog_intel.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/amd_code_t.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/asm-bits.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/intel_code_t.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_constants.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_internal.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_types.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_util.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/rdtsc.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/recog_amd.h" />
+    <ClInclude Include="../../libcpuid/libcpuid/recog_intel.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asm-bits.c" />
-    <ClCompile Include="cpuid_main.c" />
-    <ClCompile Include="libcpuid_util.c" />
-    <ClCompile Include="msrdriver.c" />
-    <ClCompile Include="rdmsr.c" />
-    <ClCompile Include="rdtsc.c" />
-    <ClCompile Include="recog_amd.c" />
-    <ClCompile Include="recog_intel.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/asm-bits.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/cpuid_main.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/libcpuid_util.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/msrdriver.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/rdmsr.c">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="../../libcpuid/libcpuid/rdtsc.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/recog_amd.c" />
+    <ClCompile Include="../../libcpuid/libcpuid/recog_intel.c" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="masm-x64.asm">
+    <MASM Include="../../libcpuid/libcpuid/masm-x64.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Readme.md" />
+    <None Include="../../libcpuid/Readme.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

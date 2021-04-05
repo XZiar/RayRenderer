@@ -3,7 +3,7 @@
 #include "common/SIMD.hpp"
 #include "common/StrParsePack.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
-#include "3rdParty/cpuid/libcpuid.h"
+#include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #include <boost/preprocessor/tuple/enum.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
 

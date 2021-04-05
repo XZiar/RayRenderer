@@ -15,76 +15,73 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="libcpuid_util.h">
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_util.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="rdtsc.h">
+    <ClInclude Include="../../libcpuid/libcpuid/rdtsc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="recog_amd.h">
+    <ClInclude Include="../../libcpuid/libcpuid/recog_amd.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="recog_intel.h">
+    <ClInclude Include="../../libcpuid/libcpuid/recog_intel.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="asm-bits.h">
+    <ClInclude Include="../../libcpuid/libcpuid/asm-bits.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="libcpuid.h">
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="libcpuid_constants.h">
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_constants.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="libcpuid_types.h">
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_types.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="libcpuid_internal.h">
+    <ClInclude Include="../../libcpuid/libcpuid/libcpuid_internal.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="intel_code_t.h">
+    <ClInclude Include="../../libcpuid/libcpuid/intel_code_t.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="amd_code_t.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="config.h">
+    <ClInclude Include="../../libcpuid/libcpuid/amd_code_t.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="msrdriver.c">
+    <ClCompile Include="../../libcpuid/libcpuid/msrdriver.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="rdmsr.c">
+    <ClCompile Include="../../libcpuid/libcpuid/rdmsr.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="rdtsc.c">
+    <ClCompile Include="../../libcpuid/libcpuid/rdtsc.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="recog_amd.c">
+    <ClCompile Include="../../libcpuid/libcpuid/recog_amd.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="recog_intel.c">
+    <ClCompile Include="../../libcpuid/libcpuid/recog_intel.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="asm-bits.c">
+    <ClCompile Include="../../libcpuid/libcpuid/asm-bits.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="cpuid_main.c">
+    <ClCompile Include="../../libcpuid/libcpuid/cpuid_main.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="libcpuid_util.c">
+    <ClCompile Include="../../libcpuid/libcpuid/libcpuid_util.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="masm-x64.asm">
+    <MASM Include="../../libcpuid/libcpuid/masm-x64.asm">
       <Filter>源文件</Filter>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Readme.md" />
+    <None Include="../../libcpuid/Readme.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>
