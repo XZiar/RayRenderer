@@ -36,11 +36,11 @@ It's bitfield arrangement is listed below
 
 ## Dependency
 
-* [zlib-ng](https://github.com/Dead2/zlib-ng)  1.9.9 develop@2019-08-11
+* [zlib-ng](https://github.com/zlib-ng/zlib-ng) `submodule` 2.0.2
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
-* [libpng](http://www.libpng.org/pub/png/libpng.html)  1.6.37
+* [libpng](http://www.libpng.org/pub/png/libpng.html) `submodule` 1.6.37
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
@@ -48,9 +48,9 @@ It's bitfield arrangement is listed below
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
   
-* [stb](https://github.com/nothings/stb)
+* [stb](https://github.com/nothings/stb) `submodule`
 
-  [MIT License](./3rdParty/stb/license.txt)
+  [MIT License](../3rdParty/stb/LICENSE)
 
 ## License
 

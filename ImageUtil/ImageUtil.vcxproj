@@ -62,7 +62,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)3rdParty\Projects\zlib-ng;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)3rdParty\Projects\zlib-ng;$(SolutionDir)3rdParty\Projects\libpng;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

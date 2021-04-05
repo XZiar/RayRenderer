@@ -77,7 +77,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) 3.1.0
+* [gsl](https://github.com/microsoft/GSL) `submodule` 3.1.0
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
@@ -89,7 +89,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.73.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.75.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
@@ -117,7 +117,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/) 0.5.0 master@2020-05-28
+* [libcpuid](http://libcpuid.sourceforge.net/)  `submodule` 0.5.1
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

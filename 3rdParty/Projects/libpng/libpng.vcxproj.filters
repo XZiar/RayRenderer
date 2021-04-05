@@ -83,7 +83,7 @@
     <ClInclude Include="$(RealSourceDir)\png.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\pnglibconf.h">
+    <ClInclude Include="pnglibconf.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\pngconf.h">

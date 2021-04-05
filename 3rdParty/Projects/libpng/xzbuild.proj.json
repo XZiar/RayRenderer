@@ -14,8 +14,8 @@
     {
         "c":
         {
-            "sources": ["*.c", "intel/*.c"],
-            "incpath": ["../zlib-ng", "$(SolutionDir)/3rdParty/zlib-ng"]
+            "sources": ["*.c", "intel/*.c", {"-": "example.c"}],
+            "incpath": ["$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
         }
     }
 }

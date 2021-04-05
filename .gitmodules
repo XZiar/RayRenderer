@@ -27,3 +27,11 @@
 	shallow = true
 	path = 3rdParty/GSL
 	url = https://github.com/microsoft/GSL.git
+[submodule "3rdParty/stb"]
+	shallow = true
+	path = 3rdParty/stb
+	url = https://github.com/nothings/stb.git
+[submodule "3rdParty/libpng"]
+	shallow = true
+	path = 3rdParty/libpng
+	url = https://github.com/glennrp/libpng.git

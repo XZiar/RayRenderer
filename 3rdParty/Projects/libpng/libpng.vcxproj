@@ -63,7 +63,7 @@
     <RealSourceDir>$(SolutionDir)3rdParty\libpng</RealSourceDir>
   </PropertyGroup>
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)3rdParty\zlib-ng;$(SolutionDir)3rdParty\Projects\zlib-ng;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)3rdParty\zlib-ng;$(SolutionDir)3rdParty\Projects\zlib-ng;$(ProjectDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -179,7 +179,7 @@
     <ClCompile Include="$(RealSourceDir)\pngwutil.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Projects\zlib-ng\zlib-ng.vcxproj">
+    <ProjectReference Include="..\zlib-ng\zlib-ng.vcxproj">
       <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
   </ItemGroup>
@@ -188,7 +188,7 @@
     <ClInclude Include="$(RealSourceDir)\pngconf.h" />
     <ClInclude Include="$(RealSourceDir)\pngdebug.h" />
     <ClInclude Include="$(RealSourceDir)\pnginfo.h" />
-    <ClInclude Include="$(RealSourceDir)\pnglibconf.h" />
+    <ClInclude Include="pnglibconf.h" />
     <ClInclude Include="$(RealSourceDir)\pngpriv.h" />
     <ClInclude Include="$(RealSourceDir)\pngstruct.h" />
   </ItemGroup>
