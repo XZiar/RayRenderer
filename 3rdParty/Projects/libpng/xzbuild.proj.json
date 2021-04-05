@@ -4,6 +4,7 @@
     "description": "The official PNG reference library",
     "version": "1.6.37",
     "dependency": ["zlib-ng"],
+    "srcPath": "../../libpng",
     "library": 
     {
         "static": [],
@@ -14,7 +15,7 @@
         "c":
         {
             "sources": ["*.c", "intel/*.c"],
-            "incpath": ["../zlib-ng", "../Projects/zlib-ng"]
+            "incpath": ["../zlib-ng", "$(SolutionDir)/3rdParty/zlib-ng"]
         }
     }
 }

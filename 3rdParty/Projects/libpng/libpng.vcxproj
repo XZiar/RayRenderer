@@ -59,7 +59,9 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\libpng</RealSourceDir>
+  </PropertyGroup>
   <PropertyGroup>
     <IncludePath>$(SolutionDir)3rdParty\zlib-ng;$(SolutionDir)3rdParty\Projects\zlib-ng;$(IncludePath)</IncludePath>
   </PropertyGroup>
@@ -152,38 +154,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="intel\filter_sse2_intrinsics.c">
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../pngpriv.h</PrecompiledHeaderFile>
+    <ClCompile Include="$(RealSourceDir)\intel\filter_sse2_intrinsics.c">
+      <PrecompiledHeaderFile>../pngpriv.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="intel\intel_init.c">
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../pngpriv.h</PrecompiledHeaderFile>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../pngpriv.h</PrecompiledHeaderFile>
+    <ClCompile Include="$(RealSourceDir)\intel\intel_init.c">
+      <PrecompiledHeaderFile>../pngpriv.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="png.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    <ClCompile Include="$(RealSourceDir)\png.c">
+      <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="pngerror.c" />
-    <ClCompile Include="pngget.c" />
-    <ClCompile Include="pngmem.c" />
-    <ClCompile Include="pngpread.c" />
-    <ClCompile Include="pngread.c" />
-    <ClCompile Include="pngrio.c" />
-    <ClCompile Include="pngrtran.c" />
-    <ClCompile Include="pngrutil.c" />
-    <ClCompile Include="pngset.c" />
-    <ClCompile Include="pngtrans.c" />
-    <ClCompile Include="pngwio.c" />
-    <ClCompile Include="pngwrite.c" />
-    <ClCompile Include="pngwtran.c" />
-    <ClCompile Include="pngwutil.c" />
+    <ClCompile Include="$(RealSourceDir)\pngerror.c" />
+    <ClCompile Include="$(RealSourceDir)\pngget.c" />
+    <ClCompile Include="$(RealSourceDir)\pngmem.c" />
+    <ClCompile Include="$(RealSourceDir)\pngpread.c" />
+    <ClCompile Include="$(RealSourceDir)\pngread.c" />
+    <ClCompile Include="$(RealSourceDir)\pngrio.c" />
+    <ClCompile Include="$(RealSourceDir)\pngrtran.c" />
+    <ClCompile Include="$(RealSourceDir)\pngrutil.c" />
+    <ClCompile Include="$(RealSourceDir)\pngset.c" />
+    <ClCompile Include="$(RealSourceDir)\pngtrans.c" />
+    <ClCompile Include="$(RealSourceDir)\pngwio.c" />
+    <ClCompile Include="$(RealSourceDir)\pngwrite.c" />
+    <ClCompile Include="$(RealSourceDir)\pngwtran.c" />
+    <ClCompile Include="$(RealSourceDir)\pngwutil.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Projects\zlib-ng\zlib-ng.vcxproj">
@@ -191,17 +184,17 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="png.h" />
-    <ClInclude Include="pngconf.h" />
-    <ClInclude Include="pngdebug.h" />
-    <ClInclude Include="pnginfo.h" />
-    <ClInclude Include="pnglibconf.h" />
-    <ClInclude Include="pngpriv.h" />
-    <ClInclude Include="pngstruct.h" />
+    <ClInclude Include="$(RealSourceDir)\png.h" />
+    <ClInclude Include="$(RealSourceDir)\pngconf.h" />
+    <ClInclude Include="$(RealSourceDir)\pngdebug.h" />
+    <ClInclude Include="$(RealSourceDir)\pnginfo.h" />
+    <ClInclude Include="$(RealSourceDir)\pnglibconf.h" />
+    <ClInclude Include="$(RealSourceDir)\pngpriv.h" />
+    <ClInclude Include="$(RealSourceDir)\pngstruct.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="LICENSE" />
-    <None Include="README" />
+    <None Include="$(RealSourceDir)\LICENSE" />
+    <None Include="$(RealSourceDir)\README" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

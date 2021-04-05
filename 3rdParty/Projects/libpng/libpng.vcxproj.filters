@@ -15,84 +15,84 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="pngpread.c">
+    <ClCompile Include="$(RealSourceDir)\pngpread.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngread.c">
+    <ClCompile Include="$(RealSourceDir)\pngread.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngrio.c">
+    <ClCompile Include="$(RealSourceDir)\pngrio.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngrtran.c">
+    <ClCompile Include="$(RealSourceDir)\pngrtran.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngrutil.c">
+    <ClCompile Include="$(RealSourceDir)\pngrutil.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngset.c">
+    <ClCompile Include="$(RealSourceDir)\pngset.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngtrans.c">
+    <ClCompile Include="$(RealSourceDir)\pngtrans.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngwio.c">
+    <ClCompile Include="$(RealSourceDir)\pngwio.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngwrite.c">
+    <ClCompile Include="$(RealSourceDir)\pngwrite.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngwtran.c">
+    <ClCompile Include="$(RealSourceDir)\pngwtran.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngwutil.c">
+    <ClCompile Include="$(RealSourceDir)\pngwutil.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="png.c">
+    <ClCompile Include="$(RealSourceDir)\png.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngerror.c">
+    <ClCompile Include="$(RealSourceDir)\pngerror.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngget.c">
+    <ClCompile Include="$(RealSourceDir)\pngget.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="pngmem.c">
+    <ClCompile Include="$(RealSourceDir)\pngmem.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="intel\filter_sse2_intrinsics.c">
+    <ClCompile Include="$(RealSourceDir)\intel\filter_sse2_intrinsics.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="intel\intel_init.c">
+    <ClCompile Include="$(RealSourceDir)\intel\intel_init.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pngpriv.h">
+    <ClInclude Include="$(RealSourceDir)\pngpriv.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="pngstruct.h">
+    <ClInclude Include="$(RealSourceDir)\pngstruct.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="pnginfo.h">
+    <ClInclude Include="$(RealSourceDir)\pnginfo.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="pngdebug.h">
+    <ClInclude Include="$(RealSourceDir)\pngdebug.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="png.h">
+    <ClInclude Include="$(RealSourceDir)\png.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="pnglibconf.h">
+    <ClInclude Include="$(RealSourceDir)\pnglibconf.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="pngconf.h">
+    <ClInclude Include="$(RealSourceDir)\pngconf.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="LICENSE" />
+    <None Include="$(RealSourceDir)\LICENSE" />
     <None Include="xzbuild.proj.json" />
-    <None Include="README" />
+    <None Include="$(RealSourceDir)\README" />
   </ItemGroup>
 </Project>
