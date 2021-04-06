@@ -266,13 +266,13 @@ enum class ArgLimits { Exact, AtMost, AtLeast };
 
 struct NAILANGAPI NailangHelper
 {
+private:
+    struct ArgWrapper;
+public:
     [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src = nullptr);
+    static Arg ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor);
     template<typename F>
     static bool LocateWrite(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func);
-    template<typename F>
-    static Arg LocateRead(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func);
-    template<typename F>
-    static Arg LocateRead(Arg& target, SubQuery query, NailangExecutor& executor, const F& func);
     template<bool IsWrite, typename F>
     static auto LocateAndExecute(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
         -> decltype(func(std::declval<ArgLocator&>()));

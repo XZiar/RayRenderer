@@ -950,18 +950,17 @@ public:
     ~ArgLocator();
     ArgLocator& operator=(const ArgLocator&) = delete;
     ArgLocator& operator=(ArgLocator&&) = delete;
-    explicit constexpr operator bool() const noexcept
+    [[nodiscard]] explicit constexpr operator bool() const noexcept
     {
         return Type != LocateType::Empty;
     }
     [[nodiscard]] constexpr bool CanRead()   const noexcept;
     [[nodiscard]] constexpr bool CanAssign() const noexcept;
     [[nodiscard]] constexpr bool IsMutable() const noexcept;
-    Arg Get() const;
-    Arg ExtractGet();
+    [[nodiscard]] Arg Get() const;
+    [[nodiscard]] Arg ExtractGet();
     bool Set(Arg val);
-    constexpr uint32_t GetConsumed() const noexcept { return Consumed; }
-    [[nodiscard]] ArgLocator HandleQuery(SubQuery, NailangExecutor&);
+    [[nodiscard]] constexpr uint32_t GetConsumed() const noexcept { return Consumed; }
 };
 
 #if COMPILER_MSVC

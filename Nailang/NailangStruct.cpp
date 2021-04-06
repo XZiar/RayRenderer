@@ -676,16 +676,6 @@ bool ArgLocator::Set(Arg val)
         return false;
     }
 }
-ArgLocator ArgLocator::HandleQuery(SubQuery subq, NailangExecutor& executor)
-{
-    switch (Type)
-    {
-    case LocateType::Ptr:    return reinterpret_cast<Arg*>(static_cast<uintptr_t>(*Val.GetUint()))->HandleQuery(subq, executor);
-    case LocateType::GetSet: return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(*Val.GetUint()))->Get().HandleQuery(subq, executor);
-    case LocateType::Arg:    return Val.HandleQuery(subq, executor);
-    default:                 return {};
-    }
-}
 
 
 void Serializer::Stringify(std::u32string& output, const Expr& arg, const bool requestParenthese)

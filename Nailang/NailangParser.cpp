@@ -1,7 +1,6 @@
 #include "NailangParser.h"
 #include "ParserRely.h"
 #include "StringUtil/Format.h"
-#include <boost/range/adaptor/reversed.hpp>
 
 namespace xziar::nailang
 {
@@ -773,13 +772,12 @@ Block NailangParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserCon
 std::u32string_view ReplaceEngine::TrimStrBlank(const std::u32string_view str) noexcept
 {
     size_t len = str.size();
-    for (const auto ch : boost::adaptors::reverse(str))
+    while (len--)
     {
-        if (!IgnoreBlank(ch))
+        if (!IgnoreBlank(str[len]))
             break;
-        len--;
     }
-    return str.substr(0, len);
+    return str.substr(0, len + 1);
 }
 
 void ReplaceEngine::HandleException(const NailangParseException& ex) const

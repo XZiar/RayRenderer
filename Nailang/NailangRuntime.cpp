@@ -9,6 +9,7 @@
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
+#include <boost/container/small_vector.hpp>
 #include <cmath>
 #include <cassert>
 
@@ -639,12 +640,52 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
     return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
 
+struct NailangHelper::ArgWrapper
+{
+    Arg Val;
+    Arg& For(ArgLocator& locator) noexcept
+    {
+        switch (locator.Type)
+        {
+        case ArgLocator::LocateType::Ptr:
+            return *reinterpret_cast<Arg*>(static_cast<uintptr_t>(*locator.Val.GetUint()));
+        case ArgLocator::LocateType::GetSet:
+            Val = locator.Get(); return Val;
+        case ArgLocator::LocateType::Arg:
+            return locator.Val;
+        default:
+            return Val;
+        }
+    }
+};
+Arg NailangHelper::ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor)
+{
+    Expects(query.Size() > 0);
+    auto locator = target.HandleQuery(query, executor);
+    auto subq = query.Sub(locator.GetConsumed());
+    if (!locator)
+        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+            Serializer::Stringify(subq)));
+    if (!locator.CanRead())
+        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+            Serializer::Stringify(subq)));
+    if (subq.Size() > 0)
+    {
+        ArgWrapper tmp;
+        return ExtractArg(tmp.For(locator), subq, executor);
+    }
+    else
+    {
+        return locator.ExtractGet();
+    }
+}
 template<typename F>
 bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
 {
     if (query.Size() > 0)
     {
-        auto next = target.HandleQuery(query, executor);
+        ArgWrapper tmp;
+        auto next = tmp.For(target).HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if (!next)
             COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
@@ -659,47 +700,14 @@ bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecu
         return func(target);
     }
 }
-template<typename F>
-Arg NailangHelper::LocateRead(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
-{
-    if (query.Size() > 0)
-    {
-        auto next = target.HandleQuery(query, executor);
-        auto subq = query.Sub(next.GetConsumed());
-        if (!next)
-            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
-                Serializer::Stringify(subq)));
-        if (!next.CanRead())
-            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
-                Serializer::Stringify(subq)));
-        return LocateRead(next, subq, executor, func);
-    }
-    else
-    {
-        return func(target);
-    }
-}
-template<typename F>
-Arg NailangHelper::LocateRead(Arg& target, SubQuery query, NailangExecutor& executor, const F& func)
-{
-    Expects(query.Size() > 0);
-    auto next = target.HandleQuery(query, executor);
-    auto subq = query.Sub(next.GetConsumed());
-    if (!next)
-        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
-            Serializer::Stringify(subq)));
-    if (!next.CanRead())
-        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
-            Serializer::Stringify(subq)));
-    return LocateRead(next, subq, executor, func);
-}
 template<bool IsWrite, typename F>
 auto NailangHelper::LocateAndExecute(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
     -> decltype(func(std::declval<ArgLocator&>()))
 {
     if (query.Size() > 0)
     {
-        auto next = target.HandleQuery(query, executor);
+        ArgWrapper tmp;
+        auto next = tmp.For(target).HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if constexpr (IsWrite)
         {
@@ -866,7 +874,7 @@ static common::StackTraceItem CreateStack(const Block* block, const common::Shar
 }
 std::vector<common::StackTraceItem> NailangFrameStack::CollectStacks() const noexcept
 {
-    auto GetFileName = [nameCache = std::vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>>()]
+    auto GetFileName = [nameCache = boost::container::small_vector<std::pair<const std::u16string_view, common::SharedString<char16_t>>, 4>()]
     (const RawBlock* blk) mutable -> common::SharedString<char16_t>
     {
         if (!blk) return {};
@@ -1685,7 +1693,7 @@ Arg NailangExecutor::EvaluateQueryExpr(const QueryExpr& expr)
     auto target = EvaluateExpr(expr.Target);
     try
     {
-        return NailangHelper::LocateRead(target, expr, *this, [](ArgLocator& ret) { return ret.ExtractGet(); });
+        return NailangHelper::ExtractArg(target, expr, *this);
     }
     catch (const NailangRuntimeException& nre)
     {
@@ -1694,7 +1702,7 @@ Arg NailangExecutor::EvaluateQueryExpr(const QueryExpr& expr)
     }
 }
 
-void NailangExecutor::EvaluateAssign(const AssignExpr& assign, MetaSet* metas)
+void NailangExecutor::EvaluateAssign(const AssignExpr& assign, MetaSet*)
 {
     const auto assignOp = assign.GetSelfAssignOp();
     std::variant<bool, EmbedOps> extra = false;

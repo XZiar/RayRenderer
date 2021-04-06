@@ -142,8 +142,8 @@ class ProjectSet:
         solDir = env["rootDir"]
         def combinePath(field: str, env: dict, sol: dict):
             a,d = PList.solveElementList(sol, field, env)
-            a = [x if os.path.isabs(x) else os.path.join(solDir, x) for x in a]
-            d = [x if os.path.isabs(x) else os.path.join(solDir, x) for x in d]
+            a = [os.path.normpath(x if os.path.isabs(x) else os.path.join(solDir, x)) for x in a]
+            d = [os.path.normpath(x if os.path.isabs(x) else os.path.join(solDir, x)) for x in d]
             env[field] = PList.combineElements(env[field], a, d)
         solFile = os.path.join(solDir, "xzbuild.sol.json")
         if os.path.isfile(solFile):
