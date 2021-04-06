@@ -6,7 +6,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rdParty/stb/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#if !COMPILER_MSVC
+#   undef __STDC_WANT_SECURE_LIB__
+#endif
 #include "3rdParty/stb/stb_image_write.h"
+#if !COMPILER_MSVC
+#   define __STDC_WANT_SECURE_LIB__ 1
+#endif
 
 
 using namespace common::mlog;

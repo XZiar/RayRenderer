@@ -476,20 +476,18 @@ empty
             EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
             EXPECT_EQ(assign.GetVar(), U"hey"sv);
-            EXPECT_EQ(assign.Check.WhenNull(), NilCheck::Behavior::Throw);
-            EXPECT_EQ(assign.Check.WhenNotNull(), NilCheck::Behavior::Pass);
+            EXPECT_EQ(assign.Queries.Size(), 0u);
+            EXPECT_TRUE(assign.IsSelfAssign);
+            EXPECT_EQ(assign.GetSelfAssignOp(), EmbedOps::Div);
+            const auto check = assign.GetCheck();
+            EXPECT_EQ(check.WhenNull(), NilCheck::Behavior::Throw);
+            EXPECT_EQ(check.WhenNotNull(), NilCheck::Behavior::Pass);
             EXPECT_EQ(assign.Statement.TypeData, Expr::Type::Binary);
             {
                 const auto& stmt_ = *assign.Statement.GetVar<Expr::Type::Binary>();
-                CHECK_VAR_ARG(stmt_.LeftOperand, U"hey", Empty);
-                EXPECT_EQ(stmt_.Operator, EmbedOps::Div);
-                EXPECT_EQ(stmt_.RightOperand.TypeData, Expr::Type::Binary);
-                {
-                    const auto& stmt2 = *stmt_.RightOperand.GetVar<Expr::Type::Binary>();
-                    CHECK_DIRECT_ARG(stmt2.LeftOperand, Uint, 9u);
-                    EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
-                    CHECK_DIRECT_ARG(stmt2.RightOperand, Uint, 1u);
-                }
+                CHECK_DIRECT_ARG(stmt_.LeftOperand, Uint, 9u);
+                EXPECT_EQ(stmt_.Operator, EmbedOps::Add);
+                CHECK_DIRECT_ARG(stmt_.RightOperand, Uint, 1u);
             }
         }
         {

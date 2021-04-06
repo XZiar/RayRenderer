@@ -230,10 +230,9 @@ AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pa
         tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
 
     std::vector<Expr> tmpQueries;
-    AssignExpr assign(var);
-    assign.Position = pos;
+    std::variant<std::monostate, NilCheck, EmbedOps> assignInfo;
 
-    for (bool shouldCont = true; shouldCont;)
+    while (assignInfo.index() == 0)
     {
         auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
         switch (token.GetIDEnum<NailangToken>())
@@ -253,41 +252,23 @@ AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pa
         } break;
         case NailangToken::Assign:
         {
-            std::optional<EmbedOps> selfOp;
-            Behavior notnull = Behavior::Pass, null = Behavior::Pass;
             const auto aop = static_cast<AssignOps>(token.GetUInt());
             switch (aop)
             {
-            case AssignOps::Assign:                                                         break;
-            case AssignOps::NewCreate: notnull = Behavior::Throw;                           break;
-            case AssignOps::NilAssign: notnull = Behavior::Skip;                            break;
-            case AssignOps::AndAssign:    null = Behavior::Throw; selfOp = EmbedOps::And;   break;
-            case AssignOps::OrAssign:     null = Behavior::Throw; selfOp = EmbedOps::Or;    break;
-            case AssignOps::AddAssign:    null = Behavior::Throw; selfOp = EmbedOps::Add;   break;
-            case AssignOps::SubAssign:    null = Behavior::Throw; selfOp = EmbedOps::Sub;   break;
-            case AssignOps::MulAssign:    null = Behavior::Throw; selfOp = EmbedOps::Mul;   break;
-            case AssignOps::DivAssign:    null = Behavior::Throw; selfOp = EmbedOps::Div;   break;
-            case AssignOps::RemAssign:    null = Behavior::Throw; selfOp = EmbedOps::Rem;   break;
-            default: OnUnExpectedToken(token, u"expect assign op"sv);                       break;
+            case AssignOps::Assign:    assignInfo = NilCheck(Behavior::Pass,  Behavior::Pass);  break;
+            case AssignOps::NewCreate: assignInfo = NilCheck(Behavior::Throw, Behavior::Pass);  break;
+            case AssignOps::NilAssign: assignInfo = NilCheck(Behavior::Skip,  Behavior::Pass);  break;
+            case AssignOps::AndAssign: assignInfo = EmbedOps::And;                              break;
+            case AssignOps::OrAssign:  assignInfo = EmbedOps::Or;                               break;
+            case AssignOps::AddAssign: assignInfo = EmbedOps::Add;                              break;
+            case AssignOps::SubAssign: assignInfo = EmbedOps::Sub;                              break;
+            case AssignOps::MulAssign: assignInfo = EmbedOps::Mul;                              break;
+            case AssignOps::DivAssign: assignInfo = EmbedOps::Div;                              break;
+            case AssignOps::RemAssign: assignInfo = EmbedOps::Rem;                              break;
+            default: OnUnExpectedToken(token, u"expect assign op"sv);                           break;
             }
             if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
                 OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
-            assign.Check = { notnull, null };
-            const auto stmt = ParseExprChecked(";", U";");
-            if (!stmt)
-                NLPS_THROW_EX(u"expect statement"sv);
-            if (!selfOp.has_value())
-            {
-                assign.Statement = stmt;
-            }
-            else
-            {
-                BinaryExpr statement(*selfOp, assign.Target, stmt);
-                assign.Statement = MemPool.Create<BinaryExpr>(statement);
-            }
-            assign.Queries.Queries = MemPool.CreateArray(tmpQueries);
-            tmpQueries.clear();
-            shouldCont = false;
         } break;
         default:
             OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
@@ -295,7 +276,13 @@ AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pa
         }
     }
 
-    return assign;
+    const auto stmt = ParseExprChecked(";", U";");
+    if (!stmt)
+        NLPS_THROW_EX(u"expect statement"sv);
+    const bool isSelfAssign = assignInfo.index() == 2;
+    const auto infoVal = isSelfAssign ? common::enum_cast(std::get<2>(assignInfo)) : std::get<1>(assignInfo).Value;
+
+    return { var, { MemPool.CreateArray(tmpQueries) }, stmt, infoVal, isSelfAssign, pos };
 }
 
 struct ExprOp

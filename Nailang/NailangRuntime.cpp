@@ -111,7 +111,7 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
     }
     return {};
 }
-Arg Arg::HandleUnary(const EmbedOps op)
+Arg Arg::HandleUnary(const EmbedOps op) const
 {
     if (IsCustom())
     {
@@ -122,7 +122,7 @@ Arg Arg::HandleUnary(const EmbedOps op)
         return EmbedOpEval::Not(*this);
     return {};
 }
-Arg Arg::HandleBinary(const EmbedOps op, const Arg& right)
+Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
 {
     if (IsCustom())
     {
@@ -1694,6 +1694,30 @@ Arg NailangExecutor::EvaluateQueryExpr(const QueryExpr& expr)
     }
 }
 
+void NailangExecutor::EvaluateAssign(const AssignExpr& assign, MetaSet* metas)
+{
+    const auto assignOp = assign.GetSelfAssignOp();
+    std::variant<bool, EmbedOps> extra = false;
+    if (assign.Queries.Size() > 0)
+        extra = true;
+    else if (assignOp)
+        extra = assignOp.value();
+    auto target = Runtime->LocateArgForWrite(assign.Target, assign.GetCheck(), extra);
+    NailangHelper::LocateWrite(target, assign.Queries, *this, [&](ArgLocator& dst)
+        {
+            if (!dst.CanAssign())
+                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, assign.Target));
+            if (assign.IsSelfAssign)
+            {
+                if (!dst.CanRead())
+                    NLRT_THROW_EX(FMTSTR(u"Var [{}] is not readable, request self assign on it"sv, assign.Target));
+                return dst.Set(dst.Get().HandleBinary(assignOp.value(), EvaluateExpr(assign.Statement)));
+            }
+            else
+                return dst.Set(EvaluateExpr(assign.Statement));
+        });
+}
+
 void NailangExecutor::EvaluateRawBlock(const RawBlock&, common::span<const FuncCall>)
 {
     return; // just skip
@@ -1737,7 +1761,7 @@ void NailangExecutor::HandleContent(const Statement& content, MetaSet* metas)
     case Statement::Type::Assign:
     {
         const auto& assign = *content.Get<AssignExpr>();
-        Runtime->SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
+        EvaluateAssign(assign, metas);
     } break;
     case Statement::Type::Block:
     {
@@ -1860,31 +1884,6 @@ ArgLocator NailangRuntime::LocateArgForWrite(const LateBindVar& var, NilCheck ni
             return LocateArg(var, true);
         }
     }
-}
-bool NailangRuntime::SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck)
-{
-    auto target = LocateArgForWrite(var, nilCheck, subq.Size() != 0);
-    return NailangHelper::LocateWrite(target, subq, *CurFrame()->Executor, [&](ArgLocator& dst)
-        {
-            if (!dst.CanAssign())
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
-            return dst.Set(std::move(arg));
-        });
-}
-bool NailangRuntime::SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck)
-{
-    std::variant<bool, EmbedOps> extra = false;
-    if (subq.Size() > 0)
-        extra = true;
-    else if (expr.TypeData == Expr::Type::Binary)
-        extra = expr.GetVar<Expr::Type::Binary>()->Operator;
-    auto target = LocateArgForWrite(var, nilCheck, extra);
-    return NailangHelper::LocateWrite(target, subq, *CurFrame()->Executor, [&](ArgLocator& dst)
-        {
-            if (!dst.CanAssign())
-                NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, var));
-            return dst.Set(CurFrame()->Executor->EvaluateExpr(expr));
-        });
 }
 bool NailangRuntime::SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args)
 {

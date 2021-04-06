@@ -739,6 +739,7 @@ public:
     [[nodiscard]] bool HandleMetaFuncs(MetaSet& allMetas); // return if need eval target
     [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg);
     [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, MetaSet* metas);
+    virtual void EvaluateAssign(const AssignExpr& assign, MetaSet* metas);
     virtual void EvaluateRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void EvaluateBlock(const Block& block, common::span<const FuncCall> metas);
 };
@@ -767,8 +768,6 @@ protected:
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
     [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
     [[nodiscard]] ArgLocator LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
-    bool SetArg(const LateBindVar& var, SubQuery subq, Arg arg, NilCheck nilCheck = {});
-    bool SetArg(const LateBindVar& var, SubQuery subq, const Expr& expr, NilCheck nilCheck = {});
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
 

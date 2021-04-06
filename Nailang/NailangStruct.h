@@ -837,6 +837,8 @@ public:
     }
     [[nodiscard]] forceinline const CustomVar& GetCustom() const noexcept
     {
+        static_assert( sizeof(Arg) ==  sizeof(CustomVar));
+        static_assert(alignof(Arg) == alignof(CustomVar));
         return *reinterpret_cast<const CustomVar*>(this);
     }
     [[nodiscard]] NAILANGAPI std::optional<bool>                GetBool()   const noexcept;
@@ -847,8 +849,8 @@ public:
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
 
     [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangExecutor&);
-    [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op);
-    [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right);
+    [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op) const;
+    [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right) const;
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
@@ -1086,6 +1088,8 @@ struct NilCheck
 {
     enum class Behavior : uint32_t { Pass = 0, Skip = 1, Throw = 2 };
     uint8_t Value;
+    explicit constexpr NilCheck(uint8_t val) noexcept : Value(val)
+    { }
     constexpr NilCheck(Behavior notnull, Behavior null) noexcept :
         Value(static_cast<uint8_t>(common::enum_cast(notnull) | (common::enum_cast(null) << 4)))
     { }
@@ -1105,14 +1109,30 @@ struct AssignExpr : public WithPos
     LateBindVar Target;
     SubQuery Queries;
     Expr Statement;
-    NilCheck Check;
+    uint8_t AssignInfo;
+    bool IsSelfAssign;
 
-    constexpr AssignExpr(std::u32string_view name) noexcept :
-        Target(name) { }
+    constexpr AssignExpr(std::u32string_view name, SubQuery query, Expr statement, uint8_t info, bool isSelfAssign, 
+        std::pair<uint32_t, uint32_t> pos = { 0,0 }) noexcept : WithPos{ pos },
+        Target(name), Queries(query), Statement(statement), AssignInfo(info), IsSelfAssign(isSelfAssign) { }
 
     constexpr std::u32string_view GetVar() const noexcept
     {
         return Target.Name;
+    }
+    constexpr NilCheck GetCheck() const noexcept
+    {
+        if (IsSelfAssign)
+            return { NilCheck::Behavior::Pass, NilCheck::Behavior::Throw };
+        else
+            return NilCheck{ AssignInfo };
+    }
+    constexpr std::optional<EmbedOps> GetSelfAssignOp() const noexcept
+    {
+        if (IsSelfAssign)
+            return static_cast<EmbedOps>(AssignInfo);
+        else
+            return {};
     }
 };
 

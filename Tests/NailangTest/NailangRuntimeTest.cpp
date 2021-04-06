@@ -89,7 +89,7 @@ public:
     }
     void Assign(const AssignExpr& assign)
     {
-        SetArg(assign.Target, assign.Queries, assign.Statement, assign.Check);
+        Executor.EvaluateAssign(assign, nullptr);
     }
     void QuickSetArg(std::u32string_view name, Expr val, bool create = false)
     {
@@ -105,13 +105,9 @@ public:
             varName = qexpr.Target.GetVar<Expr::Type::Var>();
             query = qexpr.Sub(0);
         }
-        AssignExpr assign(varName);
-        assign.Queries = query;
-        assign.Statement = val;
         NilCheck::Behavior notnull = create ? NilCheck::Behavior::Throw : NilCheck::Behavior::Pass,
             null = query.Size() == 0 ? NilCheck::Behavior::Pass : NilCheck::Behavior::Throw;
-        assign.Check = { notnull, null };
-        Assign(assign);
+        Assign({ varName, query, val, NilCheck(notnull, null).Value, false });
     }
     Arg QuickGetArg(std::u32string_view name)
     {
@@ -416,13 +412,14 @@ Arg ArrayCustomVar::Create(common::span<const float> source)
 
 // wrapper for gsl::span due to lack of const_iterator
 // https://github.com/google/googletest/issues/3194
-template<typename T>
-struct SpanWrapper : public common::span<T>
+template<typename T, size_t N>
+struct SpanWrapper : public common::span<T, N>
 {
-    using const_iterator = typename common::span<T>::iterator;
+    using const_iterator = typename common::span<T, N>::iterator;
 };
-template<typename T>
-SpanWrapper(const common::span<T>)->SpanWrapper<T>;
+template<typename T, size_t N>
+static constexpr SpanWrapper<T, N> Span(const common::span<T, N> span) noexcept 
+{ return {span}; }
 
 
 TEST(NailangRuntime, CustomVar)
@@ -436,7 +433,7 @@ TEST(NailangRuntime, CustomVar)
         ASSERT_TRUE(CheckArg(arg, Arg::Type::Var));
         const auto& var = arg.GetCustom();
         ASSERT_EQ(var.Host, &ArrayCustomVarHandler);
-        const SpanWrapper data(ArrayCustomVar::GetData(var));
+        const auto data = Span(ArrayCustomVar::GetData(var));
         EXPECT_THAT(data, testing::ElementsAreArray(dummy));
     }
     {
@@ -450,7 +447,7 @@ TEST(NailangRuntime, CustomVar)
     {
         const auto arg  = runtime.QuickGetArg(U"arr"sv);
         const auto& var = arg.GetCustom();
-        const SpanWrapper data(ArrayCustomVar::GetData(var));
+        const auto data = Span(ArrayCustomVar::GetData(var));
 
         EXPECT_THAT(data, testing::ElementsAreArray(dummy));
         runtime.QuickSetArg(U"arr.First"sv, 9.f);
@@ -534,7 +531,7 @@ TEST(NailangRuntime, FixedArray)
         ASSERT_TRUE(var.IsReadOnly);
         const auto sp  = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
-        const SpanWrapper data(std::get<common::span<const float>>(sp));
+        const auto data = Span(std::get<common::span<const float>>(sp));
         EXPECT_THAT(data, testing::ElementsAreArray(dummy1));
     }
     {
@@ -545,7 +542,7 @@ TEST(NailangRuntime, FixedArray)
         ASSERT_FALSE(var.IsReadOnly);
         const auto sp = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
-        const SpanWrapper data(std::get<common::span<int8_t>>(sp));
+        const auto data = Span(std::get<common::span<int8_t>>(sp));
         EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
     }
     {
@@ -570,7 +567,7 @@ TEST(NailangRuntime, FixedArray)
     {
         const auto arg = runtime.QuickGetArg(U"arr2"sv);
         const auto var = arg.GetVar<Arg::Type::Array>();
-        const SpanWrapper data(std::get<common::span<int8_t>>(var.GetSpan()));
+        const auto data = Span(std::get<common::span<int8_t>>(var.GetSpan()));
         EXPECT_THAT(data, testing::ElementsAreArray(dummy2));
         runtime.QuickSetArg(U"arr2[0]"sv, 2.0f);
         EXPECT_THAT(data, testing::ElementsAreArray(std::array<int8_t, 4>{2, 1, 4, -2}));
@@ -917,7 +914,7 @@ TEST(NailangRuntime, DefFunc)
         ASSERT_EQ(evalCtx->GetFuncCount(), 2u);
         const auto func = evalCtx->LookUpFunc(U"func2"sv);
         ASSERT_TRUE(func);
-        EXPECT_THAT(SpanWrapper(func.ArgNames), testing::ElementsAre(U"num"sv, U"length"sv));
+        EXPECT_THAT(Span(func.ArgNames), testing::ElementsAre(U"num"sv, U"length"sv));
     }
 }
 

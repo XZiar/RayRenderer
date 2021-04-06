@@ -864,7 +864,7 @@ void XCNLRawExecutor::DirectOutput(const OutputBlock& block, std::u32string& dst
     common::str::StrVariant<char32_t> source(block.Block->Source);
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        runtime.SetArg(var, {}, executor.EvaluateExpr(arg));
+        runtime.LocateArg(var, true).Set(executor.EvaluateExpr(arg));
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);

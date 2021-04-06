@@ -67,6 +67,7 @@ public:
                     CallerCV.notify_one();
                     WorkerCV.wait(lock);
                 }
+                CallerCV.notify_one();
             });
         CallerCV.wait(workerLock);
     }
@@ -78,6 +79,7 @@ public:
         {
             ShouldRun = false;
             WorkerCV.notify_one();
+            CallerCV.wait(workerLock);
             WorkThread.join();
         }
     }
