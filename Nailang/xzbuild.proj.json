@@ -13,7 +13,8 @@
         "cpp":
         {
             "sources": ["*.cpp"],
-            "defines": ["NAILANG_EXPORT"]
+            "defines": ["NAILANG_EXPORT"],
+            "pch": "NailangPch.h"
         }
     }
 }

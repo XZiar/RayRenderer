@@ -24,9 +24,15 @@
     <ClCompile Include="NailangParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="NailangRely.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="NailangAutoVar.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ParserRely.h">
+    <ClInclude Include="NailangParserRely.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="NailangStruct.h">
@@ -36,6 +42,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="NailangParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangPch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangRely.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NailangAutoVar.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

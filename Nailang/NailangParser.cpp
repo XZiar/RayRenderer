@@ -1,49 +1,11 @@
+#include "NailangPch.h"
 #include "NailangParser.h"
-#include "ParserRely.h"
+#include "NailangParserRely.h"
 #include "StringUtil/Format.h"
 
 namespace xziar::nailang
 {
 using tokenizer::NailangToken;
-
-
-std::vector<PartedName::PartType> PartedName::GetParts(std::u32string_view name)
-{
-    std::vector<PartType> parts;
-    for (const auto piece : common::str::SplitStream(name, U'.', true))
-    {
-        const auto offset = piece.data() - name.data();
-        if (offset > UINT16_MAX)
-            COMMON_THROW(NailangPartedNameException, u"Name too long"sv, name, piece);
-        if (piece.size() > UINT16_MAX)
-            COMMON_THROW(NailangPartedNameException, u"Name part too long"sv, name, piece);
-        if (piece.size() == 0)
-            COMMON_THROW(NailangPartedNameException, u"Empty name part"sv, name, piece);
-        parts.emplace_back(static_cast<uint16_t>(offset), static_cast<uint16_t>(piece.size()));
-    }
-    return parts;
-}
-PartedName* PartedName::Create(MemoryPool& pool, std::u32string_view name, uint16_t exinfo)
-{
-    Expects(name.size() > 0);
-    const auto parts = GetParts(name);
-    if (parts.size() == 1)
-    {
-        const auto space = pool.Alloc<PartedName>();
-        const auto ptr = reinterpret_cast<PartedName*>(space.data());
-        new (ptr) PartedName(name, parts, exinfo);
-        return ptr;
-    }
-    else
-    {
-        const auto partSize = parts.size() * sizeof(PartType);
-        const auto space = pool.Alloc(sizeof(PartedName) + partSize, alignof(PartedName));
-        const auto ptr = reinterpret_cast<PartedName*>(space.data());
-        new (ptr) PartedName(name, parts, exinfo);
-        memcpy_s(ptr + 1, partSize, parts.data(), partSize);
-        return ptr;
-    }
-}
 
 
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
@@ -766,6 +728,24 @@ Block NailangParser::ParseAllAsBlock(MemoryPool& pool, common::parser::ParserCon
     parser.FillFileName(ret);
     parser.ParseContentIntoBlock(false, ret);
     return ret;
+}
+
+std::optional<size_t> NailangParser::VerifyVariableName(const std::u32string_view name) noexcept
+{
+    constexpr tokenizer::VariableTokenizer Self = {};
+    if (name.empty())
+        return SIZE_MAX;
+    uint32_t state = 0;
+    for (size_t i = 0; i < name.size(); ++i)
+    {
+        const auto [newState, ret] = Self.OnChar(state, name[i], i);
+        if (ret == TokenizerResult::NotMatch)
+            return i;
+        state = newState;
+    }
+    if (state == 0)
+        return name.size() - 1;
+    return {};
 }
 
 

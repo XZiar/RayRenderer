@@ -1,6 +1,6 @@
 #include "rely.h"
 #include "ParserCommon.h"
-#include "Nailang/ParserRely.h"
+#include "Nailang/NailangParserRely.h"
 #include "Nailang/NailangParser.h"
 #include "StringUtil/Format.h"
 #include <algorithm>

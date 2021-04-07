@@ -130,14 +130,6 @@ Some useful utilities for string operations。
 
 provide Linq-based string split operation. It is simply based on brute find, and there's no optimized implements like KMP or SSE4.2 intrin.
 
-### [StrCharset](./StrCharset.hpp)
-
-StrCharset provide encoding defines and charset transform with self-made conversion class. Conversion is partial optimized, and partial-checked.
-
-Converting encoding need to specify input charset, while StrCharset does not provide encoding-detection. If you need it , you should include [uchardet](../3rdParty/uchardetlib).
-
-Thanks to `伐木丁丁鸟鸣嘤嘤`'s [GB18030-Unicode LUT](http://www.fmddlmyy.cn/text30.html), which is based on `谢振斌`'s work. [LUT_gb18030.tab](./LUT_gb18030.tab) is based on their works.
-
 ### [Controllable](./Controllable.hpp)
 
 A base class using type erasure to support dynamic property access. object's property need to be registered explicitly.

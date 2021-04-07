@@ -1,5 +1,5 @@
 #include "rely.h"
-#include "Nailang/ParserRely.h"
+#include "Nailang/NailangParserRely.h"
 #include "Nailang/NailangParser.h"
 #include <boost/preprocessor/seq/for_each_i.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>

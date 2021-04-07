@@ -1,86 +1,13 @@
+#include "NailangPch.h"
 #include "NailangStruct.h"
-#include "StringUtil/Format.h"
-#include "StringUtil/Convert.h"
-#include "common/AlignedBase.hpp"
-
-#include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
-#include <boost/preprocessor/variadic/to_seq.hpp>
+#include "NailangRuntime.h"
 
 #include <cassert>
 
 namespace xziar::nailang
 {
 using namespace std::string_view_literals;
-
-
-std::pair<size_t, size_t> MemoryPool::Usage() const noexcept
-{
-    size_t used = 0, unused = 0;
-    for (const auto& trunk : Trunks)
-    {
-        used += trunk.Offset, unused += trunk.Avaliable;
-    }
-    return { used, used + unused };
-}
-
-
-static constexpr PartedName::PartType DummyPart[1] = { {(uint16_t)0, (uint16_t)0} };
-TempPartedNameBase::TempPartedNameBase(std::u32string_view name, common::span<const PartedName::PartType> parts, uint16_t info)
-    : Var(name, parts, info)
-{
-    Expects(parts.size() > 0);
-    constexpr auto SizeP = sizeof(PartedName::PartType);
-    const auto partSize = parts.size() * SizeP;
-    switch (parts.size())
-    {
-    case 1:
-        break;
-    case 2:
-    case 3:
-    case 4:
-        memcpy_s(Extra.Parts, partSize, parts.data(), partSize);
-        break;
-    default:
-    {
-        const auto ptr = reinterpret_cast<PartedName*>(malloc(sizeof(PartedName) + partSize));
-        Extra.Ptr = ptr;
-        new (ptr) PartedName(name, parts, info);
-        memcpy_s(ptr + 1, partSize, parts.data(), partSize);
-        break;
-    }
-    }
-}
-TempPartedNameBase::TempPartedNameBase(const PartedName* var) noexcept : Var(var->FullName(), DummyPart, var->ExternInfo)
-{
-    Extra.Ptr = var;
-}
-TempPartedNameBase::TempPartedNameBase(TempPartedNameBase&& other) noexcept :
-    Var(other.Var.FullName(), DummyPart, other.Var.ExternInfo), Extra(other.Extra)
-{
-    Var.PartCount = other.Var.PartCount;
-    other.Var.Ptr = nullptr;
-    other.Var.PartCount = 0;
-    other.Extra.Ptr = nullptr;
-}
-TempPartedNameBase::~TempPartedNameBase()
-{
-    if (Var.PartCount > 4)
-        free(const_cast<PartedName*>(Extra.Ptr));
-}
-TempPartedNameBase TempPartedNameBase::Copy() const noexcept
-{
-    common::span<const PartedName::PartType> parts;
-    if (Var.PartCount > 4 || Var.PartCount == 0)
-    {
-        parts = { reinterpret_cast<const PartedName::PartType*>(Extra.Ptr + 1), Extra.Ptr->PartCount };
-    }
-    else
-    {
-        parts = { Extra.Parts, Var.PartCount };
-    }
-    return TempPartedNameBase(Var.FullName(), parts, Var.ExternInfo);
-}
+#define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTIONEX(NailangRuntimeException, __VA_ARGS__))
 
 
 std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
@@ -102,9 +29,26 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
     RET_NAME(Div);
     RET_NAME(Rem);
     RET_NAME(ValueOr);
+    RET_NAME(CheckExist);
     RET_NAME(Not);
     default: return U"Unknwon"sv;
     }
+}
+
+
+std::u32string_view SubQuery::ExpectSubField(size_t idx) const
+{
+    Expects(idx < Queries.size());
+    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
+        COMMON_THROWEX(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
+    return Queries[idx].GetVar<Expr::Type::Str>();
+}
+const Expr& SubQuery::ExpectIndex(size_t idx) const
+{
+    Expects(idx < Queries.size());
+    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
+        COMMON_THROWEX(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
+    return Queries[idx];
 }
 
 
@@ -527,31 +471,11 @@ common::str::StrVariant<char32_t> ArgToString<std::nullopt_t>(const std::nullopt
 }
 common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 {
-    /*return Visit([](const auto& val) -> common::str::StrVariant<char32_t>
-        {
-            using T = std::decay_t<decltype(val)>;
-            if constexpr (std::is_same_v<T, CustomVar>)
-                return val.Host->ToString(val);
-            else if constexpr (std::is_same_v<T, FixedArray>)
-            {
-                std::u32string ret = U"[";
-                val.PrintToStr(ret, U", "sv);
-                ret.append(U"]"sv);
-                return std::move(ret);
-            }
-            else if constexpr (std::is_same_v<T, std::nullopt_t>)
-                return {};
-            else if constexpr (std::is_same_v<T, std::u32string_view>)
-                return val;
-            else
-                return fmt::format(FMT_STRING(U"{}"), val);
-        });*/
     return Visit([](const auto& val)
         {
             return ArgToString(val);
         });
 }
-
 std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 {
     switch (type)
@@ -573,6 +497,111 @@ std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
     }
 }
 
+ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
+{
+    Expects(subq.Size() > 0);
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleQuery>(subq, runtime);
+    }
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateExpr(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
+            return arr.Access(idx);
+        }
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<Expr::Type::Str>();
+            if (field == U"Length"sv)
+                return { arr.Length, 1u };
+        } break;
+        default: break;
+        }
+        return {};
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        const auto [type, query] = subq[0];
+        switch (type)
+        {
+        case SubQuery::QueryType::Index:
+        {
+            const auto val = runtime.EvaluateExpr(query);
+            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
+            if (TypeData == Type::U32Str)
+                return { std::u32string(1, str[idx]), 1u };
+            else // (TypeData == Type::U32Sv)
+                return { str.substr(idx, 1), 1u };
+        }
+        case SubQuery::QueryType::Sub:
+        {
+            const auto field = query.GetVar<Expr::Type::Str>();
+            if (field == U"Length"sv)
+                return { uint64_t(str.size()), 1u };
+        } break;
+        default: break;
+        }
+        return {};
+    }
+    return {};
+}
+Arg Arg::HandleUnary(const EmbedOps op) const
+{
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleUnary>(op);
+    }
+    if (op == EmbedOps::Not)
+        return EmbedOpEval::Not(*this);
+    return {};
+}
+Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
+{
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleBinary>(op, right);
+    }
+    switch (op)
+    {
+#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(*this, right)
+        EVAL_BIN_OP(Equal);
+        EVAL_BIN_OP(NotEqual);
+        EVAL_BIN_OP(Less);
+        EVAL_BIN_OP(LessEqual);
+        EVAL_BIN_OP(Greater);
+        EVAL_BIN_OP(GreaterEqual);
+        EVAL_BIN_OP(Add);
+        EVAL_BIN_OP(Sub);
+        EVAL_BIN_OP(Mul);
+        EVAL_BIN_OP(Div);
+        EVAL_BIN_OP(Rem);
+        EVAL_BIN_OP(And);
+        EVAL_BIN_OP(Or);
+#undef EVAL_BIN_OP
+    default: return {};
+    }
+}
+bool Arg::HandleBinaryOnSelf(const EmbedOps op, const Arg& right)
+{
+    if (IsCustom())
+    {
+        auto& var = GetCustom();
+        return var.Call<&CustomVar::Handler::HandleBinaryOnSelf>(op, right);
+    }
+    return false; // for native type, always use HandleBinary + Assign
+}
+
 
 void CustomVar::Handler::IncreaseRef(CustomVar&) noexcept { }
 void CustomVar::Handler::DecreaseRef(CustomVar&) noexcept { }
@@ -583,6 +612,71 @@ Arg CustomVar::Handler::IndexerGetter(const CustomVar&, const Arg&, const Expr&)
 Arg CustomVar::Handler::SubfieldGetter(const CustomVar&, std::u32string_view)
 {
     return {};
+}
+ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor)
+{
+    Expects(subq.Size() > 0);
+    const auto [type, query] = subq[0];
+    switch (type)
+    {
+    case SubQuery::QueryType::Index:
+    {
+        const auto idx = executor.EvaluateExpr(query);
+        auto result = IndexerGetter(var, idx, query);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    case SubQuery::QueryType::Sub:
+    {
+        auto field = query.GetVar<Expr::Type::Str>();
+        auto result = SubfieldGetter(var, field);
+        if (!result.IsEmpty())
+            return { std::move(result), 1u };
+    } break;
+    default: break;
+    }
+    return {};
+}
+Arg CustomVar::Handler::HandleUnary(const CustomVar&, const EmbedOps)
+{
+    return {};
+}
+Arg CustomVar::Handler::HandleBinary(const CustomVar& var, const EmbedOps op, const Arg& right)
+{
+    switch (op)
+    {
+    case EmbedOps::Equal:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsEqual();
+        break;
+    case EmbedOps::NotEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsNotEqual();
+        break;
+    case EmbedOps::Less:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsLess();
+        break;
+    case EmbedOps::LessEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsLessEqual();
+        break;
+    case EmbedOps::Greater:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsGreater();
+        break;
+    case EmbedOps::GreaterEqual:
+        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
+            return ret.IsGreaterEqual();
+        break;
+    default:
+        break;
+    }
+    return {};
+}
+bool CustomVar::Handler::HandleBinaryOnSelf(CustomVar&, const EmbedOps, const Arg&)
+{
+    return false;
 }
 bool CustomVar::Handler::HandleAssign(CustomVar&, Arg)
 {
@@ -847,97 +941,6 @@ void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
             break;
         }
     }
-}
-
-
-AutoVarHandlerBase::Accessor::Accessor() noexcept :
-    AutoMember{}, IsSimple(false), IsConst(true)
-{ }
-AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept : 
-    AutoMember{}, IsSimple(false), IsConst(other.IsConst)
-{
-    if (other.IsSimple)
-    {
-        Release();
-        IsSimple = true;
-        new (&SimpleMember) TSimp(std::move(other.SimpleMember));
-        //this->SimpleMember = std::move(other.SimpleMember);
-    }
-    else
-    {
-        AutoMember = std::move(other.AutoMember);
-    }
-}
-void AutoVarHandlerBase::Accessor::SetCustom(std::function<CustomVar(void*)> accessor) noexcept
-{
-    Release();
-    IsSimple = false;
-    IsConst = true;
-    new (&AutoMember) TAuto(std::move(accessor));
-    //this->AutoMember = std::move(accessor);
-}
-void AutoVarHandlerBase::Accessor::SetGetSet(std::function<Arg(void*)> getter, std::function<bool(void*, Arg)> setter) noexcept
-{
-    Release();
-    IsSimple = true;
-    IsConst = !(bool)setter;
-    new (&SimpleMember) TSimp(std::move(getter), std::move(setter));
-    //this->SimpleMember = std::make_pair(std::move(getter), std::move(setter));
-}
-void AutoVarHandlerBase::Accessor::Release() noexcept
-{
-    if (IsSimple)
-    {
-        std::destroy_at(&SimpleMember);
-        //SimpleMember.~TSimp();
-    }
-    else
-    {
-        std::destroy_at(&AutoMember);
-        //AutoMember.~TAuto();
-    }
-}
-AutoVarHandlerBase::Accessor::~Accessor()
-{
-    Release();
-}
-AutoVarHandlerBase::AccessorBuilder& AutoVarHandlerBase::AccessorBuilder::SetConst(bool isConst)
-{
-    if (!isConst && Host.IsSimple && !Host.SimpleMember.second)
-        COMMON_THROW(common::BaseException, u"No setter provided");
-    Host.IsConst = isConst;
-    return *this;
-}
-
-
-AutoVarHandlerBase::AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize) : TypeName(typeName), TypeSize(typeSize)
-{ }
-AutoVarHandlerBase::~AutoVarHandlerBase() { }
-bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
-{
-    if (var.Meta1 < UINT32_MAX) // is array
-        return false;
-    if (!Assigner)
-        return false;
-    const auto ptr = reinterpret_cast<void*>(var.Meta0);
-    Assigner(ptr, std::move(val));
-    return true;
-}
-
-AutoVarHandlerBase::Accessor* AutoVarHandlerBase::FindMember(std::u32string_view name, bool create)
-{
-    const common::str::HashedStrView hsv(name);
-    for (auto& [pos, acc] : MemberList)
-    {
-        if (NamePool.GetHashedStr(pos) == hsv)
-            return &acc;
-    }
-    if (create)
-    {
-        const auto piece = NamePool.AllocateString(name);
-        return &MemberList.emplace_back(piece, Accessor{}).second;
-    }
-    return nullptr;
 }
 
 

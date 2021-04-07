@@ -1,5 +1,5 @@
 #include "rely.h"
-#include "Nailang/ParserRely.h"
+#include "Nailang/NailangParserRely.h"
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 #include "SystemCommon/MiscIntrins.h"

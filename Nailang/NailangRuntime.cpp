@@ -1,15 +1,9 @@
+#include "NailangPch.h"
 #include "NailangRuntime.h"
 #include "NailangParser.h"
-#include "ParserRely.h"
-#include "SystemCommon/StackTrace.h"
-#include "SystemCommon/MiscIntrins.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Format.h"
-#include "common/StringEx.hpp"
 #include "common/Linq2.hpp"
 #include "common/StrParsePack.hpp"
 #include "common/CharConvs.hpp"
-#include <boost/container/small_vector.hpp>
 #include <cmath>
 #include <cassert>
 
@@ -37,259 +31,6 @@ NailangCodeException::ExceptionInfo::ExceptionInfo(const char* type, const std::
 NailangCodeException::NailangCodeException(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope) :
     NailangRuntimeException(T_<ExceptionInfo>{}, msg, std::move(target), std::move(scope))
 { }
-
-
-std::u32string_view SubQuery::ExpectSubField(size_t idx) const
-{
-    Expects(idx < Queries.size());
-    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
-        COMMON_THROWEX(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
-    return Queries[idx].GetVar<Expr::Type::Str>();
-}
-const Expr& SubQuery::ExpectIndex(size_t idx) const
-{
-    Expects(idx < Queries.size());
-    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
-        COMMON_THROWEX(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
-    return Queries[idx];
-}
-
-
-ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
-{
-    Expects(subq.Size() > 0);
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleQuery>(subq, runtime);
-    }
-    if (IsArray())
-    {
-        const auto arr = GetVar<Type::Array>();
-        const auto [type, query] = subq[0];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = runtime.EvaluateExpr(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
-            return arr.Access(idx);
-        }
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length"sv)
-                return { arr.Length, 1u };
-        } break;
-        default: break;
-        }
-        return {};
-    }
-    if (IsStr())
-    {
-        const auto str = GetStr().value();
-        const auto [type, query] = subq[0];
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = runtime.EvaluateExpr(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
-            if (TypeData == Type::U32Str)
-                return { std::u32string(1, str[idx]), 1u };
-            else // (TypeData == Type::U32Sv)
-                return { str.substr(idx, 1), 1u };
-        }
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length"sv)
-                return { uint64_t(str.size()), 1u };
-        } break;
-        default: break;
-        }
-        return {};
-    }
-    return {};
-}
-Arg Arg::HandleUnary(const EmbedOps op) const
-{
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleUnary>(op);
-    }
-    if (op == EmbedOps::Not)
-        return EmbedOpEval::Not(*this);
-    return {};
-}
-Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
-{
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleBinary>(op, right);
-    }
-    switch (op)
-    {
-#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(*this, right)
-        EVAL_BIN_OP(Equal);
-        EVAL_BIN_OP(NotEqual);
-        EVAL_BIN_OP(Less);
-        EVAL_BIN_OP(LessEqual);
-        EVAL_BIN_OP(Greater);
-        EVAL_BIN_OP(GreaterEqual);
-        EVAL_BIN_OP(Add);
-        EVAL_BIN_OP(Sub);
-        EVAL_BIN_OP(Mul);
-        EVAL_BIN_OP(Div);
-        EVAL_BIN_OP(Rem);
-        EVAL_BIN_OP(And);
-        EVAL_BIN_OP(Or);
-#undef EVAL_BIN_OP
-    default: return {};
-    }
-}
-
-
-ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor)
-{
-    Expects(subq.Size() > 0);
-    const auto [type, query] = subq[0];
-    switch (type)
-    {
-    case SubQuery::QueryType::Index:
-    {
-        const auto idx = executor.EvaluateExpr(query);
-        auto result = IndexerGetter(var, idx, query);
-        if (!result.IsEmpty())
-            return { std::move(result), 1u };
-    } break;
-    case SubQuery::QueryType::Sub:
-    {
-        auto field = query.GetVar<Expr::Type::Str>();
-        auto result = SubfieldGetter(var, field);
-        if (!result.IsEmpty())
-            return { std::move(result), 1u };
-    } break;
-    default: break;
-    }
-    return {};
-}
-Arg CustomVar::Handler::HandleUnary(const CustomVar&, const EmbedOps)
-{
-    return {};
-}
-Arg CustomVar::Handler::HandleBinary(const CustomVar& var, const EmbedOps op, const Arg& right)
-{
-    switch (op)
-    {
-    case EmbedOps::Equal:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsEqual();
-        break;
-    case EmbedOps::NotEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsNotEqual();
-        break;
-    case EmbedOps::Less:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsLess();
-        break;
-    case EmbedOps::LessEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsLessEqual();
-        break;
-    case EmbedOps::Greater:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsGreater();
-        break;
-    case EmbedOps::GreaterEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsGreaterEqual();
-        break;
-    default:
-        break;
-    }
-    return {};
-}
-
-
-ArgLocator AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor)
-{
-    Expects(subq.Size() > 0);
-    const bool nonConst = HAS_FIELD(static_cast<VarFlags>(var.Meta2), VarFlags::NonConst);
-    const auto [type, query] = subq[0];
-    if (var.Meta1 < UINT32_MAX) // is array
-    {
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto idx  = executor.EvaluateExpr(query);
-            size_t tidx = 0;
-            if (ExtendIndexer)
-            {
-                const auto idx_ = ExtendIndexer(reinterpret_cast<void*>(var.Meta0), var.Meta1, idx);
-                if (idx_.has_value())
-                    tidx = *idx_;
-                else
-                    COMMON_THROWEX(NailangRuntimeException,
-                        FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idx.ToString().StrView(), var.Meta1), query);
-            }
-            else
-            {
-                tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
-            }
-            const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
-            const auto flag = nonConst ? ArgLocator::LocateFlags::ReadWrite : ArgLocator::LocateFlags::ReadOnly;
-            return { CustomVar{ var.Host, ptr, UINT32_MAX, var.Meta2 }, 1, flag };
-        }
-        case SubQuery::QueryType::Sub:
-        {
-            auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length")
-                return { uint64_t(var.Meta1), 1 };
-        } break;
-        default: break;
-        }
-    }
-    else
-    {
-        switch (type)
-        {
-        case SubQuery::QueryType::Index:
-        {
-            const auto idx = executor.EvaluateExpr(query);
-            auto result = IndexerGetter(var, idx, query);
-            if (!result.IsEmpty())
-                return { std::move(result), 1u };
-        } break;
-        case SubQuery::QueryType::Sub:
-        {
-            auto field = query.GetVar<Expr::Type::Str>();
-            if (const auto accessor = FindMember(field); accessor)
-            {
-                const auto ptr = reinterpret_cast<void*>(var.Meta0);
-                const auto isConst = !nonConst || accessor->IsConst;
-                if (accessor->IsSimple)
-                    return { [=]() { return accessor->SimpleMember.first(ptr); },
-                        isConst ? ArgLocator::Setter{} : [=](Arg val) { return accessor->SimpleMember.second(ptr, std::move(val)); },
-                        1 };
-                else
-                    return { accessor->AutoMember(ptr), 1, isConst ? ArgLocator::LocateFlags::ReadOnly : ArgLocator::LocateFlags::ReadWrite };
-            }
-        } break;
-        default: break;
-        }
-    }
-    return {};
-}
-
-std::u32string_view AutoVarHandlerBase::GetTypeName() noexcept
-{
-    return TypeName;
-}
 
 
 EvaluateContext::~EvaluateContext()
@@ -798,6 +539,8 @@ NailangFrameStack::FrameHolderBase::~FrameHolderBase()
     Ensures(ret);
 }
 
+NailangFrameStack::NailangFrameStack() : TrunckedContainer(4096, 4096)
+{ }
 NailangFrameStack::~NailangFrameStack()
 {
     Expects(GetAllocatedSlot() == 0);
@@ -1070,7 +813,7 @@ LateBindVar NailangBase::DecideDynamicVar(const Expr& arg, const std::u16string_
     case Expr::Type::Str: 
     {
         const auto name = arg.GetVar<Expr::Type::Str>();
-        const auto res  = tokenizer::VariableTokenizer::CheckName(name);
+        const auto res  = NailangParser::VerifyVariableName(name);
         if (res.has_value())
             NLRT_THROW_EX(FMTSTR(u"LateBindVar's name not valid at [{}] with len[{}]"sv, res.value(), name.size()), 
                 arg);

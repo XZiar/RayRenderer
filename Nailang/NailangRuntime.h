@@ -551,7 +551,7 @@ public:
 };
 
 
-class NAILANGAPI NailangFrameStack : protected common::container::TrunckedContainer<std::byte>
+class NailangFrameStack : protected common::container::TrunckedContainer<std::byte>
 {
     friend NailangRuntime;
 private:
@@ -611,7 +611,7 @@ public:
             return dynamic_cast<U*>(Frame);
         }
     };
-    NailangFrameStack() : TrunckedContainer(4096, 4096) {}
+    NailangFrameStack();
     ~NailangFrameStack();
     COMMON_NO_COPY(NailangFrameStack)
     COMMON_NO_MOVE(NailangFrameStack)
@@ -620,10 +620,10 @@ public:
     {
         return { this, std::forward<Args>(args)... };
     }
-    NailangBlockFrame* SetReturn(Arg returnVal) const noexcept;
-    NailangFrame* SetBreak() const noexcept;
-    NailangFrame* SetContinue() const noexcept;
-    std::vector<common::StackTraceItem> CollectStacks() const noexcept;
+    NAILANGAPI NailangBlockFrame* SetReturn(Arg returnVal) const noexcept;
+    NAILANGAPI NailangFrame* SetBreak() const noexcept;
+    NAILANGAPI NailangFrame* SetContinue() const noexcept;
+    NAILANGAPI std::vector<common::StackTraceItem> CollectStacks() const noexcept;
     template<typename T>
     T* SearchFrameType(NailangFrame* from = nullptr) const noexcept
     {

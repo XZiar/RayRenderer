@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
     }
 
     if (args.size() >= 1)
-        BasePathHolder() = fs::absolute(args[0]);
-    log().debug(FMT_STRING(u"Locate BasePath to [{}]\n"), BasePathHolder().u16string());
+        BasePathHolder() = fs::absolute(args[0]).parent_path().parent_path().parent_path();
+    PrintColored(ConsoleColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
 
     const auto& testMap = GetTestMap();
     {

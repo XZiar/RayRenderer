@@ -13,21 +13,6 @@
 namespace xziar::nailang
 {
 
-class NailangPartedNameException final : public common::BaseException
-{
-    friend class NailangParser;
-    PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
-        std::u32string_view Name;
-        std::u32string_view Part;
-        ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part) noexcept
-            : TPInfo(TYPENAME, msg), Name(name), Part(part)
-        { }
-    );
-    NailangPartedNameException(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part)
-        : BaseException(T_<ExceptionInfo>{}, msg, name, part)
-    { }
-};
-
 class NAILANGAPI NailangParseException : public common::BaseException
 {
     friend class NailangParser;
@@ -105,8 +90,6 @@ private:
     [[nodiscard]] FuncName* CreateFuncName(std::u32string_view name, FuncName::FuncInfo info) const;
     void FillBlockName(RawBlock& block);
     void FillFileName(RawBlock& block) const noexcept;
-protected:
-
 public:
     NailangParser(MemoryPool& pool, common::parser::ParserContext& context, std::u16string subScope = u"") :
         ParserBase(context), MemPool(pool), SubScopeName(std::move(subScope)) { }
@@ -162,6 +145,8 @@ public:
 
     [[nodiscard]] static Block ParseRawBlock(const RawBlock& block, MemoryPool& pool);
     [[nodiscard]] static Block ParseAllAsBlock(MemoryPool& pool, common::parser::ParserContext& context);
+
+    [[nodiscard]] static std::optional<size_t> VerifyVariableName(const std::u32string_view name) noexcept;
 };
 
 

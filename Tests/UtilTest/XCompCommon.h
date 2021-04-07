@@ -68,14 +68,9 @@ struct ArgWrapperHandler : public xziar::nailang::CustomVar::Handler
 struct XCStubHelper
 {
 private:
-    struct RunConfigVar : public xziar::nailang::AutoVarHandler<RunConfig>
-    {
-        const XCStubHelper& Helper;
-        RunConfigVar(const XCStubHelper& helper);
-        xziar::nailang::Arg ConvertToCommon(const xziar::nailang::CustomVar&, xziar::nailang::Arg::Type type) noexcept final;
-    };
+    struct RunConfigVar;
     struct XCStubExtension;
-    mutable RunConfigVar RunConfigHandler;
+    std::unique_ptr<RunConfigVar> RunConfigHandler;
     virtual std::any TryFindKernel(xcomp::XCNLContext& context, std::string_view name) const = 0;
     virtual void FillArgs(std::vector<RunArgInfo>& dst, const std::any& cookie) const = 0;
     virtual std::optional<size_t> FindArgIdx(common::span<const RunArgInfo> args, std::string_view name) const = 0;

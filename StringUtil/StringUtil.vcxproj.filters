@@ -27,10 +27,14 @@
     <ClInclude Include="Format.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="StrCharset.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
     <None Include="README.md" />
+    <None Include="LUT_gb18030.tab" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Detect.cpp">

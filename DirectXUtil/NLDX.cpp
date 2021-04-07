@@ -1,6 +1,7 @@
 #include "DxPch.h"
 #include "NLDX.h"
 #include "NLDXRely.h"
+#include "Nailang/NailangAutoVar.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Detect.h"
 #include "common/StrParsePack.hpp"

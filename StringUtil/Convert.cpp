@@ -1,5 +1,5 @@
 #include "Convert.h"
-#include "common/StrCharset.hpp"
+#include "StrCharset.hpp"
 
 namespace common::str
 {

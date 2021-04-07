@@ -175,23 +175,6 @@ public:
         Expects(state == 1);
         return ParserToken(NailangToken::Var, txt);
     }
-    static constexpr std::optional<size_t> CheckName(const std::u32string_view name) noexcept
-    {
-        constexpr VariableTokenizer Self = {};
-        if (name.empty()) 
-            return SIZE_MAX;
-        uint32_t state = 0;
-        for (size_t i = 0; i < name.size(); ++i)
-        {
-            const auto [newState, ret] = Self.OnChar(state, name[i], i);
-            if (ret == TokenizerResult::NotMatch)
-                return i;
-            state = newState;
-        }
-        if (state == 0)
-            return name.size() - 1;
-        return {};
-    }
 };
 
 class SubFieldTokenizer : public common::parser::tokenizer::TokenizerBase

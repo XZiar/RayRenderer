@@ -134,6 +134,7 @@
   <ItemGroup>
     <ClInclude Include="Convert.h" />
     <ClInclude Include="Format.h" />
+    <ClInclude Include="StrCharset.hpp" />
     <ClInclude Include="StringUtilRely.h" />
     <ClInclude Include="Detect.h" />
   </ItemGroup>
@@ -143,6 +144,7 @@
     <ClCompile Include="Format.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="LUT_gb18030.tab" />
     <None Include="README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>

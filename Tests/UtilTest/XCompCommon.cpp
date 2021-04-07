@@ -1,5 +1,6 @@
 #include "XCompCommon.h"
 #include "StringUtil/Convert.h"
+#include "Nailang/NailangAutoVar.h"
 
 using namespace xziar::nailang;
 using namespace xcomp;
@@ -25,49 +26,53 @@ std::u16string_view RunArgInfo::GetTypeName(const ArgType type) noexcept
 ArgWrapperHandler ArgWrapperHandler::Handler;
 
 
-XCStubHelper::RunConfigVar::RunConfigVar(const XCStubHelper& helper) :
-    AutoVarHandler<RunConfig>(U"RunConfig"sv), Helper(helper)
+struct XCStubHelper::RunConfigVar : public xziar::nailang::AutoVarHandler<RunConfig>
 {
-    AddCustomMember(U"WgSize"sv, [](RunConfig& conf)
-        {
-            return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
-        }).SetConst(false);
-    AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
-        {
-            return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
-        }).SetConst(false);
-    AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
-        {
-            return common::to_span(conf.Args);
-        }, [&](auto& argHandler)
-        {
-            argHandler.SetAssigner([&](RunArgInfo& arg, Arg val)
+    const XCStubHelper& Helper;
+    RunConfigVar(const XCStubHelper& helper) : AutoVarHandler<RunConfig>(U"RunConfig"sv), Helper(helper)
+    {
+        AddCustomMember(U"WgSize"sv, [](RunConfig& conf)
+            {
+                return xcomp::GeneralVecRef::Create<size_t>(conf.WgSize);
+            }).SetConst(false);
+            AddCustomMember(U"LcSize"sv, [](RunConfig& conf)
                 {
-                    if (!val.IsCustomType<ArgWrapperHandler>())
-                        COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
-                    const auto& var = val.GetCustom();
-                    const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
-                    if (!Helper.CheckType(arg, type))
-                        COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]",
-                            Helper.GetRealTypeName(arg), RunArgInfo::GetTypeName(type)));
-                    arg.Val0 = static_cast<uint32_t>(var.Meta0);
-                    arg.Val1 = static_cast<uint32_t>(var.Meta1);
-                    arg.Type = type;
-                });
-            argHandler.SetExtendIndexer([&](common::span<const RunArgInfo> all, const Arg& idx) -> std::optional<size_t>
-                {
-                    if (idx.IsStr())
-                        return Helper.FindArgIdx(all, common::str::to_string(idx.GetStr().value(), Charset::UTF8));
-                    return {};
-                });
-        }).SetConst(false);
-}
-Arg XCStubHelper::RunConfigVar::ConvertToCommon(const CustomVar&, Arg::Type type) noexcept
-{
-    if (type == xziar::nailang::Arg::Type::Bool)
-        return true;
-    return {};
-}
+                    return xcomp::GeneralVecRef::Create<size_t>(conf.LcSize);
+                }).SetConst(false);
+                AddAutoMember<RunArgInfo>(U"Args"sv, U"RunArg"sv, [](RunConfig& conf)
+                    {
+                        return common::to_span(conf.Args);
+                    }, [&](auto& argHandler)
+                    {
+                        argHandler.SetAssigner([&](RunArgInfo& arg, Arg val)
+                            {
+                                if (!val.IsCustomType<ArgWrapperHandler>())
+                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg can only be set with ArgWrapper, get [{}]", val.GetTypeName()));
+                                const auto& var = val.GetCustom();
+                                const auto type = static_cast<RunArgInfo::ArgType>(var.Meta2);
+                                if (!Helper.CheckType(arg, type))
+                                    COMMON_THROW(xziar::nailang::NailangRuntimeException, FMTSTR(u"Arg is set with incompatible value, type [{}] get [{}]",
+                                        Helper.GetRealTypeName(arg), RunArgInfo::GetTypeName(type)));
+                                arg.Val0 = static_cast<uint32_t>(var.Meta0);
+                                arg.Val1 = static_cast<uint32_t>(var.Meta1);
+                                arg.Type = type;
+                            });
+                        argHandler.SetExtendIndexer([&](common::span<const RunArgInfo> all, const Arg& idx) -> std::optional<size_t>
+                            {
+                                if (idx.IsStr())
+                                    return Helper.FindArgIdx(all, common::str::to_string(idx.GetStr().value(), Charset::UTF8));
+                                return {};
+                            });
+                    }).SetConst(false);
+    }
+
+    Arg ConvertToCommon(const CustomVar&, Arg::Type type) noexcept final
+    {
+        if (type == xziar::nailang::Arg::Type::Bool)
+            return true;
+        return {};
+    }
+};
 
 
 
@@ -100,7 +105,7 @@ public:
                     COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));
                 auto& config = Info.Configs.emplace_back(name, kerName);
                 Helper.FillArgs(config.Args, cookie);
-                return Helper.RunConfigHandler.CreateVar(config);
+                return Helper.RunConfigHandler->CreateVar(config);
             }
             else if (sub == U"BufArg"sv)
             {
@@ -147,7 +152,7 @@ public:
 };
 
 
-XCStubHelper::XCStubHelper() : RunConfigHandler(*this)
+XCStubHelper::XCStubHelper() : RunConfigHandler(std::make_unique<RunConfigVar>(*this))
 { }
 XCStubHelper::~XCStubHelper()
 { }
