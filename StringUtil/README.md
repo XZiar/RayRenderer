@@ -2,7 +2,7 @@
 
 ### [Charset Detection](Detect.h)
 
-StringUtil uses [uchardet](../3rdParty/uchardetlib) to privede charset detection.
+StringUtil uses [uchardet](../3rdParty/uchardet) to provide charset detection.
 
 ### [StrCharset](StrCharset.hpp)
 
@@ -24,11 +24,11 @@ Some proxy for utf string conversion was made inside fmt's source code, while ma
 
 ## Dependency
 
-* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) 0.0.6 @2018-09-26
+* [uchardet](https://www.freedesktop.org/wiki/Software/uchardet/) `submodule` 0.0.7
 
-  [MPL 1.1 License](./3rdParty/uchardetlib/license.txt)
+  [MPL 1.1 License](./3rdParty/uchardet/COPYING)
 
-* [fmt](http://fmtlib.net) 7.1.2 (customized with utf-support)
+* [fmt](http://fmtlib.net) `submodule` 7.1.2 (customized with utf-support)
 
   [MIT License](./3rdParty/fmt/LICENSE.rst)
 

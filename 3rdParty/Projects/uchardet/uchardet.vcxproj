@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}</ProjectGuid>
-    <RootNamespace>uchardetlib</RootNamespace>
+    <RootNamespace>uchardet</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -59,14 +59,16 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\uchardet\src</RealSourceDir>
+  </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.7\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244; 4100;</DisableSpecificWarnings>
@@ -86,7 +88,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.7\";_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244; 4100;</DisableSpecificWarnings>
@@ -105,7 +107,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.7\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244; 4100;</DisableSpecificWarnings>
@@ -130,7 +132,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.6\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;_CRT_NONSTDC_NO_DEPRECATE;VERSION=\"0.0.7\";NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DisableSpecificWarnings>4244; 4100;</DisableSpecificWarnings>
@@ -146,89 +148,89 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CharDistribution.h" />
-    <ClInclude Include="JpCntx.h" />
-    <ClInclude Include="nsBig5Prober.h" />
-    <ClInclude Include="nsCharSetProber.h" />
-    <ClInclude Include="nsCodingStateMachine.h" />
-    <ClInclude Include="nscore.h" />
-    <ClInclude Include="nsEscCharsetProber.h" />
-    <ClInclude Include="nsEUCJPProber.h" />
-    <ClInclude Include="nsEUCKRProber.h" />
-    <ClInclude Include="nsEUCTWProber.h" />
-    <ClInclude Include="nsGB2312Prober.h" />
-    <ClInclude Include="nsHebrewProber.h" />
-    <ClInclude Include="nsLatin1Prober.h" />
-    <ClInclude Include="nsMBCSGroupProber.h" />
-    <ClInclude Include="nsPkgInt.h" />
-    <ClInclude Include="nsSBCharSetProber.h" />
-    <ClInclude Include="nsSBCSGroupProber.h" />
-    <ClInclude Include="nsSJISProber.h" />
-    <ClInclude Include="nsUniversalDetector.h" />
-    <ClInclude Include="nsUTF8Prober.h" />
-    <ClInclude Include="prmem.h" />
+    <ClInclude Include="$(RealSourceDir)\CharDistribution.h" />
+    <ClInclude Include="$(RealSourceDir)\JpCntx.h" />
+    <ClInclude Include="$(RealSourceDir)\nsBig5Prober.h" />
+    <ClInclude Include="$(RealSourceDir)\nsCharSetProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsCodingStateMachine.h" />
+    <ClInclude Include="$(RealSourceDir)\nscore.h" />
+    <ClInclude Include="$(RealSourceDir)\nsEscCharsetProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsEUCJPProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsEUCKRProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsEUCTWProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsGB2312Prober.h" />
+    <ClInclude Include="$(RealSourceDir)\nsHebrewProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsLatin1Prober.h" />
+    <ClInclude Include="$(RealSourceDir)\nsMBCSGroupProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsPkgInt.h" />
+    <ClInclude Include="$(RealSourceDir)\nsSBCharSetProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsSBCSGroupProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsSJISProber.h" />
+    <ClInclude Include="$(RealSourceDir)\nsUniversalDetector.h" />
+    <ClInclude Include="$(RealSourceDir)\nsUTF8Prober.h" />
+    <ClInclude Include="$(RealSourceDir)\prmem.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CharDistribution.cpp" />
-    <ClCompile Include="JpCntx.cpp" />
-    <ClCompile Include="LangModels\LangArabicModel.cpp" />
-    <ClCompile Include="LangModels\LangBulgarianModel.cpp" />
-    <ClCompile Include="LangModels\LangCroatianModel.cpp" />
-    <ClCompile Include="LangModels\LangCzechModel.cpp" />
-    <ClCompile Include="LangModels\LangDanishModel.cpp" />
-    <ClCompile Include="LangModels\LangEsperantoModel.cpp" />
-    <ClCompile Include="LangModels\LangEstonianModel.cpp" />
-    <ClCompile Include="LangModels\LangFinnishModel.cpp" />
-    <ClCompile Include="LangModels\LangFrenchModel.cpp" />
-    <ClCompile Include="LangModels\LangGermanModel.cpp" />
-    <ClCompile Include="LangModels\LangGreekModel.cpp" />
-    <ClCompile Include="LangModels\LangHebrewModel.cpp" />
-    <ClCompile Include="LangModels\LangHungarianModel.cpp" />
-    <ClCompile Include="LangModels\LangIrishModel.cpp" />
-    <ClCompile Include="LangModels\LangItalianModel.cpp" />
-    <ClCompile Include="LangModels\LangLatvianModel.cpp" />
-    <ClCompile Include="LangModels\LangLithuanianModel.cpp" />
-    <ClCompile Include="LangModels\LangMalteseModel.cpp" />
-    <ClCompile Include="LangModels\LangPolishModel.cpp" />
-    <ClCompile Include="LangModels\LangPortugueseModel.cpp" />
-    <ClCompile Include="LangModels\LangRomanianModel.cpp" />
-    <ClCompile Include="LangModels\LangRussianModel.cpp" />
-    <ClCompile Include="LangModels\LangSlovakModel.cpp" />
-    <ClCompile Include="LangModels\LangSloveneModel.cpp" />
-    <ClCompile Include="LangModels\LangSpanishModel.cpp" />
-    <ClCompile Include="LangModels\LangSwedishModel.cpp" />
-    <ClCompile Include="LangModels\LangThaiModel.cpp" />
-    <ClCompile Include="LangModels\LangTurkishModel.cpp" />
-    <ClCompile Include="LangModels\LangVietnameseModel.cpp" />
-    <ClCompile Include="nsBig5Prober.cpp" />
-    <ClCompile Include="nsCharSetProber.cpp" />
-    <ClCompile Include="nsEscCharsetProber.cpp" />
-    <ClCompile Include="nsEscSM.cpp" />
-    <ClCompile Include="nsEUCJPProber.cpp" />
-    <ClCompile Include="nsEUCKRProber.cpp" />
-    <ClCompile Include="nsEUCTWProber.cpp" />
-    <ClCompile Include="nsGB2312Prober.cpp" />
-    <ClCompile Include="nsHebrewProber.cpp" />
-    <ClCompile Include="nsLatin1Prober.cpp" />
-    <ClCompile Include="nsMBCSGroupProber.cpp" />
-    <ClCompile Include="nsMBCSSM.cpp" />
-    <ClCompile Include="nsSBCharSetProber.cpp" />
-    <ClCompile Include="nsSBCSGroupProber.cpp" />
-    <ClCompile Include="nsSJISProber.cpp" />
-    <ClCompile Include="nsUniversalDetector.cpp" />
-    <ClCompile Include="nsUTF8Prober.cpp" />
+    <ClCompile Include="$(RealSourceDir)\CharDistribution.cpp" />
+    <ClCompile Include="$(RealSourceDir)\JpCntx.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangArabicModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangBulgarianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangCroatianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangCzechModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangDanishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangEsperantoModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangEstonianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangFinnishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangFrenchModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangGermanModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangGreekModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangHebrewModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangHungarianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangIrishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangItalianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangLatvianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangLithuanianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangMalteseModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangPolishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangPortugueseModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangRomanianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangRussianModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSlovakModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSloveneModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSpanishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSwedishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangThaiModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangTurkishModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangVietnameseModel.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsBig5Prober.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsCharSetProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsEscCharsetProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsEscSM.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsEUCJPProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsEUCKRProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsEUCTWProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsGB2312Prober.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsHebrewProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsLatin1Prober.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsMBCSGroupProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsMBCSSM.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsSBCharSetProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsSBCSGroupProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsSJISProber.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsUniversalDetector.cpp" />
+    <ClCompile Include="$(RealSourceDir)\nsUTF8Prober.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Big5Freq.tab" />
-    <None Include="EUCKRFreq.tab" />
-    <None Include="EUCTWFreq.tab" />
-    <None Include="GB2312Freq.tab" />
-    <None Include="JISFreq.tab" />
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\Big5Freq.tab" />
+    <None Include="$(RealSourceDir)\EUCKRFreq.tab" />
+    <None Include="$(RealSourceDir)\EUCTWFreq.tab" />
+    <None Include="$(RealSourceDir)\GB2312Freq.tab" />
+    <None Include="$(RealSourceDir)\JISFreq.tab" />
+    <None Include="$(RealSourceDir)\..\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="license.txt" />
+    <Text Include="$(RealSourceDir)\..\COPYING" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

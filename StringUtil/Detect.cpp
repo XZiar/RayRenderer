@@ -1,6 +1,6 @@
 #include "Detect.h"
-#include "3rdParty/uchardetlib/nscore.h"
-#include "3rdParty/uchardetlib/nsUniversalDetector.h"
+#include "3rdParty/uchardet/src/nscore.h"
+#include "3rdParty/uchardet/src/nsUniversalDetector.h"
 
 namespace common::str
 {

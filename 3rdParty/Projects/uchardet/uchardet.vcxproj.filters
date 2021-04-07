@@ -1,0 +1,253 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="table">
+      <UniqueIdentifier>{385388cd-4efa-4fa5-8ec2-81b698b7bfe1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(RealSourceDir)\CharDistribution.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\JpCntx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsBig5Prober.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsCharSetProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsCodingStateMachine.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nscore.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsEscCharsetProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsEUCJPProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsEUCKRProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsEUCTWProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsGB2312Prober.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsHebrewProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsLatin1Prober.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsMBCSGroupProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsPkgInt.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsSBCharSetProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsSBCSGroupProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsSJISProber.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsUniversalDetector.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\nsUTF8Prober.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\prmem.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RealSourceDir)\CharDistribution.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\JpCntx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangArabicModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangBulgarianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangCroatianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangCzechModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangDanishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangEsperantoModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangEstonianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangFinnishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangFrenchModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangGermanModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangGreekModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangHebrewModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangHungarianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangIrishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangItalianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangLatvianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangLithuanianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangMalteseModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangPolishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangPortugueseModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangRomanianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangRussianModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSlovakModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSloveneModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSpanishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangSwedishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangThaiModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangTurkishModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\LangModels\LangVietnameseModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsBig5Prober.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsCharSetProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsEscCharsetProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsEscSM.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsEUCJPProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsEUCKRProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsEUCTWProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsGB2312Prober.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsHebrewProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsLatin1Prober.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsMBCSGroupProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsMBCSSM.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsSBCharSetProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsSBCSGroupProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsSJISProber.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsUniversalDetector.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\nsUTF8Prober.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(RealSourceDir)\..\README.md" />
+    <None Include="$(RealSourceDir)\Big5Freq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="$(RealSourceDir)\EUCKRFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="$(RealSourceDir)\EUCTWFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="$(RealSourceDir)\GB2312Freq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="$(RealSourceDir)\JISFreq.tab">
+      <Filter>table</Filter>
+    </None>
+    <None Include="xzbuild.proj.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="$(RealSourceDir)\..\COPYING" />
+  </ItemGroup>
+</Project>

@@ -137,7 +137,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MiniLogger", "MiniLogger\Mi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WPFTest", "WPFTest\WPFTest.csproj", "{E05720DB-A5FB-4A0C-9552-F3777E66FE29}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardetlib", "3rdParty\uchardetlib\uchardetlib.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardet", "3rdParty\Projects\uchardet\uchardet.vcxproj", "{7BE97D3D-F242-4AB9-8EEE-05B974E0E15E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freetype2", "3rdParty\freetype2\freetype2.vcxproj", "{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}"
 EndProject

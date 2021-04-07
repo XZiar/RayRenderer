@@ -35,3 +35,7 @@
 	shallow = true
 	path = 3rdParty/libpng
 	url = https://github.com/glennrp/libpng.git
+[submodule "3rdParty/uchardet"]
+	shallow = true
+	path = 3rdParty/uchardet
+	url = https://gitlab.freedesktop.org/uchardet/uchardet.git
