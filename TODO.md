@@ -49,7 +49,7 @@
   - [ ] Use TexFormat instead of ImageDataType
   - [ ] Add DataType-based support query
   - [ ] Throw proper exception when facing error
-  - [ ] Add external decoder/encoder (e.g, intel media sdk)
+  - [ ] Add external decoder/encoder (eg, intel media sdk)
   - [ ] Move DataTypeConvertor to cpp, with runtime path selection
   - [ ] Add test for DataTypeConvertor
 
@@ -63,21 +63,23 @@
   - [ ] Add `include` support
   - [ ] Add python parser & runtime
   - [x] Explicitly handle loops
-  - [ ] Fix test for inhirit arg access
+  - [ ] Fix test for nested-scope arg access
   - [x] Add proper stacktrace when throw exception
   - [x] Add nested brace support for ReplaceEngine
   - [x] Move arg/func's lookup logic into StackFrame
   - [x] Pre-compute scope when parsing, for arg and func name
   - [x] Add array type
   - [x] Add array access by `[]`
-  - [ ] Add member func call for arg by `()`
   - [x] Allow fake arg when try to set value of an arg
   - [x] Add register-based customvar handler
   - [x] Evaluate `Expr`(or `RawArg`) before calling the function
   - [x] Add ternary operator
-  - [ ] CustomVar also report `TypeData` for easier type conversion
+  - [x] CustomVar also report `TypeData` for easier type conversion
   - [x] Add capture support when define func
   - [x] Seperate Executor and Runtime
+  - [ ] Correct handle *nary expression when facing custom object
+  - [ ] Add member func call for arg by `()`
+  - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
 
 * XCompute
   - [ ] Merge OpenCLInterop
@@ -201,19 +203,16 @@
   - [x] Custom build procedure for Linux
   - [x] Generate build Makefile from python script and project-info json
   - [x] Add Pch for GCC build
-  - [ ] Add support for build config outside source folder (for 3rdparty lib with original source structure)
-  - [ ] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
+  - [x] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
   - [ ] Move to fully self-controlled build system
 
 * Global
-  - [ ] Add GacUI
   - [x] Port some utilities to Linux 
   - [x] Port core components to Linux 
-  - [ ] Move to .net core 3.1 with WPF/Winform
+  - [ ] Move to .net core 3.1/5 with WPF/Winform
   - [ ] Add Vulkan backend
-  - [ ] Add FancyCL codegen which can write code in C++ with template/type-safe support and emit compute langs
   - [ ] Add custom window host (for OGL/vulkan)
-  - [ ] Seperate OGL/Vulkan backend
+  - [ ] Seperate OGL/DX/Vulkan backend
   - [ ] Add remote rendering backend (out-of-process or network-based)
   - [x] Add custom base DSL for OpenGL and OpenCL
   - [x] Switch to github actions for CI?

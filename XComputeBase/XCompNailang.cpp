@@ -318,7 +318,7 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     {
         return GetHolder(var).GetObj();
     }
-    void IncreaseRef(CustomVar& var) noexcept final
+    void IncreaseRef(const CustomVar& var) noexcept final
     {
         GetHolder(var).Increase();
     };
@@ -785,7 +785,7 @@ void XCNLRawExecutor::OnReplaceVariable(std::u32string& output, [[maybe_unused]]
             toVecName = true, var.remove_prefix(1);
         const auto var_ = executor.DecideDynamicVar(var, u"ReplaceVariable"sv);
         const auto val = runtime.LookUpArg(var_);
-        if (val.IsEmpty() || val.TypeData == Arg::Type::Var)
+        if (val.IsEmpty() || val.IsCustom())
         {
             executor.NLRT_THROW_EX(FMTSTR(u"Arg [{}] not found when replace-variable"sv, var));
             return;
@@ -1743,7 +1743,7 @@ static void CallOnVecArray(const CustomVar& var, F&& func) noexcept
     }
 #undef COVA
 }
-void GeneralVec::IncreaseRef(CustomVar& var) noexcept
+void GeneralVec::IncreaseRef(const CustomVar& var) noexcept
 {
     CallOnVecArray(var, [](auto& vec) { vec.Increase(); });
 }

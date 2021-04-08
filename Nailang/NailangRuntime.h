@@ -128,7 +128,7 @@ struct ExceptionTarget
     VType Target;
 
     constexpr ExceptionTarget() noexcept {}
-    ExceptionTarget(const CustomVar& arg) noexcept : Target{ Arg(arg) } {}
+    ExceptionTarget(const CustomVar& arg) noexcept : Target{ arg.CopyToArg() } {}
     template<typename T>
     constexpr ExceptionTarget(T&& arg, std::enable_if_t<common::VariantHelper<VType>::Contains<std::decay_t<T>>()>* = nullptr) noexcept
         : Target{ std::forward<T>(arg) } {}
@@ -266,9 +266,6 @@ enum class ArgLimits { Exact, AtMost, AtLeast };
 
 struct NAILANGAPI NailangHelper
 {
-private:
-    struct ArgWrapper;
-public:
     [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src = nullptr);
     static Arg ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor);
     template<typename F>

@@ -1,7 +1,6 @@
 # RayRenderer
 
 [![CI](https://github.com/XZiar/RayRenderer/workflows/CI/badge.svg)](https://github.com/XZiar/RayRenderer/actions)
-[![Build Status](https://api.travis-ci.com/XZiar/RayRenderer.svg?branch=master)](https://travis-ci.org/XZiar/RayRenderer)
 
 No it's not a renderer.
 
@@ -93,7 +92,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 7.0.1 (customized with utf-support)
+* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 7.1.2 (customized with utf-support)
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 

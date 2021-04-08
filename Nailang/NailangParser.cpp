@@ -498,12 +498,16 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         Ensures(oprIdx == 1);
         if (!operand[1])
             NLPS_THROW_EX(u"Lack operand for unary operator"sv);
+        if (op == EmbedOps::CheckExist && operand[1].TypeData != Expr::Type::Var)
+            NLPS_THROW_EX(FMTSTR(u"Only Var allowed after [CheckExisit] operator, get [{}]"sv, operand[1].GetTypeName()));
         return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), operand[1]), stopChar };
     }
     {
         Ensures(oprIdx == 1);
         if (!operand[1])
             NLPS_THROW_EX(u"Lack 2nd operand for binary operator"sv);
+        if (op == EmbedOps::ValueOr && operand[0].TypeData != Expr::Type::Var)
+            NLPS_THROW_EX(FMTSTR(u"Only Var allowed before [ValueOr] operator, get [{}]"sv, operand[0].GetTypeName()));
         return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), operand[0], operand[1]), stopChar };
     }
 }

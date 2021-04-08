@@ -276,7 +276,7 @@ TEST(NailangRuntime, ParseEvalEmbedOp)
 }
 
 
-struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
+struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
 {
     struct COMMON_EMPTY_BASES Array : public common::FixedLenRefHolder<Array, float>
     {
@@ -314,7 +314,7 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
 #define ArrRef(out, in)                                                         \
     common::span<float> tmp_ = {reinterpret_cast<float*>(in.Meta0), in.Meta1};  \
     Array& out = *reinterpret_cast<Array*>(&tmp_);
-    void IncreaseRef(CustomVar& var) noexcept override
+    void IncreaseRef(const CustomVar& var) noexcept override
     { 
         ArrRef(arr, var);
         arr.Increase(); 
@@ -325,6 +325,10 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
+    Arg::Type GetTypeDeclear() noexcept
+    {
+        return Arg::Type::Var | Arg::Type::ArrayLike;
+    }
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override
     {
         ArrRef(arr, var);
@@ -388,7 +392,6 @@ struct ArrayCustomVar : public xziar::nailang::CustomVar::Handler
 
     }
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
-    Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept override { return {}; }
     static Arg Create(common::span<const float> source);
     static common::span<float> GetData(const CustomVar& var) 
     {
@@ -430,7 +433,7 @@ TEST(NailangRuntime, CustomVar)
     runtime.SetRootArg(U"arr", ArrayCustomVar::Create(dummy));
     {
         const auto arg = runtime.QuickGetArg(U"arr"sv);
-        ASSERT_TRUE(CheckArg(arg, Arg::Type::Var));
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Var | Arg::Type::ArrayLike));
         const auto& var = arg.GetCustom();
         ASSERT_EQ(var.Host, &ArrayCustomVarHandler);
         const auto data = Span(ArrayCustomVar::GetData(var));

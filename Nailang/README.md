@@ -10,9 +10,8 @@ Nailang is a simplified customizable language.
 
 ## Concept
 
-### DataType
-
-DataType is limited:
+### Literal
+Literal is parsed at parsing time.
 
 #### Uint - 64bit unsigned integer
 `123u`, `0x1ff`, `0b01010` are all `Uint`. 
@@ -24,20 +23,12 @@ DataType is limited:
 `true`, `false`, `TruE` are all `Bool`. When calculated with numbers, `true`=`1` and `false`=`0`.
 #### Str - string
 `"hello"`, `"\"world\""` are all `Str`. Escape character supported for `\r`,`\n`,`\0`,`\"`,`\t`,`\\`, others will simply keep later character.
-#### Custom - cunstom type
-You can extend Nailang to support custom type. Custom type cannot be directly parsed, but can be lookuped and used by name. Meta-data can also be provided.
-
-### Literal
-
-Literal is parsed at parsing time and it cannot be custom type.
 
 ### Variable
 
 Variable is a memory unit to store data.
 
-Name of variable currently limited on ASCII words, the leading character can be ``:`ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_``, and other characters can be `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.`.
-
-`.` is used to seperate variable name into parts. Buitin types does not support parts, but custom types may need this.
+Name of variable currently limited on ASCII words, the leading character can be ``:`ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_``, and other characters can be `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_`.
 
 `:` and `` ` `` is the special leading character. `:` means the variable should be at local and `` ` `` means the variable should be at root.
 
@@ -49,74 +40,88 @@ Function call calls a function with arguments, may result an arguemnt.
 
 `*Func(x,y)` is a function call, where `*` is the prefix for usage, `Func` is the name, `x` and `y` is the arguments.
 
+### Query
+
+There're 2 kinds of query:
+
+* `Subfield`: Access to a field of an object. Eg, `a.b.c`.
+* `Indexer`: just like a single arg function that access some content using an index. Eg, `a[12]["c"]`.
+
+Note that queries will be chained and stored compactly, and runtime may be able to consume multiple queries at a time.
+
+### Expression
+
+An expression is in fact an AST node, can be literal, function call, or an operator-expression.
+
 ### Operator
 
 Operator is used for better readibility, eg, `1+a`, `4 && false`, `!true`.
 
-**Operator can have one or two leaves**, which means there's `Unary Operator` and `Binary Operator`.
-
-[Function call](#function-call), [variable](#variable), [literal](#literal) can all be leaf of an operator. 
-
 **Operators have no precedence**, so you need to add a pair of parentheses manually. Eg, `(a*b)+c`, `(1+(2))`.
 
-| Operator | Type | Argument | Return | Example |
-|:--------:|:----:|:--------:|:------:|--------:|
-| `==` | Binary | Num, Bool, Str | Bool     |`1==3`|
-| `!=` | Binary | Num, Bool, Str | Bool     |`1!=3`|
-| `<`  | Binary | Num            | Bool     |`1<3`|
-| `<=` | Binary | Num            | Bool     |`1<=3`|
-| `>`  | Binary | Num            | Bool     |`1>3`|
-| `>=` | Binary | Num            | Bool     |`1>=3`|
-| `&&` | Binary | Boolable       | Bool     |`true && 3`|
-|`\|\|`| Binary | Boolable       | Bool     |`1 \|\| false`|
-| `+`  | Binary | Num, Str       | Num, Str |`1 + 3`|
-| `-`  | Binary | Num            | Num      |`1 - 3`|
-| `*`  | Binary | Num            | Num      |`1 * 3`|
-| `/`  | Binary | Num            | Num      |`1 / 3`|
-| `%`  | Binary | Num            | Num      |`1 % 3`|
-| `!`  |  Unary | Boolable       | Bool     |`!true`|
+**Operator Expression can have one, two, three leaves**, which means there's `Unary Operator`, `Binary Operator`, `Ternary Operator`.
 
-**`&&` and `||` support short-circuit evaluation**, but it's garuenteed by NailRuntime, whose behavior can be override.
+| Operator | Name | Type | Argument | Return | Example |
+|:--------:|:----:|:----:|:--------:|:------:|--------:|
+| `==` | Equal         |  Binary | Num, Bool, Str | Bool     |`1==3`|
+| `!=` | Not Equal     |  Binary | Num, Bool, Str | Bool     |`1!=3`|
+| `<`  | Less Than     |  Binary | Num            | Bool     |`1<3`|
+| `<=` | Less Equal    |  Binary | Num            | Bool     |`1<=3`|
+| `>`  | Greater Than  |  Binary | Num            | Bool     |`1>3`|
+| `>=` | Greater Equal |  Binary | Num            | Bool     |`1>=3`|
+| `&&` | And           |  Binary | Boolable       | Bool     |`true && 3`|
+|`\|\|`| Or            |  Binary | Boolable       | Bool     |`1 \|\| false`|
+| `+`  | Add           |  Binary | Num, Str       | Num, Str |`1 + 3`|
+| `-`  | Minus         |  Binary | Num            | Num      |`1 - 3`|
+| `*`  | Multiply      |  Binary | Num            | Num      |`1 * 3`|
+| `/`  | Division      |  Binary | Num            | Num      |`1 / 3`|
+| `%`  | Reminder      |  Binary | Num            | Num      |`1 % 3`|
+| `??` | Value Or      |  Binary | Any            | Any      |`a ?? 3`|
+| `?`  | Check Exists  |   Unary | Var            | Bool     |`?abc`|
+| `!`  | Not           |   Unary | Boolable       | Bool     |`!true`|
+|`? :` | Conditional   | Ternary | Any            | Any      |`a ? 1 : 3`|
 
-### Expression
+#### Short-circuit evaluation
 
-An expression is in fact an AST node, usually comes with an [operator](#operator). An expression can also be a leaf of another operator, which make expression set a tree.
+**`&&`, `||`, `??`, `? :` support short-circuit evaluation**, but it's garuenteed by NailangExecutor, whose behavior can be override.
 
-An expression must be either **empty**(`()`), or **single element only**(`(x)`), or **leaf(ves) with an operator**(`1+x`).
+**`??`, `?` operator designed for testing if a varaible exists**, so they only accept LateBindVar as first operand. 
 
-### Command
+### Statement
 
-A command is an executable unit. It can be a single expression or a block of expression.
-
-For a single expression, it must ends with '`;`'.
+A statement is an executable unit, which must ends with '`;`'. It can also be a block of expression, or a rawblock that reserved for special purpose.
 
 ### MetaFunction
 
-Meta-function is used to provide extra information of a command, or to achieve control-flow effect.
+Meta-function is used to provide extra information of a statement, or to achieve control-flow effect.
 
-Meta-function is indeed a function call with prefix'`@`'. It must be used standalone, so unlike commands, **it doesnot and cannot end with '`;`'**. Eg, `@If(x>1)`.
+Meta-function is indeed a function call with prefix'`@`'. It must be used standalone, so unlike statement, **it doesnot and cannot end with '`;`'**. Eg, `@If(x>1)`.
 
-The return value of meta-function is discard. Runtime is required to evalute the function and modify the program states.
+The return value of meta-function is discard. Executor is required to evalute the function and modify the program states.
 
 ### AssignExpr
 
-AssignExpr is a command, means assign a value to a variable. The syntax is `(var) (op) (statement);`.
+AssignExpr is a statement, means assign a value to a variable. The syntax is `(var) (op) (statement);`.
 
-The `op` is usually `=`, but self-modifying operator is also introduced for better readibility.
+The `op` is usually `=`, but self-modifying operator is also introduced for better readibility or saving duplicated variable-lookup.
 
-| op | Example | Actual |
-|:--:|:--------|:-------|
-|`=` |`a = 1`  |`a = 1`     |
-|`+=`|`a += 1` |`a = a + 1` |
-|`-=`|`a -= 1` |`a = a - 1` |
-|`/=`|`a /= 1` |`a = a / 1` |
-|`%=`|`a %= 1` |`a = a % 1` |
+| op | Example | Actual | Var==Null | Var!=Null|
+|:--:|:--------|:-------|:---------:|:--------:|
+|`=` |`a = 1`  |`a = 1`     | Pass  | Pass  |
+|`+=`|`a += 1` |`a = a + 1` | Throw | Pass  |
+|`-=`|`a -= 1` |`a = a - 1` | Throw | Pass  |
+|`/=`|`a /= 1` |`a = a / 1` | Throw | Pass  |
+|`%=`|`a %= 1` |`a = a % 1` | Throw | Pass  |
+|`?=`|`a ?= 1` |`a = 1`     | Pass  | Skip  |
+|`:=`|`a := 1` |`a = 1`     | Pass  | Throw |
 
-`?=` is a special assignment whose calculation and assignment happens only when variable is empty. Its AST format does not conflit with self-modified assignment like `+=`, but NailangParser disallows this combination.
+`?=` is a special assignment whose calculation and assignment happens only when variable is empty.
+
+`:=` is a special assignment that force the target variable does not exists.
 
 ### FuncCall
 
-FuncCall is a command, means calling a function and discard the result. The syntax is `$Func(x,y);`, a function call with prefix'`$`'. Runtime should be responsible for the side-effect. 
+FuncCall is a statement, means calling a function and discard the result. The syntax is `$Func(x,y);`, a function call with prefix'`$`'. Runtime should be responsible for the side-effect. 
 
 ### Block
 
@@ -246,10 +251,18 @@ EvaluateContext is to store runtime information, including variables and local f
 
 At AST level, literals and variables are stored inside `Expr`. But actual function will accept `Arg`, so there will be a conversion.
 
-The main differences between `Expr` and `Arg` are:
+* `Expr` support `LateBindVar`, which is simply the name of the variable. After evaluation, it will become an `Arg` or proxy to an `Arg`. 
 
- * `Expr` support `LateBindVar`, which is simply the name of the variable. But `Arg` will evaluate all `LateBindVar`s into actual datatype. It is still possible to delay the evaluation by introducing `Custom Type`. 
- * `Rawarg` is constant, so the name of variable will be stored at source itself, the string content will be stored at [MemPool](#mempool) if needed. But `Arg` is dynamic, so its content will be stored at heap individually.
+* `Expr` is constant, so the name of variable will be stored at source itself, the string content will be stored at [MemPool](#mempool) if needed. But `Arg` is dynamic, so its content will be stored at heap individually.
+
+`Arg` can store the literal type, or some runtime type:
+#### Array - array-ref
+
+Stores the reference to an array. (Does not hold the ownership).
+
+#### Custom - custom type
+
+You can extend Nailang with custom type with the metadata being provided.
 
 ### Type Promotion
 

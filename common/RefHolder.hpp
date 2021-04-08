@@ -15,15 +15,15 @@ protected:
     {
         new (ptr)std::atomic_uint32_t(1);
     }
-    forceinline void Increase() noexcept
+    forceinline void Increase() const noexcept
     {
-        auto ptrcnt = static_cast<T*>(this)->GetCounter();
+        auto ptrcnt = static_cast<const T*>(this)->GetCounter();
         if (ptrcnt)
             (*ptrcnt)++;
     }
     forceinline bool Decrease() noexcept
     {
-        auto ptrcnt = static_cast<T*>(this)->GetCounter();
+        auto ptrcnt = static_cast<const T*>(this)->GetCounter();
         if (ptrcnt && (*ptrcnt)-- == 1)
         {
             static_cast<T*>(this)->Destruct();

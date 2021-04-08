@@ -237,6 +237,8 @@ struct SubQuery
 };
 
 
+struct Arg;
+
 struct CustomVar
 {
     struct Handler;
@@ -264,6 +266,7 @@ struct CustomVar
         static_assert(std::is_base_of_v<Handler, T>, "type need to inherit from Handler");
         return dynamic_cast<T*>(Host) != nullptr;
     }
+    [[nodiscard]] Arg CopyToArg() const noexcept;
 };
 
 
@@ -330,7 +333,6 @@ struct CompareResult
 };
 
 
-struct Arg;
 class NAILANGAPI ArgLocator;
 
 struct NativeWrapper
@@ -482,14 +484,9 @@ public:
 
     Arg() noexcept : Data0(0), Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
-    NAILANGAPI explicit Arg(const CustomVar& var) noexcept;
-    Arg(CustomVar&& var) noexcept :
-        Data0(reinterpret_cast<uint64_t>(var.Host)), Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
-    {
-        Expects(var.Host != nullptr);
-        var.Host = nullptr;
-        var.Meta0 = var.Meta1 = var.Meta2 = 0;
-    }
+    //NAILANGAPI explicit Arg(const CustomVar& var) noexcept;
+    Arg(const CustomVar& var) noexcept = delete;
+    Arg(CustomVar&& var) noexcept;
     Arg(const FixedArray arr) noexcept :
         Data0(arr.DataPtr), Data1(arr.Length), Data2(common::enum_cast(arr.ElementType)), Data3(arr.IsReadOnly ? 1 : 0), TypeData(Type::Array)
     { }
@@ -587,28 +584,21 @@ public:
     {
         return TypeData == Type::Array;
     }
-    [[nodiscard]] forceinline constexpr bool IsCustom() const noexcept
-    {
-        return TypeData == Type::Var;
-    }
+    [[nodiscard]] forceinline constexpr bool IsCustom() const noexcept;
     template<typename T>
     [[nodiscard]] forceinline bool IsCustomType() const noexcept
     {
         static_assert(std::is_base_of_v<CustomVar::Handler, T>, "type need to inherit from Handler");
         if (!IsCustom()) return false;
-        return GetVar<Type::Var>().IsType<T>();
+        return GetCustom().IsType<T>();
     }
     
     [[nodiscard]] forceinline CustomVar& GetCustom() noexcept
     {
-        static_assert( sizeof(Arg) ==  sizeof(CustomVar));
-        static_assert(alignof(Arg) == alignof(CustomVar));
         return *reinterpret_cast<CustomVar*>(this);
     }
     [[nodiscard]] forceinline const CustomVar& GetCustom() const noexcept
     {
-        static_assert( sizeof(Arg) ==  sizeof(CustomVar));
-        static_assert(alignof(Arg) == alignof(CustomVar));
         return *reinterpret_cast<const CustomVar*>(this);
     }
     [[nodiscard]] NAILANGAPI std::optional<bool>                GetBool()   const noexcept;
@@ -627,12 +617,16 @@ public:
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
 };
 MAKE_ENUM_BITFIELD(Arg::Type)
+static_assert( sizeof(Arg) ==  sizeof(CustomVar));
+static_assert(alignof(Arg) == alignof(CustomVar));
 
 struct NAILANGAPI CustomVar::Handler
 {
 public:
-    virtual void IncreaseRef(CustomVar&) noexcept;
+    virtual void IncreaseRef(const CustomVar&) noexcept;
     virtual void DecreaseRef(CustomVar&) noexcept;
+    [[nodiscard]] virtual Arg::Type GetTypeDeclear() noexcept;
+    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangExecutor&);
@@ -644,9 +638,26 @@ public:
     [[nodiscard]] virtual CompareResult Compare(const CustomVar&, const Arg&);
     [[nodiscard]] virtual common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg ConvertToCommon(const CustomVar&, Arg::Type) noexcept;
-    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;
 };
 
+[[nodiscard]] inline Arg CustomVar::CopyToArg() const noexcept
+{
+    Host->IncreaseRef(*this);
+    auto self = *this;
+    return self;
+}
+inline Arg::Arg(CustomVar&& var) noexcept : Data0(reinterpret_cast<uint64_t>(var.Host)),
+    Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(var.Host->GetTypeDeclear())
+{
+    Expects(var.Host != nullptr);
+    Expects((TypeData & Type::Var) == Type::Var);
+    var.Host = nullptr;
+    var.Meta0 = var.Meta1 = var.Meta2 = 0;
+}
+[[nodiscard]] inline constexpr bool Arg::IsCustom() const noexcept
+{
+    return HAS_FIELD(TypeData, Type::Custom);
+}
 [[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
 {
     if (IsCustom())
@@ -729,6 +740,7 @@ public:
     [[nodiscard]] Arg Get() const;
     [[nodiscard]] Arg ExtractGet();
     bool Set(Arg val);
+    Arg& ResolveGetter();
     [[nodiscard]] constexpr uint32_t GetConsumed() const noexcept { return Consumed; }
 };
 

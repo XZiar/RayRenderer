@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "common/StrCharset.hpp"
+#include "StringUtil/StrCharset.hpp"
 
 using namespace common::str;
 using namespace std::string_view_literals;

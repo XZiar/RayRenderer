@@ -816,7 +816,7 @@ public:
 
 class XCOMPBASAPI GeneralVec : public GeneralVecRef
 {
-    void IncreaseRef(xziar::nailang::CustomVar& var) noexcept override;
+    void IncreaseRef(const xziar::nailang::CustomVar& var) noexcept override;
     void DecreaseRef(xziar::nailang::CustomVar& var) noexcept override;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
     std::u32string_view GetTypeName() noexcept override;

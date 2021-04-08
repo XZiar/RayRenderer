@@ -142,8 +142,9 @@
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Arg" >
+    <Intrinsic Name="IsCustom" Expression="((uint16_t)(TypeData) & amp; (uint16_t)xziar::nailang::Arg::Type::Custom) != 0"/>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Empty" >{{ Empty }}</DisplayString>
-    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Var"   >{{ Var  }}</DisplayString>
+    <DisplayString Condition="IsCustom()"                                   >{{ Var  }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Str">{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Sv" >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Uint"  >{{ Uint [{Data0.Uint}] }}</DisplayString>

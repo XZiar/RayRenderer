@@ -381,24 +381,6 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
     return isReverse ? static_cast<size_t>(size - realIdx) : static_cast<size_t>(realIdx);
 }
 
-struct NailangHelper::ArgWrapper
-{
-    Arg Val;
-    Arg& For(ArgLocator& locator) noexcept
-    {
-        switch (locator.Type)
-        {
-        case ArgLocator::LocateType::Ptr:
-            return *reinterpret_cast<Arg*>(static_cast<uintptr_t>(*locator.Val.GetUint()));
-        case ArgLocator::LocateType::GetSet:
-            Val = locator.Get(); return Val;
-        case ArgLocator::LocateType::Arg:
-            return locator.Val;
-        default:
-            return Val;
-        }
-    }
-};
 Arg NailangHelper::ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor)
 {
     Expects(query.Size() > 0);
@@ -412,8 +394,7 @@ Arg NailangHelper::ExtractArg(Arg& target, SubQuery query, NailangExecutor& exec
             Serializer::Stringify(subq)));
     if (subq.Size() > 0)
     {
-        ArgWrapper tmp;
-        return ExtractArg(tmp.For(locator), subq, executor);
+        return ExtractArg(locator.ResolveGetter(), subq, executor);
     }
     else
     {
@@ -425,8 +406,7 @@ bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecu
 {
     if (query.Size() > 0)
     {
-        ArgWrapper tmp;
-        auto next = tmp.For(target).HandleQuery(query, executor);
+        auto next = target.ResolveGetter().HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if (!next)
             COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
@@ -447,8 +427,7 @@ auto NailangHelper::LocateAndExecute(ArgLocator& target, SubQuery query, Nailang
 {
     if (query.Size() > 0)
     {
-        ArgWrapper tmp;
-        auto next = tmp.For(target).HandleQuery(query, executor);
+        auto next = target.ResolveGetter().HandleQuery(query, executor);
         auto subq = query.Sub(next.GetConsumed());
         if constexpr (IsWrite)
         {
