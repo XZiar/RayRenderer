@@ -170,7 +170,7 @@ bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
     return true;
 }
 
-std::u32string_view AutoVarHandlerBase::GetTypeName() noexcept
+std::u32string_view AutoVarHandlerBase::GetTypeName(const CustomVar&) noexcept
 {
     return TypeName;
 }

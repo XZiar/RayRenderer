@@ -55,7 +55,7 @@ NLDXExtension::NLDXExtension(NLDXContext& context) : xcomp::XCNLExtension(contex
 NLDXExtension::~NLDXExtension() { }
 
 
-struct NLDXContext::DXUVar : public AutoVarHandler<NLDXContext>
+struct NLDXContext::DXUVar final : public AutoVarHandler<NLDXContext>
 {
     DXUVar() : AutoVarHandler<NLDXContext>(U"NLDX"sv)
     {
@@ -85,6 +85,10 @@ struct NLDXContext::DXUVar : public AutoVarHandler<NLDXContext>
         if (type == Arg::Type::Bool)
             return true;
         return {};
+    }
+    Arg::Type QueryConvertSupport(const CustomVar&) noexcept override
+    {
+        return Arg::Type::BoolBit;
     }
 };
 

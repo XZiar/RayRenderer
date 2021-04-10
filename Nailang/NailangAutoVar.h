@@ -66,7 +66,7 @@ public:
 
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override;
     bool HandleAssign(CustomVar& var, Arg val) override;
-    std::u32string_view GetTypeName() noexcept override;
+    std::u32string_view GetTypeName(const CustomVar&) noexcept override;
 };
 
 #if COMPILER_MSVC

@@ -14,6 +14,7 @@ inline constexpr T& operator |= (T& x, const T y) { x = x | y; return x; }      
 inline constexpr T& operator ^= (T& x, const T y) { x = x ^ y; return x; }                                                  \
 inline constexpr T  operator ~  (const T x) { return static_cast<T>(~static_cast<U>(x)); }                                  \
 inline constexpr bool HAS_FIELD(const T x, const T obj) { return static_cast<U>(x & obj) != 0; }                            \
+inline constexpr bool MATCH_FIELD(const T x, const T obj) { return (x & obj) == obj; }                                      \
 template<typename... Masks>                                                                                                 \
 inline constexpr T REMOVE_MASK(const T x, const Masks... masks)                                                             \
 {                                                                                                                           \

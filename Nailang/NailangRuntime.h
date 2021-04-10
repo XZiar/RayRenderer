@@ -100,23 +100,23 @@ public:
 };
 
 
-struct NAILANGAPI EmbedOpEval
-{
-    [[nodiscard]] static Arg Equal        (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Less         (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
-    [[nodiscard]] static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
-    [[nodiscard]] static Arg And          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Or           (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Add          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Sub          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Mul          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Div          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
-    [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
-};
+//struct NAILANGAPI EmbedOpEval
+//{
+//    [[nodiscard]] static Arg Equal        (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg NotEqual     (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Less         (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg LessEqual    (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Greater      (const Arg& left, const Arg& right) noexcept { return Less(right, left); }
+//    [[nodiscard]] static Arg GreaterEqual (const Arg& left, const Arg& right) noexcept { return LessEqual(right, left); }
+//    [[nodiscard]] static Arg And          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Or           (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Add          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Sub          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Mul          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Div          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Rem          (const Arg& left, const Arg& right) noexcept;
+//    [[nodiscard]] static Arg Not          (const Arg& arg) noexcept;
+//};
 
 
 namespace detail

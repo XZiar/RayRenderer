@@ -46,7 +46,7 @@ NLCLExtension::NLCLExtension(NLCLContext& context) : xcomp::XCNLExtension(contex
 NLCLExtension::~NLCLExtension() { }
 
 
-struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
+struct NLCLContext::OCLUVar final : public AutoVarHandler<NLCLContext>
 {
     struct CLExtVar : public CustomVar::Handler
     {
@@ -64,7 +64,7 @@ struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
             const auto tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(exts.Size(), idx, &src);
             return common::str::to_u32string(exts[tidx]);
         }
-        std::u32string_view GetTypeName() noexcept override { return U"OCLUDeviceExtensions"sv; }
+        std::u32string_view GetTypeName(const xziar::nailang::CustomVar&) noexcept override { return U"OCLUDeviceExtensions"sv; }
     };
     OCLUVar() : AutoVarHandler<NLCLContext>(U"NLCL"sv)
     {
@@ -124,6 +124,10 @@ struct NLCLContext::OCLUVar : public AutoVarHandler<NLCLContext>
         if (type == Arg::Type::Bool)
             return true;
         return {};
+    }
+    Arg::Type QueryConvertSupport(const CustomVar&) noexcept override
+    {
+        return Arg::Type::BoolBit;
     }
 };
 

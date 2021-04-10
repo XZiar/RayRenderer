@@ -375,8 +375,8 @@ void Arg::Release() noexcept
 
 std::optional<bool> Arg::GetBool() const noexcept
 {
-    if (IsCustom() && HAS_FIELD(TypeData, Type::Boolable))
-        return ConvertCustomType(Type::Bool).GetBool();
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::Boolable).GetBool();
     switch (TypeData)
     {
     case Type::Uint:    return  GetVar<Type::Uint>() != 0;
@@ -390,22 +390,22 @@ std::optional<bool> Arg::GetBool() const noexcept
 }
 std::optional<uint64_t> Arg::GetUint() const noexcept
 {
-    if (IsCustom() && HAS_FIELD(TypeData, Type::Number))
-        return ConvertCustomType(Type::Uint).GetUint();
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetUint();
     switch (TypeData)
     {
     case Type::Uint:    return GetVar<Type::Uint>();
     case Type::Int:     return static_cast<uint64_t>(GetVar<Type::Int>());
     case Type::FP:      return static_cast<uint64_t>(GetVar<Type::FP>());
-    case Type::Bool:    return GetVar<Type::Bool>() ? 1 : 0;
+    case Type::Bool:    return GetVar<Type::Bool>() ? 1u : 0u;
     default:            return {};
     }
     
 }
 std::optional<int64_t> Arg::GetInt() const noexcept
 {
-    if (IsCustom() && HAS_FIELD(TypeData, Type::Number))
-        return ConvertCustomType(Type::Int).GetInt();
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetUint();
     switch (TypeData)
     {
     case Type::Uint:    return static_cast<int64_t>(GetVar<Type::Uint>());
@@ -418,8 +418,8 @@ std::optional<int64_t> Arg::GetInt() const noexcept
 }
 std::optional<double> Arg::GetFP() const noexcept
 {
-    if (IsCustom() && HAS_FIELD(TypeData, Type::Number))
-        return ConvertCustomType(Type::FP).GetBool();
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetFP();
     switch (TypeData)
     {
     case Type::Uint:    return static_cast<double>(GetVar<Type::Uint>());
@@ -431,8 +431,8 @@ std::optional<double> Arg::GetFP() const noexcept
 }
 std::optional<std::u32string_view> Arg::GetStr() const noexcept
 {
-    if (IsCustom() && HAS_FIELD(TypeData, Type::Number))
-        return ConvertCustomType(Type::FP).GetStr();
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::StringBit).GetStr();
     switch (TypeData)
     {
     case Type::U32Str:  return GetVar<Type::U32Str>();
@@ -475,6 +475,16 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 }
 std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 {
+#if COMPILER_GCC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wswitch"
+#elif COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wswitch"
+#elif COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4063)
+#endif
     switch (type)
     {
     case Arg::Type::Empty:      return U"empty"sv;
@@ -485,14 +495,35 @@ std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
     case Arg::Type::Int:        return U"int"sv;
     case Arg::Type::FP:         return U"fp"sv;
     case Arg::Type::Bool:       return U"bool"sv;
-    case Arg::Type::Custom:     return U"custom"sv;
     case Arg::Type::Boolable:   return U"boolable"sv;
     case Arg::Type::String:     return U"string-ish"sv;
     case Arg::Type::ArrayLike:  return U"array-like"sv;
     case Arg::Type::Number:     return U"number"sv;
     case Arg::Type::Integer:    return U"integer"sv;
+    case Arg::Type::BoolBit:    return U"(bool)"sv;
+    case Arg::Type::StringBit:  return U"(str)"sv;
+    case Arg::Type::NumberBit:  return U"(num)"sv;
+    case Arg::Type::ArrayBit:   return U"(arr)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::StringBit: return U"(bool|str)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::NumberBit: return U"(bool|num)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::ArrayBit:  return U"(bool|arr)"sv;
+    case Arg::Type::StringBit | Arg::Type::NumberBit: return U"(str|num)"sv;
+    case Arg::Type::StringBit | Arg::Type::ArrayBit:  return U"(str|arr)"sv;
+    case Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(num|arr)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit: return U"(bool|str|num)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::ArrayBit:  return U"(bool|str|arr)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(bool|num|arr)"sv;
+    case Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(str|num|arr)"sv;
+    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit: return U"(bool|str|num|arr)"sv;
     default:                    return U"unknown"sv;
     }
+#if COMPILER_GCC
+#   pragma GCC diagnostic pop
+#elif COMPILER_CLANG
+#   pragma clang diagnostic pop
+#elif COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 }
 
 ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
@@ -552,44 +583,217 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
     }
     return {};
 }
+
 Arg Arg::HandleUnary(const EmbedOps op) const
 {
     if (IsCustom())
     {
         auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleUnary>(op);
+        auto ret = var.Call<&CustomVar::Handler::HandleUnary>(op);
+        if (!ret.IsEmpty())
+            return ret;
     }
     if (op == EmbedOps::Not)
-        return EmbedOpEval::Not(*this);
+    {
+        if (auto ret = GetBool(); ret)
+            return !ret.value();
+    }
     return {};
 }
+
+static Arg StrBinaryOp(const EmbedOps op, const std::u32string_view left, const std::u32string_view right) noexcept
+{
+    switch (op)
+    {
+    case EmbedOps::Equal:           return left == right;
+    case EmbedOps::NotEqual:        return left != right;
+    case EmbedOps::Less:            return left <  right;
+    case EmbedOps::LessEqual:       return left <= right;
+    case EmbedOps::Greater:         return left >  right;
+    case EmbedOps::GreaterEqual:    return left >= right;
+    case EmbedOps::Add:
+    {
+        std::u32string ret;
+        ret.reserve(left.size() + right.size());
+        ret.append(left).append(right);
+        return ret;
+    }
+    default:                        return {};
+    }
+}
+static Arg NumCompareOp(const EmbedOps op, const Arg& left, const Arg& right) noexcept
+{
+    // Expects(HAS_FIELD(right.TypeData, Arg::Type::NumberBit));
+    if (!HAS_FIELD(right.TypeData, Arg::Type::NumberBit))
+        return {};
+    if (const bool isLeftFP = HAS_FIELD(left.TypeData, Arg::Type::FPBit), isRightFP = HAS_FIELD(right.TypeData, Arg::Type::FPBit); 
+        isLeftFP || isRightFP)
+    {
+        const auto l = left.GetFP().value(), r = right.GetFP().value();
+        switch (op)
+        {
+        case EmbedOps::Equal:           return l == r;
+        case EmbedOps::NotEqual:        return l != r;
+        case EmbedOps::Less:            return l <  r;
+        case EmbedOps::LessEqual:       return l <= r;
+        case EmbedOps::Greater:         return l >  r;
+        case EmbedOps::GreaterEqual:    return l >= r;
+        default:                        return {};
+        }
+    }
+    const bool isLeftUnsigned = HAS_FIELD(left.TypeData, Arg::Type::UnsignedBit),
+        isRightUnsigned = HAS_FIELD(right.TypeData, Arg::Type::UnsignedBit);
+    if (isLeftUnsigned)
+    {
+        const auto l = left.GetVar<Arg::Type::Uint>();
+        const bool sameSign = isRightUnsigned || right.GetVar<Arg::Type::Int, false>() >= 0;
+        const auto r = right.GetVar<Arg::Type::Uint, false>();
+        switch (op)
+        {
+        case EmbedOps::Equal:           return  sameSign && l == r;
+        case EmbedOps::NotEqual:        return !sameSign || l != r;
+        case EmbedOps::Less:            return  sameSign && l <  r;
+        case EmbedOps::LessEqual:       return  sameSign && l <= r;
+        case EmbedOps::Greater:         return !sameSign || l >  r;
+        case EmbedOps::GreaterEqual:    return !sameSign || l >= r;
+        default:                        return {};
+        }
+    }
+    else
+    {
+        const auto l = left.GetVar<Arg::Type::Int>();
+        const bool sameSign = !isRightUnsigned;
+        const auto r = right.GetVar<Arg::Type::Int, false>();
+        switch (op)
+        {
+        case EmbedOps::Equal:           return  sameSign && l == r;
+        case EmbedOps::NotEqual:        return !sameSign || l != r;
+        case EmbedOps::Less:            return !sameSign || l <  r;
+        case EmbedOps::LessEqual:       return !sameSign || l <= r;
+        case EmbedOps::Greater:         return  sameSign && l >  r;
+        case EmbedOps::GreaterEqual:    return  sameSign && l >= r;
+        default:                        return {};
+        }
+    }
+}
+static Arg NumArthOp(const EmbedOps op, const Arg& left, const Arg& right) noexcept
+{
+    // Expects(HAS_FIELD(right.TypeData, Arg::Type::NumberBit | Arg::Type::BoolBit));
+    if (!HAS_FIELD(right.TypeData, Arg::Type::NumberBit | Arg::Type::BoolBit))
+        return {};
+    if (const bool isLeftFP = HAS_FIELD(left.TypeData, Arg::Type::FPBit), isRightFP = HAS_FIELD(right.TypeData, Arg::Type::FPBit); 
+        isLeftFP || isRightFP)
+    {
+        const auto l = left.GetFP().value(), r = right.GetFP().value();
+        switch (op)
+        {
+        case EmbedOps::Add: return l + r;
+        case EmbedOps::Sub: return l - r;
+        case EmbedOps::Mul: return l * r;
+        case EmbedOps::Div: return l / r;
+        case EmbedOps::Rem: return std::fmod(l, r);
+        default:            return {};
+        }
+    }
+    if (const bool isLeftUnsigned = HAS_FIELD(left.TypeData, Arg::Type::UnsignedBit),
+        isRightUnsigned = HAS_FIELD(right.TypeData, Arg::Type::UnsignedBit); isLeftUnsigned || isRightUnsigned)
+    {
+        const auto l = left.GetUint().value(), r = right.GetUint().value();
+        switch (op)
+        {
+        case EmbedOps::Add: return l + r;
+        case EmbedOps::Sub: return l - r;
+        case EmbedOps::Mul: return l * r;
+        case EmbedOps::Div: return l / r;
+        case EmbedOps::Rem: return l % r;
+        default:            return {};
+        }
+    }
+    {
+        const auto l = left.GetInt().value(), r = right.GetInt().value();
+        switch (op)
+        {
+        case EmbedOps::Add: return l + r;
+        case EmbedOps::Sub: return l - r;
+        case EmbedOps::Mul: return l * r;
+        case EmbedOps::Div: return l / r;
+        case EmbedOps::Rem: return l % r;
+        default:            return {};
+        }
+    }
+}
+
 Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
 {
+    const auto opCat = EmbedOpHelper::GetCategory(op);
+    Expects(opCat != EmbedOpHelper::OpCategory::Other); // should not be handled here
     if (IsCustom())
     {
         auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleBinary>(op, right);
+        auto ret = var.Call<&CustomVar::Handler::HandleBinary>(op, right);
+        if (!ret.IsEmpty())
+            return ret;
+        // try match right side type
+        if (!ret.IsCustom())
+        {
+            switch (op)
+            {
+            case EmbedOps::Equal:        return right.HandleBinary(EmbedOps::Equal,        *this);
+            case EmbedOps::NotEqual:     return right.HandleBinary(EmbedOps::NotEqual,     *this);
+            case EmbedOps::Less:         return right.HandleBinary(EmbedOps::Greater,      *this);
+            case EmbedOps::LessEqual:    return right.HandleBinary(EmbedOps::GreaterEqual, *this);
+            case EmbedOps::Greater:      return right.HandleBinary(EmbedOps::Less,         *this);
+            case EmbedOps::GreaterEqual: return right.HandleBinary(EmbedOps::LessEqual,    *this);
+            default:                     break;
+            }
+        }
+        return {};
     }
-    switch (op)
+    if (opCat == EmbedOpHelper::OpCategory::Logic) // special handle logic op, since val can decay to bool
     {
-#define EVAL_BIN_OP(type) case EmbedOps::type: return EmbedOpEval::type(*this, right)
-        EVAL_BIN_OP(Equal);
-        EVAL_BIN_OP(NotEqual);
-        EVAL_BIN_OP(Less);
-        EVAL_BIN_OP(LessEqual);
-        EVAL_BIN_OP(Greater);
-        EVAL_BIN_OP(GreaterEqual);
-        EVAL_BIN_OP(Add);
-        EVAL_BIN_OP(Sub);
-        EVAL_BIN_OP(Mul);
-        EVAL_BIN_OP(Div);
-        EVAL_BIN_OP(Rem);
-        EVAL_BIN_OP(And);
-        EVAL_BIN_OP(Or);
-#undef EVAL_BIN_OP
-    default: return {};
+        if (!HAS_FIELD(TypeData, Type::Boolable))
+            return {};
+        const auto r_ = right.GetBool();
+        if (!r_.has_value())
+            return {};
+        const auto l = GetBool().value(), r = r_.value();
+        return op == EmbedOps::And ? (l && r) : (l || r);
     }
+    if (HAS_FIELD(TypeData, Type::StringBit)) // direct process string, no decay
+    {
+        const auto r_ = right.GetStr();
+        if (!r_.has_value())
+            return {};
+        return StrBinaryOp(op, GetVar<Type::U32Sv, false>(), r_.value());
+    }
+    const bool isLeftNum = HAS_FIELD(TypeData, Type::NumberBit);
+    if (opCat == EmbedOpHelper::OpCategory::Compare) // special handle compare op, due to signeness
+    {
+        if (!isLeftNum)
+            return {};
+        if (right.IsCustom())
+            return NumCompareOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+        else
+            return NumCompareOp(op, *this, right);
+    }
+    Expects(opCat == EmbedOpHelper::OpCategory::Arth);
+    if (isLeftNum) // process as number
+    {
+        if (right.IsCustom())
+            return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+        else
+            return NumArthOp(op, *this, right);
+    }
+    else if (TypeData == Type::Bool) // consider is right can be number
+    {
+        if (right.IsCustom())
+            return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+        if (HAS_FIELD(TypeData, Type::NumberBit))
+            return NumArthOp(op, *this, right);
+    }
+    return {};
 }
+
 bool Arg::HandleBinaryOnSelf(const EmbedOps op, const Arg& right)
 {
     if (IsCustom())
@@ -601,15 +805,15 @@ bool Arg::HandleBinaryOnSelf(const EmbedOps op, const Arg& right)
 }
 
 
-void CustomVar::Handler::IncreaseRef(const CustomVar&) noexcept { }
-void CustomVar::Handler::DecreaseRef(CustomVar&) noexcept { }
-Arg::Type CustomVar::Handler::GetTypeDeclear() noexcept
-{
-    return Arg::Type::Var;
-}
-std::u32string_view CustomVar::Handler::GetTypeName() noexcept
+std::u32string_view CustomVar::Handler::GetTypeName(const CustomVar&) noexcept
 {
     return U"CustomVar"sv;
+}
+void CustomVar::Handler::IncreaseRef(const CustomVar&) noexcept { }
+void CustomVar::Handler::DecreaseRef(CustomVar&) noexcept { }
+Arg::Type CustomVar::Handler::QueryConvertSupport(const CustomVar&) noexcept
+{
+    return Arg::Type::Empty;
 }
 Arg CustomVar::Handler::IndexerGetter(const CustomVar&, const Arg&, const Expr&) 
 { 
@@ -701,9 +905,9 @@ CompareResult CustomVar::Handler::Compare(const CustomVar& var, const Arg& other
     }
     return { };
 }
-common::str::StrVariant<char32_t> CustomVar::Handler::ToString(const CustomVar&) noexcept
+common::str::StrVariant<char32_t> CustomVar::Handler::ToString(const CustomVar& var) noexcept
 {
-    return GetTypeName();
+    return GetTypeName(var);
 }
 Arg CustomVar::Handler::ConvertToCommon(const CustomVar&, Arg::Type) noexcept
 {

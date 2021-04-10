@@ -45,9 +45,20 @@ enum class EmbedOps : uint8_t
 };
 struct EmbedOpHelper
 {
+    enum class OpCategory { Other = 0, Compare = 1, Logic = 2, Arth = 3 };
     [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept
     {
         return common::enum_cast(op) >= 128;
+    }
+    [[nodiscard]] static constexpr OpCategory GetCategory(EmbedOps op) noexcept
+    {
+        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::GreaterEqual))
+            return OpCategory::Compare;
+        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::Or) || op == EmbedOps::Not)
+            return OpCategory::Logic;
+        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::Rem))
+            return OpCategory::Arth;
+        return OpCategory::Other;
     }
     [[nodiscard]] static std::u32string_view GetOpName(EmbedOps op) noexcept;
 };
@@ -426,27 +437,21 @@ struct Arg
 public:
     enum class Type : uint16_t
     {
-        // |0   |1   |2  |3  |4  |...|7     |
-        // |real|bool|str|num|arr|...|custom|
-        // For Str
-        // |8       |...15|
-        // |real str|.....|
-        // For Num
-        // |8  |9       |...15|
-        // |int|unsigned|.....|
-        Empty = 0, RealType = 0b00000001,
-        Boolable = 0b00000010, String = 0b00000110, Number = 0b00001010, ArrayLike = 0b00010000, Custom = 0b10000000,
-        IntegerBit = 0b00000001 << 8, UnsignedBit = 0b00000010 << 8, 
-        StrRealBit = 0b00000001 << 8,
-        Integer = Number | IntegerBit,
-        Bool   = RealType | Boolable,
-        U32Sv  = RealType | String   | Empty,
-        U32Str = RealType | String   | StrRealBit,
-        FP     = RealType | Number   | Empty,
-        Uint   = RealType | Integer  | UnsignedBit, 
-        Int    = RealType | Integer  | Empty,
-        Array  = RealType | ArrayLike,
-        Var    = RealType | Custom,
+        Empty = 0, CategoryMask = 0xf000, CapabilityMask = 0x0f, ExtendedMask = 0xff0,
+        BoolBit = 0x1, StringBit = 0x2, NumberBit = 0x4, ArrayBit = 0x8,
+        StrOwnBit = 0x10, FPBit = 0x20, IntegerBit = 0x40, UnsignedBit = 0x80,
+        ExTypeBit = 0x800,
+        Boolable = BoolBit | ExTypeBit, String = StringBit | BoolBit | ExTypeBit, Number = NumberBit | BoolBit | ExTypeBit, 
+        Integer = Number | IntegerBit, ArrayLike = ArrayBit | ExTypeBit,
+        CategoryCustom = 0x1000, CategoryArray = 0x2000, CategoryString = 0x3000, CategoryNumber = 0x4000, CategoryBool = 0x5000,
+        Bool   = CategoryBool   | Boolable,
+        Array  = CategoryArray  | ArrayLike,
+        U32Sv  = CategoryString | String,
+        U32Str = CategoryString | String  | StrOwnBit,
+        FP     = CategoryNumber | Number  | FPBit,
+        Uint   = CategoryNumber | Integer | UnsignedBit,
+        Int    = CategoryNumber | Integer,
+        Var    = CategoryCustom,
     };
 private:
     detail::IntFPUnion Data0;
@@ -454,14 +459,13 @@ private:
     uint32_t Data2;
     uint16_t Data3;
     NAILANGAPI void Release() noexcept;
-    [[nodiscard]] Arg ConvertCustomType(Type type) const noexcept;
 public:
     Type TypeData;
 
-    template<Type T>
+    template<Type T, bool Check = true>
     [[nodiscard]] constexpr auto GetVar() const noexcept
     {
-        Expects(TypeData == T);
+        Expects(!Check || TypeData == T);
         if constexpr (T == Type::Var)
             return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
         else if constexpr (T == Type::Array)
@@ -486,7 +490,13 @@ public:
     { }
     //NAILANGAPI explicit Arg(const CustomVar& var) noexcept;
     Arg(const CustomVar& var) noexcept = delete;
-    Arg(CustomVar&& var) noexcept;
+    Arg(CustomVar&& var) noexcept : Data0(reinterpret_cast<uint64_t>(var.Host)),
+        Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
+    {
+        Expects(var.Host != nullptr);
+        var.Host = nullptr;
+        var.Meta0 = var.Meta1 = var.Meta2 = 0;
+    }
     Arg(const FixedArray arr) noexcept :
         Data0(arr.DataPtr), Data1(arr.Length), Data2(common::enum_cast(arr.ElementType)), Data3(arr.IsReadOnly ? 1 : 0), TypeData(Type::Array)
     { }
@@ -623,10 +633,10 @@ static_assert(alignof(Arg) == alignof(CustomVar));
 struct NAILANGAPI CustomVar::Handler
 {
 public:
+    [[nodiscard]] virtual std::u32string_view GetTypeName(const CustomVar&) noexcept;
     virtual void IncreaseRef(const CustomVar&) noexcept;
     virtual void DecreaseRef(CustomVar&) noexcept;
-    [[nodiscard]] virtual Arg::Type GetTypeDeclear() noexcept;
-    [[nodiscard]] virtual std::u32string_view GetTypeName() noexcept;
+    [[nodiscard]] virtual Arg::Type QueryConvertSupport(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangExecutor&);
@@ -646,27 +656,15 @@ public:
     auto self = *this;
     return self;
 }
-inline Arg::Arg(CustomVar&& var) noexcept : Data0(reinterpret_cast<uint64_t>(var.Host)),
-    Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(var.Host->GetTypeDeclear())
-{
-    Expects(var.Host != nullptr);
-    Expects((TypeData & Type::Var) == Type::Var);
-    var.Host = nullptr;
-    var.Meta0 = var.Meta1 = var.Meta2 = 0;
-}
 [[nodiscard]] inline constexpr bool Arg::IsCustom() const noexcept
 {
-    return HAS_FIELD(TypeData, Type::Custom);
+    return (TypeData & Type::CategoryMask) == Type::CategoryCustom;
 }
 [[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
 {
     if (IsCustom())
-        return GetCustom().Host->GetTypeName();
+        return GetCustom().Call<&CustomVar::Handler::GetTypeName>();
     return TypeName(TypeData);
-}
-[[nodiscard]] inline Arg Arg::ConvertCustomType(Type type) const noexcept
-{
-    return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(type);
 }
 
 

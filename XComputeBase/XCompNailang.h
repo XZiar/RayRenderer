@@ -796,7 +796,7 @@ protected:
     bool HandleAssign(xziar::nailang::CustomVar& var, xziar::nailang::Arg arg) override;
     xziar::nailang::CompareResult CompareSameClass(const xziar::nailang::CustomVar&, const xziar::nailang::CustomVar&) final;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
-    std::u32string_view GetTypeName() noexcept override;
+    std::u32string_view GetTypeName(const xziar::nailang::CustomVar&) noexcept override;
     std::u32string GetExactType(const xziar::nailang::FixedArray& arr) noexcept;
 public:
     static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
@@ -819,7 +819,7 @@ class XCOMPBASAPI GeneralVec : public GeneralVecRef
     void IncreaseRef(const xziar::nailang::CustomVar& var) noexcept override;
     void DecreaseRef(xziar::nailang::CustomVar& var) noexcept override;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
-    std::u32string_view GetTypeName() noexcept override;
+    std::u32string_view GetTypeName(const xziar::nailang::CustomVar&) noexcept override;
 public:
     static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray::Type type, size_t len);
     template<typename T>

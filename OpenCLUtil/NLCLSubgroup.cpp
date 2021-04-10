@@ -202,7 +202,7 @@ std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& execut
     {
         executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
         //Executor.ThrowByArgCount(func, 2, ArgLimits::AtLeast);
-        executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::Boolable, Arg::Type::String, Arg::Type::String, Arg::Type::String });
+        executor.ThrowByParamTypes<2, 4>(func, { Arg::Type::BoolBit, Arg::Type::String, Arg::Type::String, Arg::Type::String });
         const auto isShuffle = func.Params[0].GetBool().value();
         const auto vstr  = func.Params[1].GetStr().value();
         const auto vtype = runtime.ParseVecDataInfo(vstr, u"call [AddSubgroupPatch]"sv);

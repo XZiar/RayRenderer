@@ -348,7 +348,7 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     {
         return CompareResultCore::Equality | (GetObj(lhs) == GetObj(rhs) ? CompareResultCore::Equal : CompareResultCore::NotEqual);
     }
-    std::u32string_view GetTypeName() noexcept final
+    std::u32string_view GetTypeName(const CustomVar&) noexcept final
     {
         return U"xcomp::arg"sv;
     }
@@ -1642,7 +1642,7 @@ std::u32string GeneralVecRef::GetExactType(const xziar::nailang::FixedArray& arr
 {
     return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
-std::u32string_view GeneralVecRef::GetTypeName() noexcept
+std::u32string_view GeneralVecRef::GetTypeName(const xziar::nailang::CustomVar&) noexcept
 {
     return U"xcomp::vecref"sv;
 }
@@ -1760,7 +1760,7 @@ common::str::StrVariant<char32_t> GeneralVec::ToString(const CustomVar& var) noe
     const auto arr = ToArray(var);
     return FMTSTR(U"xcomp::vec<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
-std::u32string_view GeneralVec::GetTypeName() noexcept
+std::u32string_view GeneralVec::GetTypeName(const xziar::nailang::CustomVar&) noexcept
 {
     return U"xcomp::vec"sv;
 }

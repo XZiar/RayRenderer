@@ -199,162 +199,6 @@ size_t CompactEvaluateContext::GetFuncCount() const noexcept
 }
 
 
-#define LR_BOTH(left, right, func) left.func() && right.func()
-Arg EmbedOpEval::Equal(const Arg& left, const Arg& right) noexcept
-{
-    if (LR_BOTH(left, right, IsInteger))
-        return left.GetUint() == right.GetUint();
-    if (LR_BOTH(left, right, IsBool))
-        return left.GetVar<Arg::Type::Bool>() == right.GetVar<Arg::Type::Bool>();
-    if (LR_BOTH(left, right, IsStr))
-        return left.GetStr() == right.GetStr();
-    if (LR_BOTH(left, right, IsFloatPoint))
-        return left.GetVar<Arg::Type::FP>() == right.GetVar<Arg::Type::FP>();
-    if (LR_BOTH(left, right, IsNumber))
-        return left.GetFP() == right.GetFP();
-    return {};
-}
-Arg EmbedOpEval::NotEqual(const Arg& left, const Arg& right) noexcept
-{
-    const auto ret = Equal(left, right);
-    if (ret.IsBool())
-        return !ret.GetVar<Arg::Type::Bool>();
-    return ret;
-}
-template<typename F>
-forceinline static Arg NumOp(const Arg& left, const Arg& right, F func) noexcept
-{
-    using Type = Arg::Type;
-    switch (left.TypeData)
-    {
-    case Type::FP:
-    {
-        const auto left_ = left.GetVar<Type::FP>();
-        switch (right.TypeData)
-        {
-        case Type::FP:      return func(left_, right.GetVar<Type::FP>());
-        case Type::Uint:    return func(left_, right.GetVar<Type::Uint>());
-        case Type::Int:     return func(left_, right.GetVar<Type::Int>());
-        default:            break;
-        }
-    } break;
-    case Type::Uint:
-    {
-        const auto left_ = left.GetVar<Type::Uint>();
-        switch (right.TypeData)
-        {
-        case Type::FP:      return func(left_, right.GetVar<Type::FP>());
-        case Type::Uint:    return func(left_, right.GetVar<Type::Uint>());
-        case Type::Int:     return func(left_, right.GetVar<Type::Int>());
-        default:            break;
-        }
-    } break;
-    case Type::Int:
-    {
-        const auto left_ = left.GetVar<Type::Int>();
-        switch (right.TypeData)
-        {
-        case Type::FP:      return func(left_, right.GetVar<Type::FP>());
-        case Type::Uint:    return func(left_, right.GetVar<Type::Uint>());
-        case Type::Int:     return func(left_, right.GetVar<Type::Int>());
-        default:            break;
-        }
-    } break;
-    default: break;
-    }
-    return {};
-}
-
-Arg EmbedOpEval::Less(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) -> bool
-        {
-            using TL = std::decay_t<decltype(l)>;
-            using TR = std::decay_t<decltype(r)>;
-            if constexpr (std::is_same_v<TL, int64_t> && std::is_same_v<TR, uint64_t>)
-                return l < 0 ? true  : static_cast<uint64_t>(l) < r;
-            else if constexpr (std::is_same_v<TL, uint64_t> && std::is_same_v<TR, int64_t>)
-                return r < 0 ? false : l < static_cast<uint64_t>(r);
-            else
-                return l < r; 
-        });
-}
-Arg EmbedOpEval::LessEqual(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) -> bool
-        {
-            using TL = std::decay_t<decltype(l)>;
-            using TR = std::decay_t<decltype(r)>;
-            if constexpr (std::is_same_v<TL, int64_t>&& std::is_same_v<TR, uint64_t>)
-                return l < 0 ? true  : static_cast<uint64_t>(l) <= r;
-            else if constexpr (std::is_same_v<TL, uint64_t>&& std::is_same_v<TR, int64_t>)
-                return r < 0 ? false : l <= static_cast<uint64_t>(r);
-            else
-                return l <= r;
-        });
-}
-
-Arg EmbedOpEval::And(const Arg& left, const Arg& right) noexcept
-{
-    const auto left_ = left.GetBool(), right_ = right.GetBool();
-    if (left_.has_value() && right_.has_value())
-        return *left_ && *right_;
-    return {};
-}
-Arg EmbedOpEval::Or(const Arg& left, const Arg& right) noexcept
-{
-    const auto left_ = left.GetBool(), right_ = right.GetBool();
-    if (left_.has_value() && right_.has_value())
-        return *left_ || *right_;
-    return {};
-}
-
-Arg EmbedOpEval::Add(const Arg& left, const Arg& right) noexcept
-{
-    if (LR_BOTH(left, right, IsStr))
-    {
-        const auto left_  = * left.GetStr();
-        const auto right_ = *right.GetStr();
-        std::u32string ret;
-        ret.reserve(left_.size() + right_.size());
-        ret.append(left_).append(right_);
-        return ret;
-    }
-    return NumOp(left, right, [](const auto l, const auto r) { return l + r; });
-}
-Arg EmbedOpEval::Sub(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) { return l - r; });
-}
-Arg EmbedOpEval::Mul(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) { return l * r; });
-}
-Arg EmbedOpEval::Div(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) { return l / r; });
-}
-Arg EmbedOpEval::Rem(const Arg& left, const Arg& right) noexcept
-{
-    return NumOp(left, right, [](const auto l, const auto r) 
-        {
-            if constexpr (std::is_floating_point_v<decltype(l)> || std::is_floating_point_v<decltype(r)>)
-                return std::fmod(static_cast<double>(l), static_cast<double>(r));
-            else
-                return l % r; 
-        });
-}
-
-Arg EmbedOpEval::Not(const Arg& arg) noexcept
-{
-    const auto arg_ = arg.GetBool();
-    if (arg_.has_value())
-        return !*arg_;
-    return {};
-}
-#undef LR_BOTH
-
-
 size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src)
 {
     if (!idx.IsInteger())
@@ -694,10 +538,23 @@ void NailangBase::ThrowByArgTypes(const FuncCall& func, common::span<const Expr:
 }
 void NailangBase::ThrowByParamType(const FuncCall& func, const Arg& arg, const Arg::Type type, size_t idx) const
 {
-    if ((arg.TypeData & type) != type)
-        NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].",
-            Arg::TypeName(type), func.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(func.Args[idx])),
-            arg);
+    if (type == Arg::Type::Empty) return;
+    if ((type & Arg::Type::CategoryMask) != Arg::Type::Empty) // require specific type
+    {
+        if (arg.TypeData == type) return;
+    }
+    else if ((type & Arg::Type::ExtendedMask) != Arg::Type::Empty) // require 
+    {
+        if ((arg.TypeData & type) == type) return;
+    }
+    else // allow custom
+    {
+        const auto type_ = arg.IsCustom() ? arg.GetCustom().Call<&CustomVar::Handler::QueryConvertSupport>() : arg.TypeData;
+        if (HAS_FIELD(type_, type)) return;
+    }
+    NLRT_THROW_EX(FMTSTR(u"Expected [{}] for [{}]'s {} arg, which gives [{}], source is [{}].",
+        Arg::TypeName(type), func.FullFuncName(), idx, arg.GetTypeName(), Serializer::Stringify(func.Args[idx])),
+        arg);
 }
 void NailangBase::ThrowByParamTypes(const FuncPack& func, common::span<const Arg::Type> types, const ArgLimits limit, size_t offset) const
 {
@@ -965,12 +822,12 @@ NailangExecutor::MetaFuncResult NailangExecutor::HandleMetaFunc(FuncPack& meta, 
     const auto metaName = meta.FullFuncName();
     if (metaName == U"Skip")
     {
-        ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::Boolable });
+        ThrowByParamTypes<1, ArgLimits::AtMost>(meta, { Arg::Type::BoolBit });
         return (meta.Params.empty() || meta.Params[0].GetBool().value()) ? MetaFuncResult::Skip : MetaFuncResult::Next;
     }
     else if (metaName == U"If")
     {
-        ThrowByParamTypes<1>(meta, { Arg::Type::Boolable });
+        ThrowByParamTypes<1>(meta, { Arg::Type::BoolBit });
         const auto check = meta.Params[0].GetBool().value();
         GetFrame().IfRecord = check ? 0b1100u : 0b1000u; // expecting to be right shifted
         return check ? MetaFuncResult::Next : MetaFuncResult::Skip;
@@ -1085,38 +942,6 @@ Arg NailangExecutor::EvaluateFunc(FuncEvalPack& func)
             ThrowByParamTypes<2, ArgLimits::AtLeast>(func, { Arg::Type::String, Arg::Type::Empty });
             return FormatString(func.Params[0].GetStr().value(), func.Params.subspan(1));
         }
-        HashCase(name, U"ParseInt")
-        {
-            ThrowByParamTypes<1>(func, { Arg::Type::String });
-            int64_t ret = 0;
-            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
-                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseInt] is not integer : [{}]"sv, str), func);
-            return ret;
-        }
-        HashCase(name, U"ParseUint")
-        {
-            ThrowByParamTypes<1>(func, { Arg::Type::String });
-            uint64_t ret = 0;
-            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
-                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseUint] is not integer : [{}]"sv, str), func);
-            return ret;
-        }
-        HashCase(name, U"ParseFloat")
-        {
-            ThrowByParamTypes<1>(func, { Arg::Type::String });
-            double ret = 0;
-            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, false).first)
-                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not floatpoint : [{}]"sv, str), func);
-            return ret;
-        }
-        HashCase(name, U"ParseSciFloat")
-        {
-            ThrowByParamTypes<1>(func, { Arg::Type::String });
-            double ret = 0;
-            if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, true).first)
-                NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not scientific floatpoint : [{}]"sv, str), func);
-            return ret;
-        }
         default: break;
         }
     }
@@ -1149,10 +974,10 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         for (size_t i = 1; i < func.Params.size(); ++i)
         {
             const auto& left = func.Params[maxIdx], &right = func.Params[i];
-            const auto isLess = EmbedOpEval::Less(left, right);
-            if (isLess.IsEmpty())
+            const auto isLess = left.HandleBinary(EmbedOps::Less, right).GetBool();
+            if (!isLess.has_value())
                 NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
-            if (isLess.GetBool().value()) 
+            if (isLess.value()) 
                 maxIdx = i;
         }
         return func.Params[maxIdx];
@@ -1164,10 +989,10 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         for (size_t i = 1; i < func.Params.size(); ++i)
         {
             const auto& left = func.Params[i], & right = func.Params[minIdx];
-            const auto isLess = EmbedOpEval::Less(left, right);
-            if (isLess.IsEmpty())
+            const auto isLess = left.HandleBinary(EmbedOps::Less, right).GetBool();
+            if (!isLess.has_value())
                 NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
-            if (isLess.GetBool().value())
+            if (isLess.value())
                 minIdx = i;
         }
         return func.Params[minIdx];
@@ -1314,6 +1139,45 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         if (arg)
             return arg.value();
     } break;
+    HashCase(mathName, U"ToFP")
+    {
+        ThrowByArgCount(func, 1);
+        const auto arg = func.Params[0].GetFP();
+        if (arg)
+            return arg.value();
+    } break;
+    HashCase(mathName, U"ParseInt")
+    {
+        ThrowByParamTypes<1>(func, { Arg::Type::String });
+        int64_t ret = 0;
+        if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
+            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseInt] is not integer : [{}]"sv, str), func);
+        return ret;
+    }
+    HashCase(mathName, U"ParseUint")
+    {
+        ThrowByParamTypes<1>(func, { Arg::Type::String });
+        uint64_t ret = 0;
+        if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToInt(str, ret).first)
+            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseUint] is not integer : [{}]"sv, str), func);
+        return ret;
+    }
+    HashCase(mathName, U"ParseFloat")
+    {
+        ThrowByParamTypes<1>(func, { Arg::Type::String });
+        double ret = 0;
+        if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, false).first)
+            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not floatpoint : [{}]"sv, str), func);
+        return ret;
+    }
+    HashCase(mathName, U"ParseSciFloat")
+    {
+        ThrowByParamTypes<1>(func, { Arg::Type::String });
+        double ret = 0;
+        if (const auto str = common::str::to_string(func.Params[0].GetStr().value()); !common::StrToFP(str, ret, true).first)
+            NLRT_THROW_EX(FMTSTR(u"Arg of [ParseFloat] is not scientific floatpoint : [{}]"sv, str), func);
+        return ret;
+    }
     default: return {};
     }
     NLRT_THROW_EX(FMTSTR(u"MathFunc [{}] cannot be evaluated.", func.FullFuncName()), func);

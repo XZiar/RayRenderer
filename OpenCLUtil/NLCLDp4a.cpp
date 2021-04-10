@@ -76,7 +76,7 @@ std::optional<Arg> NLCLDp4aExtension::ConfigFunc(xcomp::XCNLExecutor& executor, 
     if (func.GetName() == U"oclu.IntelDp4a"sv)
     {
         executor.ThrowIfNotFuncTarget(func, xziar::nailang::FuncName::FuncInfo::Empty);
-        executor.ThrowByParamTypes<1>(func, { Arg::Type::Boolable });
+        executor.ThrowByParamTypes<1>(func, { Arg::Type::BoolBit });
         HasIntelDp4a = func.Params[0].GetBool().value();
         return Arg{};
     }

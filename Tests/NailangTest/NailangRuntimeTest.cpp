@@ -35,7 +35,6 @@ using xziar::nailang::EvaluateContext;
 using xziar::nailang::BasicEvaluateContext;
 using xziar::nailang::LargeEvaluateContext;
 using xziar::nailang::CompactEvaluateContext;
-using xziar::nailang::EmbedOpEval;
 
 
 testing::AssertionResult CheckArg(const Arg& arg, const Arg::Type type)
@@ -145,19 +144,19 @@ TEST(NailangBase, ArgToString)
 TEST(NailangRuntime, EvalEmbedOp)
 {
     using Type = Arg::Type;
-#define TEST_BIN(l, r, op, type, ans) do            \
-{                                                   \
-    Arg left(l), right(r);                          \
-    const auto ret = EmbedOpEval::op(left, right);  \
-    CHECK_ARG(ret, type, ans);                      \
+#define TEST_BIN(l, r, op, type, ans) do                        \
+{                                                               \
+    Arg left(l), right(r);                                      \
+    const auto ret = left.HandleBinary(EmbedOps::op, right);    \
+    CHECK_ARG(ret, type, ans);                                  \
 } while(0)                                          
 
-#define TEST_UN(val, op, type, ans) do      \
-{                                           \
-    Arg arg(val);                           \
-    const auto ret = EmbedOpEval::op(arg);  \
-    CHECK_ARG(ret, type, ans);              \
-} while(0)                                  \
+#define TEST_UN(val, op, type, ans) do              \
+{                                                   \
+    Arg arg(val);                                   \
+    const auto ret = arg.HandleUnary(EmbedOps::op); \
+    CHECK_ARG(ret, type, ans);                      \
+} while(0)                                          \
 
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,          Bool, false);
     TEST_BIN(uint64_t(0), uint64_t(0), NotEqual,       Bool, false);
@@ -325,10 +324,6 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    Arg::Type GetTypeDeclear() noexcept
-    {
-        return Arg::Type::Var | Arg::Type::ArrayLike;
-    }
     ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override
     {
         ArrRef(arr, var);
@@ -433,7 +428,7 @@ TEST(NailangRuntime, CustomVar)
     runtime.SetRootArg(U"arr", ArrayCustomVar::Create(dummy));
     {
         const auto arg = runtime.QuickGetArg(U"arr"sv);
-        ASSERT_TRUE(CheckArg(arg, Arg::Type::Var | Arg::Type::ArrayLike));
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Var));
         const auto& var = arg.GetCustom();
         ASSERT_EQ(var.Host, &ArrayCustomVarHandler);
         const auto data = Span(ArrayCustomVar::GetData(var));
