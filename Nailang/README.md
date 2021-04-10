@@ -61,25 +61,25 @@ Operator is used for better readibility, eg, `1+a`, `4 && false`, `!true`.
 
 **Operator Expression can have one, two, three leaves**, which means there's `Unary Operator`, `Binary Operator`, `Ternary Operator`.
 
-| Operator | Name | Type | Argument | Return | Example |
-|:--------:|:----:|:----:|:--------:|:------:|--------:|
-| `==` | Equal         |  Binary | Num, Bool, Str | Bool     |`1==3`|
-| `!=` | Not Equal     |  Binary | Num, Bool, Str | Bool     |`1!=3`|
-| `<`  | Less Than     |  Binary | Num            | Bool     |`1<3`|
-| `<=` | Less Equal    |  Binary | Num            | Bool     |`1<=3`|
-| `>`  | Greater Than  |  Binary | Num            | Bool     |`1>3`|
-| `>=` | Greater Equal |  Binary | Num            | Bool     |`1>=3`|
-| `&&` | And           |  Binary | Boolable       | Bool     |`true && 3`|
-|`\|\|`| Or            |  Binary | Boolable       | Bool     |`1 \|\| false`|
-| `+`  | Add           |  Binary | Num, Str       | Num, Str |`1 + 3`|
-| `-`  | Minus         |  Binary | Num            | Num      |`1 - 3`|
-| `*`  | Multiply      |  Binary | Num            | Num      |`1 * 3`|
-| `/`  | Division      |  Binary | Num            | Num      |`1 / 3`|
-| `%`  | Reminder      |  Binary | Num            | Num      |`1 % 3`|
-| `??` | Value Or      |  Binary | Any            | Any      |`a ?? 3`|
-| `?`  | Check Exists  |   Unary | Var            | Bool     |`?abc`|
-| `!`  | Not           |   Unary | Boolable       | Bool     |`!true`|
-|`? :` | Conditional   | Ternary | Any            | Any      |`a ? 1 : 3`|
+| Operator | Name | Category | Type | Argument | Return | Example |
+|:--------:|:----:|:--------:|:----:|:--------:|:------:|--------:|
+| `==` | Equal         | Compare |  Binary | Num, Bool, Str | Bool     |`1==3`|
+| `!=` | Not Equal     | Compare |  Binary | Num, Bool, Str | Bool     |`1!=3`|
+| `<`  | Less Than     | Compare |  Binary | Num            | Bool     |`1<3`|
+| `<=` | Less Equal    | Compare |  Binary | Num            | Bool     |`1<=3`|
+| `>`  | Greater Than  | Compare |  Binary | Num            | Bool     |`1>3`|
+| `>=` | Greater Equal | Compare |  Binary | Num            | Bool     |`1>=3`|
+| `&&` | And           |  Logic  |  Binary | Boolable       | Bool     |`true && 3`|
+|`\|\|`| Or            |  Logic  |  Binary | Boolable       | Bool     |`1 \|\| false`|
+| `+`  | Add           |  Arth   |  Binary | Num, Str       | Num, Str |`1 + 3`|
+| `-`  | Minus         |  Arth   |  Binary | Num            | Num      |`1 - 3`|
+| `*`  | Multiply      |  Arth   |  Binary | Num            | Num      |`1 * 3`|
+| `/`  | Division      |  Arth   |  Binary | Num            | Num      |`1 / 3`|
+| `%`  | Reminder      |  Arth   |  Binary | Num            | Num      |`1 % 3`|
+| `??` | Value Or      |  Other  |  Binary | Any            | Any      |`a ?? 3`|
+| `?`  | Check Exists  |  Other  |   Unary | Var            | Bool     |`?abc`|
+| `!`  | Not           |  Logic  |   Unary | Boolable       | Bool     |`!true`|
+|`? :` | Conditional   |  Other  | Ternary | Any            | Any      |`a ? 1 : 3`|
 
 #### Short-circuit evaluation
 
@@ -266,7 +266,21 @@ You can extend Nailang with custom type with the metadata being provided.
 
 ### Type Promotion
 
-Type promotion is similar to C++ since the implementation is C++ based.
+The general type promotion rule is simply `INT` -> `UINT` -> `FP`.
+#### arthmetic
+Doing arthimetic is similar to C++ since the implementation is C++ based.
+
+1. If any side of comparing is `FP`, then both side will be convert to `FP` (may lose precision).
+2. If any side of comparing is `UINT`, then both side will be convert to `UINT` (may cause signedness inversion).
+3. If one side if `Bool`, it will be treated as `INT` and be covnerted as the type of the other side.
+4. No operation between `Bool` and `Bool`.
+
+### comparison
+Doing comparison is different to C++ since Nailang tries to preserve the signedness. 
+
+1. Only support comaprison between `Num`, so `Bool` won't be automatically promoted.
+2. If any side of comparing is `FP`, then both side will be convert to `FP` (may lose precision).
+3. Check the signedness first, then try to compare using the type of left side. Both side should be either `INT` or `UINT` and they are binary-compatible.
 
 ## License
 

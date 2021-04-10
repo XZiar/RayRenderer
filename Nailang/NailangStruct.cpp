@@ -376,7 +376,7 @@ void Arg::Release() noexcept
 std::optional<bool> Arg::GetBool() const noexcept
 {
     if (IsCustom())
-        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::Boolable).GetBool();
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::BoolBit).GetBool();
     switch (TypeData)
     {
     case Type::Uint:    return  GetVar<Type::Uint>() != 0;
@@ -391,7 +391,7 @@ std::optional<bool> Arg::GetBool() const noexcept
 std::optional<uint64_t> Arg::GetUint() const noexcept
 {
     if (IsCustom())
-        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetUint();
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::BoolBit).GetUint();
     switch (TypeData)
     {
     case Type::Uint:    return GetVar<Type::Uint>();
@@ -405,7 +405,7 @@ std::optional<uint64_t> Arg::GetUint() const noexcept
 std::optional<int64_t> Arg::GetInt() const noexcept
 {
     if (IsCustom())
-        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetUint();
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::BoolBit).GetUint();
     switch (TypeData)
     {
     case Type::Uint:    return static_cast<int64_t>(GetVar<Type::Uint>());
@@ -419,7 +419,7 @@ std::optional<int64_t> Arg::GetInt() const noexcept
 std::optional<double> Arg::GetFP() const noexcept
 {
     if (IsCustom())
-        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::Boolable).GetFP();
+        return GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit | Type::BoolBit).GetFP();
     switch (TypeData)
     {
     case Type::Uint:    return static_cast<double>(GetVar<Type::Uint>());
@@ -584,97 +584,79 @@ ArgLocator Arg::HandleQuery(SubQuery subq, NailangExecutor& runtime)
     return {};
 }
 
-Arg Arg::HandleUnary(const EmbedOps op) const
-{
-    if (IsCustom())
-    {
-        auto& var = GetCustom();
-        auto ret = var.Call<&CustomVar::Handler::HandleUnary>(op);
-        if (!ret.IsEmpty())
-            return ret;
-    }
-    if (op == EmbedOps::Not)
-    {
-        if (auto ret = GetBool(); ret)
-            return !ret.value();
-    }
-    return {};
-}
-
-static Arg StrBinaryOp(const EmbedOps op, const std::u32string_view left, const std::u32string_view right) noexcept
-{
-    switch (op)
-    {
-    case EmbedOps::Equal:           return left == right;
-    case EmbedOps::NotEqual:        return left != right;
-    case EmbedOps::Less:            return left <  right;
-    case EmbedOps::LessEqual:       return left <= right;
-    case EmbedOps::Greater:         return left >  right;
-    case EmbedOps::GreaterEqual:    return left >= right;
-    case EmbedOps::Add:
-    {
-        std::u32string ret;
-        ret.reserve(left.size() + right.size());
-        ret.append(left).append(right);
-        return ret;
-    }
-    default:                        return {};
-    }
-}
-static Arg NumCompareOp(const EmbedOps op, const Arg& left, const Arg& right) noexcept
+static CompareResult NumCompare(const Arg& left, const Arg& right) noexcept
 {
     // Expects(HAS_FIELD(right.TypeData, Arg::Type::NumberBit));
     if (!HAS_FIELD(right.TypeData, Arg::Type::NumberBit))
         return {};
-    if (const bool isLeftFP = HAS_FIELD(left.TypeData, Arg::Type::FPBit), isRightFP = HAS_FIELD(right.TypeData, Arg::Type::FPBit); 
+    if (const bool isLeftFP = HAS_FIELD(left.TypeData, Arg::Type::FPBit), isRightFP = HAS_FIELD(right.TypeData, Arg::Type::FPBit);
         isLeftFP || isRightFP)
     {
+        static_assert(std::numeric_limits<double>::is_iec559, "Need support for IEEE 754");
         const auto l = left.GetFP().value(), r = right.GetFP().value();
-        switch (op)
-        {
-        case EmbedOps::Equal:           return l == r;
-        case EmbedOps::NotEqual:        return l != r;
-        case EmbedOps::Less:            return l <  r;
-        case EmbedOps::LessEqual:       return l <= r;
-        case EmbedOps::Greater:         return l >  r;
-        case EmbedOps::GreaterEqual:    return l >= r;
-        default:                        return {};
-        }
+        if (std::isnan(l) || std::isnan(r))
+            return CompareResultCore::NotEqual | CompareResultCore::Equality;
+        if (l < r) return CompareResultCore::Less    | CompareResultCore::StrongOrder;
+        if (l > r) return CompareResultCore::Greater | CompareResultCore::StrongOrder;
+        return CompareResultCore::Equal | CompareResultCore::StrongOrder;
     }
-    const bool isLeftUnsigned = HAS_FIELD(left.TypeData, Arg::Type::UnsignedBit),
-        isRightUnsigned = HAS_FIELD(right.TypeData, Arg::Type::UnsignedBit);
-    if (isLeftUnsigned)
+    const bool isLeftUnsigned  = HAS_FIELD( left.TypeData, Arg::Type::UnsignedBit);
+    const bool isRightUnsigned = HAS_FIELD(right.TypeData, Arg::Type::UnsignedBit);
+    const bool isLeftNeg  = !isLeftUnsigned  &&  left.GetVar<Arg::Type::Int, false>() < 0;
+    const bool isRightNeg = !isRightUnsigned && right.GetVar<Arg::Type::Int, false>() < 0;
+    if (isLeftNeg && !isRightNeg)
+        return CompareResultCore::Less | CompareResultCore::StrongOrder;
+    if (!isLeftNeg && isRightNeg)
+        return CompareResultCore::Greater | CompareResultCore::StrongOrder;
+    if (isLeftNeg) // both neg
     {
-        const auto l = left.GetVar<Arg::Type::Uint>();
-        const bool sameSign = isRightUnsigned || right.GetVar<Arg::Type::Int, false>() >= 0;
+        const auto l =  left.GetVar<Arg::Type::Int>();
+        const auto r = right.GetVar<Arg::Type::Int>();
+        if (l < r) return CompareResultCore::Less    | CompareResultCore::StrongOrder;
+        if (l > r) return CompareResultCore::Greater | CompareResultCore::StrongOrder;
+        return CompareResultCore::Equal | CompareResultCore::StrongOrder;
+    }
+    else // both pos
+    {
+        const auto l =  left.GetVar<Arg::Type::Uint, false>();
         const auto r = right.GetVar<Arg::Type::Uint, false>();
-        switch (op)
-        {
-        case EmbedOps::Equal:           return  sameSign && l == r;
-        case EmbedOps::NotEqual:        return !sameSign || l != r;
-        case EmbedOps::Less:            return  sameSign && l <  r;
-        case EmbedOps::LessEqual:       return  sameSign && l <= r;
-        case EmbedOps::Greater:         return !sameSign || l >  r;
-        case EmbedOps::GreaterEqual:    return !sameSign || l >= r;
-        default:                        return {};
-        }
+        if (l < r) return CompareResultCore::Less    | CompareResultCore::StrongOrder;
+        if (l > r) return CompareResultCore::Greater | CompareResultCore::StrongOrder;
+        return CompareResultCore::Equal | CompareResultCore::StrongOrder;
     }
-    else
+}
+CompareResult Arg::NativeCompare(const Arg& right) const noexcept
+{
+    Expects(!IsCustom());
+    if (HAS_FIELD(TypeData, Type::StringBit)) // direct process string, no decay
     {
-        const auto l = left.GetVar<Arg::Type::Int>();
-        const bool sameSign = !isRightUnsigned;
-        const auto r = right.GetVar<Arg::Type::Int, false>();
-        switch (op)
+        const auto r_ = right.GetStr();
+        if (r_.has_value())
         {
-        case EmbedOps::Equal:           return  sameSign && l == r;
-        case EmbedOps::NotEqual:        return !sameSign || l != r;
-        case EmbedOps::Less:            return !sameSign || l <  r;
-        case EmbedOps::LessEqual:       return !sameSign || l <= r;
-        case EmbedOps::Greater:         return  sameSign && l >  r;
-        case EmbedOps::GreaterEqual:    return  sameSign && l >= r;
-        default:                        return {};
+            const auto l = GetVar<Type::U32Sv, false>(), r = r_.value();
+            const auto ret = std::char_traits<char32_t>::compare(l.data(), r.data(), std::min(l.size(), r.size()));
+            if (ret < 0)             return CompareResultCore::StrongOrder | CompareResultCore::Less;
+            if (ret > 0)             return CompareResultCore::StrongOrder | CompareResultCore::Greater;
+            if (l.size() < r.size()) return CompareResultCore::StrongOrder | CompareResultCore::Less;
+            if (l.size() > r.size()) return CompareResultCore::StrongOrder | CompareResultCore::Greater;
+            return CompareResultCore::StrongOrder | CompareResultCore::Equal;
         }
     }
+    else if (HAS_FIELD(TypeData, Type::NumberBit))
+    {
+        if (right.IsCustom())
+            return NumCompare(*this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+        else
+            return NumCompare(*this, right);
+    }
+    else if (IsBool())
+    {
+        const auto r = right.GetBool();
+        if (r.has_value())
+            return CompareResultCore::Equality |
+                (GetVar<Type::Bool>() == *r ? CompareResultCore::Equal : CompareResultCore::NotEqual);
+    }
+    return {};
 }
 static Arg NumArthOp(const EmbedOps op, const Arg& left, const Arg& right) noexcept
 {
@@ -723,75 +705,117 @@ static Arg NumArthOp(const EmbedOps op, const Arg& left, const Arg& right) noexc
     }
 }
 
+Arg Arg::HandleUnary(const EmbedOps op) const
+{
+    Expects(op == EmbedOps::Not);
+    const auto val = GetBool();
+    if (val.has_value())
+        return !val.value();
+    return {};
+}
 Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
 {
     const auto opCat = EmbedOpHelper::GetCategory(op);
     Expects(opCat != EmbedOpHelper::OpCategory::Other); // should not be handled here
-    if (IsCustom())
+    switch (opCat)
     {
-        auto& var = GetCustom();
-        auto ret = var.Call<&CustomVar::Handler::HandleBinary>(op, right);
-        if (!ret.IsEmpty())
-            return ret;
-        // try match right side type
-        if (!ret.IsCustom())
-        {
-            switch (op)
-            {
-            case EmbedOps::Equal:        return right.HandleBinary(EmbedOps::Equal,        *this);
-            case EmbedOps::NotEqual:     return right.HandleBinary(EmbedOps::NotEqual,     *this);
-            case EmbedOps::Less:         return right.HandleBinary(EmbedOps::Greater,      *this);
-            case EmbedOps::LessEqual:    return right.HandleBinary(EmbedOps::GreaterEqual, *this);
-            case EmbedOps::Greater:      return right.HandleBinary(EmbedOps::Less,         *this);
-            case EmbedOps::GreaterEqual: return right.HandleBinary(EmbedOps::LessEqual,    *this);
-            default:                     break;
-            }
-        }
-        return {};
-    }
-    if (opCat == EmbedOpHelper::OpCategory::Logic) // special handle logic op, since val can decay to bool
+    case EmbedOpHelper::OpCategory::Logic: // should not enter in most cases
     {
-        if (!HAS_FIELD(TypeData, Type::Boolable))
+        const auto l_ = GetBool();
+        if (!l_.has_value())
             return {};
         const auto r_ = right.GetBool();
         if (!r_.has_value())
             return {};
-        const auto l = GetBool().value(), r = r_.value();
-        return op == EmbedOps::And ? (l && r) : (l || r);
+        return op == EmbedOps::And ? (*l_ && *r_) : (*l_ || *r_);
     }
-    if (HAS_FIELD(TypeData, Type::StringBit)) // direct process string, no decay
+    case EmbedOpHelper::OpCategory::Compare:
     {
-        const auto r_ = right.GetStr();
-        if (!r_.has_value())
+        const auto ret1 = Compare(right);
+        const auto val1 = ret1.GetResult();
+        switch (op)
+        {
+        case EmbedOps::Equal:
+            if (ret1.HasEuqality())  return val1 == CompareResultCore::Equal;
+            break;
+        case EmbedOps::NotEqual:
+            if (ret1.HasEuqality())  return val1 != CompareResultCore::Equal;
+            break;
+        case EmbedOps::Less:
+            if (ret1.HasOrderable()) return val1 == CompareResultCore::Less;
+            break;
+        case EmbedOps::LessEqual:
+            if (ret1.HasOrderable()) return val1 == CompareResultCore::Less || val1 == CompareResultCore::Equal;
+            break;
+        case EmbedOps::Greater:
+            if (ret1.HasOrderable()) return val1 == CompareResultCore::Greater;
+            break;
+        case EmbedOps::GreaterEqual:
+            if (ret1.HasOrderable()) return val1 == CompareResultCore::Greater || val1 == CompareResultCore::Equal;
+            break;
+        default: return {}; // should not happen
+        }
+        // try reverse compare
+        const auto ret2 = right.Compare(*this);
+        const auto val2 = ret2.GetResult();
+        switch (op)
+        {
+        case EmbedOps::Equal:
+            if (ret2.HasEuqality())  return val2 == CompareResultCore::Equal;
+            break;
+        case EmbedOps::NotEqual:
+            if (ret2.HasEuqality())  return val2 != CompareResultCore::Equal;
+            break;
+        case EmbedOps::Less:
+            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Greater || val2 == CompareResultCore::Equal;
+            break;
+        case EmbedOps::LessEqual:
+            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Greater;
+            break;
+        case EmbedOps::Greater:
+            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Less || val2 == CompareResultCore::Equal;
+            break;
+        case EmbedOps::GreaterEqual:
+            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Less;
+            break;
+        default: return {}; // should not happen
+        }
+        return {};
+    }
+    default:
+        Expects(opCat == EmbedOpHelper::OpCategory::Arth);
+        if (HAS_FIELD(TypeData, Type::StringBit)) // direct process string
+        {
+            if (op == EmbedOps::Add) // only support add
+            {
+                const auto r_ = right.GetStr();
+                if (r_.has_value())
+                {
+                    const auto l = GetVar<Type::U32Sv, false>(), r = r_.value();
+                    std::u32string ret;
+                    ret.reserve(l.size() + r.size());
+                    ret.append(l).append(r);
+                    return ret;
+                }
+            }
             return {};
-        return StrBinaryOp(op, GetVar<Type::U32Sv, false>(), r_.value());
+        }
+        if (HAS_FIELD(TypeData, Type::NumberBit)) // process as number
+        {
+            if (right.IsCustom())
+                return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+            else
+                return NumArthOp(op, *this, right);
+        }
+        else if (TypeData == Type::Bool) // consider right can be number
+        {
+            if (right.IsCustom())
+                return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
+            if (HAS_FIELD(TypeData, Type::NumberBit))
+                return NumArthOp(op, *this, right);
+        }
+        return {};
     }
-    const bool isLeftNum = HAS_FIELD(TypeData, Type::NumberBit);
-    if (opCat == EmbedOpHelper::OpCategory::Compare) // special handle compare op, due to signeness
-    {
-        if (!isLeftNum)
-            return {};
-        if (right.IsCustom())
-            return NumCompareOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
-        else
-            return NumCompareOp(op, *this, right);
-    }
-    Expects(opCat == EmbedOpHelper::OpCategory::Arth);
-    if (isLeftNum) // process as number
-    {
-        if (right.IsCustom())
-            return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
-        else
-            return NumArthOp(op, *this, right);
-    }
-    else if (TypeData == Type::Bool) // consider is right can be number
-    {
-        if (right.IsCustom())
-            return NumArthOp(op, *this, right.GetCustom().Call<&CustomVar::Handler::ConvertToCommon>(Type::NumberBit));
-        if (HAS_FIELD(TypeData, Type::NumberBit))
-            return NumArthOp(op, *this, right);
-    }
-    return {};
 }
 
 bool Arg::HandleBinaryOnSelf(const EmbedOps op, const Arg& right)
@@ -844,43 +868,6 @@ ArgLocator CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery subq, Nailan
             return { std::move(result), 1u };
     } break;
     default: break;
-    }
-    return {};
-}
-Arg CustomVar::Handler::HandleUnary(const CustomVar&, const EmbedOps)
-{
-    return {};
-}
-Arg CustomVar::Handler::HandleBinary(const CustomVar& var, const EmbedOps op, const Arg& right)
-{
-    switch (op)
-    {
-    case EmbedOps::Equal:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsEqual();
-        break;
-    case EmbedOps::NotEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsNotEqual();
-        break;
-    case EmbedOps::Less:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsLess();
-        break;
-    case EmbedOps::LessEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsLessEqual();
-        break;
-    case EmbedOps::Greater:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsGreater();
-        break;
-    case EmbedOps::GreaterEqual:
-        if (const auto ret = Compare(var, right); HAS_FIELD(ret.Result, CompareResultCore::Equality))
-            return ret.IsGreaterEqual();
-        break;
-    default:
-        break;
     }
     return {};
 }

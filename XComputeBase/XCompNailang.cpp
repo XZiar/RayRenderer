@@ -756,7 +756,7 @@ void XCNLRawExecutor::OnReplaceOptBlock(std::u32string& output, void*, std::u32s
         executor.NLRT_THROW_EX(u"No value returned as condition when replace-opt-block"sv);
         return;
     }
-    else if (!HAS_FIELD(ret.TypeData, Arg::Type::Boolable))
+    else if (!HAS_FIELD(ret.TypeData, Arg::Type::BoolBit))
     {
         executor.NLRT_THROW_EX(u"Evaluated condition is not boolable when replace-opt-block"sv);
         return;

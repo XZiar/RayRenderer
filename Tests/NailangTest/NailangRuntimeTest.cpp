@@ -158,10 +158,22 @@ TEST(NailangRuntime, EvalEmbedOp)
     CHECK_ARG(ret, type, ans);                      \
 } while(0)                                          \
 
+    const Arg infP =  std::numeric_limits<double>::infinity();
+    const Arg infN = -std::numeric_limits<double>::infinity();
+    const Arg nanQ =  std::numeric_limits<double>::quiet_NaN();
+
     TEST_BIN(uint64_t(1), uint64_t(2), Equal,          Bool, false);
+    TEST_BIN(uint64_t(1), uint64_t(1), Equal,          Bool, true);
+    TEST_BIN(       nanQ, int64_t(-2), Equal,          Bool, false);
+    TEST_BIN(       nanQ,        nanQ, Equal,          Bool, false);
+    TEST_BIN(       true,        true, Equal,          Bool, true);
     TEST_BIN(uint64_t(0), uint64_t(0), NotEqual,       Bool, false);
+    TEST_BIN(uint64_t(0), uint64_t(1), NotEqual,       Bool, true);
+    TEST_BIN(       nanQ,        nanQ, NotEqual,       Bool, true);
+    TEST_BIN(      false,        true, NotEqual,       Bool, true);
     TEST_BIN(uint64_t(1), uint64_t(2), Add,            Uint, 3u);
     TEST_BIN(uint64_t(1), int64_t(-1), Add,            Uint, 0u);
+    TEST_BIN(uint64_t(1),        true, Add,            Uint, 2u);
     TEST_BIN(uint64_t(1),         0.5, Sub,              FP, 0.5);
     TEST_BIN( int64_t(5), int64_t(-1), Mul,             Int, -5);
     TEST_BIN(uint64_t(3), uint64_t(2), Div,            Uint, 1u);
@@ -169,6 +181,8 @@ TEST(NailangRuntime, EvalEmbedOp)
     TEST_BIN(uint64_t(3), uint64_t(2), Rem,            Uint, 1u);
     TEST_BIN(        2.5,         2.0, Rem,              FP, 0.5);
     TEST_BIN(   U"abc"sv,    U"ABC"sv, Add,          U32Str, U"abcABC"sv);
+    TEST_BIN(       infP, uint64_t(2), Less,           Bool, false);
+    TEST_BIN(       infN, int64_t(-2), Less,           Bool, true);
     TEST_BIN(uint64_t(1), uint64_t(2), Less,           Bool, true);
     TEST_BIN(int64_t(-1), uint64_t(2), Less,           Bool, true);
     TEST_BIN(uint64_t(1), int64_t(-2), Less,           Bool, false);
@@ -176,8 +190,13 @@ TEST(NailangRuntime, EvalEmbedOp)
     TEST_BIN(       -2.0, int64_t(-2), GreaterEqual,   Bool, true);
     TEST_BIN(       -2.0,       U""sv, And,            Bool, false);
     TEST_BIN(       true,       U""sv, Or,             Bool, true);
+    TEST_BIN(       true,       false, And,            Bool, false);
+    TEST_BIN(       true,       false, Or,             Bool, true);
     TEST_UN (-2.0,  Not, Bool, false);
     TEST_UN (U""sv, Not, Bool, true);
+    EXPECT_EQ(nanQ.HandleBinary(EmbedOps::Less, int64_t(-2)).TypeData, Arg::Type::Empty);
+    EXPECT_EQ(Arg(true).HandleBinary(EmbedOps::Less, false).TypeData, Arg::Type::Empty);
+
 #undef TEST_BIN
 #undef TEST_UN
 }

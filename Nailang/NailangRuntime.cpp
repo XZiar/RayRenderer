@@ -974,10 +974,10 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         for (size_t i = 1; i < func.Params.size(); ++i)
         {
             const auto& left = func.Params[maxIdx], &right = func.Params[i];
-            const auto isLess = left.HandleBinary(EmbedOps::Less, right).GetBool();
-            if (!isLess.has_value())
-                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
-            if (isLess.value()) 
+            const auto cmpRes = left.Compare(right);
+            if (!cmpRes.HasOrderable())
+                NLRT_THROW_EX(FMTSTR(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
+            if (cmpRes.GetResult() == CompareResultCore::Less) 
                 maxIdx = i;
         }
         return func.Params[maxIdx];
@@ -989,10 +989,10 @@ Arg NailangExecutor::EvaluateExtendMathFunc(FuncEvalPack& func)
         for (size_t i = 1; i < func.Params.size(); ++i)
         {
             const auto& left = func.Params[i], & right = func.Params[minIdx];
-            const auto isLess = left.HandleBinary(EmbedOps::Less, right).GetBool();
-            if (!isLess.has_value())
-                NLRT_THROW_EX(FMTSTR(u"Cannot perform [less] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
-            if (isLess.value())
+            const auto cmpRes = left.Compare(right);
+            if (!cmpRes.HasOrderable())
+                NLRT_THROW_EX(FMTSTR(u"Cannot get [orderable] on type [{}],[{}]"sv, left.GetTypeName(), right.GetTypeName()), func);
+            if (cmpRes.GetResult() == CompareResultCore::Less)
                 minIdx = i;
         }
         return func.Params[minIdx];
@@ -1245,6 +1245,7 @@ Arg NailangExecutor::EvaluateBinaryExpr(const BinaryExpr& expr)
             if (const auto r = right.GetBool(); r.has_value())
                 return r.value();
         }
+        return {};
     }
     else if (expr.Operator == EmbedOps::Or)
     {
@@ -1255,6 +1256,7 @@ Arg NailangExecutor::EvaluateBinaryExpr(const BinaryExpr& expr)
             if (const auto r = right.GetBool(); r.has_value())
                 return r.value();
         }
+        return {};
     }
     if (right.IsEmpty())
         right = EvaluateExpr(expr.RightOperand);

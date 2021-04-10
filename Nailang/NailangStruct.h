@@ -284,7 +284,7 @@ struct CustomVar
 enum class CompareResultCore : uint32_t
 {
     ResultMask = 0x0f, NotEqual = 0x0, Less = 0x1, Equal = 0x2, Greater = 0x3,
-    FlagMask = 0xf0, Equality = 0x10, Orderable = 0x30, StrongOrder = 0x70,
+    FlagMask = 0xf0, Equality = 0x10, Orderable = 0x20, Reversable = 0x40, StrongOrder = 0x70,
 };
 MAKE_ENUM_BITFIELD(CompareResultCore)
 
@@ -293,39 +293,53 @@ struct CompareResult
     CompareResultCore Result;
     constexpr CompareResult() noexcept : Result(CompareResultCore::NotEqual) { }
     constexpr CompareResult(CompareResultCore val) noexcept : Result(val) { }
-    constexpr std::optional<CompareResultCore> GetResult() const noexcept
+    constexpr bool HasEuqality() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Orderable))
-            return Result & CompareResultCore::ResultMask;
-        return {};
+        return HAS_FIELD(Result, CompareResultCore::Equality);
+    }
+    constexpr bool HasOrderable() const noexcept
+    {
+        return HAS_FIELD(Result, CompareResultCore::Orderable);
+    }
+    constexpr bool HasReversable() const noexcept
+    {
+        return HAS_FIELD(Result, CompareResultCore::Reversable);
+    }
+    constexpr bool HasReverseOrderable() const noexcept
+    {
+        return MATCH_FIELD(Result, CompareResultCore::Orderable | CompareResultCore::Reversable);
+    }
+    constexpr CompareResultCore GetResult() const noexcept
+    {
+        return Result & CompareResultCore::ResultMask;
     }
     constexpr bool IsEqual() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Equality))
+        if (HasEuqality())
             return (Result & CompareResultCore::ResultMask) == CompareResultCore::Equal;
         return false;
     }
     constexpr bool IsNotEqual() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Equality))
+        if (HasEuqality())
             return (Result & CompareResultCore::ResultMask) == CompareResultCore::NotEqual;
         return false;
     }
     constexpr bool IsLess() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        if (HasOrderable())
             return (Result & CompareResultCore::ResultMask) == CompareResultCore::Less;
         return false;
     }
     constexpr bool IsGreater() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        if (HasOrderable())
             return (Result & CompareResultCore::ResultMask) == CompareResultCore::Greater;
         return false;
     }
     constexpr bool IsLessEqual() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        if (HasOrderable())
         {
             const auto real = Result & CompareResultCore::ResultMask;
             return real == CompareResultCore::Less || real == CompareResultCore::Equal;
@@ -334,7 +348,7 @@ struct CompareResult
     }
     constexpr bool IsGreaterEqual() const noexcept
     {
-        if (HAS_FIELD(Result, CompareResultCore::Orderable))
+        if (HasOrderable())
         {
             const auto real = Result & CompareResultCore::ResultMask;
             return real == CompareResultCore::Greater || real == CompareResultCore::Equal;
@@ -618,7 +632,10 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
 
+    [[nodiscard]] forceinline CompareResult Compare(const Arg& right) const noexcept;
+
     [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangExecutor&);
+    [[nodiscard]] NAILANGAPI CompareResult NativeCompare(const Arg& right) const noexcept;
     [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op) const;
     [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right) const;
     [[nodiscard]] NAILANGAPI bool HandleBinaryOnSelf(const EmbedOps op, const Arg& right);
@@ -640,8 +657,6 @@ public:
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
     [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangExecutor&);
-    [[nodiscard]] virtual Arg HandleUnary(const CustomVar&, const EmbedOps op);
-    [[nodiscard]] virtual Arg HandleBinary(const CustomVar&, const EmbedOps op, const Arg& right);
     [[nodiscard]] virtual bool HandleBinaryOnSelf(CustomVar&, const EmbedOps op, const Arg& right);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual CompareResult CompareSameClass(const CustomVar&, const CustomVar&);
@@ -659,6 +674,12 @@ public:
 [[nodiscard]] inline constexpr bool Arg::IsCustom() const noexcept
 {
     return (TypeData & Type::CategoryMask) == Type::CategoryCustom;
+}
+[[nodiscard]] inline CompareResult Arg::Compare(const Arg& right) const noexcept
+{
+    if (IsCustom())
+        return GetCustom().Call<&CustomVar::Handler::Compare>(right);
+    return NativeCompare(right);
 }
 [[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
 {
