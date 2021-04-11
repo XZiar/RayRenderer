@@ -893,6 +893,9 @@ TEST(NailangRuntime, Assign)
         EXPECT_THROW(PEAssign(runtime, pool, U"str"sv, U":=1;"sv), xziar::nailang::NailangRuntimeException);
     }
     {
+        EXPECT_NO_THROW(PEAssign(runtime, pool, U"str"sv, U"?=$Throw();"sv)); // should ignore the evaluation so won't throw
+    }
+    {
         PEAssign(runtime, pool, U"str"sv, U"+= \"World\";"sv);
         LOOKUP_ARG(runtime, U"str"sv, U32Str, U"Hello World"sv);
     }

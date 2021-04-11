@@ -90,7 +90,7 @@ public:
         SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
-    [[nodiscard]] xziar::nailang::ArgLocator LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
+    [[nodiscard]] xziar::nailang::Arg LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
 protected:
     std::vector<bool> EnabledExtensions;
     std::vector<std::string> CompilerFlags;

@@ -9,7 +9,6 @@ namespace xcomp
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
-using xziar::nailang::ArgLocator;
 using xziar::nailang::SubQuery;
 using xziar::nailang::Expr;
 using xziar::nailang::Block;
@@ -1569,7 +1568,7 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const FixedArray& arr, std::
     return tidx;
 }
 
-ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor)
+Arg GeneralVecRef::HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor)
 {
     const auto arr = ToArray(var);
     const auto [type, query] = subq[0];
@@ -1584,12 +1583,16 @@ ArgLocator GeneralVecRef::HandleQuery(CustomVar& var, SubQuery subq, NailangExec
     {
         const auto field = query.GetVar<Expr::Type::Str>();
         if (field == U"Length"sv)
-            return { arr.Length, 1 };
+        {
+            subq.Consume();
+            return arr.Length;
+        }
         tidx = ToIndex(var, arr, field);
     } break;
     default:
         return {};
     }
+    subq.Consume();
     return arr.Access(tidx);
 }
 bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
@@ -1621,18 +1624,18 @@ CompareResult GeneralVecRef::CompareSameClass(const CustomVar& var, const Custom
     const auto lhs = ToArray(var), rhs = ToArray(other);
     if (lhs.ElementType != rhs.ElementType || lhs.Length != rhs.Length)
         return {};
-    const auto getter = NativeWrapper::GetGetter(lhs.ElementType);
-    const auto ldata = static_cast<uintptr_t>(lhs.DataPtr), rdata = static_cast<uintptr_t>(rhs.DataPtr);
+    const auto getset = NativeWrapper::GetGetSet(lhs.ElementType);
+    const auto meta = NativeWrapper::GetMeta(true, false, false);
+    const auto ldata = reinterpret_cast<const void*>(lhs.DataPtr), rdata = reinterpret_cast<const void*>(rhs.DataPtr);
     for (size_t idx = 0; idx < lhs.Length; ++idx)
     {
-        auto lval = getter(ldata, idx), rval = getter(rdata, idx);
-        const auto res = lval.HandleBinary(xziar::nailang::EmbedOps::Equal, rval);
-        if (res.IsEmpty())
-            return {};
-        if (!res.GetBool().value())
-            return { CompareResultCore::NotEqual | CompareResultCore::Equality };
+        auto lval = getset->Get(ldata, idx, meta), rval = getset->Get(rdata, idx, meta);
+        const auto res = lval.NativeCompare(rval);
+        Expects(res.HasEuqality());
+        if (!res.IsEqual())
+            return CompareResultCore::NotEqual | CompareResultCore::Equality;
     }
-    return { CompareResultCore::Equal | CompareResultCore::Equality };
+    return CompareResultCore::Equal | CompareResultCore::Equality;
 }
 common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) noexcept
 {

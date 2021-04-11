@@ -1306,6 +1306,8 @@ void NailangExecutor::EvaluateAssign(const AssignExpr& assign, MetaSet*)
     else if (assignOp)
         extra = assignOp.value();
     auto target = Runtime->LocateArgForWrite(assign.Target, assign.GetCheck(), extra);
+    if (target.IsEmpty()) // skipped
+        return;
     NailangHelper::LocateWrite(target, assign.Queries, *this, [&](Arg& dst)
         {
             if (!MATCH_FIELD(dst.GetAccess(), ArgAccess::Assignable))

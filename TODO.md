@@ -77,8 +77,11 @@
   - [x] CustomVar also report `TypeData` for easier type conversion
   - [x] Add capture support when define func
   - [x] Seperate Executor and Runtime
-  - [ ] Correct handle *nary expression when facing custom object
+  - [x] Correct handle *nary expression when facing custom object
+  - [ ] Seperate `AutoVar` and `AutoVar[]` to allow custom info when accessing AutoVar 
   - [ ] Add member func call for arg by `()`
+  - [ ] Remove PartedName, func will only keep fullname
+  - [ ] Prefer member func than global func, use query to replace PatedName
   - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
 
 * XCompute

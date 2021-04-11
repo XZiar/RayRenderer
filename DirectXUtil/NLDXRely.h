@@ -95,7 +95,7 @@ public:
     const DxDevice Device;
     NLDXContext(DxDevice dev, const common::CLikeDefines& info);
     ~NLDXContext() override;
-    [[nodiscard]] xziar::nailang::ArgLocator LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
+    [[nodiscard]] xziar::nailang::Arg LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
     size_t GetKernelCount() const noexcept;
 protected:
     std::vector<std::u32string_view> KernelNames;

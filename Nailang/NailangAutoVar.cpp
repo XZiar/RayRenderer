@@ -12,10 +12,10 @@ AutoVarHandlerBase::Accessor::Accessor() noexcept :
     Dummy{}, TypeData(Type::Empty), IsConst(true)
 { }
 AutoVarHandlerBase::Accessor::Accessor(Accessor&& other) noexcept : 
-    Dummy{}, TypeData(Type::Empty), IsConst(other.IsConst)
+    Dummy{}, TypeData(other.TypeData), IsConst(other.IsConst)
 {
     other.TypeData = Type::Empty;
-    switch (other.TypeData)
+    switch (TypeData)
     {
     case Type::Auto:
         new (&AutoMember) TAuto(std::move(other.AutoMember));

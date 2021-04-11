@@ -379,6 +379,9 @@ struct GetSet
         [[nodiscard]] virtual ArgAccess GetAccess(const GetSet&) const noexcept = 0;
         [[nodiscard]] virtual Arg Get(const GetSet&) const = 0;
         [[nodiscard]] virtual bool Set(const GetSet&, Arg) const = 0;
+        [[nodiscard]] forceinline Arg Get(const void* ptr, size_t idx, uint16_t meta) const;
+        template<typename T>
+        [[nodiscard]] forceinline bool Set(void* ptr, size_t idx, uint16_t meta, T&& val) const;
     };
     alignas(detail::IntFPUnion) const Handler* Host;
     uint64_t Ptr;
@@ -389,6 +392,12 @@ struct GetSet
     template<typename T>
     [[nodiscard]] forceinline bool Set(T&& val) const { return Host->Set(*this, std::forward<T>(val)); }
 };
+template<typename T>
+[[nodiscard]] inline bool GetSet::Handler::Set(void* ptr, size_t idx, uint16_t meta, T&& val) const
+{
+    const GetSet tmp{ this, reinterpret_cast<uintptr_t>(ptr), gsl::narrow_cast<uint32_t>(idx), meta };
+    return Set(tmp, std::forward<T>(val));
+}
 
 
 struct NativeWrapper
@@ -399,11 +408,29 @@ struct NativeWrapper
         U8, I8, U16, I16, F16, U32, I32, F32, U64, I64, F64,
         Str8, Str16, Str32, Sv8, Sv16, Sv32
     };
-    using Getter = Arg(*)(uintptr_t pointer, size_t idx);
-    using Setter = bool(*)(uintptr_t pointer, size_t idx, Arg arg);
-    NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
-    NAILANGAPI static const GetSet::Handler* GetGetSet(Type type) noexcept;
-    NAILANGAPI static GetSet GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept;
+    struct MetaType
+    {
+        static constexpr uint16_t EnableGet = 0x1;
+        static constexpr uint16_t EnableSet = 0x2;
+        static constexpr uint16_t MoveGet = 0x4;
+    };
+    [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
+    [[nodiscard]] NAILANGAPI static const GetSet::Handler* GetGetSet(Type type) noexcept;
+    [[nodiscard]] static uint16_t GetMeta(bool canGet, bool canSet, bool moveGet) noexcept
+    {
+        uint16_t ret = 0;
+        if (canGet)
+        {
+            ret |= MetaType::EnableGet;
+            if (moveGet) ret |= MetaType::MoveGet;
+        }
+        if (canSet) ret |= MetaType::EnableSet;
+        return ret;
+    }
+    [[nodiscard]] static GetSet GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept
+    {
+        return { GetGetSet(type), static_cast<uint64_t>(pointer), static_cast<uint32_t>(idx), GetMeta(true, !isConst, false) };
+    }
     template<typename T>
     static constexpr Type GetType() noexcept
     {
@@ -451,7 +478,11 @@ struct FixedArray
     }
     Arg Get(size_t idx) const noexcept;
     template<typename T>
-    bool Set(size_t idx, T&& val) const noexcept;
+    bool Set(size_t idx, T&& val) const noexcept
+    {
+        Expects(idx < Length&& idx < UINT32_MAX);
+        return NativeWrapper::GetLocator(ElementType, DataPtr, false, idx).Set(std::forward<T>(val));
+    }
 #define SPT(type) common::span<type>, common::span<const type>
     using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
         SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
@@ -474,10 +505,8 @@ struct FixedArray
     }
 };
 
-struct NAILANGAPI NailangHelper;
+
 class NAILANGAPI NailangExecutor;
-class NAILANGAPI NailangRuntime;
-class NAILANGAPI NailangRuntimeException;
 struct Arg
 {
     static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
@@ -769,22 +798,21 @@ template<typename Visitor>
         return GetCustom().Call<&CustomVar::Handler::GetTypeName>();
     return TypeName(TypeData);
 }
+
+
+[[nodiscard]] inline Arg GetSet::Handler::Get(const void* ptr, size_t idx, uint16_t meta) const
+{
+    const GetSet tmp{ this, reinterpret_cast<uintptr_t>(ptr), gsl::narrow_cast<uint32_t>(idx), meta };
+    return Get(tmp);
+}
 [[nodiscard]] inline Arg GetSet::Get() const 
 { 
     return Host->Get(*this); 
 }
-
-
 inline Arg FixedArray::Get(size_t idx) const noexcept
 {
     Expects(idx < Length && idx < UINT32_MAX);
     return NativeWrapper::GetLocator(ElementType, DataPtr, true, idx).Get();
-}
-template<typename T>
-inline bool FixedArray::Set(size_t idx, T&& val) const noexcept
-{
-    Expects(idx < Length && idx < UINT32_MAX);
-    return NativeWrapper::GetLocator(ElementType, DataPtr, false, idx).Set(std::forward(val));
 }
 
 

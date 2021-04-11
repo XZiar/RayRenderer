@@ -14,6 +14,7 @@
 
 namespace xziar::nailang
 {
+class NAILANGAPI NailangRuntime;
 
 
 struct LocalFunc
@@ -31,6 +32,10 @@ class NAILANGAPI EvaluateContext
     friend class NailangRuntime;
 public:
     virtual ~EvaluateContext();
+    /**
+     * @brief locate the arg, create if necessary, return argptr, or empty if not found
+     * @return argptr | empty
+    */
     [[nodiscard]] virtual Arg LocateArg(const LateBindVar& var, const bool create) noexcept = 0;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
     virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args) = 0;
@@ -744,13 +749,25 @@ protected:
 
     [[nodiscard]] std::shared_ptr<EvaluateContext> GetContext(bool innerScope) const;
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
+    /**
+     * @brief locate the arg through thr framestack, create if necessary
+     * @return arglocator
+    */
     [[nodiscard]] Arg LocateArg(const LateBindVar& var, const bool create) const;
+    /**
+     * @brief locate the arg, perform nilcheck, return locator, or empty if skipped
+     * @return arglocator | empty
+    */
     [[nodiscard]] Arg LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
 
     [[nodiscard]] virtual std::shared_ptr<EvaluateContext> ConstructEvalContext() const;
-    [[nodiscard]] virtual Arg  LookUpArg(const LateBindVar& var, const bool checkNull = true) const;
+    /**
+     * @brief locate the arg, perform nilcheck, decay, then return
+     * @return arg
+    */
+    [[nodiscard]] virtual Arg LookUpArg(const LateBindVar& var, const bool checkNull = true) const;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const;
 
 public:

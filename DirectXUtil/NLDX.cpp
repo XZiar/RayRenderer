@@ -11,7 +11,6 @@ namespace dxu
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
-using xziar::nailang::ArgLocator;
 using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::SubQuery;
@@ -103,10 +102,10 @@ NLDXContext::NLDXContext(DxDevice dev, const common::CLikeDefines& info) :
 NLDXContext::~NLDXContext()
 { }
 
-ArgLocator NLDXContext::LocateArg(const LateBindVar& var, bool create) noexcept
+Arg NLDXContext::LocateArg(const LateBindVar& var, bool create) noexcept
 {
     if (var == U"dxu"sv)
-        return { &DXUArg, 0 };
+        return { &DXUArg, xziar::nailang::ArgAccess::ReadOnly | xziar::nailang::ArgAccess::NonConst };
     return XCNLContext::LocateArg(var, create);
 }
 

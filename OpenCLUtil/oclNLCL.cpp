@@ -12,7 +12,6 @@ namespace oclu
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
-using xziar::nailang::ArgLocator;
 using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::SubQuery;
@@ -152,10 +151,10 @@ NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
 NLCLContext::~NLCLContext()
 { }
 
-ArgLocator NLCLContext::LocateArg(const LateBindVar& var, bool create) noexcept
+Arg NLCLContext::LocateArg(const LateBindVar& var, bool create) noexcept
 {
     if (var == U"oclu"sv)
-        return { &OCLUArg, 0 };
+        return { &OCLUArg, xziar::nailang::ArgAccess::ReadOnly | xziar::nailang::ArgAccess::NonConst };
     return XCNLContext::LocateArg(var, create);
 }
 

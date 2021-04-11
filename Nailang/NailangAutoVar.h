@@ -146,12 +146,12 @@ public:
         using R = std::invoke_result_t<F, T&>;
         static constexpr bool IsPtr = std::is_pointer_v<R>;
         using U = std::remove_pointer_t<R>;
-        static constexpr bool IsConst = !IsPtr || std::is_const_v<U>;
         static constexpr auto Type = NativeWrapper::GetType<std::remove_const_t<U>>();
 
         const auto dst = FindMember(name, true);
         if constexpr (IsPtr)
         {
+            static constexpr bool IsConst = std::is_const_v<U>;
             dst->SetProxy([accessor = std::forward<F>(accessor), type = Type](void* ptr)->Arg
             {
                 auto& parent = *reinterpret_cast<T*>(ptr);
@@ -172,9 +172,9 @@ public:
             {
                 auto& parent = *reinterpret_cast<T*>(ptr);
                 auto ret = accessor(parent);
-                auto tmp = NativeWrapper::GetLocator(type, reinterpret_cast<uintptr_t>(&ret), IsConst, 0);
+                auto tmp = NativeWrapper::GetLocator(type, reinterpret_cast<uintptr_t>(&ret), true, 0);
                 return tmp.Get();
-            }, IsConst);
+            });
         }
         return *dst;
     }

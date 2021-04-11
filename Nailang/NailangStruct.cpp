@@ -108,145 +108,6 @@ std::u32string_view NativeWrapper::TypeName(NativeWrapper::Type type) noexcept
 #undef RET
 }
 
-//template<typename T>
-//static Arg NativeGetter(uintptr_t pointer, size_t idx)
-//{
-//    using common::str::Charset;
-//    using U = std::remove_pointer_t<T>;
-//    [[maybe_unused]] static constexpr bool ShouldMove = std::is_pointer_v<T>;
-//    const auto ptr = reinterpret_cast<U*>(pointer) + idx;
-//    if constexpr (std::is_unsigned_v<U>)
-//        return static_cast<uint64_t>(*ptr);
-//    else if constexpr (std::is_signed_v<U>)
-//        return static_cast<int64_t>(*ptr);
-//    else if constexpr (std::is_floating_point_v<U> || std::is_same_v<U, half_float::half>)
-//        return static_cast<double>(*ptr);
-//    else if constexpr (std::is_same_v<U, Arg>)
-//    {
-//        if constexpr (ShouldMove)
-//            return std::move(*ptr);
-//        else
-//            return *ptr;
-//    }
-//    else if constexpr (std::is_same_v<U, std::u32string>)
-//    {
-//        if constexpr (ShouldMove)
-//            return *ptr;
-//        else
-//            return std::u32string_view(*ptr);
-//    }
-//    else if constexpr (std::is_same_v<U, std::u32string_view>)
-//    {
-//        if constexpr (ShouldMove)
-//            return std::u32string(*ptr);
-//        else
-//            return *ptr;
-//    }
-//    else if constexpr (common::is_specialization<U, std::basic_string>::value || common::is_specialization<U, std::basic_string_view>::value)
-//    {
-//        return common::str::to_u32string(*ptr);
-//    }
-//    else if constexpr (std::is_same_v<U, bool>)
-//        return *ptr;
-//    else
-//    {
-//        Expects(false);
-//        return {};
-//    }
-//}
-//NativeWrapper::Getter NativeWrapper::GetGetter(Type type, bool move) noexcept
-//{
-//#define RET(tenum, type) case Type::tenum: return move ? &NativeGetter<type*> : &NativeGetter<type>;
-//
-//    switch (type)
-//    {
-//    NATIVE_TYPE_EACH(RET)
-//    default: return nullptr;
-//    }
-//#undef RET
-//}
-//
-//template<typename T>
-//static bool NativeSetter(uintptr_t pointer, size_t idx, Arg arg)
-//{
-//    using common::str::Charset;
-//    [[maybe_unused]] const auto ptr = reinterpret_cast<T*>(pointer) + idx;
-//    if constexpr (std::is_same_v<T, Arg>)
-//    {
-//        *ptr = std::move(arg);
-//        return true;
-//    }
-//    else if constexpr (std::is_unsigned_v<T>)
-//    {
-//        if (const auto real = arg.GetUint(); real.has_value())
-//        {
-//            *ptr = static_cast<T>(*real);
-//            return true;
-//        }
-//    }
-//    else if constexpr (std::is_signed_v<T>)
-//    {
-//        if (const auto real = arg.GetInt(); real.has_value())
-//        {
-//            *ptr = static_cast<T>(*real);
-//            return true;
-//        }
-//    }
-//    else if constexpr (std::is_floating_point_v<T>)
-//    {
-//        if (const auto real = arg.GetFP(); real.has_value())
-//        {
-//            *ptr = static_cast<T>(*real);
-//            return true;
-//        }
-//    }
-//    else if constexpr (std::is_same_v<T, half_float::half>)
-//    {
-//        if (const auto real = arg.GetFP(); real.has_value())
-//        {
-//            *ptr = static_cast<T>(static_cast<float>(*real));
-//            return true;
-//        }
-//    }
-//    else if constexpr (common::is_specialization<T, std::basic_string>::value)
-//    {
-//        if (const auto real = arg.GetStr(); real.has_value())
-//        {
-//            using U = typename T::value_type;
-//            if constexpr (std::is_same_v<U, char32_t>)
-//                *ptr = *real;
-//            else if constexpr (std::is_same_v<U, u8ch_t>)
-//                *ptr = common::str::to_u8string(*real);
-//            else if constexpr (std::is_same_v<U, char16_t>)
-//                *ptr = common::str::to_u16string(*real);
-//            else
-//                static_assert(!common::AlwaysTrue<T>, "unsupported char type");
-//            return true;
-//        }
-//    }
-//    else
-//        Expects(false);
-//    return false;
-//}
-//NativeWrapper::Setter NativeWrapper::GetSetter(Type type) noexcept
-//{
-//#define RET(tenum, type) case Type::tenum: return &NativeSetter<type>;
-//
-//    switch (type)
-//    {
-//    NATIVE_TYPE_EACH(RET)
-//    default: return nullptr;
-//    }
-//#undef RET
-//}
-
-
-struct NativeGetSetMeta
-{
-    static constexpr uint16_t EnableGet = 0x1;
-    static constexpr uint16_t EnableSet = 0x2;
-    static constexpr uint16_t MoveGet   = 0x4;
-};
 template<typename T>
 struct NativeGetSet final : public GetSet::Handler
 {
@@ -254,17 +115,17 @@ struct NativeGetSet final : public GetSet::Handler
     [[nodiscard]] ArgAccess GetAccess(const GetSet& data) const noexcept override
     {
         auto ret = ArgAccess::Empty;
-        if (data.Meta & NativeGetSetMeta::EnableGet)
+        if (data.Meta & NativeWrapper::MetaType::EnableGet)
             ret |= ArgAccess::ReadOnly;
         if constexpr(!DisableSet)
-            if (data.Meta & NativeGetSetMeta::EnableSet)
+            if (data.Meta & NativeWrapper::MetaType::EnableSet)
                 ret |= ArgAccess::WriteOnly;
         return ret;
     }
     [[nodiscard]] Arg Get(const GetSet& data) const override
     {
-        Expects(data.Meta & NativeGetSetMeta::EnableGet);
-        [[maybe_unused]] const bool shouldMove = data.Meta & NativeGetSetMeta::MoveGet;
+        Expects(data.Meta & NativeWrapper::MetaType::EnableGet);
+        [[maybe_unused]] const bool shouldMove = data.Meta & NativeWrapper::MetaType::MoveGet;
         const auto ptr = reinterpret_cast<T*>(static_cast<uintptr_t>(data.Ptr)) + data.Idx;
         if constexpr (std::is_floating_point_v<T> || std::is_same_v<T, half_float::half>)
             return static_cast<double>(*ptr);
@@ -309,7 +170,7 @@ struct NativeGetSet final : public GetSet::Handler
     }
     [[nodiscard]] bool Set(const GetSet& data, Arg arg) const override
     {
-        Expects(data.Meta & NativeGetSetMeta::EnableSet);
+        Expects(data.Meta & NativeWrapper::MetaType::EnableSet);
         [[maybe_unused]] const auto ptr = reinterpret_cast<T*>(static_cast<uintptr_t>(data.Ptr)) + data.Idx;
         if constexpr (std::is_floating_point_v<T>)
         {
@@ -380,44 +241,6 @@ const GetSet::Handler* NativeWrapper::GetGetSet(Type type) noexcept
     }
 #undef RET
 }
-
-GetSet NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx_) noexcept
-{
-    auto meta = NativeGetSetMeta::EnableGet;
-    if (!isConst) meta |= NativeGetSetMeta::EnableSet;
-    return { GetGetSet(type), static_cast<uint64_t>(pointer), static_cast<uint32_t>(idx_), meta };
-}
-
-
-//ArgLocator NativeWrapper::GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx) noexcept
-//{
-//    constexpr auto Combine = [](Type type, auto ptr, bool isConst) -> ArgLocator
-//    {
-//        using T = decltype(*ptr);
-//        if constexpr (std::is_same_v<T, Arg>)
-//            return { ptr, 1, isConst ? ArgLocator::LocateFlags::ReadOnly : ArgLocator::LocateFlags::ReadWrite };
-//        else
-//        {
-//            const bool noSetter = isConst || common::is_specialization<decltype(*ptr), std::basic_string_view>::value;
-//            const auto ptrVal = reinterpret_cast<uintptr_t>(ptr);
-//            return
-//            {
-//                [ptrVal, func = NativeWrapper::GetGetter(type)] () { return func(ptrVal, 0); },
-//                noSetter ? ArgLocator::Setter{} :
-//                    [ptrVal, func = NativeWrapper::GetSetter(type)] (Arg val) { return func(ptrVal, 0, std::move(val)); },
-//                1
-//            };
-//        }
-//    };
-//#define RET(tenum, t) case Type::tenum: return Combine(type, reinterpret_cast<t*>(pointer) + idx, isConst);
-//
-//    switch (type)
-//    {
-//    NATIVE_TYPE_EACH(RET)
-//    default: return {};
-//    }
-//#undef RET
-//}
 
 
 template<typename T> struct U8StrFix { using Type = T; };
@@ -681,7 +504,12 @@ void Arg::Decay()
     if (IsGetSet())
         *this = GetGetSet().Get();
     else if (IsArgPtr())
+    {
+        const auto isConst = !HAS_FIELD(static_cast<ArgAccess>(Data3), ArgAccess::WriteOnly);
         *this = *reinterpret_cast<const Arg*>(Data0.Uint);
+        if (IsCustom() && isConst)
+            TypeData |= Type::ConstBit;
+    }
 }
 bool Arg::Set(Arg val)
 {
@@ -1087,87 +915,6 @@ Arg CustomVar::Handler::ConvertToCommon(const CustomVar&, Arg::Type) noexcept
 {
     return {};
 }
-
-
-//ArgLocator::ArgLocator(Getter getter, Setter setter, uint32_t consumed) noexcept :
-//    Val{}, Consumed(consumed), Type(LocateType::GetSet), Flag(LocateFlags::Empty)
-//{
-//    if (const bool bg = (bool)getter, bs = (bool)setter; bg == bs)
-//        Flag = bg ? LocateFlags::ReadWrite : LocateFlags::Empty;
-//    else
-//        Flag = bg ? LocateFlags::ReadOnly : LocateFlags::WriteOnly;
-//    if (Flag == LocateFlags::Empty)
-//        Type = LocateType::Empty;
-//    else
-//    {
-//        auto ptr = new GetSet(std::move(getter), std::move(setter));
-//        Val = PointerToVal(ptr);
-//    }
-//}
-//ArgLocator::~ArgLocator()
-//{
-//    if (Type == LocateType::GetSet)
-//    {
-//        auto ptr = reinterpret_cast<GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()));
-//        delete ptr;
-//    }
-//}
-//Arg ArgLocator::Get() const
-//{
-//    switch (Type)
-//    {
-//    case LocateType::Ptr:       return *reinterpret_cast<const Arg*>(static_cast<uintptr_t>(Val.GetUint().value()));
-//    case LocateType::GetSet:    return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Get();
-//    case LocateType::Arg:       return Val;
-//    default:                    return {};
-//    }
-//}
-//Arg ArgLocator::ExtractGet()
-//{
-//    switch (Type)
-//    {
-//    case LocateType::Ptr:       return *reinterpret_cast<const Arg*>(static_cast<uintptr_t>(Val.GetUint().value()));
-//    case LocateType::GetSet:    return reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Get();
-//    case LocateType::Arg:       return std::move(Val);
-//    default:                    return {};
-//    }
-//}
-//bool ArgLocator::Set(Arg val)
-//{
-//    switch (Type)
-//    {
-//    case LocateType::Ptr:
-//        *reinterpret_cast<Arg*>(static_cast<uintptr_t>(Val.GetUint().value())) = std::move(val); 
-//        return true;
-//    case LocateType::GetSet:
-//        reinterpret_cast<const GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()))->Set(std::move(val));
-//        return true;
-//    case LocateType::Arg:
-//        if (Val.IsCustom())
-//            return Val.GetCustom().Call<&CustomVar::Handler::HandleAssign>(std::move(val));
-//        return false;
-//    default:
-//        return false;
-//    }
-//}
-//Arg& ArgLocator::ResolveGetter()
-//{
-//    switch (Type)
-//    {
-//    case LocateType::Ptr:
-//        return *reinterpret_cast<Arg*>(static_cast<uintptr_t>(Val.GetUint().value()));
-//    case LocateType::GetSet:
-//    {
-//        auto ptr = reinterpret_cast<GetSet*>(static_cast<uintptr_t>(Val.GetUint().value()));
-//        Val = ptr->Get();
-//        delete ptr;
-//        Type = Val.IsEmpty() ? LocateType::Empty : LocateType::Arg;
-//    }
-//    [[fallthrough]];
-//    default:
-//        return Val;
-//    }
-//}
 
 
 void Serializer::Stringify(std::u32string& output, const Expr& arg, const bool requestParenthese)
