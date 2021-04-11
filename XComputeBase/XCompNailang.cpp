@@ -222,7 +222,7 @@ InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_vi
     Extra.reserve(ExtraArg.size());
     for (const auto& arg : ExtraArg)
     {
-        switch (const auto& txt = arg.GetStr().value(); common::DJBHash::HashC(txt))
+        switch (const auto txt = arg.GetStr().value(); common::DJBHash::HashC(txt))
         {
         HashCase(txt, U"read")      Flag |= Flags::Read; break;
         HashCase(txt, U"write")     Flag |= Flags::Write; break;

@@ -115,14 +115,14 @@ BasicEvaluateContext::LocalFuncHolder LargeEvaluateContext::LookUpFuncInside(std
     return it->second;
 }
 
-ArgLocator LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+Arg LargeEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
 {
     if (const auto it = ArgMap.find(var.Name); it != ArgMap.end())
-        return { &it->second, 0, ArgLocator::LocateFlags::ReadWrite };
+        return { &it->second, ArgAccess::ReadWrite };
     if (create)
     { // need create
         const auto [it, _] = ArgMap.insert_or_assign(std::u32string(var.Name), Arg{});
-        return { &it->second, 0, ArgLocator::LocateFlags::WriteOnly };
+        return { &it->second, ArgAccess::WriteOnly };
     }
     return {};
 }
@@ -165,23 +165,23 @@ BasicEvaluateContext::LocalFuncHolder CompactEvaluateContext::LookUpFuncInside(s
     return { nullptr, {0,0}, {0,0} };
 }
 
-ArgLocator CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
+Arg CompactEvaluateContext::LocateArg(const LateBindVar& var, const bool create) noexcept
 {
     const HashedStrView hsv(var.Name);
     for (auto& [pos, val] : Args)
         if (ArgNames.GetHashedStr(pos) == hsv)
         {
             if (!val.IsEmpty())
-                return { &val, 0, ArgLocator::LocateFlags::ReadWrite };
+                return { &val, ArgAccess::ReadWrite };
             if (create)
-                return { &val, 0, ArgLocator::LocateFlags::WriteOnly };
+                return { &val, ArgAccess::WriteOnly };
             return {};
         }
     if (create)
     { // need create
         const auto piece = ArgNames.AllocateString(var.Name);
         Args.emplace_back(piece, Arg{});
-        return { &Args.back().second, 0, ArgLocator::LocateFlags::WriteOnly };
+        return { &Args.back().second, ArgAccess::WriteOnly };
     }
     return {};
 }
@@ -228,37 +228,38 @@ size_t NailangHelper::BiDirIndexCheck(const size_t size, const Arg& idx, const E
 Arg NailangHelper::ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor)
 {
     Expects(query.Size() > 0);
-    auto locator = target.HandleQuery(query, executor);
-    auto subq = query.Sub(locator.GetConsumed());
-    if (!locator)
+    auto next = target.HandleQuery(query, executor);
+    if (next.IsEmpty())
         COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
-            Serializer::Stringify(subq)));
-    if (!locator.CanRead())
-        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
-            Serializer::Stringify(subq)));
-    if (subq.Size() > 0)
+            Serializer::Stringify(query)));
+    if (query.Size() > 0)
     {
-        return ExtractArg(locator.ResolveGetter(), subq, executor);
+        if (!HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
+                Serializer::Stringify(query)));
+        next.Decay();
+        return ExtractArg(next, query, executor);
     }
     else
     {
-        return locator.ExtractGet();
+        next.Decay();
+        return next;
     }
 }
 template<typename F>
-bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
+bool NailangHelper::LocateWrite(Arg& target, SubQuery query, NailangExecutor& executor, const F& func)
 {
     if (query.Size() > 0)
     {
-        auto next = target.ResolveGetter().HandleQuery(query, executor);
-        auto subq = query.Sub(next.GetConsumed());
-        if (!next)
+        target.Decay();
+        auto next = target.HandleQuery(query, executor);
+        if (next.IsEmpty())
             COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
-                Serializer::Stringify(subq)));
-        if (!next.IsMutable())
+                Serializer::Stringify(query)));
+        if (!MATCH_FIELD(next.GetAccess(), ArgAccess::Mutable))
             COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
-                Serializer::Stringify(subq)));
-        return LocateWrite(next, subq, executor, func);
+                Serializer::Stringify(query)));
+        return LocateWrite(next, query, executor, func);
     }
     else
     {
@@ -266,26 +267,29 @@ bool NailangHelper::LocateWrite(ArgLocator& target, SubQuery query, NailangExecu
     }
 }
 template<bool IsWrite, typename F>
-auto NailangHelper::LocateAndExecute(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
-    -> decltype(func(std::declval<ArgLocator&>()))
+auto NailangHelper::LocateAndExecute(Arg& target, SubQuery query, NailangExecutor& executor, const F& func)
+    -> decltype(func(std::declval<Arg&>()))
 {
     if (query.Size() > 0)
     {
-        auto next = target.ResolveGetter().HandleQuery(query, executor);
-        auto subq = query.Sub(next.GetConsumed());
+        target.Decay();
+        auto next = target.HandleQuery(query, executor);
+        if (next.IsEmpty())
+            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
+                Serializer::Stringify(query)));
         if constexpr (IsWrite)
         {
-            if (!next.IsMutable())
+            if (!MATCH_FIELD(next.GetAccess(), ArgAccess::Mutable))
                 COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not assgin to immutable's [{}]",
-                    Serializer::Stringify(subq)));
+                    Serializer::Stringify(query)));
         }
         else
         {
-            if (!next.CanRead())
+            if (!HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
                 COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
-                    Serializer::Stringify(subq)));
+                    Serializer::Stringify(query)));
         }
-        return LocateAndExecute<IsWrite>(next, subq, executor, func);
+        return LocateAndExecute<IsWrite>(next, query, executor, func);
     }
     else
     {
@@ -865,7 +869,8 @@ Arg NailangExecutor::EvaluateExpr(const Expr& arg)
         return EvaluateTernaryExpr(*arg.GetVar<Type::Ternary>());
     case Type::Query:
         return EvaluateQueryExpr(*arg.GetVar<Type::Query>());
-    case Type::Var:     return Runtime->LookUpArg(arg.GetVar<Type::Var>());
+    case Type::Var:     
+        return Runtime->LookUpArg(arg.GetVar<Type::Var>());
     case Type::Str:     return arg.GetVar<Type::Str>();
     case Type::Uint:    return arg.GetVar<Type::Uint>();
     case Type::Int:     return arg.GetVar<Type::Int>();
@@ -935,7 +940,7 @@ Arg NailangExecutor::EvaluateFunc(FuncEvalPack& func)
         {
             ThrowByParamTypes<1>(func, { Arg::Type::String });
             const LateBindVar var(func.Params[0].GetStr().value());
-            return static_cast<bool>(Runtime->LocateArg(var, false));
+            return !Runtime->LocateArg(var, false).IsEmpty();
         }
         HashCase(name, U"Format")
         {
@@ -1210,7 +1215,7 @@ Arg NailangExecutor::EvaluateUnaryExpr(const UnaryExpr& expr)
     case EmbedOps::CheckExist:
     {
         Ensures(expr.Operand.TypeData == Expr::Type::Var);
-        return static_cast<bool>(Runtime->LocateArg(expr.Operand.GetVar<Expr::Type::Var>(), false));
+        return !Runtime->LocateArg(expr.Operand.GetVar<Expr::Type::Var>(), false).IsEmpty();
     }
     case EmbedOps::Not:
     {
@@ -1233,7 +1238,9 @@ Arg NailangExecutor::EvaluateBinaryExpr(const BinaryExpr& expr)
     {
         Expects(expr.LeftOperand.TypeData == Expr::Type::Var);
         auto val = Runtime->LookUpArg(expr.LeftOperand.GetVar<Expr::Type::Var>(), false); // skip null check, but require read
-        return val.IsEmpty() ? EvaluateExpr(expr.RightOperand) : val;
+        if (val.IsEmpty())
+            return EvaluateExpr(expr.RightOperand);
+        return val;
     }
     Arg left = EvaluateExpr(expr.LeftOperand), right;
     if (expr.Operator == EmbedOps::And)
@@ -1299,15 +1306,17 @@ void NailangExecutor::EvaluateAssign(const AssignExpr& assign, MetaSet*)
     else if (assignOp)
         extra = assignOp.value();
     auto target = Runtime->LocateArgForWrite(assign.Target, assign.GetCheck(), extra);
-    NailangHelper::LocateWrite(target, assign.Queries, *this, [&](ArgLocator& dst)
+    NailangHelper::LocateWrite(target, assign.Queries, *this, [&](Arg& dst)
         {
-            if (!dst.CanAssign())
+            if (!MATCH_FIELD(dst.GetAccess(), ArgAccess::Assignable))
                 NLRT_THROW_EX(FMTSTR(u"Var [{}] is not assignable"sv, assign.Target));
             if (assign.IsSelfAssign)
             {
-                if (!dst.CanRead())
+                if (!HAS_FIELD(dst.GetAccess(), ArgAccess::Readable))
                     NLRT_THROW_EX(FMTSTR(u"Var [{}] is not readable, request self assign on it"sv, assign.Target));
-                return dst.Set(dst.Get().HandleBinary(assignOp.value(), EvaluateExpr(assign.Statement)));
+                auto tmp = dst;
+                tmp.Decay();
+                return dst.Set(tmp.HandleBinary(assignOp.value(), EvaluateExpr(assign.Statement)));
             }
             else
                 return dst.Set(EvaluateExpr(assign.Statement));
@@ -1419,7 +1428,7 @@ void NailangRuntime::HandleException(const NailangRuntimeException& ex) const
     throw ex;
 }
 
-ArgLocator NailangRuntime::LocateArg(const LateBindVar& var, const bool create) const
+Arg NailangRuntime::LocateArg(const LateBindVar& var, const bool create) const
 {
     if (HAS_FIELD(var.Info, LateBindVar::VarInfo::Root))
     {
@@ -1437,18 +1446,17 @@ ArgLocator NailangRuntime::LocateArg(const LateBindVar& var, const bool create) 
     // Try find arg recursively
     for (auto frame = CurFrame(); frame; frame = frame->PrevFrame)
     {
-        if (auto ret = frame->Context->LocateArg(var, create); ret)
-            return std::move(ret);
+        if (auto ret = frame->Context->LocateArg(var, create); !ret.IsEmpty())
+            return ret;
         if (frame->Has(NailangFrame::FrameFlags::VarScope))
             break; // cannot beyond  
     }
     return RootContext->LocateArg(var, create);
 }
-ArgLocator NailangRuntime::LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const
+Arg NailangRuntime::LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const
 {
     using Behavior = NilCheck::Behavior;
-    auto ret = LocateArg(var, false);
-    if (ret)
+    if (auto ret = LocateArg(var, false); !ret.IsEmpty())
     {
         switch (nilCheck.WhenNotNull())
         {
@@ -1504,15 +1512,16 @@ std::shared_ptr<EvaluateContext> NailangRuntime::ConstructEvalContext() const
 Arg NailangRuntime::LookUpArg(const LateBindVar& var, const bool checkNull) const
 {
     auto ret = LocateArg(var, false);
-    if (!ret)
+    if (ret.IsEmpty())
     {
         if (checkNull)
             NLRT_THROW_EX(FMTSTR(u"Var [{}] does not exist", var));
         return {};
     }
-    if (!ret.CanRead())
+    if (!HAS_FIELD(ret.GetAccess(), ArgAccess::Readable))
         NLRT_THROW_EX(FMTSTR(u"LookUpArg [{}] get a unreadable result", var));
-    return ret.ExtractGet();
+    ret.Decay();
+    return ret;
 }
 
 LocalFunc NailangRuntime::LookUpFunc(std::u32string_view name) const

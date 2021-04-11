@@ -2,7 +2,7 @@
     "name": "NailangTest",
     "type": "executable",
     "description": "Sector Parser Test",
-    "dependency": ["Nailang", "SystemCommon"],
+    "dependency": ["Nailang", "SystemCommon", "StringUtil"],
     "library": 
     {
         "static": [],

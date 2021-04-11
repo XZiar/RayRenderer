@@ -1,7 +1,6 @@
 #pragma once
 
 #include "NailangRely.h"
-#include "NailangStruct.h"
 
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"

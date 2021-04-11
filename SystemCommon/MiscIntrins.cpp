@@ -607,7 +607,7 @@ common::span<const MiscIntrins::VarItem> MiscIntrins::GetSupportMap() noexcept
 }
 MiscIntrins::MiscIntrins(common::span<const MiscIntrins::VarItem> requests) noexcept
 {
-    for (const auto [func, var] : requests)
+    for (const auto& [func, var] : requests)
     {
         switch (DJBHash::HashC(func))
         {
@@ -636,7 +636,7 @@ common::span<const DigestFuncs::VarItem> DigestFuncs::GetSupportMap() noexcept
 }
 DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noexcept
 {
-    for (const auto [func, var] : requests)
+    for (const auto& [func, var] : requests)
     {
         switch (DJBHash::HashC(func))
         {

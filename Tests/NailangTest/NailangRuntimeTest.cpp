@@ -3,6 +3,8 @@
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 #include "SystemCommon/MiscIntrins.h"
+#include "StringUtil/Convert.h"
+#include "StringUtil/Format.h"
 #include <cmath>
 
 
@@ -24,7 +26,8 @@ using xziar::nailang::FuncCall;
 using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::Arg;
-using xziar::nailang::ArgLocator;
+using xziar::nailang::NativeWrapper;
+using xziar::nailang::NilCheck;
 using xziar::nailang::NilCheck;
 using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
@@ -42,7 +45,11 @@ testing::AssertionResult CheckArg(const Arg& arg, const Arg::Type type)
     if (arg.TypeData == type)
         return testing::AssertionSuccess();
     else
-        return testing::AssertionFailure() << "arg is [" << WideToChar(arg.GetTypeName()) << "](" << common::enum_cast(arg.TypeData) << ")";
+    {
+        const auto detail = common::str::to_string(FMTSTR(U"arg is [{}]({:#04x})"sv,
+            arg.GetTypeName(), common::enum_cast(arg.TypeData)), common::str::Charset::ASCII);
+        return testing::AssertionFailure() << detail;
+    }
 }
 
 #define CHECK_ARG(arg, type, val) do                \
@@ -343,7 +350,7 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override
+    Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override
     {
         ArrRef(arr, var);
         const auto [type, query] = subq[0];
@@ -353,7 +360,9 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
         {
             const auto val = executor.EvaluateExpr(query);
             const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), val, &query);
-            return
+            subq.Consume();
+            return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(arr.Data.data()), false, idx);
+            /*return
             {
                 [=, dat = arr.Data] ()->Arg { return dat[idx]; },
                 [=, dat = arr.Data] (Arg val) -> bool
@@ -365,13 +374,16 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
                     }
                     return false;
                 }, 1 
-            };
+            };*/
         }
         case SubQuery::QueryType::Sub:
         {
             const auto field = query.GetVar<Expr::Type::Str>();
             if (field == U"Length"sv)
-                return { static_cast<uint64_t>(arr.Data.size()), 1u };
+            {
+                subq.Consume();
+                return static_cast<uint64_t>(arr.Data.size());
+            }
             float* ptr = nullptr;
             if (field == U"First"sv)
             {
@@ -385,7 +397,9 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
             }
             if (ptr)
             {
-                return
+                subq.Consume();
+                return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(ptr), false, 0);
+                /*return
                 {
                     [=] () -> Arg { return *ptr; },
                     [=] (Arg val) -> bool
@@ -397,7 +411,7 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
                         }
                         return false;
                     }, 1
-                };
+                };*/
             }
         } break;
         default: break;
@@ -942,7 +956,8 @@ uint64_t Run2Arg(NailangRT& runtime, const Block& algoBlock, uint64_t m, uint64_
     ctx->LocateArg(U"m"sv, true).Set(m);
     ctx->LocateArg(U"n"sv, true).Set(n);
     runtime.ExecuteBlock(algoBlock, {}, ctx);
-    const auto ans = ctx->LocateArg(U"m"sv, false).Get();
+    auto ans = ctx->LocateArg(U"m"sv, false);
+    ans.Decay();
     EXPECT_EQ(ans.TypeData, Arg::Type::Uint);
     return *ans.GetUint();
 }

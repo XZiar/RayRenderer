@@ -31,7 +31,7 @@ class NAILANGAPI EvaluateContext
     friend class NailangRuntime;
 public:
     virtual ~EvaluateContext();
-    [[nodiscard]] virtual ArgLocator LocateArg(const LateBindVar& var, const bool create) noexcept = 0;
+    [[nodiscard]] virtual Arg LocateArg(const LateBindVar& var, const bool create) noexcept = 0;
     [[nodiscard]] virtual LocalFunc LookUpFunc(std::u32string_view name) const = 0;
     virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args) = 0;
     virtual bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args) = 0;
@@ -72,7 +72,7 @@ protected:
 public:
     ~LargeEvaluateContext() override;
 
-    [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) noexcept override;
+    [[nodiscard]] Arg    LocateArg(const LateBindVar& var, const bool create) noexcept override;
     [[nodiscard]] size_t GetArgCount() const noexcept override;
     [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
@@ -94,9 +94,9 @@ protected:
 public:
     ~CompactEvaluateContext() override;
 
-    [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) noexcept override;
-    [[nodiscard]] size_t    GetArgCount() const noexcept override;
-    [[nodiscard]] size_t    GetFuncCount() const noexcept override;
+    [[nodiscard]] Arg    LocateArg(const LateBindVar& var, const bool create) noexcept override;
+    [[nodiscard]] size_t GetArgCount() const noexcept override;
+    [[nodiscard]] size_t GetFuncCount() const noexcept override;
 };
 
 
@@ -250,10 +250,10 @@ struct NAILANGAPI NailangHelper
     [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src = nullptr);
     static Arg ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor);
     template<typename F>
-    static bool LocateWrite(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func);
+    static bool LocateWrite(Arg& target, SubQuery query, NailangExecutor& executor, const F& func);
     template<bool IsWrite, typename F>
-    static auto LocateAndExecute(ArgLocator& target, SubQuery query, NailangExecutor& executor, const F& func)
-        -> decltype(func(std::declval<ArgLocator&>()));
+    static auto LocateAndExecute(Arg& target, SubQuery query, NailangExecutor& executor, const F& func)
+        -> decltype(func(std::declval<Arg&>()));
 };
 
 
@@ -744,8 +744,8 @@ protected:
 
     [[nodiscard]] std::shared_ptr<EvaluateContext> GetContext(bool innerScope) const;
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const override;
-    [[nodiscard]] ArgLocator LocateArg(const LateBindVar& var, const bool create) const;
-    [[nodiscard]] ArgLocator LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
+    [[nodiscard]] Arg LocateArg(const LateBindVar& var, const bool create) const;
+    [[nodiscard]] Arg LocateArgForWrite(const LateBindVar& var, NilCheck nilCheck, std::variant<bool, EmbedOps> extra) const;
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const Expr> args);
     bool SetFunc(const Block* block, common::span<std::pair<std::u32string_view, Arg>> capture, common::span<const std::u32string_view> args);
 

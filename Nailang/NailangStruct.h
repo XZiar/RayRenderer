@@ -218,7 +218,13 @@ struct SubQuery
 {
     enum class QueryType : uint8_t { Index = 1, Sub = 2 };
     common::span<const Expr> Queries;
-    constexpr SubQuery Sub(const size_t offset = 1) const noexcept
+    constexpr SubQuery& Consume(const size_t count = 1) noexcept
+    {
+        Expects(count <= Queries.size());
+        Queries = Queries.subspan(count);
+        return *this;
+    }
+    [[nodiscard]] constexpr SubQuery Sub(const size_t offset = 1) const noexcept
     {
         Expects(offset <= Queries.size());
         return { Queries.subspan(offset) };
@@ -245,39 +251,6 @@ struct SubQuery
         indexer.ExtraFlag = common::enum_cast(QueryType::Index);
         container.push_back(indexer);
     }
-};
-
-
-struct Arg;
-
-struct CustomVar
-{
-    struct Handler;
-    alignas(detail::IntFPUnion) Handler* Host;
-    uint64_t Meta0;
-    uint32_t Meta1;
-    uint16_t Meta2;
-    template<auto F, typename... Args>
-    auto Call(Args&&... args) const
-    {
-        static_assert(std::is_invocable_v<decltype(F), Handler&, const CustomVar&, Args...>,
-            "F need to be member function of Handler, accept const CustomVar& and args");
-        return (Host->*F)(*this, std::forward<Args>(args)...);
-    }
-    template<auto F, typename... Args>
-    auto Call(Args&&... args)
-    {
-        static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
-            "F need to be member function of Handler, accept const CustomVar& and args");
-        return (Host->*F)(*this, std::forward<Args>(args)...);
-    }
-    template<typename T>
-    [[nodiscard]] forceinline bool IsType() const noexcept
-    {
-        static_assert(std::is_base_of_v<Handler, T>, "type need to inherit from Handler");
-        return dynamic_cast<T*>(Host) != nullptr;
-    }
-    [[nodiscard]] Arg CopyToArg() const noexcept;
 };
 
 
@@ -358,7 +331,65 @@ struct CompareResult
 };
 
 
-class NAILANGAPI ArgLocator;
+struct Arg;
+
+struct CustomVar
+{
+    struct Handler;
+    alignas(detail::IntFPUnion) Handler* Host;
+    uint64_t Meta0;
+    uint32_t Meta1;
+    uint16_t Meta2;
+    template<auto F, typename... Args>
+    auto Call(Args&&... args) const
+    {
+        static_assert(std::is_invocable_v<decltype(F), Handler&, const CustomVar&, Args...>,
+            "F need to be member function of Handler, accept const CustomVar& and args");
+        return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
+    template<auto F, typename... Args>
+    auto Call(Args&&... args)
+    {
+        static_assert(std::is_invocable_v<decltype(F), Handler&, CustomVar&, Args...>,
+            "F need to be member function of Handler, accept const CustomVar& and args");
+        return (Host->*F)(*this, std::forward<Args>(args)...);
+    }
+    template<typename T>
+    [[nodiscard]] forceinline bool IsType() const noexcept
+    {
+        static_assert(std::is_base_of_v<Handler, T>, "type need to inherit from Handler");
+        return dynamic_cast<T*>(Host) != nullptr;
+    }
+    [[nodiscard]] Arg CopyToArg() const noexcept;
+};
+
+
+enum class ArgAccess : uint16_t
+{
+    Readable = 0b1, NonConst = 0b10, Assignable = 0b110,
+    Empty = 0, ReadOnly = Readable, WriteOnly = NonConst | Assignable,
+    Mutable = Readable | NonConst, ReadWrite = Readable | Assignable
+};
+MAKE_ENUM_BITFIELD(ArgAccess)
+
+struct GetSet
+{
+    struct Handler
+    {
+        [[nodiscard]] virtual ArgAccess GetAccess(const GetSet&) const noexcept = 0;
+        [[nodiscard]] virtual Arg Get(const GetSet&) const = 0;
+        [[nodiscard]] virtual bool Set(const GetSet&, Arg) const = 0;
+    };
+    alignas(detail::IntFPUnion) const Handler* Host;
+    uint64_t Ptr;
+    uint32_t Idx;
+    uint16_t Meta;
+    [[nodiscard]] forceinline ArgAccess GetAccess() const noexcept { return Host->GetAccess(*this); }
+    [[nodiscard]] forceinline Arg Get() const;
+    template<typename T>
+    [[nodiscard]] forceinline bool Set(T&& val) const { return Host->Set(*this, std::forward<T>(val)); }
+};
+
 
 struct NativeWrapper
 {
@@ -371,9 +402,8 @@ struct NativeWrapper
     using Getter = Arg(*)(uintptr_t pointer, size_t idx);
     using Setter = bool(*)(uintptr_t pointer, size_t idx, Arg arg);
     NAILANGAPI static std::u32string_view TypeName(Type type) noexcept;
-    NAILANGAPI static ArgLocator GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept;
-    NAILANGAPI static Getter GetGetter(Type type, bool move = false) noexcept;
-    NAILANGAPI static Setter GetSetter(Type type) noexcept;
+    NAILANGAPI static const GetSet::Handler* GetGetSet(Type type) noexcept;
+    NAILANGAPI static GetSet GetLocator(Type type, uintptr_t pointer, bool isConst, size_t idx = 0) noexcept;
     template<typename T>
     static constexpr Type GetType() noexcept
     {
@@ -414,9 +444,14 @@ struct FixedArray
     uint64_t Length;
     Type ElementType;
     bool IsReadOnly;
-    ArgLocator Access(size_t idx) const noexcept;
+    GetSet Access(size_t idx) const noexcept
+    {
+        Expects(idx < Length && idx < UINT32_MAX);
+        return NativeWrapper::GetLocator(ElementType, DataPtr, IsReadOnly, idx);
+    }
     Arg Get(size_t idx) const noexcept;
-    bool Set(size_t idx, Arg val) const noexcept;
+    template<typename T>
+    bool Set(size_t idx, T&& val) const noexcept;
 #define SPT(type) common::span<type>, common::span<const type>
     using SpanVariant = std::variant<std::monostate, SPT(Arg), SPT(bool),
         SPT(uint8_t), SPT(int8_t), SPT(uint16_t), SPT(int16_t), SPT(half_float::half),
@@ -451,13 +486,14 @@ struct Arg
 public:
     enum class Type : uint16_t
     {
-        Empty = 0, CategoryMask = 0xf000, CapabilityMask = 0x0f, ExtendedMask = 0xff0,
-        BoolBit = 0x1, StringBit = 0x2, NumberBit = 0x4, ArrayBit = 0x8,
+        Empty = 0, CategoryMask = 0xf000, CapabilityMask = 0xf00, ExtendedMask = 0xf0, FlagMask = 0xf,
+        CategoryCustom = 0x1000, CategoryArray = 0x2000, CategoryString = 0x3000, CategoryNumber = 0x4000, CategoryBool = 0x5000,
+        CategoryGetSet = 0xf000, CategoryArgPtr = 0xe000,
+        BoolBit = 0x100, StringBit = 0x200, NumberBit = 0x400, ArrayBit = 0x800,
         StrOwnBit = 0x10, FPBit = 0x20, IntegerBit = 0x40, UnsignedBit = 0x80,
-        ExTypeBit = 0x800,
+        ExTypeBit = 0x8, ConstBit = 0x1,
         Boolable = BoolBit | ExTypeBit, String = StringBit | BoolBit | ExTypeBit, Number = NumberBit | BoolBit | ExTypeBit, 
         Integer = Number | IntegerBit, ArrayLike = ArrayBit | ExTypeBit,
-        CategoryCustom = 0x1000, CategoryArray = 0x2000, CategoryString = 0x3000, CategoryNumber = 0x4000, CategoryBool = 0x5000,
         Bool   = CategoryBool   | Boolable,
         Array  = CategoryArray  | ArrayLike,
         U32Sv  = CategoryString | String,
@@ -476,41 +512,19 @@ private:
 public:
     Type TypeData;
 
-    template<Type T, bool Check = true>
-    [[nodiscard]] constexpr auto GetVar() const noexcept
-    {
-        Expects(!Check || TypeData == T);
-        if constexpr (T == Type::Var)
-            return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
-        else if constexpr (T == Type::Array)
-            return FixedArray{ static_cast<uintptr_t>(Data0.Uint), Data1, static_cast<FixedArray::Type>(Data2), static_cast<bool>(Data3) };
-        else if constexpr (T == Type::U32Str)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
-        else if constexpr (T == Type::U32Sv)
-            return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
-        else if constexpr (T == Type::Uint)
-            return Data0.Uint;
-        else if constexpr (T == Type::Int)
-            return static_cast<int64_t>(Data0.Uint);
-        else if constexpr (T == Type::FP)
-            return Data0.FP;
-        else if constexpr (T == Type::Bool)
-            return Data0.Uint == 1;
-        else
-            static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
-    }
-
     Arg() noexcept : Data0(0), Data1(0), Data2(0), Data3(0), TypeData(Type::Empty)
     { }
-    //NAILANGAPI explicit Arg(const CustomVar& var) noexcept;
+    Arg(const GetSet& getset) noexcept : Data0(reinterpret_cast<uint64_t>(getset.Host)),
+        Data1(getset.Ptr), Data2(getset.Idx), Data3(getset.Meta), TypeData(getset.Host ? Type::CategoryGetSet : Type::Empty)
+    { }
+    Arg(Arg* arg, ArgAccess access = ArgAccess::ReadWrite) noexcept : Data0(reinterpret_cast<uint64_t>(arg)),
+        Data1(0), Data2(0), Data3(common::enum_cast(access)), TypeData(arg ? Type::CategoryArgPtr : Type::Empty)
+    { }
+    Arg(const Arg* arg) noexcept : Data0(reinterpret_cast<uint64_t>(arg)),
+        Data1(0), Data2(0), Data3(common::enum_cast(ArgAccess::ReadOnly)), TypeData(arg ? Type::CategoryArgPtr : Type::Empty)
+    { }
     Arg(const CustomVar& var) noexcept = delete;
-    Arg(CustomVar&& var) noexcept : Data0(reinterpret_cast<uint64_t>(var.Host)),
-        Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData(Type::Var)
-    {
-        Expects(var.Host != nullptr);
-        var.Host = nullptr;
-        var.Meta0 = var.Meta1 = var.Meta2 = 0;
-    }
+    Arg(CustomVar&& var, bool isConst = false) noexcept;
     Arg(const FixedArray arr) noexcept :
         Data0(arr.DataPtr), Data1(arr.Length), Data2(common::enum_cast(arr.ElementType)), Data3(arr.IsReadOnly ? 1 : 0), TypeData(Type::Array)
     { }
@@ -563,22 +577,11 @@ public:
     NAILANGAPI Arg(const Arg& other) noexcept;
     NAILANGAPI Arg& operator=(const Arg& other) noexcept;
 
+
+    template<Type T, bool Check = true>
+    [[nodiscard]] constexpr auto GetVar() const noexcept;
     template<typename Visitor>
-    [[nodiscard]] forceinline auto Visit(Visitor&& visitor) const
-    {
-        switch (TypeData)
-        {
-        case Type::Var:     return visitor(GetVar<Type::Var>());
-        case Type::Array:   return visitor(GetVar<Type::Array>());
-        case Type::U32Str:  return visitor(GetVar<Type::U32Str>());
-        case Type::U32Sv:   return visitor(GetVar<Type::U32Sv>());
-        case Type::Uint:    return visitor(GetVar<Type::Uint>());
-        case Type::Int:     return visitor(GetVar<Type::Int>());
-        case Type::FP:      return visitor(GetVar<Type::FP>());
-        case Type::Bool:    return visitor(GetVar<Type::Bool>());
-        default:            return visitor(std::nullopt);
-        }
-    }
+    [[nodiscard]] forceinline auto Visit(Visitor&& visitor) const;
 
     [[nodiscard]] forceinline constexpr bool IsEmpty() const noexcept
     {
@@ -609,6 +612,8 @@ public:
         return TypeData == Type::Array;
     }
     [[nodiscard]] forceinline constexpr bool IsCustom() const noexcept;
+    [[nodiscard]] forceinline constexpr bool IsGetSet() const noexcept;
+    [[nodiscard]] forceinline constexpr bool IsArgPtr() const noexcept;
     template<typename T>
     [[nodiscard]] forceinline bool IsCustomType() const noexcept
     {
@@ -625,6 +630,10 @@ public:
     {
         return *reinterpret_cast<const CustomVar*>(this);
     }
+    [[nodiscard]] forceinline const GetSet& GetGetSet() const noexcept
+    {
+        return *reinterpret_cast<const GetSet*>(this);
+    }
     [[nodiscard]] NAILANGAPI std::optional<bool>                GetBool()   const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<uint64_t>            GetUint()   const noexcept;
     [[nodiscard]] NAILANGAPI std::optional<int64_t>             GetInt()    const noexcept;
@@ -634,7 +643,10 @@ public:
 
     [[nodiscard]] forceinline CompareResult Compare(const Arg& right) const noexcept;
 
-    [[nodiscard]] NAILANGAPI ArgLocator HandleQuery(SubQuery, NailangExecutor&);
+    NAILANGAPI void Decay();
+    NAILANGAPI bool Set(Arg val);
+    [[nodiscard]] forceinline ArgAccess GetAccess() const noexcept;
+    [[nodiscard]] NAILANGAPI Arg HandleQuery(SubQuery&, NailangExecutor&);
     [[nodiscard]] NAILANGAPI CompareResult NativeCompare(const Arg& right) const noexcept;
     [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op) const;
     [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right) const;
@@ -646,18 +658,19 @@ public:
 MAKE_ENUM_BITFIELD(Arg::Type)
 static_assert( sizeof(Arg) ==  sizeof(CustomVar));
 static_assert(alignof(Arg) == alignof(CustomVar));
+static_assert( sizeof(Arg) ==  sizeof(GetSet));
+static_assert(alignof(Arg) == alignof(GetSet));
 
 struct NAILANGAPI CustomVar::Handler
 {
-public:
     [[nodiscard]] virtual std::u32string_view GetTypeName(const CustomVar&) noexcept;
     virtual void IncreaseRef(const CustomVar&) noexcept;
     virtual void DecreaseRef(CustomVar&) noexcept;
     [[nodiscard]] virtual Arg::Type QueryConvertSupport(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
-    [[nodiscard]] virtual ArgLocator HandleQuery(CustomVar&, SubQuery, NailangExecutor&);
-    [[nodiscard]] virtual bool HandleBinaryOnSelf(CustomVar&, const EmbedOps op, const Arg& right);
+    [[nodiscard]] virtual Arg HandleQuery(CustomVar&, SubQuery&, NailangExecutor&);
+    [[nodiscard]] virtual bool HandleBinaryOnSelf(CustomVar&, const EmbedOps op, const Arg & right);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual CompareResult CompareSameClass(const CustomVar&, const CustomVar&);
     [[nodiscard]] virtual CompareResult Compare(const CustomVar&, const Arg&);
@@ -671,9 +684,68 @@ public:
     auto self = *this;
     return self;
 }
+inline Arg::Arg(CustomVar&& var, bool isConst) noexcept : Data0(reinterpret_cast<uint64_t>(var.Host)),
+    Data1(var.Meta0), Data2(var.Meta1), Data3(var.Meta2), TypeData((isConst ? Type::ConstBit : Type::Empty) | Type::Var)
+{
+    Expects(var.Host != nullptr);
+    var.Host = nullptr;
+    var.Meta0 = var.Meta1 = var.Meta2 = 0;
+}
+template<Arg::Type T, bool Check>
+[[nodiscard]] inline constexpr auto Arg::GetVar() const noexcept
+{
+    if constexpr (Check)
+    {
+        const auto target = common::enum_cast(T);
+        const auto type = common::enum_cast(TypeData);
+        Expects((type & target) == target);
+    }
+    if constexpr (T == Type::Var)
+        return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
+    else if constexpr (T == Type::Array)
+        return FixedArray{ static_cast<uintptr_t>(Data0.Uint), Data1, static_cast<FixedArray::Type>(Data2), static_cast<bool>(Data3) };
+    else if constexpr (T == Type::U32Str)
+        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+    else if constexpr (T == Type::U32Sv)
+        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+    else if constexpr (T == Type::Uint)
+        return Data0.Uint;
+    else if constexpr (T == Type::Int)
+        return static_cast<int64_t>(Data0.Uint);
+    else if constexpr (T == Type::FP)
+        return Data0.FP;
+    else if constexpr (T == Type::Bool)
+        return Data0.Uint == 1;
+    else
+        static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
+}
+template<typename Visitor>
+[[nodiscard]] inline auto Arg::Visit(Visitor&& visitor) const
+{
+    switch (REMOVE_MASK(TypeData, Type::ConstBit))
+    {
+    case Type::Var:     return visitor(GetVar<Type::Var>());
+    case Type::Array:   return visitor(GetVar<Type::Array>());
+    case Type::U32Str:  return visitor(GetVar<Type::U32Str>());
+    case Type::U32Sv:   return visitor(GetVar<Type::U32Sv>());
+    case Type::Uint:    return visitor(GetVar<Type::Uint>());
+    case Type::Int:     return visitor(GetVar<Type::Int>());
+    case Type::FP:      return visitor(GetVar<Type::FP>());
+    case Type::Bool:    return visitor(GetVar<Type::Bool>());
+    default:            return visitor(std::nullopt);
+    }
+}
 [[nodiscard]] inline constexpr bool Arg::IsCustom() const noexcept
 {
     return (TypeData & Type::CategoryMask) == Type::CategoryCustom;
+}
+[[nodiscard]] inline constexpr bool Arg::IsGetSet() const noexcept
+{
+    return (TypeData & Type::CategoryMask) == Type::CategoryGetSet;
+}
+[[nodiscard]] inline constexpr bool Arg::IsArgPtr() const noexcept
+{
+    return (TypeData & Type::CategoryMask) == Type::CategoryArgPtr;
 }
 [[nodiscard]] inline CompareResult Arg::Compare(const Arg& right) const noexcept
 {
@@ -681,121 +753,38 @@ public:
         return GetCustom().Call<&CustomVar::Handler::Compare>(right);
     return NativeCompare(right);
 }
+[[nodiscard]] inline ArgAccess Arg::GetAccess() const noexcept
+{
+    if (IsGetSet())
+        return GetGetSet().GetAccess();
+    else if (IsArgPtr())
+        return static_cast<ArgAccess>(Data3);
+    else if (IsCustom())
+        return HAS_FIELD(TypeData, Type::ConstBit) ? ArgAccess::ReadOnly : ArgAccess::ReadWrite;
+    return ArgAccess::Empty;
+}
 [[nodiscard]] inline std::u32string_view Arg::GetTypeName() const noexcept
 {
     if (IsCustom())
         return GetCustom().Call<&CustomVar::Handler::GetTypeName>();
     return TypeName(TypeData);
 }
-
-
-#if COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275 4251)
-#endif
-
-class NAILANGAPI ArgLocator
-{
-    friend NailangHelper;
-public:
-    enum class LocateFlags : uint16_t 
-    { 
-        Readable = 0b1, NonConst = 0b10, Assignable = 0b110,
-        Empty = 0, ReadOnly = Readable, WriteOnly = NonConst | Assignable,
-        Mutable = Readable | NonConst, ReadWrite = Readable | Assignable
-    };
-    using Getter = std::function<Arg(void)>;
-    using Setter = std::function<bool(Arg)>;
-private:
-    struct GetSet
-    {
-        Getter Get;
-        Setter Set;
-        GetSet(Getter&& getter, Setter&& setter) noexcept : Get(std::move(getter)), Set(std::move(setter))
-        { }
-    };
-    enum class LocateType  : uint16_t { Empty, Arg, Ptr, GetSet };
-    Arg Val;
-    uint32_t Consumed;
-    LocateType Type;
-    LocateFlags Flag;
-    static Arg PointerToVal(const void* ptr) noexcept
-    {
-        if (ptr)
-            return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(ptr));
-        else
-            return {};
-    }
-public:
-    ArgLocator() noexcept : Val{}, Consumed(0), Type(LocateType::Empty), Flag(LocateFlags::Empty) 
-    { }
-    ArgLocator(Arg&& arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadOnly) noexcept
-        : Val{ std::move(arg) }, Consumed(consumed), Type(LocateType::Arg), Flag(flag)
-    { }
-    ArgLocator(const Arg* arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadOnly) noexcept :
-        Val(PointerToVal(arg)), Consumed(consumed), Type(arg ? LocateType::Ptr : LocateType::Empty), 
-        Flag(arg ? flag : LocateFlags::Empty)
-    { }
-    ArgLocator(Arg* arg, uint32_t consumed, LocateFlags flag = LocateFlags::ReadWrite) noexcept :
-        Val(PointerToVal(arg)), Consumed(consumed), Type(arg ? LocateType::Ptr : LocateType::Empty), 
-        Flag(arg ? flag : LocateFlags::Empty)
-    { }
-    ArgLocator(Getter getter, Setter setter, uint32_t consumed) noexcept;
-    ArgLocator(const ArgLocator&) = delete;
-    ArgLocator(ArgLocator&& arg) noexcept : Val(std::move(arg.Val)), Consumed(arg.Consumed), Type(arg.Type), Flag(arg.Flag)
-    {
-        arg.Type = LocateType::Empty;
-    }
-    ~ArgLocator();
-    ArgLocator& operator=(const ArgLocator&) = delete;
-    ArgLocator& operator=(ArgLocator&&) = delete;
-    [[nodiscard]] explicit constexpr operator bool() const noexcept
-    {
-        return Type != LocateType::Empty;
-    }
-    [[nodiscard]] constexpr bool CanRead()   const noexcept;
-    [[nodiscard]] constexpr bool CanAssign() const noexcept;
-    [[nodiscard]] constexpr bool IsMutable() const noexcept;
-    [[nodiscard]] Arg Get() const;
-    [[nodiscard]] Arg ExtractGet();
-    bool Set(Arg val);
-    Arg& ResolveGetter();
-    [[nodiscard]] constexpr uint32_t GetConsumed() const noexcept { return Consumed; }
-};
-
-#if COMPILER_MSVC
-#   pragma warning(pop)
-#endif
-
-MAKE_ENUM_BITFIELD(ArgLocator::LocateFlags)
-[[nodiscard]] inline constexpr bool ArgLocator::CanRead()   const noexcept
-{
-    return HAS_FIELD(Flag, LocateFlags::Readable);
-}
-[[nodiscard]] inline constexpr bool ArgLocator::CanAssign() const noexcept
-{
-    return HAS_FIELD(Flag, LocateFlags::Assignable);
-}
-[[nodiscard]] inline constexpr bool ArgLocator::IsMutable() const noexcept
-{
-    return HAS_FIELD(Flag, LocateFlags::Mutable);
+[[nodiscard]] inline Arg GetSet::Get() const 
+{ 
+    return Host->Get(*this); 
 }
 
 
-inline ArgLocator FixedArray::Access(size_t idx) const noexcept
-{
-    Expects(idx < Length);
-    return NativeWrapper::GetLocator(ElementType, DataPtr, IsReadOnly, idx);
-}
 inline Arg FixedArray::Get(size_t idx) const noexcept
 {
-    Expects(idx < Length);
-    return NativeWrapper::GetGetter(ElementType)(static_cast<uintptr_t>(DataPtr), idx);
+    Expects(idx < Length && idx < UINT32_MAX);
+    return NativeWrapper::GetLocator(ElementType, DataPtr, true, idx).Get();
 }
-inline bool FixedArray::Set(size_t idx, Arg val) const noexcept
+template<typename T>
+inline bool FixedArray::Set(size_t idx, T&& val) const noexcept
 {
-    Expects(idx < Length);
-    return NativeWrapper::GetSetter(ElementType)(static_cast<uintptr_t>(DataPtr), idx, std::move(val));
+    Expects(idx < Length && idx < UINT32_MAX);
+    return NativeWrapper::GetLocator(ElementType, DataPtr, false, idx).Set(std::forward(val));
 }
 
 

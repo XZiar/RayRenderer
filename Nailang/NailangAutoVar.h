@@ -18,13 +18,15 @@ protected:
     struct NAILANGAPI Accessor
     {
         using TAuto = std::function<CustomVar(void*)>;
-        using TSimp = std::pair<std::function<Arg(void*)>, std::function<bool(void*, Arg)>>;
+        using TSimp = std::function<Arg(void*)>;
+        enum class Type : uint8_t { Empty = 0, Auto, Proxy, Direct };
         union
         {
+            uint8_t Dummy;
             TAuto AutoMember;
             TSimp SimpleMember;
         };
-        bool IsSimple;
+        Type TypeData;
         bool IsConst;
         Accessor() noexcept;
         Accessor(const Accessor&) = delete;
@@ -32,7 +34,8 @@ protected:
         Accessor& operator=(const Accessor&) = delete;
         Accessor& operator=(Accessor&& other) = delete;
         void SetCustom(std::function<CustomVar(void*)> accessor) noexcept;
-        void SetGetSet(std::function<Arg(void*)> getter, std::function<bool(void*, Arg)> setter) noexcept;
+        void SetProxy (std::function<Arg(void*)> getset, bool isConst) noexcept;
+        void SetDirect(std::function<Arg(void*)> getter) noexcept;
         void Release() noexcept;
         ~Accessor();
     };
@@ -64,7 +67,7 @@ public:
     AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
     AutoVarHandlerBase& operator=(AutoVarHandlerBase&&) = delete;
 
-    ArgLocator HandleQuery(CustomVar& var, SubQuery subq, NailangExecutor& executor) override;
+    Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override;
     bool HandleAssign(CustomVar& var, Arg val) override;
     std::u32string_view GetTypeName(const CustomVar&) noexcept override;
 };
@@ -147,28 +150,32 @@ public:
         static constexpr auto Type = NativeWrapper::GetType<std::remove_const_t<U>>();
 
         const auto dst = FindMember(name, true);
-        std::function<bool(void*, Arg)> setFunc;
-        if constexpr (!IsConst)
+        if constexpr (IsPtr)
         {
-            setFunc = [accessor, setter = NativeWrapper::GetSetter(Type)](void* ptr, Arg val)
+            dst->SetProxy([accessor = std::forward<F>(accessor), type = Type](void* ptr)->Arg
             {
                 auto& parent = *reinterpret_cast<T*>(ptr);
-                return setter(reinterpret_cast<uintptr_t>(accessor(parent)), 0, std::move(val));
-            };
+                return NativeWrapper::GetLocator(type, reinterpret_cast<uintptr_t>(accessor(parent)), IsConst, 0);
+            }, IsConst);
         }
-        dst->SetGetSet([accessor, getter = NativeWrapper::GetGetter(Type, !IsPtr)](void* ptr) -> Arg
+        else if constexpr (std::is_same_v<U, Arg>) // direct return
         {
-            auto& parent = *reinterpret_cast<T*>(ptr);
-            if constexpr (IsPtr)
+            dst->SetDirect([accessor = std::forward<F>(accessor)](void* ptr)->Arg
             {
-                return getter(reinterpret_cast<uintptr_t>(accessor(parent)), 0);
-            }
-            else
+                auto& parent = *reinterpret_cast<T*>(ptr);
+                return accessor(parent);
+            });
+        }
+        else
+        {
+            dst->SetDirect([accessor = std::forward<F>(accessor), type = Type](void* ptr)->Arg
             {
-                auto tmp = accessor(parent);
-                return getter(reinterpret_cast<uintptr_t>(&tmp), 0);
-            }
-        }, std::move(setFunc));
+                auto& parent = *reinterpret_cast<T*>(ptr);
+                auto ret = accessor(parent);
+                auto tmp = NativeWrapper::GetLocator(type, reinterpret_cast<uintptr_t>(&ret), IsConst, 0);
+                return tmp.Get();
+            }, IsConst);
+        }
         return *dst;
     }
     template<typename F>

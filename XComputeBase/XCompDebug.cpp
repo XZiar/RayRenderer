@@ -122,7 +122,7 @@ ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t al
     uint16_t offset = 0, layoutidx = 0;
     { 
         uint16_t idx = 0;
-        for (const auto [str, info] : infos)
+        for (const auto& [str, info] : infos)
         {
             if (!str.empty())
             {
