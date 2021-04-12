@@ -142,28 +142,34 @@
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Arg" >
-    <Intrinsic Name="IsCustom" Expression="((uint16_t)(TypeData) &amp; (uint16_t)xziar::nailang::Arg::Type::Var) != 0"/>
+    <Intrinsic Name="IsCustom" Expression="(TypeData &amp; xziar::nailang::Arg::Type::Var) == xziar::nailang::Arg::Type::Var"/>
+    <Intrinsic Name="IsArray"  Expression="(TypeData &amp; xziar::nailang::Arg::Type::Array) == xziar::nailang::Arg::Type::Array"/>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Empty" >{{ Empty }}</DisplayString>
-    <DisplayString Condition="IsCustom()"                                   >{{ Var  }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Str">{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::U32Sv" >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data0.Uint),[Data1]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Uint"  >{{ Uint [{Data0.Uint}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Int"   >{{ Int [{static_cast&lt;int64_t&gt;(Data0.Uint)}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::FP"    >{{ FP [{Data0.FP}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::Bool"  >{{ Bool [{Data0.Uint == 1}] }}</DisplayString>
-  </Type>
-  <Type Name="xziar::nailang::ArgLocator" >
-    <DisplayString Condition="Type == xziar::nailang::ArgLocator::LocateType::Empty" >{{ Empty }}</DisplayString>
-    <DisplayString Condition="Type == xziar::nailang::ArgLocator::LocateType::Arg"   >{{ Var [{Val}] }}</DisplayString>
-    <DisplayString Condition="Type == xziar::nailang::ArgLocator::LocateType::Ptr"   >{{ Ptr [{reinterpret_cast&lt;xziar::nailang::Arg*&gt;(Val.Data0.Uint),na}] }}</DisplayString>
-    <DisplayString Condition="Type == xziar::nailang::ArgLocator::LocateType::GetSet">{{ GetSet }}</DisplayString>
+    <DisplayString Condition="IsArray()" >{{ Array [length = {Data2}] }}</DisplayString>
+    <DisplayString Condition="IsCustom()">{{ Var }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::CategoryArgPtr">{{ ArgPtr [{reinterpret_cast&lt;const xziar::nailang::Arg*&gt;(Data0.Uint),na}] }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Arg::Type::CategoryGetSet">{{ GetSet }}</DisplayString>
     <Expand>
-      <Item Condition="Type == xziar::nailang::ArgLocator::LocateType::Arg"    Name="[Target]">Val</Item>
-      <Item Condition="Type == xziar::nailang::ArgLocator::LocateType::Ptr"    Name="[Target]">reinterpret_cast&lt;xziar::nailang::Arg*&gt;(Val.Data0.Uint),na</Item>
-      <Item Condition="Type == xziar::nailang::ArgLocator::LocateType::GetSet" Name="[Getter]">reinterpret_cast&lt;xziar::nailang::ArgLocator::GetSet*&gt;(Val.Data0.Uint)->Get</Item>
-      <Item Condition="Type == xziar::nailang::ArgLocator::LocateType::GetSet" Name="[Setter]">reinterpret_cast&lt;xziar::nailang::ArgLocator::GetSet*&gt;(Val.Data0.Uint)->Set</Item>
-      <Item Name="Flag">Flag,en</Item>
+      <Item Condition="IsCustom()" Name="[Host]">reinterpret_cast&lt;const xziar::nailang::CustomVar::Handler*&gt;(Data0.Uint),na</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryGetSet" Name="[GetSet]">reinterpret_cast&lt;const xziar::nailang::GetSet*&gt;(Data0.Uint),na</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryGetSet" Name="[Ptr]"   >Data1</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryGetSet" Name="[Index]" >Data2</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryGetSet" Name="[Meta]"  >Data3</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryArgPtr" Name="[Arg]"   >reinterpret_cast&lt;const xziar::nailang::Arg*&gt;(Data0.Uint),na</Item>
+      <Item Condition="TypeData == xziar::nailang::Arg::Type::CategoryArgPtr" Name="[Access]">static_cast&lt;xziar::nailang::ArgAccess&gt;(Data3)</Item>
     </Expand>
+  </Type>
+  <Type Name="xziar::nailang::AutoVarHandler&lt;*&gt;" >
+    <DisplayString>{{ AutoVar {{{"$T1",sb}}} }}</DisplayString>
+  </Type>
+  <Type Name="xziar::nailang::AutoVarHandler&lt;*&gt;::ArrayHandler" >
+    <DisplayString>{{ AutoVarArray {{{"$T1",sb}}} }}</DisplayString>
   </Type>
   <Type Name="xziar::nailang::Statement">
     <DisplayString Condition="TypeData == Type::FuncCall">{{ FuncCall }}</DisplayString>
@@ -171,10 +177,10 @@
     <DisplayString Condition="TypeData == Type::RawBlock">{{ RawBlock }}</DisplayString>
     <DisplayString Condition="TypeData == Type::Block"   >{{ Block }}</DisplayString>
     <Expand>
-      <Item Condition="TypeData == Type::FuncCall" Name="[FuncCall]"  >*reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Pointer)</Item>
-      <Item Condition="TypeData == Type::Assign"   Name="[AssignExpr]">*reinterpret_cast&lt;const xziar::nailang::AssignExpr*&gt;(Pointer)</Item>
-      <Item Condition="TypeData == Type::RawBlock" Name="[RawBlock]"  >*reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Pointer)</Item>
-      <Item Condition="TypeData == Type::Block"    Name="[Block]"     >*reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Pointer)</Item>
+      <Item Condition="TypeData == Type::FuncCall" Name="[FuncCall]"  >reinterpret_cast&lt;const xziar::nailang::FuncCall*&gt;  (Pointer),na</Item>
+      <Item Condition="TypeData == Type::Assign"   Name="[AssignExpr]">reinterpret_cast&lt;const xziar::nailang::AssignExpr*&gt;(Pointer),na</Item>
+      <Item Condition="TypeData == Type::RawBlock" Name="[RawBlock]"  >reinterpret_cast&lt;const xziar::nailang::RawBlock*&gt;  (Pointer),na</Item>
+      <Item Condition="TypeData == Type::Block"    Name="[Block]"     >reinterpret_cast&lt;const xziar::nailang::Block*&gt;     (Pointer),na</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::RawBlock">

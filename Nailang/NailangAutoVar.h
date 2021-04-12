@@ -46,19 +46,24 @@ protected:
         constexpr AccessorBuilder(Accessor& host) noexcept : Host(host) {}
         NAILANGAPI AccessorBuilder& SetConst(bool isConst = true);
     };
+    class NAILANGAPI AutoVarArrayHandler : public CustomVar::Handler
+    {
+    protected:
+        AutoVarHandlerBase& Parent;
+        std::u32string TypeName;
+        AutoVarArrayHandler(AutoVarHandlerBase& parent);
+        ~AutoVarArrayHandler();
+        std::function<std::optional<size_t>(void*, size_t, const Arg&)> ExtendIndexer;
+        [[nodiscard]] virtual uintptr_t OffsetPtr(uintptr_t base, size_t idx) const noexcept = 0;
+        Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override;
+        std::u32string_view GetTypeName(const CustomVar&) noexcept final;
+    };
     std::u32string TypeName;
-    size_t TypeSize;
     common::HashedStringPool<char32_t> NamePool;
     std::vector<std::pair<common::StringPiece<char32_t>, Accessor>> MemberList;
     std::function<void(void*, Arg)> Assigner;
-    std::function<std::optional<size_t>(void*, size_t, const Arg&)> ExtendIndexer;
-    AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize);
+    AutoVarHandlerBase(std::u32string_view typeName);
     Accessor* FindMember(std::u32string_view name, bool create = false);
-    template<typename T>
-    static constexpr auto GetFlag() noexcept
-    {
-        return common::enum_cast(std::is_const_v<T> ? VarFlags::Empty : VarFlags::NonConst);
-    }
 public:
     enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
     virtual ~AutoVarHandlerBase();
@@ -82,9 +87,19 @@ template<typename T>
 struct AutoVarHandler : public AutoVarHandlerBase
 {
 private:
+    struct ArrayHandler final : public AutoVarArrayHandler
+    {
+        friend AutoVarHandler<T>;
+        using AutoVarArrayHandler::AutoVarArrayHandler;
+        [[nodiscard]] uintptr_t OffsetPtr(uintptr_t base, size_t idx) const noexcept 
+        {
+            return reinterpret_cast<uintptr_t>(reinterpret_cast<T*>(base) + idx);
+        }
+    };
     std::vector<std::unique_ptr<AutoVarHandlerBase>> UnnamedHandler;
+    ArrayHandler TheArrayHandler;
 public:
-    AutoVarHandler(std::u32string_view typeName) : AutoVarHandlerBase(typeName, sizeof(T)) 
+    AutoVarHandler(std::u32string_view typeName) : AutoVarHandlerBase(typeName), TheArrayHandler(*this)
     { }
     ~AutoVarHandler() override {}
     template<typename U, typename F>
@@ -97,18 +112,13 @@ public:
             using X = std::invoke_result_t<F, T&>;
             if constexpr (std::is_same_v<X, U*> || std::is_same_v<X, const U*>)
             {
-                static constexpr auto Flag = AutoVarHandlerBase::GetFlag<std::remove_pointer_t<X>>();
-                const auto fieldPtr = reinterpret_cast<uintptr_t>(accessor(parent));
-                return CustomVar{ handlerPtr, static_cast<uint64_t>(fieldPtr), UINT32_MAX, Flag };
+                const auto ret = accessor(parent);
+                return handlerPtr->CreateVar(*ret);
             }
             else if constexpr (std::is_same_v<X, common::span<U>> || std::is_same_v<X, common::span<const U>>)
             {
-                static constexpr auto Flag = AutoVarHandlerBase::GetFlag<typename X::value_type>();
                 const auto sp = accessor(parent);
-                const auto elePtr = reinterpret_cast<uintptr_t>(sp.data());
-                Expects(sp.size() < SIZE_MAX);
-                const auto eleNum = static_cast<uint32_t>(sp.size());
-                return CustomVar{ handlerPtr, static_cast<uint64_t>(elePtr), eleNum, Flag };
+                return handlerPtr->CreateVar(sp);
             }
             else
             {
@@ -201,7 +211,7 @@ public:
     {
         static_assert(std::is_invocable_r_v<std::optional<size_t>, F, common::span<const T>, const Arg&>, 
             "indexer should accept span<T>, Arg, Expr and return index");
-        ExtendIndexer = [indexer = std::move(indexer)](void* ptr, size_t len, const Arg& val)
+        TheArrayHandler.ExtendIndexer = [indexer = std::move(indexer)](void* ptr, size_t len, const Arg& val)
         {
             const auto host = common::span<const T>(reinterpret_cast<const T*>(ptr), len);
             return indexer(host, val);
@@ -210,8 +220,8 @@ public:
 
     CustomVar CreateVar(const T& obj)
     {
-        const auto ptr     = reinterpret_cast<uintptr_t>(&obj);
-        return { this, ptr, UINT32_MAX, 0 };
+        const auto ptr = reinterpret_cast<uintptr_t>(&obj);
+        return { this, ptr, 0, 0 };
     }
     CustomVar CreateVar(T& obj)
     {
@@ -224,7 +234,7 @@ public:
         Expects(objs.size() < UINT32_MAX);
         const auto ptr     = reinterpret_cast<uintptr_t>(objs.data());
         const auto eleNum  = static_cast<uint32_t>(objs.size());
-        return { this, ptr, eleNum, 0 };
+        return { &TheArrayHandler, ptr, eleNum, 0 };
     }
     CustomVar CreateVar(common::span<T> objs)
     {

@@ -232,11 +232,11 @@ Arg NailangHelper::ExtractArg(Arg& target, SubQuery query, NailangExecutor& exec
     if (next.IsEmpty())
         COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Does not exists [{}]",
             Serializer::Stringify(query)));
+    if (!HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
+        COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an get-host's [{}]",
+            Serializer::Stringify(query)));
     if (query.Size() > 0)
     {
-        if (!HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
-            COMMON_THROWEX(NailangRuntimeException, FMTSTR(u"Can not access an set-host's [{}]",
-                Serializer::Stringify(query)));
         next.Decay();
         return ExtractArg(next, query, executor);
     }

@@ -77,7 +77,7 @@ AutoVarHandlerBase::AccessorBuilder& AutoVarHandlerBase::AccessorBuilder::SetCon
 }
 
 
-AutoVarHandlerBase::AutoVarHandlerBase(std::u32string_view typeName, size_t typeSize) : TypeName(typeName), TypeSize(typeSize)
+AutoVarHandlerBase::AutoVarHandlerBase(std::u32string_view typeName) : TypeName(typeName)
 { }
 AutoVarHandlerBase::~AutoVarHandlerBase() { }
 
@@ -102,86 +102,44 @@ Arg AutoVarHandlerBase::HandleQuery(CustomVar& var, SubQuery& subq, NailangExecu
     Expects(subq.Size() > 0);
     const bool nonConst = HAS_FIELD(static_cast<VarFlags>(var.Meta2), VarFlags::NonConst);
     const auto [type, query] = subq[0];
-    if (var.Meta1 < UINT32_MAX) // is array
+    switch (type)
     {
-        switch (type)
+    case SubQuery::QueryType::Index:
+    {
+        const auto idx = executor.EvaluateExpr(query);
+        auto result = IndexerGetter(var, idx, query);
+        if (!result.IsEmpty())
         {
-        case SubQuery::QueryType::Index:
-        {
-            const auto idx  = executor.EvaluateExpr(query);
-            size_t tidx = 0;
-            if (ExtendIndexer)
-            {
-                const auto idx_ = ExtendIndexer(reinterpret_cast<void*>(var.Meta0), var.Meta1, idx);
-                if (idx_.has_value())
-                    tidx = *idx_;
-                else
-                    COMMON_THROWEX(NailangRuntimeException,
-                        FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idx.ToString().StrView(), var.Meta1), query);
-            }
-            else
-            {
-                tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
-            }
-            const auto ptr  = static_cast<uintptr_t>(var.Meta0) + tidx * TypeSize;
             subq.Consume();
-            return { CustomVar{ var.Host, ptr, UINT32_MAX, var.Meta2 }, !nonConst };
+            return result;
         }
-        case SubQuery::QueryType::Sub:
-        {
-            auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length")
-            {
-                subq.Consume();
-                return uint64_t(var.Meta1);
-            }
-        } break;
-        default: break;
-        }
-    }
-    else
+    } break;
+    case SubQuery::QueryType::Sub:
     {
-        switch (type)
+        auto field = query.GetVar<Expr::Type::Str>();
+        if (const auto accessor = FindMember(field); accessor)
         {
-        case SubQuery::QueryType::Index:
-        {
-            const auto idx = executor.EvaluateExpr(query);
-            auto result = IndexerGetter(var, idx, query);
-            if (!result.IsEmpty())
+            const auto ptr = reinterpret_cast<void*>(var.Meta0);
+            const auto isConst = !nonConst || accessor->IsConst;
+            subq.Consume();
+            switch (accessor->TypeData)
             {
-                subq.Consume();
-                return result;
+            case Accessor::Type::Auto:
+                return { accessor->AutoMember(ptr), isConst };
+            case Accessor::Type::Empty:
+                return {};
+            default:
+                return accessor->SimpleMember(ptr);
             }
-        } break;
-        case SubQuery::QueryType::Sub:
-        {
-            auto field = query.GetVar<Expr::Type::Str>();
-            if (const auto accessor = FindMember(field); accessor)
-            {
-                const auto ptr = reinterpret_cast<void*>(var.Meta0);
-                const auto isConst = !nonConst || accessor->IsConst;
-                subq.Consume();
-                switch (accessor->TypeData)
-                {
-                case Accessor::Type::Auto:
-                    return { accessor->AutoMember(ptr), isConst };
-                case Accessor::Type::Empty:
-                    return {};
-                default:
-                    return accessor->SimpleMember(ptr);
-                }
-            }
-        } break;
-        default: break;
         }
+    } break;
+    default: break;
     }
     return {};
 }
 
 bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
 {
-    if (var.Meta1 < UINT32_MAX) // is array
-        return false;
     if (!Assigner)
         return false;
     const auto ptr = reinterpret_cast<void*>(var.Meta0);
@@ -190,6 +148,57 @@ bool AutoVarHandlerBase::HandleAssign(CustomVar& var, Arg val)
 }
 
 std::u32string_view AutoVarHandlerBase::GetTypeName(const CustomVar&) noexcept
+{
+    return TypeName;
+}
+
+
+AutoVarHandlerBase::AutoVarArrayHandler::AutoVarArrayHandler(AutoVarHandlerBase& parent) : Parent(parent), TypeName(Parent.TypeName + U"[]")
+{ }
+AutoVarHandlerBase::AutoVarArrayHandler::~AutoVarArrayHandler()
+{ }
+Arg AutoVarHandlerBase::AutoVarArrayHandler::HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor)
+{
+    Expects(subq.Size() > 0);
+    const bool nonConst = HAS_FIELD(static_cast<VarFlags>(var.Meta2), VarFlags::NonConst);
+    const auto [type, query] = subq[0];
+    switch (type)
+    {
+    case SubQuery::QueryType::Index:
+    {
+        const auto idx = executor.EvaluateExpr(query);
+        std::optional<size_t> tidx;
+        if (ExtendIndexer)
+            tidx = ExtendIndexer(reinterpret_cast<void*>(var.Meta0), var.Meta1, idx);
+        if (tidx.has_value())
+        {
+            if (tidx.value() == SIZE_MAX)
+                COMMON_THROWEX(NailangRuntimeException,
+                    FMTSTR(u"cannot find element for index [{}] in array of [{}]"sv, idx.ToString().StrView(), var.Meta1), query);
+        }
+        else
+        {
+            tidx = NailangHelper::BiDirIndexCheck(var.Meta1, idx, &query);
+        }
+        const auto ptr = OffsetPtr(static_cast<uintptr_t>(var.Meta0), tidx.value());
+        subq.Consume();
+        return { CustomVar{ &Parent, ptr, 0, var.Meta2 }, !nonConst };
+    }
+    case SubQuery::QueryType::Sub:
+    {
+        auto field = query.GetVar<Expr::Type::Str>();
+        if (field == U"Length")
+        {
+            subq.Consume();
+            return uint64_t(var.Meta1);
+        }
+    } break;
+    default: break;
+    }
+    return {};
+}
+
+std::u32string_view AutoVarHandlerBase::AutoVarArrayHandler::GetTypeName(const CustomVar&) noexcept
 {
     return TypeName;
 }

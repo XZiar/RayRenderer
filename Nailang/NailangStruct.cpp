@@ -248,7 +248,7 @@ template<typename T> struct U8StrFix { using Type = T; };
 template<> struct U8StrFix<std::u8string> { using Type = std::string; };
 template<> struct U8StrFix<std::u8string_view> { using Type = std::string_view; };
 #endif
-FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
+ArrarRef::SpanVariant ArrarRef::GetSpan() const noexcept
 {
 #define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
 #define RET(tenum, type) case Type::tenum:                              \
@@ -264,7 +264,7 @@ FixedArray::SpanVariant FixedArray::GetSpan() const noexcept
 #undef SP
 }
 
-void FixedArray::PrintToStr(std::u32string& str, std::u32string_view delim) const
+void ArrarRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
 {
     constexpr auto Append = [](std::u32string& str, auto delim, auto ptr, const size_t len)
     {
@@ -311,7 +311,8 @@ Arg::Arg(const Arg& other) noexcept :
 
 Arg& Arg::operator=(const Arg& other) noexcept
 {
-    Release();
+    if (HAS_FIELD(TypeData, Type::OwnershipBit))
+        Release();
     Data0 = other.Data0;
     Data1 = other.Data1;
     Data2 = other.Data2;
@@ -422,7 +423,7 @@ static common::str::StrVariant<char32_t> ArgToString([[maybe_unused]]const T& va
         return fmt::format(FMT_STRING(U"{}"), val);
 }
 template<>
-common::str::StrVariant<char32_t> ArgToString<FixedArray>(const FixedArray& val) noexcept
+common::str::StrVariant<char32_t> ArgToString<ArrarRef>(const ArrarRef& val) noexcept
 {
     std::u32string ret = U"[";
     val.PrintToStr(ret, U", "sv);
@@ -527,13 +528,13 @@ bool Arg::Set(Arg val)
     return false;
 }
 
-Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& runtime)
+Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& executor)
 {
     Expects(subq.Size() > 0);
     if (IsCustom())
     {
         auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleQuery>(subq, runtime);
+        return var.Call<&CustomVar::Handler::HandleQuery>(subq, executor);
     }
     if (IsArray())
     {
@@ -543,7 +544,7 @@ Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& runtime)
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = runtime.EvaluateExpr(query);
+            const auto val = executor.EvaluateExpr(query);
             const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
             subq.Consume();
             return arr.Access(idx);
@@ -554,7 +555,7 @@ Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& runtime)
             if (field == U"Length"sv)
             {
                 subq.Consume();
-                return arr.Length;
+                return static_cast<uint64_t>(arr.Length);
             }
         } break;
         default: break;
@@ -569,7 +570,7 @@ Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& runtime)
         {
         case SubQuery::QueryType::Index:
         {
-            const auto val = runtime.EvaluateExpr(query);
+            const auto val = executor.EvaluateExpr(query);
             const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
             subq.Consume();
             if (TypeData == Type::U32Str)

@@ -78,11 +78,14 @@
   - [x] Add capture support when define func
   - [x] Seperate Executor and Runtime
   - [x] Correct handle *nary expression when facing custom object
-  - [ ] Seperate `AutoVar` and `AutoVar[]` to allow custom info when accessing AutoVar 
+  - [x] Seperate `AutoVar` and `AutoVar[]` to allow custom info when accessing AutoVar 
+  - [ ] Add bitwise operator support
+  - [ ] Correctly handle self assign for customvar (for efficiency)
   - [ ] Add member func call for arg by `()`
   - [ ] Remove PartedName, func will only keep fullname
   - [ ] Prefer member func than global func, use query to replace PatedName
   - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
+  - [ ] Add serialize/deserialize to/from json (with mempool)
 
 * XCompute
   - [ ] Merge OpenCLInterop

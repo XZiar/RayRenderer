@@ -790,16 +790,16 @@ public:
 class XCOMPBASAPI GeneralVecRef : public xziar::nailang::CustomVar::Handler
 {
 protected:
-    static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray arr);
-    static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::FixedArray& arr, std::u32string_view field);
+    static xziar::nailang::CustomVar Create(xziar::nailang::ArrarRef arr);
+    static size_t ToIndex(const xziar::nailang::CustomVar& var, const xziar::nailang::ArrarRef& arr, std::u32string_view field);
     xziar::nailang::Arg HandleQuery(xziar::nailang::CustomVar& var, xziar::nailang::SubQuery& subq, xziar::nailang::NailangExecutor& executor) override;
     bool HandleAssign(xziar::nailang::CustomVar& var, xziar::nailang::Arg arg) override;
     xziar::nailang::CompareResult CompareSameClass(const xziar::nailang::CustomVar&, const xziar::nailang::CustomVar&) final;
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
     std::u32string_view GetTypeName(const xziar::nailang::CustomVar&) noexcept override;
-    std::u32string GetExactType(const xziar::nailang::FixedArray& arr) noexcept;
+    std::u32string GetExactType(const xziar::nailang::ArrarRef& arr) noexcept;
 public:
-    static xziar::nailang::FixedArray ToArray(const xziar::nailang::CustomVar& var) noexcept;
+    static xziar::nailang::ArrarRef ToArray(const xziar::nailang::CustomVar& var) noexcept;
     template<typename T>
     static constexpr bool CheckType() noexcept
     {
@@ -810,7 +810,7 @@ public:
     static xziar::nailang::CustomVar Create(common::span<T> target)
     {
         static_assert(CheckType<T>(), "only allow arithmetic type");
-        return Create(xziar::nailang::FixedArray::Create(target));
+        return Create(xziar::nailang::ArrarRef::Create(target));
     }
 };
 
@@ -821,13 +821,13 @@ class XCOMPBASAPI GeneralVec : public GeneralVecRef
     common::str::StrVariant<char32_t> ToString(const xziar::nailang::CustomVar& var) noexcept override;
     std::u32string_view GetTypeName(const xziar::nailang::CustomVar&) noexcept override;
 public:
-    static xziar::nailang::CustomVar Create(xziar::nailang::FixedArray::Type type, size_t len);
+    static xziar::nailang::CustomVar Create(xziar::nailang::ArrarRef::Type type, size_t len);
     template<typename T>
     static xziar::nailang::CustomVar Create(size_t len)
     {
         static_assert(GeneralVecRef::CheckType<T>(), "only allow arithmetic type");
         common::span<T> dummy(reinterpret_cast<T*>(nullptr), 1);
-        const auto type = xziar::nailang::FixedArray::Create(dummy).ElementType;
+        const auto type = xziar::nailang::ArrarRef::Create(dummy).ElementType;
         return Create(type, len);
     }
 };

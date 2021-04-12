@@ -14,10 +14,9 @@ using common::parser::ParserContext;
 using common::parser::ContextReader;
 using xziar::nailang::MemoryPool;
 using xziar::nailang::NailangParser;
-using xziar::nailang::NailangParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::LateBindVar;
-using xziar::nailang::FixedArray;
+using xziar::nailang::ArrarRef;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::SubQuery;
@@ -27,7 +26,6 @@ using xziar::nailang::Expr;
 using xziar::nailang::CustomVar;
 using xziar::nailang::Arg;
 using xziar::nailang::NativeWrapper;
-using xziar::nailang::NilCheck;
 using xziar::nailang::NilCheck;
 using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
@@ -513,6 +511,10 @@ TEST(NailangRuntime, Indexer)
         CHECK_ARG(arg, U32Sv, U"o"sv);        
     }
     {
+        const auto arg = ParseEval(U"tmp[-2][0];"sv);
+        CHECK_ARG(arg, U32Sv, U"l"sv);
+    }
+    {
         EXPECT_THROW(ParseEval(U"tmp[5];"sv), xziar::nailang::NailangRuntimeException);
     }
     {
@@ -546,19 +548,19 @@ TEST(NailangRuntime, Indexer)
 }
 
 
-TEST(NailangRuntime, FixedArray)
+TEST(NailangRuntime, ArrarRef)
 {
     MemoryPool pool;
     NailangRT runtime;
     constexpr float dummy1[] = { 0.f,1.f,4.f,-2.f };
     int8_t dummy2[] = { 0,1,4,-2 };
-    runtime.SetRootArg(U"arr1", FixedArray::Create<const float>(dummy1));
-    runtime.SetRootArg(U"arr2", FixedArray::Create<int8_t>(dummy2));
+    runtime.SetRootArg(U"arr1", ArrarRef::Create<const float>(dummy1));
+    runtime.SetRootArg(U"arr2", ArrarRef::Create<int8_t>(dummy2));
     {
         const auto arg = runtime.QuickGetArg(U"arr1"sv);
-        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
+        ASSERT_TRUE(CheckArg(arg, Arg::Type::Array | Arg::Type::ConstBit));
         const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, FixedArray::Type::F32);
+        ASSERT_EQ(var.ElementType, ArrarRef::Type::F32);
         ASSERT_TRUE(var.IsReadOnly);
         const auto sp  = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
@@ -569,7 +571,7 @@ TEST(NailangRuntime, FixedArray)
         const auto arg = runtime.QuickGetArg(U"arr2"sv);
         ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
         const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, FixedArray::Type::I8);
+        ASSERT_EQ(var.ElementType, ArrarRef::Type::I8);
         ASSERT_FALSE(var.IsReadOnly);
         const auto sp = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
