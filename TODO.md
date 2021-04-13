@@ -86,6 +86,7 @@
   - [ ] Prefer member func than global func, use query to replace PatedName
   - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
   - [ ] Add serialize/deserialize to/from json (with mempool)
+  - [ ] Embed comment infomation into statement
 
 * XCompute
   - [ ] Merge OpenCLInterop

@@ -26,6 +26,7 @@ using common::parser::ParserLexerBase;
 
 
 enum class ExtraOps : uint16_t { Quest = 256, Colon };
+enum class AssignOps : uint16_t { Assign = 384, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
 
 namespace tokenizer
 {
@@ -97,7 +98,7 @@ public:
 class BlockPrefixTokenizer : public PrefixedTokenizer<U'#'>
 {
 public:
-    forceinline constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) const noexcept
+    forceinline static constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) noexcept
     {
         Expects(txt.size() == 1);
         const auto fullname = ReadFullName(reader);
@@ -124,7 +125,7 @@ template<char32_t Pfx, NailangToken Type>
 class FuncPrefixTokenizer : public PrefixedTokenizer<Pfx>
 {
 public:
-    forceinline constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) const noexcept
+    forceinline static constexpr ParserToken GetToken(ContextReader& reader, std::u32string_view txt) noexcept
     {
         Expects(txt.size() == 1);
         const auto funcname = PrefixedTokenizer<Pfx>::ReadFullName(reader);
@@ -211,7 +212,7 @@ class OpSymbolTokenizer
         static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
         std::pair<char, uint8_t> mappings[] = 
         {
-            { '=', enum_cast(TokenizerResult::Pending ) },
+            { '=', enum_cast(TokenizerResult::Waitlist) },
             { '!', enum_cast(TokenizerResult::Waitlist) },
             { '<', enum_cast(TokenizerResult::Waitlist) },
             { '>', enum_cast(TokenizerResult::Waitlist) },
@@ -227,6 +228,36 @@ class OpSymbolTokenizer
         };
         return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
     }();
+    static constexpr ASCIIChecker<true> AllowedBeforeEqual = "=!<>+-*/%?:"sv;
+#define ENUM_PAIR(name, op) U"" name ""sv, static_cast<uint16_t>(op)
+    static constexpr auto ResultParser = PARSE_PACK(
+        ENUM_PAIR("==", EmbedOps::Equal),
+        ENUM_PAIR("!=", EmbedOps::NotEqual),
+        ENUM_PAIR("<",  EmbedOps::Less),
+        ENUM_PAIR("<=", EmbedOps::LessEqual),
+        ENUM_PAIR(">",  EmbedOps::Greater),
+        ENUM_PAIR(">=", EmbedOps::GreaterEqual),
+        ENUM_PAIR("&&", EmbedOps::And),
+        ENUM_PAIR("||", EmbedOps::Or),
+        ENUM_PAIR("+",  EmbedOps::Add),
+        ENUM_PAIR("-",  EmbedOps::Sub),
+        ENUM_PAIR("*",  EmbedOps::Mul),
+        ENUM_PAIR("/",  EmbedOps::Div),
+        ENUM_PAIR("%",  EmbedOps::Rem),
+        ENUM_PAIR("??", EmbedOps::ValueOr),
+        ENUM_PAIR("!",  EmbedOps::Not),
+        ENUM_PAIR("?",  ExtraOps::Quest),
+        ENUM_PAIR(":",  ExtraOps::Colon),
+        ENUM_PAIR("=",  AssignOps::   Assign),
+        ENUM_PAIR("+=", AssignOps::AddAssign),
+        ENUM_PAIR("-=", AssignOps::SubAssign),
+        ENUM_PAIR("*=", AssignOps::MulAssign),
+        ENUM_PAIR("/=", AssignOps::DivAssign),
+        ENUM_PAIR("%=", AssignOps::RemAssign),
+        ENUM_PAIR("?=", AssignOps::NilAssign),
+        ENUM_PAIR(":=", AssignOps::NewCreate)
+        );
+#undef ENUM_PAIR
 public:
     using StateData = char32_t;
     forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
@@ -237,16 +268,17 @@ public:
         case 0: // just begin
             return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
         case 1:
-            switch (prevChar)
+            if (ch == U'=')
+                return { ch, AllowedBeforeEqual(prevChar) ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            else
             {
-            case U'=': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'!': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'<': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'>': return { ch, ch == U'=' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'&': return { ch, ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'|': return { ch, ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            case U'?': return { ch, ch == U'?' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            default:   return { ch, TokenizerResult::NotMatch };
+                switch (prevChar)
+                {
+                case U'&': return { ch, ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+                case U'|': return { ch, ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+                case U'?': return { ch, ch == U'?' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+                default:   return { ch, TokenizerResult::NotMatch };
+                }
             }
         default:
             return { ch, TokenizerResult::NotMatch };
@@ -255,94 +287,75 @@ public:
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::OpSymbol, common::enum_cast(op))
-        switch (common::DJBHash::HashC(txt))
-        {
-        RET_OP("==", EmbedOps::Equal);
-        RET_OP("!=", EmbedOps::NotEqual);
-        RET_OP("<",  EmbedOps::Less);
-        RET_OP("<=", EmbedOps::LessEqual);
-        RET_OP(">",  EmbedOps::Greater);
-        RET_OP(">=", EmbedOps::GreaterEqual);
-        RET_OP("&&", EmbedOps::And);
-        RET_OP("||", EmbedOps::Or);
-        RET_OP("+",  EmbedOps::Add);
-        RET_OP("-",  EmbedOps::Sub);
-        RET_OP("*",  EmbedOps::Mul);
-        RET_OP("/",  EmbedOps::Div);
-        RET_OP("%",  EmbedOps::Rem);
-        RET_OP("??", EmbedOps::ValueOr);
-        RET_OP("!",  EmbedOps::Not);
-        RET_OP("?",  ExtraOps::Quest);
-        RET_OP(":",  ExtraOps::Colon);
-        default:     return ParserToken(BaseToken::Error, txt);
-        }
-#undef RET_OP
+        const auto ret = ResultParser(txt);
+        if (ret.has_value())
+            return ParserToken(NailangToken::OpSymbol, ret.value());
+        else
+            return ParserToken(BaseToken::Error, txt);
     }
 };
 
-enum class AssignOps : uint8_t { Assign = 0, AndAssign, OrAssign, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
-class AssignOpTokenizer
-{
-    static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
-    {
-        using common::enum_cast;
-        static_assert(enum_cast(TokenizerResult::Pending)  <= 0b11);
-        static_assert(enum_cast(TokenizerResult::Waitlist) <= 0b11);
-        static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
-        std::pair<char, uint8_t> mappings[] = 
-        {
-            { '=', enum_cast(TokenizerResult::Waitlist) },
-            { '&', enum_cast(TokenizerResult::Pending ) },
-            { '|', enum_cast(TokenizerResult::Pending ) },
-            { '+', enum_cast(TokenizerResult::Pending ) },
-            { '-', enum_cast(TokenizerResult::Pending ) },
-            { '*', enum_cast(TokenizerResult::Pending ) },
-            { '/', enum_cast(TokenizerResult::Pending ) },
-            { '%', enum_cast(TokenizerResult::Pending ) },
-            { '?', enum_cast(TokenizerResult::Pending ) },
-            { ':', enum_cast(TokenizerResult::Pending ) },
-        };
-        return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
-    }();
-public:
-    using StateData = char32_t;
-    forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
-    {
-        Expects((idx == 0) == (prevChar == 0));
-        switch (idx)
-        {
-        case 0: // just begin
-            return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
-        case 1:
-            if (prevChar != U'=' && ch == U'=')
-                return { ch, TokenizerResult::Waitlist };
-        [[fallthrough]];
-        default:
-            return { ch, TokenizerResult::NotMatch };
-        }
-    }
-    forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
-    {
-        Expects(txt.size() == 1 || txt.size() == 2);
-#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::Assign, common::enum_cast(AssignOps::op))
-        switch (common::DJBHash::HashC(txt))
-        {
-        RET_OP("=",     Assign);
-        RET_OP("&=", AndAssign);
-        RET_OP("|=",  OrAssign);
-        RET_OP("+=", AddAssign);
-        RET_OP("-=", SubAssign);
-        RET_OP("*=", MulAssign);
-        RET_OP("/=", DivAssign);
-        RET_OP("%=", RemAssign);
-        RET_OP("?=", NilAssign);
-        RET_OP(":=", NewCreate);
-        default:     return ParserToken(BaseToken::Error, txt);
-        }
-#undef RET_OP
-    }
-};
+//class AssignOpTokenizer
+//{
+//    static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
+//    {
+//        using common::enum_cast;
+//        static_assert(enum_cast(TokenizerResult::Pending)  <= 0b11);
+//        static_assert(enum_cast(TokenizerResult::Waitlist) <= 0b11);
+//        static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
+//        std::pair<char, uint8_t> mappings[] = 
+//        {
+//            { '=', enum_cast(TokenizerResult::Waitlist) },
+//            { '&', enum_cast(TokenizerResult::Pending ) },
+//            { '|', enum_cast(TokenizerResult::Pending ) },
+//            { '+', enum_cast(TokenizerResult::Pending ) },
+//            { '-', enum_cast(TokenizerResult::Pending ) },
+//            { '*', enum_cast(TokenizerResult::Pending ) },
+//            { '/', enum_cast(TokenizerResult::Pending ) },
+//            { '%', enum_cast(TokenizerResult::Pending ) },
+//            { '?', enum_cast(TokenizerResult::Pending ) },
+//            { ':', enum_cast(TokenizerResult::Pending ) },
+//        };
+//        return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
+//    }();
+//public:
+//    using StateData = char32_t;
+//    forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
+//    {
+//        Expects((idx == 0) == (prevChar == 0));
+//        switch (idx)
+//        {
+//        case 0: // just begin
+//            return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
+//        case 1:
+//            if (prevChar != U'=' && ch == U'=')
+//                return { ch, TokenizerResult::Waitlist };
+//        [[fallthrough]];
+//        default:
+//            return { ch, TokenizerResult::NotMatch };
+//        }
+//    }
+//    forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
+//    {
+//        Expects(txt.size() == 1 || txt.size() == 2);
+//#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::Assign, common::enum_cast(AssignOps::op))
+//        switch (common::DJBHash::HashC(txt))
+//        {
+//        RET_OP("=",     Assign);
+//        RET_OP("&=", AndAssign);
+//        RET_OP("|=",  OrAssign);
+//        RET_OP("+=", AddAssign);
+//        RET_OP("-=", SubAssign);
+//        RET_OP("*=", MulAssign);
+//        RET_OP("/=", DivAssign);
+//        RET_OP("%=", RemAssign);
+//        RET_OP("?=", NilAssign);
+//        RET_OP(":=", NewCreate);
+//        default:     return ParserToken(BaseToken::Error, txt);
+//        }
+//#undef RET_OP
+//    }
+//};
 
 
 }

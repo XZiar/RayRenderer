@@ -109,11 +109,11 @@ public:
     {
         return ParseRawBlock(name, GetCurPos(true));
     }
-    [[nodiscard]] forceinline RawBlock ParseRawBlock(const common::parser::DetailToken & token)
+    [[nodiscard]] forceinline RawBlock ParseRawBlock(const common::parser::DetailToken& token)
     {
         return ParseRawBlock(token.GetString(), GetPosition(token));
     }
-    [[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos);
+    /*[[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos);
     [[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var)
     {
         return ParseAssignExpr(var, GetCurPos());
@@ -121,9 +121,10 @@ public:
     [[nodiscard]] AssignExpr ParseAssignExpr(const common::parser::DetailToken & token)
     {
         return ParseAssignExpr(token.GetString(), GetPosition(token));
-    }
-    [[nodiscard]] std::pair<Expr, char32_t> ParseExpr(std::string_view stopDelim);
-    [[nodiscard]] Expr ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker);
+    }*/
+    enum class AssignPolicy { Disallow = 0, AllowVar = 1, AllowAny = 2 };
+    [[nodiscard]] std::pair<Expr, char32_t> ParseExpr(std::string_view stopDelim, AssignPolicy policy = AssignPolicy::Disallow);
+    [[nodiscard]] Expr ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker, AssignPolicy policy = AssignPolicy::Disallow);
     void ParseContentIntoBlock(const bool allowNonBlock, Block& block, const bool tillTheEnd = true);
 
     [[nodiscard]] static Expr ProcessString(std::u32string_view str, MemoryPool& pool);

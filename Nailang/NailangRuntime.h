@@ -3,6 +3,7 @@
 #include "common/Exceptions.hpp"
 #include "common/StringPool.hpp"
 #include "common/STLEx.hpp"
+#include <boost/container/small_vector.hpp>
 #include <map>
 #include <vector>
 #include <memory>
@@ -253,12 +254,12 @@ enum class ArgLimits { Exact, AtMost, AtLeast };
 struct NAILANGAPI NailangHelper
 {
     [[nodiscard]] static size_t BiDirIndexCheck(const size_t size, const Arg& idx, const Expr* src = nullptr);
-    static Arg ExtractArg(Arg& target, SubQuery query, NailangExecutor& executor);
+    /*static Arg ExtractArg(Arg& target, QueryExpr query, NailangExecutor& executor);
     template<typename F>
-    static bool LocateWrite(Arg& target, SubQuery query, NailangExecutor& executor, const F& func);
+    static bool LocateWrite(Arg& target, QueryExpr query, NailangExecutor& executor, const F& func);
     template<bool IsWrite, typename F>
-    static auto LocateAndExecute(Arg& target, SubQuery query, NailangExecutor& executor, const F& func)
-        -> decltype(func(std::declval<Arg&>()));
+    static auto LocateAndExecute(Arg& target, QueryExpr query, NailangExecutor& executor, const F& func)
+        -> decltype(func(std::declval<Arg&>()));*/
 };
 
 
@@ -385,6 +386,22 @@ public:
 };
 
 
+class EvalTempStore
+{
+    friend NailangExecutor;
+private:
+    boost::container::small_vector<Arg, 4> TempArg;
+public:
+    template<typename T>
+    void Put(T&& arg) noexcept
+    {
+        TempArg.emplace_back(std::forward<T>(arg));
+    }
+    void Reset() noexcept
+    {
+        TempArg.clear();
+    }
+};
 class MetaSet
 {
     friend NailangExecutor;
@@ -429,12 +446,6 @@ public:
             return metas->PostMetas();
         return {};
     }
-    forceinline static constexpr common::span<const FuncCall> GetOriginalMetas(MetaSet* metas) noexcept
-    {
-        if (metas)
-            return metas->OriginalMetas;
-        return {};
-    }
 };
 struct FuncEvalPack : public FuncPack
 {
@@ -447,7 +458,9 @@ struct FuncEvalPack : public FuncPack
     }
     forceinline constexpr common::span<const FuncCall> GetOriginalMetas() const noexcept
     {
-        return MetaSet::GetOriginalMetas(Metas);
+        if (Metas)
+            return Metas->OriginalMetas;
+        return {};
     }
 };
 
@@ -668,6 +681,8 @@ class NAILANGAPI NailangExecutor : public NailangBase
     friend NailangBlockFrame;
 private:
     void ExecuteFrame(NailangBlockFrame& frame);
+    template<typename T, Arg(Arg::* F)(SubQuery<T>&)>
+    [[nodiscard]] Arg EvaluateQuery(Arg target, SubQuery<T> query, EvalTempStore& store, bool forWrite);
 protected:
     NailangRuntime* Runtime = nullptr;
     [[nodiscard]] forceinline constexpr NailangFrame& GetFrame() const noexcept;
@@ -695,7 +710,8 @@ protected:
         if (limit == ArgLimits::AtMost && func.Args.size() == offset)
             return {};
         ThrowByArgCount(func, 1 + offset, limit);
-        auto arg = EvaluateExpr(func.Args[offset]);
+        EvalTempStore store;
+        auto arg = EvaluateExpr(func.Args[offset], store);
         ThrowByParamType(func, arg, type, offset);
         return arg;
     }
@@ -713,16 +729,17 @@ public:
     [[nodiscard]] virtual Arg EvaluateExtendMathFunc(FuncEvalPack& func);
     [[nodiscard]] virtual Arg EvaluateLocalFunc(const LocalFunc& func, FuncEvalPack& pack);
     [[nodiscard]] virtual Arg EvaluateUnknwonFunc(FuncEvalPack& func);
-    [[nodiscard]] Arg EvaluateUnaryExpr(const UnaryExpr& expr);
-    [[nodiscard]] Arg EvaluateBinaryExpr(const BinaryExpr& expr);
-    [[nodiscard]] Arg EvaluateTernaryExpr(const TernaryExpr& expr);
-    [[nodiscard]] Arg EvaluateQueryExpr(const QueryExpr& expr);
+    [[nodiscard]] Arg EvaluateUnaryExpr(const UnaryExpr& expr, EvalTempStore& store);
+    [[nodiscard]] Arg EvaluateBinaryExpr(const BinaryExpr& expr, EvalTempStore& store);
+    [[nodiscard]] Arg EvaluateTernaryExpr(const TernaryExpr& expr, EvalTempStore& store);
+    /*[[nodiscard]] Arg EvaluateSubfieldQuery(Arg target, SubQuery<const Expr> query, EvalTempStore& store, bool forWrite);
+    [[nodiscard]] Arg EvaluateIndexQuery(Arg target, SubQuery<Arg> query, EvalTempStore& store, bool forWrite);*/
     [[noreturn]] void HandleException(const NailangRuntimeException& ex) const final;
-    void HandleContent(const Statement& content, MetaSet* metas);
+    void HandleContent(const Statement& content, EvalTempStore& store, MetaSet* metas);
     [[nodiscard]] bool HandleMetaFuncs(MetaSet& allMetas); // return if need eval target
-    [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg);
-    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, MetaSet* metas);
-    virtual void EvaluateAssign(const AssignExpr& assign, MetaSet* metas);
+    [[nodiscard]] virtual Arg EvaluateExpr(const Expr& arg, EvalTempStore& store, bool forWrite = false);
+    [[nodiscard]] virtual Arg EvaluateFunc(const FuncCall& func, EvalTempStore& store, MetaSet* metas);
+    virtual void EvaluateAssign(const AssignExpr& assign, EvalTempStore& store, MetaSet* metas);
     virtual void EvaluateRawBlock(const RawBlock& block, common::span<const FuncCall> metas);
     virtual void EvaluateBlock(const Block& block, common::span<const FuncCall> metas);
 };
@@ -730,8 +747,12 @@ public:
 inline void MetaSet::FillFuncPack(FuncPack& pack, NailangExecutor& executor)
 {
     const auto begin = Args.size();
+    EvalTempStore store;
     for (const auto& arg : pack.Args)
-        Args.emplace_back(executor.EvaluateExpr(arg));
+    {
+        Args.emplace_back(executor.EvaluateExpr(arg, store));
+        store.Reset();
+    }
     pack.Params = common::to_span(Args).subspan(begin);
 }
 inline void NailangBlockFrame::Execute() { Executor->ExecuteFrame(*this); }

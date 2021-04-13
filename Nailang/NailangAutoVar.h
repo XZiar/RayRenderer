@@ -55,15 +55,16 @@ protected:
         ~AutoVarArrayHandler();
         std::function<std::optional<size_t>(void*, size_t, const Arg&)> ExtendIndexer;
         [[nodiscard]] virtual uintptr_t OffsetPtr(uintptr_t base, size_t idx) const noexcept = 0;
-        Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override;
-        std::u32string_view GetTypeName(const CustomVar&) noexcept final;
+        [[nodiscard]] Arg HandleSubFields(const CustomVar&, SubQuery<const Expr>&) override;
+        [[nodiscard]] Arg HandleIndexes(const CustomVar&, SubQuery<Arg>&) override;
+        [[nodiscard]] std::u32string_view GetTypeName(const CustomVar&) noexcept final;
     };
     std::u32string TypeName;
     common::HashedStringPool<char32_t> NamePool;
     std::vector<std::pair<common::StringPiece<char32_t>, Accessor>> MemberList;
     std::function<void(void*, Arg)> Assigner;
     AutoVarHandlerBase(std::u32string_view typeName);
-    Accessor* FindMember(std::u32string_view name, bool create = false);
+    [[nodiscard]] Accessor* FindMember(std::u32string_view name, bool create = false);
 public:
     enum class VarFlags : uint16_t { Empty = 0x0, NonConst = 0x1 };
     virtual ~AutoVarHandlerBase();
@@ -72,9 +73,10 @@ public:
     AutoVarHandlerBase& operator=(const AutoVarHandlerBase&) = delete;
     AutoVarHandlerBase& operator=(AutoVarHandlerBase&&) = delete;
 
-    Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override;
-    bool HandleAssign(CustomVar& var, Arg val) override;
-    std::u32string_view GetTypeName(const CustomVar&) noexcept override;
+    [[nodiscard]] Arg HandleSubFields(const CustomVar&, SubQuery<const Expr>&) override;
+    [[nodiscard]] Arg HandleIndexes(const CustomVar&, SubQuery<Arg>&) override;
+    [[nodiscard]] bool HandleAssign(CustomVar& var, Arg val) override;
+    [[nodiscard]] std::u32string_view GetTypeName(const CustomVar&) noexcept override;
 };
 
 #if COMPILER_MSVC

@@ -36,22 +36,6 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
 }
 
 
-std::u32string_view SubQuery::ExpectSubField(size_t idx) const
-{
-    Expects(idx < Queries.size());
-    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Sub)
-        COMMON_THROWEX(NailangRuntimeException, u"Expect [Subfield] as sub-query, get [Index]"sv);
-    return Queries[idx].GetVar<Expr::Type::Str>();
-}
-const Expr& SubQuery::ExpectIndex(size_t idx) const
-{
-    Expects(idx < Queries.size());
-    if (static_cast<QueryType>(Queries[idx].ExtraFlag) != QueryType::Index)
-        COMMON_THROWEX(NailangRuntimeException, u"Expect [Index] as sub-query, get [Subfield]"sv);
-    return Queries[idx];
-}
-
-
 std::u32string_view Expr::TypeName(const Expr::Type type) noexcept
 {
     switch (type)
@@ -62,6 +46,7 @@ std::u32string_view Expr::TypeName(const Expr::Type type) noexcept
     case Expr::Type::Binary:  return U"binary-expr"sv;
     case Expr::Type::Ternary: return U"ternary-expr"sv;
     case Expr::Type::Query:   return U"query-expr"sv;
+    case Expr::Type::Assign:  return U"assign-expr"sv;
     case Expr::Type::Var:     return U"variable"sv;
     case Expr::Type::Str:     return U"string"sv;
     case Expr::Type::Uint:    return U"uint"sv;
@@ -528,68 +513,60 @@ bool Arg::Set(Arg val)
     return false;
 }
 
-Arg Arg::HandleQuery(SubQuery& subq, NailangExecutor& executor)
+Arg Arg::HandleSubFields(SubQuery<const Expr>& subfields)
 {
-    Expects(subq.Size() > 0);
+    Expects(subfields.Size() > 0);
     if (IsCustom())
     {
-        auto& var = GetCustom();
-        return var.Call<&CustomVar::Handler::HandleQuery>(subq, executor);
+        return GetCustom().Call<&CustomVar::Handler::HandleSubFields>(subfields);
     }
+    const auto field = subfields[0].GetVar<Expr::Type::Str>();
     if (IsArray())
     {
         const auto arr = GetVar<Type::Array>();
-        const auto [type, query] = subq[0];
-        switch (type)
+        if (field == U"Length"sv)
         {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = executor.EvaluateExpr(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, val, &query);
-            subq.Consume();
-            return arr.Access(idx);
-        }
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length"sv)
-            {
-                subq.Consume();
-                return static_cast<uint64_t>(arr.Length);
-            }
-        } break;
-        default: break;
+            subfields.Consume();
+            return static_cast<uint64_t>(arr.Length);
         }
         return {};
     }
     if (IsStr())
     {
         const auto str = GetStr().value();
-        const auto [type, query] = subq[0];
-        switch (type)
+        if (field == U"Length"sv)
         {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = executor.EvaluateExpr(query);
-            const auto idx = NailangHelper::BiDirIndexCheck(str.size(), val, &query);
-            subq.Consume();
-            if (TypeData == Type::U32Str)
-                return std::u32string(1, str[idx]);
-            else // (TypeData == Type::U32Sv)
-                return str.substr(idx, 1);
-        }
-        case SubQuery::QueryType::Sub:
-        {
-            const auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length"sv)
-            {
-                subq.Consume();
-                return uint64_t(str.size());
-            }
-        } break;
-        default: break;
+            subfields.Consume();
+            return uint64_t(str.size());
         }
         return {};
+    }
+    return {};
+}
+Arg Arg::HandleIndexes(SubQuery<Arg>& indexes)
+{
+    Expects(indexes.Size() > 0);
+    if (IsCustom())
+    {
+        return GetCustom().Call<&CustomVar::Handler::HandleIndexes>(indexes);
+    }
+    const auto& idxval = indexes[0];
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, idxval, &indexes.GetRaw(0));
+        indexes.Consume();
+        return arr.Access(idx);
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        const auto idx = NailangHelper::BiDirIndexCheck(str.size(), idxval, &indexes.GetRaw(0));
+        indexes.Consume();
+        if (TypeData == Type::U32Str)
+            return std::u32string(1, str[idx]);
+        else // (TypeData == Type::U32Sv)
+            return str.substr(idx, 1);
     }
     return {};
 }
@@ -857,33 +834,25 @@ Arg CustomVar::Handler::SubfieldGetter(const CustomVar&, std::u32string_view)
 {
     return {};
 }
-Arg CustomVar::Handler::HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor)
+Arg CustomVar::Handler::HandleSubFields(const CustomVar& var, SubQuery<const Expr>& subfields)
 {
-    Expects(subq.Size() > 0);
-    const auto [type, query] = subq[0];
-    switch (type)
+    Expects(subfields.Size() > 0);
+    auto result = SubfieldGetter(var, subfields[0].GetVar<Expr::Type::Str>());
+    if (!result.IsEmpty())
     {
-    case SubQuery::QueryType::Index:
+        subfields.Consume();
+        return result;
+    }
+    return {};
+}
+Arg CustomVar::Handler::HandleIndexes(const CustomVar& var, SubQuery<Arg>& indexes)
+{
+    Expects(indexes.Size() > 0);
+    auto result = IndexerGetter(var, indexes[0], indexes.GetRaw(0));
+    if (!result.IsEmpty())
     {
-        const auto idx = executor.EvaluateExpr(query);
-        auto result = IndexerGetter(var, idx, query);
-        if (!result.IsEmpty())
-        {
-            subq.Consume();
-            return std::move(result);
-        }
-    } break;
-    case SubQuery::QueryType::Sub:
-    {
-        auto field = query.GetVar<Expr::Type::Str>();
-        auto result = SubfieldGetter(var, field);
-        if (!result.IsEmpty())
-        {
-            subq.Consume();
-            return std::move(result);
-        }
-    } break;
-    default: break;
+        indexes.Consume();
+        return std::move(result);
     }
     return {};
 }
@@ -1017,13 +986,12 @@ void Serializer::Stringify(std::u32string& output, const TernaryExpr* expr, cons
 void Serializer::Stringify(std::u32string& output, const QueryExpr* expr)
 {
     Stringify(output, expr->Target);
-    Stringify(output, *static_cast<const SubQuery*>(expr));
+    Stringify(output, expr->GetQueries(), expr->TypeData);
 }
 
 void Serializer::Stringify(std::u32string& output, const AssignExpr* expr)
 {
     Stringify(output, expr->Target);
-    Stringify(output, expr->Queries);
     output.append(U" = "sv);
     Stringify(output, expr->Statement);
 }
@@ -1067,24 +1035,20 @@ void Serializer::Stringify(std::u32string& output, const bool boolean)
     output.append(boolean ? U"true"sv : U"false"sv);
 }
 
-void Serializer::Stringify(std::u32string& output, const SubQuery& subq)
+void Serializer::Stringify(std::u32string& output, const common::span<const Expr> queries, QueryExpr::QueryType type)
 {
-    for (size_t i = 0; i < subq.Size(); ++i)
+    for (const auto& query : queries)
     {
-        const auto [type, query] = subq[i];
-        switch (type)
+        if (type == QueryExpr::QueryType::Index)
         {
-        case SubQuery::QueryType::Index:
             output.push_back(U'[');
             Stringify(output, query, false);
             output.push_back(U']');
-            break;
-        case SubQuery::QueryType::Sub:
+        }
+        else
+        {
             output.push_back(U'.');
             output.append(query.GetVar<Expr::Type::Str>());
-            break;
-        default:
-            break;
         }
     }
 }

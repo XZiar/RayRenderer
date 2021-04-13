@@ -112,6 +112,8 @@ public:
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Ternary) {}
     Expr(const QueryExpr* ptr) noexcept :
         Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Query) {}
+    Expr(const AssignExpr* ptr) noexcept :
+        Data1(reinterpret_cast<uint64_t>(ptr)), Fill3(Assign) {}
     Expr(const LateBindVar& var) noexcept :
         Data1(reinterpret_cast<uint64_t>(var.Name.data())), Data2(static_cast<uint32_t>(var.Name.size())),
         Data3(common::enum_cast(var.Info)), Fill1(Var) 
@@ -160,12 +162,14 @@ public:
             return reinterpret_cast<const TernaryExpr*>(Data1.Uint);
         else if constexpr (T == Type::Query)
             return reinterpret_cast<const QueryExpr*>(Data1.Uint);
+        else if constexpr (T == Type::Assign)
+            return reinterpret_cast<const AssignExpr*>(Data1.Uint);
         else
             static_assert(!common::AlwaysTrue2<T>, "Unknown Type");
     }
 
     using Variant = std::variant<
-        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const TernaryExpr*, const QueryExpr*,
+        const FuncCall*, const UnaryExpr*, const BinaryExpr*, const TernaryExpr*, const QueryExpr*, const AssignExpr*,
         LateBindVar, std::u32string_view, uint64_t, int64_t, double, bool>;
     [[nodiscard]] forceinline Variant GetVar() const noexcept
     {
@@ -182,6 +186,7 @@ public:
         case Type::Binary:  return GetVar<Type::Binary>();
         case Type::Ternary: return GetVar<Type::Ternary>();
         case Type::Query:   return GetVar<Type::Query>();
+        case Type::Assign:  return GetVar<Type::Assign>();
         default:            Expects(false); return {};
         }
     }
@@ -201,6 +206,7 @@ public:
         case Type::Binary:  return visitor(GetVar<Type::Binary>());
         case Type::Ternary: return visitor(GetVar<Type::Ternary>());
         case Type::Query:   return visitor(GetVar<Type::Query>());
+        case Type::Assign:  return visitor(GetVar<Type::Assign>());
         default:            return visitor(std::nullopt);
         }
     }
@@ -214,42 +220,31 @@ public:
 };
 
 
+template<typename T>
 struct SubQuery
 {
-    enum class QueryType : uint8_t { Index = 1, Sub = 2 };
-    common::span<const Expr> Queries;
-    constexpr SubQuery& Consume(const size_t count = 1) noexcept
+    common::span<const Expr> Raw;
+    common::span<T> Queries;
+    constexpr SubQuery<T>& Consume(const size_t count = 1) noexcept
     {
         Expects(count <= Queries.size());
+        Raw = Raw.subspan(count);
         Queries = Queries.subspan(count);
         return *this;
     }
-    [[nodiscard]] constexpr SubQuery Sub(const size_t offset = 1) const noexcept
-    {
-        Expects(offset <= Queries.size());
-        return { Queries.subspan(offset) };
-    }
-    constexpr std::pair<QueryType, Expr> operator[](size_t idx) const noexcept
+    constexpr T& operator[](size_t idx) const noexcept
     {
         Expects(idx < Queries.size());
-        return { static_cast<QueryType>(Queries[idx].ExtraFlag), Queries[idx] };
+        return Queries[idx];
     }
-    NAILANGAPI std::u32string_view ExpectSubField(size_t idx) const;
-    NAILANGAPI const Expr&         ExpectIndex(size_t idx) const;
+    constexpr const Expr& GetRaw(size_t idx) const noexcept
+    {
+        Expects(idx < Raw.size());
+        return Raw[idx];
+    }
     constexpr size_t Size() const noexcept
     {
         return Queries.size();
-    }
-    static void PushQuery(std::vector<Expr>& container, std::u32string_view subField)
-    {
-        Expr query(subField);
-        query.ExtraFlag = common::enum_cast(QueryType::Sub);
-        container.push_back(query);
-    }
-    static void PushQuery(std::vector<Expr>& container, Expr indexer)
-    {
-        indexer.ExtraFlag = common::enum_cast(QueryType::Index);
-        container.push_back(indexer);
     }
 };
 
@@ -650,9 +645,11 @@ public:
     [[nodiscard]] forceinline CompareResult Compare(const Arg& right) const noexcept;
 
     NAILANGAPI void Decay();
+    NAILANGAPI Arg DecayTo();
     NAILANGAPI bool Set(Arg val);
     [[nodiscard]] forceinline ArgAccess GetAccess() const noexcept;
-    [[nodiscard]] NAILANGAPI Arg HandleQuery(SubQuery&, NailangExecutor&);
+    [[nodiscard]] NAILANGAPI Arg HandleSubFields(SubQuery<const Expr>& subfields);
+    [[nodiscard]] NAILANGAPI Arg HandleIndexes(SubQuery<Arg>& indexes);
     [[nodiscard]] NAILANGAPI CompareResult NativeCompare(const Arg& right) const noexcept;
     [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op) const;
     [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right) const;
@@ -675,7 +672,8 @@ struct NAILANGAPI CustomVar::Handler
     [[nodiscard]] virtual Arg::Type QueryConvertSupport(const CustomVar&) noexcept;
     [[nodiscard]] virtual Arg IndexerGetter(const CustomVar&, const Arg&, const Expr&);
     [[nodiscard]] virtual Arg SubfieldGetter(const CustomVar&, std::u32string_view);
-    [[nodiscard]] virtual Arg HandleQuery(CustomVar&, SubQuery&, NailangExecutor&);
+    [[nodiscard]] virtual Arg HandleSubFields(const CustomVar&, SubQuery<const Expr>&);
+    [[nodiscard]] virtual Arg HandleIndexes(const CustomVar&, SubQuery<Arg>&);
     [[nodiscard]] virtual bool HandleBinaryOnSelf(CustomVar&, const EmbedOps op, const Arg & right);
     [[nodiscard]] virtual bool HandleAssign(CustomVar&, Arg);
     [[nodiscard]] virtual CompareResult CompareSameClass(const CustomVar&, const CustomVar&);
@@ -924,11 +922,20 @@ struct TernaryExpr
     TernaryExpr(const Expr& cond, const Expr& left, const Expr& right) noexcept :
         Condition(cond), LeftOperand(left), RightOperand(right) { }
 };
-struct QueryExpr : public SubQuery
+struct QueryExpr
 {
+    enum class QueryType : uint8_t { Index = 1, Sub = 2 };
     Expr Target;
-    QueryExpr(const Expr& target, common::span<const Expr> queries) noexcept :
-        SubQuery{ queries }, Target(target) { }
+    const Expr* QueryPtr;
+    uint32_t Count;
+    QueryType TypeData;
+    constexpr QueryExpr(const Expr& target, common::span<const Expr> queries, QueryType type) noexcept :
+        Target(target), QueryPtr(queries.data()), Count(gsl::narrow_cast<uint32_t>(queries.size())), TypeData(type)
+    { }
+    constexpr common::span<const Expr> GetQueries() const noexcept
+    {
+        return { QueryPtr, Count };
+    }
 };
 struct NilCheck
 {
@@ -952,20 +959,15 @@ struct NilCheck
 };
 struct AssignExpr : public WithPos
 {
-    LateBindVar Target;
-    SubQuery Queries;
+    Expr Target;
     Expr Statement;
     uint8_t AssignInfo;
     bool IsSelfAssign;
 
-    constexpr AssignExpr(std::u32string_view name, SubQuery query, Expr statement, uint8_t info, bool isSelfAssign, 
+    constexpr AssignExpr(Expr target, Expr statement, uint8_t info, bool isSelfAssign,
         std::pair<uint32_t, uint32_t> pos = { 0,0 }) noexcept : WithPos{ pos },
-        Target(name), Queries(query), Statement(statement), AssignInfo(info), IsSelfAssign(isSelfAssign) { }
+        Target(target), Statement(statement), AssignInfo(info), IsSelfAssign(isSelfAssign) { }
 
-    constexpr std::u32string_view GetVar() const noexcept
-    {
-        return Target.Name;
-    }
     constexpr NilCheck GetCheck() const noexcept
     {
         if (IsSelfAssign)
@@ -1128,13 +1130,13 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const int64_t i64);
     static void Stringify(std::u32string& output, const double f64);
     static void Stringify(std::u32string& output, const bool boolean);
-    static void Stringify(std::u32string& output, const SubQuery& subq);
+    static void Stringify(std::u32string& output, const common::span<const Expr> queries, QueryExpr::QueryType type);
 
-    template<typename T>
-    static std::u32string Stringify(const T& obj)
+    template<typename... Ts>
+    static std::u32string Stringify(const Ts&... obj)
     {
         std::u32string result;
-        Stringify(result, obj);
+        Stringify(result, obj...);
         return result;
     }
 };

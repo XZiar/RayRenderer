@@ -2,6 +2,7 @@
 #include "NailangParser.h"
 #include "NailangParserRely.h"
 #include "StringUtil/Format.h"
+#include <boost/container/small_vector.hpp>
 
 namespace xziar::nailang
 {
@@ -180,71 +181,71 @@ RawBlock NailangParser::ParseRawBlock(const std::u32string_view name, std::pair<
     return block;
 }
 
-AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos)
-{
-    using common::parser::detail::TokenMatcherHelper;
-    using common::parser::detail::EmptyTokenArray;
-    using tokenizer::AssignOps;
-    using Behavior = NilCheck::Behavior;
-
-    constexpr auto FirstLexer = ParserLexerBase<CommentTokenizer,
-        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
-
-    std::vector<Expr> tmpQueries;
-    std::variant<std::monostate, NilCheck, EmbedOps> assignInfo;
-
-    while (assignInfo.index() == 0)
-    {
-        auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
-        switch (token.GetIDEnum<NailangToken>())
-        {
-        case NailangToken::SquareBracket: // Indexer
-        {
-            if (token.GetChar() == U']')
-                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            const auto index = ParseExprChecked("]"sv, U"]"sv);
-            if (!index)
-                OnUnExpectedToken(token, u"lack of index"sv);
-            SubQuery::PushQuery(tmpQueries, index);
-        } break;
-        case NailangToken::SubField: // SubField
-        {
-            SubQuery::PushQuery(tmpQueries, token.GetString());
-        } break;
-        case NailangToken::Assign:
-        {
-            const auto aop = static_cast<AssignOps>(token.GetUInt());
-            switch (aop)
-            {
-            case AssignOps::Assign:    assignInfo = NilCheck(Behavior::Pass,  Behavior::Pass);  break;
-            case AssignOps::NewCreate: assignInfo = NilCheck(Behavior::Throw, Behavior::Pass);  break;
-            case AssignOps::NilAssign: assignInfo = NilCheck(Behavior::Skip,  Behavior::Pass);  break;
-            case AssignOps::AndAssign: assignInfo = EmbedOps::And;                              break;
-            case AssignOps::OrAssign:  assignInfo = EmbedOps::Or;                               break;
-            case AssignOps::AddAssign: assignInfo = EmbedOps::Add;                              break;
-            case AssignOps::SubAssign: assignInfo = EmbedOps::Sub;                              break;
-            case AssignOps::MulAssign: assignInfo = EmbedOps::Mul;                              break;
-            case AssignOps::DivAssign: assignInfo = EmbedOps::Div;                              break;
-            case AssignOps::RemAssign: assignInfo = EmbedOps::Rem;                              break;
-            default: OnUnExpectedToken(token, u"expect assign op"sv);                           break;
-            }
-            if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
-                OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
-        } break;
-        default:
-            OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
-            break;
-        }
-    }
-
-    const auto stmt = ParseExprChecked(";", U";");
-    if (!stmt)
-        NLPS_THROW_EX(u"expect statement"sv);
-    const bool isSelfAssign = assignInfo.index() == 2;
-    const auto infoVal = isSelfAssign ? common::enum_cast(std::get<2>(assignInfo)) : std::get<1>(assignInfo).Value;
-
-    return { var, { MemPool.CreateArray(tmpQueries) }, stmt, infoVal, isSelfAssign, pos };
-}
+//AssignExpr NailangParser::ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos)
+//{
+//    using common::parser::detail::TokenMatcherHelper;
+//    using common::parser::detail::EmptyTokenArray;
+//    using tokenizer::AssignOps;
+//    using Behavior = NilCheck::Behavior;
+//
+//    constexpr auto FirstLexer = ParserLexerBase<CommentTokenizer,
+//        tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer, tokenizer::AssignOpTokenizer>();
+//
+//    std::vector<Expr> tmpQueries;
+//    std::variant<std::monostate, NilCheck, EmbedOps> assignInfo;
+//
+//    while (assignInfo.index() == 0)
+//    {
+//        auto token = GetNextToken(FirstLexer, IgnoreBlank, IgnoreCommentToken);
+//        switch (token.GetIDEnum<NailangToken>())
+//        {
+//        case NailangToken::SquareBracket: // Indexer
+//        {
+//            if (token.GetChar() == U']')
+//                OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
+//            const auto index = ParseExprChecked("]"sv, U"]"sv);
+//            if (!index)
+//                OnUnExpectedToken(token, u"lack of index"sv);
+//            SubQuery::PushQuery(tmpQueries, index);
+//        } break;
+//        case NailangToken::SubField: // SubField
+//        {
+//            SubQuery::PushQuery(tmpQueries, token.GetString());
+//        } break;
+//        case NailangToken::Assign:
+//        {
+//            const auto aop = static_cast<AssignOps>(token.GetUInt());
+//            switch (aop)
+//            {
+//            case AssignOps::Assign:    assignInfo = NilCheck(Behavior::Pass,  Behavior::Pass);  break;
+//            case AssignOps::NewCreate: assignInfo = NilCheck(Behavior::Throw, Behavior::Pass);  break;
+//            case AssignOps::NilAssign: assignInfo = NilCheck(Behavior::Skip,  Behavior::Pass);  break;
+//            case AssignOps::AndAssign: assignInfo = EmbedOps::And;                              break;
+//            case AssignOps::OrAssign:  assignInfo = EmbedOps::Or;                               break;
+//            case AssignOps::AddAssign: assignInfo = EmbedOps::Add;                              break;
+//            case AssignOps::SubAssign: assignInfo = EmbedOps::Sub;                              break;
+//            case AssignOps::MulAssign: assignInfo = EmbedOps::Mul;                              break;
+//            case AssignOps::DivAssign: assignInfo = EmbedOps::Div;                              break;
+//            case AssignOps::RemAssign: assignInfo = EmbedOps::Rem;                              break;
+//            default: OnUnExpectedToken(token, u"expect assign op"sv);                           break;
+//            }
+//            if (!tmpQueries.empty() && (aop == AssignOps::NewCreate || aop == AssignOps::NilAssign))
+//                OnUnExpectedToken(token, u"NewCreate and NilAssign cannot be applied with query"sv);
+//        } break;
+//        default:
+//            OnUnExpectedToken(token, u"expect [assign op] or [indexer] or [subfield]"sv);
+//            break;
+//        }
+//    }
+//
+//    const auto stmt = ParseExprChecked(";", U";");
+//    if (!stmt)
+//        NLPS_THROW_EX(u"expect statement"sv);
+//    const bool isSelfAssign = assignInfo.index() == 2;
+//    const auto infoVal = isSelfAssign ? common::enum_cast(std::get<2>(assignInfo)) : std::get<1>(assignInfo).Value;
+//
+//    return { var, { MemPool.CreateArray(tmpQueries) }, stmt, infoVal, isSelfAssign, pos };
+//}
 
 struct ExprOp
 {
@@ -260,8 +261,13 @@ struct ExprOp
     }
     [[nodiscard]] constexpr ExtraOps GetExtraOp() const noexcept
     {
-        Expects(Val >= 256);
+        Expects(Val >= 256 && Val <= 383);
         return static_cast<ExtraOps>(Val);
+    }
+    [[nodiscard]] constexpr AssignOps GetAssignOp() const noexcept
+    {
+        Expects(Val >= 384 && Val <= 511);
+        return static_cast<AssignOps>(Val);
     }
     template<typename T>
     [[nodiscard]] constexpr bool operator==(T val) const noexcept
@@ -279,50 +285,82 @@ struct ExprOp
     {
         Val = static_cast<uint32_t>(val);
     }
+    enum class Category : uint32_t { Binary = 0, Unary = 1, Ternary = 3, Assign = 4, Empty };
+    [[nodiscard]] static constexpr Category ParseCategory(uint32_t val) noexcept
+    {
+        return static_cast<Category>(std::min(val >> 7, 5u));
+    }
+    [[nodiscard]] constexpr Category GetCategory() const noexcept
+    {
+        return ParseCategory(Val);
+    }
+
 };
+
+[[nodiscard]] static constexpr bool CheckExprLiteral(const Expr& opr)
+{
+    switch (opr.TypeData)
+    {
+    case Expr::Type::Func:
+    case Expr::Type::Unary:
+    case Expr::Type::Binary:
+    case Expr::Type::Var:
+        return false;
+    default:
+        return true;
+    }
+}
 
 struct QueriesHolder
 {
-    std::vector<Expr> Queries;
-    void PushSubField(std::u32string_view subField)
+    boost::container::small_vector<Expr, 4> Queries;
+    std::optional<QueryExpr::QueryType> Type;
+
+    void DoCommit(MemoryPool& pool, Expr& opr)
     {
-        SubQuery::PushQuery(Queries, subField);
+        Expects(opr);
+        Expects(Type.has_value());
+        const auto sp = pool.CreateArray(Queries);
+        opr = pool.Create<QueryExpr>(opr, sp, *Type);
+        Queries.clear();
+        Type.reset();
     }
-    void PushIndexer(const Expr& indexer)
+    void PushSubField(MemoryPool& pool, Expr& opr, std::u32string_view subField)
     {
-        SubQuery::PushQuery(Queries, indexer);
+        if (Type.has_value() && *Type != QueryExpr::QueryType::Sub)
+        {
+            DoCommit(pool, opr);
+        }
+        Queries.emplace_back(subField);
+        Type.emplace(QueryExpr::QueryType::Sub);
+    }
+    void PushIndexer(MemoryPool& pool, Expr& opr, const Expr& indexer)
+    {
+        if (Type.has_value() && *Type != QueryExpr::QueryType::Index)
+        {
+            DoCommit(pool, opr);
+        }
+        Queries.emplace_back(indexer);
+        Type.emplace(QueryExpr::QueryType::Index);
     }
     void CommitTo(MemoryPool& pool, Expr& opr)
     {
         if (!Queries.empty())
         {
-            Expects(opr);
-            Expects(opr.TypeData != Expr::Type::Query);
-            const auto sp = pool.CreateArray(Queries);
-            opr = pool.Create<QueryExpr>(opr, sp);
-            Queries.clear();
+            DoCommit(pool, opr);
         }
     }
     bool CheckNonLiteralLimit(const Expr& opr) const noexcept
     {
         if (Queries.empty()) // first query
         {
-            switch (opr.TypeData)
-            {
-            case Expr::Type::Func:
-            case Expr::Type::Unary:
-            case Expr::Type::Binary:
-            case Expr::Type::Var:
-                return true;
-            default:
-                return false;
-            }
+            return !CheckExprLiteral(opr);
         }
         return true;
     }
 };
 
-std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
+std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, AssignPolicy policy)
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
@@ -333,7 +371,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
         StringTokenizer, IntTokenizer, FPTokenizer, BoolTokenizer,
         tokenizer::VariableTokenizer, tokenizer::OpSymbolTokenizer,
         tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
-    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer, 
+    const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
         tokenizer::OpSymbolTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
 
     Expr operand[3];
@@ -393,7 +431,26 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
             else
             {
                 Ensures(oprIdx == 0);
-                if (opval == common::enum_cast(ExtraOps::Quest))
+                if (ExprOp::ParseCategory(opval) == ExprOp::Category::Assign)
+                {
+                    if (policy == AssignPolicy::Disallow)
+                        OnUnExpectedToken(token, u"does not allow assign operator here"sv);
+                    if (!targetOpr)
+                        OnUnExpectedToken(token, u"expect expr before assign operator"sv);
+                    query.CommitTo(MemPool, targetOpr);
+                    if (CheckExprLiteral(targetOpr))
+                        OnUnExpectedToken(token, u"Assign should not follow a litteral type"sv);
+                    if (targetOpr.TypeData != Expr::Type::Var)
+                    {
+                        if (policy == AssignPolicy::AllowVar)
+                            OnUnExpectedToken(token, FMTSTR(u"assign operator is only allowed after a var, get [{}]"sv, targetOpr.GetTypeName()));
+                        if (opval == common::enum_cast(AssignOps::NewCreate) || opval == common::enum_cast(AssignOps::NilAssign))
+                            OnUnExpectedToken(token, FMTSTR(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, targetOpr.GetTypeName()));
+                    }
+                    op = opval;
+                    oprIdx++;
+                }
+                else if (opval == common::enum_cast(ExtraOps::Quest))
                 {
                     if (targetOpr) // enter ternary
                     {
@@ -442,7 +499,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
             auto index = ParseExprChecked("]"sv, U"]"sv);
             if (!index)
                 OnUnExpectedToken(token, u"lack of index"sv);
-            query.PushIndexer(index);
+            query.PushIndexer(MemPool, targetOpr, index);
         } break;
         case EID(NailangToken::SubField): // SubField
         {
@@ -450,7 +507,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
                 OnUnExpectedToken(token, u"SubField should follow a Expr"sv);
             if (!query.CheckNonLiteralLimit(targetOpr))
                 OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
-            query.PushSubField(token.GetString());
+            query.PushSubField(MemPool, targetOpr, token.GetString());
         } break;
         default:
         {
@@ -479,42 +536,62 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim)
     }
     // exit from delim or end
     query.CommitTo(MemPool, operand[oprIdx]);
-    if (!op)
+    switch (op.GetCategory())
     {
-        Ensures(oprIdx == 0);
-        return { operand[0], stopChar };
+    case ExprOp::Category::Assign:
+    {
+        Ensures(oprIdx == 1);
+        Ensures(policy != AssignPolicy::Disallow);
+        if (!operand[1])
+            NLPS_THROW_EX(u"Lack operand for assign expr"sv);
+        using Behavior = NilCheck::Behavior;
+        bool isSelfAssign = false;
+        uint8_t info = 0;
+        switch (op.GetAssignOp())
+        {
+        case AssignOps::Assign:    isSelfAssign = true; info = NilCheck(Behavior::Pass,  Behavior::Pass).Value; break;
+        case AssignOps::NewCreate: isSelfAssign = true; info = NilCheck(Behavior::Throw, Behavior::Pass).Value; break;
+        case AssignOps::NilAssign: isSelfAssign = true; info = NilCheck(Behavior::Skip,  Behavior::Pass).Value; break;
+        case AssignOps::AddAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Add);                break;
+        case AssignOps::SubAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Sub);                break;
+        case AssignOps::MulAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Mul);                break;
+        case AssignOps::DivAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Div);                break;
+        case AssignOps::RemAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Rem);                break;
+        default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                             break;
+        }
+        return { MemPool.Create<AssignExpr>(operand[0], operand[1], info, isSelfAssign), stopChar };
     }
-    if (op.Val >= 256) // ternary
-    {
+    case ExprOp::Category::Ternary:
         if (op != ExtraOps::Colon)
             NLPS_THROW_EX(u"Incomplete ternary operator"sv);
         Ensures(oprIdx == 2);
         if (!operand[2])
             NLPS_THROW_EX(u"Lack right operand for ternary operator"sv);
         return { MemPool.Create<TernaryExpr>(operand[0], operand[1], operand[2]), stopChar };
-    }
-    if (op.Val >= 128)
-    {
+    case ExprOp::Category::Unary:
         Ensures(oprIdx == 1);
         if (!operand[1])
             NLPS_THROW_EX(u"Lack operand for unary operator"sv);
         if (op == EmbedOps::CheckExist && operand[1].TypeData != Expr::Type::Var)
             NLPS_THROW_EX(FMTSTR(u"Only Var allowed after [CheckExisit] operator, get [{}]"sv, operand[1].GetTypeName()));
         return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), operand[1]), stopChar };
-    }
-    {
+    case ExprOp::Category::Binary:
         Ensures(oprIdx == 1);
         if (!operand[1])
             NLPS_THROW_EX(u"Lack 2nd operand for binary operator"sv);
         if (op == EmbedOps::ValueOr && operand[0].TypeData != Expr::Type::Var)
             NLPS_THROW_EX(FMTSTR(u"Only Var allowed before [ValueOr] operator, get [{}]"sv, operand[0].GetTypeName()));
         return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), operand[0], operand[1]), stopChar };
+    case ExprOp::Category::Empty:
+    default:
+        Ensures(oprIdx == 0);
+        return { operand[0], stopChar };
     }
 }
 
-Expr NailangParser::ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker)
+Expr NailangParser::ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker, AssignPolicy policy)
 {
-    auto [arg, delim] = ParseExpr(stopDelims);
+    auto [arg, delim] = ParseExpr(stopDelims, policy);
     if (!stopChecker.empty() && stopChecker.find(delim) == std::u32string_view::npos)
         NLPS_THROW_EX(FMTSTR(u"Ends with unexpected delim [{}], expects [{}]", delim, stopChecker));
     return arg;
@@ -524,11 +601,10 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
 {
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
-    using tokenizer::AssignOps;
 
-    constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, 
+    /*constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, 
         tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, 
-        tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();
+        tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();*/
 
     std::vector<Statement> contents;
     std::vector<FuncCall> allMetaFuncs;
@@ -544,7 +620,119 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
     };
     while (true)
     {
-        const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
+        using common::parser::DetailToken;
+        const auto [expr, ch] = ParseExpr("@#};", AssignPolicy::AllowAny);
+        Expects(Context.Col > 0u || ch == common::parser::special::CharEnd);
+        const auto row = Context.Row, col = Context.Col - (ch == common::parser::special::CharEnd ? 0u : 1u);
+        if (!expr)
+        {
+            switch (ch)
+            {
+            case U'@': // metafunc
+            {
+                ContextReader reader(Context);
+                const DetailToken token = { row, col, tokenizer::MetaFuncPrefixTokenizer::GetToken(reader, U"@") };
+                Ensures(token.GetIDEnum<NailangToken>() == NailangToken::MetaFunc);
+                metaFuncs.emplace_back(ParseFuncCall(token, FuncName::FuncInfo::Meta));
+            } continue;
+            case U'#': // block/rawblock
+            {
+                ContextReader reader(Context);
+                const DetailToken token = { row, col, tokenizer::BlockPrefixTokenizer::GetToken(reader, U"#") };
+                if (token.GetIDEnum<NailangToken>() == NailangToken::Raw)
+                {
+                    const auto target = MemPool.Create<RawBlock>(ParseRawBlock(token));
+                    contents.emplace_back(target, AppendMetaFuncs());
+                    metaFuncs.clear();
+                }
+                else
+                {
+                    Ensures(token.GetIDEnum<NailangToken>() == NailangToken::Block);
+                    Block inlineBlk;
+                    inlineBlk.Position = GetPosition(token);
+                    FillBlockName(inlineBlk);
+                    inlineBlk.Type = token.GetString();
+                    EatLeftCurlyBrace();
+                    {
+                        ContextReader reader_(Context);
+                        reader_.ReadLine();
+                    }
+                    FillFileName(inlineBlk);
+                    {
+                        const auto idxBegin = Context.Index;
+                        ParseContentIntoBlock(true, inlineBlk, false);
+                        const auto idxEnd = Context.Index;
+                        inlineBlk.Source = Context.Source.substr(idxBegin, idxEnd - idxBegin - 1);
+                    }
+                    const auto target = MemPool.Create<Block>(inlineBlk);
+                    contents.emplace_back(target, AppendMetaFuncs());
+                    metaFuncs.clear();
+                }
+            } continue;
+            case U';':
+            {
+                const DetailToken token = { row, col, ParserToken(BaseToken::Delim, ch) };
+                OnUnExpectedToken(token, u"empty statement not allowed"sv);
+            } break;
+            case U'}':
+            {
+                const DetailToken token = { row, col, ParserToken(BaseToken::Delim, ch) };
+                if (tillTheEnd)
+                    OnUnExpectedToken(token, u"when parsing block contents"sv);
+                if (metaFuncs.size() > 0)
+                    OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
+            } break;
+            default:
+            {
+                Expects(ch == common::parser::special::CharEnd);
+                const DetailToken token = { row, col, ParserToken(BaseToken::End, ch) };
+                /*if (token.GetIDEnum() != BaseToken::End)
+                    OnUnExpectedToken(token, u"when parsing block contents"sv);*/
+                if (metaFuncs.size() > 0)
+                    OnUnExpectedToken(token, u"expect block/assignment/funccall after metafuncs"sv);
+                if (!tillTheEnd)
+                    OnUnExpectedToken(token, u"expect '}' to close the scope"sv);
+            } break;
+            }
+        }
+        else
+        {
+            if (ch != U';')
+            {
+                const DetailToken token = { row, col, ParserToken(BaseToken::Delim, ch) };
+                OnUnExpectedToken(token, u"expect '}' to finish a statement"sv);
+            }
+            if (expr.TypeData == Expr::Type::Func)
+            {
+                const auto* funccall = expr.GetVar<Expr::Type::Func>();
+                if (!allowNonBlock)
+                {
+                    const DetailToken token = { funccall->Position.first, funccall->Position.second,
+                        ParserToken(NailangToken::Func, funccall->FullFuncName()) };
+                    OnUnExpectedToken(token, u"Function call not supported here"sv);
+                }
+                contents.emplace_back(funccall, AppendMetaFuncs());
+                metaFuncs.clear();
+            }
+            else if (expr.TypeData == Expr::Type::Assign)
+            {
+                const auto* assignexpr = expr.GetVar<Expr::Type::Assign>();
+                if (!allowNonBlock)
+                {
+                    const DetailToken token = { assignexpr->Position.first, assignexpr->Position.second,
+                        ParserToken(NailangToken::Func, U'=') };
+                    OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
+                }
+                contents.emplace_back(assignexpr, AppendMetaFuncs());
+                metaFuncs.clear();
+            }
+            else
+            {
+                NLPS_THROW_EX(FMTSTR(u"Only support block/rawblock{} here, get [{}]"sv, allowNonBlock ? u"/assign/func"sv : u""sv,
+                    expr.GetTypeName()));
+            }
+        }
+        /*const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
         switch (token.GetIDEnum<NailangToken>())
         {
         case NailangToken::MetaFunc:
@@ -614,7 +802,7 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
             if (!tillTheEnd)
                 OnUnExpectedToken(token, u"expect '}' to close the scope"sv);
         } break;
-        }
+        }*/
         break;
     }
     block.Content = MemPool.CreateArray(contents);
