@@ -1131,12 +1131,20 @@ struct NAILANGAPI Serializer
     static void Stringify(std::u32string& output, const double f64);
     static void Stringify(std::u32string& output, const bool boolean);
     static void Stringify(std::u32string& output, const common::span<const Expr> queries, QueryExpr::QueryType type);
+    static void Stringify(std::u32string& output, const SubQuery<const Expr>& query)
+    {
+        Stringify(output, query.Raw, QueryExpr::QueryType::Sub);
+    }
+    static void Stringify(std::u32string& output, const SubQuery<Arg>& query)
+    {
+        Stringify(output, query.Raw, QueryExpr::QueryType::Index);
+    }
 
-    template<typename... Ts>
-    static std::u32string Stringify(const Ts&... obj)
+    template<typename T>
+    static std::u32string Stringify(const T& obj)
     {
         std::u32string result;
-        Stringify(result, obj...);
+        Stringify(result, obj);
         return result;
     }
 };

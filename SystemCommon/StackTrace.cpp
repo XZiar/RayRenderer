@@ -79,7 +79,11 @@ public:
         {
             ShouldRun = false;
             WorkerCV.notify_one();
+#if COMMON_OS_WIN // windows usually just exit all other thread
+            workerLock.unlock();
+#else
             CallerCV.wait(workerLock);
+#endif
             WorkThread.join();
         }
     }

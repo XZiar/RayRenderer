@@ -82,6 +82,9 @@ TEST(NailangBase, MemoryPool)
 TEST(NailangBase, OpSymbolTokenizer)
 {
     using common::parser::BaseToken;
+    using xziar::nailang::EmbedOps;
+    using xziar::nailang::ExtraOps;
+    using xziar::nailang::AssignOps;
     constexpr auto ParseAll = [](const std::u32string_view src)
     {
         return TKParse<xziar::nailang::tokenizer::OpSymbolTokenizer, common::parser::tokenizer::IntTokenizer>(src);
@@ -89,28 +92,36 @@ TEST(NailangBase, OpSymbolTokenizer)
 #define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
 #define CHECK_EMBED_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, OpSymbol, GetInt, common::enum_cast(xziar::nailang::type))
 
-#define CHECK_BIN_OP(src, type) do                  \
-    {                                               \
-        const auto tokens = ParseAll(src);          \
-        CHECK_BASE_INT(tokens[0], 1);               \
-        CHECK_EMBED_OP(tokens[1], EmbedOps::type);  \
-        CHECK_BASE_INT(tokens[2], 2);               \
+#define CHECK_BIN_OP(src, type) do          \
+    {                                       \
+        const auto tokens = ParseAll(src);  \
+        CHECK_BASE_INT(tokens[0], 1);       \
+        CHECK_EMBED_OP(tokens[1], type);    \
+        CHECK_BASE_INT(tokens[2], 2);       \
     } while(0)
 
-    CHECK_BIN_OP(U"1==2"sv,   Equal);
-    CHECK_BIN_OP(U"1 == 2"sv, Equal);
-    CHECK_BIN_OP(U"1 != 2"sv, NotEqual);
-    CHECK_BIN_OP(U"1 < 2"sv,  Less);
-    CHECK_BIN_OP(U"1 <= 2"sv, LessEqual);
-    CHECK_BIN_OP(U"1 > 2"sv,  Greater);
-    CHECK_BIN_OP(U"1 >= 2"sv, GreaterEqual);
-    CHECK_BIN_OP(U"1 && 2"sv, And);
-    CHECK_BIN_OP(U"1 || 2"sv, Or);
-    CHECK_BIN_OP(U"1 + 2"sv,  Add);
-    CHECK_BIN_OP(U"1 - 2"sv,  Sub);
-    CHECK_BIN_OP(U"1 * 2"sv,  Mul);
-    CHECK_BIN_OP(U"1 / 2"sv,  Div);
-    CHECK_BIN_OP(U"1 % 2"sv,  Rem);
+    CHECK_BIN_OP(U"1==2"sv,   EmbedOps::Equal);
+    CHECK_BIN_OP(U"1 == 2"sv, EmbedOps::Equal);
+    CHECK_BIN_OP(U"1 != 2"sv, EmbedOps::NotEqual);
+    CHECK_BIN_OP(U"1 < 2"sv,  EmbedOps::Less);
+    CHECK_BIN_OP(U"1 <= 2"sv, EmbedOps::LessEqual);
+    CHECK_BIN_OP(U"1 > 2"sv,  EmbedOps::Greater);
+    CHECK_BIN_OP(U"1 >= 2"sv, EmbedOps::GreaterEqual);
+    CHECK_BIN_OP(U"1 && 2"sv, EmbedOps::And);
+    CHECK_BIN_OP(U"1 || 2"sv, EmbedOps::Or);
+    CHECK_BIN_OP(U"1 + 2"sv,  EmbedOps::Add);
+    CHECK_BIN_OP(U"1 - 2"sv,  EmbedOps::Sub);
+    CHECK_BIN_OP(U"1 * 2"sv,  EmbedOps::Mul);
+    CHECK_BIN_OP(U"1 / 2"sv,  EmbedOps::Div);
+    CHECK_BIN_OP(U"1 % 2"sv,  EmbedOps::Rem);
+    CHECK_BIN_OP(U"1 = 2"sv,  AssignOps::Assign);
+    CHECK_BIN_OP(U"1 := 2"sv, AssignOps::NewCreate);
+    CHECK_BIN_OP(U"1 ?= 2"sv, AssignOps::NilAssign);
+    CHECK_BIN_OP(U"1 += 2"sv, AssignOps::AddAssign);
+    CHECK_BIN_OP(U"1 -= 2"sv, AssignOps::SubAssign);
+    CHECK_BIN_OP(U"1 *= 2"sv, AssignOps::MulAssign);
+    CHECK_BIN_OP(U"1 /= 2"sv, AssignOps::DivAssign);
+    CHECK_BIN_OP(U"1 %= 2"sv, AssignOps::RemAssign);
     {
         const auto tokens = ParseAll(U"?1"sv);
         CHECK_EMBED_OP(tokens[0], ExtraOps::Quest);
@@ -140,40 +151,40 @@ TEST(NailangBase, OpSymbolTokenizer)
 }
 
 
-TEST(NailangBase, AssignOpTokenizer)
-{
-    using common::parser::BaseToken;
-    constexpr auto ParseAll = [](const std::u32string_view src)
-    {
-        return TKParse<xziar::nailang::tokenizer::AssignOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
-    };
-#define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
-#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
-
-#define CHECK_ASSIGN(src, type) do          \
-    {                                       \
-        const auto tokens = ParseAll(src);  \
-        CHECK_BASE_INT(tokens[0], 1);       \
-        CHECK_ASSIGN_OP(tokens[1], type);   \
-        CHECK_BASE_INT(tokens[2], 2);       \
-    } while(0)                              \
-
-
-    CHECK_ASSIGN(U"1=2"sv,       Assign);
-    CHECK_ASSIGN(U"1 &= 2"sv, AndAssign);
-    CHECK_ASSIGN(U"1 |= 2"sv,  OrAssign);
-    CHECK_ASSIGN(U"1 += 2"sv, AddAssign);
-    CHECK_ASSIGN(U"1 -= 2"sv, SubAssign);
-    CHECK_ASSIGN(U"1 *= 2"sv, MulAssign);
-    CHECK_ASSIGN(U"1 /= 2"sv, DivAssign);
-    CHECK_ASSIGN(U"1 %= 2"sv, RemAssign);
-    CHECK_ASSIGN(U"1 ?= 2"sv, NilAssign);
-    CHECK_ASSIGN(U"1 := 2"sv, NewCreate);
-
-#undef CHECK_BIN_OP
-#undef CHECK_EMBED_OP
-#undef CHECK_BASE_UINT
-}
+//TEST(NailangBase, AssignOpTokenizer)
+//{
+//    using common::parser::BaseToken;
+//    constexpr auto ParseAll = [](const std::u32string_view src)
+//    {
+//        return TKParse<xziar::nailang::tokenizer::AssignOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
+//    };
+//#define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
+//#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
+//
+//#define CHECK_ASSIGN(src, type) do          \
+//    {                                       \
+//        const auto tokens = ParseAll(src);  \
+//        CHECK_BASE_INT(tokens[0], 1);       \
+//        CHECK_ASSIGN_OP(tokens[1], type);   \
+//        CHECK_BASE_INT(tokens[2], 2);       \
+//    } while(0)                              \
+//
+//
+//    CHECK_ASSIGN(U"1=2"sv,       Assign);
+//    CHECK_ASSIGN(U"1 &= 2"sv, AndAssign);
+//    CHECK_ASSIGN(U"1 |= 2"sv,  OrAssign);
+//    CHECK_ASSIGN(U"1 += 2"sv, AddAssign);
+//    CHECK_ASSIGN(U"1 -= 2"sv, SubAssign);
+//    CHECK_ASSIGN(U"1 *= 2"sv, MulAssign);
+//    CHECK_ASSIGN(U"1 /= 2"sv, DivAssign);
+//    CHECK_ASSIGN(U"1 %= 2"sv, RemAssign);
+//    CHECK_ASSIGN(U"1 ?= 2"sv, NilAssign);
+//    CHECK_ASSIGN(U"1 := 2"sv, NewCreate);
+//
+//#undef CHECK_BIN_OP
+//#undef CHECK_EMBED_OP
+//#undef CHECK_BASE_UINT
+//}
 
 
 
@@ -229,6 +240,8 @@ TEST(NailangBase, Serializer)
     using xziar::nailang::LateBindVar;
     using xziar::nailang::EmbedOps;
     using xziar::nailang::FuncName;
+    using xziar::nailang::UnaryExpr;
+    using xziar::nailang::QueryExpr;
     Expr a1{ true };
     Expr a2{ false };
     Expr a3{ uint64_t(1234) };
@@ -242,38 +255,38 @@ TEST(NailangBase, Serializer)
     EXPECT_EQ(Serializer::Stringify(a5), U"\"10ab\""sv);
     EXPECT_EQ(Serializer::Stringify(a6), U"`cdef"sv);
     {
-        xziar::nailang::UnaryExpr expr(EmbedOps::Not, a1);
+        UnaryExpr expr(EmbedOps::Not, a1);
         EXPECT_EQ(Serializer::Stringify(&expr), U"!true"sv);
     }
     {
-        xziar::nailang::UnaryExpr expr(EmbedOps::CheckExist, a6);
+        UnaryExpr expr(EmbedOps::CheckExist, a6);
         EXPECT_EQ(Serializer::Stringify(&expr), U"?`cdef"sv);
     }
     {
-        std::vector<Expr> queries;
-        xziar::nailang::SubQuery::PushQuery(queries, a3);
-        xziar::nailang::QueryExpr expr(a5, queries);
+        QueryExpr expr(a5, { &a3,1 }, QueryExpr::QueryType::Index);
         EXPECT_EQ(Serializer::Stringify(&expr), U"\"10ab\"[1234]"sv);
     }
     {
-        std::vector<Expr> queries;
-        xziar::nailang::SubQuery::PushQuery(queries, a4);
-        xziar::nailang::QueryExpr expr(a6, queries);
+        QueryExpr expr(a6, { &a4,1 }, QueryExpr::QueryType::Index);
         EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef[-5678]"sv);
     }
     {
-        std::vector<Expr> queries;
-        xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
-        xziar::nailang::QueryExpr expr(a6, queries);
+        Expr tmp(U"xyzw"sv);
+        QueryExpr expr(a6, { &tmp,1 }, QueryExpr::QueryType::Sub);
         EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw"sv);
     }
     {
-        std::vector<Expr> queries;
-        xziar::nailang::SubQuery::PushQuery(queries, U"xyzw"sv);
-        xziar::nailang::SubQuery::PushQuery(queries, a3);
-        xziar::nailang::SubQuery::PushQuery(queries, U"abcd"sv);
-        xziar::nailang::QueryExpr expr(a6, queries);
-        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw[1234].abcd"sv);
+        Expr tmp[2] = { U"xyzw"sv, U"abc"sv };
+        QueryExpr expr(a6, tmp, QueryExpr::QueryType::Sub);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef.xyzw.abc"sv);
+    }
+    {
+        Expr tmp1(U"xyzw"sv);
+        Expr tmp2(U"abcd"sv);
+        QueryExpr expr1(a6, { &tmp1,1 }, QueryExpr::QueryType::Sub);
+        QueryExpr expr2(&expr1, { &a3,1 }, QueryExpr::QueryType::Index);
+        QueryExpr expr3(&expr2, { &tmp2,1 }, QueryExpr::QueryType::Sub);
+        EXPECT_EQ(Serializer::Stringify(&expr3), U"`cdef.xyzw[1234].abcd"sv);
     }
     {
         xziar::nailang::BinaryExpr expr(EmbedOps::Add, a1, a2);

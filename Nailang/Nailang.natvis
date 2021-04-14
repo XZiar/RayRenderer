@@ -113,12 +113,12 @@
     </Expand>
   </Type>
   <Type Name="xziar::nailang::AssignExpr">
-    <DisplayString>{{ AssignExpr[{Target.Name,s32}] }}</DisplayString>
+    <DisplayString>{{ AssignExpr[{Target}] }}</DisplayString>
     <Expand>
       <Item Name="Target">Target</Item>
-      <Item Name="Query">Queries</Item>
       <Item Name="Statement">Statement</Item>
-      <Item Name="CheckNil">CheckNil,en</Item>
+      <Item Name="CheckNil" Condition=" IsSelfAssign">(xziar::nailang::EmbedOps)AssignInfo,en</Item>
+      <Item Name="CheckNil" Condition="!IsSelfAssign">*(xziar::nailang::NilCheck*)&amp;AssignInfo</Item>
     </Expand>
   </Type>
   <Type Name="xziar::nailang::Expr" >
@@ -128,6 +128,7 @@
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Unary"  >{{ Unary }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Binary" >{{ Binary }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Query"  >{{ Query }}</DisplayString>
+    <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Assign" >{{ Assign }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Var"    >{{ Var [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}], {(xziar::nailang::LateBindVar::VarInfo)(Data3),en} }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Str"    >{{ Str [{reinterpret_cast&lt;const char32_t*&gt;(Data1.Uint),[Data2]s32}] }}</DisplayString>
     <DisplayString Condition="TypeData == xziar::nailang::Expr::Type::Uint"   >{{ Uint [{Data1.Uint}] }}</DisplayString>

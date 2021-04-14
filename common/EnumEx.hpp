@@ -103,6 +103,7 @@ struct EnumWrapper
     forceinline constexpr EnumWrapper& operator -- () noexcept { CAST_OP(-, static_cast<U>(1)); return *this; }
     forceinline constexpr T            operator ++ (int) noexcept { const T ret = *this; ++(*this); return ret; }
     forceinline constexpr T            operator -- (int) noexcept { const T ret = *this; --(*this); return ret; }
+    forceinline constexpr EnumWrapper& operator = (const T y) noexcept { Target = static_cast<U>(y); return *this; }
 #undef CAST_OP
 };
 

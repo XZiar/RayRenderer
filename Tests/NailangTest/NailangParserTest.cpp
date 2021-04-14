@@ -16,6 +16,7 @@ using xziar::nailang::SubQuery;
 using xziar::nailang::LateBindVar;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
+using xziar::nailang::QueryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::Expr;
 using xziar::nailang::NilCheck;
@@ -30,40 +31,34 @@ testing::AssertionResult CheckExpr(const Expr& arg, const Expr::Type type)
         return testing::AssertionFailure() << "rawarg is [" << WideToChar(arg.GetTypeName()) << "](" << common::enum_cast(arg.TypeData) << ")";
 }
 
-#define CHECK_DIRECT_ARG(target, type, val)                 \
-do                                                          \
-{                                                           \
+#define CHECK_DIRECT_ARG(target, type, val)             \
+do                                                      \
+{                                                       \
     ASSERT_TRUE(CheckExpr(target, Expr::Type::type));   \
-    EXPECT_EQ(target.GetVar<Expr::Type::type>(), val);    \
+    EXPECT_EQ(target.GetVar<Expr::Type::type>(), val);  \
 } while(0)
 
 #define CHECK_VAR_ARG(target, val, info)                    \
 do                                                          \
 {                                                           \
-    ASSERT_TRUE(CheckExpr(target, Expr::Type::Var));    \
-    const auto& _var = target.GetVar<Expr::Type::Var>();  \
+    ASSERT_TRUE(CheckExpr(target, Expr::Type::Var));        \
+    const auto& _var = target.GetVar<Expr::Type::Var>();    \
     EXPECT_EQ(_var.Name, val);                              \
     EXPECT_EQ(_var.Info, LateBindVar::VarInfo::info);       \
 } while(0)
 
-#define CHECK_QUERY_SUB(target, name)                       \
-do                                                          \
-{                                                           \
-    EXPECT_EQ(target.first, SubQuery::QueryType::Sub);      \
-    CHECK_DIRECT_ARG(target.second, Str, name);             \
-} while(0)
 
-#define CHECK_QUERY_SUBFIELD(r, x, i, name) CHECK_QUERY_SUB(x[i], name);
+#define CHECK_QUERY_SUBFIELD(r, x, i, name) CHECK_DIRECT_ARG(x.QueryPtr[i], Str, name);
 #define CHECK_QUERY_SUBFIELDS(x, names) BOOST_PP_SEQ_FOR_EACH_I(CHECK_QUERY_SUBFIELD, x, names)
-#define CHECK_FIELD_QUERY(target, var, info, ...)                           \
-do                                                                          \
-{                                                                           \
-    ASSERT_EQ(target.TypeData, Expr::Type::Query);                        \
-    const auto& query = *target.GetVar<Expr::Type::Query>();              \
-    CHECK_VAR_ARG(query.Target, var, info);                                 \
-    constexpr size_t qcnt = BOOST_PP_VARIADIC_SIZE(__VA_ARGS__);            \
-    ASSERT_EQ(query.Queries.size(), qcnt);                                  \
-    CHECK_QUERY_SUBFIELDS(query, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))     \
+#define CHECK_FIELD_QUERY(target, var, info, ...)                       \
+do                                                                      \
+{                                                                       \
+    ASSERT_EQ(target.TypeData, Expr::Type::Query);                      \
+    const auto& query = *target.GetVar<Expr::Type::Query>();            \
+    constexpr size_t qcnt = BOOST_PP_VARIADIC_SIZE(__VA_ARGS__);        \
+    ASSERT_EQ(query.Count, qcnt);                                       \
+    CHECK_VAR_ARG(query.Target, var, info);                             \
+    CHECK_QUERY_SUBFIELDS(query, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) \
 } while(0)
 
 static std::u32string ReplaceNewLine(std::u32string_view txt)
@@ -147,21 +142,23 @@ TEST(NailangParser, ParseExpr)
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
         ASSERT_EQ(expr.TypeData, Expr::Type::Query);
         const auto& query = *expr.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Sub);
+        ASSERT_EQ(query.Count, 3u);
         CHECK_VAR_ARG(query.Target, U"val"sv, Empty);
-        ASSERT_EQ(query.Queries.size(), 3u);
-        CHECK_QUERY_SUB(query[0], U"xxx"sv);
-        CHECK_QUERY_SUB(query[1], U"y"sv);
-        CHECK_QUERY_SUB(query[2], U"len"sv);
+        CHECK_DIRECT_ARG(query.QueryPtr[0], Str, U"xxx"sv);
+        CHECK_DIRECT_ARG(query.QueryPtr[1], Str, U"y"sv);
+        CHECK_DIRECT_ARG(query.QueryPtr[2], Str, U"len"sv);
     }
     {
         constexpr auto src = U"(val[5])"sv;
         ParserContext context(src);
         const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
         ASSERT_EQ(expr.TypeData, Expr::Type::Query);
-        const auto& stmt = *expr.GetVar<Expr::Type::Query>();
-        CHECK_VAR_ARG(stmt.Target, U"val"sv, Empty);
-        EXPECT_EQ(stmt[0].first, SubQuery::QueryType::Index);
-        CHECK_DIRECT_ARG(stmt[0].second, Int, 5);
+        const auto& query = *expr.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(query.Count, 1u);
+        CHECK_VAR_ARG(query.Target, U"val"sv, Empty);
+        CHECK_DIRECT_ARG(query.QueryPtr[0], Int, 5);
     }
     {
         constexpr auto src = U"1u + 2"sv;
@@ -223,11 +220,12 @@ TEST(NailangParser, ParseExpr)
         CHECK_DIRECT_ARG(stmt.RightOperand, FP, 12.8);
 
         const auto& stmt1 = *stmt.LeftOperand.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(stmt1.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(stmt1.Count, 1u);
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt1[0].second.TypeData, Expr::Type::Binary);
+        ASSERT_EQ(stmt1.QueryPtr[0].TypeData, Expr::Type::Binary);
 
-        const auto& stmt2 = *stmt1[0].second.GetVar<Expr::Type::Binary>();
+        const auto& stmt2 = *stmt1.QueryPtr[0].GetVar<Expr::Type::Binary>();
         CHECK_VAR_ARG(stmt2.LeftOperand, U"x"sv, Empty);
         EXPECT_EQ(stmt2.Operator, EmbedOps::Add);
         CHECK_VAR_ARG(stmt2.RightOperand, U"y"sv, Empty);
@@ -242,24 +240,22 @@ TEST(NailangParser, ParseExpr)
         ASSERT_EQ(stmt.Operand.TypeData, Expr::Type::Query);
 
         const auto& stmt1 = *stmt.Operand.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(stmt1.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(stmt1.Count, 1u);
         CHECK_VAR_ARG(stmt1.Target, U"val"sv, Empty);
-        ASSERT_EQ(stmt1.Queries.size(), 1u);
-        EXPECT_EQ(stmt1[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt1[0].second.TypeData, Expr::Type::Query);
+        ASSERT_EQ(stmt1.QueryPtr[0].TypeData, Expr::Type::Query);
 
-        const auto& stmt2 = *stmt1[0].second.GetVar<Expr::Type::Query>();
+        const auto& stmt2 = *stmt1.QueryPtr[0].GetVar<Expr::Type::Query>();
+        ASSERT_EQ(stmt2.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(stmt2.Count, 2u);
         CHECK_VAR_ARG(stmt2.Target, U"x"sv, Empty);
-        ASSERT_EQ(stmt2.Queries.size(), 2u);
-        EXPECT_EQ(stmt2[0].first, SubQuery::QueryType::Index);
-        ASSERT_EQ(stmt2[0].second.TypeData, Expr::Type::Binary);
+        ASSERT_EQ(stmt2.QueryPtr[0].TypeData, Expr::Type::Binary);
+        CHECK_DIRECT_ARG(stmt2.QueryPtr[1], Int, 5);
 
-        const auto& stmt3 = *stmt2[0].second.GetVar<Expr::Type::Binary>();
+        const auto& stmt3 = *stmt2.QueryPtr[0].GetVar<Expr::Type::Binary>();
         CHECK_DIRECT_ARG(stmt3.LeftOperand, Int, 3);
         EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
         CHECK_DIRECT_ARG(stmt3.RightOperand, Int, 4);
-
-        EXPECT_EQ(stmt2[1].first, SubQuery::QueryType::Index);
-        CHECK_DIRECT_ARG(stmt2[1].second, Int, 5);
     }
 }
 TEST(NailangParser, ParseFuncBody)
@@ -379,7 +375,7 @@ hey = 13;
         EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
         const auto& assign = *std::get<0>(stmt.GetStatement());
-        EXPECT_EQ(assign.GetVar(), U"hey"sv);
+        CHECK_VAR_ARG(assign.Target, U"hey", Empty);
         CHECK_DIRECT_ARG(assign.Statement, Int, 13);
     }
     {
@@ -394,11 +390,12 @@ a[0][1].b[2] = c;
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
-            EXPECT_EQ(assign.GetVar(), U"x"sv);
-            ASSERT_EQ(assign.Queries.Size(), 1u);
-            const auto [qtype, qarg] = assign.Queries[0];
-            EXPECT_EQ(qtype, SubQuery::QueryType::Sub);
-            CHECK_DIRECT_ARG(qarg, Str, U"y"sv);
+            ASSERT_EQ(assign.Target.TypeData, Expr::Type::Query);
+            const auto& query = *assign.Target.GetVar<Expr::Type::Query>();
+            ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Sub);
+            ASSERT_EQ(query.Count, 1u);
+            CHECK_VAR_ARG(query.Target, U"x", Empty);
+            CHECK_DIRECT_ARG(query.QueryPtr[0], Str, U"y");
             CHECK_VAR_ARG(assign.Statement, U"z"sv, Empty);
         }
         {
@@ -406,28 +403,26 @@ a[0][1].b[2] = c;
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
-            EXPECT_EQ(assign.GetVar(), U"a"sv);
-            ASSERT_EQ(assign.Queries.Size(), 4u);
-            {
-                const auto [qtype, qarg] = assign.Queries[0];
-                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
-                CHECK_DIRECT_ARG(qarg, Int, 0);
-            }
-            {
-                const auto [qtype, qarg] = assign.Queries[1];
-                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
-                CHECK_DIRECT_ARG(qarg, Int, 1);
-            }
-            {
-                const auto [qtype, qarg] = assign.Queries[2];
-                EXPECT_EQ(qtype, SubQuery::QueryType::Sub);
-                CHECK_DIRECT_ARG(qarg, Str, U"b"sv);
-            }
-            {
-                const auto [qtype, qarg] = assign.Queries[3];
-                EXPECT_EQ(qtype, SubQuery::QueryType::Index);
-                CHECK_DIRECT_ARG(qarg, Int, 2);
-            }
+            ASSERT_EQ(assign.Target.TypeData, Expr::Type::Query);
+            const auto& query = *assign.Target.GetVar<Expr::Type::Query>();
+            ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Index);
+            ASSERT_EQ(query.Count, 1u);
+            CHECK_DIRECT_ARG(query.QueryPtr[0], Int, 2);
+            ASSERT_EQ(query.Target.TypeData, Expr::Type::Query);
+
+            const auto& query1 = *query.Target.GetVar<Expr::Type::Query>();
+            ASSERT_EQ(query1.TypeData, QueryExpr::QueryType::Sub);
+            ASSERT_EQ(query1.Count, 1u);
+            CHECK_DIRECT_ARG(query1.QueryPtr[0], Str, U"b");
+            ASSERT_EQ(query1.Target.TypeData, Expr::Type::Query);
+
+            const auto& query2 = *query1.Target.GetVar<Expr::Type::Query>();
+            ASSERT_EQ(query2.TypeData, QueryExpr::QueryType::Index);
+            ASSERT_EQ(query2.Count, 2u);
+            CHECK_DIRECT_ARG(query2.QueryPtr[0], Int, 0);
+            CHECK_DIRECT_ARG(query2.QueryPtr[1], Int, 1);
+            CHECK_VAR_ARG(query2.Target, U"a", Empty);
+
             CHECK_VAR_ARG(assign.Statement, U"c"sv, Empty);
         }
     }
@@ -454,7 +449,7 @@ abc = 0u;
             EXPECT_EQ(stmt_.TypeData, xziar::nailang::Statement::Type::Assign);
             EXPECT_EQ(meta_.size(), 0u);
             const auto& assign = *std::get<0>(stmt_.GetStatement());
-            EXPECT_EQ(assign.GetVar(), U"abc"sv);
+            CHECK_VAR_ARG(assign.Target, U"abc", Empty);
             CHECK_DIRECT_ARG(assign.Statement, Uint, 0u);
         }
     }
@@ -475,8 +470,7 @@ empty
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             EXPECT_EQ(meta.size(), 0u);
             const auto& assign = *std::get<0>(stmt.GetStatement());
-            EXPECT_EQ(assign.GetVar(), U"hey"sv);
-            EXPECT_EQ(assign.Queries.Size(), 0u);
+            CHECK_VAR_ARG(assign.Target, U"hey", Empty);
             EXPECT_TRUE(assign.IsSelfAssign);
             EXPECT_EQ(assign.GetSelfAssignOp(), EmbedOps::Div);
             const auto check = assign.GetCheck();

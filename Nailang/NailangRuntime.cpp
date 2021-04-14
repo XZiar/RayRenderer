@@ -1318,17 +1318,16 @@ Arg NailangExecutor::EvaluateTernaryExpr(const TernaryExpr& expr, EvalTempStore&
 template<typename T, Arg(Arg::* F)(SubQuery<T>&)>
 Arg NailangExecutor::EvaluateQuery(Arg target, SubQuery<T> query, EvalTempStore& store, bool forWrite)
 {
-    constexpr auto queryType = std::is_same_v<T, Arg> ? QueryExpr::QueryType::Index : QueryExpr::QueryType::Sub;
     Expects(query.Size() > 0);
     while (true)
     {
         auto next = (target.*F)(query);
         if (next.IsEmpty())
-            NLRT_THROW_EX(FMTSTR(u"Does not exists [{}]", Serializer::Stringify(query.Raw, queryType)));
+            NLRT_THROW_EX(FMTSTR(u"Does not exists [{}]", Serializer::Stringify(query)));
         if (forWrite && !MATCH_FIELD(next.GetAccess(), ArgAccess::Mutable))
-            NLRT_THROW_EX(FMTSTR(u"Can not assgin to immutable's [{}]", Serializer::Stringify(query.Raw, queryType)));
+            NLRT_THROW_EX(FMTSTR(u"Can not assgin to immutable's [{}]", Serializer::Stringify(query)));
         else if (!forWrite && !HAS_FIELD(next.GetAccess(), ArgAccess::Readable))
-            NLRT_THROW_EX(FMTSTR(u"Can not access an get-host's [{}]", Serializer::Stringify(query.Raw, queryType)));
+            NLRT_THROW_EX(FMTSTR(u"Can not access an get-host's [{}]", Serializer::Stringify(query)));
         if (query.Size() > 0)
         {
             next.Decay();
@@ -1337,7 +1336,7 @@ Arg NailangExecutor::EvaluateQuery(Arg target, SubQuery<T> query, EvalTempStore&
         }
         else
         {
-            if (forWrite)
+            if (!forWrite)
                 next.Decay();
             return next;
         }

@@ -2,6 +2,7 @@
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"
+#include "common/StrParsePack.hpp"
 #include "NailangStruct.h"
 
 namespace xziar::nailang

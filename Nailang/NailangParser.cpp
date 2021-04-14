@@ -285,10 +285,10 @@ struct ExprOp
     {
         Val = static_cast<uint32_t>(val);
     }
-    enum class Category : uint32_t { Binary = 0, Unary = 1, Ternary = 3, Assign = 4, Empty };
+    enum class Category : uint32_t { Binary = 0, Unary = 1, Ternary = 2, Assign = 3, Empty };
     [[nodiscard]] static constexpr Category ParseCategory(uint32_t val) noexcept
     {
-        return static_cast<Category>(std::min(val >> 7, 5u));
+        return static_cast<Category>(std::min(val >> 7, 4u));
     }
     [[nodiscard]] constexpr Category GetCategory() const noexcept
     {
@@ -301,12 +301,13 @@ struct ExprOp
 {
     switch (opr.TypeData)
     {
+    case Expr::Type::Query:
     case Expr::Type::Func:
     case Expr::Type::Unary:
     case Expr::Type::Binary:
     case Expr::Type::Var:
         return false;
-    default:
+    default: // including assign since should not be here
         return true;
     }
 }
@@ -447,8 +448,26 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
                         if (opval == common::enum_cast(AssignOps::NewCreate) || opval == common::enum_cast(AssignOps::NilAssign))
                             OnUnExpectedToken(token, FMTSTR(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, targetOpr.GetTypeName()));
                     }
-                    op = opval;
-                    oprIdx++;
+                    // direct construct AssignOp
+                    auto [stmt, ch] = ParseExpr(stopDelim);
+                    if (!stmt)
+                        NLPS_THROW_EX(u"Lack operand for assign expr"sv);
+                    using Behavior = NilCheck::Behavior;
+                    bool isSelfAssign = false;
+                    uint8_t info = 0;
+                    switch (static_cast<AssignOps>(opval))
+                    {
+                    case AssignOps::Assign:    info = NilCheck(Behavior::Pass,  Behavior::Pass).Value;          break;
+                    case AssignOps::NewCreate: info = NilCheck(Behavior::Throw, Behavior::Pass).Value;          break;
+                    case AssignOps::NilAssign: info = NilCheck(Behavior::Skip,  Behavior::Pass).Value;          break;
+                    case AssignOps::AddAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Add);    break;
+                    case AssignOps::SubAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Sub);    break;
+                    case AssignOps::MulAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Mul);    break;
+                    case AssignOps::DivAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Div);    break;
+                    case AssignOps::RemAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Rem);    break;
+                    default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                 break;
+                    }
+                    return { MemPool.Create<AssignExpr>(operand[0], stmt, info, isSelfAssign), ch };
                 }
                 else if (opval == common::enum_cast(ExtraOps::Quest))
                 {
@@ -538,29 +557,6 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
     query.CommitTo(MemPool, operand[oprIdx]);
     switch (op.GetCategory())
     {
-    case ExprOp::Category::Assign:
-    {
-        Ensures(oprIdx == 1);
-        Ensures(policy != AssignPolicy::Disallow);
-        if (!operand[1])
-            NLPS_THROW_EX(u"Lack operand for assign expr"sv);
-        using Behavior = NilCheck::Behavior;
-        bool isSelfAssign = false;
-        uint8_t info = 0;
-        switch (op.GetAssignOp())
-        {
-        case AssignOps::Assign:    isSelfAssign = true; info = NilCheck(Behavior::Pass,  Behavior::Pass).Value; break;
-        case AssignOps::NewCreate: isSelfAssign = true; info = NilCheck(Behavior::Throw, Behavior::Pass).Value; break;
-        case AssignOps::NilAssign: isSelfAssign = true; info = NilCheck(Behavior::Skip,  Behavior::Pass).Value; break;
-        case AssignOps::AddAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Add);                break;
-        case AssignOps::SubAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Sub);                break;
-        case AssignOps::MulAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Mul);                break;
-        case AssignOps::DivAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Div);                break;
-        case AssignOps::RemAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Rem);                break;
-        default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                             break;
-        }
-        return { MemPool.Create<AssignExpr>(operand[0], operand[1], info, isSelfAssign), stopChar };
-    }
     case ExprOp::Category::Ternary:
         if (op != ExtraOps::Colon)
             NLPS_THROW_EX(u"Incomplete ternary operator"sv);
@@ -582,8 +578,8 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
         if (op == EmbedOps::ValueOr && operand[0].TypeData != Expr::Type::Var)
             NLPS_THROW_EX(FMTSTR(u"Only Var allowed before [ValueOr] operator, get [{}]"sv, operand[0].GetTypeName()));
         return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), operand[0], operand[1]), stopChar };
-    case ExprOp::Category::Empty:
     default:
+        Expects(op.GetCategory() == ExprOp::Category::Empty);
         Ensures(oprIdx == 0);
         return { operand[0], stopChar };
     }
@@ -711,6 +707,7 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                         ParserToken(NailangToken::Func, funccall->FullFuncName()) };
                     OnUnExpectedToken(token, u"Function call not supported here"sv);
                 }
+                const_cast<FuncName*>(funccall->Name)->Info() = FuncName::FuncInfo::Empty;
                 contents.emplace_back(funccall, AppendMetaFuncs());
                 metaFuncs.clear();
             }
@@ -731,6 +728,7 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                 NLPS_THROW_EX(FMTSTR(u"Only support block/rawblock{} here, get [{}]"sv, allowNonBlock ? u"/assign/func"sv : u""sv,
                     expr.GetTypeName()));
             }
+            continue;
         }
         /*const auto token = GetNextToken(MainLexer, IgnoreBlank, IgnoreCommentToken);
         switch (token.GetIDEnum<NailangToken>())

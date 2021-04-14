@@ -29,6 +29,7 @@ using xziar::nailang::NativeWrapper;
 using xziar::nailang::NilCheck;
 using xziar::nailang::AssignExpr;
 using xziar::nailang::Block;
+using xziar::nailang::EvalTempStore;
 using xziar::nailang::NailangFrame;
 using xziar::nailang::NailangExecutor;
 using xziar::nailang::NailangRuntime;
@@ -93,35 +94,30 @@ public:
     }
     void Assign(const AssignExpr& assign)
     {
-        Executor.EvaluateAssign(assign, nullptr);
+        EvalTempStore store;
+        Executor.EvaluateAssign(assign, store, nullptr);
     }
     void QuickSetArg(std::u32string_view name, Expr val, bool create = false)
     {
         ParserContext context(name);
-        const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
-        std::u32string_view varName;
-        SubQuery query;
-        if (var.TypeData == Expr::Type::Var)
-            varName = var.GetVar<Expr::Type::Var>();
-        else
-        {
-            const auto& qexpr = *var.GetVar<Expr::Type::Query>();
-            varName = qexpr.Target.GetVar<Expr::Type::Var>();
-            query = qexpr.Sub(0);
-        }
+        NailangParser parser(MemPool, context);
+        const auto var = parser.ParseExprChecked(""sv, U""sv, NailangParser::AssignPolicy::AllowAny);
         NilCheck::Behavior notnull = create ? NilCheck::Behavior::Throw : NilCheck::Behavior::Pass,
-            null = query.Size() == 0 ? NilCheck::Behavior::Pass : NilCheck::Behavior::Throw;
-        Assign({ varName, query, val, NilCheck(notnull, null).Value, false });
+            null = var.TypeData == Expr::Type::Var ? NilCheck::Behavior::Pass : NilCheck::Behavior::Throw;
+        AssignExpr assign(var, val, NilCheck(notnull, null).Value, false);
+        Assign(assign);
     }
     Arg QuickGetArg(std::u32string_view name)
     {
         ParserContext context(name);
         const auto var = xziar::nailang::NailangParser::ParseSingleExpr(MemPool, context, ""sv, U""sv);
-        return Executor.EvaluateExpr(var);
+        EvalTempStore store;
+        return Executor.EvaluateExpr(var, store);
     }
     Arg EvaluateExpr(const Expr& arg) 
     {
-        return Executor.EvaluateExpr(arg);
+        EvalTempStore store;
+        return Executor.EvaluateExpr(arg, store);
     }
 };
 
@@ -348,74 +344,41 @@ struct ArrayCustomVar final : public xziar::nailang::CustomVar::Handler
         if (arr.Decrease())
             var.Meta0 = 0;
     };
-    Arg HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor) override
+    [[nodiscard]] Arg HandleSubFields(const CustomVar& var, SubQuery<const Expr>& subfields) override
     {
+        Expects(subfields.Size() > 0);
         ArrRef(arr, var);
-        const auto [type, query] = subq[0];
-        switch (type)
+        const auto field = subfields[0].GetVar<Expr::Type::Str>();
+        if (field == U"Length"sv)
         {
-        case SubQuery::QueryType::Index:
-        {
-            const auto val = executor.EvaluateExpr(query);
-            const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), val, &query);
-            subq.Consume();
-            return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(arr.Data.data()), false, idx);
-            /*return
-            {
-                [=, dat = arr.Data] ()->Arg { return dat[idx]; },
-                [=, dat = arr.Data] (Arg val) -> bool
-                {
-                    if (const auto real = val.GetFP(); real.has_value())
-                    {
-                        dat[idx] = static_cast<float>(real.value());
-                        return true;
-                    }
-                    return false;
-                }, 1 
-            };*/
+            subfields.Consume();
+            return static_cast<uint64_t>(arr.Data.size());
         }
-        case SubQuery::QueryType::Sub:
+        float* ptr = nullptr;
+        if (field == U"First"sv)
         {
-            const auto field = query.GetVar<Expr::Type::Str>();
-            if (field == U"Length"sv)
-            {
-                subq.Consume();
-                return static_cast<uint64_t>(arr.Data.size());
-            }
-            float* ptr = nullptr;
-            if (field == U"First"sv)
-            {
-                if (arr.Data.size() > 0)
-                    ptr = arr.Data.data();
-            }
-            else if (field == U"Last"sv)
-            {
-                if (arr.Data.size() > 0)
-                    ptr = arr.Data.data() + arr.Data.size() - 1;
-            }
-            if (ptr)
-            {
-                subq.Consume();
-                return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(ptr), false, 0);
-                /*return
-                {
-                    [=] () -> Arg { return *ptr; },
-                    [=] (Arg val) -> bool
-                    {
-                        if (const auto real = val.GetFP(); real.has_value())
-                        {
-                            *ptr = static_cast<float>(real.value());
-                            return true;
-                        }
-                        return false;
-                    }, 1
-                };*/
-            }
-        } break;
-        default: break;
+            if (arr.Data.size() > 0)
+                ptr = arr.Data.data();
+        }
+        else if (field == U"Last"sv)
+        {
+            if (arr.Data.size() > 0)
+                ptr = arr.Data.data() + arr.Data.size() - 1;
+        }
+        if (ptr)
+        {
+            subfields.Consume();
+            return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(ptr), false, 0);
         }
         return {};
-
+    }
+    [[nodiscard]] Arg HandleIndexes(const CustomVar& var, SubQuery<Arg>& indexes) override
+    {
+        Expects(indexes.Size() > 0);
+        ArrRef(arr, var);
+        const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(arr.Data.size(), indexes[0], &indexes.GetRaw(0));
+        indexes.Consume();
+        return NativeWrapper::GetLocator(NativeWrapper::Type::F32, reinterpret_cast<uintptr_t>(arr.Data.data()), false, idx);
     }
     common::str::StrVariant<char32_t> ToString(const CustomVar&) noexcept override { return U"{ArrayCustomVar}"; };
     static Arg Create(common::span<const float> source);
@@ -860,12 +823,6 @@ TEST(NailangRuntime, MathIntrinFunc)
 struct BlkParser : public NailangParser
 {
     using NailangParser::NailangParser;
-    static AssignExpr GetAssignExpr(MemoryPool& pool, const std::u32string_view var, const std::u32string_view src)
-    {
-        ParserContext context(src);
-        BlkParser parser(pool, context);
-        return parser.ParseAssignExpr(var);
-    }
     static Block GetBlock(MemoryPool& pool, const std::u32string_view src)
     {
         common::parser::ParserContext context(src);
@@ -876,11 +833,14 @@ struct BlkParser : public NailangParser
     }
 };
 
-static void PEAssign(NailangRT& runtime, MemoryPool& pool, 
-    const std::u32string_view var, const std::u32string_view src)
+static void PEAssign(NailangRT& runtime, MemoryPool& pool, const std::u32string_view src)
 {
-    const AssignExpr assign = BlkParser::GetAssignExpr(pool, var, src);
-    runtime.Assign(assign);
+    ParserContext context(src);
+    NailangParser parser(pool, context);
+    const auto var = parser.ParseExprChecked(""sv, U""sv, NailangParser::AssignPolicy::AllowAny);
+    if (var.TypeData != Expr::Type::Assign)
+        throw "need assign expr";
+    runtime.Assign(*var.GetVar<Expr::Type::Assign>());
 }
 
 TEST(NailangRuntime, Assign)
@@ -888,27 +848,27 @@ TEST(NailangRuntime, Assign)
     MemoryPool pool;
     NailangRT runtime;
     {
-        PEAssign(runtime, pool, U"str"sv, U":=\"Hello \";"sv);
+        PEAssign(runtime, pool, U"str :=\"Hello \""sv);
         LOOKUP_ARG(runtime, U"str"sv, U32Sv, U"Hello "sv);
     }
     {
-        EXPECT_THROW(PEAssign(runtime, pool, U"str"sv, U":=1;"sv), xziar::nailang::NailangRuntimeException);
+        EXPECT_THROW(PEAssign(runtime, pool, U"str :=1"sv), xziar::nailang::NailangRuntimeException);
     }
     {
-        EXPECT_NO_THROW(PEAssign(runtime, pool, U"str"sv, U"?=$Throw();"sv)); // should ignore the evaluation so won't throw
+        EXPECT_NO_THROW(PEAssign(runtime, pool, U"str ?=$Throw()"sv)); // should ignore the evaluation so won't throw
     }
     {
-        PEAssign(runtime, pool, U"str"sv, U"+= \"World\";"sv);
+        PEAssign(runtime, pool, U"str += \"World\""sv);
         LOOKUP_ARG(runtime, U"str"sv, U32Str, U"Hello World"sv);
     }
     {
         constexpr auto ans = (63 % 4) * (3 + 5.0);
-        PEAssign(runtime, pool, U"ans"sv, U":= (63 % 4) * (3 + 5.0);"sv);
+        PEAssign(runtime, pool, U"ans := (63 % 4) * (3 + 5.0)"sv);
         LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
     {
         const auto ans = std::fmod(24.0, (2 + 3.0)/2);
-        PEAssign(runtime, pool, U"ans"sv, U"%= (valI64 + valF64)/valI64;"sv);
+        PEAssign(runtime, pool, U"ans %= (valI64 + valF64)/valI64"sv);
         LOOKUP_ARG(runtime, U"ans"sv, FP, ans);
     }
 }
