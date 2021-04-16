@@ -99,6 +99,12 @@ TEST(NailangBase, OpSymbolTokenizer)
         CHECK_EMBED_OP(tokens[1], type);    \
         CHECK_BASE_INT(tokens[2], 2);       \
     } while(0)
+#define CHECK_UN_OP(src, type) do           \
+    {                                       \
+        const auto tokens = ParseAll(src);  \
+        CHECK_EMBED_OP(tokens[0], type);    \
+        CHECK_BASE_INT(tokens[1], 1);       \
+    } while(0)
 
     CHECK_BIN_OP(U"1==2"sv,   EmbedOps::Equal);
     CHECK_BIN_OP(U"1 == 2"sv, EmbedOps::Equal);
@@ -114,6 +120,9 @@ TEST(NailangBase, OpSymbolTokenizer)
     CHECK_BIN_OP(U"1 * 2"sv,  EmbedOps::Mul);
     CHECK_BIN_OP(U"1 / 2"sv,  EmbedOps::Div);
     CHECK_BIN_OP(U"1 % 2"sv,  EmbedOps::Rem);
+    CHECK_BIN_OP(U"1 & 2"sv,  EmbedOps::BitAnd);
+    CHECK_BIN_OP(U"1 | 2"sv,  EmbedOps::BitOr);
+    CHECK_BIN_OP(U"1 ^ 2"sv,  EmbedOps::BitXor);
     CHECK_BIN_OP(U"1 = 2"sv,  AssignOps::Assign);
     CHECK_BIN_OP(U"1 := 2"sv, AssignOps::NewCreate);
     CHECK_BIN_OP(U"1 ?= 2"sv, AssignOps::NilAssign);
@@ -122,16 +131,9 @@ TEST(NailangBase, OpSymbolTokenizer)
     CHECK_BIN_OP(U"1 *= 2"sv, AssignOps::MulAssign);
     CHECK_BIN_OP(U"1 /= 2"sv, AssignOps::DivAssign);
     CHECK_BIN_OP(U"1 %= 2"sv, AssignOps::RemAssign);
-    {
-        const auto tokens = ParseAll(U"?1"sv);
-        CHECK_EMBED_OP(tokens[0], ExtraOps::Quest);
-        CHECK_BASE_INT(tokens[1], 1);
-    }
-    {
-        const auto tokens = ParseAll(U"!1"sv);
-        CHECK_EMBED_OP(tokens[0], EmbedOps::Not);
-        CHECK_BASE_INT(tokens[1], 1);
-    }
+    CHECK_UN_OP(U"?1"sv, ExtraOps::Quest);
+    CHECK_UN_OP(U"!1"sv, EmbedOps::Not);
+    CHECK_UN_OP(U"~1"sv, EmbedOps::BitNot);
     {
         const auto tokens = ParseAll(U"1? 2 : 3"sv);
         CHECK_BASE_INT(tokens[0], 1);
@@ -149,43 +151,6 @@ TEST(NailangBase, OpSymbolTokenizer)
 #undef CHECK_EMBED_OP
 #undef CHECK_BASE_UINT
 }
-
-
-//TEST(NailangBase, AssignOpTokenizer)
-//{
-//    using common::parser::BaseToken;
-//    constexpr auto ParseAll = [](const std::u32string_view src)
-//    {
-//        return TKParse<xziar::nailang::tokenizer::AssignOpTokenizer, common::parser::tokenizer::IntTokenizer>(src);
-//    };
-//#define CHECK_BASE_INT(token, val) CHECK_BASE_TK(token, Int, GetInt, val)
-//#define CHECK_ASSIGN_OP(token, type) CHECK_TK(token, xziar::nailang::tokenizer::NailangToken, Assign, GetInt, common::enum_cast(xziar::nailang::tokenizer::AssignOps::type))
-//
-//#define CHECK_ASSIGN(src, type) do          \
-//    {                                       \
-//        const auto tokens = ParseAll(src);  \
-//        CHECK_BASE_INT(tokens[0], 1);       \
-//        CHECK_ASSIGN_OP(tokens[1], type);   \
-//        CHECK_BASE_INT(tokens[2], 2);       \
-//    } while(0)                              \
-//
-//
-//    CHECK_ASSIGN(U"1=2"sv,       Assign);
-//    CHECK_ASSIGN(U"1 &= 2"sv, AndAssign);
-//    CHECK_ASSIGN(U"1 |= 2"sv,  OrAssign);
-//    CHECK_ASSIGN(U"1 += 2"sv, AddAssign);
-//    CHECK_ASSIGN(U"1 -= 2"sv, SubAssign);
-//    CHECK_ASSIGN(U"1 *= 2"sv, MulAssign);
-//    CHECK_ASSIGN(U"1 /= 2"sv, DivAssign);
-//    CHECK_ASSIGN(U"1 %= 2"sv, RemAssign);
-//    CHECK_ASSIGN(U"1 ?= 2"sv, NilAssign);
-//    CHECK_ASSIGN(U"1 := 2"sv, NewCreate);
-//
-//#undef CHECK_BIN_OP
-//#undef CHECK_EMBED_OP
-//#undef CHECK_BASE_UINT
-//}
-
 
 
 TEST(NailangBase, FuncName)

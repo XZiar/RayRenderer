@@ -19,6 +19,8 @@ using xziar::nailang::UnaryExpr;
 using xziar::nailang::QueryExpr;
 using xziar::nailang::FuncCall;
 using xziar::nailang::Expr;
+using xziar::nailang::Block;
+using xziar::nailang::RawBlock;
 using xziar::nailang::NilCheck;
 using xziar::nailang::AssignExpr;
 
@@ -357,7 +359,7 @@ $func(hey);
         const auto [meta, stmt] = block[0];
         EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::FuncCall);
         EXPECT_EQ(meta.size(), 0u);
-        const auto& fcall = *std::get<1>(stmt.GetStatement());
+        const auto& fcall = *stmt.Get<FuncCall>();
         EXPECT_EQ(*fcall.Name, U"func"sv);
         ASSERT_EQ(fcall.Args.size(), 1u);
         CHECK_VAR_ARG(fcall.Args[0], U"hey", Empty);
@@ -374,14 +376,14 @@ hey = 13;
         ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
-        const auto& assign = *std::get<0>(stmt.GetStatement());
+        const auto& assign = *stmt.Get<AssignExpr>();
         CHECK_VAR_ARG(assign.Target, U"hey", Empty);
         CHECK_DIRECT_ARG(assign.Statement, Int, 13);
     }
     {
         constexpr auto src = UR"(
 x.y = z;
-a[0][1].b[2] = c;
+a[0][1].b[2] = ~c;
 )"sv;
         const auto block = ParseAll(src);
         ASSERT_EQ(block.Content.size(), 2u);
@@ -389,7 +391,7 @@ a[0][1].b[2] = c;
             const auto [meta, stmt] = block[0];
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
-            const auto& assign = *std::get<0>(stmt.GetStatement());
+            const auto& assign = *stmt.Get<AssignExpr>();
             ASSERT_EQ(assign.Target.TypeData, Expr::Type::Query);
             const auto& query = *assign.Target.GetVar<Expr::Type::Query>();
             ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Sub);
@@ -402,7 +404,7 @@ a[0][1].b[2] = c;
             const auto [meta, stmt] = block[1];
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
-            const auto& assign = *std::get<0>(stmt.GetStatement());
+            const auto& assign = *stmt.Get<AssignExpr>();
             ASSERT_EQ(assign.Target.TypeData, Expr::Type::Query);
             const auto& query = *assign.Target.GetVar<Expr::Type::Query>();
             ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Index);
@@ -423,7 +425,10 @@ a[0][1].b[2] = c;
             CHECK_DIRECT_ARG(query2.QueryPtr[1], Int, 1);
             CHECK_VAR_ARG(query2.Target, U"a", Empty);
 
-            CHECK_VAR_ARG(assign.Statement, U"c"sv, Empty);
+            ASSERT_EQ(assign.Statement.TypeData, Expr::Type::Unary);
+            const auto& stmt1 = *assign.Statement.GetVar<Expr::Type::Unary>();
+            CHECK_VAR_ARG(stmt1.Operand, U"c"sv, Empty);
+            ASSERT_EQ(stmt1.Operator, EmbedOps::BitNot);
         }
     }
     {
@@ -431,7 +436,7 @@ a[0][1].b[2] = c;
 @meta()
 #Block("13")
 {
-abc = 0u;
+abc = 0u | 5;
 }
 )"sv;
         const auto block = ParseAll(src);
@@ -441,16 +446,21 @@ abc = 0u;
         ASSERT_EQ(meta.size(), 1u);
         EXPECT_EQ(*meta[0].Name, U"meta"sv);
         EXPECT_EQ(meta[0].Args.size(), 0u);
-        const auto& blk = *std::get<3>(stmt.GetStatement());
+        const auto& blk = *stmt.Get<Block>();
         EXPECT_EQ(blk.Name, U"13"sv);
         ASSERT_EQ(blk.Content.size(), 1u);
         {
-            const auto [meta_, stmt_] = blk[0];
-            EXPECT_EQ(stmt_.TypeData, xziar::nailang::Statement::Type::Assign);
-            EXPECT_EQ(meta_.size(), 0u);
-            const auto& assign = *std::get<0>(stmt_.GetStatement());
+            const auto [meta1, stmt1] = blk[0];
+            EXPECT_EQ(stmt1.TypeData, xziar::nailang::Statement::Type::Assign);
+            EXPECT_EQ(meta1.size(), 0u);
+            const auto& assign = *stmt1.Get<AssignExpr>();
             CHECK_VAR_ARG(assign.Target, U"abc", Empty);
-            CHECK_DIRECT_ARG(assign.Statement, Uint, 0u);
+
+            ASSERT_EQ(assign.Statement.TypeData, Expr::Type::Binary);
+            const auto& stmt2 = *assign.Statement.GetVar<Expr::Type::Binary>();
+            CHECK_DIRECT_ARG(stmt2.LeftOperand, Uint, 0u);
+            ASSERT_EQ(stmt2.Operator, EmbedOps::BitOr);
+            CHECK_DIRECT_ARG(stmt2.RightOperand, Int, 5);
         }
     }
     {
@@ -469,7 +479,7 @@ empty
             const auto [meta, stmt] = block[0];
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             EXPECT_EQ(meta.size(), 0u);
-            const auto& assign = *std::get<0>(stmt.GetStatement());
+            const auto& assign = *stmt.Get<AssignExpr>();
             CHECK_VAR_ARG(assign.Target, U"hey", Empty);
             EXPECT_TRUE(assign.IsSelfAssign);
             EXPECT_EQ(assign.GetSelfAssignOp(), EmbedOps::Div);
@@ -488,7 +498,7 @@ empty
             const auto [meta, stmt] = block[1];
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::FuncCall);
             EXPECT_EQ(meta.size(), 0u);
-            const auto& fcall = *std::get<1>(stmt.GetStatement());
+            const auto& fcall = *stmt.Get<FuncCall>();
             EXPECT_EQ(*fcall.Name, U"func"sv);
             ASSERT_EQ(fcall.Args.size(), 1u);
             CHECK_VAR_ARG(fcall.Args[0], U"hey", Empty);
@@ -499,7 +509,7 @@ empty
             ASSERT_EQ(meta.size(), 1u);
             EXPECT_EQ(*meta[0].Name, U"meta"sv);
             EXPECT_EQ(meta[0].Args.size(), 0u);
-            const auto& blk = *std::get<2>(stmt.GetStatement());
+            const auto& blk = *stmt.Get<RawBlock>();
             EXPECT_EQ(ReplaceNewLine(blk.Source), U"empty\n"sv);
         }
     }

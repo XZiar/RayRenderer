@@ -1,7 +1,7 @@
 #include "NailangPch.h"
 #include "NailangStruct.h"
 #include "NailangRuntime.h"
-
+#include "common/ContainerEx.hpp"
 #include <cassert>
 
 namespace xziar::nailang
@@ -28,6 +28,9 @@ std::u32string_view EmbedOpHelper::GetOpName(EmbedOps op) noexcept
     RET_NAME(Mul);
     RET_NAME(Div);
     RET_NAME(Rem);
+    RET_NAME(BitAnd);
+    RET_NAME(BitOr);
+    RET_NAME(BitXor);
     RET_NAME(ValueOr);
     RET_NAME(CheckExist);
     RET_NAME(Not);
@@ -431,58 +434,50 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
             return ArgToString(val);
         });
 }
+
+
+#define TYPE_ITEM(type, name) { common::enum_cast(type), U"" name ""sv }
+constexpr std::pair<uint16_t, std::u32string_view> ArgTypeMappings[] =
+{
+    TYPE_ITEM(Arg::Type::CategoryGetSet, "getset"),
+    TYPE_ITEM(Arg::Type::CategoryArgPtr, "argptr"),
+    TYPE_ITEM(Arg::Type::Empty,     "empty"),
+    TYPE_ITEM(Arg::Type::Var   | Arg::Type::ConstBit, "variable"),
+    TYPE_ITEM(Arg::Type::Var,       "variable"),
+    TYPE_ITEM(Arg::Type::Array | Arg::Type::ConstBit, "array"),
+    TYPE_ITEM(Arg::Type::Array,     "array"),
+    TYPE_ITEM(Arg::Type::U32Str,    "string"),
+    TYPE_ITEM(Arg::Type::U32Sv,     "string_view"),
+    TYPE_ITEM(Arg::Type::Uint,      "uint"),
+    TYPE_ITEM(Arg::Type::Int,       "int"),
+    TYPE_ITEM(Arg::Type::FP,        "fp"),
+    TYPE_ITEM(Arg::Type::Bool,      "bool"),
+    TYPE_ITEM(Arg::Type::Boolable,  "boolable"),
+    TYPE_ITEM(Arg::Type::String,    "string-ish"),
+    TYPE_ITEM(Arg::Type::ArrayLike, "array-like"),
+    TYPE_ITEM(Arg::Type::Number,    "number"),
+    TYPE_ITEM(Arg::Type::Integer,   "integer"),
+    TYPE_ITEM(Arg::Type::BoolBit,   "(bool)"),
+    TYPE_ITEM(Arg::Type::StringBit, "(str)"),
+    TYPE_ITEM(Arg::Type::NumberBit, "(num)"),
+    TYPE_ITEM(Arg::Type::ArrayBit,  "(arr)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit,  "(bool|str)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::NumberBit,  "(bool|num)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::ArrayBit,   "(bool|arr)"),
+    TYPE_ITEM(Arg::Type::StringBit | Arg::Type::NumberBit,  "(str|num)"),
+    TYPE_ITEM(Arg::Type::StringBit | Arg::Type::ArrayBit,   "(str|arr)"),
+    TYPE_ITEM(Arg::Type::NumberBit | Arg::Type::ArrayBit,   "(num|arr)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit,   "(bool|str|num)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::ArrayBit,    "(bool|str|arr)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::NumberBit | Arg::Type::ArrayBit,    "(bool|num|arr)"),
+    TYPE_ITEM(Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit,    "(str|num|arr)"),
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit, "(bool|str|num|arr)"),
+};
+#undef TYPE_ITEM
 std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 {
-#if COMPILER_GCC
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wswitch"
-#elif COMPILER_CLANG
-#   pragma clang diagnostic push
-#   pragma clang diagnostic ignored "-Wswitch"
-#elif COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4063)
-#endif
-    switch (type)
-    {
-    case Arg::Type::Empty:      return U"empty"sv;
-    case Arg::Type::Var | Arg::Type::ConstBit:
-    case Arg::Type::Var:        return U"variable"sv;
-    case Arg::Type::U32Str:     return U"string"sv;
-    case Arg::Type::U32Sv:      return U"string_view"sv;
-    case Arg::Type::Uint:       return U"uint"sv;
-    case Arg::Type::Int:        return U"int"sv;
-    case Arg::Type::FP:         return U"fp"sv;
-    case Arg::Type::Bool:       return U"bool"sv;
-    case Arg::Type::Boolable:   return U"boolable"sv;
-    case Arg::Type::String:     return U"string-ish"sv;
-    case Arg::Type::ArrayLike:  return U"array-like"sv;
-    case Arg::Type::Number:     return U"number"sv;
-    case Arg::Type::Integer:    return U"integer"sv;
-    case Arg::Type::BoolBit:    return U"(bool)"sv;
-    case Arg::Type::StringBit:  return U"(str)"sv;
-    case Arg::Type::NumberBit:  return U"(num)"sv;
-    case Arg::Type::ArrayBit:   return U"(arr)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::StringBit: return U"(bool|str)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::NumberBit: return U"(bool|num)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::ArrayBit:  return U"(bool|arr)"sv;
-    case Arg::Type::StringBit | Arg::Type::NumberBit: return U"(str|num)"sv;
-    case Arg::Type::StringBit | Arg::Type::ArrayBit:  return U"(str|arr)"sv;
-    case Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(num|arr)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit: return U"(bool|str|num)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::ArrayBit:  return U"(bool|str|arr)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(bool|num|arr)"sv;
-    case Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit:  return U"(str|num|arr)"sv;
-    case Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit: return U"(bool|str|num|arr)"sv;
-    default:                    return U"unknown"sv;
-    }
-#if COMPILER_GCC
-#   pragma GCC diagnostic pop
-#elif COMPILER_CLANG
-#   pragma clang diagnostic pop
-#elif COMPILER_MSVC
-#   pragma warning(pop)
-#endif
+    constexpr auto Mapping = common::container::BuildTableStore<ArgTypeMappings>();
+    return Mapping(common::enum_cast(type)).value_or(U"unknown"sv);
 }
 
 void Arg::Decay()
@@ -511,64 +506,6 @@ bool Arg::Set(Arg val)
     if (IsCustom())
         return GetCustom().Call<&CustomVar::Handler::HandleAssign>(std::move(val));
     return false;
-}
-
-Arg Arg::HandleSubFields(SubQuery<const Expr>& subfields)
-{
-    Expects(subfields.Size() > 0);
-    if (IsCustom())
-    {
-        return GetCustom().Call<&CustomVar::Handler::HandleSubFields>(subfields);
-    }
-    const auto field = subfields[0].GetVar<Expr::Type::Str>();
-    if (IsArray())
-    {
-        const auto arr = GetVar<Type::Array>();
-        if (field == U"Length"sv)
-        {
-            subfields.Consume();
-            return static_cast<uint64_t>(arr.Length);
-        }
-        return {};
-    }
-    if (IsStr())
-    {
-        const auto str = GetStr().value();
-        if (field == U"Length"sv)
-        {
-            subfields.Consume();
-            return uint64_t(str.size());
-        }
-        return {};
-    }
-    return {};
-}
-Arg Arg::HandleIndexes(SubQuery<Arg>& indexes)
-{
-    Expects(indexes.Size() > 0);
-    if (IsCustom())
-    {
-        return GetCustom().Call<&CustomVar::Handler::HandleIndexes>(indexes);
-    }
-    const auto& idxval = indexes[0];
-    if (IsArray())
-    {
-        const auto arr = GetVar<Type::Array>();
-        const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, idxval, &indexes.GetRaw(0));
-        indexes.Consume();
-        return arr.Access(idx);
-    }
-    if (IsStr())
-    {
-        const auto str = GetStr().value();
-        const auto idx = NailangHelper::BiDirIndexCheck(str.size(), idxval, &indexes.GetRaw(0));
-        indexes.Consume();
-        if (TypeData == Type::U32Str)
-            return std::u32string(1, str[idx]);
-        else // (TypeData == Type::U32Sv)
-            return str.substr(idx, 1);
-    }
-    return {};
 }
 
 static CompareResult NumCompare(const Arg& left, const Arg& right) noexcept
@@ -694,10 +631,18 @@ static Arg NumArthOp(const EmbedOps op, const Arg& left, const Arg& right) noexc
 
 Arg Arg::HandleUnary(const EmbedOps op) const
 {
-    Expects(op == EmbedOps::Not);
-    const auto val = GetBool();
-    if (val.has_value())
-        return !val.value();
+    Expects(op == EmbedOps::Not || op == EmbedOps::BitNot);
+    if (op == EmbedOps::Not)
+    {
+        const auto val = GetBool();
+        if (val.has_value())
+            return !val.value();
+    }
+    else if (op == EmbedOps::BitNot)
+    {
+        if (MATCH_FIELD(TypeData, Type::Integer)) // only accept integer
+            return ~GetVar<Type::Uint, false>();
+    }
     return {};
 }
 Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
@@ -720,25 +665,20 @@ Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
     {
         const auto ret1 = Compare(right);
         const auto val1 = ret1.GetResult();
+        using CR = CompareResultCore;
         switch (op)
         {
-        case EmbedOps::Equal:
-            if (ret1.HasEuqality())  return val1 == CompareResultCore::Equal;
+        case EmbedOps::Equal:           if (ret1.HasEuqality())  return val1 == CR::Equal;
             break;
-        case EmbedOps::NotEqual:
-            if (ret1.HasEuqality())  return val1 != CompareResultCore::Equal;
+        case EmbedOps::NotEqual:        if (ret1.HasEuqality())  return val1 != CR::Equal;
             break;
-        case EmbedOps::Less:
-            if (ret1.HasOrderable()) return val1 == CompareResultCore::Less;
+        case EmbedOps::Less:            if (ret1.HasOrderable()) return val1 == CR::Less;
             break;
-        case EmbedOps::LessEqual:
-            if (ret1.HasOrderable()) return val1 == CompareResultCore::Less || val1 == CompareResultCore::Equal;
+        case EmbedOps::LessEqual:       if (ret1.HasOrderable()) return val1 == CR::Less || val1 == CR::Equal;
             break;
-        case EmbedOps::Greater:
-            if (ret1.HasOrderable()) return val1 == CompareResultCore::Greater;
+        case EmbedOps::Greater:         if (ret1.HasOrderable()) return val1 == CR::Greater;
             break;
-        case EmbedOps::GreaterEqual:
-            if (ret1.HasOrderable()) return val1 == CompareResultCore::Greater || val1 == CompareResultCore::Equal;
+        case EmbedOps::GreaterEqual:    if (ret1.HasOrderable()) return val1 == CR::Greater || val1 == CR::Equal;
             break;
         default: return {}; // should not happen
         }
@@ -747,27 +687,34 @@ Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
         const auto val2 = ret2.GetResult();
         switch (op)
         {
-        case EmbedOps::Equal:
-            if (ret2.HasEuqality())  return val2 == CompareResultCore::Equal;
+        case EmbedOps::Equal:           if (ret2.HasEuqality())  return val2 == CR::Equal;
             break;
-        case EmbedOps::NotEqual:
-            if (ret2.HasEuqality())  return val2 != CompareResultCore::Equal;
+        case EmbedOps::NotEqual:        if (ret2.HasEuqality())  return val2 != CR::Equal;
             break;
-        case EmbedOps::Less:
-            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Greater || val2 == CompareResultCore::Equal;
+        case EmbedOps::Less:            if (ret1.HasReverseOrderable()) return val2 == CR::Greater || val2 == CR::Equal;
             break;
-        case EmbedOps::LessEqual:
-            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Greater;
+        case EmbedOps::LessEqual:       if (ret1.HasReverseOrderable()) return val2 == CR::Greater;
             break;
-        case EmbedOps::Greater:
-            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Less || val2 == CompareResultCore::Equal;
+        case EmbedOps::Greater:         if (ret1.HasReverseOrderable()) return val2 == CR::Less || val2 == CR::Equal;
             break;
-        case EmbedOps::GreaterEqual:
-            if (ret1.HasReverseOrderable()) return val2 == CompareResultCore::Less;
+        case EmbedOps::GreaterEqual:    if (ret1.HasReverseOrderable()) return val2 == CR::Less;
             break;
         default: return {}; // should not happen
         }
         return {};
+    }
+    case EmbedOpHelper::OpCategory::Bitwise:
+    {
+        if (!MATCH_FIELD(TypeData, Type::Integer) || !MATCH_FIELD(right.TypeData, Type::Integer)) // only accept integer
+            return {};
+        const auto l = GetVar<Type::Uint, false>(), r = right.GetVar<Type::Uint, false>();
+        switch (op)
+        {
+        case EmbedOps::BitAnd:  return l & r;
+        case EmbedOps::BitOr:   return l | r;
+        case EmbedOps::BitXor:  return l ^ r;
+        default:                return {}; // should not happen
+        }
     }
     default:
         Expects(opCat == EmbedOpHelper::OpCategory::Arth);
@@ -814,6 +761,65 @@ bool Arg::HandleBinaryOnSelf(const EmbedOps op, const Arg& right)
     }
     return false; // for native type, always use HandleBinary + Assign
 }
+
+Arg Arg::HandleSubFields(SubQuery<const Expr>& subfields)
+{
+    Expects(subfields.Size() > 0);
+    if (IsCustom())
+    {
+        return GetCustom().Call<&CustomVar::Handler::HandleSubFields>(subfields);
+    }
+    const auto field = subfields[0].GetVar<Expr::Type::Str>();
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        if (field == U"Length"sv)
+        {
+            subfields.Consume();
+            return static_cast<uint64_t>(arr.Length);
+        }
+        return {};
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        if (field == U"Length"sv)
+        {
+            subfields.Consume();
+            return uint64_t(str.size());
+        }
+        return {};
+    }
+    return {};
+}
+Arg Arg::HandleIndexes(SubQuery<Arg>& indexes)
+{
+    Expects(indexes.Size() > 0);
+    if (IsCustom())
+    {
+        return GetCustom().Call<&CustomVar::Handler::HandleIndexes>(indexes);
+    }
+    const auto& idxval = indexes[0];
+    if (IsArray())
+    {
+        const auto arr = GetVar<Type::Array>();
+        const auto idx = NailangHelper::BiDirIndexCheck(arr.Length, idxval, &indexes.GetRaw(0));
+        indexes.Consume();
+        return arr.Access(idx);
+    }
+    if (IsStr())
+    {
+        const auto str = GetStr().value();
+        const auto idx = NailangHelper::BiDirIndexCheck(str.size(), idxval, &indexes.GetRaw(0));
+        indexes.Consume();
+        if (TypeData == Type::U32Str)
+            return std::u32string(1, str[idx]);
+        else // (TypeData == Type::U32Sv)
+            return str.substr(idx, 1);
+    }
+    return {};
+}
+
 
 
 std::u32string_view CustomVar::Handler::GetTypeName(const CustomVar&) noexcept
@@ -921,6 +927,10 @@ void Serializer::Stringify(std::u32string& output, const UnaryExpr* expr)
     Expects(EmbedOpHelper::IsUnaryOp(expr->Operator));
     switch (expr->Operator)
     {
+    case EmbedOps::BitNot:
+        output.append(U"~"sv);
+        Stringify(output, expr->Operand, true);
+        break;
     case EmbedOps::Not:
         output.append(U"!"sv);
         Stringify(output, expr->Operand, true);
@@ -955,6 +965,9 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
         SET_OP_STR(Mul,         " * ");
         SET_OP_STR(Div,         " / ");
         SET_OP_STR(Rem,         " % ");
+        SET_OP_STR(BitAnd,      " & ");
+        SET_OP_STR(BitOr,       " | ");
+        SET_OP_STR(BitXor,      " ^ ");
         SET_OP_STR(ValueOr,     " ?? ");
     default:
         assert(false); // Expects(false);

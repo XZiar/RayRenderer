@@ -193,8 +193,11 @@ TEST(NailangRuntime, EvalEmbedOp)
     TEST_BIN(       true,       U""sv, Or,             Bool, true);
     TEST_BIN(       true,       false, And,            Bool, false);
     TEST_BIN(       true,       false, Or,             Bool, true);
+    TEST_BIN(uint64_t(0x8), int64_t(0x4), BitOr,       Uint, 0xc);
+    TEST_BIN(uint64_t(0xc), uint64_t(0x4), BitXor,     Uint, 0x8);
     TEST_UN (-2.0,  Not, Bool, false);
     TEST_UN (U""sv, Not, Bool, true);
+    TEST_UN (uint64_t(0x80706050), BitNot, Uint, ~uint64_t(0x80706050));
     EXPECT_EQ(nanQ.HandleBinary(EmbedOps::Less, int64_t(-2)).TypeData, Arg::Type::Empty);
     EXPECT_EQ(Arg(true).HandleBinary(EmbedOps::Less, false).TypeData, Arg::Type::Empty);
 

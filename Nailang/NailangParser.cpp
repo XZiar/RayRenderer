@@ -417,10 +417,10 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
                         oprIdx++;
                     }
                 }
-                else if (opval == common::enum_cast(EmbedOps::Not)) // unary
+                else if (opval == common::enum_cast(EmbedOps::Not) || opval == common::enum_cast(EmbedOps::BitNot)) // unary
                 {
                     if (targetOpr)
-                        OnUnExpectedToken(token, u"expect no operand before ! operator"sv);
+                        OnUnExpectedToken(token, u"expect no operand before unary operator"sv);
                     op = opval;
                     oprIdx++;
                 }
@@ -532,10 +532,6 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
     using common::parser::detail::TokenMatcherHelper;
     using common::parser::detail::EmptyTokenArray;
 
-    /*constexpr auto MainLexer = ParserLexerBase<CommentTokenizer, 
-        tokenizer::MetaFuncPrefixTokenizer, tokenizer::BlockPrefixTokenizer, tokenizer::NormalFuncPrefixTokenizer, 
-        tokenizer::VariableTokenizer, tokenizer::CurlyBraceTokenizer>();*/
-
     std::vector<Statement> contents;
     std::vector<FuncCall> allMetaFuncs;
     std::vector<FuncCall> metaFuncs;
@@ -573,7 +569,6 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                 {
                     const auto target = MemPool.Create<RawBlock>(ParseRawBlock(token));
                     contents.emplace_back(target, AppendMetaFuncs());
-                    metaFuncs.clear();
                 }
                 else
                 {
@@ -596,7 +591,6 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                     }
                     const auto target = MemPool.Create<Block>(inlineBlk);
                     contents.emplace_back(target, AppendMetaFuncs());
-                    metaFuncs.clear();
                 }
             } continue;
             case U';':
@@ -643,7 +637,6 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                 }
                 const_cast<FuncName*>(funccall->Name)->Info() = FuncName::FuncInfo::Empty;
                 contents.emplace_back(funccall, AppendMetaFuncs());
-                metaFuncs.clear();
             }
             else if (expr.TypeData == Expr::Type::Assign)
             {
@@ -655,7 +648,6 @@ void NailangParser::ParseContentIntoBlock(const bool allowNonBlock, Block& block
                     OnUnExpectedToken(token, u"Variable assignment not supported here"sv);
                 }
                 contents.emplace_back(assignexpr, AppendMetaFuncs());
-                metaFuncs.clear();
             }
             else
             {

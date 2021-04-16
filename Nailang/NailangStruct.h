@@ -39,13 +39,14 @@ MAKE_ENUM_BITFIELD(LateBindVar::VarInfo)
 enum class EmbedOps : uint8_t 
 { 
     // binary
-    Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem, ValueOr, 
+    Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem,
+    BitAnd, BitOr, BitXor, ValueOr, 
     // unary
-    CheckExist = 128, Not 
+    CheckExist = 128, Not, BitNot 
 };
 struct EmbedOpHelper
 {
-    enum class OpCategory { Other = 0, Compare = 1, Logic = 2, Arth = 3 };
+    enum class OpCategory { Other = 0, Compare = 1, Logic = 2, Arth = 3, Bitwise = 4 };
     [[nodiscard]] static constexpr bool IsUnaryOp(EmbedOps op) noexcept
     {
         return common::enum_cast(op) >= 128;
@@ -58,6 +59,8 @@ struct EmbedOpHelper
             return OpCategory::Logic;
         if (common::enum_cast(op) <= common::enum_cast(EmbedOps::Rem))
             return OpCategory::Arth;
+        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::BitXor) || op == EmbedOps::BitNot)
+            return OpCategory::Bitwise;
         return OpCategory::Other;
     }
     [[nodiscard]] static std::u32string_view GetOpName(EmbedOps op) noexcept;
@@ -642,18 +645,19 @@ public:
     [[nodiscard]] NAILANGAPI std::optional<std::u32string_view> GetStr()    const noexcept;
     [[nodiscard]] NAILANGAPI common::str::StrVariant<char32_t>  ToString()  const noexcept;
 
-    [[nodiscard]] forceinline CompareResult Compare(const Arg& right) const noexcept;
 
     NAILANGAPI void Decay();
     NAILANGAPI Arg DecayTo();
     NAILANGAPI bool Set(Arg val);
     [[nodiscard]] forceinline ArgAccess GetAccess() const noexcept;
-    [[nodiscard]] NAILANGAPI Arg HandleSubFields(SubQuery<const Expr>& subfields);
-    [[nodiscard]] NAILANGAPI Arg HandleIndexes(SubQuery<Arg>& indexes);
+
     [[nodiscard]] NAILANGAPI CompareResult NativeCompare(const Arg& right) const noexcept;
+    [[nodiscard]] forceinline CompareResult Compare(const Arg& right) const noexcept;
     [[nodiscard]] NAILANGAPI Arg HandleUnary(const EmbedOps op) const;
     [[nodiscard]] NAILANGAPI Arg HandleBinary(const EmbedOps op, const Arg& right) const;
     [[nodiscard]] NAILANGAPI bool HandleBinaryOnSelf(const EmbedOps op, const Arg& right);
+    [[nodiscard]] NAILANGAPI Arg HandleSubFields(SubQuery<const Expr>& subfields);
+    [[nodiscard]] NAILANGAPI Arg HandleIndexes(SubQuery<Arg>& indexes);
 
     [[nodiscard]] std::u32string_view GetTypeName() const noexcept;
     [[nodiscard]] NAILANGAPI static std::u32string_view TypeName(const Type type) noexcept;
@@ -1013,18 +1017,6 @@ struct Statement
     [[nodiscard]] forceinline const T* Get() const noexcept
     {
         return reinterpret_cast<const T*>(Pointer);
-    }
-    [[nodiscard]] std::variant<const AssignExpr*, const FuncCall*, const RawBlock*, const Block*>
-        GetStatement() const noexcept
-    {
-        switch (TypeData)
-        {
-        case Type::FuncCall: return Get<  FuncCall>();
-        case Type::Assign:   return Get<AssignExpr>();
-        case Type::RawBlock: return Get<  RawBlock>();
-        case Type::Block:    return Get<     Block>();
-        default:             Expects(false); return {};
-        }
     }
     template<typename Visitor>
     auto Visit(Visitor&& visitor) const
