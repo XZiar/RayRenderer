@@ -9,6 +9,7 @@ namespace xcomp
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using xziar::nailang::Arg;
+using xziar::nailang::EvalTempStore;
 using xziar::nailang::SubQuery;
 using xziar::nailang::Expr;
 using xziar::nailang::Block;
@@ -748,7 +749,8 @@ void XCNLRawExecutor::OnReplaceOptBlock(std::u32string& output, void*, std::u32s
     Arg ret;
     if (rawarg)
     {
-        ret = executor.EvaluateExpr(rawarg);
+        EvalTempStore store;
+        ret = executor.EvaluateExpr(rawarg, store);
     }
     if (ret.IsEmpty())
     {
@@ -861,9 +863,11 @@ void XCNLRawExecutor::DirectOutput(const OutputBlock& block, std::u32string& dst
     Expects(runtime.CurFrame() != nullptr);
     OutputConditions(block.MetaFunc, dst);
     common::str::StrVariant<char32_t> source(block.Block->Source);
+    EvalTempStore store;
     for (const auto& [var, arg] : block.PreAssignArgs)
     {
-        runtime.LocateArg(var, true).Set(executor.EvaluateExpr(arg));
+        runtime.LocateArg(var, true).Set(executor.EvaluateExpr(arg, store));
+        store.Reset();
     }
     if (block.ReplaceVar || block.ReplaceFunc)
         source = ProcessOptBlock(source.StrView(), U"$$@"sv, U"@$$"sv);
@@ -1559,7 +1563,7 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const ArrarRef& arr, std::u3
     default: break;
     }
     if (tidx == SIZE_MAX)
-        return {};
+        return SIZE_MAX;
     if (tidx > arr.Length)
     {
         COMMON_THROW(NailangRuntimeException, FMTSTR(u"Cannot access [{}] on a vector of length[{}]"sv,
@@ -1568,33 +1572,30 @@ size_t GeneralVecRef::ToIndex(const CustomVar& var, const ArrarRef& arr, std::u3
     return tidx;
 }
 
-Arg GeneralVecRef::HandleQuery(CustomVar& var, SubQuery& subq, NailangExecutor& executor)
+Arg GeneralVecRef::HandleSubFields(const CustomVar& var, SubQuery<const Expr>& subfields)
 {
+    Expects(subfields.Size() > 0);
     const auto arr = ToArray(var);
-    const auto [type, query] = subq[0];
-    size_t tidx = SIZE_MAX;
-    switch (type)
+    const auto field = subfields[0].GetVar<Expr::Type::Str>();
+    if (field == U"Length"sv)
     {
-    case SubQuery::QueryType::Index:
-        tidx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length),
-            executor.EvaluateExpr(query), &query);
-        break;
-    case SubQuery::QueryType::Sub:
-    {
-        const auto field = query.GetVar<Expr::Type::Str>();
-        if (field == U"Length"sv)
-        {
-            subq.Consume();
-            return static_cast<uint64_t>(arr.Length);
-        }
-        tidx = ToIndex(var, arr, field);
-    } break;
-    default:
-        return {};
+        subfields.Consume();
+        return static_cast<uint64_t>(arr.Length);
     }
-    subq.Consume();
-    return arr.Access(tidx);
+    const auto idx = ToIndex(var, arr, field);
+    if (idx == SIZE_MAX) return {};
+    subfields.Consume();
+    return arr.Access(idx);
 }
+Arg GeneralVecRef::HandleIndexes(const CustomVar& var, SubQuery<Arg>& indexes)
+{
+    Expects(indexes.Size() > 0);
+    const auto arr = ToArray(var);
+    const auto idx = xziar::nailang::NailangHelper::BiDirIndexCheck(static_cast<size_t>(arr.Length), indexes[0], &indexes.GetRaw(0));
+    indexes.Consume();
+    return arr.Access(idx);
+}
+
 bool GeneralVecRef::HandleAssign(CustomVar& var, Arg arg)
 {
     const auto arr = ToArray(var);

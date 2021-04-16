@@ -227,4 +227,5 @@
   - [x] Embed gtest for latest fixes for C++20
   - [ ] Move to submodule-based 3rdParty libraries
   - [x] Add basic DX12 runtime wrapper
+  - [ ] Adopt `std::launder` when necessary to reduce UB
 

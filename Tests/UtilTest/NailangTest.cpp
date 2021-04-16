@@ -52,7 +52,13 @@ static void ShowMeta(const common::span<const FuncCall> metas, const u16string& 
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const AssignExpr& content, const u16string& indent)
 {
     ShowMeta(metas, indent);
-    OutLine(BrightWhite, indent, content, "Assign", "[{}]", content.GetVar());
+    auto expr = &content.Target;
+    while (expr->TypeData == Expr::Type::Query)
+        expr = &expr->GetVar<Expr::Type::Query>()->Target;
+    if (expr->TypeData == Expr::Type::Var)
+        OutLine(BrightWhite, indent, content, "Assign", "var[{}]", expr->GetVar<Expr::Type::Var>().Name);
+    else
+        OutLine(BrightWhite, indent, content, "Assign", "([{}])", expr->GetTypeName());
 }
 static void ShowContent(MemoryPool& pool, const common::span<const FuncCall> metas, const FuncCall& content, const u16string& indent)
 {

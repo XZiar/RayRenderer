@@ -296,68 +296,6 @@ public:
     }
 };
 
-//class AssignOpTokenizer
-//{
-//    static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
-//    {
-//        using common::enum_cast;
-//        static_assert(enum_cast(TokenizerResult::Pending)  <= 0b11);
-//        static_assert(enum_cast(TokenizerResult::Waitlist) <= 0b11);
-//        static_assert(enum_cast(TokenizerResult::NotMatch) <= 0b11);
-//        std::pair<char, uint8_t> mappings[] = 
-//        {
-//            { '=', enum_cast(TokenizerResult::Waitlist) },
-//            { '&', enum_cast(TokenizerResult::Pending ) },
-//            { '|', enum_cast(TokenizerResult::Pending ) },
-//            { '+', enum_cast(TokenizerResult::Pending ) },
-//            { '-', enum_cast(TokenizerResult::Pending ) },
-//            { '*', enum_cast(TokenizerResult::Pending ) },
-//            { '/', enum_cast(TokenizerResult::Pending ) },
-//            { '%', enum_cast(TokenizerResult::Pending ) },
-//            { '?', enum_cast(TokenizerResult::Pending ) },
-//            { ':', enum_cast(TokenizerResult::Pending ) },
-//        };
-//        return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
-//    }();
-//public:
-//    using StateData = char32_t;
-//    forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
-//    {
-//        Expects((idx == 0) == (prevChar == 0));
-//        switch (idx)
-//        {
-//        case 0: // just begin
-//            return { ch, static_cast<TokenizerResult>(FirstChecker(ch, common::enum_cast(TokenizerResult::NotMatch))) };
-//        case 1:
-//            if (prevChar != U'=' && ch == U'=')
-//                return { ch, TokenizerResult::Waitlist };
-//        [[fallthrough]];
-//        default:
-//            return { ch, TokenizerResult::NotMatch };
-//        }
-//    }
-//    forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
-//    {
-//        Expects(txt.size() == 1 || txt.size() == 2);
-//#define RET_OP(str, op) case str ## _hash: return ParserToken( NailangToken::Assign, common::enum_cast(AssignOps::op))
-//        switch (common::DJBHash::HashC(txt))
-//        {
-//        RET_OP("=",     Assign);
-//        RET_OP("&=", AndAssign);
-//        RET_OP("|=",  OrAssign);
-//        RET_OP("+=", AddAssign);
-//        RET_OP("-=", SubAssign);
-//        RET_OP("*=", MulAssign);
-//        RET_OP("/=", DivAssign);
-//        RET_OP("%=", RemAssign);
-//        RET_OP("?=", NilAssign);
-//        RET_OP(":=", NewCreate);
-//        default:     return ParserToken(BaseToken::Error, txt);
-//        }
-//#undef RET_OP
-//    }
-//};
-
 
 }
 

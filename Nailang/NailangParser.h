@@ -113,15 +113,6 @@ public:
     {
         return ParseRawBlock(token.GetString(), GetPosition(token));
     }
-    /*[[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var, std::pair<uint32_t, uint32_t> pos);
-    [[nodiscard]] AssignExpr ParseAssignExpr(const std::u32string_view var)
-    {
-        return ParseAssignExpr(var, GetCurPos());
-    }
-    [[nodiscard]] AssignExpr ParseAssignExpr(const common::parser::DetailToken & token)
-    {
-        return ParseAssignExpr(token.GetString(), GetPosition(token));
-    }*/
     enum class AssignPolicy { Disallow = 0, AllowVar = 1, AllowAny = 2 };
     [[nodiscard]] std::pair<Expr, char32_t> ParseExpr(std::string_view stopDelim, AssignPolicy policy = AssignPolicy::Disallow);
     [[nodiscard]] Expr ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker, AssignPolicy policy = AssignPolicy::Disallow);
