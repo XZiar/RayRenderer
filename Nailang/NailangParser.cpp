@@ -394,11 +394,18 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
                     case AssignOps::Assign:    info = NilCheck(Behavior::Pass,  Behavior::Pass).Value;          break;
                     case AssignOps::NewCreate: info = NilCheck(Behavior::Throw, Behavior::Pass).Value;          break;
                     case AssignOps::NilAssign: info = NilCheck(Behavior::Skip,  Behavior::Pass).Value;          break;
-                    case AssignOps::AddAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Add);    break;
-                    case AssignOps::SubAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Sub);    break;
-                    case AssignOps::MulAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Mul);    break;
-                    case AssignOps::DivAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Div);    break;
-                    case AssignOps::RemAssign: isSelfAssign = true; info = common::enum_cast(EmbedOps::Rem);    break;
+#define SELF_ASSIGN(tname) case AssignOps::##tname##Assign: isSelfAssign = true; info = common::enum_cast(EmbedOps::tname); break
+                    SELF_ASSIGN(Add);
+                    SELF_ASSIGN(Sub);
+                    SELF_ASSIGN(Mul);
+                    SELF_ASSIGN(Div);
+                    SELF_ASSIGN(Rem);
+                    SELF_ASSIGN(BitAnd);
+                    SELF_ASSIGN(BitOr);
+                    SELF_ASSIGN(BitXor);
+                    SELF_ASSIGN(BitShiftLeft);
+                    SELF_ASSIGN(BitShiftRight);
+#undef SELF_ASSIGN
                     default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                 break;
                     }
                     return { MemPool.Create<AssignExpr>(operand[0], stmt, info, isSelfAssign), ch };

@@ -713,6 +713,8 @@ Arg Arg::HandleBinary(const EmbedOps op, const Arg& right) const
         case EmbedOps::BitAnd:  return l & r;
         case EmbedOps::BitOr:   return l | r;
         case EmbedOps::BitXor:  return l ^ r;
+        case EmbedOps::BitShiftLeft:    return HAS_FIELD(TypeData, Type::UnsignedBit) ? Arg(l << r) : Arg(static_cast<int64_t>(l) << r);
+        case EmbedOps::BitShiftRight:   return HAS_FIELD(TypeData, Type::UnsignedBit) ? Arg(l >> r) : Arg(static_cast<int64_t>(l) >> r);
         default:                return {}; // should not happen
         }
     }
@@ -952,23 +954,25 @@ void Serializer::Stringify(std::u32string& output, const BinaryExpr* expr, const
 #define SET_OP_STR(op, str) case EmbedOps::op: opStr = U##str##sv; break;
     switch (expr->Operator)
     {
-        SET_OP_STR(Equal,       " == ");
-        SET_OP_STR(NotEqual,    " != ");
-        SET_OP_STR(Less,        " < ");
-        SET_OP_STR(LessEqual,   " <= ");
-        SET_OP_STR(Greater,     " > ");
-        SET_OP_STR(GreaterEqual," >= ");
-        SET_OP_STR(And,         " && ");
-        SET_OP_STR(Or,          " || ");
-        SET_OP_STR(Add,         " + ");
-        SET_OP_STR(Sub,         " - ");
-        SET_OP_STR(Mul,         " * ");
-        SET_OP_STR(Div,         " / ");
-        SET_OP_STR(Rem,         " % ");
-        SET_OP_STR(BitAnd,      " & ");
-        SET_OP_STR(BitOr,       " | ");
-        SET_OP_STR(BitXor,      " ^ ");
-        SET_OP_STR(ValueOr,     " ?? ");
+        SET_OP_STR(Equal,           " == ");
+        SET_OP_STR(NotEqual,        " != ");
+        SET_OP_STR(Less,            " < ");
+        SET_OP_STR(LessEqual,       " <= ");
+        SET_OP_STR(Greater,         " > ");
+        SET_OP_STR(GreaterEqual,    " >= ");
+        SET_OP_STR(And,             " && ");
+        SET_OP_STR(Or,              " || ");
+        SET_OP_STR(Add,             " + ");
+        SET_OP_STR(Sub,             " - ");
+        SET_OP_STR(Mul,             " * ");
+        SET_OP_STR(Div,             " / ");
+        SET_OP_STR(Rem,             " % ");
+        SET_OP_STR(BitAnd,          " & ");
+        SET_OP_STR(BitOr,           " | ");
+        SET_OP_STR(BitXor,          " ^ ");
+        SET_OP_STR(BitShiftLeft,    " << ");
+        SET_OP_STR(BitShiftRight,   " >> ");
+        SET_OP_STR(ValueOr,         " ?? ");
     default:
         assert(false); // Expects(false);
         return;

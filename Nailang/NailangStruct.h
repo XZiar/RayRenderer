@@ -40,7 +40,7 @@ enum class EmbedOps : uint8_t
 { 
     // binary
     Equal = 0, NotEqual, Less, LessEqual, Greater, GreaterEqual, And, Or, Add, Sub, Mul, Div, Rem,
-    BitAnd, BitOr, BitXor, ValueOr, 
+    BitAnd, BitOr, BitXor, BitShiftLeft, BitShiftRight, ValueOr, 
     // unary
     CheckExist = 128, Not, BitNot 
 };
@@ -59,7 +59,7 @@ struct EmbedOpHelper
             return OpCategory::Logic;
         if (common::enum_cast(op) <= common::enum_cast(EmbedOps::Rem))
             return OpCategory::Arth;
-        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::BitXor) || op == EmbedOps::BitNot)
+        if (common::enum_cast(op) <= common::enum_cast(EmbedOps::BitShiftRight) || op == EmbedOps::BitNot)
             return OpCategory::Bitwise;
         return OpCategory::Other;
     }

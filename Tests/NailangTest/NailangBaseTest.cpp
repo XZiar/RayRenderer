@@ -123,6 +123,8 @@ TEST(NailangBase, OpSymbolTokenizer)
     CHECK_BIN_OP(U"1 & 2"sv,  EmbedOps::BitAnd);
     CHECK_BIN_OP(U"1 | 2"sv,  EmbedOps::BitOr);
     CHECK_BIN_OP(U"1 ^ 2"sv,  EmbedOps::BitXor);
+    CHECK_BIN_OP(U"1 << 2"sv, EmbedOps::BitShiftLeft);
+    CHECK_BIN_OP(U"1 >> 2"sv, EmbedOps::BitShiftRight);
     CHECK_BIN_OP(U"1 = 2"sv,  AssignOps::Assign);
     CHECK_BIN_OP(U"1 := 2"sv, AssignOps::NewCreate);
     CHECK_BIN_OP(U"1 ?= 2"sv, AssignOps::NilAssign);
@@ -131,6 +133,11 @@ TEST(NailangBase, OpSymbolTokenizer)
     CHECK_BIN_OP(U"1 *= 2"sv, AssignOps::MulAssign);
     CHECK_BIN_OP(U"1 /= 2"sv, AssignOps::DivAssign);
     CHECK_BIN_OP(U"1 %= 2"sv, AssignOps::RemAssign);
+    CHECK_BIN_OP(U"1 &= 2"sv, AssignOps::BitAndAssign);
+    CHECK_BIN_OP(U"1 |= 2"sv, AssignOps::BitOrAssign);
+    CHECK_BIN_OP(U"1 ^= 2"sv, AssignOps::BitXorAssign);
+    CHECK_BIN_OP(U"1 <<= 2"sv, AssignOps::BitShiftLeftAssign);
+    CHECK_BIN_OP(U"1 >>= 2"sv, AssignOps::BitShiftRightAssign);
     CHECK_UN_OP(U"?1"sv, ExtraOps::Quest);
     CHECK_UN_OP(U"!1"sv, EmbedOps::Not);
     CHECK_UN_OP(U"~1"sv, EmbedOps::BitNot);
@@ -141,11 +148,6 @@ TEST(NailangBase, OpSymbolTokenizer)
         CHECK_BASE_INT(tokens[2], 2);
         CHECK_EMBED_OP(tokens[3], ExtraOps::Colon);
         CHECK_BASE_INT(tokens[4], 3);
-    }
-    {
-        const auto tokens = ParseAll(U"1+=2"sv);
-        CHECK_BASE_INT(tokens[0], 1);
-        //CHECK_BASE_TK(tokens[1], Unknown, GetString, U"+="sv);
     }
 #undef CHECK_BIN_OP
 #undef CHECK_EMBED_OP
@@ -286,6 +288,14 @@ TEST(NailangBase, Serializer)
         xziar::nailang::TernaryExpr expr2(&expr0, &expr1, a3);
         xziar::nailang::BinaryExpr expr(EmbedOps::ValueOr, a6, &expr2);
         EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef ?? ((true == false) ? (false != 1234) : 1234)"sv);
+    }
+    {
+        xziar::nailang::BinaryExpr expr0(EmbedOps::BitShiftRight, a3, a4);
+        xziar::nailang::BinaryExpr expr1(EmbedOps::BitXor, a3, a4);
+        xziar::nailang::BinaryExpr expr2(EmbedOps::BitAnd, a3, a4);
+        xziar::nailang::TernaryExpr expr3(&expr0, &expr1, &expr2);
+        xziar::nailang::BinaryExpr expr(EmbedOps::BitShiftLeft, a6, &expr3);
+        EXPECT_EQ(Serializer::Stringify(&expr), U"`cdef << ((1234 >> -5678) ? (1234 ^ -5678) : (1234 & -5678))"sv);
     }
     {
         const auto name = FuncName::CreateTemp(U"Func"sv, FuncName::FuncInfo::Empty);

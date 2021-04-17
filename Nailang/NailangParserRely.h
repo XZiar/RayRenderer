@@ -27,7 +27,11 @@ using common::parser::ParserLexerBase;
 
 
 enum class ExtraOps : uint16_t { Quest = 256, Colon };
-enum class AssignOps : uint16_t { Assign = 384, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, NilAssign, NewCreate };
+enum class AssignOps : uint16_t 
+{ 
+    Assign = 384, NilAssign, NewCreate, AddAssign, SubAssign, MulAssign, DivAssign, RemAssign, 
+    BitAndAssign, BitOrAssign, BitXorAssign, BitShiftLeftAssign, BitShiftRightAssign
+};
 
 namespace tokenizer
 {
@@ -231,40 +235,48 @@ class OpSymbolTokenizer
         };
         return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
     }();
-    static constexpr ASCIIChecker<true> AllowedBeforeEqual = "=!<>+-*/%?:"sv;
 #define ENUM_PAIR(name, op) U"" name ""sv, static_cast<uint16_t>(op)
     static constexpr auto ResultParser = PARSE_PACK(
-        ENUM_PAIR("==", EmbedOps::Equal),
-        ENUM_PAIR("!=", EmbedOps::NotEqual),
-        ENUM_PAIR("<",  EmbedOps::Less),
-        ENUM_PAIR("<=", EmbedOps::LessEqual),
-        ENUM_PAIR(">",  EmbedOps::Greater),
-        ENUM_PAIR(">=", EmbedOps::GreaterEqual),
-        ENUM_PAIR("&&", EmbedOps::And),
-        ENUM_PAIR("||", EmbedOps::Or),
-        ENUM_PAIR("+",  EmbedOps::Add),
-        ENUM_PAIR("-",  EmbedOps::Sub),
-        ENUM_PAIR("*",  EmbedOps::Mul),
-        ENUM_PAIR("/",  EmbedOps::Div),
-        ENUM_PAIR("%",  EmbedOps::Rem),
-        ENUM_PAIR("&",  EmbedOps::BitAnd),
-        ENUM_PAIR("|",  EmbedOps::BitOr),
-        ENUM_PAIR("^",  EmbedOps::BitXor),
-        ENUM_PAIR("??", EmbedOps::ValueOr),
-        ENUM_PAIR("!",  EmbedOps::Not),
-        ENUM_PAIR("~",  EmbedOps::BitNot),
-        ENUM_PAIR("?",  ExtraOps::Quest),
-        ENUM_PAIR(":",  ExtraOps::Colon),
-        ENUM_PAIR("=",  AssignOps::   Assign),
-        ENUM_PAIR("+=", AssignOps::AddAssign),
-        ENUM_PAIR("-=", AssignOps::SubAssign),
-        ENUM_PAIR("*=", AssignOps::MulAssign),
-        ENUM_PAIR("/=", AssignOps::DivAssign),
-        ENUM_PAIR("%=", AssignOps::RemAssign),
-        ENUM_PAIR("?=", AssignOps::NilAssign),
-        ENUM_PAIR(":=", AssignOps::NewCreate)
+        ENUM_PAIR("==",  EmbedOps::Equal),
+        ENUM_PAIR("!=",  EmbedOps::NotEqual),
+        ENUM_PAIR("<",   EmbedOps::Less),
+        ENUM_PAIR("<=",  EmbedOps::LessEqual),
+        ENUM_PAIR(">",   EmbedOps::Greater),
+        ENUM_PAIR(">=",  EmbedOps::GreaterEqual),
+        ENUM_PAIR("&&",  EmbedOps::And),
+        ENUM_PAIR("||",  EmbedOps::Or),
+        ENUM_PAIR("+",   EmbedOps::Add),
+        ENUM_PAIR("-",   EmbedOps::Sub),
+        ENUM_PAIR("*",   EmbedOps::Mul),
+        ENUM_PAIR("/",   EmbedOps::Div),
+        ENUM_PAIR("%",   EmbedOps::Rem),
+        ENUM_PAIR("&",   EmbedOps::BitAnd),
+        ENUM_PAIR("|",   EmbedOps::BitOr),
+        ENUM_PAIR("^",   EmbedOps::BitXor),
+        ENUM_PAIR("<<",  EmbedOps::BitShiftLeft),
+        ENUM_PAIR(">>",  EmbedOps::BitShiftRight),
+        ENUM_PAIR("??",  EmbedOps::ValueOr),
+        ENUM_PAIR("!",   EmbedOps::Not),
+        ENUM_PAIR("~",   EmbedOps::BitNot),
+        ENUM_PAIR("?",   ExtraOps::Quest),
+        ENUM_PAIR(":",   ExtraOps::Colon),
+        ENUM_PAIR("=",   AssignOps::   Assign),
+        ENUM_PAIR("?=",  AssignOps::NilAssign),
+        ENUM_PAIR(":=",  AssignOps::NewCreate),
+        ENUM_PAIR("+=",  AssignOps::AddAssign),
+        ENUM_PAIR("-=",  AssignOps::SubAssign),
+        ENUM_PAIR("*=",  AssignOps::MulAssign),
+        ENUM_PAIR("/=",  AssignOps::DivAssign),
+        ENUM_PAIR("%=",  AssignOps::RemAssign),
+        ENUM_PAIR("&=",  AssignOps::BitAndAssign),
+        ENUM_PAIR("|=",  AssignOps::BitOrAssign),
+        ENUM_PAIR("^=",  AssignOps::BitXorAssign),
+        ENUM_PAIR("<<=", AssignOps::BitShiftLeftAssign),
+        ENUM_PAIR(">>=", AssignOps::BitShiftRightAssign)
         );
 #undef ENUM_PAIR
+    static constexpr ASCIIChecker<true> AllowedBeforeEqual = "=!<>+-*/%&|^?:"sv;
+    static constexpr ASCIIChecker<true> AllowedRepeatSelf  = "&|?<>"sv;
 public:
     using StateData = char32_t;
     forceinline constexpr std::pair<char32_t, TokenizerResult> OnChar(const char32_t prevChar, const char32_t ch, const size_t idx) const noexcept
@@ -277,23 +289,21 @@ public:
         case 1:
             if (ch == U'=')
                 return { ch, AllowedBeforeEqual(prevChar) ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-            else
-            {
-                switch (prevChar)
-                {
-                case U'&': return { ch, ch == U'&' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-                case U'|': return { ch, ch == U'|' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-                case U'?': return { ch, ch == U'?' ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
-                default:   return { ch, TokenizerResult::NotMatch };
-                }
-            }
+            else if (prevChar == ch && AllowedRepeatSelf(ch))
+                return { ch, TokenizerResult::Waitlist };
+            break;
+        case 2:
+            if (ch == U'=')
+                return { ch, (prevChar == U'<' || prevChar == U'>') ? TokenizerResult::Waitlist : TokenizerResult::NotMatch };
+            break;
         default:
-            return { ch, TokenizerResult::NotMatch };
+            break;
         }
+        return { ch, TokenizerResult::NotMatch };
     }
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
-        Expects(txt.size() == 1 || txt.size() == 2);
+        Expects(txt.size() >= 1 || txt.size() <= 3);
         const auto ret = ResultParser(txt);
         if (ret.has_value())
             return ParserToken(NailangToken::OpSymbol, ret.value());
