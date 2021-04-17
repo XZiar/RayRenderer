@@ -59,7 +59,9 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\FreeGLUT\freedlut\freedlut</RealSourceDir>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>$(ProjectName)_staticd</TargetName>
     <IncludePath>$(ProjectDir);$(IncludePath)</IncludePath>
@@ -157,66 +159,66 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="fg_callbacks.c" />
-    <ClCompile Include="fg_cursor.c" />
-    <ClCompile Include="fg_display.c" />
-    <ClCompile Include="fg_ext.c" />
-    <ClCompile Include="fg_font.c" />
-    <ClCompile Include="fg_font_data.c" />
-    <ClCompile Include="fg_gamemode.c" />
-    <ClCompile Include="fg_geometry.c" />
-    <ClCompile Include="fg_gl2.c" />
-    <ClCompile Include="fg_init.c" />
-    <ClCompile Include="fg_input_devices.c" />
-    <ClCompile Include="fg_joystick.c" />
-    <ClCompile Include="fg_main.c" />
-    <ClCompile Include="fg_menu.c" />
-    <ClCompile Include="fg_misc.c" />
-    <ClCompile Include="fg_overlay.c" />
-    <ClCompile Include="fg_spaceball.c" />
-    <ClCompile Include="fg_state.c" />
-    <ClCompile Include="fg_stroke_mono_roman.c" />
-    <ClCompile Include="fg_stroke_roman.c" />
-    <ClCompile Include="fg_structure.c" />
-    <ClCompile Include="fg_teapot.c" />
-    <ClCompile Include="fg_videoresize.c" />
-    <ClCompile Include="fg_window.c" />
-    <ClCompile Include="mswin\fg_cursor_mswin.c" />
-    <ClCompile Include="mswin\fg_display_mswin.c" />
-    <ClCompile Include="mswin\fg_ext_mswin.c" />
-    <ClCompile Include="mswin\fg_gamemode_mswin.c" />
-    <ClCompile Include="mswin\fg_init_mswin.c" />
-    <ClCompile Include="mswin\fg_input_devices_mswin.c" />
-    <ClCompile Include="mswin\fg_joystick_mswin.c" />
-    <ClCompile Include="mswin\fg_main_mswin.c" />
-    <ClCompile Include="mswin\fg_menu_mswin.c" />
-    <ClCompile Include="mswin\fg_spaceball_mswin.c" />
-    <ClCompile Include="mswin\fg_state_mswin.c" />
-    <ClCompile Include="mswin\fg_structure_mswin.c" />
-    <ClCompile Include="mswin\fg_window_mswin.c" />
-    <ClCompile Include="util\xparsegeometry_repl.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_callbacks.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_cursor.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_display.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_ext.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_font.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_font_data.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_gamemode.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_geometry.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_gl2.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_init.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_input_devices.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_joystick.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_main.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_menu.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_misc.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_overlay.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_spaceball.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_state.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_stroke_mono_roman.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_stroke_roman.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_structure.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_teapot.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_videoresize.c" />
+    <ClCompile Include="$(RealSourceDir)\fg_window.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_cursor_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_display_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_ext_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_gamemode_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_init_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_input_devices_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_joystick_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_main_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_menu_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_spaceball_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_state_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_structure_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\mswin\fg_window_mswin.c" />
+    <ClCompile Include="$(RealSourceDir)\util\xparsegeometry_repl.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="config.h" />
-    <ClInclude Include="fg_callback_macros.h" />
-    <ClInclude Include="fg_gl2.h" />
-    <ClInclude Include="fg_init.h" />
-    <ClInclude Include="fg_internal.h" />
-    <ClInclude Include="fg_teapot_data.h" />
-    <ClInclude Include="fg_version.h" />
-    <ClInclude Include="freeglut.h" />
-    <ClInclude Include="freeglut_ext.h" />
-    <ClInclude Include="freeglut_std.h" />
-    <ClInclude Include="freeglut_ucall.h" />
-    <ClInclude Include="glut.h" />
-    <ClInclude Include="mswin\fg_internal_mswin.h" />
-    <ClInclude Include="util\xparsegeometry_repl.h" />
+    <ClInclude Include="$(RealSourceDir)\config.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_callback_macros.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_gl2.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_init.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_internal.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_teapot_data.h" />
+    <ClInclude Include="$(RealSourceDir)\fg_version.h" />
+    <ClInclude Include="$(RealSourceDir)\freeglut.h" />
+    <ClInclude Include="$(RealSourceDir)\freeglut_ext.h" />
+    <ClInclude Include="$(RealSourceDir)\freeglut_std.h" />
+    <ClInclude Include="$(RealSourceDir)\freeglut_ucall.h" />
+    <ClInclude Include="$(RealSourceDir)\glut.h" />
+    <ClInclude Include="$(RealSourceDir)\mswin\fg_internal_mswin.h" />
+    <ClInclude Include="$(RealSourceDir)\util\xparsegeometry_repl.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="freeglut.rc" />
+    <ResourceCompile Include="$(RealSourceDir)\freeglut.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

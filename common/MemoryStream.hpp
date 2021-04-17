@@ -100,7 +100,7 @@ private:
     size_t TotalSize, CurPos = 0;
     bool IsGrowable;
 protected:
-    [[nodiscard]] virtual common::span<std::byte> Grow(const size_t) { return common::span<std::byte>(Ptr, TotalSize); }
+    [[nodiscard]] virtual common::span<std::byte> Grow(const size_t) noexcept { return common::span<std::byte>(Ptr, TotalSize); }
 public:
     template<typename T>
     MemoryOutputStream(const span<T> srcSpan, const bool isGrowable = false) noexcept :
@@ -212,7 +212,7 @@ class ContainerOutputStream : private detail::ContainerHolder<T>, public MemoryO
 private:
     static constexpr bool IsConst = std::is_const_v<T> || std::is_base_of_v<common::AlignedBuffer, std::remove_cv_t<T>>;
 protected:
-    [[nodiscard]] virtual common::span<std::byte> Grow([[maybe_unused]] const size_t size) noexcept(IsConst) override
+    [[nodiscard]] common::span<std::byte> Grow([[maybe_unused]] const size_t size) noexcept final
     {
         if constexpr (IsConst)
             return MemoryOutputStream::Grow(size);

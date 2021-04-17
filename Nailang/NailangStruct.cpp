@@ -860,7 +860,7 @@ Arg CustomVar::Handler::HandleIndexes(const CustomVar& var, SubQuery<Arg>& index
     if (!result.IsEmpty())
     {
         indexes.Consume();
-        return std::move(result);
+        return result;
     }
     return {};
 }

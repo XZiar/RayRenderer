@@ -4,6 +4,7 @@
     "description": "A GLUT replacement",
     "version": "3.2.1",
     "dependency": [],
+    "srcPath": "../../FreeGLUT/freeglut/freeglut/",
     "library": 
     {
         "static": [],

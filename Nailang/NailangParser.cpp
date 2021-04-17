@@ -394,7 +394,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
                     case AssignOps::Assign:    info = NilCheck(Behavior::Pass,  Behavior::Pass).Value;          break;
                     case AssignOps::NewCreate: info = NilCheck(Behavior::Throw, Behavior::Pass).Value;          break;
                     case AssignOps::NilAssign: info = NilCheck(Behavior::Skip,  Behavior::Pass).Value;          break;
-#define SELF_ASSIGN(tname) case AssignOps::##tname##Assign: isSelfAssign = true; info = common::enum_cast(EmbedOps::tname); break
+#define SELF_ASSIGN(tname) case AssignOps::tname##Assign: isSelfAssign = true; info = common::enum_cast(EmbedOps::tname); break
                     SELF_ASSIGN(Add);
                     SELF_ASSIGN(Sub);
                     SELF_ASSIGN(Mul);

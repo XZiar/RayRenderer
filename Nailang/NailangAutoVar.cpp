@@ -127,6 +127,8 @@ Arg AutoVarHandlerBase::HandleIndexes(const CustomVar& var, SubQuery<Arg>& index
     if (!result.IsEmpty())
     {
         indexes.Consume();
+        if ((result.IsCustom() || result.IsArray()) && !nonConst)
+            result.TypeData |= Arg::Type::ConstBit;
         return result;
     }
     return {};
@@ -155,7 +157,6 @@ AutoVarHandlerBase::AutoVarArrayHandler::~AutoVarArrayHandler()
 Arg AutoVarHandlerBase::AutoVarArrayHandler::HandleSubFields(const CustomVar & var, SubQuery<const Expr>& subfields)
 {
     Expects(subfields.Size() > 0);
-    const bool nonConst = HAS_FIELD(static_cast<VarFlags>(var.Meta2), VarFlags::NonConst);
     auto field = subfields[0].GetVar<Expr::Type::Str>();
     if (field == U"Length")
     {

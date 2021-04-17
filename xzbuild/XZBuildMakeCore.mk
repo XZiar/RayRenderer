@@ -129,6 +129,13 @@ $(info docleaning......)
 CLEAN_RET	:=$(shell rm -f $(PCH_PCH) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(DEPS) $(APP))
 endif
 
+### speedup & hotfix
+.PHONY: all clean
+
+.PRECIOUS: $(PCH_PCH)
+
+.SUFFIXES:
+
 ### exposed targets
 all: $(APP)
 	@echo "$(CLR_WHITE)make of $(CLR_CYAN)[$(NAME)]$(CLR_WHITE) finished$(CLR_CLEAR)"

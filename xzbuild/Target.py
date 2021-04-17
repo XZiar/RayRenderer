@@ -88,7 +88,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         super().__init__(targets, env)
 
     def solveTarget(self, targets, env:dict):
-        self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs"]
+        self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
         self.flags += [f"-march={env['arch']}"]
         self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"

@@ -139,7 +139,7 @@
     <ClCompile Include="FreeGLUTView.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\freeglut\freeglut.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\freeglut\freeglut.vcxproj">
       <Project>{afb20f81-5a02-49ef-b968-4749a2bb4bd5}</Project>
     </ProjectReference>
     <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">

@@ -141,7 +141,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uchardet", "3rdParty\Projec
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freetype2", "3rdParty\freetype2\freetype2.vcxproj", "{7B5C2843-DEDF-44AD-B02A-2AF72D78F2E9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "3rdParty\freeglut\freeglut.vcxproj", "{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "3rdParty\Projects\freeglut\freeglut.vcxproj", "{AFB20F81-5A02-49EF-B968-4749A2BB4BD5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "date", "date", "{D36D1F7F-4D13-4944-9024-CC703F56FB75}"
 	ProjectSection(SolutionItems) = preProject
