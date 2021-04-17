@@ -19,7 +19,7 @@
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
 #define FREEGLUT_STATIC
-#include "freeglut/freeglut.h"
+#include "3rdParty/FreeGLUT/freeglut/freeglut/include/GL/freeglut.h"
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>

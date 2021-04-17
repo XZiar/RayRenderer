@@ -15,172 +15,172 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(RealSourceDir)\fg_display.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_display.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_ext.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_ext.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_font.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_font.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_font_data.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_font_data.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_gamemode.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_gamemode.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_geometry.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_geometry.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_gl2.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_gl2.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_init.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_init.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_input_devices.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_input_devices.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_joystick.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_joystick.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_main.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_main.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_menu.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_menu.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_misc.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_misc.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_overlay.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_overlay.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_spaceball.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_spaceball.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_state.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_state.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_stroke_mono_roman.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_stroke_mono_roman.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_stroke_roman.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_stroke_roman.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_structure.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_structure.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_teapot.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_teapot.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_videoresize.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_videoresize.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_window.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_window.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_callbacks.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_callbacks.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\fg_cursor.c">
+    <ClCompile Include="$(RealSourceDir)\src\fg_cursor.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_joystick_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_joystick_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_main_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_main_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_menu_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_menu_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_spaceball_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_spaceball_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_state_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_state_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_structure_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_structure_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_window_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_window_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_cursor_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_cursor_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_display_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_display_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_ext_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_ext_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_gamemode_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_gamemode_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_init_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_init_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\mswin\fg_input_devices_mswin.c">
+    <ClCompile Include="$(RealSourceDir)\src\mswin\fg_input_devices_mswin.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\util\xparsegeometry_repl.c">
+    <ClCompile Include="$(RealSourceDir)\src\util\xparsegeometry_repl.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(RealSourceDir)\fg_gl2.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_gl2.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\fg_init.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_init.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\fg_internal.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_internal.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\fg_teapot_data.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_teapot_data.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\mswin\fg_internal_mswin.h">
+    <ClInclude Include="$(RealSourceDir)\src\mswin\fg_internal_mswin.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\freeglut.h">
+    <ClInclude Include="$(RealSourceDir)\include\GL\freeglut.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\freeglut_ext.h">
+    <ClInclude Include="$(RealSourceDir)\include\GL\freeglut_ext.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\freeglut_std.h">
+    <ClInclude Include="$(RealSourceDir)\include\GL\freeglut_std.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\glut.h">
+    <ClInclude Include="$(RealSourceDir)\include\GL\glut.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\util\xparsegeometry_repl.h">
+    <ClInclude Include="$(RealSourceDir)\src\util\xparsegeometry_repl.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\fg_callback_macros.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_callback_macros.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\freeglut_ucall.h">
+    <ClInclude Include="$(RealSourceDir)\src\freeglut_ucall.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\config.h">
+    <ClInclude Include="config.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\fg_version.h">
+    <ClInclude Include="$(RealSourceDir)\src\fg_version.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="$(RealSourceDir)\freeglut.rc">
+    <ResourceCompile Include="freeglut.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="$(RealSourceDir)\README.md" />
+    <None Include="$(RealSourceDir)\src\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
 </Project>

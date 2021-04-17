@@ -4,7 +4,7 @@
     "description": "A GLUT replacement",
     "version": "3.2.1",
     "dependency": [],
-    "srcPath": "../../FreeGLUT/freeglut/freeglut/",
+    "srcPath": "../../FreeGLUT/freeglut/freeglut/src",
     "library": 
     {
         "static": [],
@@ -14,10 +14,10 @@
     {
         "c":
         {
-            "defines": ["HAVE_CONFIG_H", "freeglut_EXPORTS", "FREEGLUT_STATIC"],
+            "defines": ["HAVE_CONFIG_H", "FREEGLUT_STATIC"],
             "flags": ["-Wno-unused-const-variable", "-Wno-unused-function"],
-            "sources": ["*.c", "x11/*.c"],
-            "incpath": ["."],
+            "sources": ["*.c", "x11/*.c", {"-": "gles_stubs.c"}],
+            "incpath": ["$(BuildDir)", ".", "../include", "../include/GL"],
             "version": ""
         }
     }
