@@ -96,6 +96,10 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 
+* [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.4
+
+  [MIT License](https://github.com/gulrak/filesystem/blob/master/LICENSE)
+
 * [rapidjson](http://rapidjson.org/) `submodule` 1.1.0 master
 
   [MIT License](https://github.com/Tencent/rapidjson/blob/master/license.txt)

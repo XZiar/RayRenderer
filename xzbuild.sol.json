@@ -1,3 +1,11 @@
 {
-    "incDirs" : [ ".", "./3rdParty", "./3rdParty/GSL/include" ]
+    "environment" : 
+    [
+        {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"}
+    ],
+    "incDirs" : [ ".", "./3rdParty", "./3rdParty/GSL/include" ],
+    "defines" : 
+    [
+        {"ifhas": "ghc_fs", "+": "COMMON_FS_USE_GHC=1"}
+    ]
 }

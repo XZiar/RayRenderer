@@ -51,6 +51,9 @@ Some utilities aims to provide equal functionality on different OSs.
 
 Provide stream for files. FileStreams are acquired from `FileObject` which uses RAII to wrap file handle.
 
+According to the common interface([`FileBase.hpp`](../common/FileBase.hpp)), it will try to use `filesysten` from STL if possibile. If is not supported, or explicit requested using "COMMON_FS_USE_GHC", it will switch to use [`ghc-filesystem`](https://github.com/gulrak/filesystem).
+It's not using `boost::filesystem` because boost does not support `char16_t` & `char32_t`.
+
 ### [RawFileEx](./RawFileEx.h)
 
 Provide native stream for files. RawFileStreams are acquired from `RawFileObject` which uses RAII to wrap raw file handle.

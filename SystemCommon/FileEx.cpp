@@ -29,12 +29,18 @@
 #endif
 #if COMMON_FS == 1
 #   define TMP_FS_NAME "filesystem"
+#   define TMP_FS_VER  __cpp_lib_filesystem
 #elif COMMON_FS == 2
 #   define TMP_FS_NAME "experimental/filesystem"
+#   define TMP_FS_VER  __cpp_lib_experimental_filesystem
+#elif COMMON_FS == 3
+#   define TMP_FS_NAME "ghc-filesystem"
+#   define TMP_FS_VER GHC_FILESYSTEM_VERSION
 #else
-#   define TMP_FS_NAME ""
+#   define TMP_FS_NAME
+#   define TMP_FS_VER
 #endif
-#pragma message("Compiling SystemCommon with " TMP_FS_NAME " from [" TMP_COMPILER_NAME "][" STRINGIZE(TMP_COMPILER_VER) "]")
+#pragma message("Compiling SystemCommon with [" TMP_FS_NAME "(" STRINGIZE(TMP_FS_VER) ")] from [" TMP_COMPILER_NAME "][" STRINGIZE(TMP_COMPILER_VER) "]")
 
 namespace common::file
 {

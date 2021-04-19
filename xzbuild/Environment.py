@@ -51,12 +51,13 @@ def collectEnv(paras:dict) -> dict:
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
     env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
     env["verbose"] = "verbose" in paras
-    env["targetarch"] = paras.get("targetarch", "native")
     is64Bits = sys.maxsize > 2**32
     env["platform"] = "x64" if is64Bits else "x86"
     env["incDirs"] = []
     env["libDirs"] = []
+    env["defines"] = []
     env["incDirs"] += [x+"/include" for x in [os.environ.get("CPP_DEPENDENCY_PATH")] if x is not None]
+    
     cppcompiler = os.environ.get("CPPCOMPILER", "c++")
     ccompiler = os.environ.get("CCOMPILER", "cc")
     env["cppcompiler"] = cppcompiler
@@ -69,10 +70,12 @@ def collectEnv(paras:dict) -> dict:
         env["arch"] = "arm"
     else:
         env["arch"] = ""
+    
+    targetarch = paras.get("targetarch", "native")
     defs = {}
     if not env["osname"] == "Windows":
         qarg = "march" if env["arch"] == "x86" else "mcpu"
-        env["archparam"] = f"-{qarg}={env['targetarch']}"
+        env["archparam"] = f"-{qarg}={targetarch}"
         rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} -xc++ -dM -E - < /dev/null", shell=True)
         defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.decode().splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
@@ -87,12 +90,25 @@ def collectEnv(paras:dict) -> dict:
     else:
         env["compiler"] = "msvc"
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
+    if "__ANDROID__" in defs:
+        env["android"] = True
+    
     env["cpuCount"] = os.cpu_count()
     threads = paras.get("threads", "x1")
     if threads.startswith('x'):
         env["threads"] = int(env["cpuCount"] * float(threads[1:]))
     else:
         env["threads"] = int(threads)
+
+    termuxVer = os.environ.get("TERMUX_VERSION")
+    if termuxVer is not None:
+        ver = termuxVer.split(".")
+        env["termuxVer"] = int(ver[0]) * 10000 + int(ver[1])
+        pkgs = subprocess.check_output("pkg list-installed", shell=True)
+        libcxx = [x for x in pkgs.decode().splitlines() if x.startswith("libc++")][0]
+        libcxxVer = libcxx.split(",")[1].split(" ")[1].split("-")[0]
+        env["ndkVer"] = int(libcxxVer[:-1]) * 100 + (ord(libcxxVer[-1]) - ord("a"))
+
     return env
 
 def writeEnv(env:dict):
@@ -105,4 +121,5 @@ def writeEnv(env:dict):
                 file.write("xz_{}\t = {}\n".format(k, v))
         file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
         file.write("xz_libDir\t = {}\n".format(" ".join(env["libDirs"])))
+        file.write("xz_define\t = {}\n".format(" ".join(env["defines"])))
         file.write("STATICLINKER\t = {}\n".format(env["arlinker"]))

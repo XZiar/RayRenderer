@@ -43,3 +43,7 @@
 	shallow = true
 	path = 3rdParty/FreeGLUT
 	url = https://github.com/dcnieho/FreeGLUT.git
+[submodule "3rdParty/ghc_filesystem"]
+	shallow = true
+	path = 3rdParty/ghc_filesystem
+	url = https://github.com/gulrak/filesystem.git

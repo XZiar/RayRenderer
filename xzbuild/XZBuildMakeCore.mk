@@ -45,6 +45,7 @@ INCPATH		 = $(patsubst %, -I"%", $(xz_incDir))
 LDPATH		 = -L"$(APPDIR)" -L.  $(patsubst %, -L"%", $(xz_libDir))
 DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
 STALIBS		:= $(patsubst %, -l%, $(libStatic))
+ALLDEFFLAGS := $(patsubst %, -D%, $(xz_define))
 CDEFFLAGS	:= $(patsubst %, -D%, $(c_defs))
 CPPDEFFLAGS	:= $(patsubst %, -D%, $(cpp_defs))
 CUDADEFFLAGS	:= $(patsubst %, -D%, $(cuda_defs))
@@ -172,9 +173,9 @@ ifeq ($(xz_compiler), gcc) # Has problem with pch on GCC
 	@echo "" > $(basename $@)
 endif
 ifneq (($(filter $<,$(cpp_pch))), ) # cpp pch
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -x c++-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else ifneq (($(filter $<,$(c_pch))), ) # c pch
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CINCPATHS) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -x c-header -MMD -MP -fPIC $(PCHFIX) -c $< -o $@)
 else
 $(error unknown pch file target)
 endif
@@ -184,15 +185,15 @@ endif
 ###============================================================================
 ### cxx targets
 $(OBJDIR)/%.cpp.o: %.cpp $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJDIR)/%.cc.o: %.cc $(PCH_CPP) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $@_bcmd := $(CPPCOMPILER) $(CPPPCH) $(CPPINCPATHS) $(cpp_flags) $(ALLDEFFLAGS) $(CPPDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,  cpp, $<, $($@_bcmd))
 
 $(OBJDIR)/%.c.o: %.c $(PCH_C) $(ISPCOBJS) $(DEP_MK)
-	$(eval $@_bcmd := $(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
+	$(eval $@_bcmd := $(CCOMPILER) $(CPCH) $(CINCPATHS) $(c_flags) $(ALLDEFFLAGS) $(CDEFFLAGS) -Winvalid-pch -MMD -MP -fPIC -c $< -o $@)
 	$(call BuildProgress,compile,    c, $<, $($@_bcmd))
 
 

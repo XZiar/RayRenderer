@@ -142,14 +142,30 @@ class ProjectSet:
     @staticmethod
     def loadSolution(env: dict):
         solDir = env["rootDir"]
-        def combinePath(field: str, env: dict, sol: dict):
+        def combinePath(sol: dict, field: str, env: dict):
             a,d = PList.solveElementList(sol, field, env)
             a = [os.path.normpath(x if os.path.isabs(x) else os.path.join(solDir, x)) for x in a]
             d = [os.path.normpath(x if os.path.isabs(x) else os.path.join(solDir, x)) for x in d]
             env[field] = PList.combineElements(env[field], a, d)
+        def procEnvEle(ret:tuple, ele:dict, env:dict):
+            if "key" in ele:
+                key = ele["key"]
+                return tuple(list((key, i) for i in x) for x in ret)
+            return ret
         solFile = os.path.join(solDir, "xzbuild.sol.json")
         if os.path.isfile(solFile):
             with open(solFile, 'r') as f:
                 solData = json.load(f)
-            combinePath("incDirs", env, solData)
-            combinePath("libDirs", env, solData)
+            a,_ = PList.solveElementList(solData, "environment", env, procEnvEle)
+            for ele in a:
+                print(f"add:{ele}")
+                if isinstance(ele, tuple):
+                    env[ele[0]] = ele[1]
+                else:
+                    env[ele] = "1"
+            combinePath(solData, "incDirs", env)
+            combinePath(solData, "libDirs", env)
+            a,d = PList.solveElementList(solData, "defines", env)
+            env["defines"] = PList.combineElements([], a, d)
+                
+
