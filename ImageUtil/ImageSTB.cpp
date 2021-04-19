@@ -7,29 +7,29 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
 #define STBI_THREADLOCAL_FAILMSG
-#if COMPILER_GCC
+#if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wunused-function"
-#elif COMPILER_CLANG
+#elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wunused-function"
-#elif COMPILER_MSVC
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(push)
 //#   pragma warning(disable:4505 4100)
 #endif
 #include "3rdParty/stb/stb_image.h"
-#if !COMPILER_MSVC
+#if !COMMON_COMPILER_MSVC
 #   undef __STDC_WANT_SECURE_LIB__
 #endif
 #include "3rdParty/stb/stb_image_write.h"
-#if !COMPILER_MSVC
+#if !COMMON_COMPILER_MSVC
 #   define __STDC_WANT_SECURE_LIB__ 1
 #endif
-#if COMPILER_GCC
+#if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic pop
-#elif COMPILER_CLANG
+#elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
-#elif COMPILER_MSVC
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

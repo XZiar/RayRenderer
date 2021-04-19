@@ -24,7 +24,7 @@
 
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -148,6 +148,6 @@ GLUTVIEWAPI void FreeGLUTViewRun();
 
 }
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

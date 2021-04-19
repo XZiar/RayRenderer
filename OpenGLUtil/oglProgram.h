@@ -6,7 +6,7 @@
 #include "oglVAO.h"
 #include "3DElement.hpp"
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4324 4275)
 #endif
@@ -382,6 +382,6 @@ public:
 }
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

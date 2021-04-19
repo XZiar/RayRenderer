@@ -14,7 +14,7 @@ namespace dxu
 class NLDXProgStub;
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -55,7 +55,7 @@ public:
     virtual std::unique_ptr<NLDXResult> CompileShader(const std::shared_ptr<xcomp::XCNLProgram>& prog, const DxDevice dev, const common::CLikeDefines& info = {}, const DxShaderConfig& config = {}) const;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

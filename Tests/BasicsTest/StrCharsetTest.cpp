@@ -52,7 +52,7 @@ static void CompareSpans(const common::span<T> l, const common::span<T> r) noexc
 
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 inline namespace
 {
 template<typename From, typename To, typename CharIn>

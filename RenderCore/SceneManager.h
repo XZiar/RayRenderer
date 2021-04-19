@@ -12,7 +12,7 @@ enum class SceneChange : uint32_t { Light = 0x1, Object = 0x2 };
 MAKE_ENUM_BITFIELD(SceneChange)
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -50,7 +50,7 @@ public:
     bool DelLight(const std::shared_ptr<Light>& light);
     void ReportChanged(const SceneChange target);
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

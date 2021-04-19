@@ -67,10 +67,10 @@ string_view ArgFlags::ToCLString(const ImgAccess access) noexcept
     default:                    return ""sv;
     }
 }
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4063)
-#elif COMPILER_GCC | COMPILER_CLANG
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch"
 #endif
@@ -114,9 +114,9 @@ string_view ArgFlags::GetQualifierName() const noexcept
         return "Unknown"sv;
     }
 }
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
-#elif COMPILER_GCC | COMPILER_CLANG
+#elif COMMON_COMPILER_GCC | COMMON_COMPILER_CLANG
 #pragma GCC diagnostic pop
 #endif
 

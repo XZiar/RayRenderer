@@ -10,7 +10,7 @@ namespace common::file
 class FileMappingObject;
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -21,7 +21,7 @@ class SYSCOMMONAPI RawFileObject : public NonCopyable, public NonMovable
     friend class FileMappingObject;
     friend class RawFileStream;
 public:
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     using HandleType = void*;
 #else
     using HandleType = int32_t;
@@ -109,7 +109,7 @@ public:
 };
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

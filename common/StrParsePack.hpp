@@ -37,7 +37,7 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
     }
     else if constexpr (targetSBytes <= 128u / 8u)
     {
-#if COMMON_SIMD_LV >= 20
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
         constexpr auto mask = (1u << targetSBytes) - 1u;
         const auto vecT = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target));
         const auto vecS = _mm_loadu_si128(reinterpret_cast<const __m128i*>(src.data()));
@@ -49,13 +49,13 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
     }
     else if constexpr (targetSBytes <= 256u / 8u)
     {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
         constexpr auto mask = static_cast<uint32_t>((uint64_t(1) << targetSBytes) - 1u);
         const auto vecT = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target));
         const auto vecS = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src.data()));
         const auto cmpbits = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS, vecT)));
         return (cmpbits & mask) == mask;
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
         constexpr auto mask = static_cast<uint32_t>((uint64_t(1) << (targetSBytes - 16)) - 1u);
         const auto vecT0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 0);
         const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 1);
@@ -70,7 +70,7 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
     }
     else if constexpr (targetSBytes <= 384u / 8u)
     {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
         constexpr auto mask = static_cast<uint16_t>((uint64_t(1) << (targetSBytes - 32)) - 1u);
         const auto vecT0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target) + 0);
         const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 2);
@@ -79,7 +79,7 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
         const auto cmpbits0 = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS0, vecT0)));
         const auto cmpbits1 = static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(vecS1, vecT1)));
         return cmpbits0 == UINT32_MAX && (cmpbits1 & mask) == mask;
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
         constexpr auto mask = static_cast<uint16_t>((uint64_t(1) << (targetSBytes - 32)) - 1u);
         const auto vecT0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 0);
         const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 1);
@@ -97,7 +97,7 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
     }
     else if constexpr (targetSBytes <= 512u / 8u)
     {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
         constexpr auto mask = static_cast<uint32_t>((uint64_t(1) << (targetSBytes - 32)) - 1u);
         const auto vecT0 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target) + 0);
         const auto vecT1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(target) + 1);
@@ -106,7 +106,7 @@ forceinline bool ShortCompare(const std::basic_string_view<T> src, const T(&targ
         const auto cmpbits0 = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS0, vecT0)));
         const auto cmpbits1 = static_cast<uint32_t>(_mm256_movemask_epi8(_mm256_cmpeq_epi8(vecS1, vecT1)));
         return cmpbits0 == UINT32_MAX && (cmpbits1 & mask) == mask;
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
         constexpr auto mask = static_cast<uint16_t>((uint64_t(1) << (targetSBytes - 48)) - 1u);
         const auto vecT0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 0);
         const auto vecT1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(target) + 1);

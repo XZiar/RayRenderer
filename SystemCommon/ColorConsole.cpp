@@ -8,7 +8,7 @@ namespace common::console
 
 ConsoleHelper::ConsoleHelper()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     const auto handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
     if (handle == INVALID_HANDLE_VALUE)
         throw std::runtime_error("no console handle avaliable");
@@ -36,7 +36,7 @@ ConsoleHelper::~ConsoleHelper()
 {
 }
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 static constexpr WORD GetColorVal(const ConsoleColor color)
 {
     switch (color)

@@ -16,7 +16,7 @@
 #include <type_traits>
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4324)
 #endif
@@ -389,6 +389,6 @@ struct ControlHelper
 
 }
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

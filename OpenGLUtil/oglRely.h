@@ -30,17 +30,17 @@
 #include "common/Exceptions.hpp"
 #include "common/CommonRely.hpp"
 
-#if COMPILER_CLANG
+#if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wmismatched-tags"
 #endif
 #include "3rdParty/half/half.hpp"
-#if COMPILER_CLANG
+#if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif
 
 
-#if COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
+#if COMMON_COMPILER_MSVC && !defined(_ENABLE_EXTENDED_ALIGNED_STORAGE)
 #   error "require aligned storage fix"
 #endif
 #if !COMMON_OVER_ALIGNED
@@ -66,7 +66,7 @@
 #include <atomic>
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -174,6 +174,6 @@ struct ContextCapability
 }
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

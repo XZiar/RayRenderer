@@ -15,7 +15,7 @@ class Scene;
 class Model;
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -67,7 +67,7 @@ public:
     void DeSerialize(const common::fs::path& fpath);
     xziar::img::Image Screenshot();
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

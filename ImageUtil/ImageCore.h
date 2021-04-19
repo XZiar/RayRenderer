@@ -3,7 +3,7 @@
 #include "ImageUtilRely.h"
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -244,6 +244,6 @@ constexpr inline uint8_t Image::GetElementSize(const ImageDataType dataType) noe
 
 }
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

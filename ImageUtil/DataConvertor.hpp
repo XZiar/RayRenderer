@@ -79,7 +79,7 @@ inline void CopyRGBAToRGB(std::byte * __restrict &destPtr, const uint32_t color)
 #pragma region GRAY->GRAYA
 inline void GraysToGrayAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if defined(COMPILER_MSVC)
+#if defined(COMMON_COMPILER_MSVC)
 #   pragma warning(suppress: 4309)
     constexpr int16_t AlphaMaskVal = static_cast<int16_t>(0xff00);
 #else

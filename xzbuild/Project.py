@@ -17,9 +17,9 @@ class Project:
         self.dependency = []
         self.version = data.get("version", "")
         self.desc = data.get("description", "")
-        libs = data.get("library", {})
-        self.libStatic = libs.get("static", [])
-        self.libDynamic = libs.get("dynamic", [])
+        self.libs = data.get("library", {})
+        self.libStatic = []
+        self.libDynamic = []
         self.targets = []
         self.linkflags = data.get("linkflags", [])
         self.libDirs = []
@@ -29,6 +29,8 @@ class Project:
         pass
 
     def solveTargets(self, env:dict):
+        self.libStatic  = PList.solveElementList(self.libs, "static",  env)[0]
+        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env)[0]
         if env["compiler"] == "clang":
             self.linkflags += ["-fuse-ld=lld"]
         os.chdir(os.path.join(env["rootDir"], self.srcPath))

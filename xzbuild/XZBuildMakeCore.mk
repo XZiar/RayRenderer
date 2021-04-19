@@ -18,8 +18,8 @@ OBJDIR		 = $(SOLDIR)/$(BUILDPATH)/$(OBJPATH)
 include $(APPDIR)/xzbuild.sol.mk # per solution xzbuild settings
 include $(OBJDIR)/xzbuild.proj.mk # per project xzbuild settings
 
-CPPCOMPILER		?= g++
-CCOMPILER		?= gcc
+CPPCOMPILER		?= $(xz_cppcompiler)
+CCOMPILER		?= $(xz_ccompiler)
 ASMCOMPILER		?= g++
 NASMCOMPILER	?= nasm
 ISPCCOMPILER	?= ispc

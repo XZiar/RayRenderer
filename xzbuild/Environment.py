@@ -51,26 +51,41 @@ def collectEnv(paras:dict) -> dict:
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
     env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
     env["verbose"] = "verbose" in paras
-    env["arch"] = paras.get("arch", "native")
+    env["targetarch"] = paras.get("targetarch", "native")
     is64Bits = sys.maxsize > 2**32
     env["platform"] = "x64" if is64Bits else "x86"
     env["incDirs"] = []
     env["libDirs"] = []
     env["incDirs"] += [x+"/include" for x in [os.environ.get("CPP_DEPENDENCY_PATH")] if x is not None]
-    cppcompiler = os.environ.get("CC", "g++")
-    cppcompiler = os.environ.get("CPPCOMPILER", cppcompiler)
-    defs = []
-    osname = platform.system()
-    env["osname"] = osname
-    if not osname == "Windows":
-        rawdefs = subprocess.check_output(f"{cppcompiler} -march={env['arch']} -dM -E - < /dev/null", shell=True)
-        defs = set([d.split()[1] for d in rawdefs.decode().splitlines()])
-        env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
+    cppcompiler = os.environ.get("CPPCOMPILER", "c++")
+    ccompiler = os.environ.get("CCOMPILER", "cc")
     env["cppcompiler"] = cppcompiler
-    env["compiler"] = "clang" if "__clang__" in defs else "gcc"
-    arlinker = "gcc-ar" if env["compiler"] == "gcc" else "ar"
-    if not _checkExists(arlinker): arlinker = "ar"
-    env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
+    env["ccompiler"] = ccompiler
+    env["osname"] = platform.system()
+    env["machine"] = platform.machine()
+    if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
+        env["arch"] = "x86"
+    elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"]:
+        env["arch"] = "arm"
+    else:
+        env["arch"] = ""
+    defs = {}
+    if not env["osname"] == "Windows":
+        qarg = "march" if env["arch"] == "x86" else "mcpu"
+        env["archparam"] = f"-{qarg}={env['targetarch']}"
+        rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} -xc++ -dM -E - < /dev/null", shell=True)
+        defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.decode().splitlines()])
+        env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
+        env["compiler"] = "clang" if "__clang__" in defs else "gcc"
+        arlinker = "gcc-ar" if env["compiler"] == "gcc" else "ar"
+        if not _checkExists(arlinker): arlinker = "ar"
+        env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
+        if env["compiler"] == "clang":
+            env["clangVer"] = int(defs["__clang_major__"]) * 10000 + int(defs["__clang_minor__"]) * 100 + int(defs["__clang_patchlevel__"])
+        else:
+            env["gccVer"] = int(defs["__GNUC__"]) * 10000 + int(defs["__GNUC_MINOR__"]) * 100 + int(defs["__GNUC_PATCHLEVEL__"])
+    else:
+        env["compiler"] = "msvc"
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
     env["cpuCount"] = os.cpu_count()
     threads = paras.get("threads", "x1")
@@ -86,7 +101,7 @@ def writeEnv(env:dict):
         file.write("# xzbuild per solution file\n")
         file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
         for k,v in env.items():
-            if isinstance(v, str):
+            if isinstance(v, (str, int)):
                 file.write("xz_{}\t = {}\n".format(k, v))
         file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
         file.write("xz_libDir\t = {}\n".format(" ".join(env["libDirs"])))

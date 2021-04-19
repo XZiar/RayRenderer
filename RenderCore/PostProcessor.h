@@ -9,7 +9,7 @@ namespace rayr
 enum class PostProcUpdate : uint32_t { LUT = 0x1, FBO = 0x2 };
 MAKE_ENUM_BITFIELD(PostProcUpdate)
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -65,7 +65,7 @@ public:
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
     RESPAK_DECL_COMP_DESERIALIZE("rayr#PostProcessor")
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

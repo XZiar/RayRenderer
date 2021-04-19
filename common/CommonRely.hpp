@@ -3,28 +3,35 @@
 /* Compier Test */
 
 #if defined(__clang__)
-#   define COMPILER_CLANG 1
+#   define COMMON_COMPILER_CLANG 1
+#   define COMMON_CLANG_VER (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #elif defined(__GNUC__)
-#   define COMPILER_GCC 1
+#   define COMMON_COMPILER_GCC 1
+#   define COMMON_GCC_VER (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #elif defined(_MSC_VER)
-#   define COMPILER_MSVC 1
+#   define COMMON_COMPILER_MSVC 1
+#   define COMMON_MSVC_VER (_MSC_VER * 100)
 #elif defined(__MINGW32__) || defined(__MINGW64__)
-#   define COMPILER_MINGW 1
+#   define COMMON_COMPILER_MINGW 1
+#   define COMMON_MINGW_VER (__MINGW64_VERSION_MAJOR * 10000 + __MINGW64_VERSION_MINOR * 100)
 #endif
 
-#ifndef COMPILER_CLANG
-#   define COMPILER_CLANG 0
+#ifndef COMMON_COMPILER_CLANG
+#   define COMMON_COMPILER_CLANG 0
+#   define COMMON_CLANG_VER 0
 #endif
-#ifndef COMPILER_GCC
-#   define COMPILER_GCC 0
+#ifndef COMMON_COMPILER_GCC
+#   define COMMON_COMPILER_GCC 0
+#   define COMMON_GCC_VER 0
 #endif
-#ifndef COMPILER_MSVC
-#   define COMPILER_MSVC 0
+#ifndef COMMON_COMPILER_MSVC
+#   define COMMON_COMPILER_MSVC 0
+#   define COMMON_MSVC_VER 0
 #endif
-#ifndef COMPILER_MINGW
-#   define COMPILER_MINGW 0
+#ifndef COMMON_COMPILER_MINGW
+#   define COMMON_COMPILER_MINGW 0
+#   define COMMON_MINGW_VER 0
 #endif
-
 
 
 /* OS Test */
@@ -33,6 +40,8 @@
 #   define COMMON_OS_WIN 1
 #elif defined(__APPLE__)
 #   define COMMON_OS_MACOS 1
+#elif defined(__ANDROID__)
+#   define COMMON_OS_ANDROID 1
 #elif defined(__linux__)
 #   define COMMON_OS_LINUX 1
 #elif defined(__FreeBSD__)
@@ -45,8 +54,15 @@
 #ifndef COMMON_OS_MACOS
 #   define COMMON_OS_MACOS 0
 #endif
+#ifndef COMMON_OS_ANDROID
+#   define COMMON_OS_ANDROID 0
+#endif
 #ifndef COMMON_OS_LINUX
-#   define COMMON_OS_LINUX 0
+#   if COMMON_OS_ANDROID
+#       define COMMON_OS_LINUX 1
+#   else
+#       define COMMON_OS_LINUX 0
+#   endif
 #endif
 #ifndef COMMON_OS_FREEBSD
 #   define COMMON_OS_FREEBSD 0
@@ -61,9 +77,35 @@
 
 
 
-/* C++ language test */
+/* Arch Test */
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
+#   if defined(_M_ARM) || defined(_M_ARM64)
+#       define COMMON_ARCH_ARM 1
+#   elif defined(_M_IX86) || defined(_M_X64)
+#       define COMMON_ARCH_X86 1
+#   endif
+#else
+#   if defined(__arm__) || defined(__aarch64__)
+#       define COMMON_ARCH_ARM 1
+#   elif defined(__i386__) || defined(__amd64__) || defined(__x86_64__)
+#       define COMMON_ARCH_X86 1
+#   endif
+#endif
+#ifndef COMMON_ARCH_ARM
+#   define COMMON_ARCH_ARM 0
+#endif
+#ifndef COMMON_ARCH_X86
+#   define COMMON_ARCH_X86 0
+#endif
+
+
+
+/* C++ language Test */
+
+#include <ciso646>
+
+#if COMMON_COMPILER_MSVC
 #   if defined(_MSVC_LANG)
 #       define COMMON_CPP_TIME _MSVC_LANG
 #   else
@@ -75,11 +117,14 @@
 
 #if COMMON_CPP_TIME >= 201703L 
 #   define COMMON_CPP_17 1
-#elif COMMON_CPP_TIME >= 201402L 
+#endif
+#if COMMON_CPP_TIME >= 201402L 
 #   define COMMON_CPP_14 1
-#elif COMMON_CPP_TIME >= 201103L 
+#endif
+#if COMMON_CPP_TIME >= 201103L 
 #   define COMMON_CPP_11 1
-#elif COMMON_CPP_TIME >= 199711L
+#endif
+#if COMMON_CPP_TIME >= 199711L
 #   define COMMON_CPP_03 1
 #endif
 
@@ -110,7 +155,7 @@
 
 /* empty base fix */
 
-#if COMPILER_MSVC && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
+#if COMMON_COMPILER_MSVC && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
 #   define COMMON_EMPTY_BASES __declspec(empty_bases)
 #else
 #   define COMMON_EMPTY_BASES 
@@ -119,7 +164,7 @@
 
 /* vectorcall fix */
 
-#if (COMPILER_MSVC /*|| COMPILER_CLANG*/) && !defined(_MANAGED) && !defined(_M_CEE)
+#if (COMMON_COMPILER_MSVC /*|| COMMON_COMPILER_CLANG*/) && !defined(_MANAGED) && !defined(_M_CEE)
 #   define VECCALL __vectorcall
 #else
 #   define VECCALL 
@@ -460,12 +505,12 @@ struct NonMovable
 
 forceinline void ZeroRegion(void* ptr, size_t size)
 {
-#if COMPILER_GCC && __GNUC__ >= 8
+#if COMMON_COMPILER_GCC && __GNUC__ >= 8
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
     memset(ptr, 0x0, size);
-#if COMPILER_GCC && __GNUC__ >= 8
+#if COMMON_COMPILER_GCC && __GNUC__ >= 8
 #pragma GCC diagnostic pop
 #endif
 }
@@ -544,7 +589,7 @@ struct DJBHash // DJB Hash
 
 /* span compatible include */
 
-#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMPILER_MSVC // C++/CLI's incompatibility with C++20
+#if (defined(__cpp_lib_span) && (__cpp_lib_span >= 201902L)) && !COMMON_COMPILER_MSVC // C++/CLI's incompatibility with C++20
 #   include <span>
 namespace common
 {

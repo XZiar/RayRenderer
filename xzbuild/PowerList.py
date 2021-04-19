@@ -9,26 +9,30 @@ __tests = \
     "ifneq": lambda env,x: env.get(x[0]) != x[1],
     "ifin" : lambda env,x: x[1] in env.get(x[0], []),
     "ifnin": lambda env,x: x[1] not in env.get(x[0], []),
+    "ifgt" : lambda env,x: env.get(x[0], 0) >  x[1],
+    "ifge" : lambda env,x: env.get(x[0], 0) >= x[1],
+    "iflt" : lambda env,x: env.get(x[0], 0) <  x[1],
+    "ifle" : lambda env,x: env.get(x[0], 0) <= x[1],
 }
 
-def _checkMatch(obj:dict, env:dict, name:str, test) -> bool:
+def _checkMatch(key:str, value, env:dict) -> bool:
     '''given [env] and a [test], check if target corresponding to the [name] in [obj] satisfies'''
-    target = obj.get(name)
-    if target is None:
+    test = __tests.get(key)
+    if test is None:
         return True
-    if isinstance(target, list):
-        return all([test(env, t) for t in target])
-    if isinstance(target, dict):
-        return all([test(env, t) for t in target.items()])
+    if isinstance(value, list):
+        return all([test(env, item) for item in value])
+    if isinstance(value, dict):
+        return all([test(env, item) for item in value.items()])
     else:
-        return test(target)
+        return test(env, value)
 
 def _solveElement(element, env:dict, postproc) -> tuple:
     if isinstance(element, list):
         return (element, [])
     if not isinstance(element, dict): # single element
         return ([element], [])
-    if not all(_checkMatch(element, env, n, t) for n,t in __tests.items()): # pre-check conditions
+    if not all(_checkMatch(k, v, env) for k,v in element.items()): # pre-check conditions
         return ([], [])
     adds = element.get("+", [])
     adds = adds if isinstance(adds, list) else [adds]

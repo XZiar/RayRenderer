@@ -14,20 +14,26 @@
 #include <algorithm>
 #include <stdexcept>
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <conio.h>
 #   include <Windows.h>
 #   include <ProcessThreadsApi.h>
 #else
-//# define _GNU_SOURCE
+#   ifndef _GNU_SOURCE
+#       define _GNU_SOURCE
+#   endif
+#   if COMMON_OS_ANDROID
+#       define __USE_GNU 1
+#   endif
 #   include <cerrno>
 #   include <errno.h>
 #   include <fcntl.h>
 #   include <pthread.h>
 #   include <termios.h>
 #   include <unistd.h>
+#   include <sys/prctl.h>
 #   include <sys/ioctl.h>
 #   include <sys/mman.h>
 #   include <sys/resource.h>
@@ -35,7 +41,7 @@
 #   include <sys/sysinfo.h>
 #   include <sys/types.h>
 #   include <sys/wait.h>
-#   if defined(__APPLE__)
+#   if COMMON_OS_MACOS
 #       include <sys/sysctl.h>
 #       include <mach/mach_types.h>
 #       include <mach/thread_act.h>

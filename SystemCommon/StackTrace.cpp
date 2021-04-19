@@ -3,9 +3,9 @@
 #include "ThreadEx.h"
 #include "StringUtil/Convert.h"
 #include "common/SharedString.hpp"
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1
-#elif !COMPILER_CLANG // no idea how to cleanly make clang find backtrace
+#elif !COMMON_COMPILER_CLANG // no idea how to cleanly make clang find backtrace
 #   define BOOST_STACKTRACE_USE_BACKTRACE 1
 #endif
 #include <boost/stacktrace.hpp>

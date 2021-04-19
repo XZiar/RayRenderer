@@ -7,7 +7,7 @@ namespace rayr
 {
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -92,7 +92,7 @@ protected:
     template<typename T>
     static std::type_index GetType(const T* const obj) { return std::type_index(typeid(obj)); }
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

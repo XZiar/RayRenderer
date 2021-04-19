@@ -14,7 +14,7 @@ namespace oclu
 class NLCLProgStub;
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -54,7 +54,7 @@ public:
     virtual std::unique_ptr<NLCLResult> CompileProgram(const std::shared_ptr<xcomp::XCNLProgram>& prog, const oclContext& ctx, const oclDevice dev, const common::CLikeDefines& info = {}, const CLProgConfig& config = {}) const;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

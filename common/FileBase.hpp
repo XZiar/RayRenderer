@@ -7,13 +7,40 @@
 
 /* filesystem compatible include */
 
-#if defined(__cpp_lib_filesystem)
+#if COMMON_COMPILER_GCC
+#   if COMMON_GCC_VER >= 80000
+#       define COMMON_FS 1
+#   elif COMMON_GCC_VER >= 50300
+#       define COMMON_FS 2
+#   else
+#       error GCC version too low to use this header, at least gcc 5.3.0 for filesystem support
+#   endif
+#elif COMMON_COMPILER_CLANG
+#   if COMMON_CLANG_VER >= 70000
+#       define COMMON_FS 1
+#   elif COMMON_CLANG_VER >= 30901
+#       define COMMON_FS 2
+#   else
+#       error clang version too low to use this header, at least clang 3.9.1 for filesystem support
+#   endif
+#elif COMMON_COMPILER_MSVC
+#   if COMMON_MSVC_VER >= 191400
+#       define COMMON_FS 1
+#   elif COMMON_MSVC_VER >= 190000
+#       define COMMON_FS 2
+#   else
+#       error clang version too low to use this header, at least gcc 3.9.1 for filesystem support
+#   endif
+#else
+#   error Unknown compiler, not supported by this header
+#endif
+#if COMMON_FS == 1
 #   include <filesystem>
 namespace common
 {
 namespace fs = std::filesystem;
 }
-#else
+#elif COMMON_FS == 2
 #   include <experimental/filesystem>
 namespace common
 {

@@ -6,7 +6,13 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "stdc++fs", "readline", "dl", "backtrace"]
+        "dynamic": 
+        [
+            {"ifeq": {"compiler": "clang"}, "iflt": {"clangVer": 70000}, "+": "c++experimental"},
+            {"ifeq": {"compiler": "clang"}, "iflt": {"clangVer": 90000}, "ifge": {"clangVer": 70000}, "+": "c++fs"},
+            {"ifeq": {"compiler": "gcc"}, "iflt": {"gccVer": 90100}, "+": "stdc++fs"},
+            "pthread", "readline", "dl", "backtrace"
+        ]
     },
     "targets":
     {

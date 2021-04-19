@@ -5,7 +5,7 @@
 namespace oglu
 {
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -26,7 +26,7 @@ public:
     void Draw();
     void BindTexture(const oglTex2D& tex);
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

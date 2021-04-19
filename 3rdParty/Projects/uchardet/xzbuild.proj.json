@@ -15,7 +15,10 @@
         "cpp":
         {
             "sources": ["LangModels/*.cpp", "*.cpp"],
-            "flags":  ["-mfpmath=sse"],
+            "flags":
+            [
+                {"ifeq":{"arch": "x86"}, "+":["-mfpmath=sse"]}
+            ], 
             "defines":  ["VERSION=\"0.0.7\""]
         }
         

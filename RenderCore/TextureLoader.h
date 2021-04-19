@@ -14,7 +14,7 @@ namespace rayr
 enum class TexLoadType : uint8_t { Color, Normal };
 enum class TexProcType : uint8_t { CompressBC7, CompressBC5, Plain };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -50,7 +50,7 @@ public:
         ProcessMethod[type] = TexProc{ proc, mipmap };
     }
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

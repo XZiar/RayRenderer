@@ -2,7 +2,7 @@
 
 #include "CommonRely.hpp"
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 
 # if _MSC_VER >= 1914 // VS15.7
 #   define CHARCONV_INT 1
@@ -16,7 +16,7 @@
 #   define CHARCONV_FP  0
 # endif
 
-#elif COMPILER_GCC
+#elif COMMON_COMPILER_GCC
 
 # if __GNUC__ >= 8
 #   define CHARCONV_INT 1
@@ -26,7 +26,7 @@
 #   define CHARCONV_FP  0
 # endif
 
-#elif COMPILER_CLANG
+#elif COMMON_COMPILER_CLANG
 
 //# if __clang_major__ >= 7
 //#   define CHARCONV_INT 1

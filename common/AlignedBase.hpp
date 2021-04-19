@@ -29,7 +29,7 @@ forceinline void free_align(void* ptr) noexcept
 {
     free(ptr);
 }
-#elif COMMON_OS_WIN && COMPILER_MSVC
+#elif COMMON_OS_WIN && COMMON_COMPILER_MSVC
 [[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
 {
     return _aligned_malloc(size, align);
@@ -86,7 +86,7 @@ forceinline void free_align(void* ptr) noexcept
     if (posix_memalign(&ptr, align, size))
         return nullptr;
     return ptr;
-    //#elif COMMON_OS_WIN && COMPILER_MSVC
+    //#elif COMMON_OS_WIN && COMMON_COMPILER_MSVC
 #else
     return malloc_align(size, align);
 #endif
@@ -95,7 +95,7 @@ forceinline void freen_align(void* ptr) noexcept
 {
 #if COMMON_OS_UNIX
     free(ptr);
-    //#elif COMMON_OS_WIN && COMPILER_MSVC
+    //#elif COMMON_OS_WIN && COMMON_COMPILER_MSVC
 #else
     free_align(ptr);
 #endif

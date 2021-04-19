@@ -1,7 +1,7 @@
 #pragma once
 #include "DxRely.h"
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -99,6 +99,6 @@ constexpr inline bool DxDevice_::SupportINT16() const noexcept
 
 }
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif

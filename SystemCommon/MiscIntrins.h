@@ -5,7 +5,7 @@
 namespace common
 {
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -21,7 +21,7 @@ private:
     uint32_t (*PopCount32)(const uint32_t) noexcept = nullptr;
     uint32_t (*PopCount64)(const uint64_t) noexcept = nullptr;
     std::vector<VarItem> VariantMap;
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
         return _byteswap_ushort(num);
@@ -34,7 +34,7 @@ private:
     { 
         return _byteswap_uint64(num);
     }
-#elif COMPILER_GCC || COMPILER_CLANG
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
         return __builtin_bswap16(num);
@@ -157,7 +157,7 @@ public:
 SYSCOMMONAPI extern const DigestFuncs DigestFunc;
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

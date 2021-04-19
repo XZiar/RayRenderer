@@ -15,7 +15,7 @@ enum class ConsoleColor : uint8_t
 MAKE_ENUM_BITFIELD(ConsoleColor)
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -25,7 +25,7 @@ class SYSCOMMONAPI ConsoleHelper : public NonCopyable
 {
 private:
     uintptr_t Handle;
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     uint16_t Dummy;
 #endif
     bool IsVTMode;
@@ -61,7 +61,7 @@ public:
 };
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

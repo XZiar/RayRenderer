@@ -12,7 +12,7 @@ namespace common::file
 {
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -108,7 +108,7 @@ public:
     virtual bool SetPos(const size_t offset) override;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

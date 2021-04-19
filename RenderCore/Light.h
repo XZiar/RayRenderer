@@ -40,7 +40,7 @@ public:
     void WriteData(const common::span<std::byte> space) const;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -62,7 +62,7 @@ public:
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

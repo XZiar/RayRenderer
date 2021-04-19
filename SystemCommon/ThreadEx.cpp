@@ -6,7 +6,7 @@ namespace common
 {
 
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 static void SetThreadNameImpl(const std::string& name, const DWORD tid)
 {
 #   pragma pack(push,8) 
@@ -35,7 +35,7 @@ static void SetThreadNameImpl(const std::string& name, const DWORD tid)
 
 bool SetThreadName(const std::string_view threadName)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
     {
         const std::u16string u16ThrName(threadName.cbegin(), threadName.cend());
@@ -48,7 +48,7 @@ bool SetThreadName(const std::string_view threadName)
 #else
     if (threadName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(std::string(threadName.substr(0, 15)));
-# if defined(__APPLE__)
+# if COMMON_OS_MACOS
     pthread_setname_np(threadName.data());
 # else
     pthread_setname_np(pthread_self(), threadName.data());
@@ -60,7 +60,7 @@ bool SetThreadName(const std::string_view threadName)
 
 bool SetThreadName(const std::u16string_view threadName)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
         ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
     else
@@ -72,7 +72,7 @@ bool SetThreadName(const std::u16string_view threadName)
     const auto u8TName = str::to_u8string(threadName, str::Charset::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
-# if defined(__APPLE__)
+# if COMMON_OS_MACOS
     pthread_setname_np(u8TName.data());
 # else
     pthread_setname_np(pthread_self(), u8TName.data());
@@ -83,7 +83,7 @@ bool SetThreadName(const std::u16string_view threadName)
 
 std::u16string GetThreadName()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     if (GetWinBuildNumber() >= 14393) // supported since Win10 1607
     {
         PWSTR ret;
@@ -95,11 +95,16 @@ std::u16string GetThreadName()
         return u"";
     }
 #else
-    char tmp[16];
-# if defined(__APPLE__)
+    char tmp[16] = {0};
+# if COMMON_OS_MACOS
     pthread_getname_np(tmp, sizeof(tmp));
-# else
+# elif !COMMON_OS_ANDROID || (__ANDROID_API__ >= 26)
     pthread_getname_np(pthread_self(), tmp, sizeof(tmp));
+# elif COMMON_OS_ANDROID
+#   ifndef PR_GET_NAME
+#     define PR_GET_NAME 16
+#   endif
+    prctl(PR_GET_NAME, reinterpret_cast<unsigned long>(tmp), 0, 0, 0);
 # endif
     return str::to_u16string(&tmp[0], str::Charset::UTF8);
 #endif
@@ -108,18 +113,20 @@ std::u16string GetThreadName()
 
 ThreadObject::~ThreadObject()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     if (Handle != 0)
         ::CloseHandle((HANDLE)Handle);
 #endif
 }
-bool ThreadObject::IsAlive() const
+std::optional<bool> ThreadObject::IsAlive() const
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     if (Handle == (uintptr_t)INVALID_HANDLE_VALUE)
         return false;
     const auto rc = ::WaitForSingleObject((HANDLE)Handle, 0);
     return rc != WAIT_OBJECT_0;
+#elif COMMON_OS_ANDROID
+    return {};
 #else
     if (Handle == 0)
         return false;
@@ -133,9 +140,9 @@ bool ThreadObject::IsCurrent() const
 }
 uint64_t ThreadObject::GetId() const
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return ::GetThreadId((HANDLE)Handle);
-#elif defined(__APPLE__)
+#elif COMMON_OS_MACOS
     pthread_id_np_t   tid;
     pthread_getunique_np((pthread_t)Handle, &tid);
     return tid;
@@ -148,9 +155,9 @@ uint64_t ThreadObject::GetId() const
 
 uint64_t ThreadObject::GetCurrentThreadId()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return ::GetCurrentThreadId();
-#elif defined(__APPLE__)
+#elif COMMON_OS_MACOS
     return pthread_getthreadid_np();
 #else
     //return (long int)syscall(__NR_gettid);
@@ -158,7 +165,7 @@ uint64_t ThreadObject::GetCurrentThreadId()
 #endif
 }
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 forceinline static uintptr_t CopyThreadHandle(void *src)
 {
     HANDLE Handle = nullptr;
@@ -169,7 +176,7 @@ forceinline static uintptr_t CopyThreadHandle(void *src)
 
 ThreadObject ThreadObject::GetCurrentThreadObject()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return ThreadObject(CopyThreadHandle(GetCurrentThread()));
 #else
     return ThreadObject(pthread_self());
@@ -177,7 +184,7 @@ ThreadObject ThreadObject::GetCurrentThreadObject()
 }
 ThreadObject ThreadObject::GetThreadObject(std::thread& thr)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return ThreadObject(CopyThreadHandle(thr.native_handle()));
 #else
     return ThreadObject(thr.native_handle());

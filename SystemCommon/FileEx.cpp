@@ -8,11 +8,33 @@
 #include <variant>
 
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 #else
 #   include <unistd.h>
 #   include <cerrno>
 #endif
+
+#if COMMON_COMPILER_GCC
+#   define TMP_COMPILER_NAME "GCC"
+#   define TMP_COMPILER_VER  __GNUC__.__GNUC_MINOR__.__GNUC_PATCHLEVEL__
+#elif COMMON_COMPILER_CLANG
+#   define TMP_COMPILER_NAME "clang"
+#   define TMP_COMPILER_VER  __clang_major__.__clang_minor__.__clang_patchlevel__
+#elif COMMON_COMPILER_MSVC
+#   define TMP_COMPILER_NAME "MSVC"
+#   define TMP_COMPILER_VER  _MSC_VER
+#else
+#   define TMP_COMPILER_NAME 
+#   define TMP_COMPILER_VER  
+#endif
+#if COMMON_FS == 1
+#   define TMP_FS_NAME "filesystem"
+#elif COMMON_FS == 2
+#   define TMP_FS_NAME "experimental/filesystem"
+#else
+#   define TMP_FS_NAME ""
+#endif
+#pragma message("Compiling SystemCommon with " TMP_FS_NAME " from [" TMP_COMPILER_NAME "][" STRINGIZE(TMP_COMPILER_VER) "]")
 
 namespace common::file
 {
@@ -22,7 +44,7 @@ using std::byte;
 MAKE_ENABLER_IMPL(FileObject)
 
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 using FlagType = wchar_t;
 #   define StrText(x) L ##x
 #else
@@ -72,21 +94,21 @@ FileObject::~FileObject()
         fclose(FHandle);
 }
 
-#if defined(_WIN32)
+#if COMMON_OS_WIN
 #   define ErrType errno_t
 #else
-#   define ErrType error_t
+#   define ErrType int
 #endif
 static std::variant<FILE*, ErrType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
     if (!fs::exists(path) && !HAS_FIELD(flag, OpenFlag::FLAG_CREATE))
         return ENOENT;
     FILE* fp = nullptr;
-#if defined(_WIN32)
-    errno_t err = _wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag));
+#if COMMON_OS_WIN
+    ErrType err = _wfopen_s(&fp, path.wstring().c_str(), ParseFlag(flag));
 #else
     fp = fopen(path.u8string().c_str(), ParseFlag(flag));
-    error_t err = (fp == nullptr) ? errno : 0;
+    ErrType err = (fp == nullptr) ? errno : 0;
 #endif
     if (fp != nullptr && err == 0)
         return fp;
@@ -128,7 +150,7 @@ FileStream::~FileStream() { }
 
 bool FileStream::FSeek(const int64_t offset, SeekWhere whence)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return _fseeki64(GetFP(), offset, common::enum_cast(whence)) == 0;
 #else
     return fseeko64(GetFP(), offset, common::enum_cast(whence)) == 0;
@@ -136,7 +158,7 @@ bool FileStream::FSeek(const int64_t offset, SeekWhere whence)
 }
 size_t FileStream::FTell() const
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     return _ftelli64(GetFP());
 #else
     return ftello64(GetFP());

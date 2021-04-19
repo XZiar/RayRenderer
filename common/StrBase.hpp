@@ -215,7 +215,7 @@ template<> struct DefCharset<char32_t>
     static constexpr Charset Val = Charset::UTF32;
 };
 #endif
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 template<> struct DefCharset<wchar_t>
 {
     static constexpr Charset Val = Charset::UTF16LE;

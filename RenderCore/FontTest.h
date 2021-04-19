@@ -8,7 +8,7 @@ namespace rayr
 enum class FontUpdate : uint32_t { FONT = 0x1, TARGET = 0x2 };
 MAKE_ENUM_BITFIELD(FontUpdate)
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -92,7 +92,7 @@ public:
 };
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

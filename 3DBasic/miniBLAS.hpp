@@ -2,14 +2,14 @@
 
 #include "miniBLAS/BLASrely.h"
 
-#if COMPILER_GCC
+#if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wpedantic"
-#elif COMPILER_CLANG
+#elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic push
 #   pragma clang diagnostic ignored "-Wnested-anon-types"
 #   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#elif COMPILER_MSVC
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4201)
 #endif
@@ -18,11 +18,11 @@
 #include "miniBLAS/VecI4.hpp"
 #include "miniBLAS/Mat3x3.hpp"
 #include "miniBLAS/Mat4x4.hpp"
-#if COMPILER_GCC
+#if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic pop
-#elif COMPILER_CLANG
+#elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
-#elif COMPILER_MSVC
+#elif COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

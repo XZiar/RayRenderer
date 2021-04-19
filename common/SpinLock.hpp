@@ -1,15 +1,27 @@
 #pragma once
 
 #include "CommonRely.hpp"
-#include "SIMD.hpp"
 #include <atomic>
 
-#if COMMON_SIMD_LV >= 20
-#   define COMMON_PAUSE() _mm_pause()
-#elif defined(_WIN32)
-#   define COMMON_PAUSE() __nop()
+#if COMMON_ARCH_X86
+#   include "SIMD.hpp"
+#   if COMMON_SIMD_LV >= 20
+#       define COMMON_PAUSE() _mm_pause()
+#   elif (COMMON_COMPILER_CLANG && COMMON_CLANG_VER >= 30800) || (COMMON_COMPILER_GCC && COMMON_GCC_VER >= 40701)
+#       define COMMON_PAUSE() __builtin_ia32_pause()
+#   elif COMMON_COMPILER_MSVC
+#       define COMMON_PAUSE() __nop()
+#   else
+#       define COMMON_PAUSE() asm volatile ("pause")
+#   endif
+#elif COMMON_ARCH_ARM
+#   if COMMON_COMPILER_MSVC
+#       define COMMON_PAUSE() __yield()
+#   else
+#       define COMMON_PAUSE() asm volatile ("yield")
+#   endif
 #else
-#   define COMMON_PAUSE() __nnop()
+#   define COMMON_PAUSE() do{} while(0)
 #endif
 
 namespace common

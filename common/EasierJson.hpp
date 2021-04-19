@@ -6,12 +6,12 @@
 #include <cstring>
 #include <string>
 #include <string_view>
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:5054)
 #endif
 #include "3rdParty/rapidjson/include/rapidjson/document.h"
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 #include "3rdParty/rapidjson/include/rapidjson/encodings.h"
@@ -34,7 +34,7 @@ using std::string_view;
 /* u8 stringview extra support */
 
 #if defined(__cpp_lib_string_view)
-#   if COMPILER_CLANG
+#   if COMMON_COMPILER_CLANG
 #       define U8STR_CONSTEXPR 
 #   else
 #       define U8STR_CONSTEXPR constexpr

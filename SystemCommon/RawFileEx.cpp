@@ -19,7 +19,7 @@ RawFileObject::RawFileObject(const fs::path& path, const HandleType fileHandle, 
 { }
 RawFileObject::~RawFileObject()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     CloseHandle(FileHandle);
 #else
     close(FileHandle);
@@ -29,7 +29,7 @@ RawFileObject::~RawFileObject()
 
 static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, const OpenFlag flag)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     DWORD accessMode = 0L, shareMode = 0L, createMode = 0, realFlag = FILE_ATTRIBUTE_NORMAL;
 
     if (HAS_FIELD(flag, OpenFlag::FLAG_READ))           accessMode |= GENERIC_READ;
@@ -91,7 +91,7 @@ static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, co
     if (HAS_FIELD(flag, OpenFlag::FLAG_DeleteOnClose))
         realFlag |= O_CLOEXEC;
 
-# if !defined(__APPLE__)
+# if !COMMON_OS_MACOS
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         realFlag |= O_DIRECT;
 # endif
@@ -99,7 +99,7 @@ static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, co
     auto handle = open(path.string().c_str(), realFlag);
     if (handle == -1)
         return { };
-# if defined(__APPLE__)
+# if COMMON_OS_MACOS
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         fcntl(handle, F_NOCACHE, 1);
 # endif
@@ -121,7 +121,7 @@ std::shared_ptr<RawFileObject> RawFileObject::OpenThrow(const fs::path& path, co
     const auto ret = TryOpen(path, flag);
     if (ret.has_value())
         return MAKE_ENABLER_SHARED(RawFileObject, (path, *ret, flag));
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     switch (GetLastError())
     {
     case ERROR_FILE_NOT_FOUND:      
@@ -171,7 +171,7 @@ void RawFileStream::ReadCheck() const
 
 bool RawFileStream::FSeek(const int64_t offset, const SeekWhere whence)
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     LARGE_INTEGER tmp, newpos;
     tmp.QuadPart = (LONGLONG)offset;
     return SetFilePointerEx(File->FileHandle, tmp, &newpos, common::enum_cast(whence)) != 0;
@@ -191,7 +191,7 @@ size_t RawFileStream::LeftSpace()
 //==========RandomStream=========//
 size_t RawFileStream::GetSize()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     LARGE_INTEGER tmp;
     if (GetFileSizeEx(GetHandle(), &tmp))
         return tmp.QuadPart;
@@ -207,7 +207,7 @@ size_t RawFileStream::GetSize()
 }
 size_t RawFileStream::CurrentPos() const
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     LARGE_INTEGER tmp, curpos;
     tmp.QuadPart = 0;
     if (SetFilePointerEx(GetHandle(), tmp, &curpos, FILE_CURRENT))
@@ -263,7 +263,7 @@ size_t RawFileInputStream::ReadMany(const size_t want, const size_t perSize, voi
     uint64_t left = want * perSize;
     while (left > 0)
     {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
         const uint64_t need = std::min<uint64_t>(left, UINT32_MAX);
         DWORD newread = 0;
         if (!ReadFile(GetHandle(), ptr, static_cast<DWORD>(need), &newread, NULL) || newread == 0)
@@ -331,7 +331,7 @@ size_t RawFileOutputStream::WriteMany(const size_t want, const size_t perSize, c
     uint64_t left = want * perSize;
     while (left > 0)
     {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
         const uint64_t need = std::min<uint64_t>(left, UINT32_MAX);
         DWORD newwrite = 0;
         if (!WriteFile(GetHandle(), ptr, static_cast<DWORD>(need), &newwrite, NULL) || newwrite == 0)
@@ -348,7 +348,7 @@ size_t RawFileOutputStream::WriteMany(const size_t want, const size_t perSize, c
 }
 void RawFileOutputStream::Flush()
 {
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     FlushFileBuffers(GetHandle());
 #else
     fdatasync(GetHandle());

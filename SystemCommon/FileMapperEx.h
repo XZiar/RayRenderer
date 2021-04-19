@@ -19,7 +19,7 @@ enum class MappingFlag : uint8_t
 };
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -29,7 +29,7 @@ class SYSCOMMONAPI FileMappingObject : public NonCopyable, public NonMovable
 {
     friend class FileMappingStream;
 public:
-#if defined(_WIN32)
+#if COMMON_OS_WIN
     using HandleType = std::pair<void*, void*>;
 #else
     using HandleType = void*;
@@ -97,7 +97,7 @@ public:
     virtual void Flush() noexcept override;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

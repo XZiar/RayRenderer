@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <memory>
+#include <optional>
 
 #if !defined(_MANAGED) && !defined(_M_CEE)
 #   include <thread>
@@ -18,7 +19,7 @@ SYSCOMMONAPI bool SetThreadName(const std::u16string_view threadName);
 SYSCOMMONAPI std::u16string GetThreadName();
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -48,12 +49,12 @@ public:
         return *this;
     }
     ~ThreadObject();
-    bool IsAlive() const;
+    std::optional<bool> IsAlive() const;
     bool IsCurrent() const;
     uint64_t GetId() const;
 };
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

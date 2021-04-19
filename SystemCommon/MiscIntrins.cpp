@@ -91,7 +91,7 @@ static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept        
 
 
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 
 DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
@@ -131,7 +131,7 @@ DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
 #endif
 }
 
-#elif COMPILER_GCC || COMPILER_CLANG
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
 
 DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
@@ -201,7 +201,7 @@ DEFINE_INTRIN_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
 }
 
 
-#if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
+#if (COMMON_COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
 #pragma message("Compiling MiscIntrins with LZCNT")
 
 DEFINE_INTRIN_METHOD(LeadZero32, LZCNT, const uint32_t num)
@@ -222,7 +222,7 @@ DEFINE_INTRIN_METHOD(LeadZero64, LZCNT, const uint64_t num)
 #endif
 
 
-#if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMPILER_MSVC && defined(__BMI__))
+#if (COMMON_COMPILER_MSVC/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && defined(__BMI__))
 #pragma message("Compiling MiscIntrins with TZCNT")
 
 DEFINE_INTRIN_METHOD(TailZero32, TZCNT, const uint32_t num)
@@ -243,7 +243,7 @@ DEFINE_INTRIN_METHOD(TailZero64, TZCNT, const uint64_t num)
 #endif
 
 
-#if (COMPILER_MSVC/* && COMMON_SIMD_LV >= 42*/) || (!COMPILER_MSVC && defined(__POPCNT__))
+#if (COMMON_COMPILER_MSVC/* && COMMON_SIMD_LV >= 42*/) || (!COMMON_COMPILER_MSVC && defined(__POPCNT__))
 #pragma message("Compiling MiscIntrins with POPCNT")
 
 DEFINE_INTRIN_METHOD(PopCount32, POPCNT, const uint32_t num)
@@ -263,7 +263,7 @@ DEFINE_INTRIN_METHOD(PopCount64, POPCNT, const uint64_t num)
 #endif
 
 
-#if COMMON_SIMD_LV >= 41
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
 
 forceinline __m128i Load128With80BE(const __m128i* data, const size_t len) noexcept
 {
@@ -381,7 +381,7 @@ inline std::array<std::byte, 32> Sha256SSE(const std::byte* data, const size_t s
 }
 
 
-#   if (COMPILER_MSVC) || (!COMPILER_MSVC && defined(__SHA__))
+#   if (COMMON_COMPILER_MSVC) || (!COMMON_COMPILER_MSVC && defined(__SHA__))
 #   pragma message("Compiling DigestFuncs with SHA_NI")
 
 // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.

@@ -137,7 +137,7 @@ struct DetailToken : public ParserToken
 };
 
 
-#if COMPILER_MSVC && _MSC_VER <= 1914
+#if COMMON_COMPILER_MSVC && _MSC_VER <= 1914
 #   pragma message("ASCIIChecker may not be supported due to lack of constexpr support before VS 15.7")
 #endif
 

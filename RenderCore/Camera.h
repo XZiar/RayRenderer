@@ -5,7 +5,7 @@
 namespace rayr
 {
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
@@ -120,7 +120,7 @@ public:
         return b3d::Mat4x4::TranslateMat(Position * -1, rMat);
     }
 };
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 

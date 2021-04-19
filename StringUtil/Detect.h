@@ -12,7 +12,7 @@ namespace detail
 class Uchardet;
 }
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4251)
 #endif
@@ -37,7 +37,7 @@ public:
 };
 std::string STRCHSETAPI GetEncoding(const common::span<const std::byte> data);
 
-#if COMPILER_MSVC
+#if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
 
