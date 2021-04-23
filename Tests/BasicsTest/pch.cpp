@@ -4,9 +4,6 @@
 //
 
 #include "pch.h"
-#include "common/gtesthack.inl"
-#include "3rdParty/gtest/googlemock/src/gmock-all.cc"
-#include "3rdParty/gtest/googletest/src/gtest_main.cc"
 #include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 
 
@@ -69,3 +66,6 @@ std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
     else
         return "NONE";
 }
+
+
+GTEST_DEFAULT_MAIN

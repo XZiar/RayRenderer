@@ -2,7 +2,7 @@
     "name": "BasicsTest",
     "type": "executable",
     "description": "Basics test",
-    "dependency": ["cpuid"],
+    "dependency": ["cpuid", "googletest"],
     "library": 
     {
         "static": [],
@@ -12,7 +12,7 @@
     {
         "cpp":
         {
-            "incpath": ["$(SolutionDir)/3rdParty/gtest/googletest/", "$(SolutionDir)/3rdParty/gtest/googletest/include/", "$(SolutionDir)/3rdParty/gtest/googlemock/", "$(SolutionDir)/3rdParty/gtest/googlemock/include/"],
+            "incpath": ["$(SolutionDir)/3rdParty/googletest/googletest/include/", "$(SolutionDir)/3rdParty/googletest/googlemock/include/"],
             "sources": ["*.cpp"],
             "pch": "pch.h"
         }

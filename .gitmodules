@@ -1,5 +1,6 @@
 [submodule "3rdParty/rapidjson"]
 	shallow = true
+	fetchRecurseSubmodules = false
 	path = 3rdParty/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
 [submodule "3rdParty/fmt"]
@@ -10,10 +11,6 @@
 	shallow = true
 	path = 3rdParty/digestpp
 	url = https://github.com/kerukuro/digestpp.git
-[submodule "3rdParty/gtest"]
-	shallow = true
-	path = 3rdParty/gtest
-	url = https://github.com/google/googletest.git
 [submodule "3rdParty/libcpuid"]
 	shallow = true
 	path = 3rdParty/libcpuid
@@ -47,3 +44,7 @@
 	shallow = true
 	path = 3rdParty/ghc_filesystem
 	url = https://github.com/gulrak/filesystem.git
+[submodule "3rdParty/googletest"]
+	shallow = true
+	path = 3rdParty/googletest
+	url = https://github.com/google/googletest.git

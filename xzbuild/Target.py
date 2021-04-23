@@ -144,6 +144,10 @@ class CPPTarget(CXXTarget):
     @staticmethod
     def langVersion() -> str:
         return "-std=c++17"
+    def solveTarget(self, targets, env:dict):
+        super().solveTarget(targets, env)
+        if self.visibility == "hidden":
+            self.flags += ["-fvisibility-inlines-hidden"]
 
 
 class CTarget(CXXTarget):

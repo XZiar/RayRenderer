@@ -1,8 +1,6 @@
 #pragma once
 #include "common/CommonRely.hpp"
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-#include "common/gtesthack.h"
+#include "3rdParty/Projects/googletest/gtest-enhanced.h"
 #include <type_traits>
 #include <tuple>
 #include <string>
@@ -22,20 +20,30 @@ uint32_t RegisterIntrinTest(const char* testsuite, const char* fileName, const i
                 testsuite, testName.c_str(),
                 nullptr, nullptr,
                 fileName, fileLine,
-                [&]() -> testing::Test* { return new T(item); });
+                [&]() -> typename T::Parent* { return new T(item); }); // explicit cast to match testsuit id
         }
     }
     return 0;
 }
 
 template<typename T>
-class IntrinFixture : public testing::Test
+struct IntrinFixture : public testing::Test
 {
+    using HostType = T;
+};
+
+#define INTRIN_TESTSUITE(name, type) struct name : public IntrinFixture<type> {}
+
+
+template<typename T>
+class FuncFixture : public T
+{
+    using U = typename T::HostType;
     const std::pair<std::string_view, std::string_view> Info;
 
     void SetUp() override
     {
-        Intrin = std::make_unique<T>(common::span<decltype(Info)>{ &Info,1 });
+        Intrin = std::make_unique<U>(common::span<decltype(Info)>{ &Info,1 });
     }
     void TestBody() override
     {
@@ -45,22 +53,22 @@ class IntrinFixture : public testing::Test
         InnerTest();
     }
 protected:
-    std::unique_ptr<T> Intrin;
+    std::unique_ptr<U> Intrin;
     virtual void InnerTest() = 0;
 public:
-    using HostType = T;
-    IntrinFixture(const std::pair<std::string_view, std::string_view> item) : Info(item)
+    FuncFixture(const std::pair<std::string_view, std::string_view> item) : Info(item)
     { }
 };
 
-#define INTRIN_TEST(type, func) \
-struct func ## Fixture : public IntrinFixture<type> \
-{ \
-    static constexpr auto FuncName = #func; \
-    using IntrinFixture<type>::IntrinFixture; \
-    void InnerTest() override; \
-}; \
+#define INTRIN_TEST(type, func)                     \
+struct func ## Fixture : public FuncFixture<type>   \
+{                                                   \
+    using Parent = type;                            \
+    static constexpr auto FuncName = #func;         \
+    using FuncFixture<type>::FuncFixture;           \
+    void InnerTest() override;                      \
+};                                                  \
 static uint32_t Dummy_ ## func = RegisterIntrinTest \
-    <func ## Fixture>(#type, __FILE__, __LINE__); \
-void func ## Fixture::InnerTest() \
+    <func ## Fixture>(#type, __FILE__, __LINE__);   \
+void func ## Fixture::InnerTest()
 

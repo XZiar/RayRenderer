@@ -1,7 +1,5 @@
 #pragma once
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
-#include "common/gtesthack.h"
+#include "3rdParty/Projects/googletest/gtest-enhanced.h"
 #include <type_traits>
 #include <string>
 

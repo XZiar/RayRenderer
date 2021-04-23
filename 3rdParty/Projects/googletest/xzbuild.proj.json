@@ -1,0 +1,30 @@
+{
+    "name": "googletest",
+    "type": "dynamic",
+    "description": "Google's C++ test framework",
+    "version": "1.10.x",
+    "dependency": [],
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["pthread"]
+    },
+    "targets":
+    {
+        "cpp":
+        {
+            "flags":
+            [
+                "-fexceptions",
+                "-Wshadow", "-Werror", "-Wextra", 
+                "-Wno-error=dangling-else", "-Wno-unused-parameter", "-Wno-missing-field-initializers"
+            ],
+            "defines":
+            [
+                "GTEST_HAS_PTHREAD=1", "GTEST_CREATE_SHARED_LIBRARY=1", "gtest_EXPORTS"
+            ],
+            "sources": ["gtest-enhanced.cpp"],
+            "incpath": ["../../googletest/googletest", "../../googletest/googletest/include", "../../googletest/googlemock", "../../googletest/googlemock/include"]
+        }
+    }
+}

@@ -50,7 +50,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty\;$(SolutionDir)3rdParty\gtest\googletest\;$(SolutionDir)3rdParty\gtest\googletest\include\;$(SolutionDir)3rdParty\gtest\googlemock\;$(SolutionDir)3rdParty\gtest\googlemock\include\;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty\googletest\googletest\include;$(SolutionDir)3rdParty\googletest\googlemock\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
     <ClCompile Include="MiscIntrinsTest.cpp" />
@@ -63,6 +63,9 @@
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\3rdParty\Projects\googletest\googletest.vcxproj">
+      <Project>{89e210a7-7c00-378a-ba78-74493d370b99}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>

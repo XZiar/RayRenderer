@@ -4,13 +4,11 @@
 
 
 using namespace std::string_view_literals;
-using common::MiscIntrins;
-using common::DigestFuncs;
 
 
-TEST(MiscIntrins, Complete)
+INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins);
+TEST_F(MiscIntrins, Complete)
 {
-
     for (const auto& [inst, var] : common::MiscIntrin.GetIntrinMap())
     {
         TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
@@ -79,15 +77,16 @@ INTRIN_TEST(MiscIntrins, PopCount64)
 }
 
 
-TEST(DigestFuncs, Complete)
+INTRIN_TESTSUITE(DigestFuncs, common::DigestFuncs);
+TEST_F(DigestFuncs, Complete)
 {
-
     for (const auto& [inst, var] : common::DigestFunc.GetIntrinMap())
     {
         TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
     }
     ASSERT_TRUE(common::DigestFunc.IsComplete());
 }
+
 
 template<size_t N>
 std::string Hex2Str(const std::array<std::byte, N>& data)

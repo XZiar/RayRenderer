@@ -2,7 +2,7 @@
     "name": "NailangTest",
     "type": "executable",
     "description": "Sector Parser Test",
-    "dependency": ["Nailang", "SystemCommon", "StringUtil"],
+    "dependency": ["googletest", "Nailang", "SystemCommon", "StringUtil"],
     "library": 
     {
         "static": [],
@@ -12,7 +12,7 @@
     {
         "cpp":
         {
-            "incpath": ["$(SolutionDir)/3rdParty/gtest/googletest/", "$(SolutionDir)/3rdParty/gtest/googletest/include/", "$(SolutionDir)/3rdParty/gtest/googlemock/", "$(SolutionDir)/3rdParty/gtest/googlemock/include/"],
+            "incpath": ["$(SolutionDir)/3rdParty/googletest/googletest/include/", "$(SolutionDir)/3rdParty/googletest/googlemock/include/"],
             "sources": ["*.cpp"]
         }
     }
