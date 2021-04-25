@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef FONTHELPER_EXPORT
 #   define FONTHELPAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define FONTHELPAPI _declspec(dllimport)
 # endif
 #else
-# ifdef FONTHELPER_EXPORT
-#   define FONTHELPAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define FONTHELPAPI
-# endif
+# define FONTHELPAPI [[gnu::visibility("default")]]
 #endif
 
 

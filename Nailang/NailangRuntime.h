@@ -30,7 +30,7 @@ struct LocalFunc
 
 class NAILANGAPI EvaluateContext
 {
-    friend class NailangRuntime;
+    friend NailangRuntime;
 public:
     virtual ~EvaluateContext();
     /**

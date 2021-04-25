@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef OCLU_EXPORT
 #   define OCLUAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define OCLUAPI _declspec(dllimport)
 # endif
 #else
-# ifdef OCLU_EXPORT
-#   define OCLUAPI [[gnu::visibility("default")]]
-#   define COMMON_EXPORT
-# else
-#   define OCLUAPI
-# endif
+# define OCLUAPI [[gnu::visibility("default")]]
 #endif
 
 #include "MiniLogger/MiniLogger.h"

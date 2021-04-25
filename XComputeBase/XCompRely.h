@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef XCOMPBAS_EXPORT
 #   define XCOMPBASAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define XCOMPBASAPI _declspec(dllimport)
 # endif
 #else
-# ifdef XCOMPBAS_EXPORT
-#   define XCOMPBASAPI [[gnu::visibility("default")]]
-#   define COMMON_EXPORT
-# else
-#   define XCOMPBASAPI
-# endif
+# define XCOMPBASAPI [[gnu::visibility("default")]]
 #endif
 
 #include "MiniLogger/MiniLogger.h"

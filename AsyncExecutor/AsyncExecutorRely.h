@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef ASYEXE_EXPORT
 #   define ASYEXEAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define ASYEXEAPI _declspec(dllimport)
 # endif
 #else
-# ifdef ASYEXE_EXPORT
-#   define ASYEXEAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define ASYEXEAPI
-# endif
+# define ASYEXEAPI [[gnu::visibility("default")]]
 #endif
 
 

@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef GLUTVIEW_EXPORT
 #   define GLUTVIEWAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define GLUTVIEWAPI _declspec(dllimport)
 # endif
 #else
-# ifdef GLUTVIEW_EXPORT
-#   define GLUTVIEWAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define GLUTVIEWAPI
-# endif
+# define GLUTVIEWAPI [[gnu::visibility("default")]]
 #endif
 
 #include "common/CommonRely.hpp"

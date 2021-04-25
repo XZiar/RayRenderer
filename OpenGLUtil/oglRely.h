@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef OGLU_EXPORT
 #   define OGLUAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define OGLUAPI _declspec(dllimport)
 # endif
 #else
-# ifdef OGLU_EXPORT
-#   define OGLUAPI [[gnu::visibility("default")]]
-#   define COMMON_EXPORT
-# else
-#   define OGLUAPI
-# endif
+# define OGLUAPI [[gnu::visibility("default")]]
 #endif
 
 

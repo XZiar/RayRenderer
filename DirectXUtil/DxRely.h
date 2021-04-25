@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef DXU_EXPORT
 #   define DXUAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define DXUAPI _declspec(dllimport)
 # endif
 #else
-# ifdef DXU_EXPORT
-#   define DXUAPI [[gnu::visibility("default")]]
-#   define COMMON_EXPORT
-# else
-#   define DXUAPI
-# endif
+# define DXUAPI [[gnu::visibility("default")]]
 #endif
 
 

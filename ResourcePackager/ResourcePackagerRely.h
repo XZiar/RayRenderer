@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef RESPAK_EXPORT
 #   define RESPAKAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define RESPAKAPI _declspec(dllimport)
 # endif
 #else
-# ifdef RESPAK_EXPORT
-#   define RESPAKAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define RESPAKAPI
-# endif
+# define RESPAKAPI [[gnu::visibility("default")]]
 #endif
 
 

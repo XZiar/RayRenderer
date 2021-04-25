@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef IMGUTIL_EXPORT
 #   define IMGUTILAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define IMGUTILAPI _declspec(dllimport)
 # endif
 #else
-# ifdef IMGUTIL_EXPORT
-#   define IMGUTILAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define IMGUTILAPI
-# endif
+# define IMGUTILAPI [[gnu::visibility("default")]]
 #endif
 
 

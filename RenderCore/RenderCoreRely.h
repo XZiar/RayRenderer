@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef RAYCORE_EXPORT
 #   define RAYCOREAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define RAYCOREAPI _declspec(dllimport)
 # endif
 #else
-# ifdef RAYCORE_EXPORT
-#   define RAYCOREAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define RAYCOREAPI
-# endif
+# define RAYCOREAPI [[gnu::visibility("default")]]
 #endif
 
 

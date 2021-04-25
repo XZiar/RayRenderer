@@ -187,28 +187,6 @@ using u8ch_t = char;
 
 
 
-/* dynamic library defines */
-
-#if defined(COMMON_OS_WIN)
-# ifdef COMMON_EXPORT
-#   define COMMONAPI _declspec(dllexport) 
-#   define COMMONTPL _declspec(dllexport) 
-# else
-#   define COMMONAPI _declspec(dllimport) 
-#   define COMMONTPL
-# endif
-#else
-# ifdef COMMON_EXPORT
-#   define COMMONAPI __attribute__((visibility("default")))
-#   define COMMONTPL __attribute__((visibility("default")))
-# else
-#   define COMMONAPI 
-#   define COMMONTPL
-# endif
-#endif
-
-
-
 /* inline-related */
 
 #if defined(_MSC_VER)

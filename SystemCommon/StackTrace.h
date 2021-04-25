@@ -8,7 +8,7 @@
 namespace common
 {
 
-std::vector<StackTraceItem> SYSCOMMONAPI GetStack(size_t skip = 0) noexcept;
+SYSCOMMONAPI std::vector<StackTraceItem> GetStack(size_t skip = 0) noexcept;
 #define CREATE_EXCEPTIONEX(ex, ...) ::common::BaseException::CreateWithStacks<ex>(::common::GetStack(), __VA_ARGS__)
 #define COMMON_THROWEX(ex, ...) throw CREATE_EXCEPTIONEX(ex, __VA_ARGS__)
 

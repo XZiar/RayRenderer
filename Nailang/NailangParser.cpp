@@ -9,6 +9,11 @@ namespace xziar::nailang
 using tokenizer::NailangToken;
 
 
+void DoThrow()
+{
+    throw NailangPartedNameException(u"a", U"b", U"c");
+}
+
 std::u16string NailangParser::DescribeTokenID(const uint16_t tid) const noexcept
 {
 #define RET_TK_ID(type) case NailangToken::type:        return u ## #type

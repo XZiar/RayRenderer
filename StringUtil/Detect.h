@@ -35,7 +35,7 @@ public:
         return common::str::toCharset(this->GetEncoding());
     }
 };
-std::string STRCHSETAPI GetEncoding(const common::span<const std::byte> data);
+STRCHSETAPI std::string GetEncoding(const common::span<const std::byte> data);
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)

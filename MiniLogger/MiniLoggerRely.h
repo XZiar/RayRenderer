@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef MINILOG_EXPORT
 #   define MINILOGAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define MINILOGAPI _declspec(dllimport)
 # endif
 #else
-# ifdef MINILOG_EXPORT
-#   define MINILOGAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define MINILOGAPI
-# endif
+# define MINILOGAPI [[gnu::visibility("default")]]
 #endif
 
 

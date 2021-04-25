@@ -13,6 +13,8 @@
 namespace xziar::nailang
 {
 
+NAILANGAPI void DoThrow();
+
 class NAILANGAPI NailangParseException : public common::BaseException
 {
     friend class NailangParser;
@@ -45,7 +47,7 @@ class NAILANGAPI UnexpectedTokenException : public NailangParseException
         const std::u16string_view file = {})
         : NailangParseException(T_<ExceptionInfo>{}, msg, token, file)
     { }
-    std::pair<size_t, size_t> GetPosition() const noexcept final 
+    std::pair<size_t, size_t> GetPosition() const noexcept final
     {
         const auto& token = GetInfo().Token;
         return { token.Row + 1, token.Col };

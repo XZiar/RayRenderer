@@ -146,8 +146,10 @@ class CPPTarget(CXXTarget):
         return "-std=c++17"
     def solveTarget(self, targets, env:dict):
         super().solveTarget(targets, env)
-        if self.visibility == "hidden":
-            self.flags += ["-fvisibility-inlines-hidden"]
+        # it is agains c++ rules because class members also got influnced
+        # https://stackoverflow.com/questions/48621251/why-fvisibility-inlines-hidden-is-not-the-default
+        # if self.visibility == "hidden":
+        #     self.flags += ["-fvisibility-inlines-hidden"]
 
 
 class CTarget(CXXTarget):

@@ -221,7 +221,7 @@ public:                                                                         
     using TInfo = ExceptionInfo;                                                    \
     type(const type& ex) = default;                                                 \
     type(type&& ex) noexcept = default;                                             \
-    ~type() override {}                                                             \
+    ~type() override {}
 
 
 class [[nodiscard]] OtherException : public BaseException

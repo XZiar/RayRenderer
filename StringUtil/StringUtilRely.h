@@ -3,17 +3,11 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 # ifdef STRCHSET_EXPORT
 #   define STRCHSETAPI _declspec(dllexport)
-#   define COMMON_EXPORT
 # else
 #   define STRCHSETAPI _declspec(dllimport)
 # endif
 #else
-# ifdef STRCHSET_EXPORT
-#   define STRCHSETAPI __attribute__((visibility("default")))
-#   define COMMON_EXPORT
-# else
-#   define STRCHSETAPI
-# endif
+# define STRCHSETAPI [[gnu::visibility("default")]]
 #endif
 
 #include "common/CommonRely.hpp"

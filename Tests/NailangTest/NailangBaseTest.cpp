@@ -155,8 +155,46 @@ TEST(NailangBase, OpSymbolTokenizer)
 }
 
 
+void DoThrow()
+{
+    throw xziar::nailang::NailangPartedNameException(u"a", U"b", U"c");
+}
+
 TEST(NailangBase, FuncName)
 {
+    {
+        EXPECT_THROW(DoThrow(), xziar::nailang::NailangPartedNameException);
+
+        try
+        {
+            xziar::nailang::DoThrow();
+        }
+        catch (const xziar::nailang::NailangPartedNameException&)
+        {
+            TestCout() << "recieve PatedNameEx\n";
+        }
+        catch (const common::BaseException& e1)
+        {
+            TestCout() << "recieve BaseEx, " << (dynamic_cast<const xziar::nailang::NailangPartedNameException*>(&e1) ? "Y"sv : "N"sv) << "\n";
+        }
+        catch (const std::runtime_error& e2)
+        {
+            const auto& tiE = typeid(e2);
+            const auto& tiT = typeid(xziar::nailang::NailangPartedNameException);
+            TestCout() << "recieve stdre, " << (dynamic_cast<const xziar::nailang::NailangPartedNameException*>(&e2) ? "Y"sv : "N"sv)
+                << ", [" << tiT.name() << " -vs- " << tiE.name() << "]\n";
+        }
+        catch (const std::exception& e3)
+        {
+            TestCout() << "recieve stdEx, " << (dynamic_cast<const xziar::nailang::NailangPartedNameException*>(&e3) ? "Y"sv : "N"sv) << "\n";
+        }
+        catch (...)
+        {
+            TestCout() << "recieve unknown \n";
+        }
+
+        EXPECT_THROW(xziar::nailang::DoThrow(), xziar::nailang::NailangPartedNameException);
+    }
     using xziar::nailang::FuncName;
     using xziar::nailang::TempFuncName;
     using VI = xziar::nailang::FuncName::FuncInfo;

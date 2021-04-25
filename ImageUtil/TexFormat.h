@@ -276,8 +276,8 @@ struct TexFormatUtil
         default:                                return ImageDataType::UNKNOWN_RESERVE;
         }
     }
-    [[nodiscard]] static IMGUTILAPI std::string GetFormatDetail(const TextureFormat format) noexcept;
-    [[nodiscard]] static IMGUTILAPI std::u16string_view GetFormatName(const TextureFormat format) noexcept;
+    [[nodiscard]] IMGUTILAPI static std::string GetFormatDetail(const TextureFormat format) noexcept;
+    [[nodiscard]] IMGUTILAPI static std::u16string_view GetFormatName(const TextureFormat format) noexcept;
 
 };
 
