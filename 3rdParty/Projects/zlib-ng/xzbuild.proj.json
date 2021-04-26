@@ -16,30 +16,40 @@
         {
             "defines": 
             [
-                {"ifin": {"intrin": "avx2"}, "+": ["X86_AVX2", "X86_AVX2_ADLER32"]},
-                {"ifin": {"intrin": "avx"}, "+": ["X86_AVX_CHUNKSET"]},
-                {"ifin": {"intrin": "pclmul"}, "+": ["X86_PCLMULQDQ_CRC"]},
-                {"ifin": {"intrin": "sse42"}, "+": ["X86_SSE42_CRC_HASH", "X86_SSE42_CRC_INTRIN", "X86_SSE42_CMP_STR"]},
-                {"ifin": {"intrin": "ssse3"}, "+": ["X86_SSSE3", "X86_SSSE3_ADLER32"]},
-                {"ifin": {"intrin": "sse2"}, "+": ["X86_SSE2", "X86_SSE2_CHUNKSET", "X86_SSE2_SLIDEHASH"]},
+                {"ifeq": {"arch": "x86"},       "+": ["X86_FEATURES", "X86_QUICK_STRATEGY", "UNALIGNED64_OK"]},
+                {"ifeq": {"arch": "arm"},       "+": ["ARM_FEATURES"]},
+                {"ifin": {"intrin": "avx2"},    "+": ["X86_AVX2", "X86_AVX2_ADLER32"]},
+                {"ifin": {"intrin": "avx"},     "+": ["X86_AVX_CHUNKSET"]},
+                {"ifin": {"intrin": "pclmul"},  "+": ["X86_PCLMULQDQ_CRC"]},
+                {"ifin": {"intrin": "sse42"},   "+": ["X86_SSE42_CRC_HASH", "X86_SSE42_CRC_INTRIN", "X86_SSE42_CMP_STR"]},
+                {"ifin": {"intrin": "ssse3"},   "+": ["X86_SSSE3", "X86_SSSE3_ADLER32"]},
+                {"ifin": {"intrin": "sse2"},    "+": ["X86_SSE2", "X86_SSE2_CHUNKSET", "X86_SSE2_SLIDEHASH"]},
+                {"ifin": {"intrin": "neon"},    "+": ["ARM_NEON_ADLER32", "ARM_NEON_CHUNKSET", "ARM_NEON_SLIDEHASH"]},
+                {"ifin": {"intrin": "acle_crc"},"+": ["ARM_ACLE_CRC_HASH"]},
+                {"ifin": {"arch": "arm"}, "ifge": {"armArch": 8}, "+": ["UNALIGNED64_OK"]},
                 "HAVE_VISIBILITY_HIDDEN", "HAVE_VISIBILITY_INTERNAL", "HAVE_BUILTIN_CTZ", "HAVE_BUILTIN_CTZL",
                 "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H",
-                "ZLIB_COMPAT", "WITH_GZFILEOP", "UNALIGNED_OK", "UNALIGNED64_OK",
-                "X86_FEATURES", "X86_QUICK_STRATEGY"
+                "ZLIB_COMPAT", "WITH_GZFILEOP", "UNALIGNED_OK"
             ],
             "sources": 
             [
                 "*.c", 
-                "arch/x86/*.c",
+                {"ifeq": {"arch": "x86"}, "+": "arch/x86/*.c"},
+                {"ifeq": {"arch": "arm"}, "+": "arch/arm/*.c"},
                 {
-                    "ifnin": {"intrin": "avx2"}, 
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "avx2"}, 
                     "dir": "arch/x86",
                     "-": ["adler32_avx.c", "chunkset_avx.c", "slide_avx.c", "compare258_avx.c"]
                 },
                 {
-                    "ifnin": {"intrin": "ssse3"}, 
+                    "ifeq": {"arch": "x86"}, "ifnin": {"intrin": "ssse3"}, 
                     "dir": "arch/x86",
                     "-": ["adler32_ssse3.c"]
+                },
+                {
+                    "ifeq": {"arch": "arm"}, "ifnin": {"intrin": "acle_crc"}, 
+                    "dir": "arch/arm",
+                    "-": ["crc32_acle.c", "insert_string_acle.c"]
                 }
             ],
             "incpath": [".", "$(BuildDir)"]

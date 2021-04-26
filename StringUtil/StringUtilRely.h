@@ -7,7 +7,7 @@
 #   define STRCHSETAPI _declspec(dllimport)
 # endif
 #else
-# define STRCHSETAPI [[gnu::visibility("default")]]
+# define STRCHSETAPI __attribute__((visibility("default")))
 #endif
 
 #include "common/CommonRely.hpp"

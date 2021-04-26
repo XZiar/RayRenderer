@@ -10,7 +10,7 @@ namespace xziar::img::convert
 inline void Float1sToU8s(std::byte * __restrict destPtr, const float * __restrict srcPtr, uint64_t count, const float floatRange)
 {
     const auto muler = 255 / floatRange;
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto SHUF_MSK1 = _mm256_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto SHUF_MSK2 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
     const auto muler8 = _mm256_set1_ps(muler);
@@ -44,7 +44,7 @@ inline void Float1sToU8s(std::byte * __restrict destPtr, const float * __restric
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr + 32), _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto SHUF_MSK = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto muler4 = _mm_set1_ps(muler);
     while (count > 32)
@@ -93,7 +93,7 @@ inline void Float1sToU8s(std::byte * __restrict destPtr, const float * __restric
 inline void U8sToFloat1s(float * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count, const float floatRange)
 {
     const auto muler = floatRange / 255;
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto SHUF_MSK1 = _mm256_setr_epi8( 0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1,  0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1);
     const auto SHUF_MSK2 = _mm256_setr_epi8( 4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1,  4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1);
     const auto SHUF_MSK3 = _mm256_setr_epi8( 8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1,  8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1);
@@ -129,7 +129,7 @@ inline void U8sToFloat1s(float * __restrict destPtr, const std::byte * __restric
         _mm256_storeu_ps(destPtr + 56, _mm256_permute2f128_ps(f4pixae, f4pixbf, 0x31));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto SHUF_MSK1 = _mm_setr_epi8( 0, -1, -1, -1,  1, -1, -1, -1,  2, -1, -1, -1,  3, -1, -1, -1);
     const auto SHUF_MSK2 = _mm_setr_epi8( 4, -1, -1, -1,  5, -1, -1, -1,  6, -1, -1, -1,  7, -1, -1, -1);
     const auto SHUF_MSK3 = _mm_setr_epi8( 8, -1, -1, -1,  9, -1, -1, -1, 10, -1, -1, -1, 11, -1, -1, -1);

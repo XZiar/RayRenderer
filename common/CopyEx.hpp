@@ -21,7 +21,7 @@ inline void CopyLittleEndian<4, 1>(void* const dest, const void* const src, size
 {
     uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(dest);
     const uint32_t * __restrict srcPtr = reinterpret_cast<const uint32_t*>(src);
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto SHUF_MSK1 = _mm256_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto SHUF_MSK2 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
     while (count > 64)
@@ -54,7 +54,7 @@ inline void CopyLittleEndian<4, 1>(void* const dest, const void* const src, size
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr + 32), _mm256_blend_epi32(aceg1, bdfh1, 0b10101010));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto SHUF_MSK = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
     while (count > 32)
     {
@@ -104,7 +104,7 @@ inline void CopyLittleEndian<4, 2>(void* const dest, const void* const src, size
 {
     uint16_t * __restrict destPtr = reinterpret_cast<uint16_t*>(dest);
     const uint32_t * __restrict srcPtr = reinterpret_cast<const uint32_t*>(src);
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto SHUF_MSK = _mm256_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 4, 5, 8, 9, 12, 13);
     while (count >= 64)
     {
@@ -138,7 +138,7 @@ inline void CopyLittleEndian<4, 2>(void* const dest, const void* const src, size
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr + 48), _mm256_blend_epi32(efef1, ghgh1, 0b11110000));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto SHUF_MSK = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
     while (count >= 32)
     {
@@ -186,7 +186,7 @@ inline void CopyLittleEndian<2, 1>(void* const dest, const void* const src, size
 {
     uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(dest);
     const uint16_t * __restrict srcPtr = reinterpret_cast<const uint16_t*>(src);
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto SHUF_MSK = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
     while (count >= 64)
     {
@@ -206,7 +206,7 @@ inline void CopyLittleEndian<2, 1>(void* const dest, const void* const src, size
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr + 32), _mm256_blend_epi32(efef, ghgh, 0b11110000));
         srcPtr += 64; destPtr += 64; count -= 64;
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto SHUF_MSK = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
     while (count >= 64)
     {
@@ -266,14 +266,14 @@ namespace detail
 inline void BroadcastMany(void* const dest, const uint8_t src, size_t count)
 {
     uint8_t * __restrict destPtr = reinterpret_cast<uint8_t*>(dest);
-#if COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
     const auto dat = _mm256_set1_epi8(src);
     while (count > 32)
     {
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
         destPtr += 32; count -= 32;
     }
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
     const auto dat = _mm_set1_epi8(src);
     while (count > 16)
     {
@@ -297,14 +297,14 @@ inline void BroadcastMany(void* const dest, const uint8_t src, size_t count)
 inline void BroadcastMany(void* const dest, const uint16_t src, size_t count)
 {
     uint16_t * __restrict destPtr = reinterpret_cast<uint16_t*>(dest);
-#if COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
     const auto dat = _mm256_set1_epi16(src);
     while (count > 16)
     {
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
         destPtr += 16; count -= 16;
     }
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
     const auto dat = _mm_set1_epi16(src);
     while (count > 8)
     {
@@ -328,14 +328,14 @@ inline void BroadcastMany(void* const dest, const uint16_t src, size_t count)
 inline void BroadcastMany(void* const dest, const uint32_t src, size_t count)
 {
     uint32_t * __restrict destPtr = reinterpret_cast<uint32_t*>(dest);
-#if COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
     const auto dat = _mm256_set1_epi32(src);
     while (count > 8)
     {
         _mm256_storeu_si256(reinterpret_cast<__m256i*>(destPtr), dat);
         destPtr += 8; count -= 8;
     }
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
     const auto dat = _mm_set1_epi32(src);
     while (count > 4)
     {

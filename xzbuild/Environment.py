@@ -21,6 +21,8 @@ _intrinMap = \
     "__AES__":    "aes",
     "__SHA__":    "sha",
     "__PCLMUL__": "pclmul",
+    "__ARM_NEON": "neon",
+    "__ARM_FEATURE_CRC32": "acle_crc"
 }
 
 def _checkExists(prog:str) -> bool:
@@ -92,6 +94,9 @@ def collectEnv(paras:dict) -> dict:
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
     if "__ANDROID__" in defs:
         env["android"] = True
+    if env["arch"] == "arm":
+        env["armArch"] = int(defs["__ARM_ARCH"])
+        env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"]
     
     env["cpuCount"] = os.cpu_count()
     threads = paras.get("threads", "x1")

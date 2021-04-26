@@ -85,7 +85,7 @@ inline void GraysToGrayAs(std::byte * __restrict destPtr, const std::byte * __re
 #else
     constexpr int16_t AlphaMaskVal = static_cast<int16_t>(0xff00);
 #endif
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto alphaMask = _mm256_set1_epi16(AlphaMaskVal);
     const auto shuffleMask1 = _mm256_setr_epi8(0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1);
     const auto shuffleMask2 = _mm256_setr_epi8(8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1, 8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1);
@@ -104,7 +104,7 @@ inline void GraysToGrayAs(std::byte * __restrict destPtr, const std::byte * __re
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x20)); destPtr += 32;//0~7,8~15
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//16~23,24~31
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto alphaMask = _mm_set1_epi16(AlphaMaskVal);
     const auto shuffleMask1 = _mm_setr_epi8(0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6, -1, 7, -1);
     const auto shuffleMask2 = _mm_setr_epi8(8, -1, 9, -1, 10, -1, 11, -1, 12, -1, 13, -1, 14, -1, 15, -1);
@@ -157,7 +157,7 @@ inline constexpr auto GrayToRGBAMAP = MAKE_GRAY2RGBA();
 #define LOOP_GRAY_RGBA *(uint32_t*)destPtr = GrayToRGBAMAP[*(uint8_t*)srcPtr++]; destPtr += 4; count--;
 inline void GraysToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto alphaMask = _mm256_set1_epi32(0xff000000);
     const auto shuffleMask1 = _mm256_setr_epi8(0, 0, 0, -1, 1, 1, 1, -1, 2, 2, 2, -1, 3, 3, 3, -1, 0, 0, 0, -1, 1, 1, 1, -1, 2, 2, 2, -1, 3, 3, 3, -1);
     const auto shuffleMask2 = _mm256_setr_epi8(4, 4, 4, -1, 5, 5, 5, -1, 6, 6, 6, -1, 7, 7, 7, -1, 4, 4, 4, -1, 5, 5, 5, -1, 6, 6, 6, -1, 7, 7, 7, -1);
@@ -177,7 +177,7 @@ inline void GraysToRGBAs(std::byte * __restrict destPtr, const std::byte * __res
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp1, tmp2, 0x31)); destPtr += 32;//16~19,20~23
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//24~27,28~31
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto alphaMask = _mm_set1_epi32(0xff000000);
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, -1, 1, 1, 1, -1, 2, 2, 2, -1, 3, 3, 3, -1);
     const auto shuffleMask2 = _mm_setr_epi8(4, 4, 4, -1, 5, 5, 5, -1, 6, 6, 6, -1, 7, 7, 7, -1);
@@ -221,7 +221,7 @@ inline const auto& GraysToBGRAs = GraysToRGBAs;
 #pragma region GRAYA->GRAY
 inline void GrayAsToGrays(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto shuffleMask1 = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto shuffleMask2 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
     while (count > 64)
@@ -238,7 +238,7 @@ inline void GrayAsToGrays(std::byte * __restrict destPtr, const std::byte * __re
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_or_si256(tmp1, tmp2)); destPtr += 32;//0~15,16~31
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_or_si256(tmp3, tmp4)); destPtr += 32;//32~47,48~63
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto shuffleMask2 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
     while (count > 64)
@@ -283,7 +283,7 @@ inline void GrayAsToGrays(std::byte * __restrict destPtr, const std::byte * __re
 #define LOOP_GRAYA_RGBA { const uint16_t dat = *(uint16_t*)srcPtr; *(uint32_t*)destPtr = ((dat & 0xffu) * 0x00010101u) | ((dat & 0xff00u) << 16); destPtr += 4; srcPtr+=2; count--; }
 inline void GrayAsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto shuffleMask1 = _mm256_setr_epi8(0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7, 0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7);
     const auto shuffleMask2 = _mm256_setr_epi8(8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15, 8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15);
     while (count > 64)
@@ -301,7 +301,7 @@ inline void GrayAsToRGBAs(std::byte * __restrict destPtr, const std::byte * __re
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x20)); destPtr += 32;//16~19,20~23
         _mm256_storeu_si256((__m256i*)destPtr, _mm256_permute2x128_si256(tmp3, tmp4, 0x31)); destPtr += 32;//24~27,28~31
     }
-#elif COMMON_SIMD_LV >= 31
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6, 6, 6, 7);
     const auto shuffleMask2 = _mm_setr_epi8(8, 8, 8, 9, 10, 10, 10, 11, 12, 12, 12, 13, 14, 14, 14, 15);
     while (count > 64)
@@ -346,7 +346,7 @@ inline const auto& GrayAsToBGRAs = GrayAsToRGBAs;
 #define LOOP_GRAY_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr++; destPtr += 3; count--;
 inline void GraysToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 31
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5);
     const auto shuffleMask2 = _mm_setr_epi8(5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10);
     const auto shuffleMask3 = _mm_setr_epi8(10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 15);
@@ -403,7 +403,7 @@ inline const auto& GraysToBGRs = GraysToRGBs;
 #define LOOP_GRAYA_RGB destPtr[0] = destPtr[1] = destPtr[2] = *srcPtr; destPtr += 3; srcPtr += 2; count--;
 inline void GrayAsToRGBs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 31
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffleMask1 = _mm_setr_epi8(0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 10);
     const auto shuffleMask2 = _mm_setr_epi8(10, 10, 12, 12, 12, 14, 14, 14, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto shuffleMask3 = _mm_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 2, 2, 2, 4, 4);
@@ -577,7 +577,7 @@ inline void BGRsToRGBs(std::byte * __restrict destPtr, const std::byte * __restr
         *destPtr++ = std::byte(0xff); count--;
 inline void RGBsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 41
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
     const auto shuffleMask = _mm_setr_epi8(0x0, 0x1, 0x2, -1, 0x3, 0x4, 0x5, -1, 0x6, 0x7, 0x8, -1, 0x9, 0xa, 0xb, -1);
     const auto shuffleMask2 = _mm_setr_epi8(0x4, 0x5, 0x6, -1, 0x7, 0x8, 0x9, -1, 0xa, 0xb, 0xc, -1, 0xd, 0xe, 0xf, -1);
     const auto alphaMask = _mm_set1_epi32(0xff000000);
@@ -631,7 +631,7 @@ inline const auto& BGRsToBGRAs = RGBsToRGBAs;
         srcPtr += 3; count--;
 inline void BGRsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 41
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
     const auto shuffleMask = _mm_setr_epi8(0x2, 0x1, 0x0, -1, 0x5, 0x4, 0x3, -1, 0x8, 0x7, 0x6, -1, 0xb, 0xa, 0x9, -1);
     const auto shuffleMask2 = _mm_setr_epi8(0x6, 0x5, 0x4, -1, 0x9, 0x8, 0x7, -1, 0xc, 0xb, 0xa, -1, 0xf, 0xe, 0xd, -1);
     const auto alphaMask = _mm_set1_epi32(0xff000000);
@@ -686,7 +686,7 @@ inline const auto& RGBsToBGRAs = BGRsToRGBAs;
         }
 inline void BGRAsToRGBAs(std::byte * __restrict destPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 31
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
 #   if COMMON_SIMD_LV >= 200
     const auto shuffle256 = _mm256_set_m128i(shuffle128, shuffle128);
@@ -755,7 +755,7 @@ inline void BGRAsToRGBAs(std::byte * __restrict destPtr, uint64_t count)
         }
 inline void BGRAsToRGBAs(std::byte * __restrict destPtr, const std::byte * __restrict srcPtr, uint64_t count)
 {
-#if COMMON_SIMD_LV >= 31
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
     const auto shuffle128 = _mm_setr_epi8(0x2, 0x1, 0x0, 0x3, 0x6, 0x5, 0x4, 0x7, 0xa, 0x9, 0x8, 0xb, 0xe, 0xd, 0xc, 0xf);
 #   if COMMON_SIMD_LV >= 200
     const auto shuffle256 = _mm256_set_m128i(shuffle128, shuffle128);
@@ -829,7 +829,7 @@ inline bool Swap2Buffer(std::byte * __restrict ptrA, std::byte * __restrict ptrB
         return false;
     if (ptrA > ptrB && ptrA < ptrB + bytes)
         return false;
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     if ((intptr_t)ptrA & 0x1f)
     {
         const uint64_t offset = 32 - ((intptr_t)ptrA & 0x1f);
@@ -866,7 +866,7 @@ inline bool Swap2Buffer(std::byte * __restrict ptrA, std::byte * __restrict ptrB
         bytes -= 32;
     }
     SWAP_BLOCK(bytes)
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
     if ((intptr_t)ptrA & 0x1f)
     {
         const uint64_t offset = 32 - ((intptr_t)ptrA & 0x1f);
@@ -966,7 +966,7 @@ inline bool ReverseBuffer4(std::byte * __restrict ptr, uint64_t count)
     }
     //ptrA now 32-byte aligned(start from a cache line)
 #endif
-#if COMMON_SIMD_LV >= 200
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
     const auto indexer = _mm256_setr_epi32(7, 6, 5, 4, 3, 2, 1, 0);
     uint32_t * __restrict ptrC = ptrB - 7;
     while (count > 32)
@@ -1003,7 +1003,7 @@ inline bool ReverseBuffer4(std::byte * __restrict ptr, uint64_t count)
     }
     ptrB = ptrC + 7;
     REV_BLOCK(count)
-#elif COMMON_SIMD_LV >= 100
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
     const auto indexer = _mm256_setr_epi32(3, 2, 1, 0, 3, 2, 1, 0);
     uint32_t * __restrict ptrC = ptrB - 7;
     while (count > 32)
@@ -1045,7 +1045,7 @@ inline bool ReverseBuffer4(std::byte * __restrict ptr, uint64_t count)
     }
     ptrB = ptrC + 7;
     REV_BLOCK(count)
-#elif COMMON_SIMD_LV >= 20
+#elif COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20
     uint32_t * __restrict ptrC = ptrB - 3;
     while (count > 16)
     {

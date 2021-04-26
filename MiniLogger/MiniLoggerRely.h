@@ -7,7 +7,7 @@
 #   define MINILOGAPI _declspec(dllimport)
 # endif
 #else
-# define MINILOGAPI [[gnu::visibility("default")]]
+# define MINILOGAPI __attribute__((visibility("default")))
 #endif
 
 
