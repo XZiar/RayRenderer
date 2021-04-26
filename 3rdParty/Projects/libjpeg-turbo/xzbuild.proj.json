@@ -1,7 +1,7 @@
 {
     "name": "jpeg-turbo",
     "type": "static",
-    "version": "2.0.4",
+    "version": "2.1.0",
     "description": "A SIMD accelerated JPEG image codec library",
     "dependency": [],
     "srcPath": "../../libjpeg-turbo",
@@ -14,17 +14,45 @@
     {
         "cxx":
         {
-            "defines": ["_LARGEFILE64_SOURCE=1", "NO_PUTENV", "BMP_SUPPORTED", "PPM_SUPPORTED"],
+            "defines": ["_LARGEFILE64_SOURCE=1", "BMP_SUPPORTED", "PPM_SUPPORTED"],
             "incpath": ["$(BuildDir)", "."]
         },
         "c":
         {
             "sources": 
             [
-                "*.c",
-                {"-": ["jccolext.c", "jdcol565.c", "jdcolext.c", "jdmrg565.c", "jdmrgext.c", "jstdhuff.c"]},
-                {"ifeq": {"platform": "x64"}, "+": "simd/x86-64/jsimd-x86-64.c"},
-                {"ifeq": {"platform": "x86"}, "+": "simd/i386/jsimd-i386.c"}
+                "jcapimin.c", "jcapistd.c", "jccoefct.c", "jccolor.c", "jcdctmgr.c", "jchuff.c", "jcicc.c", "jcinit.c", 
+                "jcmainct.c", "jcmarker.c", "jcmaster.c", "jcomapi.c", "jcparam.c", "jcphuff.c", "jcprepct.c", "jcsample.c", 
+                "jctrans.c", "jdapimin.c", "jdapistd.c", "jdatadst.c", "jdatasrc.c", "jdcoefct.c", "jdcolor.c", "jddctmgr.c", 
+                "jdhuff.c", "jdicc.c", "jdinput.c", "jdmainct.c", "jdmarker.c", "jdmaster.c", "jdmerge.c", "jdphuff.c", 
+                "jdpostct.c", "jdsample.c", "jdtrans.c", "jerror.c", "jfdctflt.c", "jfdctfst.c", "jfdctint.c", "jidctflt.c", 
+                "jidctfst.c", "jidctint.c", "jidctred.c", "jquant1.c", "jquant2.c", "jutils.c", "jmemmgr.c", "jmemnobs.c", 
+                "jaricom.c", "jcarith.c", "jdarith.c", "turbojpeg.c", "transupp.c", "jdatadst-tj.c", "jdatasrc-tj.c", 
+                "rdbmp.c", "rdppm.c", "wrbmp.c", "wrppm.c",
+                {"ifeq": {"platform": "x64"},   "+": "simd/x86_64/jsimd.c"},
+                {"ifeq": {"platform": "x86"},   "+": "simd/i386/jsimd.c"},
+                {"ifeq": {"arch": "arm"}, "ifin": {"intrin": "neon"}, "+": 
+                    [
+                        "simd/arm/jccolor-neon.c",
+                        "simd/arm/jcgray-neon.c",
+                        "simd/arm/jcphuff-neon.c",
+                        "simd/arm/jcsample-neon.c",
+                        "simd/arm/jdcolor-neon.c",
+                        "simd/arm/jdmerge-neon.c",
+                        "simd/arm/jdsample-neon.c",
+                        "simd/arm/jfdctfst-neon.c",
+                        "simd/arm/jfdctint-neon.c",
+                        "simd/arm/jidctfst-neon.c",
+                        "simd/arm/jidctint-neon.c",
+                        "simd/arm/jidctred-neon.c",
+                        "simd/arm/jquanti-neon.c"
+                    ]},
+                {"ifeq": {"platform": "ARM64"}, "dir": "simd/arm/aarch64", "+": ["jsimd.c", "jchuff-neon.c"]},
+                {"ifeq": {"platform": "ARM"},   "dir": "simd/arm/aarch32", "+": ["jsimd.c", "jchuff-neon.c"]}
+            ],
+            "defines":
+            [
+                {"ifeq": {"arch": "arm"}, "ifin": {"intrin": "neon"}, "+": ["NEON_INTRINSICS"]}
             ],
             "version": ""
         },
@@ -34,7 +62,7 @@
             [
                 {
                     "ifeq": {"platform": "x64"}, 
-                    "dir": "simd/x86-64",
+                    "dir": "simd/x86_64",
                     "+": "*.asm", 
                     "-": ["jccolext-avx2.asm", "jccolext-sse2.asm", "jcgryext-avx2.asm", "jcgryext-sse2.asm", "jdcolext-avx2.asm", "jdcolext-sse2.asm", "jdmrgext-avx2.asm", "jdmrgext-sse2.asm"]
                 },
@@ -47,8 +75,8 @@
             ],
             "incpath":
             [
-                "./simd/",
-                {"ifeq": {"platform": "x64"}, "+": "./simd/x86-64/"},
+                "./simd/", "./simd/nasm",
+                {"ifeq": {"platform": "x64"}, "+": "./simd/x86_64/"},
                 {"ifeq": {"platform": "x86"}, "+": "./simd/i386/"}
             ]
         }

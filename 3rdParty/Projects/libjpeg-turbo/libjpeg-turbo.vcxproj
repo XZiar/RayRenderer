@@ -85,16 +85,13 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
-    <MASM>
-      <IncludePaths>$(RealSourceDir)simd;%(IncludePaths)</IncludePaths>
-    </MASM>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)simd;$(RealSourceDir)simd\x86-64;%(IncludePaths)</IncludePaths>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
     </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
@@ -114,15 +111,12 @@
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
-    <MASM>
-      <IncludePaths>$(RealSourceDir)simd;%(IncludePaths)</IncludePaths>
-    </MASM>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <NASM>
-      <IncludePaths>$(RealSourceDir)simd;$(RealSourceDir)simd\i386;%(IncludePaths)</IncludePaths>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
       <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
     </NASM>
     <Lib>
@@ -142,16 +136,13 @@
       <ConformanceMode>true</ConformanceMode>
       <CompileAsManaged>false</CompileAsManaged>
     </ClCompile>
-    <MASM>
-      <IncludePaths>$(RealSourceDir)simd;%(IncludePaths)</IncludePaths>
-    </MASM>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <NASM>
       <PreprocessorDefinitions>WIN64;__x86_64__</PreprocessorDefinitions>
-      <IncludePaths>$(RealSourceDir)simd;$(RealSourceDir)simd\x86-64;%(IncludePaths)</IncludePaths>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\x86_64;%(IncludePaths)</IncludePaths>
     </NASM>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
@@ -176,15 +167,12 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
-    <MASM>
-      <IncludePaths>$(RealSourceDir)simd;%(IncludePaths)</IncludePaths>
-    </MASM>
     <PreBuildEvent>
       <Command>
       </Command>
     </PreBuildEvent>
     <NASM>
-      <IncludePaths>$(RealSourceDir)simd;$(RealSourceDir)simd\i386;%(IncludePaths)</IncludePaths>
+      <IncludePaths>$(RealSourceDir)\simd;$(RealSourceDir)\simd\nasm;$(RealSourceDir)\simd\i386;%(IncludePaths)</IncludePaths>
       <PreprocessorDefinitions>WIN32</PreprocessorDefinitions>
     </NASM>
     <Lib>
@@ -192,14 +180,13 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="$(RealSourceDir)\jaricom.c" />
     <ClCompile Include="$(RealSourceDir)\jcapimin.c" />
     <ClCompile Include="$(RealSourceDir)\jcapistd.c" />
-    <ClCompile Include="$(RealSourceDir)\jcarith.c" />
     <ClCompile Include="$(RealSourceDir)\jccoefct.c" />
     <ClCompile Include="$(RealSourceDir)\jccolor.c" />
     <ClCompile Include="$(RealSourceDir)\jcdctmgr.c" />
     <ClCompile Include="$(RealSourceDir)\jchuff.c" />
+    <ClCompile Include="$(RealSourceDir)\jcicc.c" />
     <ClCompile Include="$(RealSourceDir)\jcinit.c" />
     <ClCompile Include="$(RealSourceDir)\jcmainct.c" />
     <ClCompile Include="$(RealSourceDir)\jcmarker.c" />
@@ -212,15 +199,13 @@
     <ClCompile Include="$(RealSourceDir)\jctrans.c" />
     <ClCompile Include="$(RealSourceDir)\jdapimin.c" />
     <ClCompile Include="$(RealSourceDir)\jdapistd.c" />
-    <ClCompile Include="$(RealSourceDir)\jdarith.c" />
-    <ClCompile Include="$(RealSourceDir)\jdatadst-tj.c" />
     <ClCompile Include="$(RealSourceDir)\jdatadst.c" />
-    <ClCompile Include="$(RealSourceDir)\jdatasrc-tj.c" />
     <ClCompile Include="$(RealSourceDir)\jdatasrc.c" />
     <ClCompile Include="$(RealSourceDir)\jdcoefct.c" />
     <ClCompile Include="$(RealSourceDir)\jdcolor.c" />
     <ClCompile Include="$(RealSourceDir)\jddctmgr.c" />
     <ClCompile Include="$(RealSourceDir)\jdhuff.c" />
+    <ClCompile Include="$(RealSourceDir)\jdicc.c" />
     <ClCompile Include="$(RealSourceDir)\jdinput.c" />
     <ClCompile Include="$(RealSourceDir)\jdmainct.c" />
     <ClCompile Include="$(RealSourceDir)\jdmarker.c" />
@@ -238,23 +223,28 @@
     <ClCompile Include="$(RealSourceDir)\jidctfst.c" />
     <ClCompile Include="$(RealSourceDir)\jidctint.c" />
     <ClCompile Include="$(RealSourceDir)\jidctred.c" />
-    <ClCompile Include="$(RealSourceDir)\jmemmgr.c" />
-    <ClCompile Include="$(RealSourceDir)\jmemnobs.c" />
     <ClCompile Include="$(RealSourceDir)\jquant1.c" />
     <ClCompile Include="$(RealSourceDir)\jquant2.c" />
     <ClCompile Include="$(RealSourceDir)\jutils.c" />
+    <ClCompile Include="$(RealSourceDir)\jmemmgr.c" />
+    <ClCompile Include="$(RealSourceDir)\jmemnobs.c" />
+    <ClCompile Include="$(RealSourceDir)\jaricom.c" />
+    <ClCompile Include="$(RealSourceDir)\jcarith.c" />
+    <ClCompile Include="$(RealSourceDir)\jdarith.c" />
+    <ClCompile Include="$(RealSourceDir)\turbojpeg.c" />
+    <ClCompile Include="$(RealSourceDir)\transupp.c" />
+    <ClCompile Include="$(RealSourceDir)\jdatadst-tj.c" />
+    <ClCompile Include="$(RealSourceDir)\jdatasrc-tj.c" />
     <ClCompile Include="$(RealSourceDir)\rdbmp.c" />
     <ClCompile Include="$(RealSourceDir)\rdppm.c" />
-    <ClCompile Include="$(RealSourceDir)\simd\i386\jsimd-i386.c">
-      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\simd\x86-64\jsimd-x86-64.c">
-      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\transupp.c" />
-    <ClCompile Include="$(RealSourceDir)\turbojpeg.c" />
     <ClCompile Include="$(RealSourceDir)\wrbmp.c" />
     <ClCompile Include="$(RealSourceDir)\wrppm.c" />
+    <ClCompile Include="$(RealSourceDir)\simd\i386\jsimd.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\simd\x86_64\jsimd.c">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="$(RealSourceDir)\LICENSE.md" />
@@ -395,95 +385,95 @@
     <NASM Include="$(RealSourceDir)\simd\i386\jsimdcpu.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jccolor-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jccolor-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jccolor-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jccolor-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jcgray-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jcgray-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jcgray-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jcgray-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jchuff-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jchuff-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jcphuff-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jcphuff-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jcsample-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jcsample-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jcsample-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jcsample-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdcolor-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdcolor-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdcolor-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdcolor-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdmerge-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdmerge-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdmerge-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdmerge-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdsample-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdsample-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jdsample-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jdsample-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jfdctflt-sse.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jfdctflt-sse.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jfdctfst-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jfdctfst-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jfdctint-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jfdctint-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jfdctint-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jfdctint-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jidctflt-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jidctflt-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jidctfst-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jidctfst-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jidctint-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jidctint-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jidctint-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jidctint-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jidctred-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jidctred-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jquantf-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jquantf-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jquanti-avx2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jquanti-avx2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jquanti-sse2.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jquanti-sse2.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
-    <NASM Include="$(RealSourceDir)\simd\x86-64\jsimdcpu.asm">
+    <NASM Include="$(RealSourceDir)\simd\x86_64\jsimdcpu.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
     </NASM>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="jconfig.h" />
+    <ClInclude Include="jconfigint.h" />
     <ClInclude Include="$(RealSourceDir)\cderror.h" />
     <ClInclude Include="$(RealSourceDir)\cdjpeg.h" />
     <ClInclude Include="$(RealSourceDir)\cmyk.h" />
     <ClInclude Include="$(RealSourceDir)\jchuff.h" />
-    <ClInclude Include="jconfig.h" />
-    <ClInclude Include="jconfigint.h" />
     <ClInclude Include="$(RealSourceDir)\jdcoefct.h" />
     <ClInclude Include="$(RealSourceDir)\jdct.h" />
     <ClInclude Include="$(RealSourceDir)\jdhuff.h" />

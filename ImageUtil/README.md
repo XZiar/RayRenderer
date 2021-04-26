@@ -44,7 +44,7 @@ It's bitfield arrangement is listed below
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage)  2.0.4
+* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage) `submodule`  2.1.0
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
   

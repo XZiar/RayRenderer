@@ -54,7 +54,7 @@ def collectEnv(paras:dict) -> dict:
     env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
     env["verbose"] = "verbose" in paras
     is64Bits = sys.maxsize > 2**32
-    env["platform"] = "x64" if is64Bits else "x86"
+    env["bits"] = 64 if is64Bits else 32
     env["incDirs"] = []
     env["libDirs"] = []
     env["defines"] = []
@@ -68,10 +68,13 @@ def collectEnv(paras:dict) -> dict:
     env["machine"] = platform.machine()
     if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
         env["arch"] = "x86"
+        env["platform"] = "x64" if is64Bits else "x86"
     elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"]:
         env["arch"] = "arm"
+        env["platform"] = "ARM64" if is64Bits else "ARM"
     else:
         env["arch"] = ""
+        env["platform"] = "x64" if is64Bits else "x86"
     
     targetarch = paras.get("targetarch", "native")
     defs = {}

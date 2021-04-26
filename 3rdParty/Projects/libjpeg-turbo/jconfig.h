@@ -1,13 +1,13 @@
 /* Version ID for the JPEG library.
  * Might be useful for tests like "#if JPEG_LIB_VERSION >= 60".
  */
-#define JPEG_LIB_VERSION  62
+#define JPEG_LIB_VERSION  80
 
 /* libjpeg-turbo version */
-#define LIBJPEG_TURBO_VERSION  2.0.3
+#define LIBJPEG_TURBO_VERSION  2.1.0
 
 /* libjpeg-turbo version in integer form */
-#define LIBJPEG_TURBO_VERSION_NUMBER  2000002
+#define LIBJPEG_TURBO_VERSION_NUMBER  2001000
 
 /* Support arithmetic encoding */
 #define C_ARITH_CODING_SUPPORTED 1
@@ -16,7 +16,7 @@
 #define D_ARITH_CODING_SUPPORTED 1
 
 /* Support in-memory source/destination managers */
-#define MEM_SRCDST_SUPPORTED 1
+/* #undef MEM_SRCDST_SUPPORTED */
 
 /* Use accelerated SIMD routines. */
 #define WITH_SIMD 1
@@ -31,7 +31,6 @@
  */
 
 #define BITS_IN_JSAMPLE  8      /* use 8 or 12 */
-
 
 
 #if defined(_MSC_VER)
@@ -96,11 +95,6 @@ typedef signed int INT32;
 /* Define if your (broken) compiler shifts signed values as if they were
    unsigned. */
 /* #undef RIGHT_SHIFT_IS_UNSIGNED */
-
-/* Define to 1 if type `char' is unsigned and you are not using gcc.  */
-#ifndef __CHAR_UNSIGNED__
-/* #undef __CHAR_UNSIGNED__ */
-#endif
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

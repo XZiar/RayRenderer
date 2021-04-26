@@ -160,7 +160,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageUtil", "ImageUtil\Imag
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libpng", "3rdParty\Projects\libpng\libpng.vcxproj", "{506A3438-E8EE-47F6-A4C8-FDF475EBAC1E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjpeg-turbo", "3rdParty\libjpeg-turbo\libjpeg-turbo.vcxproj", "{3797BA95-6625-4483-B63E-3B3F9B845DAB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjpeg-turbo", "3rdParty\Projects\libjpeg-turbo\libjpeg-turbo.vcxproj", "{3797BA95-6625-4483-B63E-3B3F9B845DAB}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}"
 EndProject

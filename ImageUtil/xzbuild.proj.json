@@ -16,7 +16,7 @@
             "defines": ["IMGUTIL_EXPORT"],
             "pch": "ImageUtilPch.h",
             "flags": [{"ifeq": {"compiler": "gcc"}, "+": "-Wno-unused-but-set-variable"}],
-            "incpath": ["$(SolutionDir)/3rdParty/Projects/zlib-ng", "$(SolutionDir)/3rdParty/Projects/libpng"]
+            "incpath": ["$(SolutionDir)/3rdParty/Projects/zlib-ng", "$(SolutionDir)/3rdParty/Projects/libpng", "$(SolutionDir)/3rdParty/Projects/libjpeg-turbo"]
         }
     }
 }

@@ -90,7 +90,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
     def solveTarget(self, targets, env:dict):
         self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
         self.flags += [env["archparam"]]
-        self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
+        if env["arch"] == "x86":
+            self.flags += ["-m64" if env["bits"] == 64 else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"
         if env["compiler"] == "clang":
             self.flags += ["-Wno-newline-eof"]
@@ -182,7 +183,7 @@ class NASMTarget(BuildTarget):
         self.flags = ["-g", "-DELF"]
         if env["platform"] == "x64":
             self.flags += ["-f elf64", "-D__x86_64__"]
-        else:
+        elif env["platform"] == "x86":
             self.flags += ["-f elf32"]
         super().solveTarget(targets, env)
         target = targets["nasm"]
@@ -219,15 +220,20 @@ class ISPCTarget(BuildTarget):
 
 
     def __init__(self, targets, env:dict):
-        self.targets = ["sse4", "avx2"]
+        if env["arch"] == "x86":
+            self.targets = ["sse4", "avx2"]
+        elif env["arch"] == "arm":
+            self.targets = ["neon"]
         super().__init__(targets, env)
 
     def solveTarget(self, targets, env:dict):
         self.flags = ["-g", "-O2", "--opt=fast-math", "--pic"]
         if env["platform"] == "x64":
             self.flags += ["--arch=x86-64"]
-        else:
+        elif env["platform"] == "x86":
             self.flags += ["--arch=x86"]
+        elif env["platform"] == "ARM":
+            self.flags += ["--arch=arm"]
         super().solveTarget(targets, env)
 
     def write(self, file):

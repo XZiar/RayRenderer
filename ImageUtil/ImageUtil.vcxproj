@@ -62,7 +62,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)3rdParty\Projects\zlib-ng;$(SolutionDir)3rdParty\Projects\libpng;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)3rdParty\Projects\zlib-ng;$(SolutionDir)3rdParty\Projects\libpng;$(SolutionDir)3rdParty\Projects\libjpeg-turbo;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -151,7 +151,7 @@
     <Text Include="License.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\libjpeg-turbo\libjpeg-turbo.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\libjpeg-turbo\libjpeg-turbo.vcxproj">
       <Project>{3797ba95-6625-4483-b63e-3b3f9b845dab}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdParty\Projects\libpng\libpng.vcxproj">
