@@ -52,3 +52,11 @@
 	shallow = true
 	path = 3rdParty/libjpeg-turbo
 	url = https://github.com/libjpeg-turbo/libjpeg-turbo.git
+[submodule "3rdParty/OpenCL-Headers"]
+	shallow = true
+	path = 3rdParty/OpenCL-Headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+[submodule "3rdParty/OpenCL-ICD-Loader"]
+	shallow = true
+	path = 3rdParty/OpenCL-ICD-Loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
