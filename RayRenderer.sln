@@ -225,16 +225,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CL", "CL", "{1C8E3D45-3BDA-
 		3rdParty\CL\cl_ext_intel.h = 3rdParty\CL\cl_ext_intel.h
 		3rdParty\CL\cl_gl.h = 3rdParty\CL\cl_gl.h
 		3rdParty\CL\cl_gl_ext.h = 3rdParty\CL\cl_gl_ext.h
+		3rdParty\CL\cl_half.h = 3rdParty\CL\cl_half.h
 		3rdParty\CL\cl_icd.h = 3rdParty\CL\cl_icd.h
+		3rdParty\CL\cl_layer.h = 3rdParty\CL\cl_layer.h
 		3rdParty\CL\cl_platform.h = 3rdParty\CL\cl_platform.h
 		3rdParty\CL\cl_va_api_media_sharing_intel.h = 3rdParty\CL\cl_va_api_media_sharing_intel.h
 		3rdParty\CL\cl_version.h = 3rdParty\CL\cl_version.h
-		3rdParty\CL\LICENSE = 3rdParty\CL\LICENSE
+		3rdParty\OpenCL-Headers\LICENSE = 3rdParty\OpenCL-Headers\LICENSE
 		3rdParty\CL\opencl.h = 3rdParty\CL\opencl.h
-		3rdParty\CL\README.md = 3rdParty\CL\README.md
+		3rdParty\OpenCL-Headers\README.md = 3rdParty\OpenCL-Headers\README.md
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL", "3rdParty\OpenCL\OpenCL.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCL", "3rdParty\Projects\OpenCL\OpenCL.vcxproj", "{5C5933E1-4992-47F8-87ED-7921735157BA}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpuid", "3rdParty\Projects\cpuid\cpuid.vcxproj", "{8F5ADF15-4807-4EC9-888E-290C1A3169A4}"
 EndProject

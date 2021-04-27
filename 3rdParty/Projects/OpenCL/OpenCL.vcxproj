@@ -59,9 +59,11 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\OpenCL-ICD-Loader\loader</RealSourceDir>
+  </PropertyGroup>
   <PropertyGroup>
-    <IncludePath>$(ProjectDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(RealSourceDir);$(SolutionDir)3rdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -75,7 +77,7 @@
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>Default</LanguageStandard>
       <CompileAsManaged>false</CompileAsManaged>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=220;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -84,7 +86,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
       <AdditionalDependencies>cfgmgr32.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ModuleDefinitionFile>OpenCL.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>$(RealSourceDir)\windows\OpenCL.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -98,13 +100,13 @@
       <LanguageStandard>Default</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=220;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cfgmgr32.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ModuleDefinitionFile>OpenCL.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>$(RealSourceDir)\windows\OpenCL.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -118,13 +120,13 @@
       <LanguageStandard>Default</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAsManaged>false</CompileAsManaged>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=220;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>cfgmgr32.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ModuleDefinitionFile>OpenCL.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>$(RealSourceDir)\windows\OpenCL.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -139,7 +141,7 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <LanguageStandard>Default</LanguageStandard>
       <CompileAsManaged>false</CompileAsManaged>
-      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=220;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>CL_TARGET_OPENCL_VERSION=300;CL_ENABLE_LAYERS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -148,38 +150,39 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
       <AdditionalDependencies>cfgmgr32.lib;runtimeobject.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <ModuleDefinitionFile>OpenCL.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>$(RealSourceDir)\windows\OpenCL.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="adapter.h" />
-    <ClInclude Include="icd.h" />
-    <ClInclude Include="icd_dispatch.h" />
-    <ClInclude Include="icd_envvars.h" />
-    <ClInclude Include="icd_platform.h" />
-    <ClInclude Include="icd_windows.h" />
-    <ClInclude Include="icd_windows_apppackage.h" />
-    <ClInclude Include="icd_windows_dxgk.h" />
-    <ClInclude Include="icd_windows_hkr.h" />
+    <ClInclude Include="$(RealSourceDir)\icd.h" />
+    <ClInclude Include="$(RealSourceDir)\icd_dispatch.h" />
+    <ClInclude Include="$(RealSourceDir)\icd_envvars.h" />
+    <ClInclude Include="$(RealSourceDir)\icd_platform.h" />
+    <ClInclude Include="$(RealSourceDir)\windows\adapter.h" />
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows.h" />
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_apppackage.h" />
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_dxgk.h" />
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_hkr.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="OpenCL.def" />
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\windows\OpenCL.def" />
+    <None Include="$(RealSourceDir)\..\README.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="OpenCL.rc" />
+    <ResourceCompile Include="$(RealSourceDir)\windows\OpenCL.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="icd.c" />
-    <ClCompile Include="icd_dispatch.c" />
-    <ClCompile Include="icd_windows.c" />
-    <ClCompile Include="icd_windows_apppackage.cpp">
+    <ClCompile Include="$(RealSourceDir)\icd.c" />
+    <ClCompile Include="$(RealSourceDir)\icd_dispatch.c" />
+    <ClCompile Include="$(RealSourceDir)\icd_dispatch_generated.c" />
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows.c" />
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
-    <ClCompile Include="icd_windows_dxgk.c" />
-    <ClCompile Include="icd_windows_envvars.c" />
-    <ClCompile Include="icd_windows_hkr.c" />
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_dxgk.c" />
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_envvars.c" />
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_hkr.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

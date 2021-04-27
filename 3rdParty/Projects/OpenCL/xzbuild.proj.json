@@ -1,0 +1,32 @@
+{
+    "name": "OpenCL",
+    "type": "dynamic",
+    "description": "Khronos official OpenCL ICD Loader",
+    "version": "3.0.1",
+    "dependency": [],
+    "srcPath": "../../OpenCL-ICD-Loader/loader",
+    "library": 
+    {
+        "static": [],
+        "dynamic": ["dl", "pthread"]
+    },
+    "expmap": "linux/icd_exports.map",
+    "targets":
+    {
+        "cxx":
+        {
+            "defines": ["OpenCL_EXPORTS", "CL_TARGET_OPENCL_VERSION=300", "CL_ENABLE_LAYERS"],
+            "visibility": "default"
+        },
+        "c":
+        {
+            "sources": ["*.c", "linux/*.c"],
+            "incpath": ["$(BuildDir)", "."],
+            "version": ""
+        },
+        "rc":
+        {
+            "sources": ["*.rc"]
+        }
+    }
+}

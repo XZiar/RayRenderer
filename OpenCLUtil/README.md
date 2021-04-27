@@ -48,11 +48,13 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
 ## Dependency
 
-* [OpenCL Header](../3rdParty/CL) 20200504 [License](../3rdParty/CL/LICENSE)
+* [OpenCL Header](https://github.com/KhronosGroup/OpenCL-Headers) `submodule` 210426 [Apache 2.0 License](https://github.com/KhronosGroup/OpenCL-Headers/blob/master/LICENSE)
+  
+  C language headers for the OpenCL API.
 
-* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) 2.2.8 [License](../3rdParty/OpenCL/LICENSE)
+* [OpenCL-ICD-Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader) `submodule` 3.0.1 [Apache 2.0 License]([../3rdParty/OpenCL-ICD_Loader/LICENSE](https://github.com/KhronosGroup/OpenCL-ICD-Loader/blob/master/LICENSE))
 
-  OpenCL ICD Loader.
+  Khronos official OpenCL ICD Loader.
 
 * [ImageUtil](../ImageUtil)
 

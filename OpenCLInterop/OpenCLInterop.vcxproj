@@ -126,7 +126,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\OpenCL\OpenCL.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\OpenCL\OpenCL.vcxproj">
       <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">

@@ -212,6 +212,7 @@
   - [x] Add Pch for GCC build
   - [x] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
   - [ ] Move to fully self-controlled build system
+  - [ ] Add pseudo project, provide include-path info or install info or linkage info 
 
 * Global
   - [x] Port some utilities to Linux 

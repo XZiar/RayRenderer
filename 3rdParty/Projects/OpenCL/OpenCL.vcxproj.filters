@@ -15,65 +15,68 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="icd_windows_hkr.h">
+    <ClInclude Include="$(RealSourceDir)\icd.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd.h">
+    <ClInclude Include="$(RealSourceDir)\icd_dispatch.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_dispatch.h">
+    <ClInclude Include="$(RealSourceDir)\icd_envvars.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_platform.h">
+    <ClInclude Include="$(RealSourceDir)\icd_platform.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_windows_dxgk.h">
+    <ClInclude Include="$(RealSourceDir)\windows\adapter.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_envvars.h">
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_windows.h">
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_apppackage.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="icd_windows_apppackage.h">
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_dxgk.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="adapter.h">
+    <ClInclude Include="$(RealSourceDir)\windows\icd_windows_hkr.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="OpenCL.rc">
+    <ResourceCompile Include="$(RealSourceDir)\windows\OpenCL.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="icd.c">
+    <ClCompile Include="$(RealSourceDir)\icd.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_dispatch.c">
+    <ClCompile Include="$(RealSourceDir)\icd_dispatch.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_windows.c">
+    <ClCompile Include="$(RealSourceDir)\icd_dispatch_generated.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_windows_hkr.c">
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_windows_dxgk.c">
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_apppackage.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_windows_envvars.c">
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_dxgk.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="icd_windows_apppackage.cpp">
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_envvars.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\windows\icd_windows_hkr.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="OpenCL.def" />
+    <None Include="$(RealSourceDir)\windows\OpenCL.def" />
     <None Include="xzbuild.proj.json" />
-    <None Include="README.md" />
+    <None Include="$(RealSourceDir)\..\README.md" />
   </ItemGroup>
 </Project>
