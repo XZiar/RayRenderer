@@ -22,7 +22,7 @@
 	branch = stable
 [submodule "3rdParty/GSL"]
 	shallow = true
-	path = 3rdParty/GSL
+	path = 3rdParty/MS-GSL
 	url = https://github.com/microsoft/GSL.git
 [submodule "3rdParty/stb"]
 	shallow = true
@@ -60,3 +60,7 @@
 	shallow = true
 	path = 3rdParty/OpenCL-ICD-Loader
 	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+[submodule "3rdParty/OpenGL-Headers"]
+	shallow = true
+	path = 3rdParty/OpenGL-Headers
+	url = https://github.com/XZiar/OpenGL-Headers.git

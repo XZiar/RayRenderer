@@ -8,9 +8,9 @@
         "static": [],
         "dynamic": 
         [
-            {"ifno": "ghc_fs", "ifeq": {"compiler": "clang"}, "iflt": {"clangVer": 70000}, "+": "c++experimental"},
-            {"ifno": "ghc_fs", "ifeq": {"compiler": "clang"}, "iflt": {"clangVer": 90000}, "ifge": {"clangVer": 70000}, "+": "c++fs"},
-            {"ifno": "ghc_fs", "ifeq": {"compiler": "gcc"}, "iflt": {"gccVer": 90100}, "+": "stdc++fs"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    70000}, "+": "c++experimental"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    90000}, "ifge": {"libc++Ver": 70000}, "+": "c++fs"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libstdc++"}, "iflt": {"libstdc++Ver": 90100}, "+": "stdc++fs"},
             "pthread", "readline", "dl", "backtrace"
         ]
     },

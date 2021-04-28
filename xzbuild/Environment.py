@@ -5,25 +5,42 @@ import platform
 import subprocess
 import sys
 import time
-
+import tempfile
 
 _intrinMap = \
 {
-    "__SSE__":    "sse",
-    "__SSE2__":   "sse2",
-    "__SSE3__":   "sse3",
-    "__SSSE3__":  "ssse3",
-    "__SSE4_1__": "sse41",
-    "__SSE4_2__": "sse42",
-    "__AVX__":    "avx",
-    "__FMA__":    "fma",
-    "__AVX2__":   "avx2",
-    "__AES__":    "aes",
-    "__SHA__":    "sha",
-    "__PCLMUL__": "pclmul",
-    "__ARM_NEON": "neon",
-    "__ARM_FEATURE_CRC32": "acle_crc"
+    "__SSE__":              "sse",
+    "__SSE2__":             "sse2",
+    "__SSE3__":             "sse3",
+    "__SSSE3__":            "ssse3",
+    "__SSE4_1__":           "sse41",
+    "__SSE4_2__":           "sse42",
+    "__AVX__":              "avx",
+    "__FMA__":              "fma",
+    "__AVX2__":             "avx2",
+    "__AVX512F__":          "avx512f",
+    "__AVX512VL__":         "avx512vl",
+    "__AVX512VNNI__":       "avx512vnni",
+    "__F16C__":             "f16c",
+    "__BMI__":              "bmi1",
+    "__BMI2__":             "bmi2",
+    "__AES__":              "aes",
+    "__SHA__":              "sha",
+    "__PCLMUL__":           "pclmul",
+    "__ARM_NEON":           "neon",
+    "__ARM_FEATURE_CRC32":  "acle_crc"
 }
+_intrinAVX31 = ["__AVX512F__", "__AVX512CD__"] # skip ER & PF
+_intrinAVX32 = ["__AVX512F__", "__AVX512CD__", "__AVX512BW__", "__AVX512DQ__", "__AVX512VL__"]
+
+_checkCpp = '''
+#if __cplusplus >= 202002L
+#   include <version>
+#else
+#   include <ciso646>
+#endif
+int main() { }
+'''
 
 def _checkExists(prog:str) -> bool:
     FNULL = open(os.devnull, 'w')
@@ -77,24 +94,59 @@ def collectEnv(paras:dict) -> dict:
         env["platform"] = "x64" if is64Bits else "x86"
     
     targetarch = paras.get("targetarch", "native")
+    rawdefs = ""
     defs = {}
     if not env["osname"] == "Windows":
         qarg = "march" if env["arch"] == "x86" else "mcpu"
         env["archparam"] = f"-{qarg}={targetarch}"
-        rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} -xc++ -dM -E - < /dev/null", shell=True)
-        defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.decode().splitlines()])
+        stdlibarg = f"-stdlib={paras['stdlib']}" if "stdlib" in paras else ""
+        rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} {stdlibarg} -xc++ -dM -E -", shell=True, input=_checkCpp.encode()).decode()
+        defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
         env["compiler"] = "clang" if "__clang__" in defs else "gcc"
         arlinker = "gcc-ar" if env["compiler"] == "gcc" else "ar"
         if not _checkExists(arlinker): arlinker = "ar"
         env["arlinker"] = os.environ.get("STATICLINKER", arlinker)
+
         if env["compiler"] == "clang":
             env["clangVer"] = int(defs["__clang_major__"]) * 10000 + int(defs["__clang_minor__"]) * 100 + int(defs["__clang_patchlevel__"])
         else:
             env["gccVer"] = int(defs["__GNUC__"]) * 10000 + int(defs["__GNUC_MINOR__"]) * 100 + int(defs["__GNUC_PATCHLEVEL__"])
+
+        if "_LIBCPP_VERSION" in defs:
+            env["stdlib"] = "libc++"
+            ver = int(defs["_LIBCPP_VERSION"])
+            env["libc++Ver"] = ver % 1000 + ver / 1000 * 10
+        elif "__GLIBCXX__" in defs:
+            env["stdlib"] = "libstdc++"
+            if "_GLIBCXX_RELEASE" in defs: # introduced in 7.1
+                env["libstdc++Ver"] = int(defs["_GLIBCXX_RELEASE"]) * 10000
+            elif env["compiler"] == "gcc":
+                env["libstdc++Ver"] = env["gccVer"]
+            else:
+                env["libstdc++Ver"] = 60000 # assume 6.0.0
+        else:
+            env["stdlib"] = ""
+        
+        if "__BIONIC__" in defs:
+            env["libc"] = "bionic"
+        elif "__GLIBC__" in defs:
+            env["libc"] = "glibc"
+            env["glibcVer"] = int(defs["__GLIBC__"]) * 100 + int(defs["__GLIBC_MINOR__"])
     else:
         env["compiler"] = "msvc"
+
+    if "dumpdefine" in paras:
+        outfile = os.path.join(tempfile.gettempdir(), f"xzbuild-{env['compiler']}.h")
+        with open(outfile, "w") as file:
+            file.write(rawdefs)
+        print(f"defined output to [{outfile}]")
+
     env["intrin"] = set(i[1] for i in _intrinMap.items() if i[0] in defs)
+    if all(k in _intrinAVX31 for k in defs):
+        env["intrin"].add("avx31")
+    if all(k in _intrinAVX32 for k in defs):
+        env["intrin"].add("avx32")
     if "__ANDROID__" in defs:
         env["android"] = True
     if env["arch"] == "arm":
