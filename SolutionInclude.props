@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty\Projects;$(SolutionDir)3rdParty\GSL\include;C:\ProgramsData\Dependency\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty\Projects;C:\ProgramsData\Dependency\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup />
   <ItemGroup />

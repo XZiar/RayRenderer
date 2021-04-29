@@ -215,8 +215,8 @@ using u8ch_t = char;
 #include <string>
 #include <string_view>
 #include <type_traits> 
-#include "3rdParty/GSL/include/gsl/assert"
-#include "3rdParty/GSL/include/gsl/util"
+#include "3rdParty/gsl/assert"
+#include "3rdParty/gsl/util"
 
 #if UINTPTR_MAX == UINT64_MAX
 #   define COMMON_OSBIT 64
@@ -588,7 +588,7 @@ template<typename T>
 inline constexpr bool is_span_v = detail::is_span<common::remove_cvref_t<T>>::value;
 }
 #else
-#   include "3rdParty/GSL/include/gsl/span"
+#   include "3rdParty/gsl/span"
 namespace common
 {
 template <class ElementType, size_t Extent = gsl::dynamic_extent>
