@@ -2,6 +2,7 @@
 #include "NLCLSubgroup.h"
 
 
+using namespace std::string_view_literals;
 
 template<bool IsPrefix>
 struct OptionalArg
@@ -18,7 +19,7 @@ struct fmt::formatter<OptionalArg<IsPrefix>, Char>
         return ctx.begin();
     }
     template<typename FormatContext>
-    auto format(OptionalArg<IsPrefix> arg, FormatContext& ctx)
+    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx)
     {
         if (arg.Arg.empty())
             return ctx.out();
@@ -29,10 +30,38 @@ struct fmt::formatter<OptionalArg<IsPrefix>, Char>
     }
 };
 
+struct CastTypeArg
+{
+    using VecDataInfo = common::simd::VecDataInfo;
+    VecDataInfo VecType;
+    bool IsConvert;
+    constexpr CastTypeArg(VecDataInfo from, VecDataInfo to, bool isConvert) noexcept :
+        VecType(from == to ? to : VecDataInfo{ VecDataInfo::DataTypes::Empty,0,0,0 }), IsConvert(isConvert) { }
+    constexpr bool NeedCast() const noexcept { return VecType.Type != VecDataInfo::DataTypes::Empty; }
+    const std::u32string_view EndChar() const noexcept { return NeedCast() ? U")"sv : std::u32string_view{}; }
+};
+
+template<typename Char>
+struct fmt::formatter<CastTypeArg, Char>
+{
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+    template<typename FormatContext>
+    auto format(const CastTypeArg& arg, FormatContext& ctx)
+    {
+        if (!arg.NeedCast())
+            return ctx.out();
+        return fmt::format_to(ctx.out(), FMT_STRING(U"{}_{}("), 
+            arg.IsConvert ? U"convert"sv : U"as"sv, oclu::NLCLRuntime::GetCLTypeName(arg.VecType));
+    }
+};
+
 
 namespace oclu
 {
-using namespace std::string_view_literals;
 using namespace std::string_literals;
 using xcomp::ReplaceResult;
 using xziar::nailang::Arg;
@@ -156,14 +185,18 @@ ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executo
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [SubgroupBroadcast]"sv);
-        return HandleResult(Provider->SubgroupBroadcast(vtype, args[1], args[2]),
+        return HandleResult(
+            //Provider->SubgroupBroadcast(vtype, args[1], args[2]),
+            Provider->SubgroupBShuf(vtype, args[1], args[2], false),
             FMTSTR(U"SubgroupBroadcast with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupShuffle")
     {
         executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);
         const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [SubgroupShuffle]"sv);
-        return HandleResult(Provider->SubgroupShuffle(vtype, args[1], args[2]),
+        return HandleResult(
+            //Provider->SubgroupShuffle(vtype, args[1], args[2]),
+            Provider->SubgroupBShuf(vtype, args[1], args[2], true),
             FMTSTR(U"SubgroupShuffle with Type [{}] not supported", args[0]));
     }
     HashCase(func, U"SubgroupSum")
@@ -222,15 +255,9 @@ std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& execut
     return {};
 }
 
-SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
+NLCLSubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr)
 {
-    SubgroupCapbility cap;
-    cap.SupportSubgroupKHR      = context.SupportSubgroupKHR;
-    cap.SupportSubgroupIntel    = context.SupportSubgroupIntel;
-    cap.SupportSubgroup8Intel   = context.SupportSubgroup8Intel;
-    cap.SupportSubgroup16Intel  = context.SupportSubgroup16Intel;
-    cap.SupportFP16             = context.SupportFP16;
-    cap.SupportFP64             = context.SupportFP64;
+    NLCLSubgroupCapbility cap(context);
     for (auto arg : common::str::SplitStream(attr.Args, ',', false))
     {
         if (arg.empty()) continue;
@@ -238,18 +265,22 @@ SubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& context,
         if (isDisable) arg.remove_prefix(1);
         switch (common::DJBHash::HashC(arg))
         {
-#define Mod(dst, name) HashCase(arg, name) cap.dst = !isDisable; break
-        Mod(SupportSubgroupKHR,     "sg_khr");
-        Mod(SupportSubgroupIntel,   "sg_intel");
-        Mod(SupportSubgroup8Intel,  "sg_intel8");
-        Mod(SupportSubgroup16Intel, "sg_intel16");
-        Mod(SupportFP16,            "fp16");
-        Mod(SupportFP64,            "fp64");
+#define Mod(dst, name) HashCase(arg, name) cap.Support##dst = !isDisable; break
+        Mod(KHR,            "sg_khr");
+        Mod(KHRExtType,     "sg_khrexttype");
+        Mod(KHRShuffle,     "sg_khrshuf");
+        Mod(KHRShuffleRel,  "sg_khrshufrel");
+        Mod(Intel,          "sg_intel");
+        Mod(Intel8,         "sg_intel8");
+        Mod(Intel16,        "sg_intel16");
+        Mod(Intel64,        "sg_intel64");
+        Mod(FP16,           "fp16");
+        Mod(FP64,           "fp64");
 #undef Mod
         default: break;
         }
     }
-    cap.SupportBasicSubgroup = cap.SupportSubgroupKHR || cap.SupportSubgroupIntel;
+    cap.SupportBasicSubgroup = cap.SupportKHR || cap.SupportIntel;
     return cap;
 }
 
@@ -276,7 +307,7 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
     }
     Ensures(mType != SubgroupAttributes::MimicType::Auto);
 
-    if (cap.SupportSubgroupIntel)
+    if (cap.SupportIntel)
         return std::make_shared<NLCLSubgroupIntel>(logger, context, cap);
     else if (mType == SubgroupAttributes::MimicType::Ptx)
     {
@@ -389,9 +420,20 @@ std::u32string SubgroupProvider::HiLoPatch(const std::u32string_view name, const
     return func;
 }
 
-SubgroupProvider::SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap) :
+SubgroupProvider::SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap) :
     Logger(logger), Context(context), Cap(cap)
 { }
+void SubgroupProvider::EnableVecType(VecDataInfo type) noexcept 
+{
+    const auto stype = type.Scalar();
+    switch (stype)
+    {
+    case VecDataInfo{ VecDataInfo::DataTypes::Float, 16, 0, 0 }: EnableFP16 = true; break;
+    case VecDataInfo{ VecDataInfo::DataTypes::Float, 64, 0, 0 }: EnableFP64 = true; break;
+    default: break;
+    }
+}
+
 void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
 {
     for (const auto& item : Warnings)
@@ -401,8 +443,12 @@ void SubgroupProvider::AddWarning(common::str::StrVariant<char16_t> msg)
     }
     Warnings.push_back(msg.ExtractStr());
 }
-void SubgroupProvider::OnFinish(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&)
+void SubgroupProvider::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension&, KernelContext&)
 {
+    if (EnableFP16)
+        runtime.EnableExtension("cl_khr_fp16"sv);
+    if (EnableFP64)
+        runtime.EnableExtension("cl_khr_fp64"sv) || runtime.EnableExtension("cl_amd_fp64"sv);
     for (const auto& item : Warnings)
     {
         Logger.warning(item);
@@ -495,16 +541,274 @@ struct SingleArgFunc
 #define BSRetCast(func, type, bit, dim) return SingleArgFunc(func, ele, vtype, { type, bit, static_cast<uint8_t>(dim), 0 }, false).Attach(U""sv, idx)
 
 
+struct TypedArgFunc
+{
+    static constexpr VecDataInfo Dummy{ VecDataInfo::DataTypes::Empty, 0, 0, 0 };
+    std::shared_ptr<const xcomp::ReplaceDepend> Depends;
+    std::u32string Func;
+    std::u32string_view Element;
+    std::u32string_view Prefix;
+    std::u32string_view Suffix;
+    VecDataInfo SrcType;
+    VecDataInfo MidType;
+    VecDataInfo DstType;
+
+    TypedArgFunc() noexcept : SrcType(Dummy), MidType(Dummy), DstType(Dummy) { }
+    TypedArgFunc(const std::u32string_view func, const VecDataInfo src, const VecDataInfo mid, const VecDataInfo dst) noexcept :
+        Func(func), SrcType(src), MidType(mid), DstType(dst) { }
+
+    TypedArgFunc& Depend(std::shared_ptr<const xcomp::ReplaceDepend> depends) noexcept
+    {
+        Depends = std::move(depends);
+        return *this;
+    }
+    TypedArgFunc& Depend(std::pair<std::shared_ptr<const xcomp::ReplaceDepend>, bool>& depends) noexcept
+    {
+        Depends = std::move(depends.first);
+        return *this;
+    }
+    TypedArgFunc& Depend() noexcept
+    {
+        Depends = GEN_DEPEND(Func)();
+        return *this;
+    }
+    constexpr TypedArgFunc& Content(const std::u32string_view element, const std::u32string_view prefix, const std::u32string_view suffix) noexcept
+    {
+        Element = element; Prefix = prefix; Suffix = suffix;
+        return *this;
+    }
+
+    explicit operator bool() const noexcept { return !Func.empty(); }
+    std::u32string ToStr() const
+    {
+        if (Func.empty()) return {};
+        /*CastTypeArg src2mid(SrcType, MidType, true), mid2dst(MidType, DstType, false),
+            dst2mid(DstType, MidType, false), mid2src(MidType, SrcType, true);*/
+        const bool step1 = SrcType != MidType, step2 = MidType != DstType;
+        std::u32string txt;
+        if (step1)
+            txt.append(U"convert_").append(oclu::NLCLRuntime::GetCLTypeName(SrcType)).append(U"("sv);
+        if (step2)
+            txt.append(U"as_").append(oclu::NLCLRuntime::GetCLTypeName(MidType)).append(U"("sv);
+        txt.append(Func).append(U"(");
+        if (!Prefix.empty())
+            txt.append(Prefix).append(U", ");
+        if (step2)
+            txt.append(U"as_").append(oclu::NLCLRuntime::GetCLTypeName(DstType)).append(U"("sv);
+        if (step1)
+            txt.append(U"convert_").append(oclu::NLCLRuntime::GetCLTypeName(MidType)).append(U"("sv);
+        txt.append(Element);
+        if (step1)
+            txt.append(U")"sv);
+        if (step2)
+            txt.append(U")"sv);
+        if (!Suffix.empty())
+            txt.append(U", ").append(Suffix);
+        txt.append(U")"sv);
+        if (step2)
+            txt.append(U")"sv);
+        if (step1)
+            txt.append(U")"sv);
+        return txt;
+    }
+    operator xcomp::ReplaceResult() const
+    {
+        if (Depends)
+        {
+            return { ToStr(), Depends };
+        }
+        else
+        {
+            return ToStr();
+        }
+    }
+
+};
+
+
+TypedArgFunc SubgroupProvider::SubgroupBShuf(common::simd::VecDataInfo origType, common::simd::VecDataInfo srcType, 
+    bool isConvert, uint8_t featMask)
+{
+    xcomp::VecDimSupport Algorithm::DTypeSupport::* dtPtr1 = nullptr;
+    xcomp::VecDimSupport Algorithm::DTypeSupport::* dtPtr2 = nullptr;
+    VecDataInfo::DataTypes alterType = VecDataInfo::DataTypes::Custom;
+    switch (srcType.Type)
+    {
+    case VecDataInfo::DataTypes::Float: 
+        dtPtr1 = &Algorithm::DTypeSupport::FP; 
+        dtPtr2 = &Algorithm::DTypeSupport::Int; 
+        alterType = VecDataInfo::DataTypes::Unsigned;
+        break;
+    case VecDataInfo::DataTypes::Unsigned: 
+    case VecDataInfo::DataTypes::Signed: 
+        dtPtr1 = &Algorithm::DTypeSupport::Int; 
+        dtPtr2 = &Algorithm::DTypeSupport::FP; 
+        alterType = VecDataInfo::DataTypes::Float;
+        break;
+    default:
+        return {};
+    }
+    Algorithm::DTypeSupport Algorithm::* btPtr = nullptr;
+    switch (srcType.Bit)
+    {
+    case 64: btPtr = &Algorithm::Bit64; break;
+    case 32: btPtr = &Algorithm::Bit32; break;
+    case 16: btPtr = &Algorithm::Bit16; break;
+    case  8: btPtr = &Algorithm::Bit8;  break;
+    default: return {};
+    }
+
+    const auto convedType = isConvert ? srcType : origType /*bypass prev cast*/;
+    // try exact match bit and dtype 
+    {
+        for (const auto& algo : BShufSupport)
+        {
+            if ((algo.Features & featMask) == 0)
+                continue;
+            const auto& sup = (algo.*btPtr).*dtPtr1;
+            if (sup.Check(srcType.Dim0))
+            {
+                const auto ret = SubgroupBShufAlgo(algo.ID, srcType);
+                if (!ret.FuncName.empty())
+                    return TypedArgFunc(ret.FuncName.StrView(), origType, convedType, srcType);
+            }
+        }
+    }
+    // try only bit match
+    {
+        const VecDataInfo midType{ alterType, srcType.Bit, srcType.Dim0, 0 };
+        for (const auto& algo : BShufSupport)
+        {
+            if ((algo.Features & featMask) == 0)
+                continue;
+            const auto& sup = (algo.*btPtr).*dtPtr2;
+            if (sup.Check(srcType.Dim0))
+            {
+                const auto ret = SubgroupBShufAlgo(algo.ID, midType);
+                if (!ret.FuncName.empty())
+                    return TypedArgFunc(ret.FuncName.StrView(), origType, convedType, midType);
+            }
+        }
+    }
+    // try loop-based
+    {
+        const VecDataInfo vectorUType{ VecDataInfo::DataTypes::Unsigned, srcType.Bit, srcType.Dim0, 0 };
+        const VecDataInfo scalarUType{ VecDataInfo::DataTypes::Unsigned, srcType.Bit, 1, 0 };
+        const auto typeSuffix = xcomp::StringifyVDataType(vectorUType);
+        for (const auto& algo : BShufSupport)
+        {
+            if ((algo.Features & featMask) == 0)
+                continue;
+            const auto& sup = (algo.*btPtr).Int;
+            if (sup.Check(1))
+            {
+                const auto ret = SubgroupBShufAlgo(algo.ID, scalarUType);
+                Expects(!ret.FuncName.empty());
+                const auto funcName = FMTSTR(U"oclu_subgroup_{}_{}_{}", 
+                    (algo.Features & Algorithm::FeatureShuffle) ? U"shuffle"sv : U"broadcast"sv, ret.Suffix, typeSuffix);
+                auto dep = Context.AddPatchedBlock(funcName, [&]()
+                    {
+                        return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, ret.FuncName.StrView(), vectorUType);
+                    });
+                return TypedArgFunc(funcName, origType, convedType, vectorUType).Depend(dep);
+            }
+        }
+    }
+    return {};
+}
+xcomp::ReplaceResult SubgroupProvider::SubgroupBShuf(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx, bool isShuf)
+{
+    const uint8_t featMask = isShuf ? Algorithm::FeatureShuffle : Algorithm::FeatureBroadcast;
+
+    // try direct type
+    if (auto ret = SubgroupBShuf(vtype, vtype, false, featMask); ret)
+        return ret.Content(ele, {}, idx);
+
+    // try cast to other datatype
+    for (const auto bit : std::array<uint8_t, 4>{64, 32, 16, 8})
+    {
+        if (bit > vtype.Bit)
+        {
+            const auto scale = bit / vtype.Bit;
+            if (bit % vtype.Bit != 0 || vtype.Dim0 % scale != 0)
+                continue;
+        }
+        else if (bit < vtype.Bit)
+        {
+            const auto scale = vtype.Bit / bit;
+            if (vtype.Bit % bit != 0)
+                continue;
+        }
+        else
+            continue;
+        const uint8_t newDim0 = static_cast<uint8_t>(vtype.Dim0 * vtype.Bit / bit);
+        // TODO: handle vdim0 > 16
+        const VecDataInfo vectorUType{ VecDataInfo::DataTypes::Unsigned, bit, newDim0, 0 };
+        if (auto ret = SubgroupBShuf(vtype, vectorUType, false, featMask); ret)
+            return ret.Content(ele, {}, idx);
+    }
+
+    // try expend bits to bigger datatype
+    for (const auto bit : std::array<uint8_t, 3>{16, 32, 64})
+    {
+        uint8_t newDim0 = 0;
+        if (bit <= vtype.Bit)
+            break;
+        const VecDataInfo vectorUType{ VecDataInfo::DataTypes::Unsigned, bit, vtype.Dim0, 0 };
+        if (auto ret = SubgroupBShuf(vtype, vectorUType, true, featMask); ret)
+            return ret.Content(ele, {}, idx);
+    }
+    return {};
+}
+
+// algo 0: sub_group_broadcast
+// algo 1: sub_group_shuffle | relative
+NLCLSubgroupKHR::NLCLSubgroupKHR(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap) :
+    SubgroupProvider(logger, context, cap)
+{
+    constexpr xcomp::VecDimSupport supportAll = xcomp::VTypeDimSupport::All;
+    constexpr xcomp::VecDimSupport support1   = xcomp::VTypeDimSupport::Support1;
+    constexpr xcomp::VecDimSupport support0   = xcomp::VTypeDimSupport::Empty;
+    if (cap.SupportKHR)
+    {
+        const auto basicVec = cap.SupportKHRExtType ? supportAll : support1;
+        const auto extVec   = cap.SupportKHRExtType ? supportAll : support0;
+        auto& algo = BShufSupport.emplace_back(AlgoKHRBroadcast, Algorithm::FeatureBroadcast);
+        algo.Bit64.Set(basicVec, cap.SupportFP64 ? basicVec : support0);
+        algo.Bit32.Set(basicVec);
+        algo.Bit16.Set(  extVec, cap.SupportFP16 ? basicVec : support0);
+        if (cap.SupportKHRExtType)
+            algo.Bit8.Set(supportAll, support0);
+    }
+    if (cap.SupportKHRShuffle)
+    {
+        const auto feats = static_cast<uint8_t>(Algorithm::FeatureBroadcast | 
+            (cap.SupportKHRShuffleRel ? Algorithm::FeatureShuffleRel : Algorithm::FeatureShuffle));
+        auto& algo = BShufSupport.emplace_back(AlgoKHRShuffle, feats);
+        algo.Bit64.Set(support1, cap.SupportFP64 ? support1 : support0);
+        algo.Bit32.Set(support1);
+        algo.Bit16.Set(support1, cap.SupportFP16 ? support1 : support0);
+        algo.Bit8 .Set(support1, support0);
+    }
+}
 
 void NLCLSubgroupKHR::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
-    if (EnableSubgroup)
+    if (EnableKHRBasic)
         runtime.EnableExtension("cl_khr_subgroups"sv);
-    if (EnableFP16)
-        runtime.EnableExtension("cl_khr_fp16"sv);
-    if (EnableFP64)
-        runtime.EnableExtension("cl_khr_fp64"sv) || runtime.EnableExtension("cl_amd_fp64"sv);
+    if (EnableKHRExtType)
+        runtime.EnableExtension("cl_khr_subgroup_extended_types"sv);
+    if (EnableKHRShuffle)
+        runtime.EnableExtension("cl_khr_subgroup_shuffle"sv);
+    if (EnableKHRShuffleRel)
+        runtime.EnableExtension("cl_khr_subgroup_shuffle_relative"sv);
     SubgroupProvider::OnFinish(runtime, ext, kernel);
+}
+
+void NLCLSubgroupKHR::EnableVecExtType(VecDataInfo type) noexcept
+{
+    if (type.Dim0 > 1 || type.Bit == 8)
+        EnableKHRExtType = true;
 }
 
 void NLCLSubgroupKHR::WarnFP(VecDataInfo vtype, const std::u16string_view func)
@@ -525,7 +829,7 @@ void NLCLSubgroupKHR::WarnFP(VecDataInfo vtype, const std::u16string_view func)
 ReplaceResult NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataInfo vtype, VecDataInfo realType, const std::u32string_view ele)
 {
     Expects(IsReduceOpArith(op));
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     // https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/sub_group_broadcast.html
     const auto func = [](SubgroupReduceOp op)
     {
@@ -553,92 +857,111 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduceArith(SubgroupReduceOp op, VecDataI
 
 ReplaceResult NLCLSubgroupKHR::GetSubgroupSize()
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return U"get_sub_group_size()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::GetMaxSubgroupSize()
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return U"get_max_sub_group_size()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::GetSubgroupCount()
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return U"get_num_sub_groups()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::GetSubgroupId()
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return U"get_sub_group_id()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::GetSubgroupLocalId()
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return U"get_sub_group_local_id()"sv;
 }
 ReplaceResult NLCLSubgroupKHR::SubgroupAll(const std::u32string_view predicate)
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return FMTSTR(U"sub_group_all({})"sv, predicate);
 }
 ReplaceResult NLCLSubgroupKHR::SubgroupAny(const std::u32string_view predicate)
 {
-    EnableSubgroup = true;
+    EnableKHRBasic = true;
     return FMTSTR(U"sub_group_any({})"sv, predicate);
 }
-ReplaceResult NLCLSubgroupKHR::SubgroupBroadcast(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
+SubgroupProvider::AlgorithmResult NLCLSubgroupKHR::SubgroupBShufAlgo(uint8_t algoId, VecDataInfo vtype)
 {
-    EnableSubgroup = true;
-    // https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/sub_group_broadcast.html
-    constexpr auto func = U"sub_group_broadcast"sv;
-
-    // prioritize supported width to avoid patch
-    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
-    switch (totalBits)
+    std::u32string_view funcname;
+    if (algoId == AlgoKHRBroadcast)
     {
-    case 64:
-        if (vtype.Type == VecDataInfo::DataTypes::Float && vtype.Dim0 == 1 && Cap.SupportFP64)
-        { // fp64, consider extension
-            EnableFP64 = true;
-            BSRetDirect(func);
-        }
-        BSRetCast(func, VecDataInfo::DataTypes::Unsigned, 64, 1);
-    case 32:
-        BSRetCast(func, vtype.Type, 32, 1);
-    case 16:
-        if (Cap.SupportFP16) // only when FP16 is supported
-        {
-            EnableFP16 = true;
-            BSRetCast(func, VecDataInfo::DataTypes::Float, 16, 1);
-        }
-        break;
-    default:
-        break;
+        funcname = U"sub_group_broadcast"sv;
+        EnableKHRBasic = true;
+        EnableVecExtType(vtype); 
     }
-
-    // need patch
-    constexpr VecDataInfo supportScalars[]
+    else if (algoId == AlgoKHRShuffle)
     {
-        { VecDataInfo::DataTypes::Unsigned, 64u, 1u, 0u },
-        { VecDataInfo::DataTypes::Unsigned, 32u, 1u, 0u },
-        { VecDataInfo::DataTypes::Float,    16u, 1u, 0u },
-    };
-    common::span<const VecDataInfo> supports(supportScalars);
-    if (!Cap.SupportFP16)
-        supports = supports.subspan(0, 2);
-    if (const auto mid = DecideVtype(vtype, supports); mid.has_value())
-    {
-        if (mid->Bit == 16)
-            EnableFP16 = true;
-        const auto funcName = FMTSTR(U"oclu_subgroup_broadcast_{}", totalBits);
-        auto dep = Context.AddPatchedBlock(funcName, [&]()
-            {
-                return NLCLSubgroupKHR::ScalarPatchBcastShuf(funcName, U"sub_group_broadcast"sv, mid.value());
-            });
-        BSRetCastT(funcName, *mid).Depend(dep);
+        funcname = U"sub_group_shuffle"sv;
+        EnableKHRShuffle = true;
     }
-    RET_FAIL(SubgroupBroadcast);
+    else
+        return {};
+    EnableVecType(vtype);
+    return { funcname, U"khr"sv };
 }
+//ReplaceResult NLCLSubgroupKHR::SubgroupBroadcast(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
+//{
+//    EnableKHRBasic = true;
+//    // https://www.khronos.org/registry/OpenCL/sdk/2.0/docs/man/xhtml/sub_group_broadcast.html
+//    constexpr auto func = U"sub_group_broadcast"sv;
+//
+//    // prioritize supported width to avoid patch
+//    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+//    switch (totalBits)
+//    {
+//    case 64:
+//        if (vtype.Type == VecDataInfo::DataTypes::Float && vtype.Dim0 == 1 && Cap.SupportFP64)
+//        { // fp64, consider extension
+//            EnableFP64 = true;
+//            BSRetDirect(func);
+//        }
+//        BSRetCast(func, VecDataInfo::DataTypes::Unsigned, 64, 1);
+//    case 32:
+//        BSRetCast(func, vtype.Type, 32, 1);
+//    case 16:
+//        if (Cap.SupportFP16) // only when FP16 is supported
+//        {
+//            EnableFP16 = true;
+//            BSRetCast(func, VecDataInfo::DataTypes::Float, 16, 1);
+//        }
+//        break;
+//    default:
+//        break;
+//    }
+//
+//    // need patch
+//    constexpr VecDataInfo supportScalars[]
+//    {
+//        { VecDataInfo::DataTypes::Unsigned, 64u, 1u, 0u },
+//        { VecDataInfo::DataTypes::Unsigned, 32u, 1u, 0u },
+//        { VecDataInfo::DataTypes::Float,    16u, 1u, 0u },
+//    };
+//    common::span<const VecDataInfo> supports(supportScalars);
+//    if (!Cap.SupportFP16)
+//        supports = supports.subspan(0, 2);
+//    if (const auto mid = DecideVtype(vtype, supports); mid.has_value())
+//    {
+//        if (mid->Bit == 16)
+//            EnableFP16 = true;
+//        const auto funcName = FMTSTR(U"oclu_subgroup_broadcast_{}", totalBits);
+//        auto dep = Context.AddPatchedBlock(funcName, [&]()
+//            {
+//                return NLCLSubgroupKHR::ScalarPatchBcastShuf(funcName, U"sub_group_broadcast"sv, mid.value());
+//            });
+//        BSRetCastT(funcName, *mid).Depend(dep);
+//    }
+//    RET_FAIL(SubgroupBroadcast);
+//}
 
 ReplaceResult NLCLSubgroupKHR::SubgroupReduce(SubgroupReduceOp op, VecDataInfo vtype, const std::u32string_view ele)
 {
@@ -664,9 +987,24 @@ ReplaceResult NLCLSubgroupKHR::SubgroupReduce(SubgroupReduceOp op, VecDataInfo v
 }
 
 
-NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap) : 
+// algo 8 : intel_sub_group_broadcast
+NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap) :
     NLCLSubgroupKHR(logger, context, cap)
 {
+    constexpr xcomp::VecDimSupport supportAll = xcomp::VTypeDimSupport::All;
+    constexpr xcomp::VecDimSupport support1   = xcomp::VTypeDimSupport::Support1;
+    constexpr xcomp::VecDimSupport support0   = xcomp::VTypeDimSupport::Empty;
+    if (cap.SupportIntel)
+    {
+        auto& algo = BShufSupport.emplace_back(AlgoIntelShuffle, static_cast<uint8_t>(
+            Algorithm::FeatureBroadcast | Algorithm::FeatureShuffle | Algorithm::FeatureShuffleRel));
+        algo.Bit64.Set(support1, cap.SupportFP64 ? support1 : support0);
+        algo.Bit32.Set(supportAll);
+        algo.Bit16.Set(Cap.SupportIntel16 ? supportAll : support0, cap.SupportFP16 ? support1 : support0);
+        if (cap.SupportIntel8)
+            algo.Bit8.Set(REMOVE_MASK(xcomp::VTypeDimSupport::All, xcomp::VTypeDimSupport::Support3), support0);
+    }
+
     CommonSupport =
     {
         { VecDataInfo::DataTypes::Unsigned, 64u,  1u, 0u },
@@ -674,10 +1012,32 @@ NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NL
     };
     if (Cap.SupportFP16)
         CommonSupport.push_back({ VecDataInfo::DataTypes::Float,    16u,  1u, 0u });
-    if (Cap.SupportSubgroup16Intel)
+    if (Cap.SupportIntel16)
         CommonSupport.push_back({ VecDataInfo::DataTypes::Unsigned, 16u, 16u, 0u });
-    if (Cap.SupportSubgroup8Intel)
+    if (Cap.SupportIntel8)
         CommonSupport.push_back({ VecDataInfo::DataTypes::Unsigned, 8u,  16u, 0u });
+}
+
+void NLCLSubgroupIntel::EnableExtraVecType(VecDataInfo type) noexcept
+{
+    if (type.Bit == 8)
+        EnableIntel8 = EnableIntel = true;
+    else if (type.Bit == 16)
+    {
+        if (type.Type == VecDataInfo::DataTypes::Signed || type.Type == VecDataInfo::DataTypes::Unsigned)
+            EnableIntel16 = EnableIntel = true;
+    }
+}
+
+SubgroupProvider::AlgorithmResult NLCLSubgroupIntel::SubgroupBShufAlgo(uint8_t algoId, VecDataInfo vtype)
+{
+    std::u32string_view funcname;
+    if (algoId == AlgoIntelShuffle)
+        funcname = U"intel_sub_group_shuffle"sv;
+    else
+        return NLCLSubgroupKHR::SubgroupBShufAlgo(algoId, vtype);
+    EnableVecType(vtype);
+    return { funcname, U"intel"sv };
 }
 
 // https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_subgroups.html
@@ -711,14 +1071,14 @@ std::u32string NLCLSubgroupIntel::VectorPatch(const std::u32string_view funcName
 
 void NLCLSubgroupIntel::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel)
 {
-    if (EnableSubgroupIntel)
+    if (EnableIntel)
         runtime.EnableExtension("cl_intel_subgroups"sv);
-    if (EnableSubgroup16Intel)
+    if (EnableIntel16)
         runtime.EnableExtension("cl_intel_subgroups_short"sv);
-    if (EnableSubgroup8Intel)
+    if (EnableIntel8)
         runtime.EnableExtension("cl_intel_subgroups_char"sv);
-    if (EnableSubgroup)
-        EnableSubgroup = !runtime.EnableExtension("cl_intel_subgroups"sv);
+    if (EnableKHRBasic)
+        EnableKHRBasic = !runtime.EnableExtension("cl_intel_subgroups"sv);
     if (ext.SubgroupSize > 0)
     {
         if (runtime.EnableExtension("cl_intel_required_subgroup_size"sv, u"Request Subggroup Size"sv))
@@ -731,7 +1091,7 @@ void NLCLSubgroupIntel::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
 ReplaceResult NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
 {
     constexpr auto func = U"intel_sub_group_shuffle"sv;
-    EnableSubgroupIntel = true;
+    EnableIntel = true;
 
     // match scalar bit first
     switch (vtype.Bit)
@@ -751,10 +1111,10 @@ ReplaceResult NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32
     case 32: // all vector supported
         BSRetDirect(func);
     case 16:
-        if ((vtype.Dim0 != 1 || vtype.Type != VecDataInfo::DataTypes::Float) && Cap.SupportSubgroup16Intel)
+        if ((vtype.Dim0 != 1 || vtype.Type != VecDataInfo::DataTypes::Float) && Cap.SupportIntel16)
         {
             // vector need intel16, scalar int prefer intel16
-            EnableSubgroup16Intel = true;
+            EnableIntel16 = true;
             if (vtype.Type != VecDataInfo::DataTypes::Float)
                 BSRetDirect(func);
             else
@@ -767,9 +1127,9 @@ ReplaceResult NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32
         }
         break;
     case 8:
-        if (Cap.SupportSubgroup8Intel)
+        if (Cap.SupportIntel8)
         {
-            EnableSubgroup8Intel = true;
+            EnableIntel8 = true;
             const auto newType = vtype.Type == VecDataInfo::DataTypes::Float ? VecDataInfo::DataTypes::Unsigned : vtype.Type;
             BSRetCast(func, newType, 8, vtype.Dim0);
         }
@@ -792,10 +1152,10 @@ ReplaceResult NLCLSubgroupIntel::DirectShuffle(VecDataInfo vtype, const std::u32
             if (mid.Type == VecDataInfo::DataTypes::Float)
                 EnableFP16 = true;
             else
-                EnableSubgroup16Intel = true;
+                EnableIntel16 = true;
         }
         else if (mid.Bit == 8)
-            EnableSubgroup8Intel = true;
+            EnableIntel8 = true;
         BSRetCast(func, mid.Type, mid.Bit, vnum);
     }
     RET_FAIL(SubgroupShuffle);
@@ -816,15 +1176,15 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceArith(SubgroupReduceOp op, VecDat
         {
         case 16:
             // https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_subgroups_short.html
-            if (Cap.SupportSubgroup16Intel)
-                EnableSubgroup16Intel = true;
+            if (Cap.SupportIntel16)
+                EnableIntel16 = true;
             else
                 mid.Bit = 32;
             break;
         case 8:
             // https://www.khronos.org/registry/OpenCL/extensions/intel/cl_intel_subgroups_char.html
-            if (Cap.SupportSubgroup8Intel)
-                EnableSubgroup8Intel = true;
+            if (Cap.SupportIntel8)
+                EnableIntel8 = true;
             else
                 mid.Bit = 32;
             break;
@@ -855,9 +1215,9 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
     };
     const uint32_t totalBits = vtype.Bit * vtype.Dim0;
     const auto [method, scalarBit] = vtype.Bit == 16 ?
-        DecideMethod(totalBits, 16, Cap.SupportSubgroup16Intel) :
+        DecideMethod(totalBits, 16, Cap.SupportIntel16) :
         (vtype.Bit == 8 ?
-            DecideMethod(totalBits, 8, Cap.SupportSubgroup8Intel) :
+            DecideMethod(totalBits, 8, Cap.SupportIntel8) :
             std::pair<Method, uint8_t>{ Method::Direct, vtype.Bit });
     const auto vnum = method == Method::Combine ? static_cast<uint8_t>(totalBits / scalarBit) : vtype.Dim0;
     Expects(vnum >= 1 && vnum <= 16);
@@ -866,7 +1226,7 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
     const auto scalarName = NLCLRuntime::GetCLTypeName(scalarType);
     const auto scalarFunc = FMTSTR(U"oclu_subgroup_intel_{}_{}"sv, opstr, xcomp::StringifyVDataType(scalarType));
 
-    EnableSubgroupIntel = true;
+    EnableIntel = true;
     auto dep0 = Context.AddPatchedBlock(scalarFunc, [&]()
         {
             auto func = FMTSTR(U"inline {0} {1}({0} x)"sv, scalarName, scalarFunc);
@@ -926,183 +1286,183 @@ ReplaceResult NLCLSubgroupIntel::SubgroupReduceBitwise(SubgroupReduceOp op, VecD
 
 }
 
-ReplaceResult NLCLSubgroupIntel::SubgroupBroadcast(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
-{
-    constexpr auto bcKHR = U"sub_group_broadcast"sv;
-    constexpr auto bcIntel = U"intel_sub_group_broadcast"sv;
-    
-    // prioritize scalar type due to reg layout
-    if (vtype.Dim0 == 1)
-    {
-        switch (vtype.Bit)
-        {
-        case 64:
-            if (vtype.Type == VecDataInfo::DataTypes::Float && Cap.SupportFP64)
-            { // fp64, consider extension
-                EnableSubgroup = true;
-                EnableFP64 = true;
-                BSRetDirect(bcKHR);
-            }
-            BSRetCast(bcKHR, VecDataInfo::DataTypes::Unsigned, 64, 1);
-        case 32: // all supported
-            EnableSubgroup = true;
-            BSRetDirect(bcKHR);
-        case 16:
-            if (vtype.Type == VecDataInfo::DataTypes::Float && Cap.SupportFP16)
-            {
-                EnableFP16 = true;
-                EnableSubgroup = true;
-                BSRetDirect(bcKHR);
-            }
-            if (vtype.Type != VecDataInfo::DataTypes::Float && Cap.SupportSubgroup16Intel)
-            {
-                EnableSubgroup16Intel = true;
-                BSRetDirect(bcIntel);
-            }
-            if (Cap.SupportFP16)
-            {
-                EnableSubgroup = true;
-                EnableFP16 = true;
-                BSRetCast(bcKHR, VecDataInfo::DataTypes::Float, 16, 1);
-            }
-            if (Cap.SupportSubgroup16Intel)
-            {
-                EnableSubgroup16Intel = true;
-                BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 16, 1);
-            }
-            break;
-        case 8:
-            if (Cap.SupportSubgroup8Intel)
-            {
-                EnableSubgroup8Intel = true;
-                BSRetDirect(bcIntel);
-            }
-            break;
-        default:
-            break;
-        }
-    }
-    
-    // fallback to subgroup_shuffle due to reg layout
-    if (auto ret = DirectShuffle(vtype, ele, idx); ret)
-        return ret;
-    
-    // fallback to reinterpret to avoid patch
-    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
-    switch (totalBits)
-    {
-    case 64:
-        // no need to consider FP64
-        EnableSubgroup = true;
-        BSRetCast(bcKHR, VecDataInfo::DataTypes::Unsigned, 64, 1);
-    case 32:
-        EnableSubgroup = true;
-        BSRetCast(bcKHR, vtype.Type, 32, 1);
-    case 16:
-        if (Cap.SupportFP16)
-        {
-            EnableSubgroup = true;
-            EnableFP16 = true;
-            BSRetCast(bcKHR, VecDataInfo::DataTypes::Float, 16, 1);
-        }
-        if (Cap.SupportSubgroup16Intel)
-        {
-            EnableSubgroup16Intel = true;
-            BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 16, 1);
-        }
-        break;
-    case 8:
-        if (Cap.SupportSubgroup8Intel)
-        {
-            EnableSubgroup8Intel = true;
-            BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 8, 1);
-        }
-        break;
-    default:
-        break;
-    }
-
-    // need patch
-    if (const auto mid = DecideVtype(vtype, CommonSupport); mid.has_value())
-    {
-        bool useIntel = false;
-        if (mid->Bit == 16)
-        {
-            if (mid->Type == VecDataInfo::DataTypes::Float)
-                EnableFP16 = true, useIntel = false;
-            else
-                EnableSubgroup16Intel = true, useIntel = true;
-        }
-        else if (mid->Bit == 8)
-            EnableSubgroup8Intel = true, useIntel = true;
-        else
-            useIntel = false;
-        const auto funcName = FMTSTR(U"oclu_subgroup_broadcast{}_{}", useIntel? U"_intel"sv : U""sv, totalBits);
-        auto dep = Context.AddPatchedBlock(funcName, [&]()
-            {
-                return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, useIntel ? bcIntel : bcKHR, mid.value());
-            });
-        BSRetCastT(funcName, mid.value()).Depend(dep);
-    }
-    RET_FAIL(SubgroupBroadcast);
-}
-
-ReplaceResult NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
-{
-    constexpr auto func = U"intel_sub_group_shuffle"sv;
-    // fallback to subgroup_shuffle to due to reg layout
-    if (auto ret = DirectShuffle(vtype, ele, idx); ret)
-        return ret;
-
-    // need patch, prefer smaller type due to reg layout
-    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
-    const VecDataInfo newType = ToUintVec(vtype);
-    for (const auto& mid : CommonSupport)
-    {
-        if (vtype.Bit <= mid.Bit || mid.Bit > 32 /*|| vtype.Bit % mid.Bit != 0*/)
-            continue;
-        const auto vnum = vtype.Bit / mid.Bit;
-        if (!CheckVNum(vnum))
-            continue;
-        if (mid.Bit == 16)
-        {
-            if (mid.Type == VecDataInfo::DataTypes::Float)
-                EnableFP16 = true;
-            else
-                EnableSubgroup16Intel = true;
-        }
-        else if (mid.Bit == 8)
-            EnableSubgroup8Intel = true;
-        const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
-        auto dep = Context.AddPatchedBlock(funcName, [&]()
-            {
-                return NLCLSubgroupIntel::VectorPatchBcastShuf(funcName, func, newType, ToScalar(mid));
-            });
-        BSRetCastT(funcName, newType).Depend(dep);
-    }
-
-    // need patch, ignore reg size
-    if (const auto mid = DecideVtype(vtype, CommonSupport); mid.has_value())
-    {
-        if (mid->Bit == 16)
-        {
-            if (mid->Type == VecDataInfo::DataTypes::Float)
-                EnableFP16 = true;
-            else
-                EnableSubgroup16Intel = true;
-        }
-        else if (mid->Bit == 8)
-            EnableSubgroup8Intel = true;
-        const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
-        auto dep = Context.AddPatchedBlock(funcName, [&]()
-            {
-                return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, func, mid.value());
-            });
-        BSRetCastT(funcName, mid.value()).Depend(dep);
-    }
-
-    RET_FAIL(SubgroupShuffle);
-}
+//ReplaceResult NLCLSubgroupIntel::SubgroupBroadcast(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
+//{
+//    constexpr auto bcKHR = U"sub_group_broadcast"sv;
+//    constexpr auto bcIntel = U"intel_sub_group_broadcast"sv;
+//    
+//    // prioritize scalar type due to reg layout
+//    if (vtype.Dim0 == 1)
+//    {
+//        switch (vtype.Bit)
+//        {
+//        case 64:
+//            if (vtype.Type == VecDataInfo::DataTypes::Float && Cap.SupportFP64)
+//            { // fp64, consider extension
+//                EnableKHRBasic = true;
+//                EnableFP64 = true;
+//                BSRetDirect(bcKHR);
+//            }
+//            BSRetCast(bcKHR, VecDataInfo::DataTypes::Unsigned, 64, 1);
+//        case 32: // all supported
+//            EnableKHRBasic = true;
+//            BSRetDirect(bcKHR);
+//        case 16:
+//            if (vtype.Type == VecDataInfo::DataTypes::Float && Cap.SupportFP16)
+//            {
+//                EnableFP16 = true;
+//                EnableKHRBasic = true;
+//                BSRetDirect(bcKHR);
+//            }
+//            if (vtype.Type != VecDataInfo::DataTypes::Float && Cap.SupportIntel16)
+//            {
+//                EnableIntel16 = true;
+//                BSRetDirect(bcIntel);
+//            }
+//            if (Cap.SupportFP16)
+//            {
+//                EnableKHRBasic = true;
+//                EnableFP16 = true;
+//                BSRetCast(bcKHR, VecDataInfo::DataTypes::Float, 16, 1);
+//            }
+//            if (Cap.SupportIntel16)
+//            {
+//                EnableIntel16 = true;
+//                BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 16, 1);
+//            }
+//            break;
+//        case 8:
+//            if (Cap.SupportIntel8)
+//            {
+//                EnableIntel8 = true;
+//                BSRetDirect(bcIntel);
+//            }
+//            break;
+//        default:
+//            break;
+//        }
+//    }
+//    
+//    // fallback to subgroup_shuffle due to reg layout
+//    if (auto ret = DirectShuffle(vtype, ele, idx); ret)
+//        return ret;
+//    
+//    // fallback to reinterpret to avoid patch
+//    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+//    switch (totalBits)
+//    {
+//    case 64:
+//        // no need to consider FP64
+//        EnableKHRBasic = true;
+//        BSRetCast(bcKHR, VecDataInfo::DataTypes::Unsigned, 64, 1);
+//    case 32:
+//        EnableKHRBasic = true;
+//        BSRetCast(bcKHR, vtype.Type, 32, 1);
+//    case 16:
+//        if (Cap.SupportFP16)
+//        {
+//            EnableKHRBasic = true;
+//            EnableFP16 = true;
+//            BSRetCast(bcKHR, VecDataInfo::DataTypes::Float, 16, 1);
+//        }
+//        if (Cap.SupportIntel16)
+//        {
+//            EnableIntel16 = true;
+//            BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 16, 1);
+//        }
+//        break;
+//    case 8:
+//        if (Cap.SupportIntel8)
+//        {
+//            EnableIntel8 = true;
+//            BSRetCast(bcIntel, VecDataInfo::DataTypes::Unsigned, 8, 1);
+//        }
+//        break;
+//    default:
+//        break;
+//    }
+//
+//    // need patch
+//    if (const auto mid = DecideVtype(vtype, CommonSupport); mid.has_value())
+//    {
+//        bool useIntel = false;
+//        if (mid->Bit == 16)
+//        {
+//            if (mid->Type == VecDataInfo::DataTypes::Float)
+//                EnableFP16 = true, useIntel = false;
+//            else
+//                EnableIntel16 = true, useIntel = true;
+//        }
+//        else if (mid->Bit == 8)
+//            EnableIntel8 = true, useIntel = true;
+//        else
+//            useIntel = false;
+//        const auto funcName = FMTSTR(U"oclu_subgroup_broadcast{}_{}", useIntel? U"_intel"sv : U""sv, totalBits);
+//        auto dep = Context.AddPatchedBlock(funcName, [&]()
+//            {
+//                return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, useIntel ? bcIntel : bcKHR, mid.value());
+//            });
+//        BSRetCastT(funcName, mid.value()).Depend(dep);
+//    }
+//    RET_FAIL(SubgroupBroadcast);
+//}
+//
+//ReplaceResult NLCLSubgroupIntel::SubgroupShuffle(VecDataInfo vtype, const std::u32string_view ele, const std::u32string_view idx)
+//{
+//    constexpr auto func = U"intel_sub_group_shuffle"sv;
+//    // fallback to subgroup_shuffle to due to reg layout
+//    if (auto ret = DirectShuffle(vtype, ele, idx); ret)
+//        return ret;
+//
+//    // need patch, prefer smaller type due to reg layout
+//    const uint32_t totalBits = vtype.Bit * vtype.Dim0;
+//    const VecDataInfo newType = ToUintVec(vtype);
+//    for (const auto& mid : CommonSupport)
+//    {
+//        if (vtype.Bit <= mid.Bit || mid.Bit > 32 /*|| vtype.Bit % mid.Bit != 0*/)
+//            continue;
+//        const auto vnum = vtype.Bit / mid.Bit;
+//        if (!CheckVNum(vnum))
+//            continue;
+//        if (mid.Bit == 16)
+//        {
+//            if (mid.Type == VecDataInfo::DataTypes::Float)
+//                EnableFP16 = true;
+//            else
+//                EnableIntel16 = true;
+//        }
+//        else if (mid.Bit == 8)
+//            EnableIntel8 = true;
+//        const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
+//        auto dep = Context.AddPatchedBlock(funcName, [&]()
+//            {
+//                return NLCLSubgroupIntel::VectorPatchBcastShuf(funcName, func, newType, ToScalar(mid));
+//            });
+//        BSRetCastT(funcName, newType).Depend(dep);
+//    }
+//
+//    // need patch, ignore reg size
+//    if (const auto mid = DecideVtype(vtype, CommonSupport); mid.has_value())
+//    {
+//        if (mid->Bit == 16)
+//        {
+//            if (mid->Type == VecDataInfo::DataTypes::Float)
+//                EnableFP16 = true;
+//            else
+//                EnableIntel16 = true;
+//        }
+//        else if (mid->Bit == 8)
+//            EnableIntel8 = true;
+//        const auto funcName = FMTSTR(U"oclu_subgroup_shuffle_intel_{}", totalBits); 
+//        auto dep = Context.AddPatchedBlock(funcName, [&]()
+//            {
+//                return NLCLSubgroupIntel::ScalarPatchBcastShuf(funcName, func, mid.value());
+//            });
+//        BSRetCastT(funcName, mid.value()).Depend(dep);
+//    }
+//
+//    RET_FAIL(SubgroupShuffle);
+//}
 
 ReplaceResult NLCLSubgroupIntel::SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele)
 {
@@ -1329,7 +1689,7 @@ ReplaceResult NLCLSubgroupLocal::SubgroupShuffle(VecDataInfo vtype, const std::u
 
 
 // https://intel.github.io/llvm-docs/cuda/opencl-subgroup-vs-cuda-crosslane-op.html
-NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, SubgroupCapbility cap, const uint32_t smVersion) :
+NLCLSubgroupPtx::NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap, const uint32_t smVersion) :
     SubgroupProvider(logger, context, cap), SMVersion(smVersion)
 {
     if (smVersion == 0)

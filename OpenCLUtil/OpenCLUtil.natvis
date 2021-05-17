@@ -194,14 +194,17 @@
       <ExpandedItem>*(xcomp::XCNLContext*)this,nd</ExpandedItem>
       <Synthetic Name="Support">
         <Expand>
-          <Item Name="FP16"           >SupportFP16           </Item>
-          <Item Name="FP64"           >SupportFP64           </Item>
-          <Item Name="NVUnroll"       >SupportNVUnroll       </Item>
-          <Item Name="SubgroupKHR"    >SupportSubgroupKHR    </Item>
-          <Item Name="SubgroupIntel"  >SupportSubgroupIntel  </Item>
-          <Item Name="Subgroup8Intel" >SupportSubgroup8Intel </Item>
-          <Item Name="Subgroup16Intel">SupportSubgroup16Intel</Item>
-          <Item Name="BasicSubgroup"  >SupportBasicSubgroup  </Item>
+          <Item Name="FP16"    >SupportFP16    </Item>
+          <Item Name="FP64"    >SupportFP64    </Item>
+          <Item Name="NVUnroll">SupportNVUnroll</Item>
+          <Item Name="SubgroupKHR"          >SubgroupCaps.SupportKHR          </Item>
+          <Item Name="SubgroupKHRExtType"   >SubgroupCaps.SupportKHRExtType   </Item>
+          <Item Name="SubgroupKHRShuffle"   >SubgroupCaps.SupportKHRShuffle   </Item>
+          <Item Name="SubgroupKHRShuffleRel">SubgroupCaps.SupportKHRShuffleRel</Item>
+          <Item Name="SubgroupIntel"        >SubgroupCaps.SupportIntel        </Item>
+          <Item Name="Subgroup8Intel"       >SubgroupCaps.SupportIntel8       </Item>
+          <Item Name="Subgroup16Intel"      >SubgroupCaps.SupportIntel16      </Item>
+          <Item Name="Subgroup16Intel"      >SubgroupCaps.SupportIntel64      </Item>
         </Expand>
       </Synthetic>
       <Synthetic Name="CL Extension">

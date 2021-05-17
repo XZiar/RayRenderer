@@ -303,18 +303,24 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NailangTest", "Tests\Nailan
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GSL", "GSL", "{61EE5133-5D38-48AC-8149-D451AB914060}"
 	ProjectSection(SolutionItems) = preProject
-		3rdParty\GSL\include\gsl\algorithm = 3rdParty\GSL\include\gsl\algorithm
-		3rdParty\GSL\include\gsl\assert = 3rdParty\GSL\include\gsl\assert
-		3rdParty\GSL\include\gsl\byte = 3rdParty\GSL\include\gsl\byte
-		3rdParty\GSL\GSL.natvis = 3rdParty\GSL\GSL.natvis
-		3rdParty\GSL\LICENSE = 3rdParty\GSL\LICENSE
-		3rdParty\GSL\include\gsl\narrow = 3rdParty\GSL\include\gsl\narrow
-		3rdParty\GSL\include\gsl\pointers = 3rdParty\GSL\include\gsl\pointers
-		3rdParty\GSL\README.md = 3rdParty\GSL\README.md
-		3rdParty\GSL\include\gsl\span = 3rdParty\GSL\include\gsl\span
-		3rdParty\GSL\include\gsl\span_ext = 3rdParty\GSL\include\gsl\span_ext
-		3rdParty\GSL\include\gsl\string_span = 3rdParty\GSL\include\gsl\string_span
-		3rdParty\GSL\include\gsl\util = 3rdParty\GSL\include\gsl\util
+		3rdParty\gsl\algorithm = 3rdParty\gsl\algorithm
+		3rdParty\gsl\assert = 3rdParty\gsl\assert
+		3rdParty\gsl\byte = 3rdParty\gsl\byte
+		3rdParty\gsl\gsl = 3rdParty\gsl\gsl
+		3rdParty\MS-GSL\GSL.natvis = 3rdParty\MS-GSL\GSL.natvis
+		3rdParty\gsl\gsl_algorithm = 3rdParty\gsl\gsl_algorithm
+		3rdParty\gsl\gsl_assert = 3rdParty\gsl\gsl_assert
+		3rdParty\gsl\gsl_byte = 3rdParty\gsl\gsl_byte
+		3rdParty\gsl\gsl_narrow = 3rdParty\gsl\gsl_narrow
+		3rdParty\gsl\gsl_util = 3rdParty\gsl\gsl_util
+		3rdParty\MS-GSL\LICENSE = 3rdParty\MS-GSL\LICENSE
+		3rdParty\gsl\narrow = 3rdParty\gsl\narrow
+		3rdParty\gsl\pointers = 3rdParty\gsl\pointers
+		3rdParty\MS-GSL\README.md = 3rdParty\MS-GSL\README.md
+		3rdParty\gsl\span = 3rdParty\gsl\span
+		3rdParty\gsl\span_ext = 3rdParty\gsl\span_ext
+		3rdParty\gsl\string_span = 3rdParty\gsl\string_span
+		3rdParty\gsl\util = 3rdParty\gsl\util
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WindowHost", "WindowHost\WindowHost.vcxproj", "{CE89232C-D25E-428E-BD6C-030729597C0A}"

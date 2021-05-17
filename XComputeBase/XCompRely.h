@@ -108,6 +108,33 @@ inline constexpr bool VTypeInfo::HasFlag(TypeFlags flag) const noexcept
     return !IsCustomType() && HAS_FIELD(Flag, flag);
 }
 
+enum class VTypeDimSupport : uint8_t
+{
+    Empty = 0x0, Support1 = 0x1, Support2 = 0x2, Support3 = 0x4, Support4 = 0x8, Support8 = 0x10, Support16 = 0x20, Support32 = 0x40,
+    All = 0xff
+};
+MAKE_ENUM_BITFIELD(VTypeDimSupport)
+struct VecDimSupport
+{
+    VTypeDimSupport Support;
+    constexpr VecDimSupport(VTypeDimSupport support = VTypeDimSupport::Empty) noexcept : Support(support) {}
+    [[nodiscard]] constexpr bool Check(uint8_t vec) const noexcept
+    {
+        switch (vec)
+        {
+#define CHECK_N(n) case n: return HAS_FIELD(Support, VTypeDimSupport::Support##n)
+        CHECK_N(1);
+        CHECK_N(2);
+        CHECK_N(3);
+        CHECK_N(4);
+        CHECK_N(8);
+        CHECK_N(16);
+        CHECK_N(32);
+        default: return false;
+        }
+    }
+};
+
 XCOMPBASAPI VTypeInfo ParseVDataType(const std::u32string_view type) noexcept;
 XCOMPBASAPI std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept;
 

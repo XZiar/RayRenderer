@@ -155,6 +155,10 @@ struct VecDataInfo
         return (static_cast<uint32_t>(Type) << 0)  | (static_cast<uint32_t>(Bit)  << 8) 
             |  (static_cast<uint32_t>(Dim0) << 16) | (static_cast<uint32_t>(Dim1) << 24);
     }
+    constexpr VecDataInfo Scalar() const noexcept
+    {
+        return { Type, Bit, 0,0 };
+    }
 
     template<typename T, uint8_t N>
     static constexpr VecDataInfo GetVectorInfo() noexcept

@@ -37,7 +37,7 @@ public:
     FPConfig F64Caps, F32Caps, F16Caps;
     uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemAllocSize, GlobalCacheSize;
     size_t MaxWorkItemSize[3], MaxWorkGroupSize;
-    uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits, WaveSize;
+    uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits, MaxSubgroupCount, WaveSize;
     uint32_t VendorId, PCIEBus, PCIEDev, PCIEFunc;
     uint32_t Version, CVersion;
     bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync, SupportImage;

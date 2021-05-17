@@ -129,6 +129,10 @@ public:
     {
         return View.size();
     }
+    constexpr bool empty() const noexcept
+    {
+        return View.empty();
+    }
 
 };
 

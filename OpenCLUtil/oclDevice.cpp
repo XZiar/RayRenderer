@@ -93,6 +93,7 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     GlobalCacheLine     = GetNum<uint32_t>(DeviceID, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE);
     MemBaseAddrAlign    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MEM_BASE_ADDR_ALIGN);
     ComputeUnits        = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
+    MaxSubgroupCount    = GetNum<uint32_t>(DeviceID, CL_DEVICE_MAX_NUM_SUB_GROUPS);
     VendorId            = GetNum<uint32_t>(DeviceID, CL_DEVICE_VENDOR_ID);
     PCIEBus = PCIEDev = PCIEFunc = 0;
     if (Extensions.Has("cl_nv_device_attribute_query"))
@@ -117,6 +118,16 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     }
     else if (PlatVendor == Vendors::Intel && Type == DeviceType::GPU)
         WaveSize = 16;
+    {
+        cl_device_pci_bus_info_khr pciinfo = {};
+        if (Extensions.Has("cl_khr_pci_bus_info") && 
+            CL_SUCCESS == clGetDeviceInfo(DeviceID, CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(pciinfo), &pciinfo, nullptr))
+        {
+            PCIEBus = pciinfo.pci_bus;
+            PCIEDev = pciinfo.pci_device;
+            PCIEFunc = pciinfo.pci_function;
+        }
+    }
 
     const auto props        = GetNum<cl_command_queue_properties>(DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;

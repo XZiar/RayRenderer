@@ -73,6 +73,24 @@ public:
 };
 
 
+struct SubgroupCapbility
+{
+    bool SupportKHR             :1;
+    bool SupportKHRExtType      :1;
+    bool SupportKHRShuffle      :1;
+    bool SupportKHRShuffleRel   :1;
+    bool SupportIntel           :1;
+    bool SupportIntel8          :1;
+    bool SupportIntel16         :1;
+    bool SupportIntel64         :1;
+    constexpr SubgroupCapbility() noexcept : 
+        SupportKHR(false), SupportKHRExtType(false), SupportKHRShuffle(false), SupportKHRShuffleRel(false),
+        SupportIntel(false), SupportIntel8(false), SupportIntel16(false), SupportIntel64(false)
+    { }
+    SubgroupCapbility(oclDevice dev) noexcept;
+};
+
+
 class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext
 {
     friend NLCLExecutor;
@@ -86,8 +104,8 @@ private:
     xziar::nailang::Arg OCLUArg;
 public:
     const oclDevice Device;
-    const bool SupportFP16, SupportFP64, SupportNVUnroll,
-        SupportSubgroupKHR, SupportSubgroupIntel, SupportSubgroup8Intel, SupportSubgroup16Intel, SupportBasicSubgroup;
+    const bool SupportFP16, SupportFP64, SupportNVUnroll;
+    const SubgroupCapbility SubgroupCaps;
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
     [[nodiscard]] xziar::nailang::Arg LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;

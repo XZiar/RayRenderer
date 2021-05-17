@@ -131,16 +131,25 @@ struct NLCLContext::OCLUVar final : public AutoVarHandler<NLCLContext>
 };
 
 
+SubgroupCapbility::SubgroupCapbility(oclDevice dev) noexcept :
+    // cl_khr_subgroups being promoted to core at 3.0, but still optional and need check
+    // see https://github.com/KhronosGroup/OpenCL-Docs/pull/461
+    SupportKHR(dev->Extensions.Has("cl_khr_subgroups") || (dev->Version >= 30 && dev->MaxSubgroupCount > 0)),
+    SupportKHRExtType(SupportKHR && dev->Extensions.Has("cl_khr_subgroup_extended_types")),
+    SupportKHRShuffle(SupportKHR&& dev->Extensions.Has("cl_khr_subgroup_shuffle")),
+    SupportIntel(dev->Extensions.Has("cl_intel_subgroups")),
+    SupportIntel8(SupportIntel && dev->Extensions.Has("cl_intel_subgroups_char")),
+    SupportIntel16(SupportIntel && dev->Extensions.Has("cl_intel_subgroups_short")),
+    SupportIntel64(SupportIntel && dev->Extensions.Has("cl_intel_subgroups_long"))
+{ }
+
+
 NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
     xcomp::XCNLContext(info), Device(dev),
     SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
     SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
     SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
-    SupportSubgroupKHR(Device->Extensions.Has("cl_khr_subgroups")),
-    SupportSubgroupIntel(Device->Extensions.Has("cl_intel_subgroups")),
-    SupportSubgroup8Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_char")),
-    SupportSubgroup16Intel(SupportSubgroupIntel && Device->Extensions.Has("cl_intel_subgroups_short")),
-    SupportBasicSubgroup(SupportSubgroupKHR || SupportSubgroupIntel),
+    SubgroupCaps(Device),
     EnabledExtensions(Device->Extensions.Size()),
     EnableUnroll(Device->CVersion >= 20 || SupportNVUnroll), AllowDebug(false)
 {

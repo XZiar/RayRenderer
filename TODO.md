@@ -87,6 +87,8 @@
   - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
   - [ ] Add serialize/deserialize to/from json (with mempool)
   - [ ] Embed comment infomation into statement
+  - [ ] Export functionality for debugging
+  - [ ] Add external GUI dubugger
 
 * XCompute
   - [ ] Merge OpenCLInterop
