@@ -65,6 +65,14 @@ public:
         Pool.insert(Pool.end(), str.cbegin(), str.cend());
         return { offset, size };
     }
+    template<typename... Args>
+    StringPiece<T> AllocateConcatString(const Args&... str)
+    {
+        const uint32_t offset = gsl::narrow_cast<uint32_t>(Pool.size());
+        (..., void(Pool.insert(Pool.end(), str.begin(), str.end())));
+        const uint32_t size = gsl::narrow_cast<uint32_t>(Pool.size() - offset);
+        return { offset, size };
+    }
     forceinline std::basic_string_view<T> GetStringView(const StringPiece<T>& piece) const noexcept
     {
         if (piece.Length == 0) return {};
@@ -75,7 +83,7 @@ public:
 };
 
 template<typename T>
-class HashedStringPool : public StringPool<T>
+class HashedStringPool : protected StringPool<T>
 {
 private:
     static_assert(sizeof(uint64_t) % sizeof(T) == 0);
@@ -104,6 +112,9 @@ public:
         const auto* ptr = reinterpret_cast<const uint64_t*>(&this->Pool[piece.Offset - UnitCount]);
         return str::HashedStrView<T>{ *ptr, { &this->Pool[piece.Offset], piece.Length } };
     }
+    using StringPool<T>::GetStringView;
+    using StringPool<T>::IsEmpty;
+    using StringPool<T>::Reserve;
 };
 
 

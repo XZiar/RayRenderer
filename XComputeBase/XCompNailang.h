@@ -417,17 +417,7 @@ class XCOMPBASAPI XCNLContext : public xziar::nailang::CompactEvaluateContext, p
 public:
     XCNLContext(const common::CLikeDefines& info);
     ~XCNLContext() override;
-    template<typename T, typename F, typename... Args>
-    forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
-        T& obj, std::u32string_view id, U32StrSpan depends, F generator, Args&&... args)
-    {
-        static_assert(std::is_invocable_r_v<std::u32string, F, T&, Args...>, "need accept args and return u32string");
-        if (const auto idx = CheckExists(PatchedBlocks, id); idx)
-            return { PatchedSelfDepends[*idx], false };
-        ForceAdd(PatchedBlocks, id, (obj.*generator)(std::forward<Args>(args)...), depends);
-        PatchedSelfDepends.push_back(ReplaceDepend::CreateFrom(id));
-        return { PatchedSelfDepends.back(), true };
-    }
+
     template<typename F>
     forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
         std::u32string_view id, U32StrSpan depends, F&& generator)
@@ -439,22 +429,11 @@ public:
         PatchedSelfDepends.push_back(ReplaceDepend::CreateFrom(id));
         return { PatchedSelfDepends.back(), true };
     }
-    template<typename T, typename F, typename... Args>
-    forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
-        T& obj, std::u32string_view id, std::u32string_view depend, F generator, Args&&... args)
-    {
-        return AddPatchedBlockD(obj, id, U32StrSpan{ &depend, 1 }, std::forward<F>(generator), std::forward<Args>(args)...);
-    }
     template<typename F>
     forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
         std::u32string_view id, std::u32string_view depend, F&& generator)
     {
         return AddPatchedBlockD(id, U32StrSpan{ &depend, 1 }, std::forward<F>(generator));
-    }
-    template<typename T, typename F, typename... Args>
-    forceinline auto AddPatchedBlock(T& obj, std::u32string_view id, F&& generator, Args&&... args)
-    {
-        return AddPatchedBlockD(obj, id, U32StrSpan{}, std::forward<F>(generator), std::forward<Args>(args)...);
     }
     template<typename F>
     forceinline auto AddPatchedBlock(std::u32string_view id, F&& generator)

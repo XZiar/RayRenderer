@@ -464,8 +464,8 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     {
         AppendDebugInfo(executor);
         AppendDebugBase();
-        auto dep = Context.AddPatchedBlockD(*this, U"oclu_debug_"s.append(id), Depend_DebugBase, 
-            &NLCLDebugExtension::DebugStringPatch, executor, id, item.first, item.second);
+        auto dep = Context.AddPatchedBlockD(U"oclu_debug_"s.append(id), Depend_DebugBase, 
+            [&]() { return DebugStringPatch(executor, id, item.first, item.second); });
 
         std::u32string str = FMTSTR(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
         for (size_t i = 0; i < vals.size(); ++i)
