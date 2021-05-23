@@ -9,6 +9,7 @@ using std::string;
 using std::u16string;
 using std::string_view;
 using std::u16string_view;
+using namespace std::literals;
 
 
 static string GetStr(const cl_device_id DeviceID, const cl_device_info type)
@@ -53,8 +54,8 @@ union cl_device_topology_amd
     struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
 };
 
-oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID) :
-    Platform(plat), DeviceID(dID), PlatVendor(Platform.lock()->PlatVendor)
+oclDevice_::oclDevice_(const oclPlatform_& plat, const cl_device_id dID) :
+    DeviceID(dID), Platform(plat), PlatVendor(Platform.PlatVendor)
 {
     cl_device_type dtype;
     clGetDeviceInfo(DeviceID, CL_DEVICE_TYPE, sizeof(dtype), &dtype, nullptr);
@@ -136,13 +137,6 @@ oclDevice_::oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_d
     SupportImage            = GetBool(DeviceID, CL_DEVICE_IMAGE_SUPPORT);
     LittleEndian            = GetBool(DeviceID, CL_DEVICE_ENDIAN_LITTLE);
     HasCompiler             = GetBool(DeviceID, CL_DEVICE_COMPILER_AVAILABLE);
-}
-
-using namespace std::literals;
-
-std::shared_ptr<const oclPlatform_> oclDevice_::GetPlatform() const
-{
-    return Platform.lock();
 }
 
 u16string_view oclDevice_::GetDeviceTypeName(const DeviceType type)

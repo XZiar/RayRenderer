@@ -28,10 +28,10 @@ class OCLUAPI oclDevice_ : public common::NonCopyable
 {
     friend class oclPlatform_;
 private:
-    std::weak_ptr<const oclPlatform_> Platform;
     cl_device_id DeviceID;
-    oclDevice_(const std::weak_ptr<const oclPlatform_>& plat, const cl_device_id dID);
+    oclDevice_(const oclPlatform_& plat, const cl_device_id dID);
 public:
+    const oclPlatform_& Platform;
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseStringSet<char> Extensions;
     FPConfig F64Caps, F32Caps, F16Caps;
@@ -46,7 +46,6 @@ public:
     DeviceType Type;
 
     [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
-    [[nodiscard]] std::shared_ptr<const oclPlatform_> GetPlatform() const;
 
     constexpr operator cl_device_id() const noexcept { return DeviceID; }
     constexpr bool operator== (const cl_device_id other) const noexcept { return DeviceID == other; }

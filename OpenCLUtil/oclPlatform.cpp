@@ -62,13 +62,14 @@ oclPlatform_::oclPlatform_(const cl_platform_id pID)
     Extensions = common::str::Split(GetStr(PlatformID, CL_PLATFORM_EXTENSIONS), ' ', false);
     Name    = GetUStr(pID, CL_PLATFORM_NAME);
     Ver     = GetUStr(pID, CL_PLATFORM_VERSION);
+    BeignetFix = Ver.find(u"beignet") != u16string::npos;
     {
         const auto version = ParseVersionString(Ver, 1);
         Version = version.first * 10 + version.second;
     }
     PlatVendor = JudgeBand(Name);
 
-    if (Ver.find(u"beignet") == u16string::npos) // beignet didn't implement that
+    if (!BeignetFix) // beignet didn't implement that
         FuncClGetGLContext = (clGetGLContextInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetGLContextInfoKHR");
     FuncClGetKernelSubGroupInfo = (clGetKernelSubGroupInfoKHR_fn)clGetExtensionFunctionAddressForPlatform(PlatformID, "clGetKernelSubGroupInfoKHR");
 }
@@ -81,9 +82,8 @@ void oclPlatform_::InitDevice()
     vector<cl_device_id> DeviceIDs(numDevices);
     clGetDeviceIDs(PlatformID, CL_DEVICE_TYPE_ALL, numDevices, DeviceIDs.data(), nullptr);
 
-    const auto self = weak_from_this();
     Devices = common::linq::FromIterable(DeviceIDs)
-        .Select([&](const auto dID) { return oclDevice_(self, dID); })
+        .Select([&](const auto dID) { return oclDevice_(*this, dID); })
         .ToVector();
 
     cl_device_id defDevID;

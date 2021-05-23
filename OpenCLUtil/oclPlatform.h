@@ -38,6 +38,7 @@ public:
     std::u16string Name, Ver;
     uint32_t Version;
     Vendors PlatVendor;
+    bool BeignetFix = false;
     [[nodiscard]] std::vector<oclDevice> GetDevices() const;
     [[nodiscard]] const common::container::FrozenDenseStringSet<char>& GetExtensions() const { return Extensions; }
     [[nodiscard]] oclDevice GetDefaultDevice() const { return DefDevice; }

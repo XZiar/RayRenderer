@@ -57,32 +57,84 @@ struct NLCLSubgroupExtension : public NLCLExtension
     });
 };
 
+struct ExtraParam
+{
+    std::u32string Param;
+    std::u32string Arg;
+    explicit operator bool() const noexcept
+    {
+        return !Arg.empty();
+    }
+};
 
-struct TypedArgFunc;
 struct SubgroupProvider
 {
 public:
-    struct AlgorithmResult
+    struct TypedAlgoResult
     {
-        common::str::StrVariant<char32_t> FuncName;
-        std::u32string_view ExtraPrefixArg;
-        std::u32string_view Suffix;
+        static constexpr common::simd::VecDataInfo Dummy{ common::simd::VecDataInfo::DataTypes::Empty, 0, 0, 0 };
         std::shared_ptr<const xcomp::ReplaceDepend> Depends;
+        common::str::StrVariant<char32_t> Func;
+        ExtraParam Extra;
+        std::u32string_view AlgorithmSuffix;
+        uint8_t Features;
+        common::simd::VecDataInfo SrcType;
+        common::simd::VecDataInfo MidType;
+        common::simd::VecDataInfo DstType;
+        TypedAlgoResult() noexcept : Features(0), SrcType(Dummy), MidType(Dummy), DstType(Dummy) { }
+        TypedAlgoResult(common::str::StrVariant<char32_t> func, const std::u32string_view algoSfx, const uint8_t features,
+            const common::simd::VecDataInfo src, const common::simd::VecDataInfo mid, const common::simd::VecDataInfo dst,
+            std::shared_ptr<const xcomp::ReplaceDepend> depends = {}) noexcept :
+            Depends(std::move(depends)), Func(std::move(func)), AlgorithmSuffix(algoSfx), 
+            Features(features), SrcType(src), MidType(mid), DstType(dst)
+        { }
+        TypedAlgoResult(common::str::StrVariant<char32_t> func, const std::u32string_view algoSfx, const uint8_t features, 
+            const common::simd::VecDataInfo type, std::shared_ptr<const xcomp::ReplaceDepend> depends = {}) noexcept : 
+            Depends(std::move(depends)), Func(std::move(func)), AlgorithmSuffix(algoSfx), 
+            Features(features), SrcType(type), MidType(type), DstType(type)
+        { }
         xcomp::U32StrSpan GetPatchedBlockDepend() const noexcept
         {
             if (Depends) return Depends->PatchedBlock;
             return {};
         }
+        std::u32string_view GetFuncName() const noexcept
+        {
+            return Func.StrView();
+        }
+        constexpr void AssignType(const common::simd::VecDataInfo srcType, const common::simd::VecDataInfo midType) noexcept
+        {
+            SrcType = srcType; MidType = midType;
+        }
+        constexpr explicit operator bool() const noexcept
+        {
+            return !Func.empty();
+        }
     };
 protected:
+    [[nodiscard]] static std::u32string GenerateFuncName(std::u32string_view op, std::u32string_view suffix, common::simd::VecDataInfo vtype);
+    [[nodiscard]] static std::u32string GenerateBShufFuncName(const TypedAlgoResult& algo, common::simd::VecDataInfo vtype);
     [[nodiscard]] static std::optional<common::simd::VecDataInfo> DecideVtype(common::simd::VecDataInfo vtype,
         common::span<const common::simd::VecDataInfo> scalars) noexcept;
-    [[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
-        const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
-    [[nodiscard]] forceinline static std::u32string ScalarPatchBcastShuf(
-        const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype) noexcept
+    /*[[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
+        const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;*/
+    [[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, 
+        common::simd::VecDataInfo vtype, common::simd::VecDataInfo castType,
+        std::u32string_view pfxParam, std::u32string_view pfxArg,
+        std::u32string_view sfxParam, std::u32string_view sfxArg) noexcept;
+    /*[[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc,
+        common::simd::VecDataInfo vtype,
+        std::u32string_view pfxParam, std::u32string_view pfxArg,
+        std::u32string_view sfxParam, std::u32string_view sfxArg) noexcept
     {
-        return ScalarPatch(name, baseFunc, vtype, U", sgId", U", const uint sgId");
+        return ScalarPatch(name, baseFunc, vtype, vtype.Scalar(1), pfxParam, pfxArg, sfxParam, sfxArg);
+    }*/
+    [[nodiscard]] forceinline static std::u32string ScalarPatchBcastShuf(
+        const std::u32string_view name, const std::u32string_view baseFunc, 
+        common::simd::VecDataInfo vtype, common::simd::VecDataInfo castType,
+        std::u32string_view pfxParam = {}, std::u32string_view pfxArg = {}) noexcept
+    {
+        return ScalarPatch(name, baseFunc, vtype, castType, pfxParam, pfxArg, U"const uint sgId", U"sgId");
     }
     [[nodiscard]] static std::u32string HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
         const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
@@ -126,9 +178,10 @@ protected:
      * @param vtype datatype
      * @return { bshuf func name, algo suffix }
     */
-    virtual AlgorithmResult SubgroupBShufAlgo(uint8_t, common::simd::VecDataInfo&) { return {}; };
+    virtual TypedAlgoResult SubgroupBShufAlgo(uint8_t, uint8_t, common::simd::VecDataInfo) { return {}; };
 private:
-    TypedArgFunc SubgroupBShuf(common::simd::VecDataInfo origType, common::simd::VecDataInfo srcType, bool isConvert, uint8_t featMask);
+    TypedAlgoResult SubgroupBShuf(common::simd::VecDataInfo origType, common::simd::VecDataInfo srcType, bool isConvert, uint8_t featMask);
+    TypedAlgoResult SubgroupBShuf(common::simd::VecDataInfo vtype, uint8_t featMask);
 public:
     SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     virtual ~SubgroupProvider() { }
@@ -166,7 +219,7 @@ protected:
     void WarnFP(common::simd::VecDataInfo vtype, const std::u16string_view func);
     // internal use, won't check type
     xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, common::simd::VecDataInfo realType, const std::u32string_view ele);
-    AlgorithmResult SubgroupBShufAlgo(uint8_t algoId, common::simd::VecDataInfo& vtype) override;
+    TypedAlgoResult SubgroupBShufAlgo(uint8_t algoId, uint8_t features, common::simd::VecDataInfo vtype) override;
 public:
     NLCLSubgroupKHR(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupKHR() override { }
@@ -191,20 +244,11 @@ private:
     void EnableExtraVecType(common::simd::VecDataInfo type) noexcept;
 protected:
     static constexpr uint8_t AlgoIntelShuffle = 8;
-    std::vector<common::simd::VecDataInfo> CommonSupport;
     bool EnableIntel = false, EnableIntel16 = false, EnableIntel8 = false;
-    [[nodiscard]] static std::u32string VectorPatch(const std::u32string_view funcName, const std::u32string_view baseFunc,
-        common::simd::VecDataInfo vtype, common::simd::VecDataInfo mid, 
-        const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
-    [[nodiscard]] forceinline static std::u32string VectorPatchBcastShuf(const std::u32string_view funcName, 
-        const std::u32string_view baseFunc, common::simd::VecDataInfo vtype, common::simd::VecDataInfo mid) noexcept
-    {
-        return VectorPatch(funcName, baseFunc, vtype, mid, U", sgId", U", const uint sgId");
-    }
     void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
     xcomp::ReplaceResult SubgroupReduceBitwise(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
-    AlgorithmResult SubgroupBShufAlgo(uint8_t algoId, common::simd::VecDataInfo& vtype) override;
+    TypedAlgoResult SubgroupBShufAlgo(uint8_t algoId, uint8_t features, common::simd::VecDataInfo vtype) override;
 public:
     NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupIntel() override { }
@@ -224,7 +268,7 @@ protected:
     std::u32string GenerateKID(std::u32string_view type) const noexcept;
     static std::u32string BroadcastPatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
     static std::u32string ShufflePatch(const std::u32string_view funcName, const common::simd::VecDataInfo vtype) noexcept;
-    AlgorithmResult SubgroupBShufAlgo(uint8_t algoId, common::simd::VecDataInfo& vtype) override;
+    TypedAlgoResult SubgroupBShufAlgo(uint8_t algoId, uint8_t features, common::simd::VecDataInfo vtype) override;
 public:
     NLCLSubgroupLocal(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupLocal() override { }
@@ -248,7 +292,7 @@ protected:
     std::u32string ShufflePatch(const uint8_t bit) noexcept;
     xcomp::ReplaceResult SubgroupReduceSM80(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
     xcomp::ReplaceResult SubgroupReduceSM30(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
-    AlgorithmResult SubgroupBShufAlgo(uint8_t algoId, common::simd::VecDataInfo& vtype) override;
+    TypedAlgoResult SubgroupBShufAlgo(uint8_t algoId, uint8_t features, common::simd::VecDataInfo vtype) override;
 public:
     NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
