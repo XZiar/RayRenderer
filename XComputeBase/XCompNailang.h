@@ -351,6 +351,7 @@ public:
     [[nodiscard]] constexpr explicit operator bool() const noexcept { return IsSuccess; }
     [[nodiscard]] constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
     [[nodiscard]] constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
+    [[nodiscard]] std::u32string ExtractStr() noexcept { return Str.ExtractStr(); }
     [[nodiscard]] std::shared_ptr<const ReplaceDepend> GetDepends() const
     {
         if (Depends)

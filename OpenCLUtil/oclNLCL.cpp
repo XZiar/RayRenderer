@@ -136,7 +136,8 @@ SubgroupCapbility::SubgroupCapbility(oclDevice dev) noexcept :
     // see https://github.com/KhronosGroup/OpenCL-Docs/pull/461
     SupportKHR(dev->Extensions.Has("cl_khr_subgroups") || (dev->Version >= 30 && dev->MaxSubgroupCount > 0)),
     SupportKHRExtType(SupportKHR && dev->Extensions.Has("cl_khr_subgroup_extended_types")),
-    SupportKHRShuffle(SupportKHR&& dev->Extensions.Has("cl_khr_subgroup_shuffle")),
+    SupportKHRShuffle(SupportKHR && dev->Extensions.Has("cl_khr_subgroup_shuffle")),
+    SupportKHRBallot(SupportKHR && dev->Extensions.Has("cl_khr_subgroup_ballot")),
     SupportIntel(dev->Extensions.Has("cl_intel_subgroups")),
     SupportIntel8(SupportIntel && dev->Extensions.Has("cl_intel_subgroups_char")),
     SupportIntel16(SupportIntel && dev->Extensions.Has("cl_intel_subgroups_short")),

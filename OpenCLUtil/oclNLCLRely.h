@@ -79,12 +79,13 @@ struct SubgroupCapbility
     bool SupportKHRExtType      :1;
     bool SupportKHRShuffle      :1;
     bool SupportKHRShuffleRel   :1;
+    bool SupportKHRBallot       :1;
     bool SupportIntel           :1;
     bool SupportIntel8          :1;
     bool SupportIntel16         :1;
     bool SupportIntel64         :1;
     constexpr SubgroupCapbility() noexcept : 
-        SupportKHR(false), SupportKHRExtType(false), SupportKHRShuffle(false), SupportKHRShuffleRel(false),
+        SupportKHR(false), SupportKHRExtType(false), SupportKHRShuffle(false), SupportKHRShuffleRel(false), SupportKHRBallot(false),
         SupportIntel(false), SupportIntel8(false), SupportIntel16(false), SupportIntel64(false)
     { }
     SubgroupCapbility(oclDevice dev) noexcept;
