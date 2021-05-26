@@ -201,6 +201,8 @@
           <Item Name="SubgroupKHRExtType"   >SubgroupCaps.SupportKHRExtType   </Item>
           <Item Name="SubgroupKHRShuffle"   >SubgroupCaps.SupportKHRShuffle   </Item>
           <Item Name="SubgroupKHRShuffleRel">SubgroupCaps.SupportKHRShuffleRel</Item>
+          <Item Name="SubgroupKHRBallot"    >SubgroupCaps.SupportKHRBallot    </Item>
+          <Item Name="SubgroupKHRNUArith"   >SubgroupCaps.SupportKHRNUArith   </Item>
           <Item Name="SubgroupIntel"        >SubgroupCaps.SupportIntel        </Item>
           <Item Name="Subgroup8Intel"       >SubgroupCaps.SupportIntel8       </Item>
           <Item Name="Subgroup16Intel"      >SubgroupCaps.SupportIntel16      </Item>
