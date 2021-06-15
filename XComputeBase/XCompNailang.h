@@ -341,9 +341,11 @@ public:
     { }
     template<typename T>
     ReplaceResult(T&& str, std::shared_ptr<const ReplaceDepend> depend) noexcept :
-        Str(std::forward<T>(str)), Depends([dep = std::move(depend)](){ return dep; }),
-        IsSuccess(true), AllowFallback(false) 
-    { }
+        Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false) 
+    {
+        if (depend)
+            Depends = [dep = std::move(depend)](){ return dep; };
+    }
     template<typename T>
     ReplaceResult(T&& str, const bool allowFallback) noexcept :
         Str(std::forward<T>(str)), IsSuccess(false), AllowFallback(allowFallback) 
@@ -356,6 +358,12 @@ public:
     {
         if (Depends)
             return Depends();
+        return {};
+    }
+    [[nodiscard]] U32StrSpan GetPatchedBlockDepends() const
+    {
+        if (Depends)
+            return Depends()->PatchedBlock;
         return {};
     }
     void SetStr(common::str::StrVariant<char32_t> str) noexcept { Str = std::move(str); }

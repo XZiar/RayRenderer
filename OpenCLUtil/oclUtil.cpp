@@ -49,8 +49,15 @@ const vector<oclPlatform>& oclUtil::GetPlatforms()
         for (const auto& pID : platformIDs)
         {
             auto plt = MAKE_ENABLER_SHARED(oclPlatform_, (pID));
-            plt->InitDevice();
-            plats.emplace_back(std::move(plt));
+            try
+            {
+                plt->InitDevice();
+                plats.emplace_back(std::move(plt));
+            }
+            catch (const std::exception& ex)
+            {
+                oclLog().error(FMT_STRING(u"Failed to init platform [{}]:\n {}\n"), plt->Name, ex.what());
+            }
         }
         return plats;
     }();

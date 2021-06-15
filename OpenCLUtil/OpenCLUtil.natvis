@@ -239,6 +239,29 @@
     </Expand>
   </Type>
   
+  <Type Name="oclu::SubgroupProvider">
+    <Expand>
+      <Synthetic Name="ShuffleSupport">
+        <DisplayString>{{ Shuffle {ShuffleSupport.m_holder.m_size} support }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>ShuffleSupport.m_holder.m_size</Size>
+            <ValuePointer>ShuffleSupport.m_holder.m_start</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="ReduceSupport">
+        <DisplayString>{{ Reduce {ReduceSupport.m_holder.m_size} support }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>ReduceSupport.m_holder.m_size</Size>
+            <ValuePointer>ReduceSupport.m_holder.m_start</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+    </Expand>
+  </Type>
+
   <Type Name="oclu::NLCLRuntime">
     <DisplayString>{{ NLCLRuntime {{on {Context.Device->Name,su}}} }}</DisplayString>
     <Expand>
