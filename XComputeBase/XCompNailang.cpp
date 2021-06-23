@@ -36,7 +36,7 @@ using common::str::Charset;
 using common::str::IsBeginWith;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
-MAKE_ENABLER_IMPL(ReplaceDepend)
+//MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
 
 
@@ -194,26 +194,6 @@ void NamedTextHolder::Write(std::u32string& output, const std::vector<NamedText>
     }
 }
 
-std::shared_ptr<const ReplaceDepend> NamedTextHolder::GenerateReplaceDepend(const NamedText& item, bool isPthBlk, 
-    U32StrSpan pthBlk, U32StrSpan bdyPfx) const
-{
-    if (item.DependCount() == 0)
-    {
-        return ReplaceDepend::Create(pthBlk, bdyPfx);
-    }
-
-    std::vector<std::u32string_view> newDeps;
-    auto& oldDeps = isPthBlk ? pthBlk : bdyPfx;
-    newDeps.reserve(oldDeps.size() + item.DependCount());
-    newDeps.insert(newDeps.begin(), oldDeps.begin(), oldDeps.end());
-    for (uint32_t i = 0; i < item.DependCount(); ++i)
-    {
-        newDeps.push_back(GetDepend(item, i));
-    }
-    oldDeps = newDeps;
-    return ReplaceDepend::Create(pthBlk, bdyPfx);
-}
-
 
 InstanceArgInfo::InstanceArgInfo(Types type, TexTypes texType, std::u32string_view name, std::u32string_view dtype,
     const std::vector<xziar::nailang::Arg>& args) :
@@ -361,49 +341,6 @@ struct InstanceArgCustomVar : public xziar::nailang::CustomVar::Handler
     }
 };
 InstanceArgCustomVar InstanceArgCustomVar::Handler;
-
-
-std::shared_ptr<const ReplaceDepend> ReplaceDepend::Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx)
-{
-    static_assert(sizeof(std::u32string_view) % sizeof(char32_t) == 0);
-
-    const auto count = patchedBlk.size() + bodyPfx.size();
-    if (count == 0)
-        return Empty();
-
-    const auto ret = MAKE_ENABLER_SHARED(ReplaceDepend, ());
-    std::vector<common::StringPiece<char32_t>> tmp; tmp.reserve(count + 1);
-    {
-        std::u32string dummy; dummy.resize(count * sizeof(std::u32string_view) / sizeof(char32_t));
-        tmp.push_back(ret->Names.AllocateString(dummy));
-    }
-    for (const auto& str : patchedBlk)
-    {
-        tmp.push_back(ret->Names.AllocateString(str));
-    }
-    for (const auto& str : bodyPfx)
-    {
-        tmp.push_back(ret->Names.AllocateString(str));
-    }
-
-    const auto tmp2Space = ret->Names.GetStringView(tmp[0]);
-    const auto ptr = reinterpret_cast<std::u32string_view*>(const_cast<char32_t*>(tmp2Space.data()));
-    const common::span<std::u32string_view> space{ ptr, count };
-    for (size_t i = 0; i < count; ++i)
-    {
-        space[i] = ret->Names.GetStringView(tmp[i + 1]);
-    }
-
-    ret->PatchedBlock = space.subspan(0, patchedBlk.size());
-    ret->BodyPrefixes = space.subspan(patchedBlk.size(), bodyPfx.size());
-    return ret;
-}
-
-std::shared_ptr<const ReplaceDepend> ReplaceDepend::Empty()
-{
-    static auto EMPTY = MAKE_ENABLER_SHARED(ReplaceDepend, ());
-    return EMPTY;
-}
 
 
 XCNLExtension::XCNLExtension(XCNLContext& context) : Context(context)
@@ -710,23 +647,21 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
         }
         if (ret)
         {
-            if (const auto dep = ret.GetDepends(); dep)
+            const auto& dep = ret.GetDepends();
+            auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
+            if (auto deps = dep.GetPatchedBlock(); deps.Count() > 0)
             {
-                auto txt = FMTSTR(u"Result for ReplaceFunc[{}] : [{}]\r\n"sv, func, str);
-                if (!dep->PatchedBlock.empty())
-                {
-                    txt += u"Depend on PatchedBlock:\r\n";
-                    for (const auto& name : dep->PatchedBlock)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                if (!dep->BodyPrefixes.empty())
-                {
-                    txt += u"Depend on BodyPrefix:\r\n";
-                    for (const auto& name : dep->BodyPrefixes)
-                        APPEND_FMT(txt, u" - [{}]\r\n", name);
-                }
-                runtime.Logger.verbose(txt);
+                txt += u"Depend on PatchedBlock:\r\n";
+                for (const auto& name : deps)
+                    APPEND_FMT(txt, u" - [{}]\r\n", name);
             }
+            if (auto deps = dep.GetBodyPrefixes(); deps.Count() > 0)
+            {
+                txt += u"Depend on BodyPrefix:\r\n";
+                for (const auto& name : deps)
+                    APPEND_FMT(txt, u" - [{}]\r\n", name);
+            }
+            runtime.Logger.verbose(txt);
         }
         return ret;
     }

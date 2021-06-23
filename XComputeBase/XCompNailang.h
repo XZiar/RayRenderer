@@ -121,7 +121,6 @@ protected:
     }
     void ForceAdd(std::vector<NamedText>& container, std::u32string_view id, common::str::StrVariant<char32_t> content, U32StrSpan depends);
     void Write(std::u32string& output, const std::vector<NamedText>& container) const;
-    std::shared_ptr<const ReplaceDepend> GenerateReplaceDepend(const NamedText& item, bool isPthBlk, U32StrSpan pthBlk = {}, U32StrSpan bdyPfx = {}) const;
 
     virtual void Write(std::u32string& output, const NamedText& item) const;
 };
@@ -273,60 +272,103 @@ struct XCNLStruct
 };
 
 
-class COMMON_EMPTY_BASES ReplaceDepend : public common::NonCopyable, public common::NonMovable
+class DependBase
 {
 private:
-    MAKE_ENABLER();
-    common::StringPool<char32_t> Names;
+    virtual std::u32string_view Get([[maybe_unused]] size_t idx) const noexcept { return {}; };
+    using DependIterator = ::common::container::IndirectIterator<const DependBase, std::u32string_view, &DependBase::Get>;
+    friend DependIterator;
 public:
-    U32StrSpan PatchedBlock;
-    U32StrSpan BodyPrefixes;
+    virtual ~DependBase() {}
+    virtual size_t Count() const noexcept = 0;
+    boost::container::small_vector<std::u32string_view, 4> GetDependSpan() const noexcept
+    {
+        boost::container::small_vector<std::u32string_view, 4> ret;
+        const auto count = Count();
+        ret.reserve(count);
+        for (size_t i = 0; i < count; ++i)
+            ret.emplace_back(Get(i));
+        return ret;
+    }
+    constexpr DependIterator begin() const noexcept { return { this, 0 }; }
+              DependIterator end()   const noexcept { return { this, Count() }; }
+};
 
+
+class ReplaceDepend
+{
 private:
-    template<size_t I, size_t N, typename T, typename... Args>
-    forceinline static std::pair<size_t, size_t> CreateFrom_(std::array<std::u32string_view, N>& arr, const bool isBody, [[maybe_unused]] T&& arg, Args&&... args)
+    common::StringPool<char32_t> StrPool;
+    boost::container::small_vector<common::StringPiece<char32_t>, 4> PatchedBlock;
+    boost::container::small_vector<common::StringPiece<char32_t>, 4> BodyPrefixes;
+    template<bool IsPatchBlock>
+    class ReplaceDependItem : public DependBase
     {
-        static_assert(I < N);
-        if constexpr (std::is_same_v<std::decay_t<T>, std::nullopt_t>)
+        const ReplaceDepend* Host;
+        constexpr const auto& Target() const noexcept 
         {
-            Expects(!isBody);
-            return CreateFrom_<I>(arr, true, std::forward<Args>(args)...);
+            return IsPatchBlock ? Host->PatchedBlock : Host->BodyPrefixes;
         }
-        else if constexpr (sizeof...(Args) > 0)
+        std::u32string_view Get(size_t idx) const noexcept override
         {
-            arr[I] = arg;
-            const auto [x, y] = CreateFrom_<I + 1>(arr, isBody, std::forward<Args>(args)...);
-            return isBody ? std::pair{ x, y + 1 } : std::pair{ x + 1, y };
+            return Host->StrPool.GetStringView(Target()[idx]);
         }
-        else
+    public:
+        constexpr ReplaceDependItem(const ReplaceDepend* host) noexcept : Host(host) {}
+        ~ReplaceDependItem() override {}
+        size_t Count() const noexcept override
         {
-            arr[I] = arg;
-            return isBody ? std::pair{ 0, 1 } : std::pair{ 1, 0 };
+            return Target().size();
+        }
+    };
+    void Merge(const ReplaceDepend& other, const size_t offset, bool isPatchedBlock)
+    {
+        auto& target = isPatchedBlock ? PatchedBlock : BodyPrefixes;
+        const auto& source = isPatchedBlock ? other.PatchedBlock : other.BodyPrefixes;
+        const auto prevSize = target.size();
+        target.reserve(prevSize + source.size());
+        for (const auto dep : source)
+        {
+            bool hasDepend = false;
+            for (size_t i = 0; i < prevSize && !hasDepend; ++i)
+                hasDepend = StrPool.GetStringView(target[i]) == other.StrPool.GetStringView(dep);
+            if (hasDepend)
+                target.emplace_back(gsl::narrow_cast<uint32_t>(offset + dep.GetOffset()), static_cast<uint32_t>(dep.GetLength()));
         }
     }
 public:
-    XCOMPBASAPI static std::shared_ptr<const ReplaceDepend> Create(U32StrSpan patchedBlk, U32StrSpan bodyPfx);
-    XCOMPBASAPI static std::shared_ptr<const ReplaceDepend> Empty();
-    template<typename... Args>
-    static std::shared_ptr<const ReplaceDepend> CreateFrom(Args&&... args)
+    void DependPatchedBlock(std::u32string_view depend)
     {
-        std::array<std::u32string_view, sizeof...(Args)> arr;
-        const auto [x, y] = CreateFrom_<0>(arr, false, std::forward<Args>(args)...);
-        Expects(x + y <= arr.size());
-        U32StrSpan sp(arr);
-        return Create(sp.subspan(0, x), sp.subspan(x, y));
+        PatchedBlock.emplace_back(StrPool.AllocateString(depend));
     }
-    static std::shared_ptr<const ReplaceDepend> CreateFrom()
+    void DependBodyPrefix(std::u32string_view depend)
     {
-        return Empty();
+        BodyPrefixes.emplace_back(StrPool.AllocateString(depend));
     }
+    void MergeDepends(const ReplaceDepend& other)
+    {
+        const auto offset = StrPool.AllocateString(other.StrPool.GetAllStr());
+        Merge(other, offset.GetOffset(), true);
+        Merge(other, offset.GetOffset(), false);
+    }
+    boost::container::small_vector<std::u32string_view, 4> GetDependSpan(bool isPatchedBlock) const noexcept
+    {
+        boost::container::small_vector<std::u32string_view, 4> ret;
+        auto& target = isPatchedBlock ? PatchedBlock : BodyPrefixes;
+        ret.reserve(target.size());
+        for (const auto dep : target)
+            ret.emplace_back(StrPool.GetStringView(dep));
+        return ret;
+    }
+    ReplaceDependItem<true>  GetPatchedBlock() const noexcept { return this; }
+    ReplaceDependItem<false> GetBodyPrefixes() const noexcept { return this; }
 };
 
 
 class ReplaceResult
 {
     common::str::StrVariant<char32_t> Str;
-    std::function<std::shared_ptr<const ReplaceDepend>()> Depends;
+    ReplaceDepend Depends;
     bool IsSuccess, AllowFallback;
 public:
     ReplaceResult() noexcept : IsSuccess(false), AllowFallback(true) 
@@ -336,16 +378,22 @@ public:
         Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false) 
     { }
     template<typename T>
-    ReplaceResult(T&& str, std::function<std::shared_ptr<const ReplaceDepend>()> depend) noexcept :
-        Str(std::forward<T>(str)), Depends(std::move(depend)), IsSuccess(true), AllowFallback(false) 
-    { }
-    template<typename T>
-    ReplaceResult(T&& str, std::shared_ptr<const ReplaceDepend> depend) noexcept :
-        Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false) 
+    ReplaceResult(T&& str, const DependBase& depend) noexcept :
+        Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false)
     {
-        if (depend)
-            Depends = [dep = std::move(depend)](){ return dep; };
+        for (const auto dep : depend)
+            Depends.DependPatchedBlock(dep);
     }
+    template<typename T>
+    ReplaceResult(T&& str, const std::u32string_view depend) noexcept :
+        Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false)
+    {
+        Depends.DependPatchedBlock(depend);
+    }
+    template<typename T>
+    ReplaceResult(T&& str, const ReplaceDepend& depend) noexcept :
+        Str(std::forward<T>(str)), Depends(depend), IsSuccess(true), AllowFallback(false)
+    { }
     template<typename T>
     ReplaceResult(T&& str, const bool allowFallback) noexcept :
         Str(std::forward<T>(str)), IsSuccess(false), AllowFallback(allowFallback) 
@@ -354,18 +402,7 @@ public:
     [[nodiscard]] constexpr bool CheckAllowFallback() const noexcept { return AllowFallback; }
     [[nodiscard]] constexpr std::u32string_view GetStr() const noexcept { return Str.StrView(); }
     [[nodiscard]] std::u32string ExtractStr() noexcept { return Str.ExtractStr(); }
-    [[nodiscard]] std::shared_ptr<const ReplaceDepend> GetDepends() const
-    {
-        if (Depends)
-            return Depends();
-        return {};
-    }
-    [[nodiscard]] U32StrSpan GetPatchedBlockDepends() const
-    {
-        if (Depends)
-            return Depends()->PatchedBlock;
-        return {};
-    }
+    [[nodiscard]] const ReplaceDepend& GetDepends() const { return Depends; }
     void SetStr(common::str::StrVariant<char32_t> str) noexcept { Str = std::move(str); }
 };
 
@@ -423,31 +460,91 @@ class XCOMPBASAPI XCNLContext : public xziar::nailang::CompactEvaluateContext, p
     friend XCNLStructHandler;
     friend XCNLRuntime;
     friend XCNLProgStub;
+private:
+    class PatchResult : public DependBase
+    {
+    private:
+        const XCNLContext* Host;
+        uint32_t PatchIdx;
+        bool IsNewAdd;
+        std::u32string_view Get(size_t) const noexcept override 
+        {
+            return Host->GetID(Host->PatchedBlocks[PatchIdx]);
+        }
+    public:
+        constexpr PatchResult(const XCNLContext* host, size_t idx, bool isNew) noexcept :
+            Host(host), PatchIdx(gsl::narrow_cast<uint32_t>(idx)), IsNewAdd(isNew) {}
+        ~PatchResult() override {}
+        constexpr size_t Count() const noexcept override { return 1; }
+        constexpr bool IsNew() const noexcept { return IsNewAdd; }
+    };
+    class PatchSession
+    {
+        friend XCNLContext;
+    private:
+        XCNLContext& Context;
+        std::u32string_view ID;
+        size_t Idx;
+        constexpr PatchSession(XCNLContext& ctx, std::u32string_view id) noexcept : Context(ctx), ID(id), Idx(SIZE_MAX)
+        { }
+    public:
+        template<typename S, typename D>
+        void Commit(S&& content, const D& depends)
+        {
+            Expects(Idx == SIZE_MAX);
+            Idx = Context.PatchedBlocks.size();
+            if constexpr (std::is_base_of_v<DependBase, D>)
+                Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), depends.GetDependSpan());
+            else if constexpr (std::is_same_v<ReplaceDepend, D>)
+                Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), depends.GetPatchedBlock().GetDependSpan());
+            else if constexpr (std::is_convertible_v<D, std::u32string_view>)
+                Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), std::array<std::u32string_view, 1>{depends});
+            else
+                Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), depends);
+        }
+    };
 public:
     XCNLContext(const common::CLikeDefines& info);
     ~XCNLContext() override;
-
-    template<typename F>
-    forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
-        std::u32string_view id, U32StrSpan depends, F&& generator)
+    template<typename F, typename... Args>
+    forceinline PatchResult AddPatchedBlock(std::u32string_view id, F&& generator, Args&&... args)
     {
-        static_assert(std::is_invocable_r_v<std::u32string, F>, "need return u32string");
         if (const auto idx = CheckExists(PatchedBlocks, id); idx)
-            return { PatchedSelfDepends[*idx], false };
-        ForceAdd(PatchedBlocks, id, generator(), depends);
-        PatchedSelfDepends.push_back(ReplaceDepend::CreateFrom(id));
-        return { PatchedSelfDepends.back(), true };
+            return PatchResult{ this, *idx, false };
+        using R = std::decay_t<std::invoke_result_t<F, Args...>>;
+        auto ret = generator(std::forward<Args>(args)...);
+        if constexpr (std::is_convertible_v<R, std::u32string_view>)
+            ForceAdd(PatchedBlocks, id, std::move(ret), {});
+        else if constexpr (common::is_specialization<R, std::pair>::value)
+        {
+            static_assert(std::is_convertible_v<typename R::first_type, std::u32string_view>, "need return pair<str,str[]>");
+            if constexpr (std::is_base_of_v<DependBase, std::decay_t<typename R::second_type>>)
+            {
+                auto depends = ret.second.GetDependSpan();
+                ForceAdd(PatchedBlocks, id, std::move(ret.first), depends);
+            }
+            else if constexpr (std::is_same_v<ReplaceDepend, std::decay_t<typename R::second_type>>)
+            {
+                auto depends = ret.second.GetPatchedBlock().GetDependSpan();
+                ForceAdd(PatchedBlocks, id, std::move(ret.first), depends);
+            }
+            else if constexpr (std::is_convertible_v<typename R::second_type, std::u32string_view>)
+                ForceAdd(PatchedBlocks, id, std::move(ret.first), std::array<std::u32string_view, 1>{ret.second});
+            else
+                ForceAdd(PatchedBlocks, id, std::move(ret.first), ret.second);
+        }
+        else
+            static_assert(common::AlwaysTrue<R>, "need return str or pair<str,str[]>");
+        return PatchResult{ this, PatchedBlocks.size() - 1, true };
     }
-    template<typename F>
-    forceinline std::pair<std::shared_ptr<const ReplaceDepend>, bool> AddPatchedBlockD(
-        std::u32string_view id, std::u32string_view depend, F&& generator)
+    template<typename F, typename... Args>
+    forceinline PatchResult AddPatchedBlockEx(std::u32string_view id, F&& generator, Args&&... args)
     {
-        return AddPatchedBlockD(id, U32StrSpan{ &depend, 1 }, std::forward<F>(generator));
-    }
-    template<typename F>
-    forceinline auto AddPatchedBlock(std::u32string_view id, F&& generator)
-    {
-        return AddPatchedBlockD(id, U32StrSpan{}, std::forward<F>(generator));
+        if (const auto idx = CheckExists(PatchedBlocks, id); idx)
+            return PatchResult{ this, *idx, false };
+        PatchSession session(*this, id);
+        generator(session, std::forward<Args>(args)...);
+        return PatchResult{ this, session.Idx, true };
     }
     forceinline void WritePatchedBlock(std::u32string& output) const
     {
@@ -467,7 +564,6 @@ protected:
     [[nodiscard]] size_t FindStruct(std::u32string_view name) const;
 private:
     COMMON_NO_COPY(XCNLContext)
-    std::vector<std::shared_ptr<const ReplaceDepend>> PatchedSelfDepends;
     [[nodiscard]] XCNLExtension* FindExt(std::function<bool(const XCNLExtension*)> func) const;
     void Write(std::u32string& output, const NamedText& item) const override;
 };

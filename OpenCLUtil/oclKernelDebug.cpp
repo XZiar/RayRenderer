@@ -229,10 +229,10 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 }
 )"s;
     }
-    static constexpr auto Depend_DebugTid = std::array{ U"oclu_debugtid"sv };
+    static constexpr auto Depend_DebugTid = U"oclu_debugtid"sv;
     void AppendDebugTid()
     {
-        Context.AddPatchedBlock(U"oclu_debugtid"sv, &NLCLDebugExtension::TextDebugTid);
+        Context.AddPatchedBlock(Depend_DebugTid, &NLCLDebugExtension::TextDebugTid);
     }
 
     static std::u32string TextDebugStringBase() noexcept
@@ -261,15 +261,14 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 }
 )"s;
     }
-    static constexpr auto Depend_DebugBase = std::array{ U"oclu_debug"sv };
+    static constexpr auto Depend_DebugBase = U"oclu_debug"sv;
     void AppendDebugBase()
     {
-        Context.AddPatchedBlock(U"oclu_debug"sv, &NLCLDebugExtension::TextDebugStringBase);
+        Context.AddPatchedBlock(Depend_DebugBase, &NLCLDebugExtension::TextDebugStringBase);
     }
 
-    static std::u32string TextDebugInfo() noexcept
-    {
-        return UR"(inline void oclu_debuginfo(const uint total, global uint* restrict info)
+    static constexpr std::pair<std::u32string_view, std::u32string_view> TextDebugInfo = 
+    { UR"(inline void oclu_debuginfo(const uint total, global uint* restrict info)
 {
     if (total > 0)
     {
@@ -288,11 +287,12 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         info[7 + tid] = lid;
     }
 }
-)"s;
-    }
-    static std::u32string TextDebugSGInfo() noexcept
-    {
-        return UR"(inline void oclu_debugsginfo(const uint total, global uint* restrict info, const ushort sgid, const ushort sglid)
+)"sv, 
+        Depend_DebugTid 
+    };
+    static constexpr std::pair<std::u32string_view, std::u32string_view> TextDebugSGInfo = 
+    { 
+        UR"(inline void oclu_debugsginfo(const uint total, global uint* restrict info, const ushort sgid, const ushort sglid)
 {
     if (total > 0)
     {
@@ -311,8 +311,9 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         info[7 + tid] = sginfo;
     }
 }
-)"s;
-    }
+)"sv, 
+        Depend_DebugTid 
+    };
     void AppendDebugInfo(NLCLRawExecutor& executor)
     {
         if (HasDebug) return; // do not repeat
@@ -340,17 +341,17 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
 
         if (HasSgInfo)
         {
-            Context.AddPatchedBlockD(U"oclu_debugsginfo"sv, Depend_DebugTid, &NLCLDebugExtension::TextDebugSGInfo);
+            Context.AddPatchedBlock(U"oclu_debugsginfo"sv, []() { return NLCLDebugExtension::TextDebugSGInfo; });
             DebugInfoStr = FMTSTR(U"    oclu_debugsginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info, {}, {});\r\n"sv, sgid, sglid);
         }
         else
         {
-            Context.AddPatchedBlockD(U"oclu_debuginfo"sv, Depend_DebugTid, &NLCLDebugExtension::TextDebugInfo);
+            Context.AddPatchedBlock(U"oclu_debuginfo"sv, []() { return NLCLDebugExtension::TextDebugInfo; });
             DebugInfoStr = U"    oclu_debuginfo(_oclu_debug_buffer_size, _oclu_debug_buffer_info);\r\n"sv;
         }
     }
 
-    std::u32string DebugStringPatch(NLCLRawExecutor& executor, const std::u32string_view dbgId,
+    std::pair<std::u32string, std::u32string_view> DebugStringPatch(NLCLRawExecutor& executor, const std::u32string_view dbgId,
         const std::u32string_view formatter, common::span<const xcomp::debug::NamedVecPair> args) noexcept
     {
         auto& runtime = executor.GetRuntime();
@@ -366,7 +367,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         catch (const fmt::format_error& fe)
         {
             executor.HandleException(CREATE_EXCEPTION(xziar::nailang::NailangFormatException, formatter, fe));
-            return U"// Formatter not match the datatype provided\r\n";
+            return { U"// Formatter not match the datatype provided\r\n", {} };
         }
 
         std::u32string func = fmt::format(FMT_STRING(U"inline void oclu_debug_{}("sv), dbgId);
@@ -456,7 +457,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
             }
         }
         func.append(U"\r\n}\r\n"sv);
-        return func;
+        return { func, Depend_DebugBase };
     }
 
     xcomp::ReplaceResult GenerateDebugFunc(NLCLRawExecutor& executor, const std::u32string_view id,
@@ -464,7 +465,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
     {
         AppendDebugInfo(executor);
         AppendDebugBase();
-        auto dep = Context.AddPatchedBlockD(U"oclu_debug_"s.append(id), Depend_DebugBase, 
+        auto dep = Context.AddPatchedBlock(U"oclu_debug_"s.append(id), 
             [&]() { return DebugStringPatch(executor, id, item.first, item.second); });
 
         std::u32string str = FMTSTR(U"oclu_debug_{}(_oclu_debug_buffer_size, _oclu_debug_buffer_info, _oclu_debug_buffer_data, ", id);
@@ -474,7 +475,7 @@ struct NLCLDebugExtension : public NLCLExtension, public xcomp::debug::XCNLDebug
         }
         str.pop_back(); // pop space
         str.back() = U')'; // replace ',' with ')'
-        return { std::move(str), dep.first };
+        return { std::move(str), dep };
     }
 
     XCNL_EXT_REG(NLCLDebugExtension,

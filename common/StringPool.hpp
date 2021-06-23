@@ -25,6 +25,7 @@ public:
     constexpr StringPiece() noexcept : Offset(0), Length(0) {}
     constexpr StringPiece(const uint32_t offset, const uint32_t len) noexcept : Offset(offset), Length(len)
     { }
+    forceinline constexpr size_t GetOffset() const noexcept { return Offset; }
     forceinline constexpr size_t GetLength() const noexcept { return Length; }
 };
 
@@ -80,6 +81,7 @@ public:
     }
     forceinline bool IsEmpty() const noexcept { return Pool.empty(); }
     forceinline void Reserve(size_t size) noexcept { return Pool.reserve(size); }
+    forceinline std::basic_string_view<T> GetAllStr() const noexcept { return { Pool.data(), Pool.size() }; }
 };
 
 template<typename T>

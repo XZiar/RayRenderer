@@ -174,44 +174,36 @@ constexpr static std::array<char32_t, 3> GetSignPrefix(Dp4aProvider::Signedness 
     }
 }
 
-#define SignednessFixedData(base, sign, sfx) case Signedness::sign:                 \
-{                                                                                   \
-    static constexpr auto name = U"oclu_" STRINGIZE(base) sfx;                      \
-    static const std::function<std::shared_ptr<const xcomp::ReplaceDepend>()> dep = \
-    []() { return xcomp::ReplaceDepend::CreateFrom(name); };                        \
-    return {name, dep};                                                             \
-}
+#define SignednessFixedData(base, sign, sfx) case Signedness::sign: return U"oclu_" STRINGIZE(base) sfx;
 
-#define GetSignednessFixedData(base)                                \
-[](Signedness signedness) ->                                        \
-std::pair<std::u32string_view,                                      \
-    std::function<std::shared_ptr<const xcomp::ReplaceDepend>()>>   \
-{                                                                   \
-    switch (signedness)                                             \
-    {                                                               \
-    SignednessFixedData(base, UU, "_uu"sv)                          \
-    SignednessFixedData(base, US, "_us"sv)                          \
-    SignednessFixedData(base, SU, "_su"sv)                          \
-    SignednessFixedData(base, SS, "_ss"sv)                          \
-    default: assert(false); return {};                              \
-    }                                                               \
+#define GetSignednessFixedData(base)                \
+[](Signedness signedness) -> std::u32string_view    \
+{                                                   \
+    switch (signedness)                             \
+    {                                               \
+    SignednessFixedData(base, UU, "_uu"sv)          \
+    SignednessFixedData(base, US, "_us"sv)          \
+    SignednessFixedData(base, SU, "_su"sv)          \
+    SignednessFixedData(base, SS, "_ss"sv)          \
+    default: assert(false); return {};              \
+    }                                               \
 }
 
 ReplaceResult NLCLDp4aPlain::DP4A(Signedness signedness, const common::span<const std::u32string_view> args)
 {
-    const auto& [funcName, depend] = GetSignednessFixedData(dp4a)(signedness);
-    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
+    const auto funcName = GetSignednessFixedData(dp4a)(signedness);
+    auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
             std::u32string func = FMTSTR(U"inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)",
-                fname, pfxC, pfxA, pfxB);
+                funcName, pfxC, pfxA, pfxB);
             func.append(UR"(
 {
     return acc + ((a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w));
 })"sv);
             return func;
         });
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), dep };
 }
 
 
@@ -225,8 +217,8 @@ ReplaceResult NLCLDp4aIntel::DP4A(Signedness signedness, const common::span<cons
     if (!SupportDp4a)
         return NLCLDp4aPlain::DP4A(signedness, args);
 
-    const auto& [funcName, depend] = GetSignednessFixedData(dp4a_intel)(signedness);
-    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
+    const auto funcName = GetSignednessFixedData(dp4a_intel)(signedness);
+    auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             const auto sfx = [&]()
             {
@@ -245,9 +237,9 @@ inline {2}int {1}({2}int acc, const {3}char4 a, const {4}char4 b)
 {{
     return __builtin_IB_dp4a_{0}(as_int(acc), as_int(a), as_int(b));
 }})"sv;
-            return FMTSTR(syntax, sfx, fname, pfxC, pfxA, pfxB);
+            return FMTSTR(syntax, sfx, funcName, pfxC, pfxA, pfxB);
         });
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), dep };
 }
 
 
@@ -291,8 +283,8 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
     if (signedness == Signedness::US || signedness == Signedness::SU)
         return NLCLDp4aPlain::DP4A(signedness, args);
 
-    const auto& [funcName, depend] = GetSignednessFixedData(dp4a_ptx)(signedness);
-    Context.AddPatchedBlock(funcName, [&, fname = funcName]()
+    const auto funcName = GetSignednessFixedData(dp4a_ptx)(signedness);
+    auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
             static constexpr auto syntax = UR"(inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)
@@ -301,9 +293,9 @@ ReplaceResult NLCLDp4aPtx::DP4A(Signedness signedness, const common::span<const 
     asm volatile("dp4a.{2}32.{3}32 %0, %1, %2, %3;" : "=r"(ret) : "r"(a_), "r"(b_), "r"(acc));
     return ret;
 }})"sv;
-            return FMTSTR(syntax, fname, pfxC, pfxA, pfxB);
+            return FMTSTR(syntax, funcName, pfxC, pfxA, pfxB);
         });
-    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), depend };
+    return { FMTSTR(U"{}({}, {}, {})"sv, funcName, args[0], args[1], args[2]), dep };
 }
 
 
