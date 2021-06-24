@@ -388,11 +388,12 @@ public:
     ReplaceResult(T&& str, const std::u32string_view depend) noexcept :
         Str(std::forward<T>(str)), IsSuccess(true), AllowFallback(false)
     {
-        Depends.DependPatchedBlock(depend);
+        if (!depend.empty())
+            Depends.DependPatchedBlock(depend);
     }
-    template<typename T>
-    ReplaceResult(T&& str, const ReplaceDepend& depend) noexcept :
-        Str(std::forward<T>(str)), Depends(depend), IsSuccess(true), AllowFallback(false)
+    template<typename T, typename D, typename = std::enable_if_t<std::is_same_v<std::decay_t<D>, ReplaceDepend>>>
+    ReplaceResult(T&& str, D&& depend) noexcept :
+        Str(std::forward<T>(str)), Depends(std::forward<D>(depend)), IsSuccess(true), AllowFallback(false)
     { }
     template<typename T>
     ReplaceResult(T&& str, const bool allowFallback) noexcept :
@@ -498,7 +499,13 @@ private:
             else if constexpr (std::is_same_v<ReplaceDepend, D>)
                 Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), depends.GetPatchedBlock().GetDependSpan());
             else if constexpr (std::is_convertible_v<D, std::u32string_view>)
-                Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), std::array<std::u32string_view, 1>{depends});
+            {
+                const std::u32string_view depend = depends;
+                if (depend.empty())
+                    Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), {});
+                else
+                    Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), { &depend, 1 });
+            }
             else
                 Context.ForceAdd(Context.PatchedBlocks, ID, std::forward<S>(content), depends);
         }
