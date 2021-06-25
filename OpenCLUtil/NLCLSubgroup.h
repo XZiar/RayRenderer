@@ -14,7 +14,7 @@ struct SubgroupAttributes
     MimicType Mimic = MimicType::None;
 };
 enum class SubgroupReduceOp  : uint8_t { Add, Mul, Min, Max, And, Or, Xor };
-enum class SubgroupShuffleOp : uint8_t { Broadcast, Shuffle, ShuffleXor, ShuffleDown, ShuffleUp };
+enum class SubgroupShuffleOp : uint8_t { Broadcast, Shuffle, ShuffleXor, ShuffleDown, ShuffleUp, ShuffleDown2, ShuffleUp2 };
 
 
 struct NLCLSubgroupCapbility : public SubgroupCapbility
@@ -22,6 +22,7 @@ struct NLCLSubgroupCapbility : public SubgroupCapbility
     bool SupportFP16            :1;
     bool SupportFP64            :1;
     bool SupportBasicSubgroup   :1;
+    uint8_t NvSmVer = 0;
     explicit constexpr NLCLSubgroupCapbility() noexcept : SupportFP16(false), SupportFP64(false), SupportBasicSubgroup(false) {}
     explicit constexpr NLCLSubgroupCapbility(NLCLContext& context) noexcept : SubgroupCapbility(context.SubgroupCaps),
         SupportFP16(context.SupportFP16), SupportFP64(context.SupportFP64), SupportBasicSubgroup(false) {}
@@ -159,21 +160,18 @@ protected:
     };
     [[nodiscard]] static std::u32string GenerateFuncName(std::u32string_view op, std::u32string_view suffix, 
         common::simd::VecDataInfo vtype) noexcept;
-    [[nodiscard]] static std::optional<common::simd::VecDataInfo> DecideVtype(common::simd::VecDataInfo vtype,
-        common::span<const common::simd::VecDataInfo> scalars) noexcept;
-    [[nodiscard]] static std::u32string ScalarPatch(const std::u32string_view name, const std::u32string_view baseFunc, 
+    [[nodiscard]] static std::u32string VectorPatchText(const std::u32string_view name, const std::u32string_view baseFunc, 
         common::simd::VecDataInfo vtype, common::simd::VecDataInfo castType,
         std::u32string_view pfxParam, std::u32string_view pfxArg,
         std::u32string_view sfxParam, std::u32string_view sfxArg) noexcept;
     template<typename Op, typename... Args>
     [[nodiscard]] TypedAlgoResult VectorizePatch(const common::simd::VecDataInfo vtype, TypedAlgoResult& scalarAlgo, Args&&... args);
+    [[nodiscard]] TypedAlgoResult ShufRelPatch(const common::simd::VecDataInfo vtype, SubgroupShuffleOp op, uint8_t level);
     [[nodiscard]] TypedAlgoResult ShufReducePatch(const common::simd::VecDataInfo vtype, SubgroupReduceOp op, uint8_t level);
-    [[nodiscard]] static std::u32string HiLoPatch(const std::u32string_view name, const std::u32string_view baseFunc, common::simd::VecDataInfo vtype,
-        const std::u32string_view extraArg = {}, const std::u32string_view extraParam = {}) noexcept;
     struct Shuffle;
-    boost::container::small_vector<Algorithm, 4> ShuffleSupport;
+    boost::container::small_vector<Algorithm, 6> ShuffleSupport;
     struct Reduce;
-    boost::container::small_vector<Algorithm, 4> ReduceSupport;
+    boost::container::small_vector<Algorithm, 6> ReduceSupport;
 
     common::mlog::MiniLogger<false>& Logger;
     NLCLContext& Context;
@@ -229,6 +227,7 @@ protected:
     static constexpr uint8_t AlgoKHRBroadcast   = 0x01;
     static constexpr uint8_t AlgoKHRBroadcastNU = 0x02;
     static constexpr uint8_t AlgoKHRShuffle     = 0x03;
+    static constexpr uint8_t AlgoKHRShuffleRelM = 0x10;
     static constexpr uint8_t AlgoKHRReduce      = 0x01;
     static constexpr uint8_t AlgoKHRReduceNU    = 0x02;
     static constexpr uint8_t AlgoKHRReduceShuf  = 0x10;
@@ -237,9 +236,8 @@ protected:
     void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void WarnFP(common::simd::VecDataInfo vtype, const std::u16string_view func);
     // internal use, won't check type
-    //xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, common::simd::VecDataInfo realType, const std::u32string_view ele);
     TypedAlgoResult HandleShuffleAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupShuffleOp op) override;
-    TypedAlgoResult HandleReduceAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp op) override;
+    TypedAlgoResult HandleReduceAlgo (const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp  op) override;
     std::u32string_view GetAlgoSuffix(uint8_t level) noexcept override;
 public:
     NLCLSubgroupKHR(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
@@ -252,7 +250,6 @@ public:
     xcomp::ReplaceResult GetSubgroupLocalId() override;
     xcomp::ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
     xcomp::ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
-    //xcomp::ReplaceResult SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 };
 
 class NLCLSubgroupIntel : public NLCLSubgroupKHR
@@ -265,31 +262,29 @@ private:
     void EnableExtraVecType(common::simd::VecDataInfo type) noexcept;
 protected:
     static constexpr uint8_t LevelIntel          = 0x02;
-    static constexpr uint8_t AlgoIntelShuffle    = 0x04;
-    static constexpr uint8_t AlgoIntelReduceShuf = 0x14;
+    static constexpr uint8_t AlgoIntelShuffle    = 0x05;
+    static constexpr uint8_t AlgoIntelReduceShuf = 0x15;
     bool EnableIntel = false, EnableIntel16 = false, EnableIntel8 = false;
     void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
-    /*xcomp::ReplaceResult SubgroupReduceArith(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
-    xcomp::ReplaceResult SubgroupReduceBitwise(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);*/
     TypedAlgoResult HandleShuffleAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupShuffleOp op) override;
-    TypedAlgoResult HandleReduceAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp op) override;
+    TypedAlgoResult HandleReduceAlgo (const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp  op) override;
     std::u32string_view GetAlgoSuffix(uint8_t level) noexcept override;
 public:
     NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupIntel() override { }
-
-    //xcomp::ReplaceResult SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 
 };
 
 class NLCLSubgroupLocal : public NLCLSubgroupKHR
 {
 protected:
-    static constexpr uint8_t LevelLocal         = 0x02;
-    static constexpr uint8_t AlgoLocalBroadcast = 0x04;
-    static constexpr uint8_t AlgoLocalShuffle   = 0x05;
+    static constexpr uint8_t LevelLocal          = 0x02;
+    static constexpr uint8_t AlgoLocalBroadcast  = 0x05;
+    static constexpr uint8_t AlgoLocalShuffle    = 0x06;
+    static constexpr uint8_t AlgoLocalReduceShuf = 0x15;
     std::u32string_view KernelName;
     bool NeedSubgroupSize = false, NeedLocalTemp = false;
+    ExtraParam GetCommonExtra() const noexcept;
     void OnBegin(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     std::u32string GenerateKID(std::u32string_view type) const noexcept;
@@ -297,6 +292,7 @@ protected:
     TypedAlgoResult ShufflePatch   (const common::simd::VecDataInfo vtype) noexcept;
     TypedAlgoResult ShuffleXorPatch(const common::simd::VecDataInfo vtype) noexcept;
     TypedAlgoResult HandleShuffleAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupShuffleOp op) override;
+    TypedAlgoResult HandleReduceAlgo (const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp  op) override;
     std::u32string_view GetAlgoSuffix(uint8_t level) noexcept override;
 public:
     NLCLSubgroupLocal(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
@@ -315,15 +311,17 @@ public:
 class NLCLSubgroupPtx : public SubgroupProvider
 {
 protected:
-    static constexpr uint8_t LevelPtx          = 0x02;
-    static constexpr uint8_t AlgoPtxShuffle    = 0x04;
-    static constexpr uint8_t AlgoPtxReduceShuf = 0x14;
+    static constexpr uint8_t LevelPtx          = 0x01;
+    static constexpr uint8_t AlgoPtxShuffle    = 0x05;
+    static constexpr uint8_t AlgoPtxReduce80   = 0x05;
+    static constexpr uint8_t AlgoPtxReduceShuf = 0x15;
     std::u32string_view ExtraSync, ExtraMask;
     const uint32_t SMVersion;
-    TypedAlgoResult ShufflePatch(common::simd::VecDataInfo vtype, SubgroupShuffleOp op) noexcept;
-    TypedAlgoResult SubgroupReduceSM80(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
-    TypedAlgoResult SubgroupReduceSM30(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele);
+    TypedAlgoResult ShufflePatch   (const common::simd::VecDataInfo vtype, SubgroupShuffleOp op) noexcept;
+    TypedAlgoResult SubgroupReduceSM80(SubgroupReduceOp op, common::simd::VecDataInfo vtype);
+    TypedAlgoResult SubgroupReduceSM30(SubgroupReduceOp op, common::simd::VecDataInfo vtype);
     TypedAlgoResult HandleShuffleAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupShuffleOp op) override;
+    TypedAlgoResult HandleReduceAlgo (const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp  op) override;
     std::u32string_view GetAlgoSuffix(uint8_t level) noexcept override;
 public:
     NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap, const uint32_t smVersion = 30);
@@ -336,7 +334,6 @@ public:
     xcomp::ReplaceResult GetSubgroupLocalId() override;
     xcomp::ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
     xcomp::ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
-    //xcomp::ReplaceResult SubgroupReduce(SubgroupReduceOp op, common::simd::VecDataInfo vtype, const std::u32string_view ele) override;
 
 };
 
