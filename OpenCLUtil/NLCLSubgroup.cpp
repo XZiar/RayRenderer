@@ -1731,13 +1731,12 @@ ReplaceResult NLCLSubgroupPtx::FuncAll(const std::u32string_view predicate)
                  ".reg .pred        %%p1, %%p2;     \n\t\t"
                  "setp.ne.u32       %%p1, %1, 0;    \n\t\t"
                  )"s;
-            constexpr auto tail = UR"(
+            APPEND_FMT(ret, UR"("vote{0}.all.pred  %%p2, %%p1{1};  \n\t\t")"sv, ExtraSync, ExtraMask);
+            ret.append(UR"(
                  "selp.s32          %0, 1, 0, %%p2; \n\t"
                  "}" : "=r"(ret) : "r"(predicate));
     return ret;
-})"sv;
-            APPEND_FMT(ret, UR"("vote{0}.all.pred  %%p2, %%p1{1};  \n\t\t")"sv, ExtraSync, ExtraMask);
-            ret.append(tail);
+})"sv);
             return ret;
         });
     return { FMTSTR(U"oclu_subgroup_ptx_all({})", predicate), id };
@@ -1754,13 +1753,12 @@ ReplaceResult NLCLSubgroupPtx::FuncAny(const std::u32string_view predicate)
                  ".reg .pred        %%p1, %%p2;     \n\t\t"
                  "setp.ne.u32       %%p1, %1, 0;    \n\t\t"
                  )"s;
-            constexpr auto tail = UR"(
+            APPEND_FMT(ret, UR"("vote{0}.any.pred  %%p2, %%p1{1};  \n\t\t")"sv, ExtraSync, ExtraMask);
+            ret.append(UR"(
                  "selp.s32          %0, 1, 0, %%p2; \n\t"
                  "}" : "=r"(ret) : "r"(predicate));
     return ret;
-})"sv;
-            APPEND_FMT(ret, UR"("vote{0}.any.pred  %%p2, %%p1{1};  \n\t\t")"sv, ExtraSync, ExtraMask);
-            ret.append(tail);
+})"sv);
             return ret;
         });
     return { FMTSTR(U"oclu_subgroup_ptx_any({})", predicate), id };
