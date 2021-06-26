@@ -13,8 +13,8 @@ template<typename T, typename V, auto F>
 class IndirectIterator
 {
     friend T;
-    static_assert(std::is_invocable_r_v<V, decltype(F), T, size_t>, 
-        "F need to be member function of T, acceptting size_t and returning V");
+    /*static_assert(std::is_invocable_r_v<V, decltype(F), T, size_t>, 
+        "F need to be member function of T, acceptting size_t and returning V");*/
 private:
     T* Host;
     size_t Idx;

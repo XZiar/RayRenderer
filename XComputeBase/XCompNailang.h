@@ -275,7 +275,7 @@ struct XCNLStruct
 class DependBase
 {
 private:
-    virtual std::u32string_view Get([[maybe_unused]] size_t idx) const noexcept { return {}; };
+    virtual std::u32string_view Get(size_t idx) const noexcept = 0;
     using DependIterator = ::common::container::IndirectIterator<const DependBase, std::u32string_view, &DependBase::Get>;
     friend DependIterator;
 public:

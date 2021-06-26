@@ -36,7 +36,6 @@ using common::str::Charset;
 using common::str::IsBeginWith;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
-//MAKE_ENABLER_IMPL(ReplaceDepend)
 MAKE_ENABLER_IMPL(XCNLProgram)
 
 

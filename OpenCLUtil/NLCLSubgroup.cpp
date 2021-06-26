@@ -2,10 +2,36 @@
 #include "NLCLSubgroup.h"
 
 
+using namespace std::string_view_literals;
+
+template<bool IsPrefix>
+struct OptionalArg
+{
+    std::u32string_view Arg;
+};
+
+template<typename Char, bool IsPrefix>
+struct fmt::formatter<OptionalArg<IsPrefix>, Char>
+{
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+    template<typename FormatContext>
+    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx)
+    {
+        if (arg.Arg.empty())
+            return ctx.out();
+        if constexpr (IsPrefix)
+            return fmt::format_to(ctx.out(), FMT_STRING(U"{}, "), arg.Arg);
+        else
+            return fmt::format_to(ctx.out(), FMT_STRING(U", {}"), arg.Arg);
+    }
+};
 
 namespace oclu
 {
-using namespace std::string_view_literals;
 using namespace std::string_literals;
 using xcomp::ReplaceResult;
 using xcomp::U32StrSpan;
@@ -72,82 +98,75 @@ static forceinline ReplaceResult HandleResult(ReplaceResult result, std::u32stri
 
 ReplaceResult NLCLSubgroupExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func, const common::span<const std::u32string_view> args)
 {
-    if (common::str::IsBeginWith(func, U"oclu."))
-        func.remove_prefix(5);
-    else if(common::str::IsBeginWith(func, U"xcomp."))
-        func.remove_prefix(6);
+    if (common::str::IsBeginWith(func, U"oclu.Subgroup."))
+        func.remove_prefix(14);
+    else if(common::str::IsBeginWith(func, U"xcomp.Subgroup."))
+        func.remove_prefix(15);
     else
         return {};
-    //auto& Executor = static_cast<NLCLRawExecutor&>(executor);
     auto& runtime = executor.GetRuntime();
-    /*const auto SubgroupReduce = [&](std::u32string_view name, SubgroupReduceOp op)
-    {
-        executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);
-        const auto vtype = runtime.ParseVecDataInfo(args[0], FMTSTR(u"replace [{}]"sv, name));
-        return Provider->SubgroupReduce(op, vtype, args[1]);
-    };*/
 
     switch (common::DJBHash::HashC(func))
     {
-    HashCase(func, U"GetSubgroupSize")
+    HashCase(func, U"GetSize")
     {
         executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-        return HandleResult(Provider->GetSubgroupSize(),
-            U"[GetSubgroupSize] not supported"sv);
+        return HandleResult(Provider->FuncGetSize(),
+            U"[Subgroup.GetSize] not supported"sv);
     }
-    HashCase(func, U"GetMaxSubgroupSize")
+    HashCase(func, U"GetMaxSize")
     {
         executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-        return HandleResult(Provider->GetMaxSubgroupSize(),
-            U"[GetMaxSubgroupSize] not supported"sv);
+        return HandleResult(Provider->FuncGetMaxSize(),
+            U"[Subgroup.GetMaxSize] not supported"sv);
     }
-    HashCase(func, U"GetSubgroupCount")
+    HashCase(func, U"GetCount")
     {
         executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-        return HandleResult(Provider->GetSubgroupCount(),
-            U"[GetSubgroupCount] not supported"sv);
+        return HandleResult(Provider->FuncGetCount(),
+            U"[Subgroup.GetCount] not supported"sv);
     }
-    HashCase(func, U"GetSubgroupId")
+    HashCase(func, U"GetId")
     {
         executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-        return HandleResult(Provider->GetSubgroupId(),
-            U"[GetSubgroupId] not supported"sv);
+        return HandleResult(Provider->FuncGetId(),
+            U"[Subgroup.GetId] not supported"sv);
     }
-    HashCase(func, U"GetSubgroupLocalId")
+    HashCase(func, U"GetLocalId")
     {
         executor.ThrowByReplacerArgCount(func, args, 0, ArgLimits::Exact);
-        return HandleResult(Provider->GetSubgroupLocalId(),
-            U"[GetSubgroupLocalId] not supported"sv);
+        return HandleResult(Provider->FuncGetLocalId(),
+            U"[Subgroup.GetLocalId] not supported"sv);
     }
-    HashCase(func, U"SubgroupAll")
+    HashCase(func, U"All")
     {
         executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
-        return HandleResult(Provider->SubgroupAll(args[0]),
-            U"[SubgroupAll] not supported"sv);
+        return HandleResult(Provider->FuncAll(args[0]),
+            U"[Subgroup.All] not supported"sv);
     }
-    HashCase(func, U"SubgroupAny")
+    HashCase(func, U"Any")
     {
         executor.ThrowByReplacerArgCount(func, args, 1, ArgLimits::Exact);
-        return HandleResult(Provider->SubgroupAny(args[0]),
-            U"[SubgroupAny] not supported"sv);
+        return HandleResult(Provider->FuncAny(args[0]),
+            U"[Subgroup.Any] not supported"sv);
     }
-#define ShuffleCase(op) HashCase(func, U"Subgroup" #op)                                                     \
-    {                                                                                                       \
-        executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);                                  \
-        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [Subgroup" #op "]"sv);               \
-        return HandleResult(Provider->SubgroupShuffle(vtype, args.subspan(1), SubgroupShuffleOp::op, false),\
-            U"[Subgroup" #op "] with Type [{}] not supported"sv, args[0]);                                  \
+#define ShuffleCase(op) HashCase(func, U"" #op)                                                         \
+    {                                                                                                   \
+        executor.ThrowByReplacerArgCount(func, args, 3, ArgLimits::Exact);                              \
+        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [Subgroup." #op "]"sv);          \
+        return HandleResult(Provider->FuncShuffle(vtype, args.subspan(1), SubgroupShuffleOp::op, false),\
+            U"[Subgroup." #op "] with Type [{}] not supported"sv, args[0]);                             \
     }
     ShuffleCase(Broadcast)
     ShuffleCase(Shuffle)
     ShuffleCase(ShuffleXor)
 #undef ShuffleCase
-#define ReduceCase(op) HashCase(func, U"SubgroupReduce" #op)                                                \
-    {                                                                                                       \
-        executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);                                  \
-        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [SubgroupReduce" #op "]"sv);         \
-        return HandleResult(Provider->SubgroupReduce(vtype, args.subspan(1), SubgroupReduceOp::op, false),  \
-            U"[SubgroupReduce" #op "] with Type [{}] not supported"sv, args[0]);                            \
+#define ReduceCase(op) HashCase(func, U"Reduce" #op)                                                    \
+    {                                                                                                   \
+        executor.ThrowByReplacerArgCount(func, args, 2, ArgLimits::Exact);                              \
+        const auto vtype = runtime.ParseVecDataInfo(args[0], u"replace [Subgroup.Reduce" #op "]"sv);    \
+        return HandleResult(Provider->FuncReduce(vtype, args.subspan(1), SubgroupReduceOp::op, false),  \
+            U"[Subgroup.Reduce" #op "] with Type [{}] not supported"sv, args[0]);                       \
     }
     ReduceCase(Add)
     ReduceCase(Mul)
@@ -180,7 +199,7 @@ std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& execut
         const auto args  = func.TryGet(3, &Arg::GetStr).Or({});
         const auto provider = Generate(Logger, Context, mimic, args);
         const std::u32string_view dummyArgs[] = { U"x"sv, U"y"sv };
-        const auto ret = provider->SubgroupShuffle(vtype, dummyArgs,
+        const auto ret = provider->FuncShuffle(vtype, dummyArgs,
             isShuffle ? SubgroupShuffleOp::Shuffle : SubgroupShuffleOp::Broadcast, false);
         provider->OnFinish(runtime, *this, kerCtx);
         
@@ -594,7 +613,13 @@ template<typename Op, typename... Args>
     TypedAlgoResult wrapped(Reduce::GenerateFuncName(suffix, vtype, op), suffix, 0, vtype, true);
     Context.AddPatchedBlockEx(wrapped.GetFuncName(), [&](auto& session)
         {
-            const auto shufResult = SubgroupShuffle(vtype, SubgroupShuffleOp::ShuffleXor, false, level);
+            boost::container::small_vector<std::u32string_view, 2> depends;
+            const auto sgSizeResult = FuncGetSize();
+            const auto shufResult = FuncShuffle(vtype, SubgroupShuffleOp::ShuffleXor, false, level);
+            for (const auto& dep : sgSizeResult.GetDepends().GetPatchedBlock())
+                depends.emplace_back(dep);
+            if (const auto dep = shufResult.GetDepend(); !dep.empty())
+                depends.emplace_back(dep);
             constexpr std::u32string_view shufArgs[] = { U"x"sv, U"mask"sv };
             const auto shufText = Shuffle::GenerateText(shufResult, vtype, shufArgs, SubgroupShuffleOp::ShuffleXor);
             const auto scalarName = NLCLRuntime::GetCLTypeName(vtype);
@@ -610,11 +635,10 @@ template<typename Op, typename... Args>
             case SubgroupReduceOp::Xor: optxt = U"x ^ "sv; break;
             default: break;
             }
-            auto func = FMTSTR(U"inline {0} {1}({2}{3}{0} x)"sv, scalarName, wrapped.GetFuncName(),
-                shufResult.Extra.Param, shufResult.Extra.Param.empty() ? U""sv : U", "sv);
+            auto func = FMTSTR(U"inline {0} {1}({2}{0} x)"sv, scalarName, wrapped.GetFuncName(), OptionalArg<true>(shufResult.Extra.Param));
             func.append(UR"(
 {
-    for (uint mask = get_sub_group_size(); mask > 0; mask /= 2) 
+    for (uint mask = )"sv).append(sgSizeResult.GetStr()).append(UR"(; mask > 0; mask /= 2)
     {
         x = )"sv)
                 // x = x & intel_sub_group_shuffle_xor(val, mask);
@@ -622,8 +646,9 @@ template<typename Op, typename... Args>
     }
     return x;
 })"sv);
-            session.Commit(std::move(func), shufResult.GetDepend());
+            session.Commit(std::move(func), depends);
         });
+    // TODO: Handle Extra
     return wrapped;
 }
 
@@ -754,9 +779,7 @@ SubgroupProvider::TypedAlgoResult SubgroupProvider::HandleSubgroupOperation(VecD
                 if (auto ret = HandleSubgroupOperation<Op, true>(vectorUType, algoCheck, std::forward<Args>(args)...); ret)
                 {
                     ret.SrcType = scalarUType;
-                    auto result = VectorizePatch<Op>(vtype, ret, std::forward<Args>(args)...);
-                    result.SrcType = vtype;
-                    return result;
+                    return ret;
                 }
             }
         }
@@ -777,7 +800,7 @@ SubgroupProvider::TypedAlgoResult SubgroupProvider::HandleSubgroupOperation(VecD
     return {};
 }
 
-SubgroupProvider::TypedAlgoResult SubgroupProvider::SubgroupShuffle(VecDataInfo vtype, SubgroupShuffleOp op, bool nonUniform, uint8_t level)
+SubgroupProvider::TypedAlgoResult SubgroupProvider::FuncShuffle(VecDataInfo vtype, SubgroupShuffleOp op, bool nonUniform, uint8_t level)
 {
     auto feat = nonUniform ? Shuffle::FeatureNonUniform : 0;
     switch (op)
@@ -802,7 +825,7 @@ SubgroupProvider::TypedAlgoResult SubgroupProvider::SubgroupShuffle(VecDataInfo 
     }
     return HandleSubgroupOperation<Shuffle, false>(vtype, { level, feat }, op);
 }
-SubgroupProvider::TypedAlgoResult SubgroupProvider::SubgroupReduce(VecDataInfo vtype, SubgroupReduceOp op, bool nonUniform, uint8_t level)
+SubgroupProvider::TypedAlgoResult SubgroupProvider::FuncReduce(VecDataInfo vtype, SubgroupReduceOp op, bool nonUniform, uint8_t level)
 {
     auto feat = nonUniform ? Reduce::FeatureNonUniform : 0;
     switch (op)
@@ -825,14 +848,14 @@ SubgroupProvider::TypedAlgoResult SubgroupProvider::SubgroupReduce(VecDataInfo v
     }
     return HandleSubgroupOperation<Reduce, false>(vtype, { level, feat }, op);
 }
-ReplaceResult SubgroupProvider::SubgroupShuffle(VecDataInfo vtype, U32StrSpan args, SubgroupShuffleOp op, bool nonUniform)
+ReplaceResult SubgroupProvider::FuncShuffle(VecDataInfo vtype, U32StrSpan args, SubgroupShuffleOp op, bool nonUniform)
 {
-    auto result = SubgroupShuffle(vtype, op, nonUniform);
+    auto result = FuncShuffle(vtype, op, nonUniform);
     return { Shuffle::GenerateText(result, vtype, args, op), result.GetDepend() };
 }
-ReplaceResult SubgroupProvider::SubgroupReduce(VecDataInfo vtype, U32StrSpan args, SubgroupReduceOp op, bool nonUniform)
+ReplaceResult SubgroupProvider::FuncReduce(VecDataInfo vtype, U32StrSpan args, SubgroupReduceOp op, bool nonUniform)
 {
-    auto result = SubgroupReduce (vtype, op, nonUniform);
+    auto result = FuncReduce (vtype, op, nonUniform);
     return { Reduce:: GenerateText(result, vtype, args, op), result.GetDepend() };
 }
 
@@ -1038,37 +1061,37 @@ std::u32string_view NLCLSubgroupKHR::GetAlgoSuffix(uint8_t level) noexcept
 }
 
 
-ReplaceResult NLCLSubgroupKHR::GetSubgroupSize()
+ReplaceResult NLCLSubgroupKHR::FuncGetSize()
 {
     EnableKHRBasic = true;
     return U"get_sub_group_size()"sv;
 }
-ReplaceResult NLCLSubgroupKHR::GetMaxSubgroupSize()
+ReplaceResult NLCLSubgroupKHR::FuncGetMaxSize()
 {
     EnableKHRBasic = true;
     return U"get_max_sub_group_size()"sv;
 }
-ReplaceResult NLCLSubgroupKHR::GetSubgroupCount()
+ReplaceResult NLCLSubgroupKHR::FuncGetCount()
 {
     EnableKHRBasic = true;
     return U"get_num_sub_groups()"sv;
 }
-ReplaceResult NLCLSubgroupKHR::GetSubgroupId()
+ReplaceResult NLCLSubgroupKHR::FuncGetId()
 {
     EnableKHRBasic = true;
     return U"get_sub_group_id()"sv;
 }
-ReplaceResult NLCLSubgroupKHR::GetSubgroupLocalId()
+ReplaceResult NLCLSubgroupKHR::FuncGetLocalId()
 {
     EnableKHRBasic = true;
     return U"get_sub_group_local_id()"sv;
 }
-ReplaceResult NLCLSubgroupKHR::SubgroupAll(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupKHR::FuncAll(const std::u32string_view predicate)
 {
     EnableKHRBasic = true;
     return FMTSTR(U"sub_group_all({})"sv, predicate);
 }
-ReplaceResult NLCLSubgroupKHR::SubgroupAny(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupKHR::FuncAny(const std::u32string_view predicate)
 {
     EnableKHRBasic = true;
     return FMTSTR(U"sub_group_any({})"sv, predicate);
@@ -1087,7 +1110,8 @@ NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NL
         // FeatureNonUniform: "These built-in functions need not be encountered by all work items in a subgroup executing the kernel"
         const auto feats = static_cast<uint8_t>(Shuffle::FeatureBroadcast | Shuffle::FeatureShuffle | Shuffle::FeatureShuffleRel | Shuffle::FeatureNonUniform);
         auto& algo = ShuffleSupport.emplace_back(LevelIntel, AlgoIntelShuffle, feats);
-        algo.Bit64.Set(support1, cap.SupportFP64 ? support1 : support0);
+        const auto int64 = context.Device->Platform.BeignetFix ? support0 : support1;
+        algo.Bit64.Set(int64, cap.SupportFP64 ? support1 : support0);
         algo.Bit32.Set(supportAll);
         const auto int16 = Cap.SupportIntel16 ? (context.Device->Platform.BeignetFix ? support1 : supportAll) : support0;
         algo.Bit16.Set(int16, cap.SupportFP16 ? support1 : support0);
@@ -1194,6 +1218,8 @@ void NLCLSubgroupIntel::OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtensi
 }
 
 
+const ExtraParam NLCLSubgroupLocal::CommonExtra = { {}, U"local ulong* _oclu_subgroup_local"sv, U"_oclu_subgroup_local"sv };
+
 NLCLSubgroupLocal::NLCLSubgroupLocal(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap) :
     NLCLSubgroupKHR(logger, context, cap)
 {
@@ -1227,11 +1253,6 @@ NLCLSubgroupLocal::NLCLSubgroupLocal(common::mlog::MiniLogger<false>& logger, NL
     }
 }
 
-ExtraParam NLCLSubgroupLocal::GetCommonExtra() const noexcept
-{
-    return { U"local ulong* _oclu_subgroup_local"s, U"_oclu_subgroup_local"s };
-}
-
 SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::HandleShuffleAlgo(const Algorithm& algo, VecDataInfo vtype, SubgroupShuffleOp op)
 {
     TypedAlgoResult(NLCLSubgroupLocal::*patchFunc)(const VecDataInfo) noexcept;
@@ -1251,7 +1272,6 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::HandleShuffleAlgo(const Alg
     auto ret = (this->*patchFunc)(vtype);
     NeedSubgroupSize = NeedLocalTemp = true;
     ret.Features = algo.Features;
-    ret.Extra = GetCommonExtra();
     return ret;
 }
 SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::HandleReduceAlgo(const Algorithm& algo, VecDataInfo vtype, SubgroupReduceOp op)
@@ -1263,7 +1283,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::HandleReduceAlgo(const Algo
             vtype.Type = VecDataInfo::DataTypes::Unsigned; // force use unsigned even for signed
         EnableVecType(vtype);
         auto ret = ShufReducePatch(vtype, op, LevelLocal);
-        ret.Extra = GetCommonExtra();
+        ret.Extra = CommonExtra;
         return ret;
     }
     return NLCLSubgroupKHR::HandleReduceAlgo(algo, vtype, op);
@@ -1354,7 +1374,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::BroadcastPatch(const VecDat
             func.append(U"}"sv);
             return func;
         });
-    // TODO:Extra not being set
+    wrapped.Extra = CommonExtra;
     return wrapped;
 }
 
@@ -1400,7 +1420,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShufflePatch(const VecDataI
             func.append(U"}"sv);
             return func;
         });
-    // TODO:Extra not being set
+    wrapped.Extra = CommonExtra;
     return wrapped;
 }
 
@@ -1410,25 +1430,30 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShuffleXorPatch(const VecDa
     Expects(vtype.Dim0 > 0 && vtype.Dim0 <= 16);
     TypedAlgoResult wrapped(Shuffle::GenerateFuncName(U"local"sv, vtype, SubgroupShuffleOp::ShuffleXor),
         U"local"sv, Shuffle::FeatureBroadcast | Shuffle::FeatureShuffle, vtype, true);
-    //auto funcName = FMTSTR(U"oclu_subgroup_shuffle_xor_local_{}"sv, vtName);
     Context.AddPatchedBlockEx(wrapped.GetFuncName(), [&](auto& session)
         {
-            auto depends = GetSubgroupLocalId().GetDepends();
-            depends.DependPatchedBlock(ShufflePatch(vtype).GetDepend());
+            const auto lidResult = FuncGetLocalId();
+            auto depends = lidResult.GetDepends().GetDependSpan(true);
+            const auto shufResult = ShufflePatch(vtype);
+            if (const auto dep = shufResult.GetDepend(); !dep.empty())
+                depends.emplace_back(dep);
+            auto lidText = U" ^ mask"s; lidText.insert(0, lidResult.GetStr());
+            const std::u32string_view shufArgs[] = { U"val"sv, lidText };
+            const auto shufText = Shuffle::GenerateText(shufResult, vtype, shufArgs, SubgroupShuffleOp::ShuffleXor);
             const auto vtName = xcomp::StringifyVDataType(vtype);
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
-            std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint mask)\r\n{{\r\n"sv, vecName, wrapped.GetFuncName());
-            APPEND_FMT(func, U"    return oclu_subgroup_shuffle_local_{}(tmp, val, oclu_subgroup_local_get_local_id() ^ mask);\r\n}}"sv, vtName);
+            std::u32string func = FMTSTR(U"inline {0} {1}({2}const {0} val, const uint mask)\r\n{{\r\n    return {3};\r\n}}"sv, vecName, wrapped.GetFuncName(),
+                OptionalArg<true>(shufResult.Extra.Param), shufText);
             session.Commit(std::move(func), depends);
         });
-    // TODO:Extra not being set
+    wrapped.Extra = CommonExtra;
     return wrapped;
 }
 
-ReplaceResult NLCLSubgroupLocal::GetSubgroupSize()
+ReplaceResult NLCLSubgroupLocal::FuncGetSize()
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetSubgroupSize();
+        return NLCLSubgroupKHR::FuncGetSize();
 
     static constexpr auto id = U"oclu_subgroup_local_get_size"sv;
     Context.AddPatchedBlock(id, []()
@@ -1440,31 +1465,31 @@ ReplaceResult NLCLSubgroupLocal::GetSubgroupSize()
         });
     return { U"oclu_subgroup_local_get_size()"sv, id };
 }
-ReplaceResult NLCLSubgroupLocal::GetMaxSubgroupSize()
+ReplaceResult NLCLSubgroupLocal::FuncGetMaxSize()
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetMaxSubgroupSize();
+        return NLCLSubgroupKHR::FuncGetMaxSize();
     
     NeedSubgroupSize = true;
     const auto kid = GenerateKID(U"sgsize"sv);
     return { FMTSTR(U"_{}"sv, kid), kid };
 }
-ReplaceResult NLCLSubgroupLocal::GetSubgroupCount()
+ReplaceResult NLCLSubgroupLocal::FuncGetCount()
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetSubgroupCount();
+        return NLCLSubgroupKHR::FuncGetCount();
     return U"(/*local mimic SubgroupCount*/ 1)"sv;
 }
-ReplaceResult NLCLSubgroupLocal::GetSubgroupId()
+ReplaceResult NLCLSubgroupLocal::FuncGetId()
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetSubgroupId();
+        return NLCLSubgroupKHR::FuncGetId();
     return U"(/*local mimic SubgroupId*/ 0)"sv;
 }
-ReplaceResult NLCLSubgroupLocal::GetSubgroupLocalId()
+ReplaceResult NLCLSubgroupLocal::FuncGetLocalId()
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::GetSubgroupLocalId();
+        return NLCLSubgroupKHR::FuncGetLocalId();
 
     static constexpr auto id = U"oclu_subgroup_local_get_local_id"sv;
     Context.AddPatchedBlock(id, []()
@@ -1476,16 +1501,16 @@ ReplaceResult NLCLSubgroupLocal::GetSubgroupLocalId()
         });
     return { U"oclu_subgroup_local_get_local_id()"sv, id };
 }
-ReplaceResult NLCLSubgroupLocal::SubgroupAll(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupLocal::FuncAll(const std::u32string_view predicate)
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::SubgroupAll(predicate);
+        return NLCLSubgroupKHR::FuncAll(predicate);
     RET_FAIL(SubgroupAll);
 }
-ReplaceResult NLCLSubgroupLocal::SubgroupAny(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupLocal::FuncAny(const std::u32string_view predicate)
 {
     if (Cap.SupportBasicSubgroup)
-        return NLCLSubgroupKHR::SubgroupAny(predicate);
+        return NLCLSubgroupKHR::FuncAny(predicate);
     RET_FAIL(SubgroupAny);
 }
 
@@ -1558,7 +1583,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::HandleReduceAlgo(const Algori
     {
         if (!IsReduceOpArith(op))
             vtype.Type = VecDataInfo::DataTypes::Unsigned; // force use unsigned even for signed
-        return SubgroupReduceSM80(op, vtype);
+        return ReduceSM80Patch(op, vtype);
     }
     else if (id == AlgoPtxReduceShuf)
     {
@@ -1608,7 +1633,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::ShufflePatch(const VecDataInf
     return wrapped;
 }
 
-SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupReduceOp op, VecDataInfo vtype)
+SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::ReduceSM80Patch(SubgroupReduceOp op, VecDataInfo vtype)
 {
     const bool isArith = IsReduceOpArith(op);
     Expects(isArith || vtype.Type == VecDataInfo::DataTypes::Unsigned);
@@ -1633,7 +1658,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupPtx::SubgroupReduceSM80(SubgroupRe
     return wrapped;
 }
 
-ReplaceResult NLCLSubgroupPtx::GetSubgroupSize()
+ReplaceResult NLCLSubgroupPtx::FuncGetSize()
 {
     static constexpr auto id = U"oclu_subgroup_ptx_get_size"sv;
     Context.AddPatchedBlock(id, []()
@@ -1647,11 +1672,11 @@ ReplaceResult NLCLSubgroupPtx::GetSubgroupSize()
         });
     return { U"oclu_subgroup_ptx_get_size()"sv, id };
 }
-ReplaceResult NLCLSubgroupPtx::GetMaxSubgroupSize()
+ReplaceResult NLCLSubgroupPtx::FuncGetMaxSize()
 {
     return U"(/*nv_warp*/32u)"sv;
 }
-ReplaceResult NLCLSubgroupPtx::GetSubgroupCount()
+ReplaceResult NLCLSubgroupPtx::FuncGetCount()
 {
     if (SMVersion < 20)
         return {};
@@ -1667,7 +1692,7 @@ ReplaceResult NLCLSubgroupPtx::GetSubgroupCount()
         });
     return { U"oclu_subgroup_ptx_count()"sv, id };
 }
-ReplaceResult NLCLSubgroupPtx::GetSubgroupId()
+ReplaceResult NLCLSubgroupPtx::FuncGetId()
 {
     static constexpr auto id = U"oclu_subgroup_ptx_get_id"sv;
     Context.AddPatchedBlock(id, []()
@@ -1680,7 +1705,7 @@ ReplaceResult NLCLSubgroupPtx::GetSubgroupId()
         });
     return { U"oclu_subgroup_ptx_get_id()"sv, id };
 }
-ReplaceResult NLCLSubgroupPtx::GetSubgroupLocalId()
+ReplaceResult NLCLSubgroupPtx::FuncGetLocalId()
 {
     static constexpr auto id = U"oclu_subgroup_ptx_get_local_id"sv;
     Context.AddPatchedBlock(id, []()
@@ -1694,7 +1719,7 @@ ReplaceResult NLCLSubgroupPtx::GetSubgroupLocalId()
         });
     return { U"oclu_subgroup_ptx_get_local_id()"sv, id };
 }
-ReplaceResult NLCLSubgroupPtx::SubgroupAll(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupPtx::FuncAll(const std::u32string_view predicate)
 {
     static constexpr auto id = U"oclu_subgroup_ptx_all"sv;
     Context.AddPatchedBlock(id, [&]()
@@ -1717,7 +1742,7 @@ ReplaceResult NLCLSubgroupPtx::SubgroupAll(const std::u32string_view predicate)
         });
     return { FMTSTR(U"oclu_subgroup_ptx_all({})", predicate), id };
 }
-ReplaceResult NLCLSubgroupPtx::SubgroupAny(const std::u32string_view predicate)
+ReplaceResult NLCLSubgroupPtx::FuncAny(const std::u32string_view predicate)
 {
     static constexpr auto id = U"oclu_subgroup_ptx_any"sv;
     Context.AddPatchedBlock(id, [&]()

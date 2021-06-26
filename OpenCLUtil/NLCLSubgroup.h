@@ -65,8 +65,9 @@ public:
 
 struct ExtraParam
 {
-    std::u32string Param;
-    std::u32string Arg;
+    common::SharedString<char32_t> Holder;
+    std::u32string_view Param;
+    std::u32string_view Arg;
     explicit operator bool() const noexcept
     {
         return !Arg.empty();
@@ -201,20 +202,20 @@ private:
     void Prepare();
     template<typename Op, bool ExactBit, typename... Args>
     TypedAlgoResult HandleSubgroupOperation(common::simd::VecDataInfo vtype, AlgoChecker algoCheck, Args&&... args);
-    TypedAlgoResult SubgroupShuffle(common::simd::VecDataInfo vtype, SubgroupShuffleOp op, bool nonUniform, uint8_t level = 0);
-    TypedAlgoResult SubgroupReduce (common::simd::VecDataInfo vtype, SubgroupReduceOp  op, bool nonUniform, uint8_t level = 0);
+    TypedAlgoResult FuncShuffle(common::simd::VecDataInfo vtype, SubgroupShuffleOp op, bool nonUniform, uint8_t level = 0);
+    TypedAlgoResult FuncReduce (common::simd::VecDataInfo vtype, SubgroupReduceOp  op, bool nonUniform, uint8_t level = 0);
 public:
     SubgroupProvider(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     virtual ~SubgroupProvider() { }
-    virtual xcomp::ReplaceResult GetSubgroupSize() { return {}; };
-    virtual xcomp::ReplaceResult GetMaxSubgroupSize() { return {}; };
-    virtual xcomp::ReplaceResult GetSubgroupCount() { return {}; };
-    virtual xcomp::ReplaceResult GetSubgroupId() { return {}; };
-    virtual xcomp::ReplaceResult GetSubgroupLocalId() { return {}; };
-    virtual xcomp::ReplaceResult SubgroupAll(const std::u32string_view) { return {}; };
-    virtual xcomp::ReplaceResult SubgroupAny(const std::u32string_view) { return {}; };
-    xcomp::ReplaceResult SubgroupShuffle(common::simd::VecDataInfo vtype, xcomp::U32StrSpan args, SubgroupShuffleOp op, bool nonUniform);
-    xcomp::ReplaceResult SubgroupReduce (common::simd::VecDataInfo vtype, xcomp::U32StrSpan args, SubgroupReduceOp  op, bool nonUniform);
+    virtual xcomp::ReplaceResult FuncGetSize() { return {}; };
+    virtual xcomp::ReplaceResult FuncGetMaxSize() { return {}; };
+    virtual xcomp::ReplaceResult FuncGetCount() { return {}; };
+    virtual xcomp::ReplaceResult FuncGetId() { return {}; };
+    virtual xcomp::ReplaceResult FuncGetLocalId() { return {}; };
+    virtual xcomp::ReplaceResult FuncAll(const std::u32string_view) { return {}; };
+    virtual xcomp::ReplaceResult FuncAny(const std::u32string_view) { return {}; };
+    xcomp::ReplaceResult FuncShuffle(common::simd::VecDataInfo vtype, xcomp::U32StrSpan args, SubgroupShuffleOp op, bool nonUniform);
+    xcomp::ReplaceResult FuncReduce (common::simd::VecDataInfo vtype, xcomp::U32StrSpan args, SubgroupReduceOp  op, bool nonUniform);
     virtual void OnBegin(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&) {}
     virtual void OnFinish(NLCLRuntime&, const NLCLSubgroupExtension&, KernelContext&);
 };
@@ -243,13 +244,13 @@ public:
     NLCLSubgroupKHR(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupKHR() override { }
 
-    xcomp::ReplaceResult GetSubgroupSize() override;
-    xcomp::ReplaceResult GetMaxSubgroupSize() override;
-    xcomp::ReplaceResult GetSubgroupCount() override;
-    xcomp::ReplaceResult GetSubgroupId() override;
-    xcomp::ReplaceResult GetSubgroupLocalId() override;
-    xcomp::ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
-    xcomp::ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncGetSize() override;
+    xcomp::ReplaceResult FuncGetMaxSize() override;
+    xcomp::ReplaceResult FuncGetCount() override;
+    xcomp::ReplaceResult FuncGetId() override;
+    xcomp::ReplaceResult FuncGetLocalId() override;
+    xcomp::ReplaceResult FuncAll(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncAny(const std::u32string_view predicate) override;
 };
 
 class NLCLSubgroupIntel : public NLCLSubgroupKHR
@@ -282,9 +283,9 @@ protected:
     static constexpr uint8_t AlgoLocalBroadcast  = 0x05;
     static constexpr uint8_t AlgoLocalShuffle    = 0x06;
     static constexpr uint8_t AlgoLocalReduceShuf = 0x15;
+    static const ExtraParam CommonExtra;
     std::u32string_view KernelName;
     bool NeedSubgroupSize = false, NeedLocalTemp = false;
-    ExtraParam GetCommonExtra() const noexcept;
     void OnBegin(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     void OnFinish(NLCLRuntime& runtime, const NLCLSubgroupExtension& ext, KernelContext& kernel) override;
     std::u32string GenerateKID(std::u32string_view type) const noexcept;
@@ -298,13 +299,13 @@ public:
     NLCLSubgroupLocal(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap);
     ~NLCLSubgroupLocal() override { }
 
-    xcomp::ReplaceResult GetSubgroupSize() override;
-    xcomp::ReplaceResult GetMaxSubgroupSize() override;
-    xcomp::ReplaceResult GetSubgroupCount() override;
-    xcomp::ReplaceResult GetSubgroupId() override;
-    xcomp::ReplaceResult GetSubgroupLocalId() override;
-    xcomp::ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
-    xcomp::ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncGetSize() override;
+    xcomp::ReplaceResult FuncGetMaxSize() override;
+    xcomp::ReplaceResult FuncGetCount() override;
+    xcomp::ReplaceResult FuncGetId() override;
+    xcomp::ReplaceResult FuncGetLocalId() override;
+    xcomp::ReplaceResult FuncAll(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncAny(const std::u32string_view predicate) override;
 
 };
 
@@ -318,8 +319,7 @@ protected:
     std::u32string_view ExtraSync, ExtraMask;
     const uint32_t SMVersion;
     TypedAlgoResult ShufflePatch   (const common::simd::VecDataInfo vtype, SubgroupShuffleOp op) noexcept;
-    TypedAlgoResult SubgroupReduceSM80(SubgroupReduceOp op, common::simd::VecDataInfo vtype);
-    TypedAlgoResult SubgroupReduceSM30(SubgroupReduceOp op, common::simd::VecDataInfo vtype);
+    TypedAlgoResult ReduceSM80Patch(SubgroupReduceOp op, common::simd::VecDataInfo vtype);
     TypedAlgoResult HandleShuffleAlgo(const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupShuffleOp op) override;
     TypedAlgoResult HandleReduceAlgo (const Algorithm& algo, common::simd::VecDataInfo vtype, SubgroupReduceOp  op) override;
     std::u32string_view GetAlgoSuffix(uint8_t level) noexcept override;
@@ -327,13 +327,13 @@ public:
     NLCLSubgroupPtx(common::mlog::MiniLogger<false>& logger, NLCLContext& context, NLCLSubgroupCapbility cap, const uint32_t smVersion = 30);
     ~NLCLSubgroupPtx() override { }
 
-    xcomp::ReplaceResult GetSubgroupSize() override;
-    xcomp::ReplaceResult GetMaxSubgroupSize() override;
-    xcomp::ReplaceResult GetSubgroupCount() override;
-    xcomp::ReplaceResult GetSubgroupId() override;
-    xcomp::ReplaceResult GetSubgroupLocalId() override;
-    xcomp::ReplaceResult SubgroupAll(const std::u32string_view predicate) override;
-    xcomp::ReplaceResult SubgroupAny(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncGetSize() override;
+    xcomp::ReplaceResult FuncGetMaxSize() override;
+    xcomp::ReplaceResult FuncGetCount() override;
+    xcomp::ReplaceResult FuncGetId() override;
+    xcomp::ReplaceResult FuncGetLocalId() override;
+    xcomp::ReplaceResult FuncAll(const std::u32string_view predicate) override;
+    xcomp::ReplaceResult FuncAny(const std::u32string_view predicate) override;
 
 };
 
