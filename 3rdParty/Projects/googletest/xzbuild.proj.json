@@ -2,7 +2,7 @@
     "name": "googletest",
     "type": "dynamic",
     "description": "Google's C++ test framework",
-    "version": "1.10.x",
+    "version": "1.11.0",
     "dependency": [],
     "library": 
     {

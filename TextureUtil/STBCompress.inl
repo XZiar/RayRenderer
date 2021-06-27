@@ -11,7 +11,7 @@
 #define STB_DXT_IMPLEMENTATION
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4244)
+#   pragma warning(disable:4703)
 #endif
 #include "3rdParty/stb/stb_dxt.h"
 #if COMMON_COMPILER_MSVC

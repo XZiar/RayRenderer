@@ -36,7 +36,7 @@ It's bitfield arrangement is listed below
 
 ## Dependency
 
-* [zlib-ng](https://github.com/zlib-ng/zlib-ng) `submodule` 2.0.2
+* [zlib-ng](https://github.com/zlib-ng/zlib-ng) `submodule` 2.0.5
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 

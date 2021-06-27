@@ -64,3 +64,7 @@
 	shallow = true
 	path = 3rdParty/OpenGL-Headers
 	url = https://github.com/XZiar/OpenGL-Headers.git
+[submodule "3rdParty/FreeType"]
+	shallow = true
+	path = 3rdParty/FreeType
+	url = https://gitlab.freedesktop.org/freetype/freetype.git

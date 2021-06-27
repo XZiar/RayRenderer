@@ -476,7 +476,7 @@ private:
         constexpr PatchResult(const XCNLContext* host, size_t idx, bool isNew) noexcept :
             Host(host), PatchIdx(gsl::narrow_cast<uint32_t>(idx)), IsNewAdd(isNew) {}
         ~PatchResult() override {}
-        constexpr size_t Count() const noexcept override { return 1; }
+        size_t Count() const noexcept override { return 1; }
         constexpr bool IsNew() const noexcept { return IsNewAdd; }
     };
     class PatchSession

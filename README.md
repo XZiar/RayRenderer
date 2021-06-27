@@ -80,7 +80,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [MIT License](./3rdParty/gsl/LICENSE)
 
-* [Google Test](https://github.com/google/googletest) `submodule` 1.10.x
+* [Google Test](https://github.com/google/googletest) `submodule` 1.11.0
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
@@ -92,11 +92,11 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 7.1.3 (customized with utf-support)
+* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 8.0.0 (customized with utf-support)
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 
-* [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.4
+* [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.8
 
   [MIT License](https://github.com/gulrak/filesystem/blob/master/LICENSE)
 
@@ -108,7 +108,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
   
   [Public Domain](https://github.com/kerukuro/digestpp/blob/master/LICENSE)
 
-* [FreeType2](https://www.freetype.org/) 2.10.1
+* [FreeType2](https://www.freetype.org/) 2.10.4
 
   [The FreeType License](./3rdParty/freetype2/license.txt)
 

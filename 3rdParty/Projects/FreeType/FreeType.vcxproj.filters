@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="头文件\freetype">
+      <UniqueIdentifier>{1a323496-f1c7-4f02-90e3-a3dd18cb46a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\freetype">
+      <UniqueIdentifier>{34bfd142-e037-4304-bad4-7b76f3340d6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\FT_MODULES">
+      <UniqueIdentifier>{171940e8-5da2-4fa3-90d0-3a5068f15fff}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="FreeType.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\autofit\autofit.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\bdf\bdf.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\cff\cff.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftsystem.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftbase.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftdebug.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftinit.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\cache\ftcache.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\gzip\ftgzip.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\smooth\smooth.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftgxval.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftmm.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftotval.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftpatent.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftpfr.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftsynth.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\fttype1.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftwinfnt.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftbbox.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\lzw\ftlzw.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftbdf.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftcid.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\pcf\pcf.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\psaux\psaux.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\pfr\pfr.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\pshinter\pshinter.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\raster\raster.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\sfnt\sfnt.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\truetype\truetype.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\type1\type1.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\cid\type1cid.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\winfonts\winfnt.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\psnames\psmodule.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftbitmap.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftfstype.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftgasp.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftglyph.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\base\ftstroke.c">
+      <Filter>源文件\FT_MODULES</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\type42\type42.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FreeType.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FtException.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\ft2build.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftstdlib.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftconfig.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftheader.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftmodule.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftoption.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(RealSourceDir)\src\base\ftver.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(RealSourceDir)\README" />
+    <None Include="xzbuild.proj.json" />
+  </ItemGroup>
+</Project>

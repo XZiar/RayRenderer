@@ -142,7 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\freetype2\freetype2.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\FreeType\FreeType.vcxproj">
       <Project>{7b5c2843-dedf-44ad-b02a-2af72d78f2e9}</Project>
     </ProjectReference>
     <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">

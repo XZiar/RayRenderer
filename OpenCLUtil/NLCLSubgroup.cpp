@@ -1440,7 +1440,6 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShuffleXorPatch(const VecDa
             auto lidText = U" ^ mask"s; lidText.insert(0, lidResult.GetStr());
             const std::u32string_view shufArgs[] = { U"val"sv, lidText };
             const auto shufText = Shuffle::GenerateText(shufResult, vtype, shufArgs, SubgroupShuffleOp::ShuffleXor);
-            const auto vtName = xcomp::StringifyVDataType(vtype);
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
             std::u32string func = FMTSTR(U"inline {0} {1}({2}const {0} val, const uint mask)\r\n{{\r\n    return {3};\r\n}}"sv, vecName, wrapped.GetFuncName(),
                 OptionalArg<true>{shufResult.Extra.Param}, shufText);

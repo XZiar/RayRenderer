@@ -2,7 +2,7 @@
     "name": "zlib-ng",
     "type": "static",
     "description": "zlib replacement with optimizations for \"next generation\" systems",
-    "version": "2.0.2",
+    "version": "2.0.5",
     "dependency": [],
     "srcPath": "../../zlib-ng",
     "library": 
