@@ -59,42 +59,47 @@ void LoggerBackend::Print(LogMessage* msg)
 }
 
 
-namespace detail::detail
+namespace detail
 {
-
-template<>
-MINILOGAPI fmt::basic_memory_buffer<char>& GetBuffer<char>(const bool needClear)
+template<typename Char>
+MINILOGAPI std::vector<Char>& StrFormater::GetBuffer()
 {
-    static thread_local fmt::basic_memory_buffer<char> out;
-    if (needClear)
-        out.resize(0);
+    static thread_local std::vector<Char> out;
+    out.resize(0);
     return out;
 }
-template<>
-MINILOGAPI fmt::basic_memory_buffer<char16_t>& GetBuffer<char16_t>(const bool needClear)
-{
-    static thread_local fmt::basic_memory_buffer<char16_t> out;
-    if (needClear)
-        out.resize(0);
-    return out;
-}
-template<>
-MINILOGAPI fmt::basic_memory_buffer<char32_t>& GetBuffer<char32_t>(const bool needClear)
-{
-    static thread_local fmt::basic_memory_buffer<char32_t> out;
-    if (needClear)
-        out.resize(0);
-    return out;
-}
-template<>
-MINILOGAPI fmt::basic_memory_buffer<wchar_t>& GetBuffer<wchar_t>(const bool needClear)
-{
-    static thread_local fmt::basic_memory_buffer<wchar_t> out;
-    if (needClear)
-        out.resize(0);
-    return out;
-}
-
+template MINILOGAPI std::vector<char>&     StrFormater::GetBuffer();
+template MINILOGAPI std::vector<wchar_t>&  StrFormater::GetBuffer();
+template MINILOGAPI std::vector<char16_t>& StrFormater::GetBuffer();
+template MINILOGAPI std::vector<char32_t>& StrFormater::GetBuffer();
+//template<>
+//std::vector<char>& StrFormater::GetBuffer<char>()
+//{
+//    static thread_local std::vector<char> out;
+//    out.resize(0);
+//    return out;
+//}
+//template<>
+//std::vector<char16_t>& StrFormater::GetBuffer<char16_t>()
+//{
+//    static thread_local std::vector<char16_t> out;
+//    out.resize(0);
+//    return out;
+//}
+//template<>
+//std::vector<char32_t>& StrFormater::GetBuffer<char32_t>()
+//{
+//    static thread_local std::vector<char32_t> out;
+//    out.resize(0);
+//    return out;
+//}
+//template<>
+//std::vector<wchar_t>& StrFormater::GetBuffer<wchar_t>()
+//{
+//    static thread_local std::vector<wchar_t> out;
+//    out.resize(0);
+//    return out;
+//}
 
 }
 

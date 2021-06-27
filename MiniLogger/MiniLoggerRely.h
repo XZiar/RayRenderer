@@ -103,17 +103,12 @@ MINILOGAPI std::shared_ptr<LoggerBackend> GetFileBackend(const fs::path& path);
 
 namespace detail
 {
-namespace detail
-{
-template<typename Char>
-MINILOGAPI fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear);
-}
 
-struct MINILOGAPI StrFormater
+struct StrFormater
 {
 private:
     template<typename Char>
-    static decltype(auto) BufToU16(fmt::basic_memory_buffer<Char>& buffer)
+    static decltype(auto) BufToU16(std::vector<Char>& buffer)
     {
         if constexpr (std::is_same_v<Char, char16_t>)
             return buffer;
@@ -124,12 +119,9 @@ private:
         else
             static_assert(!common::AlwaysTrue<Char>, "unexpected Char type");
     }
-public:
     template<typename Char>
-    static fmt::basic_memory_buffer<Char>& GetBuffer(const bool needClear = true)
-    {
-        return detail::GetBuffer<Char>(needClear);
-    }
+    static MINILOGAPI std::vector<Char>& GetBuffer();
+public:
     template<typename T, typename... Args>
     static decltype(auto) ToU16Str(const T& formatter, Args&&... args)
     {
@@ -139,7 +131,7 @@ public:
             using Char = typename T::char_type;
             static_assert(!std::is_same_v<Char, wchar_t>, "no plan to support wchar_t at compile time");
             auto& buffer = GetBuffer<Char>();
-            fmt::format_to(buffer, formatter, std::forward<Args>(args)...);
+            fmt::format_to(std::back_inserter(buffer), formatter, std::forward<Args>(args)...);
             return BufToU16(buffer);
         }
         else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
@@ -150,7 +142,7 @@ public:
             else
             {
                 auto& buffer = GetBuffer<char>();
-                fmt::format_to(buffer, u8str, std::forward<Args>(args)...);
+                fmt::format_to(std::back_inserter(buffer), u8str, std::forward<Args>(args)...);
                 return BufToU16(buffer);
             }
         }
@@ -162,7 +154,7 @@ public:
             else
             {
                 auto& buffer = GetBuffer<char16_t>();
-                fmt::format_to(buffer, u16str, std::forward<Args>(args)...);
+                fmt::format_to(std::back_inserter(buffer), u16str, std::forward<Args>(args)...);
                 return BufToU16(buffer);
             }
         }
@@ -174,7 +166,7 @@ public:
             else
             {
                 auto& buffer = GetBuffer<char32_t>();
-                fmt::format_to(buffer, u32str, std::forward<Args>(args)...);
+                fmt::format_to(std::back_inserter(buffer), u32str, std::forward<Args>(args)...);
                 return BufToU16(buffer);
             }
         }

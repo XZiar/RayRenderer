@@ -14,12 +14,12 @@ template<typename Char, bool IsPrefix>
 struct fmt::formatter<OptionalArg<IsPrefix>, Char>
 {
     template<typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    constexpr auto parse(ParseContext& ctx) const
     {
         return ctx.begin();
     }
     template<typename FormatContext>
-    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx)
+    auto format(const OptionalArg<IsPrefix>& arg, FormatContext& ctx) const
     {
         if (arg.Arg.empty())
             return ctx.out();
@@ -635,7 +635,7 @@ template<typename Op, typename... Args>
             case SubgroupReduceOp::Xor: optxt = U"x ^ "sv; break;
             default: break;
             }
-            auto func = FMTSTR(U"inline {0} {1}({2}{0} x)"sv, scalarName, wrapped.GetFuncName(), OptionalArg<true>(shufResult.Extra.Param));
+            auto func = FMTSTR(U"inline {0} {1}({2}{0} x)"sv, scalarName, wrapped.GetFuncName(), OptionalArg<true>{shufResult.Extra.Param});
             func.append(UR"(
 {
     for (uint mask = )"sv).append(sgSizeResult.GetStr()).append(UR"(; mask > 0; mask /= 2)
@@ -1443,7 +1443,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShuffleXorPatch(const VecDa
             const auto vtName = xcomp::StringifyVDataType(vtype);
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
             std::u32string func = FMTSTR(U"inline {0} {1}({2}const {0} val, const uint mask)\r\n{{\r\n    return {3};\r\n}}"sv, vecName, wrapped.GetFuncName(),
-                OptionalArg<true>(shufResult.Extra.Param), shufText);
+                OptionalArg<true>{shufResult.Extra.Param}, shufText);
             session.Commit(std::move(func), depends);
         });
     wrapped.Extra = CommonExtra;

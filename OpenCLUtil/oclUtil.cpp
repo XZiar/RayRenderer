@@ -27,12 +27,11 @@ void oclUtil::LogCLInfo()
 {
     for (const auto& plat : GetPlatforms())
     {
-        auto& strBuffer = common::mlog::detail::StrFormater::GetBuffer<char16_t>();
-        fmt::format_to(strBuffer, u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
+        auto strBuf = FMTSTR(u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
         for (const auto dev : plat->GetDevices())
-            fmt::format_to(strBuffer, u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
+            fmt::format_to(std::back_inserter(strBuf), u"--Device {}: {} -- {} -- {}\n", dev->GetTypeName(),
                 dev->Name, dev->Vendor, dev->Ver);
-        oclLog().verbose(strBuffer);
+        oclLog().verbose(strBuf);
     }
 }
 

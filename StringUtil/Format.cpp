@@ -20,5 +20,4 @@ std::string& GetLocalString()
 }
 
 
-
 FMT_END_NAMESPACE

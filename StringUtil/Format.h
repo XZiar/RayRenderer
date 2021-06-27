@@ -13,9 +13,15 @@
 #  define FMT_SHARED
 #endif
 
+#include "3rdParty/fmt/include/fmt/xchar.h"
+#include "3rdParty/fmt/include/fmt/args.h"
 #include "3rdParty/fmt/include/fmt/ranges.h"
 #include "3rdParty/fmt/include/fmt/chrono.h"
 #include "3rdParty/fmt/include/fmt/format.h"
+
+#if FMT_VERSION < 80000
+#   error("Require fmt 8.0.0+")
+#endif
 
 FMT_BEGIN_NAMESPACE
 
@@ -233,14 +239,38 @@ template<> struct StringProcess<char16_t> : public StringHacker<char16_t> {};
 template<> struct StringProcess<char32_t> : public StringHacker<char32_t> {};
 
 
-using u16memory_buffer = basic_memory_buffer<char16_t>;
-using u32memory_buffer = basic_memory_buffer<char32_t>;
 template<> struct arg_mapper<buffer_context<char16_t>> : public UTFArgMapperProxy<buffer_context<char16_t>> {};
 template<> struct arg_mapper<buffer_context<char32_t>> : public UTFArgMapperProxy<buffer_context<char32_t>> {};
 }
 
+using u16memory_buffer = basic_memory_buffer<char16_t>;
+using u32memory_buffer = basic_memory_buffer<char32_t>;
 using u16format_context = buffer_context<char16_t>;
 using u32format_context = buffer_context<char32_t>;
+using u16format_args = basic_format_args<u16format_context>;
+using u32format_args = basic_format_args<u32format_context>;
+
+inline std::wstring vformat(wstring_view fmt, wformat_args args) {
+    // Don't optimize the "{}" case to keep the binary size small and because it
+    // can be better optimized in fmt::format anyway.
+    auto buffer = wmemory_buffer();
+    detail::vformat_to(buffer, fmt, args);
+    return to_string(buffer);
+}
+inline std::u16string vformat(basic_string_view<char16_t> fmt, u16format_args args) {
+    // Don't optimize the "{}" case to keep the binary size small and because it
+    // can be better optimized in fmt::format anyway.
+    auto buffer = u16memory_buffer();
+    detail::vformat_to(buffer, fmt, args);
+    return to_string(buffer);
+}
+inline std::u32string vformat(basic_string_view<char32_t> fmt, u32format_args args) {
+    // Don't optimize the "{}" case to keep the binary size small and because it
+    // can be better optimized in fmt::format anyway.
+    auto buffer = u32memory_buffer();
+    detail::vformat_to(buffer, fmt, args);
+    return to_string(buffer);
+}
 
 FMT_END_NAMESPACE
 
