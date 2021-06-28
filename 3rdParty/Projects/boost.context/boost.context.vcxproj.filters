@@ -18,27 +18,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="asm\jump_i386_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\jump_i386_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
-    <MASM Include="asm\jump_x86_64_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\jump_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
-    <MASM Include="asm\make_i386_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\make_i386_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
-    <MASM Include="asm\make_x86_64_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\make_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
-    <MASM Include="asm\ontop_i386_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\ontop_i386_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
-    <MASM Include="asm\ontop_x86_64_ms_pe_masm.asm">
+    <MASM Include="$(RealSourceDir)\asm\ontop_x86_64_ms_pe_masm.asm">
       <Filter>asm</Filter>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="windows\stack_traits.cpp">
+    <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

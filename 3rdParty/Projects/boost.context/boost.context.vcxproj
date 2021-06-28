@@ -61,7 +61,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(SolutionDir)SolutionInclude.props" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <RealSourceDir>$(SolutionDir)3rdParty\boost.context\src</RealSourceDir>
+  </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -132,57 +134,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <MASM Include="asm\jump_i386_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\jump_i386_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
-    <MASM Include="asm\jump_x86_64_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\jump_x86_64_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
-    <MASM Include="asm\make_i386_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\make_i386_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
-    <MASM Include="asm\make_x86_64_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\make_x86_64_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
-    <MASM Include="asm\ontop_i386_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\ontop_i386_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
-    <MASM Include="asm\ontop_x86_64_ms_pe_masm.asm">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <MASM Include="$(RealSourceDir)\asm\ontop_x86_64_ms_pe_masm.asm">
+      <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
+      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="windows\stack_traits.cpp" />
+    <ClCompile Include="$(RealSourceDir)\windows\stack_traits.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

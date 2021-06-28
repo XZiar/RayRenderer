@@ -3,6 +3,7 @@
     "type": "static",
     "description": "A foundational library provides multitasking on a single thread",
     "dependency": [],
+    "srcPath": "../../boost.context/src",
     "library": 
     {
         "static": [],
@@ -19,8 +20,10 @@
         {
             "sources": 
             [
-                {"ifeq":{"platform": "x64"}, "+":["asm/*x86_64_*_elf_gas.S"]},
-                {"ifeq":{"platform": "x86"}, "+":["asm/*i386_*_elf_gas.S"]}
+                {"ifeq":{"platform": "x64"},   "+":["asm/*_x86_64_sysv_elf_gas.S"]},
+                {"ifeq":{"platform": "x86"},   "+":["asm/*_i386_sysv_elf_gas.S"]},
+                {"ifeq":{"platform": "ARM64"}, "+":["asm/*_arm64_aapcs_elf_gas.S"]},
+                {"ifeq":{"platform": "ARM"},   "+":["asm/*_arm_aapcs_elf_gas.S"]}
             ]
         }
     }
