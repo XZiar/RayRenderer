@@ -164,7 +164,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjpeg-turbo", "3rdParty\P
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{533CDA1C-8F77-4F1A-BFB2-E07C2755C77D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.context", "3rdParty\boost.context\boost.context.vcxproj", "{E308A1B2-DA99-4D69-A2E5-FF5B57E6EFC7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "boost.context", "3rdParty\Projects\boost.context\boost.context.vcxproj", "{E308A1B2-DA99-4D69-A2E5-FF5B57E6EFC7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AsyncExecutor", "AsyncExecutor\AsyncExecutor.vcxproj", "{1FE31563-6F8F-4DEF-A552-EE9CF04C1C58}"
 EndProject

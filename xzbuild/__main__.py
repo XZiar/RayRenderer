@@ -18,7 +18,7 @@ from xzbuild.Environment import collectEnv, writeEnv
 
 def help():
     print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project,[project]|all> "
-          f"{COLOR.magenta}[<Debug|Release>] [<x64|x86>]{COLOR.clear}")
+          f"{COLOR.magenta}[<Debug|Release>] [<x64|x86|ARM64|ARM>]{COLOR.clear}")
     print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<list> {COLOR.magenta}[<project>]{COLOR.clear}")
     print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<help>{COLOR.clear}")
     pass

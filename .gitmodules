@@ -68,3 +68,7 @@
 	shallow = true
 	path = 3rdParty/FreeType
 	url = https://gitlab.freedesktop.org/freetype/freetype.git
+[submodule "3rdParty/boost.context"]
+	shallow = true
+	path = 3rdParty/boost.context
+	url = https://github.com/boostorg/context.git

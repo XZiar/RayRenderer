@@ -1,6 +1,9 @@
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
 #include "AsyncManager.h"
+#define BOOST_CONTEXT_STATIC_LINK 1
+#define BOOST_CONTEXT_NO_LIB 1
+#include "3rdParty/boost.context/include/boost/context/continuation.hpp"
 
 
 namespace common::asyexe
@@ -21,16 +24,46 @@ uint64_t AsyncTaskPromiseProvider::E2EElapseNs() noexcept
 }
 
 
-AsyncTaskNodeBase::AsyncTaskNodeBase(const std::u16string name, uint32_t tuid, uint32_t stackSize) :
-    Name(name), TaskUid(tuid),
+std::pair<void*, std::byte*> AsyncTaskNodeBase::CreateSpace(size_t align, size_t size) noexcept
+{
+    using B = boost::context::continuation;
+    constexpr auto BSize = sizeof(B);
+    constexpr auto BAlign = alignof(B);
+    const auto finalAlign = std::max(align, BAlign);
+    const auto offset = (BSize + align - 1) / align * align;
+    const auto ptr = malloc_align(finalAlign, offset + size);
+    new (ptr)B();
+    return { ptr, reinterpret_cast<std::byte*>(ptr) + offset };
+}
+void AsyncTaskNodeBase::ReleaseNode(AsyncTaskNodeBase* node)
+{
+    const auto ptr = node->PtrContext;
+    node->~AsyncTaskNodeBase();
+    free_align(ptr);
+}
+
+AsyncTaskNodeBase::AsyncTaskNodeBase(void* ptrCtx, std::u16string& name, uint32_t tuid, uint32_t stackSize) noexcept :
+    PtrContext(ptrCtx), Name(std::move(name)), TaskUid(tuid),
     StackSize(stackSize == 0 ? static_cast<uint32_t>(boost::context::fixedsize_stack::traits_type::default_size()) : stackSize) 
 { }
-AsyncTaskNodeBase::~AsyncTaskNodeBase() 
-{ }
-void AsyncTaskNodeBase::BeginTask() noexcept
+AsyncTaskNodeBase::~AsyncTaskNodeBase() {}
+
+void AsyncTaskNodeBase::Execute(const AsyncAgent& agent)
 {
     Status = AsyncTaskStatus::Ready;
     TaskTimer.Start();
+    try
+    {
+        OnExecute(agent);
+    }
+    catch (const boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
+    {
+        std::rethrow_exception(std::current_exception());
+    }
+    catch (...)
+    {
+        OnException(std::current_exception());
+    }
 }
 void AsyncTaskNodeBase::SumPartialTime() noexcept
 {
@@ -44,6 +77,13 @@ void AsyncTaskNodeBase::FinishTask(const AsyncTaskStatus status, AsyncTaskPromis
     Status = status;
 }
 
+}
+
+struct AsyncManager::FiberContext : public boost::context::continuation
+{};
+boost::context::continuation& ToContext(void* ptr) noexcept
+{
+    return *reinterpret_cast<boost::context::continuation*>(ptr);
 }
 
 
@@ -72,7 +112,7 @@ void AsyncManager::Resume(detail::AsyncTaskStatus status)
 {
     Current->SumPartialTime();
     Current->Status = status;
-    Context = Context.resume();
+    ToContext(Context.get()) = ToContext(Context.get()).resume();
     if (!IsRunning())
         COMMON_THROW(AsyncTaskException, AsyncTaskException::Reasons::Terminated, u"Task was terminated, due to executor was terminated.");
 }
@@ -89,12 +129,12 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
         switch (Current->Status)
         {
         case detail::AsyncTaskStatus::New:
-            Current->Context = boost::context::callcc(std::allocator_arg, boost::context::fixedsize_stack(Current->StackSize),
+            ToContext(Current->PtrContext) = boost::context::callcc(std::allocator_arg, boost::context::fixedsize_stack(Current->StackSize),
                 [&](boost::context::continuation&& context)
                 {
-                    Context = std::move(context);
-                    (*Current)(Agent);
-                    return std::move(Context);
+                    ToContext(Context.get()) = std::move(context);
+                    Current->Execute(Agent);
+                    return std::move(ToContext(Context.get()));
                 });
             break;
         case detail::AsyncTaskStatus::Wait:
@@ -103,17 +143,17 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
                 break;
             Current->Status = detail::AsyncTaskStatus::Ready;
         }
-        [[fallthrough]] ;
+        [[fallthrough]];
         case detail::AsyncTaskStatus::Ready:
             Current->TaskTimer.Start();
-            Current->Context = Current->Context.resume();
+            ToContext(Current->PtrContext) = ToContext(Current->PtrContext).resume();
             hasExecuted = true;
             break;
         default:
             break;
         }
         //after processing
-        if (Current->Context)
+        if (ToContext(Current->PtrContext))
         {
             if (Current->Status == detail::AsyncTaskStatus::Yield)
                 Current->Status = detail::AsyncTaskStatus::Ready;
@@ -124,7 +164,7 @@ common::loop::LoopBase::LoopAction AsyncManager::OnLoop()
             Logger.debug(FMT_STRING(u"Task [{}] finished, reported executed {}us\n"), Current->Name, Current->ElapseTime / 1000);
             auto tmp = Current;
             Current = TaskList.PopNode(Current);
-            delete tmp;
+            detail::AsyncTaskNodeBase::ReleaseNode(tmp);
         }
     }
     timer.Stop();
@@ -171,12 +211,12 @@ void AsyncManager::OnStop() noexcept
             case detail::AsyncTaskStatus::Wait:
                 [[fallthrough]] ;
             case detail::AsyncTaskStatus::Ready:
-                node->Context = node->Context.resume(); // need to resume so that stack will be released
+                ToContext(node->PtrContext) = ToContext(node->PtrContext).resume(); // need to resume so that stack will be released
                 break;
             default:
                 break;
             }
-            delete node;
+            detail::AsyncTaskNodeBase::ReleaseNode(node);
         }, true);
     AsyncAgent::GetRawAsyncAgent() = nullptr;
     if (ExitCallback)
@@ -207,7 +247,7 @@ common::loop::LoopExecutor& AsyncManager::GetHost()
 
 AsyncManager::AsyncManager(const bool isthreaded, const std::u16string& name, const uint32_t timeYieldSleep, const uint32_t timeSensitive, const bool allowStopAdd) :
     LoopBase(isthreaded ? LoopBase::GetThreadedExecutor : LoopBase::GetInplaceExecutor),
-    Name(name), Agent(*this), 
+    Context(std::make_unique<FiberContext>()), Name(name), Agent(*this), 
     Logger(u"Asy-" + Name, { common::mlog::GetConsoleBackend() }),
     TimeYieldSleep(timeYieldSleep), TimeSensitive(timeSensitive), AllowStopAdd(allowStopAdd)
     { }

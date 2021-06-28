@@ -62,11 +62,18 @@ To build C++ parts, an C++17 compiler is needed. For Linux, GCC7.3 and later are
 
 Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(7.0&8.0).
 
-They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
+They can be built by [`xzbuild`](./xzbuild) (python3.6+).
+
+```shell
+python3 xzbuild help
+python3 xzbuild list
+python3 xzbuild build all
+python3 xzbuild buildall UtilTest
+```
 
 ### Additional Requirements
 
-`boost` headers folder should be found inside `include path`. It can be added in [SolutionInclude.props](./SolutionInclude.props) in Windows, or specified by environment variable `CPP_DEPENDENCY_PATH`.
+`boost` headers folder should be found inside `include path`. It can be added in [SolutionInclude.props](./SolutionInclude.props) on Windows, or specified by environment variable `CPP_DEPENDENCY_PATH` on *nix.
 
 `gl.h` and `glu.h` headers should be found inside `include path\GL`.
 
@@ -88,7 +95,7 @@ They can be built by execute [`xzbuild.py`](xzbuild.py) (python3.6+).
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
-* [boost](http://www.boost.org/)  1.75.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.76.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 

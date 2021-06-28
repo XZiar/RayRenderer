@@ -4,9 +4,6 @@
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include <atomic>
-#define BOOST_CONTEXT_STATIC_LINK 1
-#define BOOST_CONTEXT_NO_LIB 1
-#include <boost/context/continuation.hpp>
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
@@ -55,16 +52,18 @@ struct ASYEXEAPI AsyncTaskNodeBase : public common::container::IntrusiveDoubleLi
     friend class ::common::asyexe::AsyncManager;
     friend class ::common::asyexe::AsyncAgent;
 private:
-    boost::context::continuation Context;
+    void* const PtrContext;
     std::u16string Name;
-    ::common::PmsCore Promise = nullptr; // current waiting promise
-    virtual void operator()(const AsyncAgent& agent) = 0;
-    virtual void OnException(std::exception_ptr e) = 0;
+    ::common::PmsCore Promise; // current waiting promise
+    static void ReleaseNode(AsyncTaskNodeBase* node);
+    virtual void OnExecute(const AsyncAgent& agent) = 0;
+    virtual void OnException(std::exception_ptr e) noexcept = 0;
 protected:
     common::SimpleTimer TaskTimer; // execution timer
     AsyncTaskStatus Status = AsyncTaskStatus::New;
-    AsyncTaskNodeBase(const std::u16string name, uint32_t tuid, uint32_t stackSize);
-    void BeginTask() noexcept;
+    static std::pair<void*, std::byte*> CreateSpace(size_t align, size_t size) noexcept;
+    AsyncTaskNodeBase(void* ptrCtx, std::u16string& name, uint32_t tuid, uint32_t stackSize) noexcept;
+    void Execute(const AsyncAgent& agent);
     void SumPartialTime() noexcept;
     void FinishTask(const AsyncTaskStatus status, AsyncTaskPromiseProvider& taskTime) noexcept;
 private:
@@ -84,8 +83,8 @@ private:
     FuncType Func;
     BasicPromise<RetType, AsyncTaskResult<RetType>> InnerPms;
     template<typename F>
-    AsyncTaskNode(const std::u16string name, uint32_t tuid, uint32_t stackSize, F&& func) :
-        AsyncTaskNodeBase(name, tuid, stackSize), Func(std::forward<F>(func))
+    AsyncTaskNode(void* ptrCtx, std::u16string& name, uint32_t tuid, uint32_t stackSize, F&& func) :
+        AsyncTaskNodeBase(ptrCtx, name, tuid, stackSize), Func(std::forward<F>(func))
     { }
     forceinline AsyncTaskPromiseProvider& GetAsyncProvider() noexcept { return InnerPms.GetRawPromise()->GetPromise(); }
     forceinline RetType InnerCall([[maybe_unused]] const AsyncAgent& agent)
@@ -95,37 +94,31 @@ private:
         else
             return Func();
     }
-    virtual void operator()([[maybe_unused]]const AsyncAgent& agent) override
+    virtual void OnExecute([[maybe_unused]]const AsyncAgent& agent) override
     {
-        BeginTask();
-        try
+        if constexpr (std::is_same_v<RetType, void>)
         {
-            if constexpr (std::is_same_v<RetType, void>)
-            {
-                InnerCall(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
-                InnerPms.SetData();
-            }
-            else
-            {
-                auto ret = InnerCall(agent);
-                FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
-                InnerPms.SetData(std::move(ret));
-            }
+            InnerCall(agent);
+            FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
+            InnerPms.SetData();
         }
-        catch (const boost::context::detail::forced_unwind&) //bypass forced_unwind since it's needed for context destroying
+        else
         {
-            std::rethrow_exception(std::current_exception());
-        }
-        catch (...)
-        {
-            OnException(std::current_exception());
+            auto ret = InnerCall(agent);
+            FinishTask(detail::AsyncTaskStatus::Finished, GetAsyncProvider());
+            InnerPms.SetData(std::move(ret));
         }
     }
-    virtual void OnException(std::exception_ptr e) override 
+    virtual void OnException(std::exception_ptr e) noexcept override
     { 
         FinishTask(detail::AsyncTaskStatus::Error, GetAsyncProvider());
         InnerPms.SetException(e);
+    }
+    template<typename F>
+    static AsyncTaskNode* Create(std::u16string& name, uint32_t tuid, uint32_t stackSize, F&& func)
+    {
+        const auto [base, ptr] = AsyncTaskNodeBase::CreateSpace(alignof(AsyncTaskNode), sizeof(AsyncTaskNode));
+        return new (ptr)AsyncTaskNode(base, name, tuid, stackSize, std::forward<F>(func));
     }
 public:
     virtual ~AsyncTaskNode() override {}
@@ -154,8 +147,9 @@ class ASYEXEAPI AsyncManager final : private common::loop::LoopBase
     friend class AsyncAgent;
 private:
     using Injector = std::function<void(void)>;
+    struct FiberContext;
     common::container::IntrusiveDoubleLinkList<detail::AsyncTaskNodeBase> TaskList;
-    boost::context::continuation Context;
+    std::unique_ptr<FiberContext> Context;
     Injector ExitCallback = nullptr;
     detail::AsyncTaskNodeBase*Current = nullptr;
     const std::u16string Name;
@@ -190,7 +184,7 @@ public:
         static_assert(AcceptAgent || std::is_invocable_v<Func>, "Unsupported Task Func Type");
         using Ret = typename detail::RetTypeGetter<Func, AcceptAgent>::Type;
         const auto tuid = PreCheckTask(taskName);
-        const auto node = new detail::AsyncTaskNode<Ret, AcceptAgent>(taskName, tuid, stackSize, std::forward<Func>(task));
+        const auto node = detail::AsyncTaskNode<Ret, AcceptAgent>::Create(taskName, tuid, stackSize, std::forward<Func>(task));
         AddNode(node);
         return node->InnerPms.GetPromiseResult();
     }

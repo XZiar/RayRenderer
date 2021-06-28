@@ -13,7 +13,8 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp", "posix/stack_traits.cpp"],
+            "sources": ["posix/stack_traits.cpp"],
+            "incpath": ["../include"],
             "visibility": "default"
         },
         "asm":
