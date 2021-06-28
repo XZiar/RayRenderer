@@ -878,7 +878,7 @@ NLCLProgStub::NLCLProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& prog
     std::unique_ptr<NLCLRuntime>&& runtime) : XCNLProgStub(program, std::move(context), std::move(runtime))
 { }
 NLCLProgStub::NLCLProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLCLContext> context,
-    common::mlog::MiniLogger<false>& logger) : NLCLProgStub(program, std::move(context), std::make_unique<NLCLRuntime>(logger, context))
+    common::mlog::MiniLogger<false>& logger) : NLCLProgStub(program, context, std::make_unique<NLCLRuntime>(logger, context))
 { }
 
 

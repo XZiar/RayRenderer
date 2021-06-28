@@ -1,7 +1,8 @@
 {
     "environment" : 
     [
-        {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"}
+        {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"},
+        {"ifhas": "android", "+": "ocl_noicd"}
     ],
     "incDirs" : [ ".", "./3rdParty" ],
     "defines" : 

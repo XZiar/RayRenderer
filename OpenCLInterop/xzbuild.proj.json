@@ -2,11 +2,11 @@
     "name": "OpenCLInterop",
     "type": "dynamic",
     "description": "OpenCL Interoperation Utility",
-    "dependency": ["MiniLogger", "ImageUtil", "OpenCL", "OpenCLUtil", "OpenGLUtil"],
+    "dependency": ["MiniLogger", "ImageUtil", "OpenCLUtil", "OpenGLUtil", {"ifno": "ocl_noicd", "+": ["OpenCL"]}],
     "library": 
     {
         "static": [],
-        "dynamic": []
+        "dynamic": [{"ifhas": "ocl_noicd", "+": ["OpenCL"]}]
     },
     "targets":
     {

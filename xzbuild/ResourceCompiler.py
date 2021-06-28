@@ -38,7 +38,7 @@ if __name__ == "__main__":
     elfType, binType = ELFBinTypeMap.get(platform)
     # elfType = "elf32-i386" if platform == "x86" else "elf64-x86-64" if platform == "x64" else None
     # binType = "i386" if platform == "x86" else "i386:x86-64" if platform == "x64" else None
-    cmdpfx = "objcopy -I binary -O " + elfType + ("" if binType is None else " -b " + binType)
+    cmdpfx = "objcopy -I binary -O " + elfType + ("" if binType is None else " -B " + binType)
     print(f"{COLOR.green}Compiling Resource File {COLOR.magenta}[{rcfile}]{COLOR.clear} for {COLOR.magenta}[{platform}]{COLOR.clear} to [{objdir}]")
     with open(rcfile, "rb") as fp:
         rawdata = fp.read()

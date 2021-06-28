@@ -154,11 +154,11 @@ def main(argv:list, paras:dict):
         env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
         for t in _AllTargets:
             t.initEnv(env)
+        ProjectSet.loadSolution(env)
 
         objproj = argv[1] if len(argv) > 1 else None
         projects = ProjectSet.gatherFrom()
-        projects.solveDependency()
-        ProjectSet.loadSolution(env)
+        projects.solveDependency(env)
 
         if action == "test":
             for proj in projects:

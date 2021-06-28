@@ -41,12 +41,13 @@ class Project:
         self.targets = [t(targets, self, env) for t in existTargets]
         os.chdir(env["rootDir"])
 
-    def solveDependency(self, projs:"ProjectSet"):
+    def solveDependency(self, projs:"ProjectSet", env:dict):
         self.dependency.clear()
-        for dep in self.raw.get("dependency", []):
+        deps = PList.solveElementList(self.raw, "dependency", env)[0]
+        for dep in deps:
             proj = projs.get(dep)
             if proj == None:
-                raise Exception(f"missing dependency {dep} for {self.name}")
+                raise Exception(f"missing dependency [{dep}] for [{self.name}]")
             self.dependency.append(proj)
         pass
 
@@ -124,9 +125,9 @@ class ProjectSet:
     def names(self):
         return self._data.keys()
 
-    def solveDependency(self):
+    def solveDependency(self, env:dict):
         for proj in self._data.values():
-            proj.solveDependency(self)
+            proj.solveDependency(self, env)
     
     @staticmethod
     def gatherFrom(dir:str="."):

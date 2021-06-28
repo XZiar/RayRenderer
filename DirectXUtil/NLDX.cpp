@@ -905,7 +905,7 @@ NLDXProgStub::NLDXProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& prog
     std::unique_ptr<NLDXRuntime>&& runtime) : XCNLProgStub(program, std::move(context), std::move(runtime))
 { }
 NLDXProgStub::NLDXProgStub(const std::shared_ptr<const xcomp::XCNLProgram>& program, std::shared_ptr<NLDXContext> context,
-    common::mlog::MiniLogger<false>& logger) : NLDXProgStub(program, std::move(context), std::make_unique<NLDXRuntime>(logger, context))
+    common::mlog::MiniLogger<false>& logger) : NLDXProgStub(program, context, std::make_unique<NLDXRuntime>(logger, context))
 { }
 
 

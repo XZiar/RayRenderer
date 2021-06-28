@@ -2,11 +2,15 @@
     "name": "UtilTest",
     "type": "executable",
     "description": "Utility test",
-    "dependency": ["MiniLogger", "AsyncExecutor", "ImageUtil", "OpenGLUtil", "OpenCLUtil", "FreeGLUTView", "StringUtil", "SystemCommon", "WindowHost", "Nailang", "XComputeBase"],
+    "dependency": 
+    [
+        "MiniLogger", "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "WindowHost", "Nailang", "XComputeBase",
+        {"ifno": "android", "+": ["FreeGLUTView", "OpenGLUtil"]}
+    ],
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "GL", "X11"]
+        "dynamic": ["pthread", "X11", {"ifno": "android", "+": "GL"}]
     },
     "targets":
     {

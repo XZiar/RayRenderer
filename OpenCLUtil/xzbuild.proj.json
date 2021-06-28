@@ -2,11 +2,11 @@
     "name": "OpenCLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenCL Utility",
-    "dependency": ["MiniLogger", "SystemCommon", "ImageUtil", "OpenCL", "StringUtil", "Nailang", "XComputeBase"],
+    "dependency": ["MiniLogger", "SystemCommon", "ImageUtil", "StringUtil", "Nailang", "XComputeBase", {"ifno": "ocl_noicd", "+": ["OpenCL"]}],
     "library": 
     {
         "static": [],
-        "dynamic": []
+        "dynamic": [{"ifhas": "ocl_noicd", "+": ["OpenCL"]}]
     },
     "targets":
     {
