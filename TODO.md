@@ -126,6 +126,7 @@
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
   - [ ] Move to use threadpool to provide 1:1 context support, add cmdlist to record api calls and use IPC to execute remotely
+  - [ ] Direct load ICD lib to support multi-device/context
   * NLGL
     - [ ] Add basic NLGL
     - [ ] Add proper drawstate setting with NLGL

@@ -4,8 +4,6 @@
 #include "common/TimeUtil.hpp"
 #include "common/StringEx.hpp"
 #include "common/AlignedContainer.hpp"
-#include "common/SIMD128.hpp"
-#include "3DBasic/miniBLAS/VecNew.hpp"
 #include "common/ResourceHelper.inl"
 #include <map>
 #include <vector>

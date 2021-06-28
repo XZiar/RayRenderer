@@ -23,12 +23,22 @@ class Resource:
     def __str__(self):
         return "[{}]@[{}]".format(self.define, self.fpath)
 
+ELFBinTypeMap = \
+{
+    "x86":      ["elf32-i386",          "i386"],
+    "x64":      ["elf64-x86-64",        "i386:x86-64"],
+    "ARM":      ["elf32-little",        None],
+    "ARM64":    ["elf64-littleaarch64", None]
+}
+
 if __name__ == "__main__":
     rcfile = sys.argv[1]
     platform = sys.argv[2]
     objdir = sys.argv[3]
-    elfType = "elf32-i386" if platform == "x86" else "elf64-x86-64" if platform == "x64" else None
-    binType = "i386" if platform == "x86" else "i386:x86-64" if platform == "x64" else None
+    elfType, binType = ELFBinTypeMap.get(platform)
+    # elfType = "elf32-i386" if platform == "x86" else "elf64-x86-64" if platform == "x64" else None
+    # binType = "i386" if platform == "x86" else "i386:x86-64" if platform == "x64" else None
+    cmdpfx = "objcopy -I binary -O " + elfType + ("" if binType is None else " -b " + binType)
     print(f"{COLOR.green}Compiling Resource File {COLOR.magenta}[{rcfile}]{COLOR.clear} for {COLOR.magenta}[{platform}]{COLOR.clear} to [{objdir}]")
     with open(rcfile, "rb") as fp:
         rawdata = fp.read()
@@ -63,7 +73,7 @@ namespace common
     uid = 0
     for r in ress:
         print(r)
-        cmd = "objcopy -I binary -O {} -B {} {} {}".format(elfType, binType, r.fpath, r.objpath)
+        cmd = "{} {} {}".format(cmdpfx, r.fpath, r.objpath)
         print(cmd)
         retcode = call(cmd, shell=True)
         cpp += """

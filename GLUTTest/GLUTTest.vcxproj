@@ -134,6 +134,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FontHelper\FontHelper.vcxproj">
+      <Project>{3a51a60c-cc0c-43e9-9a48-fb251edc1135}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\FreeGLUTView\FreeGLUTView.vcxproj">
       <Project>{944b3981-336e-4807-b5be-55b8f05920d4}</Project>
     </ProjectReference>

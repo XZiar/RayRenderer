@@ -31,7 +31,7 @@
         },
         "cpp":
         {
-            "sources": ["*.cpp"]
+            "sources": [{"dir": "$(BuildDir)", "+": "*.cpp"}]
         }
     }
 }

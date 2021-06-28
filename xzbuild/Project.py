@@ -34,13 +34,11 @@ class Project:
         if env["compiler"] == "clang":
             self.linkflags += ["-fuse-ld=lld"]
         os.chdir(os.path.join(env["rootDir"], self.srcPath))
-        targets = self.raw.get("targets", [])
+        targets = self.raw.get("targets", {})
         existTargets = [t for t in _AllTargets if t.prefix() in targets]
         for t in existTargets:
             t.modifyProject(self, env)
-        self.targets = [t(targets, env) for t in existTargets]
-        for t in self.targets:
-            t.finishTarget(self, env)
+        self.targets = [t(targets, self, env) for t in existTargets]
         os.chdir(env["rootDir"])
 
     def solveDependency(self, projs:"ProjectSet"):

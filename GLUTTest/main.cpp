@@ -247,10 +247,11 @@ auto FindPath()
 void PrintException(const common::ExceptionBasicInfo& be)
 {
     log().error(FMT_STRING(u"Error when performing test:\n{}\n"), be.Message);
-    fmt::basic_memory_buffer<char16_t> buf;
+    std::u16string str(u"stack trace:\n");
     for (const auto& stack : be.StackTrace)
-        fmt::format_to(buf, FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-    log().error(FMT_STRING(u"stack trace:\n{}\n"), std::u16string_view(buf.data(), buf.size()));
+        fmt::format_to(std::back_inserter(str), FMT_STRING(u"{}:[{}]\t{}\n"), stack.File, stack.Line, stack.Func);
+    str.append(u"\n");
+    log().error(str);
 
     if (be.InnerException)
         PrintException(*be.InnerException);

@@ -1,3 +1,12 @@
+# OpenGL-ICD
+
+参考：
+* https://docs.microsoft.com/en-us/windows-hardware/drivers/display/loading-an-opengl-installable-client-driver
+* https://github.com/NVIDIA/libglvnd
+* https://dri.freedesktop.org/doxygen/gallium/stw__icd_8c.html
+
+绕过GDI，直接使用ICD dll去创建context、获取function。
+
 # FancyCL
 
 ## Target

@@ -22,11 +22,8 @@ class BuildTarget(metaclass=abc.ABCMeta):
         '''modify parent project'''
         pass
 
-    @staticmethod
-    def preparePaths(proj, env:dict, paths:list):
-        solDir = env["rootDir"]
-        buildDir = os.path.join(solDir, proj.buildPath)
-        return [path.replace("$(SolutionDir)", solDir).replace("$(BuildDir)", buildDir) for path in paths]
+    def porcPathDefine(self, path:str):
+        return path.replace("$(SolutionDir)", self.solDir).replace("$(BuildDir)", self.buildDir)
     
     def write(self, file):
         file.write(f"\n\n# For target [{self.prefix()}]\n")
@@ -36,15 +33,19 @@ class BuildTarget(metaclass=abc.ABCMeta):
     def printSources(self):
         print(f'{COLOR.magenta}[{self.prefix()}] Sources:\n{COLOR.White(" ".join(self.sources))}')
 
-    def __init__(self, targets, env:dict):
+    def __init__(self, targets:dict, proj, env:dict):
         self.sources = []
         self.flags = []
-        self.solveTarget(targets, env)
+        self.solDir = env["rootDir"]
+        self.buildDir = os.path.join(self.solDir, proj.buildPath)
+        self.solveTarget(targets, proj, env)
+        if hasattr(self, "incpath"):
+            self.incpath = [self.porcPathDefine(path) for path in self.incpath]
 
-    def solveSource(self, targets, env:dict):
+    def solveSource(self, targets:dict, env:dict):
         def adddir(ret:tuple, ele:dict, env:dict):
             if "dir" in ele:
-                dir = ele["dir"]
+                dir = self.porcPathDefine(ele["dir"])
                 return tuple(list(os.path.join(dir, i) for i in x) for x in ret)
             return ret
         target = targets[self.prefix()]
@@ -56,16 +57,12 @@ class BuildTarget(metaclass=abc.ABCMeta):
         self.sources = list(((adds - dels) | forceadd) - forcedel)
         self.sources.sort()
 
-    def solveTarget(self, targets, env:dict):
+    def solveTarget(self, targets:dict, proj, env:dict):
         '''solve sources and flags'''
         self.solveSource(targets, env)
         target = targets[self.prefix()]
         a,d = PList.solveElementList(target, "flags", env)
         self.flags = PList.combineElements(self.flags, a, d)
-
-    def finishTarget(self, proj, env:dict):
-        '''finish solving target with project info'''
-        pass
 
     def __repr__(self):
         return str(vars(self))
@@ -77,7 +74,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
     def langVersion() -> str:
         pass
 
-    def __init__(self, targets, env:dict):
+    def __init__(self, targets:dict, proj, env:dict):
         self.defines = []
         self.incpath = []
         self.pch = ""
@@ -85,9 +82,9 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.optimize = ""
         self.version = ""
         self.visibility = "hidden"
-        super().__init__(targets, env)
+        super().__init__(targets, proj, env)
 
-    def solveTarget(self, targets, env:dict):
+    def solveTarget(self, targets:dict, proj, env:dict):
         self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
         self.flags += [env["archparam"]]
         if env["arch"] == "x86":
@@ -112,7 +109,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.defines = PList.combineElements(self.defines, a, d)
             a,d = PList.solveElementList(cxx, "incpath", env)
             self.incpath = PList.combineElements(self.incpath, a, d)
-        super().solveTarget(targets, env)
+        super().solveTarget(targets, proj, env)
         target = targets[self.prefix()]
         self.pch = target.get("pch", "")
         self.version = target.get("version", self.langVersion())
@@ -126,9 +123,6 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = PList.combineElements(self.incpath, a, d)
         self.flags += [f"-fvisibility={self.visibility}"]
-
-    def finishTarget(self, proj, env:dict):
-        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
 
     def write(self, file):
         super().write(file)
@@ -145,8 +139,8 @@ class CPPTarget(CXXTarget):
     @staticmethod
     def langVersion() -> str:
         return "-std=c++17"
-    def solveTarget(self, targets, env:dict):
-        super().solveTarget(targets, env)
+    def solveTarget(self, targets, proj, env:dict):
+        super().solveTarget(targets, proj, env)
         # it is agains c++ rules because class members also got influnced
         # https://stackoverflow.com/questions/48621251/why-fvisibility-inlines-hidden-is-not-the-default
         # if self.visibility == "hidden":
@@ -175,23 +169,20 @@ class NASMTarget(BuildTarget):
     @staticmethod
     def prefix() -> str:
         return "nasm"
-    def __init__(self, targets, env:dict):
+    def __init__(self, targets:dict, proj, env:dict):
         self.incpath = []
-        super().__init__(targets, env)
+        super().__init__(targets, proj, env)
 
-    def solveTarget(self, targets, env:dict):
+    def solveTarget(self, targets:dict, proj, env:dict):
         self.flags = ["-g", "-DELF"]
         if env["platform"] == "x64":
             self.flags += ["-f elf64", "-D__x86_64__"]
         elif env["platform"] == "x86":
             self.flags += ["-f elf32"]
-        super().solveTarget(targets, env)
+        super().solveTarget(targets, proj, env)
         target = targets["nasm"]
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = list(set(a) - set(d))
-
-    def finishTarget(self, proj, env:dict):
-        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
 
     def write(self, file):
         super().write(file)
@@ -219,14 +210,14 @@ class ISPCTarget(BuildTarget):
                 print(COLOR.Yellow("Seems ISPC is not found"))
 
 
-    def __init__(self, targets, env:dict):
+    def __init__(self, targets:dict, proj, env:dict):
         if env["arch"] == "x86":
             self.targets = ["sse4", "avx2"]
         elif env["arch"] == "arm":
             self.targets = ["neon"]
-        super().__init__(targets, env)
+        super().__init__(targets, proj, env)
 
-    def solveTarget(self, targets, env:dict):
+    def solveTarget(self, targets:dict, proj, env:dict):
         self.flags = ["-g", "-O2", "--opt=fast-math", "--pic"]
         if env["platform"] == "x64":
             self.flags += ["--arch=x86-64"]
@@ -234,7 +225,7 @@ class ISPCTarget(BuildTarget):
             self.flags += ["--arch=x86"]
         elif env["platform"] == "ARM":
             self.flags += ["--arch=arm"]
-        super().solveTarget(targets, env)
+        super().solveTarget(targets, proj, env)
 
     def write(self, file):
         super().write(file)
@@ -266,7 +257,7 @@ class CUDATarget(BuildTarget):
         if CUDATarget.cudaHome:
             proj.libDirs += [os.path.join(CUDATarget.cudaHome, "lib64")]
 
-    def __init__(self, targets, env:dict):
+    def __init__(self, targets:dict, proj, env:dict):
         self.defines = []
         self.incpath = []
         self.hostDebug = "-g"
@@ -274,13 +265,13 @@ class CUDATarget(BuildTarget):
         self.optimize = ""
         self.version = ""
         self.arch = []
-        super().__init__(targets, env)
+        super().__init__(targets, proj, env)
         if CUDATarget.cudaHome:
             self.incpath += [os.path.join(CUDATarget.cudaHome, "include")]
         else:
             print(COLOR.Yellow("CUDA Home directory not found"))
 
-    def solveTarget(self, targets, env:dict):
+    def solveTarget(self, targets:dict, proj, env:dict):
         self.flags += ["-pg", "-lineinfo", "-use_fast_math", "-res-usage", "--source-in-ptx"]
         self.flags += ["-m64" if env["platform"] == "x64" else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"
@@ -303,10 +294,7 @@ class CUDATarget(BuildTarget):
             a,d = PList.solveElementList(cuda, "arch", env)
             self.arch = PList.combineElements(self.arch, a, d)
             self.version = cuda.get("version", "-std=c++14")
-        super().solveTarget(targets, env)
-
-    def finishTarget(self, proj, env:dict):
-        self.incpath = BuildTarget.preparePaths(proj, env, self.incpath)
+        super().solveTarget(targets, proj, env)
 
     def write(self, file):
         super().write(file)

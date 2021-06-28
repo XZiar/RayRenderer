@@ -65,13 +65,11 @@ def findAppInPath(appname:str):
     osname = platform.system()
     return findFileInPath(appname+".exe" if osname == "Windows" else appname)
 
-def collectEnv(paras:dict) -> dict:
+def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     solDir = os.getcwd()
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
     env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
     env["verbose"] = "verbose" in paras
-    is64Bits = sys.maxsize > 2**32
-    env["bits"] = 64 if is64Bits else 32
     env["incDirs"] = []
     env["libDirs"] = []
     env["defines"] = []
@@ -83,15 +81,28 @@ def collectEnv(paras:dict) -> dict:
     env["ccompiler"] = ccompiler
     env["osname"] = platform.system()
     env["machine"] = platform.machine()
-    if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
-        env["arch"] = "x86"
-        env["platform"] = "x64" if is64Bits else "x86"
-    elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"]:
-        env["arch"] = "arm"
-        env["platform"] = "ARM64" if is64Bits else "ARM"
+    if plat is None:
+        is64Bits = sys.maxsize > 2**32
+        env["bits"] = 64 if is64Bits else 32
+        if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
+            env["arch"] = "x86"
+            env["platform"] = "x64" if is64Bits else "x86"
+        elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"]:
+            env["arch"] = "arm"
+            env["platform"] = "ARM64" if is64Bits else "ARM"
+        else:
+            env["arch"] = ""
+            env["platform"] = "x64" if is64Bits else "x86"
     else:
-        env["arch"] = ""
-        env["platform"] = "x64" if is64Bits else "x86"
+        is64Bits = plat in ["x64", "ARM64"]
+        env["bits"] = 64 if is64Bits else 32
+        if plat in ["ARM64", "ARM64"]:
+            env["arch"] = "arm"
+        elif plat in ["x64", "x86"]:
+            env["arch"] = "x86"
+        else:
+            env["arch"] = ""
+        env["platform"] = plat
     
     targetarch = paras.get("targetarch", "native")
     rawdefs = ""

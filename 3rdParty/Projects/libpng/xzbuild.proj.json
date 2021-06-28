@@ -12,10 +12,23 @@
     },
     "targets":
     {
+        "cxx":
+        {
+            "incpath": ["$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
+        },
+        "asm":
+        {
+            "sources":[{"ifeq": {"arch": "arm"}, "+": "arm/*.S"}]
+        },
         "c":
         {
-            "sources": ["*.c", "intel/*.c", {"-": "example.c"}],
-            "incpath": ["$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
+            "sources": 
+            [
+                "*.c", 
+                {"ifeq": {"arch": "x86"}, "+": "intel/*.c"},
+                {"ifeq": {"arch": "arm"}, "+": "arm/*.c"},
+                {"-": "example.c"}
+            ]
         }
     }
 }

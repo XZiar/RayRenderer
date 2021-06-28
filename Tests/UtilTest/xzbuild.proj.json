@@ -12,7 +12,12 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp", {"-": ["DXStub.cpp", "CURLTest.cpp"]}],
+            "sources": 
+            [
+                "*.cpp", 
+                {"-": ["DXStub.cpp", "CURLTest.cpp"]},
+                {"ifhas": "android", "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]}
+            ],
             "flags": ["-Wno-unused-function"]
         },
         "rc":
