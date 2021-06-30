@@ -149,9 +149,6 @@ def main(argv:list, paras:dict):
 
         # initialize environment data
         env = collectEnv(paras, argv[3] if len(argv) > 3 else None, argv[2] if len(argv) > 2 else None)
-        # if len(argv) > 3: env["platform"] = argv[3]             
-        # if len(argv) > 2: env["target"] = argv[2]             
-        env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
         for t in _AllTargets:
             t.initEnv(env)
         ProjectSet.loadSolution(env)

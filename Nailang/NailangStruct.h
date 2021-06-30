@@ -462,7 +462,7 @@ struct NativeWrapper
 };
 
 
-struct ArrarRef
+struct ArrayRef
 {
     using Type = NativeWrapper::Type;
     uint64_t DataPtr;
@@ -487,7 +487,7 @@ struct ArrarRef
         return NativeWrapper::TypeName(ElementType);
     }
     template<typename T>
-    static ArrarRef Create(common::span<T> elements)
+    static ArrayRef Create(common::span<T> elements)
     {
         Expects(elements.size() < UINT32_MAX);
         static constexpr bool IsConst = std::is_const_v<T>;
@@ -546,7 +546,7 @@ public:
     { }
     Arg(const CustomVar& var) noexcept = delete;
     Arg(CustomVar&& var, bool isConst = false) noexcept;
-    Arg(const ArrarRef arr) noexcept;
+    Arg(const ArrayRef arr) noexcept;
     Arg(const std::u32string& str) noexcept : 
         Data0(0), Data1(0), Data2(0), Data3(4), TypeData(Type::U32Str)
     {
@@ -693,7 +693,7 @@ inline Arg::Arg(CustomVar&& var, bool isConst) noexcept : Data0(reinterpret_cast
     var.Host = nullptr;
     var.Meta0 = var.Meta1 = var.Meta2 = 0;
 }
-inline Arg::Arg(const ArrarRef arr) noexcept :
+inline Arg::Arg(const ArrayRef arr) noexcept :
     Data0(arr.DataPtr), Data1(0), Data2(arr.Length), Data3(common::enum_cast(arr.ElementType)),
     TypeData(Type::Array | (arr.IsReadOnly ? Type::ConstBit : Type::Empty))
 { }
@@ -726,7 +726,7 @@ template<Arg::Type T, bool Check>
     if constexpr (T == Type::Var)
         return CustomVar{ reinterpret_cast<CustomVar::Handler*>(Data0.Uint), Data1, Data2, Data3 };
     else if constexpr (T == Type::Array)
-        return ArrarRef{ static_cast<uintptr_t>(Data0.Uint), Data2, static_cast<ArrarRef::Type>(Data3), HAS_FIELD(TypeData, Type::ConstBit) };
+        return ArrayRef{ static_cast<uintptr_t>(Data0.Uint), Data2, static_cast<ArrayRef::Type>(Data3), HAS_FIELD(TypeData, Type::ConstBit) };
     else if constexpr (T == Type::U32Str)
         return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
     else if constexpr (T == Type::U32Sv)
@@ -817,7 +817,7 @@ template<typename Visitor>
 { 
     return Host->Get(*this); 
 }
-inline Arg ArrarRef::Access(size_t idx) const noexcept
+inline Arg ArrayRef::Access(size_t idx) const noexcept
 {
     Expects(idx < Length);
     if (ElementType == Type::Any)
@@ -825,7 +825,7 @@ inline Arg ArrarRef::Access(size_t idx) const noexcept
     else
         return NativeWrapper::GetLocator(ElementType, DataPtr, IsReadOnly, idx);
 }
-inline Arg ArrarRef::Get(size_t idx) const noexcept
+inline Arg ArrayRef::Get(size_t idx) const noexcept
 {
     Expects(idx < Length);
     if (ElementType == Type::Any)
@@ -834,7 +834,7 @@ inline Arg ArrarRef::Get(size_t idx) const noexcept
         return NativeWrapper::GetLocator(ElementType, DataPtr, true, idx).Get();
 }
 template<typename T>
-inline bool ArrarRef::Set(size_t idx, T&& val) const noexcept
+inline bool ArrayRef::Set(size_t idx, T&& val) const noexcept
 {
     Expects(idx < Length);
     if (ElementType == Type::Any)

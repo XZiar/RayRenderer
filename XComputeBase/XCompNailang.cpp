@@ -20,7 +20,7 @@ using xziar::nailang::CustomVar;
 using xziar::nailang::CompareResultCore;
 using xziar::nailang::CompareResult;
 using xziar::nailang::NativeWrapper;
-using xziar::nailang::ArrarRef;
+using xziar::nailang::ArrayRef;
 using xziar::nailang::FuncCall;
 using xziar::nailang::FuncPack;
 using xziar::nailang::FuncEvalPack;
@@ -1127,9 +1127,9 @@ Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
         NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, dim0, argc), func);
 
     VTypeInfo sinfo{ info.Type, 1, 0, info.Bits };
-    auto atype = ArrarRef::Type::Any;
+    auto atype = ArrayRef::Type::Any;
 #define GENV(vtype, bit, at) \
-    case static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}): atype = ArrarRef::Type::at; break;
+    case static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}): atype = ArrayRef::Type::at; break;
     switch (static_cast<uint32_t>(sinfo))
     {
     GENV(Unsigned, 8,  U8);
@@ -1462,7 +1462,7 @@ MAKE_ENUM_BITFIELD(GVecRefFlags)
 static GeneralVecRef GVecRefHandler;
 static GeneralVec GVecHandler;
 
-CustomVar GeneralVecRef::Create(ArrarRef arr)
+CustomVar GeneralVecRef::Create(ArrayRef arr)
 {
     auto flag = GVecRefFlags::Empty;
     switch (arr.Length)
@@ -1477,15 +1477,15 @@ CustomVar GeneralVecRef::Create(ArrarRef arr)
         flag |= GVecRefFlags::ReadOnly;
     return { &GVecRefHandler, arr.DataPtr, common::enum_cast(flag), common::enum_cast(arr.ElementType) };
 }
-ArrarRef GeneralVecRef::ToArray(const xziar::nailang::CustomVar& var) noexcept
+ArrayRef GeneralVecRef::ToArray(const xziar::nailang::CustomVar& var) noexcept
 {
     Expects(var.Host == &GVecRefHandler || var.Host == &GVecHandler);
     const auto flag = static_cast<GVecRefFlags>(var.Meta1);
     const bool isReadOnly = HAS_FIELD(flag, GVecRefFlags::ReadOnly);
     const auto length = (var.Meta1 & 0xfu);
-    return { var.Meta0, length, static_cast<ArrarRef::Type>(var.Meta2), isReadOnly };
+    return { var.Meta0, length, static_cast<ArrayRef::Type>(var.Meta2), isReadOnly };
 }
-size_t GeneralVecRef::ToIndex(const CustomVar& var, const ArrarRef& arr, std::u32string_view field)
+size_t GeneralVecRef::ToIndex(const CustomVar& var, const ArrayRef& arr, std::u32string_view field)
 {
     size_t tidx = SIZE_MAX;
     switch (common::DJBHash::HashC(field))
@@ -1576,7 +1576,7 @@ common::str::StrVariant<char32_t> GeneralVecRef::ToString(const CustomVar& var) 
 {
     return GetExactType(ToArray(var));
 }
-std::u32string GeneralVecRef::GetExactType(const xziar::nailang::ArrarRef& arr) noexcept
+std::u32string GeneralVecRef::GetExactType(const xziar::nailang::ArrayRef& arr) noexcept
 {
     return FMTSTR(U"xcomp::vecref<{},{}>"sv, arr.GetElementTypeName(), arr.Length);
 }
@@ -1618,7 +1618,7 @@ struct COMMON_EMPTY_BASES VecArray : public common::FixedLenRefHolder<VecArray<T
     using common::FixedLenRefHolder<VecArray<T>, T>::Increase;
     using common::FixedLenRefHolder<VecArray<T>, T>::Decrease;
 };
-CustomVar GeneralVec::Create(ArrarRef::Type type, size_t len)
+CustomVar GeneralVec::Create(ArrayRef::Type type, size_t len)
 {
     auto flag = GVecRefFlags::Empty;
     switch (len)
@@ -1630,7 +1630,7 @@ CustomVar GeneralVec::Create(ArrarRef::Type type, size_t len)
         COMMON_THROWEX(common::BaseException, FMTSTR(u"Vec only support [2~4] as length, get [{}].", len));
     }
     uint64_t ptr = 0;
-#define RET(tenum, type) case ArrarRef::Type::tenum: { VecArray<type> vec(len); vec.Increase(); ptr = vec.GetDataPtr(); break; }
+#define RET(tenum, type) case ArrayRef::Type::tenum: { VecArray<type> vec(len); vec.Increase(); ptr = vec.GetDataPtr(); break; }
     switch (type)
     {
     RET(U8,  uint8_t)
@@ -1652,10 +1652,10 @@ CustomVar GeneralVec::Create(ArrarRef::Type type, size_t len)
 template<typename F>
 static void CallOnVecArray(const CustomVar& var, F&& func) noexcept
 {
-    const auto type = static_cast<ArrarRef::Type>(var.Meta2);
+    const auto type = static_cast<ArrayRef::Type>(var.Meta2);
     const uint8_t length = (var.Meta1 & 0xfu);
 #define COVA(tenum, type)                                                       \
-    case ArrarRef::Type::tenum:                                               \
+    case ArrayRef::Type::tenum:                                               \
     {                                                                           \
         static_assert(sizeof(VecArray<type>) == sizeof(common::span<type>));    \
         common::span<type> sp(reinterpret_cast<type*>(var.Meta0), length);      \

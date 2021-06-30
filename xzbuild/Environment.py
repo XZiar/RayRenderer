@@ -68,7 +68,8 @@ def findAppInPath(appname:str):
 def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     solDir = os.getcwd()
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
-    env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "target": "Debug", "paras": paras}
+    env = {"rootDir": solDir, "xzbuildPath": xzbuildPath, "paras": paras}
+    env["target" ] = "Debug" if tgt is None else tgt
     env["verbose"] = "verbose" in paras
     env["incDirs"] = []
     env["libDirs"] = []
@@ -103,6 +104,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         else:
             env["arch"] = ""
         env["platform"] = plat
+    env["objpath"] = ("{1}" if env["platform"] == "x86" else "{0}/{1}").format(env["platform"], env["target"])
     
     targetarch = paras.get("targetarch", "native")
     rawdefs = ""

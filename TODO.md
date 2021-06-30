@@ -207,13 +207,14 @@
   - [ ] Fix scrollview's crash when switching to other selection
 
 * AnyDock
-  - [ ] Repalce with DockPanel to provide better Dock State
+  - [ ] Replace with DockPanel to provide better Dock State
 
 * Build
   - [x] Custom build procedure for Linux
   - [x] Generate build Makefile from python script and project-info json
   - [x] Add Pch for GCC build
   - [x] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
+  - [ ] Add better support for other build targets on ARM
   - [ ] Move to fully self-controlled build system
   - [ ] Add pseudo project, provide include-path info or install info or linkage info 
 

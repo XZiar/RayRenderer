@@ -236,7 +236,7 @@ template<typename T> struct U8StrFix { using Type = T; };
 template<> struct U8StrFix<std::u8string> { using Type = std::string; };
 template<> struct U8StrFix<std::u8string_view> { using Type = std::string_view; };
 #endif
-ArrarRef::SpanVariant ArrarRef::GetSpan() const noexcept
+ArrayRef::SpanVariant ArrayRef::GetSpan() const noexcept
 {
 #define SP(type) common::span<type>{ reinterpret_cast<type*>(DataPtr), static_cast<size_t>(Length) }
 #define RET(tenum, type) case Type::tenum:                              \
@@ -252,7 +252,7 @@ ArrarRef::SpanVariant ArrarRef::GetSpan() const noexcept
 #undef SP
 }
 
-void ArrarRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
+void ArrayRef::PrintToStr(std::u32string& str, std::u32string_view delim) const
 {
     constexpr auto Append = [](std::u32string& str, auto delim, auto ptr, const size_t len)
     {
@@ -411,7 +411,7 @@ static common::str::StrVariant<char32_t> ArgToString([[maybe_unused]]const T& va
         return fmt::format(FMT_STRING(U"{}"), val);
 }
 template<>
-common::str::StrVariant<char32_t> ArgToString<ArrarRef>(const ArrarRef& val) noexcept
+common::str::StrVariant<char32_t> ArgToString<ArrayRef>(const ArrayRef& val) noexcept
 {
     std::u32string ret = U"[";
     val.PrintToStr(ret, U", "sv);

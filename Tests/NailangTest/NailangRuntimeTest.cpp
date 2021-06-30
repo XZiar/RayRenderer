@@ -16,7 +16,7 @@ using xziar::nailang::MemoryPool;
 using xziar::nailang::NailangParser;
 using xziar::nailang::EmbedOps;
 using xziar::nailang::LateBindVar;
-using xziar::nailang::ArrarRef;
+using xziar::nailang::ArrayRef;
 using xziar::nailang::BinaryExpr;
 using xziar::nailang::UnaryExpr;
 using xziar::nailang::SubQuery;
@@ -516,19 +516,19 @@ TEST(NailangRuntime, Indexer)
 }
 
 
-TEST(NailangRuntime, ArrarRef)
+TEST(NailangRuntime, ArrayRef)
 {
     MemoryPool pool;
     NailangRT runtime;
     constexpr float dummy1[] = { 0.f,1.f,4.f,-2.f };
     int8_t dummy2[] = { 0,1,4,-2 };
-    runtime.SetRootArg(U"arr1", ArrarRef::Create<const float>(dummy1));
-    runtime.SetRootArg(U"arr2", ArrarRef::Create<int8_t>(dummy2));
+    runtime.SetRootArg(U"arr1", ArrayRef::Create<const float>(dummy1));
+    runtime.SetRootArg(U"arr2", ArrayRef::Create<int8_t>(dummy2));
     {
         const auto arg = runtime.QuickGetArg(U"arr1"sv);
         ASSERT_TRUE(CheckArg(arg, Arg::Type::Array | Arg::Type::ConstBit));
         const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, ArrarRef::Type::F32);
+        ASSERT_EQ(var.ElementType, ArrayRef::Type::F32);
         ASSERT_TRUE(var.IsReadOnly);
         const auto sp  = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<const float>>(sp));
@@ -539,7 +539,7 @@ TEST(NailangRuntime, ArrarRef)
         const auto arg = runtime.QuickGetArg(U"arr2"sv);
         ASSERT_TRUE(CheckArg(arg, Arg::Type::Array));
         const auto var = arg.GetVar<Arg::Type::Array>();
-        ASSERT_EQ(var.ElementType, ArrarRef::Type::I8);
+        ASSERT_EQ(var.ElementType, ArrayRef::Type::I8);
         ASSERT_FALSE(var.IsReadOnly);
         const auto sp = var.GetSpan();
         ASSERT_TRUE(std::holds_alternative<common::span<int8_t>>(sp));
