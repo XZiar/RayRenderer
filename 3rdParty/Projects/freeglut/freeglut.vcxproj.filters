@@ -164,13 +164,13 @@
     <ClInclude Include="$(RealSourceDir)\src\fg_callback_macros.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\src\freeglut_ucall.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="config.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\src\fg_version.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\GL\freeglut_ucall.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -180,7 +180,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="$(RealSourceDir)\src\README.md" />
     <None Include="xzbuild.proj.json" />
+    <None Include="$(RealSourceDir)\README" />
   </ItemGroup>
 </Project>

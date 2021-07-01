@@ -66,6 +66,15 @@
     <ClCompile Include="$(RealSourceDir)\intel\intel_init.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arm\palette_neon_intrinsics.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arm\filter_neon_intrinsics.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arm\arm_init.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(RealSourceDir)\pngpriv.h">

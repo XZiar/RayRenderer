@@ -34,6 +34,7 @@ uint32_t GetWinBuildNumber() noexcept
 {
     static const auto info = []() -> std::optional<cpu_id_t>
     {
+#if COMMON_ARCH_X86
         cpu_id_t data;
         if (cpuid_present())
         {
@@ -44,6 +45,9 @@ uint32_t GetWinBuildNumber() noexcept
                     return data;
             }
         }
+#elif COMMON_OS_LINUX
+        return std::pair{ getauxval(AT_HWCAP), getauxval(AT_HWCAP2) };
+#endif
         return {};
     }();
     return info;

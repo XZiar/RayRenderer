@@ -5,7 +5,15 @@
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
-#include "3rdParty/libcpuid/libcpuid/libcpuid.h"
+#if COMMON_ARCH_X86
+#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
+#elif COMMON_OS_LINUX
+#   include <sys/auxv.h>
+#   include <asm/hwcap.h>
+using cpu_id_t = std::pair<unsigned long, unsigned long>;
+#else
+using cpu_id_t = int;
+#endif
 
 #include <cassert>
 #include <thread>

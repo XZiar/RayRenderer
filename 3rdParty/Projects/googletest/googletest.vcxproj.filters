@@ -18,12 +18,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="gtest-enhanced.h">
-      <Filter>Header Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..\..\googletest\README.md" />
     <None Include="..\..\googletest\LICENSE" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="gtest-enhanced.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -81,7 +81,7 @@
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <None Include="../../libcpuid/Readme.md" />
     <None Include="xzbuild.proj.json" />
+    <None Include="$(RealSourceDir)\..\Readme.md" />
   </ItemGroup>
 </Project>

@@ -113,6 +113,24 @@
     <ClCompile Include="$(RealSourceDir)\arch\x86\crc_folding.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\adler32_neon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\armfeature.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\chunkset_neon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\crc32_acle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\insert_string_acle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\arch\arm\slide_neon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\gzlib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -124,6 +142,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="$(RealSourceDir)\arch\arm\arm.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\arch\arm\ctzl.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\arch\x86\x86.h">
       <Filter>Header Files</Filter>
     </ClInclude>

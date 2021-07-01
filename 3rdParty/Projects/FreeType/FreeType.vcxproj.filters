@@ -152,9 +152,6 @@
     <ClInclude Include="FtException.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\include\ft2build.h">
-      <Filter>头文件\freetype</Filter>
-    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftstdlib.h">
       <Filter>头文件\freetype</Filter>
     </ClInclude>
@@ -169,6 +166,9 @@
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftoption.h">
       <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\ft2build.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

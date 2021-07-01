@@ -28,6 +28,11 @@
                 {"ifeq": {"arch": "x86"}, "+": "intel/*.c"},
                 {"ifeq": {"arch": "arm"}, "+": "arm/*.c"},
                 {"-": "example.c"}
+            ],
+            "defines":
+            [
+                {"ifeq": {"arch": "x86"}, "+": "PNG_INTEL_SSE"},
+                {"ifeq": {"arch": "arm"}, "+": ["PNG_ARM_NEON_API_SUPPORTED", "PNG_ARM_NEON_CHECK_SUPPORTED"]}
             ]
         }
     }

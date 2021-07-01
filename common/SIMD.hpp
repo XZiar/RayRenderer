@@ -55,6 +55,10 @@
 # else
 #  error Unknown compiler, not supported by this header
 # endif
+# if !defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
+// The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
+#   define __ARM_NEON 1
+# endif
 #else
 #  error Unknown architecture, not supported by this header
 #endif
