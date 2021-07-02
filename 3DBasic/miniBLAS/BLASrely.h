@@ -2,7 +2,7 @@
 
 #include "common/CommonRely.hpp"
 #include "common/AlignedBase.hpp"
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 #include <cstdint>
 #include <type_traits>
 #include <cmath>

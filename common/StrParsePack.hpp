@@ -2,7 +2,7 @@
 
 #include "CommonRely.hpp"
 #include "StrBase.hpp"
-#include "SIMD.hpp"
+#include "simd/SIMD.hpp"
 
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>

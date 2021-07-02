@@ -37,6 +37,9 @@
     <ClCompile Include="TrunkedContianerTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="TestNEON.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source">

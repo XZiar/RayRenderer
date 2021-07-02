@@ -16,7 +16,7 @@
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
 #include "common/MemoryStream.hpp"
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 
 #include <cstddef>
 #include <cstdint>

@@ -3,7 +3,7 @@
 #include "BLASrely.h"
 
 #if COMMON_SIMD_LV >= 20
-#   include "common/SIMD128.hpp"
+#   include "common/simd/SIMD128.hpp"
 #endif
 
 namespace miniBLAS

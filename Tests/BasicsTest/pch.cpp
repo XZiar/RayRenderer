@@ -4,7 +4,12 @@
 //
 
 #include "pch.h"
-#include "3rdParty/libcpuid/libcpuid/libcpuid.h"
+#if COMMON_ARCH_X86
+#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
+//#elif COMMON_OS_LINUX
+//#   include <sys/auxv.h>
+//#   include <asm/hwcap.h>
+#endif
 
 
 std::mt19937& GetRanEng()
@@ -19,6 +24,7 @@ uint32_t GetARand()
 
 static uint32_t GetSIMDLevel_()
 {
+#if COMMON_ARCH_X86
     if (!cpuid_present())               return 0;
     struct cpu_raw_data_t raw;
     if (cpuid_get_raw_data(&raw) < 0)   return 0;
@@ -35,6 +41,9 @@ static uint32_t GetSIMDLevel_()
     if (data.flags[CPU_FEATURE_SSE2])   return 20;
     if (data.flags[CPU_FEATURE_SSE])    return 10;
     return 0;
+#else
+    return sizeof(void*) == 8 ? 200 : 100;
+#endif
 }
 
 uint32_t SIMDFixture::GetSIMDLevel()
@@ -45,6 +54,7 @@ uint32_t SIMDFixture::GetSIMDLevel()
 
 std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
 {
+#if COMMON_ARCH_X86
     if (level >= 200)
         return "AVX2";
     if (level >= 150)
@@ -63,6 +73,12 @@ std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
         return "SSE2";
     if (level >= 10)
         return "SSE";
+#else
+    if (level >= 200)
+        return "NEONv2";
+    if (level >= 100)
+        return "NEON";
+#endif
     else
         return "NONE";
 }

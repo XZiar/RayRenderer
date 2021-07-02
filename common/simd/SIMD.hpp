@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonRely.hpp"
+#include "../CommonRely.hpp"
 
 #if COMMON_ARCH_X86
 # if COMMON_COMPILER_CLANG
@@ -54,10 +54,6 @@
 #   include <arm_neon.h>
 # else
 #  error Unknown compiler, not supported by this header
-# endif
-# if !defined(__ARM_NEON) && (defined(_M_ARM64) || defined(__aarch64__))
-// The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
-#   define __ARM_NEON 1
 # endif
 #else
 #  error Unknown architecture, not supported by this header
@@ -117,7 +113,8 @@
 
 #if COMMON_ARCH_ARM
 
-# if defined(__ARM_NEON)
+# if defined(_M_ARM64) || defined(__aarch64__)
+// The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
 #    define COMMON_SIMD_LV_ 200
 # elif defined(__ARM_NEON)
 #    define COMMON_SIMD_LV_ 100

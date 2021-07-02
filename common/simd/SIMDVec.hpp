@@ -1,6 +1,6 @@
 #pragma once
 #include "SIMD.hpp"
-#include "EnumEx.hpp"
+#include "../EnumEx.hpp"
 
 namespace common
 {

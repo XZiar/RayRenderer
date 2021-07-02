@@ -1,6 +1,6 @@
 #include "oglPch.h"
 #include "DataTypeConvert.h"
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 #include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 
 #if defined(__F16C__)

@@ -1,6 +1,6 @@
 #include "pch.h"
 #define COMMON_SIMD_LV 100
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 #if COMMON_SIMD_LV_ >= 100
 #   include "CopyTest.h"
 #   include "ShuffleTest.h"

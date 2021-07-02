@@ -1,7 +1,7 @@
 #pragma once
-#include "common/SIMD128.hpp"
-#if COMMON_SIMD_LV >= 100
-#   include "common/SIMD256.hpp"
+#include "common/simd/SIMD128.hpp"
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
+#   include "common/simd/SIMD256.hpp"
 #endif
 #pragma message("Compiling ShuffleTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 

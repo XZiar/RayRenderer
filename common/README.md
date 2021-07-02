@@ -54,11 +54,11 @@ It also provided a read-write lock(both priority supported) and a prefer-lock, b
 
 A utility to provide time query support, mainly used as a timer.
 
-### [SIMD](./SIMD.hpp) **`unfinished`**
+### [SIMD](./simd/SIMD.hpp) **`unfinished`**
 
 It provides SSE/AVX static version test (compiler support).
 
-[SIMD128](./SIMD128.hpp) and [SIMD256](./SIMD256.hpp) provide SIMD vector types support.
+[SIMD128](./simd/SIMD128.hpp) and [SIMD256](./simd/SIMD256.hpp) provide SIMD vector types support.
 
 ### [RefObject](./RefObject.hpp)
 

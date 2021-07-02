@@ -4,7 +4,7 @@
 #include <atomic>
 
 #if COMMON_ARCH_X86
-#   include "SIMD.hpp"
+#   include "simd/SIMD.hpp"
 #   if COMMON_SIMD_LV >= 20
 #       define COMMON_PAUSE() _mm_pause()
 #   elif (COMMON_COMPILER_CLANG && COMMON_CLANG_VER >= 30800) || (COMMON_COMPILER_GCC && COMMON_GCC_VER >= 40701)

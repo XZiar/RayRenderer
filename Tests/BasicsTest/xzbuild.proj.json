@@ -13,7 +13,12 @@
         "cpp":
         {
             "incpath": ["$(SolutionDir)/3rdParty/googletest/googletest/include/", "$(SolutionDir)/3rdParty/googletest/googlemock/include/"],
-            "sources": ["*.cpp"],
+            "sources": 
+            [
+                "*.cpp",
+                {"ifeq": {"arch": "x86"}, "-": ["TestNEON.cpp"]},
+                {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestSAVX.cpp", "TestAVX2.cpp"]}
+            ],
             "pch": "pch.h"
         }
     }

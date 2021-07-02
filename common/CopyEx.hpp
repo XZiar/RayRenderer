@@ -1,6 +1,6 @@
 #pragma once
 #include "CommonRely.hpp"
-#include "SIMD.hpp"
+#include "simd/SIMD.hpp"
 #include "Exceptions.hpp"
 #include <cstdint>
 #include <cstring>

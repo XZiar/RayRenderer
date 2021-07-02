@@ -1,6 +1,6 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 #include "common/StrParsePack.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 #if COMMON_ARCH_X86

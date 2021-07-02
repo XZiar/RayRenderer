@@ -76,10 +76,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\SharedResource.hpp = common\SharedResource.hpp
 		common\SharedString.hpp = common\SharedString.hpp
 		common\SharedString.natvis = common\SharedString.natvis
-		common\SIMD.hpp = common\SIMD.hpp
-		common\SIMD128.hpp = common\SIMD128.hpp
-		common\SIMD256.hpp = common\SIMD256.hpp
-		common\SIMDVec.hpp = common\SIMDVec.hpp
 		common\SpinLock.hpp = common\SpinLock.hpp
 		common\STLEx.hpp = common\STLEx.hpp
 		common\StrBase.hpp = common\StrBase.hpp
@@ -383,6 +379,17 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XComputeBase", "XComputeBase\XComputeBase.vcxproj", "{45234356-6D39-4FA5-A252-40D017EA8190}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "googletest", "3rdParty\Projects\googletest\googletest.vcxproj", "{89E210A7-7C00-378A-BA78-74493D370B99}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "simd", "simd", "{4A40A101-97F5-4958-93FD-5E7F35D9A500}"
+	ProjectSection(SolutionItems) = preProject
+		common\simd\SIMD.hpp = common\simd\SIMD.hpp
+		common\simd\SIMD128.hpp = common\simd\SIMD128.hpp
+		common\simd\SIMD128NEON.hpp = common\simd\SIMD128NEON.hpp
+		common\simd\SIMD128SSE.hpp = common\simd\SIMD128SSE.hpp
+		common\simd\SIMD256.hpp = common\simd\SIMD256.hpp
+		common\simd\SIMD256AVX.hpp = common\simd\SIMD256AVX.hpp
+		common\simd\SIMDVec.hpp = common\simd\SIMDVec.hpp
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -828,6 +835,7 @@ Global
 		{CC934298-6B2A-4538-B656-71DFE4F37C89} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{45234356-6D39-4FA5-A252-40D017EA8190} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{89E210A7-7C00-378A-BA78-74493D370B99} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{4A40A101-97F5-4958-93FD-5E7F35D9A500} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

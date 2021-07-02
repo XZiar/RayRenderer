@@ -15,7 +15,7 @@
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
 #include "common/Exceptions.hpp"
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 
 #include <cstdio>
 #include <type_traits>

@@ -2,9 +2,8 @@
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
 
-//#define COMMON_SIMD_LV 200
-#if COMMON_SIMD_LV < 20
-#   error require at least SSE2
+#if COMMON_SIMD_LV < 100
+#   error require at least NEON
 #endif
 #if !COMMON_OVER_ALIGNED
 #   error require c++17 + aligned_new to support memory management for over-aligned SIMD type.
@@ -30,71 +29,72 @@ struct F64x2;
 namespace detail
 {
 
-template<typename T, typename E>
-struct Int128Common : public CommonOperators<T>
-{
-    // logic operations
-    forceinline T VECCALL And(const T& other) const
-    {
-        return _mm_and_si128(*static_cast<const T*>(this), other);
-    }
-    forceinline T VECCALL Or(const T& other) const
-    {
-        return _mm_or_si128(*static_cast<const T*>(this), other);
-    }
-    forceinline T VECCALL Xor(const T& other) const
-    {
-        return _mm_xor_si128(*static_cast<const T*>(this), other);
-    }
-    forceinline T VECCALL AndNot(const T& other) const
-    {
-        return _mm_andnot_si128(*static_cast<const T*>(this), other);
-    }
-    forceinline T VECCALL Not() const
-    {
-        return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
-    }
-    forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(*static_cast<const T*>(this), 8); }
-    forceinline void VECCALL Load(const E *ptr) { *static_cast<T*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
-    forceinline constexpr operator const __m128i&() const noexcept { return static_cast<const T*>(this)->Data; }
-};
+//template<typename T, typename E>
+//struct Int128Common : public CommonOperators<T>
+//{
+//    // logic operations
+//    forceinline T VECCALL And(const T& other) const
+//    {
+//        return _mm_and_si128(*static_cast<const T*>(this), other);
+//    }
+//    forceinline T VECCALL Or(const T& other) const
+//    {
+//        return _mm_or_si128(*static_cast<const T*>(this), other);
+//    }
+//    forceinline T VECCALL Xor(const T& other) const
+//    {
+//        return _mm_xor_si128(*static_cast<const T*>(this), other);
+//    }
+//    forceinline T VECCALL AndNot(const T& other) const
+//    {
+//        return _mm_andnot_si128(*static_cast<const T*>(this), other);
+//    }
+//    forceinline T VECCALL Not() const
+//    {
+//        return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
+//    }
+//    forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(*static_cast<const T*>(this), 8); }
+//    forceinline void VECCALL Load(const E *ptr) { *static_cast<T*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+//    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
+//    forceinline constexpr operator const __m128i&() const noexcept { return static_cast<const T*>(this)->Data; }
+//};
 
 }
 
 
-struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
+#if COMMON_SIMD_LV >= 200
+struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 {
     static constexpr size_t Count = 2;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,2,0 };
     union
     {
-        __m128d Data;
+        float64x2_t Data;
         double Val[2];
     };
     constexpr F64x2() : Data() { }
-    explicit F64x2(const double* ptr) : Data(_mm_loadu_pd(ptr)) { }
-    constexpr F64x2(const __m128d val) : Data(val) { }
-    F64x2(const double val) : Data(_mm_set1_pd(val)) { }
-    F64x2(const double lo, const double hi) : Data(_mm_setr_pd(lo, hi)) { }
-    forceinline constexpr operator const __m128d&() { return Data; }
-    forceinline void VECCALL Load(const double *ptr) { Data = _mm_loadu_pd(ptr); }
-    forceinline void VECCALL Save(double *ptr) const { _mm_storeu_pd(ptr, Data); }
+    explicit F64x2(const double* ptr) : Data(vld1q_f64(ptr)) { }
+    constexpr F64x2(const float64x2_t val) : Data(val) { }
+    F64x2(const double val) : Data(vdupq_n_f64(val)) { }
+    F64x2(const double lo, const double hi) : Data(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
+    forceinline constexpr operator const float64x2_t&() { return Data; }
+    forceinline void VECCALL Load(const double *ptr) { Data = vld1q_f64(ptr); }
+    forceinline void VECCALL Save(double *ptr) const { vst1q_f64(reinterpret_cast<float64_t*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo, uint8_t Hi>
     forceinline F64x2 VECCALL Shuffle() const
     {
         static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-#if COMMON_SIMD_LV >= 100
-        return _mm_permute_pd(Data, (Hi << 1) + Lo);
-#else
-        return _mm_shuffle_pd(Data, Data, (Hi << 1) + Lo);
-#endif
+        if constexpr (Lo == Hi)
+            return vdupq_laneq_f64(Data, Lo);
+        else if constexpr (Lo == 0 && Hi == 1)
+            return Data;
+        else
+            return vextq_f64(Data, Data, 1);
     }
     forceinline F64x2 VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
     {
-        //static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
         switch ((Hi << 1) + Lo)
         {
         case 0: return Shuffle<0, 0>();
@@ -108,219 +108,269 @@ struct alignas(__m128d) F64x2 : public detail::CommonOperators<F64x2>
     // logic operations
     forceinline F64x2 VECCALL And(const F64x2& other) const
     {
-        return _mm_and_pd(Data, other.Data);
+        return vreinterpretq_f64_u64(vandq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
     }
     forceinline F64x2 VECCALL Or(const F64x2& other) const
     {
-        return _mm_or_pd(Data, other.Data);
+        return vreinterpretq_f64_u64(vorrq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
     }
     forceinline F64x2 VECCALL Xor(const F64x2& other) const
     {
-        return _mm_xor_pd(Data, other.Data);
+        return vreinterpretq_f64_u64(veorq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
     }
     forceinline F64x2 VECCALL AndNot(const F64x2& other) const
     {
-        return _mm_andnot_pd(Data, other.Data);
+        // swap since NOT performed on src.b
+        return vreinterpretq_f64_u64(vbicq_u64(vreinterpretq_u64_f64(other.Data), vreinterpretq_u64_f64(Data)));
     }
     forceinline F64x2 VECCALL Not() const
     {
-        alignas(16) static constexpr int64_t i[] = { -1, -1 };
-        return _mm_xor_pd(Data, _mm_load_pd(reinterpret_cast<const double*>(i)));
+        return vreinterpretq_f64_u32(vmvnq_u32(vreinterpretq_u32_f64(Data)));
     }
 
     // arithmetic operations
-    forceinline F64x2 VECCALL Add(const F64x2& other) const { return _mm_add_pd(Data, other.Data); }
-    forceinline F64x2 VECCALL Sub(const F64x2& other) const { return _mm_sub_pd(Data, other.Data); }
-    forceinline F64x2 VECCALL Mul(const F64x2& other) const { return _mm_mul_pd(Data, other.Data); }
-    forceinline F64x2 VECCALL Div(const F64x2& other) const { return _mm_div_pd(Data, other.Data); }
-    forceinline F64x2 VECCALL Max(const F64x2& other) const { return _mm_max_pd(Data, other.Data); }
-    forceinline F64x2 VECCALL Min(const F64x2& other) const { return _mm_min_pd(Data, other.Data); }
+    forceinline F64x2 VECCALL Add(const F64x2& other) const { return vaddq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Sub(const F64x2& other) const { return vsubq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Mul(const F64x2& other) const { return vmulq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Div(const F64x2& other) const { return vdivq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Max(const F64x2& other) const { return vmaxq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Min(const F64x2& other) const { return vminq_f64(Data, other.Data); }
     //F64x2 Rcp() const { return _mm_rcp_pd(Data); }
-    forceinline F64x2 VECCALL Sqrt() const { return _mm_sqrt_pd(Data); }
+    forceinline F64x2 VECCALL Sqrt() const { return vsqrtq_f64(Data); }
     //F64x2 Rsqrt() const { return _mm_rsqrt_pd(Data); }
     forceinline F64x2 VECCALL MulAdd(const F64x2& muler, const F64x2& adder) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fmadd_pd(Data, muler.Data, adder.Data);
-#else
-        return _mm_add_pd(_mm_mul_pd(Data, muler.Data), adder.Data);
-#endif
+        return vfmaq_f64(adder.Data, Data, muler.Data);
     }
     forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fmsub_pd(Data, muler.Data, suber.Data);
-#else
-        return _mm_sub_pd(_mm_mul_pd(Data, muler.Data), suber.Data);
-#endif
+        return MulAdd(muler, vnegq_f64(suber.Data));
     }
     forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fnmadd_pd(Data, muler.Data, adder.Data);
-#else
-        return _mm_sub_pd(adder.Data, _mm_mul_pd(Data, muler.Data));
-#endif
+        return vfmsq_f64(adder.Data, Data, muler.Data);
     }
     forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fnmsub_pd(Data, muler.Data, suber.Data);
-#else
-        return _mm_xor_pd(_mm_add_pd(_mm_mul_pd(Data, muler.Data), suber.Data), _mm_set1_pd(-0.));
-#endif
+        return vnegq_f64(MulAdd(muler, suber.Data));
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
 
 };
+#endif
 
 
-struct alignas(__m128) F32x4 : public detail::CommonOperators<F32x4>
+struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 {
     static constexpr size_t Count = 4;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,4,0 };
     union
     {
-        __m128 Data;
+        float32x4_t Data;
         float Val[4];
     };
     constexpr F32x4() : Data() { }
-    explicit F32x4(const float* ptr) : Data(_mm_loadu_ps(ptr)) { }
-    constexpr F32x4(const __m128 val) :Data(val) { }
-    F32x4(const float val) :Data(_mm_set1_ps(val)) { }
-    F32x4(const float lo0, const float lo1, const float lo2, const float hi3) :Data(_mm_setr_ps(lo0, lo1, lo2, hi3)) { }
-    forceinline constexpr operator const __m128&() const noexcept { return Data; }
-    forceinline void VECCALL Load(const float *ptr) { Data = _mm_loadu_ps(ptr); }
-    forceinline void VECCALL Save(float *ptr) const { _mm_storeu_ps(ptr, Data); }
+    explicit F32x4(const float* ptr) : Data(vld1q_f32(ptr)) { }
+    constexpr F32x4(const float32x4_t val) :Data(val) { }
+    F32x4(const float val) :Data(vdupq_n_f32(val)) { }
+    F32x4(const float lo0, const float lo1, const float lo2, const float hi3) : Data()
+    {
+        alignas(16) float tmp[] = { lo0, lo1, lo2, hi3 };
+        Load(tmp);
+    }
+    forceinline constexpr operator const float32x4_t&() const noexcept { return Data; }
+    forceinline void VECCALL Load(const float *ptr) { Data = vld1q_f32(ptr); }
+    forceinline void VECCALL Save(float *ptr) const { vst1q_f32(reinterpret_cast<float32_t*>(ptr), Data); }
 
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline F32x4 VECCALL Shuffle() const
     {
         static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-#if COMMON_SIMD_LV >= 100
-        return _mm_permute_ps(Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
-#else
-        return _mm_shuffle_ps(Data, Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
-#endif
+        if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
+            return Data;
+        else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
+            return vdupq_laneq_f32(Data, Lo0);
+        else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
+            return vextq_f32(Data, Data, Lo0);
+        else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
+        {
+            static_assert(Lo0 != Lo2);
+            if constexpr (Lo0 == 0 && Lo2 == 1) // 0011
+                return vzip1q_f32(Data, Data);
+            else if constexpr (Lo0 == 2 && Lo2 == 3) // 2233
+                return vzip2q_f32(Data, Data);
+            else
+                return vcombine_f32(vdup_laneq_f32(Data, Lo0), vdup_laneq_f32(Data, Lo2));
+        }
+        else if constexpr (Lo0 == Lo2 && Lo1 == Hi3) // xyxy
+        {
+            static_assert(Lo0 != Lo1);
+            if constexpr (Lo0 == 0 && Lo1 == 2) // 0202
+                return vuzp1q_f32(Data, Data);
+            else if constexpr (Lo0 == 1 && Lo1 == 3) // 1313
+                return vuzp2q_f32(Data, Data);
+            else
+                return vzip1q_f32(vdupq_laneq_f32(Data, Lo0), vdupq_laneq_f32(Data, Lo1));
+        }
+        else
+        {
+            alignas(16) const uint32_t indexes[] = 
+            { 
+                (Lo0 * 4u) * 0x01010101u + 0x03020100u,
+                (Lo1 * 4u) * 0x01010101u + 0x03020100u,
+                (Lo2 * 4u) * 0x01010101u + 0x03020100u,
+                (Hi3 * 4u) * 0x01010101u + 0x03020100u,
+            };
+            const auto tbl = vreinterpretq_u8_u32(vld1q_u32(indexes));
+            return vreinterpretq_f32_u8(vqtbl1q_u8(vreinterpretq_u8_f32(Data), tbl));
+        }
     }
     forceinline F32x4 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
     {
         //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-#if COMMON_SIMD_LV >= 100
-        return _mm_permutevar_ps(Data, _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3));
-//SSSE3 may be slower due to too many calculations
-//#elif COMMON_SIMD_LV >= 31
-//        const auto mask = _mm_setr_epi8(Lo0 * 4, Lo0 * 4 + 1, Lo0 * 4 + 2, Lo0 * 4 + 3, Lo1 * 4, Lo1 * 4 + 1, Lo1 * 4 + 2, Lo1 * 4 + 3,
-//            Lo2 * 4, Lo2 * 4 + 1, Lo2 * 4 + 2, Lo2 * 4 + 3, Hi3 * 4, Hi3 * 4 + 1, Hi3 * 4 + 2, Hi3 * 4 + 3);
-//        return _mm_castsi128_ps(_mm_shuffle_epi8(_mm_castps_si128(Data), mask));
-#else
-        return F32x4(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
-#endif
+        alignas(16) const uint32_t indexes[] = { Lo0, Lo1, Lo2, Hi3, };
+        const auto tbl = vreinterpretq_u8_u32(vmlaq_n_u32(vld1q_u32(indexes), neon_moviqb(4), 0x03020100u));
+        return vreinterpretq_f32_u8(vqtbl1q_u8(vreinterpretq_u8_f32(Data), tbl));
     }
 
     // logic operations
     forceinline F32x4 VECCALL And(const F32x4& other) const
     {
-        return _mm_and_ps(Data, other.Data);
+        return vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
     }
     forceinline F32x4 VECCALL Or(const F32x4& other) const
     {
-        return _mm_or_ps(Data, other.Data);
+        return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
     }
     forceinline F32x4 Xor(const F32x4& other) const
     {
-        return _mm_xor_ps(Data, other.Data);
+        return vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
     }
     forceinline F32x4 VECCALL AndNot(const F32x4& other) const
     {
-        return _mm_andnot_ps(Data, other.Data);
+        return vreinterpretq_f32_u32(vbicq_u32(vreinterpretq_u32_f32(other.Data), vreinterpretq_u32_f32(Data)));
     }
     forceinline F32x4 VECCALL Not() const
     {
-        alignas(16) static constexpr int64_t i[] = { -1, -1 };
-        return _mm_xor_ps(Data, _mm_load_ps(reinterpret_cast<const float*>(i)));
+        return vreinterpretq_f32_u32(vmvnq_u32(vreinterpretq_u32_f32(Data)));
     }
 
     // arithmetic operations
-    forceinline F32x4 VECCALL Add(const F32x4& other) const { return _mm_add_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Sub(const F32x4& other) const { return _mm_sub_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Mul(const F32x4& other) const { return _mm_mul_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Div(const F32x4& other) const { return _mm_div_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Max(const F32x4& other) const { return _mm_max_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Min(const F32x4& other) const { return _mm_min_ps(Data, other.Data); }
-    forceinline F32x4 VECCALL Rcp() const { return _mm_rcp_ps(Data); }
-    forceinline F32x4 VECCALL Sqrt() const { return _mm_sqrt_ps(Data); }
-    forceinline F32x4 VECCALL Rsqrt() const { return _mm_rsqrt_ps(Data); }
+    forceinline F32x4 VECCALL Add(const F32x4& other) const { return vaddq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Sub(const F32x4& other) const { return vsubq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Mul(const F32x4& other) const { return vmulq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Div(const F32x4& other) const { return vdivq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Max(const F32x4& other) const { return vmaxq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Min(const F32x4& other) const { return vminq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Rcp() const 
+    {
+        auto rcp = vrecpeq_f32(Data);
+        rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, Data));
+        // https://github.com/DLTcollab/sse2neon#compile-time-configurations
+        // optional round
+        // rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, Data));
+        return rcp;
+    }
+    forceinline F32x4 VECCALL Sqrt() const { return vsqrtq_f32(Data); }
+    forceinline F32x4 VECCALL Rsqrt() const 
+    {
+        auto rsqrt = vrsqrteq_f32(Data);
+        // https://github.com/DLTcollab/sse2neon#compile-time-configurations
+        // optional round
+        // rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(rsqrt, Data), rsqrt));
+        // rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(rsqrt, Data), rsqrt));
+        return rsqrt;
+    }
     forceinline F32x4 VECCALL MulAdd(const F32x4& muler, const F32x4& adder) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fmadd_ps(Data, muler.Data, adder.Data);
-#else
-        return _mm_add_ps(_mm_mul_ps(Data, muler.Data), adder.Data);
-#endif
+        return vfmaq_f32(adder.Data, Data, muler.Data);
     }
     forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fmsub_ps(Data, muler.Data, suber.Data);
-#else
-        return _mm_sub_ps(_mm_mul_ps(Data, muler.Data), suber.Data);
-#endif
+        return MulAdd(muler, vnegq_f32(suber.Data));
     }
     forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fnmadd_ps(Data, muler.Data, adder.Data);
-#else
-        return _mm_sub_ps(adder.Data, _mm_mul_ps(Data, muler.Data));
-#endif
+        return vfmsq_f32(adder.Data, Data, muler.Data);
     }
     forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
-#if COMMON_SIMD_LV >= 150
-        return _mm_fnmsub_ps(Data, muler.Data, suber.Data);
-#else
-        return _mm_xor_ps(_mm_add_ps(_mm_mul_ps(Data, muler.Data), suber.Data), _mm_set1_ps(-0.));
-#endif
+        return vnegq_f32(MulAdd(muler, suber.Data));
     }
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const
-    { 
-#if COMMON_SIMD_LV >= 42
-        return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
-#else
-        const auto prod = this->Mul(other);
-        float sum = 0.f;
-        if constexpr (HAS_FIELD(Mul, DotPos::X)) sum += prod[0];
-        if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[1];
-        if constexpr (HAS_FIELD(Mul, DotPos::Z)) sum += prod[2];
-        if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[3];
-        const auto sumVec = _mm_set_ss(sum);
-        constexpr uint8_t imm = (HAS_FIELD(Res, DotPos::X) ? 0 : 0b11) + (HAS_FIELD(Res, DotPos::Y) ? 0 : 0b1100) + 
-            (HAS_FIELD(Res, DotPos::Z) ? 0 : 0b110000) + (HAS_FIELD(Res, DotPos::W) ? 0 : 0b11000000);
-        return _mm_shuffle_ps(sumVec, sumVec, imm);
-#endif
+    {
+        constexpr auto MulExclude = common::enum_cast(DotPos::XYZW) ^ common::enum_cast(Mul);
+        constexpr bool MulEx0 = MulExclude & 0x1, MulEx1 = MulExclude & 0x10, MulEx2 = MulExclude & 0x100, MulEx3 = MulExclude & 0x1000;
+        constexpr auto ResExclude = common::enum_cast(DotPos::XYZW) ^ common::enum_cast(Res);
+        constexpr bool ResEx0 = ResExclude & 0x1, ResEx1 = ResExclude & 0x10, ResEx2 = ResExclude & 0x100, ResEx3 = ResExclude & 0x1000;
+        if constexpr (MulExclude == common::enum_cast(DotPos::XYZW) || ResExclude == common::enum_cast(DotPos::XYZW))
+            return 0;
+        auto prod = this->Mul(other).Data;
+        if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 0) // all need
+        { }
+        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
+        {
+            prod = vsetq_lane_f32(0, prod, MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
+        }
+        else if constexpr (MulEx0 == MulEx1 && MulEx2 == MulEx3)
+        {
+            static_assert(MulEx0 + MulEx1 + MulEx2 + MulEx3 == 2);
+            prod = vreinterpretq_f32_u64(vsetq_lane_u64(0, vreinterpretq_u64_f32(prod), MulEx0 ? 0 : 1));
+        }
+        else
+        {
+            alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
+            prod = vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask));
+        }
+        const auto sum = vaddvq_f32(prod);
+        if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 0) // all need
+        {
+            return sum;
+        }
+        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
+        {
+            return vsetq_lane_f32(0, vdupq_n_f32(sum), MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
+        }
+        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 3) // only need one
+        {
+            return vsetq_lane_f32(sum, neon_moviqb(0), MulEx0 ? (MulEx1 ? (MulEx2 ? 3 : 2) : 1) : 0);
+        }
+        else
+        {
+            alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
+            return vandq_s32(vreinterpretq_s32_f32(vdupq_n_f32(sum)), vld1q_s32(mask));
+        }
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
 
 };
 
-
-struct alignas(__m128i) I64x2 : public detail::Int128Common<I64x2, int64_t>
+#if 0
+struct alignas(16) I64x2 : public detail::Int128Common<I64x2, int64_t>
 {
     static constexpr size_t Count = 2;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,64,2,0 };
+#if COMMON_ARCH_X86
+    using SIMDType = __m128i;
+#elif COMMON_SIMD_LV >= 200
+    using SIMDType = int64x2_t;
+#else
+    using SIMDType = void;
+#endif
     union
     {
-        __m128i Data;
+#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
+        SIMDType Data;
+#endif
         int64_t Val[2];
     };
     constexpr I64x2() : Data() { }
     explicit I64x2(const int64_t* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I64x2(const __m128i val) :Data(val) { }
+    constexpr I64x2(const SIMDType val) :Data(val) { }
     I64x2(const int64_t val) :Data(_mm_set1_epi64x(val)) { }
     I64x2(const int64_t lo, const int64_t hi) :Data(_mm_set_epi64x(hi, lo)) { }
 
@@ -360,17 +410,26 @@ struct alignas(__m128i) I64x2 : public detail::Int128Common<I64x2, int64_t>
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I32Common4
+struct alignas(16) I32Common4
 {
     static constexpr size_t Count = 4;
+#if COMMON_ARCH_X86
+    using SIMDType = __m128i;
+#elif COMMON_SIMD_LV >= 200
+    using SIMDType = std::conditional_t<std::is_signed_v<E>, int32x4_t, uint32x4_t>;
+#else
+    using SIMDType = void;
+#endif
     union
     {
-        __m128i Data;
+#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
+        SIMDType Data;
+#endif
         E Val[4];
     };
     constexpr I32Common4() : Data() { }
     explicit I32Common4(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I32Common4(const __m128i val) : Data(val) { }
+    constexpr I32Common4(const SIMDType val) : Data(val) { }
     I32Common4(const E val) : Data(_mm_set1_epi32(static_cast<int32_t>(val))) { }
     I32Common4(const E lo0, const E lo1, const E lo2, const E hi3)
         : Data(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
@@ -407,7 +466,7 @@ struct alignas(__m128i) I32Common4
 };
 
 
-struct alignas(__m128i) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int128Common<I32x4, int32_t>
+struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int128Common<I32x4, int32_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,32,4,0 };
     using I32Common4<I32x4, int32_t>::I32Common4;
@@ -426,7 +485,7 @@ struct alignas(__m128i) I32x4 : public I32Common4<I32x4, int32_t>, public detail
     forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
 };
 
-struct alignas(__m128i) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::Int128Common<U32x4, uint32_t>
+struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::Int128Common<U32x4, uint32_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,32,4,0 };
     using I32Common4<U32x4, uint32_t>::I32Common4;
@@ -447,17 +506,26 @@ struct alignas(__m128i) U32x4 : public I32Common4<U32x4, uint32_t>, public detai
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I16Common8
+struct alignas(16) I16Common8
 {
     static constexpr size_t Count = 8;
+#if COMMON_ARCH_X86
+    using SIMDType = __m128i;
+#elif COMMON_SIMD_LV >= 200
+    using SIMDType = std::conditional_t<std::is_signed_v<E>, int16x8_t, uint16x8_t>;
+#else
+    using SIMDType = void;
+#endif
     union
     {
-        __m128i Data;
+#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
+        SIMDType Data;
+#endif
         E Val[8];
     };
     constexpr I16Common8() : Data() { }
     explicit I16Common8(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I16Common8(const __m128i val) :Data(val) { }
+    constexpr I16Common8(const SIMDType val) :Data(val) { }
     I16Common8(const E val) :Data(_mm_set1_epi16(val)) { }
     I16Common8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7)
         :Data(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
@@ -511,7 +579,7 @@ struct alignas(__m128i) I16Common8
 };
 
 
-struct alignas(__m128i) I16x8 : public I16Common8<I16x8, int16_t>, public detail::Int128Common<I16x8, int16_t>
+struct alignas(16) I16x8 : public I16Common8<I16x8, int16_t>, public detail::Int128Common<I16x8, int16_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,16,8,0 };
     using I16Common8<I16x8, int16_t>::I16Common8;
@@ -528,7 +596,7 @@ struct alignas(__m128i) I16x8 : public I16Common8<I16x8, int16_t>, public detail
 };
 
 
-struct alignas(__m128i) U16x8 : public I16Common8<U16x8, int16_t>, public detail::Int128Common<U16x8, uint16_t>
+struct alignas(16) U16x8 : public I16Common8<U16x8, int16_t>, public detail::Int128Common<U16x8, uint16_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,8,0 };
     using I16Common8<U16x8, int16_t>::I16Common8;
@@ -550,17 +618,26 @@ struct alignas(__m128i) U16x8 : public I16Common8<U16x8, int16_t>, public detail
 
 
 template<typename T, typename E>
-struct alignas(__m128i) I8Common16
+struct alignas(16) I8Common16
 {
     static constexpr size_t Count = 16;
+#if COMMON_ARCH_X86
+    using SIMDType = __m128i;
+#elif COMMON_SIMD_LV >= 200
+    using SIMDType = std::conditional_t<std::is_signed_v<E>, int8x16_t, uint8x16_t>;
+#else
+    using SIMDType = void;
+#endif
     union
     {
-        __m128i Data;
+#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
+        SIMDType Data;
+#endif
         E Val[16];
     };
     constexpr I8Common16() : Data() { }
     explicit I8Common16(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I8Common16(const __m128i val) :Data(val) { }
+    constexpr I8Common16(const SIMDType val) :Data(val) { }
     I8Common16(const E val) :Data(_mm_set1_epi8(val)) { }
     I8Common16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15)
         :Data(_mm_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
@@ -604,7 +681,7 @@ struct alignas(__m128i) I8Common16
 };
 
 
-struct alignas(__m128i) I8x16 : public I8Common16<I8x16, int8_t>, public detail::Int128Common<I8x16, int8_t>
+struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>, public detail::Int128Common<I8x16, int8_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,8,16,0 };
     using I8Common16<I8x16, int8_t>::I8Common16;
@@ -649,7 +726,7 @@ forceinline Pack<I16x8, 2> VECCALL I8x16::MulX(const I8x16& other) const
 }
 #endif
 
-struct alignas(__m128i) U8x16 : public I8Common16<U8x16, uint8_t>, public detail::Int128Common<U8x16, uint8_t>
+struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>, public detail::Int128Common<U8x16, uint8_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,8,16,0 };
     using I8Common16<U8x16, uint8_t>::I8Common16;
@@ -694,7 +771,7 @@ forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
     const auto self16 = Cast<U16x8>(), other16 = other.Cast<U16x8>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
-
+#endif
 
 }
 }

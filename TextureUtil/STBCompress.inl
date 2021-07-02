@@ -7,7 +7,7 @@
 #   undef COMMON_SIMD_LV
 #   define COMMON_SIMD_LV 0
 #endif
-#include "common/SIMD.hpp"
+#include "common/simd/SIMD.hpp"
 #define STB_DXT_IMPLEMENTATION
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)

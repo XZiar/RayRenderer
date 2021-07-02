@@ -1,7 +1,7 @@
 #pragma once
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
-#include "SIMD128.hpp"
+#include "SIMD128SSE.hpp"
 
 //#define COMMON_SIMD_LV 200
 #if COMMON_SIMD_LV < 100
