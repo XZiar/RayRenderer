@@ -22,9 +22,15 @@
 //RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
 
 
-RegisterSIMDTest("F64x2", 42, shuftest::ShuffleTest<common::simd::F64x2>)
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<common::simd::F64x2>)
 //RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
-RegisterSIMDTest("F32x4", 42, shuftest::ShuffleTest<common::simd::F32x4>)
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<common::simd::F32x4>)
+//RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
+
+
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
+//RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<common::simd::F32x4>)
 //RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
 
 #endif

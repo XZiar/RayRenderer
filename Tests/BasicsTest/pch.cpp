@@ -11,6 +11,32 @@
 //#   include <asm/hwcap.h>
 #endif
 
+template<size_t N>
+std::vector<std::array<uint8_t, N>> GenerateAllPoses() noexcept
+{
+    std::vector<std::array<uint8_t, N>> all;
+    constexpr auto Count = Pow<N, N>();
+    all.reserve(Count);
+    for (size_t j = 0; j < Count; ++j)
+    {
+        size_t val = j;
+        for (size_t i = 0; i < N; ++i)
+        {
+            all[j][i] = static_cast<uint8_t>(val % N);
+            val /= N;
+        }
+    }
+    return all;
+}
+
+
+template<> 
+std::vector<std::array<uint8_t, 2>> PosesHolder<2>::Poses = GenerateAllPoses<2>();
+template<>
+std::vector<std::array<uint8_t, 4>> PosesHolder<4>::Poses = GenerateAllPoses<4>();
+template<>
+std::vector<std::array<uint8_t, 8>> PosesHolder<8>::Poses = GenerateAllPoses<8>();
+
 
 std::mt19937& GetRanEng()
 {

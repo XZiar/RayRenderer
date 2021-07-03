@@ -29,30 +29,125 @@ struct F64x2;
 namespace detail
 {
 
+template<typename T>
+struct Neon128Common : public CommonOperators<T>
+{
+    // logic operations
+    forceinline T VECCALL And(const T& other) const
+    {
+        return T::FromInnerU32x4(vandq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+    }
+    forceinline T VECCALL Or(const T& other) const
+    {
+        return T::FromInnerU32x4(vorrq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+    }
+    forceinline T VECCALL Xor(const T& other) const
+    {
+        return T::FromInnerU32x4(veorq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+    }
+    forceinline T VECCALL AndNot(const T& other) const
+    {
+        // swap since NOT performed on src.b
+        return T::FromInnerU32x4(vbicq_u32(other.InnerU32x4(), static_cast<const T*>(this)->InnerU32x4()));
+    }
+    forceinline T VECCALL Not() const
+    {
+        return T::FromInnerU32x4(vmvnq_u32(static_cast<const T*>(this)->InnerU32x4()));
+    }
+};
+
+template<typename T>
+struct Shuffle64Common
+{
+    // shuffle operations
+    template<uint8_t Lo, uint8_t Hi>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
+        const auto data = vreinterpretq_f64_u32(static_cast<const T*>(this)->InnerU32x4());
+        if constexpr (Lo == Hi)
+            return T::FromInnerU32x4(vreinterpretq_u32_f64(vdupq_laneq_u64(data, Lo)));
+        else if constexpr (Lo == 0 && Hi == 1)
+            return T::FromInnerU32x4(vreinterpretq_u32_f64(data));
+        else
+            return T::FromInnerU32x4(vreinterpretq_u32_f64(vextq_u64(data, data, 1)));
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
+    {
+        switch ((Hi << 1) + Lo)
+        {
+        case 0: return Shuffle<0, 0>();
+        case 1: return Shuffle<1, 0>();
+        case 2: return Shuffle<0, 1>();
+        case 3: return Shuffle<1, 1>();
+        default: return T(); // should not happen
+        }
+    }
+};
+
+template<typename T>
+struct Shuffle32Common
+{
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        const auto data = static_cast<const T*>(this)->InnerU32x4();
+        if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
+            return T::FromInnerU32x4(data);
+        else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
+            return T::FromInnerU32x4(vdupq_laneq_u32(data, Lo0));
+        else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
+            return T::FromInnerU32x4(vextq_u32(data, data, Lo0));
+        else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
+        {
+            static_assert(Lo0 != Lo2);
+            if constexpr (Lo0 == 0 && Lo2 == 1) // 0011
+                return T::FromInnerU32x4(vzip1q_u32(data, data));
+            else if constexpr (Lo0 == 2 && Lo2 == 3) // 2233
+                return T::FromInnerU32x4(vzip2q_u32(data, data));
+            else
+                return T::FromInnerU32x4(vcombine_u32(vdup_laneq_u32(data, Lo0), vdup_laneq_u32(data, Lo2)));
+        }
+        else if constexpr (Lo0 == Lo2 && Lo1 == Hi3) // xyxy
+        {
+            static_assert(Lo0 != Lo1);
+            if constexpr (Lo0 == 0 && Lo1 == 2) // 0202
+                return T::FromInnerU32x4(vuzp1q_u32(data, data));
+            else if constexpr (Lo0 == 1 && Lo1 == 3) // 1313
+                return T::FromInnerU32x4(vuzp2q_u32(data, data));
+            else
+                return T::FromInnerU32x4(vzip1q_u32(vdupq_laneq_u32(data, Lo0), vdupq_laneq_u32(data, Lo1)));
+        }
+        else
+        {
+            alignas(16) const uint32_t indexes[] =
+            {
+                (Lo0 * 4u) * 0x01010101u + 0x03020100u,
+                (Lo1 * 4u) * 0x01010101u + 0x03020100u,
+                (Lo2 * 4u) * 0x01010101u + 0x03020100u,
+                (Hi3 * 4u) * 0x01010101u + 0x03020100u,
+            };
+            const auto tbl = vreinterpretq_u8_u32(vld1q_u32(indexes));
+            return T::FromInnerU32x4(vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl)));
+        }
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+        //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        alignas(16) const uint32_t indexes[] = { Lo0, Lo1, Lo2, Hi3, };
+        const auto muler = vreinterpret_u32_u8(neon_movib(4)); 
+        const auto adder = vdupq_n_u32(0x03020100u);
+        const auto tbl = vreinterpretq_u8_u32(vmlaq_lane_u32(adder, vld1q_u32(indexes), muler, 0));
+        const auto data = static_cast<const T*>(this)->InnerU32x4();
+        return T::FromInnerU32x4(vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl)));
+    }
+};
+
 //template<typename T, typename E>
-//struct Int128Common : public CommonOperators<T>
+//struct Int128Common : public Neon128Common<T>
 //{
-//    // logic operations
-//    forceinline T VECCALL And(const T& other) const
-//    {
-//        return _mm_and_si128(*static_cast<const T*>(this), other);
-//    }
-//    forceinline T VECCALL Or(const T& other) const
-//    {
-//        return _mm_or_si128(*static_cast<const T*>(this), other);
-//    }
-//    forceinline T VECCALL Xor(const T& other) const
-//    {
-//        return _mm_xor_si128(*static_cast<const T*>(this), other);
-//    }
-//    forceinline T VECCALL AndNot(const T& other) const
-//    {
-//        return _mm_andnot_si128(*static_cast<const T*>(this), other);
-//    }
-//    forceinline T VECCALL Not() const
-//    {
-//        return _mm_xor_si128(*static_cast<const T*>(this), _mm_set1_epi8(-1));
-//    }
 //    forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(*static_cast<const T*>(this), 8); }
 //    forceinline void VECCALL Load(const E *ptr) { *static_cast<T*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
 //    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
@@ -63,7 +158,7 @@ namespace detail
 
 
 #if COMMON_SIMD_LV >= 200
-struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
+struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::Shuffle64Common<F64x2>
 {
     static constexpr size_t Count = 2;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,2,0 };
@@ -72,61 +167,16 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         float64x2_t Data;
         double Val[2];
     };
-    constexpr F64x2() : Data() { }
+    constexpr F64x2() noexcept : Data() { }
     explicit F64x2(const double* ptr) : Data(vld1q_f64(ptr)) { }
-    constexpr F64x2(const float64x2_t val) : Data(val) { }
-    F64x2(const double val) : Data(vdupq_n_f64(val)) { }
-    F64x2(const double lo, const double hi) : Data(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
-    forceinline constexpr operator const float64x2_t&() { return Data; }
+    constexpr F64x2(const float64x2_t val) noexcept : Data(val) { }
+    F64x2(const double val) noexcept : Data(vdupq_n_f64(val)) { }
+    F64x2(const double lo, const double hi) noexcept : Data(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
+    forceinline constexpr operator const float64x2_t&() const noexcept { return Data; }
     forceinline void VECCALL Load(const double *ptr) { Data = vld1q_f64(ptr); }
     forceinline void VECCALL Save(double *ptr) const { vst1q_f64(reinterpret_cast<float64_t*>(ptr), Data); }
-
-    // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline F64x2 VECCALL Shuffle() const
-    {
-        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-        if constexpr (Lo == Hi)
-            return vdupq_laneq_f64(Data, Lo);
-        else if constexpr (Lo == 0 && Hi == 1)
-            return Data;
-        else
-            return vextq_f64(Data, Data, 1);
-    }
-    forceinline F64x2 VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
-    {
-        switch ((Hi << 1) + Lo)
-        {
-        case 0: return Shuffle<0, 0>();
-        case 1: return Shuffle<1, 0>();
-        case 2: return Shuffle<0, 1>();
-        case 3: return Shuffle<1, 1>();
-        default: return F64x2(); // should not happen
-        }
-    }
-
-    // logic operations
-    forceinline F64x2 VECCALL And(const F64x2& other) const
-    {
-        return vreinterpretq_f64_u64(vandq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
-    }
-    forceinline F64x2 VECCALL Or(const F64x2& other) const
-    {
-        return vreinterpretq_f64_u64(vorrq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
-    }
-    forceinline F64x2 VECCALL Xor(const F64x2& other) const
-    {
-        return vreinterpretq_f64_u64(veorq_u64(vreinterpretq_u64_f64(Data), vreinterpretq_u64_f64(other.Data)));
-    }
-    forceinline F64x2 VECCALL AndNot(const F64x2& other) const
-    {
-        // swap since NOT performed on src.b
-        return vreinterpretq_f64_u64(vbicq_u64(vreinterpretq_u64_f64(other.Data), vreinterpretq_u64_f64(Data)));
-    }
-    forceinline F64x2 VECCALL Not() const
-    {
-        return vreinterpretq_f64_u32(vmvnq_u32(vreinterpretq_u32_f64(Data)));
-    }
+    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_f64(Data); }
+    forceinline static F64x2 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_f64_u32(val); }
 
     // arithmetic operations
     forceinline F64x2 VECCALL Add(const F64x2& other) const { return vaddq_f64(Data, other.Data); }
@@ -161,7 +211,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #endif
 
 
-struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
+struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::Shuffle32Common<F32x4>
 {
     static constexpr size_t Count = 4;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,4,0 };
@@ -170,10 +220,10 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         float32x4_t Data;
         float Val[4];
     };
-    constexpr F32x4() : Data() { }
+    constexpr F32x4() noexcept : Data() { }
     explicit F32x4(const float* ptr) : Data(vld1q_f32(ptr)) { }
-    constexpr F32x4(const float32x4_t val) :Data(val) { }
-    F32x4(const float val) :Data(vdupq_n_f32(val)) { }
+    constexpr F32x4(const float32x4_t val) noexcept : Data(val) { }
+    F32x4(const float val) noexcept : Data(vdupq_n_f32(val)) { }
     F32x4(const float lo0, const float lo1, const float lo2, const float hi3) : Data()
     {
         alignas(16) float tmp[] = { lo0, lo1, lo2, hi3 };
@@ -182,80 +232,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline constexpr operator const float32x4_t&() const noexcept { return Data; }
     forceinline void VECCALL Load(const float *ptr) { Data = vld1q_f32(ptr); }
     forceinline void VECCALL Save(float *ptr) const { vst1q_f32(reinterpret_cast<float32_t*>(ptr), Data); }
-
-    // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
-    forceinline F32x4 VECCALL Shuffle() const
-    {
-        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
-            return Data;
-        else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
-            return vdupq_laneq_f32(Data, Lo0);
-        else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
-            return vextq_f32(Data, Data, Lo0);
-        else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
-        {
-            static_assert(Lo0 != Lo2);
-            if constexpr (Lo0 == 0 && Lo2 == 1) // 0011
-                return vzip1q_f32(Data, Data);
-            else if constexpr (Lo0 == 2 && Lo2 == 3) // 2233
-                return vzip2q_f32(Data, Data);
-            else
-                return vcombine_f32(vdup_laneq_f32(Data, Lo0), vdup_laneq_f32(Data, Lo2));
-        }
-        else if constexpr (Lo0 == Lo2 && Lo1 == Hi3) // xyxy
-        {
-            static_assert(Lo0 != Lo1);
-            if constexpr (Lo0 == 0 && Lo1 == 2) // 0202
-                return vuzp1q_f32(Data, Data);
-            else if constexpr (Lo0 == 1 && Lo1 == 3) // 1313
-                return vuzp2q_f32(Data, Data);
-            else
-                return vzip1q_f32(vdupq_laneq_f32(Data, Lo0), vdupq_laneq_f32(Data, Lo1));
-        }
-        else
-        {
-            alignas(16) const uint32_t indexes[] = 
-            { 
-                (Lo0 * 4u) * 0x01010101u + 0x03020100u,
-                (Lo1 * 4u) * 0x01010101u + 0x03020100u,
-                (Lo2 * 4u) * 0x01010101u + 0x03020100u,
-                (Hi3 * 4u) * 0x01010101u + 0x03020100u,
-            };
-            const auto tbl = vreinterpretq_u8_u32(vld1q_u32(indexes));
-            return vreinterpretq_f32_u8(vqtbl1q_u8(vreinterpretq_u8_f32(Data), tbl));
-        }
-    }
-    forceinline F32x4 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
-    {
-        //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        alignas(16) const uint32_t indexes[] = { Lo0, Lo1, Lo2, Hi3, };
-        const auto tbl = vreinterpretq_u8_u32(vmlaq_n_u32(vld1q_u32(indexes), neon_moviqb(4), 0x03020100u));
-        return vreinterpretq_f32_u8(vqtbl1q_u8(vreinterpretq_u8_f32(Data), tbl));
-    }
-
-    // logic operations
-    forceinline F32x4 VECCALL And(const F32x4& other) const
-    {
-        return vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
-    }
-    forceinline F32x4 VECCALL Or(const F32x4& other) const
-    {
-        return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
-    }
-    forceinline F32x4 Xor(const F32x4& other) const
-    {
-        return vreinterpretq_f32_u32(veorq_u32(vreinterpretq_u32_f32(Data), vreinterpretq_u32_f32(other.Data)));
-    }
-    forceinline F32x4 VECCALL AndNot(const F32x4& other) const
-    {
-        return vreinterpretq_f32_u32(vbicq_u32(vreinterpretq_u32_f32(other.Data), vreinterpretq_u32_f32(Data)));
-    }
-    forceinline F32x4 VECCALL Not() const
-    {
-        return vreinterpretq_f32_u32(vmvnq_u32(vreinterpretq_u32_f32(Data)));
-    }
+    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_f32(Data); }
+    forceinline static F32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_f32_u32(val); }
 
     // arithmetic operations
     forceinline F32x4 VECCALL Add(const F32x4& other) const { return vaddq_f32(Data, other.Data); }

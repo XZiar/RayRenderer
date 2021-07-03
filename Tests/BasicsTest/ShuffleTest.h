@@ -1,4 +1,5 @@
 #pragma once
+#include "pch.h"
 #include "common/simd/SIMD128.hpp"
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
 #   include "common/simd/SIMD256.hpp"
@@ -9,37 +10,60 @@
 namespace shuftest
 {
 
-template<typename T, typename U, size_t... Indexes, size_t N>
-bool RealCheck(const T& data, std::index_sequence<Indexes...>, const U(&poses)[N])
+template<typename T, size_t N, typename U = std::decay_t<decltype(std::declval<T>().Val[0])>>
+forcenoinline void ResultCheck(const T& data, const std::array<uint8_t, N>& poses) noexcept
 {
-    return (... && (data.Val[Indexes] == poses[Indexes]));
+    std::array<U, N> ref = {};
+    for (size_t i = 0; i < N; ++i)
+        ref[i] = poses[i];
+    bool match = true;
+    for (size_t i = 0; i < N; ++i)
+        match &= (data.Val[i] == ref[i]);
+    if (!match)
+    {
+        EXPECT_THAT(data.Val, testing::ElementsAreArray(ref));
+    }
 }
 
-template<typename T, uint32_t PosCount, uint64_t N, uint8_t... Poses>
-void GenerateShuffle(const T& data)
+template<size_t N, typename T, uint64_t Val>
+forceinline auto GenerateShuffle(const T& data)
 {
-    if constexpr (PosCount == 0)
+    if constexpr (N == 2)
     {
-        using ArgType = std::remove_reference_t<decltype(*data.Val)>;
-        const auto output = data.template Shuffle<Poses...>();
-        const ArgType poses[sizeof...(Poses)]{ Poses... };
-        if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, poses))
-        {
-            EXPECT_THAT(output.Val, testing::ContainerEq(poses));
-        }
+        constexpr uint8_t Lo0 = Val % 2, Hi1 = Val / 2;
+        return data.template Shuffle<Lo0, Hi1>();
+    }
+    else if constexpr (N == 4)
+    {
+        constexpr uint8_t Lo0 = Val % 4, Lo1 = (Val / 4) % 4, Lo2 = (Val / 16) % 4, Hi3 = (Val / 64) % 4;
+        return data.template Shuffle<Lo0, Lo1, Lo2, Hi3>();
+    }
+    else if constexpr (N == 8)
+    {
+        constexpr uint8_t Lo0 = Val % 8, Lo1 = (Val / 8) % 8, Lo2 = (Val / 64) % 8, Lo3 = (Val / 512) % 8,
+            Lo4 = (Val / 4096) % 8, Lo5 = (Val / 32768) % 8, Lo6 = (Val / 262144) % 8, Hi7 = (Val / 2097152) % 8;
+        return data.template Shuffle<Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7>();
     }
     else
     {
-        constexpr uint8_t PosRange = T::Count;
-        GenerateShuffle<T, PosCount - 1, N / PosRange, Poses..., (uint8_t)(N % PosRange)>(data);
+        static_assert(common::AlwaysTrue<T>, "only support 2/4/8 members for now");
     }
 }
 
-template<typename T, size_t IdxBegin, size_t IdxEnd>
+template<typename T, uint64_t Val>
+forceinline void RunShuffle(const T& data)
+{
+    constexpr auto N = T::Count;
+    constexpr auto Poses = GeneratePoses<N>(Val);
+    const auto output = GenerateShuffle<N, T, Val>(data);
+    ResultCheck(output, Poses);
+}
+
+template<typename T, uint64_t IdxBegin, uint64_t IdxEnd>
 void TestShuffle(const T& data)
 {
     if constexpr (IdxBegin == IdxEnd)
-        GenerateShuffle<T, T::Count, IdxBegin>(data);
+        RunShuffle<T, IdxBegin>(data);
     else
     {
         TestShuffle<T, IdxBegin, IdxBegin + (IdxEnd - IdxBegin) / 2>(data);
@@ -47,31 +71,42 @@ void TestShuffle(const T& data)
     }
 }
 
-template<typename T, uint32_t PosCount, typename... Poses>
-void GenerateShuffleVar(const T& data, [[maybe_unused]] const uint64_t N, const Poses... poses)
+
+template<size_t N, typename T>
+forceinline auto GenerateShuffleVar(const T& data, const std::array<uint8_t, N>& poses)
 {
-    if constexpr (PosCount == 0)
+    if constexpr (N == 2)
     {
-        using ArgType = std::remove_reference_t<decltype(*data.Val)>;
-        const auto output = data.Shuffle(poses...);
-        const ArgType posArray[sizeof...(Poses)]{ static_cast<ArgType>(poses)... };
-        if (!RealCheck(output, std::make_index_sequence<sizeof...(Poses)>{}, posArray))
-        {
-            EXPECT_THAT(output.Val, testing::ContainerEq(posArray));
-        }
+        return data.Shuffle(poses[0], poses[1]);
+    }
+    else if constexpr (N == 4)
+    {
+        return data.Shuffle(poses[0], poses[1], poses[2], poses[3]);
+    }
+    else if constexpr (N == 8)
+    {
+        return data.Shuffle(poses[0], poses[1], poses[2], poses[3], poses[4], poses[5], poses[6], poses[7]);
     }
     else
     {
-        constexpr uint8_t PosRange = T::Count;
-        GenerateShuffleVar<T, PosCount - 1>(data, N / PosRange, poses..., (uint8_t)(N % PosRange));
+        static_assert(common::AlwaysTrue<T>, "only support 2/4/8 members for now");
     }
 }
 
 template<typename T>
-void TestShuffleVar(const T& data, const uint64_t idxBegin, const uint64_t idxEnd)
+forceinline void RunShuffleVar(const T& data, uint64_t val)
+{
+    constexpr auto N = T::Count;
+    const auto& poses = PosesHolder<N>::Poses[val];
+    const auto output = GenerateShuffleVar<N>(data, poses);
+    ResultCheck(output, poses);
+}
+
+template<typename T>
+void TestShuffleVar(const T& data, uint64_t idxBegin, uint64_t idxEnd)
 {
     if (idxBegin == idxEnd)
-        GenerateShuffleVar<T, T::Count>(data, idxBegin);
+        RunShuffleVar<T>(data, idxBegin);
     else
     {
         TestShuffleVar<T>(data, idxBegin, idxBegin + (idxEnd - idxBegin) / 2);

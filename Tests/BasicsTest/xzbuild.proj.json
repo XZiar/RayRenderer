@@ -17,7 +17,7 @@
             [
                 "*.cpp",
                 {"ifeq": {"arch": "x86"}, "-": ["TestNEON.cpp"]},
-                {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestSAVX.cpp", "TestAVX2.cpp"]}
+                {"ifeq": {"arch": "arm"}, "-": ["TestSSE42.cpp", "TestAVX.cpp", "TestAVX2.cpp"]}
             ],
             "pch": "pch.h"
         }
