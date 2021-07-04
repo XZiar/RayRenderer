@@ -291,16 +291,26 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #if COMMON_SIMD_LV >= 42
         return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
 #else
+        const float sum = Dot<Mul>(other);
+        const auto sumVec = _mm_set_ss(sum);
+        constexpr uint8_t imm = (HAS_FIELD(Res, DotPos::X) ? 0 : 0b11) + (HAS_FIELD(Res, DotPos::Y) ? 0 : 0b1100) + 
+            (HAS_FIELD(Res, DotPos::Z) ? 0 : 0b110000) + (HAS_FIELD(Res, DotPos::W) ? 0 : 0b11000000);
+        return _mm_shuffle_ps(sumVec, sumVec, imm);
+#endif
+    }
+    template<DotPos Mul>
+    forceinline float VECCALL Dot(const F32x4& other) const
+    {
+#if COMMON_SIMD_LV >= 42
+        return _mm_cvtss_f32(Dot<Mul, DotPos::XYZW>(other).Data);
+#else
         const auto prod = this->Mul(other);
         float sum = 0.f;
         if constexpr (HAS_FIELD(Mul, DotPos::X)) sum += prod[0];
         if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[1];
         if constexpr (HAS_FIELD(Mul, DotPos::Z)) sum += prod[2];
         if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[3];
-        const auto sumVec = _mm_set_ss(sum);
-        constexpr uint8_t imm = (HAS_FIELD(Res, DotPos::X) ? 0 : 0b11) + (HAS_FIELD(Res, DotPos::Y) ? 0 : 0b1100) + 
-            (HAS_FIELD(Res, DotPos::Z) ? 0 : 0b110000) + (HAS_FIELD(Res, DotPos::W) ? 0 : 0b11000000);
-        return _mm_shuffle_ps(sumVec, sumVec, imm);
+        return sum;
 #endif
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
@@ -416,10 +426,10 @@ struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int
 #if COMMON_SIMD_LV >= 41
     forceinline I32x4 VECCALL Max(const I32x4& other) const { return _mm_max_epi32(Data, other.Data); }
     forceinline I32x4 VECCALL Min(const I32x4& other) const { return _mm_min_epi32(Data, other.Data); }
-    forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
-    {
-        return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
-    }
+    // forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
+    // {
+    //     return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
+    // }
 #endif
     forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
@@ -439,10 +449,10 @@ struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::In
     forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_srl_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U32x4 VECCALL ShiftRightArth() const { return _mm_srli_epi32(Data, N); }
-    forceinline Pack<I64x2, 2> VECCALL MulX(const U32x4& other) const
-    {
-        return { I64x2(_mm_mul_epu32(Data, other.Data)), I64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
-    }
+    // forceinline Pack<I64x2, 2> VECCALL MulX(const U32x4& other) const
+    // {
+    //     return { I64x2(_mm_mul_epu32(Data, other.Data)), I64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
+    // }
 };
 
 

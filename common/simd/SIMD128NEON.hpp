@@ -32,6 +32,11 @@ namespace detail
 template<typename T>
 struct Neon128Common : public CommonOperators<T>
 {
+    forceinline T VECCALL MoveHiToLo() const 
+    { 
+        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
+        return T::FromInnerU32x4(vreinterpretq_u32_u64(vdupq_lane_u64(data, 0)));
+    }
     // logic operations
     forceinline T VECCALL And(const T& other) const
     {
@@ -148,7 +153,6 @@ struct Shuffle32Common
 //template<typename T, typename E>
 //struct Int128Common : public Neon128Common<T>
 //{
-//    forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(*static_cast<const T*>(this), 8); }
 //    forceinline void VECCALL Load(const E *ptr) { *static_cast<T*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
 //    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
 //    forceinline constexpr operator const __m128i&() const noexcept { return static_cast<const T*>(this)->Data; }
@@ -277,49 +281,67 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
     {
         return vnegq_f32(MulAdd(muler, suber.Data));
     }
+    template<DotPos Mul>
+    forceinline float VECCALL Dot(const F32x4& other) const
+    {
+        constexpr auto MulExclude = Mul ^ DotPos::XYZW;
+        if constexpr (MulExclude == DotPos::XYZW)
+            return 0;
+        else
+        {
+            constexpr bool MulEx0 = HAS_FIELD(MulExclude, DotPos::X), MulEx1 = HAS_FIELD(MulExclude, DotPos::Y),
+                MulEx2 = HAS_FIELD(MulExclude, DotPos::Z), MulEx3 = HAS_FIELD(MulExclude, DotPos::W);
+            auto prod = this->Mul(other).Data;
+            if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 0) // all need
+            {
+            }
+            else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
+            {
+                prod = vsetq_lane_f32(0, prod, MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
+            }
+            else if constexpr (MulEx0 == MulEx1 && MulEx2 == MulEx3)
+            {
+                static_assert(MulEx0 + MulEx1 + MulEx2 + MulEx3 == 2);
+                prod = vreinterpretq_f32_u64(vsetq_lane_u64(0, vreinterpretq_u64_f32(prod), MulEx0 ? 0 : 1));
+            }
+            else
+            {
+                alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
+                prod = vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask));
+            }
+            return vaddvq_f32(prod);
+        }
+    }
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const
     {
-        constexpr auto MulExclude = common::enum_cast(DotPos::XYZW) ^ common::enum_cast(Mul);
-        constexpr bool MulEx0 = MulExclude & 0x1, MulEx1 = MulExclude & 0x10, MulEx2 = MulExclude & 0x100, MulEx3 = MulExclude & 0x1000;
-        constexpr auto ResExclude = common::enum_cast(DotPos::XYZW) ^ common::enum_cast(Res);
-        constexpr bool ResEx0 = ResExclude & 0x1, ResEx1 = ResExclude & 0x10, ResEx2 = ResExclude & 0x100, ResEx3 = ResExclude & 0x1000;
-        if constexpr (MulExclude == common::enum_cast(DotPos::XYZW) || ResExclude == common::enum_cast(DotPos::XYZW))
+        constexpr auto ResExclude = Res ^ DotPos::XYZW;
+        if constexpr (ResExclude == DotPos::XYZW)
+        {
             return 0;
-        auto prod = this->Mul(other).Data;
-        if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 0) // all need
-        { }
-        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
-        {
-            prod = vsetq_lane_f32(0, prod, MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
-        }
-        else if constexpr (MulEx0 == MulEx1 && MulEx2 == MulEx3)
-        {
-            static_assert(MulEx0 + MulEx1 + MulEx2 + MulEx3 == 2);
-            prod = vreinterpretq_f32_u64(vsetq_lane_u64(0, vreinterpretq_u64_f32(prod), MulEx0 ? 0 : 1));
         }
         else
         {
-            alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
-            prod = vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask));
-        }
-        const auto sum = vaddvq_f32(prod);
-        if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 0) // all need
-        {
-            return sum;
-        }
-        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
-        {
-            return vsetq_lane_f32(0, vdupq_n_f32(sum), MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
-        }
-        else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 3) // only need one
-        {
-            return vsetq_lane_f32(sum, neon_moviqb(0), MulEx0 ? (MulEx1 ? (MulEx2 ? 3 : 2) : 1) : 0);
-        }
-        else
-        {
-            alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
-            return vandq_s32(vreinterpretq_s32_f32(vdupq_n_f32(sum)), vld1q_s32(mask));
+            constexpr bool ResEx0 = HAS_FIELD(ResExclude, DotPos::X), ResEx1 = HAS_FIELD(ResExclude, DotPos::Y),
+                ResEx2 = HAS_FIELD(ResExclude, DotPos::Z), ResEx3 = HAS_FIELD(ResExclude, DotPos::W);
+            const float sum = Dot<Mul>(other);
+            if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 0) // all need
+            {
+                return sum;
+            }
+            else if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 1)
+            {
+                return vsetq_lane_f32(0, vdupq_n_f32(sum), ResEx0 ? 0 : (ResEx1 ? 1 : (ResEx2 ? 2 : 3)));
+            }
+            else if constexpr (ResEx0 + ResEx1 + ResEx2 + ResEx3 == 3) // only need one
+            {
+                return vsetq_lane_f32(sum, neon_moviqb(0), ResEx0 ? (ResEx1 ? (ResEx2 ? 3 : 2) : 1) : 0);
+            }
+            else
+            {
+                alignas(16) const int32_t mask[4] = { ResEx0 ? 0 : -1, ResEx1 ? 0 : -1, ResEx2 ? 0 : -1, ResEx3 ? 0 : -1 };
+                return vandq_s32(vreinterpretq_s32_f32(vdupq_n_f32(sum)), vld1q_s32(mask));
+            }
         }
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
@@ -327,63 +349,45 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
 
 };
 
-#if 0
-struct alignas(16) I64x2 : public detail::Int128Common<I64x2, int64_t>
+struct alignas(16) I64x2 : public detail::Neon128Common<I64x2>, public detail::Shuffle64Common<I64x2>
 {
     static constexpr size_t Count = 2;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,64,2,0 };
-#if COMMON_ARCH_X86
-    using SIMDType = __m128i;
-#elif COMMON_SIMD_LV >= 200
-    using SIMDType = int64x2_t;
-#else
-    using SIMDType = void;
-#endif
     union
     {
-#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
-        SIMDType Data;
-#endif
+        int64x2_t Data;
         int64_t Val[2];
     };
-    constexpr I64x2() : Data() { }
-    explicit I64x2(const int64_t* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr I64x2(const SIMDType val) :Data(val) { }
-    I64x2(const int64_t val) :Data(_mm_set1_epi64x(val)) { }
-    I64x2(const int64_t lo, const int64_t hi) :Data(_mm_set_epi64x(hi, lo)) { }
-
-    // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline I64x2 VECCALL Shuffle() const
-    {
-        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-        return _mm_shuffle_epi32(Data, _MM_SHUFFLE(Hi*2+1, Hi*2, Lo*2+1, Lo*2));
-    }
-    forceinline I64x2 VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
-    {
-        switch ((Hi << 1) + Lo)
-        {
-        case 0: return Shuffle<0, 0>();
-        case 1: return Shuffle<1, 0>();
-        case 2: return Shuffle<0, 1>();
-        case 3: return Shuffle<1, 1>();
-        default: return I64x2(); // should not happen
-        }
-    }
+    constexpr I64x2() noexcept : Data() { }
+    explicit I64x2(const int64_t* ptr) : Data(vld1q_s64(ptr)) { }
+    constexpr I64x2(const int64x2_t val) noexcept : Data(val) { }
+    I64x2(const int64_t val) noexcept : Data(vdupq_n_s64(val)) { }
+    I64x2(const int64_t lo, const int64_t hi) noexcept : Data(vcombine_s64(vdup_n_s64(lo), vdup_n_s64(hi))) { }
+    forceinline constexpr operator const int64x2_t& () const noexcept { return Data; }
+    forceinline void VECCALL Load(const int64_t* ptr) { Data = vld1q_s64(ptr); }
+    forceinline void VECCALL Save(int64_t* ptr) const { vst1q_s64(reinterpret_cast<int64_t*>(ptr), Data); }
+    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s64(Data); }
+    forceinline static I64x2 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s64_u32(val); }
 
     // arithmetic operations
-    forceinline I64x2 VECCALL Add(const I64x2& other) const { return _mm_add_epi64(Data, other.Data); }
-    forceinline I64x2 VECCALL Sub(const I64x2& other) const { return _mm_sub_epi64(Data, other.Data); }
-    forceinline I64x2 VECCALL Max(const I64x2& other) const { return _mm_max_epi64(Data, other.Data); }
-    forceinline I64x2 VECCALL Min(const I64x2& other) const { return _mm_min_epi64(Data, other.Data); }
-    forceinline I64x2 VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi64(Data, I64x2(bits)); }
-    forceinline I64x2 VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi64(Data, I64x2(bits)); }
+    forceinline I64x2 VECCALL Add(const I64x2& other) const { return vaddq_s64(Data, other.Data); }
+    forceinline I64x2 VECCALL Sub(const I64x2& other) const { return vsubq_s64(Data, other.Data); }
+    /*forceinline I64x2 VECCALL Max(const I64x2& other) const { return vmaxq_s64(Data, other.Data); }
+    forceinline I64x2 VECCALL Min(const I64x2& other) const { return vminq_s64(Data, other.Data); }*/
+    forceinline I64x2 VECCALL ShiftLeftLogic(const uint8_t bits) const 
+    { 
+        return vshlq_s64(Data, I64x2(bits).Data);
+    }
+    forceinline I64x2 VECCALL ShiftRightLogic(const uint8_t bits) const 
+    { 
+        return vshlq_s64(Data, I64x2(-bits).Data);
+    }
+    /*template<uint8_t N>
+    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
     template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }
+    forceinline I64x2 VECCALL ShiftRightLogic() const { return vshlq_n_s64(Data, -N); }
     template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftRightLogic() const { return _mm_srli_epi64(Data, N); }
-    template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftLeftLogic() const { return _mm_slli_epi64(Data, N); }
+    forceinline I64x2 VECCALL ShiftLeftLogic() const { return vshlq_n_s64(Data, N); }
 };
 
 
@@ -391,98 +395,109 @@ template<typename T, typename E>
 struct alignas(16) I32Common4
 {
     static constexpr size_t Count = 4;
-#if COMMON_ARCH_X86
-    using SIMDType = __m128i;
-#elif COMMON_SIMD_LV >= 200
     using SIMDType = std::conditional_t<std::is_signed_v<E>, int32x4_t, uint32x4_t>;
-#else
-    using SIMDType = void;
-#endif
     union
     {
-#if COMMON_ARCH_X86 || COMMON_SIMD_LV >= 200
         SIMDType Data;
-#endif
         E Val[4];
     };
     constexpr I32Common4() : Data() { }
-    explicit I32Common4(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
     constexpr I32Common4(const SIMDType val) : Data(val) { }
-    I32Common4(const E val) : Data(_mm_set1_epi32(static_cast<int32_t>(val))) { }
-    I32Common4(const E lo0, const E lo1, const E lo2, const E hi3)
-        : Data(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
-
-    // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
-    forceinline T VECCALL Shuffle() const
-    {
-        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        return _mm_shuffle_epi32(Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
-    }
-    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
-    {
-#if COMMON_SIMD_LV >= 100
-        return _mm_castps_si128(_mm_permutevar_ps(_mm_castsi128_ps(Data), _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3)));
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
-#endif
-    }
+    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
 
     // arithmetic operations
-    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi32(Data, other.Data); }
-    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi32(Data, other.Data); }
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi32(Data, I64x2(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi32(Data, I64x2(bits)); }
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        return T::FromInnerU32x4(vshlq_u32(static_cast<const T*>(this)->InnerU32x4(), vdupq_n_u32(bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        return T::FromInnerU32x4(vshlq_u32(static_cast<const T*>(this)->InnerU32x4(), vdupq_n_s32(-bits)));
+    }
+    /*template<uint8_t N>
+    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
     template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi32(Data, N); }
+    forceinline T VECCALL ShiftRightLogic() const 
+    { 
+        return T::FromInnerU32x4(vshlq_n_u32(static_cast<const T*>(this)->InnerU32x4(), -N));
+    }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const { return _mm_slli_epi32(Data, N); }
-#if COMMON_SIMD_LV >= 41
-    forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi32(Data, other.Data); }
-    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-#endif
+    forceinline T VECCALL ShiftLeftLogic() const 
+    { 
+        return T::FromInnerU32x4(vshlq_n_u32(static_cast<const T*>(this)->InnerU32x4(), N));
+    }
+
+    //forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi32(Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
 };
 
 
-struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>, public detail::Int128Common<I32x4, int32_t>
+struct alignas(16) I32x4 : public detail::Neon128Common<I32x4>, public detail::Shuffle32Common<I32x4>, public I32Common4<I32x4, int32_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,32,4,0 };
     using I32Common4<I32x4, int32_t>::I32Common4;
+    explicit I32x4(const int32_t* ptr) : I32Common4(vld1q_s32(ptr)) { }
+    I32x4(const int32_t val) : I32Common4(vdupq_n_s32(val)) { }
+    I32x4(const int32_t lo0, const int32_t lo1, const int32_t lo2, const int32_t hi3) : I32Common4()
+    {
+        alignas(16) int32_t tmp[] = { lo0, lo1, lo2, hi3 };
+        Load(tmp);
+    }
+    forceinline void VECCALL Load(const int32_t* ptr) { Data = vld1q_s32(ptr); }
+    forceinline void VECCALL Save(int32_t* ptr) const { vst1q_s32(ptr, Data); }
+    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s32(Data); }
+    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s32_u32(val); }
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
-    forceinline I32x4 VECCALL Max(const I32x4& other) const { return _mm_max_epi32(Data, other.Data); }
-    forceinline I32x4 VECCALL Min(const I32x4& other) const { return _mm_min_epi32(Data, other.Data); }
-    forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
+    forceinline I32x4 VECCALL Add(const I32x4& other) const { return vaddq_s32(Data, other.Data); }
+    forceinline I32x4 VECCALL Sub(const I32x4& other) const { return vsubq_s32(Data, other.Data); }
+    forceinline I32x4 VECCALL MulLo(const I32x4& other) const { return vmulq_s32(Data, other.Data); }
+    //forceinline I32x4 VECCALL Div(const I32x4& other) const { return vdivq_s32(Data, other.Data); }
+    forceinline I32x4 VECCALL Max(const I32x4& other) const { return vmaxq_s32(Data, other.Data); }
+    forceinline I32x4 VECCALL Min(const I32x4& other) const { return vminq_s32(Data, other.Data); }
+    /*forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
     {
         return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
-    }
-#endif
-    forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
+    }*/
+    /*forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
-    forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
+    forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
 
-struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>, public detail::Int128Common<U32x4, uint32_t>
+struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::Shuffle32Common<U32x4>, public I32Common4<U32x4, uint32_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,32,4,0 };
     using I32Common4<U32x4, uint32_t>::I32Common4;
+    explicit U32x4(const uint32_t* ptr) : I32Common4(vld1q_u32(ptr)) { }
+    U32x4(const uint32_t val) : I32Common4(vdupq_n_u32(val)) { }
+    U32x4(const uint32_t lo0, const uint32_t lo1, const uint32_t lo2, const uint32_t hi3) : I32Common4()
+    {
+        alignas(16) uint32_t tmp[] = { lo0, lo1, lo2, hi3 };
+        Load(tmp);
+    }
+    forceinline void VECCALL Load(const uint32_t* ptr) { Data = vld1q_u32(ptr); }
+    forceinline void VECCALL Save(uint32_t* ptr) const { vst1q_u32(ptr, Data); }
+    forceinline uint32x4_t InnerU32x4() const noexcept { return Data; }
+    forceinline static U32x4 FromInnerU32x4(uint32x4_t val) noexcept { return val; }
 
     // arithmetic operations
-#if COMMON_SIMD_LV >= 41
-    forceinline U32x4 VECCALL Max(const U32x4& other) const { return _mm_max_epu32(Data, other.Data); }
-    forceinline U32x4 VECCALL Min(const U32x4& other) const { return _mm_min_epu32(Data, other.Data); }
-#endif
-    forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_srl_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline U32x4 VECCALL ShiftRightArth() const { return _mm_srli_epi32(Data, N); }
-    forceinline Pack<I64x2, 2> VECCALL MulX(const U32x4& other) const
+    forceinline U32x4 VECCALL Add(const U32x4& other) const { return vaddq_u32(Data, other.Data); }
+    forceinline U32x4 VECCALL Sub(const U32x4& other) const { return vsubq_u32(Data, other.Data); }
+    forceinline U32x4 VECCALL MulLo(const U32x4& other) const { return vmulq_u32(Data, other.Data); }
+    //forceinline U32x4 VECCALL Div(const U32x4& other) const { return vdivq_s32(Data, other.Data); }
+    forceinline U32x4 VECCALL Max(const U32x4& other) const { return vmaxq_u32(Data, other.Data); }
+    forceinline U32x4 VECCALL Min(const U32x4& other) const { return vminq_u32(Data, other.Data); }
+    /*forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const
     {
-        return { I64x2(_mm_mul_epu32(Data, other.Data)), I64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
-    }
+        return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
+    }*/
+    forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
+    template<uint8_t N>
+    forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
 };
 
 
+#if 0
 template<typename T, typename E>
 struct alignas(16) I16Common8
 {

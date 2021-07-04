@@ -6,7 +6,6 @@
 #   include "ShuffleTest.h"
 
 
-
 RegisterSIMDTest("u32_u32", 200, copytest::CopyTest<uint32_t, uint32_t>)
 
 RegisterSIMDTest("u32_u16", 200, copytest::CopyTest<uint32_t, uint16_t>)
@@ -32,7 +31,6 @@ RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
 RegisterSIMDTest("I64x2", 200, shuftest::ShuffleVarTest<common::simd::I64x2>)
 RegisterSIMDTest("F32x4", 200, shuftest::ShuffleVarTest<common::simd::F32x4>)
 RegisterSIMDTest("I32x4", 200, shuftest::ShuffleVarTest<common::simd::I32x4>)
-
 
 
 #endif

@@ -4,7 +4,7 @@
 #if COMMON_SIMD_LV_ >= 42
 #   include "CopyTest.h"
 #   include "ShuffleTest.h"
-
+#   include "DotProdTest.h"
 
 
 RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
@@ -27,6 +27,10 @@ RegisterSIMDTest("F64x2", 42, shuftest::ShuffleTest<common::simd::F64x2>)
 RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
 RegisterSIMDTest("F32x4", 42, shuftest::ShuffleTest<common::simd::F32x4>)
 RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
+
+
+RegisterSIMDTest("F32x4", 42, dottest::DotProdTest<common::simd::F32x4>)
+
 
 #endif
 

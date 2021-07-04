@@ -69,6 +69,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ClInclude Include="CopyTest.h" />
+    <ClInclude Include="DotProdTest.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ShuffleTest.h" />
   </ItemGroup>

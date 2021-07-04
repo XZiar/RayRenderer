@@ -59,6 +59,9 @@
     <ClInclude Include="ShuffleTest.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="DotProdTest.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

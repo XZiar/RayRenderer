@@ -3,6 +3,7 @@
 #include "common/simd/SIMD.hpp"
 #if COMMON_SIMD_LV_ >= 200
 #   include "ShuffleTest.h"
+#   include "DotProdTest.h"
 
 
 
@@ -32,6 +33,10 @@ RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
 //RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
 RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<common::simd::F32x4>)
 //RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
+
+
+RegisterSIMDTest("F32x4", 100, dottest::DotProdTest<common::simd::F32x4>)
+
 
 #endif
 
