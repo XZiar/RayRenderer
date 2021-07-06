@@ -6,6 +6,7 @@
 #pragma once
 
 #include "common/CommonRely.hpp"
+#include "common/EnumEx.hpp"
 #include "3rdParty/Projects/googletest/gtest-enhanced.h"
 #include <type_traits>
 #include <iterator>
@@ -26,10 +27,11 @@
 #include <random>
 #include <atomic>
 #include <boost/predef/other/endian.h>
+#include <boost/preprocessor/control/if.hpp>
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
-
 
 
 inline constexpr bool IsLittleEndian = BOOST_ENDIAN_LITTLE_BYTE;

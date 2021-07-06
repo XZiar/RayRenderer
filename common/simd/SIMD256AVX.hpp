@@ -440,10 +440,8 @@ struct alignas(__m256i) I32Common8
     forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi32(Data, N); }
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic() const { return _mm256_slli_epi32(Data, N); }
-#if COMMON_SIMD_LV >= 41
     forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi32(Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-#endif
 };
 
 
@@ -555,10 +553,10 @@ struct alignas(__m256i) I16x16 : public I16Common16<I16x16, int16_t>, public det
 };
 
 
-struct alignas(__m256i) U16x16 : public I16Common16<U16x16, int16_t>, public detail::Int256Common<U16x16, uint16_t>
+struct alignas(__m256i) U16x16 : public I16Common16<U16x16, uint16_t>, public detail::Int256Common<U16x16, uint16_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,16,0 };
-    using I16Common16<U16x16, int16_t>::I16Common16;
+    using I16Common16<U16x16, uint16_t>::I16Common16;
     U16x16(const Pack<U16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
     // arithmetic operations
@@ -601,7 +599,6 @@ struct alignas(__m256i) I8Common32
             static_cast<int8_t>(lo29), static_cast<int8_t>(lo30), static_cast<int8_t>(hi31))) { }
 
     // shuffle operations
-#if COMMON_SIMD_LV >= 31
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Lo15,
         uint8_t Lo16, uint8_t Lo17, uint8_t Lo18, uint8_t Lo19, uint8_t Lo20, uint8_t Lo21, uint8_t Lo22, uint8_t Lo23, uint8_t Lo24, uint8_t Lo25, uint8_t Lo26, uint8_t Lo27, uint8_t Lo28, uint8_t Lo29, uint8_t Lo30, uint8_t Hi31>
     forceinline T VECCALL Shuffle() const
@@ -619,7 +616,6 @@ struct alignas(__m256i) I8Common32
             static_cast<int8_t>(Lo29), static_cast<int8_t>(Lo30), static_cast<int8_t>(Hi31));
         return _mm256_shuffle_epi8(Data, mask);
     }
-#endif
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(Data, other.Data); }
@@ -636,30 +632,25 @@ struct alignas(__m256i) I8x32 : public I8Common32<I8x32, int8_t>, public detail:
     // arithmetic operations
     forceinline I8x32 VECCALL SatAdd(const I8x32& other) const { return _mm256_adds_epi8(Data, other.Data); }
     forceinline I8x32 VECCALL SatSub(const I8x32& other) const { return _mm256_subs_epi8(Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     forceinline I8x32 VECCALL Max(const I8x32& other) const { return _mm256_max_epi8(Data, other.Data); }
     forceinline I8x32 VECCALL Min(const I8x32& other) const { return _mm256_min_epi8(Data, other.Data); }
-#endif
     template<typename T>
     typename CastTyper<I8x32, T>::Type VECCALL Cast() const;
-#if COMMON_SIMD_LV >= 41
     Pack<I16x16, 2> VECCALL MulX(const I8x32& other) const;
     forceinline I8x32 VECCALL MulHi(const I8x32& other) const
     {
         const auto full = MulX(other);
-        const auto lo = full[0].ShiftRightArth<8>(), hi = full[1].ShiftRightArth<8>();
-        return _mm256_packs_epi16(lo, hi);
+        const auto lo = full[0].ShiftRightLogic<8>(), hi = full[1].ShiftRightLogic<8>();
+        return _mm256_permute4x64_epi64(_mm256_packus_epi16(lo, hi), 0b11011000);
     }
     forceinline I8x32 VECCALL MulLo(const I8x32& other) const 
     { 
         const auto full = MulX(other);
-        const auto mask = I16x16(INT16_MIN);
-        const auto signlo = full[0].And(mask).ShiftRightArth<8>(), signhi = full[1].And(mask).ShiftRightArth<8>();
-        const auto lo = full[0] & signlo, hi = full[1] & signhi;
-        return _mm256_packs_epi16(lo, hi);
+        const I16x16 mask(0x00ff);
+        const auto lo = full[0].And(mask), hi = full[1].And(mask);
+        return _mm256_permute4x64_epi64(_mm256_packus_epi16(lo, hi), 0b11011000);
     }
     forceinline I8x32 VECCALL operator*(const I8x32& other) const { return MulLo(other); }
-#endif
 };
 template<> forceinline Pack<I16x16, 2> VECCALL I8x32::Cast<I16x16>() const
 {
@@ -688,7 +679,8 @@ struct alignas(__m256i) U8x32 : public I8Common32<U8x32, uint8_t>, public detail
     forceinline U8x32 VECCALL MulHi(const U8x32& other) const
     {
         const auto full = MulX(other);
-        return _mm256_packus_epi16(full[0].ShiftRightLogic<8>(), full[1].ShiftRightLogic<8>());
+        const auto lo = full[0].ShiftRightLogic<8>(), hi = full[1].ShiftRightLogic<8>();
+        return _mm256_permute4x64_epi64(_mm256_packus_epi16(lo, hi), 0b11011000);
     }
     forceinline U8x32 VECCALL MulLo(const U8x32& other) const
     {

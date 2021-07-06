@@ -309,7 +309,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         if constexpr (HAS_FIELD(Mul, DotPos::X)) sum += prod[0];
         if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[1];
         if constexpr (HAS_FIELD(Mul, DotPos::Z)) sum += prod[2];
-        if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[3];
+        if constexpr (HAS_FIELD(Mul, DotPos::W)) sum += prod[3];
         return sum;
 #endif
     }
@@ -538,10 +538,10 @@ struct alignas(16) I16x8 : public I16Common8<I16x8, int16_t>, public detail::Int
 };
 
 
-struct alignas(16) U16x8 : public I16Common8<U16x8, int16_t>, public detail::Int128Common<U16x8, uint16_t>
+struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>, public detail::Int128Common<U16x8, uint16_t>
 {
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,8,0 };
-    using I16Common8<U16x8, int16_t>::I16Common8;
+    using I16Common8<U16x8, uint16_t>::I16Common8;
 
     // arithmetic operations
     forceinline U16x8 VECCALL SatAdd(const U16x8& other) const { return _mm_adds_epu16(Data, other.Data); }
@@ -633,16 +633,15 @@ struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>, public detail::Int1
     forceinline I8x16 VECCALL MulHi(const I8x16& other) const
     {
         const auto full = MulX(other);
-        const auto lo = full[0].ShiftRightArth<8>(), hi = full[1].ShiftRightArth<8>();
-        return _mm_packs_epi16(lo, hi);
+        const auto lo = full[0].ShiftRightLogic<8>(), hi = full[1].ShiftRightLogic<8>();
+        return _mm_packus_epi16(lo, hi);
     }
     forceinline I8x16 VECCALL MulLo(const I8x16& other) const
     { 
         const auto full = MulX(other);
-        const auto mask = I16x8(INT16_MIN);
-        const auto signlo = full[0].And(mask).ShiftRightArth<8>(), signhi = full[1].And(mask).ShiftRightArth<8>();
-        const auto lo = full[0] & signlo, hi = full[1] & signhi;
-        return _mm_packs_epi16(lo, hi);
+        const I16x8 mask(0x00ff);
+        const auto lo = full[0].And(mask), hi = full[1].And(mask);
+        return _mm_packus_epi16(lo, hi);
     }
     forceinline I8x16 VECCALL operator*(const I8x16& other) const { return MulLo(other); }
 #endif
@@ -682,7 +681,7 @@ struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>, public detail::Int
         const U16x8 u16self = Data, u16other = other.Data;
         const auto even = u16self * u16other;
         const auto odd = u16self.ShiftRightLogic<8>() * u16other.ShiftRightLogic<8>();
-        const U16x8 mask((uint16_t)0x00ff);
+        const U16x8 mask(0x00ff);
         return U8x16(odd.ShiftLeftLogic<8>() | (even & mask));
     }
     Pack<U16x8, 2> VECCALL MulX(const U8x16& other) const;

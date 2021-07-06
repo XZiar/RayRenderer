@@ -16,7 +16,7 @@ std::vector<std::array<uint8_t, N>> GenerateAllPoses() noexcept
 {
     std::vector<std::array<uint8_t, N>> all;
     constexpr auto Count = Pow<N, N>();
-    all.reserve(Count);
+    all.resize(Count);
     for (size_t j = 0; j < Count; ++j)
     {
         size_t val = j;

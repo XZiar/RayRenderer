@@ -72,6 +72,7 @@
     <ClInclude Include="DotProdTest.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ShuffleTest.h" />
+    <ClInclude Include="SIMDBaseTest.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AlignBufTest.cpp">

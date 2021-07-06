@@ -1,6 +1,5 @@
 #pragma once
 #include "pch.h"
-#include "common/simd/SIMD128.hpp"
 #pragma message("Compiling DotProdTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 
@@ -14,7 +13,7 @@ using namespace std::string_view_literals;
 static std::string GenerateMatchStr(const std::array<float, 4>& ref, DotPos mul, DotPos res)
 {
     char tmp[256] = { 0 };
-    snprintf(tmp, 240, "Mul[%s%s%s%s] Res[%s%s%s%s] to be [%f,%f,%f,%f]",
+    snprintf(tmp, 240, "Mul[%s%s%s%s] Res[%s%s%s%s] to be [%4.0f, %4.0f, %4.0f, %4.0f]",
         (HAS_FIELD(mul, DotPos::X) ? "X" : ""), (HAS_FIELD(mul, DotPos::Y) ? "Y" : ""),
         (HAS_FIELD(mul, DotPos::Z) ? "Z" : ""), (HAS_FIELD(mul, DotPos::W) ? "W" : ""),
         (HAS_FIELD(res, DotPos::X) ? "X" : ""), (HAS_FIELD(res, DotPos::Y) ? "Y" : ""),

@@ -1,28 +1,52 @@
 #pragma once
 #include "pch.h"
-#include "common/simd/SIMD128.hpp"
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
-#   include "common/simd/SIMD256.hpp"
-#endif
 #pragma message("Compiling ShuffleTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 
 namespace shuftest
 {
+using namespace std::string_literals;
+using namespace std::string_view_literals;
 
-template<typename T, size_t N, typename U = std::decay_t<decltype(std::declval<T>().Val[0])>>
+static constexpr std::string_view NUM16[] = 
+{
+    "0"sv, "1"sv,  "2"sv,  "3"sv,  "4"sv,  "5"sv,  "6"sv,  "7"sv, 
+    "8"sv, "9"sv, "10"sv, "11"sv, "12"sv, "13"sv, "14"sv, "15"sv,
+};
+template<size_t N>
+static std::string GenerateMatchStr(const std::array<uint8_t, N>& ref)
+{
+    std::string ret; ret.reserve(256);
+    ret.append("Shuffle to [");
+    bool isFirst = true;
+    for (const auto i : ref)
+    {
+        if (!isFirst)
+            ret.append(", ");
+        ret.append(NUM16[i]);
+        isFirst = false;
+    }
+    ret.append("]");
+    return ret;
+}
+
+template<typename T, size_t N, size_t... Idx>
+forceinline bool CheckMatch(const T(&arg)[N], const std::array<uint8_t, N>& ref, std::index_sequence<Idx...>)
+{
+    return (... && (arg[Idx] == ref[Idx]));
+}
+
+MATCHER_P(MatchShuffle, ref, GenerateMatchStr(ref))
+{
+    [[maybe_unused]] const auto& tmp = result_listener;
+    constexpr size_t N = std::tuple_size_v<std::decay_t<decltype(ref)>>;
+    return CheckMatch(arg, ref, std::make_index_sequence<N>{});
+}
+
+template<typename T, size_t N>
 forcenoinline void ResultCheck(const T& data, const std::array<uint8_t, N>& poses) noexcept
 {
-    std::array<U, N> ref = {};
-    for (size_t i = 0; i < N; ++i)
-        ref[i] = poses[i];
-    bool match = true;
-    for (size_t i = 0; i < N; ++i)
-        match &= (data.Val[i] == ref[i]);
-    if (!match)
-    {
-        EXPECT_THAT(data.Val, testing::ElementsAreArray(ref));
-    }
+    EXPECT_THAT(data.Val, MatchShuffle(poses));
 }
 
 template<size_t N, typename T, uint64_t Val>
@@ -59,11 +83,19 @@ forceinline void RunShuffle(const T& data)
     ResultCheck(output, Poses);
 }
 
+template<typename T, uint64_t IdxBegin, uint64_t... Vals>
+void TestShuffleBatch(const T& data, std::index_sequence<Vals...>)
+{
+    (..., RunShuffle<T, IdxBegin + Vals>(data));
+}
+
 template<typename T, uint64_t IdxBegin, uint64_t IdxEnd>
 void TestShuffle(const T& data)
 {
-    if constexpr (IdxBegin == IdxEnd)
-        RunShuffle<T, IdxBegin>(data);
+    if constexpr (IdxEnd - IdxBegin <= 256)
+    {
+        TestShuffleBatch<T, IdxBegin>(data, std::make_index_sequence<IdxEnd - IdxBegin>{});
+    }
     else
     {
         TestShuffle<T, IdxBegin, IdxBegin + (IdxEnd - IdxBegin) / 2>(data);
@@ -102,22 +134,17 @@ forceinline void RunShuffleVar(const T& data, uint64_t val)
     ResultCheck(output, poses);
 }
 
-template<typename T>
-void TestShuffleVar(const T& data, uint64_t idxBegin, uint64_t idxEnd)
+template<typename T, uint64_t Count>
+void TestShuffleVar(const T& data)
 {
-    if (idxBegin == idxEnd)
-        RunShuffleVar<T>(data, idxBegin);
-    else
-    {
-        TestShuffleVar<T>(data, idxBegin, idxBegin + (idxEnd - idxBegin) / 2);
-        TestShuffleVar<T>(data, idxBegin + (idxEnd - idxBegin) / 2 + 1, idxEnd);
-    }
+    for (uint64_t i = 0; i < Count; ++i)
+        RunShuffleVar<T>(data, i);
 }
 
 template<typename T, size_t... Idxes>
-constexpr T GenerateT()
+static constexpr T GenerateT()
 {
-    using ArgType = std::remove_reference_t<decltype(*std::declval<T&>().Val)>;
+    using ArgType = std::decay_t<decltype(std::declval<T&>().Val[0])>;
     constexpr size_t ArgCount = sizeof...(Idxes);
     if constexpr (ArgCount == T::Count)
         return T(static_cast<ArgType>(Idxes)...);
@@ -147,7 +174,7 @@ public:
     void TestBody() override
     {
         const auto data = GenerateT<T>();
-        TestShuffleVar<T>(data, 0, Pow<T::Count, T::Count>() - 1);
+        TestShuffleVar<T, Pow<T::Count, T::Count>()>(data);
     }
 };
 
