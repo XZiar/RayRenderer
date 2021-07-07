@@ -18,13 +18,14 @@ RegisterSIMDTest("u32_u8",  200, copytest::CopyTest<uint32_t, uint8_t>)
 RegisterSIMDTest("u16_u8",  200, copytest::CopyTest<uint16_t, uint8_t>)
 
 
-RegisterSIMDBaseTest(I64x4,  200, Add, Sub, And, Or, Xor, AndNot, Not)
-RegisterSIMDBaseTest(I32x8,  200, Add, Sub, MulLo)
-RegisterSIMDBaseTest(U32x8,  200, Add, Sub, MulLo)
-RegisterSIMDBaseTest(I16x16, 200, Add, Sub, MulLo, MulHi)
-RegisterSIMDBaseTest(U16x16, 200, Add, Sub, MulLo, MulHi)
-RegisterSIMDBaseTest(I8x32,  200, Add, Sub, MulLo, MulHi)
-RegisterSIMDBaseTest(U8x32,  200, Add, Sub, MulLo, MulHi)
+RegisterSIMDBaseTest(I64x4,  200, Add, Sub, MulLo, And, Or, Xor, AndNot, Not)
+RegisterSIMDBaseTest(U64x4,  200, Add, Sub, SatAdd, SatSub, MulLo, Min, Max)
+RegisterSIMDBaseTest(I32x8,  200, Add, Sub, MulLo, MulX, Min, Max)
+RegisterSIMDBaseTest(U32x8,  200, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
+RegisterSIMDBaseTest(I16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Min, Max)
+RegisterSIMDBaseTest(U16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Min, Max)
+RegisterSIMDBaseTest(I8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Min, Max)
+RegisterSIMDBaseTest(U8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Min, Max)
 
 
 RegisterSIMDTest("F64x4", 200, shuftest::ShuffleTest<common::simd::F64x4>)

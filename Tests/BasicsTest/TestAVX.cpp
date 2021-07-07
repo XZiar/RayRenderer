@@ -16,8 +16,8 @@ RegisterSIMDTest("u16", 100, copytest::BroadcastTest<uint16_t>)
 RegisterSIMDTest("u8",  100, copytest::BroadcastTest< uint8_t>)
 
 
-RegisterSIMDBaseTest(F64x4, 100, Add, Sub, Mul, Div)
-RegisterSIMDBaseTest(F32x8, 100, Add, Sub, Mul, Div)
+RegisterSIMDBaseTest(F64x4, 100, Add, Sub, Mul, Div, Min, Max)
+RegisterSIMDBaseTest(F32x8, 100, Add, Sub, Mul, Div, Min, Max)
 
 
 RegisterSIMDTest("F64x4", 100, shuftest::ShuffleTest<common::simd::F64x4>)

@@ -48,6 +48,30 @@ uint32_t GetARand()
     return GetRanEng()();
 }
 
+
+alignas(32) const std::array<uint8_t, RandValBytes / 1> RandVals = []()
+{
+    std::array<uint8_t, RandValBytes / 1> vals = {};
+    for (auto& val : vals)
+        val = static_cast<uint8_t>(GetARand());
+    return vals;
+}();
+alignas(32) const std::array<float, RandValBytes / 4> RandValsF32 = []()
+{
+    std::array<float, RandValBytes / 4> vals = {};
+    for (auto& val : vals)
+        val = static_cast<float>(static_cast<int32_t>(GetARand()));
+    return vals;
+}();
+alignas(32) const std::array<double, RandValBytes / 8> RandValsF64 = []()
+{
+    std::array<double, RandValBytes / 8> vals = {};
+    for (auto& val : vals)
+        val = static_cast<double>(static_cast<int32_t>(GetARand()));
+    return vals;
+}();
+
+
 static uint32_t GetSIMDLevel_()
 {
 #if COMMON_ARCH_X86
@@ -57,6 +81,10 @@ static uint32_t GetSIMDLevel_()
     struct cpu_id_t data;
     if (cpu_identify(&raw, &data) < 0)  return 0;
 
+    if (data.flags[CPU_FEATURE_AVX512BW] && data.flags[CPU_FEATURE_AVX512DQ] && data.flags[CPU_FEATURE_AVX512VL])
+        return 320;
+    if (data.flags[CPU_FEATURE_AVX512F] && data.flags[CPU_FEATURE_AVX512CD])
+        return 310;
     if (data.flags[CPU_FEATURE_AVX2])   return 200;
     if (data.flags[CPU_FEATURE_FMA3])   return 150;
     if (data.flags[CPU_FEATURE_AVX])    return 100;
@@ -81,6 +109,10 @@ uint32_t SIMDFixture::GetSIMDLevel()
 std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
 {
 #if COMMON_ARCH_X86
+    if (level >= 320)
+        return "AVX512";
+    if (level >= 310)
+        return "AVX512";
     if (level >= 200)
         return "AVX2";
     if (level >= 150)

@@ -65,7 +65,11 @@
 
 #if COMMON_ARCH_X86
 
-# if defined(__AVX2__)
+# if defined(__AVX512BW__) && defined(__AVX512DQ__) && defined(__AVX512VL__)
+#    define COMMON_SIMD_LV_ 320
+# elif defined(__AVX512F__) && defined(__AVX512CD__)
+#    define COMMON_SIMD_LV_ 310
+# elif defined(__AVX2__)
 #    define COMMON_SIMD_LV_ 200
 # elif defined(__FMA__)
 #    define COMMON_SIMD_LV_ 150
@@ -90,7 +94,12 @@
 #    define COMMON_SIMD_LV COMMON_SIMD_LV_
 # endif
 
-# if COMMON_SIMD_LV >= 200
+
+# if COMMON_SIMD_LV >= 320
+#   define COMMON_SIMD_INTRIN AVX512
+# elif COMMON_SIMD_LV >= 310
+#   define COMMON_SIMD_INTRIN AVX512
+# elif COMMON_SIMD_LV >= 200
 #   define COMMON_SIMD_INTRIN AVX2
 # elif COMMON_SIMD_LV >= 150
 #   define COMMON_SIMD_INTRIN FMA
