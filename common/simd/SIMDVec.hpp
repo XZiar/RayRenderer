@@ -12,9 +12,10 @@ template<typename T, size_t N>
 struct alignas(T) Pack
 {
     T Data[N];
-    Pack(const T& val0, const T& val1) : Data{ val0,val1 } {}
-    constexpr T& operator[](const size_t idx) { return Data[idx]; }
-    constexpr const T& operator[](const size_t idx) const { return Data[idx]; }
+    template<typename... Ts, typename = std::enable_if_t<sizeof...(Ts) == N>>
+    Pack(const Ts&... vals) noexcept : Data{ vals... } {}
+    constexpr T& operator[](const size_t idx) noexcept { return Data[idx]; }
+    constexpr const T& operator[](const size_t idx) const noexcept { return Data[idx]; }
 };
 
 template<typename From, typename To>

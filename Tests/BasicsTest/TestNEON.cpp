@@ -25,28 +25,24 @@
 //RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
 
 
-RegisterSIMDBaseTest(F64x2, 200, Add, Sub, Mul, Div, Min, Max)
-RegisterSIMDBaseTest(F32x4, 100, Add, Sub, Mul, Div, Min, Max)
-RegisterSIMDBaseTest(I64x2, 100, Add, Sub, SatAdd, SatSub, And, Or, Xor, AndNot, Not)
-RegisterSIMDBaseTest(U64x2, 100, Add, Sub, SatAdd, SatSub)
-RegisterSIMDBaseTest(I32x4, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
-RegisterSIMDBaseTest(U32x4, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
-RegisterSIMDBaseTest(I16x8, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
-RegisterSIMDBaseTest(U16x8, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
-RegisterSIMDBaseTest(I8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
-RegisterSIMDBaseTest(U8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Min, Max)
+RegisterSIMDBaseTest(F64x2, 200, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
+RegisterSIMDBaseTest(F32x4, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
+RegisterSIMDBaseTest(I64x2, 100, Add, Sub, SatAdd, SatSub, Neg, Abs, And, Or, Xor, AndNot, Not, Min, Max)
+RegisterSIMDBaseTest(U64x2, 100, Add, Sub, SatAdd, SatSub, Abs, Min, Max)
+RegisterSIMDBaseTest(I32x4, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Neg, Abs, Min, Max)
+RegisterSIMDBaseTest(U32x4, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Abs, Min, Max)
+RegisterSIMDBaseTest(I16x8, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Neg, Abs, Min, Max)
+RegisterSIMDBaseTest(U16x8, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Abs, Min, Max)
+RegisterSIMDBaseTest(I8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Neg, Abs, Min, Max)
+RegisterSIMDBaseTest(U8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Abs, Min, Max)
 
 
 RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<common::simd::F64x2>)
-//RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
 RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<common::simd::F32x4>)
-//RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
 
 
 RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
-//RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
 RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<common::simd::F32x4>)
-//RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
 
 
 RegisterSIMDTest("F32x4", 100, dottest::DotProdTest<common::simd::F32x4>)

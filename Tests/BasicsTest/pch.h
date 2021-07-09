@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <random>
 #include <atomic>
+#include <cinttypes>
 
 
 inline constexpr bool IsLittleEndian = BOOST_ENDIAN_LITTLE_BYTE;

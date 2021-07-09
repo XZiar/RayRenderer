@@ -187,6 +187,8 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::S
     forceinline F64x2 VECCALL Sub(const F64x2& other) const { return vsubq_f64(Data, other.Data); }
     forceinline F64x2 VECCALL Mul(const F64x2& other) const { return vmulq_f64(Data, other.Data); }
     forceinline F64x2 VECCALL Div(const F64x2& other) const { return vdivq_f64(Data, other.Data); }
+    forceinline F64x2 VECCALL Neg() const { return vnegq_f64(Data); }
+    forceinline F64x2 VECCALL Abs() const { return vabsq_f64(Data); }
     forceinline F64x2 VECCALL Max(const F64x2& other) const { return vmaxq_f64(Data, other.Data); }
     forceinline F64x2 VECCALL Min(const F64x2& other) const { return vminq_f64(Data, other.Data); }
     //F64x2 Rcp() const { return _mm_rcp_pd(Data); }
@@ -244,6 +246,8 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
     forceinline F32x4 VECCALL Sub(const F32x4& other) const { return vsubq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Mul(const F32x4& other) const { return vmulq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Div(const F32x4& other) const { return vdivq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Neg() const { return vnegq_f32(Data); }
+    forceinline F32x4 VECCALL Abs() const { return vabsq_f32(Data); }
     forceinline F32x4 VECCALL Max(const F32x4& other) const { return vmaxq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Min(const F32x4& other) const { return vminq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Rcp() const 
@@ -409,8 +413,18 @@ struct alignas(16) I64x2 : public detail::Neon128Common<I64x2>, public detail::S
     forceinline I64x2 VECCALL SatSub(const I64x2& other) const { return vqsubq_s64(Data, other.Data); }
     forceinline I64x2 VECCALL Add(const I64x2& other) const { return vaddq_s64(Data, other.Data); }
     forceinline I64x2 VECCALL Sub(const I64x2& other) const { return vsubq_s64(Data, other.Data); }
-    /*forceinline I64x2 VECCALL Max(const I64x2& other) const { return vmaxq_s64(Data, other.Data); }
-    forceinline I64x2 VECCALL Min(const I64x2& other) const { return vminq_s64(Data, other.Data); }*/
+    forceinline I64x2 VECCALL Neg() const { return vnegq_s64(Data); }
+    forceinline I64x2 VECCALL Abs() const { return vabsq_s64(Data); }
+    forceinline I64x2 VECCALL Max(const I64x2& other) const
+    {
+        const auto isGt = vcgtq_s64(Data, other.Data);
+        return vbslq_f64(isGt, Data, other.Data);
+    }
+    forceinline I64x2 VECCALL Min(const I64x2& other) const
+    {
+        const auto isGt = vcgtq_s64(Data, other.Data);
+        return vbslq_f64(isGt, other.Data, Data);
+    }
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
@@ -432,8 +446,17 @@ struct alignas(16) U64x2 : public detail::Neon128Common<U64x2>, public detail::S
     forceinline U64x2 VECCALL SatSub(const U64x2& other) const { return vqsubq_u64(Data, other.Data); }
     forceinline U64x2 VECCALL Add(const U64x2& other) const { return vaddq_u64(Data, other.Data); }
     forceinline U64x2 VECCALL Sub(const U64x2& other) const { return vsubq_u64(Data, other.Data); }
-    /*forceinline I64x2 VECCALL Max(const I64x2& other) const { return vmaxq_u64(Data, other.Data); }
-    forceinline I64x2 VECCALL Min(const I64x2& other) const { return vminq_u64(Data, other.Data); }*/
+    forceinline U64x2 VECCALL Abs() const { return Data; }
+    forceinline U64x2 VECCALL Max(const U64x2& other) const
+    {
+        const auto isGt = vcgtq_u64(Data, other.Data);
+        return vbslq_f64(isGt, Data, other.Data);
+    }
+    forceinline U64x2 VECCALL Min(const U64x2& other) const
+    {
+        const auto isGt = vcgtq_u64(Data, other.Data);
+        return vbslq_f64(isGt, other.Data, Data);
+    }
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
@@ -502,6 +525,8 @@ struct alignas(16) I32x4 : public detail::Neon128Common<I32x4>, public detail::S
     forceinline I32x4 VECCALL Sub(const I32x4& other) const { return vsubq_s32(Data, other.Data); }
     forceinline I32x4 VECCALL MulLo(const I32x4& other) const { return vmulq_s32(Data, other.Data); }
     //forceinline I32x4 VECCALL Div(const I32x4& other) const { return vdivq_s32(Data, other.Data); }
+    forceinline I32x4 VECCALL Neg() const { return vnegq_s32(Data); }
+    forceinline I32x4 VECCALL Abs() const { return vabsq_s32(Data); }
     forceinline I32x4 VECCALL Max(const I32x4& other) const { return vmaxq_s32(Data, other.Data); }
     forceinline I32x4 VECCALL Min(const I32x4& other) const { return vminq_s32(Data, other.Data); }
     forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
@@ -536,6 +561,7 @@ struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::S
     forceinline U32x4 VECCALL Sub(const U32x4& other) const { return vsubq_u32(Data, other.Data); }
     forceinline U32x4 VECCALL MulLo(const U32x4& other) const { return vmulq_u32(Data, other.Data); }
     //forceinline U32x4 VECCALL Div(const U32x4& other) const { return vdivq_s32(Data, other.Data); }
+    forceinline U32x4 VECCALL Abs() const { return Data; }
     forceinline U32x4 VECCALL Max(const U32x4& other) const { return vmaxq_u32(Data, other.Data); }
     forceinline U32x4 VECCALL Min(const U32x4& other) const { return vminq_u32(Data, other.Data); }
     forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const
@@ -628,6 +654,8 @@ struct alignas(16) I16x8 : public detail::Neon128Common<I16x8>, public detail::S
     forceinline I16x8 VECCALL Sub(const I16x8& other) const { return vsubq_s16(Data, other.Data); }
     forceinline I16x8 VECCALL MulLo(const I16x8& other) const { return vmulq_s16(Data, other.Data); }
     //forceinline I16x8 VECCALL Div(const I16x8& other) const { return vdivq_s16(Data, other.Data); }
+    forceinline I16x8 VECCALL Neg() const { return vnegq_s16(Data); }
+    forceinline I16x8 VECCALL Abs() const { return vabsq_s16(Data); }
     forceinline I16x8 VECCALL Max(const I16x8& other) const { return vmaxq_s16(Data, other.Data); }
     forceinline I16x8 VECCALL Min(const I16x8& other) const { return vminq_s16(Data, other.Data); }
     forceinline Pack<I32x4, 2> VECCALL MulX(const I16x8& other) const
@@ -664,6 +692,7 @@ struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::S
     forceinline U16x8 VECCALL Sub(const U16x8& other) const { return vsubq_u16(Data, other.Data); }
     forceinline U16x8 VECCALL MulLo(const U16x8& other) const { return vmulq_u16(Data, other.Data); }
     //forceinline U16x8 VECCALL Div(const U16x8& other) const { return vdivq_u16(Data, other.Data); }
+    forceinline U16x8 VECCALL Abs() const { return Data; }
     forceinline U16x8 VECCALL Max(const U16x8& other) const { return vmaxq_u16(Data, other.Data); }
     forceinline U16x8 VECCALL Min(const U16x8& other) const { return vminq_u16(Data, other.Data); }
     forceinline Pack<U32x4, 2> VECCALL MulX(const U16x8& other) const
@@ -759,6 +788,8 @@ struct alignas(16) I8x16 : public detail::Neon128Common<I8x16>, public detail::S
     forceinline I8x16 VECCALL Sub(const I8x16& other) const { return vsubq_s8(Data, other.Data); }
     forceinline I8x16 VECCALL MulLo(const I8x16& other) const { return vmulq_s8(Data, other.Data); }
     //forceinline I8x16 VECCALL Div(const I8x16& other) const { return vdivq_s8(Data, other.Data); }
+    forceinline I8x16 VECCALL Neg() const { return vnegq_s8(Data); }
+    forceinline I8x16 VECCALL Abs() const { return vabsq_s8(Data); }
     forceinline I8x16 VECCALL Max(const I8x16& other) const { return vmaxq_s8(Data, other.Data); }
     forceinline I8x16 VECCALL Min(const I8x16& other) const { return vminq_s8(Data, other.Data); }
     forceinline Pack<I16x8, 2> VECCALL MulX(const I8x16& other) const
@@ -801,6 +832,7 @@ struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::S
     forceinline U8x16 VECCALL Sub(const U8x16& other) const { return vsubq_u8(Data, other.Data); }
     forceinline U8x16 VECCALL MulLo(const U8x16& other) const { return vmulq_u8(Data, other.Data); }
     //forceinline U8x16 VECCALL Div(const U8x16& other) const { return vdivq_u8(Data, other.Data); }
+    forceinline U8x16 VECCALL Abs() const { return Data; }
     forceinline U8x16 VECCALL Max(const U8x16& other) const { return vmaxq_u8(Data, other.Data); }
     forceinline U8x16 VECCALL Min(const U8x16& other) const { return vminq_u8(Data, other.Data); }
     forceinline Pack<U16x8, 2> VECCALL MulX(const U8x16& other) const

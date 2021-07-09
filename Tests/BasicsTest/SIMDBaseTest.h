@@ -12,7 +12,7 @@ template<typename T, size_t N>
 static std::string GenerateMatchStr(const std::array<T, N>& ref)
 {
     std::string ret; ret.reserve(256);
-    ret.append("Shuffle to [");
+    ret.append("[");
     bool isFirst = true;
     for (const auto val : ref)
     {
@@ -144,10 +144,13 @@ static constexpr T GenerateTSeq(std::index_sequence<Idxes...>)
     return T(static_cast<ArgType>(Begin + Idxes)...);
 }
 
+
+#define ForKItem(n) for (size_t k = 0; k * sizeof(T) * n < RandValBytes; k += n)
+
 template<typename T>
 static void TestAdd(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -162,7 +165,7 @@ static void TestAdd(const T* ptr)
 template<typename T>
 static void TestSub(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -177,7 +180,7 @@ static void TestSub(const T* ptr)
 template<typename T>
 static void TestSatAdd(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -196,7 +199,7 @@ static void TestSatAdd(const T* ptr)
 template<typename T>
 static void TestSatSub(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -215,7 +218,7 @@ static void TestSatSub(const T* ptr)
 template<typename T>
 static void TestMul(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -230,7 +233,7 @@ static void TestMul(const T* ptr)
 template<typename T>
 static void TestMulLo(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -245,7 +248,7 @@ static void TestMulLo(const T* ptr)
 template<typename T>
 static void TestMulHi(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -278,7 +281,7 @@ static void TestMulHi(const T* ptr)
 template<typename T>
 static void TestMulX(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -296,25 +299,83 @@ static void TestMulX(const T* ptr)
 }
 
 template<typename T>
+static constexpr auto CheckDivVec(const T*) -> typename std::is_same<decltype(std::declval<T>().Div(std::declval<T>())), T>::type;
+template<typename T>
+static constexpr std::false_type CheckDivVec(...);
+template<typename T>
 static void TestDiv(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    if constexpr(decltype(CheckDivVec<T>(0))::value)
     {
-        const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
+        ForKItem(2)
+        {
+            const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
+            using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+            const auto output = data1.Div(data2);
+            std::array<U, T::Count> ref = { 0 };
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = data1.Val[i] / data2.Val[i];
+            //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+            EXPECT_THAT(output.Val, MatchVec(ref));
+        }
+    }
+    else
+    {
+        ForKItem(1)
+        {
+            const auto data = ptr[k + 0];
+            using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+            const auto output = data.Div(data.Val[0]);
+            std::array<U, T::Count> ref = { 0 };
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = data.Val[i] / data.Val[0];
+            //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+            EXPECT_THAT(output.Val, MatchVec(ref));
+        }
+    }
+}
+
+template<typename T>
+static void TestNeg(const T* ptr)
+{
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
-        const auto output = data1.Div(data2);
-        std::array<U, T::Count> ref = { 0 };
+        const auto output = data.Neg();
+        U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
-            ref[i] = data1.Val[i] / data2.Val[i];
-        //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
-        EXPECT_THAT(output.Val, MatchVec(ref));
+        {
+            ref[i] = static_cast<U>(-data.Val[i]);
+        }
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+    }
+}
+
+template<typename T>
+static void TestAbs(const T* ptr)
+{
+    ForKItem(1)
+    {
+        const auto data = ptr[k + 0];
+        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        const auto output = data.Abs();
+        U ref[T::Count] = { 0 };
+        for (uint8_t i = 0; i < T::Count; ++i)
+        {
+            if constexpr (std::is_unsigned_v<U>)
+                ref[i] = data.Val[i];
+            else
+                ref[i] = static_cast<U>(data.Val[i] < 0 ? -data.Val[i] : data.Val[i]);
+        }
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
     }
 }
 
 template<typename T>
 static void TestAnd(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -329,7 +390,7 @@ static void TestAnd(const T* ptr)
 template<typename T>
 static void TestOr(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -344,7 +405,7 @@ static void TestOr(const T* ptr)
 template<typename T>
 static void TestXor(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -359,7 +420,7 @@ static void TestXor(const T* ptr)
 template<typename T>
 static void TestAndNot(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -374,7 +435,7 @@ static void TestAndNot(const T* ptr)
 template<typename T>
 static void TestNot(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 1 < RandValBytes; ++k)
+    ForKItem(1)
     {
         const auto data = ptr[k + 0];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -389,7 +450,7 @@ static void TestNot(const T* ptr)
 template<typename T>
 static void TestMin(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -404,7 +465,7 @@ static void TestMin(const T* ptr)
 template<typename T>
 static void TestMax(const T* ptr)
 {
-    for (size_t k = 0; k * sizeof(T) * 2 < RandValBytes; ++k)
+    ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
         using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
@@ -415,11 +476,12 @@ static void TestMax(const T* ptr)
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
     }
 }
-
+#undef ForKItem
 
 enum class TestItem : uint32_t
 {
-    Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, Div = 0x100,
+    Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
+    Div = 0x100, Neg = 0x200, Abs = 0x400,
     And = 0x1000, Or = 0x2000, Xor = 0x4000, AndNot = 0x8000, Not = 0x10000, Min = 0x20000, Max = 0x40000,
 };
 MAKE_ENUM_BITFIELD(TestItem)
@@ -434,7 +496,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, std::decay_t<decltype(std::declval<T>().Val[0])>>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, Mul, Div, And, Or, Xor, AndNot, Not, Min, Max)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, Mul, Div, Neg, Abs, And, Or, Xor, AndNot, Not, Min, Max)
 #undef AddItems
 #undef AddItem
     }
