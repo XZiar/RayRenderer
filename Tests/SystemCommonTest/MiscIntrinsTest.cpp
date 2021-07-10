@@ -1,9 +1,80 @@
 #include "rely.h"
 #include <algorithm>
+#include "SystemCommon/CopyEx.h"
 #include "SystemCommon/MiscIntrins.h"
 
 
 using namespace std::string_view_literals;
+
+INTRIN_TESTSUITE(CopyEx, common::CopyManager);
+TEST_F(CopyEx, Complete)
+{
+    for (const auto& [inst, var] : common::CopyEx.GetIntrinMap())
+    {
+        TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
+    }
+    ASSERT_TRUE(common::CopyEx.IsComplete());
+}
+
+INTRIN_TEST(CopyEx, Broadcast2)
+{
+    constexpr uint16_t val = 0x8023;
+    {
+        std::array<uint16_t, 3> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint16_t, 17> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint16_t, 35> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint16_t, 68> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint16_t, 139> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+}
+
+INTRIN_TEST(CopyEx, Broadcast4)
+{
+    constexpr uint32_t val = 0xdeafbeefu;
+    {
+        std::array<uint32_t, 3> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint32_t, 17> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint32_t, 35> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint32_t, 68> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+    {
+        std::array<uint32_t, 139> dst = { 0 };
+        Intrin->BroadcastMany(dst.data(), val, dst.size());
+        EXPECT_THAT(dst, testing::Each(val));
+    }
+}
 
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins);

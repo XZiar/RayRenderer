@@ -195,6 +195,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CopyEx.cpp" />
     <ClCompile Include="HResultHelper.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -217,6 +218,7 @@
     <ClCompile Include="ThreadEx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CopyEx.h" />
     <ClInclude Include="HResultHelper.h" />
     <ClInclude Include="MiscIntrins.h" />
     <ClInclude Include="ColorConsole.h" />

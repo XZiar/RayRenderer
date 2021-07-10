@@ -1,19 +1,11 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
 #include "common/simd/SIMD.hpp"
-#include "common/StrParsePack.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
-#if COMMON_ARCH_X86
-#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
-#endif
-#include <boost/preprocessor/tuple/enum.hpp>
-#include <boost/preprocessor/tuple/to_seq.hpp>
-
-#pragma message("Compiling MiscIntrins with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace common
 {
-namespace intrin
+namespace fastpath
 {
 struct LeadZero32 { using RetType = uint32_t; };
 struct LeadZero64 { using RetType = uint32_t; };
@@ -26,10 +18,6 @@ struct ByteSwap32 { using RetType = uint32_t; };
 struct ByteSwap64 { using RetType = uint64_t; };
 struct Sha256     { using RetType = std::array<std::byte, 32>; };
 
-struct FuncVarBase 
-{ 
-    static bool RuntimeCheck(const std::optional<cpu_id_t>&) noexcept { return true; }
-};
 struct NAIVE : FuncVarBase {};
 struct COMPILER : FuncVarBase {};
 struct OS : FuncVarBase {};
@@ -89,38 +77,16 @@ struct SHANI
     }
 };
 }
-template<typename Intrin, typename Method>
-constexpr bool CheckExists() noexcept 
-{
-    return false;
-}
-template<typename Intrin, typename Method, typename F>
-constexpr void InjectFunc(F&) noexcept
-{
-    static_assert(AlwaysTrue<F>, "Should not pass CheckExists");
-}
-
-
-#define DEFINE_INTRIN_METHOD(func, var, ...)                                                \
-template<>                                                                                  \
-constexpr bool CheckExists<intrin::func, intrin::var>() noexcept                            \
-{ return true; }                                                                            \
-static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept;                   \
-template<>                                                                                  \
-constexpr void InjectFunc<intrin::func, intrin::var>(decltype(&func##_##var)& f) noexcept   \
-{ f = func##_##var; }                                                                       \
-static typename intrin::func::RetType func##_##var(__VA_ARGS__) noexcept                    \
-
 
 
 #if COMMON_COMPILER_MSVC
 
-DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
     unsigned long idx = 0;
     return _BitScanReverse(&idx, num) ? 31 - idx : 32;
 }
-DEFINE_INTRIN_METHOD(LeadZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER, const uint64_t num)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -134,12 +100,12 @@ DEFINE_INTRIN_METHOD(LeadZero64, COMPILER, const uint64_t num)
 #   endif
 }
 
-DEFINE_INTRIN_METHOD(TailZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, COMPILER, const uint32_t num)
 {
     unsigned long idx = 0;
     return _BitScanForward(&idx, num) ? idx : 32;
 }
-DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, COMPILER, const uint64_t num)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -155,29 +121,29 @@ DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
 
 #elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
 
-DEFINE_INTRIN_METHOD(LeadZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER, const uint32_t num)
 {
     return num == 0 ? 32 : __builtin_clz(num);
 }
-DEFINE_INTRIN_METHOD(LeadZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER, const uint64_t num)
 {
     return num == 0 ? 64 : __builtin_clzll(num);
 }
 
-DEFINE_INTRIN_METHOD(TailZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, COMPILER, const uint32_t num)
 {
     return num == 0 ? 32 : __builtin_ctz(num);
 }
-DEFINE_INTRIN_METHOD(TailZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, COMPILER, const uint64_t num)
 {
     return num == 0 ? 64 : __builtin_ctzll(num);
 }
 
-DEFINE_INTRIN_METHOD(PopCount32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(PopCount32, COMPILER, const uint32_t num)
 {
     return __builtin_popcount(num);
 }
-DEFINE_INTRIN_METHOD(PopCount64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, COMPILER, const uint64_t num)
 {
     return __builtin_popcountll(num);
 }
@@ -185,28 +151,28 @@ DEFINE_INTRIN_METHOD(PopCount64, COMPILER, const uint64_t num)
 #endif
 
 
-//DEFINE_INTRIN_METHOD(LeadZero32, NAIVE, const uint32_t num)
+//DEFINE_FASTPATH_METHOD(LeadZero32, NAIVE, const uint32_t num)
 //{
 //}
-//DEFINE_INTRIN_METHOD(LeadZero64, NAIVE, const uint64_t num)
-//{
-//}
-
-//DEFINE_INTRIN_METHOD(TailZero32, NAIVE, const uint32_t num)
-//{
-//}
-//DEFINE_INTRIN_METHOD(TailZero64, NAIVE, const uint64_t num)
+//DEFINE_FASTPATH_METHOD(LeadZero64, NAIVE, const uint64_t num)
 //{
 //}
 
-DEFINE_INTRIN_METHOD(PopCount32, NAIVE, const uint32_t num)
+//DEFINE_FASTPATH_METHOD(TailZero32, NAIVE, const uint32_t num)
+//{
+//}
+//DEFINE_FASTPATH_METHOD(TailZero64, NAIVE, const uint64_t num)
+//{
+//}
+
+DEFINE_FASTPATH_METHOD(PopCount32, NAIVE, const uint32_t num)
 {
     auto tmp = num - ((num >> 1) & 0x55555555u);
     tmp = (tmp & 0x33333333u) + ((tmp >> 2) & 0x33333333u);
     tmp = (tmp + (tmp >> 4)) & 0x0f0f0f0fu;
     return (tmp * 0x01010101u) >> 24;
 }
-DEFINE_INTRIN_METHOD(PopCount64, NAIVE, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, NAIVE, const uint64_t num)
 {
     auto tmp = num - ((num >> 1) & 0x5555555555555555u);
     tmp = (tmp & 0x3333333333333333u) + ((tmp >> 2) & 0x3333333333333333u);
@@ -214,7 +180,7 @@ DEFINE_INTRIN_METHOD(PopCount64, NAIVE, const uint64_t num)
     return (tmp * 0x0101010101010101u) >> 56;
 }
 
-DEFINE_INTRIN_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
+DEFINE_FASTPATH_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
 {
     std::array<std::byte, 32> output;
     digestpp::sha256().absorb(data, size)
@@ -226,11 +192,11 @@ DEFINE_INTRIN_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
 #pragma message("Compiling MiscIntrins with LZCNT")
 
-DEFINE_INTRIN_METHOD(LeadZero32, LZCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, LZCNT, const uint32_t num)
 {
     return _lzcnt_u32(num);
 }
-DEFINE_INTRIN_METHOD(LeadZero64, LZCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, LZCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_lzcnt_u64(num));
@@ -247,11 +213,11 @@ DEFINE_INTRIN_METHOD(LeadZero64, LZCNT, const uint64_t num)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && defined(__BMI__))
 #pragma message("Compiling MiscIntrins with TZCNT")
 
-DEFINE_INTRIN_METHOD(TailZero32, TZCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, TZCNT, const uint32_t num)
 {
     return _tzcnt_u32(num);
 }
-DEFINE_INTRIN_METHOD(TailZero64, TZCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, TZCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_tzcnt_u64(num));
@@ -268,11 +234,11 @@ DEFINE_INTRIN_METHOD(TailZero64, TZCNT, const uint64_t num)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 42*/) || (!COMMON_COMPILER_MSVC && defined(__POPCNT__))
 #pragma message("Compiling MiscIntrins with POPCNT")
 
-DEFINE_INTRIN_METHOD(PopCount32, POPCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(PopCount32, POPCNT, const uint32_t num)
 {
     return _mm_popcnt_u32(num);
 }
-DEFINE_INTRIN_METHOD(PopCount64, POPCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, POPCNT, const uint64_t num)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_mm_popcnt_u64(num));
@@ -565,7 +531,7 @@ forceinline static void VECCALL Sha256Block_SHANI(__m128i& state0, __m128i& stat
     state1 = _mm_add_epi32(state1, cdgh_save);
 }
 
-DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
+DEFINE_FASTPATH_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
 {
     return Sha256SSE(data, size, Sha256Block_SHANI);
 }
@@ -573,42 +539,6 @@ DEFINE_INTRIN_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
 #   endif
 
 #endif
-
-
-
-#define RegistFuncVar(r, func, var)                         \
-if constexpr (CheckExists<intrin::func, intrin::var>())     \
-{                                                           \
-    if (intrin::var::RuntimeCheck(info))                    \
-        ret.emplace_back(STRINGIZE(func), STRINGIZE(var));  \
-}                                                           \
-
-#define RegistFuncVars(func, ...) do                                                \
-{                                                                                   \
-BOOST_PP_SEQ_FOR_EACH(RegistFuncVar, func, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))   \
-} while(0)                                                                          \
-
-
-#define SWITCH_VAR_CASE(v, func, var)                               \
-HashCase(v, STRINGIZE(var))                                         \
-if constexpr (CheckExists<intrin::func, intrin::var>())             \
-{                                                                   \
-    if (func == nullptr)                                            \
-    {                                                               \
-        InjectFunc<intrin::func, intrin::var>(func);                \
-        VariantMap.emplace_back(STRINGIZE(func), STRINGIZE(var));   \
-    }                                                               \
-}                                                                   \
-break;                                                              \
-
-#define SWITCH_VAR_CASE_(r, vf, var) SWITCH_VAR_CASE(BOOST_PP_TUPLE_ELEM(0, vf), BOOST_PP_TUPLE_ELEM(1, vf), var)
-#define SWITCH_VAR_CASES(vf, vars) BOOST_PP_SEQ_FOR_EACH(SWITCH_VAR_CASE_, vf, vars)
-#define CHECK_FUNC_VARS(f, v, func, ...)                            \
-HashCase(f, STRINGIZE(func))                                        \
-switch (DJBHash::HashC(v))                                          \
-{                                                                   \
-SWITCH_VAR_CASES((v, func), BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))  \
-} break                                                             \
 
 
 common::span<const MiscIntrins::VarItem> MiscIntrins::GetSupportMap() noexcept

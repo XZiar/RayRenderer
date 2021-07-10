@@ -31,7 +31,6 @@ struct F64x4;
 namespace detail
 {
 
-#if COMMON_SIMD_LV >= 200
 template<typename T, typename E, size_t N>
 struct Int256Common : public CommonOperators<T>
 {
@@ -49,7 +48,11 @@ struct Int256Common : public CommonOperators<T>
     constexpr Int256Common() : Data() { }
     explicit Int256Common(const E* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr Int256Common(const __m256i val) : Data(val) { }
+    forceinline void VECCALL Load(const E* ptr) { Data = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
+    forceinline void VECCALL Save(E* ptr) const { _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), Data); }
+    forceinline constexpr operator const __m256i& () const noexcept { return Data; }
 
+#if COMMON_SIMD_LV >= 200
     // logic operations
     forceinline T VECCALL And(const T& other) const
     {
@@ -73,11 +76,8 @@ struct Int256Common : public CommonOperators<T>
     }
     forceinline T VECCALL MoveHiToLo() const { return _mm256_permute4x64_epi64(Data, 0b01001110); }
     forceinline T VECCALL ShuffleHiLo() const { return _mm256_permute4x64_epi64(Data, 0b01001110); }
-    forceinline void VECCALL Load(const E *ptr) { Data = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
-    forceinline void VECCALL Save(E *ptr) const { _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), Data); }
-    forceinline constexpr operator const __m256i&() const noexcept { return Data; }
-};
 #endif
+};
 
 }
 
@@ -370,7 +370,6 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
 };
 
 
-#if COMMON_SIMD_LV >= 200
 template<typename T, typename E>
 struct alignas(32) I64Common4 : public detail::Int256Common<T, E, 4>
 {
@@ -382,6 +381,7 @@ public:
     I64Common4(const E lo0, const E lo1, const E lo2, const E hi3) : 
         Int256Common(_mm256_setr_epi64x(static_cast<int64_t>(lo0), static_cast<int64_t>(lo1), static_cast<int64_t>(lo2), static_cast<int64_t>(hi3))) { }
 
+#if COMMON_SIMD_LV >= 200
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline T VECCALL Shuffle() const
@@ -408,18 +408,19 @@ public:
 
     forceinline T VECCALL MulLo(const T& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return _mm256_mullo_epi64(this->Data, other.Data);
-#else
+# else
         const E 
             lo0A = _mm256_extract_epi64(this->Data, 0), lo1A = _mm256_extract_epi64(this->Data, 1), 
             lo2A = _mm256_extract_epi64(this->Data, 2), hi3A = _mm256_extract_epi64(this->Data, 3),
             lo0B = _mm256_extract_epi64(other.Data, 0), lo1B = _mm256_extract_epi64(other.Data, 1), 
             lo2B = _mm256_extract_epi64(other.Data, 2), hi3B = _mm256_extract_epi64(other.Data, 3);
         return { static_cast<E>(lo0A * lo0B), static_cast<E>(lo1A * lo1B), static_cast<E>(lo2A * lo2B), static_cast<E>(hi3A * hi3B) };
-#endif
+# endif
     }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+#endif
 };
 
 
@@ -428,25 +429,26 @@ struct alignas(32) I64x4 : public I64Common4<I64x4, int64_t>
     using I64Common4<I64x4, int64_t>::I64Common4;
     I64x4(const Pack<I64x2, 2>& pack) : I64Common4(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline I64x4 VECCALL Neg() const { return _mm256_sub_epi64(_mm256_setzero_si256(), this->Data); }
     forceinline I64x4 VECCALL Max(const I64x4& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return _mm256_max_epi64(this->Data, other.Data);
-#else
+# else
         const auto isGt = _mm256_cmpgt_epi64(this->Data, other.Data);
         return _mm256_blendv_epi8(other.Data, this->Data, isGt);
-#endif
+# endif
     }
     forceinline I64x4 VECCALL Min(const I64x4& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return _mm256_min_epi64(this->Data, other.Data);
-#else
+# else
         const auto isGt = _mm256_cmpgt_epi64(this->Data, other.Data);
         return _mm256_blendv_epi8(this->Data, other.Data, isGt);
-#endif
+# endif
     }
     forceinline I64x4 VECCALL Abs() const
     {
@@ -457,9 +459,10 @@ struct alignas(32) I64x4 : public I64Common4<I64x4, int64_t>
         return _mm256_castpd_si256(_mm256_blendv_pd(_mm256_castsi256_pd(this->Data), _mm256_castsi256_pd(neg), _mm256_castsi256_pd(this->Data)));
 # endif
     }
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
     template<uint8_t N>
     forceinline I64x4 VECCALL ShiftRightArth() const { return _mm256_srai_epi64(this->Data, N); }
+# endif
 #endif
 };
 
@@ -468,6 +471,7 @@ struct alignas(32) U64x4 : public I64Common4<U64x4, uint64_t>
     using I64Common4<U64x4, uint64_t>::I64Common4;
     U64x4(const Pack<U64x2, 2>& pack) : I64Common4(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline U64x4 VECCALL SatAdd(const U64x4& other) const
     {
@@ -475,36 +479,37 @@ struct alignas(32) U64x4 : public I64Common4<U64x4, uint64_t>
     }
     forceinline U64x4 VECCALL SatSub(const U64x4& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return Max(other).Sub(other);
-#else
+# else
         const auto signBit = _mm256_set1_epi64x(0x8000000000000000LL);
         const auto isGt = _mm256_cmpgt_epi64(_mm256_xor_si256(this->Data, signBit), _mm256_xor_si256(other, signBit));
         const auto sub = Sub(other);
         return _mm256_blendv_epi8(_mm256_setzero_si256(), sub, isGt);
-#endif
+# endif
     }
     forceinline U64x4 VECCALL Max(const U64x4& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return _mm256_max_epu64(this->Data, other.Data);
-#else
+# else
         const auto signBit = _mm256_set1_epi64x(0x8000000000000000LL);
         const auto isGt = _mm256_cmpgt_epi64(_mm256_xor_si256(this->Data, signBit), _mm256_xor_si256(other, signBit));
         return _mm256_blendv_epi8(other, this->Data, isGt);
-#endif
+# endif
     }
     forceinline U64x4 VECCALL Min(const U64x4& other) const
     {
-#if COMMON_SIMD_LV >= 320
+# if COMMON_SIMD_LV >= 320
         return _mm256_min_epu64(this->Data, other.Data);
-#else
+# else
         const auto signBit = _mm256_set1_epi64x(0x8000000000000000LL);
         const auto isGt = _mm256_cmpgt_epi64(_mm256_xor_si256(this->Data, signBit), _mm256_xor_si256(other, signBit));
         return _mm256_blendv_epi8(this->Data, other, isGt);
-#endif
+# endif
     }
     forceinline U64x4 VECCALL Abs() const { return Data; }
+#endif
 };
 
 
@@ -519,6 +524,7 @@ public:
     I32Common8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) :
         Int256Common(_mm256_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(lo3), static_cast<int32_t>(lo4), static_cast<int32_t>(lo5), static_cast<int32_t>(lo6), static_cast<int32_t>(hi7))) { }
 
+#if COMMON_SIMD_LV >= 200
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
     forceinline T VECCALL Shuffle() const
@@ -545,6 +551,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic() const { return _mm256_slli_epi32(this->Data, N); }
     forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi32(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+#endif
 };
 
 
@@ -553,6 +560,7 @@ struct alignas(32) I32x8 : public I32Common8<I32x8, int32_t>
     using I32Common8<I32x8, int32_t>::I32Common8;
     I32x8(const Pack<I32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline I32x8 VECCALL Neg() const { return _mm256_sub_epi32(_mm256_setzero_si256(), this->Data); }
     forceinline I32x8 VECCALL Abs() const { return _mm256_abs_epi32(this->Data); }
@@ -565,6 +573,7 @@ struct alignas(32) I32x8 : public I32Common8<I32x8, int32_t>
     forceinline I32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi32(this->Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I32x8 VECCALL ShiftRightArth() const { return _mm256_srai_epi32(this->Data, N); }
+#endif
 };
 
 struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
@@ -572,6 +581,7 @@ struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
     using I32Common8<U32x8, uint32_t>::I32Common8;
     U32x8(const Pack<U32x4, 2>& pack) : I32Common8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline U32x8 VECCALL SatAdd(const U32x8& other) const { return Min(other.Not()).Add(other); }
     forceinline U32x8 VECCALL SatSub(const U32x8& other) const { return Max(other).Sub(other); }
@@ -585,6 +595,7 @@ struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
     forceinline U32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi32(this->Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U32x8 VECCALL ShiftRightArth() const { return _mm256_srli_epi32(this->Data, N); }
+#endif
 };
 
 
@@ -603,6 +614,7 @@ public:
             static_cast<int16_t>(lo8), static_cast<int16_t>(lo9), static_cast<int16_t>(lo10), static_cast<int16_t>(lo11), 
             static_cast<int16_t>(lo12), static_cast<int16_t>(lo13), static_cast<int16_t>(lo14), static_cast<int16_t>(hi15))) { }
 
+#if COMMON_SIMD_LV >= 200
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
     forceinline T VECCALL Shuffle() const
@@ -636,6 +648,7 @@ public:
         const auto los = MulLo(other), his = static_cast<const T*>(this)->MulHi(other);
         return { _mm256_unpacklo_epi16(los, his),_mm256_unpackhi_epi16(los, his) };
     }
+#endif
 };
 
 
@@ -644,6 +657,7 @@ struct alignas(32) I16x16 : public I16Common16<I16x16, int16_t>
     using I16Common16<I16x16, int16_t>::I16Common16;
     I16x16(const Pack<I16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline I16x16 VECCALL Neg() const { return _mm256_sub_epi16(_mm256_setzero_si256(), this->Data); }
     forceinline I16x16 VECCALL Abs() const { return _mm256_abs_epi16(this->Data); }
@@ -655,6 +669,7 @@ struct alignas(32) I16x16 : public I16Common16<I16x16, int16_t>
     forceinline I16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi16(this->Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I16x16 VECCALL ShiftRightArth() const { return _mm256_srai_epi16(this->Data, N); }
+#endif
 };
 
 
@@ -663,6 +678,7 @@ struct alignas(32) U16x16 : public I16Common16<U16x16, uint16_t>
     using I16Common16<U16x16, uint16_t>::I16Common16;
     U16x16(const Pack<U16x8, 2>& pack) : I16Common16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline U16x16 VECCALL SatAdd(const U16x16& other) const { return _mm256_adds_epu16(this->Data, other.Data); }
     forceinline U16x16 VECCALL SatSub(const U16x16& other) const { return _mm256_subs_epu16(this->Data, other.Data); }
@@ -673,6 +689,7 @@ struct alignas(32) U16x16 : public I16Common16<U16x16, uint16_t>
     forceinline U16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi16(this->Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x16 VECCALL ShiftRightArth() const { return _mm256_srli_epi16(this->Data, N); }
+#endif
 };
 
 
@@ -697,6 +714,7 @@ public:
             static_cast<int8_t>(lo24), static_cast<int8_t>(lo25), static_cast<int8_t>(lo26), static_cast<int8_t>(lo27), 
             static_cast<int8_t>(lo28), static_cast<int8_t>(lo29), static_cast<int8_t>(lo30), static_cast<int8_t>(hi31))) { }
 
+#if COMMON_SIMD_LV >= 200
     // shuffle operations
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Lo15,
         uint8_t Lo16, uint8_t Lo17, uint8_t Lo18, uint8_t Lo19, uint8_t Lo20, uint8_t Lo21, uint8_t Lo22, uint8_t Lo23, uint8_t Lo24, uint8_t Lo25, uint8_t Lo26, uint8_t Lo27, uint8_t Lo28, uint8_t Lo29, uint8_t Lo30, uint8_t Hi31>
@@ -719,6 +737,7 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi8(this->Data, other.Data); }
+#endif
 };
 
 
@@ -727,6 +746,7 @@ struct alignas(32) I8x32 : public I8Common32<I8x32, int8_t>
     using I8Common32<I8x32, int8_t>::I8Common32;
     I8x32(const Pack<I8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline I8x32 VECCALL Neg() const { return _mm256_sub_epi8(_mm256_setzero_si256(), this->Data); }
     forceinline I8x32 VECCALL Abs() const { return _mm256_abs_epi8(this->Data); }
@@ -751,7 +771,9 @@ struct alignas(32) I8x32 : public I8Common32<I8x32, int8_t>
         return _mm256_permute4x64_epi64(_mm256_packus_epi16(lo, hi), 0b11011000);
     }
     forceinline I8x32 VECCALL operator*(const I8x32& other) const { return MulLo(other); }
+#endif
 };
+#if COMMON_SIMD_LV >= 200
 template<> forceinline Pack<I16x16, 2> VECCALL I8x32::Cast<I16x16>() const
 {
     return { _mm256_cvtepi8_epi16(_mm256_castsi256_si128(this->Data)), _mm256_cvtepi8_epi16(_mm256_extracti128_si256(this->Data, 1)) };
@@ -761,6 +783,7 @@ forceinline Pack<I16x16, 2> VECCALL I8x32::MulX(const I8x32& other) const
     const auto self16 = Cast<I16x16>(), other16 = other.Cast<I16x16>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
+#endif
 
 
 struct alignas(32) U8x32 : public I8Common32<U8x32, uint8_t>
@@ -768,6 +791,7 @@ struct alignas(32) U8x32 : public I8Common32<U8x32, uint8_t>
     using I8Common32<U8x32, uint8_t>::I8Common32;
     U8x32(const Pack<U8x16, 2>& pack) : I8Common32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
+#if COMMON_SIMD_LV >= 200
     // arithmetic operations
     forceinline U8x32 VECCALL SatAdd(const U8x32& other) const { return _mm256_adds_epu8(this->Data, other.Data); }
     forceinline U8x32 VECCALL SatSub(const U8x32& other) const { return _mm256_subs_epu8(this->Data, other.Data); }
@@ -792,7 +816,9 @@ struct alignas(32) U8x32 : public I8Common32<U8x32, uint8_t>
         return U8x32(odd.ShiftLeftLogic<8>() | (even & mask));
     }
     Pack<U16x16, 2> VECCALL MulX(const U8x32& other) const;
+#endif
 };
+#if COMMON_SIMD_LV >= 200
 template<> forceinline Pack<I16x16, 2> VECCALL U8x32::Cast<I16x16>() const
 {
     return { _mm256_cvtepu8_epi16(_mm256_castsi256_si128(this->Data)), _mm256_cvtepu8_epi16(_mm256_extracti128_si256(this->Data, 1)) };
@@ -806,7 +832,6 @@ forceinline Pack<U16x16, 2> VECCALL U8x32::MulX(const U8x32& other) const
     const auto self16 = Cast<U16x16>(), other16 = other.Cast<U16x16>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
-
 #endif
 
 }

@@ -1,4 +1,5 @@
 #include "SystemCommonPch.h"
+#pragma message("Compiling SystemCommon with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace common
 {

@@ -5,6 +5,9 @@
 #include "common/MemoryStream.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
+#include "common/StrParsePack.hpp"
+#include <boost/preprocessor/tuple/enum.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
 #if COMMON_ARCH_X86
 #   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #elif COMMON_OS_LINUX
@@ -70,5 +73,73 @@ namespace common
 [[nodiscard]] const std::optional<cpu_id_t>& GetCPUInfo() noexcept;
 // follow initializer may not work
 // uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
+
+
+namespace fastpath
+{
+struct FuncVarBase
+{
+    static bool RuntimeCheck(const std::optional<cpu_id_t>&) noexcept { return true; }
+};
+}
+
+template<typename Func, typename Method>
+constexpr bool CheckExists() noexcept
+{
+    return false;
+}
+template<typename Func, typename Method, typename F>
+constexpr void InjectFunc(F&) noexcept
+{
+    static_assert(AlwaysTrue<F>, "Should not pass CheckExists");
+}
+
+
+#define DEFINE_FASTPATH_METHOD(func, var, ...)                                                  \
+template<>                                                                                      \
+constexpr bool CheckExists<fastpath::func, fastpath::var>() noexcept                            \
+{ return true; }                                                                                \
+static typename fastpath::func::RetType func##_##var(__VA_ARGS__) noexcept;                     \
+template<>                                                                                      \
+constexpr void InjectFunc<fastpath::func, fastpath::var>(decltype(&func##_##var)& f) noexcept   \
+{ f = func##_##var; }                                                                           \
+static typename fastpath::func::RetType func##_##var(__VA_ARGS__) noexcept                      \
+
+#define CALL_FASTPATH_METHOD(func, var, ...) func##_##var(__VA_ARGS__)
+
+#define RegistFuncVar(r, func, var)                         \
+if constexpr (CheckExists<fastpath::func, fastpath::var>()) \
+{                                                           \
+    if (fastpath::var::RuntimeCheck(info))                  \
+        ret.emplace_back(STRINGIZE(func), STRINGIZE(var));  \
+}                                                           \
+
+#define RegistFuncVars(func, ...) do                                                \
+{                                                                                   \
+BOOST_PP_SEQ_FOR_EACH(RegistFuncVar, func, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))   \
+} while(0)                                                                          \
+
+#define SWITCH_VAR_CASE(v, func, var)                               \
+HashCase(v, STRINGIZE(var))                                         \
+if constexpr (CheckExists<fastpath::func, fastpath::var>())         \
+{                                                                   \
+    if (func == nullptr)                                            \
+    {                                                               \
+        InjectFunc<fastpath::func, fastpath::var>(func);            \
+        VariantMap.emplace_back(STRINGIZE(func), STRINGIZE(var));   \
+    }                                                               \
+}                                                                   \
+break;                                                              \
+
+#define SWITCH_VAR_CASE_(r, vf, var) SWITCH_VAR_CASE(BOOST_PP_TUPLE_ELEM(0, vf), BOOST_PP_TUPLE_ELEM(1, vf), var)
+#define SWITCH_VAR_CASES(vf, vars) BOOST_PP_SEQ_FOR_EACH(SWITCH_VAR_CASE_, vf, vars)
+#define CHECK_FUNC_VARS(f, v, func, ...)                            \
+HashCase(f, STRINGIZE(func))                                        \
+switch (DJBHash::HashC(v))                                          \
+{                                                                   \
+SWITCH_VAR_CASES((v, func), BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))  \
+} break                                                             \
+
+
 
 }
