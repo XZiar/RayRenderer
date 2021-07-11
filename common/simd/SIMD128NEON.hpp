@@ -662,10 +662,21 @@ struct alignas(16) I16x8 : public detail::Neon128Common<I16x8>, public detail::S
     {
         return { vmull_s16(vget_low_s16(Data), vget_low_s16(other.Data)), vmull_high_s16(Data, other.Data) };
     }
+    template<typename T>
+    typename CastTyper<I16x8, T>::Type VECCALL Cast() const;
     /*forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
+template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4>() const
+{
+    return { vmovl_s32(vget_low_s16(Data)), vmovl_s32(vget_high_s16(Data)) };
+}
+template<> forceinline Pack<U32x4, 2> VECCALL I16x8::Cast<U32x4>() const
+{
+    const auto ret = Cast<I32x4>();
+    return { vreinterpretq_u32_s32(ret[0].Data), vreinterpretq_u32_s32(ret[1].Data) };
+}
 
 
 struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::Shuffle32Common<U16x8>, public I16Common8<U16x8, uint16_t>
@@ -699,10 +710,26 @@ struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::S
     {
         return { vmull_u16(vget_low_u16(Data), vget_low_u16(other.Data)), vmull_high_u16(Data, other.Data) };
     }
+    template<typename T>
+    typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
     /*forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
+template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
+{
+#if COMMON_SIMD_LV >= 200
+    const auto zero = neon_moviqb(0);
+    return { vzip1q_u16(Data, zero), vzip2q_u16(Data, zero) };
+#else
+    return { vmovl_s32(vget_low_s16(Data)), vmovl_s32(vget_high_s16(Data)) };
+#endif
+}
+template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4>() const
+{
+    const auto ret = Cast<I32x4>();
+    return { vreinterpretq_u32_s32(ret[0].Data), vreinterpretq_u32_s32(ret[1].Data) };
+}
 
 
 template<typename T, typename E>
@@ -796,15 +823,23 @@ struct alignas(16) I8x16 : public detail::Neon128Common<I8x16>, public detail::S
     {
         return { vmull_s8(vget_low_s8(Data), vget_low_s8(other.Data)), vmull_high_s8(Data, other.Data) };
     }
+    template<typename T>
+    typename CastTyper<I8x16, T>::Type VECCALL Cast() const;
     /*forceinline I8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 
 };
-//template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
-//{
-//    return { _mm_cvtepi8_epi16(Data), _mm_cvtepi8_epi16(MoveHiToLo()) };
-//}
+template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
+{
+    return { vmovl_s16(vget_low_s8(Data)), vmovl_s16(vget_high_s8(Data)) };
+}
+template<> forceinline Pack<U16x8, 2> VECCALL I8x16::Cast<U16x8>() const
+{
+    const auto ret = Cast<I16x8>();
+    return { ret[0].Data, ret[1].Data };
+}
+
 
 struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::Shuffle32Common<U8x16>, public I8Common16<U8x16, uint8_t>
 {
@@ -839,23 +874,51 @@ struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::S
     {
         return { vmull_u8(vget_low_u8(Data), vget_low_u8(other.Data)), vmull_high_u8(Data, other.Data) };
     }
+    template<typename T>
+    typename CastTyper<U8x16, T>::Type VECCALL Cast() const;
     /*forceinline U8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 
 };
+template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
+{
+#if COMMON_SIMD_LV >= 200
+    const auto zero = neon_moviqb(0);
+    return { vzip1q_u8(Data, zero), vzip2q_u8(Data, zero) };
+#else
+    return { vmovl_u16(vget_low_u8(Data)), vmovl_u16(vget_high_u8(Data)) };
+#endif
+}
+template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
+{
+    const auto ret = Cast<I16x8>();
+    return { ret[0].Data, ret[1].Data };
+}
+template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
+{
+#if COMMON_SIMD_LV >= 200
+    constexpr uint32_t mask4x4[] =
+    {
+        0xffffff00, 0xffffff01, 0xffffff02, 0xffffff03,
+        0xffffff04, 0xffffff05, 0xffffff06, 0xffffff07,
+        0xffffff08, 0xffffff09, 0xffffff0a, 0xffffff0b,
+        0xffffff0c, 0xffffff0d, 0xffffff0e, 0xffffff0f,
+    };
+    const auto masks = vld1q_u32_x4(mask4x4);
+    return { vqtbl1q_u8(Data, masks.val[0]), vqtbl1q_u8(Data, masks.val[1]), vqtbl1q_u8(Data, masks.val[2]), vqtbl1q_u8(Data, masks.val[3]) };
+#else
+    const auto mid = Cast<U16x8>();
+    const auto lo = mid[0].Cast<I32x4>(), hi = mid[0].Cast<I32x4>();
+    return { lo[0], lo[1], hi[0], hi[1] };
+#endif
+}
+template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
+{
+    const auto ret = Cast<I32x4>();
+    return { ret[0].Data, ret[1].Data, ret[2].Data, ret[3].Data };
+}
 
-
-//template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
-//{
-//    const auto tmp = _mm_setzero_si128();
-//    return { _mm_unpacklo_epi8(*this, tmp), _mm_unpackhi_epi8(*this, tmp) };
-//}
-//template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
-//{
-//    const auto tmp = _mm_setzero_si128();
-//    return { _mm_unpacklo_epi8(*this, tmp), _mm_unpackhi_epi8(*this, tmp) };
-//}
 
 }
 }

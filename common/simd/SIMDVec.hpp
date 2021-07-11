@@ -11,6 +11,7 @@ namespace simd
 template<typename T, size_t N>
 struct alignas(T) Pack
 {
+    static constexpr size_t EleCount = N;
     T Data[N];
     template<typename... Ts, typename = std::enable_if_t<sizeof...(Ts) == N>>
     Pack(const Ts&... vals) noexcept : Data{ vals... } {}

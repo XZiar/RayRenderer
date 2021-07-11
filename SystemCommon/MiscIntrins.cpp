@@ -8,16 +8,21 @@ namespace common
 using namespace std::string_view_literals;
 namespace fastpath
 {
-struct LeadZero32 { using RetType = uint32_t; };
-struct LeadZero64 { using RetType = uint32_t; };
-struct TailZero32 { using RetType = uint32_t; };
-struct TailZero64 { using RetType = uint32_t; };
-struct PopCount32 { using RetType = uint32_t; };
-struct PopCount64 { using RetType = uint32_t; };
-struct ByteSwap16 { using RetType = uint16_t; };
-struct ByteSwap32 { using RetType = uint32_t; };
-struct ByteSwap64 { using RetType = uint64_t; };
-struct Sha256     { using RetType = std::array<std::byte, 32>; };
+DEFINE_FASTPATH(MiscIntrins, LeadZero32);
+DEFINE_FASTPATH(MiscIntrins, LeadZero64);
+DEFINE_FASTPATH(MiscIntrins, TailZero32);
+DEFINE_FASTPATH(MiscIntrins, TailZero64);
+DEFINE_FASTPATH(MiscIntrins, PopCount32);
+DEFINE_FASTPATH(MiscIntrins, PopCount64);
+#define LeadZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define LeadZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define TailZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define TailZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define PopCount32Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define PopCount64Args BOOST_PP_VARIADIC_TO_SEQ(num)
+DEFINE_FASTPATH(DigestFuncs, Sha256);
+#define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
+
 
 struct NAIVE : FuncVarBase {};
 struct COMPILER : FuncVarBase {};
@@ -82,12 +87,12 @@ struct SHANI
 
 #if COMMON_COMPILER_MSVC
 
-DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER)
 {
     unsigned long idx = 0;
     return _BitScanReverse(&idx, num) ? 31 - idx : 32;
 }
-DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -101,12 +106,12 @@ DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER, const uint64_t num)
 #   endif
 }
 
-DEFINE_FASTPATH_METHOD(TailZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, COMPILER)
 {
     unsigned long idx = 0;
     return _BitScanForward(&idx, num) ? idx : 32;
 }
-DEFINE_FASTPATH_METHOD(TailZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, COMPILER)
 {
     unsigned long idx = 0;
 #   if COMMON_OSBIT == 64
@@ -122,29 +127,29 @@ DEFINE_FASTPATH_METHOD(TailZero64, COMPILER, const uint64_t num)
 
 #elif COMMON_COMPILER_GCC || COMMON_COMPILER_CLANG
 
-DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, COMPILER)
 {
     return num == 0 ? 32 : __builtin_clz(num);
 }
-DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, COMPILER)
 {
     return num == 0 ? 64 : __builtin_clzll(num);
 }
 
-DEFINE_FASTPATH_METHOD(TailZero32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, COMPILER)
 {
     return num == 0 ? 32 : __builtin_ctz(num);
 }
-DEFINE_FASTPATH_METHOD(TailZero64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, COMPILER)
 {
     return num == 0 ? 64 : __builtin_ctzll(num);
 }
 
-DEFINE_FASTPATH_METHOD(PopCount32, COMPILER, const uint32_t num)
+DEFINE_FASTPATH_METHOD(PopCount32, COMPILER)
 {
     return __builtin_popcount(num);
 }
-DEFINE_FASTPATH_METHOD(PopCount64, COMPILER, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, COMPILER)
 {
     return __builtin_popcountll(num);
 }
@@ -152,28 +157,28 @@ DEFINE_FASTPATH_METHOD(PopCount64, COMPILER, const uint64_t num)
 #endif
 
 
-//DEFINE_FASTPATH_METHOD(LeadZero32, NAIVE, const uint32_t num)
+//DEFINE_FASTPATH_METHOD(LeadZero32, NAIVE)
 //{
 //}
-//DEFINE_FASTPATH_METHOD(LeadZero64, NAIVE, const uint64_t num)
-//{
-//}
-
-//DEFINE_FASTPATH_METHOD(TailZero32, NAIVE, const uint32_t num)
-//{
-//}
-//DEFINE_FASTPATH_METHOD(TailZero64, NAIVE, const uint64_t num)
+//DEFINE_FASTPATH_METHOD(LeadZero64, NAIVE)
 //{
 //}
 
-DEFINE_FASTPATH_METHOD(PopCount32, NAIVE, const uint32_t num)
+//DEFINE_FASTPATH_METHOD(TailZero32, NAIVE)
+//{
+//}
+//DEFINE_FASTPATH_METHOD(TailZero64, NAIVE)
+//{
+//}
+
+DEFINE_FASTPATH_METHOD(PopCount32, NAIVE)
 {
     auto tmp = num - ((num >> 1) & 0x55555555u);
     tmp = (tmp & 0x33333333u) + ((tmp >> 2) & 0x33333333u);
     tmp = (tmp + (tmp >> 4)) & 0x0f0f0f0fu;
     return (tmp * 0x01010101u) >> 24;
 }
-DEFINE_FASTPATH_METHOD(PopCount64, NAIVE, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, NAIVE)
 {
     auto tmp = num - ((num >> 1) & 0x5555555555555555u);
     tmp = (tmp & 0x3333333333333333u) + ((tmp >> 2) & 0x3333333333333333u);
@@ -181,7 +186,7 @@ DEFINE_FASTPATH_METHOD(PopCount64, NAIVE, const uint64_t num)
     return (tmp * 0x0101010101010101u) >> 56;
 }
 
-DEFINE_FASTPATH_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
+DEFINE_FASTPATH_METHOD(Sha256, NAIVE)
 {
     std::array<std::byte, 32> output;
     digestpp::sha256().absorb(data, size)
@@ -193,11 +198,11 @@ DEFINE_FASTPATH_METHOD(Sha256, NAIVE, const std::byte* data, const size_t size)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && (defined(__LZCNT__) || defined(__BMI__)))
 #pragma message("Compiling MiscIntrins with LZCNT")
 
-DEFINE_FASTPATH_METHOD(LeadZero32, LZCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(LeadZero32, LZCNT)
 {
     return _lzcnt_u32(num);
 }
-DEFINE_FASTPATH_METHOD(LeadZero64, LZCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(LeadZero64, LZCNT)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_lzcnt_u64(num));
@@ -214,11 +219,11 @@ DEFINE_FASTPATH_METHOD(LeadZero64, LZCNT, const uint64_t num)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 200*/) || (!COMMON_COMPILER_MSVC && defined(__BMI__))
 #pragma message("Compiling MiscIntrins with TZCNT")
 
-DEFINE_FASTPATH_METHOD(TailZero32, TZCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(TailZero32, TZCNT)
 {
     return _tzcnt_u32(num);
 }
-DEFINE_FASTPATH_METHOD(TailZero64, TZCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(TailZero64, TZCNT)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_tzcnt_u64(num));
@@ -235,11 +240,11 @@ DEFINE_FASTPATH_METHOD(TailZero64, TZCNT, const uint64_t num)
 #if (COMMON_COMPILER_MSVC && COMMON_ARCH_X86/* && COMMON_SIMD_LV >= 42*/) || (!COMMON_COMPILER_MSVC && defined(__POPCNT__))
 #pragma message("Compiling MiscIntrins with POPCNT")
 
-DEFINE_FASTPATH_METHOD(PopCount32, POPCNT, const uint32_t num)
+DEFINE_FASTPATH_METHOD(PopCount32, POPCNT)
 {
     return _mm_popcnt_u32(num);
 }
-DEFINE_FASTPATH_METHOD(PopCount64, POPCNT, const uint64_t num)
+DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
 {
 #   if COMMON_OSBIT == 64
     return static_cast<uint32_t>(_mm_popcnt_u64(num));
@@ -532,7 +537,7 @@ forceinline static void VECCALL Sha256Block_SHANI(__m128i& state0, __m128i& stat
     state1 = _mm_add_epi32(state1, cdgh_save);
 }
 
-DEFINE_FASTPATH_METHOD(Sha256, SHANI, const std::byte* data, const size_t size)
+DEFINE_FASTPATH_METHOD(Sha256, SHANI)
 {
     return Sha256SSE(data, size, Sha256Block_SHANI);
 }
@@ -598,9 +603,5 @@ DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noex
 const DigestFuncs DigestFunc;
 
 
-#undef TestFeature
-#undef SetFunc
-#undef UseIfExist
-#undef FallbackTo
-
+constexpr auto  lllo = MethodExist<fastpath::PopCount32, fastpath::COMPILER>;
 }

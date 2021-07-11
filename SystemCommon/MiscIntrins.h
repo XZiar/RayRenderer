@@ -12,14 +12,21 @@ namespace common
 
 class SYSCOMMONAPI MiscIntrins
 {
+public:
+    using TLeadZero32 = uint32_t(const uint32_t) noexcept;
+    using TLeadZero64 = uint32_t(const uint64_t) noexcept;
+    using TTailZero32 = uint32_t(const uint32_t) noexcept;
+    using TTailZero64 = uint32_t(const uint64_t) noexcept;
+    using TPopCount32 = uint32_t(const uint32_t) noexcept;
+    using TPopCount64 = uint32_t(const uint64_t) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
-    uint32_t (*LeadZero32)(const uint32_t) noexcept = nullptr;
-    uint32_t (*LeadZero64)(const uint64_t) noexcept = nullptr;
-    uint32_t (*TailZero32)(const uint32_t) noexcept = nullptr;
-    uint32_t (*TailZero64)(const uint64_t) noexcept = nullptr;
-    uint32_t (*PopCount32)(const uint32_t) noexcept = nullptr;
-    uint32_t (*PopCount64)(const uint64_t) noexcept = nullptr;
+    TLeadZero32* LeadZero32 = nullptr;
+    TLeadZero64* LeadZero64 = nullptr;
+    TTailZero32* TailZero32 = nullptr;
+    TTailZero64* TailZero64 = nullptr;
+    TPopCount32* PopCount32 = nullptr;
+    TPopCount64* PopCount64 = nullptr;
     std::vector<VarItem> VariantMap;
 #if COMMON_COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
@@ -130,8 +137,9 @@ public:
     using VarItem = std::pair<std::string_view, std::string_view>;
     template<size_t N>
     using bytearray = std::array<std::byte, N>;
+    using TSha256 = bytearray<32>(const std::byte*, const size_t) noexcept;
 private:
-    bytearray<32>(*Sha256)(const std::byte*, const size_t) noexcept = nullptr;
+    TSha256* Sha256 = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;

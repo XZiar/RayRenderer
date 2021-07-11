@@ -1,5 +1,6 @@
 #include "rely.h"
 #include <algorithm>
+#include <random>
 #include "SystemCommon/CopyEx.h"
 #include "SystemCommon/MiscIntrins.h"
 
@@ -74,6 +75,60 @@ INTRIN_TEST(CopyEx, Broadcast4)
         Intrin->BroadcastMany(dst.data(), val, dst.size());
         EXPECT_THAT(dst, testing::Each(val));
     }
+}
+
+std::mt19937& GetRanEng()
+{
+    static std::mt19937 gen(std::random_device{}());
+    return gen;
+}
+alignas(32) const std::array<uint8_t, 2048> RandVals = []()
+{
+    auto& gen = GetRanEng();
+    std::array<uint8_t, 2048> vals = {};
+    for (auto& val : vals)
+        val = static_cast<uint8_t>(gen());
+    return vals;
+}();
+
+template<typename Src, typename Dst>
+static void ZExtTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, size_t count)
+{
+    std::vector<Dst> dst; 
+    dst.resize(count);
+    intrin->ZExtCopy(dst.data(), src, count);
+    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
+}
+INTRIN_TEST(CopyEx, ZExtCopy12)
+{
+    static const auto ref = []() 
+    {
+        std::array<uint16_t, 2048> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = RandVals[i];
+        return vals;
+    }();
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 7);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 27);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 97);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
+}
+
+INTRIN_TEST(CopyEx, ZExtCopy14)
+{
+    static const auto ref = []() 
+    {
+        std::array<uint32_t, 2048> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = RandVals[i];
+        return vals;
+    }();
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 7);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 27);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 97);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
+    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
 }
 
 

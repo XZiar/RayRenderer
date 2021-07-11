@@ -95,7 +95,7 @@ struct CPUFeature
     {
         if (!FeatureText.empty()) return;
 #if COMMON_OS_LINUX && COMMON_ARCH_ARM && (!COMMON_OS_ANDROID || __NDK_MAJOR__ >= 18)
-        const auto cap1 = getauxval(AT_HWCAP), cap2 = getauxval(AT_HWCAP2);
+        [[maybe_unused]] const auto cap1 = getauxval(AT_HWCAP), cap2 = getauxval(AT_HWCAP2);
 # define CHECK_FEATURE(i, en, name) if (PPCAT(cap, i) & HWCAP_##en) FeatureText.emplace_back(#name""sv)
 # if COMMON_ARCH_ARM
 #   if defined(__aarch64__)

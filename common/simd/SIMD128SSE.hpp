@@ -862,17 +862,19 @@ template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
     const auto ret = Cast<I16x8>();
     return { ret[0].Data, ret[1].Data };
 }
-//template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
-//{
-//    const auto ret = Cast<U16x8>();
-//    const auto ret0 = ret[0].Cast<I32x4>(), ret1 = ret[1].Cast<I32x4>();
-//    return { ret0[0], ret0[1], ret1[0], ret1[1] };
-//}
-//template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
-//{
-//    const auto ret = Cast<I32x4>();
-//    return { ret[0].Data, ret[1].Data, ret[2].Data, ret[3].Data };
-//}
+template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
+{
+    const auto mask0 = U32x4(0xffffff00, 0xffffff01, 0xffffff02, 0xffffff03);
+    const auto mask1 = U32x4(0xffffff04, 0xffffff05, 0xffffff06, 0xffffff07);
+    const auto mask2 = U32x4(0xffffff08, 0xffffff09, 0xffffff0a, 0xffffff0b);
+    const auto mask3 = U32x4(0xffffff0c, 0xffffff0d, 0xffffff0e, 0xffffff0f);
+    return { _mm_shuffle_epi8(Data, mask0), _mm_shuffle_epi8(Data, mask1),_mm_shuffle_epi8(Data, mask2),_mm_shuffle_epi8(Data, mask3) };
+}
+template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
+{
+    const auto ret = Cast<I32x4>();
+    return { ret[0].Data, ret[1].Data, ret[2].Data, ret[3].Data };
+}
 forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
 {
     const auto self16 = Cast<U16x8>(), other16 = other.Cast<U16x8>();
