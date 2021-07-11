@@ -5,6 +5,7 @@
 
 namespace common
 {
+using namespace std::string_view_literals;
 namespace fastpath
 {
 struct LeadZero32 { using RetType = uint32_t; };
@@ -23,10 +24,10 @@ struct COMPILER : FuncVarBase {};
 struct OS : FuncVarBase {};
 struct LZCNT 
 { 
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept 
+    static bool RuntimeCheck() noexcept 
     { 
 #if COMMON_ARCH_X86
-        return data.has_value() && (data->flags[CPU_FEATURE_BMI1] || data->flags[CPU_FEATURE_ABM]);
+        return CheckCPUFeature("bmi1"sv) || CheckCPUFeature("lzcnt"sv);
 #else
         return false;
 #endif
@@ -34,10 +35,10 @@ struct LZCNT
 };
 struct TZCNT
 {
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept
+    static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_BMI1];
+        return CheckCPUFeature("bmi1"sv);
 #else
         return false;
 #endif
@@ -45,10 +46,10 @@ struct TZCNT
 };
 struct POPCNT
 {
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept
+    static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_POPCNT];
+        return CheckCPUFeature("popcnt"sv);
 #else
         return false;
 #endif
@@ -56,10 +57,10 @@ struct POPCNT
 };
 struct BMI1
 {
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept
+    static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_BMI1];
+        return CheckCPUFeature("bmi1"sv);
 #else
         return false;
 #endif
@@ -67,10 +68,10 @@ struct BMI1
 };
 struct SHANI
 {
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept
+    static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_SHA_NI];
+        return CheckCPUFeature("sha"sv);
 #else
         return false;
 #endif
@@ -545,7 +546,6 @@ common::span<const MiscIntrins::VarItem> MiscIntrins::GetSupportMap() noexcept
 {
     static auto list = []() 
     {
-        const auto& info = GetCPUInfo();
         std::vector<VarItem> ret;
         RegistFuncVars(LeadZero32, LZCNT, COMPILER);
         RegistFuncVars(LeadZero64, LZCNT, COMPILER);
@@ -579,7 +579,6 @@ common::span<const DigestFuncs::VarItem> DigestFuncs::GetSupportMap() noexcept
 {
     static auto list = []()
     {
-        const auto& info = GetCPUInfo();
         std::vector<VarItem> ret;
         RegistFuncVars(Sha256, SHANI, NAIVE);
         return ret;

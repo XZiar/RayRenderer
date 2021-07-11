@@ -8,15 +8,6 @@
 #include "common/StrParsePack.hpp"
 #include <boost/preprocessor/tuple/enum.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
-#if COMMON_ARCH_X86
-#   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
-#elif COMMON_OS_LINUX
-#   include <sys/auxv.h>
-#   include <asm/hwcap.h>
-using cpu_id_t = std::pair<unsigned long, unsigned long>;
-#else
-using cpu_id_t = int;
-#endif
 
 #include <cassert>
 #include <thread>
@@ -70,7 +61,6 @@ namespace common
 [[nodiscard]] uint32_t GetWinBuildNumber() noexcept;
 #endif
 
-[[nodiscard]] const std::optional<cpu_id_t>& GetCPUInfo() noexcept;
 // follow initializer may not work
 // uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
 
@@ -79,7 +69,7 @@ namespace fastpath
 {
 struct FuncVarBase
 {
-    static bool RuntimeCheck(const std::optional<cpu_id_t>&) noexcept { return true; }
+    static bool RuntimeCheck() noexcept { return true; }
 };
 }
 
@@ -110,7 +100,7 @@ static typename fastpath::func::RetType func##_##var(__VA_ARGS__) noexcept      
 #define RegistFuncVar(r, func, var)                         \
 if constexpr (CheckExists<fastpath::func, fastpath::var>()) \
 {                                                           \
-    if (fastpath::var::RuntimeCheck(info))                  \
+    if (fastpath::var::RuntimeCheck())                      \
         ret.emplace_back(STRINGIZE(func), STRINGIZE(var));  \
 }                                                           \
 

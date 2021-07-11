@@ -6,6 +6,7 @@
 
 namespace common
 {
+using namespace std::string_view_literals;
 namespace fastpath
 {
 struct Broadcast2 { using RetType = void; };
@@ -14,21 +15,21 @@ struct Broadcast4 { using RetType = void; };
 struct LOOP : FuncVarBase {};
 struct SIMD128 
 { 
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept 
+    static bool RuntimeCheck() noexcept 
     { 
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_SSE2];
+        return CheckCPUFeature("sse2"sv);
 #else
-        return false;
+        return CheckCPUFeature("asimd"sv);
 #endif
     }
 };
 struct SIMD256
 {
-    static bool RuntimeCheck([[maybe_unused]] const std::optional<cpu_id_t>& data) noexcept
+    static bool RuntimeCheck() noexcept
     {
 #if COMMON_ARCH_X86
-        return data.has_value() && data->flags[CPU_FEATURE_AVX];
+        return CheckCPUFeature("avx"sv);
 #else
         return false;
 #endif
@@ -69,7 +70,7 @@ DEFINE_FASTPATH_METHOD(Broadcast4, LOOP, uint32_t* dest, const uint32_t src, siz
     }
 }
 
-#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 42) || (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100)
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 42) || (!COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100)
 
 DEFINE_FASTPATH_METHOD(Broadcast2, SIMD128, uint16_t* dest, const uint16_t src, size_t count)
 {
@@ -179,10 +180,9 @@ common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
 {
     static auto list = []() 
     {
-        const auto& info = GetCPUInfo();
         std::vector<VarItem> ret;
-        RegistFuncVars(Broadcast2, LOOP, SIMD128, SIMD256);
-        RegistFuncVars(Broadcast4, LOOP, SIMD128, SIMD256);
+        RegistFuncVars(Broadcast2, SIMD256, SIMD128, LOOP);
+        RegistFuncVars(Broadcast4, SIMD256, SIMD128, LOOP);
         return ret;
     }();
     return list;
@@ -193,8 +193,8 @@ CopyManager::CopyManager(common::span<const CopyManager::VarItem> requests) noex
     {
         switch (DJBHash::HashC(func))
         {
-        CHECK_FUNC_VARS(func, var, Broadcast2, LOOP, SIMD128, SIMD256);
-        CHECK_FUNC_VARS(func, var, Broadcast4, LOOP, SIMD128, SIMD256);
+        CHECK_FUNC_VARS(func, var, Broadcast2, SIMD256, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, Broadcast4, SIMD256, SIMD128, LOOP);
         }
     }
 }

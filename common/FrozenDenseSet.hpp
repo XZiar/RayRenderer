@@ -74,11 +74,16 @@ protected:
 
     forceinline constexpr bool InnerSearch(SVType element, uint64_t hash) const noexcept
     {
-        for (const auto& piece : Pieces)
+        // reverse check to maximize collision
+        for (size_t idx = Pieces.size(); idx-- > 0;)
         {
+            const auto& piece = Pieces[idx];
             if (piece.GetHash() == hash)
             {
-                return Pool.GetStringView(piece) == element;
+                if (Pool.GetStringView(piece) == element)
+                {
+                    return true;
+                }
             }
         }
         return false;
@@ -101,8 +106,10 @@ protected:
         {
             if (dat.empty()) continue;
             const auto hash = DJBHash::HashC(dat);
-            if (InnerSearch(dat, hash)) continue;
-            Pieces.emplace_back(Pool.AllocateString(dat), hash);
+            if (!InnerSearch(dat, hash))
+            {
+                Pieces.emplace_back(Pool.AllocateString(dat), hash);
+            }
         }
         if constexpr (!std::is_same_v<F, NoOpTag>)
         {
@@ -144,7 +151,7 @@ public:
     }
 };
 
-template<typename Ch, typename Compare = std::less<>>
+template<typename Ch, bool SortStr = true, typename Compare = std::less<>>
 class FrozenDenseStringSet : public FrozenDenseStringSetBase<Ch>
 {
 private:
@@ -152,7 +159,7 @@ private:
     std::vector<StringPiece<Ch>> OrderedView;
     class OrderedIterator
     {
-        using HostType = FrozenDenseStringSet<Ch, Compare>;
+        using HostType = FrozenDenseStringSet<Ch, SortStr, Compare>;
         const HostType* Host;
         size_t Idx;
     public:
@@ -202,7 +209,8 @@ public:
         tmp.reserve(data.size());
         for (const auto& dat : data)
             tmp.emplace_back(dat);
-        std::sort(tmp.begin(), tmp.end(), Compare());
+        if constexpr (SortStr)
+            std::sort(tmp.begin(), tmp.end(), Compare());
         this->FillFrom(tmp, [&]()
             {
                 this->OrderedView.assign(this->Pieces.cbegin(), this->Pieces.cend());
