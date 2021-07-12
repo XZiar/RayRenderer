@@ -15,16 +15,10 @@
 #   pragma clang diagnostic ignored "-Wunused-function"
 #elif COMMON_COMPILER_MSVC
 #   pragma warning(push)
-//#   pragma warning(disable:4505 4100)
+#   pragma warning(disable:4996)
 #endif
 #include "3rdParty/stb/stb_image.h"
-#if !COMMON_COMPILER_MSVC
-#   undef __STDC_WANT_SECURE_LIB__
-#endif
 #include "3rdParty/stb/stb_image_write.h"
-#if !COMMON_COMPILER_MSVC
-#   define __STDC_WANT_SECURE_LIB__ 1
-#endif
 #if COMMON_COMPILER_GCC
 #   pragma GCC diagnostic pop
 #elif COMMON_COMPILER_CLANG

@@ -14,7 +14,8 @@ RegisterSIMDBaseTest(F64x4, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 RegisterSIMDBaseTest(F32x8, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 
 
-RegisterSIMDCastTest(U32x8,  100,                               I64x4, U64x4)
+RegisterSIMDCastTest(I32x8,  100,               F32x8, F64x4)
+RegisterSIMDCastTest(U32x8,  100, I64x4, U64x4)
 
 
 RegisterSIMDTest("F64x4", 100, shuftest::ShuffleTest<F64x4>)

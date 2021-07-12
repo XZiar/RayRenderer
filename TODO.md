@@ -2,7 +2,6 @@
 
 * common
   - [x] Add linq (iterator-based)
-  - [ ] Implement new SIMD vector lib
   - [ ] Makes strcharset Linq-able
   - [x] Makes string split Linq-able
   - [x] Use dict to store Exception's custom info
@@ -14,6 +13,9 @@
     - [ ] Move Contorllable into standalone project with better metadata management
     - [ ] Add static control-item for Controllable
     - [ ] Remove unnecessary lambda func for direct access
+  * SIMD
+    - [ ] Implement new vector lib with new SIMD
+    - [ ] Add compare capability with variable result requirement
 
 * StringUtil
   - [x] Add general charset default value

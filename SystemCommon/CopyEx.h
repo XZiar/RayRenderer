@@ -22,6 +22,9 @@ public:
     using TNarrowCopy21 = void(uint8_t* dest, const uint16_t* src, size_t count) noexcept;
     using TNarrowCopy41 = void(uint8_t* dest, const uint32_t* src, size_t count) noexcept;
     using TNarrowCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
+    using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count) noexcept;
+    using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count) noexcept;
+    using TCvtI8F32  = void(float* dest, const int8_t* src, size_t count) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -32,6 +35,9 @@ private:
     TNarrowCopy21* NarrowCopy21 = nullptr;
     TNarrowCopy41* NarrowCopy41 = nullptr;
     TNarrowCopy42* NarrowCopy42 = nullptr;
+    TCvtI32F32* CvtI32F32 = nullptr;
+    TCvtI16F32* CvtI16F32 = nullptr;
+    TCvtI8F32 * CvtI8F32  = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;

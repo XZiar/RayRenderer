@@ -25,16 +25,30 @@ struct alignas(T) Pack
     constexpr T& operator[](const size_t idx) noexcept { return Data[idx]; }
     constexpr const T& operator[](const size_t idx) const noexcept { return Data[idx]; }
     template<typename U>
-    auto Cast() noexcept;
+    auto Cast() const noexcept;
+    template<typename U>
+    Pack<U, N> As() const noexcept;
 };
 
 namespace detail
 {
+template<typename To, typename From>
+inline To AsType(From) noexcept
+{
+    static_assert(!AlwaysTrue<To>, "not implemented");
+}
 template<typename D, typename S, size_t N, size_t... I>
 inline Pack<D, N> PackCast(const Pack<S, N>& src, std::index_sequence<I...>)
 {
     static_assert(sizeof...(I) == N);
     return Pack<D, N>{ src[I].template Cast<D>()... };
+}
+template<typename D, typename S, size_t N, size_t... I>
+inline Pack<D, N> PackAs(const Pack<S, N>& src, std::index_sequence<I...>)
+{
+    static_assert(sizeof...(I) == N);
+    using X = decltype(std::declval<D>().Data);
+    return Pack<D, N>{ AsType<X>(src[I].Data)... };
 }
 template<size_t I, typename D, size_t M, size_t N>
 inline D ExtractPackData(const Pack<D, M>(&dat)[N])
@@ -59,7 +73,7 @@ struct CastTyper
 
 template<typename T, size_t N>
 template<typename U>
-inline auto Pack<T, N>::Cast() noexcept
+inline auto Pack<T, N>::Cast() const noexcept
 {
     if constexpr (T::Count == U::Count)
     {
@@ -72,8 +86,14 @@ inline auto Pack<T, N>::Cast() noexcept
     }
     else
     {
-        static_assert(AlwaysTrue<T>, "cannot narrow cast");
+        static_assert(!AlwaysTrue<T>, "cannot narrow cast");
     }
+}
+template<typename T, size_t N>
+template<typename U>
+inline Pack<U, N> Pack<T, N>::As() const noexcept
+{
+    return detail::PackAs<U, T, N>(*this, std::make_index_sequence<N>{});
 }
 
 
@@ -91,6 +111,11 @@ struct CommonOperators
     // arithmetic operations
     T operator+(const T& other) const { return static_cast<const T*>(this)->Add(other); }
     T operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
+    template<typename U>
+    U VECCALL As() const noexcept
+    { 
+        return AsType<decltype(std::declval<U>().Data)>(static_cast<const T*>(this)->Data);
+    }
 };
 
 }

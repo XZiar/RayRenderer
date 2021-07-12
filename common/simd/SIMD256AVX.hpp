@@ -30,6 +30,15 @@ struct F64x4;
 
 namespace detail
 {
+template<> forceinline __m256  AsType(__m256  from) noexcept { return from; }
+template<> forceinline __m256i AsType(__m256  from) noexcept { return _mm256_castps_si256(from); }
+template<> forceinline __m256d AsType(__m256  from) noexcept { return _mm256_castps_pd(from); }
+template<> forceinline __m256  AsType(__m256i from) noexcept { return _mm256_castsi256_ps(from); }
+template<> forceinline __m256i AsType(__m256i from) noexcept { return from; }
+template<> forceinline __m256d AsType(__m256i from) noexcept { return _mm256_castsi256_pd(from); }
+template<> forceinline __m256  AsType(__m256d from) noexcept { return _mm256_castpd_ps(from); }
+template<> forceinline __m256i AsType(__m256d from) noexcept { return _mm256_castpd_si256(from); }
+template<> forceinline __m256d AsType(__m256d from) noexcept { return from; }
 
 template<typename T, typename E, size_t N>
 struct Int256Common : public CommonOperators<T>
@@ -588,9 +597,17 @@ template<> forceinline Pack<I64x4, 2> VECCALL I32x8::Cast<I64x4>() const
 }
 template<> forceinline Pack<U64x4, 2> VECCALL I32x8::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
 }
 #endif
+template<> forceinline F32x8 VECCALL I32x8::Cast<F32x8>() const
+{
+    return _mm256_cvtepi32_ps(Data);
+}
+template<> forceinline Pack<F64x4, 2> VECCALL I32x8::Cast<F64x4>() const
+{
+    return { _mm256_cvtepi32_pd(_mm256_extractf128_si256(Data, 0)), _mm256_cvtepi32_pd(_mm256_extractf128_si256(Data, 1)) };
+}
 
 
 struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
@@ -618,19 +635,11 @@ struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
     template<typename T>
     typename CastTyper<U32x8, T>::Type VECCALL Cast() const;
 };
+template<> forceinline Pack<I64x4, 2> VECCALL U32x8::Cast<I64x4>() const
+{
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<I64x4, 2> VECCALL U32x8::Cast<I64x4>() const
-{
     return { _mm256_cvtepu32_epi64(_mm256_castsi256_si128(Data)), _mm256_cvtepu32_epi64(_mm256_extracti128_si256(Data, 1)) };
-}
-template<> forceinline Pack<U64x4, 2> VECCALL U32x8::Cast<U64x4>() const
-{
-    const auto ret = Cast<I64x4>();
-    return { ret[0].Data, ret[1].Data };
-}
 #else
-template<> forceinline Pack<I64x4, 2> VECCALL U32x8::Cast<I64x4>() const
-{
     const auto data = _mm256_castsi256_ps(Data), zero = _mm256_castsi256_ps(_mm256_setzero_si256());
     const auto dat0145 = _mm256_unpacklo_ps(data, zero), dat2367 = _mm256_unpackhi_ps(data, zero);
     return
@@ -638,10 +647,48 @@ template<> forceinline Pack<I64x4, 2> VECCALL U32x8::Cast<I64x4>() const
         _mm256_castps_si256(_mm256_permute2f128_ps(dat0145, dat2367, 0x20)),
         _mm256_castps_si256(_mm256_permute2f128_ps(dat0145, dat2367, 0x31))
     };
+#endif
 }
+#if COMMON_SIMD_LV >= 200
 template<> forceinline Pack<U64x4, 2> VECCALL U32x8::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
+}
+template<> forceinline F32x8 VECCALL U32x8::Cast<F32x8>() const
+{
+    const auto mul16 = _mm256_set1_ps(65536.f);
+    const auto lo16  = And(0xffff);
+    const auto hi16  = ShiftRightLogic<16>();
+    const auto base  = hi16.As<I32x8>().Cast<F32x8>();
+    const auto addlo = lo16.As<I32x8>().Cast<F32x8>();
+    return base.MulAdd(mul16, addlo);
+}
+template<> forceinline Pack<F64x4, 2> VECCALL U32x8::Cast<F64x4>() const
+{
+# if COMMON_SIMD_LV >= 320
+    return { _mm256_cvtepu32_pd(_mm256_extractf128_si256(Data, 0)), _mm256_cvtepu32_pd(_mm256_extractf128_si256(Data, 1)) };
+# else
+    /*const auto mul16 = _mm_set1_pd(65536.f);
+    const auto lo16  = And(0xffff);
+    const auto hi16  = ShiftRightLogic<16>();
+    const auto base  = hi16.As<I32x4>().Cast<F64x2>();
+    const auto addlo = lo16.As<I32x4>().Cast<F64x2>();
+    return { base[0].MulAdd(mul16, addlo[0]), base[1].MulAdd(mul16, addlo[1]) };*/
+    constexpr double Adder32 = 4294967296.f; // UINT32_MAX+1
+    // if [sig], will be treated as negative, need to add Adder32
+#   if COMMON_SIMD_LV >= 200
+    const auto sig0123 = _mm256_castsi256_pd(Shuffle<0, 0, 1, 1, 2, 2, 3, 3>()), sig4567 = _mm256_castsi256_pd(Shuffle<4, 4, 5, 5, 6, 6, 7, 7>());
+#   else
+    const auto f32x8 = As<F32x8>();
+    const auto val0145 = _mm256_permute_ps(f32x8, 0b01010000), val2367 = _mm256_permute_ps(f32x8, 0b11111010);
+    const auto sig0145 = _mm256_castps_pd(val0145), sig2367 = _mm256_castps_pd(val2367);
+    const auto sig0123 = _mm256_permute2f128_pd(sig0145, sig2367, 0x20), sig4567 = _mm256_permute2f128_pd(sig0145, sig2367, 0x31);
+#   endif
+    const auto adder1 = _mm256_blendv_pd(_mm256_setzero_pd(), _mm256_set1_pd(Adder32), sig0123);
+    const auto adder2 = _mm256_blendv_pd(_mm256_setzero_pd(), _mm256_set1_pd(Adder32), sig4567);
+    const auto f64 = As<I32x8>().Cast<F64x4>();
+    return { f64[0].Add(adder1), f64[1].Add(adder2) };
+# endif
 }
 #endif
 
@@ -727,7 +774,7 @@ template<> forceinline Pack<I32x8, 2> VECCALL I16x16::Cast<I32x8>() const
 }
 template<> forceinline Pack<U32x8, 2> VECCALL I16x16::Cast<U32x8>() const
 {
-    return Cast<I32x8>().Cast<U32x8>();
+    return Cast<I32x8>().As<U32x8>();
 }
 template<> forceinline Pack<I64x4, 4> VECCALL I16x16::Cast<I64x4>() const
 {
@@ -739,7 +786,15 @@ template<> forceinline Pack<I64x4, 4> VECCALL I16x16::Cast<I64x4>() const
 }
 template<> forceinline Pack<U64x4, 4> VECCALL I16x16::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
+}
+template<> forceinline Pack<F32x8, 2> VECCALL I16x16::Cast<F32x8>() const
+{
+    return Cast<I32x8>().Cast<F32x8>();
+}
+template<> forceinline Pack<F64x4, 4> VECCALL I16x16::Cast<F64x4>() const
+{
+    return Cast<I32x8>().Cast<F64x4>();
 }
 #endif
 
@@ -772,7 +827,7 @@ template<> forceinline Pack<I32x8, 2> VECCALL U16x16::Cast<I32x8>() const
 }
 template<> forceinline Pack<U32x8, 2> VECCALL U16x16::Cast<U32x8>() const
 {
-    return Cast<I32x8>().Cast<U32x8>();
+    return Cast<I32x8>().As<U32x8>();
 }
 template<> forceinline Pack<I64x4, 4> VECCALL U16x16::Cast<I64x4>() const
 {
@@ -784,7 +839,15 @@ template<> forceinline Pack<I64x4, 4> VECCALL U16x16::Cast<I64x4>() const
 }
 template<> forceinline Pack<U64x4, 4> VECCALL U16x16::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
+}
+template<> forceinline Pack<F32x8, 2> VECCALL U16x16::Cast<F32x8>() const
+{
+    return Cast<I32x8>().Cast<F32x8>();
+}
+template<> forceinline Pack<F64x4, 4> VECCALL U16x16::Cast<F64x4>() const
+{
+    return Cast<I32x8>().Cast<F64x4>();
 }
 #endif
 
@@ -876,7 +939,7 @@ template<> forceinline Pack<I16x16, 2> VECCALL I8x32::Cast<I16x16>() const
 }
 template<> forceinline Pack<U16x16, 2> VECCALL I8x32::Cast<U16x16>() const
 {
-    return Cast<I16x16>().Cast<U16x16>();
+    return Cast<I16x16>().As<U16x16>();
 }
 template<> forceinline Pack<I32x8, 4> VECCALL I8x32::Cast<I32x8>() const
 {
@@ -888,7 +951,7 @@ template<> forceinline Pack<I32x8, 4> VECCALL I8x32::Cast<I32x8>() const
 }
 template<> forceinline Pack<U32x8, 4> VECCALL I8x32::Cast<U32x8>() const
 {
-    return Cast<I32x8>().Cast<U32x8>();
+    return Cast<I32x8>().As<U32x8>();
 }
 template<> forceinline Pack<I64x4, 8> VECCALL I8x32::Cast<I64x4>() const
 {
@@ -904,7 +967,15 @@ template<> forceinline Pack<I64x4, 8> VECCALL I8x32::Cast<I64x4>() const
 }
 template<> forceinline Pack<U64x4, 8> VECCALL I8x32::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
+}
+template<> forceinline Pack<F32x8, 4> VECCALL I8x32::Cast<F32x8>() const
+{
+    return Cast<I32x8>().Cast<F32x8>();
+}
+template<> forceinline Pack<F64x4, 8> VECCALL I8x32::Cast<F64x4>() const
+{
+    return Cast<I32x8>().Cast<F64x4>();
 }
 forceinline Pack<I16x16, 2> VECCALL I8x32::MulX(const I8x32& other) const
 {
@@ -953,7 +1024,7 @@ template<> forceinline Pack<I16x16, 2> VECCALL U8x32::Cast<I16x16>() const
 }
 template<> forceinline Pack<U16x16, 2> VECCALL U8x32::Cast<U16x16>() const
 {
-    return Cast<I16x16>().Cast<U16x16>();
+    return Cast<I16x16>().As<U16x16>();
 }
 template<> forceinline Pack<I32x8, 4> VECCALL U8x32::Cast<I32x8>() const
 {
@@ -974,7 +1045,7 @@ template<> forceinline Pack<I32x8, 4> VECCALL U8x32::Cast<I32x8>() const
 }
 template<> forceinline Pack<U32x8, 4> VECCALL U8x32::Cast<U32x8>() const
 {
-    return Cast<I32x8>().Cast<U32x8>();
+    return Cast<I32x8>().As<U32x8>();
 }
 template<> forceinline Pack<I64x4, 8> VECCALL U8x32::Cast<I64x4>() const
 {
@@ -990,7 +1061,15 @@ template<> forceinline Pack<I64x4, 8> VECCALL U8x32::Cast<I64x4>() const
 }
 template<> forceinline Pack<U64x4, 8> VECCALL U8x32::Cast<U64x4>() const
 {
-    return Cast<I64x4>().Cast<U64x4>();
+    return Cast<I64x4>().As<U64x4>();
+}
+template<> forceinline Pack<F32x8, 4> VECCALL U8x32::Cast<F32x8>() const
+{
+    return Cast<I32x8>().Cast<F32x8>();
+}
+template<> forceinline Pack<F64x4, 8> VECCALL U8x32::Cast<F64x4>() const
+{
+    return Cast<I32x8>().Cast<F64x4>();
 }
 forceinline Pack<U16x16, 2> VECCALL U8x32::MulX(const U8x32& other) const
 {

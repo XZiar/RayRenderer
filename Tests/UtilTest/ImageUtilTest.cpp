@@ -3,15 +3,16 @@
 #include "common/TimeUtil.hpp"
 #include "ImageUtil/ImageUtil.h"
 
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4996)
+#endif
 #define STB_IMAGE_IMPLEMENTATION
 #include "3rdParty/stb/stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#if !COMMON_COMPILER_MSVC
-#   undef __STDC_WANT_SECURE_LIB__
-#endif
 #include "3rdParty/stb/stb_image_write.h"
-#if !COMMON_COMPILER_MSVC
-#   define __STDC_WANT_SECURE_LIB__ 1
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
 #endif
 
 
