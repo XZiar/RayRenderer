@@ -4,19 +4,10 @@
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 #if COMMON_SIMD_LV_ >= 200
-#   include "CopyTest.h"
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
 
 using namespace common::simd;
-
-RegisterSIMDTest("u32_u32", 200, copytest::CopyTest<uint32_t, uint32_t>)
-
-RegisterSIMDTest("u32_u16", 200, copytest::CopyTest<uint32_t, uint16_t>)
-
-RegisterSIMDTest("u32_u8",  200, copytest::CopyTest<uint32_t, uint8_t>)
-
-RegisterSIMDTest("u16_u8",  200, copytest::CopyTest<uint16_t, uint8_t>)
 
 
 RegisterSIMDBaseTest(I64x4,  200, Add, Sub, MulLo, Neg, Abs, And, Or, Xor, AndNot, Not)

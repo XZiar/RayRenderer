@@ -82,7 +82,6 @@ INTRIN_TEST(CopyEx, ZExtCopy12)
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
 }
-
 INTRIN_TEST(CopyEx, ZExtCopy14)
 {
     static const auto ref = []() 
@@ -98,7 +97,6 @@ INTRIN_TEST(CopyEx, ZExtCopy14)
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
 }
-
 INTRIN_TEST(CopyEx, ZExtCopy24)
 {
     const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
@@ -114,6 +112,63 @@ INTRIN_TEST(CopyEx, ZExtCopy24)
     ZExtTest(Intrin.get(), ptr, ref.data(), 97);
     ZExtTest(Intrin.get(), ptr, ref.data(), 197);
     ZExtTest(Intrin.get(), ptr, ref.data(), 1024);
+}
+
+template<typename Src, typename Dst>
+static void NarrowTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, size_t count)
+{
+    std::vector<Dst> dst;
+    dst.resize(count);
+    intrin->NarrowCopy(dst.data(), src, count);
+    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
+}
+INTRIN_TEST(CopyEx, NarrowCopy21)
+{
+    const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<uint8_t, 1024> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<uint8_t>(ptr[i]);
+        return vals;
+    }();
+    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 1024);
+}
+INTRIN_TEST(CopyEx, NarrowCopy41)
+{
+    const auto ptr = reinterpret_cast<const uint32_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<uint8_t, 512> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<uint8_t>(ptr[i]);
+        return vals;
+    }();
+    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 512);
+}
+INTRIN_TEST(CopyEx, NarrowCopy42)
+{
+    const auto ptr = reinterpret_cast<const uint32_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<uint16_t, 512> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<uint16_t>(ptr[i]);
+        return vals;
+    }();
+    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
+    NarrowTest(Intrin.get(), ptr, ref.data(), 512);
 }
 
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "SystemCommonRely.h"
 #include <cstdlib>
+#include <cstring>
 
 namespace common
 {
@@ -20,6 +21,7 @@ public:
     using TZExtCopy24 = void(uint32_t* dest, const uint16_t* src, size_t count) noexcept;
     using TNarrowCopy21 = void(uint8_t* dest, const uint16_t* src, size_t count) noexcept;
     using TNarrowCopy41 = void(uint8_t* dest, const uint32_t* src, size_t count) noexcept;
+    using TNarrowCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -29,6 +31,7 @@ private:
     TZExtCopy24* ZExtCopy24 = nullptr;
     TNarrowCopy21* NarrowCopy21 = nullptr;
     TNarrowCopy41* NarrowCopy41 = nullptr;
+    TNarrowCopy42* NarrowCopy42 = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
@@ -40,7 +43,7 @@ public:
     }
     [[nodiscard]] bool IsComplete() const noexcept
     {
-        return Broadcast2 && Broadcast4 && ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && NarrowCopy21 && NarrowCopy41;
+        return Broadcast2 && Broadcast4 && ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && NarrowCopy21 && NarrowCopy41 && NarrowCopy42;
     }
 
     template<typename T>
@@ -48,7 +51,7 @@ public:
     {
         if constexpr (sizeof(T) == 1)
         {
-            memset_s(dest, count, &src, 1);
+            memset(dest, *reinterpret_cast<const uint8_t*>(&src), count);
         }
         else if constexpr (sizeof(T) == 2)
             Broadcast2(reinterpret_cast<uint16_t*>(dest), *reinterpret_cast<const uint16_t*>(&src), count);
@@ -103,6 +106,13 @@ public:
                 NarrowCopy21(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
             else if constexpr (SizeU == 4)
                 NarrowCopy41(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (SizeT == 2)
+        {
+            if constexpr (SizeU == 4)
+                NarrowCopy42(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }

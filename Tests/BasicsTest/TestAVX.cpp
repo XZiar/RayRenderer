@@ -4,18 +4,10 @@
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 #if COMMON_SIMD_LV_ >= 100
-#   include "CopyTest.h"
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
 
 using namespace common::simd;
-
-
-RegisterSIMDTest("u32", 100, copytest::BroadcastTest<uint32_t>)
-
-RegisterSIMDTest("u16", 100, copytest::BroadcastTest<uint16_t>)
-
-RegisterSIMDTest("u8",  100, copytest::BroadcastTest< uint8_t>)
 
 
 RegisterSIMDBaseTest(F64x4, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)

@@ -7,9 +7,6 @@
     <ClCompile Include="LinqTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="CopyTest.cpp">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="TestAVX2.cpp">
       <Filter>Source</Filter>
     </ClCompile>
@@ -57,9 +54,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="CopyTest.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="ShuffleTest.h">

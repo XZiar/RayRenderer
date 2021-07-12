@@ -603,5 +603,4 @@ DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noex
 const DigestFuncs DigestFunc;
 
 
-constexpr auto  lllo = MethodExist<fastpath::PopCount32, fastpath::COMPILER>;
 }

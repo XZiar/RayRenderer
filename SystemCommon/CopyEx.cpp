@@ -20,6 +20,7 @@ DEFINE_FASTPATH(CopyManager, ZExtCopy14);
 DEFINE_FASTPATH(CopyManager, ZExtCopy24);
 DEFINE_FASTPATH(CopyManager, NarrowCopy21);
 DEFINE_FASTPATH(CopyManager, NarrowCopy41);
+DEFINE_FASTPATH(CopyManager, NarrowCopy42);
 #define Broadcast2Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define Broadcast4Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define ZExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
@@ -27,6 +28,7 @@ DEFINE_FASTPATH(CopyManager, NarrowCopy41);
 #define ZExtCopy24Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define NarrowCopy21Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define NarrowCopy41Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define NarrowCopy42Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 
 struct LOOP : FuncVarBase {};
 struct SIMD128 
@@ -57,6 +59,17 @@ struct SIMD256
     {
 #if COMMON_ARCH_X86
         return CheckCPUFeature("avx"sv);
+#else
+        return false;
+#endif
+    }
+};
+struct SIMDAVX2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx2"sv);
 #else
         return false;
 #endif
@@ -151,6 +164,10 @@ DEFINE_FASTPATH_METHOD(NarrowCopy41, LOOP)
 {
     CastCopyLoop(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(NarrowCopy42, LOOP)
+{
+    CastCopyLoop(dest, src, count);
+}
 
 
 template<typename T, auto F, typename Src, typename Dst>
@@ -187,7 +204,7 @@ forceinline void ZExtCopySIMD4(Dst* dest, const Src* src, size_t count, std::ind
 {
     constexpr auto N = TIn::Count, M = TCast::Count;
     static_assert((sizeof...(I) == N / M) && (N % M == 0));
-    while (count >= N * 4)
+    for (size_t iter = count / (N * 4); iter > 0; iter--)
     {
         const auto data0 = TIn(src + N * 0).template Cast<TCast>();
         const auto data1 = TIn(src + N * 1).template Cast<TCast>();
@@ -197,8 +214,9 @@ forceinline void ZExtCopySIMD4(Dst* dest, const Src* src, size_t count, std::ind
         (..., data1[I].Save(dest + N * 1 + M * I));
         (..., data2[I].Save(dest + N * 2 + M * I));
         (..., data3[I].Save(dest + N * 3 + M * I));
-        src += N * 4; dest += N * 4; count -= N * 4;
+        src += N * 4; dest += N * 4;
     }
+    count = count % (N * 4);
     switch (count / N)
     {
     case 3: { const auto data = TIn(src).template Cast<TCast>(); (..., data[I].Save(dest + M * I)); src += N; dest += N; }
@@ -210,6 +228,37 @@ forceinline void ZExtCopySIMD4(Dst* dest, const Src* src, size_t count, std::ind
     default: break;
     }
     count = count % N;
+    F(dest, src, count);
+}
+template<typename TIn, typename TCast, auto F, typename Src, typename Dst, size_t... I>
+forceinline void NarrowCopySIMD4(Dst* dest, const Src* src, size_t count, std::index_sequence<I...>) noexcept
+{
+    constexpr auto N = TIn::Count, M = TCast::Count;
+    static_assert((sizeof...(I) == M / N - 1) && (M % N == 0));
+    for (size_t iter = count / (M * 4); iter > 0; iter--)
+    {
+        const TIn src0[] = { TIn(src + M * 0), TIn(src + M * 0 + N + N * I)... };
+        const TIn src1[] = { TIn(src + M * 1), TIn(src + M * 1 + N + N * I)... };
+        const TIn src2[] = { TIn(src + M * 2), TIn(src + M * 2 + N + N * I)... };
+        const TIn src3[] = { TIn(src + M * 3), TIn(src + M * 3 + N + N * I)... };
+        src0[0].Cast(src0[1 + I]...).Save(dest + M * 0);
+        src1[0].Cast(src1[1 + I]...).Save(dest + M * 1);
+        src2[0].Cast(src2[1 + I]...).Save(dest + M * 2);
+        src3[0].Cast(src3[1 + I]...).Save(dest + M * 3);
+        src += M * 4; dest += M * 4;
+    }
+    count = count % (M * 4);
+    switch (count / M)
+    {
+    case 3: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+        [[fallthrough]];
+    case 2: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+        [[fallthrough]];
+    case 1: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+        [[fallthrough]];
+    default: break;
+    }
+    count = count % M;
     F(dest, src, count);
 }
 
@@ -240,11 +289,49 @@ DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMD128)
 {
     ZExtCopySIMD4<simd::U8x16, simd::U32x4, &GET_FASTPATH_METHOD(ZExtCopy14, LOOP)>(dest, src, count, std::make_index_sequence<4>{});
 }
+DEFINE_FASTPATH_METHOD(NarrowCopy21, SIMD128)
+{
+    NarrowCopySIMD4<simd::U16x8, simd::U8x16, &GET_FASTPATH_METHOD(NarrowCopy21, LOOP)>(dest, src, count, std::make_index_sequence<1>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy41, SIMD128)
+{
+    NarrowCopySIMD4<simd::U32x4, simd::U8x16, &GET_FASTPATH_METHOD(NarrowCopy41, LOOP)>(dest, src, count, std::make_index_sequence<3>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy42, SIMD128)
+{
+    NarrowCopySIMD4<simd::U32x4, simd::U16x8, &GET_FASTPATH_METHOD(NarrowCopy42, LOOP)>(dest, src, count, std::make_index_sequence<1>{});
+}
 #endif
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 42
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31
 DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDSSSE3)
 {
     ZExtCopySIMD4<simd::U8x16, simd::U32x4, &GET_FASTPATH_METHOD(ZExtCopy14, LOOP)>(dest, src, count, std::make_index_sequence<4>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy21, SIMDSSSE3)
+{
+    NarrowCopySIMD4<simd::U16x8, simd::U8x16, &GET_FASTPATH_METHOD(NarrowCopy21, LOOP)>(dest, src, count, std::make_index_sequence<1>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy41, SIMDSSSE3)
+{
+    NarrowCopySIMD4<simd::U32x4, simd::U8x16, &GET_FASTPATH_METHOD(NarrowCopy41, LOOP)>(dest, src, count, std::make_index_sequence<3>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy42, SIMDSSSE3)
+{
+    NarrowCopySIMD4<simd::U32x4, simd::U16x8, &GET_FASTPATH_METHOD(NarrowCopy42, LOOP)>(dest, src, count, std::make_index_sequence<1>{});
+}
+#endif
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+DEFINE_FASTPATH_METHOD(NarrowCopy21, SIMDAVX2)
+{
+    NarrowCopySIMD4<simd::U16x16, simd::U8x32, &GET_FASTPATH_METHOD(NarrowCopy21, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<1>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy41, SIMDAVX2)
+{
+    NarrowCopySIMD4<simd::U32x8, simd::U8x32, &GET_FASTPATH_METHOD(NarrowCopy41, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<3>{});
+}
+DEFINE_FASTPATH_METHOD(NarrowCopy42, SIMDAVX2)
+{
+    NarrowCopySIMD4<simd::U32x8, simd::U16x16, &GET_FASTPATH_METHOD(NarrowCopy42, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<1>{});
 }
 #endif
 
@@ -272,8 +359,9 @@ common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
         RegistFuncVars(ZExtCopy12, SIMD128, LOOP);
         RegistFuncVars(ZExtCopy14, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(ZExtCopy24, SIMD128, LOOP);
-        RegistFuncVars(NarrowCopy21, LOOP);
-        RegistFuncVars(NarrowCopy41, LOOP);
+        RegistFuncVars(NarrowCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        RegistFuncVars(NarrowCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        RegistFuncVars(NarrowCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         return ret;
     }();
     return list;
@@ -289,8 +377,9 @@ CopyManager::CopyManager(common::span<const CopyManager::VarItem> requests) noex
         CHECK_FUNC_VARS(func, var, ZExtCopy12, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, ZExtCopy14, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, ZExtCopy24, SIMD128, LOOP);
-        CHECK_FUNC_VARS(func, var, NarrowCopy21, LOOP);
-        CHECK_FUNC_VARS(func, var, NarrowCopy41, LOOP);
+        CHECK_FUNC_VARS(func, var, NarrowCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, NarrowCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, NarrowCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         }
     }
 }

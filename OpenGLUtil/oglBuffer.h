@@ -1,6 +1,6 @@
 #pragma once
 #include "oglRely.h"
-#include "common/CopyEx.hpp"
+#include "SystemCommon/CopyEx.h"
 
 
 #if COMMON_COMPILER_MSVC
@@ -292,7 +292,7 @@ public:
             else
             {
                 common::AlignedBuffer newdata(count * 1);
-                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint8_t>(), newdata.GetSize(), ptr, count);
+                common::CopyEx.NarrowCopy(newdata.GetRawPtr<uint8_t>(), ptr, count);
                 SetSize(1);
                 oglBuffer_::WriteSpan(newdata, mode);
             }
@@ -304,7 +304,7 @@ public:
             else
             {
                 common::AlignedBuffer newdata(count * 2);
-                common::copy::CopyLittleEndian(newdata.GetRawPtr<uint16_t>(), newdata.GetSize(), ptr, count);
+                common::CopyEx.NarrowCopy(newdata.GetRawPtr<uint16_t>(), ptr, count);
                 SetSize(2);
                 oglBuffer_::WriteSpan(newdata, mode);
             }

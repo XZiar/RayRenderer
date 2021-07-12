@@ -32,7 +32,8 @@
   - [ ] Add hugepage memory allocation
   - [ ] Add SpinLock implementation
   - [x] Seperate PromiseTask's functionalities of task-info and ret-value
-  - [ ] Move SIMD copy into SystemCommon
+  - [x] Move SIMD copy into SystemCommon
+  - [ ] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
   - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [ ] Maybe move MiniLigger into SystemCommon, since commonlly used
 
@@ -214,7 +215,8 @@
   - [x] Generate build Makefile from python script and project-info json
   - [x] Add Pch for GCC build
   - [x] Try seperate vcxproj and source file, for 3rdparty lib project using submodule
-  - [ ] Add better support for other build targets on ARM
+  - [x] Add better support for other build targets on ARM
+  - [ ] Add support of different build flags for specific file 
   - [ ] Move to fully self-controlled build system
   - [ ] Add pseudo project, provide include-path info or install info or linkage info 
 

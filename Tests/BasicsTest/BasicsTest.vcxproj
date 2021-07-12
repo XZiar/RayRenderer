@@ -68,7 +68,6 @@
     <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty\googletest\googletest\include;$(SolutionDir)3rdParty\googletest\googlemock\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
-    <ClInclude Include="CopyTest.h" />
     <ClInclude Include="DotProdTest.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ShuffleTest.h" />
@@ -76,9 +75,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AlignBufTest.cpp">
-      <PrecompiledHeader>Use</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="CopyTest.cpp">
       <PrecompiledHeader>Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MemStreamTest.cpp">

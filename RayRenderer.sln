@@ -50,7 +50,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\ContainerEx.hpp = common\ContainerEx.hpp
 		common\ContainerHelper.hpp = common\ContainerHelper.hpp
 		common\Controllable.hpp = common\Controllable.hpp
-		common\CopyEx.hpp = common\CopyEx.hpp
 		common\DelayLoader.h = common\DelayLoader.h
 		common\DelayLoader.inl = common\DelayLoader.inl
 		common\Delegate.hpp = common\Delegate.hpp

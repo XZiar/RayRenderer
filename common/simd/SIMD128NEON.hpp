@@ -588,6 +588,8 @@ struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::S
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
     template<typename T>
     typename CastTyper<U32x4, T>::Type VECCALL Cast() const;
+    U16x8 VECCALL Cast(U32x4 arg1) const;
+    U8x16 VECCALL Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const;
 };
 template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
 {
@@ -749,6 +751,7 @@ struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::S
     }
     template<typename T>
     typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
+    U8x16 VECCALL Cast(U16x8 arg1) const;
     /*forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -1044,6 +1047,29 @@ template<> forceinline U8x16 VECCALL I8x16::Cast<U8x16>() const
 template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
 {
     return vreinterpretq_u8_s8(Data);
+}
+
+
+forceinline U16x8 VECCALL U32x4::Cast(U32x4 arg1) const
+{
+#if COMMON_SIMD_LV >= 200
+    return vuzp1q_u16(vreinterpretq_u32_u16(Data), vreinterpretq_u32_u16(arg1));
+#else
+    return vextq_u16(vmovn_high_u32(Data), vmovn_u32(arg1), 4);
+#endif
+}
+forceinline U8x16 VECCALL U32x4::Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const
+{
+    const auto lo16 = Cast(arg1), hi16 = arg2.Cast(arg3);
+    return lo16.Cast(hi16);
+}
+forceinline U8x16 VECCALL U16x8::Cast(U16x8 arg1) const
+{
+#if COMMON_SIMD_LV >= 200
+    return vuzp1q_u8(vreinterpretq_u16_u8(Data), vreinterpretq_u16_u8(arg1));
+#else
+    return vextq_u8(vmovn_high_u16(Data), vmovn_u16(arg1), 8);
+#endif
 }
 
 

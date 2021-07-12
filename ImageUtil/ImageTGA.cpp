@@ -482,7 +482,7 @@ private:
             if (::HAS_FIELD(info, 0x80))
             {
                 const auto obj = Stream.ReadByteNE<uint8_t>();
-                common::copy::BroadcastMany(output, size, obj, size);
+                common::CopyEx.BroadcastMany(output, obj, size);
                 output += size;
                 /*for (auto count = size; count--;)
                     *output++ = obj;*/
@@ -510,7 +510,7 @@ private:
                 uint16_t obj;
                 if (!Stream.Read(obj))
                     return false;
-                common::copy::BroadcastMany(output, size, obj, size);
+                common::CopyEx.BroadcastMany(output, obj, size);
                 output += size;
                 /*for (auto count = size; count--;)
                     *output++ = obj;*/
@@ -568,7 +568,7 @@ private:
                 uint32_t obj;
                 if (!Stream.Read(obj))
                     return false;
-                common::copy::BroadcastMany(output, size, obj, size);
+                common::CopyEx.BroadcastMany(output, obj, size);
                 output += size;
                 /*for (auto count = size; count--;)
                     *output++ = obj;*/

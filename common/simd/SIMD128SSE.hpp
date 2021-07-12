@@ -618,6 +618,8 @@ struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
     template<typename T>
     typename CastTyper<U32x4, T>::Type VECCALL Cast() const;
+    U16x8 VECCALL Cast(U32x4 arg1) const;
+    U8x16 VECCALL Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const;
 };
 template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2>() const
 {
@@ -757,6 +759,7 @@ struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
     forceinline U16x8 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
     template<typename T>
     typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
+    U8x16 VECCALL Cast(U16x8 arg1) const;
 };
 template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
 {
@@ -1001,7 +1004,6 @@ forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
 }
 
-
 template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2>() const
 {
     return Data;
@@ -1033,6 +1035,33 @@ template<> forceinline U8x16 VECCALL I8x16::Cast<U8x16>() const
 template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
 {
     return Data;
+}
+
+
+forceinline U16x8 VECCALL U32x4::Cast(U32x4 arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
+}
+forceinline U8x16 VECCALL U32x4::Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const
+{
+    const auto mask = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto dat0 = _mm_shuffle_epi8(Data, mask);
+    const auto dat1 = _mm_shuffle_epi8(arg1, mask);
+    const auto dat2 = _mm_shuffle_epi8(arg2, mask);
+    const auto dat3 = _mm_shuffle_epi8(arg3, mask);
+    const auto dat02 = _mm_unpacklo_epi32(dat0, dat2);
+    const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
+    return _mm_unpacklo_epi32(dat02, dat13);
+}
+forceinline U8x16 VECCALL U16x8::Cast(U16x8 arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
 }
 
 

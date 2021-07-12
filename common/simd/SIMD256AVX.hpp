@@ -612,6 +612,8 @@ struct alignas(__m256i) U32x8 : public I32Common8<U32x8, uint32_t>
     forceinline U32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U32x8 VECCALL ShiftRightArth() const { return _mm256_srli_epi32(Data, N); }
+    U16x16 VECCALL Cast(U32x8 arg1) const;
+    U8x32 VECCALL Cast(U32x8 arg1, U32x8 arg2, U32x8 arg3) const;
 #endif
     template<typename T>
     typename CastTyper<U32x8, T>::Type VECCALL Cast() const;
@@ -758,6 +760,7 @@ struct alignas(32) U16x16 : public I16Common16<U16x16, uint16_t>
     forceinline U16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x16 VECCALL ShiftRightArth() const { return _mm256_srli_epi16(Data, N); }
+    U8x32 VECCALL Cast(U16x16 arg1) const;
 #endif
     template<typename T>
     typename CastTyper<U16x16, T>::Type VECCALL Cast() const;
@@ -1029,6 +1032,42 @@ template<> forceinline I8x32 VECCALL U8x32::Cast<I8x32>() const
 {
     return Data;
 }
+
+
+#if COMMON_SIMD_LV >= 200
+forceinline U16x16 VECCALL U32x8::Cast(U32x8 arg1) const
+{
+    const auto mask = _mm256_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 4, 5, 8, 9, 12, 13);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
+    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
+forceinline U8x32 VECCALL U32x8::Cast(U32x8 arg1, U32x8 arg2, U32x8 arg3) const
+{
+    const auto mask1 = _mm256_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto mask2 = _mm256_setr_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 4, 8, 12);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask1);//a000,0b00
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask2);//00c0,000d
+    const auto dat45 = _mm256_shuffle_epi8(arg2, mask1);//e000,0f00
+    const auto dat67 = _mm256_shuffle_epi8(arg3, mask2);//00g0,000h
+    const auto dat0213 = _mm256_blend_epi32(dat01, dat23, 0b11001100);//a0c0,0b0d
+    const auto dat4657 = _mm256_blend_epi32(dat45, dat67, 0b11001100);//e0g0,0f0h
+    const auto dat0246 = _mm256_permute2x128_si256(dat0213, dat4657, 0x20);//a0c0,e0g0
+    const auto dat1357 = _mm256_permute2x128_si256(dat0213, dat4657, 0x31);//0b0d,0f0h
+    return _mm256_blend_epi32(dat0246, dat1357, 0b10101010);//abcd,efgh
+}
+forceinline U8x32 VECCALL U16x16::Cast(U16x16 arg1) const
+{
+    const auto mask = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
+    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
+#endif
 
 
 }
