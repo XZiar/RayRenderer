@@ -40,6 +40,9 @@
     <ClCompile Include="TestNEON.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="TestNEONv2.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
     <ClCompile Include="TestAVX512.cpp">
       <Filter>Source</Filter>
     </ClCompile>

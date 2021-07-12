@@ -429,6 +429,8 @@ struct alignas(16) I64x2 : public I64Common2<I64x2, int64_t>
     template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(this->Data, N); }
 #endif
+    template<typename T>
+    typename CastTyper<I64x2, T>::Type VECCALL Cast() const;
 };
 
 struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
@@ -506,6 +508,8 @@ struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
     forceinline U64x2 VECCALL Abs() const { return this->Data; }
     template<uint8_t N>
     forceinline U64x2 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
+    template<typename T>
+    typename CastTyper<U64x2, T>::Type VECCALL Cast() const;
 };
 
 
@@ -557,22 +561,35 @@ struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>
     using I32Common4<I32x4, int32_t>::I32Common4;
 
     // arithmetic operations
-    forceinline I32x4 VECCALL Neg() const { return _mm_sub_epi32(_mm_setzero_si128(), this->Data); }
+    forceinline I32x4 VECCALL Neg() const { return _mm_sub_epi32(_mm_setzero_si128(), Data); }
 #if COMMON_SIMD_LV >= 41
-    forceinline I32x4 VECCALL Max(const I32x4& other) const { return _mm_max_epi32(this->Data, other.Data); }
-    forceinline I32x4 VECCALL Min(const I32x4& other) const { return _mm_min_epi32(this->Data, other.Data); }
+    forceinline I32x4 VECCALL Max(const I32x4& other) const { return _mm_max_epi32(Data, other.Data); }
+    forceinline I32x4 VECCALL Min(const I32x4& other) const { return _mm_min_epi32(Data, other.Data); }
     forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
     {
-        return { I64x2(_mm_mul_epi32(this->Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
+        return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
     }
 #endif
 #if COMMON_SIMD_LV >= 31
-    forceinline I32x4 VECCALL Abs() const { return _mm_abs_epi32(this->Data); }
+    forceinline I32x4 VECCALL Abs() const { return _mm_abs_epi32(Data); }
 #endif
-    forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(this->Data, I64x2(bits)); }
+    forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
-    forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(this->Data, N); }
+    forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
+    template<typename T>
+    typename CastTyper<I32x4, T>::Type VECCALL Cast() const;
 };
+#if COMMON_SIMD_LV >= 41
+template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2>() const
+{
+    return { _mm_cvtepi32_epi64(Data), _mm_cvtepi32_epi64(MoveHiToLo()) };
+}
+template<> forceinline Pack<U64x2, 2> VECCALL I32x4::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
+}
+#endif
+
 
 struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>
 {
@@ -588,18 +605,29 @@ struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>
     {
         return Max(other).Sub(other);
     }
-    forceinline U32x4 VECCALL Max(const U32x4& other) const { return _mm_max_epu32(this->Data, other.Data); }
-    forceinline U32x4 VECCALL Min(const U32x4& other) const { return _mm_min_epu32(this->Data, other.Data); }
+    forceinline U32x4 VECCALL Max(const U32x4& other) const { return _mm_max_epu32(Data, other.Data); }
+    forceinline U32x4 VECCALL Min(const U32x4& other) const { return _mm_min_epu32(Data, other.Data); }
 #endif
     forceinline U32x4 VECCALL Abs() const { return Data; }
     forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const
     {
-        return { U64x2(_mm_mul_epu32(this->Data, other.Data)), U64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
+        return { U64x2(_mm_mul_epu32(Data, other.Data)), U64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
     }
     forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
     template<uint8_t N>
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
+    template<typename T>
+    typename CastTyper<U32x4, T>::Type VECCALL Cast() const;
 };
+template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2>() const
+{
+    const auto zero = _mm_setzero_si128();
+    return { _mm_unpacklo_epi32(Data, zero), _mm_unpackhi_epi32(Data, zero) };
+}
+template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
+}
 
 
 template<typename T, typename E>
@@ -662,26 +690,48 @@ struct alignas(16) I16x8 : public I16Common8<I16x8, int16_t>
     using I16Common8<I16x8, int16_t>::I16Common8;
 
     // arithmetic operations
-    forceinline I16x8 VECCALL SatAdd(const I16x8& other) const { return _mm_adds_epi16(this->Data, other.Data); }
-    forceinline I16x8 VECCALL SatSub(const I16x8& other) const { return _mm_subs_epi16(this->Data, other.Data); }
-    forceinline I16x8 VECCALL MulHi(const I16x8& other) const { return _mm_mulhi_epi16(this->Data, other.Data); }
-    forceinline I16x8 VECCALL Neg() const { return _mm_sub_epi16(_mm_setzero_si128(), this->Data); }
-    forceinline I16x8 VECCALL Max(const I16x8& other) const { return _mm_max_epi16(this->Data, other.Data); }
-    forceinline I16x8 VECCALL Min(const I16x8& other) const { return _mm_min_epi16(this->Data, other.Data); }
+    forceinline I16x8 VECCALL SatAdd(const I16x8& other) const { return _mm_adds_epi16(Data, other.Data); }
+    forceinline I16x8 VECCALL SatSub(const I16x8& other) const { return _mm_subs_epi16(Data, other.Data); }
+    forceinline I16x8 VECCALL MulHi(const I16x8& other) const { return _mm_mulhi_epi16(Data, other.Data); }
+    forceinline I16x8 VECCALL Neg() const { return _mm_sub_epi16(_mm_setzero_si128(), Data); }
+    forceinline I16x8 VECCALL Max(const I16x8& other) const { return _mm_max_epi16(Data, other.Data); }
+    forceinline I16x8 VECCALL Min(const I16x8& other) const { return _mm_min_epi16(Data, other.Data); }
 #if COMMON_SIMD_LV >= 31
-    forceinline I16x8 VECCALL Abs() const { return _mm_abs_epi16(this->Data); }
+    forceinline I16x8 VECCALL Abs() const { return _mm_abs_epi16(Data); }
 #endif
     Pack<I32x4, 2> MulX(const I16x8& other) const
     {
         const auto los = MulLo(other), his = MulHi(other);
         return { _mm_unpacklo_epi16(los, his),_mm_unpackhi_epi16(los, his) };
     }
-    forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi16(this->Data, I64x2(bits)); }
+    forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
-    forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi16(this->Data, N); }
+    forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi16(Data, N); }
     template<typename T>
     typename CastTyper<I16x8, T>::Type VECCALL Cast() const;
 };
+#if COMMON_SIMD_LV >= 41
+template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4>() const
+{
+    return { _mm_cvtepi16_epi32(Data), _mm_cvtepi16_epi32(MoveHiToLo()) };
+}
+template<> forceinline Pack<U32x4, 2> VECCALL I16x8::Cast<U32x4>() const
+{
+    return Cast<I32x4>().Cast<U32x4>();
+}
+template<> forceinline Pack<I64x2, 4> VECCALL I16x8::Cast<I64x2>() const
+{
+    const auto ret0 = _mm_cvtepi16_epi64(Data);
+    const auto ret1 = _mm_cvtepi16_epi64(_mm_srli_si128(Data, 4));
+    const auto ret2 = _mm_cvtepi16_epi64(_mm_srli_si128(Data, 8));
+    const auto ret3 = _mm_cvtepi16_epi64(_mm_srli_si128(Data, 12));
+    return { ret0, ret1, ret2, ret3 };
+}
+template<> forceinline Pack<U64x2, 4> VECCALL I16x8::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
+}
+#endif
 
 
 struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
@@ -689,12 +739,12 @@ struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
     using I16Common8<U16x8, uint16_t>::I16Common8;
 
     // arithmetic operations
-    forceinline U16x8 VECCALL SatAdd(const U16x8& other) const { return _mm_adds_epu16(this->Data, other.Data); }
-    forceinline U16x8 VECCALL SatSub(const U16x8& other) const { return _mm_subs_epu16(this->Data, other.Data); }
-    forceinline U16x8 VECCALL MulHi(const U16x8& other) const { return _mm_mulhi_epu16(this->Data, other.Data); }
+    forceinline U16x8 VECCALL SatAdd(const U16x8& other) const { return _mm_adds_epu16(Data, other.Data); }
+    forceinline U16x8 VECCALL SatSub(const U16x8& other) const { return _mm_subs_epu16(Data, other.Data); }
+    forceinline U16x8 VECCALL MulHi(const U16x8& other) const { return _mm_mulhi_epu16(Data, other.Data); }
 #if COMMON_SIMD_LV >= 41
-    forceinline U16x8 VECCALL Max(const U16x8& other) const { return _mm_max_epu16(this->Data, other.Data); }
-    forceinline U16x8 VECCALL Min(const U16x8& other) const { return _mm_min_epu16(this->Data, other.Data); }
+    forceinline U16x8 VECCALL Max(const U16x8& other) const { return _mm_max_epu16(Data, other.Data); }
+    forceinline U16x8 VECCALL Min(const U16x8& other) const { return _mm_min_epu16(Data, other.Data); }
 #endif
     forceinline U16x8 VECCALL Abs() const { return Data; }
     Pack<U32x4, 2> MulX(const U16x8& other) const
@@ -708,6 +758,25 @@ struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
     template<typename T>
     typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
 };
+template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
+{
+    const auto zero = _mm_setzero_si128();
+    return { _mm_unpacklo_epi16(Data, zero), _mm_unpackhi_epi16(Data, zero) };
+}
+template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4>() const
+{
+    return Cast<I32x4>().Cast<U32x4>();
+}
+template<> forceinline Pack<I64x2, 4> VECCALL U16x8::Cast<I64x2>() const
+{
+    const auto zero = _mm_setzero_si128();
+    const auto lo = _mm_unpacklo_epi16(Data, zero), hi = _mm_unpackhi_epi16(Data, zero);
+    return { _mm_unpacklo_epi32(lo, zero), _mm_unpackhi_epi32(lo, zero), _mm_unpacklo_epi32(hi, zero), _mm_unpackhi_epi32(hi, zero) };
+}
+template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
+}
 
 
 template<typename T, typename E>
@@ -765,15 +834,15 @@ struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>
     using I8Common16<I8x16, int8_t>::I8Common16;
 
     // arithmetic operations
-    forceinline I8x16 VECCALL SatAdd(const I8x16& other) const { return _mm_adds_epi8(this->Data, other.Data); }
-    forceinline I8x16 VECCALL SatSub(const I8x16& other) const { return _mm_subs_epi8(this->Data, other.Data); }
-    forceinline I8x16 VECCALL Neg() const { return _mm_sub_epi8(_mm_setzero_si128(), this->Data); }
+    forceinline I8x16 VECCALL SatAdd(const I8x16& other) const { return _mm_adds_epi8(Data, other.Data); }
+    forceinline I8x16 VECCALL SatSub(const I8x16& other) const { return _mm_subs_epi8(Data, other.Data); }
+    forceinline I8x16 VECCALL Neg() const { return _mm_sub_epi8(_mm_setzero_si128(), Data); }
 #if COMMON_SIMD_LV >= 41
-    forceinline I8x16 VECCALL Max(const I8x16& other) const { return _mm_max_epi8(this->Data, other.Data); }
-    forceinline I8x16 VECCALL Min(const I8x16& other) const { return _mm_min_epi8(this->Data, other.Data); }
+    forceinline I8x16 VECCALL Max(const I8x16& other) const { return _mm_max_epi8(Data, other.Data); }
+    forceinline I8x16 VECCALL Min(const I8x16& other) const { return _mm_min_epi8(Data, other.Data); }
 #endif
 #if COMMON_SIMD_LV >= 31
-    forceinline I8x16 VECCALL Abs() const { return _mm_abs_epi8(this->Data); }
+    forceinline I8x16 VECCALL Abs() const { return _mm_abs_epi8(Data); }
 #endif
 #if COMMON_SIMD_LV >= 41
     forceinline I8x16 VECCALL MulHi(const I8x16& other) const
@@ -798,24 +867,40 @@ struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>
 #if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
 {
-    return { _mm_cvtepi8_epi16(this->Data), _mm_cvtepi8_epi16(MoveHiToLo()) };
+    return { _mm_cvtepi8_epi16(Data), _mm_cvtepi8_epi16(MoveHiToLo()) };
 }
 template<> forceinline Pack<U16x8, 2> VECCALL I8x16::Cast<U16x8>() const
 {
-    const auto ret = Cast<I16x8>();
-    return { ret[0].Data, ret[1].Data };
+    return Cast<I16x8>().Cast<U16x8>();
 }
-//template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4>() const
-//{
-//    const auto ret = Cast<I16x8>();
-//    const auto ret0 = ret[0].Cast<I32x4>(), ret1 = ret[1].Cast<I32x4>();
-//    return { ret0[0], ret0[1], ret1[0], ret1[1] };
-//}
-//template<> forceinline Pack<U32x4, 4> VECCALL I8x16::Cast<U32x4>() const
-//{
-//    const auto ret = Cast<I32x4>();
-//    return { ret[0].Data, ret[1].Data, ret[2].Data, ret[3].Data };
-//}
+template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4>() const
+{
+    const auto ret0 = _mm_cvtepi8_epi32(Data);
+    const auto ret1 = _mm_cvtepi8_epi32(_mm_srli_si128(Data, 4));
+    const auto ret2 = _mm_cvtepi8_epi32(_mm_srli_si128(Data, 8));
+    const auto ret3 = _mm_cvtepi8_epi32(_mm_srli_si128(Data, 12));
+    return { ret0, ret1, ret2, ret3 };
+}
+template<> forceinline Pack<U32x4, 4> VECCALL I8x16::Cast<U32x4>() const
+{
+    return Cast<I32x4>().Cast<U32x4>();
+}
+template<> forceinline Pack<I64x2, 8> VECCALL I8x16::Cast<I64x2>() const
+{
+    const auto ret0 = _mm_cvtepi8_epi64(Data);
+    const auto ret1 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 2));
+    const auto ret2 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 4));
+    const auto ret3 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 6));
+    const auto ret4 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 8));
+    const auto ret5 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 10));
+    const auto ret6 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 12));
+    const auto ret7 = _mm_cvtepi8_epi64(_mm_srli_si128(Data, 14));
+    return { ret0, ret1, ret2, ret3, ret4, ret5, ret6, ret7 };
+}
+template<> forceinline Pack<U64x2, 8> VECCALL I8x16::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
+}
 forceinline Pack<I16x8, 2> VECCALL I8x16::MulX(const I8x16& other) const
 {
     const auto self16 = Cast<I16x8>(), other16 = other.Cast<I16x8>();
@@ -829,10 +914,10 @@ struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>
     using I8Common16<U8x16, uint8_t>::I8Common16;
 
     // arithmetic operations
-    forceinline U8x16 VECCALL SatAdd(const U8x16& other) const { return _mm_adds_epu8(this->Data, other.Data); }
-    forceinline U8x16 VECCALL SatSub(const U8x16& other) const { return _mm_subs_epu8(this->Data, other.Data); }
-    forceinline U8x16 VECCALL Max(const U8x16& other) const { return _mm_max_epu8(this->Data, other.Data); }
-    forceinline U8x16 VECCALL Min(const U8x16& other) const { return _mm_min_epu8(this->Data, other.Data); }
+    forceinline U8x16 VECCALL SatAdd(const U8x16& other) const { return _mm_adds_epu8(Data, other.Data); }
+    forceinline U8x16 VECCALL SatSub(const U8x16& other) const { return _mm_subs_epu8(Data, other.Data); }
+    forceinline U8x16 VECCALL Max(const U8x16& other) const { return _mm_max_epu8(Data, other.Data); }
+    forceinline U8x16 VECCALL Min(const U8x16& other) const { return _mm_min_epu8(Data, other.Data); }
     forceinline U8x16 VECCALL Abs() const { return Data; }
     forceinline U8x16 VECCALL operator*(const U8x16& other) const { return MulLo(other); }
     forceinline U8x16 VECCALL MulHi(const U8x16& other) const
@@ -855,30 +940,99 @@ struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>
 template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
 {
     const auto zero = _mm_setzero_si128();
-    return { _mm_unpacklo_epi8(this->Data, zero), _mm_unpackhi_epi8(this->Data, zero) };
+    return { _mm_unpacklo_epi8(Data, zero), _mm_unpackhi_epi8(Data, zero) };
 }
 template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
 {
-    const auto ret = Cast<I16x8>();
-    return { ret[0].Data, ret[1].Data };
+    return Cast<I16x8>().Cast<U16x8>();
 }
 template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
 {
-    const auto mask0 = U32x4(0xffffff00, 0xffffff01, 0xffffff02, 0xffffff03);
-    const auto mask1 = U32x4(0xffffff04, 0xffffff05, 0xffffff06, 0xffffff07);
-    const auto mask2 = U32x4(0xffffff08, 0xffffff09, 0xffffff0a, 0xffffff0b);
-    const auto mask3 = U32x4(0xffffff0c, 0xffffff0d, 0xffffff0e, 0xffffff0f);
-    return { _mm_shuffle_epi8(Data, mask0), _mm_shuffle_epi8(Data, mask1),_mm_shuffle_epi8(Data, mask2),_mm_shuffle_epi8(Data, mask3) };
+#if COMMON_SIMD_LV >= 41
+    /*const auto ret0 = _mm_cvtepu8_epi32(Data);
+    const auto ret1 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 4));
+    const auto ret2 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 8));
+    const auto ret3 = _mm_cvtepu8_epi32(_mm_srli_si128(Data, 12));
+    return { ret0, ret1, ret2, ret3 };*/
+#endif
+    // not really slower
+    const auto zero = _mm_setzero_si128();
+    const auto lo = _mm_unpacklo_epi8(Data, zero), hi = _mm_unpackhi_epi8(Data, zero);
+    return { _mm_unpacklo_epi8(lo, zero), _mm_unpackhi_epi8(lo, zero), _mm_unpacklo_epi8(hi, zero), _mm_unpackhi_epi8(hi, zero) };
 }
 template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
 {
-    const auto ret = Cast<I32x4>();
-    return { ret[0].Data, ret[1].Data, ret[2].Data, ret[3].Data };
+    return Cast<I32x4>().Cast<U32x4>();
+}
+template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2>() const
+{
+//#if COMMON_SIMD_LV >= 41
+//    const auto ret0 = _mm_cvtepu8_epi64(Data);
+//    const auto ret1 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 2));
+//    const auto ret2 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 4));
+//    const auto ret3 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 6));
+//    const auto ret4 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 8));
+//    const auto ret5 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 10));
+//    const auto ret6 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 12));
+//    const auto ret7 = _mm_cvtepu8_epi64(_mm_srli_si128(Data, 14));
+//    return { ret0, ret1, ret2, ret3, ret4, ret5, ret6, ret7 };
+//#else
+//#endif
+    // not really slower
+    const auto zero = _mm_setzero_si128();
+    const auto lo = _mm_unpacklo_epi8(Data, zero), hi = _mm_unpackhi_epi8(Data, zero);
+    const auto mid0 = _mm_unpacklo_epi16(lo, zero);
+    const auto mid1 = _mm_unpackhi_epi16(lo, zero);
+    const auto mid2 = _mm_unpacklo_epi16(hi, zero);
+    const auto mid3 = _mm_unpackhi_epi16(hi, zero);
+    return
+    {
+        _mm_unpacklo_epi32(mid0, zero), _mm_unpackhi_epi32(mid0, zero), _mm_unpacklo_epi32(mid1, zero), _mm_unpackhi_epi32(mid1, zero),
+        _mm_unpacklo_epi32(mid2, zero), _mm_unpackhi_epi32(mid2, zero), _mm_unpacklo_epi32(mid3, zero), _mm_unpackhi_epi32(mid3, zero)
+    };
+}
+template<> forceinline Pack<U64x2, 8> VECCALL U8x16::Cast<U64x2>() const
+{
+    return Cast<I64x2>().Cast<U64x2>();
 }
 forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
 {
     const auto self16 = Cast<U16x8>(), other16 = other.Cast<U16x8>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
+}
+
+
+template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2>() const
+{
+    return Data;
+}
+template<> forceinline I64x2 VECCALL U64x2::Cast<I64x2>() const
+{
+    return Data;
+}
+template<> forceinline U32x4 VECCALL I32x4::Cast<U32x4>() const
+{
+    return Data;
+}
+template<> forceinline I32x4 VECCALL U32x4::Cast<I32x4>() const
+{
+    return Data;
+}
+template<> forceinline U16x8 VECCALL I16x8::Cast<U16x8>() const
+{
+    return Data;
+}
+template<> forceinline I16x8 VECCALL U16x8::Cast<I16x8>() const
+{
+    return Data;
+}
+template<> forceinline U8x16 VECCALL I8x16::Cast<U8x16>() const
+{
+    return Data;
+}
+template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
+{
+    return Data;
 }
 
 

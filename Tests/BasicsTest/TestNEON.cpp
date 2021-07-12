@@ -1,12 +1,13 @@
 #include "pch.h"
-#define COMMON_SIMD_LV 200
+#define COMMON_SIMD_LV 100
 #include "common/simd/SIMD.hpp"
 #include "common/simd/SIMD128.hpp"
-#if COMMON_SIMD_LV_ >= 200
+#if COMMON_SIMD_LV_ >= 100
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
 #   include "DotProdTest.h"
 
+using namespace common::simd;
 
 
 //RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
@@ -25,7 +26,6 @@
 //RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
 
 
-RegisterSIMDBaseTest(F64x2, 200, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 RegisterSIMDBaseTest(F32x4, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 RegisterSIMDBaseTest(I64x2, 100, Add, Sub, SatAdd, SatSub, Neg, Abs, And, Or, Xor, AndNot, Not, Min, Max)
 RegisterSIMDBaseTest(U64x2, 100, Add, Sub, SatAdd, SatSub, Abs, Min, Max)
@@ -37,15 +37,20 @@ RegisterSIMDBaseTest(I8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Neg, Abs
 RegisterSIMDBaseTest(U8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Abs, Min, Max)
 
 
-RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<common::simd::F64x2>)
-RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<common::simd::F32x4>)
+RegisterSIMDCastTest(I8x16, 100, I16x8, U16x8, I32x4, U32x4, I64x2, U64x2);
+RegisterSIMDCastTest(U8x16, 100, I16x8, U16x8, I32x4, U32x4, I64x2, U64x2);
+RegisterSIMDCastTest(I16x8, 100,               I32x4, U32x4, I64x2, U64x2);
+RegisterSIMDCastTest(U16x8, 100,               I32x4, U32x4, I64x2, U64x2);
+RegisterSIMDCastTest(I32x4, 100,                             I64x2, U64x2);
+RegisterSIMDCastTest(U32x4, 100,                             I64x2, U64x2);
+
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<F32x4>)
 
 
-RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
-RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<common::simd::F32x4>)
+RegisterSIMDTest("F32x4", 100, shuftest::ShuffleVarTest<F32x4>)
 
 
-RegisterSIMDTest("F32x4", 100, dottest::DotProdTest<common::simd::F32x4>)
+RegisterSIMDTest("F32x4", 100, dottest::DotProdTest<F32x4>)
 
 
 #endif

@@ -8,6 +8,7 @@
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
 
+using namespace common::simd;
 
 RegisterSIMDTest("u32_u32", 200, copytest::CopyTest<uint32_t, uint32_t>)
 
@@ -28,22 +29,30 @@ RegisterSIMDBaseTest(I8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Neg, A
 RegisterSIMDBaseTest(U8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Abs, Min, Max)
 
 
-RegisterSIMDTest("F64x4", 200, shuftest::ShuffleTest<common::simd::F64x4>)
-RegisterSIMDTest("I64x4", 200, shuftest::ShuffleTest<common::simd::I64x4>)
-RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<common::simd::F64x2>)
-RegisterSIMDTest("I64x2", 200, shuftest::ShuffleTest<common::simd::I64x2>)
-RegisterSIMDTest("F32x4", 200, shuftest::ShuffleTest<common::simd::F32x4>)
-RegisterSIMDTest("I32x4", 200, shuftest::ShuffleTest<common::simd::I32x4>)
+RegisterSIMDCastTest(I8x32,  200, I16x16, U16x16, I32x8, U32x8, I64x4, U64x4)
+RegisterSIMDCastTest(U8x32,  200, I16x16, U16x16, I32x8, U32x8, I64x4, U64x4)
+RegisterSIMDCastTest(I16x16, 200,                 I32x8, U32x8, I64x4, U64x4)
+RegisterSIMDCastTest(U16x16, 200,                 I32x8, U32x8, I64x4, U64x4)
+RegisterSIMDCastTest(I32x8,  200,                               I64x4, U64x4)
+RegisterSIMDCastTest(U32x8,  200,                               I64x4, U64x4)
 
 
-RegisterSIMDTest("F64x4", 200, shuftest::ShuffleVarTest<common::simd::F64x4>)
-RegisterSIMDTest("I64x4", 200, shuftest::ShuffleVarTest<common::simd::I64x4>)
-RegisterSIMDTest("F32x8", 200, shuftest::ShuffleVarTest<common::simd::F32x8>)
-RegisterSIMDTest("I32x8", 200, shuftest::ShuffleVarTest<common::simd::I32x8>)
-RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<common::simd::F64x2>)
-RegisterSIMDTest("I64x2", 200, shuftest::ShuffleVarTest<common::simd::I64x2>)
-RegisterSIMDTest("F32x4", 200, shuftest::ShuffleVarTest<common::simd::F32x4>)
-RegisterSIMDTest("I32x4", 200, shuftest::ShuffleVarTest<common::simd::I32x4>)
+RegisterSIMDTest("F64x4", 200, shuftest::ShuffleTest<F64x4>)
+RegisterSIMDTest("I64x4", 200, shuftest::ShuffleTest<I64x4>)
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<F64x2>)
+RegisterSIMDTest("I64x2", 200, shuftest::ShuffleTest<I64x2>)
+RegisterSIMDTest("F32x4", 200, shuftest::ShuffleTest<F32x4>)
+RegisterSIMDTest("I32x4", 200, shuftest::ShuffleTest<I32x4>)
+
+
+RegisterSIMDTest("F64x4", 200, shuftest::ShuffleVarTest<F64x4>)
+RegisterSIMDTest("I64x4", 200, shuftest::ShuffleVarTest<I64x4>)
+RegisterSIMDTest("F32x8", 200, shuftest::ShuffleVarTest<F32x8>)
+RegisterSIMDTest("I32x8", 200, shuftest::ShuffleVarTest<I32x8>)
+RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<F64x2>)
+RegisterSIMDTest("I64x2", 200, shuftest::ShuffleVarTest<I64x2>)
+RegisterSIMDTest("F32x4", 200, shuftest::ShuffleVarTest<F32x4>)
+RegisterSIMDTest("I32x4", 200, shuftest::ShuffleVarTest<I32x4>)
 
 
 #endif

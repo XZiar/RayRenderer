@@ -35,7 +35,7 @@
 [submodule "3rdParty/uchardet"]
 	shallow = true
 	path = 3rdParty/uchardet
-	url = https://gitlab.freedesktop.org/uchardet/uchardet.git
+	url = https://github.com/freedesktop/uchardet.git
 [submodule "3rdParty/FreeGLUT"]
 	shallow = true
 	path = 3rdParty/FreeGLUT
@@ -67,7 +67,7 @@
 [submodule "3rdParty/FreeType"]
 	shallow = true
 	path = 3rdParty/FreeType
-	url = https://gitlab.freedesktop.org/freetype/freetype.git
+	url = https://github.com/freetype/freetype.git
 [submodule "3rdParty/boost.context"]
 	shallow = true
 	path = 3rdParty/boost.context

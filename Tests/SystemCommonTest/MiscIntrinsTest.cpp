@@ -17,64 +17,32 @@ TEST_F(CopyEx, Complete)
     ASSERT_TRUE(common::CopyEx.IsComplete());
 }
 
+template<typename Src>
+static void BroadcastTest(const common::CopyManager& intrin, const Src src, size_t count)
+{
+    std::vector<Src> dst;
+    dst.resize(count);
+    intrin.BroadcastMany(dst.data(), src, count);
+    EXPECT_THAT(dst, testing::Each(src)) << "when test on [" << count << "] elements";
+}
 INTRIN_TEST(CopyEx, Broadcast2)
 {
     constexpr uint16_t val = 0x8023;
-    {
-        std::array<uint16_t, 3> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint16_t, 17> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint16_t, 35> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint16_t, 68> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint16_t, 139> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
+    BroadcastTest(*Intrin, val, 3);
+    BroadcastTest(*Intrin, val, 17);
+    BroadcastTest(*Intrin, val, 35);
+    BroadcastTest(*Intrin, val, 68);
+    BroadcastTest(*Intrin, val, 139);
 }
 
 INTRIN_TEST(CopyEx, Broadcast4)
 {
     constexpr uint32_t val = 0xdeafbeefu;
-    {
-        std::array<uint32_t, 3> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint32_t, 17> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint32_t, 35> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint32_t, 68> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
-    {
-        std::array<uint32_t, 139> dst = { 0 };
-        Intrin->BroadcastMany(dst.data(), val, dst.size());
-        EXPECT_THAT(dst, testing::Each(val));
-    }
+    BroadcastTest(*Intrin, val, 3);
+    BroadcastTest(*Intrin, val, 17);
+    BroadcastTest(*Intrin, val, 35);
+    BroadcastTest(*Intrin, val, 68);
+    BroadcastTest(*Intrin, val, 139);
 }
 
 std::mt19937& GetRanEng()
@@ -129,6 +97,23 @@ INTRIN_TEST(CopyEx, ZExtCopy14)
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 97);
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
     ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
+}
+
+INTRIN_TEST(CopyEx, ZExtCopy24)
+{
+    const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<uint32_t, 1024> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = ptr[i];
+        return vals;
+    }();
+    ZExtTest(Intrin.get(), ptr, ref.data(), 7);
+    ZExtTest(Intrin.get(), ptr, ref.data(), 27);
+    ZExtTest(Intrin.get(), ptr, ref.data(), 97);
+    ZExtTest(Intrin.get(), ptr, ref.data(), 197);
+    ZExtTest(Intrin.get(), ptr, ref.data(), 1024);
 }
 
 

@@ -8,21 +8,22 @@
 #   include "ShuffleTest.h"
 #   include "DotProdTest.h"
 
+using namespace common::simd;
 
 RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
 
 RegisterSIMDTest("u32_u16", 42, copytest::CopyTest<uint32_t, uint16_t>)
 
-RegisterSIMDTest("u32_u8",  42, copytest::CopyTest<uint32_t, uint8_t>)
+RegisterSIMDTest("u32_u8", 42, copytest::CopyTest<uint32_t, uint8_t>)
 
-RegisterSIMDTest("u16_u8",  42, copytest::CopyTest<uint16_t, uint8_t>)
+RegisterSIMDTest("u16_u8", 42, copytest::CopyTest<uint16_t, uint8_t>)
 
 
 RegisterSIMDTest("u32", 42, copytest::BroadcastTest<uint32_t>)
 
 RegisterSIMDTest("u16", 42, copytest::BroadcastTest<uint16_t>)
 
-RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
+RegisterSIMDTest("u8", 42, copytest::BroadcastTest< uint8_t>)
 
 
 RegisterSIMDBaseTest(F64x2, 42, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
@@ -37,13 +38,21 @@ RegisterSIMDBaseTest(I8x16, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Ne
 RegisterSIMDBaseTest(U8x16, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Abs, Min, Max)
 
 
-RegisterSIMDTest("F64x2", 42, shuftest::ShuffleTest<common::simd::F64x2>)
-RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<common::simd::I64x2>)
-RegisterSIMDTest("F32x4", 42, shuftest::ShuffleTest<common::simd::F32x4>)
-RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<common::simd::I32x4>)
+RegisterSIMDCastTest(I8x16, 42, I16x8, U16x8, I32x4, U32x4, I64x2, U64x2)
+RegisterSIMDCastTest(U8x16, 42, I16x8, U16x8, I32x4, U32x4, I64x2, U64x2)
+RegisterSIMDCastTest(I16x8, 42,               I32x4, U32x4, I64x2, U64x2)
+RegisterSIMDCastTest(U16x8, 42,               I32x4, U32x4, I64x2, U64x2)
+RegisterSIMDCastTest(I32x4, 42,                             I64x2, U64x2)
+RegisterSIMDCastTest(U32x4, 42,                             I64x2, U64x2)
 
 
-RegisterSIMDTest("F32x4", 42, dottest::DotProdTest<common::simd::F32x4>)
+RegisterSIMDTest("F64x2", 42, shuftest::ShuffleTest<F64x2>)
+RegisterSIMDTest("I64x2", 42, shuftest::ShuffleTest<I64x2>)
+RegisterSIMDTest("F32x4", 42, shuftest::ShuffleTest<F32x4>)
+RegisterSIMDTest("I32x4", 42, shuftest::ShuffleTest<I32x4>)
+
+
+RegisterSIMDTest("F32x4", 42, dottest::DotProdTest<F32x4>)
 
 
 #endif

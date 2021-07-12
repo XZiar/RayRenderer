@@ -476,6 +476,39 @@ static void TestMax(const T* ptr)
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
     }
 }
+
+template<typename T, typename U, size_t... I>
+forceinline void CopyEles(const T& src, U* dst, std::index_sequence<I...>)
+{
+    using V = std::decay_t<decltype(src[0])>;
+    constexpr auto N = V::Count;
+    (..., src[I].Save(dst + N * I));
+}
+template<typename T, typename U>
+static void TestCast(const T* ptr)
+{
+    ForKItem(1)
+    {
+        const auto data = ptr[k];
+        using V = std::decay_t<decltype(std::declval<U>().Val[0])>;
+        const auto output = data.template Cast<U>();
+        using X = std::decay_t<decltype(output)>;
+        std::array<V, T::Count> ref = { 0 };
+        V out[T::Count] = { 0 };
+        if constexpr (std::is_same_v<X, U>)
+        {
+            output.Save(out);
+        }
+        else
+        {
+            CopyEles(output, out, std::make_index_sequence<X::EleCount>{});
+        }
+        for (uint8_t i = 0; i < T::Count; ++i)
+            ref[i] = static_cast<V>(data.Val[i]);
+        EXPECT_THAT(out, MatchVec(ref));
+    }
+}
+
 #undef ForKItem
 
 enum class TestItem : uint32_t
@@ -506,6 +539,23 @@ public:
 #define SIMDBaseItem(r, data, i, x) BOOST_PP_IF(i, |, ) simdtest::TestItem::x
 #define RegisterSIMDBaseTest(type, lv, ...)  RegisterSIMDTest(#type, lv, \
 simdtest::SIMDBaseTest<common::simd::type, BOOST_PP_SEQ_FOR_EACH_I(SIMDBaseItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))>)
+
+
+template<typename T, typename... U>
+class SIMDCastTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "SIMDCast";
+    static constexpr auto Idxes = std::make_index_sequence<sizeof...(U)>{};
+    void TestBody() override
+    {
+        const auto ptr = GetRandPtr<T, std::decay_t<decltype(std::declval<T>().Val[0])>>();
+        (..., TestCast<T, U>(ptr));
+    }
+};
+
+
+#define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::type, __VA_ARGS__>)
 
 
 }

@@ -17,12 +17,18 @@ public:
     using TBroadcast4 = void(uint32_t* dest, const uint32_t src, size_t count) noexcept;
     using TZExtCopy12 = void(uint16_t* dest, const uint8_t* src, size_t count) noexcept;
     using TZExtCopy14 = void(uint32_t* dest, const uint8_t* src, size_t count) noexcept;
+    using TZExtCopy24 = void(uint32_t* dest, const uint16_t* src, size_t count) noexcept;
+    using TNarrowCopy21 = void(uint8_t* dest, const uint16_t* src, size_t count) noexcept;
+    using TNarrowCopy41 = void(uint8_t* dest, const uint32_t* src, size_t count) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
     TBroadcast4* Broadcast4 = nullptr;
     TZExtCopy12* ZExtCopy12 = nullptr;
     TZExtCopy14* ZExtCopy14 = nullptr;
+    TZExtCopy24* ZExtCopy24 = nullptr;
+    TNarrowCopy21* NarrowCopy21 = nullptr;
+    TNarrowCopy41* NarrowCopy41 = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
@@ -34,7 +40,7 @@ public:
     }
     [[nodiscard]] bool IsComplete() const noexcept
     {
-        return Broadcast2 && Broadcast4 && ZExtCopy12 && ZExtCopy14;
+        return Broadcast2 && Broadcast4 && ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && NarrowCopy21 && NarrowCopy41;
     }
 
     template<typename T>
@@ -57,16 +63,46 @@ public:
     template<typename T, typename U>
     forceinline void ZExtCopy(T* const dest, const U* src, const size_t count) const noexcept
     {
-        if constexpr (sizeof(T) == sizeof(U))
+        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        static_assert(SizeT >= SizeU);
+        if constexpr (SizeT == SizeU)
         {
-            memcpy_s(dest, count * sizeof(T), src, count * sizeof(U));
+            memcpy_s(dest, count * SizeT, src, count * SizeU);
         }
-        else if constexpr (sizeof(U) == 1)
+        else if constexpr (SizeU == 1)
         {
-            if constexpr (sizeof(T) == 2)
+            if constexpr (SizeT == 2)
                 ZExtCopy12(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint8_t*>(src), count);
-            else if constexpr (sizeof(T) == 4)
+            else if constexpr (SizeT == 4)
                 ZExtCopy14(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint8_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (SizeU == 2)
+        {
+            if constexpr (SizeT == 4)
+                ZExtCopy24(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else
+            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+    }
+    template<typename T, typename U>
+    forceinline void NarrowCopy(T* const dest, const U* src, const size_t count) const noexcept
+    {
+        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        static_assert(SizeT <= SizeU);
+        if constexpr (SizeT == SizeU)
+        {
+            memcpy_s(dest, count * SizeT, src, count * SizeU);
+        }
+        else if constexpr (SizeT == 1)
+        {
+            if constexpr (SizeU == 2)
+                NarrowCopy21(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
+            else if constexpr (SizeU == 4)
+                NarrowCopy41(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }
