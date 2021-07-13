@@ -198,7 +198,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
-
+    template<typename T, typename... Args>
+    typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
 
@@ -342,7 +343,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
-
+    template<typename T, typename... Args>
+    typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
 
@@ -439,9 +441,10 @@ struct alignas(16) I64x2 : public I64Common2<I64x2, int64_t>
     template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(this->Data, N); }
 #endif
-    template<typename T>
-    typename CastTyper<I64x2, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
+
 
 struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
 {
@@ -518,8 +521,8 @@ struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
     forceinline U64x2 VECCALL Abs() const { return this->Data; }
     template<uint8_t N>
     forceinline U64x2 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
-    template<typename T>
-    typename CastTyper<U64x2, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
 
@@ -586,8 +589,8 @@ struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>
     forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }
-    template<typename T>
-    typename CastTyper<I32x4, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 #if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2>() const
@@ -634,10 +637,8 @@ struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>
     forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
     template<uint8_t N>
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
-    template<typename T>
-    typename CastTyper<U32x4, T>::Type VECCALL Cast() const;
-    U16x8 VECCALL Cast(U32x4 arg1) const;
-    U8x16 VECCALL Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const;
+    template<typename T, typename... Args>
+    typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2>() const
 {
@@ -756,8 +757,8 @@ struct alignas(16) I16x8 : public I16Common8<I16x8, int16_t>
     forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi16(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi16(Data, N); }
-    template<typename T>
-    typename CastTyper<I16x8, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const;
 };
 #if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4>() const
@@ -812,9 +813,8 @@ struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
     forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
     template<uint8_t N>
     forceinline U16x8 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
-    template<typename T>
-    typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
-    U8x16 VECCALL Cast(U16x8 arg1) const;
+    template<typename T, typename... Args>
+    typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;
 };
 template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
 {
@@ -927,8 +927,8 @@ struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>
     forceinline I8x16 VECCALL operator*(const I8x16& other) const { return MulLo(other); }
     Pack<I16x8, 2> VECCALL MulX(const I8x16& other) const;
 #endif
-    template<typename T>
-    typename CastTyper<I8x16, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const;
 };
 #if COMMON_SIMD_LV >= 41
 template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
@@ -1008,8 +1008,8 @@ struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>
         return U8x16(odd.ShiftLeftLogic<8>() | (even & mask));
     }
     Pack<U16x8, 2> VECCALL MulX(const U8x16& other) const;
-    template<typename T>
-    typename CastTyper<U8x16, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<U8x16, T>::Type VECCALL Cast(const Args&... args) const;
 };
 template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
 {
@@ -1084,6 +1084,28 @@ forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
 }
 
 
+template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4>() const
+{
+    return _mm_cvttps_epi32(Data);
+}
+//template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8>(const F32x4& arg1) const
+//{
+//    return Cast<I32x4>().Cast<I16x8>(arg1.Cast<I32x4>());
+//}
+//template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const
+//{
+//    return Cast<I32x4>().Cast<I8x16>(arg1.Cast<I32x4>(), arg2.Cast<I32x4>(), arg3.Cast<I32x4>());
+//}
+template<> forceinline Pack<F64x2, 2> VECCALL F32x4::Cast<F64x2>() const
+{
+    return { _mm_cvtps_pd(Data), _mm_cvtps_pd(As<I32x4>().MoveHiToLo().As<F32x4>()) };
+}
+template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4>(const F64x2& arg1) const
+{
+    return _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_mm_cvtpd_ps(Data)), _mm_castps_pd(_mm_cvtpd_ps(arg1.Data))));
+}
+
+
 template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2>() const
 {
     return Data;
@@ -1118,14 +1140,21 @@ template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
 }
 
 
-forceinline U16x8 VECCALL U32x4::Cast(U32x4 arg1) const
+template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8>(const U32x4& arg1) const
 {
     const auto mask = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto lo = _mm_shuffle_epi8(Data, mask);
     const auto hi = _mm_shuffle_epi8(arg1, mask);
     return _mm_unpacklo_epi64(lo, hi);
 }
-forceinline U8x16 VECCALL U32x4::Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16>(const U16x8& arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
+}
+template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
 {
     const auto mask = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto dat0 = _mm_shuffle_epi8(Data, mask);
@@ -1135,13 +1164,6 @@ forceinline U8x16 VECCALL U32x4::Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const
     const auto dat02 = _mm_unpacklo_epi32(dat0, dat2);
     const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
     return _mm_unpacklo_epi32(dat02, dat13);
-}
-forceinline U8x16 VECCALL U16x8::Cast(U16x8 arg1) const
-{
-    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto lo = _mm_shuffle_epi8(Data, mask);
-    const auto hi = _mm_shuffle_epi8(arg1, mask);
-    return _mm_unpacklo_epi64(lo, hi);
 }
 
 

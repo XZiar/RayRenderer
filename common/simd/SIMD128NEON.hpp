@@ -28,6 +28,110 @@ struct F64x2;
 
 namespace detail
 {
+#if COMMON_COMPILER_MSVC // msvc only typedef __n128
+template<> forceinline __n128 AsType(__n128 from) noexcept { return from; }
+#else
+template<> forceinline float64x2_t AsType(float64x2_t from) noexcept { return from; }
+template<> forceinline float32x4_t AsType(float64x2_t from) noexcept { return vreinterpretq_f32_f64(from); }
+template<> forceinline   int64x2_t AsType(float64x2_t from) noexcept { return vreinterpretq_s64_f64(from); }
+template<> forceinline  uint64x2_t AsType(float64x2_t from) noexcept { return vreinterpretq_u64_f64(from); }
+template<> forceinline   int32x4_t AsType(float64x2_t from) noexcept { return vreinterpretq_s32_f64(from); }
+template<> forceinline  uint32x4_t AsType(float64x2_t from) noexcept { return vreinterpretq_u32_f64(from); }
+template<> forceinline   int16x8_t AsType(float64x2_t from) noexcept { return vreinterpretq_s16_f64(from); }
+template<> forceinline  uint16x8_t AsType(float64x2_t from) noexcept { return vreinterpretq_u16_f64(from); }
+template<> forceinline   int8x16_t AsType(float64x2_t from) noexcept { return vreinterpretq_s8_f64 (from); }
+template<> forceinline  uint8x16_t AsType(float64x2_t from) noexcept { return vreinterpretq_u8_f64 (from); }
+template<> forceinline float64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_f64_f32(from); }
+template<> forceinline float32x4_t AsType(float32x4_t from) noexcept { return from; } 
+template<> forceinline   int64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_s64_f32(from); }
+template<> forceinline  uint64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_u64_f32(from); }
+template<> forceinline   int32x4_t AsType(float32x4_t from) noexcept { return vreinterpretq_s32_f32(from); }
+template<> forceinline  uint32x4_t AsType(float32x4_t from) noexcept { return vreinterpretq_u32_f32(from); }
+template<> forceinline   int16x8_t AsType(float32x4_t from) noexcept { return vreinterpretq_s16_f32(from); }
+template<> forceinline  uint16x8_t AsType(float32x4_t from) noexcept { return vreinterpretq_u16_f32(from); }
+template<> forceinline   int8x16_t AsType(float32x4_t from) noexcept { return vreinterpretq_s8_f32 (from); }
+template<> forceinline  uint8x16_t AsType(float32x4_t from) noexcept { return vreinterpretq_u8_f32 (from); }
+template<> forceinline float64x2_t AsType(  int64x2_t from) noexcept { return vreinterpretq_f64_s64(from); }
+template<> forceinline float32x4_t AsType(  int64x2_t from) noexcept { return vreinterpretq_f32_s64(from); }
+template<> forceinline   int64x2_t AsType(  int64x2_t from) noexcept { return from; } 
+template<> forceinline  uint64x2_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u64_s64(from); }
+template<> forceinline   int32x4_t AsType(  int64x2_t from) noexcept { return vreinterpretq_s32_s64(from); }
+template<> forceinline  uint32x4_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u32_s64(from); }
+template<> forceinline   int16x8_t AsType(  int64x2_t from) noexcept { return vreinterpretq_s16_s64(from); }
+template<> forceinline  uint16x8_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u16_s64(from); }
+template<> forceinline   int8x16_t AsType(  int64x2_t from) noexcept { return vreinterpretq_s8_s64 (from); }
+template<> forceinline  uint8x16_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u8_s64 (from); }
+template<> forceinline float64x2_t AsType( uint64x2_t from) noexcept { return vreinterpretq_f64_u64(from); }
+template<> forceinline float32x4_t AsType( uint64x2_t from) noexcept { return vreinterpretq_f32_u64(from); }
+template<> forceinline   int64x2_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s64_u64(from); }
+template<> forceinline  uint64x2_t AsType( uint64x2_t from) noexcept { return from; } 
+template<> forceinline   int32x4_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s32_u64(from); }
+template<> forceinline  uint32x4_t AsType( uint64x2_t from) noexcept { return vreinterpretq_u32_u64(from); }
+template<> forceinline   int16x8_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s16_u64(from); }
+template<> forceinline  uint16x8_t AsType( uint64x2_t from) noexcept { return vreinterpretq_u16_u64(from); }
+template<> forceinline   int8x16_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s8_u64 (from); }
+template<> forceinline  uint8x16_t AsType( uint64x2_t from) noexcept { return vreinterpretq_u8_u64 (from); }
+template<> forceinline float64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_f64_s32(from); }
+template<> forceinline float32x4_t AsType(  int32x4_t from) noexcept { return vreinterpretq_f32_s32(from); }
+template<> forceinline   int64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_s64_s32(from); }
+template<> forceinline  uint64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u64_s32(from); }
+template<> forceinline   int32x4_t AsType(  int32x4_t from) noexcept { return from; } 
+template<> forceinline  uint32x4_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u32_s32(from); }
+template<> forceinline   int16x8_t AsType(  int32x4_t from) noexcept { return vreinterpretq_s16_s32(from); }
+template<> forceinline  uint16x8_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u16_s32(from); }
+template<> forceinline   int8x16_t AsType(  int32x4_t from) noexcept { return vreinterpretq_s8_s32 (from); }
+template<> forceinline  uint8x16_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u8_s32 (from); }
+template<> forceinline float64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_f64_u32(from); }
+template<> forceinline float32x4_t AsType( uint32x4_t from) noexcept { return vreinterpretq_f32_u32(from); }
+template<> forceinline   int64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s64_u32(from); }
+template<> forceinline  uint64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u64_u32(from); }
+template<> forceinline   int32x4_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s32_u32(from); }
+template<> forceinline  uint32x4_t AsType( uint32x4_t from) noexcept { return from; } 
+template<> forceinline   int16x8_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s16_u32(from); }
+template<> forceinline  uint16x8_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u16_u32(from); }
+template<> forceinline   int8x16_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s8_u32 (from); }
+template<> forceinline  uint8x16_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u8_u32 (from); }
+template<> forceinline float64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_f64_s16(from); }
+template<> forceinline float32x4_t AsType(  int16x8_t from) noexcept { return vreinterpretq_f32_s16(from); }
+template<> forceinline   int64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_s64_s16(from); }
+template<> forceinline  uint64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u64_s16(from); }
+template<> forceinline   int32x4_t AsType(  int16x8_t from) noexcept { return vreinterpretq_s32_s16(from); }
+template<> forceinline  uint32x4_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u32_s16(from); }
+template<> forceinline   int16x8_t AsType(  int16x8_t from) noexcept { return from; } 
+template<> forceinline  uint16x8_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u16_s16(from); }
+template<> forceinline   int8x16_t AsType(  int16x8_t from) noexcept { return vreinterpretq_s8_s16 (from); }
+template<> forceinline  uint8x16_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u8_s16 (from); }
+template<> forceinline float64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_f64_u16(from); }
+template<> forceinline float32x4_t AsType( uint16x8_t from) noexcept { return vreinterpretq_f32_u16(from); }
+template<> forceinline   int64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s64_u16(from); }
+template<> forceinline  uint64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_u64_u16(from); }
+template<> forceinline   int32x4_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s32_u16(from); }
+template<> forceinline  uint32x4_t AsType( uint16x8_t from) noexcept { return vreinterpretq_u32_u16(from); }
+template<> forceinline   int16x8_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s16_u16(from); }
+template<> forceinline  uint16x8_t AsType( uint16x8_t from) noexcept { return from; } 
+template<> forceinline   int8x16_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s8_u16 (from); }
+template<> forceinline  uint8x16_t AsType( uint16x8_t from) noexcept { return vreinterpretq_u8_u16 (from); }
+template<> forceinline float64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_f64_s8(from); }
+template<> forceinline float32x4_t AsType(  int8x16_t from) noexcept { return vreinterpretq_f32_s8(from); }
+template<> forceinline   int64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_s64_s8(from); }
+template<> forceinline  uint64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u64_s8(from); }
+template<> forceinline   int32x4_t AsType(  int8x16_t from) noexcept { return vreinterpretq_s32_s8(from); }
+template<> forceinline  uint32x4_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u32_s8(from); }
+template<> forceinline   int16x8_t AsType(  int8x16_t from) noexcept { return vreinterpretq_s16_s8(from); }
+template<> forceinline  uint16x8_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u16_s8(from); }
+template<> forceinline   int8x16_t AsType(  int8x16_t from) noexcept { return from; } 
+template<> forceinline  uint8x16_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u8_s8 (from); }
+template<> forceinline float64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_f64_u8(from); }
+template<> forceinline float32x4_t AsType( uint8x16_t from) noexcept { return vreinterpretq_f32_u8(from); }
+template<> forceinline   int64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_s64_u8(from); }
+template<> forceinline  uint64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_u64_u8(from); }
+template<> forceinline   int32x4_t AsType( uint8x16_t from) noexcept { return vreinterpretq_s32_u8(from); }
+template<> forceinline  uint32x4_t AsType( uint8x16_t from) noexcept { return vreinterpretq_u32_u8(from); }
+template<> forceinline   int16x8_t AsType( uint8x16_t from) noexcept { return vreinterpretq_s16_u8(from); }
+template<> forceinline  uint16x8_t AsType( uint8x16_t from) noexcept { return vreinterpretq_u16_u8(from); }
+template<> forceinline   int8x16_t AsType( uint8x16_t from) noexcept { return vreinterpretq_s8_u8 (from); }
+template<> forceinline  uint8x16_t AsType( uint8x16_t from) noexcept { return from; } 
+#endif
 
 template<typename T>
 struct Neon128Common : public CommonOperators<T>
@@ -212,7 +316,8 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::S
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
-
+    template<typename T, typename... Args>
+    typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
 #endif
 
@@ -350,7 +455,8 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
-
+    template<typename T, typename... Args>
+    typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
 
@@ -425,11 +531,18 @@ struct alignas(16) I64x2 : public detail::Neon128Common<I64x2>, public detail::S
         const auto isGt = vcgtq_s64(Data, other.Data);
         return vbslq_f64(isGt, other.Data, Data);
     }
-    template<typename T>
-    typename CastTyper<I64x2, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
+#if COMMON_SIMD_LV >= 200
+template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2>() const
+{
+    return vcvtq_f64_s64(Data);
+}
+#endif
+
 
 struct alignas(16) U64x2 : public detail::Neon128Common<U64x2>, public detail::Shuffle64Common<U64x2>, public I64Common2<U64x2, uint64_t>
 {
@@ -459,11 +572,17 @@ struct alignas(16) U64x2 : public detail::Neon128Common<U64x2>, public detail::S
         const auto isGt = vcgtq_u64(Data, other.Data);
         return vbslq_f64(isGt, other.Data, Data);
     }
-    template<typename T>
-    typename CastTyper<U64x2, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const;
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
+#if COMMON_SIMD_LV >= 200
+template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2>() const
+{
+    return vcvtq_f64_u64(Data);
+}
+#endif
 
 
 template<typename T, typename E>
@@ -537,8 +656,8 @@ struct alignas(16) I32x4 : public detail::Neon128Common<I32x4>, public detail::S
     {
         return { vmull_s32(vget_low_s32(Data), vget_low_s32(other.Data)), vmull_high_s32(Data, other.Data) };
     }
-    template<typename T>
-    typename CastTyper<I32x4, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -549,8 +668,18 @@ template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2>() const
 }
 template<> forceinline Pack<U64x2, 2> VECCALL I32x4::Cast<U64x2>() const
 {
-    return Cast<I64x2>().Cast<U64x2>();
+    return Cast<I64x2>().As<U64x2>();
 }
+template<> forceinline F32x4 VECCALL I32x4::Cast<F32x4>() const
+{
+    return vcvtq_f32_s32(Data);
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2>() const
+{
+    return Cast<I64x2>().Cast<F64x2>();
+}
+#endif
 
 
 struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::Shuffle32Common<U32x4>, public I32Common4<U32x4, uint32_t>
@@ -586,10 +715,8 @@ struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::S
     forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
     template<uint8_t N>
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
-    template<typename T>
-    typename CastTyper<U32x4, T>::Type VECCALL Cast() const;
-    U16x8 VECCALL Cast(U32x4 arg1) const;
-    U8x16 VECCALL Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const;
+    template<typename T, typename... Args>
+    typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
 {
@@ -602,8 +729,18 @@ template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
 }
 template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2>() const
 {
-    return Cast<U64x2>().Cast<I64x2>();
+    return Cast<U64x2>().As<I64x2>();
 }
+template<> forceinline F32x4 VECCALL U32x4::Cast<F32x4>() const
+{
+    return vcvtq_f32_u32(Data);
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2>() const
+{
+    return Cast<U64x2>().Cast<F64x2>();
+}
+#endif
 
 
 template<typename T, typename E>
@@ -694,8 +831,8 @@ struct alignas(16) I16x8 : public detail::Neon128Common<I16x8>, public detail::S
     {
         return { vmull_s16(vget_low_s16(Data), vget_low_s16(other.Data)), vmull_high_s16(Data, other.Data) };
     }
-    template<typename T>
-    typename CastTyper<I16x8, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -706,7 +843,7 @@ template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4>() const
 }
 template<> forceinline Pack<U32x4, 2> VECCALL I16x8::Cast<U32x4>() const
 {
-    return Cast<I32x4>().Cast<U32x4>();
+    return Cast<I32x4>().As<U32x4>();
 }
 template<> forceinline Pack<I64x2, 4> VECCALL I16x8::Cast<I64x2>() const
 {
@@ -714,8 +851,18 @@ template<> forceinline Pack<I64x2, 4> VECCALL I16x8::Cast<I64x2>() const
 }
 template<> forceinline Pack<U64x2, 4> VECCALL I16x8::Cast<U64x2>() const
 {
-    return Cast<I64x2>().Cast<U64x2>();
+    return Cast<I64x2>().As<U64x2>();
 }
+template<> forceinline Pack<F32x4, 2> VECCALL I16x8::Cast<F32x4>() const
+{
+    return Cast<I32x4>().Cast<F32x4>();
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2>() const
+{
+    return Cast<I64x2>().Cast<F64x2>();
+}
+#endif
 
 
 struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::Shuffle32Common<U16x8>, public I16Common8<U16x8, uint16_t>
@@ -749,9 +896,8 @@ struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::S
     {
         return { vmull_u16(vget_low_u16(Data), vget_low_u16(other.Data)), vmull_high_u16(Data, other.Data) };
     }
-    template<typename T>
-    typename CastTyper<U16x8, T>::Type VECCALL Cast() const;
-    U8x16 VECCALL Cast(U16x8 arg1) const;
+    template<typename T, typename... Args>
+    typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -767,7 +913,7 @@ template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4>() const
 }
 template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
 {
-    return Cast<U32x4>().Cast<I32x4>();
+    return Cast<U32x4>().As<I32x4>();
 }
 template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2>() const
 {
@@ -796,8 +942,18 @@ template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2>() const
 }
 template<> forceinline Pack<I64x2, 4> VECCALL U16x8::Cast<I64x2>() const
 {
-    return Cast<U64x2>().Cast<I64x2>();
+    return Cast<U64x2>().As<I64x2>();
 }
+template<> forceinline Pack<F32x4, 2> VECCALL U16x8::Cast<F32x4>() const
+{
+    return Cast<I32x4>().Cast<F32x4>();
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2>() const
+{
+    return Cast<U64x2>().Cast<F64x2>();
+}
+#endif
 
 
 template<typename T, typename E>
@@ -891,8 +1047,8 @@ struct alignas(16) I8x16 : public detail::Neon128Common<I8x16>, public detail::S
     {
         return { vmull_s8(vget_low_s8(Data), vget_low_s8(other.Data)), vmull_high_s8(Data, other.Data) };
     }
-    template<typename T>
-    typename CastTyper<I8x16, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -904,7 +1060,7 @@ template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
 }
 template<> forceinline Pack<U16x8, 2> VECCALL I8x16::Cast<U16x8>() const
 {
-    return Cast<I16x8>().Cast<U16x8>();
+    return Cast<I16x8>().As<U16x8>();
 }
 template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4>() const
 {
@@ -912,7 +1068,7 @@ template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4>() const
 }
 template<> forceinline Pack<U32x4, 4> VECCALL I8x16::Cast<U32x4>() const
 {
-    return Cast<I32x4>().Cast<U32x4>();
+    return Cast<I32x4>().As<U32x4>();
 }
 template<> forceinline Pack<I64x2, 8> VECCALL I8x16::Cast<I64x2>() const
 {
@@ -920,8 +1076,18 @@ template<> forceinline Pack<I64x2, 8> VECCALL I8x16::Cast<I64x2>() const
 }
 template<> forceinline Pack<U64x2, 8> VECCALL I8x16::Cast<U64x2>() const
 {
-    return Cast<I64x2>().Cast<U64x2>();
+    return Cast<I64x2>().As<U64x2>();
 }
+template<> forceinline Pack<F32x4, 4> VECCALL I8x16::Cast<F32x4>() const
+{
+    return Cast<I32x4>().Cast<F32x4>();
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2>() const
+{
+    return Cast<I64x2>().Cast<F64x2>();
+}
+#endif
 
 
 struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::Shuffle32Common<U8x16>, public I8Common16<U8x16, uint8_t>
@@ -957,8 +1123,8 @@ struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::S
     {
         return { vmull_u8(vget_low_u8(Data), vget_low_u8(other.Data)), vmull_high_u8(Data, other.Data) };
     }
-    template<typename T>
-    typename CastTyper<U8x16, T>::Type VECCALL Cast() const;
+    template<typename T, typename... Args>
+    typename CastTyper<U8x16, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline U8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
@@ -975,7 +1141,7 @@ template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
 }
 template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
 {
-    return Cast<U16x8>().Cast<I16x8>();
+    return Cast<U16x8>().As<I16x8>();
 }
 template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
 {
@@ -1004,7 +1170,7 @@ template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
 }
 template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
 {
-    return Cast<U32x4>().Cast<I32x4>();
+    return Cast<U32x4>().As<I32x4>();
 }
 template<> forceinline Pack<U64x2, 8> VECCALL U8x16::Cast<U64x2>() const
 {
@@ -1012,8 +1178,42 @@ template<> forceinline Pack<U64x2, 8> VECCALL U8x16::Cast<U64x2>() const
 }
 template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2>() const
 {
-    return Cast<U64x2>().Cast<I64x2>();
+    return Cast<U64x2>().As<I64x2>();
 }
+template<> forceinline Pack<F32x4, 4> VECCALL U8x16::Cast<F32x4>() const
+{
+    return Cast<I32x4>().Cast<F32x4>();
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 8> VECCALL U8x16::Cast<F64x2>() const
+{
+    return Cast<U64x2>().Cast<F64x2>();
+}
+#endif
+
+
+template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4>() const
+{
+    return vcvtq_s32_f32(Data);
+}
+//template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8>(const F32x4& arg1) const
+//{
+//    return Cast<I32x4>().Cast<I16x8>(arg1.Cast<I32x4>());
+//}
+//template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const
+//{
+//    return Cast<I32x4>().Cast<I8x16>(arg1.Cast<I32x4>(), arg2.Cast<I32x4>(), arg3.Cast<I32x4>());
+//}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 2> VECCALL F32x4::Cast<F64x2>() const
+{
+    return { vcvt_f64_f32(vget_low_f32(Data)), vcvt_high_f64_f32(Data) };
+}
+template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4>(const F64x2& arg1) const
+{
+    return vcombine_f32(vcvt_f32_f64(Data), vcvt_f32_f64(arg1));
+}
+#endif
 
 
 template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2>() const
@@ -1050,26 +1250,26 @@ template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
 }
 
 
-forceinline U16x8 VECCALL U32x4::Cast(U32x4 arg1) const
+template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8>(const U32x4& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u16(vreinterpretq_u32_u16(Data), vreinterpretq_u32_u16(arg1));
 #else
-    return vextq_u16(vmovn_high_u32(Data), vmovn_u32(arg1), 4);
+    return vmovn_high_u32(vmovn_u32(Data), arg1);
 #endif
 }
-forceinline U8x16 VECCALL U32x4::Cast(U32x4 arg1, U32x4 arg2, U32x4 arg3) const
-{
-    const auto lo16 = Cast(arg1), hi16 = arg2.Cast(arg3);
-    return lo16.Cast(hi16);
-}
-forceinline U8x16 VECCALL U16x8::Cast(U16x8 arg1) const
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16>(const U16x8& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u8(vreinterpretq_u16_u8(Data), vreinterpretq_u16_u8(arg1));
 #else
-    return vextq_u8(vmovn_high_u16(Data), vmovn_u16(arg1), 8);
+    return vmovn_high_u16(vmovn_u16(Data), arg1);
 #endif
+}
+template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
+{
+    const auto lo16 = Cast<U16x8>(arg1), hi16 = arg2.Cast<U16x8>(arg3);
+    return lo16.Cast<U8x16>(hi16);
 }
 
 

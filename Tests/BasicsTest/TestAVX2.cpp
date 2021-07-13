@@ -20,12 +20,14 @@ RegisterSIMDBaseTest(I8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Neg, A
 RegisterSIMDBaseTest(U8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi, Abs, Min, Max)
 
 
-RegisterSIMDCastTest(I8x32,  200, I16x16, U16x16, I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
-RegisterSIMDCastTest(U8x32,  200, I16x16, U16x16, I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
-RegisterSIMDCastTest(I16x16, 200,                 I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
-RegisterSIMDCastTest(U16x16, 200,                 I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
-RegisterSIMDCastTest(I32x8,  200,                               I64x4, U64x4)
-RegisterSIMDCastTest(U32x8,  200,                               I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(I8x32,  200,        I16x16, U16x16, I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(U8x32,  200,        I16x16, U16x16, I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(I16x16, 200,                        I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(U16x16, 200, U8x32,                 I32x8, U32x8, I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(I32x8,  200,                                      I64x4, U64x4)
+RegisterSIMDCastTest(U32x8,  200, U8x32,         U16x16,               I64x4, U64x4, F32x8, F64x4)
+RegisterSIMDCastTest(F32x8,  200, F64x4, I32x8)
+RegisterSIMDCastTest(F64x4,  200, F32x8)
 
 
 RegisterSIMDTest("F64x4", 200, shuftest::ShuffleTest<F64x4>)

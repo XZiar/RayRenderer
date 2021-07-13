@@ -487,26 +487,51 @@ forceinline void CopyEles(const T& src, U* dst, std::index_sequence<I...>)
 template<typename T, typename U>
 static void TestCast(const T* ptr)
 {
-    ForKItem(1)
+    using V = std::decay_t<decltype(std::declval<U>().Val[0])>;
+    if constexpr (T::Count >= U::Count)
     {
-        const auto data = ptr[k];
-        using V = std::decay_t<decltype(std::declval<U>().Val[0])>;
-        const auto output = data.template Cast<U>();
-        using X = std::decay_t<decltype(output)>;
-        std::array<V, T::Count> ref = { 0 };
-        V out[T::Count] = { 0 };
-        if constexpr (std::is_same_v<X, U>)
+        ForKItem(1)
         {
-            output.Save(out);
+            const auto data = ptr[k];
+            const auto output = data.template Cast<U>();
+            std::array<V, T::Count> ref = { 0 };
+            V out[T::Count] = { 0 };
+            if constexpr (T::Count == U::Count)
+                output.Save(out);
+            else
+                CopyEles(output, out, std::make_index_sequence<T::Count / U::Count>{});
+            for (uint8_t i = 0; i < T::Count; ++i)
+                ref[i] = static_cast<V>(data.Val[i]);
+            EXPECT_THAT(out, MatchVec(ref));
         }
-        else
-        {
-            CopyEles(output, out, std::make_index_sequence<X::EleCount>{});
-        }
-        for (uint8_t i = 0; i < T::Count; ++i)
-            ref[i] = static_cast<V>(data.Val[i]);
-        EXPECT_THAT(out, MatchVec(ref));
     }
+    else
+    {
+        constexpr auto K = U::Count / T::Count;
+        ForKItem(K)
+        {
+            U output;
+            if constexpr (K == 2)
+                output = ptr[k * 2].template Cast<U>(ptr[k * 2 + 1]);
+            else if constexpr (K == 4)
+                output = ptr[k * 4].template Cast<U>(ptr[k * 4 + 1], ptr[k * 4 + 2], ptr[k * 4 + 3]);
+            else
+                static_assert(!common::AlwaysTrue<T>, "not supported");
+            std::array<V, U::Count> ref = { 0 };
+            for (size_t j = 0; j < K; ++j)
+            {
+                const auto& data = ptr[k * K + j];
+                for (uint8_t i = 0; i < T::Count; ++i)
+                    ref[j * T::Count + i] = static_cast<V>(data.Val[i]);
+            }
+            EXPECT_THAT(output.Val, MatchVec(ref));
+        }
+    }
+}
+template<typename T, typename U>
+static void TestCast2(const T* ptr)
+{
+    
 }
 
 #undef ForKItem

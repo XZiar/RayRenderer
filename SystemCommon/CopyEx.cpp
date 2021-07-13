@@ -241,20 +241,20 @@ forceinline void NarrowCopySIMD4(Dst* dest, const Src* src, size_t count, std::i
         const TIn src1[] = { TIn(src + M * 1), TIn(src + M * 1 + N + N * I)... };
         const TIn src2[] = { TIn(src + M * 2), TIn(src + M * 2 + N + N * I)... };
         const TIn src3[] = { TIn(src + M * 3), TIn(src + M * 3 + N + N * I)... };
-        src0[0].Cast(src0[1 + I]...).Save(dest + M * 0);
-        src1[0].Cast(src1[1 + I]...).Save(dest + M * 1);
-        src2[0].Cast(src2[1 + I]...).Save(dest + M * 2);
-        src3[0].Cast(src3[1 + I]...).Save(dest + M * 3);
+        src0[0].template Cast<TCast>(src0[1 + I]...).Save(dest + M * 0);
+        src1[0].template Cast<TCast>(src1[1 + I]...).Save(dest + M * 1);
+        src2[0].template Cast<TCast>(src2[1 + I]...).Save(dest + M * 2);
+        src3[0].template Cast<TCast>(src3[1 + I]...).Save(dest + M * 3);
         src += M * 4; dest += M * 4;
     }
     count = count % (M * 4);
     switch (count / M)
     {
-    case 3: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+    case 3: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].template Cast<TCast>(tmp[1 + I]...).Save(dest); src += M; dest += M; }
         [[fallthrough]];
-    case 2: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+    case 2: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].template Cast<TCast>(tmp[1 + I]...).Save(dest); src += M; dest += M; }
         [[fallthrough]];
-    case 1: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].Cast(tmp[1 + I]...).Save(dest); src += M; dest += M; }
+    case 1: { const TIn tmp[] = { TIn(src), TIn(src + N + N * I)... }; tmp[0].template Cast<TCast>(tmp[1 + I]...).Save(dest); src += M; dest += M; }
         [[fallthrough]];
     default: break;
     }
