@@ -22,9 +22,9 @@ public:
     using TNarrowCopy21 = void(uint8_t* dest, const uint16_t* src, size_t count) noexcept;
     using TNarrowCopy41 = void(uint8_t* dest, const uint32_t* src, size_t count) noexcept;
     using TNarrowCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
-    using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count) noexcept;
-    using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count) noexcept;
-    using TCvtI8F32  = void(float* dest, const int8_t* src, size_t count) noexcept;
+    using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count, float mulVal) noexcept;
+    using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count, float mulVal) noexcept;
+    using TCvtI8F32  = void(float* dest, const int8_t * src, size_t count, float mulVal) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -49,7 +49,10 @@ public:
     }
     [[nodiscard]] bool IsComplete() const noexcept
     {
-        return Broadcast2 && Broadcast4 && ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && NarrowCopy21 && NarrowCopy41 && NarrowCopy42;
+        return Broadcast2 && Broadcast4 && 
+            ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && 
+            NarrowCopy21 && NarrowCopy41 && NarrowCopy42 &&
+            CvtI32F32 && CvtI16F32 && CvtI8F32;
     }
 
     template<typename T>
@@ -119,6 +122,25 @@ public:
         {
             if constexpr (SizeU == 4)
                 NarrowCopy42(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else
+            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+    }
+    template<typename T, typename U>
+    forceinline void ToFloatCopy(T* const dest, const U* src, const size_t count, const T range = 0) const noexcept
+    {
+        // TODO: negative is larger
+        const T mulVal = range == 0 ? 0 : range / static_cast<T>(std::numeric_limits<U>::max());
+        if constexpr (std::is_same_v<T, float>)
+        {
+            if constexpr (std::is_same_v<U, int32_t>)
+                CvtI32F32(dest, src, count, mulVal);
+            else if constexpr (std::is_same_v<U, int16_t>)
+                CvtI16F32(dest, src, count, mulVal);
+            else if constexpr (std::is_same_v<U, int8_t>)
+                CvtI8F32(dest, src, count, mulVal);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }

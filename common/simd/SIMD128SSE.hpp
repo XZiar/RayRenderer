@@ -198,6 +198,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
+    forceinline F64x2& VECCALL operator*=(const F64x2& other) { Data = Mul(other); return *this; }
+    forceinline F64x2& VECCALL operator/=(const F64x2& other) { Data = Div(other); return *this; }
     template<typename T, typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
@@ -343,6 +345,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
+    forceinline F32x4& VECCALL operator*=(const F32x4& other) { Data = Mul(other); return *this; }
+    forceinline F32x4& VECCALL operator/=(const F32x4& other) { Data = Div(other); return *this; }
     template<typename T, typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
@@ -399,6 +403,7 @@ public:
 # endif
     }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
 #endif
 };
 
@@ -565,6 +570,7 @@ public:
 #if COMMON_SIMD_LV >= 41
     forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi32(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
 #endif
 };
 
@@ -726,6 +732,7 @@ public:
     forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi16(this->Data, other.Data); }
     forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi16(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
     forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi16(this->Data, I64x2(bits)); }
     forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi16(this->Data, I64x2(bits)); }
     template<uint8_t N>
@@ -892,6 +899,8 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi8(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi8(this->Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<T*>(this)->MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = operator*(other); return *static_cast<T*>(this); }
 };
 
 
@@ -924,7 +933,6 @@ struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>
         const auto lo = full[0].And(mask), hi = full[1].And(mask);
         return _mm_packus_epi16(lo, hi);
     }
-    forceinline I8x16 VECCALL operator*(const I8x16& other) const { return MulLo(other); }
     Pack<I16x8, 2> VECCALL MulX(const I8x16& other) const;
 #endif
     template<typename T, typename... Args>
@@ -993,7 +1001,6 @@ struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>
     forceinline U8x16 VECCALL Max(const U8x16& other) const { return _mm_max_epu8(Data, other.Data); }
     forceinline U8x16 VECCALL Min(const U8x16& other) const { return _mm_min_epu8(Data, other.Data); }
     forceinline U8x16 VECCALL Abs() const { return Data; }
-    forceinline U8x16 VECCALL operator*(const U8x16& other) const { return MulLo(other); }
     forceinline U8x16 VECCALL MulHi(const U8x16& other) const
     {
         const auto full = MulX(other);

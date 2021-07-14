@@ -21,6 +21,9 @@ DEFINE_FASTPATH(CopyManager, ZExtCopy24);
 DEFINE_FASTPATH(CopyManager, NarrowCopy21);
 DEFINE_FASTPATH(CopyManager, NarrowCopy41);
 DEFINE_FASTPATH(CopyManager, NarrowCopy42);
+DEFINE_FASTPATH(CopyManager, CvtI32F32);
+DEFINE_FASTPATH(CopyManager, CvtI16F32);
+DEFINE_FASTPATH(CopyManager, CvtI8F32 );
 #define Broadcast2Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define Broadcast4Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define ZExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
@@ -29,6 +32,9 @@ DEFINE_FASTPATH(CopyManager, NarrowCopy42);
 #define NarrowCopy21Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define NarrowCopy41Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define NarrowCopy42Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define CvtI32F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
+#define CvtI16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
+#define CvtI8F32Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
 
 struct LOOP : FuncVarBase {};
 struct SIMD128 
@@ -169,6 +175,63 @@ DEFINE_FASTPATH_METHOD(NarrowCopy42, LOOP)
     CastCopyLoop(dest, src, count);
 }
 
+template<typename Src, typename Dst, typename F>
+static void I2FLoop(Dst* dest, const Src* src, size_t count, F proc) noexcept
+{
+    for (size_t iter = count / 8; iter > 0; iter--)
+    {
+        dest[0] = proc(static_cast<Dst>(src[0]));
+        dest[1] = proc(static_cast<Dst>(src[1]));
+        dest[2] = proc(static_cast<Dst>(src[2]));
+        dest[3] = proc(static_cast<Dst>(src[3]));
+        dest[4] = proc(static_cast<Dst>(src[4]));
+        dest[5] = proc(static_cast<Dst>(src[5]));
+        dest[6] = proc(static_cast<Dst>(src[6]));
+        dest[7] = proc(static_cast<Dst>(src[7]));
+        dest += 8; src += 8;
+    }
+    switch (count % 8)
+    {
+    case 7: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 6: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 5: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 4: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 3: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 2: *dest++ = proc(static_cast<Dst>(*src++));
+        [[fallthrough]];
+    case 1: *dest++ = proc(static_cast<Dst>(*src++));
+        break;
+    case 0:
+        return;
+    };
+}
+DEFINE_FASTPATH_METHOD(CvtI32F32, LOOP)
+{
+    if (mulVal == 0)
+        I2FLoop(dest, src, count, [](auto src) { return src; });
+    else
+        I2FLoop(dest, src, count, [=](auto src) { return src * mulVal; });
+}
+DEFINE_FASTPATH_METHOD(CvtI16F32, LOOP)
+{
+    if (mulVal == 0)
+        I2FLoop(dest, src, count, [](auto src) { return src; });
+    else
+        I2FLoop(dest, src, count, [=](auto src) { return src * mulVal; });
+}
+DEFINE_FASTPATH_METHOD(CvtI8F32, LOOP)
+{
+    if (mulVal == 0)
+        I2FLoop(dest, src, count, [](auto src) { return src; });
+    else
+        I2FLoop(dest, src, count, [=](auto src) { return src * mulVal; });
+}
+
 
 template<typename T, auto F, typename Src, typename Dst>
 forceinline void BroadcastSIMD4(Dst* dest, const Src src, size_t count) noexcept
@@ -261,6 +324,119 @@ forceinline void NarrowCopySIMD4(Dst* dest, const Src* src, size_t count, std::i
     count = count % M;
     F(dest, src, count);
 }
+template<bool Adjust, typename TIn, typename TCast, auto F, typename Src, typename Dst, size_t... I>
+forceinline void I2FSIMD4(Dst* dest, const Src* src, size_t count, Dst mulVal, std::index_sequence<I...>) noexcept
+{
+    constexpr auto N = TIn::Count, M = TCast::Count;
+    static_assert((sizeof...(I) == N / M) && (N % M == 0));
+    [[maybe_unused]] TCast muler(mulVal);
+    for (size_t iter = count / (N * 4); iter > 0; iter--)
+    {
+        auto data0 = TIn(src + N * 0).template Cast<TCast>();
+        auto data1 = TIn(src + N * 1).template Cast<TCast>();
+        auto data2 = TIn(src + N * 2).template Cast<TCast>();
+        auto data3 = TIn(src + N * 3).template Cast<TCast>();
+        if constexpr (Adjust)
+        {
+            if constexpr (sizeof...(I) == 1)
+            {
+                data0.Mul(muler).Save(dest + N * 0);
+                data1.Mul(muler).Save(dest + N * 1);
+                data2.Mul(muler).Save(dest + N * 2);
+                data3.Mul(muler).Save(dest + N * 3);
+            }
+            else
+            {
+                (..., data0[I].Mul(muler).Save(dest + N * 0 + M * I));
+                (..., data1[I].Mul(muler).Save(dest + N * 1 + M * I));
+                (..., data2[I].Mul(muler).Save(dest + N * 2 + M * I));
+                (..., data3[I].Mul(muler).Save(dest + N * 3 + M * I));
+            }
+        }
+        else
+        {
+            if constexpr (sizeof...(I) == 1)
+            {
+                data0.Save(dest + N * 0);
+                data1.Save(dest + N * 1);
+                data2.Save(dest + N * 2);
+                data3.Save(dest + N * 3);
+            }
+            else
+            {
+                (..., data0[I].Save(dest + N * 0 + M * I));
+                (..., data1[I].Save(dest + N * 1 + M * I));
+                (..., data2[I].Save(dest + N * 2 + M * I));
+                (..., data3[I].Save(dest + N * 3 + M * I));
+            }
+        }
+        src += N * 4; dest += N * 4;
+    }
+    count = count % (N * 4);
+    switch (count / N)
+    {
+    case 3: 
+    { 
+        const auto data = TIn(src).template Cast<TCast>(); 
+        if constexpr (Adjust)
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Mul(muler).Save(dest);
+            else
+                (..., data[I].Mul(muler).Save(dest + M * I));
+        }
+        else
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Save(dest);
+            else
+                (..., data[I].Save(dest + M * I));
+        }
+        src += N; dest += N;
+    } [[fallthrough]];
+    case 2:
+    {
+        const auto data = TIn(src).template Cast<TCast>();
+        if constexpr (Adjust)
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Mul(muler).Save(dest);
+            else
+                (..., data[I].Mul(muler).Save(dest + M * I));
+        }
+        else
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Save(dest);
+            else
+                (..., data[I].Save(dest + M * I));
+        }
+        src += N; dest += N;
+    } [[fallthrough]];
+    case 1:
+    {
+        const auto data = TIn(src).template Cast<TCast>();
+        if constexpr (Adjust)
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Mul(muler).Save(dest);
+            else
+                (..., data[I].Mul(muler).Save(dest + M * I));
+        }
+        else
+        {
+            if constexpr (sizeof...(I) == 1)
+                data.Save(dest);
+            else
+                (..., data[I].Save(dest + M * I));
+        }
+        src += N; dest += N;
+    } [[fallthrough]];
+    default: break;
+    }
+    count = count % N;
+    F(dest, src, count, mulVal);
+}
 
 #if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (!COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100)
 
@@ -279,6 +455,27 @@ DEFINE_FASTPATH_METHOD(ZExtCopy12, SIMD128)
 DEFINE_FASTPATH_METHOD(ZExtCopy24, SIMD128)
 {
     ZExtCopySIMD4<simd::U16x8, simd::U32x4, &GET_FASTPATH_METHOD(ZExtCopy24, LOOP)>(dest, src, count, std::make_index_sequence<2>{});
+}
+DEFINE_FASTPATH_METHOD(CvtI32F32, SIMD128)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I32x4, simd::F32x4, &GET_FASTPATH_METHOD(CvtI32F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<1>{});
+    else
+        I2FSIMD4<true, simd::I32x4, simd::F32x4, &GET_FASTPATH_METHOD(CvtI32F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<1>{});
+}
+DEFINE_FASTPATH_METHOD(CvtI16F32, SIMD128)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I16x8, simd::F32x4, &GET_FASTPATH_METHOD(CvtI16F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<2>{});
+    else
+        I2FSIMD4<true, simd::I16x8, simd::F32x4, &GET_FASTPATH_METHOD(CvtI16F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<2>{});
+}
+DEFINE_FASTPATH_METHOD(CvtI8F32, SIMD128)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I8x16, simd::F32x4, &GET_FASTPATH_METHOD(CvtI8F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<4>{});
+    else
+        I2FSIMD4<true, simd::I8x16, simd::F32x4, &GET_FASTPATH_METHOD(CvtI8F32, LOOP)>(dest, src, count, mulVal, std::make_index_sequence<4>{});
 }
 
 #endif
@@ -321,6 +518,18 @@ DEFINE_FASTPATH_METHOD(NarrowCopy42, SIMDSSSE3)
 }
 #endif
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
+DEFINE_FASTPATH_METHOD(ZExtCopy12, SIMDAVX2)
+{
+    ZExtCopySIMD4<simd::U8x32, simd::U16x16, &GET_FASTPATH_METHOD(ZExtCopy12, SIMD128)>(dest, src, count, std::make_index_sequence<2>{});
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy24, SIMDAVX2)
+{
+    ZExtCopySIMD4<simd::U16x16, simd::U32x8, &GET_FASTPATH_METHOD(ZExtCopy24, SIMD128)>(dest, src, count, std::make_index_sequence<2>{});
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDAVX2)
+{
+    ZExtCopySIMD4<simd::U8x32, simd::U32x8, &GET_FASTPATH_METHOD(ZExtCopy14, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<4>{});
+}
 DEFINE_FASTPATH_METHOD(NarrowCopy21, SIMDAVX2)
 {
     NarrowCopySIMD4<simd::U16x16, simd::U8x32, &GET_FASTPATH_METHOD(NarrowCopy21, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<1>{});
@@ -332,6 +541,20 @@ DEFINE_FASTPATH_METHOD(NarrowCopy41, SIMDAVX2)
 DEFINE_FASTPATH_METHOD(NarrowCopy42, SIMDAVX2)
 {
     NarrowCopySIMD4<simd::U32x8, simd::U16x16, &GET_FASTPATH_METHOD(NarrowCopy42, SIMDSSSE3)>(dest, src, count, std::make_index_sequence<1>{});
+}
+DEFINE_FASTPATH_METHOD(CvtI16F32, SIMDAVX2)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I16x16, simd::F32x8, &GET_FASTPATH_METHOD(CvtI16F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<2>{});
+    else
+        I2FSIMD4<true, simd::I16x16, simd::F32x8, &GET_FASTPATH_METHOD(CvtI16F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<2>{});
+}
+DEFINE_FASTPATH_METHOD(CvtI8F32, SIMDAVX2)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I8x32, simd::F32x8, &GET_FASTPATH_METHOD(CvtI8F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<4>{});
+    else
+        I2FSIMD4<true, simd::I8x32, simd::F32x8, &GET_FASTPATH_METHOD(CvtI8F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<4>{});
 }
 #endif
 
@@ -346,6 +569,13 @@ DEFINE_FASTPATH_METHOD(Broadcast4, SIMD256)
 {
     BroadcastSIMD4<simd::U32x8, &GET_FASTPATH_METHOD(Broadcast4, SIMD128)>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(CvtI32F32, SIMD256)
+{
+    if (mulVal == 0)
+        I2FSIMD4<false, simd::I32x8, simd::F32x8, &GET_FASTPATH_METHOD(CvtI32F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<1>{});
+    else
+        I2FSIMD4<true, simd::I32x8, simd::F32x8, &GET_FASTPATH_METHOD(CvtI32F32, SIMD128)>(dest, src, count, mulVal, std::make_index_sequence<1>{});
+}
 
 #endif
 
@@ -356,12 +586,15 @@ common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
         std::vector<VarItem> ret;
         RegistFuncVars(Broadcast2, SIMD256, SIMD128, LOOP);
         RegistFuncVars(Broadcast4, SIMD256, SIMD128, LOOP);
-        RegistFuncVars(ZExtCopy12, SIMD128, LOOP);
-        RegistFuncVars(ZExtCopy14, SIMDSSSE3, SIMD128, LOOP);
-        RegistFuncVars(ZExtCopy24, SIMD128, LOOP);
+        RegistFuncVars(ZExtCopy12, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(ZExtCopy14, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        RegistFuncVars(ZExtCopy24, SIMDAVX2, SIMD128, LOOP);
         RegistFuncVars(NarrowCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(NarrowCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(NarrowCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        RegistFuncVars(CvtI32F32, SIMD256, SIMD128, LOOP);
+        RegistFuncVars(CvtI16F32, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(CvtI8F32,  SIMDAVX2, SIMD128, LOOP);
         return ret;
     }();
     return list;
@@ -374,12 +607,15 @@ CopyManager::CopyManager(common::span<const CopyManager::VarItem> requests) noex
         {
         CHECK_FUNC_VARS(func, var, Broadcast2, SIMD256, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, Broadcast4, SIMD256, SIMD128, LOOP);
-        CHECK_FUNC_VARS(func, var, ZExtCopy12, SIMD128, LOOP);
-        CHECK_FUNC_VARS(func, var, ZExtCopy14, SIMDSSSE3, SIMD128, LOOP);
-        CHECK_FUNC_VARS(func, var, ZExtCopy24, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, ZExtCopy12, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, ZExtCopy14, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, ZExtCopy24, SIMDAVX2, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, NarrowCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, NarrowCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, NarrowCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, CvtI32F32, SIMD256, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, CvtI16F32, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, CvtI8F32,  SIMDAVX2, SIMD128, LOOP);
         }
     }
 }

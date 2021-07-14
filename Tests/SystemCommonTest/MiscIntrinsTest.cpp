@@ -170,6 +170,88 @@ INTRIN_TEST(CopyEx, NarrowCopy42)
     NarrowTest(Intrin.get(), ptr, ref.data(), 197);
     NarrowTest(Intrin.get(), ptr, ref.data(), 512);
 }
+template<typename Src, typename Dst>
+static void I2FTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, const Dst* ref2, size_t count)
+{
+    std::vector<Dst> dst;
+    dst.resize(count);
+    intrin->ToFloatCopy(dst.data(), src, count);
+    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
+    intrin->ToFloatCopy(dst.data(), src, count, Dst(1));
+    EXPECT_THAT(dst, testing::ElementsAreArray(ref2, count)) << "when test on [" << count << "] elements";
+}
+INTRIN_TEST(CopyEx, CvtI32F32)
+{
+    const auto ptr = reinterpret_cast<const int32_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<float, 256> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<float>(ptr[i]);
+        return vals;
+    }();
+    static const auto ref2 = [&]()
+    {
+        constexpr float muler = 1 / float(INT32_MAX);
+        std::array<float, 256> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = ref[i] * muler;
+        return vals;
+    }();
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 256);
+}
+INTRIN_TEST(CopyEx, CvtI16F32)
+{
+    const auto ptr = reinterpret_cast<const int16_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<float, 512> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<float>(ptr[i]);
+        return vals;
+    }();
+    static const auto ref2 = [&]()
+    {
+        constexpr float muler = 1 / float(INT16_MAX);
+        std::array<float, 512> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = ref[i] * muler;
+        return vals;
+    }();
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 512);
+}
+INTRIN_TEST(CopyEx, CvtI8F32)
+{
+    const auto ptr = reinterpret_cast<const int8_t*>(RandVals.data());
+    static const auto ref = [&]()
+    {
+        std::array<float, 1024> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = static_cast<float>(ptr[i]);
+        return vals;
+    }();
+    static const auto ref2 = [&]()
+    {
+        constexpr float muler = 1 / float(INT8_MAX);
+        std::array<float, 1024> vals = {};
+        for (size_t i = 0; i < vals.size(); ++i)
+            vals[i] = ref[i] * muler;
+        return vals;
+    }();
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
+    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 1024);
+}
 
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins);

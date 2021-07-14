@@ -108,9 +108,39 @@ struct CommonOperators
     T operator|(const T& other) const { return static_cast<const T*>(this)->Or(other); }
     T operator^(const T& other) const { return static_cast<const T*>(this)->Xor(other); }
     T operator~() const { return static_cast<const T*>(this)->Not(); }
+    T& operator&=(const T& other) 
+    {
+        const auto self = static_cast<const T*>(this);
+        self->Data = self->And(other); 
+        return *self;
+    }
+    T& operator|=(const T& other) 
+    {
+        const auto self = static_cast<const T*>(this);
+        self->Data = self->Or(other);
+        return *self;
+    }
+    T& operator^=(const T& other) 
+    {
+        const auto self = static_cast<const T*>(this);
+        self->Data = self->Xor(other);
+        return *self;
+    }
     // arithmetic operations
     T operator+(const T& other) const { return static_cast<const T*>(this)->Add(other); }
     T operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
+    T& operator+=(const T& other) 
+    {
+        const auto self = static_cast<const T*>(this);
+        self->Data = self->Add(other);
+        return *self;
+    }
+    T& operator-=(const T& other)
+    {
+        const auto self = static_cast<const T*>(this);
+        self->Data = self->Sub(other);
+        return *self;
+    }
     template<typename U>
     U VECCALL As() const noexcept
     { 
