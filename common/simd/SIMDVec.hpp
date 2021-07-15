@@ -6,14 +6,21 @@ namespace common
 {
 namespace simd
 {
-//namespace detail
-//{
-//template<typename T, typename V, typename S, size_t... I>
-//inline T PackCast(const S& src, std::index_sequence<I...>)
-//{
-//    return T{ src[I].template Cast<V>()... };
-//}
-//}
+
+enum class DotPos : uint8_t
+{
+    X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000,
+    XY = X | Y, XZ = X | Z, XW = X | W, YZ = Y | Z, YW = Y | W, ZW = Z | W, XYZ = X | Y | Z, XYW = X | Y | W, XZW = X | Z | W, YZW = Y | Z | W, XYZW = X | Y | Z | W,
+};
+MAKE_ENUM_BITFIELD(DotPos)
+
+enum class CastMode : uint8_t
+{
+    RangeUndef = 0x0, RangeSaturate = 0x1, RangeTrunc = 0x2,
+    PrecTrunc = 0x10
+};
+MAKE_ENUM_BITFIELD(CastMode)
+
 template<typename T, size_t N>
 struct alignas(T) Pack
 {
@@ -148,14 +155,23 @@ struct CommonOperators
     }
 };
 
+template<typename From, typename To>
+inline constexpr CastMode CstMode() noexcept
+{
+    constexpr auto src = From::VDInfo, dst = To::VDInfo;
+    if constexpr (src.Bit > dst.Bit)
+    {
+        if constexpr (src.Type == VecDataInfo::DataTypes::Float || dst.Type == VecDataInfo::DataTypes::Float)
+            return CastMode::RangeUndef;
+        return CastMode::RangeTrunc;
+    }
+    else 
+    {
+        return CastMode::RangeUndef;
+    }
 }
 
-enum class DotPos : uint8_t 
-{ 
-    X = 0b1, Y = 0b10, Z = 0b100, W = 0b1000, 
-    XY = X|Y, XZ = X|Z, XW = X|W, YZ = Y|Z, YW = Y|W, ZW = Z|W, XYZ = X|Y|Z, XYW = X|Y|W, XZW = X|Z|W, YZW = Y|Z|W, XYZW = X|Y|Z|W,
-};
-MAKE_ENUM_BITFIELD(DotPos)
+}
 
 }
 }

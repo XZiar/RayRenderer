@@ -484,7 +484,18 @@ forceinline void CopyEles(const T& src, U* dst, std::index_sequence<I...>)
     constexpr auto N = V::Count;
     (..., src[I].Save(dst + N * I));
 }
-template<typename T, typename U>
+template<typename U, common::simd::CastMode Mode, typename T>
+forceinline U CastSingle(T val) noexcept
+{
+    if constexpr (Mode == common::simd::CastMode::RangeSaturate)
+    {
+        constexpr auto minVal = static_cast<T>(std::numeric_limits<U>::min()), maxVal = static_cast<T>(std::numeric_limits<U>::max());
+        return static_cast<U>(std::clamp(val, minVal, maxVal));
+    }
+    else
+        return static_cast<U>(val);
+}
+template<typename T, typename U, common::simd::CastMode Mode>
 static void TestCast(const T* ptr)
 {
     using V = std::decay_t<decltype(std::declval<U>().Val[0])>;
@@ -493,7 +504,7 @@ static void TestCast(const T* ptr)
         ForKItem(1)
         {
             const auto data = ptr[k];
-            const auto output = data.template Cast<U>();
+            const auto output = data.template Cast<U, Mode>();
             std::array<V, T::Count> ref = { 0 };
             V out[T::Count] = { 0 };
             if constexpr (T::Count == U::Count)
@@ -501,7 +512,8 @@ static void TestCast(const T* ptr)
             else
                 CopyEles(output, out, std::make_index_sequence<T::Count / U::Count>{});
             for (uint8_t i = 0; i < T::Count; ++i)
-                ref[i] = static_cast<V>(data.Val[i]);
+                ref[i] = CastSingle<V, Mode>(data.Val[i]);
+                //ref[i] = static_cast<V>(data.Val[i]);
             EXPECT_THAT(out, MatchVec(ref));
         }
     }
@@ -512,9 +524,9 @@ static void TestCast(const T* ptr)
         {
             U output;
             if constexpr (K == 2)
-                output = ptr[k * 2].template Cast<U>(ptr[k * 2 + 1]);
+                output = ptr[k * 2].template Cast<U, Mode>(ptr[k * 2 + 1]);
             else if constexpr (K == 4)
-                output = ptr[k * 4].template Cast<U>(ptr[k * 4 + 1], ptr[k * 4 + 2], ptr[k * 4 + 3]);
+                output = ptr[k * 4].template Cast<U, Mode>(ptr[k * 4 + 1], ptr[k * 4 + 2], ptr[k * 4 + 3]);
             else
                 static_assert(!common::AlwaysTrue<T>, "not supported");
             std::array<V, U::Count> ref = { 0 };
@@ -522,7 +534,8 @@ static void TestCast(const T* ptr)
             {
                 const auto& data = ptr[k * K + j];
                 for (uint8_t i = 0; i < T::Count; ++i)
-                    ref[j * T::Count + i] = static_cast<V>(data.Val[i]);
+                    ref[j * T::Count + i] = CastSingle<V, Mode>(data.Val[i]);
+                    //ref[j * T::Count + i] = static_cast<V>(data.Val[i]);
             }
             EXPECT_THAT(output.Val, MatchVec(ref));
         }
@@ -566,7 +579,7 @@ public:
 simdtest::SIMDBaseTest<common::simd::type, BOOST_PP_SEQ_FOR_EACH_I(SIMDBaseItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))>)
 
 
-template<typename T, typename... U>
+template<common::simd::CastMode Mode, typename T, typename... U>
 class SIMDCastTest : public SIMDFixture
 {
 public:
@@ -575,12 +588,16 @@ public:
     void TestBody() override
     {
         const auto ptr = GetRandPtr<T, std::decay_t<decltype(std::declval<T>().Val[0])>>();
-        (..., TestCast<T, U>(ptr));
+        if constexpr (Mode == common::simd::CastMode::RangeUndef)
+            (..., TestCast<T, U, common::simd::detail::CstMode<T, U>()>(ptr));
+        else
+            (..., TestCast<T, U, Mode>(ptr));
     }
 };
 
 
-#define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::type, __VA_ARGS__>)
+#define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::RangeUndef, common::simd::type, __VA_ARGS__>)
+#define RegisterSIMDCastModeTest(type, lv, mode, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::mode, common::simd::type, __VA_ARGS__>)
 
 
 }

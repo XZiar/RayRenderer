@@ -9,33 +9,17 @@
 using namespace common::simd;
 
 
-//RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
-//
-//RegisterSIMDTest("u32_u16", 42, copytest::CopyTest<uint32_t, uint16_t>)
-//
-//RegisterSIMDTest("u32_u8",  42, copytest::CopyTest<uint32_t, uint8_t>)
-//
-//RegisterSIMDTest("u16_u8",  42, copytest::CopyTest<uint16_t, uint8_t>)
-
-
-//RegisterSIMDTest("u32", 42, copytest::BroadcastTest<uint32_t>)
-//
-//RegisterSIMDTest("u16", 42, copytest::BroadcastTest<uint16_t>)
-//
-//RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
-
-
 RegisterSIMDBaseTest(F64x2, 200, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 
 
-RegisterSIMDCastTest(I8x16, 200,        I16x8, U16x8,                             F64x2);
-RegisterSIMDCastTest(U8x16, 200,        I16x8, U16x8,                             F64x2);
-RegisterSIMDCastTest(I16x8, 200,                      I32x4, U32x4,               F64x2);
-RegisterSIMDCastTest(U16x8, 200, U8x16,               I32x4, U32x4,               F64x2);
-RegisterSIMDCastTest(I32x4, 200,                                    I64x2, U64x2, F64x2);
-RegisterSIMDCastTest(U32x4, 200, U8x16,        U16x8,               I64x2, U64x2, F64x2);
 RegisterSIMDCastTest(F32x4, 200, F64x2)
 RegisterSIMDCastTest(F64x2, 200, F32x4)
+RegisterSIMDCastTest(I32x4, 200,                                    I64x2, U64x2, F64x2);
+RegisterSIMDCastTest(U32x4, 200, U8x16,        U16x8,               I64x2, U64x2, F64x2);
+RegisterSIMDCastTest(I16x8, 200,                      I32x4, U32x4,               F64x2);
+RegisterSIMDCastTest(U16x8, 200, U8x16,               I32x4, U32x4,               F64x2);
+RegisterSIMDCastTest(I8x16, 200,        I16x8, U16x8,                             F64x2);
+RegisterSIMDCastTest(U8x16, 200,        I16x8, U16x8,                             F64x2);
 
 
 RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<F64x2>)

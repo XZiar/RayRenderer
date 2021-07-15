@@ -316,7 +316,7 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::S
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
 #endif
@@ -455,7 +455,7 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
     }
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
@@ -531,13 +531,13 @@ struct alignas(16) I64x2 : public detail::Neon128Common<I64x2>, public detail::S
         const auto isGt = vcgtq_s64(Data, other.Data);
         return vbslq_f64(isGt, other.Data, Data);
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<I64x2, T>(), typename... Args>
     typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
 #if COMMON_SIMD_LV >= 200
-template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2>() const
+template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return vcvtq_f64_s64(Data);
 }
@@ -572,13 +572,13 @@ struct alignas(16) U64x2 : public detail::Neon128Common<U64x2>, public detail::S
         const auto isGt = vcgtq_u64(Data, other.Data);
         return vbslq_f64(isGt, other.Data, Data);
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<U64x2, T>(), typename... Args>
     typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const;
     /*template<uint8_t N>
     forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
 #if COMMON_SIMD_LV >= 200
-template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2>() const
+template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return vcvtq_f64_u64(Data);
 }
@@ -656,26 +656,26 @@ struct alignas(16) I32x4 : public detail::Neon128Common<I32x4>, public detail::S
     {
         return { vmull_s32(vget_low_s32(Data), vget_low_s32(other.Data)), vmull_high_s32(Data, other.Data) };
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<I32x4, T>(), typename... Args>
     typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
-template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return { vmovl_s32(vget_low_s32(Data)), vmovl_s32(vget_high_s32(Data)) };
 }
-template<> forceinline Pack<U64x2, 2> VECCALL I32x4::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 2> VECCALL I32x4::Cast<U64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().As<U64x2>();
 }
-template<> forceinline F32x4 VECCALL I32x4::Cast<F32x4>() const
+template<> forceinline F32x4 VECCALL I32x4::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return vcvtq_f32_s32(Data);
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().Cast<F64x2>();
 }
@@ -715,10 +715,10 @@ struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::S
     forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
     template<uint8_t N>
     forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<U32x4, T>(), typename... Args>
     typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
-template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
     const auto zero = neon_moviqb(0);
@@ -727,16 +727,16 @@ template<> forceinline Pack<U64x2, 2> VECCALL U32x4::Cast<U64x2>() const
     return { vmovl_u32(vget_low_u32(Data)), vmovl_u32(vget_high_u32(Data)) };
 #endif
 }
-template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 2> VECCALL U32x4::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().As<I64x2>();
 }
-template<> forceinline F32x4 VECCALL U32x4::Cast<F32x4>() const
+template<> forceinline F32x4 VECCALL U32x4::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return vcvtq_f32_u32(Data);
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().Cast<F64x2>();
 }
@@ -831,34 +831,34 @@ struct alignas(16) I16x8 : public detail::Neon128Common<I16x8>, public detail::S
     {
         return { vmull_s16(vget_low_s16(Data), vget_low_s16(other.Data)), vmull_high_s16(Data, other.Data) };
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<I16x8, T>(), typename... Args>
     typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
-template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4>() const
+template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4, CastMode::RangeUndef>() const
 {
     return { vmovl_s16(vget_low_s16(Data)), vmovl_s16(vget_high_s16(Data)) };
 }
-template<> forceinline Pack<U32x4, 2> VECCALL I16x8::Cast<U32x4>() const
+template<> forceinline Pack<U32x4, 2> VECCALL I16x8::Cast<U32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().As<U32x4>();
 }
-template<> forceinline Pack<I64x2, 4> VECCALL I16x8::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 4> VECCALL I16x8::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().Cast<I64x2>();
 }
-template<> forceinline Pack<U64x2, 4> VECCALL I16x8::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 4> VECCALL I16x8::Cast<U64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().As<U64x2>();
 }
-template<> forceinline Pack<F32x4, 2> VECCALL I16x8::Cast<F32x4>() const
+template<> forceinline Pack<F32x4, 2> VECCALL I16x8::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().Cast<F32x4>();
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().Cast<F64x2>();
 }
@@ -896,13 +896,13 @@ struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::S
     {
         return { vmull_u16(vget_low_u16(Data), vget_low_u16(other.Data)), vmull_high_u16(Data, other.Data) };
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<U16x8, T>(), typename... Args>
     typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
-template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4>() const
+template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
     const auto zero = neon_moviqb(0);
@@ -911,11 +911,11 @@ template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4>() const
     return { vmovl_u16(vget_low_u16(Data)), vmovl_u16(vget_high_u16(Data)) };
 #endif
 }
-template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4>() const
+template<> forceinline Pack<I32x4, 2> VECCALL U16x8::Cast<I32x4, CastMode::RangeUndef>() const
 {
     return Cast<U32x4>().As<I32x4>();
 }
-template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
     constexpr uint64_t mask4x4[] =
@@ -940,16 +940,16 @@ template<> forceinline Pack<U64x2, 4> VECCALL U16x8::Cast<U64x2>() const
     return { lo[0], lo[1], hi[0], hi[1] };*/
 #endif
 }
-template<> forceinline Pack<I64x2, 4> VECCALL U16x8::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 4> VECCALL U16x8::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().As<I64x2>();
 }
-template<> forceinline Pack<F32x4, 2> VECCALL U16x8::Cast<F32x4>() const
+template<> forceinline Pack<F32x4, 2> VECCALL U16x8::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().Cast<F32x4>();
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().Cast<F64x2>();
 }
@@ -1047,43 +1047,43 @@ struct alignas(16) I8x16 : public detail::Neon128Common<I8x16>, public detail::S
     {
         return { vmull_s8(vget_low_s8(Data), vget_low_s8(other.Data)), vmull_high_s8(Data, other.Data) };
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<I8x16, T>(), typename... Args>
     typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline I8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline I8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 
 };
-template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8>() const
+template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8, CastMode::RangeUndef>() const
 {
     return { vmovl_s8(vget_low_s8(Data)), vmovl_s8(vget_high_s8(Data)) };
 }
-template<> forceinline Pack<U16x8, 2> VECCALL I8x16::Cast<U16x8>() const
+template<> forceinline Pack<U16x8, 2> VECCALL I8x16::Cast<U16x8, CastMode::RangeUndef>() const
 {
     return Cast<I16x8>().As<U16x8>();
 }
-template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4>() const
+template<> forceinline Pack<I32x4, 4> VECCALL I8x16::Cast<I32x4, CastMode::RangeUndef>() const
 {
     return Cast<I16x8>().Cast<I32x4>();
 }
-template<> forceinline Pack<U32x4, 4> VECCALL I8x16::Cast<U32x4>() const
+template<> forceinline Pack<U32x4, 4> VECCALL I8x16::Cast<U32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().As<U32x4>();
 }
-template<> forceinline Pack<I64x2, 8> VECCALL I8x16::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 8> VECCALL I8x16::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return Cast<I16x8>().Cast<I32x4>().Cast<I64x2>();
 }
-template<> forceinline Pack<U64x2, 8> VECCALL I8x16::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 8> VECCALL I8x16::Cast<U64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().As<U64x2>();
 }
-template<> forceinline Pack<F32x4, 4> VECCALL I8x16::Cast<F32x4>() const
+template<> forceinline Pack<F32x4, 4> VECCALL I8x16::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().Cast<F32x4>();
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<I64x2>().Cast<F64x2>();
 }
@@ -1123,14 +1123,14 @@ struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::S
     {
         return { vmull_u8(vget_low_u8(Data), vget_low_u8(other.Data)), vmull_high_u8(Data, other.Data) };
     }
-    template<typename T, typename... Args>
+    template<typename T, CastMode Mode = detail::CstMode<U8x16, T>(), typename... Args>
     typename CastTyper<U8x16, T>::Type VECCALL Cast(const Args&... args) const;
     /*forceinline U8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
     template<uint8_t N>
     forceinline U8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 
 };
-template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
+template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
     const auto zero = neon_moviqb(0);
@@ -1139,11 +1139,11 @@ template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8>() const
     return { vmovl_u8(vget_low_u8(Data)), vmovl_u8(vget_high_u8(Data)) };
 #endif
 }
-template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8>() const
+template<> forceinline Pack<I16x8, 2> VECCALL U8x16::Cast<I16x8, CastMode::RangeUndef>() const
 {
     return Cast<U16x8>().As<I16x8>();
 }
-template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
+template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4, CastMode::RangeUndef>() const
 {
 #if COMMON_SIMD_LV >= 200
     constexpr uint32_t mask4x4[] =
@@ -1168,89 +1168,65 @@ template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4>() const
     return { lo[0], lo[1], hi[0], hi[1] };*/
 #endif
 }
-template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4>() const
+template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4, CastMode::RangeUndef>() const
 {
     return Cast<U32x4>().As<I32x4>();
 }
-template<> forceinline Pack<U64x2, 8> VECCALL U8x16::Cast<U64x2>() const
+template<> forceinline Pack<U64x2, 8> VECCALL U8x16::Cast<U64x2, CastMode::RangeUndef>() const
 {
     return Cast<U32x4>().Cast<U64x2>();
 }
-template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2>() const
+template<> forceinline Pack<I64x2, 8> VECCALL U8x16::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().As<I64x2>();
 }
-template<> forceinline Pack<F32x4, 4> VECCALL U8x16::Cast<F32x4>() const
+template<> forceinline Pack<F32x4, 4> VECCALL U8x16::Cast<F32x4, CastMode::RangeUndef>() const
 {
     return Cast<I32x4>().Cast<F32x4>();
 }
 #if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 8> VECCALL U8x16::Cast<F64x2>() const
+template<> forceinline Pack<F64x2, 8> VECCALL U8x16::Cast<F64x2, CastMode::RangeUndef>() const
 {
     return Cast<U64x2>().Cast<F64x2>();
 }
 #endif
 
 
-template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4>() const
-{
-    return vcvtq_s32_f32(Data);
-}
-//template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8>(const F32x4& arg1) const
-//{
-//    return Cast<I32x4>().Cast<I16x8>(arg1.Cast<I32x4>());
-//}
-//template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const
-//{
-//    return Cast<I32x4>().Cast<I8x16>(arg1.Cast<I32x4>(), arg2.Cast<I32x4>(), arg3.Cast<I32x4>());
-//}
-#if COMMON_SIMD_LV >= 200
-template<> forceinline Pack<F64x2, 2> VECCALL F32x4::Cast<F64x2>() const
-{
-    return { vcvt_f64_f32(vget_low_f32(Data)), vcvt_high_f64_f32(Data) };
-}
-template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4>(const F64x2& arg1) const
-{
-    return vcombine_f32(vcvt_f32_f64(Data), vcvt_f32_f64(arg1));
-}
-#endif
-
-
-template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2>() const
+template<> forceinline U64x2 VECCALL I64x2::Cast<U64x2, CastMode::RangeUndef>() const
 {
     return vreinterpretq_s64_u64(Data);
 }
-template<> forceinline I64x2 VECCALL U64x2::Cast<I64x2>() const
+template<> forceinline I64x2 VECCALL U64x2::Cast<I64x2, CastMode::RangeUndef>() const
 {
     return vreinterpretq_u64_s64(Data);
 }
-template<> forceinline U32x4 VECCALL I32x4::Cast<U32x4>() const
+template<> forceinline U32x4 VECCALL I32x4::Cast<U32x4, CastMode::RangeUndef>() const
 {
     return vreinterpretq_s32_u32(Data);
 }
-template<> forceinline I32x4 VECCALL U32x4::Cast<I32x4>() const
+template<> forceinline I32x4 VECCALL U32x4::Cast<I32x4, CastMode::RangeUndef>() const
 {
     return vreinterpretq_u32_s32(Data);
 }
-template<> forceinline U16x8 VECCALL I16x8::Cast<U16x8>() const
+template<> forceinline U16x8 VECCALL I16x8::Cast<U16x8, CastMode::RangeUndef>() const
 {
     return vreinterpretq_s16_u16(Data);
 }
-template<> forceinline I16x8 VECCALL U16x8::Cast<I16x8>() const
+template<> forceinline I16x8 VECCALL U16x8::Cast<I16x8, CastMode::RangeUndef>() const
 {
     return vreinterpretq_u16_s16(Data);
 }
-template<> forceinline U8x16 VECCALL I8x16::Cast<U8x16>() const
+template<> forceinline U8x16 VECCALL I8x16::Cast<U8x16, CastMode::RangeUndef>() const
 {
     return vreinterpretq_s8_u8(Data);
 }
-template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16>() const
+template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16, CastMode::RangeUndef>() const
 {
     return vreinterpretq_u8_s8(Data);
 }
 
 
-template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8>(const U32x4& arg1) const
+template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u16(vreinterpretq_u32_u16(Data), vreinterpretq_u32_u16(arg1));
@@ -1258,7 +1234,7 @@ template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8>(const U32x4& arg1) const
     return vmovn_high_u32(vmovn_u32(Data), arg1);
 #endif
 }
-template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16>(const U16x8& arg1) const
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u8(vreinterpretq_u16_u8(Data), vreinterpretq_u16_u8(arg1));
@@ -1266,10 +1242,100 @@ template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16>(const U16x8& arg1) const
     return vmovn_high_u16(vmovn_u16(Data), arg1);
 #endif
 }
-template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
+template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16, CastMode::RangeTrunc>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
 {
     const auto lo16 = Cast<U16x8>(arg1), hi16 = arg2.Cast<U16x8>(arg3);
     return lo16.Cast<U8x16>(hi16);
+}
+template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeTrunc>(const I32x4& arg1) const
+{
+    return As<U32x4>().Cast<U16x8>(arg1.As<U32x4>()).As<I16x8>();
+}
+template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(const I16x8& arg1) const
+{
+    return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
+}
+template<> forceinline I8x16 VECCALL I32x4::Cast<I8x16, CastMode::RangeTrunc>(const I32x4& arg1, const I32x4& arg2, const I32x4& arg3) const
+{
+    return As<U32x4>().Cast<U8x16>(arg1.As<U32x4>(), arg2.As<U32x4>(), arg3.As<U32x4>()).As<I8x16>();
+}
+
+
+template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeUndef>() const
+{
+    return vcvtq_s32_f32(Data);
+}
+template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeUndef>(const F32x4& arg1) const
+{
+    return Cast<I32x4>().Cast<I16x8>(arg1.Cast<I32x4>());
+}
+template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16, CastMode::RangeUndef>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const
+{
+    return Cast<I32x4>().Cast<I8x16>(arg1.Cast<I32x4>(), arg2.Cast<I32x4>(), arg3.Cast<I32x4>());
+}
+#if COMMON_SIMD_LV >= 200
+template<> forceinline Pack<F64x2, 2> VECCALL F32x4::Cast<F64x2, CastMode::RangeUndef>() const
+{
+    return { vcvt_f64_f32(vget_low_f32(Data)), vcvt_high_f64_f32(Data) };
+}
+template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4, CastMode::RangeUndef>(const F64x2& arg1) const
+{
+    return vcombine_f32(vcvt_f32_f64(Data), vcvt_f32_f64(arg1));
+}
+#endif
+
+
+template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>() const
+{
+    const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
+    return Min(maxVal).Max(minVal).Cast<I32x4, CastMode::RangeUndef>();
+}
+template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeSaturate>(const F32x4& arg1) const
+{
+    const F32x4 minVal = static_cast<float>(INT16_MIN), maxVal = static_cast<float>(INT16_MAX);
+    return Min(maxVal).Max(minVal).Cast<I16x8, CastMode::RangeUndef>(arg1.Min(maxVal).Max(minVal));
+}
+template<> forceinline I8x16 VECCALL F32x4::Cast<I8x16, CastMode::RangeSaturate>(const F32x4& arg1, const F32x4& arg2, const F32x4& arg3) const
+{
+    const F32x4 minVal = static_cast<float>(INT8_MIN), maxVal = static_cast<float>(INT8_MAX);
+    return Min(maxVal).Max(minVal).Cast<I8x16, CastMode::RangeUndef>(
+        arg1.Min(maxVal).Max(minVal), arg2.Min(maxVal).Max(minVal), arg3.Min(maxVal).Max(minVal));
+}
+template<> forceinline I32x4 VECCALL I64x2::Cast<I32x4, CastMode::RangeSaturate>(const I64x2& arg1) const
+{
+    return vqmovn_high_s64(vqmovn_s64(Data), arg1);
+}
+template<> forceinline U32x4 VECCALL I64x2::Cast<U32x4, CastMode::RangeSaturate>(const I64x2& arg1) const
+{
+    return vqmovun_high_s64(vqmovun_s64(Data), arg1);
+}
+template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeSaturate>(const U64x2& arg1) const
+{
+    return vqmovn_high_u64(vqmovn_u64(Data), arg1);
+}
+template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeSaturate>(const I32x4& arg1) const
+{
+    return vqmovn_high_s32(vqmovn_s32(Data), arg1);
+}
+template<> forceinline U16x8 VECCALL I32x4::Cast<U16x8, CastMode::RangeSaturate>(const I32x4& arg1) const
+{
+    return vqmovun_high_s32(vqmovun_s32(Data), arg1);
+}
+template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeSaturate>(const U32x4& arg1) const
+{
+    return vqmovn_high_u32(vqmovn_u32(Data), arg1);
+}
+template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeSaturate>(const I16x8& arg1) const
+{
+    return vqmovn_high_s16(vqmovn_s16(Data), arg1);
+}
+template<> forceinline U8x16 VECCALL I16x8::Cast<U8x16, CastMode::RangeSaturate>(const I16x8& arg1) const
+{
+    return vqmovun_high_s16(vqmovun_s16(Data), arg1);
+}
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeSaturate>(const U16x8& arg1) const
+{
+    return vqmovn_high_u16(vqmovn_u16(Data), arg1);
 }
 
 

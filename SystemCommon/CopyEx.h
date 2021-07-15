@@ -25,6 +25,9 @@ public:
     using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count, float mulVal) noexcept;
     using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count, float mulVal) noexcept;
     using TCvtI8F32  = void(float* dest, const int8_t * src, size_t count, float mulVal) noexcept;
+    using TCvtF32I32 = void(int32_t* dest, const float* src, size_t count, float mulVal) noexcept;
+    using TCvtF32I16 = void(int16_t* dest, const float* src, size_t count, float mulVal) noexcept;
+    using TCvtF32I8  = void(int8_t * dest, const float* src, size_t count, float mulVal) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -38,6 +41,9 @@ private:
     TCvtI32F32* CvtI32F32 = nullptr;
     TCvtI16F32* CvtI16F32 = nullptr;
     TCvtI8F32 * CvtI8F32  = nullptr;
+    TCvtF32I32* CvtF32I32 = nullptr;
+    TCvtF32I16* CvtF32I16 = nullptr;
+    TCvtF32I8 * CvtF32I8  = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;

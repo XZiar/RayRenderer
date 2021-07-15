@@ -10,22 +10,6 @@
 using namespace common::simd;
 
 
-//RegisterSIMDTest("u32_u32", 42, copytest::CopyTest<uint32_t, uint32_t>)
-//
-//RegisterSIMDTest("u32_u16", 42, copytest::CopyTest<uint32_t, uint16_t>)
-//
-//RegisterSIMDTest("u32_u8",  42, copytest::CopyTest<uint32_t, uint8_t>)
-//
-//RegisterSIMDTest("u16_u8",  42, copytest::CopyTest<uint16_t, uint8_t>)
-
-
-//RegisterSIMDTest("u32", 42, copytest::BroadcastTest<uint32_t>)
-//
-//RegisterSIMDTest("u16", 42, copytest::BroadcastTest<uint16_t>)
-//
-//RegisterSIMDTest("u8",  42, copytest::BroadcastTest< uint8_t>)
-
-
 RegisterSIMDBaseTest(F32x4, 100, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
 RegisterSIMDBaseTest(I64x2, 100, Add, Sub, SatAdd, SatSub, Neg, Abs, And, Or, Xor, AndNot, Not, Min, Max)
 RegisterSIMDBaseTest(U64x2, 100, Add, Sub, SatAdd, SatSub, Abs, Min, Max)
@@ -37,13 +21,21 @@ RegisterSIMDBaseTest(I8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Neg, Abs
 RegisterSIMDBaseTest(U8x16, 100, Add, Sub, SatAdd, SatSub, MulLo, MulX, Abs, Min, Max)
 
 
-RegisterSIMDCastTest(I8x16, 100,        I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(U8x16, 100,        I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(I16x8, 100,                      I32x4, U32x4, I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(U16x8, 100, U8x16,               I32x4, U32x4, I64x2, U64x2, F32x4);
 RegisterSIMDCastTest(I32x4, 100,                                    I64x2, U64x2, F32x4);
 RegisterSIMDCastTest(U32x4, 100, U8x16,        U16x8,               I64x2, U64x2, F32x4);
-RegisterSIMDCastTest(F32x4, 100, I32x4)
+RegisterSIMDCastTest(I16x8, 100,                      I32x4, U32x4, I64x2, U64x2, F32x4);
+RegisterSIMDCastTest(U16x8, 100, U8x16,               I32x4, U32x4, I64x2, U64x2, F32x4);
+RegisterSIMDCastTest(I8x16, 100,        I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
+RegisterSIMDCastTest(U8x16, 100,        I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4);
+
+
+RegisterSIMDCastModeTest(F32x4, 100, RangeSaturate, I32x4, I16x8, I8x16)
+RegisterSIMDCastModeTest(I64x2, 100, RangeSaturate, I32x4, U32x4)
+RegisterSIMDCastModeTest(U64x2, 100, RangeSaturate, U32x4)
+RegisterSIMDCastModeTest(I32x4, 100, RangeSaturate, I16x8, U16x8)
+RegisterSIMDCastModeTest(U32x4, 100, RangeSaturate, U16x8)
+RegisterSIMDCastModeTest(I16x8, 100, RangeSaturate, I8x16, U8x16)
+RegisterSIMDCastModeTest(U16x8, 100, RangeSaturate, U8x16)
 
 
 RegisterSIMDTest("F32x4", 100, shuftest::ShuffleTest<F32x4>)
