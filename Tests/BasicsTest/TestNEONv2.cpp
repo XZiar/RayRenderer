@@ -22,6 +22,9 @@ RegisterSIMDCastTest(I8x16, 200,        I16x8, U16x8,                           
 RegisterSIMDCastTest(U8x16, 200,        I16x8, U16x8,                             F64x2);
 
 
+RegisterSIMDTest("F64x2", 200, simdtest::SIMDCompareTest<F64x2>)
+
+
 RegisterSIMDTest("F64x2", 200, shuftest::ShuffleTest<F64x2>)
 
 

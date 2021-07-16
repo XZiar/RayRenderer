@@ -21,6 +21,17 @@ enum class CastMode : uint8_t
 };
 MAKE_ENUM_BITFIELD(CastMode)
 
+enum class MaskType : uint8_t
+{
+    SigBit = 0b1, FullEle = 0b11
+};
+MAKE_ENUM_BITFIELD(MaskType)
+
+enum class CompareType : uint8_t
+{
+    LessThan = 0x1, LessEqual, Equal, NotEqual, GreaterEqual, GreaterThan
+};
+
 template<typename T, size_t N>
 struct alignas(T) Pack
 {

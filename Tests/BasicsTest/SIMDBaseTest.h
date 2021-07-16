@@ -153,9 +153,8 @@ static void TestAdd(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Add(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] + data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -168,9 +167,8 @@ static void TestSub(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Sub(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] - data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -183,7 +181,7 @@ static void TestSatAdd(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         using V = UpcastST<U>;
         const auto output = data1.SatAdd(data2);
         U ref[T::Count] = { 0 };
@@ -202,7 +200,7 @@ static void TestSatSub(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         using V = UpcastST<U>;
         const auto output = data1.SatSub(data2);
         U ref[T::Count] = { 0 };
@@ -221,9 +219,8 @@ static void TestMul(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Mul(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] * data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -235,8 +232,8 @@ static void TestMulLo(const T* ptr)
 {
     ForKItem(2)
     {
+        using U = typename T::EleType;
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.MulLo(data2);
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
@@ -251,7 +248,7 @@ static void TestMulHi(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         using V = UpcastT<U>;
         const auto output = data1.MulHi(data2);
         U ref[T::Count] = { 0 };
@@ -284,7 +281,7 @@ static void TestMulX(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         using V = UpcastT<U>;
         const auto output = data1.MulX(data2);
         V out[T::Count] = { 0 };
@@ -310,9 +307,8 @@ static void TestDiv(const T* ptr)
         ForKItem(2)
         {
             const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-            using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
             const auto output = data1.Div(data2);
-            std::array<U, T::Count> ref = { 0 };
+            std::array<typename T::EleType, T::Count> ref = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = data1.Val[i] / data2.Val[i];
             //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -324,9 +320,8 @@ static void TestDiv(const T* ptr)
         ForKItem(1)
         {
             const auto data = ptr[k + 0];
-            using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
             const auto output = data.Div(data.Val[0]);
-            std::array<U, T::Count> ref = { 0 };
+            std::array<typename T::EleType, T::Count> ref = { 0 };
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = data.Val[i] / data.Val[0];
             //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -341,7 +336,7 @@ static void TestNeg(const T* ptr)
     ForKItem(1)
     {
         const auto data = ptr[k + 0];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         const auto output = data.Neg();
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
@@ -358,7 +353,7 @@ static void TestAbs(const T* ptr)
     ForKItem(1)
     {
         const auto data = ptr[k + 0];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         const auto output = data.Abs();
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
@@ -378,7 +373,7 @@ static void TestAnd(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
+        using U = typename T::EleType;
         const auto output = data1.And(data2);
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
@@ -393,9 +388,8 @@ static void TestOr(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Or(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] | data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -408,9 +402,8 @@ static void TestXor(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Xor(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] ^ data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -423,9 +416,8 @@ static void TestAndNot(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.AndNot(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = (~data1.Val[i]) & data2.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -438,9 +430,8 @@ static void TestNot(const T* ptr)
     ForKItem(1)
     {
         const auto data = ptr[k + 0];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data.Not();
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = ~data.Val[i];
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -453,9 +444,8 @@ static void TestMin(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Min(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = std::min(data1.Val[i], data2.Val[i]);
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -468,9 +458,8 @@ static void TestMax(const T* ptr)
     ForKItem(2)
     {
         const auto data1 = ptr[k + 0], data2 = ptr[k + 1];
-        using U = std::decay_t<decltype(std::declval<T>().Val[0])>;
         const auto output = data1.Max(data2);
-        U ref[T::Count] = { 0 };
+        typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = std::max(data1.Val[i], data2.Val[i]);
         EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
@@ -489,16 +478,17 @@ forceinline U CastSingle(T val) noexcept
 {
     if constexpr (Mode == common::simd::CastMode::RangeSaturate)
     {
-        constexpr auto minVal = static_cast<T>(std::numeric_limits<U>::min()), maxVal = static_cast<T>(std::numeric_limits<U>::max());
-        return static_cast<U>(std::clamp(val, minVal, maxVal));
+        constexpr auto dstMin = std::numeric_limits<U>::min(), dstMax = std::numeric_limits<U>::max();
+        constexpr auto minVal = static_cast<T>(dstMin), maxVal = static_cast<T>(dstMax);
+        if (val <= minVal) return dstMin;
+        if (val >= maxVal) return dstMax;
     }
-    else
-        return static_cast<U>(val);
+    return static_cast<U>(val);
 }
 template<typename T, typename U, common::simd::CastMode Mode>
 static void TestCast(const T* ptr)
 {
-    using V = std::decay_t<decltype(std::declval<U>().Val[0])>;
+    using V = typename U::EleType;
     if constexpr (T::Count >= U::Count)
     {
         ForKItem(1)
@@ -513,7 +503,6 @@ static void TestCast(const T* ptr)
                 CopyEles(output, out, std::make_index_sequence<T::Count / U::Count>{});
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = CastSingle<V, Mode>(data.Val[i]);
-                //ref[i] = static_cast<V>(data.Val[i]);
             EXPECT_THAT(out, MatchVec(ref));
         }
     }
@@ -535,16 +524,58 @@ static void TestCast(const T* ptr)
                 const auto& data = ptr[k * K + j];
                 for (uint8_t i = 0; i < T::Count; ++i)
                     ref[j * T::Count + i] = CastSingle<V, Mode>(data.Val[i]);
-                    //ref[j * T::Count + i] = static_cast<V>(data.Val[i]);
             }
             EXPECT_THAT(output.Val, MatchVec(ref));
         }
     }
 }
-template<typename T, typename U>
-static void TestCast2(const T* ptr)
+
+template<typename T>
+inline T GetAllOnes() noexcept
 {
-    
+    if constexpr (std::is_same_v<T, float>)
+    {
+        const uint32_t X = UINT32_MAX;
+        return *reinterpret_cast<const float*>(&X);
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        const uint64_t X = UINT64_MAX;
+        return *reinterpret_cast<const double*>(&X);
+    }
+    else if constexpr (std::is_unsigned_v<T>)
+        return std::numeric_limits<T>::max();
+    else
+        return static_cast<T>(-1);
+}
+template<typename T>
+static void TestCompare(const T* ptr)
+{
+    using U = typename T::EleType;
+    const U ValTrue = GetAllOnes<U>(), ValFalse = 0;
+    ForKItem(2)
+    {
+        const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
+#define TestRel(cmp, op) do {                                                       \
+        const auto output = data0. template Compare<common::simd::CompareType::cmp, \
+            common::simd::MaskType::FullEle>(data1);                                \
+        std::array<U, T::Count> ref = { 0 };                                        \
+        for (uint8_t i = 0; i < T::Count; ++i)                                      \
+            ref[i] = data0.Val[i] op data1.Val[i] ? ValTrue : ValFalse;             \
+        EXPECT_THAT(output.Val, MatchVec(ref)); } while(false)
+        TestRel(LessThan,       < );
+        TestRel(LessEqual,      <=);
+        TestRel(Equal,          ==);
+        TestRel(NotEqual,       !=);
+        TestRel(GreaterEqual,   >=);
+        TestRel(GreaterThan,    > );
+#undef TestRel
+        /*const auto output = data0.Compare<common::simd::CompareType::LessThan, common::simd::MaskType::FullEle>(data1);
+        std::array<U, T::Count> ref = { 0 };
+        for (uint8_t i = 0; i < T::Count; ++i)
+            ref[i] = data0.Val[i] < data1.Val[i] ? ValTrue : ValFalse;
+        EXPECT_THAT(output.Val, MatchVec(ref));*/
+    }
 }
 
 #undef ForKItem
@@ -565,7 +596,7 @@ public:
     void TestBody() override
     {
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
-    BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, std::decay_t<decltype(std::declval<T>().Val[0])>>());
+    BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
         AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, Mul, Div, Neg, Abs, And, Or, Xor, AndNot, Not, Min, Max)
 #undef AddItems
@@ -587,7 +618,7 @@ public:
     static constexpr auto Idxes = std::make_index_sequence<sizeof...(U)>{};
     void TestBody() override
     {
-        const auto ptr = GetRandPtr<T, std::decay_t<decltype(std::declval<T>().Val[0])>>();
+        const auto ptr = GetRandPtr<T, typename T::EleType>();
         if constexpr (Mode == common::simd::CastMode::RangeUndef)
             (..., TestCast<T, U, common::simd::detail::CstMode<T, U>()>(ptr));
         else
@@ -598,6 +629,19 @@ public:
 
 #define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::RangeUndef, common::simd::type, __VA_ARGS__>)
 #define RegisterSIMDCastModeTest(type, lv, mode, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::mode, common::simd::type, __VA_ARGS__>)
+
+
+template<typename T>
+class SIMDCompareTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "SIMDCompare";
+    void TestBody() override
+    {
+        const auto ptr = GetRandPtr<T, typename T::EleType>();
+        TestCompare(ptr);
+    }
+};
 
 
 }

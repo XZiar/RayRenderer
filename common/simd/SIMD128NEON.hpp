@@ -133,37 +133,55 @@ template<> forceinline   int8x16_t AsType( uint8x16_t from) noexcept { return vr
 template<> forceinline  uint8x16_t AsType( uint8x16_t from) noexcept { return from; } 
 #endif
 
-template<typename T>
+template<typename T, typename SIMDType, typename E, size_t N>
 struct Neon128Common : public CommonOperators<T>
 {
-    forceinline T VECCALL MoveHiToLo() const 
-    { 
-        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u64(vdupq_lane_u64(data, 0)));
-    }
+    using EleType = E;
+    using VecType = SIMDType;
+    static constexpr size_t Count = N;
+    static constexpr VecDataInfo VDInfo =
+    {
+        std::is_floating_point_v<E> ? VecDataInfo::DataTypes::Float : 
+            (std::is_unsigned_v<E> ? VecDataInfo::DataTypes::Unsigned : VecDataInfo::DataTypes::Signed),
+        static_cast<uint8_t>(128 / N), N, 0
+    };
+    union
+    {
+        SIMDType Data;
+        E Val[N];
+    };
+    constexpr Neon128Common() : Data() { }
+    constexpr Neon128Common(const SIMDType val) : Data(val) { }
+    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
+
     // logic operations
     forceinline T VECCALL And(const T& other) const
     {
-        return T::FromInnerU32x4(vandq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+        return AsType<SIMDType>(vandq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
     forceinline T VECCALL Or(const T& other) const
     {
-        return T::FromInnerU32x4(vorrq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+        return AsType<SIMDType>(vorrq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
     forceinline T VECCALL Xor(const T& other) const
     {
-        return T::FromInnerU32x4(veorq_u32(static_cast<const T*>(this)->InnerU32x4(), other.InnerU32x4()));
+        return AsType<SIMDType>(veorq_u32(AsType<uint32x4_t>(Data), AsType<uint32x4_t>(other.Data)));
     }
     forceinline T VECCALL AndNot(const T& other) const
     {
         // swap since NOT performed on src.b
-        return T::FromInnerU32x4(vbicq_u32(other.InnerU32x4(), static_cast<const T*>(this)->InnerU32x4()));
+        return AsType<SIMDType>(vbicq_u32(AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(Data)));
     }
     forceinline T VECCALL Not() const
     {
-        return T::FromInnerU32x4(vmvnq_u32(static_cast<const T*>(this)->InnerU32x4()));
+        return AsType<SIMDType>(vmvnq_u32(AsType<uint32x4_t>(Data)));
+    }
+    forceinline T VECCALL MoveHiToLo() const
+    {
+        return AsType<SIMDType>(vdupq_lane_u64(AsType<uint64x2_t>(Data), 0));
     }
 };
+
 
 template<typename T>
 struct Shuffle64Common
@@ -173,13 +191,14 @@ struct Shuffle64Common
     forceinline T VECCALL Shuffle() const
     {
         static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-        const auto data = vreinterpretq_f64_u32(static_cast<const T*>(this)->InnerU32x4());
+        using V = typename T::VecType;
+        const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
         if constexpr (Lo == Hi)
-            return T::FromInnerU32x4(vreinterpretq_u32_f64(vdupq_laneq_u64(data, Lo)));
+            return AsType<V>(vdupq_laneq_u64(data, Lo));
         else if constexpr (Lo == 0 && Hi == 1)
-            return T::FromInnerU32x4(vreinterpretq_u32_f64(data));
+            return AsType<V>(data);
         else
-            return T::FromInnerU32x4(vreinterpretq_u32_f64(vextq_u64(data, data, 1)));
+            return AsType<V>(vextq_u64(data, data, 1));
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
     {
@@ -194,6 +213,43 @@ struct Shuffle64Common
     }
 };
 
+
+template<typename T, typename SIMDType, typename E>
+struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public Shuffle64Common<T>
+{
+private:
+    using Neon128Common = Neon128Common<T, SIMDType, E, 2>;
+public:
+    using Neon128Common::Neon128Common;
+
+    // arithmetic operations
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u64(data, vdupq_n_s64(bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u64(data, vdupq_n_s64(-bits)));
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u64(data, -N));
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const
+    {
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u64(data, N));
+    }
+
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+};
+
+
 template<typename T>
 struct Shuffle32Common
 {
@@ -202,32 +258,33 @@ struct Shuffle32Common
     forceinline T VECCALL Shuffle() const
     {
         static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        const auto data = static_cast<const T*>(this)->InnerU32x4();
+        using V = typename T::VecType;
+        const auto data = AsType<uint32x4_t>(static_cast<const T*>(this)->Data);
         if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
-            return T::FromInnerU32x4(data);
+            return AsType<V>(data);
         else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
-            return T::FromInnerU32x4(vdupq_laneq_u32(data, Lo0));
+            return AsType<V>(vdupq_laneq_u32(data, Lo0));
         else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
-            return T::FromInnerU32x4(vextq_u32(data, data, Lo0));
+            return AsType<V>(vextq_u32(data, data, Lo0));
         else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
         {
             static_assert(Lo0 != Lo2);
             if constexpr (Lo0 == 0 && Lo2 == 1) // 0011
-                return T::FromInnerU32x4(vzip1q_u32(data, data));
+                return AsType<V>(vzip1q_u32(data, data));
             else if constexpr (Lo0 == 2 && Lo2 == 3) // 2233
-                return T::FromInnerU32x4(vzip2q_u32(data, data));
+                return AsType<V>(vzip2q_u32(data, data));
             else
-                return T::FromInnerU32x4(vcombine_u32(vdup_laneq_u32(data, Lo0), vdup_laneq_u32(data, Lo2)));
+                return AsType<V>(vcombine_u32(vdup_laneq_u32(data, Lo0), vdup_laneq_u32(data, Lo2)));
         }
         else if constexpr (Lo0 == Lo2 && Lo1 == Hi3) // xyxy
         {
             static_assert(Lo0 != Lo1);
             if constexpr (Lo0 == 0 && Lo1 == 2) // 0202
-                return T::FromInnerU32x4(vuzp1q_u32(data, data));
+                return AsType<V>(vuzp1q_u32(data, data));
             else if constexpr (Lo0 == 1 && Lo1 == 3) // 1313
-                return T::FromInnerU32x4(vuzp2q_u32(data, data));
+                return AsType<V>(vuzp2q_u32(data, data));
             else
-                return T::FromInnerU32x4(vzip1q_u32(vdupq_laneq_u32(data, Lo0), vdupq_laneq_u32(data, Lo1)));
+                return AsType<V>(vzip1q_u32(vdupq_laneq_u32(data, Lo0), vdupq_laneq_u32(data, Lo1)));
         }
         else
         {
@@ -239,52 +296,162 @@ struct Shuffle32Common
                 (Hi3 * 4u) * 0x01010101u + 0x03020100u,
             };
             const auto tbl = vreinterpretq_u8_u32(vld1q_u32(indexes));
-            return T::FromInnerU32x4(vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl)));
+            return AsType<V>(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl));
         }
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
     {
         //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        using V = typename T::VecType;
         alignas(16) const uint32_t indexes[] = { Lo0, Lo1, Lo2, Hi3, };
         const auto muler = vreinterpret_u32_u8(neon_movib(4)); 
         const auto adder = vdupq_n_u32(0x03020100u);
         const auto tbl = vreinterpretq_u8_u32(vmlaq_lane_u32(adder, vld1q_u32(indexes), muler, 0));
-        const auto data = static_cast<const T*>(this)->InnerU32x4();
-        return T::FromInnerU32x4(vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl)));
+        const auto data = AsType<uint8x16_t>(static_cast<const T*>(this)->Data);
+        return AsType<V>(vqtbl1q_u8(data, tbl));
     }
 };
 
-//template<typename T, typename E>
-//struct Int128Common : public Neon128Common<T>
-//{
-//    forceinline void VECCALL Load(const E *ptr) { *static_cast<T*>(this) = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-//    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), *static_cast<const T*>(this)); }
-//    forceinline constexpr operator const __m128i&() const noexcept { return static_cast<const T*>(this)->Data; }
-//};
+
+template<typename T, typename SIMDType, typename E>
+struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public Shuffle32Common<T>
+{
+private:
+    using Neon128Common = Neon128Common<T, SIMDType, E, 4>;
+public:
+    using Neon128Common::Neon128Common;
+
+    // arithmetic operations
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u32(data, vdupq_n_s32(bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u32(data, vdupq_n_s32(-bits)));
+    }
+    /*template<uint8_t N>
+    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u32(data, -N));
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const
+    {
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u32(data, N));
+    }
+
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+};
+
+
+template<typename T, typename SIMDType, typename E>
+struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
+{
+private:
+    using Neon128Common = Neon128Common<T, SIMDType, E, 8>;
+public:
+    using Neon128Common::Neon128Common;
+
+    // arithmetic operations
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(-bits)));
+    }
+    /*template<uint8_t N>
+    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u16(data, -N));
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const
+    {
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u16(data, N));
+    }
+
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+};
+
+
+template<typename T, typename SIMDType, typename E>
+struct alignas(16) Common8x16 : public Neon128Common<T, SIMDType, E, 16>
+{
+private:
+    using Neon128Common = Neon128Common<T, SIMDType, E, 16>;
+public:
+    using Neon128Common::Neon128Common;
+
+    // arithmetic operations
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint8x16_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u8(data, vdupq_n_s8(bits)));
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        const auto data = AsType<uint8x16_t>(this->Data);
+        return AsType<SIMDType>(vshlq_u8(data, vdupq_n_s8(-bits)));
+    }
+    /*template<uint8_t N>
+    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        const auto data = AsType<uint8x16_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u8(data, -N));
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const
+    {
+        const auto data = AsType<uint8x16_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u8(data, N));
+    }
+
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+};
+
 
 }
 
 
 #if COMMON_SIMD_LV >= 200
-struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::Shuffle64Common<F64x2>
+struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, double, 2>, public detail::Shuffle64Common<F64x2>
 {
-    static constexpr size_t Count = 2;
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,2,0 };
-    union
-    {
-        float64x2_t Data;
-        double Val[2];
-    };
-    constexpr F64x2() noexcept : Data() { }
-    explicit F64x2(const double* ptr) : Data(vld1q_f64(ptr)) { }
-    constexpr F64x2(const float64x2_t val) noexcept : Data(val) { }
-    F64x2(const double val) noexcept : Data(vdupq_n_f64(val)) { }
-    F64x2(const double lo, const double hi) noexcept : Data(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
-    forceinline constexpr operator const float64x2_t&() const noexcept { return Data; }
+    using Neon128Common<F64x2, float64x2_t, double, 2>::Neon128Common;
+    explicit F64x2(const double* ptr) : Neon128Common(vld1q_f64(ptr)) { }
+    F64x2(const double val) noexcept : Neon128Common(vdupq_n_f64(val)) { }
+    F64x2(const double lo, const double hi) noexcept : Neon128Common(vcombine_f64(vdup_n_f64(lo), vdup_n_f64(hi))) { }
     forceinline void VECCALL Load(const double *ptr) { Data = vld1q_f64(ptr); }
     forceinline void VECCALL Save(double *ptr) const { vst1q_f64(reinterpret_cast<float64_t*>(ptr), Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_f64(Data); }
-    forceinline static F64x2 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_f64_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline F64x2 VECCALL Compare(const F64x2 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<float64x2_t>(vcltq_f64(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<float64x2_t>(vcleq_f64(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<float64x2_t>(vceqq_f64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<float64x2_t>(vcgeq_f64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<float64x2_t>(vcgtq_f64(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not(); // TODO: Handle NaN
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline F64x2 VECCALL Add(const F64x2& other) const { return vaddq_f64(Data, other.Data); }
@@ -322,29 +489,31 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2>, public detail::S
 #endif
 
 
-struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::Shuffle32Common<F32x4>
+struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, float, 4>, public detail::Shuffle32Common<F32x4>
 {
-    static constexpr size_t Count = 4;
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,4,0 };
-    union
-    {
-        float32x4_t Data;
-        float Val[4];
-    };
-    constexpr F32x4() noexcept : Data() { }
-    explicit F32x4(const float* ptr) : Data(vld1q_f32(ptr)) { }
-    constexpr F32x4(const float32x4_t val) noexcept : Data(val) { }
-    F32x4(const float val) noexcept : Data(vdupq_n_f32(val)) { }
-    F32x4(const float lo0, const float lo1, const float lo2, const float hi3) : Data()
+    using Neon128Common<F32x4, float32x4_t, float, 4>::Neon128Common;
+    explicit F32x4(const float* ptr) : Neon128Common(vld1q_f32(ptr)) { }
+    F32x4(const float val) noexcept : Neon128Common(vdupq_n_f32(val)) { }
+    F32x4(const float lo0, const float lo1, const float lo2, const float hi3) noexcept
     {
         alignas(16) float tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
     }
-    forceinline constexpr operator const float32x4_t&() const noexcept { return Data; }
     forceinline void VECCALL Load(const float *ptr) { Data = vld1q_f32(ptr); }
     forceinline void VECCALL Save(float *ptr) const { vst1q_f32(reinterpret_cast<float32_t*>(ptr), Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_f32(Data); }
-    forceinline static F32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_f32_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline F32x4 VECCALL Compare(const F32x4 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<float32x4_t>(vcltq_f32(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<float32x4_t>(vcleq_f32(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<float32x4_t>(vceqq_f32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<float32x4_t>(vcgeq_f32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<float32x4_t>(vcgtq_f32(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not(); // TODO: Handle NaN
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline F32x4 VECCALL Add(const F32x4& other) const { return vaddq_f32(Data, other.Data); }
@@ -460,59 +629,27 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4>, public detail::S
 };
 
 
-template<typename T, typename E>
-struct alignas(16) I64Common2
+struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
 {
-    static constexpr size_t Count = 2;
-    using SIMDType = std::conditional_t<std::is_signed_v<E>, int64x2_t, uint64x2_t>;
-    union
-    {
-        SIMDType Data;
-        E Val[2];
-    };
-    constexpr I64Common2() : Data() { }
-    constexpr I64Common2(const SIMDType val) : Data(val) { }
-    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
-
-    // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u64(vshlq_u64(data, vdupq_n_s64(bits))));
-    }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u64(vshlq_u64(data, vdupq_n_s64(-bits))));
-    }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const
-    {
-        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vshlq_n_u64(data, -N));
-    }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = vreinterpretq_u64_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vshlq_n_u64(data, N));
-    }
-
-    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
-};
-
-
-struct alignas(16) I64x2 : public detail::Neon128Common<I64x2>, public detail::Shuffle64Common<I64x2>, public I64Common2<I64x2, int64_t>
-{
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,64,2,0 };
-    using I64Common2<I64x2, int64_t>::I64Common2;
-    explicit I64x2(const int64_t* ptr) : I64Common2(vld1q_s64(ptr)) { }
-    I64x2(const int64_t val) : I64Common2(vdupq_n_s64(val)) { }
-    I64x2(const int64_t lo, const int64_t hi) noexcept : I64Common2(vcombine_s64(vdup_n_s64(lo), vdup_n_s64(hi))) { }
+    using Common64x2<I64x2, int64x2_t, int64_t>::Common64x2;
+    explicit I64x2(const int64_t* ptr) : Common64x2(vld1q_s64(ptr)) { }
+    I64x2(const int64_t val) : Common64x2(vdupq_n_s64(val)) { }
+    I64x2(const int64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_s64(vdup_n_s64(lo), vdup_n_s64(hi))) { }
     forceinline void VECCALL Load(const int64_t* ptr) { Data = vld1q_s64(ptr); }
     forceinline void VECCALL Save(int64_t* ptr) const { vst1q_s64(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s64(Data); }
-    forceinline static I64x2 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s64_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I64x2 VECCALL Compare(const I64x2 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int64x2_t>(vcltq_s64(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int64x2_t>(vcleq_s64(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int64x2_t>(vceqq_s64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int64x2_t>(vcgeq_s64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int64x2_t>(vcgtq_s64(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline I64x2 VECCALL SatAdd(const I64x2& other) const { return vqaddq_s64(Data, other.Data); }
@@ -544,17 +681,27 @@ template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2, CastMode::RangeUndef>() 
 #endif
 
 
-struct alignas(16) U64x2 : public detail::Neon128Common<U64x2>, public detail::Shuffle64Common<U64x2>, public I64Common2<U64x2, uint64_t>
+struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64x2_t, uint64_t>
 {
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,64,2,0 };
-    using I64Common2<U64x2, uint64_t>::I64Common2;
-    explicit U64x2(const uint64_t* ptr) : I64Common2(vld1q_u64(ptr)) { }
-    U64x2(const uint64_t val) : I64Common2(vdupq_n_u64(val)) { }
-    U64x2(const uint64_t lo, const int64_t hi) noexcept : I64Common2(vcombine_u64(vdup_n_u64(lo), vdup_n_u64(hi))) { }
+    using Common64x2<U64x2, uint64x2_t, uint64_t>::Common64x2;
+    explicit U64x2(const uint64_t* ptr) : Common64x2(vld1q_u64(ptr)) { }
+    U64x2(const uint64_t val) : Common64x2(vdupq_n_u64(val)) { }
+    U64x2(const uint64_t lo, const int64_t hi) noexcept : Common64x2(vcombine_u64(vdup_n_u64(lo), vdup_n_u64(hi))) { }
     forceinline void VECCALL Load(const uint64_t* ptr) { Data = vld1q_u64(ptr); }
     forceinline void VECCALL Save(uint64_t* ptr) const { vst1q_u64(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_u64(Data); }
-    forceinline static U64x2 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_u64_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U64x2 VECCALL Compare(const U64x2 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<uint64x2_t>(vcltq_u64(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<uint64x2_t>(vcleq_u64(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<uint64x2_t>(vceqq_u64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<uint64x2_t>(vcgeq_u64(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<uint64x2_t>(vcgtq_u64(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline U64x2 VECCALL SatAdd(const U64x2& other) const { return vqaddq_u64(Data, other.Data); }
@@ -585,61 +732,31 @@ template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2, CastMode::RangeUndef>() 
 #endif
 
 
-template<typename T, typename E>
-struct alignas(16) I32Common4
+struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
 {
-    static constexpr size_t Count = 4;
-    using SIMDType = std::conditional_t<std::is_signed_v<E>, int32x4_t, uint32x4_t>;
-    union
-    {
-        SIMDType Data;
-        E Val[4];
-    };
-    constexpr I32Common4() : Data() { }
-    constexpr I32Common4(const SIMDType val) : Data(val) { }
-    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
-
-    // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
-    {
-        return T::FromInnerU32x4(vshlq_u32(static_cast<const T*>(this)->InnerU32x4(), vdupq_n_s32(bits)));
-    }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
-    {
-        return T::FromInnerU32x4(vshlq_u32(static_cast<const T*>(this)->InnerU32x4(), vdupq_n_s32(-bits)));
-    }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const 
-    { 
-        return T::FromInnerU32x4(vshlq_n_u32(static_cast<const T*>(this)->InnerU32x4(), -N));
-    }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const 
-    { 
-        return T::FromInnerU32x4(vshlq_n_u32(static_cast<const T*>(this)->InnerU32x4(), N));
-    }
-
-    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
-};
-
-
-struct alignas(16) I32x4 : public detail::Neon128Common<I32x4>, public detail::Shuffle32Common<I32x4>, public I32Common4<I32x4, int32_t>
-{
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,32,4,0 };
-    using I32Common4<I32x4, int32_t>::I32Common4;
-    explicit I32x4(const int32_t* ptr) : I32Common4(vld1q_s32(ptr)) { }
-    I32x4(const int32_t val) : I32Common4(vdupq_n_s32(val)) { }
-    I32x4(const int32_t lo0, const int32_t lo1, const int32_t lo2, const int32_t hi3) : I32Common4()
+    using Common32x4<I32x4, int32x4_t, int32_t>::Common32x4;
+    explicit I32x4(const int32_t* ptr) : Common32x4(vld1q_s32(ptr)) { }
+    I32x4(const int32_t val) : Common32x4(vdupq_n_s32(val)) { }
+    I32x4(const int32_t lo0, const int32_t lo1, const int32_t lo2, const int32_t hi3) : Common32x4()
     {
         alignas(16) int32_t tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const int32_t* ptr) { Data = vld1q_s32(ptr); }
     forceinline void VECCALL Save(int32_t* ptr) const { vst1q_s32(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s32(Data); }
-    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s32_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I32x4 VECCALL Compare(const I32x4 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int32x4_t>(vcltq_s32(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int32x4_t>(vcleq_s32(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int32x4_t>(vceqq_s32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int32x4_t>(vcgeq_s32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int32x4_t>(vcgtq_s32(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline I32x4 VECCALL SatAdd(const I32x4& other) const { return vqaddq_s32(Data, other.Data); }
@@ -682,21 +799,31 @@ template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2, CastMode::Range
 #endif
 
 
-struct alignas(16) U32x4 : public detail::Neon128Common<U32x4>, public detail::Shuffle32Common<U32x4>, public I32Common4<U32x4, uint32_t>
+struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t>
 {
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,32,4,0 };
-    using I32Common4<U32x4, uint32_t>::I32Common4;
-    explicit U32x4(const uint32_t* ptr) : I32Common4(vld1q_u32(ptr)) { }
-    U32x4(const uint32_t val) : I32Common4(vdupq_n_u32(val)) { }
-    U32x4(const uint32_t lo0, const uint32_t lo1, const uint32_t lo2, const uint32_t hi3) : I32Common4()
+    using Common32x4<U32x4, uint32x4_t, uint32_t>::Common32x4;
+    explicit U32x4(const uint32_t* ptr) : Common32x4(vld1q_u32(ptr)) { }
+    U32x4(const uint32_t val) : Common32x4(vdupq_n_u32(val)) { }
+    U32x4(const uint32_t lo0, const uint32_t lo1, const uint32_t lo2, const uint32_t hi3) : Common32x4()
     {
         alignas(16) uint32_t tmp[] = { lo0, lo1, lo2, hi3 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const uint32_t* ptr) { Data = vld1q_u32(ptr); }
     forceinline void VECCALL Save(uint32_t* ptr) const { vst1q_u32(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return Data; }
-    forceinline static U32x4 FromInnerU32x4(uint32x4_t val) noexcept { return val; }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U32x4 VECCALL Compare(const U32x4 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<uint32x4_t>(vcltq_u32(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<uint32x4_t>(vcleq_u32(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<uint32x4_t>(vceqq_u32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<uint32x4_t>(vcgeq_u32(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<uint32x4_t>(vcgtq_u32(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline U32x4 VECCALL SatAdd(const U32x4& other) const { return vqaddq_u32(Data, other.Data); }
@@ -743,78 +870,32 @@ template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2, CastMode::Range
 #endif
 
 
-template<typename T, typename E>
-struct alignas(16) I16Common8
+struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
 {
-    static constexpr size_t Count = 8;
-    using SIMDType = std::conditional_t<std::is_signed_v<E>, int16x8_t, uint16x8_t>;
-    union
-    {
-        SIMDType Data;
-        E Val[8];
-    };
-    constexpr I16Common8() : Data() { }
-    constexpr I16Common8(const SIMDType val) : Data(val) { }
-    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
-
-    // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u16_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u16(vshlq_u16(data, vdupq_n_s16(bits))));
-    }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u16_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u16(vshlq_u16(data, vdupq_n_s16(-bits))));
-    }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const
-    {
-        const auto data = vreinterpretq_u16_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u16(vshlq_n_u16(data, -N)));
-    }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = vreinterpretq_u16_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u16(vshlq_n_u16(data, N)));
-    }
-
-    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
-
-
-//    // shuffle operations
-//    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
-//    forceinline T VECCALL Shuffle() const
-//    {
-//        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-//    }
-//    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
-//    {
-//    }
-
-};
-
-
-struct alignas(16) I16x8 : public detail::Neon128Common<I16x8>, public detail::Shuffle32Common<I16x8>, public I16Common8<I16x8, int16_t>
-{
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,16,8,0 };
-    using I16Common8<I16x8, int16_t>::I16Common8;
-    explicit I16x8(const int16_t* ptr) : I16Common8(vld1q_s16(ptr)) { }
-    I16x8(const int16_t val) : I16Common8(vdupq_n_s16(val)) { }
+    using Common16x8<I16x8, int16x8_t, int16_t>::Common16x8;
+    explicit I16x8(const int16_t* ptr) : Common16x8(vld1q_s16(ptr)) { }
+    I16x8(const int16_t val) : Common16x8(vdupq_n_s16(val)) { }
     I16x8(const int16_t lo0, const int16_t lo1, const int16_t lo2, const int16_t lo3, 
-        const int16_t lo4, const int16_t lo5, const int16_t lo6, const int16_t hi7) : I16Common8()
+        const int16_t lo4, const int16_t lo5, const int16_t lo6, const int16_t hi7) : Common16x8()
     {
         alignas(16) int16_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const int16_t* ptr) { Data = vld1q_s16(ptr); }
     forceinline void VECCALL Save(int16_t* ptr) const { vst1q_s16(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s16(Data); }
-    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s16_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I16x8 VECCALL Compare(const I16x8 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int16x8_t>(vcltq_s16(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int16x8_t>(vcleq_s16(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int16x8_t>(vceqq_s16(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int16x8_t>(vcgeq_s16(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int16x8_t>(vcgtq_s16(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline I16x8 VECCALL SatAdd(const I16x8& other) const { return vqaddq_s16(Data, other.Data); }
@@ -865,22 +946,32 @@ template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2, CastMode::Range
 #endif
 
 
-struct alignas(16) U16x8 : public detail::Neon128Common<U16x8>, public detail::Shuffle32Common<U16x8>, public I16Common8<U16x8, uint16_t>
+struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t>
 {
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,16,8,0 };
-    using I16Common8<U16x8, uint16_t>::I16Common8;
-    explicit U16x8(const uint16_t* ptr) : I16Common8(vld1q_u16(ptr)) { }
-    U16x8(const uint16_t val) : I16Common8(vdupq_n_u16(val)) { }
+    using Common16x8<U16x8, uint16x8_t, uint16_t>::Common16x8;
+    explicit U16x8(const uint16_t* ptr) : Common16x8(vld1q_u16(ptr)) { }
+    U16x8(const uint16_t val) : Common16x8(vdupq_n_u16(val)) { }
     U16x8(const uint16_t lo0, const uint16_t lo1, const uint16_t lo2, const uint16_t lo3,
-        const uint16_t lo4, const uint16_t lo5, const uint16_t lo6, const uint16_t hi7) : I16Common8()
+        const uint16_t lo4, const uint16_t lo5, const uint16_t lo6, const uint16_t hi7) : Common16x8()
     {
         alignas(16) uint16_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, hi7 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const uint16_t* ptr) { Data = vld1q_u16(ptr); }
     forceinline void VECCALL Save(uint16_t* ptr) const { vst1q_u16(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_u16(Data); }
-    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_u16_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U16x8 VECCALL Compare(const U16x8 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<uint16x8_t>(vcltq_u16(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<uint16x8_t>(vcleq_u16(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<uint16x8_t>(vceqq_u16(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<uint16x8_t>(vcgeq_u16(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<uint16x8_t>(vcgtq_u16(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline U16x8 VECCALL SatAdd(const U16x8& other) const { return vqaddq_u16(Data, other.Data); }
@@ -956,81 +1047,34 @@ template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2, CastMode::Range
 #endif
 
 
-template<typename T, typename E>
-struct alignas(16) I8Common16
+struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
 {
-    static constexpr size_t Count = 16;
-    using SIMDType = std::conditional_t<std::is_signed_v<E>, int8x16_t, uint8x16_t>;
-    union
-    {
-        SIMDType Data;
-        E Val[16];
-    };
-    constexpr I8Common16() : Data() { }
-    constexpr I8Common16(const SIMDType val) : Data(val) { }
-    forceinline constexpr operator const SIMDType& () const noexcept { return Data; }
-
-    // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u8_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u8(vshlq_u8(data, vdupq_n_s8(bits))));
-    }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
-    {
-        const auto data = vreinterpretq_u8_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u8(vshlq_u8(data, vdupq_n_s8(-bits))));
-    }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const
-    {
-        const auto data = vreinterpretq_u8_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u8(vshlq_n_u8(data, -N)));
-    }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = vreinterpretq_u8_u32(static_cast<const T*>(this)->InnerU32x4());
-        return T::FromInnerU32x4(vreinterpretq_u32_u8(vshlq_n_u8(data, N)));
-    }
-
-    forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
-
-
-    //    // shuffle operations
-    //    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
-    //    forceinline T VECCALL Shuffle() const
-    //    {
-    //        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
-    //            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
-    //    }
-    //    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
-    //        const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const
-    //    {
-    //    }
-
-};
-
-struct alignas(16) I8x16 : public detail::Neon128Common<I8x16>, public detail::Shuffle32Common<I8x16>, public I8Common16<I8x16, int8_t>
-{
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Signed,8,16,0 };
-    using I8Common16<I8x16, int8_t>::I8Common16;
-    explicit I8x16(const int8_t* ptr) : I8Common16(vld1q_s8(ptr)) { }
-    I8x16(const int8_t val) : I8Common16(vdupq_n_s8(val)) { }
+    using Common8x16<I8x16, int8x16_t, int8_t>::Common8x16;
+    explicit I8x16(const int8_t* ptr) : Common8x16(vld1q_s8(ptr)) { }
+    I8x16(const int8_t val) : Common8x16(vdupq_n_s8(val)) { }
     I8x16(const int8_t lo0, const int8_t lo1, const int8_t lo2, const int8_t lo3,
         const int8_t lo4, const int8_t lo5, const int8_t lo6, const int8_t lo7,
         const int8_t lo8, const int8_t lo9, const int8_t lo10, const int8_t lo11,
-        const int8_t lo12, const int8_t lo13, const int8_t lo14, const int8_t hi15) : I8Common16()
+        const int8_t lo12, const int8_t lo13, const int8_t lo14, const int8_t hi15) : Common8x16()
     {
         alignas(16) int8_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, lo7, lo8, lo9, lo10, lo11, lo12, lo13, lo14, hi15 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const int8_t* ptr) { Data = vld1q_s8(ptr); }
     forceinline void VECCALL Save(int8_t* ptr) const { vst1q_s8(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_s8(Data); }
-    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_s8_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I8x16 VECCALL Compare(const I8x16 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int8x16_t>(vcltq_s8(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int8x16_t>(vcleq_s8(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int8x16_t>(vceqq_s8(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int8x16_t>(vcgeq_s8(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int8x16_t>(vcgtq_s8(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline I8x16 VECCALL SatAdd(const I8x16& other) const { return vqaddq_s8(Data, other.Data); }
@@ -1090,24 +1134,34 @@ template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2, CastMode::Range
 #endif
 
 
-struct alignas(16) U8x16 : public detail::Neon128Common<U8x16>, public detail::Shuffle32Common<U8x16>, public I8Common16<U8x16, uint8_t>
+struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
 {
-    static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Unsigned,8,16,0 };
-    using I8Common16<U8x16, uint8_t>::I8Common16;
-    explicit U8x16(const uint8_t* ptr) : I8Common16(vld1q_u8(ptr)) { }
-    U8x16(const uint8_t val) : I8Common16(vdupq_n_u8(val)) { }
+    using Common8x16<U8x16, uint8x16_t, uint8_t>::Common8x16;
+    explicit U8x16(const uint8_t* ptr) : Common8x16(vld1q_u8(ptr)) { }
+    U8x16(const uint8_t val) : Common8x16(vdupq_n_u8(val)) { }
     U8x16(const uint8_t lo0, const uint8_t lo1, const uint8_t lo2, const uint8_t lo3,
         const uint8_t lo4, const uint8_t lo5, const uint8_t lo6, const uint8_t lo7,
         const uint8_t lo8, const uint8_t lo9, const uint8_t lo10, const uint8_t lo11,
-        const uint8_t lo12, const uint8_t lo13, const uint8_t lo14, const uint8_t hi15) : I8Common16()
+        const uint8_t lo12, const uint8_t lo13, const uint8_t lo14, const uint8_t hi15) : Common8x16()
     {
         alignas(16) uint8_t tmp[] = { lo0, lo1, lo2, lo3, lo4, lo5, lo6, lo7, lo8, lo9, lo10, lo11, lo12, lo13, lo14, hi15 };
         Load(tmp);
     }
     forceinline void VECCALL Load(const uint8_t* ptr) { Data = vld1q_u8(ptr); }
     forceinline void VECCALL Save(uint8_t* ptr) const { vst1q_u8(ptr, Data); }
-    forceinline uint32x4_t InnerU32x4() const noexcept { return vreinterpretq_u32_u8(Data); }
-    forceinline static I32x4 FromInnerU32x4(uint32x4_t val) noexcept { return vreinterpretq_u8_u32(val); }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U8x16 VECCALL Compare(const U8x16 other) const
+    {
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<uint8x16_t>(vcltq_u8(Data, other));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<uint8x16_t>(vcleq_u8(Data, other));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<uint8x16_t>(vceqq_u8(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<uint8x16_t>(vcgeq_u8(Data, other));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<uint8x16_t>(vcgtq_u8(Data, other));
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+    }
 
     // arithmetic operations
     forceinline U8x16 VECCALL SatAdd(const U8x16& other) const { return vqaddq_u8(Data, other.Data); }
@@ -1290,8 +1344,10 @@ template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>
     const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
     const auto val = Cast<I32x4, CastMode::RangeUndef>();
     // INT32 loses precision, need maunally bit-select
-    const auto isLe = vcleq_f32(Data, minVal);
-    const auto isGe = vcgeq_f32(Data, maxVal);
+    const auto isLe = Compare<CompareType::LessEqual,    MaskType::FullEle>(minVal).As<U32x4>();
+    const auto isGe = Compare<CompareType::GreaterEqual, MaskType::FullEle>(maxVal).As<U32x4>();
+    /*const auto isLe = vcleq_f32(Data, minVal);
+    const auto isGe = vcgeq_f32(Data, maxVal);*/
     const auto satMin = vbslq_f32(isLe, I32x4(INT32_MIN), val);
     return vbslq_f32(isGe, I32x4(INT32_MAX), satMin);
 }

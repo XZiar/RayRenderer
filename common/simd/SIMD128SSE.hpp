@@ -40,9 +40,25 @@ template<> forceinline __m128i AsType(__m128d from) noexcept { return _mm_castpd
 template<> forceinline __m128d AsType(__m128d from) noexcept { return from; }
 
 
-template<typename T, typename E, size_t N>
-struct Int128Common : public CommonOperators<T>
+inline constexpr int CmpTypeImm(CompareType cmp) noexcept
 {
+    switch (cmp)
+    {
+    case CompareType::LessThan:     return _CMP_LT_OQ;
+    case CompareType::LessEqual:    return _CMP_LE_OQ;
+    case CompareType::Equal:        return _CMP_EQ_OQ;
+    case CompareType::NotEqual:     return _CMP_NEQ_OQ;
+    case CompareType::GreaterEqual: return _CMP_GE_OQ;
+    case CompareType::GreaterThan:  return _CMP_GT_OQ;
+    default:                        return _CMP_FALSE_OQ;
+    }
+}
+
+template<typename T, typename E, size_t N>
+struct SSE128Common : public CommonOperators<T>
+{
+    using EleType = E;
+    using VecType = __m128i;
     static constexpr size_t Count = N;
     static constexpr VecDataInfo VDInfo =
     {
@@ -54,9 +70,12 @@ struct Int128Common : public CommonOperators<T>
         __m128i Data;
         E Val[N];
     };
-    constexpr Int128Common() : Data() { }
-    explicit Int128Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
-    constexpr Int128Common(const __m128i val) : Data(val) { }
+    constexpr SSE128Common() : Data() { }
+    explicit SSE128Common(const E* ptr) : Data(_mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr))) { }
+    constexpr SSE128Common(const __m128i val) : Data(val) { }
+    forceinline void VECCALL Load(const E* ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
+    forceinline void VECCALL Save(E* ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
+    forceinline constexpr operator const __m128i& () const noexcept { return Data; }
 
     // logic operations
     forceinline T VECCALL And(const T& other) const
@@ -80,9 +99,214 @@ struct Int128Common : public CommonOperators<T>
         return _mm_xor_si128(Data, _mm_set1_epi8(-1));
     }
     forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(Data, 8); }
-    forceinline void VECCALL Load(const E *ptr) { Data = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr)); }
-    forceinline void VECCALL Save(E *ptr) const { _mm_storeu_si128(reinterpret_cast<__m128i*>(ptr), Data); }
-    forceinline constexpr operator const __m128i&() const noexcept { return Data; }
+};
+
+
+template<typename T, typename E>
+struct alignas(16) Common64x2 : public SSE128Common<T, E, 2>
+{
+private:
+    using Base = SSE128Common<T, E, 2>;
+public:
+    using Base::Base;
+    Common64x2(const E val) : Base(_mm_set1_epi64x(static_cast<int64_t>(val))) { }
+    Common64x2(const E lo, const E hi) :
+        Base(_mm_set_epi64x(static_cast<int64_t>(hi), static_cast<int64_t>(lo))) { }
+
+    // shuffle operations
+    template<uint8_t Lo, uint8_t Hi>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
+        return _mm_shuffle_epi32(this->Data, _MM_SHUFFLE(Hi * 2 + 1, Hi * 2, Lo * 2 + 1, Lo * 2));
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
+    {
+        switch ((Hi << 1) + Lo)
+        {
+        case 0: return Shuffle<0, 0>();
+        case 1: return Shuffle<1, 0>();
+        case 2: return Shuffle<0, 1>();
+        case 3: return Shuffle<1, 1>();
+        default: return T(); // should not happen
+        }
+    }
+
+    // arithmetic operations
+    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi64(this->Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi64(this->Data, other.Data); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm_sll_epi64(this->Data, _mm_set1_epi64x(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi64(this->Data, _mm_set1_epi64x(bits)); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi64(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi64(this->Data, N); }
+#if COMMON_SIMD_LV >= 41
+    forceinline T VECCALL MulLo(const T& other) const 
+    {
+# if COMMON_SIMD_LV >= 320
+        return _mm_mullo_epi64(this->Data, other.Data);
+# else
+        const E loA = _mm_extract_epi64(this->Data, 0), hiA = _mm_extract_epi64(this->Data, 1);
+        const E loB = _mm_extract_epi64(other.Data, 0), hiB = _mm_extract_epi64(other.Data, 1);
+        return { static_cast<E>(loA * loB), static_cast<E>(hiA * hiB) };
+# endif
+    }
+    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
+#endif
+};
+
+
+template<typename T, typename E>
+struct alignas(16) Common32x4 : public SSE128Common<T, E, 4>
+{
+private:
+    using Base = SSE128Common<T, E, 4>;
+public:
+    using Base::Base;
+    Common32x4(const E val) : Base(_mm_set1_epi32(static_cast<int32_t>(val))) { }
+    Common32x4(const E lo0, const E lo1, const E lo2, const E hi3) :
+        Base(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
+
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        return _mm_shuffle_epi32(this->Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
+    {
+#if COMMON_SIMD_LV >= 100
+        return _mm_castps_si128(_mm_permutevar_ps(_mm_castsi128_ps(this->Data), _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3)));
+#else
+        return T(this->Val[Lo0], this->Val[Lo1], this->Val[Lo2], this->Val[Hi3]);
+#endif
+    }
+
+    // arithmetic operations
+    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi32(this->Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi32(this->Data, other.Data); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm_sll_epi32(this->Data, _mm_set1_epi64x(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi32(this->Data, _mm_set1_epi64x(bits)); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi32(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi32(this->Data, N); }
+#if COMMON_SIMD_LV >= 41
+    forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi32(this->Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
+#endif
+};
+
+
+template<typename T, typename E>
+struct alignas(16) Common16x8 : public SSE128Common<T, E, 8>
+{
+private:
+    using Base = SSE128Common<T, E, 8>;
+public:
+    using Base::Base;
+    Common16x8(const E val) : Base(_mm_set1_epi16(val)) { }
+    Common16x8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) : 
+        Base(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
+
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+#if COMMON_SIMD_LV >= 31
+        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
+            static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
+            static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
+            static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
+            static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
+        return _mm_shuffle_epi8(this->Data, mask);
+#else
+        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
+#endif
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
+    {
+#if COMMON_SIMD_LV >= 31
+        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
+            static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
+            static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
+            static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
+            static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
+        return _mm_shuffle_epi8(this->Data, mask);
+#else
+        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
+#endif
+    }
+    
+    // arithmetic operations
+    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi16(this->Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi16(this->Data, other.Data); }
+    forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi16(this->Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm_sll_epi16(this->Data, _mm_set1_epi64x(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi16(this->Data, _mm_set1_epi64x(bits)); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi16(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi16(this->Data, N); }
+};
+
+
+template<typename T, typename E>
+struct alignas(16) Common8x16 : public SSE128Common<T, E, 16>
+{
+private:
+    using Base = SSE128Common<T, E, 16>;
+public:
+    using Base::Base;
+    Common8x16(const E val) : Base(_mm_set1_epi8(val)) { }
+    Common8x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) :
+        Base(_mm_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
+            static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
+            static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),
+            static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
+
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
+            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
+#if COMMON_SIMD_LV >= 31
+        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
+            static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
+            static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
+            static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
+        return _mm_shuffle_epi8(this->Data, mask);
+#else
+        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
+#endif
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
+        const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const
+    {
+#if COMMON_SIMD_LV >= 31
+        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
+            static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
+            static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
+            static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
+        return _mm_shuffle_epi8(this->Data, mask);
+#else
+        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
+#endif
+    }
+
+    // arithmetic operations
+    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi8(this->Data, other.Data); }
+    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi8(this->Data, other.Data); }
+    forceinline T VECCALL operator*(const T& other) const { return static_cast<T*>(this)->MulLo(other); }
+    forceinline T& VECCALL operator*=(const T& other) { this->Data = operator*(other); return *static_cast<T*>(this); }
 };
 
 }
@@ -90,6 +314,8 @@ struct Int128Common : public CommonOperators<T>
 
 struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 {
+    using EleType = double;
+    using VecType = __m128d;
     static constexpr size_t Count = 2;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,64,2,0 };
     union
@@ -102,7 +328,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     constexpr F64x2(const __m128d val) : Data(val) { }
     F64x2(const double val) : Data(_mm_set1_pd(val)) { }
     F64x2(const double lo, const double hi) : Data(_mm_setr_pd(lo, hi)) { }
-    forceinline constexpr operator const __m128d&() { return Data; }
+    forceinline constexpr operator const __m128d&() const noexcept { return Data; }
     forceinline void VECCALL Load(const double *ptr) { Data = _mm_loadu_pd(ptr); }
     forceinline void VECCALL Save(double *ptr) const { _mm_storeu_pd(ptr, Data); }
 
@@ -128,6 +354,24 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         case 3: return Shuffle<1, 1>();
         default: return F64x2(); // should not happen
         }
+    }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline F64x2 VECCALL Compare(const F64x2 other) const
+    {
+#if COMMON_SIMD_LV >= 100
+        constexpr auto cmpImm = detail::CmpTypeImm(Cmp);
+        return _mm_cmp_pd(Data, other, cmpImm);
+#else
+             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_pd (Data, other);
+        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_pd (Data, other);
+        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_pd (Data, other);
+        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_pd(Data, other);
+        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_pd (Data, other);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_pd (Data, other);
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+#endif
     }
 
     // logic operations
@@ -207,6 +451,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 
 struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 {
+    using EleType = float;
+    using VecType = __m128;
     static constexpr size_t Count = 4;
     static constexpr VecDataInfo VDInfo = { VecDataInfo::DataTypes::Float,32,4,0 };
     union
@@ -246,6 +492,24 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 //        return _mm_castsi128_ps(_mm_shuffle_epi8(_mm_castps_si128(Data), mask));
 #else
         return F32x4(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
+#endif
+    }
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline F32x4 VECCALL Compare(const F32x4 other) const
+    {
+#if COMMON_SIMD_LV >= 100
+        constexpr auto cmpImm = detail::CmpTypeImm(Cmp);
+        return _mm_cmp_ps(Data, other, cmpImm);
+#else
+             if constexpr (Cmp == CompareType::LessThan)     return _mm_cmplt_ps (Data, other);
+        else if constexpr (Cmp == CompareType::LessEqual)    return _mm_cmple_ps (Data, other);
+        else if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_ps (Data, other);
+        else if constexpr (Cmp == CompareType::NotEqual)     return _mm_cmpneq_ps(Data, other);
+        else if constexpr (Cmp == CompareType::GreaterEqual) return _mm_cmpge_ps (Data, other);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_ps (Data, other);
+        else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
 #endif
     }
 
@@ -349,68 +613,30 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline F32x4& VECCALL operator/=(const F32x4& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
-};
+}; 
 
 
-template<typename T, typename E>
-struct alignas(16) I64Common2 : public detail::Int128Common<T, E, 2>
+struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
 {
-private:
-    using Int128Common = detail::Int128Common<T, E, 2>;
-public:
-    using Int128Common::Int128Common;
-    I64Common2(const E val) : Int128Common(_mm_set1_epi64x(static_cast<int64_t>(val))) { }
-    I64Common2(const E lo, const E hi) :
-        Int128Common(_mm_set_epi64x(static_cast<int64_t>(hi), static_cast<int64_t>(lo))) { }
+    using Common64x2<I64x2, int64_t>::Common64x2;
 
-    // shuffle operations
-    template<uint8_t Lo, uint8_t Hi>
-    forceinline T VECCALL Shuffle() const
+    // compare operations
+#if COMMON_SIMD_LV >= 41
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I64x2 VECCALL Compare(const I64x2 other) const
     {
-        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
-        return _mm_shuffle_epi32(this->Data, _MM_SHUFFLE(Hi * 2 + 1, Hi * 2, Lo * 2 + 1, Lo * 2));
-    }
-    forceinline T VECCALL Shuffle(const uint8_t Lo, const uint8_t Hi) const
-    {
-        switch ((Hi << 1) + Lo)
+             if constexpr (Cmp == CompareType::LessThan)     return other.Compare<CompareType::GreaterThan,  Msk>(Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return other.Compare<CompareType::GreaterEqual, Msk>(Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
+        else
         {
-        case 0: return Shuffle<0, 0>();
-        case 1: return Shuffle<1, 0>();
-        case 2: return Shuffle<0, 1>();
-        case 3: return Shuffle<1, 1>();
-        default: return T(); // should not happen
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi64(Data, other);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi64(Data, other);
+            else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
         }
     }
-
-    // arithmetic operations
-    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi64(this->Data, other.Data); }
-    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi64(this->Data, other.Data); }
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi64(this->Data, I64Common2(bits).Data); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi64(this->Data, I64Common2(bits).Data); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi64(this->Data, N); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const { return _mm_slli_epi64(this->Data, N); }
-#if COMMON_SIMD_LV >= 41
-    forceinline T VECCALL MulLo(const T& other) const 
-    {
-# if COMMON_SIMD_LV >= 320
-        return _mm_mullo_epi64(this->Data, other.Data);
-# else
-        const E loA = _mm_extract_epi64(this->Data, 0), hiA = _mm_extract_epi64(this->Data, 1);
-        const E loB = _mm_extract_epi64(other.Data, 0), hiB = _mm_extract_epi64(other.Data, 1);
-        return { static_cast<E>(loA * loB), static_cast<E>(hiA * hiB) };
-# endif
-    }
-    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
 #endif
-};
-
-
-struct alignas(16) I64x2 : public I64Common2<I64x2, int64_t>
-{
-    using I64Common2<I64x2, int64_t>::I64Common2;
 
     // arithmetic operations
     forceinline I64x2 VECCALL Neg() const { return _mm_sub_epi64(_mm_setzero_si128(), this->Data); }
@@ -451,9 +677,24 @@ struct alignas(16) I64x2 : public I64Common2<I64x2, int64_t>
 };
 
 
-struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
+struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
 {
-    using I64Common2<U64x2, uint64_t>::I64Common2;
+    using Common64x2<U64x2, uint64_t>::Common64x2;
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U64x2 VECCALL Compare(const U64x2 other) const
+    {
+        if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
+        {
+            return As<I64x2>().Compare<Cmp, Msk>(other.As<I64x2>()).As<U64x2>();
+        }
+        else
+        {
+            const U64x2 sigMask(static_cast<uint64_t>(0x8000000000000000));
+            return Xor(sigMask).As<I64x2>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I64x2>()).As<U64x2>();
+        }
+    }
 
     // arithmetic operations
 #if COMMON_SIMD_LV >= 41
@@ -531,53 +772,25 @@ struct alignas(16) U64x2 : public I64Common2<U64x2, uint64_t>
 };
 
 
-template<typename T, typename E>
-struct alignas(16) I32Common4 : public detail::Int128Common<T, E, 4>
+struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32_t>
 {
-private:
-    using Int128Common = detail::Int128Common<T, E, 4>;
-public:
-    using Int128Common::Int128Common;
-    I32Common4(const E val) : Int128Common(_mm_set1_epi32(static_cast<int32_t>(val))) { }
-    I32Common4(const E lo0, const E lo1, const E lo2, const E hi3) :
-        Int128Common(_mm_setr_epi32(static_cast<int32_t>(lo0), static_cast<int32_t>(lo1), static_cast<int32_t>(lo2), static_cast<int32_t>(hi3))) { }
+    using Common32x4<I32x4, int32_t>::Common32x4;
 
-    // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
-    forceinline T VECCALL Shuffle() const
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I32x4 VECCALL Compare(const I32x4 other) const
     {
-        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
-        return _mm_shuffle_epi32(this->Data, _MM_SHUFFLE(Hi3, Lo2, Lo1, Lo0));
+             if constexpr (Cmp == CompareType::LessThan)     return other.Compare<CompareType::GreaterThan,  Msk>(Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return other.Compare<CompareType::GreaterEqual, Msk>(Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
+        else
+        {
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi32(Data, other);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi32(Data, other);
+            else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+        }
     }
-    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
-    {
-#if COMMON_SIMD_LV >= 100
-        return _mm_castps_si128(_mm_permutevar_ps(_mm_castsi128_ps(this->Data), _mm_setr_epi32(Lo0, Lo1, Lo2, Hi3)));
-#else
-        return T(this->Val[Lo0], this->Val[Lo1], this->Val[Lo2], this->Val[Hi3]);
-#endif
-    }
-
-    // arithmetic operations
-    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi32(this->Data, other.Data); }
-    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi32(this->Data, other.Data); }
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi32(this->Data, I64x2(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi32(this->Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi32(this->Data, N); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const { return _mm_slli_epi32(this->Data, N); }
-#if COMMON_SIMD_LV >= 41
-    forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi32(this->Data, other.Data); }
-    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
-#endif
-};
-
-
-struct alignas(16) I32x4 : public I32Common4<I32x4, int32_t>
-{
-    using I32Common4<I32x4, int32_t>::I32Common4;
 
     // arithmetic operations
     forceinline I32x4 VECCALL Neg() const { return _mm_sub_epi32(_mm_setzero_si128(), Data); }
@@ -618,9 +831,24 @@ template<> forceinline Pack<F64x2, 2> VECCALL I32x4::Cast<F64x2, CastMode::Range
 }
 
 
-struct alignas(16) U32x4 : public I32Common4<U32x4, uint32_t>
+struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32_t>
 {
-    using I32Common4<U32x4, uint32_t>::I32Common4;
+    using Common32x4<U32x4, uint32_t>::Common32x4;
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U32x4 VECCALL Compare(const U32x4 other) const
+    {
+        if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
+        {
+            return As<I32x4>().Compare<Cmp, Msk>(other.As<I32x4>()).As<U32x4>();
+        }
+        else
+        {
+            const U32x4 sigMask(static_cast<uint32_t>(0x80000000));
+            return Xor(sigMask).As<I32x4>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I32x4>()).As<U32x4>();
+        }
+    }
 
     // arithmetic operations
 #if COMMON_SIMD_LV >= 41
@@ -686,65 +914,25 @@ template<> forceinline Pack<F64x2, 2> VECCALL U32x4::Cast<F64x2, CastMode::Range
 }
 
 
-template<typename T, typename E>
-struct alignas(16) I16Common8 : public detail::Int128Common<T, E, 8>
+struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16_t>
 {
-private:
-    using Int128Common = detail::Int128Common<T, E, 8>;
-public:
-    using Int128Common::Int128Common;
-    I16Common8(const E val) : Int128Common(_mm_set1_epi16(val)) { }
-    I16Common8(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E hi7) : 
-        Int128Common(_mm_setr_epi16(static_cast<int16_t>(lo0), static_cast<int16_t>(lo1), static_cast<int16_t>(lo2), static_cast<int16_t>(lo3), static_cast<int16_t>(lo4), static_cast<int16_t>(lo5), static_cast<int16_t>(lo6), static_cast<int16_t>(hi7))) { }
+    using Common16x8<I16x8, int16_t>::Common16x8;
 
-    // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
-    forceinline T VECCALL Shuffle() const
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I16x8 VECCALL Compare(const I16x8 other) const
     {
-        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-#if COMMON_SIMD_LV >= 31
-        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
-            static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
-            static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
-            static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
-            static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
-        return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
-#endif
+             if constexpr (Cmp == CompareType::LessThan)     return other.Compare<CompareType::GreaterThan,  Msk>(Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return other.Compare<CompareType::GreaterEqual, Msk>(Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
+        else
+        {
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi16(Data, other);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi16(Data, other);
+            else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+        }
     }
-    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
-    {
-#if COMMON_SIMD_LV >= 31
-        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0 * 2), static_cast<int8_t>(Lo0 * 2 + 1),
-            static_cast<int8_t>(Lo1 * 2), static_cast<int8_t>(Lo1 * 2 + 1), static_cast<int8_t>(Lo2 * 2), static_cast<int8_t>(Lo2 * 2 + 1),
-            static_cast<int8_t>(Lo3 * 2), static_cast<int8_t>(Lo3 * 2 + 1), static_cast<int8_t>(Lo4 * 2), static_cast<int8_t>(Lo4 * 2 + 1),
-            static_cast<int8_t>(Lo5 * 2), static_cast<int8_t>(Lo5 * 2 + 1), static_cast<int8_t>(Lo6 * 2), static_cast<int8_t>(Lo6 * 2 + 1),
-            static_cast<int8_t>(Hi7 * 2), static_cast<int8_t>(Hi7 * 2 + 1));
-        return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
-#endif
-    }
-    
-    // arithmetic operations
-    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi16(this->Data, other.Data); }
-    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi16(this->Data, other.Data); }
-    forceinline T VECCALL MulLo(const T& other) const { return _mm_mullo_epi16(this->Data, other.Data); }
-    forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-    forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const { return _mm_sll_epi16(this->Data, I64x2(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm_srl_epi16(this->Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const { return _mm_slli_epi16(this->Data, N); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi16(this->Data, N); }
-};
-
-
-struct alignas(16) I16x8 : public I16Common8<I16x8, int16_t>
-{
-    using I16Common8<I16x8, int16_t>::I16Common8;
 
     // arithmetic operations
     forceinline I16x8 VECCALL SatAdd(const I16x8& other) const { return _mm_adds_epi16(Data, other.Data); }
@@ -799,9 +987,24 @@ template<> forceinline Pack<F64x2, 4> VECCALL I16x8::Cast<F64x2, CastMode::Range
 #endif
 
 
-struct alignas(16) U16x8 : public I16Common8<U16x8, uint16_t>
+struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16_t>
 {
-    using I16Common8<U16x8, uint16_t>::I16Common8;
+    using Common16x8<U16x8, uint16_t>::Common16x8;
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U16x8 VECCALL Compare(const U16x8 other) const
+    {
+        if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
+        {
+            return As<I16x8>().Compare<Cmp, Msk>(other.As<I16x8>()).As<U16x8>();
+        }
+        else
+        {
+            const U16x8 sigMask(static_cast<uint16_t>(0x8000));
+            return Xor(sigMask).As<I16x8>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I16x8>()).As<U16x8>();
+        }
+    }
 
     // arithmetic operations
     forceinline U16x8 VECCALL SatAdd(const U16x8& other) const { return _mm_adds_epu16(Data, other.Data); }
@@ -852,61 +1055,25 @@ template<> forceinline Pack<F64x2, 4> VECCALL U16x8::Cast<F64x2, CastMode::Range
 }
 
 
-template<typename T, typename E>
-struct alignas(16) I8Common16 : public detail::Int128Common<T, E, 16>
+struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8_t>
 {
-private:
-    using Int128Common = detail::Int128Common<T, E, 16>;
-public:
-    using Int128Common::Int128Common;
-    I8Common16(const E val) : Int128Common(_mm_set1_epi8(val)) { }
-    I8Common16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) :
-        Int128Common(_mm_setr_epi8(static_cast<int8_t>(lo0), static_cast<int8_t>(lo1), static_cast<int8_t>(lo2), static_cast<int8_t>(lo3),
-            static_cast<int8_t>(lo4), static_cast<int8_t>(lo5), static_cast<int8_t>(lo6), static_cast<int8_t>(lo7), static_cast<int8_t>(lo8),
-            static_cast<int8_t>(lo9), static_cast<int8_t>(lo10), static_cast<int8_t>(lo11), static_cast<int8_t>(lo12), static_cast<int8_t>(lo13),
-            static_cast<int8_t>(lo14), static_cast<int8_t>(hi15))) { }
+    using Common8x16<I8x16, int8_t>::Common8x16;
 
-    // shuffle operations
-    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
-    forceinline T VECCALL Shuffle() const
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline I8x16 VECCALL Compare(const I8x16 other) const
     {
-        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
-            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
-#if COMMON_SIMD_LV >= 31
-        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
-            static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
-            static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
-            static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
-        return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
-#endif
+             if constexpr (Cmp == CompareType::LessThan)     return other.Compare<CompareType::GreaterThan,  Msk>(Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return other.Compare<CompareType::GreaterEqual, Msk>(Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else if constexpr (Cmp == CompareType::GreaterEqual) return Compare<CompareType::GreaterThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
+        else
+        {
+                 if constexpr (Cmp == CompareType::Equal)        return _mm_cmpeq_epi8(Data, other);
+            else if constexpr (Cmp == CompareType::GreaterThan)  return _mm_cmpgt_epi8(Data, other);
+            else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+        }
     }
-    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
-        const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const
-    {
-#if COMMON_SIMD_LV >= 31
-        const auto mask = _mm_setr_epi8(static_cast<int8_t>(Lo0), static_cast<int8_t>(Lo1), static_cast<int8_t>(Lo2), static_cast<int8_t>(Lo3),
-            static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
-            static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
-            static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
-        return _mm_shuffle_epi8(this->Data, mask);
-#else
-        return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
-#endif
-    }
-
-    // arithmetic operations
-    forceinline T VECCALL Add(const T& other) const { return _mm_add_epi8(this->Data, other.Data); }
-    forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi8(this->Data, other.Data); }
-    forceinline T VECCALL operator*(const T& other) const { return static_cast<T*>(this)->MulLo(other); }
-    forceinline T& VECCALL operator*=(const T& other) { this->Data = operator*(other); return *static_cast<T*>(this); }
-};
-
-
-struct alignas(16) I8x16 : public I8Common16<I8x16, int8_t>
-{
-    using I8Common16<I8x16, int8_t>::I8Common16;
 
     // arithmetic operations
     forceinline I8x16 VECCALL SatAdd(const I8x16& other) const { return _mm_adds_epi8(Data, other.Data); }
@@ -991,9 +1158,24 @@ template<> forceinline Pack<F64x2, 8> VECCALL I8x16::Cast<F64x2, CastMode::Range
 #endif
 
 
-struct alignas(16) U8x16 : public I8Common16<U8x16, uint8_t>
+struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8_t>
 {
-    using I8Common16<U8x16, uint8_t>::I8Common16;
+    using Common8x16<U8x16, uint8_t>::Common8x16;
+
+    // compare operations
+    template<CompareType Cmp, MaskType Msk>
+    forceinline U8x16 VECCALL Compare(const U8x16 other) const
+    {
+        if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
+        {
+            return As<I8x16>().Compare<Cmp, Msk>(other.As<I8x16>()).As<U8x16>();
+        }
+        else
+        {
+            const U8x16 sigMask(static_cast<uint8_t>(0x80));
+            return Xor(sigMask).As<I8x16>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I8x16>()).As<U8x16>();
+        }
+    }
 
     // arithmetic operations
     forceinline U8x16 VECCALL SatAdd(const U8x16& other) const { return _mm_adds_epu8(Data, other.Data); }
@@ -1191,8 +1373,10 @@ template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>
     const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
     const auto val = Cast<I32x4, CastMode::RangeUndef>();
     // INT32 loses precision, need maunally bit-select
-    const auto isLe = _mm_castps_si128(_mm_cmple_ps(Data, minVal));
-    const auto isGe = _mm_castps_si128(_mm_cmpge_ps(Data, maxVal));
+    const auto isLe = Compare<CompareType::LessEqual,    MaskType::FullEle>(minVal).As<I32x4>();
+    const auto isGe = Compare<CompareType::GreaterEqual, MaskType::FullEle>(maxVal).As<I32x4>();
+    /*const auto isLe = _mm_castps_si128(_mm_cmple_ps(Data, minVal));
+    const auto isGe = _mm_castps_si128(_mm_cmpge_ps(Data, maxVal));*/
 #if COMMON_SIMD_LV >= 41
     const auto satMin = _mm_blendv_epi8(val, I32x4(INT32_MIN), isLe);
     return _mm_blendv_epi8(satMin, I32x4(INT32_MAX), isGe);

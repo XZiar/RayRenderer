@@ -292,7 +292,7 @@ public:
             else
             {
                 common::AlignedBuffer newdata(count * 1);
-                common::CopyEx.NarrowCopy(newdata.GetRawPtr<uint8_t>(), ptr, count);
+                common::CopyEx.TruncCopy(newdata.GetRawPtr<uint8_t>(), ptr, count);
                 SetSize(1);
                 oglBuffer_::WriteSpan(newdata, mode);
             }
@@ -304,7 +304,7 @@ public:
             else
             {
                 common::AlignedBuffer newdata(count * 2);
-                common::CopyEx.NarrowCopy(newdata.GetRawPtr<uint16_t>(), ptr, count);
+                common::CopyEx.TruncCopy(newdata.GetRawPtr<uint16_t>(), ptr, count);
                 SetSize(2);
                 oglBuffer_::WriteSpan(newdata, mode);
             }
