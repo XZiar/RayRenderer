@@ -59,198 +59,184 @@ alignas(32) const std::array<uint8_t, 2048> RandVals = []()
     return vals;
 }();
 
-template<typename Src, typename Dst>
-static void ZExtTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, size_t count)
+template<typename Src, typename Dst, size_t Max, typename F>
+static void CastTest(const Src* src, const std::array<Dst, Max>& ref, F&& func)
 {
-    std::vector<Dst> dst; 
-    dst.resize(count);
-    intrin->ZExtCopy(dst.data(), src, count);
-    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
+    constexpr size_t sizes[] = { 0,1,2,3,4,7,8,9,15,16,17,30,32,34,61,64,67,252,256,260,509,512,517,1001,1024,1031,2098 };
+    for (const auto size : sizes)
+    {
+        const auto count = std::min(Max, size);
+        std::vector<Dst> dst;
+        dst.resize(count);
+        func(dst.data(), src, count);
+        EXPECT_THAT(dst, testing::ElementsAreArray(ref.data(), count)) << "when test on [" << count << "] elements";
+        if (size >= Max) break;
+    }
+}
+template<typename Dst, typename Src>
+static auto CastRef(const Src* src)
+{
+    std::array<Dst, std::tuple_size_v<decltype(RandVals)> / sizeof(Src)> vals = {};
+    for (size_t i = 0; i < vals.size(); ++i)
+        vals[i] = static_cast<Dst>(src[i]);
+    return vals;
+}
+template<typename Dst, size_t N, typename Src>
+static auto CastRef(const Src* src)
+{
+    std::array<Dst, N> vals = {};
+    for (size_t i = 0; i < vals.size(); ++i)
+        vals[i] = static_cast<Dst>(src[i]);
+    return vals;
+}
+template<typename Dst, typename Src, typename F>
+static auto CastRef(const Src* src, F&& func)
+{
+    std::array<Dst, std::tuple_size_v<decltype(RandVals)> / sizeof(Src)> vals = {};
+    for (size_t i = 0; i < vals.size(); ++i)
+        vals[i] = func(src[i]);
+    return vals;
 }
 INTRIN_TEST(CopyEx, ZExtCopy12)
 {
-    static const auto ref = []() 
-    {
-        std::array<uint16_t, 2048> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = RandVals[i];
-        return vals;
-    }();
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 7);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 27);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 97);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
+    static const auto ref = CastRef<uint16_t>(RandVals.data());
+    CastTest(RandVals.data(), ref, [&](auto dst, auto src, auto cnt) 
+        {
+            Intrin->ZExtCopy(dst, src, cnt);
+        });
 }
 INTRIN_TEST(CopyEx, ZExtCopy14)
 {
-    static const auto ref = []() 
-    {
-        std::array<uint32_t, 2048> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = RandVals[i];
-        return vals;
-    }();
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 7);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 27);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 97);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 197);
-    ZExtTest(Intrin.get(), RandVals.data(), ref.data(), 2048);
+    static const auto ref = CastRef<uint32_t>(RandVals.data());
+    CastTest(RandVals.data(), ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->ZExtCopy(dst, src, cnt);
+        });
 }
 INTRIN_TEST(CopyEx, ZExtCopy24)
 {
     const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<uint32_t, 1024> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = ptr[i];
-        return vals;
-    }();
-    ZExtTest(Intrin.get(), ptr, ref.data(), 7);
-    ZExtTest(Intrin.get(), ptr, ref.data(), 27);
-    ZExtTest(Intrin.get(), ptr, ref.data(), 97);
-    ZExtTest(Intrin.get(), ptr, ref.data(), 197);
-    ZExtTest(Intrin.get(), ptr, ref.data(), 1024);
+    static const auto ref = CastRef<uint32_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->ZExtCopy(dst, src, cnt);
+        });
 }
 
-template<typename Src, typename Dst>
-static void NarrowTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, size_t count)
-{
-    std::vector<Dst> dst;
-    dst.resize(count);
-    intrin->NarrowCopy(dst.data(), src, count);
-    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
-}
-INTRIN_TEST(CopyEx, NarrowCopy21)
+INTRIN_TEST(CopyEx, TruncCopy21)
 {
     const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<uint8_t, 1024> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<uint8_t>(ptr[i]);
-        return vals;
-    }();
-    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 1024);
+    static const auto ref = CastRef<uint8_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->TruncCopy(dst, src, cnt);
+        });
 }
-INTRIN_TEST(CopyEx, NarrowCopy41)
+INTRIN_TEST(CopyEx, TruncCopy41)
 {
     const auto ptr = reinterpret_cast<const uint32_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<uint8_t, 512> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<uint8_t>(ptr[i]);
-        return vals;
-    }();
-    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 512);
+    static const auto ref = CastRef<uint8_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->TruncCopy(dst, src, cnt);
+        });
 }
-INTRIN_TEST(CopyEx, NarrowCopy42)
+INTRIN_TEST(CopyEx, TruncCopy42)
 {
     const auto ptr = reinterpret_cast<const uint32_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<uint16_t, 512> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<uint16_t>(ptr[i]);
-        return vals;
-    }();
-    NarrowTest(Intrin.get(), ptr, ref.data(), 7);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 27);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 97);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 197);
-    NarrowTest(Intrin.get(), ptr, ref.data(), 512);
+    static const auto ref = CastRef<uint16_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->TruncCopy(dst, src, cnt);
+        });
 }
-template<typename Src, typename Dst>
-static void I2FTest(const common::CopyManager* intrin, const Src* src, const Dst* ref, const Dst* ref2, size_t count)
-{
-    std::vector<Dst> dst;
-    dst.resize(count);
-    intrin->ToFloatCopy(dst.data(), src, count);
-    EXPECT_THAT(dst, testing::ElementsAreArray(ref, count)) << "when test on [" << count << "] elements";
-    intrin->ToFloatCopy(dst.data(), src, count, Dst(1));
-    EXPECT_THAT(dst, testing::ElementsAreArray(ref2, count)) << "when test on [" << count << "] elements";
-}
+
 INTRIN_TEST(CopyEx, CvtI32F32)
 {
     const auto ptr = reinterpret_cast<const int32_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<float, 256> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<float>(ptr[i]);
-        return vals;
-    }();
-    static const auto ref2 = [&]()
-    {
-        constexpr float muler = 1 / float(INT32_MAX);
-        std::array<float, 256> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = ref[i] * muler;
-        return vals;
-    }();
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 256);
+    static const auto ref1 = CastRef<float>(ptr);
+    static const auto ref2 = CastRef<float>(ptr, [](auto src) { return static_cast<float>(src) * (1 / float(INT32_MAX)); });
+    CastTest(ptr, ref1, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt);
+        });
+    CastTest(ptr, ref2, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt, 1.f);
+        });
 }
 INTRIN_TEST(CopyEx, CvtI16F32)
 {
     const auto ptr = reinterpret_cast<const int16_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<float, 512> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<float>(ptr[i]);
-        return vals;
-    }();
-    static const auto ref2 = [&]()
-    {
-        constexpr float muler = 1 / float(INT16_MAX);
-        std::array<float, 512> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = ref[i] * muler;
-        return vals;
-    }();
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 512);
+    static const auto ref1 = CastRef<float>(ptr);
+    static const auto ref2 = CastRef<float>(ptr, [](auto src) { return static_cast<float>(src) * (1 / float(INT16_MAX)); });
+    CastTest(ptr, ref1, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt);
+        });
+    CastTest(ptr, ref2, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt, 1.f);
+        });
 }
 INTRIN_TEST(CopyEx, CvtI8F32)
 {
     const auto ptr = reinterpret_cast<const int8_t*>(RandVals.data());
-    static const auto ref = [&]()
-    {
-        std::array<float, 1024> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = static_cast<float>(ptr[i]);
-        return vals;
-    }();
-    static const auto ref2 = [&]()
-    {
-        constexpr float muler = 1 / float(INT8_MAX);
-        std::array<float, 1024> vals = {};
-        for (size_t i = 0; i < vals.size(); ++i)
-            vals[i] = ref[i] * muler;
-        return vals;
-    }();
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 7);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 27);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 97);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 197);
-    I2FTest(Intrin.get(), ptr, ref.data(), ref2.data(), 1024);
+    static const auto ref1 = CastRef<float>(ptr);
+    static const auto ref2 = CastRef<float>(ptr, [](auto src) { return static_cast<float>(src) * (1 / float(INT8_MAX)); });
+    CastTest(ptr, ref1, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt);
+        });
+    CastTest(ptr, ref2, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->CopyToFloat(dst, src, cnt, 1.f);
+        });
+}
+
+template<typename Src, typename Dst>
+static void TestCvtFP2I(const common::CopyManager& intrin)
+{
+    static constexpr auto IMax = std::numeric_limits<Dst>::max();
+    static constexpr auto IMin = std::numeric_limits<Dst>::min();
+    static constexpr Src FMax = static_cast<Src>(std::numeric_limits<Dst>::max());
+    static constexpr Src FMin = static_cast<Src>(std::numeric_limits<Dst>::min());
+    const auto ptr = reinterpret_cast<const Dst*>(RandVals.data());
+    static const auto fp1 = CastRef<Src>(ptr);
+    static const auto fp2 = CastRef<Src>(ptr, [](auto src) { return static_cast<Src>(src) * (1 / FMax); });
+    static const auto ref1 = CastRef<Dst>(fp1.data());
+    static const auto ref2 = CastRef<Dst>(fp2.data(), [](auto src) { return static_cast<Dst>(src * FMax); });
+    static const auto ref3 = CastRef<Dst>(fp2.data(), [](auto src)
+        { 
+            src *= 2 * FMax;
+            if (src >= FMax) return IMax;
+            if (src <= FMin) return IMin;
+            return static_cast<Dst>(src);
+        });
+    CastTest(fp1.data(), ref1, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFromFloat(dst, src, cnt);
+        });
+    CastTest(fp2.data(), ref2, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFromFloat(dst, src, cnt, Src(1));
+        });
+    CastTest(fp2.data(), ref3, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFromFloat(dst, src, cnt, Src(0.5), true);
+        });
+}
+INTRIN_TEST(CopyEx, CvtF32I32)
+{
+    TestCvtFP2I<float, int32_t>(*Intrin);
+}
+INTRIN_TEST(CopyEx, CvtF32I16)
+{
+    TestCvtFP2I<float, int16_t>(*Intrin);
+}
+INTRIN_TEST(CopyEx, CvtF32I8)
+{
+    TestCvtFP2I<float, int8_t>(*Intrin);
 }
 
 

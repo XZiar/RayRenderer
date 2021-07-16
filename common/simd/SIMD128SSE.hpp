@@ -1189,7 +1189,18 @@ template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4, CastMode::RangeUndef>(co
 template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>() const
 {
     const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
-    return Min(maxVal).Max(minVal).Cast<I32x4, CastMode::RangeUndef>();
+    const auto val = Cast<I32x4, CastMode::RangeUndef>();
+    // INT32 loses precision, need maunally bit-select
+    const auto isLe = _mm_castps_si128(_mm_cmple_ps(Data, minVal));
+    const auto isGe = _mm_castps_si128(_mm_cmpge_ps(Data, maxVal));
+#if COMMON_SIMD_LV >= 41
+    const auto satMin = _mm_blendv_epi8(val, I32x4(INT32_MIN), isLe);
+    return _mm_blendv_epi8(satMin, I32x4(INT32_MAX), isGe);
+#else
+    const auto minItem = I32x4(INT32_MIN).And(isLe), maxItem = I32x4(INT32_MAX).And(isGe);
+    const auto keptItem = _mm_andnot_si128(_mm_or_si128(isGe, isLe), val);
+    return minItem.Or(maxItem).Or(keptItem);
+#endif
 }
 template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeSaturate>(const F32x4& arg1) const
 {

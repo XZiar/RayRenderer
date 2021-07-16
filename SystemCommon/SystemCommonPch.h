@@ -96,19 +96,19 @@ constexpr typename Func::Type* WrapGetFunc() noexcept
 
 
 #define DEFINE_FASTPATH(clz, name) struct name { using Type = clz::T##name; }
+#define GET_FASTPATH_METHOD(func, var) PPCAT(func, PPCAT(_, var))
 
 #define TAKE_ARG(r, host, i, name) BOOST_PP_COMMA_IF(i) typename host::Arg<i> name
 #define DEFINE_FASTPATH_METHOD(func, var)                                                       \
 template<> inline constexpr bool MethodExist<fastpath::func, fastpath::var> = true;             \
-static typename fastpath::func::Type func##_##var;                                              \
+static typename fastpath::func::Type GET_FASTPATH_METHOD(func, var);                            \
 template<> constexpr typename fastpath::func::Type*                                             \
 WrapGetFunc<fastpath::func, fastpath::var>() noexcept { return func##_##var; }                  \
-static typename fastpath::PathInfo<fastpath::func>::Ret func##_##var                            \
+static typename fastpath::PathInfo<fastpath::func>::Ret GET_FASTPATH_METHOD(func, var)          \
 (BOOST_PP_SEQ_FOR_EACH_I(TAKE_ARG, fastpath::PathInfo<fastpath::func>, func##Args)) noexcept    \
 
 
-#define GET_FASTPATH_METHOD(func, var) func##_##var
-#define CALL_FASTPATH_METHOD(func, var, ...) func##_##var(__VA_ARGS__)
+#define CALL_FASTPATH_METHOD(func, var, ...) GET_FASTPATH_METHOD(func, var)(__VA_ARGS__)
 
 #define RegistFuncVar(r, func, var)                         \
 if constexpr (MethodExist<fastpath::func, fastpath::var>)   \

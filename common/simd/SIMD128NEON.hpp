@@ -1288,7 +1288,12 @@ template<> forceinline F32x4 VECCALL F64x2::Cast<F32x4, CastMode::RangeUndef>(co
 template<> forceinline I32x4 VECCALL F32x4::Cast<I32x4, CastMode::RangeSaturate>() const
 {
     const F32x4 minVal = static_cast<float>(INT32_MIN), maxVal = static_cast<float>(INT32_MAX);
-    return Min(maxVal).Max(minVal).Cast<I32x4, CastMode::RangeUndef>();
+    const auto val = Cast<I32x4, CastMode::RangeUndef>();
+    // INT32 loses precision, need maunally bit-select
+    const auto isLe = vcleq_f32(Data, minVal);
+    const auto isGe = vcgeq_f32(Data, maxVal);
+    const auto satMin = vbslq_f32(isLe, I32x4(INT32_MIN), val);
+    return vbslq_f32(isGe, I32x4(INT32_MAX), satMin);
 }
 template<> forceinline I16x8 VECCALL F32x4::Cast<I16x8, CastMode::RangeSaturate>(const F32x4& arg1) const
 {

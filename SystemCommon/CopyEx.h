@@ -19,15 +19,15 @@ public:
     using TZExtCopy12 = void(uint16_t* dest, const uint8_t* src, size_t count) noexcept;
     using TZExtCopy14 = void(uint32_t* dest, const uint8_t* src, size_t count) noexcept;
     using TZExtCopy24 = void(uint32_t* dest, const uint16_t* src, size_t count) noexcept;
-    using TNarrowCopy21 = void(uint8_t* dest, const uint16_t* src, size_t count) noexcept;
-    using TNarrowCopy41 = void(uint8_t* dest, const uint32_t* src, size_t count) noexcept;
-    using TNarrowCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
+    using TTruncCopy21 = void(uint8_t * dest, const uint16_t* src, size_t count) noexcept;
+    using TTruncCopy41 = void(uint8_t * dest, const uint32_t* src, size_t count) noexcept;
+    using TTruncCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
     using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count, float mulVal) noexcept;
     using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count, float mulVal) noexcept;
     using TCvtI8F32  = void(float* dest, const int8_t * src, size_t count, float mulVal) noexcept;
-    using TCvtF32I32 = void(int32_t* dest, const float* src, size_t count, float mulVal) noexcept;
-    using TCvtF32I16 = void(int16_t* dest, const float* src, size_t count, float mulVal) noexcept;
-    using TCvtF32I8  = void(int8_t * dest, const float* src, size_t count, float mulVal) noexcept;
+    using TCvtF32I32 = void(int32_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
+    using TCvtF32I16 = void(int16_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
+    using TCvtF32I8  = void(int8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -35,9 +35,9 @@ private:
     TZExtCopy12* ZExtCopy12 = nullptr;
     TZExtCopy14* ZExtCopy14 = nullptr;
     TZExtCopy24* ZExtCopy24 = nullptr;
-    TNarrowCopy21* NarrowCopy21 = nullptr;
-    TNarrowCopy41* NarrowCopy41 = nullptr;
-    TNarrowCopy42* NarrowCopy42 = nullptr;
+    TTruncCopy21* TruncCopy21 = nullptr;
+    TTruncCopy41* TruncCopy41 = nullptr;
+    TTruncCopy42* TruncCopy42 = nullptr;
     TCvtI32F32* CvtI32F32 = nullptr;
     TCvtI16F32* CvtI16F32 = nullptr;
     TCvtI8F32 * CvtI8F32  = nullptr;
@@ -57,7 +57,7 @@ public:
     {
         return Broadcast2 && Broadcast4 && 
             ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && 
-            NarrowCopy21 && NarrowCopy41 && NarrowCopy42 &&
+            TruncCopy21 && TruncCopy41 && TruncCopy42 &&
             CvtI32F32 && CvtI16F32 && CvtI8F32;
     }
 
@@ -107,7 +107,7 @@ public:
             static_assert(AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
-    forceinline void NarrowCopy(T* const dest, const U* src, const size_t count) const noexcept
+    forceinline void TruncCopy(T* const dest, const U* src, const size_t count, [[maybe_unused]] const bool saturate = false) const noexcept
     {
         constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
         static_assert(SizeT <= SizeU);
@@ -118,16 +118,16 @@ public:
         else if constexpr (SizeT == 1)
         {
             if constexpr (SizeU == 2)
-                NarrowCopy21(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
+                TruncCopy21(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
             else if constexpr (SizeU == 4)
-                NarrowCopy41(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
+                TruncCopy41(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeT == 2)
         {
             if constexpr (SizeU == 4)
-                NarrowCopy42(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
+                TruncCopy42(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }
@@ -135,7 +135,7 @@ public:
             static_assert(AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
-    forceinline void ToFloatCopy(T* const dest, const U* src, const size_t count, const T range = 0) const noexcept
+    forceinline void CopyToFloat(T* const dest, const U* src, const size_t count, const T range = 0) const noexcept
     {
         // TODO: negative is larger
         const T mulVal = range == 0 ? 0 : range / static_cast<T>(std::numeric_limits<U>::max());
@@ -147,6 +147,25 @@ public:
                 CvtI16F32(dest, src, count, mulVal);
             else if constexpr (std::is_same_v<U, int8_t>)
                 CvtI8F32(dest, src, count, mulVal);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else
+            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+    }
+    template<typename T, typename U>
+    forceinline void CopyFromFloat(T* const dest, const U* src, const size_t count, const U range = 0, const bool saturate = false) const noexcept
+    {
+        // TODO: negative is larger
+        const U mulVal = range == 0 ? 0 : static_cast<U>(std::numeric_limits<T>::max()) / range;
+        if constexpr (std::is_same_v<U, float>)
+        {
+            if constexpr (std::is_same_v<T, int32_t>)
+                CvtF32I32(dest, src, count, mulVal, saturate);
+            else if constexpr (std::is_same_v<T, int16_t>)
+                CvtF32I16(dest, src, count, mulVal, saturate);
+            else if constexpr (std::is_same_v<T, int8_t>)
+                CvtF32I8(dest, src, count, mulVal, saturate);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }
