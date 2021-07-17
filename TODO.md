@@ -15,7 +15,7 @@
     - [ ] Remove unnecessary lambda func for direct access
   * SIMD
     - [ ] Implement new vector lib with new SIMD
-    - [ ] Add compare capability with variable result requirement
+    - [x] Add compare capability with variable result requirement
 
 * StringUtil
   - [x] Add general charset default value

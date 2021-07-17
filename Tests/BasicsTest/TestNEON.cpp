@@ -1,8 +1,12 @@
 #include "pch.h"
+namespace
+{
+using namespace common;
 #define COMMON_SIMD_LV 100
 #include "common/simd/SIMD.hpp"
-#include "common/simd/SIMD128.hpp"
 #if COMMON_SIMD_LV_ >= 100
+#   include "common/simd/SIMD128.hpp"
+using namespace common::simd;
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
 #   include "DotProdTest.h"
@@ -59,4 +63,4 @@ RegisterSIMDTest("F32x4", 100, dottest::DotProdTest<F32x4>)
 
 
 #endif
-
+}

@@ -74,7 +74,7 @@ forceinline void RunShuffle(const T& data)
     }
     else
     {
-        static_assert(common::AlwaysTrue<T>, "only support 2/4/8 members for now");
+        static_assert(AlwaysTrue<T>, "only support 2/4/8 members for now");
     }
     ResultCheck(output, Poses);
 }
@@ -120,7 +120,7 @@ forceinline void RunShuffleVar(const T& data, uint64_t val)
     }
     else
     {
-        static_assert(common::AlwaysTrue<T>, "only support 2/4/8 members for now");
+        static_assert(AlwaysTrue<T>, "only support 2/4/8 members for now");
     }
     ResultCheck(output, poses);
 }

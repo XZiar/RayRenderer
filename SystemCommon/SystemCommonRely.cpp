@@ -61,8 +61,8 @@ struct CPUFeature
                     CHECK_FEATURE(SSE2,         sse2);
                     CHECK_FEATURE(PNI,          sse3);
                     CHECK_FEATURE(SSSE3,        ssse3);
-                    CHECK_FEATURE(SSE4_1,       sse4.1);
-                    CHECK_FEATURE(SSE4_2,       sse4.2);
+                    CHECK_FEATURE(SSE4_1,       sse4_1);
+                    CHECK_FEATURE(SSE4_2,       sse4_2);
                     CHECK_FEATURE(AVX,          avx);
                     CHECK_FEATURE(FMA3,         fma);
                     CHECK_FEATURE(AVX2,         avx2);

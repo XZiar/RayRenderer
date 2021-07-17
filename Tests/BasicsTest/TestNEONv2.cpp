@@ -1,12 +1,14 @@
 #include "pch.h"
+namespace
+{
+using namespace common;
 #define COMMON_SIMD_LV 200
 #include "common/simd/SIMD.hpp"
-#include "common/simd/SIMD128.hpp"
 #if COMMON_SIMD_LV_ >= 200
+#   include "common/simd/SIMD128.hpp"
+using namespace common::simd;
 #   include "SIMDBaseTest.h"
 #   include "ShuffleTest.h"
-
-using namespace common::simd;
 
 
 RegisterSIMDBaseTest(F64x2, 200, Add, Sub, Mul, Div, Neg, Abs, Min, Max)
@@ -32,4 +34,4 @@ RegisterSIMDTest("F64x2", 200, shuftest::ShuffleVarTest<F64x2>)
 
 
 #endif
-
+}

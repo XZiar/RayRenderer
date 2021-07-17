@@ -598,7 +598,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #if COMMON_SIMD_LV >= 42
         return _mm_cvtss_f32(Dot<Mul, DotPos::XYZW>(other).Data);
 #else
-        const auto prod = this->Mul(other);
+        const auto prod = Mul(other);
         float sum = 0.f;
         if constexpr (HAS_FIELD(Mul, DotPos::X)) sum += prod[0];
         if constexpr (HAS_FIELD(Mul, DotPos::Y)) sum += prod[1];
@@ -639,38 +639,37 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
 #endif
 
     // arithmetic operations
-    forceinline I64x2 VECCALL Neg() const { return _mm_sub_epi64(_mm_setzero_si128(), this->Data); }
+    forceinline I64x2 VECCALL Neg() const { return _mm_sub_epi64(_mm_setzero_si128(), Data); }
 #if COMMON_SIMD_LV >= 41
     forceinline I64x2 VECCALL Max(const I64x2& other) const
     {
 # if COMMON_SIMD_LV >= 320
-        return _mm_max_epi64(this->Data, other.Data);
+        return _mm_max_epi64(Data, other.Data);
 # else
-        const auto isGt = _mm_cmpgt_epi64(this->Data, other.Data);
-        return _mm_blendv_epi8(other.Data, this->Data, isGt);
+        return _mm_blendv_epi8(other.Data, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # endif
     }
     forceinline I64x2 VECCALL Min(const I64x2& other) const
     {
 # if COMMON_SIMD_LV >= 320
-        return _mm_min_epi64(this->Data, other.Data);
+        return _mm_min_epi64(Data, other.Data);
 # else
-        const auto isGt = _mm_cmpgt_epi64(this->Data, other.Data);
-        return _mm_blendv_epi8(this->Data, other.Data, isGt);
+        return _mm_blendv_epi8(Data, other.Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # endif
     }
     forceinline I64x2 VECCALL Abs() const 
     { 
 # if COMMON_SIMD_LV >= 320
-        return _mm_abs_epi64(this->Data);
+        return _mm_abs_epi64(Data);
 # else
-        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(Neg()), _mm_castsi128_pd(this->Data)));
+        const auto neg = Neg().As<F64x2>(), self = As<F64x2>();
+        return _mm_castpd_si128(_mm_blendv_pd(self, neg, self));
 # endif
     }
 #endif
 #if COMMON_SIMD_LV >= 320
     template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(this->Data, N); }
+    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I64x2, T>(), typename... Args>
     typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
@@ -687,12 +686,12 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     {
         if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
         {
-            return As<I64x2>().Compare<Cmp, Msk>(other.As<I64x2>()).As<U64x2>();
+            return As<I64x2>().Compare<Cmp, Msk>(other.As<I64x2>()).template As<U64x2>();
         }
         else
         {
             const U64x2 sigMask(static_cast<uint64_t>(0x8000000000000000));
-            return Xor(sigMask).As<I64x2>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I64x2>()).As<U64x2>();
+            return Xor(sigMask).As<I64x2>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I64x2>()).template As<U64x2>();
         }
     }
 
@@ -715,11 +714,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
 # if COMMON_SIMD_LV >= 320
         return Max(other).Sub(other);
 # elif COMMON_SIMD_LV >= 42
-        const auto signBit = _mm_set1_epi64x(0x8000000000000000LL);
-        const auto isGt = _mm_cmpgt_epi64(_mm_xor_si128(this->Data, signBit), _mm_xor_si128(other, signBit));
-        const auto sub = Sub(other);
-        return _mm_and_si128(sub, isGt);
-        //return _mm_blendv_epi8(_mm_setzero_si128(), sub, isGt);
+        return Sub(other).And(Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 return sub, 0|1 return 0, 1|1/0|0 use sub
         // sub: 1 return 0, 0 return sub
@@ -732,39 +727,35 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     forceinline U64x2 VECCALL Max(const U64x2& other) const
     { 
 # if COMMON_SIMD_LV >= 320
-        return _mm_max_epu64(this->Data, other.Data);
+        return _mm_max_epu64(Data, other.Data);
 # elif COMMON_SIMD_LV >= 42
-        const auto signBit = _mm_set1_epi64x(0x8000000000000000LL);
-        const auto isGt = _mm_cmpgt_epi64(_mm_xor_si128(this->Data, signBit), _mm_xor_si128(other, signBit));
-        return _mm_blendv_epi8(other, this->Data, isGt);
+        return _mm_blendv_epi8(other, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 choose A, 0|1 choose B, 1|1/0|0 use sub
         // sub: 1 choose B, 0 choose A
         const auto sig = _mm_castsi128_pd(Xor(other));
         const auto sub = _mm_castsi128_pd(Sub(other));
         const auto mask = _mm_blendv_pd(sub, _mm_castsi128_pd(other), sig);
-        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(other), mask));
+        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(Data), _mm_castsi128_pd(other), mask));
 # endif
     }
     forceinline U64x2 VECCALL Min(const U64x2& other) const 
     { 
 # if COMMON_SIMD_LV >= 320
-        return _mm_min_epu64(this->Data, other.Data);
+        return _mm_min_epu64(Data, other.Data);
 # elif COMMON_SIMD_LV >= 42
-        const auto signBit = _mm_set1_epi64x(0x8000000000000000LL);
-        const auto isGt = _mm_cmpgt_epi64(_mm_xor_si128(this->Data, signBit), _mm_xor_si128(other, signBit));
-        return _mm_blendv_epi8(this->Data, other, isGt);
+        return _mm_blendv_epi8(Data, other, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 choose B, 0|1 choose A, 1|1/0|0 use sub
         // sub: 1 choose A, 0 choose B
         const auto sig = _mm_castsi128_pd(Xor(other));
         const auto sub = _mm_castsi128_pd(Sub(other));
         const auto mask = _mm_blendv_pd(sub, _mm_castsi128_pd(other), sig);
-        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(other), _mm_castsi128_pd(this->Data), mask));
+        return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(other), _mm_castsi128_pd(Data), mask));
 # endif
     }
 #endif
-    forceinline U64x2 VECCALL Abs() const { return this->Data; }
+    forceinline U64x2 VECCALL Abs() const { return Data; }
     template<uint8_t N>
     forceinline U64x2 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
     template<typename T, CastMode Mode = detail::CstMode<U64x2, T>(), typename... Args>
@@ -841,12 +832,12 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32_t>
     {
         if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
         {
-            return As<I32x4>().Compare<Cmp, Msk>(other.As<I32x4>()).As<U32x4>();
+            return As<I32x4>().Compare<Cmp, Msk>(other.As<I32x4>()).template As<U32x4>();
         }
         else
         {
             const U32x4 sigMask(static_cast<uint32_t>(0x80000000));
-            return Xor(sigMask).As<I32x4>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I32x4>()).As<U32x4>();
+            return Xor(sigMask).As<I32x4>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I32x4>()).template As<U32x4>();
         }
     }
 
@@ -997,12 +988,12 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16_t>
     {
         if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
         {
-            return As<I16x8>().Compare<Cmp, Msk>(other.As<I16x8>()).As<U16x8>();
+            return As<I16x8>().Compare<Cmp, Msk>(other.As<I16x8>()).template As<U16x8>();
         }
         else
         {
             const U16x8 sigMask(static_cast<uint16_t>(0x8000));
-            return Xor(sigMask).As<I16x8>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I16x8>()).As<U16x8>();
+            return Xor(sigMask).As<I16x8>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I16x8>()).template As<U16x8>();
         }
     }
 
@@ -1168,12 +1159,12 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8_t>
     {
         if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
         {
-            return As<I8x16>().Compare<Cmp, Msk>(other.As<I8x16>()).As<U8x16>();
+            return As<I8x16>().Compare<Cmp, Msk>(other.As<I8x16>()).template As<U8x16>();
         }
         else
         {
             const U8x16 sigMask(static_cast<uint8_t>(0x80));
-            return Xor(sigMask).As<I8x16>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I8x16>()).As<U8x16>();
+            return Xor(sigMask).As<I8x16>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I8x16>()).template As<U8x16>();
         }
     }
 
@@ -1307,16 +1298,46 @@ template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16, CastMode::RangeUndef>() 
 }
 
 
+template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeTrunc>(const U64x2& arg1) const
+{
+    const auto lo =      As<U32x4>().Shuffle<0, 2, 0, 0>();
+    const auto hi = arg1.As<U32x4>().Shuffle<0, 2, 0, 0>();
+    return _mm_unpacklo_epi64(lo, hi);
+}
+template<> forceinline U16x8 VECCALL U64x2::Cast<U16x8, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3) const
+{
+    const auto mask = _mm_setr_epi8(0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto dat0 = _mm_shuffle_epi8(Data, mask);
+    const auto dat1 = _mm_shuffle_epi8(arg1, mask);
+    const auto dat2 = _mm_shuffle_epi8(arg2, mask);
+    const auto dat3 = _mm_shuffle_epi8(arg3, mask);
+    const auto dat02 = _mm_unpacklo_epi32(dat0, dat2);
+    const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
+    return _mm_unpacklo_epi32(dat02, dat13);
+}
+template<> forceinline U8x16 VECCALL U64x2::Cast<U8x16, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3,
+    const U64x2& arg4, const U64x2& arg5, const U64x2& arg6, const U64x2& arg7) const
+{
+    const auto mask = _mm_setr_epi64x(0xffffffffffff0800, 0xffffffffffffffff);
+    const auto dat0 = _mm_shuffle_epi8(Data, mask);//a0000000
+    const auto dat1 = _mm_shuffle_epi8(arg1, mask);//b0000000
+    const auto dat2 = _mm_shuffle_epi8(arg2, mask);//c0000000
+    const auto dat3 = _mm_shuffle_epi8(arg3, mask);//d0000000
+    const auto dat4 = _mm_shuffle_epi8(arg4, mask);//e0000000
+    const auto dat5 = _mm_shuffle_epi8(arg5, mask);//f0000000
+    const auto dat6 = _mm_shuffle_epi8(arg6, mask);//g0000000
+    const auto dat7 = _mm_shuffle_epi8(arg7, mask);//h0000000
+    const auto dat01 = _mm_unpacklo_epi16(dat0, dat1);//ab000000
+    const auto dat23 = _mm_unpacklo_epi16(dat2, dat3);//cd000000
+    const auto dat45 = _mm_unpacklo_epi16(dat4, dat5);//ef000000
+    const auto dat67 = _mm_unpacklo_epi16(dat6, dat7);//gh000000
+    const auto dat0123 = _mm_unpacklo_epi32(dat01, dat23);//abcd0000
+    const auto dat4567 = _mm_unpacklo_epi32(dat45, dat67);//efgh0000
+    return _mm_unpacklo_epi64(dat0123, dat4567);//abcdefgh
+}
 template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
 {
     const auto mask = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto lo = _mm_shuffle_epi8(Data, mask);
-    const auto hi = _mm_shuffle_epi8(arg1, mask);
-    return _mm_unpacklo_epi64(lo, hi);
-}
-template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
-{
-    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
     const auto lo = _mm_shuffle_epi8(Data, mask);
     const auto hi = _mm_shuffle_epi8(arg1, mask);
     return _mm_unpacklo_epi64(lo, hi);
@@ -1332,17 +1353,38 @@ template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16, CastMode::RangeTrunc>(co
     const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
     return _mm_unpacklo_epi32(dat02, dat13);
 }
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
+}
+template<> forceinline I32x4 VECCALL I64x2::Cast<I32x4, CastMode::RangeTrunc>(const I64x2& arg1) const
+{
+    return As<U64x2>().Cast<U32x4>(arg1.As<U64x2>()).As<I32x4>();
+}
+template<> forceinline I16x8 VECCALL I64x2::Cast<I16x8, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3) const
+{
+    return As<U64x2>().Cast<U16x8>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>()).As<I16x8>();
+}
+template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3,
+    const I64x2& arg4, const I64x2& arg5, const I64x2& arg6, const I64x2& arg7) const
+{
+    return As<U64x2>().Cast<U8x16>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>(), 
+        arg4.As<U64x2>(), arg5.As<U64x2>(), arg6.As<U64x2>(), arg7.As<U64x2>()).As<I8x16>();
+}
 template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeTrunc>(const I32x4& arg1) const
 {
     return As<U32x4>().Cast<U16x8>(arg1.As<U32x4>()).As<I16x8>();
 }
-template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(const I16x8& arg1) const
-{
-    return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
-}
 template<> forceinline I8x16 VECCALL I32x4::Cast<I8x16, CastMode::RangeTrunc>(const I32x4& arg1, const I32x4& arg2, const I32x4& arg3) const
 {
     return As<U32x4>().Cast<U8x16>(arg1.As<U32x4>(), arg2.As<U32x4>(), arg3.As<U32x4>()).As<I8x16>();
+}
+template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(const I16x8& arg1) const
+{
+    return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
 }
 
 

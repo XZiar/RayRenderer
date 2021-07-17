@@ -102,27 +102,22 @@ public:
     static std::string_view GetSIMDLevelName(const uint32_t level);
 };
 template<typename T, uint32_t LV>
-struct SIMDFactory
+inline uint32_t PendingRegister(std::string testName, const char* fileName, const int fileLine)
 {
     static_assert(std::is_base_of_v<SIMDFixture, T>, "Test type shuld derive from SIMDFixture");
-    static uint32_t Dummy;
-    static uint32_t PendingRegister(std::string testName, const char* fileName, const int fileLine)
+    if (SIMDFixture::GetSIMDLevel() >= LV)
     {
-        if (SIMDFixture::GetSIMDLevel() >= LV)
-        {
-            testName.append("/").append(SIMDFixture::GetSIMDLevelName(LV));
-            testing::RegisterTest(
-                T::TestSuite, testName.c_str(),
-                nullptr, nullptr,
-                fileName, fileLine,
-                [=]() -> SIMDFixture* { return new T(); });
-        }
-        return 0;
+        testName.append("/").append(SIMDFixture::GetSIMDLevelName(LV));
+        testing::RegisterTest(
+            T::TestSuite, testName.c_str(),
+            nullptr, nullptr,
+            fileName, fileLine,
+            [=]() -> SIMDFixture* { return new T(); });
     }
-};
+    return 0;
+}
 
-#define RegisterSIMDTest(Test, Level, ...)                          \
-template<> uint32_t SIMDFactory<__VA_ARGS__, Level>::Dummy =        \
-    SIMDFactory<__VA_ARGS__, Level>::                               \
-    PendingRegister(Test, __FILE__, __LINE__);                      \
 
+#define RegisterSIMDTest(Type, Level, ...)                                      \
+static uint32_t PPCAT(PPCAT(Dummy_, Type), PPCAT(_, __LINE__)) =                \
+    PendingRegister<__VA_ARGS__, Level>(STRINGIZE(Type), __FILE__, __LINE__);

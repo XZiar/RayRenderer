@@ -13,34 +13,48 @@ namespace common
 using namespace std::string_view_literals;
 namespace fastpath
 {
-DEFINE_FASTPATH(CopyManager, Broadcast2);
-DEFINE_FASTPATH(CopyManager, Broadcast4);
-DEFINE_FASTPATH(CopyManager, ZExtCopy12);
-DEFINE_FASTPATH(CopyManager, ZExtCopy14);
-DEFINE_FASTPATH(CopyManager, ZExtCopy24);
-DEFINE_FASTPATH(CopyManager, TruncCopy21);
-DEFINE_FASTPATH(CopyManager, TruncCopy41);
-DEFINE_FASTPATH(CopyManager, TruncCopy42);
-DEFINE_FASTPATH(CopyManager, CvtI32F32);
-DEFINE_FASTPATH(CopyManager, CvtI16F32);
-DEFINE_FASTPATH(CopyManager, CvtI8F32 );
-DEFINE_FASTPATH(CopyManager, CvtF32I32);
-DEFINE_FASTPATH(CopyManager, CvtF32I16);
-DEFINE_FASTPATH(CopyManager, CvtF32I8 );
 #define Broadcast2Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define Broadcast4Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+DEFINE_FASTPATH(CopyManager, Broadcast2);
+DEFINE_FASTPATH(CopyManager, Broadcast4);
 #define ZExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define ZExtCopy14Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define ZExtCopy24Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define ZExtCopy28Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define ZExtCopy48Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+DEFINE_FASTPATH(CopyManager, ZExtCopy12);
+DEFINE_FASTPATH(CopyManager, ZExtCopy14);
+DEFINE_FASTPATH(CopyManager, ZExtCopy24);
+DEFINE_FASTPATH(CopyManager, ZExtCopy28);
+DEFINE_FASTPATH(CopyManager, ZExtCopy48);
+#define SExtCopy12Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define SExtCopy14Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define SExtCopy24Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define SExtCopy28Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define SExtCopy48Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+DEFINE_FASTPATH(CopyManager, SExtCopy12);
+DEFINE_FASTPATH(CopyManager, SExtCopy14);
+DEFINE_FASTPATH(CopyManager, SExtCopy24);
+DEFINE_FASTPATH(CopyManager, SExtCopy28);
+DEFINE_FASTPATH(CopyManager, SExtCopy48);
 #define TruncCopy21Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define TruncCopy41Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
 #define TruncCopy42Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+DEFINE_FASTPATH(CopyManager, TruncCopy21);
+DEFINE_FASTPATH(CopyManager, TruncCopy41);
+DEFINE_FASTPATH(CopyManager, TruncCopy42);
 #define CvtI32F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
 #define CvtI16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
 #define CvtI8F32Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal)
+DEFINE_FASTPATH(CopyManager, CvtI32F32);
+DEFINE_FASTPATH(CopyManager, CvtI16F32);
+DEFINE_FASTPATH(CopyManager, CvtI8F32 );
 #define CvtF32I32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
 #define CvtF32I16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
 #define CvtF32I8Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
+DEFINE_FASTPATH(CopyManager, CvtF32I32);
+DEFINE_FASTPATH(CopyManager, CvtF32I16);
+DEFINE_FASTPATH(CopyManager, CvtF32I8 );
 
 struct LOOP : FuncVarBase {};
 struct SIMD128 
@@ -60,6 +74,17 @@ struct SIMDSSSE3
     {
 #if COMMON_ARCH_X86
         return CheckCPUFeature("ssse3"sv);
+#else
+        return false;
+#endif
+    }
+};
+struct SIMDSSE41
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("sse4_1"sv);
 #else
         return false;
 #endif
@@ -215,6 +240,34 @@ DEFINE_FASTPATH_METHOD(ZExtCopy24, LOOP)
 {
     CastLoop<ScalarCast>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(ZExtCopy28, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(ZExtCopy48, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy12, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy14, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy24, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy28, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy48, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(TruncCopy21, LOOP)
 {
     CastLoop<ScalarCast>(dest, src, count);
@@ -237,27 +290,6 @@ DEFINE_FASTPATH_METHOD(TruncCopy42, LOOP)
 DEFINE_CVTFP2I_LOOP(CvtI32F32)
 DEFINE_CVTFP2I_LOOP(CvtI16F32)
 DEFINE_CVTFP2I_LOOP(CvtI8F32)
-//DEFINE_FASTPATH_METHOD(CvtI32F32, LOOP)
-//{
-//    if (mulVal == 0)
-//        CastLoop<ScalarCast>(dest, src, count);
-//    else
-//        CastLoop<ScalarI2FCast>(dest, src, count, mulVal);
-//}
-//DEFINE_FASTPATH_METHOD(CvtI16F32, LOOP)
-//{
-//    if (mulVal == 0)
-//        CastLoop<ScalarCast>(dest, src, count);
-//    else
-//        CastLoop<ScalarI2FCast>(dest, src, count, mulVal);
-//}
-//DEFINE_FASTPATH_METHOD(CvtI8F32, LOOP)
-//{
-//    if (mulVal == 0)
-//        CastLoop<ScalarCast>(dest, src, count);
-//    else
-//        CastLoop<ScalarI2FCast>(dest, src, count, mulVal);
-//}
 #define DEFINE_CVTI2FP_LOOP(func) DEFINE_FASTPATH_METHOD(func, LOOP)    \
 {                                                                       \
     if (mulVal == 0)                                                    \
@@ -396,8 +428,14 @@ forceinline void CastSIMD4(Dst* dest, const Src* src, size_t count, Args&&... ar
     F(dest, src, count, std::forward<Args>(args)...);
 }
 
-
-#define DEFINE_CVTI2FP_SIMD4(func, from, to, algo, prev) DEFINE_FASTPATH_METHOD(func, algo) \
+#define DEFINE_CVTI2FP_SIMD4(func, from, to, algo, prev) DEFINE_FASTPATH_METHOD(func, algo)                         \
+{                                                                                                                   \
+    if (mulVal == 0)                                                                                                \
+        CastSIMD4<DefaultCast<simd::from, simd::to>, &GET_FASTPATH_METHOD(func, prev)>(dest, src, count, mulVal);   \
+    else                                                                                                            \
+        CastSIMD4<I2FCast<simd::from, simd::to>, &GET_FASTPATH_METHOD(func, prev)>(dest, src, count, mulVal);       \
+}
+#define DEFINE_CVTFP2I_SIMD4(func, from, to, algo, prev) DEFINE_FASTPATH_METHOD(func, algo) \
 {                                                                                           \
     if (mulVal == 0)                                                                        \
     {                                                                                       \
@@ -437,30 +475,21 @@ DEFINE_FASTPATH_METHOD(ZExtCopy24, SIMD128)
 {
     CastSIMD4<DefaultCast<simd::U16x8, simd::U32x4>, &GET_FASTPATH_METHOD(ZExtCopy24, LOOP)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtI32F32, SIMD128)
+DEFINE_FASTPATH_METHOD(ZExtCopy28, SIMD128)
 {
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I32x4, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI32F32, LOOP)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I32x4, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI32F32, LOOP)>(dest, src, count, mulVal);
+    CastSIMD4<DefaultCast<simd::U16x8, simd::U64x2>, &GET_FASTPATH_METHOD(ZExtCopy28, LOOP)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtI16F32, SIMD128)
+DEFINE_FASTPATH_METHOD(ZExtCopy48, SIMD128)
 {
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I16x8, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI16F32, LOOP)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I16x8, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI16F32, LOOP)>(dest, src, count, mulVal);
+    CastSIMD4<DefaultCast<simd::U32x4, simd::U64x2>, &GET_FASTPATH_METHOD(ZExtCopy48, LOOP)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtI8F32, SIMD128)
-{
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I8x16, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI8F32, LOOP)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I8x16, simd::F32x4>, &GET_FASTPATH_METHOD(CvtI8F32, LOOP)>(dest, src, count, mulVal);
-}
-DEFINE_CVTI2FP_SIMD4(CvtF32I32, F32x4, I32x4, SIMD128, LOOP)
-DEFINE_CVTI2FP_SIMD4(CvtF32I16, F32x4, I16x8, SIMD128, LOOP)
-DEFINE_CVTI2FP_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
+DEFINE_CVTI2FP_SIMD4(CvtI32F32, I32x4, F32x4, SIMD128, LOOP)
+DEFINE_CVTI2FP_SIMD4(CvtI16F32, I16x8, F32x4, SIMD128, LOOP)
+DEFINE_CVTI2FP_SIMD4(CvtI8F32,  I8x16, F32x4, SIMD128, LOOP)
+
+DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x4, I32x4, SIMD128, LOOP)
+DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x4, I16x8, SIMD128, LOOP)
+DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
 
 #endif
 
@@ -469,6 +498,26 @@ DEFINE_CVTI2FP_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
 DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMD128)
 {
     CastSIMD4<DefaultCast<simd::U8x16, simd::U32x4>, &GET_FASTPATH_METHOD(ZExtCopy14, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy12, SIMD128)
+{
+    CastSIMD4<DefaultCast<simd::I8x16, simd::I16x8>, &GET_FASTPATH_METHOD(SExtCopy12, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy14, SIMD128)
+{
+    CastSIMD4<DefaultCast<simd::I8x16, simd::I32x4>, &GET_FASTPATH_METHOD(SExtCopy14, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy24, SIMD128)
+{
+    CastSIMD4<DefaultCast<simd::I16x8, simd::I32x4>, &GET_FASTPATH_METHOD(SExtCopy24, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy28, SIMD128)
+{
+    CastSIMD4<DefaultCast<simd::I16x8, simd::I64x2>, &GET_FASTPATH_METHOD(SExtCopy28, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy48, SIMD128)
+{
+    CastSIMD4<DefaultCast<simd::I32x4, simd::I64x2>, &GET_FASTPATH_METHOD(SExtCopy48, LOOP)>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(TruncCopy21, SIMD128)
 {
@@ -503,7 +552,30 @@ DEFINE_FASTPATH_METHOD(TruncCopy42, SIMDSSSE3)
 }
 #endif
 
-#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100)
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
+DEFINE_FASTPATH_METHOD(SExtCopy12, SIMDSSE41)
+{
+    CastSIMD4<DefaultCast<simd::I8x16, simd::I16x8>, &GET_FASTPATH_METHOD(SExtCopy12, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy14, SIMDSSE41)
+{
+    CastSIMD4<DefaultCast<simd::I8x16, simd::I32x4>, &GET_FASTPATH_METHOD(SExtCopy14, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy24, SIMDSSE41)
+{
+    CastSIMD4<DefaultCast<simd::I16x8, simd::I32x4>, &GET_FASTPATH_METHOD(SExtCopy24, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy28, SIMDSSE41)
+{
+    CastSIMD4<DefaultCast<simd::I16x8, simd::I64x2>, &GET_FASTPATH_METHOD(SExtCopy28, LOOP)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy48, SIMDSSE41)
+{
+    CastSIMD4<DefaultCast<simd::I32x4, simd::I64x2>, &GET_FASTPATH_METHOD(SExtCopy48, LOOP)>(dest, src, count);
+}
+#endif
+
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
 DEFINE_FASTPATH_METHOD(Broadcast2, SIMD256)
 {
     BroadcastSIMD4<simd::U16x16, &GET_FASTPATH_METHOD(Broadcast2, SIMD128)>(dest, src, count);
@@ -512,14 +584,10 @@ DEFINE_FASTPATH_METHOD(Broadcast4, SIMD256)
 {
     BroadcastSIMD4<simd::U32x8, &GET_FASTPATH_METHOD(Broadcast4, SIMD128)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtI32F32, SIMD256)
-{
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I32x8, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI32F32, SIMD128)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I32x8, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI32F32, SIMD128)>(dest, src, count, mulVal);
-}
-DEFINE_CVTI2FP_SIMD4(CvtF32I32, F32x8, I32x8, SIMD256, SIMD128)
+
+DEFINE_CVTI2FP_SIMD4(CvtI32F32, I32x8, F32x8, SIMD256, SIMD128)
+
+DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x8, I32x8, SIMD256, SIMD128)
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
@@ -527,13 +595,37 @@ DEFINE_FASTPATH_METHOD(ZExtCopy12, SIMDAVX2)
 {
     CastSIMD4<DefaultCast<simd::U8x32, simd::U16x16>, &GET_FASTPATH_METHOD(ZExtCopy12, SIMD128)>(dest, src, count);
 }
+DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::U8x32, simd::U32x8>, &GET_FASTPATH_METHOD(ZExtCopy14, SIMDSSSE3)>(dest, src, count);
+}
 DEFINE_FASTPATH_METHOD(ZExtCopy24, SIMDAVX2)
 {
     CastSIMD4<DefaultCast<simd::U16x16, simd::U32x8>, &GET_FASTPATH_METHOD(ZExtCopy24, SIMD128)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMDAVX2)
+DEFINE_FASTPATH_METHOD(ZExtCopy48, SIMDAVX2)
 {
-    CastSIMD4<DefaultCast<simd::U8x32, simd::U32x8>, &GET_FASTPATH_METHOD(ZExtCopy14, SIMDSSSE3)>(dest, src, count);
+    CastSIMD4<DefaultCast<simd::U32x8, simd::U64x4>, &GET_FASTPATH_METHOD(ZExtCopy48, SIMD128)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy12, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::I8x32, simd::I16x16>, &GET_FASTPATH_METHOD(SExtCopy12, SIMDSSE41)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy14, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::I8x32, simd::I32x8>, &GET_FASTPATH_METHOD(SExtCopy14, SIMDSSE41)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy24, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::I16x16, simd::I32x8>, &GET_FASTPATH_METHOD(SExtCopy24, SIMDSSE41)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy28, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::I16x16, simd::I64x4>, &GET_FASTPATH_METHOD(SExtCopy28, SIMDSSE41)>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(SExtCopy48, SIMDAVX2)
+{
+    CastSIMD4<DefaultCast<simd::I32x8, simd::I64x4>, &GET_FASTPATH_METHOD(SExtCopy48, SIMDSSE41)>(dest, src, count);
 }
 DEFINE_FASTPATH_METHOD(TruncCopy21, SIMDAVX2)
 {
@@ -547,22 +639,12 @@ DEFINE_FASTPATH_METHOD(TruncCopy42, SIMDAVX2)
 {
     CastSIMD4<DefaultCast<simd::U32x8, simd::U16x16>, &GET_FASTPATH_METHOD(TruncCopy42, SIMDSSSE3)>(dest, src, count);
 }
-DEFINE_FASTPATH_METHOD(CvtI16F32, SIMDAVX2)
-{
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I16x16, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI16F32, SIMD128)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I16x16, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI16F32, SIMD128)>(dest, src, count, mulVal);
-}
-DEFINE_FASTPATH_METHOD(CvtI8F32, SIMDAVX2)
-{
-    if (mulVal == 0)
-        CastSIMD4<DefaultCast<simd::I8x32, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI8F32, SIMD128)>(dest, src, count, mulVal);
-    else
-        CastSIMD4<I2FCast<simd::I8x32, simd::F32x8>, &GET_FASTPATH_METHOD(CvtI8F32, SIMD128)>(dest, src, count, mulVal);
-}
-DEFINE_CVTI2FP_SIMD4(CvtF32I16, F32x8, I16x16, SIMDAVX2, SIMD128)
-DEFINE_CVTI2FP_SIMD4(CvtF32I8,  F32x8, I8x32,  SIMDAVX2, SIMD128)
+
+DEFINE_CVTI2FP_SIMD4(CvtI16F32, I16x16, F32x8, SIMDAVX2, SIMD128)
+DEFINE_CVTI2FP_SIMD4(CvtI8F32,  I8x32,  F32x8, SIMDAVX2, SIMD128)
+
+DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x8, I16x16, SIMDAVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x8, I8x32,  SIMDAVX2, SIMD128)
 #endif
 
 common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
@@ -575,6 +657,13 @@ common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
         RegistFuncVars(ZExtCopy12, SIMDAVX2, SIMD128, LOOP);
         RegistFuncVars(ZExtCopy14, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(ZExtCopy24, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(ZExtCopy28, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(ZExtCopy48, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(SExtCopy12, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        RegistFuncVars(SExtCopy14, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        RegistFuncVars(SExtCopy24, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        RegistFuncVars(SExtCopy28, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        RegistFuncVars(SExtCopy48, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
         RegistFuncVars(TruncCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(TruncCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         RegistFuncVars(TruncCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
@@ -599,6 +688,13 @@ CopyManager::CopyManager(common::span<const CopyManager::VarItem> requests) noex
         CHECK_FUNC_VARS(func, var, ZExtCopy12, SIMDAVX2, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, ZExtCopy14, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, ZExtCopy24, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, ZExtCopy28, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, ZExtCopy48, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, SExtCopy12, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, SExtCopy14, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, SExtCopy24, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, SExtCopy28, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, SExtCopy48, SIMDAVX2, SIMDSSE41, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, TruncCopy21, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, TruncCopy41, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, TruncCopy42, SIMDAVX2, SIMDSSSE3, SIMD128, LOOP);

@@ -2,7 +2,6 @@
 #include "pch.h"
 #pragma message("Compiling SIMDBaseTest with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
-
 namespace simdtest
 {
 using namespace std::string_literals;
@@ -473,10 +472,10 @@ forceinline void CopyEles(const T& src, U* dst, std::index_sequence<I...>)
     constexpr auto N = V::Count;
     (..., src[I].Save(dst + N * I));
 }
-template<typename U, common::simd::CastMode Mode, typename T>
+template<typename U, CastMode Mode, typename T>
 forceinline U CastSingle(T val) noexcept
 {
-    if constexpr (Mode == common::simd::CastMode::RangeSaturate)
+    if constexpr (Mode == CastMode::RangeSaturate)
     {
         constexpr auto dstMin = std::numeric_limits<U>::min(), dstMax = std::numeric_limits<U>::max();
         constexpr auto minVal = static_cast<T>(dstMin), maxVal = static_cast<T>(dstMax);
@@ -485,7 +484,7 @@ forceinline U CastSingle(T val) noexcept
     }
     return static_cast<U>(val);
 }
-template<typename T, typename U, common::simd::CastMode Mode>
+template<typename T, typename U, CastMode Mode>
 static void TestCast(const T* ptr)
 {
     using V = typename U::EleType;
@@ -516,8 +515,11 @@ static void TestCast(const T* ptr)
                 output = ptr[k * 2].template Cast<U, Mode>(ptr[k * 2 + 1]);
             else if constexpr (K == 4)
                 output = ptr[k * 4].template Cast<U, Mode>(ptr[k * 4 + 1], ptr[k * 4 + 2], ptr[k * 4 + 3]);
+            else if constexpr (K == 8)
+                output = ptr[k * 8].template Cast<U, Mode>(ptr[k * 8 + 1], ptr[k * 8 + 2], ptr[k * 8 + 3], 
+                    ptr[k * 8 + 4], ptr[k * 8 + 5], ptr[k * 8 + 6], ptr[k * 8 + 7]);
             else
-                static_assert(!common::AlwaysTrue<T>, "not supported");
+                static_assert(!::common::AlwaysTrue<T>, "not supported");
             std::array<V, U::Count> ref = { 0 };
             for (size_t j = 0; j < K; ++j)
             {
@@ -556,12 +558,11 @@ static void TestCompare(const T* ptr)
     ForKItem(2)
     {
         const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
-#define TestRel(cmp, op) do {                                                       \
-        const auto output = data0. template Compare<common::simd::CompareType::cmp, \
-            common::simd::MaskType::FullEle>(data1);                                \
-        std::array<U, T::Count> ref = { 0 };                                        \
-        for (uint8_t i = 0; i < T::Count; ++i)                                      \
-            ref[i] = data0.Val[i] op data1.Val[i] ? ValTrue : ValFalse;             \
+#define TestRel(cmp, op) do {                                                                       \
+        const auto output = data0. template Compare<CompareType::cmp, MaskType::FullEle>(data1);    \
+        std::array<U, T::Count> ref = { 0 };                                                        \
+        for (uint8_t i = 0; i < T::Count; ++i)                                                      \
+            ref[i] = data0.Val[i] op data1.Val[i] ? ValTrue : ValFalse;                             \
         EXPECT_THAT(output.Val, MatchVec(ref)); } while(false)
         TestRel(LessThan,       < );
         TestRel(LessEqual,      <=);
@@ -570,7 +571,7 @@ static void TestCompare(const T* ptr)
         TestRel(GreaterEqual,   >=);
         TestRel(GreaterThan,    > );
 #undef TestRel
-        /*const auto output = data0.Compare<common::simd::CompareType::LessThan, common::simd::MaskType::FullEle>(data1);
+        /*const auto output = data0.Compare<CompareType::LessThan, MaskType::FullEle>(data1);
         std::array<U, T::Count> ref = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data0.Val[i] < data1.Val[i] ? ValTrue : ValFalse;
@@ -606,29 +607,29 @@ public:
 
 
 #define SIMDBaseItem(r, data, i, x) BOOST_PP_IF(i, |, ) simdtest::TestItem::x
-#define RegisterSIMDBaseTest(type, lv, ...)  RegisterSIMDTest(#type, lv, \
-simdtest::SIMDBaseTest<common::simd::type, BOOST_PP_SEQ_FOR_EACH_I(SIMDBaseItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))>)
+#define RegisterSIMDBaseTest(type, lv, ...)  RegisterSIMDTest(type, lv, \
+simdtest::SIMDBaseTest<type, BOOST_PP_SEQ_FOR_EACH_I(SIMDBaseItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))>)
 
 
-template<common::simd::CastMode Mode, typename T, typename... U>
+template<CastMode Mode, typename T, typename... U>
 class SIMDCastTest : public SIMDFixture
 {
 public:
     static constexpr auto TestSuite = "SIMDCast";
-    static constexpr auto Idxes = std::make_index_sequence<sizeof...(U)>{};
     void TestBody() override
     {
+        [[maybe_unused]] const std::string_view XX = STRINGIZE(COMMON_SIMD_INTRIN);
         const auto ptr = GetRandPtr<T, typename T::EleType>();
-        if constexpr (Mode == common::simd::CastMode::RangeUndef)
-            (..., TestCast<T, U, common::simd::detail::CstMode<T, U>()>(ptr));
+        if constexpr (Mode == CastMode::RangeUndef)
+            (..., TestCast<T, U, detail::CstMode<T, U>()>(ptr));
         else
             (..., TestCast<T, U, Mode>(ptr));
     }
 };
 
 
-#define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::RangeUndef, common::simd::type, __VA_ARGS__>)
-#define RegisterSIMDCastModeTest(type, lv, mode, ...)  RegisterSIMDTest(#type, lv, simdtest::SIMDCastTest<common::simd::CastMode::mode, common::simd::type, __VA_ARGS__>)
+#define RegisterSIMDCastTest(type, lv, ...)  RegisterSIMDTest(type, lv, simdtest::SIMDCastTest<CastMode::RangeUndef, type, __VA_ARGS__>)
+#define RegisterSIMDCastModeTest(type, lv, mode, ...)  RegisterSIMDTest(type, lv, simdtest::SIMDCastTest<CastMode::mode, type, __VA_ARGS__>)
 
 
 template<typename T>
@@ -642,6 +643,9 @@ public:
         TestCompare(ptr);
     }
 };
+
+#define RegisterSIMDCmpTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDCompareTest<type>)
+#define RegisterSIMDCmpTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDCmpTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 
 }

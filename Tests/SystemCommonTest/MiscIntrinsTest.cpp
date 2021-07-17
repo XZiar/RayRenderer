@@ -97,6 +97,7 @@ static auto CastRef(const Src* src, F&& func)
         vals[i] = func(src[i]);
     return vals;
 }
+
 INTRIN_TEST(CopyEx, ZExtCopy12)
 {
     static const auto ref = CastRef<uint16_t>(RandVals.data());
@@ -120,6 +121,70 @@ INTRIN_TEST(CopyEx, ZExtCopy24)
     CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
         {
             Intrin->ZExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, ZExtCopy28)
+{
+    const auto ptr = reinterpret_cast<const uint16_t*>(RandVals.data());
+    static const auto ref = CastRef<uint64_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->ZExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, ZExtCopy48)
+{
+    const auto ptr = reinterpret_cast<const uint32_t*>(RandVals.data());
+    static const auto ref = CastRef<uint64_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->ZExtCopy(dst, src, cnt);
+        });
+}
+
+INTRIN_TEST(CopyEx, SExtCopy12)
+{
+    const auto ptr = reinterpret_cast<const int8_t*>(RandVals.data());
+    static const auto ref = CastRef<int16_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->SExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, SExtCopy14)
+{
+    const auto ptr = reinterpret_cast<const int8_t*>(RandVals.data());
+    static const auto ref = CastRef<int32_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->SExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, SExtCopy24)
+{
+    const auto ptr = reinterpret_cast<const int16_t*>(RandVals.data());
+    static const auto ref = CastRef<int32_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->SExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, SExtCopy28)
+{
+    const auto ptr = reinterpret_cast<const int16_t*>(RandVals.data());
+    static const auto ref = CastRef<int64_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->SExtCopy(dst, src, cnt);
+        });
+}
+INTRIN_TEST(CopyEx, SExtCopy48)
+{
+    const auto ptr = reinterpret_cast<const int32_t*>(RandVals.data());
+    static const auto ref = CastRef<int64_t>(ptr);
+    CastTest(ptr, ref, [&](auto dst, auto src, auto cnt)
+        {
+            Intrin->SExtCopy(dst, src, cnt);
         });
 }
 

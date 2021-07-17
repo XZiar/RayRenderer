@@ -19,9 +19,18 @@ public:
     using TZExtCopy12 = void(uint16_t* dest, const uint8_t* src, size_t count) noexcept;
     using TZExtCopy14 = void(uint32_t* dest, const uint8_t* src, size_t count) noexcept;
     using TZExtCopy24 = void(uint32_t* dest, const uint16_t* src, size_t count) noexcept;
+    using TZExtCopy28 = void(uint64_t* dest, const uint16_t* src, size_t count) noexcept;
+    using TZExtCopy48 = void(uint64_t* dest, const uint32_t* src, size_t count) noexcept;
+    using TSExtCopy12 = void(int16_t* dest, const int8_t* src, size_t count) noexcept;
+    using TSExtCopy14 = void(int32_t* dest, const int8_t* src, size_t count) noexcept;
+    using TSExtCopy24 = void(int32_t* dest, const int16_t* src, size_t count) noexcept;
+    using TSExtCopy28 = void(int64_t* dest, const int16_t* src, size_t count) noexcept;
+    using TSExtCopy48 = void(int64_t* dest, const int32_t* src, size_t count) noexcept;
     using TTruncCopy21 = void(uint8_t * dest, const uint16_t* src, size_t count) noexcept;
     using TTruncCopy41 = void(uint8_t * dest, const uint32_t* src, size_t count) noexcept;
     using TTruncCopy42 = void(uint16_t* dest, const uint32_t* src, size_t count) noexcept;
+    using TTruncCopy82 = void(uint16_t* dest, const uint64_t* src, size_t count) noexcept;
+    using TTruncCopy84 = void(uint32_t* dest, const uint64_t* src, size_t count) noexcept;
     using TCvtI32F32 = void(float* dest, const int32_t* src, size_t count, float mulVal) noexcept;
     using TCvtI16F32 = void(float* dest, const int16_t* src, size_t count, float mulVal) noexcept;
     using TCvtI8F32  = void(float* dest, const int8_t * src, size_t count, float mulVal) noexcept;
@@ -35,9 +44,18 @@ private:
     TZExtCopy12* ZExtCopy12 = nullptr;
     TZExtCopy14* ZExtCopy14 = nullptr;
     TZExtCopy24* ZExtCopy24 = nullptr;
+    TZExtCopy28* ZExtCopy28 = nullptr;
+    TZExtCopy48* ZExtCopy48 = nullptr;
+    TSExtCopy12* SExtCopy12 = nullptr;
+    TSExtCopy14* SExtCopy14 = nullptr;
+    TSExtCopy24* SExtCopy24 = nullptr;
+    TSExtCopy28* SExtCopy28 = nullptr;
+    TSExtCopy48* SExtCopy48 = nullptr;
     TTruncCopy21* TruncCopy21 = nullptr;
     TTruncCopy41* TruncCopy41 = nullptr;
     TTruncCopy42* TruncCopy42 = nullptr;
+    TTruncCopy82* TruncCopy82 = nullptr;
+    TTruncCopy84* TruncCopy84 = nullptr;
     TCvtI32F32* CvtI32F32 = nullptr;
     TCvtI16F32* CvtI16F32 = nullptr;
     TCvtI8F32 * CvtI8F32  = nullptr;
@@ -56,9 +74,11 @@ public:
     [[nodiscard]] bool IsComplete() const noexcept
     {
         return Broadcast2 && Broadcast4 && 
-            ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && 
-            TruncCopy21 && TruncCopy41 && TruncCopy42 &&
-            CvtI32F32 && CvtI16F32 && CvtI8F32;
+            ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && ZExtCopy28 && ZExtCopy48 &&
+            SExtCopy12 && SExtCopy14 && SExtCopy24 && SExtCopy28 && SExtCopy48 &&
+            TruncCopy21 && TruncCopy41 && TruncCopy42 && TruncCopy82 && TruncCopy84 &&
+            CvtI32F32 && CvtI16F32 && CvtI8F32 &&
+            CvtF32I32 && CvtF32I16 && CvtF32I8;
     }
 
     template<typename T>
@@ -100,6 +120,52 @@ public:
         {
             if constexpr (SizeT == 4)
                 ZExtCopy24(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
+            else if constexpr (SizeT == 8)
+                ZExtCopy28(reinterpret_cast<uint64_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (SizeU == 4)
+        {
+            if constexpr (SizeT == 8)
+                ZExtCopy48(reinterpret_cast<uint64_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else
+            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+    }
+    template<typename T, typename U>
+    forceinline void SExtCopy(T* const dest, const U* src, const size_t count) const noexcept
+    {
+        constexpr size_t SizeT = sizeof(T), SizeU = sizeof(U);
+        static_assert(SizeT >= SizeU);
+        if constexpr (SizeT == SizeU)
+        {
+            memcpy_s(dest, count * SizeT, src, count * SizeU);
+        }
+        else if constexpr (SizeU == 1)
+        {
+            if constexpr (SizeT == 2)
+                SExtCopy12(reinterpret_cast<int16_t*>(dest), reinterpret_cast<const int8_t*>(src), count);
+            else if constexpr (SizeT == 4)
+                SExtCopy14(reinterpret_cast<int32_t*>(dest), reinterpret_cast<const int8_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (SizeU == 2)
+        {
+            if constexpr (SizeT == 4)
+                SExtCopy24(reinterpret_cast<int32_t*>(dest), reinterpret_cast<const int16_t*>(src), count);
+            else if constexpr (SizeT == 8)
+                SExtCopy28(reinterpret_cast<int64_t*>(dest), reinterpret_cast<const int16_t*>(src), count);
+            else
+                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (SizeU == 4)
+        {
+            if constexpr (SizeT == 8)
+                SExtCopy48(reinterpret_cast<int64_t*>(dest), reinterpret_cast<const int32_t*>(src), count);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }
