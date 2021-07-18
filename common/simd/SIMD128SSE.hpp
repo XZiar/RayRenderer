@@ -1304,6 +1304,20 @@ template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeTrunc>(co
     const auto hi = arg1.As<U32x4>().Shuffle<0, 2, 0, 0>();
     return _mm_unpacklo_epi64(lo, hi);
 }
+template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
+}
+template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
+{
+    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto lo = _mm_shuffle_epi8(Data, mask);
+    const auto hi = _mm_shuffle_epi8(arg1, mask);
+    return _mm_unpacklo_epi64(lo, hi);
+}
 template<> forceinline U16x8 VECCALL U64x2::Cast<U16x8, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3) const
 {
     const auto mask = _mm_setr_epi8(0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
@@ -1315,10 +1329,21 @@ template<> forceinline U16x8 VECCALL U64x2::Cast<U16x8, CastMode::RangeTrunc>(co
     const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
     return _mm_unpacklo_epi32(dat02, dat13);
 }
+template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16, CastMode::RangeTrunc>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
+{
+    const auto mask = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto dat0 = _mm_shuffle_epi8(Data, mask);
+    const auto dat1 = _mm_shuffle_epi8(arg1, mask);
+    const auto dat2 = _mm_shuffle_epi8(arg2, mask);
+    const auto dat3 = _mm_shuffle_epi8(arg3, mask);
+    const auto dat02 = _mm_unpacklo_epi32(dat0, dat2);
+    const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
+    return _mm_unpacklo_epi32(dat02, dat13);
+}
 template<> forceinline U8x16 VECCALL U64x2::Cast<U8x16, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3,
     const U64x2& arg4, const U64x2& arg5, const U64x2& arg6, const U64x2& arg7) const
 {
-    const auto mask = _mm_setr_epi64x(0xffffffffffff0800, 0xffffffffffffffff);
+    const auto mask = _mm_set_epi64x(0xffffffffffffffff, 0xffffffffffff0800);
     const auto dat0 = _mm_shuffle_epi8(Data, mask);//a0000000
     const auto dat1 = _mm_shuffle_epi8(arg1, mask);//b0000000
     const auto dat2 = _mm_shuffle_epi8(arg2, mask);//c0000000
@@ -1335,56 +1360,31 @@ template<> forceinline U8x16 VECCALL U64x2::Cast<U8x16, CastMode::RangeTrunc>(co
     const auto dat4567 = _mm_unpacklo_epi32(dat45, dat67);//efgh0000
     return _mm_unpacklo_epi64(dat0123, dat4567);//abcdefgh
 }
-template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
-{
-    const auto mask = _mm_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto lo = _mm_shuffle_epi8(Data, mask);
-    const auto hi = _mm_shuffle_epi8(arg1, mask);
-    return _mm_unpacklo_epi64(lo, hi);
-}
-template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16, CastMode::RangeTrunc>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
-{
-    const auto mask = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto dat0 = _mm_shuffle_epi8(Data, mask);
-    const auto dat1 = _mm_shuffle_epi8(arg1, mask);
-    const auto dat2 = _mm_shuffle_epi8(arg2, mask);
-    const auto dat3 = _mm_shuffle_epi8(arg3, mask);
-    const auto dat02 = _mm_unpacklo_epi32(dat0, dat2);
-    const auto dat13 = _mm_unpacklo_epi32(dat1, dat3);
-    return _mm_unpacklo_epi32(dat02, dat13);
-}
-template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
-{
-    const auto mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto lo = _mm_shuffle_epi8(Data, mask);
-    const auto hi = _mm_shuffle_epi8(arg1, mask);
-    return _mm_unpacklo_epi64(lo, hi);
-}
 template<> forceinline I32x4 VECCALL I64x2::Cast<I32x4, CastMode::RangeTrunc>(const I64x2& arg1) const
 {
     return As<U64x2>().Cast<U32x4>(arg1.As<U64x2>()).As<I32x4>();
-}
-template<> forceinline I16x8 VECCALL I64x2::Cast<I16x8, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3) const
-{
-    return As<U64x2>().Cast<U16x8>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>()).As<I16x8>();
-}
-template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3,
-    const I64x2& arg4, const I64x2& arg5, const I64x2& arg6, const I64x2& arg7) const
-{
-    return As<U64x2>().Cast<U8x16>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>(), 
-        arg4.As<U64x2>(), arg5.As<U64x2>(), arg6.As<U64x2>(), arg7.As<U64x2>()).As<I8x16>();
 }
 template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeTrunc>(const I32x4& arg1) const
 {
     return As<U32x4>().Cast<U16x8>(arg1.As<U32x4>()).As<I16x8>();
 }
+template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(const I16x8& arg1) const
+{
+    return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
+}
+template<> forceinline I16x8 VECCALL I64x2::Cast<I16x8, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3) const
+{
+    return As<U64x2>().Cast<U16x8>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>()).As<I16x8>();
+}
 template<> forceinline I8x16 VECCALL I32x4::Cast<I8x16, CastMode::RangeTrunc>(const I32x4& arg1, const I32x4& arg2, const I32x4& arg3) const
 {
     return As<U32x4>().Cast<U8x16>(arg1.As<U32x4>(), arg2.As<U32x4>(), arg3.As<U32x4>()).As<I8x16>();
 }
-template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(const I16x8& arg1) const
+template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3,
+    const I64x2& arg4, const I64x2& arg5, const I64x2& arg6, const I64x2& arg7) const
 {
-    return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
+    return As<U64x2>().Cast<U8x16>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>(),
+        arg4.As<U64x2>(), arg5.As<U64x2>(), arg6.As<U64x2>(), arg7.As<U64x2>()).As<I8x16>();
 }
 
 

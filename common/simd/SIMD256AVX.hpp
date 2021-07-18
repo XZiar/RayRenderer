@@ -1266,6 +1266,24 @@ template<> forceinline U32x8 VECCALL U64x4::Cast<U32x8, CastMode::RangeTrunc>(co
     const auto dat2323 = _mm256_permutevar8x32_epi32(arg1, mask);//cd,cd
     return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
 }
+template<> forceinline U16x16 VECCALL U32x8::Cast<U16x16, CastMode::RangeTrunc>(const U32x8& arg1) const
+{
+    const auto mask = _mm256_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 4, 5, 8, 9, 12, 13);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
+    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
+template<> forceinline U8x32 VECCALL U16x16::Cast<U8x32, CastMode::RangeTrunc>(const U16x16& arg1) const
+{
+    const auto mask = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
+    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
+    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
+    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+}
 template<> forceinline U16x16 VECCALL U64x4::Cast<U16x16, CastMode::RangeTrunc>(const U64x4& arg1, const U64x4& arg2, const U64x4& arg3) const
 {
     const auto mask  = _mm256_setr_epi8(0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1);
@@ -1278,45 +1296,6 @@ template<> forceinline U16x16 VECCALL U64x4::Cast<U16x16, CastMode::RangeTrunc>(
     const auto dat0246 = _mm256_permute2x128_si256(dat0213, dat4657, 0x20);//a0c0,e0g0
     const auto dat1357 = _mm256_permute2x128_si256(dat0213, dat4657, 0x31);//0b0d,0f0h
     return _mm256_or_si256(dat0246, dat1357);//abcd,efgh
-}
-template<> forceinline U8x32 VECCALL U64x4::Cast<U8x32, CastMode::RangeTrunc>(const U64x4& arg1, const U64x4& arg2, const U64x4& arg3,
-    const U64x4& arg4, const U64x4& arg5, const U64x4& arg6, const U64x4& arg7) const
-{
-    const auto mask = _mm256_setr_epi64x(0xffffffffffff0800, 0xffffffffffffffff, 0xffffffff0800ffff, 0xffffffffffffffff);
-    //const auto mask = _mm256_setr_epi8(0, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0000000,0b000000
-    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0000000,0d000000
-    const auto dat45 = _mm256_shuffle_epi8(arg2, mask);//e0000000,0f000000
-    const auto dat67 = _mm256_shuffle_epi8(arg3, mask);//g0000000,0h000000
-    const auto dat89 = _mm256_shuffle_epi8(arg4, mask);//i0000000,0j000000
-    const auto datab = _mm256_shuffle_epi8(arg5, mask);//k0000000,0l000000
-    const auto datcd = _mm256_shuffle_epi8(arg6, mask);//m0000000,0n000000
-    const auto datef = _mm256_shuffle_epi8(arg7, mask);//o0000000,0p000000
-    //const auto dat0213 = _mm256_unpacklo_epi32(dat01, dat23);//a0c00000,0b0d0000
-    //const auto dat4657 = _mm256_unpacklo_epi32(dat45, dat67);//e0g00000,0f0h0000
-    //const auto dat8a9b = _mm256_unpacklo_epi32(dat89, datab);//i0k00000,0j0l0000
-    //const auto datcedf = _mm256_unpacklo_epi32(datcd, datef);//m0o00000,0n0p0000
-    
-    // shift&or can run on different port than unpack (on intel), leverage port loads
-    const auto dat0213 = _mm256_or_si256(dat01, _mm256_slli_epi64(dat23, 32));//a0c00000,0b0d0000
-    const auto dat4657 = _mm256_or_si256(dat45, _mm256_slli_epi64(dat67, 32));//e0g00000,0f0h0000
-    const auto dat8a9b = _mm256_or_si256(dat89, _mm256_slli_epi64(datab, 32));//i0k00000,0j0l0000
-    const auto datcedf = _mm256_or_si256(datcd, _mm256_slli_epi64(datef, 32));//m0o00000,0n0p0000
-    
-    const auto dat02461357 = _mm256_unpacklo_epi64(dat0213, dat4657);//a0c0e0g0,0b0d0f0h
-    const auto dat8ace9bdf = _mm256_unpacklo_epi64(dat8a9b, datcedf);//i0k0m0o0,0j0l0n0p
-    const auto dat02468ace = _mm256_permute2x128_si256(dat02461357, dat8ace9bdf, 0x20);//a0c0e0g0,i0k0m0o0
-    const auto dat13579bdf = _mm256_permute2x128_si256(dat02461357, dat8ace9bdf, 0x31);//0b0d0f0h,0j0l0n0p
-    return _mm256_or_si256(dat02468ace, dat13579bdf);//abcdefgh,ijklmnop
-}
-template<> forceinline U16x16 VECCALL U32x8::Cast<U16x16, CastMode::RangeTrunc>(const U32x8& arg1) const
-{
-    const auto mask = _mm256_setr_epi8(0, 1, 4, 5, 8, 9, 12, 13, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 4, 5, 8, 9, 12, 13);
-    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
-    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
-    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
-    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
-    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
 }
 template<> forceinline U8x32 VECCALL U32x8::Cast<U8x32, CastMode::RangeTrunc>(const U32x8& arg1, const U32x8& arg2, const U32x8& arg3) const
 {
@@ -1355,40 +1334,61 @@ template<> forceinline U8x32 VECCALL U32x8::Cast<U8x32, CastMode::RangeTrunc>(co
     const auto dat1357 = _mm256_permute2x128_si256(dat0213, dat4657, 0x31);//0b0d,0f0h
     return _mm256_or_si256(dat0246, dat1357);//abcd,efgh
 }
-template<> forceinline U8x32 VECCALL U16x16::Cast<U8x32, CastMode::RangeTrunc>(const U16x16& arg1) const
+template<> forceinline U8x32 VECCALL U64x4::Cast<U8x32, CastMode::RangeTrunc>(const U64x4& arg1, const U64x4& arg2, const U64x4& arg3,
+    const U64x4& arg4, const U64x4& arg5, const U64x4& arg6, const U64x4& arg7) const
 {
-    const auto mask = _mm256_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 2, 4, 6, 8, 10, 12, 14);
-    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0,0b
-    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0,0d
-    const auto dat0101 = _mm256_permute4x64_epi64(dat01, 0b11001100);//ab,ab
-    const auto dat2323 = _mm256_permute4x64_epi64(dat23, 0b11001100);//cd,cd
-    return _mm256_blend_epi32(dat0101, dat2323, 0b11110000);//ab,cd
+    const auto mask = _mm256_setr_epi64x(0xffffffffffff0800, 0xffffffffffffffff, 0xffffffff0800ffff, 0xffffffffffffffff);
+    //const auto mask = _mm256_setr_epi8(0, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 1, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    const auto dat01 = _mm256_shuffle_epi8(Data, mask);//a0000000,0b000000
+    const auto dat23 = _mm256_shuffle_epi8(arg1, mask);//c0000000,0d000000
+    const auto dat45 = _mm256_shuffle_epi8(arg2, mask);//e0000000,0f000000
+    const auto dat67 = _mm256_shuffle_epi8(arg3, mask);//g0000000,0h000000
+    const auto dat89 = _mm256_shuffle_epi8(arg4, mask);//i0000000,0j000000
+    const auto datab = _mm256_shuffle_epi8(arg5, mask);//k0000000,0l000000
+    const auto datcd = _mm256_shuffle_epi8(arg6, mask);//m0000000,0n000000
+    const auto datef = _mm256_shuffle_epi8(arg7, mask);//o0000000,0p000000
+    //const auto dat0213 = _mm256_unpacklo_epi32(dat01, dat23);//a0c00000,0b0d0000
+    //const auto dat4657 = _mm256_unpacklo_epi32(dat45, dat67);//e0g00000,0f0h0000
+    //const auto dat8a9b = _mm256_unpacklo_epi32(dat89, datab);//i0k00000,0j0l0000
+    //const auto datcedf = _mm256_unpacklo_epi32(datcd, datef);//m0o00000,0n0p0000
+    
+    // shift&or can run on different port than unpack (on intel), leverage port loads
+    const auto dat0213 = _mm256_or_si256(dat01, _mm256_slli_epi64(dat23, 32));//a0c00000,0b0d0000
+    const auto dat4657 = _mm256_or_si256(dat45, _mm256_slli_epi64(dat67, 32));//e0g00000,0f0h0000
+    const auto dat8a9b = _mm256_or_si256(dat89, _mm256_slli_epi64(datab, 32));//i0k00000,0j0l0000
+    const auto datcedf = _mm256_or_si256(datcd, _mm256_slli_epi64(datef, 32));//m0o00000,0n0p0000
+    
+    const auto dat02461357 = _mm256_unpacklo_epi64(dat0213, dat4657);//a0c0e0g0,0b0d0f0h
+    const auto dat8ace9bdf = _mm256_unpacklo_epi64(dat8a9b, datcedf);//i0k0m0o0,0j0l0n0p
+    const auto dat02468ace = _mm256_permute2x128_si256(dat02461357, dat8ace9bdf, 0x20);//a0c0e0g0,i0k0m0o0
+    const auto dat13579bdf = _mm256_permute2x128_si256(dat02461357, dat8ace9bdf, 0x31);//0b0d0f0h,0j0l0n0p
+    return _mm256_or_si256(dat02468ace, dat13579bdf);//abcdefgh,ijklmnop
 }
 template<> forceinline I32x8 VECCALL I64x4::Cast<I32x8, CastMode::RangeTrunc>(const I64x4& arg1) const
 {
     return As<U64x4>().Cast<U32x8>(arg1.As<U64x4>()).As<I32x8>();
 }
+template<> forceinline I16x16 VECCALL I32x8::Cast<I16x16, CastMode::RangeTrunc>(const I32x8& arg1) const
+{
+    return As<U32x8>().Cast<U16x16>(arg1.As<U32x8>()).As<I16x16>();
+}
+template<> forceinline I8x32 VECCALL I16x16::Cast<I8x32, CastMode::RangeTrunc>(const I16x16& arg1) const
+{
+    return As<U16x16>().Cast<U8x32>(arg1.As<U16x16>()).As<I8x32>();
+}
 template<> forceinline I16x16 VECCALL I64x4::Cast<I16x16, CastMode::RangeTrunc>(const I64x4& arg1, const I64x4& arg2, const I64x4& arg3) const
 {
     return As<U64x4>().Cast<U16x16>(arg1.As<U64x4>(), arg2.As<U64x4>(), arg3.As<U64x4>()).As<I16x16>();
+}
+template<> forceinline I8x32 VECCALL I32x8::Cast<I8x32, CastMode::RangeTrunc>(const I32x8& arg1, const I32x8& arg2, const I32x8& arg3) const
+{
+    return As<U32x8>().Cast<U8x32>(arg1.As<U32x8>(), arg2.As<U32x8>(), arg3.As<U32x8>()).As<I8x32>();
 }
 template<> forceinline I8x32 VECCALL I64x4::Cast<I8x32, CastMode::RangeTrunc>(const I64x4& arg1, const I64x4& arg2, const I64x4& arg3,
     const I64x4& arg4, const I64x4& arg5, const I64x4& arg6, const I64x4& arg7) const
 {
     return As<U64x4>().Cast<U8x32>(arg1.As<U64x4>(), arg2.As<U64x4>(), arg3.As<U64x4>(),
         arg4.As<U64x4>(), arg5.As<U64x4>(), arg6.As<U64x4>(), arg7.As<U64x4>()).As<I8x32>();
-}
-template<> forceinline I16x16 VECCALL I32x8::Cast<I16x16, CastMode::RangeTrunc>(const I32x8& arg1) const
-{
-    return As<U32x8>().Cast<U16x16>(arg1.As<U32x8>()).As<I16x16>();
-}
-template<> forceinline I8x32 VECCALL I32x8::Cast<I8x32, CastMode::RangeTrunc>(const I32x8& arg1, const I32x8& arg2, const I32x8& arg3) const
-{
-    return As<U32x8>().Cast<U8x32>(arg1.As<U32x8>(), arg2.As<U32x8>(), arg3.As<U32x8>()).As<I8x32>();
-}
-template<> forceinline I8x32 VECCALL I16x16::Cast<I8x32, CastMode::RangeTrunc>(const I16x16& arg1) const
-{
-    return As<U16x16>().Cast<U8x32>(arg1.As<U16x16>()).As<I8x32>();
 }
 #endif
 

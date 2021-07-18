@@ -120,4 +120,4 @@ inline uint32_t PendingRegister(std::string testName, const char* fileName, cons
 
 #define RegisterSIMDTest(Type, Level, ...)                                      \
 static uint32_t PPCAT(PPCAT(Dummy_, Type), PPCAT(_, __LINE__)) =                \
-    PendingRegister<__VA_ARGS__, Level>(STRINGIZE(Type), __FILE__, __LINE__);
+    PendingRegister<__VA_ARGS__, Level>(STRINGIZE(Type), __FILE__, __LINE__)

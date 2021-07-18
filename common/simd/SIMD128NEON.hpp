@@ -1217,9 +1217,6 @@ template<> forceinline Pack<U32x4, 4> VECCALL U8x16::Cast<U32x4, CastMode::Range
     };
 #else
     return Cast<U16x8>().Cast<U32x4>();
-    /*const auto mid = Cast<U16x8>();
-    const auto lo = mid[0].Cast<I32x4>(), hi = mid[0].Cast<I32x4>();
-    return { lo[0], lo[1], hi[0], hi[1] };*/
 #endif
 }
 template<> forceinline Pack<I32x4, 4> VECCALL U8x16::Cast<I32x4, CastMode::RangeUndef>() const
@@ -1280,6 +1277,14 @@ template<> forceinline I8x16 VECCALL U8x16::Cast<I8x16, CastMode::RangeUndef>() 
 }
 
 
+template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeTrunc>(const U64x2& arg1) const
+{
+#if COMMON_SIMD_LV >= 200
+    return vuzp1q_u32(vreinterpretq_u64_u32(Data), vreinterpretq_u64_u32(arg1));
+#else
+    return vmovn_high_u64(vmovn_u64(Data), arg1);
+#endif
+}
 template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
@@ -1296,10 +1301,25 @@ template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(co
     return vmovn_high_u16(vmovn_u16(Data), arg1);
 #endif
 }
+template<> forceinline U16x8 VECCALL U64x2::Cast<U16x8, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3) const
+{
+    const auto lo16 = Cast<U32x4>(arg1), hi16 = arg2.Cast<U32x4>(arg3);
+    return lo16.Cast<U16x8>(hi16);
+}
 template<> forceinline U8x16 VECCALL U32x4::Cast<U8x16, CastMode::RangeTrunc>(const U32x4& arg1, const U32x4& arg2, const U32x4& arg3) const
 {
     const auto lo16 = Cast<U16x8>(arg1), hi16 = arg2.Cast<U16x8>(arg3);
     return lo16.Cast<U8x16>(hi16);
+}
+template<> forceinline U8x16 VECCALL U64x2::Cast<U8x16, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3,
+    const U64x2& arg4, const U64x2& arg5, const U64x2& arg6, const U64x2& arg7) const
+{
+    const auto lo8 = Cast<U16x8>(arg1, arg2, arg3), hi8 = arg4.Cast<U16x8>(arg5, arg6, arg7);
+    return lo8.Cast<U8x16>(hi8);
+}
+template<> forceinline I32x4 VECCALL I64x2::Cast<I32x4, CastMode::RangeTrunc>(const I64x2& arg1) const
+{
+    return As<U64x2>().Cast<U32x4>(arg1.As<U64x2>()).As<I32x4>();
 }
 template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeTrunc>(const I32x4& arg1) const
 {
@@ -1309,9 +1329,19 @@ template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeTrunc>(co
 {
     return As<U16x8>().Cast<U8x16>(arg1.As<U16x8>()).As<I8x16>();
 }
+template<> forceinline I16x8 VECCALL I64x2::Cast<I16x8, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3) const
+{
+    return As<U64x2>().Cast<U16x8>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>()).As<I16x8>();
+}
 template<> forceinline I8x16 VECCALL I32x4::Cast<I8x16, CastMode::RangeTrunc>(const I32x4& arg1, const I32x4& arg2, const I32x4& arg3) const
 {
     return As<U32x4>().Cast<U8x16>(arg1.As<U32x4>(), arg2.As<U32x4>(), arg3.As<U32x4>()).As<I8x16>();
+}
+template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(const I64x2& arg1, const I64x2& arg2, const I64x2& arg3,
+    const I64x2& arg4, const I64x2& arg5, const I64x2& arg6, const I64x2& arg7) const
+{
+    return As<U64x2>().Cast<U8x16>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>(),
+        arg4.As<U64x2>(), arg5.As<U64x2>(), arg6.As<U64x2>(), arg7.As<U64x2>()).As<I8x16>();
 }
 
 

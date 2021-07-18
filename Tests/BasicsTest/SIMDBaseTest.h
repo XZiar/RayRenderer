@@ -644,7 +644,7 @@ public:
     }
 };
 
-#define RegisterSIMDCmpTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDCompareTest<type>)
+#define RegisterSIMDCmpTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDCompareTest<type>);
 #define RegisterSIMDCmpTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDCmpTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 
