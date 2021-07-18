@@ -1,28 +1,33 @@
 #include "SystemCommonPch.h"
 #include "MiscIntrins.h"
+#include "RuntimeFastPath.h"
 #include "common/simd/SIMD.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
-namespace common
-{
 using namespace std::string_view_literals;
-namespace fastpath
-{
-DEFINE_FASTPATH(MiscIntrins, LeadZero32);
-DEFINE_FASTPATH(MiscIntrins, LeadZero64);
-DEFINE_FASTPATH(MiscIntrins, TailZero32);
-DEFINE_FASTPATH(MiscIntrins, TailZero64);
-DEFINE_FASTPATH(MiscIntrins, PopCount32);
-DEFINE_FASTPATH(MiscIntrins, PopCount64);
+using common::CheckCPUFeature;
+using common::MiscIntrins;
+using common::DigestFuncs;
+
 #define LeadZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define LeadZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define TailZero32Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define TailZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define PopCount32Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define PopCount64Args BOOST_PP_VARIADIC_TO_SEQ(num)
-DEFINE_FASTPATH(DigestFuncs, Sha256);
+DEFINE_FASTPATH(MiscIntrins, LeadZero32);
+DEFINE_FASTPATH(MiscIntrins, LeadZero64);
+DEFINE_FASTPATH(MiscIntrins, TailZero32);
+DEFINE_FASTPATH(MiscIntrins, TailZero64);
+DEFINE_FASTPATH(MiscIntrins, PopCount32);
+DEFINE_FASTPATH(MiscIntrins, PopCount64);
 #define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
+DEFINE_FASTPATH(DigestFuncs, Sha256);
 
+
+namespace
+{
+using common::fastpath::FuncVarBase;
 
 struct NAIVE : FuncVarBase {};
 struct COMPILER : FuncVarBase {};
@@ -547,58 +552,49 @@ DEFINE_FASTPATH_METHOD(Sha256, SHANI)
 #endif
 
 
-common::span<const MiscIntrins::VarItem> MiscIntrins::GetSupportMap() noexcept
+namespace common
+{
+
+common::span<const MiscIntrins::PathInfo> MiscIntrins::GetSupportMap() noexcept
 {
     static auto list = []() 
     {
-        std::vector<VarItem> ret;
-        RegistFuncVars(LeadZero32, LZCNT, COMPILER);
-        RegistFuncVars(LeadZero64, LZCNT, COMPILER);
-        RegistFuncVars(TailZero32, TZCNT, COMPILER);
-        RegistFuncVars(TailZero64, TZCNT, COMPILER);
-        RegistFuncVars(PopCount32, POPCNT, COMPILER, NAIVE);
-        RegistFuncVars(PopCount64, POPCNT, COMPILER, NAIVE);
+        std::vector<PathInfo> ret;
+        RegistFuncVars(MiscIntrins, LeadZero32, LZCNT, COMPILER);
+        RegistFuncVars(MiscIntrins, LeadZero64, LZCNT, COMPILER);
+        RegistFuncVars(MiscIntrins, TailZero32, TZCNT, COMPILER);
+        RegistFuncVars(MiscIntrins, TailZero64, TZCNT, COMPILER);
+        RegistFuncVars(MiscIntrins, PopCount32, POPCNT, COMPILER, NAIVE);
+        RegistFuncVars(MiscIntrins, PopCount64, POPCNT, COMPILER, NAIVE);
         return ret;
     }();
     return list;
 }
-MiscIntrins::MiscIntrins(common::span<const MiscIntrins::VarItem> requests) noexcept
+MiscIntrins::MiscIntrins(common::span<const VarItem> requests) noexcept { Init(requests); }
+MiscIntrins::~MiscIntrins() {}
+bool MiscIntrins::IsComplete() const noexcept
 {
-    for (const auto& [func, var] : requests)
-    {
-        switch (DJBHash::HashC(func))
-        {
-        CHECK_FUNC_VARS(func, var, LeadZero32, LZCNT, COMPILER);
-        CHECK_FUNC_VARS(func, var, LeadZero64, LZCNT, COMPILER);
-        CHECK_FUNC_VARS(func, var, TailZero32, TZCNT, COMPILER);
-        CHECK_FUNC_VARS(func, var, TailZero64, TZCNT, COMPILER);
-        CHECK_FUNC_VARS(func, var, PopCount32, POPCNT, COMPILER, NAIVE);
-        CHECK_FUNC_VARS(func, var, PopCount64, POPCNT, COMPILER, NAIVE);
-        }
-    }
+    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64;
 }
+
 const MiscIntrins MiscIntrin;
 
 
-common::span<const DigestFuncs::VarItem> DigestFuncs::GetSupportMap() noexcept
+common::span<const DigestFuncs::PathInfo> DigestFuncs::GetSupportMap() noexcept
 {
     static auto list = []()
     {
-        std::vector<VarItem> ret;
-        RegistFuncVars(Sha256, SHANI, NAIVE);
+        std::vector<PathInfo> ret;
+        RegistFuncVars(DigestFuncs, Sha256, SHANI, NAIVE);
         return ret;
     }();
     return list;
 }
-DigestFuncs::DigestFuncs(common::span<const DigestFuncs::VarItem> requests) noexcept
+DigestFuncs::DigestFuncs(common::span<const VarItem> requests) noexcept { Init(requests); }
+DigestFuncs::~DigestFuncs() {}
+bool DigestFuncs::IsComplete() const noexcept
 {
-    for (const auto& [func, var] : requests)
-    {
-        switch (DJBHash::HashC(func))
-        {
-        CHECK_FUNC_VARS(func, var, Sha256, SHANI, NAIVE);
-        }
-    }
+    return Sha256;
 }
 const DigestFuncs DigestFunc;
 

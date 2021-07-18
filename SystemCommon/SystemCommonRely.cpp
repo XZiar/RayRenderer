@@ -1,5 +1,6 @@
 #include "SystemCommonPch.h"
 #include "common/FrozenDenseSet.hpp"
+#include "common/simd/SIMD.hpp"
 #if COMMON_ARCH_X86
 #   include "3rdParty/libcpuid/libcpuid/libcpuid.h"
 #endif
@@ -165,6 +166,50 @@ span<const std::string_view> GetCPUFeatures() noexcept
 //        func();
 //    }
 //}
+
+
+void FastPathBase::Init(common::span<const PathInfo> info, common::span<const VarItem> requests) noexcept
+{
+    if (requests.empty())
+    {
+        for (const auto& path : info)
+        {
+            if (!path.Variants.empty())
+            {
+                const auto& var = path.Variants.front();
+                path.Access(*this) = var.FuncPtr;
+                VariantMap.emplace_back(path.FuncName, var.MethodName);
+            }
+        }
+    }
+    else
+    {
+        for (const auto& req : requests)
+        {
+            for (const auto& path : info)
+            {
+                if (path.FuncName != req.first) 
+                    continue;
+                if (auto& ptr = path.Access(*this); ptr == nullptr)
+                {
+                    for (const auto& var : path.Variants)
+                    {
+                        if (var.MethodName == req.second)
+                        {
+                            ptr = var.FuncPtr;
+                            VariantMap.emplace_back(path.FuncName, var.MethodName);
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+
+
 
 }
 

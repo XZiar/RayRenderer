@@ -7,15 +7,8 @@
 
 using namespace std::string_view_literals;
 
-INTRIN_TESTSUITE(CopyEx, common::CopyManager);
-TEST_F(CopyEx, Complete)
-{
-    for (const auto& [inst, var] : common::CopyEx.GetIntrinMap())
-    {
-        TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
-    }
-    ASSERT_TRUE(common::CopyEx.IsComplete());
-}
+INTRIN_TESTSUITE(CopyEx, common::CopyManager, common::CopyEx);
+
 
 template<typename Src>
 static void BroadcastTest(const common::CopyManager& intrin, const Src src, size_t count)
@@ -199,15 +192,8 @@ F2I_TEST(CvtF32U16, float, uint16_t)
 F2I_TEST(CvtF32U8,  float, uint8_t )
 
 
-INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins);
-TEST_F(MiscIntrins, Complete)
-{
-    for (const auto& [inst, var] : common::MiscIntrin.GetIntrinMap())
-    {
-        TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
-    }
-    ASSERT_TRUE(common::MiscIntrin.IsComplete());
-}
+INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins, common::MiscIntrin);
+
 
 INTRIN_TEST(MiscIntrins, LeadZero32)
 {
@@ -270,15 +256,7 @@ INTRIN_TEST(MiscIntrins, PopCount64)
 }
 
 
-INTRIN_TESTSUITE(DigestFuncs, common::DigestFuncs);
-TEST_F(DigestFuncs, Complete)
-{
-    for (const auto& [inst, var] : common::DigestFunc.GetIntrinMap())
-    {
-        TestCout() << "intrin [" << inst << "] use [" << var << "]\n";
-    }
-    ASSERT_TRUE(common::DigestFunc.IsComplete());
-}
+INTRIN_TESTSUITE(DigestFuncs, common::DigestFuncs, common::DigestFunc);
 
 
 template<size_t N>

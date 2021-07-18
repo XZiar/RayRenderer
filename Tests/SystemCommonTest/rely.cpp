@@ -1,6 +1,29 @@
 #include "rely.h"
 #include "SystemCommon/SystemCommonRely.h"
 
+
+void TestIntrinComplete(common::span<const common::FastPathBase::PathInfo> supports, const common::FastPathBase& host)
+{
+    for (const auto& [inst, choice] : host.GetIntrinMap())
+    {
+        std::string allvar = "";
+        for (const auto& path : supports)
+        {
+            if (path.FuncName == inst)
+            {
+                for (const auto& var : path.Variants)
+                {
+                    if (!allvar.empty()) allvar.append(", ");
+                    allvar.append(var.MethodName);
+                }
+                break;
+            }
+        }
+        TestCout() << "intrin [" << inst << "] use [" << choice << "] within [" << allvar << "]\n";
+    }
+    EXPECT_TRUE(host.IsComplete());
+}
+
 class CPUEnvironment : public ::testing::Environment 
 {
 public:

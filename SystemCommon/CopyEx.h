@@ -6,13 +6,10 @@
 namespace common
 {
 
-#if COMMON_COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275 4251)
-#endif
 
-class SYSCOMMONAPI CopyManager
+class CopyManager : public RuntimeFastPath<CopyManager>
 {
+    friend RuntimeFastPath<CopyManager>;
 public:
     using TBroadcast2 = void(uint16_t* dest, const uint16_t src, size_t count) noexcept;
     using TBroadcast4 = void(uint32_t* dest, const uint32_t src, size_t count) noexcept;
@@ -44,7 +41,6 @@ public:
     using TCvtF32U16 = void(uint16_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
     using TCvtF32U8  = void(uint8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
 private:
-    using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
     TBroadcast4* Broadcast4 = nullptr;
     TZExtCopy12* ZExtCopy12 = nullptr;
@@ -74,24 +70,11 @@ private:
     TCvtF32I8 * CvtF32I8  = nullptr;
     TCvtF32U16* CvtF32U16 = nullptr;
     TCvtF32U8 * CvtF32U8  = nullptr;
-    std::vector<VarItem> VariantMap;
 public:
-    [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
-    CopyManager(common::span<const VarItem> requests) noexcept;
-    CopyManager() noexcept : CopyManager(GetSupportMap()) { }
-    [[nodiscard]] common::span<const VarItem> GetIntrinMap() const noexcept
-    {
-        return VariantMap;
-    }
-    [[nodiscard]] bool IsComplete() const noexcept
-    {
-        return Broadcast2 && Broadcast4 && 
-            ZExtCopy12 && ZExtCopy14 && ZExtCopy24 && ZExtCopy28 && ZExtCopy48 &&
-            SExtCopy12 && SExtCopy14 && SExtCopy24 && SExtCopy28 && SExtCopy48 &&
-            TruncCopy21 && TruncCopy41 && TruncCopy42 && TruncCopy82 && TruncCopy84 &&
-            CvtI32F32 && CvtI16F32 && CvtI8F32 && CvtU32F32 && CvtU16F32 && CvtU8F32 &&
-            CvtF32I32 && CvtF32I16 && CvtF32I8 && CvtF32U16 && CvtF32U8;
-    }
+    SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
+    SYSCOMMONAPI CopyManager(common::span<const VarItem> requests = {}) noexcept;
+    SYSCOMMONAPI ~CopyManager();
+    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept override;
 
     template<typename T>
     forceinline void BroadcastMany(T* const dest, const T& src, const size_t count) const noexcept
@@ -126,7 +109,7 @@ public:
             else if constexpr (SizeT == 4)
                 ZExtCopy14(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint8_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeU == 2)
         {
@@ -135,17 +118,17 @@ public:
             else if constexpr (SizeT == 8)
                 ZExtCopy28(reinterpret_cast<uint64_t*>(dest), reinterpret_cast<const uint16_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeU == 4)
         {
             if constexpr (SizeT == 8)
                 ZExtCopy48(reinterpret_cast<uint64_t*>(dest), reinterpret_cast<const uint32_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else
-            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
     forceinline void SExtCopy(T* const dest, const U* src, const size_t count) const noexcept
@@ -163,7 +146,7 @@ public:
             else if constexpr (SizeT == 4)
                 SExtCopy14(reinterpret_cast<int32_t*>(dest), reinterpret_cast<const int8_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeU == 2)
         {
@@ -172,17 +155,17 @@ public:
             else if constexpr (SizeT == 8)
                 SExtCopy28(reinterpret_cast<int64_t*>(dest), reinterpret_cast<const int16_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeU == 4)
         {
             if constexpr (SizeT == 8)
                 SExtCopy48(reinterpret_cast<int64_t*>(dest), reinterpret_cast<const int32_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else
-            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
     forceinline void TruncCopy(T* const dest, const U* src, const size_t count) const noexcept
@@ -202,7 +185,7 @@ public:
             else if constexpr (SizeU == 8)
                 TruncCopy81(reinterpret_cast<uint8_t*>(dest), reinterpret_cast<const uint64_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeT == 2)
         {
@@ -211,17 +194,17 @@ public:
             else if constexpr (SizeU == 8)
                 TruncCopy82(reinterpret_cast<uint16_t*>(dest), reinterpret_cast<const uint64_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else if constexpr (SizeT == 4)
         {
             if constexpr (SizeU == 8)
                 TruncCopy84(reinterpret_cast<uint32_t*>(dest), reinterpret_cast<const uint64_t*>(src), count);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else
-            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
     forceinline void CopyToFloat(T* const dest, const U* src, const size_t count, const T range = 0) const noexcept
@@ -243,10 +226,10 @@ public:
             else if constexpr (std::is_same_v<U, uint8_t>)
                 CvtU8F32(dest, src, count, mulVal);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else
-            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
     }
     template<typename T, typename U>
     forceinline void CopyFromFloat(T* const dest, const U* src, const size_t count, const U range = 0, const bool saturate = false) const noexcept
@@ -266,18 +249,14 @@ public:
             else if constexpr (std::is_same_v<T, uint8_t>)
                 CvtF32U8(dest, src, count, mulVal, saturate);
             else
-                static_assert(AlwaysTrue<T>, "datatype casting not supported");
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
         else
-            static_assert(AlwaysTrue<T>, "datatype casting not supported");
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
     }
 };
 
 SYSCOMMONAPI extern const CopyManager CopyEx;
 
-
-#if COMMON_COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 }

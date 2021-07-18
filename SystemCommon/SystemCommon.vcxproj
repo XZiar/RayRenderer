@@ -229,6 +229,7 @@
     <ClInclude Include="PromiseTask.h" />
     <ClInclude Include="PromiseTaskSTD.h" />
     <ClInclude Include="RawFileEx.h" />
+    <ClInclude Include="RuntimeFastPath.h" />
     <ClInclude Include="StackTrace.h" />
     <ClInclude Include="SystemCommonPch.h" />
     <ClInclude Include="SystemCommonRely.h" />

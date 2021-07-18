@@ -5,13 +5,10 @@
 namespace common
 {
 
-#if COMMON_COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275 4251)
-#endif
 
-class SYSCOMMONAPI MiscIntrins
+class MiscIntrins : public RuntimeFastPath<MiscIntrins>
 {
+    friend RuntimeFastPath<MiscIntrins>;
 public:
     using TLeadZero32 = uint32_t(const uint32_t) noexcept;
     using TLeadZero64 = uint32_t(const uint64_t) noexcept;
@@ -20,14 +17,12 @@ public:
     using TPopCount32 = uint32_t(const uint32_t) noexcept;
     using TPopCount64 = uint32_t(const uint64_t) noexcept;
 private:
-    using VarItem = std::pair<std::string_view, std::string_view>;
     TLeadZero32* LeadZero32 = nullptr;
     TLeadZero64* LeadZero64 = nullptr;
     TTailZero32* TailZero32 = nullptr;
     TTailZero64* TailZero64 = nullptr;
     TPopCount32* PopCount32 = nullptr;
     TPopCount64* PopCount64 = nullptr;
-    std::vector<VarItem> VariantMap;
 #if COMMON_COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
@@ -57,17 +52,10 @@ private:
 #else
 #endif
 public:
-    [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
-    MiscIntrins(common::span<const VarItem> requests) noexcept;
-    MiscIntrins() noexcept : MiscIntrins(GetSupportMap()) { }
-    [[nodiscard]] common::span<const VarItem> GetIntrinMap() const noexcept
-    {
-        return VariantMap;
-    }
-    [[nodiscard]] bool IsComplete() const noexcept
-    {
-        return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64;
-    }
+    SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
+    SYSCOMMONAPI MiscIntrins(common::span<const VarItem> requests = {}) noexcept;
+    SYSCOMMONAPI ~MiscIntrins();
+    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept override;
 
     template<typename T>
     [[nodiscard]] forceinline uint32_t LeadZero(const T num) const noexcept
@@ -131,28 +119,20 @@ public:
 SYSCOMMONAPI extern const MiscIntrins MiscIntrin;
 
 
-class SYSCOMMONAPI DigestFuncs
+class DigestFuncs : public RuntimeFastPath<DigestFuncs>
 {
+    friend RuntimeFastPath<DigestFuncs>;
 public:
-    using VarItem = std::pair<std::string_view, std::string_view>;
     template<size_t N>
     using bytearray = std::array<std::byte, N>;
     using TSha256 = bytearray<32>(const std::byte*, const size_t) noexcept;
 private:
     TSha256* Sha256 = nullptr;
-    std::vector<VarItem> VariantMap;
 public:
-    [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
-    DigestFuncs(common::span<const VarItem> requests) noexcept;
-    DigestFuncs() noexcept : DigestFuncs(GetSupportMap()) { }
-    [[nodiscard]] common::span<const VarItem> GetIntrinMap() const noexcept
-    {
-        return VariantMap;
-    }
-    [[nodiscard]] bool IsComplete() const noexcept
-    {
-        return Sha256;
-    }
+    SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
+    SYSCOMMONAPI DigestFuncs(common::span<const VarItem> requests = {}) noexcept;
+    SYSCOMMONAPI ~DigestFuncs();
+    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept override;
 
     template<typename T>
     bytearray<32> SHA256(const common::span<T> data) const noexcept
@@ -164,9 +144,5 @@ public:
 
 SYSCOMMONAPI extern const DigestFuncs DigestFunc;
 
-
-#if COMMON_COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 }

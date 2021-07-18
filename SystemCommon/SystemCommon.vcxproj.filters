@@ -101,6 +101,9 @@
     <ClInclude Include="CopyEx.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="RuntimeFastPath.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
