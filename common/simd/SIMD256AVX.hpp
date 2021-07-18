@@ -1402,9 +1402,17 @@ template<> forceinline I16x16 VECCALL F32x8::Cast<I16x16, CastMode::RangeUndef>(
 {
     return Cast<I32x8>().Cast<I16x16>(arg1.Cast<I32x8>());
 }
+template<> forceinline U16x16 VECCALL F32x8::Cast<U16x16, CastMode::RangeUndef>(const F32x8& arg1) const
+{
+    return Cast<I16x16>(arg1).As<U16x16>();
+}
 template<> forceinline I8x32 VECCALL F32x8::Cast<I8x32, CastMode::RangeUndef>(const F32x8& arg1, const F32x8& arg2, const F32x8& arg3) const
 {
     return Cast<I32x8>().Cast<I8x32>(arg1.Cast<I32x8>(), arg2.Cast<I32x8>(), arg3.Cast<I32x8>());
+}
+template<> forceinline U8x32 VECCALL F32x8::Cast<U8x32, CastMode::RangeUndef>(const F32x8& arg1, const F32x8& arg2, const F32x8& arg3) const
+{
+    return Cast<I8x32>(arg1, arg2, arg3).As<U8x32>();
 }
 #endif
 template<> forceinline Pack<F64x4, 2> VECCALL F32x8::Cast<F64x4, CastMode::RangeUndef>() const
@@ -1435,10 +1443,21 @@ template<> forceinline I16x16 VECCALL F32x8::Cast<I16x16, CastMode::RangeSaturat
     const F32x8 minVal = static_cast<float>(INT16_MIN), maxVal = static_cast<float>(INT16_MAX);
     return Min(maxVal).Max(minVal).Cast<I16x16, CastMode::RangeUndef>(arg1.Min(maxVal).Max(minVal));
 }
+template<> forceinline U16x16 VECCALL F32x8::Cast<U16x16, CastMode::RangeSaturate>(const F32x8& arg1) const
+{
+    const F32x8 minVal = 0, maxVal = static_cast<float>(UINT16_MAX);
+    return Min(maxVal).Max(minVal).Cast<U16x16, CastMode::RangeUndef>(arg1.Min(maxVal).Max(minVal));
+}
 template<> forceinline I8x32 VECCALL F32x8::Cast<I8x32, CastMode::RangeSaturate>(const F32x8& arg1, const F32x8& arg2, const F32x8& arg3) const
 {
     const F32x8 minVal = static_cast<float>(INT8_MIN), maxVal = static_cast<float>(INT8_MAX);
     return Min(maxVal).Max(minVal).Cast<I8x32, CastMode::RangeUndef>(
+        arg1.Min(maxVal).Max(minVal), arg2.Min(maxVal).Max(minVal), arg3.Min(maxVal).Max(minVal));
+}
+template<> forceinline U8x32 VECCALL F32x8::Cast<U8x32, CastMode::RangeSaturate>(const F32x8& arg1, const F32x8& arg2, const F32x8& arg3) const
+{
+    const F32x8 minVal = 0, maxVal = static_cast<float>(UINT8_MAX);
+    return Min(maxVal).Max(minVal).Cast<U8x32, CastMode::RangeUndef>(
         arg1.Min(maxVal).Max(minVal), arg2.Min(maxVal).Max(minVal), arg3.Min(maxVal).Max(minVal));
 }
 template<> forceinline I16x16 VECCALL I32x8::Cast<I16x16, CastMode::RangeSaturate>(const I32x8& arg1) const

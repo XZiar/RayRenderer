@@ -36,7 +36,7 @@ RegisterSIMDCastTest(I8x16, 42,               I16x8, U16x8, I32x4, U32x4, I64x2,
 RegisterSIMDCastTest(U8x16, 42,               I16x8, U16x8, I32x4, U32x4, I64x2, U64x2, F32x4, F64x2);
 
 
-RegisterSIMDCastModeTest(F32x4, 42, RangeSaturate, I32x4, I16x8, I8x16);
+RegisterSIMDCastModeTest(F32x4, 42, RangeSaturate, I32x4, I16x8, U16x8, I8x16, U8x16);
 RegisterSIMDCastModeTest(I32x4, 42, RangeSaturate, I16x8, U16x8);
 RegisterSIMDCastModeTest(U32x4, 42, RangeSaturate, U16x8);
 RegisterSIMDCastModeTest(I16x8, 42, RangeSaturate, I8x16, U8x16);

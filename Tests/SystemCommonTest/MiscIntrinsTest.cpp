@@ -191,18 +191,12 @@ static void F2ITest(const common::CopyManager& intrin)
             intrin.CopyFromFloat(dst, src, cnt, Src(0.5), true);
         });
 }
-INTRIN_TEST(CopyEx, CvtF32I32)
-{
-    F2ITest<float, int32_t>(*Intrin);
-}
-INTRIN_TEST(CopyEx, CvtF32I16)
-{
-    F2ITest<float, int16_t>(*Intrin);
-}
-INTRIN_TEST(CopyEx, CvtF32I8)
-{
-    F2ITest<float, int8_t>(*Intrin);
-}
+#define F2I_TEST(type, tin, tout) INTRIN_TEST(CopyEx, type) { F2ITest<tin, tout>(*Intrin); }
+F2I_TEST(CvtF32I32, float,  int32_t)
+F2I_TEST(CvtF32I16, float,  int16_t)
+F2I_TEST(CvtF32I8,  float,  int8_t )
+F2I_TEST(CvtF32U16, float, uint16_t)
+F2I_TEST(CvtF32U8,  float, uint8_t )
 
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins);

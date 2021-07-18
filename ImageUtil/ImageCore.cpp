@@ -273,7 +273,9 @@ Image Image::ConvertToFloat(const float floatRange) const
     {
         Image newimg(DataType | ImageDataType::FLOAT_MASK);
         newimg.SetSize(Width, Height);
-        convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size, floatRange);
+        common::CopyEx.CopyToFloat(reinterpret_cast<float*>(newimg.Data), reinterpret_cast<const uint8_t*>(Data),
+            Size, floatRange);
+        // convert::U8sToFloat1s(reinterpret_cast<float*>(newimg.Data), Data, Size, floatRange);
         return newimg;
     }
     else
@@ -281,7 +283,9 @@ Image Image::ConvertToFloat(const float floatRange) const
         Image newimg(REMOVE_MASK(DataType, ImageDataType::FLOAT_MASK));
         newimg.SetSize(Width, Height);
         const auto floatCount = Size / sizeof(float);
-        convert::Float1sToU8s(newimg.Data, reinterpret_cast<const float*>(Data), floatCount, floatRange);
+        common::CopyEx.CopyFromFloat(reinterpret_cast<uint8_t*>(newimg.Data), reinterpret_cast<const float*>(Data),
+            Size, floatRange);
+        //convert::Float1sToU8s(newimg.Data, reinterpret_cast<const float*>(Data), floatCount, floatRange);
         return newimg;
     }
 }

@@ -2,7 +2,6 @@
 #include "ImageUtilRely.h"
 #include "DataConvertor.hpp"
 #include "RGB15Converter.hpp"
-#include "FloatConvertor.hpp"
 
 #include "MiniLogger/MiniLogger.h"
 #include "SystemCommon/FileEx.h"

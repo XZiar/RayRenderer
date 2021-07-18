@@ -41,6 +41,8 @@ public:
     using TCvtF32I32 = void(int32_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
     using TCvtF32I16 = void(int16_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
     using TCvtF32I8  = void(int8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
+    using TCvtF32U16 = void(uint16_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
+    using TCvtF32U8  = void(uint8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept;
 private:
     using VarItem = std::pair<std::string_view, std::string_view>;
     TBroadcast2* Broadcast2 = nullptr;
@@ -70,6 +72,8 @@ private:
     TCvtF32I32* CvtF32I32 = nullptr;
     TCvtF32I16* CvtF32I16 = nullptr;
     TCvtF32I8 * CvtF32I8  = nullptr;
+    TCvtF32U16* CvtF32U16 = nullptr;
+    TCvtF32U8 * CvtF32U8  = nullptr;
     std::vector<VarItem> VariantMap;
 public:
     [[nodiscard]] static common::span<const VarItem> GetSupportMap() noexcept;
@@ -86,7 +90,7 @@ public:
             SExtCopy12 && SExtCopy14 && SExtCopy24 && SExtCopy28 && SExtCopy48 &&
             TruncCopy21 && TruncCopy41 && TruncCopy42 && TruncCopy82 && TruncCopy84 &&
             CvtI32F32 && CvtI16F32 && CvtI8F32 && CvtU32F32 && CvtU16F32 && CvtU8F32 &&
-            CvtF32I32 && CvtF32I16 && CvtF32I8;
+            CvtF32I32 && CvtF32I16 && CvtF32I8 && CvtF32U16 && CvtF32U8;
     }
 
     template<typename T>
@@ -257,6 +261,10 @@ public:
                 CvtF32I16(dest, src, count, mulVal, saturate);
             else if constexpr (std::is_same_v<T, int8_t>)
                 CvtF32I8(dest, src, count, mulVal, saturate);
+            else if constexpr (std::is_same_v<T, uint16_t>)
+                CvtF32U16(dest, src, count, mulVal, saturate);
+            else if constexpr (std::is_same_v<T, uint8_t>)
+                CvtF32U8(dest, src, count, mulVal, saturate);
             else
                 static_assert(AlwaysTrue<T>, "datatype casting not supported");
         }

@@ -64,9 +64,13 @@ DEFINE_FASTPATH(CopyManager, CvtU8F32 );
 #define CvtF32I32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
 #define CvtF32I16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
 #define CvtF32I8Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
+#define CvtF32U16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
+#define CvtF32U8Args  BOOST_PP_VARIADIC_TO_SEQ(dest, src, count, mulVal, sat)
 DEFINE_FASTPATH(CopyManager, CvtF32I32);
 DEFINE_FASTPATH(CopyManager, CvtF32I16);
 DEFINE_FASTPATH(CopyManager, CvtF32I8 );
+DEFINE_FASTPATH(CopyManager, CvtF32U16);
+DEFINE_FASTPATH(CopyManager, CvtF32U8 );
 
 struct LOOP : FuncVarBase {};
 struct SIMD128 
@@ -337,6 +341,8 @@ DEFINE_CVTFP2I_LOOP(CvtU8F32)
 DEFINE_CVTI2FP_LOOP(CvtF32I32)
 DEFINE_CVTI2FP_LOOP(CvtF32I16)
 DEFINE_CVTI2FP_LOOP(CvtF32I8)
+DEFINE_CVTI2FP_LOOP(CvtF32U16)
+DEFINE_CVTI2FP_LOOP(CvtF32U8)
 
 
 template<typename T, auto F, typename Src, typename Dst>
@@ -520,6 +526,8 @@ DEFINE_CVTI2FP_SIMD4(CvtU8F32,  U8x16, F32x4, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x4, I32x4, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x4, I16x8, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
+DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x4, U16x8, SIMD128, LOOP)
+DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x4, U8x16, SIMD128, LOOP)
 
 #endif
 
@@ -718,6 +726,8 @@ DEFINE_CVTI2FP_SIMD4(CvtU8F32,  U8x32,  F32x8, SIMDAVX2, SIMD128)
 
 DEFINE_CVTFP2I_SIMD4(CvtF32I16, F32x8, I16x16, SIMDAVX2, SIMD128)
 DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x8, I8x32,  SIMDAVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x8, U16x16, SIMDAVX2, SIMD128)
+DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x8, U8x32,  SIMDAVX2, SIMD128)
 #endif
 
 common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
@@ -752,6 +762,8 @@ common::span<const CopyManager::VarItem> CopyManager::GetSupportMap() noexcept
         RegistFuncVars(CvtF32I32, SIMD256,  SIMD128, LOOP);
         RegistFuncVars(CvtF32I16, SIMDAVX2, SIMD128, LOOP);
         RegistFuncVars(CvtF32I8,  SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(CvtF32U16, SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(CvtF32U8,  SIMDAVX2, SIMD128, LOOP);
         return ret;
     }();
     return list;
@@ -789,6 +801,8 @@ CopyManager::CopyManager(common::span<const CopyManager::VarItem> requests) noex
         CHECK_FUNC_VARS(func, var, CvtF32I32, SIMD256,  SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, CvtF32I16, SIMDAVX2, SIMD128, LOOP);
         CHECK_FUNC_VARS(func, var, CvtF32I8,  SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, CvtF32U16, SIMDAVX2, SIMD128, LOOP);
+        CHECK_FUNC_VARS(func, var, CvtF32U8,  SIMDAVX2, SIMD128, LOOP);
         }
     }
 }

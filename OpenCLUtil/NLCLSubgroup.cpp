@@ -298,32 +298,6 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
         return GenerateProvider<SubgroupProvider>(logger, context, cap);
 }
 
-forceinline constexpr static bool CheckVNum(const uint32_t num) noexcept
-{
-    switch (num)
-    {
-    case 1: case 2: case 3: case 4: case 8: case 16: return true;
-    default: return false;
-    }
-}
-forceinline constexpr static uint8_t TryCombine(const uint32_t total, const uint8_t bit, const uint8_t vmax = 16) noexcept
-{
-    if (total % bit == 0)
-    {
-        const auto vnum = total / bit;
-        if (vnum <= vmax || CheckVNum(vnum))
-            return static_cast<uint8_t>(vnum);
-    }
-    return 0;
-}
-forceinline constexpr static VecDataInfo ToUintVec(VecDataInfo vtype) noexcept
-{
-    return { VecDataInfo::DataTypes::Unsigned, vtype.Bit, vtype.Dim0, 0 };
-}
-forceinline constexpr static VecDataInfo ToScalar(VecDataInfo vtype) noexcept
-{
-    return { vtype.Type, vtype.Bit, 1, 0 };
-}
 
 static constexpr std::u32string_view StringifyReduceOp(SubgroupReduceOp op)
 {
@@ -1343,7 +1317,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::BroadcastPatch(const VecDat
     Context.AddPatchedBlock(wrapped.GetFuncName(), [&]()
         {
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
-            const auto scalarName = NLCLRuntime::GetCLTypeName(ToScalar(vtype));
+            const auto scalarName = NLCLRuntime::GetCLTypeName(vtype.Scalar(1));
             std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)", vecName, wrapped.GetFuncName());
             func.append(UR"(
 {
@@ -1388,7 +1362,7 @@ SubgroupProvider::TypedAlgoResult NLCLSubgroupLocal::ShufflePatch(const VecDataI
     Context.AddPatchedBlock(wrapped.GetFuncName(), [&]()
         {
             const auto vecName = NLCLRuntime::GetCLTypeName(vtype);
-            const auto scalarName = NLCLRuntime::GetCLTypeName(ToScalar(vtype));
+            const auto scalarName = NLCLRuntime::GetCLTypeName(vtype.Scalar(1));
             std::u32string func = FMTSTR(U"inline {0} {1}(local ulong* tmp, const {0} val, const uint sgId)"sv, vecName, wrapped.GetFuncName());
             func.append(UR"(
 {
