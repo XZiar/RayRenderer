@@ -6,23 +6,16 @@ namespace common
 {
 
 
-class MiscIntrins : public RuntimeFastPath<MiscIntrins>
+class MiscIntrins final : public RuntimeFastPath<MiscIntrins>
 {
-    friend RuntimeFastPath<MiscIntrins>;
-public:
-    using TLeadZero32 = uint32_t(const uint32_t) noexcept;
-    using TLeadZero64 = uint32_t(const uint64_t) noexcept;
-    using TTailZero32 = uint32_t(const uint32_t) noexcept;
-    using TTailZero64 = uint32_t(const uint64_t) noexcept;
-    using TPopCount32 = uint32_t(const uint32_t) noexcept;
-    using TPopCount64 = uint32_t(const uint64_t) noexcept;
+    friend ::common::fastpath::PathHack;
 private:
-    TLeadZero32* LeadZero32 = nullptr;
-    TLeadZero64* LeadZero64 = nullptr;
-    TTailZero32* TailZero32 = nullptr;
-    TTailZero64* TailZero64 = nullptr;
-    TPopCount32* PopCount32 = nullptr;
-    TPopCount64* PopCount64 = nullptr;
+    uint32_t(*LeadZero32)(const uint32_t) noexcept = nullptr;
+    uint32_t(*LeadZero64)(const uint64_t) noexcept = nullptr;
+    uint32_t(*TailZero32)(const uint32_t) noexcept = nullptr;
+    uint32_t(*TailZero64)(const uint64_t) noexcept = nullptr;
+    uint32_t(*PopCount32)(const uint32_t) noexcept = nullptr;
+    uint32_t(*PopCount64)(const uint64_t) noexcept = nullptr;
 #if COMMON_COMPILER_MSVC
     [[nodiscard]] forceinline uint16_t ByteSwap16(const uint16_t num) const noexcept
     { 
@@ -55,7 +48,7 @@ public:
     SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     SYSCOMMONAPI MiscIntrins(common::span<const VarItem> requests = {}) noexcept;
     SYSCOMMONAPI ~MiscIntrins();
-    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept override;
+    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept final;
 
     template<typename T>
     [[nodiscard]] forceinline uint32_t LeadZero(const T num) const noexcept
@@ -70,7 +63,7 @@ public:
         else if constexpr (sizeof(T) == 8)
             return LeadZero64(static_cast<uint64_t>(num));
         else
-            static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+            static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
     }
     template<typename T>
     [[nodiscard]] forceinline uint32_t TailZero(const T num) const noexcept
@@ -85,7 +78,7 @@ public:
         else if constexpr (sizeof(T) == 8)
             return TailZero64(static_cast<uint64_t>(num));
         else
-            static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+            static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
     }
     template<typename T>
     [[nodiscard]] forceinline uint32_t PopCount(const T num) const noexcept
@@ -100,7 +93,7 @@ public:
         else if constexpr (sizeof(T) == 8)
             return PopCount64(static_cast<uint64_t>(num));
         else
-            static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+            static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
     }
     template<typename T>
     [[nodiscard]] forceinline T ByteSwap(const T num) const noexcept
@@ -112,27 +105,26 @@ public:
         else if constexpr (sizeof(T) == 8)
             return ByteSwap64(static_cast<uint64_t>(num));
         else
-            static_assert(AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
+            static_assert(!AlwaysTrue<T>, "datatype larger than 64 bit is not supported");
     }
 };
 
 SYSCOMMONAPI extern const MiscIntrins MiscIntrin;
 
 
-class DigestFuncs : public RuntimeFastPath<DigestFuncs>
+class DigestFuncs final : public RuntimeFastPath<DigestFuncs>
 {
-    friend RuntimeFastPath<DigestFuncs>;
+    friend ::common::fastpath::PathHack;
 public:
     template<size_t N>
     using bytearray = std::array<std::byte, N>;
-    using TSha256 = bytearray<32>(const std::byte*, const size_t) noexcept;
 private:
-    TSha256* Sha256 = nullptr;
+    bytearray<32>(*Sha256)(const std::byte*, const size_t) noexcept = nullptr;
 public:
     SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     SYSCOMMONAPI DigestFuncs(common::span<const VarItem> requests = {}) noexcept;
     SYSCOMMONAPI ~DigestFuncs();
-    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept override;
+    SYSCOMMONAPI [[nodiscard]] bool IsComplete() const noexcept final;
 
     template<typename T>
     bytearray<32> SHA256(const common::span<T> data) const noexcept

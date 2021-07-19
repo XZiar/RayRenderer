@@ -63,14 +63,16 @@ protected:
 private:
     std::vector<VarItem> VariantMap;
 };
+namespace fastpath
+{
+struct PathHack;
+}
 template<typename T>
 class RuntimeFastPath : public FastPathBase
 {
 private:
     using FastPathBase::Init;
 protected:
-    template<auto F>
-    static void*& Access(FastPathBase& base) noexcept { return *reinterpret_cast<void**>(&(static_cast<T&>(base).*F)); }
     void Init(common::span<const VarItem> requests) noexcept { Init(T::GetSupportMap(), requests); }
 };
 }
