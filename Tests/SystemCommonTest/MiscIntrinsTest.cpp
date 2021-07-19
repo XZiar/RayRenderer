@@ -3,6 +3,7 @@
 #include <random>
 #include "SystemCommon/CopyEx.h"
 #include "SystemCommon/MiscIntrins.h"
+#include "3rdParty/half/half.hpp"
 
 
 using namespace std::string_view_literals;
@@ -190,6 +191,29 @@ F2I_TEST(CvtF32I16, float,  int16_t)
 F2I_TEST(CvtF32I8,  float,  int8_t )
 F2I_TEST(CvtF32U16, float, uint16_t)
 F2I_TEST(CvtF32U8,  float, uint8_t )
+
+
+template<typename Src, typename Dst, typename TIn, typename TOut, typename Val>
+void F2FTest(const common::CopyManager& intrin)
+{
+    const auto ptr = reinterpret_cast<const Val*>(RandVals.data());
+    static const auto src = CastRef<Src>(ptr);
+    static const auto ref = CastRef<Dst>(src.data());
+    CastTest(src.data(), ref, [&](auto dst, auto src, auto cnt)
+        {
+            intrin.CopyFloat(reinterpret_cast<TOut*>(dst), reinterpret_cast<const TIn*>(src), cnt);
+        });
+}
+#define F2F_TEST(func, tsrc, tdst, tin, tout, tval) \
+INTRIN_TEST(CopyEx, func)                           \
+{                                                   \
+    F2FTest<tsrc, tdst, tin, tout, tval>(*Intrin);  \
+}
+using half = half_float::half;
+F2F_TEST(CvtF16F32, half,   float,  uint16_t, float,    uint16_t)
+F2F_TEST(CvtF32F16, float,  half,   float,    uint16_t, uint16_t)
+F2F_TEST(CvtF32F64, float,  double, float,    double,   uint32_t)
+F2F_TEST(CvtF64F32, double, float,  double,   float,    uint32_t)
 
 
 INTRIN_TESTSUITE(MiscIntrins, common::MiscIntrins, common::MiscIntrin);

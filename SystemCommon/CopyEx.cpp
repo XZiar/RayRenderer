@@ -5,8 +5,12 @@
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 #include <boost/predef/other/endian.h>
+#include "3rdParty/half/half.hpp"
 #if COMMON_ARCH_X86 && !BOOST_ENDIAN_LITTLE_BYTE
 #   error("unsupported std::byte order (non little endian) on x86")
+#endif
+#if COMMON_ARCH_ARM && COMMON_COMPILER_MSVC
+using float16_t = uint16_t;
 #endif
 
 
@@ -74,6 +78,14 @@ DEFINE_FASTPATH(CopyManager, CvtF32I16);
 DEFINE_FASTPATH(CopyManager, CvtF32I8 );
 DEFINE_FASTPATH(CopyManager, CvtF32U16);
 DEFINE_FASTPATH(CopyManager, CvtF32U8 );
+#define CvtF32F16Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define CvtF16F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define CvtF32F64Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+#define CvtF64F32Args BOOST_PP_VARIADIC_TO_SEQ(dest, src, count)
+DEFINE_FASTPATH(CopyManager, CvtF32F16);
+DEFINE_FASTPATH(CopyManager, CvtF16F32);
+DEFINE_FASTPATH(CopyManager, CvtF32F64);
+DEFINE_FASTPATH(CopyManager, CvtF64F32);
 
 
 namespace
@@ -131,6 +143,28 @@ struct SIMDAVX2
     {
 #if COMMON_ARCH_X86
         return CheckCPUFeature("avx2"sv);
+#else
+        return false;
+#endif
+    }
+};
+struct F16C
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("f16c"sv);
+#else
+        return false;
+#endif
+    }
+};
+struct AVX512F
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("avx512f"sv);
 #else
         return false;
 #endif
@@ -353,6 +387,24 @@ DEFINE_CVTI2FP_LOOP(CvtF32I16)
 DEFINE_CVTI2FP_LOOP(CvtF32I8)
 DEFINE_CVTI2FP_LOOP(CvtF32U16)
 DEFINE_CVTI2FP_LOOP(CvtF32U8)
+DEFINE_FASTPATH_METHOD(CvtF16F32, LOOP)
+{
+    const auto src_ = reinterpret_cast<const half_float::half*>(src);
+    CastLoop<ScalarCast>(dest, src_, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F16, LOOP)
+{
+    const auto dst = reinterpret_cast<half_float::half*>(dest);
+    CastLoop<ScalarCast>(dst, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F64, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF64F32, LOOP)
+{
+    CastLoop<ScalarCast>(dest, src, count);
+}
 
 
 template<typename T, auto F, typename Src, typename Dst>
@@ -541,6 +593,14 @@ DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x4, U16x8, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x4, U8x16, SIMD128, LOOP)
 
+DEFINE_FASTPATH_METHOD(CvtF32F64, SIMD128)
+{
+    CastSIMD4<DefaultCast<F32x4, F64x2>, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF64F32, SIMD128)
+{
+    CastSIMD4<DefaultCast<F64x2, F32x4>, &Func<LOOP>>(dest, src, count);
+}
 #endif
 
 
@@ -662,6 +722,15 @@ DEFINE_FASTPATH_METHOD(Broadcast4, SIMD256)
 DEFINE_CVTI2FP_SIMD4(CvtI32F32, I32x8, F32x8, SIMD256, SIMD128)
 
 DEFINE_CVTFP2I_SIMD4(CvtF32I32, F32x8, I32x8, SIMD256, SIMD128)
+
+DEFINE_FASTPATH_METHOD(CvtF32F64, SIMD256)
+{
+    CastSIMD4<DefaultCast<F32x8, F64x4>, &Func<SIMD128>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF64F32, SIMD256)
+{
+    CastSIMD4<DefaultCast<F64x4, F32x8>, &Func<SIMD128>>(dest, src, count);
+}
 #endif
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
@@ -742,6 +811,121 @@ DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x8, U16x16, SIMDAVX2, SIMD128)
 DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x8, U8x32,  SIMDAVX2, SIMD128)
 #endif
 
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100 && (defined(__F16C__) || COMMON_COMPILER_MSVC)
+struct F1632Cast
+{
+    using Src = uint16_t;
+    using Dst = float;
+    static constexpr size_t N = 8, M = 8;
+    void operator()(float* dst, const uint16_t* src) const noexcept
+    {
+        F32x8(_mm256_cvtph_ps(U16x8(src))).Save(dst);
+    }
+};
+struct F3216Cast
+{
+    static constexpr size_t N = 8, M = 8;
+    void operator()(uint16_t* dst, const float* src) const noexcept
+    {
+        U16x8(_mm256_cvtps_ph(F32x8(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)).Save(dst);
+    }
+};
+DEFINE_FASTPATH_METHOD(CvtF16F32, F16C)
+{
+    CastSIMD4<F1632Cast, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
+{
+    CastSIMD4<F3216Cast, &Func<LOOP>>(dest, src, count);
+}
+#endif
+
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 100
+struct F1632Cast1
+{
+    using Src = uint16_t;
+    using Dst = float;
+    static constexpr size_t N = 8, M = 8;
+    void operator()(float* dst, const uint16_t* src) const noexcept
+    {
+# if COMMON_SIMD_LV >= 200
+#   if COMMON_COMPILER_MSVC
+        const auto in = vld1q_u16(src); // msvc only typedef __n128 & __n64
+#   else
+        const auto in = vld1q_f16(reinterpret_cast<const float16_t*>(src));
+#   endif
+        F32x4(vcvt_f32_f16(vget_low_f16(in))).Save(dst + 0);
+        F32x4(vcvt_high_f32_f16(in))         .Save(dst + 4);
+# else
+#   if COMMON_COMPILER_MSVC
+        const auto in = vld1_u16_x2(src); // msvc only typedef __n128 & __n64
+#   else
+        const auto in = vld1_f16_x2(reinterpret_cast<const float16_t*>(src));
+#   endif
+        F32x4(vcvt_f32_f16(in.val[0])).Save(dst + 0);
+        F32x4(vcvt_f32_f16(in.val[1])).Save(dst + 4);
+# endif
+    }
+};
+struct F3216Cast1
+{
+    static constexpr size_t N = 8, M = 8;
+    void operator()(uint16_t* dst, const float* src) const noexcept
+    {
+        const auto dst_ = reinterpret_cast<float16_t*>(dst);
+        const auto in = vld1q_f32_x2(src);
+# if COMMON_SIMD_LV >= 200
+        const auto out = vcvt_high_f16_f32(vcvt_f16_f32(in.val[0]), in.val[1]);
+#   if COMMON_COMPILER_MSVC
+        vst1q_u16(dst_, out); // msvc only typedef __n128 & __n64
+#   else
+        vst1q_f16(dst_, out);
+#   endif
+# else
+        vst1_f16(dst_ + 0, vcvt_f16_f32(in.val[0]));
+        vst1_f16(dst_ + 4, vcvt_f16_f32(in.val[1]));
+# endif
+    }
+};
+DEFINE_FASTPATH_METHOD(CvtF16F32, SIMD128)
+{
+    CastSIMD4<F1632Cast1, &Func<LOOP>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F16, SIMD128)
+{
+    CastSIMD4<F3216Cast1, &Func<LOOP>>(dest, src, count);
+}
+#endif
+
+#if COMMON_ARCH_X86 && (COMMON_SIMD_LV >= 310 || (COMMON_COMPILER_MSVC && COMMON_MSVC_VER >= 191000))
+struct F1632CastAVX512
+{
+    using Src = uint16_t;
+    using Dst = float;
+    static constexpr size_t N = 16, M = 16;
+    void operator()(float* dst, const uint16_t* src) const noexcept
+    {
+        _mm512_storeu_ps(dst, _mm512_cvtph_ps(U16x16(src)));
+    }
+};
+struct F3216CastAVX512
+{
+    static constexpr size_t N = 16, M = 16;
+    void operator()(uint16_t* dst, const float* src) const noexcept
+    {
+        U16x16(_mm512_cvtps_ph(_mm512_loadu_ps(src), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC)).Save(dst);
+    }
+};
+DEFINE_FASTPATH_METHOD(CvtF16F32, AVX512F)
+{
+    CastSIMD4<F1632CastAVX512, &Func<F16C>>(dest, src, count);
+}
+DEFINE_FASTPATH_METHOD(CvtF32F16, AVX512F)
+{
+    CastSIMD4<F3216CastAVX512, &Func<F16C>>(dest, src, count);
+}
+#endif
+
 
 namespace common
 {
@@ -780,6 +964,10 @@ common::span<const CopyManager::PathInfo> CopyManager::GetSupportMap() noexcept
         RegistFuncVars(CopyManager, CvtF32I8,  SIMDAVX2, SIMD128, LOOP);
         RegistFuncVars(CopyManager, CvtF32U16, SIMDAVX2, SIMD128, LOOP);
         RegistFuncVars(CopyManager, CvtF32U8,  SIMDAVX2, SIMD128, LOOP);
+        RegistFuncVars(CopyManager, CvtF16F32, AVX512F, F16C, SIMD128, LOOP);
+        RegistFuncVars(CopyManager, CvtF32F16, AVX512F, F16C, SIMD128, LOOP);
+        RegistFuncVars(CopyManager, CvtF32F64, SIMD256, SIMD128, LOOP);
+        RegistFuncVars(CopyManager, CvtF64F32, SIMD256, SIMD128, LOOP);
         return ret;
     }();
     return list;
@@ -793,7 +981,8 @@ bool CopyManager::IsComplete() const noexcept
         SExtCopy12 && SExtCopy14 && SExtCopy24 && SExtCopy28 && SExtCopy48 &&
         TruncCopy21 && TruncCopy41 && TruncCopy42 && TruncCopy82 && TruncCopy84 &&
         CvtI32F32 && CvtI16F32 && CvtI8F32 && CvtU32F32 && CvtU16F32 && CvtU8F32 &&
-        CvtF32I32 && CvtF32I16 && CvtF32I8 && CvtF32U16 && CvtF32U8;
+        CvtF32I32 && CvtF32I16 && CvtF32I8 && CvtF32U16 && CvtF32U8 &&
+        CvtF16F32 && CvtF32F16 && CvtF32F64 && CvtF64F32;
 }
 const CopyManager CopyEx;
 

@@ -123,7 +123,7 @@ python3 xzbuild buildall UtilTest
   
   [MIT License](./3rdParty/ispc_texcomp/license.txt)
 
-* [half](http://half.sourceforge.net/) 2.1.0
+* [half](http://half.sourceforge.net/) 2.2.0
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 

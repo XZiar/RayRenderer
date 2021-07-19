@@ -45,7 +45,7 @@ struct PathInfo<R(*)(A...) noexcept>
 
 #define DEFINE_FASTPATH(clz, func) struct GET_FASTPATH_FUNC(func);                                              \
 template<> inline auto common::fastpath::PathHack::HackFunc<GET_FASTPATH_FUNC(func)>() noexcept                 \
-{ return std::declval<const clz&>().func; }                                                                     \
+{ return reinterpret_cast<std::decay_t<decltype(std::declval<const clz&>().func)>>(0); }                        \
 using GET_FASTPATH_TYPE(func) = decltype(::common::fastpath::PathHack::HackFunc<GET_FASTPATH_FUNC(func)>());    \
 struct GET_FASTPATH_FUNC(func) : ::common::fastpath::PathInfo<GET_FASTPATH_TYPE(func)>                          \
 {                                                                                                               \

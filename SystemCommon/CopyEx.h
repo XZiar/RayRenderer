@@ -40,6 +40,10 @@ private:
     void(*CvtF32I8   )(int8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept = nullptr;
     void(*CvtF32U16  )(uint16_t* dest, const float* src, size_t count, float mulVal, bool saturate) noexcept = nullptr;
     void(*CvtF32U8   )(uint8_t * dest, const float* src, size_t count, float mulVal, bool saturate) noexcept = nullptr;
+    void(*CvtF16F32  )(float   * dest, const uint16_t* src, size_t count) noexcept = nullptr;
+    void(*CvtF32F16  )(uint16_t* dest, const float   * src, size_t count) noexcept = nullptr;
+    void(*CvtF32F64  )(double* dest, const float * src, size_t count) noexcept = nullptr;
+    void(*CvtF64F32  )(float * dest, const double* src, size_t count) noexcept = nullptr;
 public:
     SYSCOMMONAPI [[nodiscard]] static common::span<const PathInfo> GetSupportMap() noexcept;
     SYSCOMMONAPI CopyManager(common::span<const VarItem> requests = {}) noexcept;
@@ -218,6 +222,35 @@ public:
                 CvtF32U16(dest, src, count, mulVal, saturate);
             else if constexpr (std::is_same_v<T, uint8_t>)
                 CvtF32U8(dest, src, count, mulVal, saturate);
+            else
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else
+            static_assert(!AlwaysTrue<T>, "datatype casting not supported");
+    }
+    template<typename T, typename U>
+    forceinline void CopyFloat(T* const dest, const U* src, const size_t count) const noexcept
+    {
+        if constexpr (std::is_same_v<U, float>)
+        {
+            if constexpr (std::is_same_v<T, uint16_t>)
+                CvtF32F16(dest, src, count);
+            else if constexpr (std::is_same_v<T, double>)
+                CvtF32F64(dest, src, count);
+            else
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (std::is_same_v<U, double>)
+        {
+            if constexpr (std::is_same_v<T, float>)
+                CvtF64F32(dest, src, count);
+            else
+                static_assert(!AlwaysTrue<T>, "datatype casting not supported");
+        }
+        else if constexpr (std::is_same_v<U, uint16_t>)
+        {
+            if constexpr (std::is_same_v<T, float>)
+                CvtF16F32(dest, src, count);
             else
                 static_assert(!AlwaysTrue<T>, "datatype casting not supported");
         }
