@@ -99,6 +99,8 @@ struct SSE128Common : public CommonOperators<T>
         return _mm_xor_si128(Data, _mm_set1_epi8(-1));
     }
     forceinline T VECCALL MoveHiToLo() const { return _mm_srli_si128(Data, 8); }
+
+    forceinline static T AllZero() noexcept { return _mm_setzero_si128(); }
 };
 
 
@@ -131,6 +133,15 @@ public:
         default: return T(); // should not happen
         }
     }
+#if COMMON_SIMD_LV >= 31
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm_set_epi64x(0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL);
+        return _mm_shuffle_epi8(this->Data, SwapMask);
+    }
+#endif
+    forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi64(this->Data, other.Data); }
+    forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi64(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi64(this->Data, other.Data); }
@@ -155,6 +166,8 @@ public:
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
 #endif
+
+    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si64(&val); }
 };
 
 
@@ -184,6 +197,15 @@ public:
         return T(this->Val[Lo0], this->Val[Lo1], this->Val[Lo2], this->Val[Hi3]);
 #endif
     }
+#if COMMON_SIMD_LV >= 31
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
+        return _mm_shuffle_epi8(this->Data, SwapMask);
+    }
+#endif
+    forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi32(this->Data, other.Data); }
+    forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi32(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi32(this->Data, other.Data); }
@@ -199,6 +221,7 @@ public:
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
 #endif
+    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si32(&val); }
 };
 
 
@@ -242,6 +265,15 @@ public:
         return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
 #endif
     }
+#if COMMON_SIMD_LV >= 31
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm_set_epi64x(0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL);
+        return _mm_shuffle_epi8(this->Data, SwapMask);
+    }
+#endif
+    forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi16(this->Data, other.Data); }
+    forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi16(this->Data, other.Data); }
     
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi16(this->Data, other.Data); }
@@ -255,6 +287,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic () const { return _mm_slli_epi16(this->Data, N); }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const { return _mm_srli_epi16(this->Data, N); }
+    forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si16(&val); }
 };
 
 
@@ -288,6 +321,9 @@ public:
         return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
 #endif
     }
+#if COMMON_SIMD_LV >= 31
+    forceinline T VECCALL Shuffle(const U8x16& pos) const;
+#endif
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
         const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const
     {
@@ -296,11 +332,13 @@ public:
             static_cast<int8_t>(Lo4), static_cast<int8_t>(Lo5), static_cast<int8_t>(Lo6), static_cast<int8_t>(Lo7), static_cast<int8_t>(Lo8),
             static_cast<int8_t>(Lo9), static_cast<int8_t>(Lo10), static_cast<int8_t>(Lo11), static_cast<int8_t>(Lo12), static_cast<int8_t>(Lo13),
             static_cast<int8_t>(Lo14), static_cast<int8_t>(Hi15));
-        return _mm_shuffle_epi8(this->Data, mask);
+        return Shuffle(mask);
 #else
         return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
 #endif
     }
+    forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi8(this->Data, other.Data); }
+    forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi8(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi8(this->Data, other.Data); }
@@ -355,6 +393,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         default: return F64x2(); // should not happen
         }
     }
+    forceinline F64x2 VECCALL ZipLo(const F64x2& other) const { return _mm_unpacklo_pd(Data, other); }
+    forceinline F64x2 VECCALL ZipHi(const F64x2& other) const { return _mm_unpackhi_pd(Data, other); }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -446,6 +486,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     forceinline F64x2& VECCALL operator/=(const F64x2& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
+
+    forceinline static F64x2 AllZero() noexcept { return _mm_setzero_pd(); }
 };
 
 
@@ -494,6 +536,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         return F32x4(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
 #endif
     }
+    forceinline F32x4 VECCALL ZipLo(const F32x4& other) const { return _mm_unpacklo_ps(Data, other); }
+    forceinline F32x4 VECCALL ZipHi(const F32x4& other) const { return _mm_unpackhi_ps(Data, other); }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -613,6 +657,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline F32x4& VECCALL operator/=(const F32x4& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
+
+    forceinline static F32x4 AllZero() noexcept { return _mm_setzero_ps(); }
 }; 
 
 
@@ -1261,6 +1307,13 @@ forceinline Pack<U16x8, 2> VECCALL U8x16::MulX(const U8x16& other) const
 {
     const auto self16 = Cast<U16x8>(), other16 = other.Cast<U16x8>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
+}
+
+
+template<typename T, typename E>
+forceinline T VECCALL detail::Common8x16<T, E>::Shuffle(const U8x16& pos) const
+{
+    return _mm_shuffle_epi8(this->Data, pos);
 }
 
 

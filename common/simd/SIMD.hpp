@@ -7,22 +7,32 @@
 #     error clang version too low to use this header, at least clang 3.0.0
 #   endif
 #   include <x86intrin.h>
+# elif COMMON_COMPILER_ICC
+#   if COMMON_ICC_VER < 130000
+#     error ICC version too low to use this header, at least icc 13.0
+#   endif
+#   if COMMON_ICC_VER < 160000
+#     define CMSIMD_WA_LOADUSI64    1
+#     define CMSIMD_WA_LOADUSI      1
+#   endif
+#   include <x86intrin.h>
 # elif COMMON_COMPILER_GCC
 #   if COMMON_GCC_VER < 40500
 #     error GCC version too low to use this header, at least gcc 4.5.0
 #   endif
-#   if defined(__INTEL_COMPILER)
-#     if __INTEL_COMPILER < 1500
-#       error ICC version too low to use this header, at least icc 15.0
-#     endif
-#   endif
 #   include <x86intrin.h>
-#   define _mm256_set_m128(/* __m128 */ hi, /* __m128 */ lo)  _mm256_insertf128_ps(_mm256_castps128_ps256(lo), (hi), 0x1)
-#   define _mm256_set_m128d(/* __m128d */ hi, /* __m128d */ lo)  _mm256_insertf128_pd(_mm256_castpd128_pd256(lo), (hi), 0x1)
-#   define _mm256_set_m128i(/* __m128i */ hi, /* __m128i */ lo)  _mm256_insertf128_si256(_mm256_castsi128_si256(lo), (hi), 0x1)
-#   define _mm256_loadu2_m128(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128(_mm_loadu_ps(hi), _mm_loadu_ps(lo))
-#   define _mm256_loadu2_m128d(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128d(_mm_loadu_pd(hi), _mm_loadu_pd(lo))
-#   define _mm256_loadu2_m128i(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128i(_mm_loadu_si128(hi), _mm_loadu_si128(lo))
+#   if COMMON_GCC_VER < 80000
+#     define CMSIMD_WA_SET128       1
+#   endif
+#   if COMMON_GCC_VER < 90000
+#     define CMSIMD_WA_LOADUSI64    1
+#   endif
+#   if COMMON_GCC_VER < 100000
+#     define CMSIMD_WA_LOADU2       1
+#   endif
+#   if COMMON_GCC_VER < 110000
+#     define CMSIMD_WA_LOADUSI      1
+#   endif
 # elif COMMON_COMPILER_MSVC
 #   if COMMON_MSVC_VER < 120000
 #     error MSVC version too low to use this header, at least msvc 12.0 (VS6.0)
@@ -35,6 +45,31 @@
 #   endif
 # else
 #  error Unknown compiler, not supported by this header
+# endif
+// workrounds
+# ifdef CMSIMD_WA_SET128
+#   undef CMSIMD_WA_SET128
+#   define _mm256_set_m128(/* __m128 */ hi, /* __m128 */ lo)  _mm256_insertf128_ps(_mm256_castps128_ps256(lo), (hi), 0x1)
+#   define _mm256_set_m128d(/* __m128d */ hi, /* __m128d */ lo)  _mm256_insertf128_pd(_mm256_castpd128_pd256(lo), (hi), 0x1)
+#   define _mm256_set_m128i(/* __m128i */ hi, /* __m128i */ lo)  _mm256_insertf128_si256(_mm256_castsi128_si256(lo), (hi), 0x1)
+# endif
+# ifdef CMSIMD_WA_LOADU2
+#   undef CMSIMD_WA_LOADU2
+#   define _mm256_loadu2_m128(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128(_mm_loadu_ps(hi), _mm_loadu_ps(lo))
+#   define _mm256_loadu2_m128d(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128d(_mm_loadu_pd(hi), _mm_loadu_pd(lo))
+#   define _mm256_loadu2_m128i(/* __m128i const* */ hi, /* __m128i const* */ lo) _mm256_set_m128i(_mm_loadu_si128(hi), _mm_loadu_si128(lo))
+# endif
+# ifdef CMSIMD_WA_LOADUSI64
+#   undef CMSIMD_WA_LOADUSI64
+#   define _mm_loadu_si64(mem_addr) _mm_loadl_epi64((const __m128i*)(mem_addr))
+#   define _mm_storeu_si64(mem_addr, a) _mm_storel_epi64((__m128i*)(mem_addr), (a))
+# endif
+# ifdef CMSIMD_WA_LOADUSI
+#   undef CMSIMD_WA_LOADUSI
+#   define _mm_loadu_si32(mem_addr) _mm_cvtsi32_si128(*(const int*)(mem_addr))
+#   define _mm_loadu_si16(mem_addr) _mm_cvtsi32_si128(*(const short*)(mem_addr))
+#   define _mm_storeu_si32(mem_addr, a) (void)(*(int*)(mem_addr) = _mm_cvtsi128_si32((a)))
+#   define _mm_storeu_si16(mem_addr, a) (void)(*(short*)(mem_addr) = (short)_mm_cvtsi128_si32((a)))
 # endif
 #elif COMMON_ARCH_ARM
 # if COMMON_COMPILER_CLANG
@@ -126,9 +161,13 @@
 
 #if COMMON_ARCH_ARM
 
-# if defined(_M_ARM64) || defined(__aarch64__)
-// The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
+# if defined(_M_ARM64) || defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
+// aarch64 expose more feature
 #    define COMMON_SIMD_LV_ 200
+# elif defined(__ARM_ARCH) && __ARM_ARCH >= 8
+// The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
+// aarch32 add extra feature
+#    define COMMON_SIMD_LV_ 150
 # elif defined(__ARM_NEON)
 #    define COMMON_SIMD_LV_ 100
 # else
@@ -139,7 +178,9 @@
 # endif
 
 # if COMMON_SIMD_LV >= 200
-#   define COMMON_SIMD_INTRIN NEONv2
+#   define COMMON_SIMD_INTRIN A64
+# elif COMMON_SIMD_LV >= 100
+#   define COMMON_SIMD_INTRIN A32
 # elif COMMON_SIMD_LV >= 100
 #   define COMMON_SIMD_INTRIN NEON
 # else

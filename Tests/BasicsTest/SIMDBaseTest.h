@@ -579,6 +579,65 @@ static void TestCompare(const T* ptr)
     }
 }
 
+
+template<typename T>
+T SwapEndian(const T val)
+{
+    constexpr size_t N = sizeof(T);
+#if COMMON_COMPILER_MSVC
+    if constexpr (N == 2)
+        return static_cast<T>(_byteswap_ushort(static_cast<uint16_t>(val)));
+    else if constexpr (N == 4)
+        return static_cast<T>(_byteswap_ulong(static_cast<uint32_t>(val)));
+    else if constexpr (N == 8)
+        return static_cast<T>(_byteswap_uint64(static_cast<uint64_t>(val)));
+#else
+    if constexpr (N == 2)
+        return static_cast<T>(__builtin_bswap16(static_cast<uint16_t>(val)));
+    else if constexpr (N == 4)
+        return static_cast<T>(__builtin_bswap32(static_cast<uint32_t>(val)));
+    else if constexpr (N == 8)
+        return static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(val)));
+#endif
+    else
+        static_assert(!::common::AlwaysTrue<T>, "not supported");
+}
+template<typename T>
+static void TestSwapEndian(const T* ptr)
+{
+    using U = typename T::EleType;
+    ForKItem(1)
+    {
+        const auto data = ptr[k];
+        const auto output = data.SwapEndian();
+        std::array<U, T::Count> ref = { 0 };
+        for (uint8_t i = 0; i < T::Count; ++i)
+            ref[i] = SwapEndian(data.Val[i]);
+        EXPECT_THAT(output.Val, MatchVec(ref));
+    }
+}
+
+
+template<typename T>
+static void TestZip(const T* ptr)
+{
+    using U = typename T::EleType;
+    ForKItem(2)
+    {
+        const auto data0 = ptr[k + 0], data1 = ptr[k + 1];
+        const auto outLo = data0.ZipLo(data1), outHi = data0.ZipHi(data1);
+        std::array<U, T::Count> refLo = { 0 }, refHi = { 0 };
+        for (uint8_t i = 0; i < T::Count; ++i)
+        {
+            auto& ref = i * 2 < T::Count ? refLo : refHi;
+            ref[(i * 2 + 0) % T::Count] = data0.Val[i];
+            ref[(i * 2 + 1) % T::Count] = data1.Val[i];
+        }
+        EXPECT_THAT(outLo.Val, MatchVec(refLo));
+        EXPECT_THAT(outHi.Val, MatchVec(refHi));
+    }
+}
+
 #undef ForKItem
 
 enum class TestItem : uint32_t
@@ -646,6 +705,39 @@ public:
 
 #define RegisterSIMDCmpTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDCompareTest<type>);
 #define RegisterSIMDCmpTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDCmpTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
+
+template<typename T>
+class SIMDSwapEndianTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "SIMDSwapEndian";
+    void TestBody() override
+    {
+        const auto ptr = GetRandPtr<T, typename T::EleType>();
+        TestSwapEndian(ptr);
+    }
+};
+
+#define RegisterSIMDSwpEndTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDSwapEndianTest<type>);
+#define RegisterSIMDSwpEndTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDSwpEndTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
+
+template<typename T>
+class SIMDZipTest : public SIMDFixture
+{
+public:
+    static constexpr auto TestSuite = "SIMDZip";
+    void TestBody() override
+    {
+        const auto ptr = GetRandPtr<T, typename T::EleType>();
+        TestZip(ptr);
+    }
+};
+
+#define RegisterSIMDZipTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDZipTest<type>);
+#define RegisterSIMDZipTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
 
 
 }

@@ -5,9 +5,10 @@
 #include "common/simd/SIMD128.hpp"
 #include "common/simd/SIMD256.hpp"
 #include <boost/predef/other/endian.h>
+#define HALF_ENABLE_F16C_INTRINSICS 0 // only use half as fallback
 #include "3rdParty/half/half.hpp"
-#if COMMON_ARCH_X86 && !BOOST_ENDIAN_LITTLE_BYTE
-#   error("unsupported std::byte order (non little endian) on x86")
+#if !BOOST_ENDIAN_LITTLE_BYTE
+#   error("unsupported std::byte order (non little endian)")
 #endif
 #if COMMON_ARCH_ARM && COMMON_COMPILER_MSVC
 using float16_t = uint16_t;

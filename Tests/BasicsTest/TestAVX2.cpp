@@ -44,6 +44,9 @@ RegisterSIMDCastModeTest(U16x16, 200, RangeSaturate, U8x32);
 RegisterSIMDCmpTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
 
 
+RegisterSIMDSwpEndTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16)
+
+
 RegisterSIMDTest(F64x4, 200, shuftest::ShuffleTest<F64x4>);
 RegisterSIMDTest(I64x4, 200, shuftest::ShuffleTest<I64x4>);
 RegisterSIMDTest(F64x2, 200, shuftest::ShuffleTest<F64x2>);

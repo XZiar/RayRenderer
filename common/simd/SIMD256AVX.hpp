@@ -117,6 +117,11 @@ public:
         const auto mask = _mm256_setr_epi32(Lo0 * 2, Lo0 * 2 + 1, Lo1 * 2, Lo1 * 2 + 1, Lo2 * 2, Lo2 * 2 + 1, Hi3 * 2, Hi3 * 2 + 1);
         return _mm256_permutevar8x32_epi32(this->Data, mask);
     }
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm256_set_epi64x(0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL, 0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL);
+        return _mm256_shuffle_epi8(this->Data, SwapMask);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi64(this->Data, other.Data); }
@@ -173,6 +178,11 @@ public:
         const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
         return _mm256_permutevar8x32_epi32(this->Data, mask);
     }
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm256_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL, 0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
+        return _mm256_shuffle_epi8(this->Data, SwapMask);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi32(this->Data, other.Data); }
@@ -223,6 +233,11 @@ public:
             static_cast<int8_t>(Lo12 * 2), static_cast<int8_t>(Lo12 * 2 + 1), static_cast<int8_t>(Lo13 * 2), static_cast<int8_t>(Lo13 * 2 + 1), 
             static_cast<int8_t>(Lo14 * 2), static_cast<int8_t>(Lo14 * 2 + 1), static_cast<int8_t>(Hi15 * 2), static_cast<int8_t>(Hi15 * 2 + 1));
         return _mm256_shuffle_epi8(this->Data, mask);
+    }
+    forceinline T VECCALL SwapEndian() const
+    {
+        const auto SwapMask = _mm256_set_epi64x(0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL, 0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL);
+        return _mm256_shuffle_epi8(this->Data, SwapMask);
     }
     
     // arithmetic operations

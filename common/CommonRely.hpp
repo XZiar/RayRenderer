@@ -2,7 +2,10 @@
 
 /* Compier Test */
 
-#if defined(__clang__)
+#if defined(__INTEL_COMPILER)
+#   define COMMON_COMPILER_ICC 1
+#   define COMMON_ICC_VER (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#elif defined(__clang__)
 #   define COMMON_COMPILER_CLANG 1
 #   define COMMON_CLANG_VER (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #elif defined(__GNUC__)
@@ -16,6 +19,10 @@
 #   define COMMON_MINGW_VER (__MINGW64_VERSION_MAJOR * 10000 + __MINGW64_VERSION_MINOR * 100)
 #endif
 
+#ifndef COMMON_COMPILER_ICC
+#   define COMMON_COMPILER_ICC 0
+#   define COMMON_ICC_VER 0
+#endif
 #ifndef COMMON_COMPILER_CLANG
 #   define COMMON_COMPILER_CLANG 0
 #   define COMMON_CLANG_VER 0

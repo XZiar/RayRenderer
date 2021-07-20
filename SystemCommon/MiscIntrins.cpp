@@ -2,6 +2,7 @@
 #include "MiscIntrins.h"
 #include "RuntimeFastPath.h"
 #include "common/simd/SIMD.hpp"
+#include "common/simd/SIMD128.hpp"
 #include "3rdParty/digestpp/algorithm/sha2.hpp"
 
 using namespace std::string_view_literals;
@@ -87,7 +88,20 @@ struct SHANI
 #endif
     }
 };
+struct SHA2
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return false;
+#else
+        return CheckCPUFeature("sha2"sv);
+#endif
+    }
+};
 }
+
+using namespace common::simd;
 
 
 #if COMMON_COMPILER_MSVC
@@ -264,12 +278,13 @@ DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
 
 #if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
 
-forceinline __m128i Load128With80BE(const __m128i* data, const size_t len) noexcept
+forceinline U32x4 Load128With80BE(const uint32_t* data, const size_t len) noexcept
 {
     // Expects len < 16
     if (len == 0)
-        return _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<char>(0x80), 0, 0, 0);
-    auto val = _mm_loadu_si128(data);
+        return U32x4::LoadLo(0x80000000);
+        //return _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<char>(0x80), 0, 0, 0);
+    U32x4 val(data);
     const __m128i IdxConst  = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
     const __m128i SignConst = _mm_set1_epi8(static_cast<char>(0x80));   // 80,80,80,80
     const __m128i SizeMask  = _mm_set1_epi8(static_cast<char>(len));    //  x, x, x, x
@@ -288,78 +303,72 @@ template<typename T>
 inline std::array<std::byte, 32> Sha256SSE(const std::byte* data, const size_t size, T&& calcBlock) noexcept
 {
     /* Load initial values */
-    __m128i state0 = _mm_set_epi32(0xa54ff53a, 0x3c6ef372, 0xbb67ae85, 0x6a09e667);
-    __m128i state1 = _mm_set_epi32(0x5be0cd19, 0x1f83d9ab, 0x9b05688c, 0x510e527f);
-
-    {
-        __m128i tmp = _mm_shuffle_epi32(state0, 0xB1);  /* CDAB */
-        state1 = _mm_shuffle_epi32(state1, 0x1B);       /* EFGH */
-        state0 = _mm_alignr_epi8(tmp, state1, 8);       /* ABEF */
-        state1 = _mm_blend_epi16(state1, tmp, 0xF0);    /* CDGH */
-    }
-
-    const __m128i mask = _mm_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
+    //U32x4 state0(0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a); // ABCD
+    //U32x4 state1(0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19); // EFGH
+    // ABEF-rev
+    U32x4 state0(0x9b05688c, 0x510e527f, 0xbb67ae85, 0x6a09e667);
+    // CDGH-rev
+    U32x4 state1(0x5be0cd19, 0x1f83d9ab, 0xa54ff53a, 0x3c6ef372);
 
     size_t len = size;
-    const __m128i* __restrict ptr = reinterpret_cast<const __m128i*>(data);
+    const uint32_t* __restrict ptr = reinterpret_cast<const uint32_t*>(data);
     while (len >= 64)
     {
-        const auto msg0 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg1 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg2 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg3 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
+        const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg3 = U32x4(ptr).SwapEndian(); ptr += 4;
         calcBlock(state0, state1, msg0, msg1, msg2, msg3);
         len -= 64;
     }
     if (len >= 56)
     {
-        const auto msg0 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg1 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg2 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-        const auto msg3 = Load128With80BE(ptr++, len % 16);
+        const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
+        const auto msg3 = Load128With80BE(ptr, len % 16);
         calcBlock(state0, state1, msg0, msg1, msg2, msg3);
         len = SIZE_MAX;
     }
     {
-        __m128i msg0, msg1, msg2, msg3;
-        const auto bits = static_cast<uint64_t>(size) * 8;
-        const auto bitsv = _mm_set1_epi64x(static_cast<int64_t>(bits));
-        const auto bitsvBE = _mm_shuffle_epi8(bitsv, _mm_set_epi8(3, 2, 1, 0, 7, 6, 5, 4, -1, -1, -1, -1, -1, -1, -1, -1));
+        U32x4 msg0, msg1, msg2, msg3;
+        const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
+        const auto bitsvBE = bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>();
         if (len == SIZE_MAX) // only need bits tail
         {
-            msg0 = _mm_setzero_si128();
-            msg1 = _mm_setzero_si128();
-            msg2 = _mm_setzero_si128();
+            msg0 = U32x4::AllZero();
+            msg1 = U32x4::AllZero();
+            msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
         }
         else if (len < 16)
         {
-            msg0 = Load128With80BE(ptr++, len - 0);
-            msg1 = _mm_setzero_si128();
-            msg2 = _mm_setzero_si128();
+            msg0 = Load128With80BE(ptr, len - 0); ptr += 4;
+            msg1 = U32x4::AllZero();
+            msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
         }
         else if (len < 32)
         {
-            msg0 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg1 = Load128With80BE(ptr++, len - 16);
-            msg2 = _mm_setzero_si128();
+            msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg1 = Load128With80BE(ptr, len - 16); ptr += 4;
+            msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
         }
         else if (len < 48)
         {
-            msg0 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg1 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg2 = Load128With80BE(ptr++, len - 32);
+            msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg2 = Load128With80BE(ptr, len - 32); ptr += 4;
             msg3 = bitsvBE;
         }
         else // len < 56
         {
-            msg0 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg1 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg2 = _mm_shuffle_epi8(_mm_loadu_si128(ptr++), mask);
-            msg3 = Load128With80BE(ptr++, len - 48);
-            msg3 = _mm_or_si128(bitsvBE, msg3);
+            msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
+            msg3 = Load128With80BE(ptr, len - 48); ptr += 4;
+            msg3 |= bitsvBE;
         }
         calcBlock(state0, state1, msg0, msg1, msg2, msg3);
     }
@@ -368,14 +377,13 @@ inline std::array<std::byte, 32> Sha256SSE(const std::byte* data, const size_t s
     // state1: hgdc
     /* Save state */
     std::array<std::byte, 32> output;
-    const __m128i ShuffleMask = _mm_setr_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-    const __m128i abef = _mm_shuffle_epi8(state0, ShuffleMask);
-    const __m128i cdgh = _mm_shuffle_epi8(state1, ShuffleMask);
-    const __m128i abcd = _mm_unpacklo_epi64(abef, cdgh);
-    const __m128i efgh = _mm_unpackhi_epi64(abef, cdgh);
-
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[0]), abcd);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&output[16]), efgh);
+    const U8x16 ReverseMask(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    const auto abef = state0.As<U8x16>().Shuffle(ReverseMask);
+    const auto cdgh = state1.As<U8x16>().Shuffle(ReverseMask);
+    const auto abcd = abef.As<U64x2>().ZipLo(cdgh.As<U64x2>()).As<U8x16>();
+    const auto efgh = abef.As<U64x2>().ZipHi(cdgh.As<U64x2>()).As<U8x16>();
+    abcd.Save(reinterpret_cast<uint8_t*>(&output[0]));
+    efgh.Save(reinterpret_cast<uint8_t*>(&output[16]));
     return output;
 }
 
@@ -385,7 +393,7 @@ inline std::array<std::byte, 32> Sha256SSE(const std::byte* data, const size_t s
 
 // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
 // Modifiled from code previously on https://github.com/mitls/hacl-star/tree/master/experimental/hash with BSD license.
-forceinline static void VECCALL Sha256Block_SHANI(__m128i& state0, __m128i& state1, 
+forceinline static void VECCALL Sha256Block_SHANI(U32x4& state0, U32x4& state1,
     __m128i msg0, __m128i msg1, __m128i msg2, __m128i msg3) noexcept // msgs are BE
 {
     /* Save current state */
@@ -548,6 +556,16 @@ DEFINE_FASTPATH_METHOD(Sha256, SHANI)
 }
 
 #   endif
+
+#endif
+
+
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 100
+
+//DEFINE_FASTPATH_METHOD(Sha256, SHA2)
+//{
+//    return Sha256SSE(data, size, Sha256Block_SHA2);
+//}
 
 #endif
 

@@ -180,10 +180,12 @@ struct Neon128Common : public CommonOperators<T>
     {
         return AsType<SIMDType>(vdupq_lane_u64(AsType<uint64x2_t>(Data), 0));
     }
+
+    forceinline static T AllZero() noexcept { return AsType<SIMDType>(neon_moviqb(0)); }
 };
 
 
-template<typename T>
+template<typename T, typename SIMDType>
 struct Shuffle64Common
 {
     // shuffle operations
@@ -211,16 +213,38 @@ struct Shuffle64Common
         default: return T(); // should not happen
         }
     }
+    forceinline T VECCALL ZipLo(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip1q_u64(AsType<uint64x2_t>(this->Data), AsType<uint64x2_t>(other.Data)));
+#else
+        const auto a = vget_low_u64(AsType<uint64x2_t>(this->Data)), b = vget_low_u64(AsType<uint64x2_t>(other.Data));
+        return AsType<SIMDType>(vcombine_u64(a, b));
+#endif
+    }
+    forceinline T VECCALL ZipHi(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip2q_u64(AsType<uint64x2_t>(this->Data), AsType<uint64x2_t>(other.Data)));
+#else
+        const auto a = vget_high_u64(AsType<uint64x2_t>(this->Data)), b = vget_high_u64(AsType<uint64x2_t>(other.Data));
+        return AsType<SIMDType>(vcombine_u64(a, b));
+#endif
+    }
 };
 
 
 template<typename T, typename SIMDType, typename E>
-struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public Shuffle64Common<T>
+struct alignas(16) Common64x2 : public Neon128Common<T, SIMDType, E, 2>, public Shuffle64Common<T, SIMDType>
 {
 private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 2>;
 public:
     using Neon128Common::Neon128Common;
+    forceinline T VECCALL SwapEndian() const
+    {
+        return AsType<SIMDType>(vrev64q_u8(AsType<uint8x16_t>(this->Data)));
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
@@ -247,10 +271,15 @@ public:
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+
+    forceinline static T LoadLo(const E val) noexcept 
+    { 
+        return AsType<SIMDType>(vcombine_u64(vld1_u64(reinterpret_cast<const uint64_t*>(&val)), vdup_n_u64(0)));
+    }
 };
 
 
-template<typename T>
+template<typename T, typename SIMDType>
 struct Shuffle32Common
 {
     // shuffle operations
@@ -310,16 +339,40 @@ struct Shuffle32Common
         const auto data = AsType<uint8x16_t>(static_cast<const T*>(this)->Data);
         return AsType<V>(vqtbl1q_u8(data, tbl));
     }
+    forceinline T VECCALL ZipLo(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip1q_u32(AsType<uint32x4_t>(this->Data), AsType<uint32x4_t>(other.Data)));
+#else
+        const auto a = vget_low_u32(AsType<uint32x4_t>(this->Data)), b = vget_low_u32(AsType<uint32x4_t>(other.Data));
+        const auto zip = vzip_u32(a, b);
+        return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
+#endif
+    }
+    forceinline T VECCALL ZipHi(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip2q_u32(AsType<uint32x4_t>(this->Data), AsType<uint32x4_t>(other.Data)));
+#else
+        const auto a = vget_high_u32(AsType<uint32x4_t>(this->Data)), b = vget_high_u32(AsType<uint32x4_t>(other.Data));
+        const auto zip = vzip_u32(a, b);
+        return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
+#endif
+    }
 };
 
 
 template<typename T, typename SIMDType, typename E>
-struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public Shuffle32Common<T>
+struct alignas(16) Common32x4 : public Neon128Common<T, SIMDType, E, 4>, public Shuffle32Common<T, SIMDType>
 {
 private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 4>;
 public:
     using Neon128Common::Neon128Common;
+    forceinline T VECCALL SwapEndian() const
+    {
+        return AsType<SIMDType>(vrev32q_u8(AsType<uint8x16_t>(this->Data)));
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
@@ -348,6 +401,11 @@ public:
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+
+    forceinline static T LoadLo(const E val) noexcept
+    {
+        return AsType<SIMDType>(vsetq_lane_u32(*reinterpret_cast<const uint32_t*>(&val), vdup_n_u32(0), 0));
+    }
 };
 
 
@@ -358,6 +416,30 @@ private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 8>;
 public:
     using Neon128Common::Neon128Common;
+    forceinline T VECCALL SwapEndian() const
+    {
+        return AsType<SIMDType>(vrev16q_u8(AsType<uint8x16_t>(this->Data)));
+    }
+    forceinline T VECCALL ZipLo(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip1q_u16(AsType<uint16x8_t>(this->Data), AsType<uint16x8_t>(other.Data)));
+#else
+        const auto a = vget_low_u16(AsType<uint16x8_t>(this->Data)), b = vget_low_u16(AsType<uint16x8_t>(other.Data));
+        const auto zip = vzip_u16(a, b);
+        return AsType<SIMDType>(vcombine_u16(zip.val[0], zip.val[1]));
+#endif
+    }
+    forceinline T VECCALL ZipHi(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip2q_u16(AsType<uint16x8_t>(this->Data), AsType<uint16x8_t>(other.Data)));
+#else
+        const auto a = vget_high_u16(AsType<uint16x8_t>(this->Data)), b = vget_high_u16(AsType<uint16x8_t>(other.Data));
+        const auto zip = vzip_u16(a, b);
+        return AsType<SIMDType>(vcombine_u16(zip.val[0], zip.val[1]));
+#endif
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
@@ -386,6 +468,11 @@ public:
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
+
+    forceinline static T LoadLo(const E val) noexcept
+    {
+        return AsType<SIMDType>(vsetq_lane_u16(*reinterpret_cast<const uint16_t*>(&val), vdup_n_u16(0), 0));
+    }
 };
 
 
@@ -396,6 +483,26 @@ private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 16>;
 public:
     using Neon128Common::Neon128Common;
+    forceinline T VECCALL ZipLo(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip1q_u8(AsType<uint8x16_t>(this->Data), AsType<uint8x16_t>(other.Data)));
+#else
+        const auto a = vget_low_u8(AsType<uint8x16_t>(this->Data)), b = vget_low_u8(AsType<uint8x16_t>(other.Data));
+        const auto zip = vzip_u8(a, b);
+        return AsType<SIMDType>(vcombine_u8(zip.val[0], zip.val[1]));
+#endif
+    }
+    forceinline T VECCALL ZipHi(const T& other) const
+    {
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vzip2q_u8(AsType<uint8x16_t>(this->Data), AsType<uint8x16_t>(other.Data)));
+#else
+        const auto a = vget_high_u8(AsType<uint8x16_t>(this->Data)), b = vget_high_u8(AsType<uint8x16_t>(other.Data));
+        const auto zip = vzip_u8(a, b);
+        return AsType<SIMDType>(vcombine_u8(zip.val[0], zip.val[1]));
+#endif
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
@@ -431,7 +538,7 @@ public:
 
 
 #if COMMON_SIMD_LV >= 200
-struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, double, 2>, public detail::Shuffle64Common<F64x2>
+struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, double, 2>, public detail::Shuffle64Common<F64x2, float64x2_t>
 {
     using Neon128Common<F64x2, float64x2_t, double, 2>::Neon128Common;
     explicit F64x2(const double* ptr) : Neon128Common(vld1q_f64(ptr)) { }
@@ -489,7 +596,7 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, doub
 #endif
 
 
-struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, float, 4>, public detail::Shuffle32Common<F32x4>
+struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, float, 4>, public detail::Shuffle32Common<F32x4, float32x4_t>
 {
     using Neon128Common<F32x4, float32x4_t, float, 4>::Neon128Common;
     explicit F32x4(const float* ptr) : Neon128Common(vld1q_f32(ptr)) { }
