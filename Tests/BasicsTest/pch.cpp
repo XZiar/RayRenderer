@@ -96,7 +96,13 @@ static uint32_t GetSIMDLevel_()
     if (data.flags[CPU_FEATURE_SSE])    return 10;
     return 0;
 #else
-    return sizeof(void*) == 8 ? 200 : 100;
+# if defined(_M_ARM64) || defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
+    return 200;
+# elif defined(__ARM_ARCH) && __ARM_ARCH >= 8
+    return 150;
+# else
+    return 100;
+# endif
 #endif
 }
 
@@ -133,7 +139,9 @@ std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
         return "SSE";
 #else
     if (level >= 200)
-        return "NEONv2";
+        return "A64";
+    if (level >= 150)
+        return "A32";
     if (level >= 100)
         return "NEON";
 #endif

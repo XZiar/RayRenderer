@@ -322,5 +322,9 @@ INTRIN_TEST(DigestFuncs, Sha256)
         // 112
         EXPECT_EQ(SHA256("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"),
             "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1");
+        // 1000000
+        std::string txt(1000000, 'a');
+        EXPECT_EQ(SHA256(txt),
+            "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 }

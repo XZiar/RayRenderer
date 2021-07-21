@@ -12,12 +12,12 @@ using namespace common::simd;
 #   include "ShuffleTest.h"
 
 
-RegisterSIMDBaseTest(I64x4,  200, Add, Sub,                 MulLo,              Neg, Abs, Min, Max, And, Or, Xor, AndNot, Not);
-RegisterSIMDBaseTest(U64x4,  200, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max);
-RegisterSIMDBaseTest(I32x8,  200, Add, Sub,                 MulLo,        MulX, Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(U32x8,  200, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max);
-RegisterSIMDBaseTest(I16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(U16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max);
+RegisterSIMDBaseTest(I64x4,  200, Add, Sub,                 MulLo,              Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(U64x4,  200, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I32x8,  200, Add, Sub,                 MulLo,        MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U32x8,  200, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(I8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max);
 RegisterSIMDBaseTest(U8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max);
 

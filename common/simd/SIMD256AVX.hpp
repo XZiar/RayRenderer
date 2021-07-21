@@ -152,13 +152,6 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi64(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi64(this->Data, other.Data); }
-    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi64(this->Data, _mm256_set1_epi64x(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi64(this->Data, _mm256_set1_epi64x(bits)); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic () const { return _mm256_slli_epi64(this->Data, N); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi64(this->Data, N); }
-
     forceinline T VECCALL MulLo(const T& other) const
     {
 # if COMMON_SIMD_LV >= 320
@@ -174,6 +167,61 @@ public:
     }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi64(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi64(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    {
+        if constexpr (std::is_unsigned_v<E>)
+            return _mm256_srl_epi64(this->Data, _mm_cvtsi32_si128(bits));
+        else
+# if COMMON_SIMD_LV >= 320
+            return _mm256_sra_epi64(this->Data, _mm_cvtsi32_si128(bits));
+# elif COMMON_SIMD_LV >= 41
+        {
+            if (bits == 0) return this->Data;
+            const auto sign32H = _mm256_srai_epi32(this->Data, 32); // only high part useful
+            const auto signAll = _mm256_shuffle_epi32(sign32H, 0b11110101);
+            if (bits > 63) return signAll;
+            const auto zero64 = _mm256_srl_epi64(this->Data, _mm_cvtsi32_si128(bits));
+            const auto sign64 = _mm256_sll_epi64(signAll, _mm_cvtsi32_si128(64 - bits));
+            return _mm256_or_si256(zero64, sign64);
+        }
+# endif
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic()  const { return _mm256_slli_epi64(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi64(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightArith() const
+    {
+        if constexpr (std::is_unsigned_v<E>)
+            return _mm256_srli_epi64(this->Data, N);
+# if COMMON_SIMD_LV >= 320
+        else
+            return _mm256_srai_epi64(this->Data, N);
+# else
+        else if constexpr (N == 0)
+        {
+            return this->Data;
+        }
+        else
+        {
+            const auto sign32H = _mm256_srai_epi32(this->Data, 32); // only high part useful
+            const auto signAll = _mm256_shuffle_epi32(sign32H, 0b11110101);
+            if constexpr (N > 63)
+                return signAll;
+            else
+            {
+                const auto zero64 = _mm256_srli_epi64(this->Data, N);
+                const auto sign64 = _mm256_slli_epi64(signAll, 64 - N);
+                return _mm256_or_si256(zero64, sign64);
+            }
+        }
+# endif
+    }
 #endif
 };
 
@@ -229,15 +277,32 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi32(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi32(this->Data, other.Data); }
-    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi32(this->Data, _mm256_set1_epi64x(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi32(this->Data, _mm256_set1_epi64x(bits)); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic()  const { return _mm256_slli_epi32(this->Data, N); }
-    template<uint8_t N>
-    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi32(this->Data, N); }
     forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi32(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) { this->Data = MulLo(other); return *static_cast<T*>(this); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi32(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi32(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const 
+    { 
+        if constexpr (std::is_unsigned_v<E>)
+            return _mm256_srl_epi32(this->Data, _mm_cvtsi32_si128(bits));
+        else
+            return _mm256_sra_epi32(this->Data, _mm_cvtsi32_si128(bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const { return _mm256_slli_epi32(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi32(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightArith() const 
+    { 
+        if constexpr (std::is_unsigned_v<E>) 
+            return _mm256_srli_epi32(this->Data, N);
+        else 
+            return _mm256_srai_epi32(this->Data, N);
+    }
 #endif
 };
 
@@ -289,12 +354,29 @@ public:
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi16(this->Data, other.Data); }
     forceinline T VECCALL MulLo(const T& other) const { return _mm256_mullo_epi16(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return MulLo(other); }
-    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi16(this->Data, _mm256_set1_epi64x(bits)); }
-    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi16(this->Data, _mm256_set1_epi64x(bits)); }
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const { return _mm256_sll_epi16(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const { return _mm256_srl_epi16(this->Data, _mm_cvtsi32_si128(bits)); }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    {
+        if constexpr (std::is_unsigned_v<E>)
+            return _mm256_srl_epi16(this->Data, _mm_cvtsi32_si128(bits));
+        else
+            return _mm256_sra_epi16(this->Data, _mm_cvtsi32_si128(bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic()  const { return _mm256_slli_epi16(this->Data, N); }
+    forceinline T VECCALL ShiftLeftLogic () const { return _mm256_slli_epi16(this->Data, N); }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const { return _mm256_srli_epi16(this->Data, N); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightArith() const
+    {
+        if constexpr (std::is_unsigned_v<E>)
+            return _mm256_srli_epi16(this->Data, N);
+        else
+            return _mm256_srai_epi16(this->Data, N);
+    }
     /*Pack<I32x8, 2> MulX(const T& other) const
     {
         const auto los = MulLo(other), his = static_cast<const T*>(this)->MulHi(other);
@@ -750,10 +832,6 @@ struct alignas(32) I64x4 : public detail::Common64x4<I64x4, I64x2, int64_t>
         return _mm256_castpd_si256(_mm256_blendv_pd(self, neg, self));
 # endif
     }
-# if COMMON_SIMD_LV >= 320
-    template<uint8_t N>
-    forceinline I64x4 VECCALL ShiftRightArth() const { return _mm256_srai_epi64(Data, N); }
-# endif
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I64x4, T>(), typename... Args>
     typename CastTyper<I64x4, T>::Type VECCALL Cast(const Args&... args) const;
@@ -844,9 +922,6 @@ struct alignas(32) I32x8 : public detail::Common32x8<I32x8, I32x4, int32_t>
     {
         return { I64x4(_mm256_mul_epi32(Data, other.Data)), I64x4(_mm256_mul_epi32(ShuffleHiLo(), other.ShuffleHiLo())) };
     }
-    forceinline I32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline I32x8 VECCALL ShiftRightArth() const { return _mm256_srai_epi32(Data, N); }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I32x8, T>(), typename... Args>
     typename CastTyper<I32x8, T>::Type VECCALL Cast(const Args&... args) const;
@@ -901,9 +976,6 @@ struct alignas(__m256i) U32x8 : public detail::Common32x8<U32x8, U32x4, uint32_t
     {
         return { U64x4(_mm256_mul_epu32(Data, other.Data)), U64x4(_mm256_mul_epu32(ShuffleHiLo(), other.ShuffleHiLo())) };
     }
-    forceinline U32x8 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline U32x8 VECCALL ShiftRightArth() const { return _mm256_srli_epi32(Data, N); }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<U32x8, T>(), typename... Args>
     typename CastTyper<U32x8, T>::Type VECCALL Cast(const Args&... args) const;
@@ -994,9 +1066,6 @@ struct alignas(32) I16x16 : public detail::Common16x16<I16x16, I16x8, int16_t>
     forceinline I16x16 VECCALL MulHi(const I16x16& other) const { return _mm256_mulhi_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL Max(const I16x16& other) const { return _mm256_max_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL Min(const I16x16& other) const { return _mm256_min_epi16(Data, other.Data); }
-    forceinline I16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_sra_epi16(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline I16x16 VECCALL ShiftRightArth() const { return _mm256_srai_epi16(Data, N); }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I16x16, T>(), typename... Args>
     typename CastTyper<I16x16, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1060,9 +1129,6 @@ struct alignas(32) U16x16 : public detail::Common16x16<U16x16, U16x8, uint16_t>
     forceinline U16x16 VECCALL Max(const U16x16& other) const { return _mm256_max_epu16(Data, other.Data); }
     forceinline U16x16 VECCALL Min(const U16x16& other) const { return _mm256_min_epu16(Data, other.Data); }
     forceinline U16x16 VECCALL Abs() const { return Data; }
-    forceinline U16x16 VECCALL operator>>(const uint8_t bits) const { return _mm256_srl_epi16(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline U16x16 VECCALL ShiftRightArth() const { return _mm256_srli_epi16(Data, N); }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<U16x16, T>(), typename... Args>
     typename CastTyper<U16x16, T>::Type VECCALL Cast(const Args&... args) const;

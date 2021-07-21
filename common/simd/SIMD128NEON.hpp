@@ -247,7 +247,7 @@ public:
     }
 
     // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
     {
         const auto data = AsType<uint64x2_t>(this->Data);
         return AsType<SIMDType>(vshlq_u64(data, vdupq_n_s64(bits)));
@@ -257,17 +257,37 @@ public:
         const auto data = AsType<uint64x2_t>(this->Data);
         return AsType<SIMDType>(vshlq_u64(data, vdupq_n_s64(-bits)));
     }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    { 
+        if constexpr (std::is_unsigned_v<E>)
+            return vshlq_u64(this->Data, vdupq_n_s64(-bits));
+        else
+            return vshlq_s64(this->Data, vdupq_n_s64(-bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const
+    {
+        static_assert(N >= 0 && N <= 63, "NEON limits left  shift within [0,63]");
+        const auto data = AsType<uint64x2_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u64(data, N));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
+        static_assert(N >= 1 && N <= 64, "NEON limits right shift within [1,64]");
         const auto data = AsType<uint64x2_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u64(data, -N));
+        return AsType<SIMDType>(vshrq_n_u64(data, N));
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = AsType<uint64x2_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u64(data, N));
+    forceinline T VECCALL ShiftRightArith() const 
+    { 
+        static_assert(N >= 1 && N <= 64, "NEON limits right shift within [1,64]");
+        if constexpr (std::is_unsigned_v<E>)
+            return vshrq_n_u64(this->Data, N);
+        else 
+            return vshrq_n_s64(this->Data, N);
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -375,7 +395,7 @@ public:
     }
 
     // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
     {
         const auto data = AsType<uint32x4_t>(this->Data);
         return AsType<SIMDType>(vshlq_u32(data, vdupq_n_s32(bits)));
@@ -385,19 +405,37 @@ public:
         const auto data = AsType<uint32x4_t>(this->Data);
         return AsType<SIMDType>(vshlq_u32(data, vdupq_n_s32(-bits)));
     }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    { 
+        if constexpr (std::is_unsigned_v<E>)
+            return vshlq_u32(this->Data, vdupq_n_s32(-bits));
+        else
+            return vshlq_s32(this->Data, vdupq_n_s32(-bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const
+    {
+        static_assert(N >= 0 && N <= 31, "NEON limits left  shift within [0,31]");
+        const auto data = AsType<uint32x4_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u32(data, N));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
+        static_assert(N >= 1 && N <= 32, "NEON limits right shift within [1,32]");
         const auto data = AsType<uint32x4_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u32(data, -N));
+        return AsType<SIMDType>(vshrq_n_u32(data, N));
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = AsType<uint32x4_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u32(data, N));
+    forceinline T VECCALL ShiftRightArith() const 
+    { 
+        static_assert(N >= 1 && N <= 32, "NEON limits right shift within [1,32]");
+        if constexpr (std::is_unsigned_v<E>)
+            return vshrq_n_u32(this->Data, N);
+        else 
+            return vshrq_n_s32(this->Data, N);
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -442,7 +480,7 @@ public:
     }
 
     // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
     {
         const auto data = AsType<uint16x8_t>(this->Data);
         return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(bits)));
@@ -452,19 +490,37 @@ public:
         const auto data = AsType<uint16x8_t>(this->Data);
         return AsType<SIMDType>(vshlq_u16(data, vdupq_n_s16(-bits)));
     }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    { 
+        if constexpr (std::is_unsigned_v<E>)
+            return vshlq_u16(this->Data, vdupq_n_s16(-bits));
+        else
+            return vshlq_s16(this->Data, vdupq_n_s16(-bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const
+    {
+        static_assert(N >= 0 && N <= 15, "NEON limits left  shift within [0,15]");
+        const auto data = AsType<uint16x8_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u16(data, N));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
+        static_assert(N >= 1 && N <= 16, "NEON limits right shift within [1,16]");
         const auto data = AsType<uint16x8_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u16(data, -N));
+        return AsType<SIMDType>(vshrq_n_u16(data, N));
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = AsType<uint16x8_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u16(data, N));
+    forceinline T VECCALL ShiftRightArith() const 
+    { 
+        static_assert(N >= 1 && N <= 16, "NEON limits right shift within [1,16]");
+        if constexpr (std::is_unsigned_v<E>)
+            return vshrq_n_u16(this->Data, N);
+        else 
+            return vshrq_n_s16(this->Data, N);
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -521,9 +577,16 @@ public:
         return AsType<SIMDType>(vcombine_u8(zip.val[0], zip.val[1]));
 #endif
     }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    {
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm_srai_epi32(_mm_unpackhi_epi32(mask, mask), 32); // mask sure all bits are covered
+        return vbslq_u8(mask, other.Data, this->Data);
+    }
 
     // arithmetic operations
-    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
     {
         const auto data = AsType<uint8x16_t>(this->Data);
         return AsType<SIMDType>(vshlq_u8(data, vdupq_n_s8(bits)));
@@ -533,19 +596,37 @@ public:
         const auto data = AsType<uint8x16_t>(this->Data);
         return AsType<SIMDType>(vshlq_u8(data, vdupq_n_s8(-bits)));
     }
-    /*template<uint8_t N>
-    forceinline T VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const
+    { 
+        if constexpr (std::is_unsigned_v<E>)
+            return vshlq_u8(this->Data, vdupq_n_s8(-bits));
+        else
+            return vshlq_s8(this->Data, vdupq_n_s8(-bits));
+    }
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic (bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic () const
+    {
+        static_assert(N >= 0 && N <= 7, "NEON limits left  shift within [0,7]");
+        const auto data = AsType<uint8x16_t>(this->Data);
+        return AsType<SIMDType>(vshlq_n_u8(data, N));
+    }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
+        static_assert(N >= 1 && N <= 8, "NEON limits right shift within [1,8]");
         const auto data = AsType<uint8x16_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u8(data, -N));
+        return AsType<SIMDType>(vshrq_n_u8(data, N));
     }
     template<uint8_t N>
-    forceinline T VECCALL ShiftLeftLogic() const
-    {
-        const auto data = AsType<uint8x16_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u8(data, N));
+    forceinline T VECCALL ShiftRightArith() const 
+    { 
+        static_assert(N >= 1 && N <= 8, "NEON limits right shift within [1,8]");
+        if constexpr (std::is_unsigned_v<E>)
+            return vshrq_n_u8(this->Data, N);
+        else 
+            return vshrq_n_s8(this->Data, N);
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -795,8 +876,6 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
     }
     template<typename T, CastMode Mode = detail::CstMode<I64x2, T>(), typename... Args>
     typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
-    /*template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
 #if COMMON_SIMD_LV >= 200
 template<> forceinline F64x2 VECCALL I64x2::Cast<F64x2, CastMode::RangeUndef>() const
@@ -846,8 +925,6 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64x2_t, uint64_t
     }
     template<typename T, CastMode Mode = detail::CstMode<U64x2, T>(), typename... Args>
     typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const;
-    /*template<uint8_t N>
-    forceinline I64x2 VECCALL ShiftRightArth() const { return _mm_srai_epi64(Data, N); }*/
 };
 #if COMMON_SIMD_LV >= 200
 template<> forceinline F64x2 VECCALL U64x2::Cast<F64x2, CastMode::RangeUndef>() const
@@ -900,9 +977,6 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     }
     template<typename T, CastMode Mode = detail::CstMode<I32x4, T>(), typename... Args>
     typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const;
-    /*forceinline I32x4 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline I32x4 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
 template<> forceinline Pack<I64x2, 2> VECCALL I32x4::Cast<I64x2, CastMode::RangeUndef>() const
 {
@@ -964,9 +1038,6 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
     {
         return { vmull_u32(vget_low_u32(Data), vget_low_u32(other.Data)), vmull_high_u32(Data, other.Data) };
     }
-    forceinline U32x4 VECCALL operator>>(const uint8_t bits) const { return ShiftRightLogic(bits); }
-    template<uint8_t N>
-    forceinline U32x4 VECCALL ShiftRightArth() const { return ShiftRightLogic<N>(); }
     template<typename T, CastMode Mode = detail::CstMode<U32x4, T>(), typename... Args>
     typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
@@ -1039,9 +1110,6 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     }
     template<typename T, CastMode Mode = detail::CstMode<I16x8, T>(), typename... Args>
     typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const;
-    /*forceinline I16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline I16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
 template<> forceinline Pack<I32x4, 2> VECCALL I16x8::Cast<I32x4, CastMode::RangeUndef>() const
 {
@@ -1114,9 +1182,6 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
     }
     template<typename T, CastMode Mode = detail::CstMode<U16x8, T>(), typename... Args>
     typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;
-    /*forceinline U16x8 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline U16x8 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 };
 template<> forceinline Pack<U32x4, 2> VECCALL U16x8::Cast<U32x4, CastMode::RangeUndef>() const
 {
@@ -1218,9 +1283,6 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     }
     template<typename T, CastMode Mode = detail::CstMode<I8x16, T>(), typename... Args>
     typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const;
-    /*forceinline I8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline I8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
 
 };
 template<> forceinline Pack<I16x8, 2> VECCALL I8x16::Cast<I16x8, CastMode::RangeUndef>() const
@@ -1304,10 +1366,6 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
     }
     template<typename T, CastMode Mode = detail::CstMode<U8x16, T>(), typename... Args>
     typename CastTyper<U8x16, T>::Type VECCALL Cast(const Args&... args) const;
-    /*forceinline U8x16 VECCALL operator>>(const uint8_t bits) const { return _mm_sra_epi32(Data, I64x2(bits)); }
-    template<uint8_t N>
-    forceinline U8x16 VECCALL ShiftRightArth() const { return _mm_srai_epi32(Data, N); }*/
-
 };
 template<> forceinline Pack<U16x8, 2> VECCALL U8x16::Cast<U16x8, CastMode::RangeUndef>() const
 {

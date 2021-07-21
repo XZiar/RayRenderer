@@ -328,54 +328,13 @@ constexpr bool SHA256RoundProcControl[][2] =
 };
 
 #if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 100)
-struct Sha256Calc
+struct Sha256State
 {
-    U32x4 State0, State1;
-    /* Load initial values */
     //U32x4 state0(0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a); // ABCD
     //U32x4 state1(0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19); // EFGH
-    Sha256Calc() noexcept : 
-        State0(0x9b05688c, 0x510e527f, 0xbb67ae85, 0x6a09e667), // ABEF-rev
-        State1(0x5be0cd19, 0x1f83d9ab, 0xa54ff53a, 0x3c6ef372)  // CDGH-rev 
-    { }
-    /* Save state */
-    forceinline std::array<std::byte, 32> Output() const noexcept
-    {
-        // state0: feba
-        // state1: hgdc
-        std::array<std::byte, 32> output;
-        const U8x16 ReverseMask(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-        const auto abef = State0.As<U8x16>().Shuffle(ReverseMask);
-        const auto cdgh = State1.As<U8x16>().Shuffle(ReverseMask);
-        const auto abcd = abef.As<U64x2>().ZipLo(cdgh.As<U64x2>()).As<U8x16>();
-        const auto efgh = abef.As<U64x2>().ZipHi(cdgh.As<U64x2>()).As<U8x16>();
-        abcd.Save(reinterpret_cast<uint8_t*>(&output[0]));
-        efgh.Save(reinterpret_cast<uint8_t*>(&output[16]));
-        return output;
-    }
+    U32x4 State0, State1;
+    Sha256State(U32x4 state0, U32x4 state1) : State0(state0), State1(state1) { }
 };
-
-
-forceinline U32x4 Load128With80BE(const uint32_t* data, const size_t len) noexcept
-{
-    // Expects len < 16
-    if (len == 0)
-        return U32x4::LoadLo(0x80000000);
-        //return _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, static_cast<char>(0x80), 0, 0, 0);
-    U32x4 val(data);
-    const __m128i IdxConst  = _mm_set_epi8(12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3);
-    const __m128i SignConst = _mm_set1_epi8(static_cast<char>(0x80));   // 80,80,80,80
-    const __m128i SizeMask  = _mm_set1_epi8(static_cast<char>(len));    //  x, x, x, x
-    const __m128i EndMask   = _mm_cmpeq_epi8(IdxConst, SizeMask);       // 00,00,ff,00
-    const __m128i SuffixBit = _mm_and_si128(SignConst, EndMask);        // 00,00,80,00
-    const __m128i Size1Mask = _mm_sub_epi8(SizeMask, _mm_set1_epi8(1)); //  y, y, y, y
-    const __m128i KeepMask  = _mm_cmpgt_epi8(IdxConst, Size1Mask);      // 00,00,ff,ff
-    const __m128i KeepBit   = _mm_and_si128(SignConst, KeepMask);       // 00,00,80,80
-    const __m128i ShufMask  = _mm_or_si128(KeepBit, IdxConst);          //  4, 5,86,87
-    val = _mm_shuffle_epi8(val, ShufMask);                              // z4,z5, 0, 0
-    val = _mm_or_si128(val, SuffixBit);                                 // z4,z5,80, 0
-    return val;
-}
 
 // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
 template<typename Calc>
@@ -424,7 +383,7 @@ forceinline static void VECCALL Sha256Block128(Calc& calc, U32x4 msg0, U32x4 msg
 template<typename Calc>
 inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size_t size) noexcept
 {
-    static_assert(std::is_base_of_v<Sha256Calc, Calc>);
+    static_assert(std::is_base_of_v<Sha256State, Calc>);
     Calc calc;
 
     size_t len = size;
@@ -443,7 +402,7 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
         const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
         const auto msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
         const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-        const auto msg3 = Load128With80BE(ptr, len % 16);
+        const auto msg3 = Calc::Load128With80BE(ptr, len % 16);
         Sha256Block128(calc, msg0, msg1, msg2, msg3);
         len = SIZE_MAX;
     }
@@ -460,7 +419,7 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
         }
         else if (len < 16)
         {
-            msg0 = Load128With80BE(ptr, len - 0); ptr += 4;
+            msg0 = Calc::Load128With80BE(ptr, len - 0); ptr += 4;
             msg1 = U32x4::AllZero();
             msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
@@ -468,7 +427,7 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
         else if (len < 32)
         {
             msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg1 = Load128With80BE(ptr, len - 16); ptr += 4;
+            msg1 = Calc::Load128With80BE(ptr, len - 16); ptr += 4;
             msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
         }
@@ -476,7 +435,7 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
         {
             msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
             msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg2 = Load128With80BE(ptr, len - 32); ptr += 4;
+            msg2 = Calc::Load128With80BE(ptr, len - 32); ptr += 4;
             msg3 = bitsvBE;
         }
         else // len < 56
@@ -484,7 +443,7 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
             msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
             msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
             msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg3 = Load128With80BE(ptr, len - 48); ptr += 4;
+            msg3 = Calc::Load128With80BE(ptr, len - 48); ptr += 4;
             msg3 |= bitsvBE;
         }
         Sha256Block128(calc, msg0, msg1, msg2, msg3);
@@ -495,9 +454,45 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
 
 
 # if COMMON_ARCH_X86 && (COMMON_COMPILER_MSVC || defined(__SHA__))
+
 # pragma message("Compiling DigestFuncs with SHA_NI")
-struct Sha256Round_SHANI : public Sha256Calc
+struct Sha256Round_SHANI : public Sha256State
 {
+    forceinline static U32x4 Load128With80BE(const uint32_t* data, const size_t len) noexcept
+    {
+        // Expects len < 16
+        if (len == 0)
+            return U32x4::LoadLo(0x80000000);
+        const auto val = U32x4(data).SwapEndian();
+        const U8x16 IdxConst(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+        const U8x16 SizeMask(static_cast<char>(len));                                                   // x, x, x, x
+        const auto EndMask   = SizeMask.Compare<CompareType::Equal,       MaskType::FullEle>(IdxConst); // 00,00,ff,00 or 00,00,00,ff
+        const auto KeepMask  = SizeMask.Compare<CompareType::GreaterThan, MaskType::FullEle>(IdxConst); // ff,ff,00,00 or ff,ff,ff,00
+        const auto EndSigBit = EndMask.As<U16x8>().ShiftLeftLogic<7>().As<U8x16>();                     // 00,00,80,7f or 00,00,00,80
+        const auto SuffixBit = EndSigBit & EndMask;                                                     // 00,00,80,00 or 00,00,00,80
+        return SuffixBit.SelectWith<MaskType::FullEle>(val.As<U8x16>(), KeepMask).As<U32x4>();
+    }
+
+    Sha256Round_SHANI() noexcept : Sha256State(
+        { 0x9b05688c, 0x510e527f, 0xbb67ae85, 0x6a09e667 }/*ABEF-rev*/, 
+        { 0x5be0cd19, 0x1f83d9ab, 0xa54ff53a, 0x3c6ef372 }/*CDGH-rev*/) 
+    { }
+    /* Save state */
+    forceinline std::array<std::byte, 32> Output() const noexcept
+    {
+        std::array<std::byte, 32> output;
+        // state0: feba
+        // state1: hgdc
+        const U8x16 ReverseMask(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        const auto abef = State0.As<U8x16>().Shuffle(ReverseMask);
+        const auto cdgh = State1.As<U8x16>().Shuffle(ReverseMask);
+        const auto abcd = abef.As<U64x2>().ZipLo(cdgh.As<U64x2>()).As<U8x16>();
+        const auto efgh = abef.As<U64x2>().ZipHi(cdgh.As<U64x2>()).As<U8x16>();
+        abcd.Save(reinterpret_cast<uint8_t*>(&output[0]));
+        efgh.Save(reinterpret_cast<uint8_t*>(&output[16]));
+        return output;
+    }
+
     // From http://software.intel.com/en-us/articles/intel-sha-extensions written by Sean Gulley.
     // Modifiled from code previously on https://github.com/mitls/hacl-star/tree/master/experimental/hash with BSD license.
     template<size_t Round>
@@ -514,38 +509,70 @@ struct Sha256Round_SHANI : public Sha256Calc
         msg = msg.Shuffle<2, 3, 0, 0>(); // _mm_shuffle_epi32(msg, 0x0E);
         State0 = _mm_sha256rnds2_epu32(State0, State1, msg);
         if constexpr (SHA256RoundProcControl[Round][0])
+        {
             prev = _mm_sha256msg1_epu32(prev, cur);
+        }
     }
 };
 DEFINE_FASTPATH_METHOD(Sha256, SHANI)
 {
     return Sha256Main128<Sha256Round_SHANI>(data, size);
 }
+
 # elif COMMON_ARCH_ARM
-# pragma message("Compiling DigestFuncs with SHA2")
-//struct Sha256Round_SHANI : public Sha256Calc
-//{
-//    template<size_t Round>
-//    forceinline void VECCALL Calc([[maybe_unused]] U32x4& prev, U32x4& cur, [[maybe_unused]] U32x4& next) noexcept // msgs are BE
-//    {
-//        const auto adder = U64x2(SHA256RoundAdders[Round]).As<U32x4>();
-//        auto msg = cur + adder;
-//        State1 = _mm_sha256rnds2_epu32(State1, State0, msg);
-//        if constexpr (SHA256RoundProcControl[Round][1])
-//        {
-//            const U32x4 tmp = _mm_alignr_epi8(cur, prev, 4);
-//            next = _mm_sha256msg2_epu32(next + tmp, cur);
-//        }
-//        msg = msg.Shuffle<2, 3, 0, 0>(); // _mm_shuffle_epi32(msg, 0x0E);
-//        State0 = _mm_sha256rnds2_epu32(State0, State1, msg);
-//        if constexpr (SHA256RoundProcControl[Round][0])
-//            prev = _mm_sha256msg1_epu32(prev, cur);
-//    }
-//};
-//DEFINE_FASTPATH_METHOD(Sha256, SHA2)
-//{
-//    return Sha256Main128<Sha256Round_SHA2>(data, size);
-//}
+
+#   pragma message("Compiling DigestFuncs with SHA2")
+struct Sha256Round_SHA2 : public Sha256State
+{
+    forceinline static U32x4 Load128With80BE(const uint32_t* data, const size_t len) noexcept
+    {
+        // Expects len < 16
+        if (len == 0)
+            return U32x4::LoadLo(0x80000000);
+        const auto val = U32x4(data).SwapEndian();
+        const U8x16 IdxConst(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+        const U8x16 SizeMask(static_cast<char>(len));                                                   // x, x, x, x
+        const auto EndMask   = SizeMask.Compare<CompareType::Equal,       MaskType::FullEle>(IdxConst); // 00,00,ff,00 or 00,00,00,ff
+        const auto KeepMask  = SizeMask.Compare<CompareType::GreaterThan, MaskType::FullEle>(IdxConst); // ff,ff,00,00 or ff,ff,ff,00
+        const auto SuffixBit = EndMask.ShiftLeftLogic<7>();                                             // 00,00,80,00 or 00,00,00,80
+        return SuffixBit.SelectWith<MaskType::FullEle>(val.As<U8x16>(), KeepMask).As<U32x4>();
+    }
+
+    Sha256Round_SHA2() noexcept : Sha256State(
+        { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a }/*ABCD*/,
+        { 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 }/*EFGH*/) 
+    { }
+    /* Save state */
+    forceinline std::array<std::byte, 32> Output() const noexcept
+    {
+        std::array<std::byte, 32> output;
+        State0.SwapEndian().As<U8x16>().Save(reinterpret_cast<uint8_t*>(&output[0]));
+        State1.SwapEndian().As<U8x16>().Save(reinterpret_cast<uint8_t*>(&output[16]));
+        return output;
+    }
+    template<size_t Round>
+    forceinline void VECCALL Calc([[maybe_unused]] U32x4& prev, U32x4& cur, [[maybe_unused]] U32x4& next) noexcept // msgs are BE
+    {
+        const auto adder = U64x2(SHA256RoundAdders[Round]).As<U32x4>();
+        auto msg = cur + adder;
+        const auto state0 = State0;
+        State0 = vsha256hq_u32 (State0, State1, msg);
+        State1 = vsha256h2q_u32(State1, state0, msg);
+        if constexpr (SHA256RoundProcControl[Round][1])
+        {
+            next = vsha256su1q_u32(next, prev, cur);
+        }
+        if constexpr (SHA256RoundProcControl[Round][0])
+        {
+            prev = vsha256su0q_u32(prev, cur);
+        }
+    }
+};
+DEFINE_FASTPATH_METHOD(Sha256, SHA2)
+{
+    return Sha256Main128<Sha256Round_SHA2>(data, size);
+}
+
 # endif
 
 #endif
@@ -598,7 +625,7 @@ forceinline static void VECCALL Sha256Block256(Calc& calc, U32x8 msg01, U32x8 ms
 template<typename Calc>
 inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size_t size) noexcept
 {
-    static_assert(std::is_base_of_v<Sha256Calc, Calc>);
+    static_assert(std::is_base_of_v<Sha256State, Calc>);
     Calc calc;
 
     size_t len = size;
@@ -614,7 +641,7 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
     {
         const auto msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
         const auto msg2  = U32x4(ptr).SwapEndian(); ptr += 4;
-        const auto msg3  = Load128With80BE(ptr, len % 16);
+        const auto msg3  = Calc::Load128With80BE(ptr, len % 16);
         const auto msg23 = U32x8(msg2, msg3);
         Sha256Block256(calc, msg01, msg23);
         len = SIZE_MAX;
@@ -631,7 +658,7 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
         }
         else if (len < 16)
         {
-            const auto msg0 = Load128With80BE(ptr, len - 0); ptr += 4;
+            const auto msg0 = Calc::Load128With80BE(ptr, len - 0); ptr += 4;
             const auto msg1 = U32x4::AllZero();
             msg01 = U32x8(msg0, msg1);
             msg23 = bitsvBE;
@@ -639,21 +666,21 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
         else if (len < 32)
         {
             const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
-            const auto msg1 = Load128With80BE(ptr, len - 16); ptr += 4;
+            const auto msg1 = Calc::Load128With80BE(ptr, len - 16); ptr += 4;
             msg01 = U32x8(msg0, msg1);
             msg23 = bitsvBE;
         }
         else if (len < 48)
         {
             msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
-            const auto msg2 = Load128With80BE(ptr, len - 32); ptr += 4;
+            const auto msg2 = Calc::Load128With80BE(ptr, len - 32); ptr += 4;
             msg23 = U32x8::LoadLoLane(msg2).Or(bitsvBE);
         }
         else // len < 56
         {
             msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
             const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-            const auto msg3 = Load128With80BE(ptr, len - 48); ptr += 4;
+            const auto msg3 = Calc::Load128With80BE(ptr, len - 48); ptr += 4;
             msg23 = U32x8(msg2, msg3).Or(bitsvBE);
         }
         Sha256Block256(calc, msg01, msg23);
@@ -741,7 +768,7 @@ common::span<const DigestFuncs::PathInfo> DigestFuncs::GetSupportMap() noexcept
     static auto list = []()
     {
         std::vector<PathInfo> ret;
-        RegistFuncVars(DigestFuncs, Sha256, SHANIAVX2, SHANI, NAIVE);
+        RegistFuncVars(DigestFuncs, Sha256, SHANIAVX2, SHA2, SHANI, NAIVE);
         return ret;
     }();
     return list;
