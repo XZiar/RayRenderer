@@ -488,6 +488,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
 
     forceinline static F64x2 AllZero() noexcept { return _mm_setzero_pd(); }
+    forceinline static F64x2 LoadLo(const double val) noexcept { return _mm_load_sd(&val); }
 };
 
 
@@ -659,7 +660,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
 
     forceinline static F32x4 AllZero() noexcept { return _mm_setzero_ps(); }
-}; 
+    forceinline static F32x4 LoadLo(const float val) noexcept { return _mm_load_ss(&val); }
+};
 
 
 struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>

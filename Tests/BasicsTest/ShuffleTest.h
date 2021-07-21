@@ -8,22 +8,20 @@ namespace shuftest
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
-static constexpr std::string_view NUM16[] = 
-{
-    "0"sv, "1"sv,  "2"sv,  "3"sv,  "4"sv,  "5"sv,  "6"sv,  "7"sv, 
-    "8"sv, "9"sv, "10"sv, "11"sv, "12"sv, "13"sv, "14"sv, "15"sv,
-};
+
+static constexpr std::string_view NUM64 = " 0 1 2 3 4 5 6 7 8 9101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263"sv;
+
 template<size_t N>
-static std::string GenerateMatchStr(const std::array<uint8_t, N>& ref)
+static std::string GenerateMatchStr(std::string_view op, const std::array<uint8_t, N>& ref)
 {
     std::string ret; ret.reserve(256);
-    ret.append("Shuffle to [");
+    ret.append(op).append(" to [");
     bool isFirst = true;
     for (const auto i : ref)
     {
         if (!isFirst)
             ret.append(", ");
-        ret.append(NUM16[i]);
+        ret.append(NUM64.substr(i * 2, 2));
         isFirst = false;
     }
     ret.append("]");
@@ -36,7 +34,7 @@ forceinline bool CheckMatch(const T(&arg)[N], const std::array<uint8_t, N>& ref,
     return (... && (arg[Idx] == ref[Idx]));
 }
 
-MATCHER_P(MatchShuffle, ref, GenerateMatchStr(ref))
+MATCHER_P(MatchShuffle, ref, GenerateMatchStr("Shuffle", ref))
 {
     [[maybe_unused]] const auto& tmp = result_listener;
     constexpr size_t N = std::tuple_size_v<std::decay_t<decltype(ref)>>;
@@ -126,14 +124,11 @@ forceinline void RunShuffleVar(const T& data, uint64_t val)
 }
 
 template<typename T, size_t... Idxes>
-static constexpr T GenerateT()
+static constexpr T GenerateT(std::index_sequence<Idxes...>, size_t offset = 0)
 {
+    static_assert(sizeof...(Idxes) == T::Count);
     using ArgType = std::decay_t<decltype(std::declval<T&>().Val[0])>;
-    constexpr size_t ArgCount = sizeof...(Idxes);
-    if constexpr (ArgCount == T::Count)
-        return T(static_cast<ArgType>(Idxes)...);
-    else
-        return GenerateT<T, Idxes..., ArgCount>();
+    return T(static_cast<ArgType>(Idxes + offset)...);
 }
 
 
@@ -144,7 +139,7 @@ public:
     static constexpr auto TestSuite = "Shuffle";
     void TestBody() override
     {
-        const auto data = GenerateT<T>();
+        const auto data = GenerateT<T>(std::make_index_sequence<T::Count>{});
         TestShuffle<T, 0, Pow<T::Count, T::Count>() - 1>(data);
     }
 };
@@ -157,12 +152,73 @@ public:
     static constexpr auto TestSuite = "ShuffleVar";
     void TestBody() override
     {
-        const auto data = GenerateT<T>();
+        const auto data = GenerateT<T>(std::make_index_sequence<T::Count>{});
         constexpr auto Count = Pow<T::Count, T::Count>();
         for (uint64_t i = 0; i < Count; ++i)
             RunShuffleVar<T>(data, i);
     }
 };
+
+
+
+MATCHER_P(MatchZip, ref, GenerateMatchStr("Zip", ref))
+{
+    [[maybe_unused]] const auto& tmp = result_listener;
+    constexpr size_t N = std::tuple_size_v<std::decay_t<decltype(ref)>>;
+    return CheckMatch(arg, ref, std::make_index_sequence<N>{});
+}
+
+template<typename T, bool ZipLane = false>
+class ZipTest : public SIMDFixture
+{
+private:
+public:
+    static constexpr auto GetRef() noexcept
+    {
+        constexpr size_t N = T::Count;
+        std::array<uint8_t, N * 2> ref = { 0 };
+        if constexpr (ZipLane)
+        {
+            constexpr size_t M = N / 4;
+            constexpr size_t offsets[] = { M * 0,  M * 2, M * 1, M * 3 };
+            for (size_t i = 0; i < N; ++i)
+            {
+                const auto j = (i % M) + offsets[i / M];
+                ref[i * 2 + 0] = static_cast<uint8_t>(j);
+                ref[i * 2 + 1] = static_cast<uint8_t>(j + N);
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < N; ++i)
+            {
+                ref[i * 2 + 0] = static_cast<uint8_t>(i);
+                ref[i * 2 + 1] = static_cast<uint8_t>(i + N);
+            }
+        }
+        return ref;
+    }
+public:
+    static constexpr auto TestSuite = ZipLane ? "SIMDZipLane" : "SIMDZip";
+    void TestBody() override
+    {
+        using U = typename T::EleType;
+        const auto data0 = GenerateT<T>(std::make_index_sequence<T::Count>{}, 0);
+        const auto data1 = GenerateT<T>(std::make_index_sequence<T::Count>{}, T::Count);
+        U out[T::Count * 2] = { 0 };
+        constexpr auto ref = GetRef();
+        if constexpr (ZipLane)
+            data0.ZipLoLane(data1).Save(out), data0.ZipHiLane(data1).Save(out + T::Count);
+        else
+            data0.ZipLo(data1).Save(out), data0.ZipHi(data1).Save(out + T::Count);
+        EXPECT_THAT(out, MatchZip(ref));
+
+    }
+};
+#define RegisterSIMDZipTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipTest<type, false>);
+#define RegisterSIMDZipTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define RegisterSIMDZipLaneTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipTest<type, true>);
+#define RegisterSIMDZipLaneTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDZipLaneTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 
 }

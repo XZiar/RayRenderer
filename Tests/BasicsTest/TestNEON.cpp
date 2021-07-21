@@ -50,7 +50,7 @@ RegisterSIMDCmpTest(100, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16,
 RegisterSIMDSwpEndTest(100, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8)
 
 
-RegisterSIMDZipTest(100, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+RegisterSIMDZipTest(100, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
 
 
 RegisterSIMDTest(F32x4, 100, shuftest::ShuffleTest<F32x4>);

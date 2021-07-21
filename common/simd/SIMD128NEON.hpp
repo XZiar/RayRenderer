@@ -216,18 +216,18 @@ struct Shuffle64Common
     forceinline T VECCALL ZipLo(const T& other) const
     {
 #if COMMON_SIMD_LV >= 200
-        return AsType<SIMDType>(vzip1q_u64(AsType<uint64x2_t>(this->Data), AsType<uint64x2_t>(other.Data)));
+        return AsType<SIMDType>(vzip1q_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(other.Data)));
 #else
-        const auto a = vget_low_u64(AsType<uint64x2_t>(this->Data)), b = vget_low_u64(AsType<uint64x2_t>(other.Data));
+        const auto a = vget_low_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data)), b = vget_low_u64(AsType<uint64x2_t>(other.Data));
         return AsType<SIMDType>(vcombine_u64(a, b));
 #endif
     }
     forceinline T VECCALL ZipHi(const T& other) const
     {
 #if COMMON_SIMD_LV >= 200
-        return AsType<SIMDType>(vzip2q_u64(AsType<uint64x2_t>(this->Data), AsType<uint64x2_t>(other.Data)));
+        return AsType<SIMDType>(vzip2q_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data), AsType<uint64x2_t>(other.Data)));
 #else
-        const auto a = vget_high_u64(AsType<uint64x2_t>(this->Data)), b = vget_high_u64(AsType<uint64x2_t>(other.Data));
+        const auto a = vget_high_u64(AsType<uint64x2_t>(static_cast<const T*>(this)->Data)), b = vget_high_u64(AsType<uint64x2_t>(other.Data));
         return AsType<SIMDType>(vcombine_u64(a, b));
 #endif
     }
@@ -342,9 +342,9 @@ struct Shuffle32Common
     forceinline T VECCALL ZipLo(const T& other) const
     {
 #if COMMON_SIMD_LV >= 200
-        return AsType<SIMDType>(vzip1q_u32(AsType<uint32x4_t>(this->Data), AsType<uint32x4_t>(other.Data)));
+        return AsType<SIMDType>(vzip1q_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(other.Data)));
 #else
-        const auto a = vget_low_u32(AsType<uint32x4_t>(this->Data)), b = vget_low_u32(AsType<uint32x4_t>(other.Data));
+        const auto a = vget_low_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data)), b = vget_low_u32(AsType<uint32x4_t>(other.Data));
         const auto zip = vzip_u32(a, b);
         return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
 #endif
@@ -352,9 +352,9 @@ struct Shuffle32Common
     forceinline T VECCALL ZipHi(const T& other) const
     {
 #if COMMON_SIMD_LV >= 200
-        return AsType<SIMDType>(vzip2q_u32(AsType<uint32x4_t>(this->Data), AsType<uint32x4_t>(other.Data)));
+        return AsType<SIMDType>(vzip2q_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data), AsType<uint32x4_t>(other.Data)));
 #else
-        const auto a = vget_high_u32(AsType<uint32x4_t>(this->Data)), b = vget_high_u32(AsType<uint32x4_t>(other.Data));
+        const auto a = vget_high_u32(AsType<uint32x4_t>(static_cast<const T*>(this)->Data)), b = vget_high_u32(AsType<uint32x4_t>(other.Data));
         const auto zip = vzip_u32(a, b);
         return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
 #endif
@@ -404,7 +404,7 @@ public:
 
     forceinline static T LoadLo(const E val) noexcept
     {
-        return AsType<SIMDType>(vsetq_lane_u32(*reinterpret_cast<const uint32_t*>(&val), vdup_n_u32(0), 0));
+        return AsType<SIMDType>(vsetq_lane_u32(*reinterpret_cast<const uint32_t*>(&val), vdupq_n_u32(0), 0));
     }
 };
 
@@ -471,7 +471,7 @@ public:
 
     forceinline static T LoadLo(const E val) noexcept
     {
-        return AsType<SIMDType>(vsetq_lane_u16(*reinterpret_cast<const uint16_t*>(&val), vdup_n_u16(0), 0));
+        return AsType<SIMDType>(vsetq_lane_u16(*reinterpret_cast<const uint16_t*>(&val), vdupq_n_u16(0), 0));
     }
 };
 
@@ -483,6 +483,24 @@ private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 16>;
 public:
     using Neon128Common::Neon128Common;
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 16 && Lo1 < 16 && Lo2 < 16 && Lo3 < 16 && Lo4 < 16 && Lo5 < 16 && Lo6 < 16 && Lo7 < 16
+            && Lo8 < 16 && Lo9 < 16 && Lo10 < 16 && Lo11 < 16 && Lo12 < 16 && Lo13 < 16 && Lo14 < 16 && Hi15 < 16, "shuffle index should be in [0,15]");
+        alignas(16) constexpr uint8_t indexes[] = { Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Lo7, Lo8, Lo9, Lo10, Lo11, Lo12, Lo13, Lo14, Hi15 };
+        const auto tbl = vld1q_u8(indexes);
+        return Shuffle(tbl);
+    }
+    forceinline T VECCALL Shuffle(const U8x16& pos) const;
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Lo7,
+        const uint8_t Lo8, const uint8_t Lo9, const uint8_t Lo10, const uint8_t Lo11, const uint8_t Lo12, const uint8_t Lo13, const uint8_t Lo14, const uint8_t Hi15) const
+    {
+        alignas(16) const uint8_t indexes[] = { Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Lo7, Lo8, Lo9, Lo10, Lo11, Lo12, Lo13, Lo14, Hi15 };
+        const auto tbl = vld1q_u8(indexes);
+        return Shuffle(tbl);
+    }
     forceinline T VECCALL ZipLo(const T& other) const
     {
 #if COMMON_SIMD_LV >= 200
@@ -1449,6 +1467,15 @@ template<> forceinline I8x16 VECCALL I64x2::Cast<I8x16, CastMode::RangeTrunc>(co
 {
     return As<U64x2>().Cast<U8x16>(arg1.As<U64x2>(), arg2.As<U64x2>(), arg3.As<U64x2>(),
         arg4.As<U64x2>(), arg5.As<U64x2>(), arg6.As<U64x2>(), arg7.As<U64x2>()).As<I8x16>();
+}
+
+
+template<typename T, typename SIMDType, typename E>
+forceinline T VECCALL detail::Common8x16<T, SIMDType, E>::Shuffle(const U8x16& pos) const
+{
+    using V = typename T::VecType;
+    const auto data = AsType<uint8x16_t>(static_cast<const T*>(this)->Data);
+    return AsType<V>(vqtbl1q_u8(data, pos));
 }
 
 

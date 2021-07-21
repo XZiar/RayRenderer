@@ -41,9 +41,11 @@ template<> forceinline __m256i AsType(__m256d from) noexcept { return _mm256_cas
 template<> forceinline __m256d AsType(__m256d from) noexcept { return from; }
 
 
-template<typename T, typename E, size_t N>
+template<typename T, typename L, typename E, size_t N>
 struct AVX256Common : public CommonOperators<T>
 {
+    static_assert(std::is_same_v<typename L::VecType, __m128i>);
+    static_assert(std::is_same_v<typename L::EleType, E> && L::Count * 2 == N);
     using EleType = E;
     using VecType = __m256i;
     static constexpr size_t Count = N;
@@ -60,6 +62,8 @@ struct AVX256Common : public CommonOperators<T>
     constexpr AVX256Common() : Data() { }
     explicit AVX256Common(const E* ptr) : Data(_mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr))) { }
     constexpr AVX256Common(const __m256i val) : Data(val) { }
+    AVX256Common(const Pack<L, 2>& pack) : Data(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    AVX256Common(const L& lo, const L& hi) : Data(_mm256_set_m128i(hi.Data, lo.Data)) {}
     forceinline void VECCALL Load(const E* ptr) { Data = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(ptr)); }
     forceinline void VECCALL Save(E* ptr) const { _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), Data); }
     forceinline constexpr operator const __m256i& () const noexcept { return Data; }
@@ -89,14 +93,34 @@ struct AVX256Common : public CommonOperators<T>
     forceinline T VECCALL MoveHiToLo() const { return _mm256_permute4x64_epi64(Data, 0b01001110); }
     forceinline T VECCALL ShuffleHiLo() const { return _mm256_permute4x64_epi64(Data, 0b01001110); }
 #endif
+    forceinline L VECCALL GetLoLane() const 
+    {
+#if COMMON_SIMD_LV >= 200
+        return _mm256_extracti128_si256(Data, 0);
+#else
+        return _mm256_extractf128_si256(Data, 0);
+#endif
+    }
+    forceinline L VECCALL GetHiLane() const
+    {
+#if COMMON_SIMD_LV >= 200
+        return _mm256_extracti128_si256(Data, 1);
+#else
+        return _mm256_extractf128_si256(Data, 1);
+#endif
+    }
+
+    forceinline static T AllZero() noexcept { return _mm256_setzero_si256(); }
+    forceinline static T LoadLoLane(const L& lane) noexcept { return _mm256_zextsi128_si256(lane); }
+    forceinline static T LoadLo(const E val) noexcept { return LoadLoLane(L::LoadLo(val)); }
 };
 
 
-template<typename T, typename E>
-struct alignas(32) Common64x4 : public detail::AVX256Common<T, E, 4>
+template<typename T, typename L, typename E>
+struct alignas(32) Common64x4 : public detail::AVX256Common<T, L, E, 4>
 {
 private:
-    using AVX256Common = detail::AVX256Common<T, E, 4>;
+    using AVX256Common = detail::AVX256Common<T, L, E, 4>;
 public:
     using AVX256Common::AVX256Common;
     Common64x4(const E val) : AVX256Common(_mm256_set1_epi64x(static_cast<int64_t>(val))) { }
@@ -122,6 +146,8 @@ public:
         const auto SwapMask = _mm256_set_epi64x(0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL, 0x08090a0b0c0d0e0fULL, 0x0001020304050607ULL);
         return _mm256_shuffle_epi8(this->Data, SwapMask);
     }
+    forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi64(this->Data, other.Data); }
+    forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi64(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi64(this->Data, other.Data); }
@@ -152,11 +178,11 @@ public:
 };
 
 
-template<typename T, typename E>
-struct alignas(32) Common32x8 : public detail::AVX256Common<T, E, 8>
+template<typename T, typename L, typename E>
+struct alignas(32) Common32x8 : public detail::AVX256Common<T, L, E, 8>
 {
 private:
-    using AVX256Common = detail::AVX256Common<T, E, 8>;
+    using AVX256Common = detail::AVX256Common<T, L, E, 8>;
 public:
     using AVX256Common::AVX256Common;
     Common32x8(const E val) : AVX256Common(_mm256_set1_epi32(static_cast<int32_t>(val))) { }
@@ -165,12 +191,26 @@ public:
 
 #if COMMON_SIMD_LV >= 200
     // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
+    forceinline T VECCALL ShuffleLane() const // no cross lane
+    {
+        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        return _mm256_shuffle_epi32(this->Data, (Hi3 << 6) + (Lo2 << 4) + (Lo1 << 2) + Lo0);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
     forceinline T VECCALL Shuffle() const
     {
         static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
-        const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
-        return _mm256_permutevar8x32_epi32(this->Data, mask);
+        if constexpr (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 &&
+            Lo4 - Lo0 == 4 && Lo5 - Lo1 == 4 && Lo6 - Lo2 == 4 && Hi7 - Lo3 == 4) // no cross lane and same shuffle for two lane
+        {
+            return ShuffleLane<Lo0, Lo1, Lo2, Lo3>();
+        }
+        else
+        {
+            const auto mask = _mm256_setr_epi32(Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7);
+            return _mm256_permutevar8x32_epi32(this->Data, mask);
+        }
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
     {
@@ -183,6 +223,8 @@ public:
         const auto SwapMask = _mm256_set_epi64x(0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL, 0x0c0d0e0f08090a0bULL, 0x0405060700010203ULL);
         return _mm256_shuffle_epi8(this->Data, SwapMask);
     }
+    forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi32(this->Data, other.Data); }
+    forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi32(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi32(this->Data, other.Data); }
@@ -200,14 +242,14 @@ public:
 };
 
 
-template<typename T, typename E>
-struct alignas(32) Common16x16 : public detail::AVX256Common<T, E, 16>
+template<typename T, typename L, typename E>
+struct alignas(32) Common16x16 : public detail::AVX256Common<T, L, E, 16>
 {
 private:
-    using AVX256Common = detail::AVX256Common<T, E, 16>;
+    using AVX256Common = detail::AVX256Common<T, L, E, 16>;
 public:
     using AVX256Common::AVX256Common;
-    Common16x16(const E val) : AVX256Common(_mm256_set1_epi16(val)) { }
+    Common16x16(const E val) : AVX256Common(_mm256_set1_epi16(static_cast<int16_t>(val))) { }
     Common16x16(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, 
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E hi15) :
         AVX256Common(_mm256_setr_epi16(
@@ -239,6 +281,8 @@ public:
         const auto SwapMask = _mm256_set_epi64x(0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL, 0x0e0f0c0d0a0b0809ULL, 0x0607040502030001ULL);
         return _mm256_shuffle_epi8(this->Data, SwapMask);
     }
+    forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi16(this->Data, other.Data); }
+    forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi16(this->Data, other.Data); }
     
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi16(this->Data, other.Data); }
@@ -260,14 +304,14 @@ public:
 };
 
 
-template<typename T, typename E>
-struct alignas(32) Common8x32 : public detail::AVX256Common<T, E, 32>
+template<typename T, typename L, typename E>
+struct alignas(32) Common8x32 : public detail::AVX256Common<T, L, E, 32>
 {
 private:
-    using AVX256Common = detail::AVX256Common<T, E, 32>;
+    using AVX256Common = detail::AVX256Common<T, L, E, 32>;
 public:
     using AVX256Common::AVX256Common;
-    Common8x32(const E val) : AVX256Common(_mm256_set1_epi8(val)) { }
+    Common8x32(const E val) : AVX256Common(_mm256_set1_epi8(static_cast<int8_t>(val))) { }
     Common8x32(const E lo0, const E lo1, const E lo2, const E lo3, const E lo4, const E lo5, const E lo6, const E lo7, 
         const E lo8, const E lo9, const E lo10, const E lo11, const E lo12, const E lo13, const E lo14, const E lo15,
         const E lo16, const E lo17, const E lo18, const E lo19, const E lo20, const E lo21, const E lo22, const E lo23,
@@ -303,6 +347,8 @@ public:
             static_cast<int8_t>(Lo28), static_cast<int8_t>(Lo29), static_cast<int8_t>(Lo30), static_cast<int8_t>(Hi31));
         return _mm256_shuffle_epi8(this->Data, mask);
     }
+    forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi8(this->Data, other.Data); }
+    forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi8(this->Data, other.Data); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(this->Data, other.Data); }
@@ -357,9 +403,14 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 #endif
         }
     }
+    template<uint8_t Lo, uint8_t Hi>
+    forceinline F64x4 VECCALL ShuffleLane() const // no cross lane
+    {
+        static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
+        return _mm256_permute_pd(Data, (Hi << 3) + (Lo << 2) + (Hi << 1) + Lo);
+    }
     forceinline F64x4 VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
     {
-        //assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
         // _mm256_permutevar_pd checks offset[1] rather than offset[0]
         if (Lo0 < 2 && Lo1 < 2 && Lo2 >= 2 && Hi3 >= 2) // no cross lane
         {
@@ -380,6 +431,8 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 #endif
         }
     }
+    forceinline F64x4 VECCALL ZipLoLane(const F64x4& other) const { return _mm256_unpacklo_pd(this->Data, other.Data); }
+    forceinline F64x4 VECCALL ZipHiLane(const F64x4& other) const { return _mm256_unpackhi_pd(this->Data, other.Data); }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -450,6 +503,13 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     forceinline F64x4& VECCALL operator/=(const F64x4& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x4, T>::Type VECCALL Cast(const Args&... args) const;
+
+    forceinline F64x2 VECCALL GetLoLane() const { return _mm256_extractf128_pd(Data, 0); }
+    forceinline F64x2 VECCALL GetHiLane() const { return _mm256_extractf128_pd(Data, 1); }
+
+    forceinline static F64x4 AllZero() noexcept { return _mm256_setzero_pd(); }
+    forceinline static F64x4 LoadLoLane(const F64x2& lane) noexcept { return _mm256_zextpd128_pd256(lane); }
+    forceinline static F64x4 LoadLo(const double val) noexcept { return LoadLoLane(F64x2::LoadLo(val)); }
 };
 
 
@@ -477,6 +537,12 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline void VECCALL Save(float *ptr) const { _mm256_storeu_ps(ptr, Data); }
 
     // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
+    forceinline F32x8 VECCALL ShuffleLane() const // no cross lane
+    {
+        static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
+        return _mm256_permute_ps(Data, (Hi3 << 6) + (Lo2 << 4) + (Lo1 << 2) + Lo0);
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
     forceinline F32x8 VECCALL Shuffle() const
     {
@@ -484,7 +550,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         if constexpr (Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Lo3 < 4 &&
             Lo4 - Lo0 == 4 && Lo5 - Lo1 == 4 && Lo6 - Lo2 == 4 && Hi7 - Lo3 == 4) // no cross lane and same shuffle for two lane
         {
-            return _mm256_permute_ps(Data, (Lo3 << 6) + (Lo2 << 4) + (Lo1 << 2) + Lo0);
+            return ShuffleLane<Lo0, Lo1, Lo2, Lo3>();
         }
         else
         {
@@ -539,6 +605,8 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         }
 #endif
     }
+    forceinline F32x8 VECCALL ZipLoLane(const F32x8& other) const { return _mm256_unpacklo_ps(this->Data, other.Data); }
+    forceinline F32x8 VECCALL ZipHiLane(const F32x8& other) const { return _mm256_unpackhi_ps(this->Data, other.Data); }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -625,13 +693,19 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline F32x8& VECCALL operator/=(const F32x8& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F32x8, T>(), typename... Args>
     typename CastTyper<F32x8, T>::Type VECCALL Cast(const Args&... args) const;
+
+    forceinline F32x4 VECCALL GetLoLane() const { return _mm256_extractf128_ps(Data, 0); }
+    forceinline F32x4 VECCALL GetHiLane() const { return _mm256_extractf128_ps(Data, 1); }
+
+    forceinline static F32x8 AllZero() noexcept { return _mm256_setzero_ps(); }
+    forceinline static F32x8 LoadLoLane(const F32x4& lane) noexcept { return _mm256_zextps128_ps256(lane); }
+    forceinline static F32x8 LoadLo(const float val) noexcept { return LoadLoLane(F32x4::LoadLo(val)); }
 };
 
 
-struct alignas(32) I64x4 : public detail::Common64x4<I64x4, int64_t>
+struct alignas(32) I64x4 : public detail::Common64x4<I64x4, I64x2, int64_t>
 {
-    using Common64x4<I64x4, int64_t>::Common64x4;
-    I64x4(const Pack<I64x2, 2>& pack) : Common64x4(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common64x4<I64x4, I64x2, int64_t>::Common64x4;
 
 #if COMMON_SIMD_LV >= 200
     template<CompareType Cmp, MaskType Msk>
@@ -685,10 +759,9 @@ struct alignas(32) I64x4 : public detail::Common64x4<I64x4, int64_t>
     typename CastTyper<I64x4, T>::Type VECCALL Cast(const Args&... args) const;
 };
 
-struct alignas(32) U64x4 : public detail::Common64x4<U64x4, uint64_t>
+struct alignas(32) U64x4 : public detail::Common64x4<U64x4, U64x2, uint64_t>
 {
-    using Common64x4<U64x4, uint64_t>::Common64x4;
-    U64x4(const Pack<U64x2, 2>& pack) : Common64x4(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common64x4<U64x4, U64x2, uint64_t>::Common64x4;
 
 #if COMMON_SIMD_LV >= 200
     // compare operations
@@ -742,10 +815,9 @@ struct alignas(32) U64x4 : public detail::Common64x4<U64x4, uint64_t>
 };
 
 
-struct alignas(32) I32x8 : public detail::Common32x8<I32x8, int32_t>
+struct alignas(32) I32x8 : public detail::Common32x8<I32x8, I32x4, int32_t>
 {
-    using Common32x8<I32x8, int32_t>::Common32x8;
-    I32x8(const Pack<I32x4, 2>& pack) : Common32x8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common32x8<I32x8, I32x4, int32_t>::Common32x8;
 
 #if COMMON_SIMD_LV >= 200
     template<CompareType Cmp, MaskType Msk>
@@ -799,10 +871,9 @@ template<> forceinline Pack<F64x4, 2> VECCALL I32x8::Cast<F64x4>() const
 }
 
 
-struct alignas(__m256i) U32x8 : public detail::Common32x8<U32x8, uint32_t>
+struct alignas(__m256i) U32x8 : public detail::Common32x8<U32x8, U32x4, uint32_t>
 {
-    using Common32x8<U32x8, uint32_t>::Common32x8;
-    U32x8(const Pack<U32x4, 2>& pack) : Common32x8(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common32x8<U32x8, U32x4, uint32_t>::Common32x8;
 
 #if COMMON_SIMD_LV >= 200
     // compare operations
@@ -895,10 +966,9 @@ template<> forceinline Pack<F64x4, 2> VECCALL U32x8::Cast<F64x4, CastMode::Range
 #endif
 
 
-struct alignas(32) I16x16 : public detail::Common16x16<I16x16, int16_t>
+struct alignas(32) I16x16 : public detail::Common16x16<I16x16, I16x8, int16_t>
 {
-    using Common16x16<I16x16, int16_t>::Common16x16;
-    I16x16(const Pack<I16x8, 2>& pack) : Common16x16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common16x16<I16x16, I16x8, int16_t>::Common16x16;
 
 #if COMMON_SIMD_LV >= 200
     template<CompareType Cmp, MaskType Msk>
@@ -963,10 +1033,9 @@ template<> forceinline Pack<F64x4, 4> VECCALL I16x16::Cast<F64x4, CastMode::Rang
 #endif
 
 
-struct alignas(32) U16x16 : public detail::Common16x16<U16x16, uint16_t>
+struct alignas(32) U16x16 : public detail::Common16x16<U16x16, U16x8, uint16_t>
 {
-    using Common16x16<U16x16, uint16_t>::Common16x16;
-    U16x16(const Pack<U16x8, 2>& pack) : Common16x16(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common16x16<U16x16, U16x8, uint16_t>::Common16x16;
 
 #if COMMON_SIMD_LV >= 200
     // compare operations
@@ -1030,10 +1099,9 @@ template<> forceinline Pack<F64x4, 4> VECCALL U16x16::Cast<F64x4, CastMode::Rang
 #endif
 
 
-struct alignas(32) I8x32 : public detail::Common8x32<I8x32, int8_t>
+struct alignas(32) I8x32 : public detail::Common8x32<I8x32, I8x16, int8_t>
 {
-    using Common8x32<I8x32, int8_t>::Common8x32;
-    I8x32(const Pack<I8x16, 2>& pack) : Common8x32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
+    using Common8x32<I8x32, I8x16, int8_t>::Common8x32;
 
 #if COMMON_SIMD_LV >= 200
     template<CompareType Cmp, MaskType Msk>
@@ -1130,9 +1198,9 @@ forceinline Pack<I16x16, 2> VECCALL I8x32::MulX(const I8x32& other) const
 #endif
 
 
-struct alignas(32) U8x32 : public detail::Common8x32<U8x32, uint8_t>
+struct alignas(32) U8x32 : public detail::Common8x32<U8x32, U8x16, uint8_t>
 {
-    using Common8x32<U8x32, uint8_t>::Common8x32;
+    using Common8x32<U8x32, U8x16, uint8_t>::Common8x32;
     U8x32(const Pack<U8x16, 2>& pack) : Common8x32(_mm256_set_m128i(pack[1].Data, pack[0].Data)) {}
 
 #if COMMON_SIMD_LV >= 200
