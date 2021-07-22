@@ -100,7 +100,6 @@
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -119,7 +118,6 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -138,7 +136,6 @@
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -153,7 +150,6 @@
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -167,7 +163,6 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>_DEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -183,7 +178,6 @@
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>NDEBUG;_LIB;VERSION="0.5.1";_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <DisableSpecificWarnings>4100;4189;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

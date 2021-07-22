@@ -94,7 +94,7 @@ python3 xzbuild buildall UtilTest
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [FreeGLUT](http://freeglut.sourceforge.net)  3.2.1
+* [FreeGLUT](http://freeglut.sourceforge.net) `submodule` 3.2.1
 
   [MIT License](./3rdParty/freeglut/license.txt)
 
@@ -102,7 +102,7 @@ python3 xzbuild buildall UtilTest
 
   [Boost Software License](./License/boost.txt)
 
-* [fmt](http://fmtlib.net) [`submodule`](https://github.com/XZiar/fmt) 8.0.0 (customized with utf-support)
+* [fmt](https://fmt.dev/) [`submodule`](https://github.com/XZiar/fmt) 8.0.1 (customized with utf-support)
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 
@@ -118,9 +118,9 @@ python3 xzbuild buildall UtilTest
   
   [Public Domain](https://github.com/kerukuro/digestpp/blob/master/LICENSE)
 
-* [FreeType2](https://www.freetype.org/) 2.10.4
+* [FreeType](https://www.freetype.org/) `submodule` 2.11.0
 
-  [The FreeType License](./3rdParty/freetype2/license.txt)
+  [The FreeType License](./3rdParty/FreeType/LICENSE.TXT)
 
 * [ISPCTextureCompressor](https://github.com/GameTechDev/ISPCTextureCompressor)
   
@@ -130,7 +130,7 @@ python3 xzbuild buildall UtilTest
   
   [MIT License](./3rdParty/half/LICENSE.txt)
 
-* [libcpuid](http://libcpuid.sourceforge.net/)  `submodule` 0.5.1
+* [libcpuid](http://libcpuid.sourceforge.net/) `submodule` 0.5.1
 
   [BSD License](./3rdParty/cpuid/COPYING)
 

@@ -2,9 +2,9 @@
     "name": "FreeType",
     "type": "static",
     "description": "A freely available software library to render fonts",
-    "version": "2.10.4",
+    "version": "2.11.0",
     "dependency": ["zlib-ng", "png"],
-    "srcPath": "../../FreeType/src",
+    "srcPath": "../../FreeType",
     "library": 
     {
         "static": [],
@@ -19,14 +19,29 @@
                 "FT2_BUILD_LIBRARY", 
                 {"ifeq":{"target":"debug"}, "+": ["FT_DEBUG_LEVEL_ERROR", "FT_DEBUG_LEVEL_TRACE"]}
             ],
-            "incpath": ["$(BuildDir)", "../include", "../../zlib-ng", "$(BuildDir)/../zlib-ng", "../../libpng", "$(BuildDir)/../libpng"]
+            "incpath": ["$(BuildDir)", "./include", "../zlib-ng", "$(BuildDir)/../zlib-ng", "../libpng", "$(BuildDir)/../libpng"]
         },
         "c":
         {
             "sources": 
             [
-                {"dir": "base", "+": ["ftbase.c","ftbbox.c","ftbdf.c","ftbitmap.c","ftcid.c","ftdebug.c","ftfstype.c","ftgasp.c","ftglyph.c","ftgxval.c","ftinit.c","ftmm.c","ftotval.c","ftpatent.c","ftpfr.c","ftstroke.c","ftsynth.c","ftsystem.c","fttype1.c","ftwinfnt.c"]},
-                "autofit/autofit.c","bdf/bdf.c","cache/ftcache.c","cff/cff.c","cid/type1cid.c","gzip/ftgzip.c","lzw/ftlzw.c","pcf/pcf.c","pfr/pfr.c","psaux/psaux.c","pshinter/pshinter.c","psnames/psmodule.c","raster/raster.c","sfnt/sfnt.c","smooth/smooth.c","truetype/truetype.c","type1/type1.c","type42/type42.c","winfonts/winfnt.c"
+                {
+                    "dir": "src/base", "+": 
+                    [
+                        "ftbase.c", "ftbbox.c", "ftbdf.c", "ftbitmap.c", "ftcid.c", "ftdebug.c", "ftfstype.c", "ftgasp.c",
+                        "ftglyph.c", "ftgxval.c", "ftinit.c", "ftmm.c", "ftotval.c", "ftpatent.c", "ftpfr.c", "ftstroke.c",
+                        "ftsynth.c", "fttype1.c", "ftwinfnt.c"
+                    ]
+                },
+                {
+                    "dir": "src", "+":
+                    [
+                        "autofit/autofit.c", "bdf/bdf.c", "bzip2/ftbzip2.c", "cache/ftcache.c", "cff/cff.c", "cid/type1cid.c", "gzip/ftgzip.c", "lzw/ftlzw.c", "pcf/pcf.c",
+                        "pfr/pfr.c", "psaux/psaux.c", "pshinter/pshinter.c", "psnames/psnames.c", "raster/raster.c", "sdf/sdf.c", "sfnt/sfnt.c", "smooth/smooth.c",
+                        "truetype/truetype.c", "type1/type1.c", "type42/type42.c", "winfonts/winfnt.c"
+                    ]
+                },
+                "builds/unix/ftsystem.c"
             ]
         },
         "cpp":

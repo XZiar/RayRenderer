@@ -85,17 +85,16 @@
     <RealSourceDir>$(SolutionDir)3rdParty\FreeType</RealSourceDir>
   </PropertyGroup>
   <PropertyGroup>
-    <IncludePath>$(SolutionDir)3rdParty\FreeType\include;$(SolutionDir)3rdParty\Projects\libpng;$(SolutionDir)3rdParty\libpng;$(SolutionDir)3rdParty\zlib-ng;$(SolutionDir)3rdParty\Projects\zlib-ng;$(ProjectDir);$(SolutionDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);$(SolutionDir)3rdParty\FreeType\include;$(SolutionDir)3rdParty\Projects\libpng;$(SolutionDir)3rdParty\libpng;$(SolutionDir)3rdParty\zlib-ng;$(SolutionDir)3rdParty\Projects\zlib-ng;$(SolutionDir);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -104,6 +103,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
@@ -112,13 +113,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -127,6 +127,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
@@ -134,12 +136,11 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -148,6 +149,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
@@ -161,16 +164,16 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -189,16 +192,16 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>__SSE4_2__;NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -215,16 +218,16 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4819;4001;</DisableSpecificWarnings>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <DisableLanguageExtensions>true</DisableLanguageExtensions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -235,14 +238,16 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FreeType.cpp" />
+    <ClCompile Include="FreeType.cpp">
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\autofit\autofit.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbase.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbbox.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbdf.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbitmap.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftcid.c" />
-    <ClCompile Include="$(RealSourceDir)\src\base\ftdebug.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftfstype.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftgasp.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftglyph.c" />
@@ -254,10 +259,10 @@
     <ClCompile Include="$(RealSourceDir)\src\base\ftpfr.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftstroke.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftsynth.c" />
-    <ClCompile Include="$(RealSourceDir)\src\base\ftsystem.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\fttype1.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftwinfnt.c" />
     <ClCompile Include="$(RealSourceDir)\src\bdf\bdf.c" />
+    <ClCompile Include="$(RealSourceDir)\src\bzip2\ftbzip2.c" />
     <ClCompile Include="$(RealSourceDir)\src\cache\ftcache.c" />
     <ClCompile Include="$(RealSourceDir)\src\cff\cff.c" />
     <ClCompile Include="$(RealSourceDir)\src\cid\type1cid.c" />
@@ -267,24 +272,31 @@
     <ClCompile Include="$(RealSourceDir)\src\pfr\pfr.c" />
     <ClCompile Include="$(RealSourceDir)\src\psaux\psaux.c" />
     <ClCompile Include="$(RealSourceDir)\src\pshinter\pshinter.c" />
-    <ClCompile Include="$(RealSourceDir)\src\psnames\psmodule.c" />
+    <ClCompile Include="$(RealSourceDir)\src\psnames\psnames.c" />
     <ClCompile Include="$(RealSourceDir)\src\raster\raster.c" />
+    <ClCompile Include="$(RealSourceDir)\src\sdf\sdf.c" />
     <ClCompile Include="$(RealSourceDir)\src\sfnt\sfnt.c" />
     <ClCompile Include="$(RealSourceDir)\src\smooth\smooth.c" />
     <ClCompile Include="$(RealSourceDir)\src\truetype\truetype.c" />
     <ClCompile Include="$(RealSourceDir)\src\type1\type1.c" />
     <ClCompile Include="$(RealSourceDir)\src\type42\type42.c" />
     <ClCompile Include="$(RealSourceDir)\src\winfonts\winfnt.c" />
+    <ClCompile Include="$(RealSourceDir)\builds\windows\ftdebug.c">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\builds\windows\ftsystem.c">
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FreeType.h" />
     <ClInclude Include="FtException.h" />
-    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftconfig.h" />
+    <ClInclude Include="freetype\config\ftconfig.h" />
+    <ClInclude Include="freetype\config\ftoption.h" />
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftheader.h" />
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftmodule.h" />
-    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftoption.h" />
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftstdlib.h" />
-    <ClInclude Include="$(RealSourceDir)\ft2build.h" />
+    <ClInclude Include="$(RealSourceDir)\include\ft2build.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libpng\libpng.vcxproj">

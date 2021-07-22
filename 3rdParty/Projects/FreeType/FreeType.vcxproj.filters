@@ -33,16 +33,13 @@
     <ClCompile Include="$(RealSourceDir)\src\bdf\bdf.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\bzip2\ftbzip2.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\cff\cff.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\src\base\ftsystem.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\base\ftbase.c">
-      <Filter>源文件\freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\src\base\ftdebug.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\base\ftinit.c">
@@ -108,6 +105,9 @@
     <ClCompile Include="$(RealSourceDir)\src\raster\raster.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\sdf\sdf.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\sfnt\sfnt.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
@@ -123,7 +123,7 @@
     <ClCompile Include="$(RealSourceDir)\src\winfonts\winfnt.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
-    <ClCompile Include="$(RealSourceDir)\src\psnames\psmodule.c">
+    <ClCompile Include="$(RealSourceDir)\src\psnames\psnames.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\base\ftbitmap.c">
@@ -144,6 +144,12 @@
     <ClCompile Include="$(RealSourceDir)\src\type42\type42.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\builds\windows\ftdebug.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\builds\windows\ftsystem.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FreeType.h">
@@ -152,10 +158,13 @@
     <ClInclude Include="FtException.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftstdlib.h">
+    <ClInclude Include="freetype\config\ftconfig.h">
       <Filter>头文件\freetype</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftconfig.h">
+    <ClInclude Include="freetype\config\ftoption.h">
+      <Filter>头文件\freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftstdlib.h">
       <Filter>头文件\freetype</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftheader.h">
@@ -164,10 +173,7 @@
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftmodule.h">
       <Filter>头文件\freetype</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftoption.h">
-      <Filter>头文件\freetype</Filter>
-    </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\ft2build.h">
+    <ClInclude Include="$(RealSourceDir)\include\ft2build.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

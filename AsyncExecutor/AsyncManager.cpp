@@ -31,7 +31,7 @@ std::pair<void*, std::byte*> AsyncTaskNodeBase::CreateSpace(size_t align, size_t
     constexpr auto BAlign = alignof(B);
     const auto finalAlign = std::max(align, BAlign);
     const auto offset = (BSize + align - 1) / align * align;
-    const auto ptr = malloc_align(finalAlign, offset + size);
+    const auto ptr = malloc_align(offset + size, finalAlign);
     new (ptr)B();
     return { ptr, reinterpret_cast<std::byte*>(ptr) + offset };
 }

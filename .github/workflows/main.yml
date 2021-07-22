@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [gcc7, gcc8, gcc9, clang8, clang9, clang10]
+        cxx: [gcc8, gcc9, gcc10, clang9, clang10, clang11]
         include:
           - cxx: gcc8
             env_cc: "gcc-8"

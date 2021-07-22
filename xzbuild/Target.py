@@ -87,6 +87,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
     def solveTarget(self, targets:dict, proj, env:dict):
         self.flags += ["-Wall", "-pedantic", "-pthread", "-Wno-unknown-pragmas", "-Wno-ignored-attributes", "-Wno-unused-local-typedefs", "-fno-common"]
         self.flags += [env["archparam"]]
+        if env["gprof"] == True:
+            self.flags += ["-pg"]
         if env["arch"] == "x86":
             self.flags += ["-m64" if env["bits"] == 64 else "-m32"]
         self.optimize = "-O2" if env["target"] == "Release" else "-O0"

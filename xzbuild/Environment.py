@@ -167,6 +167,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"]
     
     env["cpuCount"] = os.cpu_count()
+    env["gprof"] = "grof" in paras
     threads = paras.get("threads", "x1")
     if threads.startswith('x'):
         env["threads"] = int(env["cpuCount"] * float(threads[1:]))

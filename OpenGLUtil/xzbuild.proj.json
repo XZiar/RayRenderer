@@ -6,7 +6,7 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["GL", "X11"]
+        "dynamic": ["GL", "X11", "dl"]
     },
     "targets":
     {
