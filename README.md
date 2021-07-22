@@ -58,11 +58,14 @@ To use `xzbuild`, python3.6+ is required.
 
 ## Build
 
-To build C++ parts, an C++17 compiler is needed. For Linux, GCC7.3 and later are tested. For Windows, VS2019(`16.0`) is needed for the vcproj version.
+To build C++ parts, an C++17 compiler is needed. 
 
-Project uses `VisualStudio2019` on Windows, and uses `xzbuild` with make on Linux. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on GCC(7.3&8.0) and Clang(7.0&8.0).
+For Windows, project uses `VisualStudio2019`, VS2019(`16.0`) is needed for the vcproj version.
 
-They can be built by [`xzbuild`](./xzbuild) (python3.6+).
+For Linux, project uses [`xzbuild`](./xzbuild) (need python3.6+) with make. Utilities that have `xzbuild.proj.json` inside are capable to be compiled on Linux, tested on gcc(8~10) and clang(9~11).
+* Note that gcc7 has [compatibility issue](https://github.com/XZiar/RayRenderer/runs/3111404571?check_suite_focus=true#step:9:456) with SIMD.hpp and clang8 has [ICE](https://github.com/XZiar/RayRenderer/runs/3111404672#step:9:443) with SystemCommon, so **at least gcc8 & clang9** is required. 
+
+> Example usage of [`xzbuild`](./xzbuild)
 
 ```shell
 python3 xzbuild help

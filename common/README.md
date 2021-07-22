@@ -54,23 +54,28 @@ It also provided a read-write lock(both priority supported) and a prefer-lock, b
 
 A utility to provide time query support, mainly used as a timer.
 
-### [SIMD](./simd/SIMD.hpp) **`unfinished`**
+### [SIMD](./simd/SIMD.hpp) **`working`**
 
-It provides SSE/AVX static version test (compiler support).
+It provides SIMD support (SSE/AVX/NEON).
 
-[SIMD128](./simd/SIMD128.hpp) and [SIMD256](./simd/SIMD256.hpp) provide SIMD vector types support.
+* [SIMD](./simd/SIMD.hpp) Basic SIMD handling.
+  * Include correct header file.
+  * Apply workarounds for missing functions based on compiler version.
+  * Static SIMD version detection (with compiler pre-defined macros).
+
+* [SIMD128](./simd/SIMD128.hpp) 128bit vector types, based on SSE/NEON. With `AVX/AVX2/AVX512`, or `ARMv8-ASIMD`, extra functionality or enhanced support will be provided.
+  * Types: `F64x2`, `F32x4`, `I64x2`, `U64x2`, `I32x4`, `U32x4`, `I16x8`, `U16x8`, `I8x16`, `U8x16`.
+  
+* [SIMD256](./simd/SIMD256.hpp) 256bit vector types, based on AVX/AVX2. With `AVX512`, extra functionality or enhanced support will be provided.
+  * Types: `F64x4`, `F32x8`, `I64x4`, `U64x4`, `I32x8`, `U32x8`, `I16x16`, `U16x16`, `I8x32`, `U8x32`.
+
+Unittests can be found in [BasicsTest](../Tests/BasicsTest/).
 
 ### [RefObject](./RefObject.hpp)
 
 An ateempt to combine intrusive refrence counting with pimpl. It natively supports type erasure and belonging ownership. 
 
 It is used by inherit so we can expose operations natively without using `->`. However, seperating data and operation makes it harder to decide which part need to be keep by others.
-
-### [Wrapper](./Wrapper.hpp) `**Deprecated**`
-
-Wrapper can be simply regarded as a combination of `shared_ptr` and `make_shared`. It is mostly my own taste and may not be recommended.
-
-Inside Wrapper I used some SFINAE tech to detect type, which may result in some compiler error --- SFINAE need class type fully defined, so you just can't use Wrapper for an incomplete type, which is common in forward-declaration.
 
 ### [SharedString](./SharedString.hpp)
 
@@ -79,16 +84,6 @@ A shared immutable string.
 Some string is used across threads but not being modified, so they can be shared with proper lifetime management.
 
 ShareString provides access using string_view and uses embedded reference-block to save pointer's dereference overhead.
-
-### [PromiseTask](./PromiseTask.hpp)
-
-`PromiseResut` is the foundation of other async operation utilities (like `AsyncExecutor`, `OpenGLUtil`, `OpenCLUtil`), which provides a common interface to operate a result which may not be ready yet.
-
-Non-templated `PromiseResultCore` provides state and time infomation, which ease the promise storing with type-erasure. Because of this, `PromiseResut` should be stored in heap and wrapped by `shared_ptr`
-
-`IsPromiseResult<T>()` and `EnsurePromiseResult<T>()` can be used to check if `T` is type of `PromiseResult`. `PromiseChecker` provides ability to return result type.
-
-[PromiseTaskSTD.hpp](PromiseTaskSTD.hpp) is a wrapper for C++11's `future` and `promise`. It is seperated due to the incompatiblility with C++/CLI.
 
 ### [EasierJSON](./EasierJSON.hpp)
 

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?> 
-<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
-  <Type Name="common::OPResult&lt;*&gt;">
-    <DisplayString Condition="isSuc == true">success</DisplayString>
-    <DisplayString Condition="isSuc != true">fail</DisplayString>
-  </Type>
-</AutoVisualizer>

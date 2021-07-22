@@ -6,6 +6,10 @@ A collection of useful system-level utilities
 
 some utilities that are too basic to find a suitable place to host.
 
+### [RuntimeFastPath](./RuntimeFastPath.h)
+
+Common infrastructure to provide runtime-decided fastpath for some operations.
+
 ### [LoopBase](./LoopBase.h)
 
 * `LoopBase`    Base structure for loop based operation.
@@ -35,13 +39,38 @@ Others wakeup prevent sleeping    -> | Forbid | --|
      |--------------------------------------------|
 ```
 
+### [PromiseTask](./PromiseTask.h)
+
+`PromiseResut` is the foundation of other async operation utilities (like `AsyncExecutor`, `OpenGLUtil`, `OpenCLUtil`), which provides a common interface to operate a result which may not be ready yet.
+
+Non-templated `PromiseResultCore` provides state and time infomation, which ease the promise storing with type-erasure. Because of this, `PromiseResult` should be stored in heap and wrapped by `shared_ptr`.
+
+`IsPromiseResult<T>()` and `EnsurePromiseResult<T>()` can be used to check if `T` is type of `PromiseResult`. `PromiseChecker` provides ability to return result type.
+
+[PromiseTaskSTD.h](PromiseTaskSTD.h) is a wrapper for C++11's `future` and `promise`. It is seperated due to the incompatiblility with C++/CLI.
+
+### [CopyEx](./CopyEx.h) 
+
+Based on `RuntimeFastPath`.
+
+A collection of batch operations for type-conversion with acceleration of [SIMD](../common/simd). 
+
 ### [MiscIntrins](./MiscIntrins.h)
 
-A wrapper of some basic operations that may be supported by using CPU intrins. Multiple implementations are provided depending on compiler flags, and the actual implementation to use is statically constructed according to cpuid.
+Based on `RuntimeFastPath`.
+
+A wrapper of some basic operations that may be supported by using CPU intrins. 
 
 ### [DigestFuncs](./MiscIntrins.h)
 
-A wrapper of some digest functions that may be supported by using CPU intrins. Multiple implementations are provided depending on compiler flags, and the actual implementation to use is statically constructed according to cpuid.
+Based on `RuntimeFastPath`.
+
+A wrapper of some digest functions that may be supported by using CPU intrins.
+
+* `SHA256`: 
+  * `SHA-NI`, `SHA-NI+AVX2` on x86.
+  * `ARMv8-SHA2` on Arm.
+  * `NAIVE` on all based on [`digestpp`](../3rdParty/digestpp)
 
 ## System Components
 

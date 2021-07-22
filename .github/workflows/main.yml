@@ -73,16 +73,6 @@ jobs:
       matrix:
         cxx: [gcc7, gcc8, gcc9, clang8, clang9, clang10]
         include:
-          - cxx: gcc7
-            env_cc: "gcc-7"
-            env_asm: "g++-7"
-            env_cpp: "g++-7"
-            env_stalink: "gcc-ar-7"
-            env_dynlink: "g++-7"
-            env_applink: "g++-7"
-            env_module: "all"
-            env_clang: false
-            pkg: "g++-7"
           - cxx: gcc8
             env_cc: "gcc-8"
             env_asm: "g++-8"
@@ -103,17 +93,16 @@ jobs:
             env_module: "all"
             env_clang: false
             pkg: "g++-9"
-          - cxx: clang8
-            env_cc: "clang-8"
-            env_asm: "clang++-8"
-            env_cpp: "clang++-8"
-            env_stalink: "ar"
-            env_dynlink: "clang++-8"
-            env_applink: "clang++-8"
+          - cxx: gcc10
+            env_cc: "gcc-10"
+            env_asm: "g++-10"
+            env_cpp: "g++-10"
+            env_stalink: "gcc-ar-10"
+            env_dynlink: "g++-10"
+            env_applink: "g++-10"
             env_module: "all"
-            env_clang: true
-            env_clang_ver: 8
-            pkg: "clang-8 lld-8"
+            env_clang: false
+            pkg: "g++-10"
           - cxx: clang9
             env_cc: "clang-9"
             env_asm: "clang++-9"
@@ -136,6 +125,17 @@ jobs:
             env_clang: true
             env_clang_ver: 10
             pkg: "clang-10 lld-10"
+          - cxx: clang11
+            env_cc: "clang-11"
+            env_asm: "clang++-11"
+            env_cpp: "clang++-11"
+            env_stalink: "ar"
+            env_dynlink: "clang++-11"
+            env_applink: "clang++-11"
+            env_module: "all"
+            env_clang: true
+            env_clang_ver: 11
+            pkg: "clang-11 lld-11"
     
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it

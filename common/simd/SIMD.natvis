@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::simd::F64x2">
+    <DisplayString>F64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>((const uint64_t*)Val)[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>((const uint64_t*)Val)[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[2]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::F32x4">
+    <DisplayString>F32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>((const uint32_t*)Val)[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>((const uint32_t*)Val)[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I64x2">
+    <DisplayString>I64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[2]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U64x2">
+    <DisplayString>U64x2: {{{Val[0]}, {Val[1]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>2</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[2]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I32x4">
+    <DisplayString>I32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U32x4">
+    <DisplayString>U32x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I16x8">
+    <DisplayString>I16x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[8]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U16x8">
+    <DisplayString>U16x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[8]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I8x16">
+    <DisplayString>I8x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[16]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U8x16">
+    <DisplayString>U8x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[16]na</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="common::simd::F64x4">
+    <DisplayString>F64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>((const uint64_t*)Val)[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>((const uint64_t*)Val)[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::F32x8">
+    <DisplayString>F32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>((const uint32_t*)Val)[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>((const uint32_t*)Val)[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[8]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I64x4">
+    <DisplayString>I64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U64x4">
+    <DisplayString>U64x4: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>4</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[4]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I32x8">
+    <DisplayString>I32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[8]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U32x8">
+    <DisplayString>U32x8: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>8</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[8]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I16x16">
+    <DisplayString>I16x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[16]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U16x16">
+    <DisplayString>U16x16: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>16</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[16]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::I8x32">
+    <DisplayString>I8x32: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>32</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>32</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[32]na</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::simd::U8x32">
+    <DisplayString>U8x32: {{{Val[0]}, {Val[1]}, {Val[2]}, {Val[3]}, {Val[4]}, {Val[5]}, {Val[6]}, {Val[7]}, ...}}</DisplayString>
+    <Expand>
+      <Item Name="simd">Data</Item>
+      <Synthetic Name="hex">
+        <Expand>
+          <IndexListItems>
+            <Size>32</Size>
+            <ValueNode>Val[$i],x</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Synthetic Name="bin">
+        <Expand>
+          <IndexListItems>
+            <Size>32</Size>
+            <ValueNode>Val[$i],b</ValueNode>
+          </IndexListItems>
+        </Expand>
+      </Synthetic>
+      <Item Name="val">&amp;Val[0],[32]na</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>

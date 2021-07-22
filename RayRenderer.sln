@@ -382,6 +382,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "simd", "simd", "{4A40A101-97F5-4958-93FD-5E7F35D9A500}"
 	ProjectSection(SolutionItems) = preProject
 		common\simd\SIMD.hpp = common\simd\SIMD.hpp
+		common\simd\SIMD.natvis = common\simd\SIMD.natvis
 		common\simd\SIMD128.hpp = common\simd\SIMD128.hpp
 		common\simd\SIMD128NEON.hpp = common\simd\SIMD128NEON.hpp
 		common\simd\SIMD128SSE.hpp = common\simd\SIMD128SSE.hpp

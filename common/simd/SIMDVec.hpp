@@ -39,42 +39,42 @@ struct alignas(T) Pack
     static constexpr size_t EleCount = N;
     T Data[N];
     template<typename... Ts, typename = std::enable_if_t<sizeof...(Ts) == N>>
-    Pack(const Ts&... vals) noexcept : Data{ vals... } {}
-    constexpr T& operator[](const size_t idx) noexcept { return Data[idx]; }
-    constexpr const T& operator[](const size_t idx) const noexcept { return Data[idx]; }
+    forceinline Pack(const Ts&... vals) noexcept : Data{ vals... } {}
+    forceinline constexpr T& operator[](const size_t idx) noexcept { return Data[idx]; }
+    forceinline constexpr const T& operator[](const size_t idx) const noexcept { return Data[idx]; }
     template<typename U>
-    auto Cast() const noexcept;
+    forceinline auto Cast() const noexcept;
     template<typename U>
-    Pack<U, N> As() const noexcept;
+    forceinline Pack<U, N> As() const noexcept;
 };
 
 namespace detail
 {
 template<typename To, typename From>
-inline To AsType(From) noexcept
+forceinline To AsType(From) noexcept
 {
     static_assert(!AlwaysTrue<To>, "not implemented");
 }
 template<typename D, typename S, size_t N, size_t... I>
-inline Pack<D, N> PackCast(const Pack<S, N>& src, std::index_sequence<I...>)
+forceinline Pack<D, N> PackCast(const Pack<S, N>& src, std::index_sequence<I...>)
 {
     static_assert(sizeof...(I) == N);
     return Pack<D, N>{ src[I].template Cast<D>()... };
 }
 template<typename D, typename S, size_t N, size_t... I>
-inline Pack<D, N> PackAs(const Pack<S, N>& src, std::index_sequence<I...>)
+forceinline Pack<D, N> PackAs(const Pack<S, N>& src, std::index_sequence<I...>)
 {
     static_assert(sizeof...(I) == N);
     using X = decltype(std::declval<D>().Data);
     return Pack<D, N>{ AsType<X>(src[I].Data)... };
 }
 template<size_t I, typename D, size_t M, size_t N>
-inline D ExtractPackData(const Pack<D, M>(&dat)[N])
+forceinline D ExtractPackData(const Pack<D, M>(&dat)[N])
 {
     return dat[I / M][I % M];
 }
 template<typename D, size_t M, typename S, size_t N, size_t... I, size_t... J>
-inline Pack<D, N * M> PackCastExpand(const Pack<S, N>& src, std::index_sequence<I...>, std::index_sequence<J...>)
+forceinline Pack<D, N * M> PackCastExpand(const Pack<S, N>& src, std::index_sequence<I...>, std::index_sequence<J...>)
 {
     static_assert(sizeof...(I) == N);
     static_assert(sizeof...(J) == N * M);
@@ -122,45 +122,45 @@ template<typename T>
 struct CommonOperators
 {
     // logic operations
-    T operator&(const T& other) const { return static_cast<const T*>(this)->And(other); }
-    T operator|(const T& other) const { return static_cast<const T*>(this)->Or(other); }
-    T operator^(const T& other) const { return static_cast<const T*>(this)->Xor(other); }
-    T operator~() const { return static_cast<const T*>(this)->Not(); }
-    T& operator&=(const T& other) 
+    forceinline T VECCALL operator&(const T& other) const { return static_cast<const T*>(this)->And(other); }
+    forceinline T VECCALL operator|(const T& other) const { return static_cast<const T*>(this)->Or(other); }
+    forceinline T VECCALL operator^(const T& other) const { return static_cast<const T*>(this)->Xor(other); }
+    forceinline T VECCALL operator~() const { return static_cast<const T*>(this)->Not(); }
+    forceinline T& VECCALL operator&=(const T& other)
     {
         const auto self = static_cast<T*>(this);
         self->Data = self->And(other); 
         return *self;
     }
-    T& operator|=(const T& other) 
+    forceinline T& VECCALL operator|=(const T& other)
     {
         const auto self = static_cast<T*>(this);
         self->Data = self->Or(other);
         return *self;
     }
-    T& operator^=(const T& other) 
+    forceinline T& VECCALL operator^=(const T& other)
     {
         const auto self = static_cast<T*>(this);
         self->Data = self->Xor(other);
         return *self;
     }
     // arithmetic operations
-    T operator+(const T& other) const { return static_cast<const T*>(this)->Add(other); }
-    T operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
-    T& operator+=(const T& other) 
+    forceinline T VECCALL operator+(const T& other) const { return static_cast<const T*>(this)->Add(other); }
+    forceinline T VECCALL operator-(const T& other) const { return static_cast<const T*>(this)->Sub(other); }
+    forceinline T& VECCALL operator+=(const T& other)
     {
         const auto self = static_cast<T*>(this);
         self->Data = self->Add(other);
         return *self;
     }
-    T& operator-=(const T& other)
+    forceinline T& VECCALL operator-=(const T& other)
     {
         const auto self = static_cast<T*>(this);
         self->Data = self->Sub(other);
         return *self;
     }
     template<typename U>
-    U VECCALL As() const noexcept
+    forceinline U VECCALL As() const noexcept
     { 
         return AsType<decltype(std::declval<U>().Data)>(static_cast<const T*>(this)->Data);
     }

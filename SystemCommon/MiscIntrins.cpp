@@ -288,24 +288,24 @@ DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
 #endif
 
 
-alignas(32) constexpr uint64_t SHA256RoundAdders[][2] =
+alignas(32) constexpr uint32_t SHA256RoundAdders[][4] =
 {
-    { 0x71374491428A2F98ULL, 0xE9B5DBA5B5C0FBCFULL },
-    { 0x59F111F13956C25BULL, 0xAB1C5ED5923F82A4ULL },
-    { 0x12835B01D807AA98ULL, 0x550C7DC3243185BEULL },
-    { 0x80DEB1FE72BE5D74ULL, 0xC19BF1749BDC06A7ULL },
-    { 0xEFBE4786E49B69C1ULL, 0x240CA1CC0FC19DC6ULL },
-    { 0x4A7484AA2DE92C6FULL, 0x76F988DA5CB0A9DCULL },
-    { 0xA831C66D983E5152ULL, 0xBF597FC7B00327C8ULL },
-    { 0xD5A79147C6E00BF3ULL, 0x1429296706CA6351ULL },
-    { 0x2E1B213827B70A85ULL, 0x53380D134D2C6DFCULL },
-    { 0x766A0ABB650A7354ULL, 0x92722C8581C2C92EULL },
-    { 0xA81A664BA2BFE8A1ULL, 0xC76C51A3C24B8B70ULL },
-    { 0xD6990624D192E819ULL, 0x106AA070F40E3585ULL },
-    { 0x1E376C0819A4C116ULL, 0x34B0BCB52748774CULL },
-    { 0x4ED8AA4A391C0CB3ULL, 0x682E6FF35B9CCA4FULL },
-    { 0x78A5636F748F82EEULL, 0x8CC7020884C87814ULL },
-    { 0xA4506CEB90BEFFFAULL, 0xC67178F2BEF9A3F7ULL },
+    { 0x428A2F98u, 0x71374491u, 0xB5C0FBCFu, 0xE9B5DBA5u },
+    { 0x3956C25Bu, 0x59F111F1u, 0x923F82A4u, 0xAB1C5ED5u },
+    { 0xD807AA98u, 0x12835B01u, 0x243185BEu, 0x550C7DC3u },
+    { 0x72BE5D74u, 0x80DEB1FEu, 0x9BDC06A7u, 0xC19BF174u },
+    { 0xE49B69C1u, 0xEFBE4786u, 0x0FC19DC6u, 0x240CA1CCu },
+    { 0x2DE92C6Fu, 0x4A7484AAu, 0x5CB0A9DCu, 0x76F988DAu },
+    { 0x983E5152u, 0xA831C66Du, 0xB00327C8u, 0xBF597FC7u },
+    { 0xC6E00BF3u, 0xD5A79147u, 0x06CA6351u, 0x14292967u },
+    { 0x27B70A85u, 0x2E1B2138u, 0x4D2C6DFCu, 0x53380D13u },
+    { 0x650A7354u, 0x766A0ABBu, 0x81C2C92Eu, 0x92722C85u },
+    { 0xA2BFE8A1u, 0xA81A664Bu, 0xC24B8B70u, 0xC76C51A3u },
+    { 0xD192E819u, 0xD6990624u, 0xF40E3585u, 0x106AA070u },
+    { 0x19A4C116u, 0x1E376C08u, 0x2748774Cu, 0x34B0BCB5u },
+    { 0x391C0CB3u, 0x4ED8AA4Au, 0x5B9CCA4Fu, 0x682E6FF3u },
+    { 0x748F82EEu, 0x78A5636Fu, 0x84C87814u, 0x8CC70208u },
+    { 0x90BEFFFAu, 0xA4506CEBu, 0xBEF9A3F7u, 0xC67178F2u },
 };
 constexpr bool SHA256RoundProcControl[][2] =
 { // { ProcPrev, ProcNext }
@@ -397,27 +397,24 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
         Sha256Block128(calc, msg0, msg1, msg2, msg3);
         len -= 64;
     }
-    if (len >= 56)
+    const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
+    const auto bitsvBE = bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>();
+    if (len >= 48)
     {
         const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
         const auto msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
         const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-        const auto msg3 = Calc::Load128With80BE(ptr, len % 16);
+              auto msg3 = Calc::Load128With80BE(ptr, len % 16);
+        if (len < 56)
+            msg3 |= bitsvBE;
         Sha256Block128(calc, msg0, msg1, msg2, msg3);
-        len = SIZE_MAX;
+        if (len >= 56)
+            Sha256Block128(calc, U32x4::AllZero(), U32x4::AllZero(), U32x4::AllZero(), bitsvBE);
     }
+    else
     {
         U32x4 msg0, msg1, msg2, msg3;
-        const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
-        const auto bitsvBE = bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>();
-        if (len == SIZE_MAX) // only need bits tail
-        {
-            msg0 = U32x4::AllZero();
-            msg1 = U32x4::AllZero();
-            msg2 = U32x4::AllZero();
-            msg3 = bitsvBE;
-        }
-        else if (len < 16)
+        if (len < 16)
         {
             msg0 = Calc::Load128With80BE(ptr, len - 0); ptr += 4;
             msg1 = U32x4::AllZero();
@@ -431,24 +428,15 @@ inline std::array<std::byte, 32> Sha256Main128(const std::byte* data, const size
             msg2 = U32x4::AllZero();
             msg3 = bitsvBE;
         }
-        else if (len < 48)
+        else // if (len < 48)
         {
             msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
             msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
             msg2 = Calc::Load128With80BE(ptr, len - 32); ptr += 4;
             msg3 = bitsvBE;
         }
-        else // len < 56
-        {
-            msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg1 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-            msg3 = Calc::Load128With80BE(ptr, len - 48); ptr += 4;
-            msg3 |= bitsvBE;
-        }
         Sha256Block128(calc, msg0, msg1, msg2, msg3);
     }
-
     return calc.Output();
 }
 
@@ -498,7 +486,7 @@ struct Sha256Round_SHANI : public Sha256State
     template<size_t Round>
     forceinline void VECCALL Calc([[maybe_unused]] U32x4& prev, U32x4& cur, [[maybe_unused]] U32x4& next) noexcept // msgs are BE
     {
-        const auto adder = U64x2(SHA256RoundAdders[Round]).As<U32x4>();
+        const U32x4 adder(SHA256RoundAdders[Round]);
         auto msg = cur + adder;
         State1 = _mm_sha256rnds2_epu32(State1, State0, msg);
         if constexpr (SHA256RoundProcControl[Round][1])
@@ -553,7 +541,7 @@ struct Sha256Round_SHA2 : public Sha256State
     template<size_t Round>
     forceinline void VECCALL Calc([[maybe_unused]] U32x4& prev, U32x4& cur, [[maybe_unused]] U32x4& next) noexcept // msgs are BE
     {
-        const auto adder = U64x2(SHA256RoundAdders[Round]).As<U32x4>();
+        const U32x4 adder(SHA256RoundAdders[Round]);
         auto msg = cur + adder;
         const auto state0 = State0;
         State0 = vsha256hq_u32 (State0, State1, msg);
@@ -637,55 +625,44 @@ inline std::array<std::byte, 32> Sha256Main256(const std::byte* data, const size
         Sha256Block256(calc, msg01, msg23);
         len -= 64;
     }
-    if (len >= 56)
+    const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
+    //const auto bitsvBE = U32x8(U32x4::AllZero(), bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>());
+    const auto bitsvBE = bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>();
+    if (len >= 48)
     {
         const auto msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
         const auto msg2  = U32x4(ptr).SwapEndian(); ptr += 4;
-        const auto msg3  = Calc::Load128With80BE(ptr, len % 16);
-        const auto msg23 = U32x8(msg2, msg3);
-        Sha256Block256(calc, msg01, msg23);
-        len = SIZE_MAX;
+              auto msg3  = Calc::Load128With80BE(ptr, len % 16);
+        if (len < 56)
+            msg3 |= bitsvBE;
+        Sha256Block256(calc, msg01, U32x8(msg2, msg3));
+        if (len >= 56)
+            Sha256Block256(calc, U32x8::AllZero(), { U32x4::AllZero(), bitsvBE });
     }
+    else
     {
         U32x8 msg01, msg23;
-        const auto bitsv = U64x2::LoadLo(static_cast<uint64_t>(size) * 8);
-        const auto bitsvBE = U32x8(U32x4::AllZero(), bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>());
-        //const auto bitsvBE = U32x8::LoadLoLane(bitsv.As<U32x4>().Shuffle<3, 3, 1, 0>());
-        if (len == SIZE_MAX) // only need bits tail
-        {
-            msg01 = U32x8::AllZero();
-            msg23 = bitsvBE;
-        }
-        else if (len < 16)
+        if (len < 16)
         {
             const auto msg0 = Calc::Load128With80BE(ptr, len - 0); ptr += 4;
-            const auto msg1 = U32x4::AllZero();
-            msg01 = U32x8(msg0, msg1);
-            msg23 = bitsvBE;
+            msg01 = U32x8::LoadLoLane(msg0);
+            msg23 = U32x8(U32x4::AllZero(), bitsvBE);
         }
         else if (len < 32)
         {
             const auto msg0 = U32x4(ptr).SwapEndian(); ptr += 4;
             const auto msg1 = Calc::Load128With80BE(ptr, len - 16); ptr += 4;
             msg01 = U32x8(msg0, msg1);
-            msg23 = bitsvBE;
+            msg23 = U32x8(U32x4::AllZero(), bitsvBE);
         }
-        else if (len < 48)
+        else // if (len < 48)
         {
             msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
             const auto msg2 = Calc::Load128With80BE(ptr, len - 32); ptr += 4;
-            msg23 = U32x8::LoadLoLane(msg2).Or(bitsvBE);
-        }
-        else // len < 56
-        {
-            msg01 = U32x8(ptr).SwapEndian(); ptr += 8;
-            const auto msg2 = U32x4(ptr).SwapEndian(); ptr += 4;
-            const auto msg3 = Calc::Load128With80BE(ptr, len - 48); ptr += 4;
-            msg23 = U32x8(msg2, msg3).Or(bitsvBE);
+            msg23 = U32x8(msg2, bitsvBE);
         }
         Sha256Block256(calc, msg01, msg23);
     }
-
     return calc.Output();
 }
 # if COMMON_ARCH_X86 && (COMMON_COMPILER_MSVC || defined(__SHA__))
@@ -698,7 +675,7 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
     {
         static_assert(SHA256RoundProcControl[Round][0] == false && SHA256RoundProcControl[Round][1] == false &&
             SHA256RoundProcControl[Round + 1][0] == true && SHA256RoundProcControl[Round + 1][0 + 1] == false); // FF, TF
-        const auto adderLH = U64x4(SHA256RoundAdders[Round]).As<U32x8>();
+        const U32x8 adderLH(SHA256RoundAdders[Round]);
         auto msgAddLH = msgLH + adderLH;
         auto msgShufLH = msgAddLH.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
         State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetLoLane());
@@ -712,7 +689,7 @@ struct Sha256Round_SHANIAVX2 : public Sha256Round_SHANI
     {
         static_assert(SHA256RoundProcControl[Round][0] == true && SHA256RoundProcControl[Round][1] == false &&
             SHA256RoundProcControl[Round + 1][0] == true && SHA256RoundProcControl[Round + 1][0 + 1] == true); // TF, TT
-        const auto adderLH = U64x4(SHA256RoundAdders[Round]).As<U32x8>();
+        const U32x8 adderLH(SHA256RoundAdders[Round]);
         auto msgAddLH = msgLH + adderLH;
         auto msgShufLH = msgAddLH.ShuffleLane<2, 3, 0, 0>(); // _mm256_shuffle_epi32(msgAddLH, 0x0E);
         State1 = _mm_sha256rnds2_epu32(State1, State0, msgAddLH.GetLoLane());
