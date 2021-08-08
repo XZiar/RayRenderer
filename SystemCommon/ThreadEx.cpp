@@ -1,6 +1,8 @@
 #include "SystemCommonPch.h"
 #include "ThreadEx.h"
-
+#if COMMON_OS_ANDROID
+#   include <sys/prctl.h>
+#endif
 
 namespace common
 {
@@ -48,7 +50,7 @@ bool SetThreadName(const std::string_view threadName)
 #else
     if (threadName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(std::string(threadName.substr(0, 15)));
-# if COMMON_OS_MACOS
+# if COMMON_OS_DARWIN
     pthread_setname_np(threadName.data());
 # else
     pthread_setname_np(pthread_self(), threadName.data());
@@ -72,7 +74,7 @@ bool SetThreadName(const std::u16string_view threadName)
     const auto u8TName = str::to_u8string(threadName, str::Charset::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
-# if COMMON_OS_MACOS
+# if COMMON_OS_DARWIN
     pthread_setname_np(u8TName.data());
 # else
     pthread_setname_np(pthread_self(), u8TName.data());
@@ -96,9 +98,7 @@ std::u16string GetThreadName()
     }
 #else
     char tmp[16] = {0};
-# if COMMON_OS_MACOS
-    pthread_getname_np(tmp, sizeof(tmp));
-# elif !COMMON_OS_ANDROID || (__ANDROID_API__ >= 26)
+# if !COMMON_OS_ANDROID || (__ANDROID_API__ >= 26)
     pthread_getname_np(pthread_self(), tmp, sizeof(tmp));
 # elif COMMON_OS_ANDROID
 #   ifndef PR_GET_NAME
@@ -125,13 +125,15 @@ std::optional<bool> ThreadObject::IsAlive() const
         return false;
     const auto rc = ::WaitForSingleObject((HANDLE)Handle, 0);
     return rc != WAIT_OBJECT_0;
-#elif COMMON_OS_ANDROID
-    return {};
 #else
     if (Handle == 0)
         return false;
+#   if COMMON_OS_ANDROID || COMMON_OS_DARWIN
+    return {};
+#   else
     const auto ret = pthread_tryjoin_np((pthread_t)Handle, nullptr); // only suitable for joinable thread
     return ret == EBUSY;
+#   endif
 #endif
 }
 bool ThreadObject::IsCurrent() const
@@ -142,9 +144,9 @@ uint64_t ThreadObject::GetId() const
 {
 #if COMMON_OS_WIN
     return ::GetThreadId((HANDLE)Handle);
-#elif COMMON_OS_MACOS
-    pthread_id_np_t   tid;
-    pthread_getunique_np((pthread_t)Handle, &tid);
+#elif COMMON_OS_DARWIN
+    uint64_t tid = 0;
+    pthread_threadid_np((pthread_t)Handle, &tid);
     return tid;
 #else
     return syscall(SYS_gettid);
@@ -157,8 +159,10 @@ uint64_t ThreadObject::GetCurrentThreadId()
 {
 #if COMMON_OS_WIN
     return ::GetCurrentThreadId();
-#elif COMMON_OS_MACOS
-    return pthread_getthreadid_np();
+#elif COMMON_OS_DARWIN
+    uint64_t tid = 0;
+    pthread_threadid_np(nullptr, &tid);
+    return tid;
 #else
     //return (long int)syscall(__NR_gettid);
     return pthread_self();
@@ -178,6 +182,8 @@ ThreadObject ThreadObject::GetCurrentThreadObject()
 {
 #if COMMON_OS_WIN
     return ThreadObject(CopyThreadHandle(GetCurrentThread()));
+#elif COMMON_OS_DARWIN
+    return ThreadObject(reinterpret_cast<uintptr_t>(pthread_self()));
 #else
     return ThreadObject(pthread_self());
 #endif
@@ -186,6 +192,8 @@ ThreadObject ThreadObject::GetThreadObject(std::thread& thr)
 {
 #if COMMON_OS_WIN
     return ThreadObject(CopyThreadHandle(thr.native_handle()));
+#elif COMMON_OS_DARWIN
+    return ThreadObject(reinterpret_cast<uintptr_t>(thr.native_handle()));
 #else
     return ThreadObject(thr.native_handle());
 #endif

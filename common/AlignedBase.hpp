@@ -8,9 +8,7 @@
 
 #include <new>
 #include <cstdlib>
-#if COMMON_OS_MACOS
-#   include <malloc/malloc.h>
-#else
+#if COMMON_OS_WIN
 #   include <malloc.h>
 #endif
 
@@ -20,10 +18,14 @@ namespace common
 {
 
 
-#if COMMON_OS_LINUX || COMMON_OS_FREEBSD
+#if COMMON_OS_UNIX
 [[nodiscard]] forceinline void* malloc_align(const size_t size, const size_t align) noexcept
 {
-    return memalign(align, size);
+    constexpr size_t minAlign = sizeof(void*);
+    void* ptr = nullptr;
+    if (const auto ret = posix_memalign(&ptr, align >= minAlign ? align : minAlign, size); ret)
+        return nullptr;
+    return ptr;
 }
 forceinline void free_align(void* ptr) noexcept
 {
@@ -79,23 +81,18 @@ forceinline void free_align(void* ptr) noexcept
 
 [[nodiscard]] forceinline void* mallocn_align(const size_t size, const size_t align) noexcept
 {
+#if COMMON_OS_UNIX && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+    retrun ::aligned_alloc(align, size);
+#else
     if (align == 0 || !common::IsPower2(align) || size % align != 0)
         return nullptr;
-#if COMMON_OS_UNIX
-    void* ptr = nullptr;
-    if (posix_memalign(&ptr, align, size))
-        return nullptr;
-    return ptr;
-    //#elif COMMON_OS_WIN && COMMON_COMPILER_MSVC
-#else
     return malloc_align(size, align);
 #endif
 }
 forceinline void freen_align(void* ptr) noexcept
 {
-#if COMMON_OS_UNIX
+#if COMMON_OS_UNIX && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
     free(ptr);
-    //#elif COMMON_OS_WIN && COMMON_COMPILER_MSVC
 #else
     free_align(ptr);
 #endif

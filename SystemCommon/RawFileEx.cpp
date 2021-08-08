@@ -60,7 +60,11 @@ static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, co
     else
         return { handle };
 #else
+#   if COMMON_OS_DARWIN
+    int realFlag = 0;
+#   else
     int realFlag = O_LARGEFILE;
+#   endif
     if (HAS_FIELD(flag, OpenFlag::FLAG_READ))
     {
         if (HAS_FIELD(flag, OpenFlag::FLAG_WRITE))
@@ -91,7 +95,7 @@ static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, co
     if (HAS_FIELD(flag, OpenFlag::FLAG_DeleteOnClose))
         realFlag |= O_CLOEXEC;
 
-# if !COMMON_OS_MACOS
+# if !COMMON_OS_DARWIN
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         realFlag |= O_DIRECT;
 # endif
@@ -99,7 +103,7 @@ static std::optional<RawFileObject::HandleType> TryOpen(const fs::path& path, co
     auto handle = open(path.string().c_str(), realFlag);
     if (handle == -1)
         return { };
-# if COMMON_OS_MACOS
+# if COMMON_OS_DARWIN
     if (HAS_FIELD(flag, OpenFlag::FLAG_DontBuffer))
         fcntl(handle, F_NOCACHE, 1);
 # endif
@@ -350,6 +354,9 @@ void RawFileOutputStream::Flush()
 {
 #if COMMON_OS_WIN
     FlushFileBuffers(GetHandle());
+#elif COMMON_OS_DARWIN
+    // https://github.com/gbrault/picoc/issues/145
+    fcntl(GetHandle(), F_FULLFSYNC);
 #else
     fdatasync(GetHandle());
 #endif

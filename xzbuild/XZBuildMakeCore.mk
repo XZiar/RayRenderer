@@ -129,7 +129,11 @@ endif
 ifeq ($(BUILD_TYPE), static)
 APP		:= $(APPDIR)/lib$(NAME).a
 else ifeq ($(BUILD_TYPE), dynamic)
+ifeq ($(xz_osname), Darwin)
+APP		:= $(APPDIR)/lib$(NAME).dylib
+else
 APP		:= $(APPDIR)/lib$(NAME).so
+endif
 else ifeq ($(BUILD_TYPE), executable)
 APP		:= $(APPDIR)/$(NAME)
 else

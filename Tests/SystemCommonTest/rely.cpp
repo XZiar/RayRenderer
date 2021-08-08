@@ -31,7 +31,7 @@ public:
     void SetUp() override 
     {
         std::string str;
-        for (const auto feat : common::GetCPUFeatures())
+        for (const auto& feat : common::GetCPUFeatures())
         {
             if (!str.empty())
                 str.append(", ");

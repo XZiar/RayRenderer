@@ -24,29 +24,29 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | C,C++ | N/A |
 | [common](./common) | Basic but useful things | Multi | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
-| [StringUtil](./StringUtil) | String Charset Library | C++ | Windows & Linux |
-| [SystemCommon](./SystemCommon) | System-level common library | C++ | Windows & Linux |
-| [MiniLogger](./MiniLogger) | Mini Logger | C++ | Windows & Linux |
-| [Nailang](./Nailang) | A customizable language | C++ | Windows & Linux |
-| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Windows & Linux |
-| [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Windows & Linux |
-| [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Windows & Linux |
-| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Windows & Linux |
-| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Windows & Linux |
-| [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Windows & Linux |
-| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Windows & Linux |
-| [TextureUtil](./TextureUtil) | Texture Utility | C++ | Windows & Linux |
-| [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Windows & Linux |
-| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Windows & Linux |
-| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Windows & Linux |
-| [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Windows & Linux |
-| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | C++/CLI | Windows |
-| [CommonUtil](./CommonUtil) | Basic utilities for C# | C# | Windows |
-| [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | C# | Windows |
-| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | C++/CLI | Windows |
-| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | C++ | Windows & Linux |
-| [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | C++ | Windows & Linux |
-| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | C#  | Windows |
+| [StringUtil](./StringUtil) | String Charset Library | C++ | Win & Linux & Android & iOS |
+| [SystemCommon](./SystemCommon) | System-level common library | C++ | Win & Linux & Android & iOS |
+| [MiniLogger](./MiniLogger) | Mini Logger | C++ | Win & Linux & Android & iOS |
+| [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
+| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Win & Linux |
+| [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android |
+| [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android |
+| [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux |
+| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Win & Linux & Android |
+| [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Win & Linux |
+| [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Win & Linux |
+| [TextureUtil](./TextureUtil) | Texture Utility | C++ | Win & Linux |
+| [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Win & Linux |
+| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Win & Linux |
+| [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Win & Linux |
+| [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Win & Linux |
+| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | C++/CLI | Win |
+| [CommonUtil](./CommonUtil) | Basic utilities for C# | C# | Win |
+| [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | C# | Win |
+| [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | C++/CLI | Win |
+| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | C++ | Win & Linux |
+| [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | C++ | Win & Linux |
+| [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | C# | Win |
 
 ## Platform Requirements
 

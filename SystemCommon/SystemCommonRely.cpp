@@ -116,11 +116,40 @@ struct CPUFeature
 # undef CHECK_FEATURE
 #endif
     }
+    void TrySysCtl() noexcept
+    {
+        if (!FeatureText.empty()) return;
+#if COMMON_OS_DARWIN && COMMON_ARCH_ARM
+        constexpr auto SysCtl = [](const std::string_view name) -> bool 
+        {
+            char buf[100] = { 0 };
+            size_t len = 100;
+            if (sysctlbyname(name.data(), &buf, &len, nullptr, 0)) return false;
+            return len >= 1 && buf[0] == 1;
+        };
+# define CHECK_FEATURE(name, feat) if (SysCtl("hw.optional."#name""sv)) FeatureText.emplace_back(#feat""sv)
+        CHECK_FEATURE(floatingpoint, fp);
+#   if COMMON_OSBIT == 64
+        FeatureText.emplace_back("asimd"sv);
+        FeatureText.emplace_back("aes"sv);
+        FeatureText.emplace_back("pmull"sv);
+        FeatureText.emplace_back("sha1"sv);
+        FeatureText.emplace_back("sha2"sv);
+#   else
+        CHECK_FEATURE(neon, asimd);
+#   endif
+        CHECK_FEATURE(armv8_crc32, crc32);
+        CHECK_FEATURE(armv8_2_sha512, sha512);
+        CHECK_FEATURE(armv8_2_sha3, sha3);
+# undef CHECK_FEATURE
+#endif
+    }
 
     CPUFeature() noexcept
     {
         TryCPUID();
         TryAUXVal();
+        TrySysCtl();
         FeatureLookup = FeatureText;
     }
 };

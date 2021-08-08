@@ -162,7 +162,7 @@ static void QueryFunc(T& target, const std::string_view tarName, const std::pair
     {
 #if COMMON_OS_WIN
         const auto ptr = wglGetProcAddress(name.data());
-#elif COMMON_OS_MACOS
+#elif COMMON_OS_DARWIN
         const auto ptr = NSGLGetProcAddress(name.data());
 #else
         const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
@@ -188,7 +188,7 @@ static void QueryPlainFunc(T& target, const std::string_view tarName,
     const auto [printSuc, printFail] = shouldPrint;
 #if COMMON_OS_WIN
     const auto ptr = wglGetProcAddress(name.data());
-#elif COMMON_OS_MACOS
+#elif COMMON_OS_DARWIN
     const auto ptr = NSGLGetProcAddress(name.data());
 #else
     const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));

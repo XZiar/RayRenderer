@@ -39,18 +39,24 @@
 #   include <pthread.h>
 #   include <termios.h>
 #   include <unistd.h>
-#   include <sys/prctl.h>
 #   include <sys/ioctl.h>
 #   include <sys/mman.h>
 #   include <sys/resource.h>
 #   include <sys/stat.h>
-#   include <sys/sysinfo.h>
 #   include <sys/types.h>
 #   include <sys/wait.h>
-#   if COMMON_OS_MACOS
+#   if COMMON_OS_DARWIN
 #       include <sys/sysctl.h>
 #       include <mach/mach_types.h>
 #       include <mach/thread_act.h>
+#       if __DARWIN_ONLY_64_BIT_INO_T
+            struct stat64 : public stat {};
+            using off64_t = off_t;
+            inline int fstat64(int fd, struct stat64* buf) { return fstat(fd, buf); }
+            inline off64_t lseek64(int fd, off64_t offset, int whence) { return lseek(fd, offset, whence); }
+            inline int fseeko64(FILE* stream, off64_t offset, int whence) { return fseeko(stream, offset, whence); }
+            inline off64_t ftello64(FILE* stream) { return ftello(stream); }
+#       endif
 #   else
 #       include <sched.h>
 #       include <sys/syscall.h>

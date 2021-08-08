@@ -96,13 +96,13 @@ protected:
         Expects(Pool.IsEmpty());
         Pieces.reserve(data.size());
         size_t total = 0;
-        for (const SVType dat : data)
+        for (const SVType& dat : data)
         {
             total += dat.size();
         }
         Expects(total < UINT32_MAX);
         Pool.Reserve(total);
-        for (const SVType dat : data)
+        for (const SVType& dat : data)
         {
             if (dat.empty()) continue;
             const auto hash = DJBHash::HashC(dat);

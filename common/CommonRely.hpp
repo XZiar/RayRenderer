@@ -46,7 +46,7 @@
 #if defined(_WIN32)
 #   define COMMON_OS_WIN 1
 #elif defined(__APPLE__)
-#   define COMMON_OS_MACOS 1
+#   define COMMON_OS_DARWIN 1
 #elif defined(__ANDROID__)
 #   define COMMON_OS_ANDROID 1
 #elif defined(__linux__)
@@ -58,8 +58,8 @@
 #ifndef COMMON_OS_WIN
 #   define COMMON_OS_WIN 0
 #endif
-#ifndef COMMON_OS_MACOS
-#   define COMMON_OS_MACOS 0
+#ifndef COMMON_OS_DARWIN
+#   define COMMON_OS_DARWIN 0
 #endif
 #ifndef COMMON_OS_ANDROID
 #   define COMMON_OS_ANDROID 0
@@ -72,10 +72,14 @@
 #   endif
 #endif
 #ifndef COMMON_OS_FREEBSD
-#   define COMMON_OS_FREEBSD 0
+#   if COMMON_OS_DARWIN
+#       define COMMON_OS_FREEBSD 1
+#   else
+#       define COMMON_OS_FREEBSD 0
+#   endif
 #endif
 #ifndef COMMON_OS_UNIX
-#   if COMMON_OS_MACOS || COMMON_OS_LINUX || COMMON_OS_FREEBSD || defined(__unix__)
+#   if COMMON_OS_LINUX || COMMON_OS_FREEBSD || defined(__unix__)
 #       define COMMON_OS_UNIX 1
 #   else
 #       define COMMON_OS_UNIX 0
