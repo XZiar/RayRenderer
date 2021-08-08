@@ -14,7 +14,7 @@
     {
         "cxx":
         {
-            "incpath": ["$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
+            "incpath": [".", "$(BuildDir)", "../zlib-ng", "$(BuildDir)/../zlib-ng"]
         },
         "asm":
         {

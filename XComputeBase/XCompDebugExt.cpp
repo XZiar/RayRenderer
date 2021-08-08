@@ -1,6 +1,8 @@
 #include "XCompDebugExt.h"
 #include "Nailang/NailangRuntime.h"
-
+#include "VecBase.hpp"
+#include "VecSIMD.hpp"
+//#include "MatBase.hpp"
 
 namespace xcomp::debug
 {
@@ -11,6 +13,55 @@ using namespace std::string_view_literals;
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
 
+template<typename V3, typename V4, typename IV4>
+void TestVec()
+{
+    /*static_assert(std::is_base_of<xcomp::math::base::Vec4Base<typename math::base::Vec4::EleType, math::base::Vec4>, math::base::Vec4>::value);
+    static_assert(common::is_specialization<std::vector<int>, std::vector>::value);
+    static_assert(common::is_specialization<math::base::Vec4, xcomp::math::base::Vec4Base>::value);*/
+    V3 a3, b3;
+    const auto c3 = Dot(a3, b3);
+    const auto d3 = Cross(a3, b3);
+    const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
+    const auto f3 = e3.Length();
+
+    V4 a4, b4;
+    const auto c4 = Dot(a4, b4);
+    const auto e4 = (a4[1] + Min(c4, d3.As<V4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
+    const auto f4 = e4.Length();
+
+    IV4 a5, b5;
+    const auto c5 = Dot(a5, b5);
+    const auto e5 = (a5[1] + Min(c5, d3.As<IV4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
+}
+
+template<> void TestVec<math::base::Vec3, math::base::Vec4, math::base::IVec4>();
+template<> void TestVec<math::simd::Vec3, math::simd::Vec4, math::simd::IVec4>();
+
+void TestVec2()
+{
+    /*static_assert(std::is_base_of<xcomp::math::base::Vec4Base<typename math::base::Vec4::EleType, math::base::Vec4>, math::base::Vec4>::value);
+    static_assert(common::is_specialization<std::vector<int>, std::vector>::value);
+    static_assert(common::is_specialization<math::base::Vec4, xcomp::math::base::Vec4Base>::value);*/
+    math::base::Vec3 a3, b3;
+    const auto c3 = Dot(a3, b3);
+    const auto d3 = Cross(a3, b3);
+    const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
+    const auto f3 = b3[1] / (a3[1] * (e3 * a3[0] / b3[1]));
+    const auto g3 = e3.Sqrt().Negative().Length();
+
+    math::base::Vec4 a4, b4;
+    const auto c4 = Dot(a4, b4);
+    const auto e4 = (a4[1] + Min(c4, d3.As<math::base::Vec4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
+    const auto f4 = b4[1] / (a4[1] * (e4 * a4[0] / b4[1]));
+    const auto g4 = e4.Sqrt().Negative().Length();
+
+    math::base::IVec4 a5, b5;
+    const auto c5 = Dot(a5, b5);
+    const auto e5 = (a5[1] + Min(c5, d3.As<math::base::IVec4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
+    const auto f5 = b5[1] / (a5[1] * (e5 * a5[0] / b5[1]));
+    const auto g5 = e5.Negative().LengthSqr();
+}
 
 template<typename F>
 static NamedVecPair GenerateInput(XCNLRuntime& runtime, std::u32string_view str, F&& errInfo)

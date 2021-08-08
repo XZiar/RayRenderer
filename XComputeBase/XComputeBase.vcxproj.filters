@@ -27,6 +27,21 @@
     <ClInclude Include="XCompDebugExt.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="VecSIMD.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MatBase.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MatSIMD.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="VecBase.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="VecMain.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="XCompRely.cpp">
