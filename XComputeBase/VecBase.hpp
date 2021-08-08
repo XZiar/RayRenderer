@@ -83,7 +83,7 @@ struct FuncSAdd
     }
 };
 template<size_t N, typename T, typename R, typename V>
-struct FuncVAdd
+struct FuncVAddBase
 {
     forceinline friend constexpr R operator+(const T& left, const V& right) noexcept
     {
@@ -91,22 +91,6 @@ struct FuncVAdd
             return { left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W };
         else
             return { left.X + right.X, left.Y + right.Y, left.Z + right.Z };
-    }
-    template<typename = std::enable_if_t<!std::is_same_v<T, V>>>
-    forceinline friend constexpr R operator+(const typename V left, const T& right) noexcept
-    {
-        return right + left;
-    }
-};
-template<typename T>
-struct FuncSelfAdd
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() + std::declval<X>()), T>>>
-    forceinline constexpr T& operator+=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self + other;
-        return self;
     }
 };
 
@@ -135,17 +119,6 @@ struct FuncVSub
             return { left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W };
         else
             return { left.X + right.X, left.Y + right.Y, left.Z + right.Z };
-    }
-};
-template<typename T>
-struct FuncSelfSub
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() - std::declval<X>()), T>>>
-    forceinline constexpr T& operator-=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self + other;
-        return self;
     }
 };
 
@@ -184,7 +157,7 @@ struct FuncSMulDiv
     }
 };
 template<size_t N, typename T, typename R, typename V>
-struct FuncVMulDiv
+struct FuncVMulDivBase
 {
     forceinline friend constexpr R operator*(const T& left, const V& right) noexcept
     {
@@ -193,35 +166,12 @@ struct FuncVMulDiv
         else
             return { left.X * right.X, left.Y * right.Y, left.Z * right.Z };
     }
-    template<typename = std::enable_if_t<!std::is_same_v<T, V>>>
-    forceinline friend constexpr R operator*(const typename V left, const T& right) noexcept
-    {
-        return right * left;
-    }
     forceinline friend constexpr R operator/(const T& left, const V& right) noexcept
     {
         if constexpr (N == 4)
             return { left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W };
         else
             return { left.X / right.X, left.Y / right.Y, left.Z / right.Z };
-    }
-};
-template<typename T>
-struct FuncSelfMulDiv
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>()* std::declval<X>()), T>>>
-    forceinline constexpr T& operator*=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self * other;
-        return self;
-    }
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() / std::declval<X>()), T>>>
-    forceinline constexpr T& operator/=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self / other;
-        return self;
     }
 };
 
@@ -246,8 +196,8 @@ struct FuncMinMax
 };
 
 
-template<typename E, size_t N, typename T, bool SupportLength>
-struct FuncDot
+template<typename E, size_t N, typename T>
+struct FuncDotBase
 {
     forceinline friend constexpr E Dot(const T& l, const T& r) noexcept //dot product
     {
@@ -255,23 +205,6 @@ struct FuncDot
             return l.X * r.X + l.Y * r.Y + l.Z * r.Z + l.W * r.W;
         else if constexpr (N == 3)
             return l.X * r.X + l.Y * r.Y + l.Z * r.Z;
-    }
-    template<typename = std::enable_if_t<SupportLength>>
-    forceinline constexpr E LengthSqr() const noexcept
-    {
-        const auto& self = *static_cast<const T*>(this);
-        return Dot(self, self);
-    }
-    template<typename = std::enable_if_t<std::is_floating_point_v<E>&& SupportLength>>
-    forceinline constexpr E Length() const noexcept
-    {
-        return std::sqrt(LengthSqr());
-    }
-    template<typename = std::enable_if_t<std::is_floating_point_v<E>&& SupportLength>>
-    forceinline constexpr T Normalize() const noexcept
-    {
-        const auto& self = *static_cast<const T*>(this);
-        return self / Length();
     }
 };
 

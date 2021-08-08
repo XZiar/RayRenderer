@@ -93,27 +93,11 @@ struct FuncSAdd
     }
 };
 template<size_t N, typename T, typename R, typename V>
-struct FuncVAdd
+struct FuncVAddBase
 {
     forceinline friend constexpr R operator+(const T& left, const V& right) noexcept
     {
         return left.Data.Add(right.Data);
-    }
-    template<typename = std::enable_if_t<!std::is_same_v<T, V>>>
-    forceinline friend constexpr R operator+(const typename V left, const T& right) noexcept
-    {
-        return right.Data.Add(left.Data);
-    }
-};
-template<typename T>
-struct FuncSelfAdd
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() + std::declval<X>()), T>>>
-    forceinline constexpr T& operator+=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self + other;
-        return self;
     }
 };
 
@@ -139,17 +123,6 @@ struct FuncVSub
         return left.Data.Sub(right.Data);
     }
 };
-template<typename T>
-struct FuncSelfSub
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() - std::declval<X>()), T>>>
-    forceinline constexpr T& operator-=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self + other;
-        return self;
-    }
-};
 
 
 template<typename E, size_t N, typename T, typename R>
@@ -157,11 +130,17 @@ struct FuncSMulDiv
 {
     forceinline friend constexpr R operator*(const T& left, const E right) noexcept
     {
-        return left.Data.Mul(right);
+        if constexpr (std::is_floating_point_v<E>)
+            return left.Data.Mul(right);
+        else
+            return left.Data.MulLo(right);
     }
     forceinline friend constexpr R operator*(const E left, const T& right) noexcept
     {
-        return right.Data.Mul(left);
+        if constexpr (std::is_floating_point_v<E>)
+            return right.Data.Mul(left);
+        else
+            return right.Data.MulLo(left);
     }
     forceinline friend constexpr R operator/(const T& left, const E right) noexcept
     {
@@ -179,42 +158,33 @@ struct FuncSMulDiv
     }
     forceinline friend constexpr R operator/(const E left, const T& right) noexcept
     {
-        return right.Data.Rcp().Mul(left);
+        if constexpr (std::is_floating_point_v<E>)
+            return right.Data.Rcp().Mul(left);
+        else
+            return T{ left } / right;
     }
 };
 template<size_t N, typename T, typename R, typename V>
-struct FuncVMulDiv
+struct FuncVMulDivBase
 {
     forceinline friend constexpr R operator*(const T& left, const V& right) noexcept
     {
-        return left.Data.Mul(right.Data);
-    }
-    template<typename = std::enable_if_t<!std::is_same_v<T, V>>>
-    forceinline friend constexpr R operator*(const typename V left, const T& right) noexcept
-    {
-        return right.Data.Mul(left.Data);
+        if constexpr (std::is_floating_point_v<decltype(right.Data.Val[0])>)
+            return left.Data.Mul(right.Data);
+        else
+            return left.Data.MulLo(right.Data);
     }
     forceinline friend constexpr R operator/(const T& left, const V& right) noexcept
     {
-        return left.Data.Mul(right.Data.Rcp());
-    }
-};
-template<typename T>
-struct FuncSelfMulDiv
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>()* std::declval<X>()), T>>>
-    forceinline constexpr T& operator*=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self * other;
-        return self;
-    }
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() / std::declval<X>()), T>>>
-    forceinline constexpr T& operator/=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self / other;
-        return self;
+        if constexpr (std::is_floating_point_v<decltype(right.Data.Val[0])>)
+            return left.Data.Mul(right.Data.Rcp());
+        else
+        {
+            if constexpr (N == 4)
+                return { left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W };
+            else
+                return { left.X / right.X, left.Y / right.Y, left.Z / right.Z };
+        }
     }
 };
 
@@ -233,32 +203,25 @@ struct FuncMinMax
 };
 
 
-template<typename E, size_t N, typename T, bool SupportLength>
-struct FuncDot
+template<typename E, size_t N, typename T>
+struct FuncDotBase
 {
     forceinline friend constexpr E Dot(const T& l, const T& r) noexcept //dot product
     {
-        if constexpr (N == 4)
-            return l.Data.Dot<common::simd::DotPos::XYZW>(r.Data);
-        else if constexpr (N == 3)
-            return l.Data.Dot<common::simd::DotPos::XYZ>(r.Data);
-    }
-    template<typename = std::enable_if_t<SupportLength>>
-    forceinline constexpr E LengthSqr() const noexcept
-    {
-        const auto& self = *static_cast<const T*>(this);
-        return Dot(self, self);
-    }
-    template<typename = std::enable_if_t<std::is_floating_point_v<E>&& SupportLength>>
-    forceinline constexpr E Length() const noexcept
-    {
-        return std::sqrt(LengthSqr());
-    }
-    template<typename = std::enable_if_t<std::is_floating_point_v<E>&& SupportLength>>
-    forceinline constexpr T Normalize() const noexcept
-    {
-        const auto& self = *static_cast<const T*>(this);
-        return self / Length();
+        if constexpr (std::is_floating_point_v<E>)
+        {
+            if constexpr (N == 4)
+                return l.Data.Dot<common::simd::DotPos::XYZW>(r.Data);
+            else if constexpr (N == 3)
+                return l.Data.Dot<common::simd::DotPos::XYZ>(r.Data);
+        }
+        else
+        {
+            if constexpr (N == 4)
+                return l.X * r.X + l.Y * r.Y + l.Z * r.Z + l.W * r.W;
+            else if constexpr (N == 3)
+                return l.X * r.X + l.Y * r.Y + l.Z * r.Z;
+        }
     }
 };
 
@@ -268,11 +231,11 @@ struct FuncCross
 {
     forceinline friend constexpr T Cross(const T& l, const T& r) noexcept
     {
-        const auto t3 = l.Data.Shuffle<2, 0, 1, 3>(); //zxyw
-        const auto t4 = r.Data.Shuffle<1, 2, 0, 3>(); //yzxw
+        const auto t3 = l.Data.template Shuffle<2, 0, 1, 3>(); //zxyw
+        const auto t4 = r.Data.template Shuffle<1, 2, 0, 3>(); //yzxw
         const auto t34 = t3 * t4;
-        const auto t1 = l.Data.Shuffle<1, 2, 0, 3>(); //yzxw
-        const auto t2 = r.Data.Shuffle<2, 0, 1, 3>(); //zxyw
+        const auto t1 = l.Data.template Shuffle<1, 2, 0, 3>(); //yzxw
+        const auto t2 = r.Data.template Shuffle<2, 0, 1, 3>(); //zxyw
         return t1.MulSub(t2, t34); // (t1 * t2) - (t3 * t4);
     }
 };
@@ -307,8 +270,6 @@ struct FuncNegative
 
 }
 
-
 #include "VecMain.hpp"
-
 
 }

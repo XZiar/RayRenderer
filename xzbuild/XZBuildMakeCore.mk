@@ -86,6 +86,18 @@ endif
 endif
 
 
+### section LD
+ifeq ($(xz_osname), Darwin)
+LD_STATIC	:= -Wl,-all_load $(STALIBS)
+LD_DYNAMIC	:= -Wl,-noall_load $(DYNLIBS) 
+LD_EXTRA	:= -Wl,-w
+else
+LD_STATIC	:= -Wl,--whole-archive $(STALIBS)
+LD_DYNAMIC	:= -Wl,--no-whole-archive $(DYNLIBS) 
+LD_EXTRA	:= 
+endif
+
+
 ###============================================================================
 ### create directory
 DIRS		 = $(dir $(ISPCOBJS) $(CXXOBJS) $(OTHEROBJS) $(PCH_PCH))
@@ -102,7 +114,7 @@ DEP_MK	:= $(SOLDIR)/$(BUILDPATH)/xzbuild.proj.json
 ### beautify print
 ifeq ($(VERBOSE), 0)
 define BuildProgress
-    @echo "$(CLR_GREEN)$(1) $(CLR_BLUE)[$(2)] $(CLR_WHITE)$(3) $(CLR_CLEAR)"
+    @printf "$(CLR_GREEN)$(1) $(CLR_BLUE)[$(2)] $(CLR_WHITE)$(3) $(CLR_CLEAR)\n"
     @$(4)
 endef
 else
@@ -139,26 +151,26 @@ endif
 
 ### exposed targets
 all: $(APP)
-	@echo "$(CLR_WHITE)make of $(CLR_CYAN)[$(NAME)]$(CLR_WHITE) finished$(CLR_CLEAR)"
+	@printf "$(CLR_WHITE)make of $(CLR_CYAN)[$(NAME)]$(CLR_WHITE) finished$(CLR_CLEAR)\n"
 
 clean: 
-	@echo "$(CLR_WHITE)clean finished$(CLR_CLEAR)"
+	@printf "$(CLR_WHITE)clean finished$(CLR_CLEAR)\n"
 
 ### main targets
 ifeq ($(BUILD_TYPE), static)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
+#	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
 	$(eval $@_bcmd := $(STATICLINKER) rcs $(APP) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS))
 	$(call BuildProgress,link   ,  lib, $(APP), $($@_bcmd))
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -fvisibility-inlines-hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
+#	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
+	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_EXTRA) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
 	$(call BuildProgress,link   ,  dll, $(APP), $($@_bcmd))
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
-#	@echo "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)"
-	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -fvisibility-inlines-hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath='$$$$ORIGIN' -Wl,-rpath-link,. -Wl,--whole-archive $(STALIBS) -Wl,--no-whole-archive $(DYNLIBS) -o $(APP))
+#	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
+	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
 	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 endif
 

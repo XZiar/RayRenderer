@@ -16,9 +16,6 @@ using namespace std::string_view_literals;
 template<typename V3, typename V4, typename IV4>
 void TestVec()
 {
-    /*static_assert(std::is_base_of<xcomp::math::base::Vec4Base<typename math::base::Vec4::EleType, math::base::Vec4>, math::base::Vec4>::value);
-    static_assert(common::is_specialization<std::vector<int>, std::vector>::value);
-    static_assert(common::is_specialization<math::base::Vec4, xcomp::math::base::Vec4Base>::value);*/
     V3 a3, b3;
     const auto c3 = Dot(a3, b3);
     const auto d3 = Cross(a3, b3);
@@ -27,12 +24,12 @@ void TestVec()
 
     V4 a4, b4;
     const auto c4 = Dot(a4, b4);
-    const auto e4 = (a4[1] + Min(c4, d3.As<V4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
+    const auto e4 = (a4[1] + Min(c4, d3.template As<V4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
     const auto f4 = e4.Length();
 
     IV4 a5, b5;
     const auto c5 = Dot(a5, b5);
-    const auto e5 = (a5[1] + Min(c5, d3.As<IV4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
+    const auto e5 = (a5[1] + Min(c5, d3.template As<IV4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
 }
 
 template<> void TestVec<math::base::Vec3, math::base::Vec4, math::base::IVec4>();
@@ -52,13 +49,13 @@ void TestVec2()
 
     math::base::Vec4 a4, b4;
     const auto c4 = Dot(a4, b4);
-    const auto e4 = (a4[1] + Min(c4, d3.As<math::base::Vec4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
+    const auto e4 = (a4[1] + Min(c4, d3.template As<math::base::Vec4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
     const auto f4 = b4[1] / (a4[1] * (e4 * a4[0] / b4[1]));
     const auto g4 = e4.Sqrt().Negative().Length();
 
     math::base::IVec4 a5, b5;
     const auto c5 = Dot(a5, b5);
-    const auto e5 = (a5[1] + Min(c5, d3.As<math::base::IVec4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
+    const auto e5 = (a5[1] + Min(c5, d3.template As<math::base::IVec4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
     const auto f5 = b5[1] / (a5[1] * (e5 * a5[0] / b5[1]));
     const auto g5 = e5.Negative().LengthSqr();
 }

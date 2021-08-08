@@ -98,6 +98,9 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
             self.defines += ["NDEBUG"]
             if env["paras"].get("lto", "on") == "on":
                 self.flags += ["-flto"]
+        if "iOS" in env:
+            verstr = f"{int(env['iOSVer'] / 10000)}.{int((env['iOSVer'] / 100) % 100)}"
+            self.flags += ["-miphoneos-version-min=" + verstr]
         cxx = targets.get("cxx")
         if cxx is not None:
             self.visibility = cxx.get("visibility", self.visibility)

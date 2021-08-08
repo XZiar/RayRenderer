@@ -1,4 +1,5 @@
 import json
+import plistlib
 import os
 import errno
 import platform
@@ -6,6 +7,8 @@ import subprocess
 import sys
 import time
 import tempfile
+
+from . import COLOR
 
 _intrinMap = \
 {
@@ -65,6 +68,15 @@ def findAppInPath(appname:str):
     osname = platform.system()
     return findFileInPath(appname+".exe" if osname == "Windows" else appname)
 
+def strToVer(verstr:str, count:int) -> int:
+    vers = verstr.split(".")
+    muler = pow(100, count - 1)
+    ver = 0
+    for part in vers:
+        ver += int(part) * muler
+        muler /= 100
+    return int(ver)
+
 def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     solDir = os.getcwd()
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)
@@ -82,13 +94,22 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     env["ccompiler"] = ccompiler
     env["osname"] = platform.system()
     env["machine"] = platform.machine()
+    iOSSdkInfo = None
+    if env["machine"].startswith("iPhone") or env["machine"].startswith("iPad"):
+        env["iOS"] = True
+        try:
+            with open("/usr/share/SDKs/iPhoneOS.sdk/SDKSettings.plist", "rb") as fp:
+                iOSSdkInfo = plistlib.load(fp)
+                env["iOSSDKVer"] = strToVer(iOSSdkInfo["Version"], 3) 
+        except FileNotFoundError:
+            pass
     if plat is None:
         is64Bits = sys.maxsize > 2**32
         env["bits"] = 64 if is64Bits else 32
         if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
             env["arch"] = "x86"
             env["platform"] = "x64" if is64Bits else "x86"
-        elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"]:
+        elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"] or "iOS" in env:
             env["arch"] = "arm"
             env["platform"] = "ARM64" if is64Bits else "ARM"
         else:
@@ -129,7 +150,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         if "_LIBCPP_VERSION" in defs:
             env["stdlib"] = "libc++"
             ver = int(defs["_LIBCPP_VERSION"])
-            env["libc++Ver"] = ver % 1000 + ver / 1000 * 10
+            env["libc++Ver"] = int(ver % 1000 + ver / 1000 * 10)
         elif "__GLIBCXX__" in defs:
             env["stdlib"] = "libstdc++"
             if "_GLIBCXX_RELEASE" in defs: # introduced in 7.1
@@ -165,6 +186,23 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     if env["arch"] == "arm":
         env["armArch"] = int(defs["__ARM_ARCH"])
         env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"]
+    if "iOS" in env:
+        if "iOSSDKVer" not in env:
+            envSdkVer = os.environ.get("SDKVERSION")
+            if envSdkVer is not None:
+                env["iOSSDKVer"] = strToVer(envSdkVer)
+            else:
+                env["iOSSDKVer"] = int(env.get("__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__", 70000))
+        if "iOSVer" in paras:
+            env["iOSVer"] = strToVer(paras["iOSVer"], 3)
+            if iOSSdkInfo is not None:
+                okVals = iOSSdkInfo["DefaultProperties"]["DEPLOYMENT_TARGET_SUGGESTED_VALUES"]
+                if paras["iOSVer"] not in okVals:
+                    print(COLOR.Yellow(f"Target SDK Version {env['iOSVer']} not within support list {okVals}"))
+            elif env["iOSVer"] > env["iOSSDKVer"]:
+                print(COLOR.Yellow(f"Target SDK Version {env['iOSVer']} higher than installed SDK {env['iOSSDKVer']}"))
+        else:
+            env["iOSVer"] = env["iOSSDKVer"]
     
     env["cpuCount"] = os.cpu_count()
     env["gprof"] = "grof" in paras
@@ -176,8 +214,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
 
     termuxVer = os.environ.get("TERMUX_VERSION")
     if termuxVer is not None:
-        ver = termuxVer.split(".")
-        env["termuxVer"] = int(ver[0]) * 10000 + int(ver[1])
+        env["termuxVer"] = strToVer(termuxVer, 3) 
         pkgs = subprocess.check_output("pkg list-installed", shell=True)
         libcxx = [x for x in pkgs.decode().splitlines() if x.startswith("libc++")][0]
         libcxxVer = libcxx.split(",")[1].split(" ")[1].split("-")[0]
@@ -193,6 +230,8 @@ def writeEnv(env:dict):
         for k,v in env.items():
             if isinstance(v, (str, int)):
                 file.write("xz_{}\t = {}\n".format(k, v))
+            #else:
+            #    print(f"skip {k}")
         file.write("xz_incDir\t = {}\n".format(" ".join(env["incDirs"])))
         file.write("xz_libDir\t = {}\n".format(" ".join(env["libDirs"])))
         file.write("xz_define\t = {}\n".format(" ".join(env["defines"])))

@@ -31,7 +31,7 @@ class Project:
     def solveTargets(self, env:dict):
         self.libStatic  = PList.solveElementList(self.libs, "static",  env)[0]
         self.libDynamic = PList.solveElementList(self.libs, "dynamic", env)[0]
-        if env["compiler"] == "clang":
+        if env["compiler"] == "clang" and not env.get("iOS", False):
             self.linkflags += ["-fuse-ld=lld"]
         os.chdir(os.path.join(env["rootDir"], self.srcPath))
         targets = self.raw.get("targets", {})
