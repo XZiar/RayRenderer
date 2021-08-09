@@ -394,21 +394,22 @@ struct StaticLookupTable
     }
 };
 
-template<auto& Items>
-constexpr inline auto BuildTableStore() noexcept
+template<typename Type>
+constexpr inline auto BuildTableStore(Type&&) noexcept
 {
-    using T = std::remove_reference_t<decltype(Items)>;
+    constexpr Type Dummy;
+    using T = std::remove_reference_t<decltype(Dummy.Data)>;
     using U = remove_cvref_t<std::remove_extent_t<T>>;
     constexpr auto N = std::extent_v<T>;
     static_assert(is_specialization<U, std::pair>::value, "elements should be std::pair");
     using K = typename U::first_type;
     using V = typename U::second_type;
-    static_assert(detail::StaticLookupItem<K, V>::CheckUnique(Items), "cannot contain repeat key");
+    static_assert(detail::StaticLookupItem<K, V>::CheckUnique(Dummy.Data), "cannot contain repeat key");
     StaticLookupTable<K, V, N> table;
     for (size_t i = 0; i < N; ++i)
     {
-        table.Items[i].Key   = Items[i].first;
-        table.Items[i].Value = Items[i].second;
+        table.Items[i].Key   = Dummy.Data[i].first;
+        table.Items[i].Value = Dummy.Data[i].second;
     }
 #if defined(__cpp_lib_constexpr_algorithms) && __cpp_lib_constexpr_algorithms >= 201806L
     std::sort(table.Items.begin(), table.Items.end());
@@ -424,6 +425,18 @@ constexpr inline auto BuildTableStore() noexcept
 #endif
     return table;
 }
+
+#define BuildTableStore2(k, v, ...)                     \
+::common::container::BuildTableStore([]()               \
+{                                                       \
+    constexpr std::pair<k, v> tmp[] = { __VA_ARGS__ };  \
+    constexpr size_t M = std::extent_v<decltype(tmp)>;  \
+    struct Type                                         \
+    {                                                   \
+        std::pair<k, v> Data[M] = { __VA_ARGS__ };      \
+    };                                                  \
+    return Type{};                                      \
+}())
 
 
 }

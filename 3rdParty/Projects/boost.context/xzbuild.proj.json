@@ -21,10 +21,14 @@
         {
             "sources": 
             [
-                {"ifeq":{"platform": "x64"},   "+":["asm/*_x86_64_sysv_elf_gas.S"]},
-                {"ifeq":{"platform": "x86"},   "+":["asm/*_i386_sysv_elf_gas.S"]},
-                {"ifeq":{"platform": "ARM64"}, "+":["asm/*_arm64_aapcs_elf_gas.S"]},
-                {"ifeq":{"platform": "ARM"},   "+":["asm/*_arm_aapcs_elf_gas.S"]}
+                {"ifeq": {"osname": "Linux",  "platform": "x64"},   "+": ["asm/*_x86_64_sysv_elf_gas.S"]},
+                {"ifeq": {"osname": "Linux",  "platform": "x86"},   "+": ["asm/*_i386_sysv_elf_gas.S"]},
+                {"ifeq": {"osname": "Linux",  "platform": "ARM64"}, "+": ["asm/*_arm64_aapcs_elf_gas.S"]},
+                {"ifeq": {"osname": "Linux",  "platform": "ARM"},   "+": ["asm/*_arm_aapcs_elf_gas.S"]},
+                {"ifeq": {"osname": "Darwin", "platform": "x64"},   "+": ["asm/*_x86_64_sysv_macho_gas.S"]},
+                {"ifeq": {"osname": "Darwin", "platform": "x86"},   "+": ["asm/*_i386_sysv_macho_gas.S"]},
+                {"ifeq": {"osname": "Darwin", "platform": "ARM64"}, "+": ["asm/*_arm64_aapcs_macho_gas.S"]},
+                {"ifeq": {"osname": "Darwin", "platform": "ARM"},   "+": ["asm/*_arm_aapcs_macho_gas.S"]}
             ]
         }
     }

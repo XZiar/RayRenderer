@@ -32,7 +32,8 @@
             "defines":
             [
                 {"ifeq": {"arch": "x86"}, "+": "PNG_INTEL_SSE"},
-                {"ifeq": {"arch": "arm"}, "+": ["PNG_ARM_NEON_API_SUPPORTED", "PNG_ARM_NEON_CHECK_SUPPORTED"]}
+                {"ifeq": {"arch": "arm"}, "+": "PNG_ARM_NEON_API_SUPPORTED"},
+                {"ifeq": {"arch": "arm"}, "ifno": "iOS", "+": "PNG_ARM_NEON_CHECK_SUPPORTED"}
             ]
         }
     }

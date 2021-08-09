@@ -490,8 +490,8 @@ xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return Stru
     GENV(PPCAT(pfx, 2),  type, bit, minBits, 2), \
     GENV(PPCAT(pfx, 3),  type, bit, minBits, 3), \
     GENV(PPCAT(pfx, 4),  type, bit, minBits, 4)
-static constexpr std::pair<uint32_t, std::u32string_view> DXTypeMappings[] =
-{
+
+static constexpr auto DXTypeMapping = BuildTableStore2(uint32_t, std::u32string_view,
     PERPFX(min12uint,    Unsigned, 12, true),
     PERPFX(min16uint,    Unsigned, 16, true),
     PERPFX(uint16_t,     Unsigned, 16, false),
@@ -506,14 +506,12 @@ static constexpr std::pair<uint32_t, std::u32string_view> DXTypeMappings[] =
     PERPFX(min16float,   Float,    16, true),
     PERPFX(float16_t,    Float,    16, false),
     PERPFX(float,        Float,    32, false),
-    PERPFX(double,       Float,    64, false),
-};
+    PERPFX(double,       Float,    64, false));
 #undef PERPFX
 #undef GENV
 std::u32string_view NLDXRuntime::GetDXTypeName(xcomp::VTypeInfo info) noexcept
 {
-    constexpr auto Mapping = common::container::BuildTableStore<DXTypeMappings>();
-    return Mapping(info).value_or(std::u32string_view{});
+    return DXTypeMapping(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

@@ -2,7 +2,11 @@
     "name": "SystemCommon",
     "type": "dynamic",
     "description": "common library for some system-level utilities",
-    "dependency": ["StringUtil", "cpuid"],
+    "dependency": 
+    [
+        "StringUtil", 
+        {"ifneq": {"arch": "arm"}, "+": "cpuid"}
+    ],
     "library": 
     {
         "static": [],

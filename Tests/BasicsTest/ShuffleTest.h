@@ -77,8 +77,8 @@ forceinline void RunShuffle(const T& data)
     ResultCheck(output, Poses);
 }
 
-template<typename T, uint64_t IdxBegin, uint64_t... Vals>
-void TestShuffleBatch(const T& data, std::index_sequence<Vals...>)
+template<typename T, uint64_t IdxBegin, uint16_t... Vals>
+void TestShuffleBatch(const T& data, std::integer_sequence<uint16_t, Vals...>)
 {
     (..., RunShuffle<T, IdxBegin + Vals>(data));
 }
@@ -88,7 +88,7 @@ void TestShuffle(const T& data)
 {
     if constexpr (IdxEnd - IdxBegin <= 256)
     {
-        TestShuffleBatch<T, IdxBegin>(data, std::make_index_sequence<IdxEnd - IdxBegin>{});
+        TestShuffleBatch<T, IdxBegin>(data, std::make_integer_sequence<uint16_t, IdxEnd - IdxBegin>{});
     }
     else
     {

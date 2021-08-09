@@ -542,8 +542,7 @@ xcomp::XCNLStructHandler& NLCLRuntime::GetStructHandler() noexcept { return Stru
     GENV(PPCAT(pfx, 4),  type, bit, 4), \
     GENV(PPCAT(pfx, 8),  type, bit, 8), \
     GENV(PPCAT(pfx, 16), type, bit, 16)
-static constexpr std::pair<uint32_t, std::u32string_view> CLTypeMappings[] =
-{
+static constexpr auto CLTypeMapping = BuildTableStore2(uint32_t, std::u32string_view,
     PERPFX(uchar,  Unsigned, 8),
     PERPFX(ushort, Unsigned, 16),
     PERPFX(uint,   Unsigned, 32),
@@ -554,14 +553,12 @@ static constexpr std::pair<uint32_t, std::u32string_view> CLTypeMappings[] =
     PERPFX(long,   Signed,   64),
     PERPFX(half,   Float,    16),
     PERPFX(float,  Float,    32),
-    PERPFX(double, Float,    64),
-};
+    PERPFX(double, Float,    64));
 #undef PERPFX
 #undef GENV
 std::u32string_view NLCLRuntime::GetCLTypeName(xcomp::VTypeInfo info) noexcept
 {
-    constexpr auto Mapping = common::container::BuildTableStore<CLTypeMappings>();
-    return Mapping(info).value_or(std::u32string_view{});
+    return CLTypeMapping(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

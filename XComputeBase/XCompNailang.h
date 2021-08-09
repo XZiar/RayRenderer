@@ -327,7 +327,7 @@ private:
         const auto& source = isPatchedBlock ? other.PatchedBlock : other.BodyPrefixes;
         const auto prevSize = target.size();
         target.reserve(prevSize + source.size());
-        for (const auto dep : source)
+        for (const auto& dep : source)
         {
             bool hasDepend = false;
             for (size_t i = 0; i < prevSize && !hasDepend; ++i)
@@ -356,7 +356,7 @@ public:
         boost::container::small_vector<std::u32string_view, 4> ret;
         auto& target = isPatchedBlock ? PatchedBlock : BodyPrefixes;
         ret.reserve(target.size());
-        for (const auto dep : target)
+        for (const auto& dep : target)
             ret.emplace_back(StrPool.GetStringView(dep));
         return ret;
     }

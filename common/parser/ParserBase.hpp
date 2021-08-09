@@ -200,7 +200,7 @@ protected:
         {
             msg.append(u"["sv).append(DescribeTokenID(id)).append(u"], "sv);
         }
-        for (const auto token : tokens)
+        for (const auto& token : tokens)
         {
             msg.append(u"{"sv).append(DescribeToken(token)).append(u"}, "sv);
         }

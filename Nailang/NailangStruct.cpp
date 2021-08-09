@@ -437,8 +437,7 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 
 
 #define TYPE_ITEM(type, name) { common::enum_cast(type), U"" name ""sv }
-constexpr std::pair<uint16_t, std::u32string_view> ArgTypeMappings[] =
-{
+static constexpr auto ArgTypeMapping = BuildTableStore2(uint16_t, std::u32string_view,
     TYPE_ITEM(Arg::Type::CategoryGetSet, "getset"),
     TYPE_ITEM(Arg::Type::CategoryArgPtr, "argptr"),
     TYPE_ITEM(Arg::Type::Empty,     "empty"),
@@ -471,13 +470,11 @@ constexpr std::pair<uint16_t, std::u32string_view> ArgTypeMappings[] =
     TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::ArrayBit,    "(bool|str|arr)"),
     TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::NumberBit | Arg::Type::ArrayBit,    "(bool|num|arr)"),
     TYPE_ITEM(Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit,    "(str|num|arr)"),
-    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit, "(bool|str|num|arr)"),
-};
+    TYPE_ITEM(Arg::Type::BoolBit   | Arg::Type::StringBit | Arg::Type::NumberBit | Arg::Type::ArrayBit, "(bool|str|num|arr)"));
 #undef TYPE_ITEM
 std::u32string_view Arg::TypeName(const Arg::Type type) noexcept
 {
-    constexpr auto Mapping = common::container::BuildTableStore<ArgTypeMappings>();
-    return Mapping(common::enum_cast(type)).value_or(U"unknown"sv);
+    return ArgTypeMapping(common::enum_cast(type)).value_or(U"unknown"sv);
 }
 
 void Arg::Decay()

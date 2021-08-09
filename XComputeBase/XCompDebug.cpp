@@ -152,7 +152,7 @@ ArgsLayout::ArgsLayout(common::span<const NamedVecPair> infos, const uint16_t al
                 left.Info.Bit > right.Info.Bit; 
         });
 
-    for (const auto [info, name, dummy, idx] : tmp)
+    for (const auto& [info, name, dummy, idx] : tmp)
     {
         Expects(dummy == UINT16_MAX);
         Args[idx].Offset = offset;
@@ -578,7 +578,7 @@ void ExcelXmlPrinter::PrintPackage(const CachedDebugPackage& package)
     const auto dbgMan       = package.GetDebugManager();
     const auto sheetLookup  = PrepareLookup(U""sv, infoCache, dbgMan);
 
-    for (const auto& item : package)
+    for (const auto item : package)
     {
         const auto tinfo = infoCache.GetThreadInfo(item.Info());
         const auto [sheet, msgBlk] = sheetLookup[item.BlockIdx()];

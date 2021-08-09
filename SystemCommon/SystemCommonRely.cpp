@@ -101,11 +101,12 @@ struct CPUFeature
 # if COMMON_ARCH_ARM
 #   if defined(__aarch64__)
 #     define CAPNUM 1
+        CHECK_FEATURE(CAPNUM, ASIMD, asimd);
 #   else
 #     define CAPNUM 2
+        CHECK_FEATURE(CAPNUM, NEON, asimd);
 #   endif
         CHECK_FEATURE(CAPNUM, FP,        fp);
-        CHECK_FEATURE(CAPNUM, ASIMD,     asimd);
         CHECK_FEATURE(CAPNUM, AES,       aes);
         CHECK_FEATURE(CAPNUM, PMULL,     pmull);
         CHECK_FEATURE(CAPNUM, SHA1,      sha1);

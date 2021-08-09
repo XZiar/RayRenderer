@@ -28,9 +28,9 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [SystemCommon](./SystemCommon) | System-level common library | C++ | Win & Linux & Android & iOS |
 | [MiniLogger](./MiniLogger) | Mini Logger | C++ | Win & Linux & Android & iOS |
 | [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
-| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Win & Linux |
-| [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android |
-| [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android |
+| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Win & Linux & iOS |
+| [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |
+| [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android & iOS |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux |
 | [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Win & Linux & Android |
 | [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Win & Linux |

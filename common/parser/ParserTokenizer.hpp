@@ -167,7 +167,7 @@ public:
         for (auto& ele : LUT)
             ele = baseVal;
         static_assert(std::is_unsigned_v<T>, "val should be unsigned");
-        for (const auto [ch, val] : mappings)
+        for (const auto& [ch, val] : mappings)
         {
             if (ch >= 0) // char is signed
             {

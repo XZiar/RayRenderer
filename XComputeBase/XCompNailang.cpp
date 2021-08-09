@@ -651,13 +651,13 @@ ReplaceResult XCNLRawExecutor::ExtensionReplaceFunc(std::u32string_view func, U3
             if (auto deps = dep.GetPatchedBlock(); deps.Count() > 0)
             {
                 txt += u"Depend on PatchedBlock:\r\n";
-                for (const auto& name : deps)
+                for (const auto name : deps)
                     APPEND_FMT(txt, u" - [{}]\r\n", name);
             }
             if (auto deps = dep.GetBodyPrefixes(); deps.Count() > 0)
             {
                 txt += u"Depend on BodyPrefix:\r\n";
-                for (const auto& name : deps)
+                for (const auto name : deps)
                     APPEND_FMT(txt, u" - [{}]\r\n", name);
             }
             runtime.Logger.verbose(txt);
@@ -1338,7 +1338,7 @@ std::string XCNLRuntime::GenerateOutput()
     // Output patched blocks
     XCContext.WritePatchedBlock(structs);
     std::string output;
-    for (const auto part : std::array<std::u32string_view, 4>{ prefixes, structs, globals, kernels })
+    for (const auto& part : std::array<std::u32string_view, 4>{ prefixes, structs, globals, kernels })
     {
         output.append(common::str::to_string(part, Charset::UTF8, Charset::UTF32));
     }
@@ -1405,7 +1405,7 @@ void XCNLProgStub::Prepare(common::mlog::MiniLogger<false>& logger)
 
 void XCNLProgStub::ExecuteBlocks(const std::u32string_view type) const
 {
-    for (const auto& [meta, tmp] : Program->Program)
+    for (const auto [meta, tmp] : Program->Program)
     {
         if (tmp.TypeData != Statement::Type::Block)
             continue;
@@ -1421,19 +1421,19 @@ void XCNLProgStub::ExecuteBlocks(const std::u32string_view type) const
 }
 void XCNLProgStub::Prepare(common::span<const std::u32string_view> types) const
 {
-    for (const auto type : types)
+    for (const auto& type : types)
     {
         ExecuteBlocks(type);
     }
 }
 void XCNLProgStub::Collect(common::span<const std::u32string_view> prefixes) const
 {
-    for (const auto& [meta, tmp] : Program->Program)
+    for (const auto [meta, tmp] : Program->Program)
     {
         if (tmp.TypeData != Statement::Type::RawBlock)
             continue;
         const auto& block = *tmp.template Get<RawBlock>();
-        for (const auto prefix : prefixes)
+        for (const auto& prefix : prefixes)
         {
             if (IsBeginWith(block.Type, prefix))
             {
@@ -1445,7 +1445,7 @@ void XCNLProgStub::Collect(common::span<const std::u32string_view> prefixes) con
 }
 void XCNLProgStub::PostAct(common::span<const std::u32string_view> types) const
 {
-    for (const auto type : types)
+    for (const auto& type : types)
     {
         ExecuteBlocks(type);
     }
