@@ -1,5 +1,5 @@
 /* libjpeg-turbo build number */
-#define BUILD  "20210426"
+#define BUILD  "20210811"
 
 /* Compiler's inline keyword */
 #undef inline
@@ -8,7 +8,7 @@
 #define PACKAGE_NAME  "libjpeg-turbo"
 
 /* Version number of package */
-#define VERSION  "2.1.0"
+#define VERSION  "2.1.1"
 
 #if defined(_MSC_VER)
 /* How to obtain function inlining. */
@@ -44,4 +44,14 @@
 #elif (SIZEOF_SIZE_T == 4)
 #define HAVE_BITSCANFORWARD
 #endif
+#endif
+
+#if defined(__has_attribute)
+#if __has_attribute(fallthrough)
+#define FALLTHROUGH  __attribute__((fallthrough));
+#else
+#define FALLTHROUGH
+#endif
+#else
+#define FALLTHROUGH
 #endif
