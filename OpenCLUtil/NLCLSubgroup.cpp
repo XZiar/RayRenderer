@@ -246,7 +246,7 @@ NLCLSubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& cont
     return cap;
 }
 
-constexpr auto SubgroupMimicParser = SWITCH_PACK(Hash,
+constexpr auto SubgroupMimicParser = SWITCH_PACK(
     (U"local",  SubgroupAttributes::MimicType::Local),
     (U"ptx",    SubgroupAttributes::MimicType::Ptx),
     (U"auto",   SubgroupAttributes::MimicType::Auto),

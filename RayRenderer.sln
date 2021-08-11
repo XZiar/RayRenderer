@@ -76,6 +76,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\SharedString.hpp = common\SharedString.hpp
 		common\SharedString.natvis = common\SharedString.natvis
 		common\SpinLock.hpp = common\SpinLock.hpp
+		common\StaticLookup.hpp = common\StaticLookup.hpp
 		common\STLEx.hpp = common\STLEx.hpp
 		common\StrBase.hpp = common\StrBase.hpp
 		common\Stream.hpp = common\Stream.hpp

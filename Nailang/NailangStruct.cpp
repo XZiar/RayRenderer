@@ -1,7 +1,6 @@
 #include "NailangPch.h"
 #include "NailangStruct.h"
 #include "NailangRuntime.h"
-#include "common/ContainerEx.hpp"
 #include <cassert>
 
 namespace xziar::nailang
@@ -437,7 +436,7 @@ common::str::StrVariant<char32_t> Arg::ToString() const noexcept
 
 
 #define TYPE_ITEM(type, name) { common::enum_cast(type), U"" name ""sv }
-static constexpr auto ArgTypeMapping = BuildTableStore2(uint16_t, std::u32string_view,
+static constexpr auto ArgTypeMapping = BuildStaticLookup(uint16_t, std::u32string_view,
     TYPE_ITEM(Arg::Type::CategoryGetSet, "getset"),
     TYPE_ITEM(Arg::Type::CategoryArgPtr, "argptr"),
     TYPE_ITEM(Arg::Type::Empty,     "empty"),

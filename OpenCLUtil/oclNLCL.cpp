@@ -5,7 +5,7 @@
 #include "Nailang/NailangAutoVar.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Detect.h"
-#include "common/StrParsePack.hpp"
+#include "common/StaticLookup.hpp"
 
 namespace oclu
 {
@@ -351,23 +351,23 @@ void NLCLRawExecutor::ProcessStruct(const xcomp::OutputBlock& block, std::u32str
 
 bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
 {
-    constexpr auto KerArgSpaceParser = PARSE_PACK(
-        U"global"sv,     KerArgSpace::Global, 
-        U"__global"sv,   KerArgSpace::Global, 
-        U"constant"sv,   KerArgSpace::Constant,
-        U"__constant"sv, KerArgSpace::Constant,
-        U"local"sv,      KerArgSpace::Local, 
-        U"__local"sv,    KerArgSpace::Local, 
-        U"private"sv,    KerArgSpace::Private,
-        U"__private"sv,  KerArgSpace::Private,
-        U""sv,           KerArgSpace::Private);
-    constexpr auto ImgArgAccessParser = PARSE_PACK(
-        U"read_only"sv,    ImgAccess::ReadOnly,
-        U"__read_only"sv,  ImgAccess::ReadOnly,
-        U"write_only"sv,   ImgAccess::WriteOnly,
-        U"__write_only"sv, ImgAccess::WriteOnly,
-        U"read_write"sv,   ImgAccess::ReadWrite,
-        U""sv,             ImgAccess::ReadWrite);
+    constexpr auto KerArgSpaceParser = SWITCH_PACK(
+        (U"global",     KerArgSpace::Global), 
+        (U"__global",   KerArgSpace::Global), 
+        (U"constant",   KerArgSpace::Constant),
+        (U"__constant", KerArgSpace::Constant),
+        (U"local",      KerArgSpace::Local), 
+        (U"__local",    KerArgSpace::Local), 
+        (U"private",    KerArgSpace::Private),
+        (U"__private",  KerArgSpace::Private),
+        (U"",           KerArgSpace::Private));
+    constexpr auto ImgArgAccessParser = SWITCH_PACK(
+        (U"read_only",    ImgAccess::ReadOnly),
+        (U"__read_only",  ImgAccess::ReadOnly),
+        (U"write_only",   ImgAccess::WriteOnly),
+        (U"__write_only", ImgAccess::WriteOnly),
+        (U"read_write",   ImgAccess::ReadWrite),
+        (U"",             ImgAccess::ReadWrite));
     auto& kerCtx = GetCurInstance();
     const auto& fname = meta.GetName();
     if (meta.Name->PartCount == 2 && fname[0] == U"oclu"sv)
@@ -542,7 +542,7 @@ xcomp::XCNLStructHandler& NLCLRuntime::GetStructHandler() noexcept { return Stru
     GENV(PPCAT(pfx, 4),  type, bit, 4), \
     GENV(PPCAT(pfx, 8),  type, bit, 8), \
     GENV(PPCAT(pfx, 16), type, bit, 16)
-static constexpr auto CLTypeMapping = BuildTableStore2(uint32_t, std::u32string_view,
+static constexpr auto CLTypeLookup = BuildStaticLookup(uint32_t, std::u32string_view,
     PERPFX(uchar,  Unsigned, 8),
     PERPFX(ushort, Unsigned, 16),
     PERPFX(uint,   Unsigned, 32),
@@ -558,7 +558,7 @@ static constexpr auto CLTypeMapping = BuildTableStore2(uint32_t, std::u32string_
 #undef GENV
 std::u32string_view NLCLRuntime::GetCLTypeName(xcomp::VTypeInfo info) noexcept
 {
-    return CLTypeMapping(info).value_or(std::u32string_view{});
+    return CLTypeLookup(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLCLRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

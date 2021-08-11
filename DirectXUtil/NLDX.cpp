@@ -4,7 +4,8 @@
 #include "Nailang/NailangAutoVar.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Detect.h"
-#include "common/StrParsePack.hpp"
+#include "common/StaticLookup.hpp"
+
 
 namespace dxu
 {
@@ -491,7 +492,7 @@ xcomp::XCNLStructHandler& NLDXRuntime::GetStructHandler() noexcept { return Stru
     GENV(PPCAT(pfx, 3),  type, bit, minBits, 3), \
     GENV(PPCAT(pfx, 4),  type, bit, minBits, 4)
 
-static constexpr auto DXTypeMapping = BuildTableStore2(uint32_t, std::u32string_view,
+static constexpr auto DXTypeLookup = BuildStaticLookup(uint32_t, std::u32string_view,
     PERPFX(min12uint,    Unsigned, 12, true),
     PERPFX(min16uint,    Unsigned, 16, true),
     PERPFX(uint16_t,     Unsigned, 16, false),
@@ -511,7 +512,7 @@ static constexpr auto DXTypeMapping = BuildTableStore2(uint32_t, std::u32string_
 #undef GENV
 std::u32string_view NLDXRuntime::GetDXTypeName(xcomp::VTypeInfo info) noexcept
 {
-    return DXTypeMapping(info).value_or(std::u32string_view{});
+    return DXTypeLookup(info).value_or(std::u32string_view{});
 }
 
 xcomp::OutputBlock::BlockType NLDXRuntime::GetBlockType(const RawBlock& block, MetaFuncs metas) const noexcept

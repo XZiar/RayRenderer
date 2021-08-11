@@ -2,6 +2,7 @@
 
 #include "CommonRely.hpp"
 #include <boost/predef/other/endian.h>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -169,6 +170,57 @@ struct HashedStrView : public PreHashed<DJBHash>
     { 
         return Hash == other.Hash && View == other;
     }
+};
+
+
+namespace detail
+{
+struct ShortStrBase
+{
+    template<typename T, size_t Bits, size_t... Idx>
+    static constexpr T Pack(const char(&str)[sizeof...(Idx) + 1], std::index_sequence<Idx...>) noexcept
+    {
+        constexpr size_t M = sizeof...(Idx);
+        T val = 0;
+        (..., void(val += static_cast<T>(str[Idx]) << ((M - Idx - 1) * Bits)));
+        return val;
+    }
+    template<typename T, size_t Bits, typename C>
+    static constexpr T Pack(const std::basic_string_view<C>& str) noexcept
+    {
+        constexpr T limit = T(1) << Bits;
+        T val = 0;
+        const auto N = str.size();
+        for (size_t i = 0; i < N; ++i)
+        {
+            const auto num = static_cast<T>(str[i]);
+            if (num >= limit) return std::numeric_limits<T>::max();
+            val += num << ((N - i - 1) * Bits);
+        }
+        return val;
+    }
+};
+}
+
+template<size_t N, bool Compact = false>
+struct ShortStrVal
+{
+    static constexpr size_t EleBits = Compact ? 7 : 8;
+    static constexpr size_t TotalBits = EleBits * N;
+    using T = std::conditional_t<(TotalBits > 32), uint64_t, uint32_t>;
+    T Val;
+    constexpr ShortStrVal() noexcept : Val(0) {}
+    template<size_t M>
+    constexpr ShortStrVal(const char(&str)[M]) noexcept :
+        Val(M > N + 1 ? std::numeric_limits<T>::max() :
+            detail::ShortStrBase::template Pack<T, EleBits>(str, std::make_index_sequence<M - 1>{}))
+    { }
+    constexpr ShortStrVal(std::u32string_view str) noexcept :
+        Val(str.size() > N ? std::numeric_limits<T>::max() :
+            detail::ShortStrBase::template Pack<T, EleBits, char32_t>(str))
+    { }
+    constexpr bool operator==(const ShortStrVal& other) const noexcept { return Val == other.Val; }
+    constexpr bool operator<(const ShortStrVal& other) const noexcept { return Val < other.Val; }
 };
 
 

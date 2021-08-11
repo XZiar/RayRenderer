@@ -46,7 +46,7 @@ void NLCLDp4aExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const FuncPa
     }
 }
 
-constexpr auto SignednessParser = SWITCH_PACK(Hash,
+constexpr auto SignednessParser = SWITCH_PACK(
     (U"uu", Dp4aProvider::Signedness::UU),
     (U"ss", Dp4aProvider::Signedness::SS),
     (U"us", Dp4aProvider::Signedness::US),
@@ -93,7 +93,7 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::GetDefaultProvider() const
 }
 
 enum class MimicType { Auto, Plain, Intel, Arm, Ptx };
-constexpr auto MimicParser = SWITCH_PACK(Hash,
+constexpr auto MimicParser = SWITCH_PACK(
     (U"auto",   MimicType::Auto),
     (U"plain",  MimicType::Plain),
     (U"intel",  MimicType::Intel),

@@ -1,6 +1,5 @@
 #include "XCompRely.h"
-#include "common/StrParsePack.hpp"
-#include "common/ContainerEx.hpp"
+#include "common/StaticLookup.hpp"
 
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
@@ -13,30 +12,20 @@ using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
 
 
-struct VTypeName
-{
-    std::u32string_view Name;
-    VTypeInfo Type;
-};
-constexpr std::pair<uint64_t, VTypeName> ToUST(std::u32string_view name, VTypeInfo vtype) noexcept
-{
-    return { common::DJBHash::HashC(name), { name, vtype} };
-}
-
 #define GENV(dtype, bit, n, least) VTypeInfo{ common::simd::VecDataInfo::DataTypes::dtype, n, 0, bit, least ? VTypeInfo::TypeFlags::MinBits : VTypeInfo::TypeFlags::Empty }
 #define PERPFX(pfx, type, bit, least) \
-    ToUST(U"" STRINGIZE(pfx) ""sv,    GENV(type, bit, 1,  least)), \
-    ToUST(U"" STRINGIZE(pfx) "v2"sv,  GENV(type, bit, 2,  least)), \
-    ToUST(U"" STRINGIZE(pfx) "v3"sv,  GENV(type, bit, 3,  least)), \
-    ToUST(U"" STRINGIZE(pfx) "v4"sv,  GENV(type, bit, 4,  least)), \
-    ToUST(U"" STRINGIZE(pfx) "v8"sv,  GENV(type, bit, 8,  least)), \
-    ToUST(U"" STRINGIZE(pfx) "v16"sv, GENV(type, bit, 16, least))  \
+    { STRINGIZE(pfx) "",    GENV(type, bit, 1,  least) }, \
+    { STRINGIZE(pfx) "v2",  GENV(type, bit, 2,  least) }, \
+    { STRINGIZE(pfx) "v3",  GENV(type, bit, 3,  least) }, \
+    { STRINGIZE(pfx) "v4",  GENV(type, bit, 4,  least) }, \
+    { STRINGIZE(pfx) "v8",  GENV(type, bit, 8,  least) }, \
+    { STRINGIZE(pfx) "v16", GENV(type, bit, 16, least) }
 
 #define MIN2(tstr, type, bit)                    \
     PERPFX(PPCAT(tstr, bit),  type, bit, false), \
-    PERPFX(PPCAT(tstr, bit+), type, bit, true)   \
+    PERPFX(PPCAT(tstr, bit+), type, bit, true)
 
-static constexpr auto S2TMapping = BuildTableStore2(uint64_t, VTypeName,
+static constexpr auto S2TMapping = BuildStaticLookup(common::str::ShortStrVal<8>, VTypeInfo,
     MIN2(u, Unsigned, 8),
     MIN2(u, Unsigned, 16),
     MIN2(u, Unsigned, 32),
@@ -55,9 +44,9 @@ static constexpr auto S2TMapping = BuildTableStore2(uint64_t, VTypeName,
 
 VTypeInfo ParseVDataType(const std::u32string_view type) noexcept
 {
-    const auto ret = S2TMapping(common::DJBHash::HashC(type));
-    if (ret.has_value() && ret->Name == type)
-        return ret->Type;
+    const auto ret = S2TMapping(type);
+    if (ret.has_value())
+        return ret.value();
     return {};
 }
 
@@ -73,7 +62,7 @@ VTypeInfo ParseVDataType(const std::u32string_view type) noexcept
     MIN2(PPCAT(pfx, v8),  type, bit, 8), \
     MIN2(PPCAT(pfx, v16), type, bit, 16)
 
-static constexpr auto T2SMapping = BuildTableStore2(uint32_t, std::u32string_view,
+static constexpr auto T2SMapping = BuildStaticLookup(uint32_t, std::u32string_view,
     PERPFX(u8,  Unsigned, 8),
     PERPFX(u16, Unsigned, 16),
     PERPFX(u32, Unsigned, 32),

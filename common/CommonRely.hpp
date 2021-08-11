@@ -574,6 +574,8 @@ struct DJBHash // DJB Hash
     return common::DJBHash::HashP(str);
 }
 
+#define HashCase(target, cstr) case ::common::DJBHash::Hash(cstr): if (target != cstr) break;
+
 
 
 /* span compatible include */

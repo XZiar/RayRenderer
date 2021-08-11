@@ -2,6 +2,7 @@
 #include "SystemCommon/StackTrace.h"
 #include "StringUtil/Convert.h"
 #include "common/StrParsePack.hpp"
+#include "common/StaticLookup.hpp"
 #include <shared_mutex>
 
 namespace xcomp
@@ -1062,7 +1063,7 @@ void XCNLRuntime::ThrowByVecType(std::variant<std::u32string_view, VTypeInfo> sr
 }
 
 
-constexpr auto LogLevelParser = SWITCH_PACK(Hash, 
+constexpr auto LogLevelParser = SWITCH_PACK(
     (U"error",   common::mlog::LogLevel::Error), 
     (U"success", common::mlog::LogLevel::Success),
     (U"warning", common::mlog::LogLevel::Warning),
@@ -1126,28 +1127,25 @@ Arg XCNLRuntime::CreateGVec(const std::u32string_view type, FuncEvalPack& func)
     if (argc != 0 && argc != 1 && argc != dim0)
         NLRT_THROW_EX(FMTSTR(u"Vec{0} expects [0,1,{0}] args, get [{1}]."sv, dim0, argc), func);
 
-    VTypeInfo sinfo{ info.Type, 1, 0, info.Bits };
-    auto atype = ArrayRef::Type::Any;
-#define GENV(vtype, bit, at) \
-    case static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}): atype = ArrayRef::Type::at; break;
-    switch (static_cast<uint32_t>(sinfo))
-    {
-    GENV(Unsigned, 8,  U8);
-    GENV(Unsigned, 16, U16);
-    GENV(Unsigned, 32, U32);
-    GENV(Unsigned, 64, U64);
-    GENV(Signed,   8,  I8);
-    GENV(Signed,   16, I16);
-    GENV(Signed,   32, I32);
-    GENV(Signed,   64, I64);
-    GENV(Float,    16, F16);
-    GENV(Float,    32, F32);
-    GENV(Float,    64, F64);
-    default: return {};
-    }
+#define GENV(vtype, bit, at) { static_cast<uint32_t>(VTypeInfo{VTypeInfo::DataTypes::vtype, 1, 0, bit}), ArrayRef::Type::at }
+    static constexpr auto VType2ATypeLookup = BuildStaticLookup(uint32_t, ArrayRef::Type,
+    GENV(Unsigned, 8,  U8),
+    GENV(Unsigned, 16, U16),
+    GENV(Unsigned, 32, U32),
+    GENV(Unsigned, 64, U64),
+    GENV(Signed,   8,  I8),
+    GENV(Signed,   16, I16),
+    GENV(Signed,   32, I32),
+    GENV(Signed,   64, I64),
+    GENV(Float,    16, F16),
+    GENV(Float,    32, F32),
+    GENV(Float,    64, F64));
 #undef GENV
 
-    auto vec = GeneralVec::Create(atype, dim0);
+    const auto atype = VType2ATypeLookup(VTypeInfo{ info.Type, 1, 0, info.Bits });
+    if (!atype.has_value()) return {};
+
+    auto vec = GeneralVec::Create(*atype, dim0);
     if (argc > 0)
     {
         const auto arr = GeneralVec::ToArray(vec);
@@ -1226,7 +1224,7 @@ InstanceArgData XCNLRuntime::ParseInstanceArg(std::u32string_view argTypeName, F
         const auto tname = func.Params[0].GetStr().value();
         dtype = func.Params[1].GetStr().value();
         name  = func.Params[2].GetStr().value();
-        constexpr auto TexTypeParser = SWITCH_PACK(Hash,
+        constexpr auto TexTypeParser = SWITCH_PACK(
             (U"tex1d",      InstanceArgInfo::TexTypes::Tex1D),
             (U"tex2d",      InstanceArgInfo::TexTypes::Tex2D),
             (U"tex3d",      InstanceArgInfo::TexTypes::Tex3D),

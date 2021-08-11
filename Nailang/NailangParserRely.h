@@ -2,7 +2,7 @@
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"
-#include "common/StrParsePack.hpp"
+#include "common/StaticLookup.hpp"
 #include "NailangStruct.h"
 
 namespace xziar::nailang
@@ -207,6 +207,47 @@ public:
 };
 
 
+
+#define ENUM_PAIR(name, op) { name, static_cast<uint16_t>(op) }
+constexpr auto OpSymbolLookup = BuildStaticLookup(common::str::ShortStrVal<3>, uint16_t,
+    ENUM_PAIR("==",  EmbedOps::Equal),
+    ENUM_PAIR("!=",  EmbedOps::NotEqual),
+    ENUM_PAIR("<",   EmbedOps::Less),
+    ENUM_PAIR("<=",  EmbedOps::LessEqual),
+    ENUM_PAIR(">",   EmbedOps::Greater),
+    ENUM_PAIR(">=",  EmbedOps::GreaterEqual),
+    ENUM_PAIR("&&",  EmbedOps::And),
+    ENUM_PAIR("||",  EmbedOps::Or),
+    ENUM_PAIR("+",   EmbedOps::Add),
+    ENUM_PAIR("-",   EmbedOps::Sub),
+    ENUM_PAIR("*",   EmbedOps::Mul),
+    ENUM_PAIR("/",   EmbedOps::Div),
+    ENUM_PAIR("%",   EmbedOps::Rem),
+    ENUM_PAIR("&",   EmbedOps::BitAnd),
+    ENUM_PAIR("|",   EmbedOps::BitOr),
+    ENUM_PAIR("^",   EmbedOps::BitXor),
+    ENUM_PAIR("<<",  EmbedOps::BitShiftLeft),
+    ENUM_PAIR(">>",  EmbedOps::BitShiftRight),
+    ENUM_PAIR("??",  EmbedOps::ValueOr),
+    ENUM_PAIR("!",   EmbedOps::Not),
+    ENUM_PAIR("~",   EmbedOps::BitNot),
+    ENUM_PAIR("?",   ExtraOps::Quest),
+    ENUM_PAIR(":",   ExtraOps::Colon),
+    ENUM_PAIR("=",   AssignOps::   Assign),
+    ENUM_PAIR("?=",  AssignOps::NilAssign),
+    ENUM_PAIR(":=",  AssignOps::NewCreate),
+    ENUM_PAIR("+=",  AssignOps::AddAssign),
+    ENUM_PAIR("-=",  AssignOps::SubAssign),
+    ENUM_PAIR("*=",  AssignOps::MulAssign),
+    ENUM_PAIR("/=",  AssignOps::DivAssign),
+    ENUM_PAIR("%=",  AssignOps::RemAssign),
+    ENUM_PAIR("&=",  AssignOps::BitAndAssign),
+    ENUM_PAIR("|=",  AssignOps::BitOrAssign),
+    ENUM_PAIR("^=",  AssignOps::BitXorAssign),
+    ENUM_PAIR("<<=", AssignOps::BitShiftLeftAssign),
+    ENUM_PAIR(">>=", AssignOps::BitShiftRightAssign)
+);
+#undef ENUM_PAIR
 class OpSymbolTokenizer
 {
     static constexpr ASCIICheckerNBit<2> FirstChecker = []() -> ASCIICheckerNBit<2>
@@ -235,46 +276,6 @@ class OpSymbolTokenizer
         };
         return { enum_cast(TokenizerResult::NotMatch), common::to_span(mappings) };
     }();
-#define ENUM_PAIR(name, op) U"" name ""sv, static_cast<uint16_t>(op)
-    static constexpr auto ResultParser = PARSE_PACK(
-        ENUM_PAIR("==",  EmbedOps::Equal),
-        ENUM_PAIR("!=",  EmbedOps::NotEqual),
-        ENUM_PAIR("<",   EmbedOps::Less),
-        ENUM_PAIR("<=",  EmbedOps::LessEqual),
-        ENUM_PAIR(">",   EmbedOps::Greater),
-        ENUM_PAIR(">=",  EmbedOps::GreaterEqual),
-        ENUM_PAIR("&&",  EmbedOps::And),
-        ENUM_PAIR("||",  EmbedOps::Or),
-        ENUM_PAIR("+",   EmbedOps::Add),
-        ENUM_PAIR("-",   EmbedOps::Sub),
-        ENUM_PAIR("*",   EmbedOps::Mul),
-        ENUM_PAIR("/",   EmbedOps::Div),
-        ENUM_PAIR("%",   EmbedOps::Rem),
-        ENUM_PAIR("&",   EmbedOps::BitAnd),
-        ENUM_PAIR("|",   EmbedOps::BitOr),
-        ENUM_PAIR("^",   EmbedOps::BitXor),
-        ENUM_PAIR("<<",  EmbedOps::BitShiftLeft),
-        ENUM_PAIR(">>",  EmbedOps::BitShiftRight),
-        ENUM_PAIR("??",  EmbedOps::ValueOr),
-        ENUM_PAIR("!",   EmbedOps::Not),
-        ENUM_PAIR("~",   EmbedOps::BitNot),
-        ENUM_PAIR("?",   ExtraOps::Quest),
-        ENUM_PAIR(":",   ExtraOps::Colon),
-        ENUM_PAIR("=",   AssignOps::   Assign),
-        ENUM_PAIR("?=",  AssignOps::NilAssign),
-        ENUM_PAIR(":=",  AssignOps::NewCreate),
-        ENUM_PAIR("+=",  AssignOps::AddAssign),
-        ENUM_PAIR("-=",  AssignOps::SubAssign),
-        ENUM_PAIR("*=",  AssignOps::MulAssign),
-        ENUM_PAIR("/=",  AssignOps::DivAssign),
-        ENUM_PAIR("%=",  AssignOps::RemAssign),
-        ENUM_PAIR("&=",  AssignOps::BitAndAssign),
-        ENUM_PAIR("|=",  AssignOps::BitOrAssign),
-        ENUM_PAIR("^=",  AssignOps::BitXorAssign),
-        ENUM_PAIR("<<=", AssignOps::BitShiftLeftAssign),
-        ENUM_PAIR(">>=", AssignOps::BitShiftRightAssign)
-        );
-#undef ENUM_PAIR
     static constexpr ASCIIChecker<true> AllowedBeforeEqual = "=!<>+-*/%&|^?:"sv;
     static constexpr ASCIIChecker<true> AllowedRepeatSelf  = "&|?<>"sv;
 public:
@@ -304,7 +305,7 @@ public:
     forceinline constexpr ParserToken GetToken(char32_t, ContextReader&, std::u32string_view txt) const noexcept
     {
         Expects(txt.size() >= 1 || txt.size() <= 3);
-        const auto ret = ResultParser(txt);
+        const auto ret = OpSymbolLookup(txt);
         if (ret.has_value())
             return ParserToken(NailangToken::OpSymbol, ret.value());
         else
@@ -316,6 +317,5 @@ public:
 }
 
 constexpr static auto IgnoreBlank = ASCIIChecker("\r\n\v\t ");
-
 
 }
