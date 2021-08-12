@@ -203,14 +203,6 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
                 print(COLOR.Yellow(f"Target SDK Version {env['iOSVer']} higher than installed SDK {env['iOSSDKVer']}"))
         else:
             env["iOSVer"] = env["iOSSDKVer"]
-    
-    env["cpuCount"] = os.cpu_count()
-    env["gprof"] = "grof" in paras
-    threads = paras.get("threads", "x1")
-    if threads.startswith('x'):
-        env["threads"] = int(env["cpuCount"] * float(threads[1:]))
-    else:
-        env["threads"] = int(threads)
 
     termuxVer = os.environ.get("TERMUX_VERSION")
     if termuxVer is not None:
@@ -219,6 +211,18 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         libcxx = [x for x in pkgs.decode().splitlines() if x.startswith("libc++")][0]
         libcxxVer = libcxx.split(",")[1].split(" ")[1].split("-")[0]
         env["ndkVer"] = int(libcxxVer[:-1]) * 100 + (ord(libcxxVer[-1]) - ord("a"))
+    
+    env["cpuCount"] = os.cpu_count()
+    env["gprof"] = "gprof" in paras
+    threads = paras.get("threads", "x1")
+    if threads.startswith('x'):
+        env["threads"] = int(env["cpuCount"] * float(threads[1:]))
+    else:
+        env["threads"] = int(threads)
+    if "dbgsym" in paras:
+        env["dsym"] = paras["dbgsym"]
+    if "dsymlv" in paras:
+        env["dslv"] = paras["dsymlv"]
 
     return env
 

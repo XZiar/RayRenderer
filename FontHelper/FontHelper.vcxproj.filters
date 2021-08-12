@@ -33,6 +33,9 @@
     <ClInclude Include="FontPch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FreeType.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -45,6 +48,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="FontViewer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FreeType.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FreeTypeDebug.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

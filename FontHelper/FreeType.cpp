@@ -1,13 +1,11 @@
 #include "FreeType.h"
-#include "FtException.h"
 #include "ft2build.h"
-#include FT_FREETYPE_H
+#include <freetype/freetype.h>
 #include <freetype/ftoutln.h>
 #include "common/FileBase.hpp"
 #include <vector>
 
 #pragma message("Compile FreeType2 with FreeType2[" STRINGIZE(FREETYPE2_VERSION) "]")
-
 
 namespace ft
 {

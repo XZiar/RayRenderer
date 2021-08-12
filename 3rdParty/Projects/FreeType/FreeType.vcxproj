@@ -94,7 +94,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -118,7 +118,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -140,7 +140,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;FT_DEBUG_LEVEL_ERROR;FT_DEBUG_LEVEL_TRACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;FT2_BUILD_LIBRARY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAsManaged>false</CompileAsManaged>
       <CompileAsWinRT>false</CompileAsWinRT>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
@@ -238,10 +238,6 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FreeType.cpp">
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <CompileAs>CompileAsCpp</CompileAs>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\autofit\autofit.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbase.c" />
     <ClCompile Include="$(RealSourceDir)\src\base\ftbbox.c" />
@@ -283,14 +279,13 @@
     <ClCompile Include="$(RealSourceDir)\src\winfonts\winfnt.c" />
     <ClCompile Include="$(RealSourceDir)\builds\windows\ftdebug.c">
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="$(RealSourceDir)\builds\windows\ftsystem.c">
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FreeType.h" />
-    <ClInclude Include="FtException.h" />
     <ClInclude Include="freetype\config\ftconfig.h" />
     <ClInclude Include="freetype\config\ftoption.h" />
     <ClInclude Include="$(RealSourceDir)\include\freetype\config\ftheader.h" />

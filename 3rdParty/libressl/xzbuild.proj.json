@@ -37,7 +37,7 @@
             ],
             "incpath": ["./include", ".", "./include/compat", "./crypto/asn1", "./crypto/bn", "./crypto/dsa", "./crypto/evp", "./crypto/modes"],
             "optimize": {"ifneq": {"target": "Release"}, "+": "-O1"},
-            "debug": "-g",
+            "dbgSymLevel": "0",
             "version": ""
         },
         "asm":

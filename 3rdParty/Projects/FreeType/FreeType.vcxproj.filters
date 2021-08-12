@@ -24,9 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FreeType.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\autofit\autofit.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
@@ -152,12 +149,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FreeType.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="FtException.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="freetype\config\ftconfig.h">
       <Filter>头文件\freetype</Filter>
     </ClInclude>

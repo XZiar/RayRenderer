@@ -16,8 +16,7 @@
         {
             "defines": 
             [
-                "FT2_BUILD_LIBRARY", 
-                {"ifeq":{"target":"debug"}, "+": ["FT_DEBUG_LEVEL_ERROR", "FT_DEBUG_LEVEL_TRACE"]}
+                "FT2_BUILD_LIBRARY"
             ],
             "incpath": ["$(BuildDir)", "./include", "../zlib-ng", "$(BuildDir)/../zlib-ng", "../libpng", "$(BuildDir)/../libpng"]
         },
@@ -28,7 +27,7 @@
                 {
                     "dir": "src/base", "+": 
                     [
-                        "ftbase.c", "ftbbox.c", "ftbdf.c", "ftbitmap.c", "ftcid.c", "ftdebug.c", "ftfstype.c", "ftgasp.c",
+                        "ftbase.c", "ftbbox.c", "ftbdf.c", "ftbitmap.c", "ftcid.c", "ftfstype.c", "ftgasp.c",
                         "ftglyph.c", "ftgxval.c", "ftinit.c", "ftmm.c", "ftotval.c", "ftpatent.c", "ftpfr.c", "ftstroke.c",
                         "ftsynth.c", "fttype1.c", "ftwinfnt.c"
                     ]
@@ -43,10 +42,6 @@
                 },
                 "builds/unix/ftsystem.c"
             ]
-        },
-        "cpp":
-        {
-            "sources": [{"dir": "$(BuildDir)", "+": "*.cpp"}]
         }
     }
 }

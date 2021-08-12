@@ -23,7 +23,7 @@ class BuildTarget(metaclass=abc.ABCMeta):
         pass
 
     def porcPathDefine(self, path:str):
-        return path.replace("$(SolutionDir)", self.solDir).replace("$(BuildDir)", self.buildDir)
+        return os.path.normpath(path.replace("$(SolutionDir)", self.solDir).replace("$(BuildDir)", self.buildDir))
     
     def write(self, file):
         file.write(f"\n\n# For target [{self.prefix()}]\n")
@@ -78,7 +78,7 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.defines = []
         self.incpath = []
         self.pch = ""
-        self.debugLevel = "-g3"
+        self.dbgSymLevel = "3"
         self.optimize = ""
         self.version = ""
         self.visibility = "hidden"
@@ -101,11 +101,13 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         if "iOS" in env:
             verstr = f"{int(env['iOSVer'] / 10000)}.{int((env['iOSVer'] / 100) % 100)}"
             self.flags += ["-miphoneos-version-min=" + verstr]
+        if "dsym" in env:
+            self.flags += ["-g" + env["dsym"]]
         cxx = targets.get("cxx")
         if cxx is not None:
             self.visibility = cxx.get("visibility", self.visibility)
-            a,_ = PList.solveElementList(cxx, "debug", env)
-            self.debugLevel = a[0] if len(a)>0 else self.debugLevel
+            a,_ = PList.solveElementList(cxx, "dbgSymLevel", env)
+            self.dbgSymLevel = a[0] if len(a)>0 else self.dbgSymLevel
             a,_ = PList.solveElementList(cxx, "optimize", env)
             self.optimize = a[0] if len(a)>0 else self.optimize
             a,d = PList.solveElementList(cxx, "flags", env)
@@ -119,21 +121,22 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         self.pch = target.get("pch", "")
         self.version = target.get("version", self.langVersion())
         self.visibility = target.get("visibility", self.visibility)
-        a,_ = PList.solveElementList(target, "debug", env)
-        self.debugLevel = a[0] if len(a)>0 else self.debugLevel
+        a,_ = PList.solveElementList(target, "dbgSymLevel", env)
+        self.dbgSymLevel = a[0] if len(a)>0 else self.dbgSymLevel
         a,_ = PList.solveElementList(target, "optimize", env)
         self.optimize = a[0] if len(a)>0 else self.optimize
         a,d = PList.solveElementList(target, "defines", env)
         self.defines = PList.combineElements(self.defines, a, d)
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = PList.combineElements(self.incpath, a, d)
+        self.dbgSymLevel = env.get("dslv", self.dbgSymLevel)
         self.flags += [f"-fvisibility={self.visibility}"]
 
     def write(self, file):
         super().write(file)
         writeItems(file, self.prefix()+"_defs", self.defines)
         writeItems(file, self.prefix()+"_incpaths", self.incpath)
-        writeItems(file, self.prefix()+"_flags", [self.version, self.debugLevel, self.optimize], state="+")
+        writeItems(file, self.prefix()+"_flags", [self.version, "-g" + self.dbgSymLevel, self.optimize], state="+")
         writeItem (file, self.prefix()+"_pch", self.pch)
 
 

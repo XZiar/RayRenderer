@@ -12,6 +12,7 @@
     {
         "cpp":
         {
+            "incpath": ["$(SolutionDir)/3rdParty/Projects/FreeType/", "$(SolutionDir)/3rdParty/FreeType/include/"],
             "sources": ["*.cpp", {"-": "dllmain.cpp"}],
             "defines": ["FONTHELPER_EXPORT"]
         },
