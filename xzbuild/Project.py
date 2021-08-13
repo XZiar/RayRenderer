@@ -1,6 +1,8 @@
 import json
 import os
+import platform
 import time
+from collections import deque,OrderedDict
 from . import writeItems,writeItem
 from . import PowerList as PList
 from .Target import _AllTargets
@@ -23,9 +25,29 @@ class Project:
         self.targets = []
         self.linkflags = data.get("linkflags", [])
         self.libDirs = []
+        self.libVersion = data.get("libVersion", "")
         self.expmap = data.get("expmap", "")
-        if self.expmap:
-            self.linkflags += [f"-Wl,--version-script -Wl,{self.expmap}"]
+        self.targetName = ""
+        
+        osname = platform.system()
+
+        if self.type == "executable": 
+            self.targetName = self.name
+        elif self.type == "static": 
+            self.targetName = f"lib{self.name}.a"
+        elif self.type == "dynamic":
+            if osname == 'Darwin':
+                self.targetName = f"lib{self.name}.dylib"
+                dynName = f"lib{self.name}.{self.libVersion}.dylib" if self.libVersion else self.targetName
+                self.linkflags += ["-dynamiclib", "-Wl,-w", f"-Wl,-install_name,{dynName}"]
+            else:
+                self.targetName = f"lib{self.name}.so"
+                dynName = f"{self.targetName}.{self.libVersion}" if self.libVersion else self.targetName
+                self.linkflags += ["-shared", f"-Wl,-soname,{dynName}"]
+        else: 
+            raise Exception(f"unrecognized project type [{self.type}]")
+        if self.expmap and not osname == 'Darwin':
+            self.linkflags += [f"-Wl,--version-script,{self.expmap}"]
         pass
 
     def solveTargets(self, env:dict):
@@ -55,24 +77,23 @@ class Project:
         def solveNestedDeps(deps:set, dtype:str):
             checked = deps.copy()
             wanted = [proj for proj in deps if proj.type == dtype]
-            nestedDeps = set()
+            ret = set(wanted)
             while len(wanted) > 0:
                 p = wanted[0]
                 matchDeps = set(proj for proj in p.dependency if proj.type == dtype)
-                nestedDeps |= matchDeps
+                ret |= matchDeps
                 newDeps = matchDeps - checked
                 wanted.extend(newDeps)
                 checked |= newDeps
                 del wanted[0]
-            return nestedDeps
+            return ret
 
         deps = set(self.dependency)
-        nestedStatic  = solveNestedDeps(deps, "static")  if self.type != "static"     else set()
-        nestedDynamic = solveNestedDeps(deps, "dynamic") if self.type == "executable" else set()
-
-        deps = list(deps | nestedStatic | nestedDynamic)
-        self.libStatic  += [proj.name for proj in deps if proj.type == "static"]
-        self.libDynamic += [proj.name for proj in deps if proj.type == "dynamic"]
+        depStatic  = solveNestedDeps(deps, "static") if self.type != "static" else set()
+        depDynamic = ProjectSet.sortByDependency([proj for proj in deps if proj.type == "dynamic"])
+        depDynamic.reverse()
+        libStatic  = [proj.name for proj in depStatic ] + self.libStatic
+        libDynamic = [proj.name for proj in depDynamic] + self.libDynamic
 
         objdir = os.path.join(env["rootDir"], self.buildPath, env["objpath"])
         os.makedirs(objdir, exist_ok=True)
@@ -81,10 +102,12 @@ class Project:
             file.write("# written at [{}]\n".format(time.asctime(time.localtime(time.time()))))
             file.write("\n\n# Project [{}]\n\n".format(self.name))
             writeItem (file, "NAME",        self.name)
+            writeItem (file, "TARGET_NAME", self.targetName)
             writeItem (file, "BUILD_TYPE",  self.type)
             writeItems(file, "LINKFLAGS",   self.linkflags)
-            writeItems(file, "libDynamic",  self.libDynamic)
-            writeItems(file, "libStatic",   self.libStatic)
+            writeItems(file, "libDynamic",  libDynamic)
+            writeItems(file, "libStatic",   libStatic)
+            writeItems(file, "libVersion",  self.libVersion)
             writeItems(file, "xz_libDir",   self.libDirs, state="+")
             for t in self.targets:
                 t.write(file)
@@ -119,7 +142,7 @@ class ProjectSet:
         return len(self._data)
     def __repr__(self):
         return f"{type(self).__name__}({self._data})"
-    def get(self, key, val=None):
+    def get(self, key, val=None) -> Project:
         return self._data.get(key, val)
     
     def names(self):
@@ -128,7 +151,38 @@ class ProjectSet:
     def solveDependency(self, env:dict):
         for proj in self._data.values():
             proj.solveDependency(self, env)
+
+    def sortDependency(self, projs, addDepend = False) -> list:
+        return ProjectSet.sortByDependency(projs, addDepend, self)
     
+    @staticmethod
+    def sortByDependency(projs, addDepend = False, self:"ProjectSet" = None) -> list:
+        wanted = OrderedDict()
+        for x in projs:
+            proj = x if type(x) is Project else None if self is None else self._data.get(x, None)
+            if proj is None: raise Exception(f"{x} not recoginized as a project")
+            wanted[proj] = None
+        if addDepend: 
+            waiting = deque(wanted.keys())
+            while len(waiting) > 0:
+                target = waiting.popleft()
+                for p in target.dependency:
+                    if p not in wanted:
+                        waiting.append(p)
+                wanted[target] = None
+        satified = []
+        while len(wanted) > 0:
+            hasObj = False
+            for p in wanted.keys():
+                if not any([x in wanted for x in p.dependency]):
+                    satified.append(p)
+                    wanted.pop(p)
+                    hasObj = True
+                    break
+            if not hasObj:
+                raise Exception(f"some dependency can not be fullfilled: {wanted.keys()}")
+        return satified
+
     @staticmethod
     def gatherFrom(dir:str="."):
         def readMetaFile(d:str):

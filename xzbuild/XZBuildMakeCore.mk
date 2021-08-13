@@ -90,11 +90,9 @@ endif
 ifeq ($(xz_osname), Darwin)
 LD_STATIC	:= -Wl,-all_load $(STALIBS)
 LD_DYNAMIC	:= -Wl,-noall_load $(DYNLIBS) 
-LD_EXTRA	:= -Wl,-w
 else
 LD_STATIC	:= -Wl,--whole-archive $(STALIBS)
 LD_DYNAMIC	:= -Wl,--no-whole-archive $(DYNLIBS) 
-LD_EXTRA	:= 
 endif
 
 
@@ -126,19 +124,7 @@ endif
 
 ###============================================================================
 ### stage targets
-ifeq ($(BUILD_TYPE), static)
-APP		:= $(APPDIR)/lib$(NAME).a
-else ifeq ($(BUILD_TYPE), dynamic)
-ifeq ($(xz_osname), Darwin)
-APP		:= $(APPDIR)/lib$(NAME).dylib
-else
-APP		:= $(APPDIR)/lib$(NAME).so
-endif
-else ifeq ($(BUILD_TYPE), executable)
-APP		:= $(APPDIR)/$(NAME)
-else
-$(error unknown build type)
-endif
+APP		:= $(APPDIR)/$(TARGET_NAME)
 
 ### clean
 ifeq ($(CLEAN), 1)
@@ -169,7 +155,7 @@ $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
-	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden -shared $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_EXTRA) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
+	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
 	$(call BuildProgress,link   ,  dll, $(APP), $($@_bcmd))
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)

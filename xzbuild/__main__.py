@@ -4,7 +4,6 @@ import os
 import re
 import subprocess
 import sys
-from collections import deque
 
 # enable package import when executed directly
 if not __package__:
@@ -31,8 +30,8 @@ def makeit(proj:Project, env:dict, action:str):
     buildtype = "static library" if proj.type == "static" else ("dynamic library" if proj.type == "dynamic" else "executable binary")
     print(f'{COLOR.Green(action)} {COLOR.Magenta(buildtype)} [{COLOR.Cyan(proj.name)}] '
           f'[{COLOR.Magenta(env["target"])} version on {COLOR.Magenta(env["platform"])}] '
-          f'at SOL/{COLOR.Green(proj.buildPath)} '
-          f'to SOL/{COLOR.Green(objPath)}')
+          f'at {COLOR.Green(proj.buildPath)} '
+          f'to {COLOR.Green(objPath)}')
     proj.solveTargets(env)
     proj.writeMakefile(env)
     srcDir = os.path.join(rootDir, proj.srcPath)
@@ -69,47 +68,12 @@ def listproj(projs: ProjectSet, projname: str):
         printDep(projs[projname], (True,))
     pass
 
-def mainmake(action:str, projs:set, env:dict):
-    def genDependency(projs:set):
-        solved = set()
-        waiting = deque(projs)
-        while len(waiting) > 0:
-            target = waiting.popleft()
-            for p in target.dependency:
-                if p not in solved:
-                    waiting.append(p)
-            solved.add(target)
-        builded = set()
-        while len(solved) > 0:
-            hasObj = False
-            for p in solved:
-                if set(p.dependency).issubset(builded):
-                    yield p
-                    builded.add(p)
-                    solved.remove(p)
-                    hasObj = True
-                    break
-            if not hasObj:
-                raise Exception("some dependency can not be fullfilled")
-        pass
-    def sortDependency(projs:set):
-        wanted = set(projs)
-        while len(wanted) > 0:
-            hasObj = False
-            for p in wanted:
-                if len(set(p.dependency).intersection(wanted)) == 0:
-                    yield p
-                    wanted.remove(p)
-                    hasObj = True
-                    break
-            if not hasObj:
-                raise Exception("some dependency can not be fullfilled")
-        pass
+def mainmake(action:str, projs:set, env:dict, allProjs:ProjectSet):
     if action.endswith("all"):
-        projs = [x for x in genDependency(projs)]
+        projs = allProjs.sortDependency(projs, True)
         action = action[:-3]
     else:
-        projs = [x for x in sortDependency(projs)]
+        projs = allProjs.sortDependency(projs)
     print(f"run {env['threads']} threads on {env['cpuCount']} cores")
     print("build dependency:\t" + "->".join([f"{COLOR.green}[{p.name}]{COLOR.clear}" for p in projs]))
     writeEnv(env)
@@ -176,7 +140,7 @@ def main(argv:list, paras:dict):
                 print(COLOR.Yellow("unknown OS!"))
                 return -1
             
-            suc, tol = mainmake(action, projs, env)
+            suc, tol = mainmake(action, projs, env, projects)
             preclr = COLOR.red if suc == 0 else COLOR.yellow if suc < tol else COLOR.green
             print(f"{preclr}build [{suc}/{tol}] successed.{COLOR.clear}")
             return 0 if suc == tol else -2
