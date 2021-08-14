@@ -4,13 +4,14 @@
     "description": "Utility test",
     "dependency": 
     [
-        "MiniLogger", "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "WindowHost", "Nailang", "XComputeBase",
-        {"ifno": "android", "+": ["FreeGLUTView", "OpenGLUtil"]}
+        "MiniLogger", "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "Nailang", "XComputeBase",
+        {"ifno": ["iOS"], "+": ["WindowHost"]},
+        {"ifno": ["android", "iOS"], "+": ["FreeGLUTView", "OpenGLUtil"]}
     ],
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "X11", {"ifno": "android", "+": "GL"}]
+        "dynamic": ["pthread", "X11", {"ifno": ["android", "iOS"], "+": "GL"}]
     },
     "targets":
     {
@@ -20,7 +21,8 @@
             [
                 "*.cpp", 
                 {"-": ["DXStub.cpp", "CURLTest.cpp"]},
-                {"ifhas": "android", "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]}
+                {"ifhas": "android", "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]},
+                {"ifhas": "iOS", "-": ["GLStub.cpp", "FreeGLUTTest.cpp", "WdHostTest.cpp"]}
             ],
             "flags": ["-Wno-unused-function"]
         },

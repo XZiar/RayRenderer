@@ -590,7 +590,7 @@ template<typename Op, typename... Args>
             boost::container::small_vector<std::u32string_view, 2> depends;
             const auto sgSizeResult = FuncGetSize();
             const auto shufResult = FuncShuffle(vtype, SubgroupShuffleOp::ShuffleXor, false, level);
-            for (const auto& dep : sgSizeResult.GetDepends().GetPatchedBlock())
+            for (const auto dep : sgSizeResult.GetDepends().GetPatchedBlock())
                 depends.emplace_back(dep);
             if (const auto dep = shufResult.GetDepend(); !dep.empty())
                 depends.emplace_back(dep);

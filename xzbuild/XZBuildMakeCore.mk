@@ -155,12 +155,12 @@ $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
-	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
+	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
 	$(call BuildProgress,link   ,  dll, $(APP), $($@_bcmd))
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
-	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) -Wl,-rpath,. -Wl,-rpath,'$$$$ORIGIN' $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
+	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
 	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 endif
 

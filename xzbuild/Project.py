@@ -33,17 +33,21 @@ class Project:
 
         if self.type == "executable": 
             self.targetName = self.name
+            if osname == 'Darwin':
+                self.linkflags += ["-Wl,-rpath,.", "-Wl,-rpath,@executable_path"]
+            else:
+                self.linkflags += ["-Wl,-rpath,.", "-Wl,-rpath,'$$$$ORIGIN'"]
         elif self.type == "static": 
             self.targetName = f"lib{self.name}.a"
         elif self.type == "dynamic":
             if osname == 'Darwin':
                 self.targetName = f"lib{self.name}.dylib"
                 dynName = f"lib{self.name}.{self.libVersion}.dylib" if self.libVersion else self.targetName
-                self.linkflags += ["-dynamiclib", "-Wl,-w", f"-Wl,-install_name,{dynName}"]
+                self.linkflags += ["-dynamiclib", "-Wl,-w", f"-Wl,-install_name,@rpath/{dynName}", "-Wl,-rpath,.", "-Wl,-rpath,@loader_path"]
             else:
                 self.targetName = f"lib{self.name}.so"
                 dynName = f"{self.targetName}.{self.libVersion}" if self.libVersion else self.targetName
-                self.linkflags += ["-shared", f"-Wl,-soname,{dynName}"]
+                self.linkflags += ["-shared", f"-Wl,-soname,{dynName}", "-Wl,-rpath,.", "-Wl,-rpath,'$$$$ORIGIN'"]
         else: 
             raise Exception(f"unrecognized project type [{self.type}]")
         if self.expmap and not osname == 'Darwin':
@@ -53,6 +57,7 @@ class Project:
     def solveTargets(self, env:dict):
         self.libStatic  = PList.solveElementList(self.libs, "static",  env)[0]
         self.libDynamic = PList.solveElementList(self.libs, "dynamic", env)[0]
+        self.libDirs    = PList.solveElementList(self.libs, "path", env)[0]
         if env["compiler"] == "clang" and not env.get("iOS", False):
             self.linkflags += ["-fuse-ld=lld"]
         os.chdir(os.path.join(env["rootDir"], self.srcPath))

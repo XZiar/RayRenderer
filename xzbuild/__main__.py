@@ -135,7 +135,7 @@ def main(argv:list, paras:dict):
                 print(COLOR.Yellow("For Windows, use Visual Studio 2019 to build!"))
                 return -1
             elif env["osname"] == "Darwin":
-                print(COLOR.Yellow("maxOS support is not tested!"))
+                print(COLOR.Yellow("macOS support is not tested!"))
             elif env["osname"] != "Linux":
                 print(COLOR.Yellow("unknown OS!"))
                 return -1

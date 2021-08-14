@@ -135,11 +135,11 @@ std::u16string_view GetLogLevelStr(const LogLevel level)
             const auto lvNum = static_cast<uint8_t>(level);
             auto ptr = &LevelNumStr[lvNum * 4];
             if (lvNum < 10)
-                return { ptr, 1 };
+                return { ptr + 2, 1 };
             else if (lvNum < 100)
-                return { ptr, 2 };
+                return { ptr + 1, 2 };
             else
-                return { ptr, 3 };
+                return { ptr + 0, 3 };
         }
     }
 }

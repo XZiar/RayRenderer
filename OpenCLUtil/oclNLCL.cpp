@@ -53,7 +53,7 @@ struct NLCLContext::OCLUVar final : public AutoVarHandler<NLCLContext>
         {
             const auto& exts = reinterpret_cast<const oclDevice_*>(var.Meta0)->Extensions;
             if (name == U"Length"sv)
-                return exts.Size();
+                return static_cast<uint64_t>(exts.Size());
             const auto extName = common::str::to_string(name, Charset::UTF8);
             return exts.Has(extName);
         }
@@ -308,13 +308,13 @@ void NLCLRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
     }
     APPEND_FMT(dst, U"kernel void {} ("sv, block.Name());
     // arguments
-    for (const auto& arg : kerCtx.Args)
+    for (const auto arg : kerCtx.Args)
     {
         dst.append(U"\r\n    "sv);
         StringifyKernelArg(dst, arg);
         dst.append(U","sv);
     }
-    for (const auto& arg : kerCtx.TailArgs)
+    for (const auto arg : kerCtx.TailArgs)
     {
         dst.append(U"\r\n    "sv);
         StringifyKernelArg(dst, arg);
@@ -613,7 +613,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Restrict))
             flag |= KerArgFlag::Restrict;
         std::u32string unknwonExtra;
-        for (const auto extra : arg.Extra)
+        for (const auto& extra : arg.Extra)
         {
             switch (common::DJBHash::HashC(extra))
             {
@@ -640,7 +640,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             NLRT_THROW_EX(FMTSTR(u"Device [{}] does not support TypedArg [{}]"sv, Context.Device->Name, arg.Name), meta);
         const auto access = PrepareImgAccess(u"TypedArg");
         std::u32string unknwonExtra;
-        for (const auto extra : arg.Extra)
+        for (const auto& extra : arg.Extra)
         {
             unknwonExtra.append(extra).append(U"], [");
         }
@@ -660,7 +660,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         if (!HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
             flag |= KerArgFlag::Const;
         std::u32string unknwonExtra;
-        for (const auto extra : arg.Extra)
+        for (const auto& extra : arg.Extra)
         {
             switch (common::DJBHash::HashC(extra))
             {
@@ -696,7 +696,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         default: NLRT_THROW_EX(FMTSTR(u"ImgArg [{}] has unsupported type"sv, arg.Name), meta); break;
         }
         std::u32string unknwonExtra;
-        for (const auto extra : arg.Extra)
+        for (const auto& extra : arg.Extra)
         {
             unknwonExtra.append(extra).append(U"], [");
         }

@@ -224,6 +224,10 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     if "dsymlv" in paras:
         env["dslv"] = paras["dsymlv"]
 
+    for k,v in paras.items():
+        if k.startswith("set:"):
+            env[k[4:]] = v
+
     return env
 
 def writeEnv(env:dict):

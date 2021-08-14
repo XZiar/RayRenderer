@@ -69,7 +69,7 @@ struct CLStubHelper : public XCStubHelper
         const uint64_t meta0 = reinterpret_cast<uintptr_t>(args);
         dst.reserve(args->GetSize());
         uint32_t idx = 0;
-        for (const auto& arg : *args)
+        for (const auto arg : *args)
         {
             dst.emplace_back(meta0, idx++, [](const auto type) 
                 {
@@ -337,7 +337,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
                 APPEND_FMT(txt, u"-Subgroup[{}] x[{}], requireSize[{}]\n", sgInfo->SubgroupSize, sgInfo->SubgroupCount, sgInfo->CompiledSubgroupSize);
             }
             txt.append(u"-Args:\n"sv);
-            for (const auto& arg : ker->ArgStore)
+            for (const auto arg : ker->ArgStore)
             {
                 if (arg.ArgType == KerArgType::Image)
                     APPEND_FMT(txt, u"---[Image ][{:9}]({:12})[{:12}][{}]\n", 
@@ -409,7 +409,7 @@ static void OCLStub()
             if (fpath == "EXTENSION")
             {
                 string exttxts("Extensions:\n");
-                for (const auto& ext : dev->Extensions)
+                for (const auto ext : dev->Extensions)
                     exttxts.append(ext).append("\n");
                 log().verbose(u"{}\n", exttxts);
                 continue;

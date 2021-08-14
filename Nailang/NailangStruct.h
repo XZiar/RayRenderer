@@ -443,6 +443,11 @@ struct NativeWrapper
         else Ret(uint32_t,              U32);
         else Ret(int32_t,               I32);
         else Ret(float,                 F32);
+#if SIZE_MAX == UINT32_MAX
+        else Ret(size_t,                U32);
+#else
+        else Ret(size_t,                U64);
+#endif
         else Ret(uint64_t,              U64);
         else Ret(int64_t,               I64);
         else Ret(double,                F64);
