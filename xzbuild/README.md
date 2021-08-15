@@ -62,27 +62,28 @@ The idea is that multiple `projects` exist inside a `solution`, and they cna dep
     "name": str,
     "type": <"dynamic"|"static"|"executable">,
     "description": str,
-    "dependency": plist,
+    "dependency": xlist,
     "library": 
     {
-        "static": plist,
-        "dynamic": plist
+        "static": xlist,
+        "dynamic": xlist,
+        ["path": xlist]
     },
     "targets":
     {
         "xxx":
         {
-            "sources": plist,
-            ["defines": plist],
-            ["incpath": plist],
-            ["flags": plist],
+            "sources": xlist,
+            ["defines": xlist],
+            ["incpath": xlist],
+            ["flags": xlist],
             ["pch": str]
         }
     }
 }
 ```
-#### **plist**
-plist means a single item or a list of items.
+#### **xlist**
+xlist means a single item or a list of items.
 
 * `str`: single item
 * `[str,str]`: multiple items
@@ -121,7 +122,9 @@ Extra pre-built library dependency.
 Targets represents different languages in the projects.
 
 #### `cxx`
-Pseudo target, only provides common `flags`, `defines`, `incpath`.
+Pseudo target, provides common fileds like `flags`, `defines`, `incpath`, `dbgSymLevel`, `visibility`, `optimize`. It aims at `C/C++ compiler`.
+
+* `dbgSymLevel: num`: controls debug symbol level like `-g0` or `-g3`. It can be override by build parameter `dsymlv`.
 
 #### `c`
 C target. Depends on `cxx`.
@@ -144,10 +147,28 @@ CUDA target. `Experiemnetal`.
 #### `rc`
 Resouce target. `Experiemnetal`.
 
-Use [self-written script](./ResourceCompiler.py) to extra resource binary in `.rc` file, use `objcopy` to generate binary object file, use [`ResourceHelper`](../common/ResourceHelper.h) to provide common resource access interface.
+Use [self-written script](./ResourceCompiler.py) to embed extra resource binary decleared in `.rc` file.
 
 ## Feature
 
+### [ResourceCompiler](./ResourceCompiler.py)
+
+> On widnows, uses Visual Studio project to handle rc file
+
+Much thanks to **[incbin](https://github.com/graphitemaster/incbin)** which provides the idea and usage of `incbin`. It's not being used due to the limitation of expose global symbol and incompatibility with linker when symbol is local.
+
+ResourceCompiler utilize `GNU-style inline-assembly` and `.incbin` to embed resource, also relies on [`ResourceHelper`](../common/ResourceHelper.h) to provide common resource access interface.
+
+Compare to relying on link-toolchian, it better handles naming issue and Darwin platform (which requires to embed resource at final link stage).
+
+There's [special code path](./RCInclude.h) for different platform and architechture to retieve the address of resource. 
+
+| Platform | Architecture |
+|:-------|:-------:|
+| Ubuntu (Linux) | x86 / ARM(untested) |
+| Android (Linux) | x86(untested) / ARM |
+| iOS (Darwin) | ARM |
+| macOS (Darwin) | ARM (untested) |
 
 ## Roadmap
 

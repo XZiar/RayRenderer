@@ -31,6 +31,8 @@
     <Compile Include="__main__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="RCInclude.h" />
+    <Content Include="README.md" />
     <Content Include="XZBuildMakeCore.mk" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
