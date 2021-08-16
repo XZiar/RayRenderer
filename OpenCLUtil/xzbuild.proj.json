@@ -6,7 +6,8 @@
     "library": 
     {
         "static": [],
-        "dynamic": [{"ifhas": "ocl_noicd", "+": ["OpenCL"]}]
+        "dynamic": [{"ifhas": "ocl_noicd", "+": ["OpenCL"]}],
+        "path": [{"ifhas": ["ocl_noicd", "android"], "+": "/system/vendor/lib64"}]
     },
     "targets":
     {

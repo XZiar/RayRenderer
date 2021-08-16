@@ -44,7 +44,7 @@ def _solveElement(element, env:dict, postproc) -> tuple:
     return ret
 
 def solveElementList(target, field:str, env:dict, postproc=None) -> tuple:
-    eles = target.get(field, [])
+    eles = target if field is None else target.get(field, [])
     if not isinstance(eles, list):
         return _solveElement(eles, env, postproc)
     middle = list(_solveElement(ele, env, postproc) for ele in eles)

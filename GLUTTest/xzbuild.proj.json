@@ -5,8 +5,15 @@
     "dependency": ["FreeGLUTView", "MiniLogger", "OpenGLUtil", "RenderCore", "FontHelper", "ResourcePackager", "ImageUtil", "StringUtil"],
     "library": 
     {
-        "static": [],
-        "dynamic": ["X11"]
+        "static": 
+        [
+            {"ifhas": "fslib_s", "+": "@fslib_s"}
+        ],
+        "dynamic": 
+        [
+            "X11",
+            {"ifhas": "fslib_d", "+": "@fslib_d"}
+        ]
     },
     "targets":
     {

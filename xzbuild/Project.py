@@ -55,8 +55,10 @@ class Project:
         pass
 
     def solveTargets(self, env:dict):
-        self.libStatic  = PList.solveElementList(self.libs, "static",  env)[0]
-        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env)[0]
+        def procLibEle(ret:tuple, ele:dict, env:dict):
+            return tuple(list(env[i[1:]] if i.startswith("@") else i for i in x) for x in ret)
+        self.libStatic  = PList.solveElementList(self.libs, "static",  env, procLibEle)[0]
+        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env, procLibEle)[0]
         self.libDirs    = PList.solveElementList(self.libs, "path", env)[0]
         if env["compiler"] == "clang" and not env.get("iOS", False):
             self.linkflags += ["-fuse-ld=lld"]
@@ -210,17 +212,27 @@ class ProjectSet:
                 key = ele["key"]
                 return tuple(list((key, i) for i in x) for x in ret)
             return ret
-        solFile = os.path.join(solDir, "xzbuild.sol.json")
-        if os.path.isfile(solFile):
-            with open(solFile, 'r') as f:
-                solData = json.load(f)
-            a,_ = PList.solveElementList(solData, "environment", env, procEnvEle)
-            for ele in a:
+        def addEnv(env:dict, target, field):
+            a,d = PList.solveElementList(target, field, env, procEnvEle)
+            adds = PList.combineElements([], a, d)
+            for ele in adds:
                 print(f"add:{ele}")
                 if isinstance(ele, tuple):
                     env[ele[0]] = ele[1]
                 else:
                     env[ele] = "1"
+
+        solFile = os.path.join(solDir, "xzbuild.sol.json")
+        if os.path.isfile(solFile):
+            with open(solFile, 'r') as f:
+                solData = json.load(f)
+            
+            if "environments" in solData:
+                for x in solData["environments"]:
+                    addEnv(env, x, None)
+            else:
+                addEnv(env, solData, "environment")
+
             combinePath(solData, "incDirs", env)
             combinePath(solData, "libDirs", env)
             a,d = PList.solveElementList(solData, "defines", env)

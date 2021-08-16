@@ -9,13 +9,14 @@
     ],
     "library": 
     {
-        "static": [],
+        "static": 
+        [
+            {"ifhas": "fslib_s", "+": "@fslib_s"}
+        ],
         "dynamic": 
         [
-            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    70000}, "+": "c++experimental"},
-            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    90000}, "ifge": {"libc++Ver": 70000}, "+": "c++fs"},
-            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libstdc++"}, "iflt": {"libstdc++Ver": 90100}, "+": "stdc++fs"},
             "pthread", "readline", "dl",
+            {"ifhas": "fslib_d", "+": "@fslib_d"},
             {"ifneq": {"compiler": "clang"}, "+": "backtrace"}
         ]
     },

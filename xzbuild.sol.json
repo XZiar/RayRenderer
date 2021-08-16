@@ -1,8 +1,16 @@
 {
-    "environment" : 
+    "environments" : 
     [
-        {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"},
-        {"ifhas": "iOS", "iflt": {"iOSVer": 130000}, "+": "ghc_fs"}
+        [
+            {"ifhas": "android", "iflt": {"ndkVer": 2201}, "+": "ghc_fs"},
+            {"ifhas": "iOS", "iflt": {"iOSVer": 130000}, "+": "ghc_fs"},
+            {"ifhas": "android", "ifno": "ocl_useicd", "+": "ocl_noicd"}
+        ],
+        [
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    70000}, "key": "fslib_s", "+": "c++experimental"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    90000}, "ifge": {"libc++Ver": 70000}, "key": "fslib_d", "+": "fs=c++fs"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libstdc++"}, "iflt": {"libstdc++Ver": 90100}, "key": "fslib_d", "+": "fs=stdc++fs"}
+        ]
     ],
     "incDirs" : [ ".", "./3rdParty" ],
     "defines" : 
