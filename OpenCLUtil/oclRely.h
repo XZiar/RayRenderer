@@ -10,7 +10,7 @@
 # define OCLUAPI [[gnu::visibility("default")]]
 #endif
 
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "ImageUtil/ImageCore.h"
 #include "ImageUtil/TexFormat.h"
 #include "SystemCommon/PromiseTask.h"

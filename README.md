@@ -26,7 +26,6 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
 | [StringUtil](./StringUtil) | String Charset Library | C++ | Win & Linux & Android & iOS |
 | [SystemCommon](./SystemCommon) | System-level common library | C++ | Win & Linux & Android & iOS |
-| [MiniLogger](./MiniLogger) | Mini Logger | C++ | Win & Linux & Android & iOS |
 | [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
 | [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Win & Linux & iOS |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |

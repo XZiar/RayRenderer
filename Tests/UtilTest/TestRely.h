@@ -4,7 +4,7 @@
 #include "SystemCommon/FileEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/ResourceHelper.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>

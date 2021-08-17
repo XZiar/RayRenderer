@@ -2,7 +2,7 @@
     "name": "RenderCore",
     "type": "dynamic",
     "description": "Renderer core",
-    "dependency": ["OpenGLUtil", "MiniLogger", "ImageUtil", "OpenGLUtil", "OpenCLInterop", "StringUtil", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil", "SystemCommon"],
+    "dependency": ["OpenGLUtil", "ImageUtil", "OpenGLUtil", "OpenCLInterop", "StringUtil", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

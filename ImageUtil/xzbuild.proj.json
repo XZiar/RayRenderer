@@ -2,7 +2,7 @@
     "name": "ImageUtil",
     "type": "dynamic",
     "description": "An async task execution library",
-    "dependency": ["MiniLogger", "zlib-ng", "png", "jpeg-turbo", "StringUtil", "SystemCommon"],
+    "dependency": ["zlib-ng", "png", "jpeg-turbo", "StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

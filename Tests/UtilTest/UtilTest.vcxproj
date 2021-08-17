@@ -206,9 +206,6 @@
     <ProjectReference Include="..\..\Nailang\Nailang.vcxproj">
       <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\MiniLogger\MiniLogger.vcxproj">
-      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\FreeGLUTView\FreeGLUTView.vcxproj">
       <Project>{944b3981-336e-4807-b5be-55b8f05920d4}</Project>
     </ProjectReference>

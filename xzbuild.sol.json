@@ -8,8 +8,8 @@
         ],
         [
             {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    70000}, "key": "fslib_s", "+": "c++experimental"},
-            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    90000}, "ifge": {"libc++Ver": 70000}, "key": "fslib_d", "+": "fs=c++fs"},
-            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libstdc++"}, "iflt": {"libstdc++Ver": 90100}, "key": "fslib_d", "+": "fs=stdc++fs"}
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libc++"},    "iflt": {"libc++Ver":    90000}, "ifge": {"libc++Ver": 70000}, "key": "fslib_d", "+": "c++fs"},
+            {"ifno": "ghc_fs", "ifeq": {"stdlib": "libstdc++"}, "iflt": {"libstdc++Ver": 90100}, "key": "fslib_d", "+": "stdc++fs"}
         ]
     ],
     "incDirs" : [ ".", "./3rdParty" ],

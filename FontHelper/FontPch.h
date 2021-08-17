@@ -2,7 +2,7 @@
 #include "FontRely.h"
 #include "FreeType.h"
 #include "OpenCLUtil/oclException.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include <cmath>
 #include "resource.h"
 

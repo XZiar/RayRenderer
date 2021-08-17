@@ -24,11 +24,6 @@
   - [x] Merge fmt with better format-context support
   - [ ] Add BOM detection
 
-* MiniLogger
-  - [ ] Add pre-defined color arg
-  - [ ] Add color filter to non-terminal backend (spin-lock based processing)
-  - [ ] Use Pascal naming
-
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
@@ -37,7 +32,12 @@
   - [x] Move SIMD copy into SystemCommon
   - [ ] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
   - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
-  - [ ] Maybe move MiniLigger into SystemCommon, since commonlly used
+  - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
+  - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
+  * MiniLogger
+    - [ ] Add pre-defined color arg
+    - [ ] Add color filter to non-terminal backend (spin-lock based processing)
+    - [ ] Use Pascal naming
 
 * AsyncExecutor
   - [x] Add support for returning value

@@ -168,9 +168,9 @@ Platform-specific runtime can extend it with more info.
 
   XCNL language support
 
-* [MiniLogger](../MiniLogger)
+* [SystemCommon](../SystemCommon)
   
-  Log message and errors
+  OS/Hardware related support, and logging support
 
 ## License
 

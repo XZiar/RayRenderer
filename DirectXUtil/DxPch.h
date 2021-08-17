@@ -5,7 +5,7 @@
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/CopyEx.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ImageUtil/TexFormat.h"
 #include "common/Exceptions.hpp"

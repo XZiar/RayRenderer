@@ -2,7 +2,7 @@
     "name": "ResourcePackager",
     "type": "dynamic",
     "description": "Resource package and management library",
-    "dependency": ["MiniLogger", "SystemCommon"],
+    "dependency": ["SystemCommon"],
     "library": 
     {
         "static": [],

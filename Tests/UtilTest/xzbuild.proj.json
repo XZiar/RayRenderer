@@ -4,7 +4,7 @@
     "description": "Utility test",
     "dependency": 
     [
-        "MiniLogger", "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "Nailang", "XComputeBase",
+        "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "Nailang", "XComputeBase",
         {"ifno": ["iOS"], "+": ["WindowHost"]},
         {"ifno": ["android", "iOS"], "+": ["FreeGLUTView", "OpenGLUtil"]}
     ],

@@ -3,7 +3,7 @@
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclPromise.h"
 #include "ImageUtil/ImageUtil.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/RawFileEx.h"
 #include "SystemCommon/ConsoleEx.h"

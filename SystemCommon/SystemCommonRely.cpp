@@ -8,8 +8,10 @@
 #   include <sys/auxv.h>
 #   include <asm/hwcap.h>
 #endif
+#include <boost/version.hpp>
 
-#pragma message("Compiling SystemCommon with " STRINGIZE(COMMON_SIMD_INTRIN) )
+#pragma message("Compiling SystemCommon with [" STRINGIZE(COMMON_SIMD_INTRIN) "]" )
+#pragma message("Compiling SystemCommon with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 
 namespace common
 {

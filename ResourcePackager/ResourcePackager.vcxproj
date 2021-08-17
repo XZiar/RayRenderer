@@ -183,9 +183,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
-      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>

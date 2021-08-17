@@ -10,7 +10,7 @@
 #include "ImageUtil/ImageUtil.h"
 #include "AsyncExecutor/AsyncManager.h"
 #include "ResourcePackager/ResourceUtil.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"

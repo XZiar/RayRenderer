@@ -1,9 +1,8 @@
 #include "TestRely.h"
-#include "MiniLogger/QueuedBackend.h"
-#include "common/SpinLock.hpp"
-#include "common/TimeUtil.hpp"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Format.h"
+#include "common/SpinLock.hpp"
+#include "common/TimeUtil.hpp"
 #define CURL_STATICLIB
 #include "curl/include/curl/curl.h"
 #include <vector>

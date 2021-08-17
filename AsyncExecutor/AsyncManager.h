@@ -1,7 +1,7 @@
 #pragma once
 #include "AsyncExecutorRely.h"
 #include "AsyncAgent.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include <atomic>
 

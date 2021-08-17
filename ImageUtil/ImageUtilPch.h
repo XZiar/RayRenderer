@@ -7,7 +7,7 @@
 #include "DataConvertor.hpp"
 #include "RGB15Converter.hpp"
 
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/FileMapperEx.h"
 #include "SystemCommon/CopyEx.h"

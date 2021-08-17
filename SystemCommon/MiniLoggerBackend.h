@@ -1,7 +1,8 @@
 #pragma once
-#include "MiniLoggerRely.h"
-#include "SystemCommon/LoopBase.h"
-#include "SystemCommon/PromiseTask.h"
+#include "SystemCommonRely.h"
+#include "MiniLogger.h"
+#include "LoopBase.h"
+#include "PromiseTask.h"
 #if defined(_MSC_VER)
 #   define _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING 1
 #   pragma warning(disable:4996)
@@ -15,7 +16,7 @@
 namespace common::mlog
 {
 
-class MINILOGAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
+class SYSCOMMONAPI LoggerQBackend : private loop::LoopBase, public LoggerBackend
 {
 private:
     boost::lockfree::queue<uintptr_t> MsgQueue;

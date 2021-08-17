@@ -9,7 +9,7 @@
 #   error need debug level
 #endif
 
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "StringUtil/Convert.h"
 #include <cstdio>
 

@@ -54,6 +54,9 @@
     <ClCompile Include="CopyEx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="MiniLogger.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -104,6 +107,12 @@
     <ClInclude Include="RuntimeFastPath.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="MiniLogger.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniLoggerBackend.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
@@ -112,5 +121,6 @@
   <ItemGroup>
     <Natvis Include="FileStream.natvis" />
     <Natvis Include="PromiseTask.natvis" />
+    <Natvis Include="MiniLogger.natvis" />
   </ItemGroup>
 </Project>

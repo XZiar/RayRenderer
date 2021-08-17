@@ -73,10 +73,6 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
 * [3DBasic](../3DBasic)
   * Basic component -- providing basic 3d data structure
 
-* [MiniLogger](../MiniLogger)
-  
-  used for logging message and errors, with prefix `OpenGLUtil`
-
 * [ImageUtil](../ImageUtil)
   
   used for Image-Texture processing

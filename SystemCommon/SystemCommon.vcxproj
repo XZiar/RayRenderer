@@ -199,6 +199,7 @@
     <ClCompile Include="HResultHelper.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="MiniLogger.cpp" />
     <ClCompile Include="MiscIntrins.cpp" />
     <ClCompile Include="ColorConsole.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
@@ -220,6 +221,8 @@
   <ItemGroup>
     <ClInclude Include="CopyEx.h" />
     <ClInclude Include="HResultHelper.h" />
+    <ClInclude Include="MiniLogger.h" />
+    <ClInclude Include="MiniLoggerBackend.h" />
     <ClInclude Include="MiscIntrins.h" />
     <ClInclude Include="ColorConsole.h" />
     <ClInclude Include="ConsoleEx.h" />
@@ -249,6 +252,7 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="FileStream.natvis" />
+    <Natvis Include="MiniLogger.natvis" />
     <Natvis Include="PromiseTask.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

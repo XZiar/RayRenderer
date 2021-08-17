@@ -1,7 +1,7 @@
 #include "ResourcePackagerRely.h"
 #include "SerializeUtil.h"
 #include "ResourceUtil.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/StackTrace.h"
 #include "common/Exceptions.hpp"

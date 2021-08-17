@@ -4,7 +4,7 @@
 #include "OpenCLInterop/GLInterop.h"
 #include "OpenGLUtil/oglException.h"
 #include "ImageUtil/ImageUtil.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "common/ContainerEx.hpp"

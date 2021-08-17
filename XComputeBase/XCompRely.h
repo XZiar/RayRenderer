@@ -10,7 +10,7 @@
 # define XCOMPBASAPI [[gnu::visibility("default")]]
 #endif
 
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"

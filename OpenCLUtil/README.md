@@ -64,10 +64,6 @@ It aims at providing a OOP wrapper which makes OpenCL's various object and funct
 
   NLCL language support
 
-* [MiniLogger](../MiniLogger)
-  
-  Log message and errors, with prefix `OpenCLUtil`
-
 ## Requirements
 
 OpenCLUtil currently requires at least OpenCL1.2

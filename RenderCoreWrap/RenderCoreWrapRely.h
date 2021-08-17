@@ -10,7 +10,7 @@
 #include "RenderCore/TextureLoader.h"
 #include "RenderCore/ThumbnailManager.h"
 #include "ImageUtil/ImageUtil.h"
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "common/Exceptions.hpp"
 
 using std::vector;

@@ -204,9 +204,6 @@
     <ProjectReference Include="..\3rdParty\Projects\FreeType\FreeType.vcxproj">
       <Project>{7b5c2843-dedf-44ad-b02a-2af72d78f2e9}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\MiniLogger\MiniLogger.vcxproj">
-      <Project>{536eeec1-c2ec-4f53-8e80-4a437264c6c0}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>

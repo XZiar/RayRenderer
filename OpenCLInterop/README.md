@@ -30,10 +30,6 @@ It currently only provide support with OpenGL.
   
   Provide OpenCL Object.
 
-* [MiniLogger](../MiniLogger)
-  
-  used for logging message and errors, with prefix `OpenCLUtil`
-
 ## License
 
 OpenGLInterop (including its component) is licensed under the [MIT license](../License.txt).

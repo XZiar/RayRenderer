@@ -2,7 +2,7 @@
     "name": "FreeGLUTView",
     "type": "dynamic",
     "description": "FreeGLUT wrapper",
-    "dependency": ["freeglut", "MiniLogger", "AsyncExecutor", "StringUtil", "SystemCommon"],
+    "dependency": ["freeglut", "AsyncExecutor", "StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

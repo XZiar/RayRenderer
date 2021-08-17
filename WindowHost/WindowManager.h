@@ -2,7 +2,7 @@
 
 #include "WindowHostRely.h"
 
-#include "MiniLogger/MiniLogger.h"
+#include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
 #include <map>

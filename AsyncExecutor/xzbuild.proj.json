@@ -2,7 +2,7 @@
     "name": "AsyncExecutor",
     "type": "dynamic",
     "description": "An async task execution library",
-    "dependency": ["MiniLogger", "boost.context", "StringUtil", "SystemCommon"],
+    "dependency": ["boost.context", "StringUtil", "SystemCommon"],
     "library": 
     {
         "static": [],
