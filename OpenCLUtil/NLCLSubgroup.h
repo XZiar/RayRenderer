@@ -9,9 +9,9 @@ struct NLCLSubgroupExtension;
 
 struct SubgroupAttributes
 {
-    enum class MimicType { None, Auto, Local, Ptx };
+    enum class MimicType { Auto, None, Khr, Local, Intel, Ptx };
     std::string Args;
-    MimicType Mimic = MimicType::None;
+    MimicType Mimic = MimicType::Auto;
 };
 enum class SubgroupReduceOp  : uint8_t { Add, Mul, Min, Max, And, Or, Xor };
 enum class SubgroupShuffleOp : uint8_t { Broadcast, Shuffle, ShuffleXor, ShuffleDown, ShuffleUp, ShuffleDown2, ShuffleUp2 };

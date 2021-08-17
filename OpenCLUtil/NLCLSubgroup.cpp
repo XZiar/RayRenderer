@@ -248,6 +248,8 @@ NLCLSubgroupCapbility NLCLSubgroupExtension::GenerateCapabiity(NLCLContext& cont
 
 constexpr auto SubgroupMimicParser = SWITCH_PACK(
     (U"local",  SubgroupAttributes::MimicType::Local),
+    (U"khr",    SubgroupAttributes::MimicType::Khr),
+    (U"intel",  SubgroupAttributes::MimicType::Intel),
     (U"ptx",    SubgroupAttributes::MimicType::Ptx),
     (U"auto",   SubgroupAttributes::MimicType::Auto),
     (U"none",   SubgroupAttributes::MimicType::None));
@@ -271,12 +273,16 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
     {
         if (context.Device->PlatVendor == Vendors::NVIDIA)
             mType = SubgroupAttributes::MimicType::Ptx;
+        else if (cap.SupportIntel)
+            mType = SubgroupAttributes::MimicType::Intel;
+        else if (cap.SupportBasicSubgroup)
+            mType = SubgroupAttributes::MimicType::Khr;
         else
             mType = SubgroupAttributes::MimicType::Local;
     }
     Ensures(mType != SubgroupAttributes::MimicType::Auto);
 
-    if (cap.SupportIntel)
+    if (mType == SubgroupAttributes::MimicType::Intel)
         return GenerateProvider<NLCLSubgroupIntel>(logger, context, cap);
     else if (mType == SubgroupAttributes::MimicType::Ptx)
     {
@@ -292,7 +298,7 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
     }
     else if (mType == SubgroupAttributes::MimicType::Local)
         return GenerateProvider<NLCLSubgroupLocal>(logger, context, cap);
-    else if (cap.SupportBasicSubgroup)
+    else if (mType == SubgroupAttributes::MimicType::Khr)
         return GenerateProvider<NLCLSubgroupKHR>(logger, context, cap);
     else
         return GenerateProvider<SubgroupProvider>(logger, context, cap);

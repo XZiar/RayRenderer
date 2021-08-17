@@ -12,10 +12,23 @@ struct Dp4aProvider
 protected:
     NLCLContext& Context;
 public:
-    enum class Signedness { UU, US, SU, SS };
+    enum class Signedness : uint8_t { UU, US, SU, SS };
+    class Dp4aType
+    {
+        uint8_t Val;
+        static constexpr uint8_t SatBit    = 0x80;
+        static constexpr uint8_t PackedBit = 0x40;
+    public:
+        constexpr Dp4aType(Signedness sign, bool isSat, bool isPacked) noexcept :
+            Val(static_cast<uint8_t>(common::enum_cast(sign) + (isSat ? SatBit : 0u) + (isPacked ? PackedBit : 0u)))
+        {}
+        constexpr Signedness GetSignedness() const noexcept { return static_cast<Signedness>(Val & 0x0fu); }
+        constexpr bool IsSat() const noexcept { return Val & SatBit; }
+        constexpr bool IsPacked() const noexcept { return Val & PackedBit; }
+    };
     Dp4aProvider(NLCLContext& context);
     virtual ~Dp4aProvider() { }
-    virtual xcomp::ReplaceResult DP4A(Signedness, const common::span<const std::u32string_view>) { return {}; };
+    virtual xcomp::ReplaceResult DP4A(const Dp4aType, const common::span<const std::u32string_view>) { return {}; };
     virtual void OnFinish(NLCLRuntime&) { }
 };
 
@@ -59,7 +72,17 @@ protected:
 public:
     using Dp4aProvider::Dp4aProvider;
     ~NLCLDp4aPlain() override { }
-    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
+};
+
+class NLCLDp4aKhr : public NLCLDp4aPlain
+{
+protected:
+    const bool SupportUnpacked;
+public:
+    NLCLDp4aKhr(NLCLContext& context, const bool supportUnpacked);
+    ~NLCLDp4aKhr() override { }
+    xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aIntel : public NLCLDp4aPlain
@@ -69,19 +92,19 @@ protected:
 public:
     NLCLDp4aIntel(NLCLContext& context, const bool supportDp4a);
     ~NLCLDp4aIntel() override { }
-    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aArm : public NLCLDp4aPlain
 {
 protected:
-    const bool SupportDPA8, SupportDP8;
-    bool EnableDPA8 = false, EnableDP8 = false;
+    const bool SupportDP8, SupportDPA8, SupportDPA8S;
+    bool EnableDP8 = false, EnableDPA8 = false, EnableDPA8S = false;
     void OnFinish(NLCLRuntime& runtime) override;
 public:
-    NLCLDp4aArm(NLCLContext& context, const bool supportDPA8, const bool supportDP8);
+    NLCLDp4aArm(NLCLContext& context, const bool supportDP8, const bool supportDPA8, const bool supportDPA8S);
     ~NLCLDp4aArm() override { }
-    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
 };
 
 class NLCLDp4aPtx : public NLCLDp4aPlain
@@ -91,7 +114,7 @@ protected:
 public:
     NLCLDp4aPtx(NLCLContext& context, const uint32_t smVersion = 30);
     ~NLCLDp4aPtx() override { }
-    xcomp::ReplaceResult DP4A(Signedness signedness, const common::span<const std::u32string_view> args) override;
+    xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
 };
 
 
