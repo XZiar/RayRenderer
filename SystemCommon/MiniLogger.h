@@ -152,7 +152,7 @@ public:
         }
         else if constexpr (std::is_convertible_v<const T&, const std::string_view&>)
         {
-            const auto& u8str = static_cast<const std::string_view&>(formatter);
+            const auto u8str = static_cast<const std::string_view&>(formatter);
             if constexpr (!hasArgs)
                 return common::str::to_u16string(u8str.data(), u8str.size(), common::str::Charset::UTF8);
             else
@@ -164,7 +164,7 @@ public:
         }
         else if constexpr (std::is_convertible_v<const T&, const std::u16string_view&>)
         {
-            const auto& u16str = static_cast<const std::u16string_view&>(formatter);
+            const auto u16str = static_cast<const std::u16string_view&>(formatter);
             if constexpr (!hasArgs)
                 return u16str;
             else
@@ -176,7 +176,7 @@ public:
         }
         else if constexpr (std::is_convertible_v<const T&, const std::u32string_view&>)
         {
-            const auto& u32str = static_cast<const std::u32string_view&>(formatter);
+            const auto u32str = static_cast<const std::u32string_view&>(formatter);
             if constexpr (!hasArgs)
                 return common::str::to_u16string(u32str.data(), u32str.size(), common::str::Charset::UTF32LE);
             else
@@ -188,7 +188,7 @@ public:
         }
         else if constexpr (std::is_convertible_v<const T&, const std::wstring_view&>)
         {
-            const auto& wstr = static_cast<const std::wstring_view&>(formatter);
+            const auto wstr = static_cast<const std::wstring_view&>(formatter);
             if constexpr (sizeof(wchar_t) == sizeof(char16_t))
                 return ToU16Str(std::u16string_view(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size()), std::forward<Args>(args)...);
             else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
@@ -258,7 +258,7 @@ public:
 
         LogMessage* msg = nullptr;
         if constexpr (sizeof...(args) == 0)
-            msg = LogMessage::MakeMessage(Prefix, std::forward<T>(formatter), level);
+            msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(formatter), level);
         else
             msg = LogMessage::MakeMessage(Prefix, detail::StrFormater::ToU16Str(std::forward<T>(formatter), std::forward<Args>(args)...), level);
 

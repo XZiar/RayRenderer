@@ -20,13 +20,13 @@ include $(OBJDIR)/xzbuild.proj.mk # per project xzbuild settings
 
 CPPCOMPILER		?= $(xz_cppcompiler)
 CCOMPILER		?= $(xz_ccompiler)
-ASMCOMPILER		?= g++
+ASMCOMPILER		?= $(xz_cppcompiler)
 NASMCOMPILER	?= nasm
 ISPCCOMPILER	?= ispc
 CUDACOMPILER	?= nvcc
 STATICLINKER	?= ar
-DYNAMICLINKER	?= g++
-APPLINKER		?= g++
+DYNAMICLINKER	?= $(xz_cppcompiler)
+APPLINKER		?= $(xz_cppcompiler)
 
 VERBOSE			?= 0
 

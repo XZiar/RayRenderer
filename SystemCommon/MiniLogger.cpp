@@ -101,16 +101,16 @@ std::u16string_view GetLogLevelStr(const LogLevel level)
 namespace detail
 {
 template<typename Char>
-SYSCOMMONAPI std::vector<Char>& StrFormater::GetBuffer()
+std::vector<Char>& StrFormater::GetBuffer()
 {
     static thread_local std::vector<Char> out;
     out.resize(0);
     return out;
 }
-template SYSCOMMONAPI std::vector<char>&     StrFormater::GetBuffer();
-template SYSCOMMONAPI std::vector<wchar_t>&  StrFormater::GetBuffer();
-template SYSCOMMONAPI std::vector<char16_t>& StrFormater::GetBuffer();
-template SYSCOMMONAPI std::vector<char32_t>& StrFormater::GetBuffer();
+template std::vector<char>&     StrFormater::GetBuffer();
+template std::vector<wchar_t>&  StrFormater::GetBuffer();
+template std::vector<char16_t>& StrFormater::GetBuffer();
+template std::vector<char32_t>& StrFormater::GetBuffer();
 }
 
 

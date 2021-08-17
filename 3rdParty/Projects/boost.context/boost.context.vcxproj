@@ -96,7 +96,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
@@ -116,7 +116,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <WholeProgramOptimization>false</WholeProgramOptimization>
     </ClCompile>
@@ -133,7 +133,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -147,7 +147,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -161,7 +161,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
@@ -176,7 +176,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DiagnosticsFormat>Caret</DiagnosticsFormat>
-      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;BOOST_ALL_NO_LIB=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -190,29 +190,29 @@
     <MASM Include="$(RealSourceDir)\asm\jump_i386_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\jump_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\make_i386_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\make_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_i386_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
     <MASM Include="$(RealSourceDir)\asm\ontop_x86_64_ms_pe_masm.asm">
       <ExcludedFromBuild Condition="'$(Platform)'=='Win32'">true</ExcludedFromBuild>
-      <PreprocessorDefinitions>BOOST_ALL_NO_LIB=1;BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BOOST_CONTEXT_EXPORT=;BOOST_CONTEXT_SOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </MASM>
   </ItemGroup>
   <ItemGroup>

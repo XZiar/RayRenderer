@@ -11,6 +11,10 @@
     },
     "targets":
     {
+        "cxx":
+        {
+            "defines": ["BOOST_CONTEXT_EXPORT=", "BOOST_CONTEXT_SOURCE"]
+        },
         "cpp":
         {
             "sources": ["posix/stack_traits.cpp"],

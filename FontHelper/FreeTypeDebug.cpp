@@ -12,6 +12,7 @@
 #include "SystemCommon/MiniLogger.h"
 #include "StringUtil/Convert.h"
 #include <cstdio>
+#include <string_view>
 
 
 #if defined(__GNUC__) && !defined(__STDC_LIB_EXT1__)
@@ -50,7 +51,7 @@ FT_BASE_DEF(void) FT_Message(const char* fmt, ...)
     va_start(ap, fmt);
     auto& str = GetBuffer();
     PrintTo(str, 2000, fmt, ap);
-    Logger().warning(common::str::to_u16string(std::string(str)));
+    Logger().warning(std::string_view(str));
     va_end(ap);
 }
 
@@ -63,7 +64,7 @@ FT_BASE_DEF(void) FT_Panic(const char* fmt, ...)
     va_start(ap, fmt);
     auto& str = GetBuffer();
     PrintTo(str, 2000, fmt, ap);
-    Logger().error(common::str::to_u16string(std::string_view(str)));
+    Logger().error(std::string_view(str));
     va_end(ap);
 
     exit(EXIT_FAILURE);
