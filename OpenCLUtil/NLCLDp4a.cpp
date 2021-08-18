@@ -93,12 +93,20 @@ ReplaceResult NLCLDp4aExtension::ReplaceFunc(xcomp::XCNLRawExecutor& executor, s
     };
     if (func == U"oclu.Dp4a"sv || func == U"xcomp.Dp4a"sv)
     {
-        executor.ThrowByReplacerArgCount(func, args, 4, ArgLimits::Exact);
+        executor.ThrowByReplacerArgCount(func, args, 4, ArgLimits::AtLeast);
         if (const auto signedness = SignednessParser(args[0]); !signedness.has_value())
             executor.NLRT_THROW_EX(FMTSTR(u"Repalcer-Func [Dp4a]'s arg[0] expects to a string of {{uu,us,su,ss}}, get [{}]", args[0]));
         else
-            return HandleResult(Provider->DP4A({ signedness.value(), false, false }, args.subspan(1)),
+        {
+            bool isSat = false, isPacked = false;
+            for (size_t i = 1; i < args.size() - 3; ++i)
+            {
+                if (args[i] == U"sat"sv) isSat = true;
+                else if (args[i] == U"packed"sv) isPacked = true;
+            }
+            return HandleResult(Provider->DP4A({ signedness.value(), isSat, isPacked }, args.subspan(args.size() - 3)),
                 U"[Dp4a] not supported"sv);
+        }
     }
     return {};
 }
@@ -135,7 +143,8 @@ constexpr auto MimicParser = SWITCH_PACK(
 std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mimic, std::u32string_view args) const
 {
     bool hasIntelDp4a = HasIntelDp4a;
-    for (auto arg : common::str::SplitStream(common::str::to_string(args, Charset::ASCII), ',', false))
+    const auto args_ = common::str::to_string(args, Charset::ASCII);
+    for (auto arg : common::str::SplitStream(args_, ',', false))
     {
         if (arg.empty()) continue;
         const bool isDisable = arg[0] == '-';
@@ -213,6 +222,14 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mi
 Dp4aProvider::Dp4aProvider(NLCLContext& context) : Context(context)
 { }
 
+xcomp::ReplaceResult Dp4aProvider::DP4ASat(Dp4aType type, const common::span<const std::u32string_view> args)
+{
+    Expects(type.IsSat());
+    std::u32string_view newArgs[] = { U"0"sv, args[1], args[2] };
+    const auto ret = DP4A({ type.GetSignedness(), false, type.IsPacked() }, newArgs);
+    return { FMTSTR(U"add_sat({}, {})"sv, ret.GetStr(), args[0]), ret.GetDepends()};
+}
+
 
 constexpr static std::array<char32_t, 3> GetSignPrefix(Dp4aProvider::Signedness signedness) noexcept
 {
@@ -263,17 +280,19 @@ inline constexpr std::pair<ConvB4Arg, ConvB4Arg> GetDP4Arg(const Dp4aProvider::D
 
 ReplaceResult NLCLDp4aPlain::DP4A(const Dp4aType type, const common::span<const std::u32string_view> args)
 {
+    if (type.IsSat()) 
+        return DP4ASat(type, args);
+    
     const auto funcName = GetSignednessFixedData(dp4a)(type);
     auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
             const auto [pfxC, pfxA, pfxB] = GetSignPrefix(type.GetSignedness());
             std::u32string func = FMTSTR(U"inline {1}int {0}({1}int acc, const {2}char4 a, const {3}char4 b)",
                 funcName, pfxC, pfxA, pfxB);
-            func.append(U"\r\n{\r\n    return "sv);
-            func.append(type.IsSat() ? U"add_sat(acc, "sv : U"acc + "sv);
-            func.append(U"((a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w))"sv);
-            func.append(type.IsSat() ? U");"sv : U";"sv);
-            func.append(U"\r\n}"sv);
+            func.append(UR"(
+{
+    return acc + ((a.x * b.x) + (a.y * b.y) + (a.z * b.z) + (a.w * b.w));
+})"sv);
             return func;
         });
     const auto [argA, argB] = GetDP4Arg(type, args, false);
@@ -308,9 +327,11 @@ NLCLDp4aIntel::NLCLDp4aIntel(NLCLContext& context, const bool supportDp4a) :
 // https://github.com/intel/intel-graphics-compiler/blob/master/IGC/BiFModule/Implementation/IGCBiF_Intrinsics.cl
 ReplaceResult NLCLDp4aIntel::DP4A(const Dp4aType type, const common::span<const std::u32string_view> args)
 {
-    if (!SupportDp4a || type.IsSat())
+    if (!SupportDp4a)
         return NLCLDp4aPlain::DP4A(type, args);
-
+    if (type.IsSat()) 
+        return DP4ASat(type, args);
+    
     const auto funcName = GetSignednessFixedData(dp4a_intel)(type);
     auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
@@ -340,18 +361,24 @@ ReplaceResult NLCLDp4aArm::DP4A(const Dp4aType type, const common::span<const st
     const auto signedness = type.GetSignedness();
     if (signedness == Signedness::US || signedness == Signedness::SU)
         return NLCLDp4aPlain::DP4A(type, args);
-    
+    if (type.IsSat() && !SupportDPA8S)
+        return DP4ASat(type, args);
+
     const auto [argA, argB] = GetDP4Arg(type, args, false);
-    if (SupportDPA8S == type.IsSat() || SupportDPA8 == !type.IsSat())
+    if (type.IsSat()) // SupportDPA8S
     {
-        (type.IsSat() ? EnableDPA8S : EnableDPA8) = true;
-        return FMTSTR(U"arm_dot_acc{}({}, {}, {})"sv, type.IsSat() ? U"_sat"sv : U""sv, argA, argB, args[0]);
+        EnableDPA8S = true;
+        return FMTSTR(U"arm_dot_acc_sat({}, {}, {})"sv, argA, argB, args[0]);
     }
-    else // if (SupportDP8)
+    if (SupportDPA8)
+    {
+        EnableDPA8 = true;
+        return FMTSTR(U"arm_dot_acc({}, {}, {})"sv, argA, argB, args[0]);
+    }
+    else // SupportDP8
     {
         EnableDP8 = true;
-        return FMTSTR(U"{}arm_dot({}, {}){} {})"sv, type.IsSat() ? U"add_sat("sv : U"("sv, argA, argB,
-            type.IsSat() ? U","sv : U" +"sv, args[0]);
+        return FMTSTR(U"(arm_dot({}, {}) + {})"sv, argA, argB, args[0]);
     }
 }
 
@@ -374,16 +401,15 @@ NLCLDp4aPtx::NLCLDp4aPtx(NLCLContext& context, const uint32_t smVersion) :
 // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#integer-arithmetic-instructions-dp4a
 ReplaceResult NLCLDp4aPtx::DP4A(const Dp4aType type, const common::span<const std::u32string_view> args)
 {
-    if (SMVersion < 61 || type.IsSat())
+    if (SMVersion < 61)
         return NLCLDp4aPlain::DP4A(type, args);
-    const auto signedness = type.GetSignedness();
-    if (signedness == Signedness::US || signedness == Signedness::SU)
-        return NLCLDp4aPlain::DP4A(type, args);
+    if (type.IsSat())
+        return DP4ASat(type, args);
 
     const auto funcName = GetSignednessFixedData(dp4a_ptx)(type);
     auto dep = Context.AddPatchedBlock(funcName, [&]()
         {
-            const auto [pfxC, pfxA, pfxB] = GetSignPrefix(signedness);
+            const auto [pfxC, pfxA, pfxB] = GetSignPrefix(type.GetSignedness());
             const char32_t typePfxA = pfxA == U' ' ? U's' : U'u';
             const char32_t typePfxB = pfxB == U' ' ? U's' : U'u';
             static constexpr auto syntax = UR"(inline {1}int {0}({1}int acc, const {2}int a, const {3}int b)

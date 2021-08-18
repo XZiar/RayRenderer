@@ -9,8 +9,6 @@ struct NLCLDp4aExtension;
 
 struct Dp4aProvider
 {
-protected:
-    NLCLContext& Context;
 public:
     enum class Signedness : uint8_t { UU, US, SU, SS };
     class Dp4aType
@@ -26,9 +24,13 @@ public:
         constexpr bool IsSat() const noexcept { return Val & SatBit; }
         constexpr bool IsPacked() const noexcept { return Val & PackedBit; }
     };
+protected:
+    NLCLContext& Context;
     Dp4aProvider(NLCLContext& context);
+    xcomp::ReplaceResult DP4ASat(Dp4aType, const common::span<const std::u32string_view>);
+public:
     virtual ~Dp4aProvider() { }
-    virtual xcomp::ReplaceResult DP4A(const Dp4aType, const common::span<const std::u32string_view>) { return {}; };
+    virtual xcomp::ReplaceResult DP4A(const Dp4aType, const common::span<const std::u32string_view>) { return {}; }
     virtual void OnFinish(NLCLRuntime&) { }
 };
 
@@ -70,7 +72,7 @@ class NLCLDp4aPlain : public Dp4aProvider
 {
 protected:
 public:
-    using Dp4aProvider::Dp4aProvider;
+    NLCLDp4aPlain(NLCLContext& context) : Dp4aProvider(context) {}
     ~NLCLDp4aPlain() override { }
     xcomp::ReplaceResult DP4A(const Dp4aType type, const common::span<const std::u32string_view> args) override;
 };

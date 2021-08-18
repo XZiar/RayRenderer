@@ -125,18 +125,37 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
 {
     uint32_t size = 0;
     {
-        size_t dummy;
+        size_t dummy = 0;
         clGetKernelInfo(kernel, CL_KERNEL_NUM_ARGS, sizeof(uint32_t), &size, &dummy);
         ArgsInfo.reserve(size);
     }
-    std::string tmp;
+    static constexpr auto retReporter = [](cl_int ret, std::u16string_view info) 
+    {
+        if (ret != CL_SUCCESS)
+            oclLog().warning(u"Recieve [{}] when {}.\n", oclUtil::GetErrorString(ret), info);
+    };
+    auto GetKernelArgStr = [tmp = std::string{}](auto kernel, auto idx, cl_kernel_arg_info info) mutable
+    {
+        tmp.resize(255, '\0'); // in case not returning correct length
+        size_t length = 0;
+        cl_int clRet;
+        clRet = clGetKernelArgInfo(kernel, idx, info, 0, nullptr, &length);
+        retReporter(clRet, u"get length"sv);
+        if (length > 255) tmp.resize(length, '\0');
+        // Mali require size to be at least sizeof(char[]), although it does not return length when query.
+        clRet = clGetKernelArgInfo(kernel, idx, info, tmp.size(), tmp.data(), &length);
+        retReporter(clRet, u"get str"sv);
+        return std::string_view(tmp.data(), length > 0 ? length - 1 : 0);
+    };
     for (uint32_t i = 0; i < size; ++i)
     {
         ArgInfo info;
 
         size_t dummy = 0;
+        cl_int clRet;
         cl_kernel_arg_address_qualifier space;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
+        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
+        retReporter(clRet, u"get arg addr qualifier"sv);
         switch (space)
         {
         case CL_KERNEL_ARG_ADDRESS_GLOBAL:      info.Space = KerArgSpace::Global;   break;
@@ -146,7 +165,8 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         }
 
         cl_kernel_arg_access_qualifier access;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
+        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
+        retReporter(clRet, u"get arg access qualifier"sv);
         switch (access)
         {
         case CL_KERNEL_ARG_ACCESS_READ_ONLY:    info.Access = ImgAccess::ReadOnly;  break;
@@ -158,20 +178,12 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
             info.ArgType = KerArgType::Image;
 
         cl_kernel_arg_type_qualifier qualifier;
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
+        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
+        retReporter(clRet, u"get arg type qualifier"sv);
         info.Qualifier = static_cast<KerArgFlag>(qualifier);
 
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, 0, nullptr, &dummy);
-        tmp.resize(dummy, '\0');
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_NAME, dummy, tmp.data(), &dummy);
-        if (dummy > 0) tmp.pop_back();
-        info.Name = ArgTexts.AllocateString(tmp);
-
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, 0, nullptr, &dummy);
-        tmp.resize(dummy, '\0');
-        clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_NAME, dummy, tmp.data(), &dummy);
-        if (dummy > 0) tmp.pop_back();
-        info.Type = ArgTexts.AllocateString(tmp);
+        info.Name = ArgTexts.AllocateString(GetKernelArgStr(kernel, i, CL_KERNEL_ARG_NAME));
+        info.Type = ArgTexts.AllocateString(GetKernelArgStr(kernel, i, CL_KERNEL_ARG_TYPE_NAME));
 
         ArgsInfo.emplace_back(info);
     }
@@ -202,8 +214,21 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
                 const auto& ref = reference.GetArgInfo(i);
                 const auto& cur = GetArgInfo(i);
                 if (ref.Name != cur.Name)
-                    oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
-                        i, ref.Name, cur.Name);
+                {
+                    if (cur.Name.empty())
+                        ArgsInfo[i].Name = ArgTexts.AllocateString(ref.Name);
+                    else
+                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                            i, ref.Name, cur.Name);
+                }
+                if (ref.Type != cur.Type)
+                {
+                    if (cur.Type.empty())
+                        ArgsInfo[i].Type = ArgTexts.AllocateString(ref.Type);
+                    /*else
+                        oclLog().debug(u"KerArgStore, external reports arg[{}] is [{}] while provided [{}].\n",
+                            i, ref.Type, cur.Type);*/
+                }
                 if (ref.Space != cur.Space)
                     oclLog().debug(u"KerArgStore, external reports arg[{}]({}) is [{}] while provided [{}].\n", 
                         i, ref.Name, ref.GetSpaceName(), cur.GetSpaceName());

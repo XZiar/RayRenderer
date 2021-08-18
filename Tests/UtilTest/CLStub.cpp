@@ -445,7 +445,7 @@ static void OCLStub()
 #define ADD_INFO(info) APPEND_FMT(infotxt, u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
                 ADD_INFO(Name);
                 ADD_INFO(Vendor);
-                ADD_INFO(VendorId);
+                APPEND_FMT(infotxt, u"VendorId: [{:#08x}]\n"sv, dev->VendorId);
                 ADD_INFO(Ver);
                 ADD_INFO(CVer);
                 ADD_INFO(ConstantBufSize);

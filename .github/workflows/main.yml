@@ -209,7 +209,7 @@ jobs:
         run: |
           python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5 /dsymlv=0
 
-      - uses: actions/checkout@v2
+      - uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: failed-debug-${{matrix.cxx}}
