@@ -4,12 +4,64 @@
 #include "FileEx.h"
 #include "ThreadEx.h"
 #include "ColorConsole.h"
+#include "common/AlignedBase.hpp"
 #include <thread>
 #include <array>
+#if COMMON_OS_ANDROID
+#   include <android/log.h>
+#endif
 
 
 namespace common::mlog
 {
+using namespace std::string_view_literals;
+
+namespace detail
+{
+
+LoggerName::LoggerName(std::u16string_view u16name) noexcept
+{
+    if (u16name.empty()) return;
+    const auto u8name = str::to_u8string(u16name);
+    const auto u16len = u16name.size(), u8len = u8name.size();
+    Expects(u16len < UINT32_MAX && u8len < UINT32_MAX);
+    const auto totalLen = u16len + 1 + (u8len + 2) / 2;
+    const auto space = FixedLenRefHolder<LoggerName, char16_t>::Allocate(totalLen); // add space for '\0'
+    if (space.size() >= totalLen)
+    {
+        const auto u16Ptr = space.data();
+        memcpy_s(u16Ptr, sizeof(char16_t) * u16len, u16name.data(), sizeof(char16_t) * u16len);
+        u16Ptr[u16len] = u'\0';
+        const auto u8Ptr = reinterpret_cast<char*>(u16Ptr + u16len + 1);
+        memcpy_s(u8Ptr, sizeof(char) * u8len, u8name.data(), sizeof(char) * u8len);
+        u8Ptr[u8len] = '\0';
+        Ptr = reinterpret_cast<uintptr_t>(u16Ptr); 
+        U16Len = static_cast<uint32_t>(u16len); 
+        U8Len  = static_cast<uint32_t>(u8len);
+    }
+}
+
+
+MiniLoggerBase::MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer, const LogLevel level) :
+    LeastLevel(level), Prefix(name), Outputer(std::move(outputer))
+{ }
+MiniLoggerBase::~MiniLoggerBase() { }
+
+
+template<typename Char>
+std::vector<Char>& StrFormater::GetBuffer()
+{
+    static thread_local std::vector<Char> out;
+    out.resize(0);
+    return out;
+}
+template std::vector<char>&     StrFormater::GetBuffer();
+template std::vector<wchar_t>&  StrFormater::GetBuffer();
+template std::vector<char16_t>& StrFormater::GetBuffer();
+template std::vector<char32_t>& StrFormater::GetBuffer();
+
+}
+
 
 using namespace std::chrono;
 
@@ -22,16 +74,18 @@ struct TimeConv
 };
 
 
-LogMessage* LogMessage::MakeMessage(const SharedString<char16_t>& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time)
+LogMessage* LogMessage::MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time)
 {
-    if (len >= UINT32_MAX)
+    constexpr auto MsgSize = sizeof(LogMessage);
+    if (len >= UINT32_MAX - 1024)
         COMMON_THROW(BaseException, u"Too long for a single LogMessage!");
-    uint8_t* ptr = (uint8_t*)malloc(sizeof(LogMessage) + sizeof(char16_t) * len);
-    Ensures(reinterpret_cast<uintptr_t>(ptr) % 4 == 0);
+    const auto ptr = reinterpret_cast<std::byte*>(malloc_align(MsgSize + sizeof(char16_t) * (len + 1), 8));
     if (!ptr)
         return nullptr; //not throw an exception yet
     LogMessage* msg = new (ptr)LogMessage(prefix, static_cast<uint32_t>(len), level, time);
-    memcpy_s(ptr + sizeof(LogMessage), sizeof(char16_t) * len, content, sizeof(char16_t) * len);
+    const auto txtPtr = reinterpret_cast<char16_t*>(ptr + MsgSize);
+    memcpy_s(txtPtr, sizeof(char16_t) * len, content, sizeof(char16_t) * len);
+    txtPtr[len] = u'\0';
     return msg;
 }
 
@@ -40,7 +94,7 @@ bool LogMessage::Consume(LogMessage* msg)
     if (msg->RefCount-- == 1) //last one
     {
         msg->~LogMessage();
-        free(msg);
+        free_align(msg);
         return true;
     }
     return false;
@@ -96,21 +150,6 @@ std::u16string_view GetLogLevelStr(const LogLevel level)
         return { ptr + 1, 2 };
     else
         return { ptr + 0, 3 };
-}
-
-namespace detail
-{
-template<typename Char>
-std::vector<Char>& StrFormater::GetBuffer()
-{
-    static thread_local std::vector<Char> out;
-    out.resize(0);
-    return out;
-}
-template std::vector<char>&     StrFormater::GetBuffer();
-template std::vector<wchar_t>&  StrFormater::GetBuffer();
-template std::vector<char16_t>& StrFormater::GetBuffer();
-template std::vector<char32_t>& StrFormater::GetBuffer();
 }
 
 
@@ -242,6 +281,7 @@ void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
 }
 
 
+#if COMMON_OS_WIN
 class DebuggerBackend : public LoggerQBackend
 {
 protected:
@@ -251,14 +291,9 @@ protected:
         return true;
     }
 public:
-    static void PrintText(const std::u16string_view& txt)
+    static void PrintText(const std::u16string_view txt)
     {
-    #if defined(_WIN32)
         OutputDebugString((LPCWSTR)txt.data());
-    #else
-        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
-        fprintf(stderr, "%s", text.c_str());
-    #endif
     }
     void virtual OnPrint(const LogMessage& msg) override
     {
@@ -267,6 +302,64 @@ public:
         PrintText(std::u16string_view(buffer.data(), buffer.size()));
     }
 };
+#elif COMMON_OS_ANDROID
+class DebuggerBackend : public LoggerQBackend
+{
+protected:
+    bool virtual OnStart(std::any) noexcept override
+    {
+        common::SetThreadName(u"Debugger-MLogger-Backend");
+        return true;
+    }
+    static constexpr std::string_view DefTag = ""sv;
+public:
+    static constexpr int GetLogLevelPrio(const LogLevel level) noexcept
+    {
+        switch (level)
+        {
+        case LogLevel::Debug:   return ANDROID_LOG_DEBUG;
+        case LogLevel::Verbose: return ANDROID_LOG_VERBOSE;
+        case LogLevel::Info:    return ANDROID_LOG_INFO;
+        case LogLevel::Warning: return ANDROID_LOG_WARN;
+        case LogLevel::Success: return ANDROID_LOG_INFO;
+        case LogLevel::Error:   return ANDROID_LOG_FATAL;
+        case LogLevel::None:    return ANDROID_LOG_SILENT;
+        default:                return ANDROID_LOG_DEFAULT;
+        }
+    }
+    static void PrintText(const std::u16string_view txt, const std::string_view tag = DefTag, int prio = ANDROID_LOG_INFO)
+    {
+        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
+        __android_log_write(prio, tag.data(), text.c_str());
+    }
+    void virtual OnPrint(const LogMessage& msg) override
+    {
+        PrintText(msg.GetContent(), msg.GetSource<false>(), GetLogLevelPrio(msg.Level));
+    }
+};
+#else
+class DebuggerBackend : public LoggerQBackend
+{
+protected:
+    bool virtual OnStart(std::any) noexcept override
+    {
+        common::SetThreadName(u"Debugger-MLogger-Backend");
+        return true;
+    }
+public:
+    static void PrintText(const std::u16string_view txt)
+    {
+        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
+        fprintf(stderr, "%s", text.c_str());
+    }
+    void virtual OnPrint(const LogMessage& msg) override
+    {
+        auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"<{:6}>[{}]{}"), GetLogLevelStr(msg.Level), msg.GetSource(), msg.GetContent());
+        // buffer.push_back(u'\0'); // not needed since always do u16->u8 conversion
+        PrintText(std::u16string_view(buffer.data(), buffer.size()));
+    }
+};
+#endif
 
 
 class ConsoleBackend : public LoggerQBackend

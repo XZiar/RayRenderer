@@ -25,11 +25,12 @@ public:
     {
         if (length > 0 && str != nullptr)
         {
-            const auto space = FixedLenRefHolder<SharedString<Char>, Char>::Allocate(length);
-            if (space.size() > 0)
+            const auto space = FixedLenRefHolder<SharedString<Char>, Char>::Allocate(length + 1); // add space for '\0'
+            if (space.size() > 1)
             {
-                memcpy_s(space.data(), sizeof(Char) * space.size(), str, sizeof(Char) * length);
-                StrView = std::basic_string_view<Char>(space.data(), space.size());
+                memcpy_s(space.data(), sizeof(Char) * space.size() - 1, str, sizeof(Char) * length);
+                space.back() = static_cast<Char>(0);
+                StrView = std::basic_string_view<Char>(space.data(), space.size() - 1);
             }
         }
     }

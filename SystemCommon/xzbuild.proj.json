@@ -16,6 +16,7 @@
         "dynamic": 
         [
             "pthread", "readline", "dl",
+            {"ifhas": "android", "+": "log"},
             {"ifhas": "fslib_d", "+": "@fslib_d"},
             {"ifneq": {"compiler": "clang"}, "+": "backtrace"}
         ]

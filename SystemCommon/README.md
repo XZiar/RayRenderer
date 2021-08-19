@@ -71,7 +71,10 @@ Backends are supported with `LoopBase`.
 
 * **Debugger Backend** `shared`
   
-  Send debug message to debugger, such as VisualStudio's debug window, or stderr in Linux
+  Send debug message to debugger:
+  * For Windows, send to debugger(eg VisualStudio) via `OutputDebugString`.
+  * For Android, send to LogCat.
+  * Others, send to stderr.
 
 * **File Backend** `not-shared`
   

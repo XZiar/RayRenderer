@@ -6,25 +6,20 @@ using namespace common::mlog;
 using namespace common;
 using std::vector;
 
-static MiniLogger<false>& log()
-{
-    static MiniLogger<false> log(u"LogTest", { GetConsoleBackend() });
-    return log;
-}
 
 static void TestLog()
 {
-    const auto oldLv = GetConsoleBackend()->GetLeastLevel();
-    //GetConsoleBackend()->SetLeastLevel(LogLevel::Info);
+    static MiniLogger<false> conLog(u"LogTest", { GetConsoleBackend() });
+    static MiniLogger<false> dbgLog(u"LogTest", { GetDebuggerBackend() });
     SimpleTimer timer;
-    log().info(u"Plain call.\n");
+    conLog.info(u"Plain call.\n");
     std::string name = "tst";
     timer.Start();
     for (uint32_t i = 0; i < 5000; ++i)
-        log().verbose(FMT_STRING(u"Dummy Data Here {}.\n"), name);
+        conLog.verbose(FMT_STRING(u"Dummy Data Here {}.\n"), name);
     timer.Stop();
-    //GetConsoleBackend()->SetLeastLevel(oldLv);
-    log().success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
+    conLog.success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
+    dbgLog.success(u"Total {} us, each takes [{}] ns", timer.ElapseUs(), timer.ElapseNs() / 5000);
     getchar();
 }
 

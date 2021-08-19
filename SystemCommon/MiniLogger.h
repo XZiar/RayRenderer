@@ -2,6 +2,7 @@
 #include "SystemCommonRely.h"
 #include "StringUtil/Convert.h"
 #include "StringUtil/Format.h"
+#include "common/StrBase.hpp"
 #include "common/FileBase.hpp"
 #include "common/EnumEx.hpp"
 #include "common/Delegate.hpp"
@@ -23,6 +24,42 @@ MAKE_ENUM_RANGE(LogLevel)
 namespace detail
 {
 class MiniLoggerBase;
+struct LoggerName : public FixedLenRefHolder<LoggerName, char16_t>
+{
+    friend RefHolder<LoggerName>;
+    friend FixedLenRefHolder<LoggerName, char16_t>;
+private:
+    uintptr_t Ptr = 0;
+    uint32_t U16Len = 0, U8Len = 0;
+    [[nodiscard]] forceinline uintptr_t GetDataPtr() const noexcept
+    {
+        return Ptr;
+    }
+    forceinline void Destruct() noexcept { }
+public:
+    constexpr LoggerName() noexcept { }
+    LoggerName(std::u16string_view name) noexcept;
+    LoggerName(const LoggerName& other) noexcept : Ptr(other.Ptr), U16Len(other.U16Len), U8Len(other.U8Len)
+    {
+        this->Increase();
+    }
+    LoggerName(LoggerName&& other) noexcept : Ptr(other.Ptr), U16Len(other.U16Len), U8Len(other.U8Len)
+    {
+        other.Ptr = 0;
+    }
+    ~LoggerName()
+    {
+        this->Decrease();
+    }
+    std::u16string GetU16View() const noexcept
+    {
+        return { reinterpret_cast<const char16_t*>(Ptr), U16Len };
+    }
+    std::string_view GetU8View() const noexcept
+    {
+        return { reinterpret_cast<const char*>(Ptr + (U16Len + 1) * sizeof(char16_t)), U8Len };
+    }
+};
 }
 
 struct LogMessage
@@ -31,24 +68,24 @@ struct LogMessage
 public:
     const uint64_t Timestamp;
 private:
-    const SharedString<char16_t> Source;
+    const detail::LoggerName Source;
     std::atomic_uint32_t RefCount;
     const uint32_t Length;
 public:
     const LogLevel Level;
 private:
-    LogMessage(const SharedString<char16_t>& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
+    LogMessage(const detail::LoggerName& prefix, const uint32_t length, const LogLevel level, const uint64_t time)
         : Timestamp(time), Source(prefix), RefCount(1), Length(length), Level(level) //RefCount is at first 1
     { }
 public:
-    SYSCOMMONAPI static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    SYSCOMMONAPI static LogMessage* MakeMessage(const detail::LoggerName& prefix, const char16_t* content, const size_t len, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count());
     template<size_t N>
-    forceinline static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const char16_t(&content)[N], const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    forceinline static LogMessage* MakeMessage(const detail::LoggerName& prefix, const char16_t(&content)[N], const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         return MakeMessage(prefix, content, N - 1, level, time);
     }
     template<typename T>
-    forceinline static LogMessage* MakeMessage(const SharedString<char16_t>& prefix, const T& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
+    forceinline static LogMessage* MakeMessage(const detail::LoggerName& prefix, const T& content, const LogLevel level, const uint64_t time = std::chrono::high_resolution_clock::now().time_since_epoch().count())
     {
         static_assert(std::is_convertible_v<decltype(std::declval<const T>().data()), const char16_t*>, "only accept container of char16_t");
         return MakeMessage(prefix, content.data(), content.size(), level, time);
@@ -61,7 +98,14 @@ public:
     { 
         return std::u16string_view(reinterpret_cast<const char16_t*>(reinterpret_cast<const uint8_t*>(this) + sizeof(LogMessage)), Length);
     }
-    constexpr std::u16string_view GetSource() const { return Source; }
+    template<bool IsU16 = true>
+    constexpr auto GetSource() const noexcept 
+    {
+        if constexpr (IsU16)
+            return Source.GetU16View();
+        else
+            return Source.GetU8View();
+    }
     SYSCOMMONAPI std::chrono::system_clock::time_point GetSysTime() const;
 };
 
@@ -102,19 +146,18 @@ class MiniLoggerBase
     friend void common::mlog::DelGlobalCallback(const CallbackToken& id);
 protected:
     std::atomic<LogLevel> LeastLevel;
-    SharedString<char16_t> Prefix;
+    LoggerName Prefix;
     std::set<std::shared_ptr<LoggerBackend>> Outputer;
 
     SYSCOMMONAPI static void SentToGlobalOutputer(LogMessage* msg);
     forceinline void AddRefCount(LogMessage& msg, const size_t count) noexcept { msg.RefCount += (uint32_t)count; }
 public:
     COMMON_NO_COPY(MiniLoggerBase)
-    MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug) :
-        LeastLevel(level), Prefix(name), Outputer(std::move(outputer))
-    { }
+    SYSCOMMONAPI MiniLoggerBase(const std::u16string& name, std::set<std::shared_ptr<LoggerBackend>> outputer = {}, const LogLevel level = LogLevel::Debug);
     MiniLoggerBase(MiniLoggerBase&& other) noexcept:
         LeastLevel(other.LeastLevel.load()), Prefix(std::move(other.Prefix)), Outputer(std::move(other.Outputer)) 
     { };
+    SYSCOMMONAPI ~MiniLoggerBase();
     void SetLeastLevel(const LogLevel level) noexcept { LeastLevel = level; }
     LogLevel GetLeastLevel() noexcept { return LeastLevel; }
 };
