@@ -22,14 +22,31 @@ class Project:
         self.libs = data.get("library", {})
         self.libStatic = []
         self.libDynamic = []
-        self.targets = []
-        self.linkflags = data.get("linkflags", [])
         self.libDirs = []
+        self.tbds = data.get("framework", {})
+        self.tbdLibs = []
+        self.tbdDirs = []
+        self.targets = []
+        self.linkflags = []
         self.libVersion = data.get("libVersion", "")
         self.expmap = data.get("expmap", "")
         self.targetName = ""
+        pass
+
+    def solveTargets(self, env:dict):
+        def procLibEle(ret:tuple, ele:dict, env:dict):
+            return tuple(list(env[i[1:]] if i.startswith("@") else i for i in x) for x in ret)
         
         osname = platform.system()
+        self.linkflags  = PList.solveElementList(self.raw,  "linkflags", env)[0]
+        self.libStatic  = PList.solveElementList(self.libs, "static",  env, procLibEle)[0]
+        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env, procLibEle)[0]
+        self.libDirs    = PList.solveElementList(self.libs, "path", env)[0]
+        self.linkflags += [f"-L{x}" for x in self.libDirs]
+        if osname == 'Darwin':
+            self.tbdLibs = PList.solveElementList(self.tbds, "framework",  env, procLibEle)[0]
+            self.tbdDirs = PList.solveElementList(self.tbds, "path", env)[0]
+            self.linkflags += [f"-F{x}" for x in self.tbdDirs]
 
         if self.type == "executable": 
             self.targetName = self.name
@@ -52,16 +69,10 @@ class Project:
             raise Exception(f"unrecognized project type [{self.type}]")
         if self.expmap and not osname == 'Darwin':
             self.linkflags += [f"-Wl,--version-script,{self.expmap}"]
-        pass
 
-    def solveTargets(self, env:dict):
-        def procLibEle(ret:tuple, ele:dict, env:dict):
-            return tuple(list(env[i[1:]] if i.startswith("@") else i for i in x) for x in ret)
-        self.libStatic  = PList.solveElementList(self.libs, "static",  env, procLibEle)[0]
-        self.libDynamic = PList.solveElementList(self.libs, "dynamic", env, procLibEle)[0]
-        self.libDirs    = PList.solveElementList(self.libs, "path", env)[0]
         if env["compiler"] == "clang" and not env.get("iOS", False):
             self.linkflags += ["-fuse-ld=lld"]
+
         os.chdir(os.path.join(env["rootDir"], self.srcPath))
         targets = self.raw.get("targets", {})
         existTargets = [t for t in _AllTargets if t.prefix() in targets]
@@ -101,7 +112,17 @@ class Project:
         depDynamic.reverse()
         libStatic  = [proj.name for proj in depStatic ] + self.libStatic
         libDynamic = [proj.name for proj in depDynamic] + self.libDynamic
-
+        
+        osname = platform.system()
+        linkLibs = []
+        if len(libStatic) > 0:
+            linkLibs.append("-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive")
+            linkLibs += [f"-l{x}" for x in libStatic]
+            linkLibs.append("-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive")
+        linkLibs += [f"-l{x}" for x in libDynamic]
+        if osname == 'Darwin':
+            linkLibs += [f"-framework {x}" for x in self.tbdLibs]
+        
         objdir = os.path.join(env["rootDir"], self.buildPath, env["objpath"])
         os.makedirs(objdir, exist_ok=True)
         with open(os.path.join(objdir, "xzbuild.proj.mk"), 'w') as file:
@@ -112,10 +133,11 @@ class Project:
             writeItem (file, "TARGET_NAME", self.targetName)
             writeItem (file, "BUILD_TYPE",  self.type)
             writeItems(file, "LINKFLAGS",   self.linkflags)
+            writeItems(file, "LINKLIBS",    linkLibs)
             writeItems(file, "libDynamic",  libDynamic)
             writeItems(file, "libStatic",   libStatic)
             writeItems(file, "libVersion",  self.libVersion)
-            writeItems(file, "xz_libDir",   self.libDirs, state="+")
+            # writeItems(file, "xz_libDir",   self.libDirs, state="+")
             for t in self.targets:
                 t.write(file)
 

@@ -187,25 +187,43 @@
 
 # if defined(_M_ARM64) || defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
 // aarch64 expose more feature
-#    define COMMON_SIMD_LV_ 200
+#   define COMMON_SIMD_LV_ 200
 # elif defined(__ARM_ARCH) && __ARM_ARCH >= 8
 // The ARMv8-A architecture has made many ARMv7-A optional features mandatory, including advanced SIMD (also called NEON).
 // aarch32 add extra feature
-#    define COMMON_SIMD_LV_ 150
+#   define COMMON_SIMD_LV_ 100
 # elif defined(__ARM_NEON)
-#    define COMMON_SIMD_LV_ 100
+#   if defined(__ARM_VFPV5__)
+#     define COMMON_SIMD_LV_ 50
+#   elif defined(__ARM_VFPV4__)
+#     define COMMON_SIMD_LV_ 40
+#   elif defined(__ARM_VFPV3__)
+#     define COMMON_SIMD_LV_ 30
+#   elif defined(__ARM_VFPV2__)
+#     define COMMON_SIMD_LV_ 20
+#   else
+#     define COMMON_SIMD_LV_ 10
+#   endif
 # else
-#    define COMMON_SIMD_LV_ 0
+#   define COMMON_SIMD_LV_ 0
 # endif
 # ifndef COMMON_SIMD_LV
-#    define COMMON_SIMD_LV COMMON_SIMD_LV_
+#   define COMMON_SIMD_LV COMMON_SIMD_LV_
 # endif
 
 # if COMMON_SIMD_LV >= 200
 #   define COMMON_SIMD_INTRIN A64
 # elif COMMON_SIMD_LV >= 100
 #   define COMMON_SIMD_INTRIN A32
-# elif COMMON_SIMD_LV >= 100
+# elif COMMON_SIMD_LV >= 50
+#   define COMMON_SIMD_INTRIN NEON_VFPv5
+# elif COMMON_SIMD_LV >= 40
+#   define COMMON_SIMD_INTRIN NEON_VFPv4
+# elif COMMON_SIMD_LV >= 30
+#   define COMMON_SIMD_INTRIN NEON_VFPv3
+# elif COMMON_SIMD_LV >= 20
+#   define COMMON_SIMD_INTRIN NEON_VFPv2
+# elif COMMON_SIMD_LV >= 10
 #   define COMMON_SIMD_INTRIN NEON
 # else
 #   define COMMON_SIMD_INTRIN NONE

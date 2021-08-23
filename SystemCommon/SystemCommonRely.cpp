@@ -99,24 +99,29 @@ struct CPUFeature
         if (!FeatureText.empty()) return;
 #if COMMON_OS_LINUX && COMMON_ARCH_ARM && (!COMMON_OS_ANDROID || __NDK_MAJOR__ >= 18)
         [[maybe_unused]] const auto cap1 = getauxval(AT_HWCAP), cap2 = getauxval(AT_HWCAP2);
-# define CHECK_FEATURE(i, en, name) if (PPCAT(cap, i) & HWCAP_##en) FeatureText.emplace_back(#name""sv)
+        //printf("cap1&2: [%lx][%lx]\n", cap1, cap2);
+# define PFX1(en) PPCAT(HWCAP_,  en)
+# define PFX2(en) PPCAT(HWCAP2_, en)
+# define CHECK_FEATURE(n, en, name) if (PPCAT(cap, n) & PPCAT(PFX, n)(en)) FeatureText.emplace_back(#name""sv)
 # if COMMON_ARCH_ARM
 #   if defined(__aarch64__)
 #     define CAPNUM 1
-        CHECK_FEATURE(CAPNUM, ASIMD, asimd);
+        CHECK_FEATURE(1, ASIMD, asimd);
+        CHECK_FEATURE(CAPNUM, FP,       fp);
 #   else
 #     define CAPNUM 2
-        CHECK_FEATURE(CAPNUM, NEON, asimd);
+        CHECK_FEATURE(1, NEON, asimd);
 #   endif
-        CHECK_FEATURE(CAPNUM, FP,        fp);
-        CHECK_FEATURE(CAPNUM, AES,       aes);
-        CHECK_FEATURE(CAPNUM, PMULL,     pmull);
-        CHECK_FEATURE(CAPNUM, SHA1,      sha1);
-        CHECK_FEATURE(CAPNUM, SHA2,      sha2);
-        CHECK_FEATURE(CAPNUM, CRC32,     crc32);
+        CHECK_FEATURE(CAPNUM, AES,      aes);
+        CHECK_FEATURE(CAPNUM, PMULL,    pmull);
+        CHECK_FEATURE(CAPNUM, SHA1,     sha1);
+        CHECK_FEATURE(CAPNUM, SHA2,     sha2);
+        CHECK_FEATURE(CAPNUM, CRC32,    crc32);
 # undef CAPNUM
 # endif
 # undef CHECK_FEATURE
+# undef PFX1
+# undef PFX2
 #endif
     }
     void TrySysCtl() noexcept

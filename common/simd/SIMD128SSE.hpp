@@ -147,7 +147,7 @@ public:
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
         if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(_mm_unpackhi_epi32(mask, mask), 32); // mask sure all bits are covered
+            mask = _mm_srai_epi32(_mm_unpackhi_epi32(mask, mask), 32); // make sure all bits are covered
         return _mm_blendv_epi8(this->Data, other.Data, mask);
     }
 #endif
@@ -269,7 +269,7 @@ public:
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
         if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(mask, 32); // mask sure all bits are covered
+            mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
         return _mm_blendv_epi8(this->Data, other.Data, mask);
     }
 #endif
@@ -364,7 +364,7 @@ public:
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
         if constexpr(Msk != MaskType::FullEle)
-            mask = _mm_srai_epi16(mask, 16); // mask sure all bits are covered
+            mask = _mm_srai_epi16(mask, 16); // make sure all bits are covered
         return _mm_blendv_epi8(this->Data, other.Data, mask);
     }
 #endif

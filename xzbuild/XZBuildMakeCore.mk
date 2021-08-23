@@ -31,6 +31,7 @@ APPLINKER		?= $(xz_cppcompiler)
 VERBOSE			?= 0
 
 LINKFLAGS	?= 
+LINKLIBS	?= 
 cpp_srcs	?=
 cpp_pch		?=
 c_srcs		?=
@@ -43,8 +44,8 @@ ispc_srcs	?=
 
 INCPATH		 = $(patsubst %, -I"%", $(xz_incDir))
 LDPATH		 = -L"$(APPDIR)" -L.  $(patsubst %, -L"%", $(xz_libDir))
-DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
-STALIBS		:= $(patsubst %, -l%, $(libStatic))
+# DYNLIBS		:= $(patsubst %, -l%, $(libDynamic))
+# STALIBS		:= $(patsubst %, -l%, $(libStatic))
 ALLDEFFLAGS := $(patsubst %, -D%, $(xz_define))
 CDEFFLAGS	:= $(patsubst %, -D%, $(c_defs))
 CPPDEFFLAGS	:= $(patsubst %, -D%, $(cpp_defs))
@@ -87,13 +88,13 @@ endif
 
 
 ### section LD
-ifeq ($(xz_osname), Darwin)
-LD_STATIC	:= -Wl,-all_load $(STALIBS)
-LD_DYNAMIC	:= -Wl,-noall_load $(DYNLIBS) 
-else
-LD_STATIC	:= -Wl,--whole-archive $(STALIBS)
-LD_DYNAMIC	:= -Wl,--no-whole-archive $(DYNLIBS) 
-endif
+# ifeq ($(xz_osname), Darwin)
+# LD_STATIC	:= -Wl,-all_load $(STALIBS)
+# LD_DYNAMIC	:= -Wl,-noall_load $(DYNLIBS) 
+# else
+# LD_STATIC	:= -Wl,--whole-archive $(STALIBS)
+# LD_DYNAMIC	:= -Wl,--no-whole-archive $(DYNLIBS) 
+# endif
 
 
 ###============================================================================
@@ -155,12 +156,12 @@ $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 else ifeq ($(BUILD_TYPE), dynamic)
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
-	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
+	$(eval $@_bcmd := $(DYNAMICLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) -fvisibility=hidden $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LINKLIBS) -o $(APP))
 	$(call BuildProgress,link   ,  dll, $(APP), $($@_bcmd))
 else
 $(APP): $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS)
 #	@printf "$(CLR_GREEN)linking $(CLR_MAGENTA)$(APP)$(CLR_CLEAR)\n"
-	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) $(LINKFLAGS) -fvisibility=hidden $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LD_STATIC) $(LD_DYNAMIC) -o $(APP))
+	$(eval $@_bcmd := $(APPLINKER) $(INCPATH) $(LDPATH) $(cpp_flags) -fvisibility=hidden $(LINKFLAGS) $(CXXOBJS) $(ISPCOBJS) $(OTHEROBJS) $(LINKLIBS) -o $(APP))
 	$(call BuildProgress,link   ,  exe, $(APP), $($@_bcmd))
 endif
 

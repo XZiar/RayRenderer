@@ -2,7 +2,7 @@
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
 
-#if COMMON_SIMD_LV < 100
+#if COMMON_SIMD_LV < 10
 #   error require at least NEON
 #endif
 #if !COMMON_OVER_ALIGNED
@@ -31,6 +31,7 @@ namespace detail
 #if COMMON_COMPILER_MSVC // msvc only typedef __n128
 template<> forceinline __n128 AsType(__n128 from) noexcept { return from; }
 #else
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType(float64x2_t from) noexcept { return from; }
 template<> forceinline float32x4_t AsType(float64x2_t from) noexcept { return vreinterpretq_f32_f64(from); }
 template<> forceinline   int64x2_t AsType(float64x2_t from) noexcept { return vreinterpretq_s64_f64(from); }
@@ -42,6 +43,7 @@ template<> forceinline  uint16x8_t AsType(float64x2_t from) noexcept { return vr
 template<> forceinline   int8x16_t AsType(float64x2_t from) noexcept { return vreinterpretq_s8_f64 (from); }
 template<> forceinline  uint8x16_t AsType(float64x2_t from) noexcept { return vreinterpretq_u8_f64 (from); }
 template<> forceinline float64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_f64_f32(from); }
+# endif
 template<> forceinline float32x4_t AsType(float32x4_t from) noexcept { return from; } 
 template<> forceinline   int64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_s64_f32(from); }
 template<> forceinline  uint64x2_t AsType(float32x4_t from) noexcept { return vreinterpretq_u64_f32(from); }
@@ -51,7 +53,9 @@ template<> forceinline   int16x8_t AsType(float32x4_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType(float32x4_t from) noexcept { return vreinterpretq_u16_f32(from); }
 template<> forceinline   int8x16_t AsType(float32x4_t from) noexcept { return vreinterpretq_s8_f32 (from); }
 template<> forceinline  uint8x16_t AsType(float32x4_t from) noexcept { return vreinterpretq_u8_f32 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType(  int64x2_t from) noexcept { return vreinterpretq_f64_s64(from); }
+# endif
 template<> forceinline float32x4_t AsType(  int64x2_t from) noexcept { return vreinterpretq_f32_s64(from); }
 template<> forceinline   int64x2_t AsType(  int64x2_t from) noexcept { return from; } 
 template<> forceinline  uint64x2_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u64_s64(from); }
@@ -61,7 +65,9 @@ template<> forceinline   int16x8_t AsType(  int64x2_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u16_s64(from); }
 template<> forceinline   int8x16_t AsType(  int64x2_t from) noexcept { return vreinterpretq_s8_s64 (from); }
 template<> forceinline  uint8x16_t AsType(  int64x2_t from) noexcept { return vreinterpretq_u8_s64 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType( uint64x2_t from) noexcept { return vreinterpretq_f64_u64(from); }
+# endif
 template<> forceinline float32x4_t AsType( uint64x2_t from) noexcept { return vreinterpretq_f32_u64(from); }
 template<> forceinline   int64x2_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s64_u64(from); }
 template<> forceinline  uint64x2_t AsType( uint64x2_t from) noexcept { return from; } 
@@ -71,7 +77,9 @@ template<> forceinline   int16x8_t AsType( uint64x2_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType( uint64x2_t from) noexcept { return vreinterpretq_u16_u64(from); }
 template<> forceinline   int8x16_t AsType( uint64x2_t from) noexcept { return vreinterpretq_s8_u64 (from); }
 template<> forceinline  uint8x16_t AsType( uint64x2_t from) noexcept { return vreinterpretq_u8_u64 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_f64_s32(from); }
+# endif
 template<> forceinline float32x4_t AsType(  int32x4_t from) noexcept { return vreinterpretq_f32_s32(from); }
 template<> forceinline   int64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_s64_s32(from); }
 template<> forceinline  uint64x2_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u64_s32(from); }
@@ -81,7 +89,9 @@ template<> forceinline   int16x8_t AsType(  int32x4_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u16_s32(from); }
 template<> forceinline   int8x16_t AsType(  int32x4_t from) noexcept { return vreinterpretq_s8_s32 (from); }
 template<> forceinline  uint8x16_t AsType(  int32x4_t from) noexcept { return vreinterpretq_u8_s32 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_f64_u32(from); }
+# endif
 template<> forceinline float32x4_t AsType( uint32x4_t from) noexcept { return vreinterpretq_f32_u32(from); }
 template<> forceinline   int64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s64_u32(from); }
 template<> forceinline  uint64x2_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u64_u32(from); }
@@ -91,7 +101,9 @@ template<> forceinline   int16x8_t AsType( uint32x4_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u16_u32(from); }
 template<> forceinline   int8x16_t AsType( uint32x4_t from) noexcept { return vreinterpretq_s8_u32 (from); }
 template<> forceinline  uint8x16_t AsType( uint32x4_t from) noexcept { return vreinterpretq_u8_u32 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_f64_s16(from); }
+# endif
 template<> forceinline float32x4_t AsType(  int16x8_t from) noexcept { return vreinterpretq_f32_s16(from); }
 template<> forceinline   int64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_s64_s16(from); }
 template<> forceinline  uint64x2_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u64_s16(from); }
@@ -101,7 +113,9 @@ template<> forceinline   int16x8_t AsType(  int16x8_t from) noexcept { return fr
 template<> forceinline  uint16x8_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u16_s16(from); }
 template<> forceinline   int8x16_t AsType(  int16x8_t from) noexcept { return vreinterpretq_s8_s16 (from); }
 template<> forceinline  uint8x16_t AsType(  int16x8_t from) noexcept { return vreinterpretq_u8_s16 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_f64_u16(from); }
+# endif
 template<> forceinline float32x4_t AsType( uint16x8_t from) noexcept { return vreinterpretq_f32_u16(from); }
 template<> forceinline   int64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s64_u16(from); }
 template<> forceinline  uint64x2_t AsType( uint16x8_t from) noexcept { return vreinterpretq_u64_u16(from); }
@@ -111,7 +125,9 @@ template<> forceinline   int16x8_t AsType( uint16x8_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType( uint16x8_t from) noexcept { return from; } 
 template<> forceinline   int8x16_t AsType( uint16x8_t from) noexcept { return vreinterpretq_s8_u16 (from); }
 template<> forceinline  uint8x16_t AsType( uint16x8_t from) noexcept { return vreinterpretq_u8_u16 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_f64_s8(from); }
+# endif
 template<> forceinline float32x4_t AsType(  int8x16_t from) noexcept { return vreinterpretq_f32_s8(from); }
 template<> forceinline   int64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_s64_s8(from); }
 template<> forceinline  uint64x2_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u64_s8(from); }
@@ -121,7 +137,9 @@ template<> forceinline   int16x8_t AsType(  int8x16_t from) noexcept { return vr
 template<> forceinline  uint16x8_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u16_s8(from); }
 template<> forceinline   int8x16_t AsType(  int8x16_t from) noexcept { return from; } 
 template<> forceinline  uint8x16_t AsType(  int8x16_t from) noexcept { return vreinterpretq_u8_s8 (from); }
+# if COMMON_SIMD_LV >= 200
 template<> forceinline float64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_f64_u8(from); }
+# endif
 template<> forceinline float32x4_t AsType( uint8x16_t from) noexcept { return vreinterpretq_f32_u8(from); }
 template<> forceinline   int64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_s64_u8(from); }
 template<> forceinline  uint64x2_t AsType( uint8x16_t from) noexcept { return vreinterpretq_u64_u8(from); }
@@ -244,6 +262,16 @@ public:
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev64q_u8(AsType<uint8x16_t>(this->Data)));
+    }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
+    {
+        uint64x2_t msk;
+        if constexpr (Msk != MaskType::FullEle)
+            msk = AsType<uint64x2_t>(vshrq_n_s64(AsType<int64x2_t>(mask.Data), 64)); // make sure all bits are covered
+        else
+            msk = AsType<uint64x2_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u64(msk, AsType<uint64x2_t>(other.Data), AsType<uint64x2_t>(this->Data)));
     }
 
     // arithmetic operations
@@ -393,6 +421,16 @@ public:
     {
         return AsType<SIMDType>(vrev32q_u8(AsType<uint8x16_t>(this->Data)));
     }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
+    {
+        uint32x4_t msk;
+        if constexpr (Msk != MaskType::FullEle)
+            msk = AsType<uint32x4_t>(vshrq_n_s32(AsType<int32x4_t>(mask.Data), 32)); // make sure all bits are covered
+        else
+            msk = AsType<uint32x4_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u32(msk, AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(this->Data)));
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
@@ -477,6 +515,16 @@ public:
         const auto zip = vzip_u16(a, b);
         return AsType<SIMDType>(vcombine_u16(zip.val[0], zip.val[1]));
 #endif
+    }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
+    {
+        uint16x8_t msk;
+        if constexpr (Msk != MaskType::FullEle)
+            msk = AsType<uint16x8_t>(vshrq_n_s16(AsType<int16x8_t>(mask.Data), 16)); // make sure all bits are covered
+        else
+            msk = AsType<uint16x8_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u16(msk, AsType<uint16x8_t>(other.Data), AsType<uint16x8_t>(this->Data)));
     }
 
     // arithmetic operations
@@ -578,11 +626,14 @@ public:
 #endif
     }
     template<MaskType Msk>
-    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
     {
+        uint8x16_t msk;
         if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(_mm_unpackhi_epi32(mask, mask), 32); // mask sure all bits are covered
-        return vbslq_u8(mask, other.Data, this->Data);
+            msk = AsType<uint8x16_t>(vshrq_n_s8(AsType<int8x16_t>(mask.Data), 8)); // make sure all bits are covered
+        else
+            msk = AsType<uint8x16_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u8(msk, AsType<uint8x16_t>(other.Data), AsType<uint8x16_t>(this->Data)));
     }
 
     // arithmetic operations
@@ -725,7 +776,16 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
     forceinline F32x4 VECCALL Add(const F32x4& other) const { return vaddq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Sub(const F32x4& other) const { return vsubq_f32(Data, other.Data); }
     forceinline F32x4 VECCALL Mul(const F32x4& other) const { return vmulq_f32(Data, other.Data); }
-    forceinline F32x4 VECCALL Div(const F32x4& other) const { return vdivq_f32(Data, other.Data); }
+    forceinline F32x4 VECCALL Div(const F32x4& other) const 
+    {
+#if COMMON_SIMD_LV >= 200
+        return vdivq_f32(Data, other.Data);
+#else
+        auto rcp = other.Rcp();
+        rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, other.Data));
+        return Mul(rcp);
+#endif
+    }
     forceinline F32x4 VECCALL Neg() const { return vnegq_f32(Data); }
     forceinline F32x4 VECCALL Abs() const { return vabsq_f32(Data); }
     forceinline F32x4 VECCALL Max(const F32x4& other) const { return vmaxq_f32(Data, other.Data); }
@@ -739,7 +799,14 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         // rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, Data));
         return rcp;
     }
-    forceinline F32x4 VECCALL Sqrt() const { return vsqrtq_f32(Data); }
+    forceinline F32x4 VECCALL Sqrt() const 
+    { 
+#if COMMON_SIMD_LV >= 200
+        return vsqrtq_f32(Data);
+#else
+        return Rsqrt().Rcp();
+#endif
+    }
     forceinline F32x4 VECCALL Rsqrt() const 
     {
         auto rsqrt = vrsqrteq_f32(Data);
@@ -751,7 +818,11 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
     }
     forceinline F32x4 VECCALL MulAdd(const F32x4& muler, const F32x4& adder) const
     {
+#if COMMON_SIMD_LV >= 40
         return vfmaq_f32(adder.Data, Data, muler.Data);
+#else
+        return vmlaq_f32(adder.Data, Data, muler.Data);
+#endif
     }
     forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
     {
@@ -759,7 +830,11 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
     }
     forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
     {
+#if COMMON_SIMD_LV >= 40
         return vfmsq_f32(adder.Data, Data, muler.Data);
+#else
+        return vmlsq_f32(adder.Data, Data, muler.Data);
+#endif
     }
     forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
@@ -777,8 +852,7 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
                 MulEx2 = HAS_FIELD(MulExclude, DotPos::Z), MulEx3 = HAS_FIELD(MulExclude, DotPos::W);
             auto prod = this->Mul(other).Data;
             if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 0) // all need
-            {
-            }
+            { }
             else if constexpr (MulEx0 + MulEx1 + MulEx2 + MulEx3 == 1)
             {
                 prod = vsetq_lane_f32(0, prod, MulEx0 ? 0 : (MulEx1 ? 1 : (MulEx2 ? 2 : 3)));
@@ -793,7 +867,12 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
                 alignas(16) const int32_t mask[4] = { MulEx0 ? 0 : -1, MulEx1 ? 0 : -1, MulEx2 ? 0 : -1, MulEx3 ? 0 : -1 };
                 prod = vandq_s32(vreinterpretq_s32_f32(prod), vld1q_s32(mask));
             }
+#if COMMON_SIMD_LV >= 200
             return vaddvq_f32(prod);
+#else
+            const auto part = vpadd_f32(vget_low_f32(prod), vget_high_f32(prod));
+            return vget_lane_f32(vpadd_f32(part, part), 0);
+#endif
         }
     }
     template<DotPos Mul, DotPos Res>
@@ -848,13 +927,35 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
     template<CompareType Cmp, MaskType Msk>
     forceinline I64x2 VECCALL Compare(const I64x2 other) const
     {
-             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int64x2_t>(vcltq_s64(Data, other));
-        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int64x2_t>(vcleq_s64(Data, other));
-        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int64x2_t>(vceqq_s64(Data, other));
-        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int64x2_t>(vcgeq_s64(Data, other));
-        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int64x2_t>(vcgtq_s64(Data, other));
+#if COMMON_SIMD_LV >= 200
+             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<int64x2_t>(vcltq_s64(Data, other.Data));
+        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<int64x2_t>(vcleq_s64(Data, other.Data));
+        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<int64x2_t>(vceqq_s64(Data, other.Data));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<int64x2_t>(vcgeq_s64(Data, other.Data));
+        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<int64x2_t>(vcgtq_s64(Data, other.Data));
         else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
         else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+#else
+             if constexpr (Cmp == CompareType::LessEqual)    return Compare<CompareType::LessThan, Msk>(other).Or(Compare<CompareType::Equal, Msk>(other));
+        else if constexpr (Cmp == CompareType::GreaterEqual) return other.Compare<CompareType::LessEqual, Msk>(Data);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return other.Compare<CompareType::LessThan,  Msk>(Data);
+        else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
+        else
+        {
+            if constexpr (Cmp == CompareType::Equal)
+            {
+                const auto u32eq = vceqq_u32(detail::AsType<uint32x4_t>(Data), detail::AsType<uint32x4_t>(other.Data));
+                return vandq_u32(u32eq, vrev64q_u32(u32eq));
+            }
+            else if constexpr (Cmp == CompareType::LessThan)
+            {
+                const auto subbed = SatSub(other);
+                if constexpr (Msk == MaskType::FullEle) return vshrq_n_s64(subbed, 64);
+                else                                    return subbed;
+            }        
+            else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+        }
+#endif
     }
 
     // arithmetic operations
@@ -862,17 +963,33 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64x2_t, int64_t>
     forceinline I64x2 VECCALL SatSub(const I64x2& other) const { return vqsubq_s64(Data, other.Data); }
     forceinline I64x2 VECCALL Add(const I64x2& other) const { return vaddq_s64(Data, other.Data); }
     forceinline I64x2 VECCALL Sub(const I64x2& other) const { return vsubq_s64(Data, other.Data); }
-    forceinline I64x2 VECCALL Neg() const { return vnegq_s64(Data); }
-    forceinline I64x2 VECCALL Abs() const { return vabsq_s64(Data); }
+    forceinline I64x2 VECCALL Neg() const 
+    {
+#if COMMON_SIMD_LV >= 200
+        return vnegq_s64(Data);
+#else
+        return AllZero().Sub(*this);
+#endif
+    }
+    forceinline I64x2 VECCALL Abs() const 
+    { 
+#if COMMON_SIMD_LV >= 200
+        return vabsq_s64(Data);
+#else
+        return SelectWith<MaskType::SigBit>(Neg(), *this);
+#endif
+    }
     forceinline I64x2 VECCALL Max(const I64x2& other) const
     {
-        const auto isGt = vcgtq_s64(Data, other.Data);
-        return vbslq_f64(isGt, Data, other.Data);
+        const auto isGt = Compare<CompareType::GreaterThan, MaskType::FullEle>(other);
+        return other.SelectWith<MaskType::FullEle>(Data, isGt);
+        //return vbslq_s64(isGt, Data, other.Data);
     }
     forceinline I64x2 VECCALL Min(const I64x2& other) const
     {
-        const auto isGt = vcgtq_s64(Data, other.Data);
-        return vbslq_f64(isGt, other.Data, Data);
+        const auto isGt = Compare<CompareType::GreaterThan, MaskType::FullEle>(other);
+        return SelectWith<MaskType::FullEle>(other, isGt);
+        //return vbslq_s64(isGt, other.Data, Data);
     }
     template<typename T, CastMode Mode = detail::CstMode<I64x2, T>(), typename... Args>
     typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
@@ -898,13 +1015,25 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64x2_t, uint64_t
     template<CompareType Cmp, MaskType Msk>
     forceinline U64x2 VECCALL Compare(const U64x2 other) const
     {
-             if constexpr (Cmp == CompareType::LessThan)     return detail::AsType<uint64x2_t>(vcltq_u64(Data, other));
-        else if constexpr (Cmp == CompareType::LessEqual)    return detail::AsType<uint64x2_t>(vcleq_u64(Data, other));
-        else if constexpr (Cmp == CompareType::Equal)        return detail::AsType<uint64x2_t>(vceqq_u64(Data, other));
-        else if constexpr (Cmp == CompareType::GreaterEqual) return detail::AsType<uint64x2_t>(vcgeq_u64(Data, other));
-        else if constexpr (Cmp == CompareType::GreaterThan)  return detail::AsType<uint64x2_t>(vcgtq_u64(Data, other));
+#if COMMON_SIMD_LV >= 200
+             if constexpr (Cmp == CompareType::LessThan)     return vcltq_u64(Data, other.Data);
+        else if constexpr (Cmp == CompareType::LessEqual)    return vcleq_u64(Data, other.Data);
+        else if constexpr (Cmp == CompareType::Equal)        return vceqq_u64(Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterEqual) return vcgeq_u64(Data, other.Data);
+        else if constexpr (Cmp == CompareType::GreaterThan)  return vcgtq_u64(Data, other.Data);
         else if constexpr (Cmp == CompareType::NotEqual)     return Compare<CompareType::Equal, Msk>(other).Not();
         else static_assert(!AlwaysTrue2<Cmp>, "unrecognized compare");
+#else
+        if constexpr (Cmp == CompareType::Equal || Cmp == CompareType::NotEqual)
+        {
+            return As<I64x2>().Compare<Cmp, Msk>(other.As<I64x2>()).template As<U64x2>();
+        }
+        else
+        {
+            const U64x2 sigMask(static_cast<uint64_t>(0x8000000000000000));
+            return Xor(sigMask).As<I64x2>().Compare<Cmp, Msk>(other.Xor(sigMask).As<I64x2>()).template As<U64x2>();
+        }
+#endif
     }
 
     // arithmetic operations
@@ -915,13 +1044,17 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64x2_t, uint64_t
     forceinline U64x2 VECCALL Abs() const { return Data; }
     forceinline U64x2 VECCALL Max(const U64x2& other) const
     {
-        const auto isGt = vcgtq_u64(Data, other.Data);
-        return vbslq_f64(isGt, Data, other.Data);
+        const auto isGt = Compare<CompareType::GreaterThan, MaskType::FullEle>(other);
+        return other.SelectWith<MaskType::FullEle>(Data, isGt);
+        //const auto isGt = vcgtq_u64(Data, other.Data);
+        //return vbslq_f64(isGt, Data, other.Data);
     }
     forceinline U64x2 VECCALL Min(const U64x2& other) const
     {
-        const auto isGt = vcgtq_u64(Data, other.Data);
-        return vbslq_f64(isGt, other.Data, Data);
+        const auto isGt = Compare<CompareType::GreaterThan, MaskType::FullEle>(other);
+        return SelectWith<MaskType::FullEle>(other, isGt);
+        //const auto isGt = vcgtq_u64(Data, other.Data);
+        //return vbslq_f64(isGt, other.Data, Data);
     }
     template<typename T, CastMode Mode = detail::CstMode<U64x2, T>(), typename... Args>
     typename CastTyper<U64x2, T>::Type VECCALL Cast(const Args&... args) const;
@@ -973,7 +1106,13 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32x4_t, int32_t>
     forceinline I32x4 VECCALL Min(const I32x4& other) const { return vminq_s32(Data, other.Data); }
     forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
     {
-        return { vmull_s32(vget_low_s32(Data), vget_low_s32(other.Data)), vmull_high_s32(Data, other.Data) };
+        const auto lo = vmull_s32(vget_low_s32(Data), vget_low_s32(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_s32(Data, other.Data);
+#else
+        const auto hi = vmull_s32(vget_high_s32(Data), vget_high_s32(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<I32x4, T>(), typename... Args>
     typename CastTyper<I32x4, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1036,7 +1175,13 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32x4_t, uint32_t
     forceinline U32x4 VECCALL Min(const U32x4& other) const { return vminq_u32(Data, other.Data); }
     forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const
     {
-        return { vmull_u32(vget_low_u32(Data), vget_low_u32(other.Data)), vmull_high_u32(Data, other.Data) };
+        const auto lo = vmull_u32(vget_low_u32(Data), vget_low_u32(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_u32(Data, other.Data);
+#else
+        const auto hi = vmull_u32(vget_high_u32(Data), vget_high_u32(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<U32x4, T>(), typename... Args>
     typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1106,7 +1251,13 @@ struct alignas(16) I16x8 : public detail::Common16x8<I16x8, int16x8_t, int16_t>
     forceinline I16x8 VECCALL Min(const I16x8& other) const { return vminq_s16(Data, other.Data); }
     forceinline Pack<I32x4, 2> VECCALL MulX(const I16x8& other) const
     {
-        return { vmull_s16(vget_low_s16(Data), vget_low_s16(other.Data)), vmull_high_s16(Data, other.Data) };
+        const auto lo = vmull_s16(vget_low_s16(Data), vget_low_s16(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_s16(Data, other.Data);
+#else
+        const auto hi = vmull_s16(vget_high_s16(Data), vget_high_s16(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<I16x8, T>(), typename... Args>
     typename CastTyper<I16x8, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1178,7 +1329,13 @@ struct alignas(16) U16x8 : public detail::Common16x8<U16x8, uint16x8_t, uint16_t
     forceinline U16x8 VECCALL Min(const U16x8& other) const { return vminq_u16(Data, other.Data); }
     forceinline Pack<U32x4, 2> VECCALL MulX(const U16x8& other) const
     {
-        return { vmull_u16(vget_low_u16(Data), vget_low_u16(other.Data)), vmull_high_u16(Data, other.Data) };
+        const auto lo = vmull_u16(vget_low_u16(Data), vget_low_u16(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_u16(Data, other.Data);
+#else
+        const auto hi = vmull_u16(vget_high_u16(Data), vget_high_u16(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<U16x8, T>(), typename... Args>
     typename CastTyper<U16x8, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1279,7 +1436,13 @@ struct alignas(16) I8x16 : public detail::Common8x16<I8x16, int8x16_t, int8_t>
     forceinline I8x16 VECCALL Min(const I8x16& other) const { return vminq_s8(Data, other.Data); }
     forceinline Pack<I16x8, 2> VECCALL MulX(const I8x16& other) const
     {
-        return { vmull_s8(vget_low_s8(Data), vget_low_s8(other.Data)), vmull_high_s8(Data, other.Data) };
+        const auto lo = vmull_s8(vget_low_s8(Data), vget_low_s8(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_s8(Data, other.Data);
+#else
+        const auto hi = vmull_s8(vget_high_s8(Data), vget_high_s8(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<I8x16, T>(), typename... Args>
     typename CastTyper<I8x16, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1362,7 +1525,13 @@ struct alignas(16) U8x16 : public detail::Common8x16<U8x16, uint8x16_t, uint8_t>
     forceinline U8x16 VECCALL Min(const U8x16& other) const { return vminq_u8(Data, other.Data); }
     forceinline Pack<U16x8, 2> VECCALL MulX(const U8x16& other) const
     {
-        return { vmull_u8(vget_low_u8(Data), vget_low_u8(other.Data)), vmull_high_u8(Data, other.Data) };
+        const auto lo = vmull_u8(vget_low_u8(Data), vget_low_u8(other.Data));
+#if COMMON_SIMD_LV >= 200
+        const auto hi = vmull_high_u8(Data, other.Data);
+#else
+        const auto hi = vmull_u8(vget_high_u8(Data), vget_high_u8(other.Data));
+#endif
+        return { lo, hi };
     }
     template<typename T, CastMode Mode = detail::CstMode<U8x16, T>(), typename... Args>
     typename CastTyper<U8x16, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1464,24 +1633,31 @@ template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeTrunc>(co
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u32(vreinterpretq_u64_u32(Data), vreinterpretq_u64_u32(arg1));
-#else
+#elif COMMON_SIMD_LV >= 100
     return vmovn_high_u64(vmovn_u64(Data), arg1);
+#else
+    return vcombine_u32(vmovn_u64(Data), vmovn_u64(arg1));
 #endif
 }
 template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeTrunc>(const U32x4& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u16(vreinterpretq_u32_u16(Data), vreinterpretq_u32_u16(arg1));
-#else
+#elif COMMON_SIMD_LV >= 100
     return vmovn_high_u32(vmovn_u32(Data), arg1);
+#else
+    return vcombine_u16(vmovn_u32(Data), vmovn_u32(arg1));
 #endif
 }
 template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeTrunc>(const U16x8& arg1) const
 {
 #if COMMON_SIMD_LV >= 200
     return vuzp1q_u8(vreinterpretq_u16_u8(Data), vreinterpretq_u16_u8(arg1));
-#else
+#elif COMMON_SIMD_LV >= 100
     return vmovn_high_u16(vmovn_u16(Data), arg1);
+#else
+
+    return vcombine_u8(vmovn_u16(Data), vmovn_u16(arg1));
 #endif
 }
 template<> forceinline U16x8 VECCALL U64x2::Cast<U16x8, CastMode::RangeTrunc>(const U64x2& arg1, const U64x2& arg2, const U64x2& arg3) const
@@ -1605,39 +1781,75 @@ template<> forceinline U8x16 VECCALL F32x4::Cast<U8x16, CastMode::RangeSaturate>
 }
 template<> forceinline I32x4 VECCALL I64x2::Cast<I32x4, CastMode::RangeSaturate>(const I64x2& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_s64(vqmovn_s64(Data), arg1);
+#else
+    return vcombine_s32(vqmovn_s64(Data), vqmovn_s64(arg1));
+#endif
 }
 template<> forceinline U32x4 VECCALL I64x2::Cast<U32x4, CastMode::RangeSaturate>(const I64x2& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovun_high_s64(vqmovun_s64(Data), arg1);
+#else
+    return vcombine_s32(vqmovun_s64(Data), vqmovun_s64(arg1));
+#endif
 }
 template<> forceinline U32x4 VECCALL U64x2::Cast<U32x4, CastMode::RangeSaturate>(const U64x2& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_u64(vqmovn_u64(Data), arg1);
+#else
+    return vcombine_u32(vqmovn_u64(Data), vqmovn_u64(arg1));
+#endif
 }
 template<> forceinline I16x8 VECCALL I32x4::Cast<I16x8, CastMode::RangeSaturate>(const I32x4& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_s32(vqmovn_s32(Data), arg1);
+#else
+    return vcombine_s16(vqmovn_s32(Data), vqmovn_s32(arg1));
+#endif
 }
 template<> forceinline U16x8 VECCALL I32x4::Cast<U16x8, CastMode::RangeSaturate>(const I32x4& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovun_high_s32(vqmovun_s32(Data), arg1);
+#else
+    return vcombine_s16(vqmovun_s32(Data), vqmovun_s32(arg1));
+#endif
 }
 template<> forceinline U16x8 VECCALL U32x4::Cast<U16x8, CastMode::RangeSaturate>(const U32x4& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_u32(vqmovn_u32(Data), arg1);
+#else
+    return vcombine_u16(vqmovn_u32(Data), vqmovn_u32(arg1));
+#endif
 }
 template<> forceinline I8x16 VECCALL I16x8::Cast<I8x16, CastMode::RangeSaturate>(const I16x8& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_s16(vqmovn_s16(Data), arg1);
+#else
+    return vcombine_s8(vqmovn_s16(Data), vqmovn_s16(arg1));
+#endif
 }
 template<> forceinline U8x16 VECCALL I16x8::Cast<U8x16, CastMode::RangeSaturate>(const I16x8& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovun_high_s16(vqmovun_s16(Data), arg1);
+#else
+    return vcombine_s8(vqmovun_s16(Data), vqmovun_s16(arg1));
+#endif
 }
 template<> forceinline U8x16 VECCALL U16x8::Cast<U8x16, CastMode::RangeSaturate>(const U16x8& arg1) const
 {
+#if COMMON_SIMD_LV >= 200
     return vqmovn_high_u16(vqmovn_u16(Data), arg1);
+#else
+    return vcombine_u8(vqmovn_u16(Data), vqmovn_u16(arg1));
+#endif
 }
 
 

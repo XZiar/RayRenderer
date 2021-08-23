@@ -555,7 +555,7 @@ DEFINE_FASTPATH_METHOD(func, algo)                                      \
     }                                                                   \
 }
 
-#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (!COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100)
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
 
 DEFINE_FASTPATH_METHOD(Broadcast2, SIMD128)
 {
@@ -594,6 +594,9 @@ DEFINE_CVTFP2I_SIMD4(CvtF32I8,  F32x4, I8x16, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32U16, F32x4, U16x8, SIMD128, LOOP)
 DEFINE_CVTFP2I_SIMD4(CvtF32U8,  F32x4, U8x16, SIMD128, LOOP)
 
+#endif
+
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 20) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 200)
 DEFINE_FASTPATH_METHOD(CvtF32F64, SIMD128)
 {
     CastSIMD4<DefaultCast<F32x4, F64x2>, &Func<LOOP>>(dest, src, count);
@@ -605,7 +608,7 @@ DEFINE_FASTPATH_METHOD(CvtF64F32, SIMD128)
 #endif
 
 
-#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10
 DEFINE_FASTPATH_METHOD(ZExtCopy14, SIMD128)
 {
     CastSIMD4<DefaultCast<U8x16, U32x4>, &Func<LOOP>>(dest, src, count);
@@ -841,7 +844,7 @@ DEFINE_FASTPATH_METHOD(CvtF32F16, F16C)
 }
 #endif
 
-#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10 && (__ARM_FP & 2)
 struct F1632Cast1
 {
     using Src = uint16_t;

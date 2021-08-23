@@ -36,7 +36,7 @@ static bool CheckSingleMatch(const T arg, const T ref)
         if (arg == ref)
             return true;
         const T diff = arg - ref;
-        if (std::abs(diff) <= std::numeric_limits<T>::epsilon())
+        if (std::abs(diff) / std::abs(ref) <= std::numeric_limits<T>::epsilon())
             return true;
         //if (listener->IsInterested())
         //    *listener << "which is " << diff << " from " << ref;

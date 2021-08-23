@@ -109,7 +109,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         if env["machine"] in ["i386", "AMD64", "x86", "x86_64"]:
             env["arch"] = "x86"
             env["platform"] = "x64" if is64Bits else "x86"
-        elif env["machine"] in ["arm", "aarch64_be", "aarch64", "armv8b", "armv8l"] or "iOS" in env:
+        elif env["machine"] in ["arm", "aarch32_be", "aarch32", "armv7b", "armv7l", "aarch64_be", "aarch64", "armv8b", "armv8l"] or "iOS" in env:
             env["arch"] = "arm"
             env["platform"] = "ARM64" if is64Bits else "ARM"
         else:

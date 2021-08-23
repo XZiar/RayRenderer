@@ -281,7 +281,6 @@ void detail::MiniLoggerBase::SentToGlobalOutputer(LogMessage* msg)
 }
 
 
-#if COMMON_OS_WIN
 class DebuggerBackend : public LoggerQBackend
 {
 protected:
@@ -291,6 +290,7 @@ protected:
         return true;
     }
 public:
+#if COMMON_OS_WIN
     static void PrintText(const std::u16string_view txt)
     {
         OutputDebugString((LPCWSTR)txt.data());
@@ -301,18 +301,7 @@ public:
         buffer.push_back(u'\0');
         PrintText(std::u16string_view(buffer.data(), buffer.size()));
     }
-};
 #elif COMMON_OS_ANDROID
-class DebuggerBackend : public LoggerQBackend
-{
-protected:
-    bool virtual OnStart(std::any) noexcept override
-    {
-        common::SetThreadName(u"Debugger-MLogger-Backend");
-        return true;
-    }
-    static constexpr std::string_view DefTag = ""sv;
-public:
     static constexpr int GetLogLevelPrio(const LogLevel level) noexcept
     {
         switch (level)
@@ -327,7 +316,7 @@ public:
         default:                return ANDROID_LOG_DEFAULT;
         }
     }
-    static void PrintText(const std::u16string_view txt, const std::string_view tag = DefTag, int prio = ANDROID_LOG_INFO)
+    static void PrintText(const std::u16string_view txt, const std::string_view tag = {}, int prio = ANDROID_LOG_INFO)
     {
         const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
         __android_log_write(prio, tag.data(), text.c_str());
@@ -336,17 +325,7 @@ public:
     {
         PrintText(msg.GetContent(), msg.GetSource<false>(), GetLogLevelPrio(msg.Level));
     }
-};
 #else
-class DebuggerBackend : public LoggerQBackend
-{
-protected:
-    bool virtual OnStart(std::any) noexcept override
-    {
-        common::SetThreadName(u"Debugger-MLogger-Backend");
-        return true;
-    }
-public:
     static void PrintText(const std::u16string_view txt)
     {
         const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
@@ -358,8 +337,8 @@ public:
         // buffer.push_back(u'\0'); // not needed since always do u16->u8 conversion
         PrintText(std::u16string_view(buffer.data(), buffer.size()));
     }
-};
 #endif
+};
 
 
 class ConsoleBackend : public LoggerQBackend
