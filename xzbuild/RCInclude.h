@@ -43,7 +43,7 @@ namespace common
 #     define REGMAIN(name) "adrp %0, " #name "_BEGIN\n\tadrp %1, " #name "_END\n\tadd %0, %0, :lo12:" #name "_BEGIN\n\tadd %1, %1, :lo12:" #name "_END" 
 #   endif
 # elif COMMON_OSBIT == 32
-#   define REGMAIN(name) "ldr %0, =" #name "_BEGIN\n\tldr %1, =" #name "_END"
+#   define REGMAIN(name) "ldr %0, =" #name "_BEGIN-1f-8; ldr %1, =" #name "_END-2f-8; 1:add %0, pc, %0; 2:add %1, pc, %1"
 # endif
 #else
 # define ALIGNMAX ".balign 16\n"
@@ -51,7 +51,7 @@ namespace common
 # if COMMON_OSBIT == 64
 #   define REGMAIN(name) "leaq " #name "_BEGIN(%%rip), %0\n\tleaq " #name "_END(%%rip), %1"
 # elif COMMON_OSBIT == 32
-#   define REGMAIN(name) "leal " #name "_BEGIN(%%rip), %0\n\tleal " #name "_END(%%rip), %1"
+#   define REGMAIN(name) "leal " #name "_BEGIN(%%eip), %0\n\tleal " #name "_END(%%eip), %1"
 # endif
 #endif
 #if defined(__APPLE__)

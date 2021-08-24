@@ -99,9 +99,17 @@ static uint32_t GetSIMDLevel_()
 # if defined(_M_ARM64) || defined(__aarch64__) || defined(__ARM_ARCH_ISA_A64)
     return 200;
 # elif defined(__ARM_ARCH) && __ARM_ARCH >= 8
-    return 150;
-# else
     return 100;
+# elif defined(__ARM_VFPV5__)
+    return 50;
+# elif defined(__ARM_VFPV4__)
+    return 40;
+# elif defined(__ARM_VFPV3__)
+    return 30;
+# elif defined(__ARM_VFPV2__)
+    return 20;
+# else
+    return 10;
 # endif
 #endif
 }
@@ -140,9 +148,17 @@ std::string_view SIMDFixture::GetSIMDLevelName(const uint32_t level)
 #else
     if (level >= 200)
         return "A64";
-    if (level >= 150)
-        return "A32";
     if (level >= 100)
+        return "A32";
+    if (level >= 50)
+        return "NEON_VFPv5";
+    if (level >= 40)
+        return "NEON_VFPv4";
+    if (level >= 30)
+        return "NEON_VFPv3";
+    if (level >= 20)
+        return "NEON_VFPv2";
+    if (level >= 10)
         return "NEON";
 #endif
     else

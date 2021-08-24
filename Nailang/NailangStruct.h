@@ -733,9 +733,9 @@ template<Arg::Type T, bool Check>
     else if constexpr (T == Type::Array)
         return ArrayRef{ static_cast<uintptr_t>(Data0.Uint), Data2, static_cast<ArrayRef::Type>(Data3), HAS_FIELD(TypeData, Type::ConstBit) };
     else if constexpr (T == Type::U32Str)
-        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), static_cast<size_t>(Data1) };
     else if constexpr (T == Type::U32Sv)
-        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), Data1 };
+        return std::u32string_view{ reinterpret_cast<const char32_t*>(Data0.Uint), static_cast<size_t>(Data1) };
     else if constexpr (T == Type::Uint)
         return Data0.Uint;
     else if constexpr (T == Type::Int)

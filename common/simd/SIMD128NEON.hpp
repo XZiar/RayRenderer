@@ -340,28 +340,49 @@ struct Shuffle32Common
         if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
             return AsType<V>(data);
         else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
+#if COMMON_SIMD_LV >= 200
             return AsType<V>(vdupq_laneq_u32(data, Lo0));
+#else
+            return AsType<V>(vdupq_n_u32(vgetq_lane_u32(data, Lo0)));
+#endif
         else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
             return AsType<V>(vextq_u32(data, data, Lo0));
         else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
         {
             static_assert(Lo0 != Lo2);
             if constexpr (Lo0 == 0 && Lo2 == 1) // 0011
-                return AsType<V>(vzip1q_u32(data, data));
+                return ZipLo(*static_cast<const T*>(this));
             else if constexpr (Lo0 == 2 && Lo2 == 3) // 2233
-                return AsType<V>(vzip2q_u32(data, data));
+                return ZipHi(*static_cast<const T*>(this));
             else
+#if COMMON_SIMD_LV >= 200
                 return AsType<V>(vcombine_u32(vdup_laneq_u32(data, Lo0), vdup_laneq_u32(data, Lo2)));
+#else
+                return AsType<V>(vcombine_u32(
+                    vdup_n_u32(vgetq_lane_u32(data, Lo0)), vdup_n_u32(vgetq_lane_u32(data, Lo2))
+                    ));
+#endif
         }
         else if constexpr (Lo0 == Lo2 && Lo1 == Hi3) // xyxy
         {
             static_assert(Lo0 != Lo1);
+#if COMMON_SIMD_LV >= 200
             if constexpr (Lo0 == 0 && Lo1 == 2) // 0202
                 return AsType<V>(vuzp1q_u32(data, data));
             else if constexpr (Lo0 == 1 && Lo1 == 3) // 1313
                 return AsType<V>(vuzp2q_u32(data, data));
             else
                 return AsType<V>(vzip1q_u32(vdupq_laneq_u32(data, Lo0), vdupq_laneq_u32(data, Lo1)));
+#else
+            if constexpr ((Lo0 == 0 && Lo1 == 2) || (Lo0 == 1 && Lo1 == 3)) // 0202 OR 1313
+                return AsType<V>(vuzpq_u32(data, data).val[Lo0]);
+            else
+            {
+                const auto a = vdup_n_u32(vgetq_lane_u32(data, Lo0)), b = vdup_n_u32(vgetq_lane_u32(data, Lo1));
+                const auto zip = vzip_u32(a, b);
+                return AsType<V>(vcombine_u32(zip.val[0], zip.val[1]));
+            }
+#endif
         }
         else
         {
@@ -372,8 +393,16 @@ struct Shuffle32Common
                 (Lo2 * 4u) * 0x01010101u + 0x03020100u,
                 (Hi3 * 4u) * 0x01010101u + 0x03020100u,
             };
+#if COMMON_SIMD_LV >= 200
             const auto tbl = vreinterpretq_u8_u32(vld1q_u32(indexes));
             return AsType<V>(vqtbl1q_u8(vreinterpretq_u8_u32(data), tbl));
+#else
+            const uint8x8x2_t src = { vreinterpret_u8_u32(vget_low_u32(data)), vreinterpret_u8_u32(vget_high_u32(data)) };
+            const auto tbl_ = vld1_u32_x2(indexes);
+            const auto tbl1 = vreinterpret_u8_u32(tbl_.val[0]), tbl2 = vreinterpret_u8_u32(tbl_.val[1]);
+            const auto lo = vtbl2_u8(src, tbl1), hi = vtbl2_u8(src, tbl2);
+            return AsType<V>(vcombine_u32(vreinterpret_u32_u8(lo), vreinterpret_u32_u8(hi)));
+#endif
         }
     }
     forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Hi3) const
@@ -385,7 +414,13 @@ struct Shuffle32Common
         const auto adder = vdupq_n_u32(0x03020100u);
         const auto tbl = vreinterpretq_u8_u32(vmlaq_lane_u32(adder, vld1q_u32(indexes), muler, 0));
         const auto data = AsType<uint8x16_t>(static_cast<const T*>(this)->Data);
+#if COMMON_SIMD_LV >= 200
         return AsType<V>(vqtbl1q_u8(data, tbl));
+#else
+        const uint8x8x2_t src = { vget_low_u8(data), vget_high_u8(data) };
+        const auto lo = vtbl2_u8(src, vget_low_u8(tbl)), hi = vtbl2_u8(src, vget_high_u8(tbl));
+        return AsType<V>(vcombine_u32(vreinterpret_u32_u8(lo), vreinterpret_u32_u8(hi)));
+#endif
     }
     forceinline T VECCALL ZipLo(const T& other) const
     {
@@ -782,6 +817,9 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         return vdivq_f32(Data, other.Data);
 #else
         auto rcp = other.Rcp();
+        // https://github.com/DLTcollab/sse2neon#compile-time-configurations
+        // Add 2 round for accuracy
+        rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, other.Data));
         rcp = vmulq_f32(rcp, vrecpsq_f32(rcp, other.Data));
         return Mul(rcp);
 #endif

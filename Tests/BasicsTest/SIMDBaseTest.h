@@ -750,7 +750,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, Mul, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not)
 #undef AddItems
 #undef AddItem
     }

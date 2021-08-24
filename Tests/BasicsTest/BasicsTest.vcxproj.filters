@@ -34,13 +34,16 @@
     <ClCompile Include="TrunkedContianerTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="TestNEON.cpp">
+    <ClCompile Include="TestARMA32.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="TestNEONv2.cpp">
+    <ClCompile Include="TestARMA64.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="TestAVX512.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="TestARMv7.cpp">
       <Filter>Source</Filter>
     </ClCompile>
   </ItemGroup>
