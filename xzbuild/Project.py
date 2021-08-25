@@ -119,9 +119,21 @@ class Project:
             linkLibs.append("-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive")
             linkLibs += [f"-l{x}" for x in libStatic]
             linkLibs.append("-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive")
+        if "android" in env and env["arch"] == "arm" and env["bits"] == 32 and env["ndkVer"] < 2300:
+            """
+            On Android armv7, use of _Unwind_Backtrace may cause segment fault because of in compatible layout of
+            base-class AbstractUnwindCursor and actual type _Unwind_Context.
+            See https://lists.llvm.org/pipermail/cfe-dev/2018-February/057014.html
+            Use of stacktrace crashes at `unw_set_reg`, see https://android.googlesource.com/platform/external/libunwind_llvm/+/refs/heads/ndk-release-r21/src/libunwind.cpp
+            See blog https://zhuanlan.zhihu.com/p/33937283
+            See google's suggestion on NDK: https://android.googlesource.com/platform/ndk/+/master/docs/BuildSystemMaintainers.md#Unwinding
+            on NDK < 23 and armv7, force add link to libunwind.
+            """
+            linkLibs.append("-lunwind")
         linkLibs += [f"-l{x}" for x in libDynamic]
         if osname == 'Darwin':
             linkLibs += [f"-framework {x}" for x in self.tbdLibs]
+            {"ifhas": "android", "ifeq":{"arch": "arm", "bits": 32}, "+": "unwind", "see": ""},
         
         objdir = os.path.join(env["rootDir"], self.buildPath, env["objpath"])
         os.makedirs(objdir, exist_ok=True)

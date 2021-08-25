@@ -148,7 +148,7 @@ public:
             return { ptr, count };
         }
     }
-    [[nodiscard]] bool TryDealloc(span<const T> space) noexcept
+    [[nodiscard]] bool TryDealloc(span<const T> space, const bool stackDealloc = false) noexcept
     {
         for (auto it = Trunks.begin(); it != Trunks.end(); ++it)
         {
@@ -163,10 +163,11 @@ public:
                     for (auto& item : space)
                         item.~T();
                 }
-                if (spaceEnd == maxPtr)
+                if (spaceEnd == maxPtr || stackDealloc)
                 {
-                    trunk.Offset -= space.size();
-                    trunk.Avaliable += space.size();
+                    const auto len = maxPtr - space.data();
+                    trunk.Offset    -= len;
+                    trunk.Avaliable += len;
                     if (trunk.Offset == 0)
                     {
                         ::common::free_align(trunk.Ptr);

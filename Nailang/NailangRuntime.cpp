@@ -290,7 +290,7 @@ NailangFrameStack::FrameHolderBase::~FrameHolderBase()
     const auto size = Frame->GetSize();
     Frame->~NailangFrame();
     Host->TopFrame = Frame->PrevFrame;
-    const auto ret = Host->TryDealloc({ reinterpret_cast<const std::byte*>(Frame), size });
+    const auto ret = Host->TryDealloc({ reinterpret_cast<const std::byte*>(Frame), size }, true);
     Ensures(ret);
 }
 
