@@ -147,7 +147,7 @@ public:
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
         if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(_mm_unpackhi_epi32(mask, mask), 32); // make sure all bits are covered
+            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32); // make sure all bits are covered
         return _mm_blendv_epi8(this->Data, other.Data, mask);
     }
 #endif
@@ -511,6 +511,13 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     }
     forceinline F64x2 VECCALL ZipLo(const F64x2& other) const { return _mm_unpacklo_pd(Data, other); }
     forceinline F64x2 VECCALL ZipHi(const F64x2& other) const { return _mm_unpackhi_pd(Data, other); }
+#if COMMON_SIMD_LV >= 41
+    template<MaskType Msk>
+    forceinline F64x2 VECCALL SelectWith(const F64x2& other, F64x2 mask) const
+    {
+        return _mm_blendv_pd(this->Data, other.Data, mask);
+    }
+#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -655,6 +662,13 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     }
     forceinline F32x4 VECCALL ZipLo(const F32x4& other) const { return _mm_unpacklo_ps(Data, other); }
     forceinline F32x4 VECCALL ZipHi(const F32x4& other) const { return _mm_unpackhi_ps(Data, other); }
+#if COMMON_SIMD_LV >= 41
+    template<MaskType Msk>
+    forceinline F32x4 VECCALL SelectWith(const F32x4& other, F32x4 mask) const
+    {
+        return _mm_blendv_ps(this->Data, other.Data, mask);
+    }
+#endif
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>

@@ -69,6 +69,24 @@ struct AVX256Common : public CommonOperators<T>
     forceinline constexpr operator const __m256i& () const noexcept { return Data; }
 
 #if COMMON_SIMD_LV >= 200
+    forceinline T VECCALL ZipLo(const T& other) const
+    {
+        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
+        return _mm256_permute2x128_si256(lolane, hilane, 0x20);
+    }
+    forceinline T VECCALL ZipHi(const T& other) const
+    {
+        const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
+        return _mm256_permute2x128_si256(lolane, hilane, 0x31);
+    }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    {
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm256_srai_epi32(_mm256_unpackhi_epi32(mask, mask), 32); // make sure all bits are covered
+        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+    }
+
     // logic operations
     forceinline T VECCALL And(const T& other) const
     {
@@ -148,6 +166,13 @@ public:
     }
     forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi64(this->Data, other.Data); }
     forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi64(this->Data, other.Data); }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    {
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm256_srai_epi64(mask, 64); // make sure all bits are covered
+        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi64(this->Data, other.Data); }
@@ -273,6 +298,13 @@ public:
     }
     forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi32(this->Data, other.Data); }
     forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi32(this->Data, other.Data); }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    {
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm256_srai_epi32(mask, 32); // make sure all bits are covered
+        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi32(this->Data, other.Data); }
@@ -348,6 +380,13 @@ public:
     }
     forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi16(this->Data, other.Data); }
     forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi16(this->Data, other.Data); }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const
+    {
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm256_srai_epi16(mask, 16); // make sure all bits are covered
+        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+    }
     
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi16(this->Data, other.Data); }
@@ -377,11 +416,6 @@ public:
         else
             return _mm256_srai_epi16(this->Data, N);
     }
-    /*Pack<I32x8, 2> MulX(const T& other) const
-    {
-        const auto los = MulLo(other), his = static_cast<const T*>(this)->MulHi(other);
-        return { _mm256_unpacklo_epi16(los, his),_mm256_unpackhi_epi16(los, his) };
-    }*/
 #endif
 };
 
@@ -431,6 +465,8 @@ public:
     }
     forceinline T VECCALL ZipLoLane(const T& other) const { return _mm256_unpacklo_epi8(this->Data, other.Data); }
     forceinline T VECCALL ZipHiLane(const T& other) const { return _mm256_unpackhi_epi8(this->Data, other.Data); }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, T mask) const { return _mm256_blendv_epi8(this->Data, other.Data, mask); }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(this->Data, other.Data); }
@@ -515,6 +551,21 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     }
     forceinline F64x4 VECCALL ZipLoLane(const F64x4& other) const { return _mm256_unpacklo_pd(this->Data, other.Data); }
     forceinline F64x4 VECCALL ZipHiLane(const F64x4& other) const { return _mm256_unpackhi_pd(this->Data, other.Data); }
+    forceinline F64x4 VECCALL ZipLo(const F64x4& other) const
+    {
+        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
+        return _mm256_permute2f128_pd(lolane, hilane, 0x20);
+    }
+    forceinline F64x4 VECCALL ZipHi(const F64x4& other) const
+    {
+        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
+        return _mm256_permute2f128_pd(lolane, hilane, 0x31);
+    }
+    template<MaskType Msk>
+    forceinline F64x4 VECCALL SelectWith(const F64x4& other, F64x4 mask) const
+    {
+        return _mm256_blendv_pd(this->Data, other.Data, mask);
+    }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -689,6 +740,21 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     }
     forceinline F32x8 VECCALL ZipLoLane(const F32x8& other) const { return _mm256_unpacklo_ps(this->Data, other.Data); }
     forceinline F32x8 VECCALL ZipHiLane(const F32x8& other) const { return _mm256_unpackhi_ps(this->Data, other.Data); }
+    forceinline F32x8 VECCALL ZipLo(const F32x8& other) const
+    {
+        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
+        return _mm256_permute2f128_ps(lolane, hilane, 0x20);
+    }
+    forceinline F32x8 VECCALL ZipHi(const F32x8& other) const
+    {
+        const auto lolane = ZipLoLane(other), hilane = ZipHiLane(other);
+        return _mm256_permute2f128_ps(lolane, hilane, 0x31);
+    }
+    template<MaskType Msk>
+    forceinline F32x8 VECCALL SelectWith(const F32x8& other, F32x8 mask) const
+    {
+        return _mm256_blendv_ps(this->Data, other.Data, mask);
+    }
 
     // compare operations
     template<CompareType Cmp, MaskType Msk>
@@ -920,7 +986,12 @@ struct alignas(32) I32x8 : public detail::Common32x8<I32x8, I32x4, int32_t>
     forceinline I32x8 VECCALL Min(const I32x8& other) const { return _mm256_min_epi32(Data, other.Data); }
     Pack<I64x4, 2> MulX(const I32x8& other) const
     {
-        return { I64x4(_mm256_mul_epi32(Data, other.Data)), I64x4(_mm256_mul_epi32(ShuffleHiLo(), other.ShuffleHiLo())) };
+        // 02,46 | 13,57
+        const auto even = _mm256_mul_epi32(Data, other.Data), odd = _mm256_mul_epi32(_mm256_srli_epi64(Data, 32), _mm256_srli_epi64(other.Data, 32));
+        // 01,45 | 23,67
+        const auto evenLane = _mm256_unpacklo_epi64(even, odd), oddLane = _mm256_unpackhi_epi64(even, odd);
+        // 01,23 | 45,67
+        return { _mm256_permute2x128_si256(evenLane, oddLane, 0x20), _mm256_permute2x128_si256(evenLane, oddLane, 0x31) };
     }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I32x8, T>(), typename... Args>
@@ -974,7 +1045,12 @@ struct alignas(__m256i) U32x8 : public detail::Common32x8<U32x8, U32x4, uint32_t
     forceinline U32x8 VECCALL Abs() const { return Data; }
     Pack<U64x4, 2> MulX(const U32x8& other) const
     {
-        return { U64x4(_mm256_mul_epu32(Data, other.Data)), U64x4(_mm256_mul_epu32(ShuffleHiLo(), other.ShuffleHiLo())) };
+        // 02,46 | 13,57
+        const auto even = _mm256_mul_epu32(Data, other.Data), odd = _mm256_mul_epu32(_mm256_srli_epi64(Data, 32), _mm256_srli_epi64(other.Data, 32));
+        // 01,45 | 23,67
+        const auto evenLane = _mm256_unpacklo_epi64(even, odd), oddLane = _mm256_unpackhi_epi64(even, odd);
+        // 01,23 | 45,67
+        return { _mm256_permute2x128_si256(evenLane, oddLane, 0x20), _mm256_permute2x128_si256(evenLane, oddLane, 0x31) };
     }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<U32x8, T>(), typename... Args>
@@ -1059,13 +1135,19 @@ struct alignas(32) I16x16 : public detail::Common16x16<I16x16, I16x8, int16_t>
     }
 
     // arithmetic operations
-    forceinline I16x16 VECCALL Neg() const { return _mm256_sub_epi16(_mm256_setzero_si256(), Data); }
-    forceinline I16x16 VECCALL Abs() const { return _mm256_abs_epi16(Data); }
     forceinline I16x16 VECCALL SatAdd(const I16x16& other) const { return _mm256_adds_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL SatSub(const I16x16& other) const { return _mm256_subs_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL MulHi(const I16x16& other) const { return _mm256_mulhi_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL Max(const I16x16& other) const { return _mm256_max_epi16(Data, other.Data); }
     forceinline I16x16 VECCALL Min(const I16x16& other) const { return _mm256_min_epi16(Data, other.Data); }
+    forceinline I16x16 VECCALL Neg() const { return _mm256_sub_epi16(_mm256_setzero_si256(), Data); }
+    forceinline I16x16 VECCALL Abs() const { return _mm256_abs_epi16(Data); }
+    Pack<I32x8, 2> MulX(const I16x16& other) const
+    {
+        const auto lo = MulLo(other), hi = MulHi(other);
+        const auto evenLane = _mm256_unpacklo_epi16(lo, hi), oddLane = _mm256_unpackhi_epi16(lo, hi);
+        return { _mm256_permute2x128_si256(evenLane, oddLane, 0x20), _mm256_permute2x128_si256(evenLane, oddLane, 0x31) };
+    }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<I16x16, T>(), typename... Args>
     typename CastTyper<I16x16, T>::Type VECCALL Cast(const Args&... args) const;
@@ -1129,6 +1211,12 @@ struct alignas(32) U16x16 : public detail::Common16x16<U16x16, U16x8, uint16_t>
     forceinline U16x16 VECCALL Max(const U16x16& other) const { return _mm256_max_epu16(Data, other.Data); }
     forceinline U16x16 VECCALL Min(const U16x16& other) const { return _mm256_min_epu16(Data, other.Data); }
     forceinline U16x16 VECCALL Abs() const { return Data; }
+    Pack<U32x8, 2> MulX(const U16x16& other) const
+    {
+        const auto lo = MulLo(other), hi = MulHi(other);
+        const auto evenLane = _mm256_unpacklo_epi16(lo, hi), oddLane = _mm256_unpackhi_epi16(lo, hi);
+        return { _mm256_permute2x128_si256(evenLane, oddLane, 0x20), _mm256_permute2x128_si256(evenLane, oddLane, 0x31) };
+    }
 #endif
     template<typename T, CastMode Mode = detail::CstMode<U16x16, T>(), typename... Args>
     typename CastTyper<U16x16, T>::Type VECCALL Cast(const Args&... args) const;

@@ -156,7 +156,7 @@ static void TestAdd(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] + data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Add";
     }
 }
 
@@ -170,7 +170,7 @@ static void TestSub(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] - data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Sub";
     }
 }
 
@@ -189,7 +189,7 @@ static void TestSatAdd(const T* ptr)
             const auto tmp = static_cast<V>(static_cast<V>(data1.Val[i]) + static_cast<V>(data2.Val[i]));
             ref[i] = static_cast<U>(std::clamp<V>(tmp, std::numeric_limits<U>::min(), std::numeric_limits<U>::max()));
         }
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing SatAdd";
     }
 }
 
@@ -208,7 +208,7 @@ static void TestSatSub(const T* ptr)
             const auto tmp = static_cast<V>(static_cast<V>(data1.Val[i]) - static_cast<V>(data2.Val[i]));
             ref[i] = static_cast<U>(std::clamp<V>(tmp, std::numeric_limits<U>::min(), std::numeric_limits<U>::max()));
         }
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing SatSub";
     }
 }
 
@@ -222,7 +222,7 @@ static void TestMul(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] * data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Mul";
     }
 }
 
@@ -237,7 +237,7 @@ static void TestMulLo(const T* ptr)
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = static_cast<U>(data1.Val[i] * data2.Val[i]); // c++ keeps only low part natively
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing MulLo";
     }
 }
 
@@ -270,7 +270,7 @@ static void TestMulHi(const T* ptr)
             }
 #endif
         }
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing MulHi";
     }
 }
 
@@ -290,7 +290,7 @@ static void TestMulX(const T* ptr)
             out[i] = output[i * 2 / T::Count].Val[i % (T::Count / 2)];
             ref[i] = static_cast<V>(static_cast<V>(data1.Val[i]) * static_cast<V>(data2.Val[i]));
         }
-        EXPECT_THAT(out, testing::ElementsAreArray(ref));
+        EXPECT_THAT(out, testing::ElementsAreArray(ref)) << "when testing MulX";
     }
 }
 
@@ -311,7 +311,7 @@ static void TestDiv(const T* ptr)
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = data1.Val[i] / data2.Val[i];
             //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
-            EXPECT_THAT(output.Val, MatchVec(ref));
+            EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing Div";
         }
     }
     else
@@ -324,7 +324,7 @@ static void TestDiv(const T* ptr)
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = data.Val[i] / data.Val[0];
             //EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
-            EXPECT_THAT(output.Val, MatchVec(ref));
+            EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing Div";
         }
     }
 }
@@ -342,7 +342,7 @@ static void TestNeg(const T* ptr)
         {
             ref[i] = static_cast<U>(-data.Val[i]);
         }
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Neg";
     }
 }
 
@@ -362,7 +362,7 @@ static void TestAbs(const T* ptr)
             else
                 ref[i] = static_cast<U>(data.Val[i] < 0 ? -data.Val[i] : data.Val[i]);
         }
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Abs";
     }
 }
 
@@ -377,7 +377,7 @@ static void TestAnd(const T* ptr)
         U ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] & data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing And";
     }
 }
 
@@ -391,7 +391,7 @@ static void TestOr(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] | data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Or";
     }
 }
 
@@ -405,7 +405,7 @@ static void TestXor(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data1.Val[i] ^ data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Xor";
     }
 }
 
@@ -419,7 +419,7 @@ static void TestAndNot(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = (~data1.Val[i]) & data2.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing AndNot";
     }
 }
 
@@ -433,7 +433,7 @@ static void TestNot(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = ~data.Val[i];
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Not";
     }
 }
 
@@ -447,7 +447,7 @@ static void TestMin(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = std::min(data1.Val[i], data2.Val[i]);
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Min";
     }
 }
 
@@ -461,7 +461,7 @@ static void TestMax(const T* ptr)
         typename T::EleType ref[T::Count] = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = std::max(data1.Val[i], data2.Val[i]);
-        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref));
+        EXPECT_THAT(output.Val, testing::ElementsAreArray(ref)) << "when testing Max";
     }
 }
 
@@ -614,7 +614,7 @@ static void TestCast(const T* ptr)
                 CopyEles(output, out, std::make_index_sequence<T::Count / U::Count>{});
             for (uint8_t i = 0; i < T::Count; ++i)
                 ref[i] = CastSingle<V, Mode>(data.Val[i]);
-            EXPECT_THAT(out, MatchVec(ref));
+            EXPECT_THAT(out, MatchVec(ref)) << "when testing UpCast";
         }
     }
     else
@@ -639,7 +639,7 @@ static void TestCast(const T* ptr)
                 for (uint8_t i = 0; i < T::Count; ++i)
                     ref[j * T::Count + i] = CastSingle<V, Mode>(data.Val[i]);
             }
-            EXPECT_THAT(output.Val, MatchVec(ref));
+            EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing DownCast";
         }
     }
 }
@@ -675,7 +675,8 @@ static void TestCompare(const T* ptr)
         std::array<U, T::Count> ref = { 0 };                                                        \
         for (uint8_t i = 0; i < T::Count; ++i)                                                      \
             ref[i] = data0.Val[i] op data1.Val[i] ? ValTrue : ValFalse;                             \
-        EXPECT_THAT(output.Val, MatchVec(ref)); } while(false)
+        EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing Compare " #cmp;                     \
+        } while(false)
         TestRel(LessThan,       < );
         TestRel(LessEqual,      <=);
         TestRel(Equal,          ==);
@@ -688,6 +689,48 @@ static void TestCompare(const T* ptr)
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = data0.Val[i] < data1.Val[i] ? ValTrue : ValFalse;
         EXPECT_THAT(output.Val, MatchVec(ref));*/
+    }
+}
+
+template<typename T>
+inline bool CheckMSB(T val) noexcept
+{
+    if constexpr (std::is_same_v<T, float>)
+    {
+        return CheckMSB(*reinterpret_cast<const uint32_t*>(&val));
+    }
+    else if constexpr (std::is_same_v<T, double>)
+    {
+        return CheckMSB(*reinterpret_cast<const uint64_t*>(&val));
+    }
+    else if constexpr (std::is_unsigned_v<T>)
+    {
+        constexpr auto MSB = static_cast<T>(1) << (sizeof(T) * 8 - 1);
+        return val & MSB;
+    }
+    else
+        return val < 0;
+}
+template<typename T>
+static void TestSEL(const T* ptr)
+{
+    using U = typename T::EleType;
+    const U ValTrue = GetAllOnes<U>(), ValFalse = 0, Val1 = 1;
+    T data1(ValFalse), data2(Val1);
+    ForKItem(1)
+    {
+        const auto mask0 = ptr[k + 0];
+        T mask1, ref;
+        for (uint32_t i = 0; i < T::Count; ++i)
+        {
+            const auto msb = CheckMSB(mask0.Val[i]);
+            mask1.Val[i] = msb ? ValTrue : ValFalse;
+            ref  .Val[i] = msb ? Val1    : ValFalse;
+        }
+        const auto output0 = data1.template SelectWith<MaskType::SigBit >(data2, mask0);
+        const auto output1 = data1.template SelectWith<MaskType::FullEle>(data2, mask1);
+        EXPECT_THAT(output0.Val, testing::ElementsAreArray(ref.Val)) << "when testing SelectWith SigBit";
+        EXPECT_THAT(output1.Val, testing::ElementsAreArray(ref.Val)) << "when testing SelectWith FullEle";
     }
 }
 
@@ -715,7 +758,7 @@ T SwapEndian(const T val)
         static_assert(!::common::AlwaysTrue<T>, "not supported");
 }
 template<typename T>
-static void TestSwapEndian(const T* ptr)
+static void TestSWE(const T* ptr)
 {
     using U = typename T::EleType;
     ForKItem(1)
@@ -725,7 +768,7 @@ static void TestSwapEndian(const T* ptr)
         std::array<U, T::Count> ref = { 0 };
         for (uint8_t i = 0; i < T::Count; ++i)
             ref[i] = SwapEndian(data.Val[i]);
-        EXPECT_THAT(output.Val, MatchVec(ref));
+        EXPECT_THAT(output.Val, MatchVec(ref)) << "when testing SwapEndian";
     }
 }
 
@@ -736,7 +779,8 @@ enum class TestItem : uint32_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SRL = 0x4000, SRA = 0x8000,
-    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000,
+    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, 
+    SWE = 0x10000000, SEL = 0x20000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
 
@@ -750,7 +794,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL)
 #undef AddItems
 #undef AddItem
     }
@@ -798,21 +842,6 @@ public:
 #define RegisterSIMDCmpTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDCompareTest<type>);
 #define RegisterSIMDCmpTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDCmpTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
-
-template<typename T>
-class SIMDSwapEndianTest : public SIMDFixture
-{
-public:
-    static constexpr auto TestSuite = "SIMDSwapEndian";
-    void TestBody() override
-    {
-        const auto ptr = GetRandPtr<T, typename T::EleType>();
-        TestSwapEndian(ptr);
-    }
-};
-
-#define RegisterSIMDSwpEndTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, simdtest::SIMDSwapEndianTest<type>);
-#define RegisterSIMDSwpEndTest(lv, ...)  BOOST_PP_SEQ_FOR_EACH_I(RegisterSIMDSwpEndTestItem, lv, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 
 
 }

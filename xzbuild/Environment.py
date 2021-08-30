@@ -150,7 +150,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         if "_LIBCPP_VERSION" in defs:
             env["stdlib"] = "libc++"
             ver = int(defs["_LIBCPP_VERSION"])
-            env["libc++Ver"] = int(ver % 1000 + ver / 1000 * 10)
+            env["libc++Ver"] = int(ver % 1000 + ver / 1000 * 10000)
         elif "__GLIBCXX__" in defs:
             env["stdlib"] = "libstdc++"
             if "_GLIBCXX_RELEASE" in defs: # introduced in 7.1
@@ -185,7 +185,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
         env["android"] = True
     if env["arch"] == "arm":
         env["armArch"] = int(defs["__ARM_ARCH"])
-        env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"]
+        env["armArchProfile"] = defs["__ARM_ARCH_PROFILE"].strip("'")
     if "iOS" in env:
         if "iOSSDKVer" not in env:
             envSdkVer = os.environ.get("SDKVERSION")

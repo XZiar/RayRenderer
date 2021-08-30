@@ -249,6 +249,16 @@ struct Shuffle64Common
         return AsType<SIMDType>(vcombine_u64(a, b));
 #endif
     }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
+    {
+        uint64x2_t msk;
+        if constexpr (Msk != MaskType::FullEle)
+            msk = AsType<uint64x2_t>(vshrq_n_s64(AsType<int64x2_t>(mask.Data), 64)); // make sure all bits are covered
+        else
+            msk = AsType<uint64x2_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u64(msk, AsType<uint64x2_t>(other.Data), AsType<uint64x2_t>(static_cast<const T*>(this)->Data)));
+    }
 };
 
 
@@ -262,16 +272,6 @@ public:
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev64q_u8(AsType<uint8x16_t>(this->Data)));
-    }
-    template<MaskType Msk>
-    forceinline T VECCALL SelectWith(const T& other, const T mask) const
-    {
-        uint64x2_t msk;
-        if constexpr (Msk != MaskType::FullEle)
-            msk = AsType<uint64x2_t>(vshrq_n_s64(AsType<int64x2_t>(mask.Data), 64)); // make sure all bits are covered
-        else
-            msk = AsType<uint64x2_t>(mask.Data);
-        return AsType<SIMDType>(vbslq_u64(msk, AsType<uint64x2_t>(other.Data), AsType<uint64x2_t>(this->Data)));
     }
 
     // arithmetic operations
@@ -442,6 +442,16 @@ struct Shuffle32Common
         return AsType<SIMDType>(vcombine_u32(zip.val[0], zip.val[1]));
 #endif
     }
+    template<MaskType Msk>
+    forceinline T VECCALL SelectWith(const T& other, const T mask) const
+    {
+        uint32x4_t msk;
+        if constexpr (Msk != MaskType::FullEle)
+            msk = AsType<uint32x4_t>(vshrq_n_s32(AsType<int32x4_t>(mask.Data), 32)); // make sure all bits are covered
+        else
+            msk = AsType<uint32x4_t>(mask.Data);
+        return AsType<SIMDType>(vbslq_u32(msk, AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(static_cast<const T*>(this)->Data)));
+    }
 };
 
 
@@ -455,16 +465,6 @@ public:
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev32q_u8(AsType<uint8x16_t>(this->Data)));
-    }
-    template<MaskType Msk>
-    forceinline T VECCALL SelectWith(const T& other, const T mask) const
-    {
-        uint32x4_t msk;
-        if constexpr (Msk != MaskType::FullEle)
-            msk = AsType<uint32x4_t>(vshrq_n_s32(AsType<int32x4_t>(mask.Data), 32)); // make sure all bits are covered
-        else
-            msk = AsType<uint32x4_t>(mask.Data);
-        return AsType<SIMDType>(vbslq_u32(msk, AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(this->Data)));
     }
 
     // arithmetic operations

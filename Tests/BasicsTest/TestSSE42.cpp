@@ -12,16 +12,16 @@ using namespace common::simd;
 #   include "DotProdTest.h"
 
 
-RegisterSIMDBaseTest(F64x2, 42, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(F32x4, 42, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(I64x2, 42, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
-RegisterSIMDBaseTest(U64x2, 42, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I32x4, 42, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U32x4, 42, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I16x8, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U16x8, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,          Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I8x16, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(U8x16, 42, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,          Abs, Min, Max);
+RegisterSIMDBaseTest(F64x2, 42,      SEL, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(F32x4, 42,      SEL, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(I64x2, 42, SWE, SEL, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(U64x2, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I32x4, 42, SWE, SEL, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U32x4, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I16x8, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U16x8, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,          Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I8x16, 42,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(U8x16, 42,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,          Abs, Min, Max);
 
 
 RegisterSIMDCastTest(F32x4, 42, F64x2);
@@ -44,9 +44,6 @@ RegisterSIMDCastModeTest(U16x8, 42, RangeSaturate, U8x16);
 
 
 RegisterSIMDCmpTest(42, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
-
-
-RegisterSIMDSwpEndTest(42, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8)
 
 
 RegisterSIMDZipTest(42, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)

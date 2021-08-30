@@ -12,14 +12,14 @@ using namespace common::simd;
 #   include "ShuffleTest.h"
 
 
-RegisterSIMDBaseTest(I64x4,  200, Add, Sub,                 MulLo,              Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
-RegisterSIMDBaseTest(U64x4,  200, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I32x8,  200, Add, Sub,                 MulLo,        MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U32x8,  200, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U16x16, 200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(U8x32,  200, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max);
+RegisterSIMDBaseTest(I64x4,  200, SWE, SEL, Add, Sub,                 MulLo,              Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(U64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I32x8,  200, SWE, SEL, Add, Sub,                 MulLo,        MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX,      Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U16x16, 200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,      Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi,       Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(U8x32,  200,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi,            Abs, Min, Max);
 
 
 RegisterSIMDCastTest(F32x8,  200, F64x4);
@@ -44,9 +44,7 @@ RegisterSIMDCastModeTest(U16x16, 200, RangeSaturate, U8x32);
 RegisterSIMDCmpTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
 
 
-RegisterSIMDSwpEndTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16)
-
-
+RegisterSIMDZipTest(200, F64x4, F32x8, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
 RegisterSIMDZipLaneTest(200, F64x4, F32x8, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
 
 
