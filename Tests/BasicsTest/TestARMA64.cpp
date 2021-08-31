@@ -52,9 +52,12 @@ RegisterSIMDZipTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8,
 
 
 RegisterSIMDTest(F64x2, 200, shuftest::ShuffleTest<F64x2>);
+RegisterSIMDTest(U32x4, 200, shuftest::ShuffleTest<U32x4>);
 
 
 RegisterSIMDTest(F64x2, 200, shuftest::ShuffleVarTest<F64x2>);
+RegisterSIMDTest(U32x4, 200, shuftest::ShuffleVarTest<U32x4>);
+RegisterSIMDTest(U16x8, 200, shuftest::ShuffleVarTest<U16x8>);
 
 
 RegisterSIMDTest(F32x4, 200, dottest::DotProdTest<F32x4>);

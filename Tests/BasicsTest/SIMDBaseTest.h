@@ -649,13 +649,17 @@ inline T GetAllOnes() noexcept
 {
     if constexpr (std::is_same_v<T, float>)
     {
-        const uint32_t X = UINT32_MAX;
-        return *reinterpret_cast<const float*>(&X);
+        constexpr uint32_t X = UINT32_MAX;
+        T ret;
+        memcpy(&ret, &X, sizeof(X));
+        return ret;
     }
     else if constexpr (std::is_same_v<T, double>)
     {
-        const uint64_t X = UINT64_MAX;
-        return *reinterpret_cast<const double*>(&X);
+        constexpr uint64_t X = UINT64_MAX;
+        T ret;
+        memcpy(&ret, &X, sizeof(X));
+        return ret;
     }
     else if constexpr (std::is_unsigned_v<T>)
         return std::numeric_limits<T>::max();
@@ -697,11 +701,15 @@ inline bool CheckMSB(T val) noexcept
 {
     if constexpr (std::is_same_v<T, float>)
     {
-        return CheckMSB(*reinterpret_cast<const uint32_t*>(&val));
+        uint32_t newVal;
+        memcpy(&newVal, &val, sizeof(T));
+        return CheckMSB(newVal);
     }
     else if constexpr (std::is_same_v<T, double>)
     {
-        return CheckMSB(*reinterpret_cast<const uint64_t*>(&val));
+        uint64_t newVal;
+        memcpy(&newVal, &val, sizeof(T));
+        return CheckMSB(newVal);
     }
     else if constexpr (std::is_unsigned_v<T>)
     {

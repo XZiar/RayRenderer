@@ -44,7 +44,10 @@ MATCHER_P(MatchShuffle, ref, GenerateMatchStr("Shuffle", ref))
 template<typename T, size_t N>
 forcenoinline void ResultCheck(const T& data, const std::array<uint8_t, N>& poses) noexcept
 {
-    EXPECT_THAT(data.Val, MatchShuffle(poses));
+    if (!CheckMatch(data.Val, poses, std::make_index_sequence<N>{}))
+    {
+        EXPECT_THAT(data.Val, MatchShuffle(poses));
+    }
 }
 
 
@@ -78,13 +81,13 @@ forceinline void RunShuffle(const T& data)
 }
 
 template<typename T, uint64_t IdxBegin, uint16_t... Vals>
-void TestShuffleBatch(const T& data, std::integer_sequence<uint16_t, Vals...>)
+forceinline void TestShuffleBatch(const T& data, std::integer_sequence<uint16_t, Vals...>)
 {
     (..., RunShuffle<T, IdxBegin + Vals>(data));
 }
 
 template<typename T, uint64_t IdxBegin, uint64_t IdxEnd>
-void TestShuffle(const T& data)
+forceinline void TestShuffle(const T& data)
 {
     if constexpr (IdxEnd - IdxBegin <= 256)
     {
@@ -212,7 +215,6 @@ public:
         else
             data0.ZipLo(data1).Save(out), data0.ZipHi(data1).Save(out + T::Count);
         EXPECT_THAT(out, MatchZip(ref));
-
     }
 };
 #define RegisterSIMDZipTestItem(r, lv, i, type)  RegisterSIMDTest(type, lv, shuftest::ZipTest<type, false>);

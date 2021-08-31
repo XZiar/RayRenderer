@@ -2,7 +2,7 @@
     "name": "BasicsTest",
     "type": "executable",
     "description": "Basics test",
-    "dependency": ["cpuid", "googletest"],
+    "dependency": ["googletest", {"ifeq": {"arch": "x86"}, "+": "cpuid"}],
     "library": 
     {
         "static": [],

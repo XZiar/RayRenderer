@@ -214,7 +214,11 @@ struct Shuffle64Common
         using V = typename T::VecType;
         const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
         if constexpr (Lo == Hi)
+#if COMMON_SIMD_LV >= 200
             return AsType<V>(vdupq_laneq_u64(data, Lo));
+#else
+            return AsType<V>(vdupq_n_u64(vgetq_lane_u64(data, Lo)));
+#endif
         else if constexpr (Lo == 0 && Hi == 1)
             return AsType<V>(data);
         else
@@ -410,9 +414,8 @@ struct Shuffle32Common
         //static_assert(Lo0 < 4 && Lo1 < 4 && Lo2 < 4 && Hi3 < 4, "shuffle index should be in [0,3]");
         using V = typename T::VecType;
         alignas(16) const uint32_t indexes[] = { Lo0, Lo1, Lo2, Hi3, };
-        const auto muler = vreinterpret_u32_u8(neon_movib(4)); 
         const auto adder = vdupq_n_u32(0x03020100u);
-        const auto tbl = vreinterpretq_u8_u32(vmlaq_lane_u32(adder, vld1q_u32(indexes), muler, 0));
+        const auto tbl = vreinterpretq_u8_u32(vmlaq_n_u32(adder, vld1q_u32(indexes), 0x04040404u));
         const auto data = AsType<uint8x16_t>(static_cast<const T*>(this)->Data);
 #if COMMON_SIMD_LV >= 200
         return AsType<V>(vqtbl1q_u8(data, tbl));
@@ -515,7 +518,7 @@ public:
 
     forceinline static T LoadLo(const E val) noexcept
     {
-        return AsType<SIMDType>(vsetq_lane_u32(*reinterpret_cast<const uint32_t*>(&val), vdupq_n_u32(0), 0));
+        return AsType<SIMDType>(vsetq_lane_u32(static_cast<uint32_t>(val), vdupq_n_u32(0), 0));
     }
 };
 
@@ -526,7 +529,91 @@ struct alignas(16) Common16x8 : public Neon128Common<T, SIMDType, E, 8>
 private:
     using Neon128Common = Neon128Common<T, SIMDType, E, 8>;
 public:
-    using Neon128Common::Neon128Common;
+    using Neon128Common::Neon128Common; 
+    // shuffle operations
+    template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
+    forceinline T VECCALL Shuffle() const
+    {
+        static_assert(Lo0 < 8 && Lo1 < 8 && Lo2 < 8 && Lo3 < 8 && Lo4 < 8 && Lo5 < 8 && Lo6 < 8 && Hi7 < 8, "shuffle index should be in [0,7]");
+        using V = typename T::VecType;
+        const auto data = AsType<uint16x8_t>(this->Data);
+        if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Lo3 == 3 && Lo4 == 4 && Lo5 == 5 && Lo6 == 6 && Hi7 == 7)
+            return AsType<V>(data);
+        else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Lo3 && Lo3 == Lo4 && Lo5 == Lo6 && Lo6 == Hi7)
+#if COMMON_SIMD_LV >= 200
+            return AsType<V>(vdupq_laneq_u16(data, Lo0));
+#else
+            return AsType<V>(vdupq_n_u16(vgetq_lane_u16(data, Lo0)));
+#endif
+        else if constexpr (Lo1 == (Lo0 + 1) % 8 && Lo2 == (Lo1 + 1) % 8 && Lo3 == (Lo2 + 1) % 8 && 
+            Lo4 == (Lo3 + 1) % 8 && Lo5 == (Lo4 + 1) % 8 && Lo6 == (Lo5 + 1) % 8 && Hi7 == (Lo6 + 1) % 8)
+            return AsType<V>(vextq_u16(data, data, Lo0));
+        else if constexpr (Lo0 == 0 && Lo1 == 0 && Lo2 == 1 && Lo3 == 1 && Lo4 == 2 && Lo5 == 2 && Lo6 == 3 && Hi7 == 3) // 00112233
+            return ZipLo(*static_cast<const T*>(this));
+        else if constexpr (Lo0 == 4 && Lo1 == 4 && Lo2 == 5 && Lo3 == 5 && Lo4 == 6 && Lo5 == 6 && Lo6 == 7 && Hi7 == 7) // 44556677
+            return ZipHi(*static_cast<const T*>(this));
+        else if constexpr (Lo0 == 0 && Lo1 == 2 && Lo2 == 4 && Lo3 == 6 && Lo4 == 0 && Lo5 == 2 && Lo6 == 4 && Hi7 == 6) // 02460246
+#if COMMON_SIMD_LV >= 200
+            return AsType<V>(vuzp1q_u16(data, data));
+#else
+            return AsType<V>(vuzpq_u16(data, data).val[0]);
+#endif
+        else if constexpr (Lo0 == 1 && Lo1 == 3 && Lo2 == 5 && Lo3 == 7 && Lo4 == 1 && Lo5 == 3 && Lo6 == 5 && Hi7 == 7) // 13571357
+#if COMMON_SIMD_LV >= 200
+            return AsType<V>(vuzp2q_u16(data, data));
+#else
+            return AsType<V>(vuzpq_u16(data, data).val[1]);
+#endif
+        else if constexpr (Lo0 == Lo2 && Lo2 == Lo4 && Lo4 == Lo6 && Lo1 == Lo3 && Lo3 == Lo5 && Lo5 == Hi7) // xyxyxyxy
+        {
+#if COMMON_SIMD_LV >= 200
+            return AsType<V>(vzip1q_u16(vdupq_laneq_u16(data, Lo0), vdupq_laneq_u16(data, Lo1)));
+#else
+            const auto a = vdup_n_u16(vgetq_lane_u16(data, Lo0)), b = vdup_n_u16(vgetq_lane_u16(data, Lo1));
+            const auto zip = vzip_u16(a, b);
+            return AsType<V>(vcombine_u16(zip.val[0], zip.val[1]));
+#endif
+        }
+        else
+        {
+            alignas(16) const uint16_t indexes[] =
+            {
+                (Lo0 * 2) * 0x0101 + 0x0100,
+                (Lo1 * 2) * 0x0101 + 0x0100,
+                (Lo2 * 2) * 0x0101 + 0x0100,
+                (Lo3 * 2) * 0x0101 + 0x0100,
+                (Lo4 * 2) * 0x0101 + 0x0100,
+                (Lo5 * 2) * 0x0101 + 0x0100,
+                (Lo6 * 2) * 0x0101 + 0x0100,
+                (Hi7 * 2) * 0x0101 + 0x0100,
+            };
+#if COMMON_SIMD_LV >= 200
+            const auto tbl = vreinterpretq_u8_u16(vld1q_u16(indexes));
+            return AsType<V>(vqtbl1q_u8(vreinterpretq_u8_u16(data), tbl));
+#else
+            const uint8x8x2_t src = { vreinterpret_u8_u16(vget_low_u16(data)), vreinterpret_u8_u16(vget_high_u16(data)) };
+            const auto tbl_ = vld1_u16_x2(indexes);
+            const auto tbl1 = vreinterpret_u8_u16(tbl_.val[0]), tbl2 = vreinterpret_u8_u16(tbl_.val[1]);
+            const auto lo = vtbl2_u8(src, tbl1), hi = vtbl2_u8(src, tbl2);
+            return AsType<V>(vcombine_u32(vreinterpret_u16_u8(lo), vreinterpret_u16_u8(hi)));
+#endif
+        }
+    }
+    forceinline T VECCALL Shuffle(const uint8_t Lo0, const uint8_t Lo1, const uint8_t Lo2, const uint8_t Lo3, const uint8_t Lo4, const uint8_t Lo5, const uint8_t Lo6, const uint8_t Hi7) const
+    {
+        alignas(16) const uint8_t indexes[] = { Lo0, Lo1, Lo2, Lo3, Lo4, Lo5, Lo6, Hi7 };
+        const auto base = vmovl_u8(vld1_u8(indexes));
+        const auto adder = vdupq_n_u16(0x0100);
+        const auto tbl = vreinterpretq_u8_u16(vmlaq_n_u16(adder, base, 0x0202));
+        const auto data = AsType<uint8x16_t>(this->Data);
+#if COMMON_SIMD_LV >= 200
+        return AsType<SIMDType>(vqtbl1q_u8(data, tbl));
+#else
+        const uint8x8x2_t src = { vget_low_u8(data), vget_high_u8(data) };
+        const auto lo = vtbl2_u8(src, vget_low_u8(tbl)), hi = vtbl2_u8(src, vget_high_u8(tbl));
+        return AsType<SIMDType>(vcombine_u16(vreinterpret_u16_u8(lo), vreinterpret_u16_u8(hi)));
+#endif
+    }
     forceinline T VECCALL SwapEndian() const
     {
         return AsType<SIMDType>(vrev16q_u8(AsType<uint8x16_t>(this->Data)));
@@ -610,7 +697,7 @@ public:
 
     forceinline static T LoadLo(const E val) noexcept
     {
-        return AsType<SIMDType>(vsetq_lane_u16(*reinterpret_cast<const uint16_t*>(&val), vdupq_n_u16(0), 0));
+        return AsType<SIMDType>(vsetq_lane_u16(static_cast<uint16_t>(val), vdupq_n_u16(0), 0));
     }
 };
 

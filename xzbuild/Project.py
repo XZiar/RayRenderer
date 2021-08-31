@@ -116,9 +116,9 @@ class Project:
         osname = platform.system()
         linkLibs = []
         if len(libStatic) > 0:
-            linkLibs.append("-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive")
+            #linkLibs.append("-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive")
             linkLibs += [f"-l{x}" for x in libStatic]
-            linkLibs.append("-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive")
+            #linkLibs.append("-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive")
         if "android" in env and env["arch"] == "arm" and env["bits"] == 32 and env["ndkVer"] < 2300:
             """
             On Android armv7, use of _Unwind_Backtrace may cause segment fault because of in compatible layout of

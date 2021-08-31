@@ -146,8 +146,12 @@ public:
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
-        if constexpr (Msk != MaskType::FullEle)
-            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32); // make sure all bits are covered
+        if constexpr (Msk != MaskType::FullEle) // make sure all bits are covered
+# if COMMON_SIMD_LV >= 320
+            mask = _mm_srai_epi64(mask, 64);
+# else
+            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32);
+# endif
         return _mm_blendv_epi8(this->Data, other.Data, mask);
     }
 #endif

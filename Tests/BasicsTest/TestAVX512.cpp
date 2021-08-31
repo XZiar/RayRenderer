@@ -11,10 +11,10 @@ using namespace common::simd;
 #   include "SIMDBaseTest.h"
 
 
-RegisterSIMDBaseTest(I64x4,  320,                 MulLo, Min, Max, SRA);
-RegisterSIMDBaseTest(U64x4,  320, SatAdd, SatSub, MulLo, Min, Max);
-RegisterSIMDBaseTest(I64x2,  320,                 MulLo, Min, Max, SRA);
-RegisterSIMDBaseTest(U64x2,  320, SatAdd, SatSub, MulLo, Min, Max);
+RegisterSIMDBaseTest(I64x4,  320, SEL,                 MulLo, Min, Max, SRA);
+RegisterSIMDBaseTest(U64x4,  320, SEL, SatAdd, SatSub, MulLo, Min, Max);
+RegisterSIMDBaseTest(I64x2,  320, SEL,                 MulLo, Min, Max, SRA);
+RegisterSIMDBaseTest(U64x2,  320, SEL, SatAdd, SatSub, MulLo, Min, Max);
 
 
 RegisterSIMDCastTest(U32x4,  320, F64x2);
