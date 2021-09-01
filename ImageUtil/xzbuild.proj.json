@@ -8,6 +8,10 @@
         "static": [],
         "dynamic": []
     },
+    "libflags":
+    {
+        "zlib-ng": {"all": true}
+    },
     "targets":
     {
         "cpp":

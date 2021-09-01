@@ -3,10 +3,18 @@ import os
 import platform
 import time
 from collections import deque,OrderedDict
+from enum import Flag
 from . import writeItems,writeItem
 from . import PowerList as PList
 from .Target import _AllTargets
 
+
+class ProjectType(Flag):
+    Empty = 0
+    Dynamic = 1
+    Static = 2
+    Executable = 4
+    All = Dynamic | Static | Executable
 
 class Project:
     def __init__(self, data:dict, path:str):
@@ -14,12 +22,21 @@ class Project:
         self.raw = data
         self.name = data["name"]
         self.type = data["type"]
+        if self.type == "executable": 
+            self.typeFlag = ProjectType.Executable
+        elif self.type == "static": 
+            self.typeFlag = ProjectType.Static
+        elif self.type == "dynamic":
+            self.typeFlag = ProjectType.Dynamic
+        else: 
+            raise Exception(f"unrecognized project type [{self.type}]")
         self.buildPath = os.path.normpath(path)
         self.srcPath = os.path.normpath(os.path.join(path, data.get("srcPath", "")))
         self.dependency = []
         self.version = data.get("version", "")
         self.desc = data.get("description", "")
         self.libs = data.get("library", {})
+        self.libFlags = data.get("libflags", {})
         self.libStatic = []
         self.libDynamic = []
         self.libDirs = []
@@ -65,8 +82,7 @@ class Project:
                 self.targetName = f"lib{self.name}.so"
                 dynName = f"{self.targetName}.{self.libVersion}" if self.libVersion else self.targetName
                 self.linkflags += ["-shared", f"-Wl,-soname,{dynName}", "-Wl,-rpath,.", "-Wl,-rpath,'$$$$ORIGIN'"]
-        else: 
-            raise Exception(f"unrecognized project type [{self.type}]")
+        
         if self.expmap and not osname == 'Darwin':
             self.linkflags += [f"-Wl,--version-script,{self.expmap}"]
 
@@ -92,33 +108,25 @@ class Project:
         pass
 
     def writeMakefile(self, env:dict):
-        def solveNestedDeps(deps:set, dtype:str):
-            checked = deps.copy()
-            wanted = [proj for proj in deps if proj.type == dtype]
-            ret = set(wanted)
-            while len(wanted) > 0:
-                p = wanted[0]
-                matchDeps = set(proj for proj in p.dependency if proj.type == dtype)
-                ret |= matchDeps
-                newDeps = matchDeps - checked
-                wanted.extend(newDeps)
-                checked |= newDeps
-                del wanted[0]
-            return ret
 
         deps = set(self.dependency)
-        depStatic  = solveNestedDeps(deps, "static") if self.type != "static" else set()
+        depStatic  = ProjectSet.sortByDependency([proj for proj in deps if proj.type == "static"], ProjectType.Static)
+        depStatic.reverse()
         depDynamic = ProjectSet.sortByDependency([proj for proj in deps if proj.type == "dynamic"])
         depDynamic.reverse()
         libStatic  = [proj.name for proj in depStatic ] + self.libStatic
         libDynamic = [proj.name for proj in depDynamic] + self.libDynamic
-        
+
         osname = platform.system()
+        allPfx = "-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive"
+        allSfx = "-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive"
+        def procStatic(name, flags):
+            flag = flags.get(name, {})
+            return f"{allPfx} -l{name} {allSfx}" if flag.get("all", False) else f"-l{name}"
+        
         linkLibs = []
         if len(libStatic) > 0:
-            #linkLibs.append("-Wl,-all_load" if osname == 'Darwin' else "-Wl,--whole-archive")
-            linkLibs += [f"-l{x}" for x in libStatic]
-            #linkLibs.append("-Wl,-noall_load" if osname == 'Darwin' else "-Wl,--no-whole-archive")
+            linkLibs += [procStatic(x, self.libFlags) for x in libStatic]
         if "android" in env and env["arch"] == "arm" and env["bits"] == 32 and env["ndkVer"] < 2300:
             """
             On Android armv7, use of _Unwind_Backtrace may cause segment fault because of in compatible layout of
@@ -193,22 +201,22 @@ class ProjectSet:
         for proj in self._data.values():
             proj.solveDependency(self, env)
 
-    def sortDependency(self, projs, addDepend = False) -> list:
+    def sortDependency(self, projs, addDepend:ProjectType = ProjectType.Empty) -> list:
         return ProjectSet.sortByDependency(projs, addDepend, self)
     
     @staticmethod
-    def sortByDependency(projs, addDepend = False, self:"ProjectSet" = None) -> list:
+    def sortByDependency(projs, addDepend:ProjectType = ProjectType.Empty, self:"ProjectSet" = None) -> list:
         wanted = OrderedDict()
         for x in projs:
             proj = x if type(x) is Project else None if self is None else self._data.get(x, None)
             if proj is None: raise Exception(f"{x} not recoginized as a project")
             wanted[proj] = None
-        if addDepend: 
+        if addDepend != ProjectType.Empty: 
             waiting = deque(wanted.keys())
             while len(waiting) > 0:
                 target = waiting.popleft()
                 for p in target.dependency:
-                    if p not in wanted:
+                    if p not in wanted and bool(addDepend & p.typeFlag):
                         waiting.append(p)
                 wanted[target] = None
         satified = []

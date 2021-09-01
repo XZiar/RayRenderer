@@ -12,7 +12,7 @@ if not __package__:
 
 from xzbuild import COLOR
 from xzbuild.Target import _AllTargets
-from xzbuild.Project import Project, ProjectSet
+from xzbuild.Project import ProjectType, Project, ProjectSet
 from xzbuild.Environment import collectEnv, writeEnv
 
 def help():
@@ -70,7 +70,7 @@ def listproj(projs: ProjectSet, projname: str):
 
 def mainmake(action:str, projs:set, env:dict, allProjs:ProjectSet):
     if action.endswith("all"):
-        projs = allProjs.sortDependency(projs, True)
+        projs = allProjs.sortDependency(projs, ProjectType.All)
         action = action[:-3]
     else:
         projs = allProjs.sortDependency(projs)
