@@ -12,6 +12,10 @@
 
 #pragma message("Compiling SystemCommon with [" STRINGIZE(COMMON_SIMD_INTRIN) "]" )
 #pragma message("Compiling SystemCommon with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
+#if COMMON_OS_WIN
+#   include <sdkddkver.h>
+#   pragma message("Compiling SystemCommon with WinSDK[" STRINGIZE(NTDDI_VERSION) "]" )
+#endif
 
 namespace common
 {

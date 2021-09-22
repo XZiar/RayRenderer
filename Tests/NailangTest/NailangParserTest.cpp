@@ -57,6 +57,7 @@ do                                                                      \
 {                                                                       \
     ASSERT_EQ(target.TypeData, Expr::Type::Query);                      \
     const auto& query = *target.GetVar<Expr::Type::Query>();            \
+    ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Sub);               \
     constexpr size_t qcnt = BOOST_PP_VARIADIC_SIZE(__VA_ARGS__);        \
     ASSERT_EQ(query.Count, qcnt);                                       \
     CHECK_VAR_ARG(query.Target, var, info);                             \
@@ -259,6 +260,89 @@ TEST(NailangParser, ParseExpr)
         EXPECT_EQ(stmt3.Operator, EmbedOps::Add);
         CHECK_DIRECT_ARG(stmt3.RightOperand, Int, 4);
     }
+    {
+        constexpr auto src = U"!?here"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::Not);
+        ASSERT_EQ(stmt.Operand.TypeData, Expr::Type::Unary);
+        const auto& stmt1 = *stmt.Operand.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt1.Operator, EmbedOps::CheckExist);
+        CHECK_VAR_ARG(stmt1.Operand, U"here"sv, Empty);
+    }
+    {
+        constexpr auto src = U"1 + 2 * 3"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::Mul);
+        CHECK_DIRECT_ARG(stmt.RightOperand, Int, 3);
+        ASSERT_EQ(stmt.LeftOperand.TypeData, Expr::Type::Binary);
+        const auto& stmt1 = *stmt.LeftOperand.GetVar<Expr::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt1.LeftOperand, Int, 1);
+        EXPECT_EQ(stmt1.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt1.RightOperand, Int, 2);
+    }
+    {
+        constexpr auto src = U"1 + 2 ? !a.x ?? a[3] : a + 4"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Binary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Binary>();
+        ASSERT_EQ(stmt.LeftOperand.TypeData, Expr::Type::Ternary);
+        CHECK_DIRECT_ARG(stmt.RightOperand, Int, 4);
+
+        const auto& stmt1 = *stmt.LeftOperand.GetVar<Expr::Type::Ternary>();
+        ASSERT_EQ(stmt1.Condition.TypeData, Expr::Type::Binary);
+        ASSERT_EQ(stmt1.LeftOperand.TypeData, Expr::Type::Binary);
+        CHECK_VAR_ARG(stmt1.RightOperand, U"a"sv, Empty);
+
+        const auto& stmt10 = *stmt1.Condition.GetVar<Expr::Type::Binary>();
+        CHECK_DIRECT_ARG(stmt10.LeftOperand, Int, 1);
+        EXPECT_EQ(stmt10.Operator, EmbedOps::Add);
+        CHECK_DIRECT_ARG(stmt10.RightOperand, Int, 2);
+
+        const auto& stmt11 = *stmt1.LeftOperand.GetVar<Expr::Type::Binary>();
+        ASSERT_EQ(stmt11.LeftOperand.TypeData, Expr::Type::Unary);
+        EXPECT_EQ(stmt11.Operator, EmbedOps::ValueOr);
+        ASSERT_EQ(stmt11.RightOperand.TypeData, Expr::Type::Query);
+
+        const auto& stmt110 = *stmt11.LeftOperand.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt110.Operator, EmbedOps::Not);
+        CHECK_FIELD_QUERY(stmt110.Operand, U"a"sv, Empty, U"x"sv);
+
+        const auto& stmt111 = *stmt11.RightOperand.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(stmt111.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(stmt111.Count, 1u);
+        CHECK_DIRECT_ARG(stmt111.QueryPtr[0], Int, 3);
+        CHECK_VAR_ARG(stmt111.Target, U"a", Empty);
+    }
+    {
+        constexpr auto src = U"?here.xyz"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::CheckExist);
+        CHECK_FIELD_QUERY(stmt.Operand, U"here"sv, Empty, U"xyz"sv);
+    }
+    {
+        constexpr auto src = U"?here.xyz[3]"sv;
+        ParserContext context(src);
+        const auto expr = NailangParser::ParseSingleExpr(pool, context, ""sv, U""sv);
+        ASSERT_EQ(expr.TypeData, Expr::Type::Unary);
+        const auto& stmt = *expr.GetVar<Expr::Type::Unary>();
+        EXPECT_EQ(stmt.Operator, EmbedOps::CheckExist);
+        ASSERT_EQ(stmt.Operand.TypeData, Expr::Type::Query);
+        const auto& stmt1 = *stmt.Operand.GetVar<Expr::Type::Query>();
+        ASSERT_EQ(stmt1.TypeData, QueryExpr::QueryType::Index);
+        ASSERT_EQ(stmt1.Count, 1u);
+        CHECK_DIRECT_ARG(stmt1.QueryPtr[0], Int, 3);
+        CHECK_FIELD_QUERY(stmt1.Target, U"here"sv, Empty, U"xyz"sv);
+    }
 }
 TEST(NailangParser, ParseFuncBody)
 {
@@ -392,12 +476,7 @@ a[0][1].b[2] = ~c;
             EXPECT_EQ(stmt.TypeData, xziar::nailang::Statement::Type::Assign);
             ASSERT_EQ(meta.size(), 0u);
             const auto& assign = *stmt.Get<AssignExpr>();
-            ASSERT_EQ(assign.Target.TypeData, Expr::Type::Query);
-            const auto& query = *assign.Target.GetVar<Expr::Type::Query>();
-            ASSERT_EQ(query.TypeData, QueryExpr::QueryType::Sub);
-            ASSERT_EQ(query.Count, 1u);
-            CHECK_VAR_ARG(query.Target, U"x", Empty);
-            CHECK_DIRECT_ARG(query.QueryPtr[0], Str, U"y");
+            CHECK_FIELD_QUERY(assign.Target, U"x"sv, Empty, U"y"sv);
             CHECK_VAR_ARG(assign.Statement, U"z"sv, Empty);
         }
         {

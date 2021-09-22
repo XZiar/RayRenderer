@@ -191,7 +191,7 @@ TEST(ParserLexer, LexerFP)
 TEST(ParserLexer, LexerBool)
 {
     {
-        const auto tokens = TKParse<BoolTokenizer>(U"TRUE"sv);
+        const auto tokens = TKParse<BoolTokenizer>(U"true"sv);
         CHECK_TK(tokens[0], 0u, 0u, Bool, GetBool, true);
     }
     {
@@ -199,12 +199,12 @@ TEST(ParserLexer, LexerBool)
         CHECK_TK(tokens[0], 0u, 0u, Bool, GetBool, false);
     }
     {
-        const auto tokens = TKParse<BoolTokenizer>(U"TrUe"sv);
-        CHECK_TK(tokens[0], 0u, 0u, Bool, GetBool, true);
+        const auto tokens = TKParse<BoolTokenizer>(U"trUe"sv);
+        CHECK_TK(tokens[0], 0u, 0u, Unknown, GetString, U"tr"sv);
     }
     {
         const auto tokens = TKParse<BoolTokenizer>(U"Fals3"sv);
-        CHECK_TK(tokens[0], 0u, 0u, Unknown, GetString, U"Fals"sv); // fast-stop
+        CHECK_TK(tokens[0], 0u, 0u, Unknown, GetString, U"F"sv); // fast-stop
     }
 }
 

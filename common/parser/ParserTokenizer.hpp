@@ -581,47 +581,30 @@ public:
 
 class BoolTokenizer : public TokenizerBase
 {
+    static constexpr char BoolChars[] = "truefalse";
 public:
-    enum class States : uint32_t { Init, T_T, T_TR, T_TRU, F_F, F_FA, F_FAL, F_FALS, Match, NotMatch };
+    enum class States : uint32_t { Init = 0, Match, NotMatch, T, F };
     using StateData = States;
-    [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t) const noexcept
+    [[nodiscard]] constexpr std::pair<States, TokenizerResult> OnChar(const States state, const char32_t ch, const size_t idx) const noexcept
     {
 #define RET(state, result) return { States::state, TokenizerResult::result }
-        switch (state)
+        if (idx == 0)
         {
-        case States::Init:
-            if (ch == 'T' || ch == 't')
-                RET(T_T, Pending);
-            if (ch == 'F' || ch == 'f')
-                RET(F_F, Pending);
-            break;
-        case States::T_T:
-            if (ch == 'R' || ch == 'r')
-                RET(T_TR, Pending);
-            break;
-        case States::T_TR:
-            if (ch == 'U' || ch == 'u')
-                RET(T_TRU, Pending);
-            break;
-        case States::F_F:
-            if (ch == 'A' || ch == 'a')
-                RET(F_FA, Pending);
-            break;
-        case States::F_FA:
-            if (ch == 'L' || ch == 'l')
-                RET(F_FAL, Pending);
-            break;
-        case States::F_FAL:
-            if (ch == 'S' || ch == 's')
-                RET(F_FALS, Pending);
-            break;
-        case States::T_TRU:
-        case States::F_FALS:
-            if (ch == 'E' || ch == 'e')
-                RET(Match, Waitlist);
-            break;
-        default:
-            break;
+            if (ch == 't') RET(T, Pending);
+            if (ch == 'f') RET(F, Pending);
+        }
+        else if (state == States::T || state == States::F)
+        {
+            const auto limit = state == States::T ? 3u : 4u;
+            Expects(idx <= limit);
+            const auto chidx = idx + (state == States::T ? 0u : 4u);
+            if (ch == static_cast<char32_t>(BoolChars[chidx]))
+            {
+                if (idx == limit)
+                    RET(Match, Waitlist);
+                else
+                    return { state, TokenizerResult::Pending };
+            }
         }
         RET(NotMatch, NotMatch);
 #undef RET
@@ -629,7 +612,7 @@ public:
     [[nodiscard]] ParserToken GetToken(const States state, ContextReader&, std::u32string_view txt) const noexcept
     {
         if (state == States::Match)
-            return ParserToken(BaseToken::Bool, (txt[0] == 'T' || txt[0] == 't') ? 1 : 0);
+            return ParserToken(BaseToken::Bool, txt[0] == 't' ? 1 : 0);
         return ParserToken(BaseToken::Error, txt);
     }
 };

@@ -179,18 +179,22 @@ class NASMTarget(BuildTarget):
         return "nasm"
     def __init__(self, targets:dict, proj, env:dict):
         self.incpath = []
+        self.defines = []
         super().__init__(targets, proj, env)
 
     def solveTarget(self, targets:dict, proj, env:dict):
-        self.flags = ["-g", "-DELF"]
+        self.flags = ["-g"]
         if env["platform"] == "x64":
-            self.flags += ["-f elf64", "-D__x86_64__"]
+            self.flags += ["-f macho64" if env["osname"] == "Darwin" else "-f elf64"]
         elif env["platform"] == "x86":
-            self.flags += ["-f elf32"]
+            self.flags += ["-f macho32" if env["osname"] == "Darwin" else "-f elf32"]
         super().solveTarget(targets, proj, env)
-        target = targets["nasm"]
+        target = targets[self.prefix()]
+        a,d = PList.solveElementList(target, "defines", env)
+        self.defines = PList.combineElements(self.defines, a, d)
         a,d = PList.solveElementList(target, "incpath", env)
         self.incpath = list(set(a) - set(d))
+        self.flags += [f"-D{x}" for x in self.defines]
 
     def write(self, file):
         super().write(file)

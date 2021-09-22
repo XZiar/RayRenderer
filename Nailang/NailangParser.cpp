@@ -251,54 +251,249 @@ struct ExprOp
     }
 }
 
-struct QueriesHolder
-{
-    boost::container::small_vector<Expr, 4> Queries;
-    std::optional<QueryExpr::QueryType> Type;
 
-    void DoCommit(MemoryPool& pool, Expr& opr)
+struct ExprStack
+{
+    struct ExprFrame
     {
-        Expects(opr);
-        Expects(Type.has_value());
-        const auto sp = pool.CreateArray(Queries);
-        opr = pool.Create<QueryExpr>(opr, sp, *Type);
+        Expr Vals[2];
+        ExprOp Op;
+        uint8_t OprIdx = 0;
+    };
+    MemoryPool& Pool;
+    boost::container::small_vector<ExprFrame, 4> Stack;
+    boost::container::small_vector<Expr, 4> Queries;
+    Expr* TargetExpr = nullptr; // insert new frame always causes a flush, or the expr is in pool, so safe to use ptr
+    QueryExpr::QueryType QType = QueryExpr::QueryType::Index;
+    ExprStack(MemoryPool& pool) : Pool(pool) { }
+    void DoCommitQuery()
+    {
+        Expects(TargetExpr && *TargetExpr);
+        const auto sp = Pool.CreateArray(Queries);
+        *TargetExpr = Pool.Create<QueryExpr>(*TargetExpr, sp, QType);
         Queries.clear();
-        Type.reset();
     }
-    void PushSubField(MemoryPool& pool, Expr& opr, std::u32string_view subField)
+    [[nodiscard]] bool PrecheckQuery() const noexcept
     {
-        if (Type.has_value() && *Type != QueryExpr::QueryType::Sub)
-        {
-            DoCommit(pool, opr);
-        }
-        Queries.emplace_back(subField);
-        Type.emplace(QueryExpr::QueryType::Sub);
-    }
-    void PushIndexer(MemoryPool& pool, Expr& opr, const Expr& indexer)
-    {
-        if (Type.has_value() && *Type != QueryExpr::QueryType::Index)
-        {
-            DoCommit(pool, opr);
-        }
-        Queries.emplace_back(indexer);
-        Type.emplace(QueryExpr::QueryType::Index);
-    }
-    void CommitTo(MemoryPool& pool, Expr& opr)
-    {
-        if (!Queries.empty())
-        {
-            DoCommit(pool, opr);
-        }
-    }
-    bool CheckNonLiteralLimit(const Expr& opr) const noexcept
-    {
+        Expects(TargetExpr);
         if (Queries.empty()) // first query
         {
-            return !CheckExprLiteral(opr);
+            Expects(*TargetExpr);
+            return !CheckExprLiteral(*TargetExpr);
         }
         return true;
     }
+    void PushSubField(std::u32string_view subField)
+    {
+        Expects(TargetExpr);
+        if (!Queries.empty() && QType != QueryExpr::QueryType::Sub)
+            DoCommitQuery();
+        Queries.emplace_back(subField);
+        QType = QueryExpr::QueryType::Sub;
+    }
+    void PushIndexer(const Expr& indexer)
+    {
+        Expects(TargetExpr);
+        if (!Queries.empty() && QType != QueryExpr::QueryType::Index)
+            DoCommitQuery();
+        Queries.emplace_back(indexer);
+        QType = QueryExpr::QueryType::Index;
+    }
+    void CommitQuery()
+    {
+        if (!Queries.empty())
+            DoCommitQuery();
+    }
+    [[nodiscard]] std::u16string_view CheckExpr() const
+    {
+        if (Stack.empty())
+            return {};
+        const auto& frame = Stack.back();
+        if (!Queries.empty())
+            return u"need an operator before another operand"sv;
+        switch (frame.Op.GetCategory())
+        {
+        case ExprOp::Category::Empty:
+            Expects(frame.OprIdx == 1);
+            return u"need an operator before another operand"sv;
+        case ExprOp::Category::Unary:
+            if (frame.OprIdx > 0)
+                return u"already has 1 operand for unary operator"sv;
+            break;
+        case ExprOp::Category::Binary:
+            if (frame.OprIdx > 1)
+                return u"already has 2 operands for binary operator"sv;
+            Expects(frame.OprIdx == 1);
+            break;
+        case ExprOp::Category::Ternary:
+            if (frame.Op == ExtraOps::Quest)
+            {
+                if (frame.OprIdx > 1)
+                    return u"expect ':' before 3rd operand for ternary operator"sv;
+                Expects(frame.OprIdx == 1);
+                break;
+            }
+            else
+            {
+                if (frame.OprIdx > 2)
+                    return u"already has 3 operands for ternary operator"sv;
+                Expects(frame.Op == ExtraOps::Colon && frame.OprIdx == 2);
+                break;
+            }
+        default:
+            Expects(false);
+        }
+        return {};
+    }
+    void CommitExpr(Expr expr)
+    {
+        auto updExpr = [&, upd = true](Expr* target) mutable
+        {
+            if (upd)
+                TargetExpr = target, upd = false;
+        };
+        while (true)
+        {
+            if (Stack.empty())
+            {
+                auto& frame = Stack.emplace_back();
+                frame.Vals[0] = expr;
+                frame.OprIdx = 1;
+                updExpr(&frame.Vals[0]);
+                return;
+            }
+            Expects(Stack.back().Op);
+            auto& frame = Stack.back();
+            switch (frame.Op.GetCategory())
+            {
+            case ExprOp::Category::Unary:
+            {
+                Expects(frame.OprIdx == 0);
+                const auto texpr = Pool.Create<UnaryExpr>(frame.Op.GetEmbedOp(), expr);
+                updExpr(&texpr->Operand);
+                expr = texpr;
+                Stack.pop_back();
+            } continue;
+            case ExprOp::Category::Binary:
+            {
+                Expects(frame.OprIdx == 1);
+                const auto texpr = Pool.Create<BinaryExpr>(frame.Op.GetEmbedOp(), frame.Vals[0], expr);
+                updExpr(&texpr->RightOperand);
+                expr = texpr;
+                Stack.pop_back();
+            } continue;
+            case ExprOp::Category::Ternary:
+                if (frame.Op == ExtraOps::Quest)
+                {
+                    Expects(frame.OprIdx == 1);
+                    auto& target = frame.Vals[frame.OprIdx++];
+                    target = expr;
+                    updExpr(&target);
+                    return;
+                }
+                else
+                {
+                    Expects(frame.Op == ExtraOps::Colon && frame.OprIdx == 2);
+                    const auto texpr = Pool.Create<TernaryExpr>(frame.Vals[0], frame.Vals[1], expr);
+                    updExpr(&texpr->RightOperand);
+                    expr = texpr;
+                    Stack.pop_back();
+                    continue;
+                }
+            default:
+                Expects(false);
+            }
+        }
+    }
+    [[nodiscard]] std::u16string_view AllocUnary(ExprOp op)
+    {
+        if (op == ExtraOps::Quest)
+            op = common::enum_cast(EmbedOps::CheckExist);
+        else if (op.GetCategory() != ExprOp::Category::Unary)
+            return u"only unary operator allowed here"sv;
+        auto& frame = Stack.emplace_back();
+        frame.Op = op;
+        return {};
+    }
+    [[nodiscard]] std::u16string_view CheckAssignOp() const
+    {
+        if (Stack.size() > 1)
+            return u"assign operator not allowed in expr"sv;
+        if (!TargetExpr)
+            return u"expect an expr before assign operator"sv;
+        Expects(!Stack.empty());
+        auto& frame = Stack.back();
+        if (frame.OprIdx != 1 || frame.Op)
+            return u"assign operator not allowed in expr"sv;
+        Expects(*TargetExpr);
+        if (CheckExprLiteral(*TargetExpr))
+            return u"Assign should not follow a litteral type"sv;
+        return {};
+    }
+    [[nodiscard]] std::u16string_view DoCheckCommitOp(ExprOp op)
+    {
+        if (Stack.empty())
+            return AllocUnary(op);
+        const auto cat = op.GetCategory();
+        auto& frame = Stack.back();
+        switch (frame.Op.GetCategory())
+        {
+        case ExprOp::Category::Empty:
+            Expects(frame.OprIdx == 1); // has 1 operand
+            if (cat != ExprOp::Category::Binary && cat != ExprOp::Category::Ternary)
+                return u"only binary/ternary operator allowed when there's already 1 operand"sv;
+            CommitQuery();
+            frame.Op = op; // simply assign op
+            break;
+        case ExprOp::Category::Unary:
+            Expects(frame.OprIdx == 0); // should be 0 operand
+            return AllocUnary(op);
+        case ExprOp::Category::Binary:
+            Expects(frame.OprIdx == 1); // should be already 1 operand
+            return AllocUnary(op);
+        case ExprOp::Category::Ternary:
+        {
+            const uint8_t oprCnt = frame.Op == ExtraOps::Quest ? 1 : 2;
+            if (frame.OprIdx == oprCnt) // waiting for an operand
+                return AllocUnary(op);
+            else // already has an operand
+            {
+                Expects(frame.OprIdx == oprCnt + 1);
+                if (cat != ExprOp::Category::Binary && cat != ExprOp::Category::Ternary)
+                    return u"only binary/ternary operator allowed when there's already 1 operand"sv;
+                CommitQuery();
+                if (op == ExtraOps::Colon)
+                {
+                    if (frame.Op == ExtraOps::Quest)
+                        frame.Op = op; // simply assign op
+                    else
+                        return u"colon need to follow an existsing terary '?' operator"sv;
+                }
+                else
+                {
+                    // move current to next level
+                    const auto expr = frame.Vals[--frame.OprIdx];
+                    frame.Vals[frame.OprIdx] = {};
+                    auto& newFrame = Stack.emplace_back();
+                    newFrame.Op = op;
+                    newFrame.Vals[0] = expr;
+                    newFrame.OprIdx = 1;
+                }
+            }
+        } break;
+        default:
+            Expects(false);
+        }
+        return {};
+    }
+    [[nodiscard]] std::u16string_view CheckCommitOp(ExprOp op)
+    {
+        const auto ret = DoCheckCommitOp(op);
+        TargetExpr = nullptr;
+        return ret;
+    }
 };
+
 
 std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, AssignPolicy policy)
 {
@@ -313,19 +508,15 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
         tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
     const auto OpLexer = ParserLexerBase<CommentTokenizer, DelimTokenizer,
         tokenizer::OpSymbolTokenizer, tokenizer::SubFieldTokenizer, tokenizer::SquareBracketTokenizer>(StopTokenizer);
-
-    Expr operand[3];
-    QueriesHolder query;
-    uint32_t oprIdx = 0;
-    ExprOp op;
+    
+    
+    ExprStack stack(MemPool);
     char32_t stopChar = common::parser::special::CharEnd;
 
     bool shouldContinue = true;
     while (shouldContinue)
     {
-        auto& targetOpr = operand[oprIdx];
-        const bool isAtOp = targetOpr && !op;
-        auto token = isAtOp ?
+        auto token = stack.TargetExpr ?
             GetNextToken(OpLexer, IgnoreBlank, IgnoreCommentToken) :
             GetNextToken(ArgLexer, IgnoreBlank, IgnoreCommentToken);
 
@@ -335,7 +526,7 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
         case EID(BaseToken::Unknown):
         case EID(BaseToken::Error):
         {
-            OnUnExpectedToken(token, isAtOp ? u"expect an operator"sv : u"unknown or error token"sv);
+            OnUnExpectedToken(token, stack.TargetExpr ? u"expect an operator"sv : u"unknown or error token"sv);
         } break;
         case EID(BaseToken::Delim):
         case EID(BaseToken::End):
@@ -345,190 +536,125 @@ std::pair<Expr, char32_t> NailangParser::ParseExpr(std::string_view stopDelim, A
         } break;
         case EID(NailangToken::Parenthese):
         {
-            if (targetOpr)
-                OnUnExpectedToken(token, u"already has operand"sv);
+            if (const auto err = stack.CheckExpr(); !err.empty())
+                OnUnExpectedToken(token, err);
             if (token.GetChar() == U')')
                 OnUnExpectedToken(token, u"Unexpected right parenthese"sv);
-            targetOpr = ParseExprChecked(")"sv, U")"sv);
+            stack.CommitExpr(ParseExprChecked(")"sv, U")"sv));
         } break;
         case EID(NailangToken::OpSymbol):
         {
-            const auto opval = static_cast<uint32_t>(token.GetUInt());
-            if (op)
+            ExprOp op{ static_cast<uint32_t>(token.GetUInt()) };
+            if (op.GetCategory() == ExprOp::Category::Assign)
             {
-                if (op != ExtraOps::Quest)
-                    OnUnExpectedToken(token, u"already has op"sv);
-                // handle ternary operator
-                Ensures(oprIdx == 1);
-                if (opval != common::enum_cast(ExtraOps::Colon))
-                    OnUnExpectedToken(token, u"expect ':' after '?' to finish ternary expr"sv);
-                if (!targetOpr)
-                    OnUnExpectedToken(token, u"expect left operand between '?' and ':' for ternary expr"sv);
-                op = opval;
-                query.CommitTo(MemPool, targetOpr);
-                oprIdx++;
-            }
-            else
-            {
-                Ensures(oprIdx == 0);
-                if (ExprOp::ParseCategory(opval) == ExprOp::Category::Assign)
+                if (policy == AssignPolicy::Disallow)
+                    OnUnExpectedToken(token, u"does not allow assign operator here"sv);
+                if (const auto err = stack.CheckAssignOp(); !err.empty())
+                    OnUnExpectedToken(token, err);
+                stack.CommitQuery();
+                Expects(stack.Stack.size() == 1 && stack.Stack.back().OprIdx == 1);
+                const auto& opr = stack.Stack.back().Vals[0];
+                if (opr.TypeData != Expr::Type::Var)
                 {
-                    if (policy == AssignPolicy::Disallow)
-                        OnUnExpectedToken(token, u"does not allow assign operator here"sv);
-                    if (!targetOpr)
-                        OnUnExpectedToken(token, u"expect expr before assign operator"sv);
-                    query.CommitTo(MemPool, targetOpr);
-                    if (CheckExprLiteral(targetOpr))
-                        OnUnExpectedToken(token, u"Assign should not follow a litteral type"sv);
-                    if (targetOpr.TypeData != Expr::Type::Var)
-                    {
-                        if (policy == AssignPolicy::AllowVar)
-                            OnUnExpectedToken(token, FMTSTR(u"assign operator is only allowed after a var, get [{}]"sv, targetOpr.GetTypeName()));
-                        if (opval == common::enum_cast(AssignOps::NewCreate) || opval == common::enum_cast(AssignOps::NilAssign))
-                            OnUnExpectedToken(token, FMTSTR(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, targetOpr.GetTypeName()));
-                    }
-                    // direct construct AssignOp
-                    auto [stmt, ch] = ParseExpr(stopDelim);
-                    if (!stmt)
-                        NLPS_THROW_EX(u"Lack operand for assign expr"sv);
-                    using Behavior = NilCheck::Behavior;
-                    bool isSelfAssign = false;
-                    uint8_t info = 0;
-                    switch (static_cast<AssignOps>(opval))
-                    {
-                    case AssignOps::Assign:    info = NilCheck(Behavior::Pass,  Behavior::Pass).Value;          break;
-                    case AssignOps::NewCreate: info = NilCheck(Behavior::Throw, Behavior::Pass).Value;          break;
-                    case AssignOps::NilAssign: info = NilCheck(Behavior::Skip,  Behavior::Pass).Value;          break;
+                    if (policy == AssignPolicy::AllowVar)
+                        OnUnExpectedToken(token, FMTSTR(u"assign operator is only allowed after a var, get [{}]"sv, opr.GetTypeName()));
+                    if (op == AssignOps::NewCreate || op == AssignOps::NilAssign)
+                        OnUnExpectedToken(token, FMTSTR(u"NewCreate and NilAssign can only be applied after a var, get [{}]"sv, opr.GetTypeName()));
+                }
+                // direct construct AssignOp
+                auto [stmt, ch] = ParseExpr(stopDelim);
+                if (!stmt)
+                    NLPS_THROW_EX(u"Lack operand for assign expr"sv);
+                using Behavior = NilCheck::Behavior;
+                bool isSelfAssign = false;
+                uint8_t info = 0;
+                switch (op.GetAssignOp())
+                {
+                case AssignOps::Assign:    info = NilCheck(Behavior::Pass,  Behavior::Pass).Value;          break;
+                case AssignOps::NewCreate: info = NilCheck(Behavior::Throw, Behavior::Pass).Value;          break;
+                case AssignOps::NilAssign: info = NilCheck(Behavior::Skip,  Behavior::Pass).Value;          break;
 #define SELF_ASSIGN(tname) case AssignOps::tname##Assign: isSelfAssign = true; info = common::enum_cast(EmbedOps::tname); break
-                    SELF_ASSIGN(Add);
-                    SELF_ASSIGN(Sub);
-                    SELF_ASSIGN(Mul);
-                    SELF_ASSIGN(Div);
-                    SELF_ASSIGN(Rem);
-                    SELF_ASSIGN(BitAnd);
-                    SELF_ASSIGN(BitOr);
-                    SELF_ASSIGN(BitXor);
-                    SELF_ASSIGN(BitShiftLeft);
-                    SELF_ASSIGN(BitShiftRight);
+                SELF_ASSIGN(Add);
+                SELF_ASSIGN(Sub);
+                SELF_ASSIGN(Mul);
+                SELF_ASSIGN(Div);
+                SELF_ASSIGN(Rem);
+                SELF_ASSIGN(BitAnd);
+                SELF_ASSIGN(BitOr);
+                SELF_ASSIGN(BitXor);
+                SELF_ASSIGN(BitShiftLeft);
+                SELF_ASSIGN(BitShiftRight);
 #undef SELF_ASSIGN
-                    default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                 break;
-                    }
-                    return { MemPool.Create<AssignExpr>(operand[0], stmt, info, isSelfAssign), ch };
+                default: NLPS_THROW_EX(u"Unrecoginzied assign operator"sv);                                 break;
                 }
-                else if (opval == common::enum_cast(ExtraOps::Quest))
-                {
-                    if (targetOpr) // enter ternary
-                    {
-                        op = opval;
-                        query.CommitTo(MemPool, targetOpr);
-                        oprIdx++;
-                    }
-                    else // unary
-                    {
-                        op = common::enum_cast(EmbedOps::CheckExist);
-                        oprIdx++;
-                    }
-                }
-                else if (opval == common::enum_cast(EmbedOps::Not) || opval == common::enum_cast(EmbedOps::BitNot)) // unary
-                {
-                    if (targetOpr)
-                        OnUnExpectedToken(token, u"expect no operand before unary operator"sv);
-                    op = opval;
-                    oprIdx++;
-                }
-                else // binary
-                {
-                    if (!targetOpr)
-                        OnUnExpectedToken(token, u"expect 1 operand before operator"sv);
-                    if (opval == common::enum_cast(EmbedOps::ValueOr))
-                    {
-                        if (targetOpr.TypeData != Expr::Type::Var)
-                            OnUnExpectedToken(token, u"expect latebindvar before ?? operator"sv);
-                        if (!query.Queries.empty())
-                            OnUnExpectedToken(token, u"expect no query before ?? operator"sv);
-                    }
-                    op = opval;
-                    query.CommitTo(MemPool, targetOpr);
-                    oprIdx++;
-                }
+                return { MemPool.Create<AssignExpr>(opr, stmt, info, isSelfAssign), ch };
             }
+            if (const auto err = stack.CheckCommitOp(op); !err.empty())
+                OnUnExpectedToken(token, err);
         } break;
         case EID(NailangToken::SquareBracket): // Indexer
         {
             if (token.GetChar() == U']')
                 OnUnExpectedToken(token, u"Unexpected right square bracket"sv);
-            if (!targetOpr)
+            if (!stack.TargetExpr)
                 OnUnExpectedToken(token, u"Indexer should follow a Expr"sv);
-            if (!query.CheckNonLiteralLimit(targetOpr))
+            if (!stack.PrecheckQuery())
                 OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
             auto index = ParseExprChecked("]"sv, U"]"sv);
             if (!index)
                 OnUnExpectedToken(token, u"lack of index"sv);
-            query.PushIndexer(MemPool, targetOpr, index);
+            stack.PushIndexer(index);
         } break;
         case EID(NailangToken::SubField): // SubField
         {
-            if (!targetOpr)
+            if (!stack.TargetExpr)
                 OnUnExpectedToken(token, u"SubField should follow a Expr"sv);
-            if (!query.CheckNonLiteralLimit(targetOpr))
+            if (!stack.PrecheckQuery())
                 OnUnExpectedToken(token, u"SubQuery should not follow a litteral type"sv);
-            query.PushSubField(MemPool, targetOpr, token.GetString());
+            stack.PushSubField(token.GetString());
         } break;
         default:
         {
-            if (targetOpr)
-                OnUnExpectedToken(token, u"already has operand"sv);
+            if (const auto err = stack.CheckExpr(); !err.empty())
+                OnUnExpectedToken(token, err);
+            Expr expr;
             switch (token.GetID())
             {
-                case EID(BaseToken::Uint)    : targetOpr = token.GetUInt();      break;
-                case EID(BaseToken::Int)     : targetOpr = token.GetInt();       break;
-                case EID(BaseToken::FP)      : targetOpr = token.GetDouble();    break;
-                case EID(BaseToken::Bool)    : targetOpr = token.GetBool();      break;
-                case EID(NailangToken::Var)  :
-                    targetOpr = LateBindVar(token.GetString());
-                break;
-                case EID(BaseToken::String)  :
-                    targetOpr = ProcessString(token.GetString(), MemPool);
-                break;
-                case EID(NailangToken::Func) :
-                    targetOpr = MemPool.Create<FuncCall>(ParseFuncCall(token, FuncName::FuncInfo::ExprPart));
-                break;
-            default: OnUnExpectedToken(token, u"Unexpected token"sv);
+            case EID(BaseToken::Uint)    : expr = token.GetUInt();      break;
+            case EID(BaseToken::Int)     : expr = token.GetInt();       break;
+            case EID(BaseToken::FP)      : expr = token.GetDouble();    break;
+            case EID(BaseToken::Bool)    : expr = token.GetBool();      break;
+            case EID(NailangToken::Var)  :
+                expr = LateBindVar(token.GetString());
+            break;
+            case EID(BaseToken::String)  :
+                expr = ProcessString(token.GetString(), MemPool);
+            break;
+            case EID(NailangToken::Func) :
+                expr = MemPool.Create<FuncCall>(ParseFuncCall(token, FuncName::FuncInfo::ExprPart));
+            break;
+            default: OnUnExpectedToken(token, u"Unrecognized token"sv);
             }
-#undef EID
+            stack.CommitExpr(expr);
         } break;
         }
+#undef EID
     }
-    // exit from delim or end
-    query.CommitTo(MemPool, operand[oprIdx]);
-    switch (op.GetCategory())
+    switch (stack.Stack.size())
     {
-    case ExprOp::Category::Ternary:
-        if (op != ExtraOps::Colon)
-            NLPS_THROW_EX(u"Incomplete ternary operator"sv);
-        Ensures(oprIdx == 2);
-        if (!operand[2])
-            NLPS_THROW_EX(u"Lack right operand for ternary operator"sv);
-        return { MemPool.Create<TernaryExpr>(operand[0], operand[1], operand[2]), stopChar };
-    case ExprOp::Category::Unary:
-        Ensures(oprIdx == 1);
-        if (!operand[1])
-            NLPS_THROW_EX(u"Lack operand for unary operator"sv);
-        if (op == EmbedOps::CheckExist && operand[1].TypeData != Expr::Type::Var)
-            NLPS_THROW_EX(FMTSTR(u"Only Var allowed after [CheckExisit] operator, get [{}]"sv, operand[1].GetTypeName()));
-        return { MemPool.Create<UnaryExpr>(op.GetEmbedOp(), operand[1]), stopChar };
-    case ExprOp::Category::Binary:
-        Ensures(oprIdx == 1);
-        if (!operand[1])
-            NLPS_THROW_EX(u"Lack 2nd operand for binary operator"sv);
-        if (op == EmbedOps::ValueOr && operand[0].TypeData != Expr::Type::Var)
-            NLPS_THROW_EX(FMTSTR(u"Only Var allowed before [ValueOr] operator, get [{}]"sv, operand[0].GetTypeName()));
-        return { MemPool.Create<BinaryExpr>(op.GetEmbedOp(), operand[0], operand[1]), stopChar };
+    case 0:
+        break;
+    case 1:
+        if (const auto& frame = stack.Stack.back(); frame.OprIdx == 1 && !frame.Op)
+        {
+            stack.CommitQuery();
+            return { frame.Vals[0], stopChar };
+        }
+        [[fallthrough]];
     default:
-        Expects(op.GetCategory() == ExprOp::Category::Empty);
-        Ensures(oprIdx == 0);
-        return { operand[0], stopChar };
+        NLPS_THROW_EX(u"Incomplete expr"sv);
     }
+    return { {}, stopChar };
 }
 
 Expr NailangParser::ParseExprChecked(std::string_view stopDelims, std::u32string_view stopChecker, AssignPolicy policy)
