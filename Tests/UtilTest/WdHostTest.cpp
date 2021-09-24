@@ -1,5 +1,7 @@
 #include "TestRely.h"
 #include "WindowHost/WindowHost.h"
+#include "SystemCommon/ConsoleEx.h"
+#include <thread>
 
 using namespace common;
 using namespace common::mlog;
@@ -27,7 +29,7 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
     }
 };
 
-static void WDHost()
+static void OpenTestWindow()
 {
     const auto window = WindowHost_::CreateActive();
     window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
@@ -95,6 +97,41 @@ static void WDHost()
     window->Show();
     getchar();
     window->Close();
+}
+
+static void WDHost()
+{
+    const auto runner = WindowHost_::Init();
+    Expects(runner);
+    bool runInplace = true;
+    if (runner.SupportNewThread())
+    {
+        PrintColored(common::console::ConsoleColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
+        while (true)
+        {
+            const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);
+                 if (ch == 'y' || ch == 'Y') { runInplace = false; break; }
+            else if (ch == 'n' || ch == 'N') { runInplace = true;  break; }
+        }
+    }
+
+    if (runInplace)
+    {
+        common::BasicPromise<void> pms;
+        std::thread Thread([&]() 
+            {
+                pms.GetPromiseResult()->Get();
+                OpenTestWindow();
+            });
+        runner.RunInplace(&pms);
+        if (Thread.joinable())
+            Thread.join();
+    }
+    else
+    {
+        runner.RunNewThread();
+        OpenTestWindow();
+    }
 }
 
 const static uint32_t ID = RegistTest("WDHost", &WDHost);

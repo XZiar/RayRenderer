@@ -20,7 +20,11 @@ constexpr uint32_t MessageTask = 2;
 namespace xziar::gui::detail
 {
 
-static thread_local WindowManager* TheManager;
+struct XCBData
+{
+    xcb_window_t Handle = 0;
+    Display* TheDisplay = nullptr;
+};
 
 
 static event::MouseButton TranslateButtonState(xcb_button_t xcbbtn)
@@ -47,6 +51,8 @@ private:
     xcb_atom_t MsgAtom;
     xcb_atom_t ProtocolAtom;
     xcb_atom_t CloseAtom;
+
+    bool SupportNewThread() const noexcept override { return true; }
 
     bool GeneralHandleError(xcb_generic_error_t* err) noexcept
     {
@@ -167,9 +173,8 @@ public:
 
         xcb_flush(Connection);
     }
-    void Terminate() noexcept override
+    void DeInitialize() noexcept override
     {
-        TheManager = nullptr;
         xcb_destroy_window(Connection, ControlWindow);
 
         xkb_state_unref(XKBState);
@@ -274,6 +279,16 @@ public:
         }
     }
 
+    void InitializeWindow(xcb_window_t window)
+    {
+        if (const auto host = GetWindow(window); host)
+        {
+            auto& data = host->template GetOSData<XCBData>();
+            data.Handle = window;
+            data.TheDisplay = TheDisplay;
+            host->Initialize();
+        }
+    }
     void MessageLoop() override
     {
         xcb_generic_event_t* event;
@@ -283,27 +298,14 @@ public:
             switch (event->response_type & 0x7f)
             {
             case XCB_CREATE_NOTIFY:
-            {
-                const auto& msg = *reinterpret_cast<xcb_create_notify_event_t*>(event);
-                if (const auto host = GetWindow(msg.window); host)
-                {
-                    host->Handle = msg.window;
-                    host->DCHandle = TheDisplay;
-                    host->Initialize();
-                    break;
-                }
-            } break;
+                InitializeWindow(reinterpret_cast<xcb_create_notify_event_t*>(event)->window);
+                break;
             case XCB_REPARENT_NOTIFY:
-            {
-                const auto& msg = *reinterpret_cast<xcb_reparent_notify_event_t*>(event);
-                if (const auto host = GetWindow(msg.window); host)
-                {
-                    host->Handle = msg.window;
-                    host->DCHandle = TheDisplay;
-                    host->Initialize();
-                    break;
-                }
-            } break;
+                InitializeWindow(reinterpret_cast<xcb_reparent_notify_event_t*>(event)->window);
+                break;
+            case XCB_MAP_NOTIFY:
+                InitializeWindow(reinterpret_cast<xcb_map_notify_event_t*>(event)->window);
+                break;
             case XCB_MOTION_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_motion_notify_event_t*>(event);
@@ -456,7 +458,7 @@ public:
     }
     void CloseWindow(WindowHost_* host) override
     {
-        const auto cookie = xcb_destroy_window(Connection, static_cast<xcb_window_t>(host->Handle));
+        const auto cookie = xcb_destroy_window(Connection, host->GetOSData<XCBData>().Handle);
         GeneralHandleError(cookie);
     }
     void ReleaseWindow(WindowHost_* host) override
@@ -467,9 +469,9 @@ public:
 
 
 
-std::shared_ptr<WindowManager> CreateManagerImpl()
+std::unique_ptr<WindowManager> CreateManagerImpl()
 {
-    return std::make_shared<WindowManagerXCB>();
+    return std::make_unique<WindowManagerXCB>();
 }
 
 

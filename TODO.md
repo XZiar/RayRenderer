@@ -34,6 +34,7 @@
   - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
   - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
+  - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   * MiniLogger
     - [ ] Add pre-defined color arg
     - [ ] Add color filter to non-terminal backend (spin-lock based processing)

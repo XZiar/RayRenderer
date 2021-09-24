@@ -19,16 +19,36 @@ constexpr uint32_t MessageTask      = WM_USER + 2;
 namespace xziar::gui::detail
 {
 
-static thread_local WindowManager* TheManager;
+struct Win32Data
+{
+    HWND Handle = nullptr;
+    HDC DCHandle = nullptr;
+};
+
 
 class WindowManagerWin32 : public WindowManager
 {
 private:
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
+    static LRESULT CALLBACK FirstProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    {
+        if (msg == WM_CREATE)
+        {
+            const auto manager = reinterpret_cast<WindowManagerWin32*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+            SetClassLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(manager));
+        }
+        else if (msg == WM_DESTROY)
+        {
+            SetClassLongPtrW(hwnd, GCLP_WNDPROC, reinterpret_cast<LONG_PTR>(WindowProc)); // replace with normal wndproc
+        }
+        return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
+
     void* InstanceHandle = nullptr;
     uint32_t ThreadId = 0;
 
+    bool SupportNewThread() const noexcept override { return true; }
 public:
     WindowManagerWin32() { }
     ~WindowManagerWin32() override { }
@@ -49,40 +69,44 @@ public:
 
     void Initialize() override
     {
-        TheManager = this;
-        ThreadId = GetCurrentThreadId();
         const auto instance = GetModuleHandleW(nullptr);
         InstanceHandle = instance;
-        WNDCLASSEX wc;
+        SetDPIMode();
 
+        WNDCLASSEXW wc;
         // clear out the window class for use
-        ZeroMemory(&wc, sizeof(WNDCLASSEX));
+        ZeroMemory(&wc, sizeof(WNDCLASSEXW));
 
         // fill in the struct with the needed information
-        wc.cbSize = sizeof(WNDCLASSEX);
+        wc.cbSize = sizeof(WNDCLASSEXW);
         wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = reinterpret_cast<WNDPROC>(WindowProc);
+        wc.lpfnWndProc = reinterpret_cast<WNDPROC>(FirstProc); // 
+        wc.cbClsExtra = sizeof(void*);
+        wc.cbWndExtra = sizeof(void*);
         wc.hInstance = instance;
         wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
         wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
         wc.lpszClassName = L"XZIAR_GUI_WINDOWHOST";
 
         // register the window class
-        RegisterClassEx(&wc);
+        RegisterClassExW(&wc);
 
-        SetDPIMode();
-    }
-    void Terminate() noexcept override
-    {
-        TheManager = nullptr;
-    }
-    void NotifyTask() noexcept override
-    {
-        PostThreadMessageW(ThreadId, MessageTask, NULL, NULL);
-        if (const auto err = GetLastError(); err != NO_ERROR)
-            Logger.error(u"Error when post thread message: {}\n", err);
+        const auto tmp = CreateWindowExW(
+            0, //WS_EX_ACCEPTFILES, // extended style
+            L"XZIAR_GUI_WINDOWHOST", // window class 
+            nullptr, // window title
+            WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW, // style
+            0, 0, // position x, y
+            0, 0, // width, height
+            NULL, NULL, // parent window, menu
+            reinterpret_cast<HINSTANCE>(InstanceHandle), this); // instance, param
+        DestroyWindow(tmp);
     }
 
+    void Prepare() noexcept override
+    {
+        ThreadId = GetCurrentThreadId();
+    }
     void MessageLoop() override
     {
         MSG msg;
@@ -104,6 +128,17 @@ public:
             }
             DispatchMessageW(&msg);
         }
+    }
+    void Terminate() noexcept override
+    {
+        ThreadId = 0;
+    }
+
+    void NotifyTask() noexcept override
+    {
+        PostThreadMessageW(ThreadId, MessageTask, NULL, NULL);
+        if (const auto err = GetLastError(); err != NO_ERROR)
+            Logger.error(u"Error when post thread message: {}\n", err);
     }
     void CreateNewWindow_(WindowHost_* host)
     {
@@ -131,13 +166,14 @@ public:
     }
     void CloseWindow(WindowHost_* host) override
     {
-        DestroyWindow(reinterpret_cast<HWND>(host->Handle));
+        DestroyWindow(host->template GetOSData<Win32Data>().Handle);
         //PostMessageW(reinterpret_cast<HWND>(host->Handle), WM_CLOSE, 0, 0);
     }
     void ReleaseWindow(WindowHost_* host) override
     {
         UnregisterHost(host);
-        ReleaseDC(reinterpret_cast<HWND>(host->Handle), reinterpret_cast<HDC>(host->DCHandle));
+        const auto& data = host->template GetOSData<Win32Data>();
+        ReleaseDC(data.Handle, data.DCHandle);
     }
 };
 
@@ -211,14 +247,17 @@ static event::MouseButton TranslateButtonState(WPARAM wParam)
 
 LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    const auto TheManager = reinterpret_cast<WindowManagerWin32*>(GetClassLongPtrW(hwnd, 0));
+    Expects(TheManager);
     const auto handle = reinterpret_cast<uintptr_t>(hwnd);
     if (msg == WM_CREATE)
     {
         const auto host = reinterpret_cast<WindowHost_*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
         TheManager->Logger.success(FMT_STRING(u"Create window HWND[{:x}] with host [{:p}]\n"), handle, (void*)host);
-        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(host));
-        host->Handle = hwnd;
-        host->DCHandle = GetDC(hwnd);
+        SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
+        auto& data = host->template GetOSData<Win32Data>();
+        data.Handle = hwnd;
+        data.DCHandle = GetDC(hwnd);
         host->Initialize();
     }
     else if (msg == WM_NCCREATE)
@@ -227,7 +266,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     }
     else
     {
-        const auto host = reinterpret_cast<WindowHost_*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        const auto host = reinterpret_cast<WindowHost_*>(GetWindowLongPtrW(hwnd, 0));
         if (host != nullptr)
         {
             switch (msg)
@@ -393,9 +432,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
 }
 
 
-std::shared_ptr<WindowManager> CreateManagerImpl()
+std::unique_ptr<WindowManager> CreateManagerImpl()
 {
-    return std::make_shared<WindowManagerWin32>();
+    return std::make_unique<WindowManagerWin32>();
 }
 
 

@@ -12,11 +12,9 @@ MAKE_ENABLER_IMPL(WindowHostActive)
 
 
 WindowHost_::WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title) : 
-    LoopBase(LoopBase::GetThreadedExecutor), 
+    LoopBase(LoopBase::GetThreadedExecutor), Manager(detail::WindowManager::Get()),
     Title(std::u16string(title)), Width(width), Height(height)
-{
-    Manager = detail::WindowManager::Get();
-}
+{ }
 
 WindowHost_::~WindowHost_()
 {
@@ -25,7 +23,7 @@ WindowHost_::~WindowHost_()
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
 {
-    Manager->PrepareForWindow(this);
+    Manager.PrepareForWindow(this);
     OnOpen();
     return true;
 }
@@ -38,7 +36,7 @@ LoopBase::LoopAction WindowHost_::OnLoop()
 void WindowHost_::OnStop() noexcept
 {
     Closed(*this);
-    Manager->ReleaseWindow(this);
+    Manager.ReleaseWindow(this);
 }
 
 void WindowHost_::Initialize()
@@ -68,7 +66,7 @@ void WindowHost_::OnClose() noexcept
     bool shouldeClose = true;
     Closing(*this, shouldeClose);
     if (shouldeClose)
-        Manager->CloseWindow(this);
+        Manager.CloseWindow(this);
 }
 
 void WindowHost_::OnDisplay() noexcept
@@ -204,7 +202,7 @@ void WindowHost_::Show()
 {
     if (!IsOpened.test_and_set())
     {
-        Manager->CreateNewWindow(this);
+        Manager.CreateNewWindow(this);
     }
 }
 
@@ -216,7 +214,7 @@ WindowHost WindowHost_::GetSelf()
 
 void WindowHost_::Invoke(std::function<void(void)> task)
 {
-    Manager->AddInvoke(std::move(task));
+    Manager.AddInvoke(std::move(task));
 }
 
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
@@ -231,7 +229,7 @@ void WindowHost_::Invalidate()
 
 void WindowHost_::Close()
 {
-    Manager->CloseWindow(this);
+    Manager.CloseWindow(this);
 }
 
 WindowHost WindowHost_::CreatePassive(const int32_t width, const int32_t height, const std::u16string_view title)
@@ -284,15 +282,20 @@ void WindowHostActive::SetTargetFPS(float fps) noexcept
 LoopBase::LoopAction WindowHostActive::OnLoopPass()
 {
     const auto targetWaitTime = 1000.0f / TargetFPS;
-    DrawTimer.Stop();
+    [[maybe_unused]] const auto curtime = DrawTimer.Stop();
+    /*const auto elapse = DrawTimer.ElapseNs();
+    const auto fromtime = curtime - elapse;*/
     const auto deltaTime = targetWaitTime - DrawTimer.ElapseMs();
-    if (deltaTime > 1)
+    // printf("from [%zu], cur [%zu], delta [%f]\n", fromtime, curtime, deltaTime);
+    if (deltaTime > targetWaitTime * 0.1f) // > 10% difference
     {
         if (HandleInvoke())
+        {
             return ::common::loop::LoopBase::LoopAction::Continue();
+        }
         else
         {
-            const auto waitTime = static_cast<int32_t>(deltaTime);
+            const auto waitTime = static_cast<int32_t>(deltaTime) / (deltaTime > targetWaitTime * 0.2f ? 2 : 1);
             return ::common::loop::LoopBase::LoopAction::SleepFor(waitTime);
         }
     }

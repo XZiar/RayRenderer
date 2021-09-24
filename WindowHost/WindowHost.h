@@ -23,32 +23,43 @@ namespace detail
 class WindowManager;
 class WindowManagerWin32;
 class WindowManagerXCB;
+class WindowManagerCocoa;
 }
+
+class WindowRunner
+{
+    friend detail::WindowManager;
+    friend WindowHost_;
+    detail::WindowManager* Manager;
+    WindowRunner(detail::WindowManager* manager) : Manager(manager) {}
+public:
+    COMMON_NO_COPY(WindowRunner)
+    COMMON_DEF_MOVE(WindowRunner)
+    WDHOSTAPI ~WindowRunner();
+    constexpr explicit operator bool() const noexcept { return Manager; }
+    WDHOSTAPI bool RunInplace(common::BasicPromise<void>* pms = nullptr) const;
+    WDHOSTAPI bool RunNewThread() const;
+    WDHOSTAPI bool SupportNewThread() const noexcept;
+};
 
 
 class WDHOSTAPI WindowHost_ : 
     private common::loop::LoopBase,
     public std::enable_shared_from_this<WindowHost_>
 {
-    friend class detail::WindowManager;
-    friend class detail::WindowManagerWin32;
-    friend class detail::WindowManagerXCB;
+    friend detail::WindowManager;
+    friend detail::WindowManagerWin32;
+    friend detail::WindowManagerXCB;
+    friend detail::WindowManagerCocoa;
 private:
     struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
         std::function<void(WindowHost_&)> Task;
         InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
     };
-
-#if COMMON_OS_WIN
-    void* Handle = nullptr;
-    void* DCHandle = nullptr;
-#else
-    uint32_t Handle = 0;
-    void* DCHandle = nullptr;
-#endif
+    detail::WindowManager& Manager;
+    uint64_t OSData[4] = { 0 };
     std::u16string Title;
-    std::shared_ptr<detail::WindowManager> Manager;
     std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     int32_t Width, Height;
@@ -57,6 +68,12 @@ private:
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
     bool IsMouseDragging = false, MouseHasLeft = true;
 
+    template<typename T>
+    T& GetOSData() noexcept
+    {
+        static_assert(sizeof(T) <= sizeof(OSData) && alignof(T) <= alignof(uint64_t));
+        return *reinterpret_cast<T*>(OSData);
+    }
     bool OnStart(std::any cookie) noexcept override final;
     LoopAction OnLoop() override final;
     void OnStop() noexcept override final;
@@ -113,6 +130,7 @@ public:
 
     void Close();
 
+    static WindowRunner Init();
     static WindowHost CreatePassive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
     static WindowHost CreateActive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
 };

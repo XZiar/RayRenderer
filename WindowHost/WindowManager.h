@@ -12,26 +12,32 @@
 
 namespace xziar::gui
 {
+class WindowRunner;
 class WindowHost_;
 
 namespace detail
 {
+struct ManagerBlock;
 
 class WindowManager
 {
+    friend ManagerBlock;
+    friend WindowRunner;
 private:
     struct InvokeNode : public common::NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
         std::function<void(void)> Task;
         InvokeNode(std::function<void(void)>&& task) : Task(std::move(task)) { }
     };
-    static std::shared_ptr<WindowManager> CreateManager();
 
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     std::thread MainThread;
+    std::atomic_bool RunningFlag;
 
-    void Start();
-    void Stop();
+    void StartNewThread();
+    void StopNewThread();
+    void StartInplace(common::BasicPromise<void>* pms = nullptr);
+    virtual bool SupportNewThread() const noexcept = 0;
 protected:
     std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
 
@@ -45,10 +51,12 @@ protected:
     bool UnregisterHost(WindowHost_* host);
     void HandleTask();
 
-    virtual void Initialize() = 0;
-    virtual void Terminate() noexcept = 0;
-    virtual void NotifyTask() noexcept = 0;
+    virtual void Initialize();
+    virtual void DeInitialize() noexcept;
+    virtual void Prepare() noexcept;
     virtual void MessageLoop() = 0;
+    virtual void Terminate() noexcept;
+    virtual void NotifyTask() noexcept = 0;
 public:
     common::mlog::MiniLogger<false> Logger;
 
@@ -59,7 +67,7 @@ public:
     virtual void ReleaseWindow(WindowHost_* host) = 0;
     void AddInvoke(std::function<void(void)>&& task);
 
-    static std::shared_ptr<WindowManager> Get();
+    static WindowManager& Get();
     // void Invoke(std::function<void(WindowHost_&)> task);
 };
 
