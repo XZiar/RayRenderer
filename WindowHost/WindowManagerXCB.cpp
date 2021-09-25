@@ -88,7 +88,7 @@ private:
         free(reply);
         return atom;
     }
-    void SenqControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) noexcept
+    void SendControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) noexcept
     {
         xcb_client_message_event_t event;
         event.response_type = XCB_CLIENT_MESSAGE;
@@ -447,12 +447,12 @@ public:
     }
     void NotifyTask() noexcept override
     {
-        SenqControlRequest(MessageTask);
+        SendControlRequest(MessageTask);
     }
     void CreateNewWindow(WindowHost_* host) override
     {
         const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
-        SenqControlRequest(MessageCreate,
+        SendControlRequest(MessageCreate,
             static_cast<uint32_t>(ptr & 0xffffffff),
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }

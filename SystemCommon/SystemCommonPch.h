@@ -49,10 +49,13 @@
 #       include <sys/sysctl.h>
 #       include <mach/mach_types.h>
 #       include <mach/thread_act.h>
-#       if __DARWIN_ONLY_64_BIT_INO_T
+#       if __DARWIN_64_BIT_INO_T
+            namespace common::file
+            {
             struct stat64 : public stat {};
-            using off64_t = off_t;
             inline int fstat64(int fd, struct stat64* buf) { return fstat(fd, buf); }
+            }
+            using off64_t = off_t;
             inline off64_t lseek64(int fd, off64_t offset, int whence) { return lseek(fd, offset, whence); }
             inline int fseeko64(FILE* stream, off64_t offset, int whence) { return fseeko(stream, offset, whence); }
             inline off64_t ftello64(FILE* stream) { return ftello(stream); }

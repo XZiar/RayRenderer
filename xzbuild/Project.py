@@ -86,7 +86,7 @@ class Project:
         if self.expmap and not osname == 'Darwin':
             self.linkflags += [f"-Wl,--version-script,{self.expmap}"]
 
-        if env["compiler"] == "clang" and not env.get("iOS", False):
+        if env["compiler"] == "clang" and not osname == 'Darwin':
             self.linkflags += ["-fuse-ld=lld"]
 
         os.chdir(os.path.join(env["rootDir"], self.srcPath))

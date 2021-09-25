@@ -6,12 +6,16 @@
     [
         "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "Nailang", "XComputeBase",
         {"ifno": ["iOS"], "+": ["WindowHost"]},
-        {"ifno": ["android", "iOS"], "+": ["FreeGLUTView", "OpenGLUtil"]}
+        {"ifno": ["android"], "ifneq": {"osname": "Darwin"}, "+": ["FreeGLUTView", "OpenGLUtil"]}
     ],
     "library": 
     {
         "static": [],
-        "dynamic": ["pthread", "X11", {"ifno": ["android", "iOS"], "+": "GL"}]
+        "dynamic": 
+        [
+            "pthread", 
+            {"ifno": ["android"], "ifneq": {"osname": "Darwin"}, "+": ["GL", "X11"]}
+        ]
     },
     "targets":
     {
@@ -22,7 +26,8 @@
                 "*.cpp", 
                 {"-": ["DXStub.cpp", "CURLTest.cpp"]},
                 {"ifhas": "android", "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]},
-                {"ifhas": "iOS", "-": ["GLStub.cpp", "FreeGLUTTest.cpp", "WdHostTest.cpp"]}
+                {"ifeq": {"osname": "Darwin"}, "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]},
+                {"ifhas": "iOS", "-": ["WdHostTest.cpp"]}
             ],
             "flags": ["-Wno-unused-function"]
         },

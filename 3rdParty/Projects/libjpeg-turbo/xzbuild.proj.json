@@ -73,6 +73,12 @@
                     "-": ["jccolext-avx2.asm", "jccolext-sse2.asm", "jccolext-mmx.asm", "jcgryext-avx2.asm", "jcgryext-sse2.asm", "jcgryext-mmx.asm", "jdcolext-avx2.asm", "jdcolext-sse2.asm", "jdmrgext-avx2.asm", "jdmrgext-sse2.asm", "jdmrgext-mmx.asm"]
                 }
             ],
+            "defines":
+            [
+                {"ifeq":  {"platform": "x64"},  "+": "__x86_64__"},
+                {"ifeq":  {"osname": "Darwin"}, "+": "MACHO"},
+                {"ifneq": {"osname": "Darwin"}, "+": "ELF"}
+            ],
             "incpath":
             [
                 "./simd/", "./simd/nasm",

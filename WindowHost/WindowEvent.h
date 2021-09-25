@@ -112,7 +112,7 @@ struct CombinedKey
 {
     CommonKeys Key;
     constexpr CombinedKey(const uint8_t key) noexcept : Key(static_cast<CommonKeys>(key)) { }
-    constexpr CombinedKey(const CommonKeys key) noexcept : Key(key) { }
+    constexpr CombinedKey(const CommonKeys key = CommonKeys::UNDEFINE) noexcept : Key(key) { }
     constexpr char GetASCIIKey() const noexcept
     {
         if (common::enum_cast(Key) < 0x7f)

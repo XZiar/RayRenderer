@@ -6,13 +6,26 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["X11", "X11-xcb", "xkbcommon", "xkbcommon-x11"]
+        "dynamic": 
+        [
+            {"ifneq": {"osname": "Darwin"}, "+": ["X11", "X11-xcb", "xkbcommon", "xkbcommon-x11"]}
+        ]
+    },
+    "framework":
+    {
+        "framework": ["Cocoa"]
     },
     "targets":
     {
         "cpp":
         {
-            "sources": ["*.cpp", {"-": "WindowManagerWin32.cpp"}],
+            "sources": 
+            [
+                "*.cpp", 
+                {"-": "WindowManagerWin32.cpp"},
+                {"ifeq":  {"osname": "Darwin"}, "-": "WindowManagerXCB.cpp"},
+                {"ifneq": {"osname": "Darwin"}, "-": "WindowManagerCocoa.cpp"}
+            ],
             "defines": ["WDHOST_EXPORT"]
         }
     }

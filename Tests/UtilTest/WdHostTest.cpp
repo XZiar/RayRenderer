@@ -68,10 +68,10 @@ static void OpenTestWindow()
     {
         log().info(u"BtnUp  : [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
     };
-    /*window->MouseMove   += [](const auto&, const auto& evt)
+    window->MouseMove   += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
-    };*/
+    };
     window->MouseDrag   += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse drag from [{:4},{:4}] to [{:4},{:4}], just moved [{:4},{:4}]\n", 
