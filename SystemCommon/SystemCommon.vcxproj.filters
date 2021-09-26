@@ -57,6 +57,9 @@
     <ClCompile Include="MiniLogger.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ObjCHelper.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoopBase.h">
@@ -111,6 +114,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MiniLoggerBackend.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="NSFoundation.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjCHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

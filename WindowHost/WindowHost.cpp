@@ -6,6 +6,7 @@
 
 namespace xziar::gui
 {
+using namespace std::string_view_literals;
 using common::loop::LoopBase;
 MAKE_ENABLER_IMPL(WindowHostPassive)
 MAKE_ENABLER_IMPL(WindowHostActive)
@@ -181,6 +182,10 @@ void WindowHost_::OnMouseWheel(event::Position pos, float dz) noexcept
 
 void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
 {
+    if (key.Key == event::CommonKeys::CapsLock)
+    {
+        Manager.Logger.verbose(u"CapsLock {}\n"sv, Manager.CheckCapsLock() ? u"pressed"sv : u"released"sv);
+    }
     Modifiers |= key.GetModifier();
     event::KeyEvent evt(LastPos, Modifiers, key);
     KeyDown(*this, evt);

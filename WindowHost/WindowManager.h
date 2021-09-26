@@ -61,6 +61,7 @@ public:
     common::mlog::MiniLogger<false> Logger;
 
     virtual ~WindowManager();
+    virtual bool CheckCapsLock() const noexcept = 0;
     virtual void CreateNewWindow(WindowHost_* host) = 0;
     virtual void PrepareForWindow(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) = 0;

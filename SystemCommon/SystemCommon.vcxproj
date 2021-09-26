@@ -210,6 +210,9 @@
     <ClCompile Include="LoopBase.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ObjCHelper.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="PromiseTask.cpp" />
     <ClCompile Include="RawFileEx.cpp" />
     <ClCompile Include="StackTrace.cpp" />
@@ -229,6 +232,8 @@
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="LoopBase.h" />
+    <ClInclude Include="NSFoundation.h" />
+    <ClInclude Include="ObjCHelper.h" />
     <ClInclude Include="PromiseTask.h" />
     <ClInclude Include="PromiseTaskSTD.h" />
     <ClInclude Include="RawFileEx.h" />

@@ -29,6 +29,7 @@ using common::objc::ClassBuilder;
 using common::foundation::NSAutoreleasePool;
 using common::foundation::NSString;
 using common::foundation::NSDate;
+using event::CommonKeys;
 
 constexpr short MessageCreate = 1;
 constexpr short MessageTask = 2;
@@ -545,44 +546,44 @@ static constexpr auto KeyCodeLookup = BuildStaticLookup(uint16_t, event::Combine
     { 75,    '/' },
     { 78,    '-' },
     { 81,    '=' },
-    { 76,    event::CommonKeys::Enter },
-    { 49,    event::CommonKeys::Space },
-    { 36,    event::CommonKeys::Enter },
-    { 48,    event::CommonKeys::Tab },
-    { 51,    event::CommonKeys::Backspace },
-    { 117,   event::CommonKeys::Delete },
-    { 53,    event::CommonKeys::Esc },
-    { 56,    event::CommonKeys::Shift },
-    { 57,    event::CommonKeys::Shift },
-    { 58,    event::CommonKeys::Alt },
-    { 59,    event::CommonKeys::Ctrl },
-    { 60,    event::CommonKeys::Shift },
-    { 61,    event::CommonKeys::Alt },
-    { 62,    event::CommonKeys::Ctrl },
-    { 122,   event::CommonKeys::F1 },
-    { 120,   event::CommonKeys::F2 },
-    { 99,    event::CommonKeys::F3 },
-    { 118,   event::CommonKeys::F4 },
-    { 96,    event::CommonKeys::F5 },
-    { 97,    event::CommonKeys::F6 },
-    { 98,    event::CommonKeys::F7 },
-    { 100,   event::CommonKeys::F8 },
-    { 101,   event::CommonKeys::F9 },
-    { 109,   event::CommonKeys::F10 },
-    { 103,   event::CommonKeys::F11 },
-    { 111,   event::CommonKeys::F12 },
-    { 114,   event::CommonKeys::Insert },
-    { 115,   event::CommonKeys::Home },
-    { 119,   event::CommonKeys::End },
-    { 116,   event::CommonKeys::PageUp },
-    { 121,   event::CommonKeys::PageDown },
-    { 123,   event::CommonKeys::Left },
-    { 124,   event::CommonKeys::Right },
-    { 125,   event::CommonKeys::Down },
-    { 126,   event::CommonKeys::Up });
+    { 76,    CommonKeys::Enter },
+    { 49,    CommonKeys::Space },
+    { 36,    CommonKeys::Enter },
+    { 48,    CommonKeys::Tab },
+    { 51,    CommonKeys::Backspace },
+    { 117,   CommonKeys::Delete },
+    { 53,    CommonKeys::Esc },
+    { 56,    CommonKeys::Shift },
+    { 57,    CommonKeys::Shift },
+    { 58,    CommonKeys::Alt },
+    { 59,    CommonKeys::Ctrl },
+    { 60,    CommonKeys::Shift },
+    { 61,    CommonKeys::Alt },
+    { 62,    CommonKeys::Ctrl },
+    { 122,   CommonKeys::F1 },
+    { 120,   CommonKeys::F2 },
+    { 99,    CommonKeys::F3 },
+    { 118,   CommonKeys::F4 },
+    { 96,    CommonKeys::F5 },
+    { 97,    CommonKeys::F6 },
+    { 98,    CommonKeys::F7 },
+    { 100,   CommonKeys::F8 },
+    { 101,   CommonKeys::F9 },
+    { 109,   CommonKeys::F10 },
+    { 103,   CommonKeys::F11 },
+    { 111,   CommonKeys::F12 },
+    { 114,   CommonKeys::Insert },
+    { 115,   CommonKeys::Home },
+    { 119,   CommonKeys::End },
+    { 116,   CommonKeys::PageUp },
+    { 121,   CommonKeys::PageDown },
+    { 123,   CommonKeys::Left },
+    { 124,   CommonKeys::Right },
+    { 125,   CommonKeys::Down },
+    { 126,   CommonKeys::Up });
 event::CombinedKey WindowManagerCocoa::ProcessKey(uint16_t keycode) noexcept
 {
-    return KeyCodeLookup(keycode).value_or(event::CommonKeys::UNDEFINE);
+    return KeyCodeLookup(keycode).value_or(CommonKeys::UNDEFINE);
 }
 
 std::unique_ptr<WindowManager> CreateManagerImpl()

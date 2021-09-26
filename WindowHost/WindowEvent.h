@@ -98,13 +98,14 @@ MAKE_ENUM_BITFIELD(ModifierKeys)
 enum class CommonKeys : uint8_t
 {
     None = 0, Esc = 27, Delete = 127, Backspace = 8, 
-    Add = '+', Minus = '-', Multiple = '*', Divide = '/', Comma = ',', Dot = '.',
+    Add = '+', Minus = '-', Multiply = '*', Divide = '/', Comma = ',', Dot = '.',
     Space = ' ', Tab = '\t', Enter = '\r',
     F1 = 128, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
     Left, Up, Right, Down, 
     Home, End, PageUp, PageDown, 
     Insert,
     Ctrl, Shift, Alt,
+    CapsLock = 254,
     UNDEFINE = 255
 };
 
@@ -128,12 +129,14 @@ struct CombinedKey
     constexpr std::optional<char> TryGetPrintable() const noexcept
     {
         const auto ascii = common::enum_cast(Key);
-        if (ascii >= '0' && ascii <= '9')
+        if (ascii >= 0x20 && ascii <= 0x7e)
+            return ascii;
+        /*if (ascii >= '0' && ascii <= '9')
             return ascii;
         if (ascii >= 'A' && ascii <= 'Z')
             return ascii;
         if (ascii >= 'a' && ascii <= 'z')
-            return ascii;
+            return ascii;*/
         return {};
     }
     constexpr ModifierKeys GetModifier() const noexcept

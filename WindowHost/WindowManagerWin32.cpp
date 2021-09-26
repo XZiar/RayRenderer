@@ -4,6 +4,7 @@
 
 //#include "SystemCommon/SystemCommonRely.h"
 #include "common/ContainerEx.hpp"
+#include "common/StaticLookup.hpp"
 
 
 #define WIN32_LEAN_AND_MEAN 1
@@ -18,6 +19,7 @@ constexpr uint32_t MessageTask      = WM_USER + 2;
 
 namespace xziar::gui::detail
 {
+using event::CommonKeys;
 
 struct Win32Data
 {
@@ -140,6 +142,13 @@ public:
         if (const auto err = GetLastError(); err != NO_ERROR)
             Logger.error(u"Error when post thread message: {}\n", err);
     }
+
+    bool CheckCapsLock() const noexcept
+    {
+        const auto state = GetKeyState(VK_CAPITAL);
+        return state & 0x001;
+    }
+
     void CreateNewWindow_(WindowHost_* host)
     {
         const auto hwnd = CreateWindowExW(
@@ -178,59 +187,64 @@ public:
 };
 
 
+static constexpr auto KeyCodeLookup = BuildStaticLookup(WPARAM, event::CombinedKey,
+    { VK_F1,        CommonKeys::F1 },
+    { VK_F2,        CommonKeys::F2 },
+    { VK_F3,        CommonKeys::F3 },
+    { VK_F4,        CommonKeys::F4 },
+    { VK_F5,        CommonKeys::F5 },
+    { VK_F6,        CommonKeys::F6 },
+    { VK_F7,        CommonKeys::F7 },
+    { VK_F8,        CommonKeys::F8 },
+    { VK_F9,        CommonKeys::F9 },
+    { VK_F10,       CommonKeys::F10 },
+    { VK_F11,       CommonKeys::F11 },
+    { VK_F12,       CommonKeys::F12 },
+    { VK_LEFT,      CommonKeys::Left },
+    { VK_UP,        CommonKeys::Up },
+    { VK_RIGHT,     CommonKeys::Right },
+    { VK_DOWN,      CommonKeys::Down },
+    { VK_HOME,      CommonKeys::Home },
+    { VK_END,       CommonKeys::End },
+    { VK_PRIOR,     CommonKeys::PageUp },
+    { VK_NEXT,      CommonKeys::PageDown },
+    { VK_INSERT,    CommonKeys::Insert },
+    { VK_CONTROL,   CommonKeys::Ctrl },
+    { VK_SHIFT,     CommonKeys::Shift },
+    { VK_MENU,      CommonKeys::Alt },
+    { VK_ESCAPE,    CommonKeys::Esc },
+    { VK_BACK,      CommonKeys::Backspace },
+    { VK_DELETE,    CommonKeys::Delete },
+    { VK_SPACE,     CommonKeys::Space },
+    { VK_TAB,       CommonKeys::Tab },
+    { VK_RETURN,    CommonKeys::Enter },
+    { VK_CAPITAL,   CommonKeys::CapsLock },
+    { VK_ADD,       '+' },
+    { VK_OEM_PLUS,  '+' },
+    { VK_SUBTRACT,  '-' },
+    { VK_OEM_MINUS, '-' },
+    { VK_MULTIPLY,  '*' },
+    { VK_DIVIDE,    '/' },
+    { VK_OEM_COMMA, ',' },
+    { VK_DECIMAL,   '.' },
+    { VK_OEM_PERIOD,'.' },
+    { VK_OEM_1,     ';' },
+    { VK_OEM_2,     '/' },
+    { VK_OEM_3,     '`' },
+    { VK_OEM_4,     '[' },
+    { VK_OEM_5,     '\\' },
+    { VK_OEM_6,     ']' },
+    { VK_OEM_7,     '\'' }
+    );
 static constexpr event::CombinedKey ProcessKey(WPARAM wParam) noexcept
 {
-    using event::CommonKeys;
     if (wParam >= 'A' && wParam <= 'Z')
         return static_cast<uint8_t>(wParam);
     if (wParam >= '0' && wParam <= '9')
         return static_cast<uint8_t>(wParam);
     if (wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
         return static_cast<uint8_t>(wParam - VK_NUMPAD0 + '0');
-    switch (wParam)
-    {
-    case VK_F1:         return CommonKeys::F1;
-    case VK_F2:         return CommonKeys::F2;
-    case VK_F3:         return CommonKeys::F3;
-    case VK_F4:         return CommonKeys::F4;
-    case VK_F5:         return CommonKeys::F5;
-    case VK_F6:         return CommonKeys::F6;
-    case VK_F7:         return CommonKeys::F7;
-    case VK_F8:         return CommonKeys::F8;
-    case VK_F9:         return CommonKeys::F9;
-    case VK_F10:        return CommonKeys::F10;
-    case VK_F11:        return CommonKeys::F11;
-    case VK_F12:        return CommonKeys::F12;
-    case VK_LEFT:       return CommonKeys::Left;
-    case VK_UP:         return CommonKeys::Up;
-    case VK_RIGHT:      return CommonKeys::Right;
-    case VK_DOWN:       return CommonKeys::Down;
-    case VK_HOME:       return CommonKeys::Home;
-    case VK_END:        return CommonKeys::End;
-    case VK_PRIOR:      return CommonKeys::PageUp;
-    case VK_NEXT:       return CommonKeys::PageDown;
-    case VK_INSERT:     return CommonKeys::Insert;
-    case VK_CONTROL:    return CommonKeys::Ctrl;
-    case VK_SHIFT:      return CommonKeys::Shift;
-    case VK_MENU:       return CommonKeys::Alt;
-    case VK_ESCAPE:     return CommonKeys::Esc;
-    case VK_BACK:       return CommonKeys::Backspace;
-    case VK_DELETE:     return CommonKeys::Delete;
-    case VK_SPACE:      return CommonKeys::Space;
-    case VK_TAB:        return CommonKeys::Tab;
-    case VK_RETURN:     return CommonKeys::Enter;
-    case VK_ADD:
-    case VK_OEM_PLUS:   return '+';
-    case VK_SUBTRACT:
-    case VK_OEM_MINUS:  return '-';
-    case VK_MULTIPLY:   return '*';
-    case VK_DIVIDE:     return '/';
-    case VK_OEM_COMMA:  return ',';
-    case VK_DECIMAL:
-    case VK_OEM_PERIOD: return '.';
-    default:            
-        return CommonKeys::UNDEFINE;
-    }
+    return KeyCodeLookup(wParam).value_or(CommonKeys::UNDEFINE);
 }
 
 static event::MouseButton TranslateButtonState(WPARAM wParam)
