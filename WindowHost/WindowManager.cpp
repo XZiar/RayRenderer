@@ -41,7 +41,8 @@ ManagerBlock& GetManagerBlock()
 }
 
 
-WindowManager::WindowManager() : Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
+WindowManager::WindowManager() : RunningFlag(false),
+    Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
 { }
 WindowManager::~WindowManager()
 {

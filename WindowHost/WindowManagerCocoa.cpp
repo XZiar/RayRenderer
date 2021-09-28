@@ -29,21 +29,18 @@ using common::objc::ClassBuilder;
 using common::foundation::NSAutoreleasePool;
 using common::foundation::NSString;
 using common::foundation::NSDate;
+using common::foundation::NSNotification;
 using event::CommonKeys;
 
 constexpr short MessageCreate = 1;
 constexpr short MessageTask = 2;
 
 static WindowManager* TheManager = nullptr;
-// static void WindowWillClose(id self, SEL _sel, id notification)
-// {
-//     printf("window will close\n");
-// }
-// constexpr auto llp = common::objc::MethodTyper<decltype(&WindowWillClose)>::GetType();
-// static_assert(llp[0] == 'v');
-// static_assert(llp[1] == '@');
-// static_assert(llp[2] == ':');
-// static_assert(llp[3] == '@');
+struct CocoaData
+{
+    Instance Window = nullptr;
+    Instance WindowDlg = nullptr;
+};
 
 struct NSEvent : public Instance
 {
@@ -153,12 +150,114 @@ struct NSEvent : public Instance
     }
 };
 
+
+struct NSMenuItem : public Instance
+{
+    using Instance::Instance;
+    inline static const Clz NSMenuItemClass = {"NSMenuItem"};
+    static NSMenuItem Create()
+    {
+        static const ClzInit Init(NSMenuItemClass, true);
+        return Init.Create<NSMenuItem>();
+    }
+    static NSMenuItem Create(std::u16string_view title, SEL action = nullptr, char16_t key = u'\0')
+    {
+        static const ClzInit<id, SEL, id> Init(NSMenuItemClass, true, "initWithTitle:action:keyEquivalent:");
+        const auto keyCode = key == u'\0' ? NSString::Create() : NSString::Create({&key, 1});
+        return Init.Create<NSMenuItem>(NSString::Create(title), action, keyCode);
+    }
+};
+
+
 class WindowManagerCocoa : public WindowManager
 {
     static_assert(sizeof(NSInteger) == sizeof(intptr_t), "Expects NSInteger to be as large as intptr_t");
 private:
+    class CocoaView : public Instance
+    {
+    private:
+        static void HandleEvent(id self, SEL _sel, id evt_);
+        static void UpdateTrackingAreas(id self, SEL _sel);
+        static event::Position GetMousePosition(const CocoaView& view, const NSEvent& event)
+        {
+            static SEL SelFrame = sel_registerName("frame");
+            static SEL SelLoc   = sel_registerName("locationInWindow");
+            const auto contentRect = view.Call<NSRect>(SelFrame);
+            const auto loc = event.Call<NSPoint>(SelLoc);
+            const auto x = loc.x, y = contentRect.size.height - loc.y;
+            return { static_cast<int32_t>(x), static_cast<int32_t>(y) };
+        }
+        //@interface CocoaView : NSView
+        //- (void)mouseDown:(NSEvent *)event;
+        //- (void)mouseDragged:(NSEvent *)event;
+        //- (void)mouseUp:(NSEvent *)event;
+        //- (void)mouseMoved:(NSEvent *)event;
+        //- (void)mouseEntered:(NSEvent *)event;
+        //- (void)mouseExited:(NSEvent *)event;
+        //- (void)rightMouseDragged:(NSEvent *)event;
+        //- (void)rightMouseUp:(NSEvent *)event;
+        //- (void)otherMouseDown:(NSEvent *)event;
+        //- (void)otherMouseDragged:(NSEvent *)event;
+        //- (void)otherMouseUp:(NSEvent *)event;
+        //- (void)scrollWheel:(NSEvent *)event;
+        //- (void)keyDown:(NSEvent *)event;
+        //- (void)keyUp:(NSEvent *)event;
+        //@end
+        inline static const Clz NSViewClass = { "NSView" };
+        inline static auto CocoaViewInit = []()
+        {
+            ClassBuilder builder("CocoaView", NSViewClass);
+            bool suc = true;
+            //suc = builder.AddProtocol("NSTextInputClient");
+            suc = builder.AddVariable<WindowHost_*>("WdHost");
+            suc = builder.AddVariable<id>("TrackArea");
+            suc = builder.AddMethod("updateTrackingAreas", &UpdateTrackingAreas);
+            suc = builder.AddMethod("mouseDown:", &HandleEvent);
+            suc = builder.AddMethod("mouseDragged:", &HandleEvent);
+            suc = builder.AddMethod("mouseUp:", &HandleEvent);
+            suc = builder.AddMethod("mouseMoved:", &HandleEvent);
+            suc = builder.AddMethod("mouseEntered:", &HandleEvent);
+            suc = builder.AddMethod("mouseExited:", &HandleEvent);
+            suc = builder.AddMethod("rightMouseDragged:", &HandleEvent);
+            suc = builder.AddMethod("rightMouseUp:", &HandleEvent);
+            suc = builder.AddMethod("otherMouseDown:", &HandleEvent);
+            suc = builder.AddMethod("otherMouseDragged:", &HandleEvent);
+            suc = builder.AddMethod("otherMouseUp:", &HandleEvent);
+            suc = builder.AddMethod("scrollWheel:", &HandleEvent);
+            suc = builder.AddMethod("keyDown:", &HandleEvent);
+            suc = builder.AddMethod("keyUp:", &HandleEvent);
+            builder.Finish();
+            return builder.GetClassInit(false);
+        }();
+        inline static auto WdHostVar    = class_getInstanceVariable(CocoaViewInit, "WdHost");
+        inline static auto TrackAreaVar = class_getInstanceVariable(CocoaViewInit, "TrackArea");
+        Instance GetTrackArea() const { return GetVar<id>(TrackAreaVar); }
+        void SetTrackArea(Instance area) { SetVar<id>(TrackAreaVar, area); }
+        void SetHost(WindowHost_* host) 
+        {
+            SetVar(WdHostVar, host);
+            // const auto val = reinterpret_cast<uintptr_t>(host);
+            // SetVar<NSUInteger>(WdHostVar, val);
+        }
+    public:
+        using Instance::Instance;
+        WindowHost_* GetHost() const 
+        {
+            return GetVar<WindowHost_*>(WdHostVar);
+            // const uintptr_t host = GetVar<NSUInteger>(WdHostVar);
+            // return reinterpret_cast<WindowHost_*>(host);
+        }
+
+        static CocoaView Create(WindowHost_* host)
+        {
+            auto view = CocoaViewInit.Create<CocoaView>();
+            view.SetHost(host);
+            view.Call<void>("updateTrackingAreas");
+            return view;
+        }
+    };
+
     bool SupportNewThread() const noexcept override { return true; }
-    
     forceinline WindowHost_* GetWindow(id window) const noexcept
     {
         for (const auto& pair : WindowList)
@@ -170,26 +269,111 @@ private:
         }
         return nullptr;
     }
+
+    static NSUInteger AppShouldTerminate(id self, SEL _sel, id sender)
+    {
+        return 0;
+    }
+    static void AppWillFinishLaunching(id self, SEL _sel, id notification)
+    {
+        NSAutoreleasePool pool;
+        NSNotification noti(notification);
+        const auto& app = noti.Target;
+
+        static const ClzInit NSMenuClass("NSMenu", true);
+
+        //id menubar = [[NSMenu alloc] init];
+        const Instance menubar = NSMenuClass.Create();
+        //[NSApp setMainMenu:menubar];
+        app.Call<void, id>("setMainMenu:", menubar);
+
+        //id appMenuItem = [[NSMenuItem alloc] init];
+        const auto appMenuItem = NSMenuItem::Create();
+        //[menubar addItem:appMenuItem];
+        menubar.Call<void, id>("addItem:", appMenuItem);
+
+        //id appMenu = [[NSMenu alloc] init];
+        const Instance appMenu = NSMenuClass.Create();
+        //[appMenuItem setSubmenu:appMenu];
+        appMenuItem.Call<void, id>("setSubmenu:", appMenu);
+
+        //id quitMenuItem = [[[NSMenuItem alloc] initWithTitle:quitTitle action:@selector(terminate:) keyEquivalent:@"q"] autorelease];
+        const auto quitMenuItem = NSMenuItem::Create(u"quit app"sv, sel_registerName("terminate:"));
+        //[appMenu addItem:quitMenuItem];
+        appMenu.Call<void, id>("addItem:", quitMenuItem);
+
+        //[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+        app.Call<void, NSInteger>("setActivationPolicy:", 0);
+    }
+    //@interface AppDelegate : NSObject<NSApplicationDelegate>
+    //-(BOOL)applicationShouldTerminate:(NSWindow*)sender;
+    //-(void)applicationWillFinishLaunching:(NSNotification*)notification;
+    //@end
+    inline static const ClzInit AppDelegate = []()
+    {
+        ClassBuilder builder("AppDelegate");
+        bool suc = true;
+        suc = builder.AddProtocol("NSApplicationDelegate");
+        suc = builder.AddMethod("applicationShouldTerminate:", &AppShouldTerminate);
+        suc = builder.AddMethod("applicationWillFinishLaunching:", &AppWillFinishLaunching);
+        //suc = builder.AddMethod("applicationDidFinishLaunching:", &AppDidFinishLaunching);
+        builder.Finish();
+        return builder.GetClassInit(false);
+    }();
+
+    static BOOL WindowShouldClose(id self, SEL _sel, id sender)
+    {
+        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(sender); host)
+            return host->OnClose() ? YES : NO;
+        return YES;
+    }
     static void WindowWillClose(id self, SEL _sel, id notification)
     {
-        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(self); host)
-            host->OnClose();
-        //printf("window will close\n");
+        NSNotification noti(notification);
+        const auto& window = noti.Target;
+        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
+            host->Stop();
+    }
+    static void WindowWillMove(id self, SEL _sel, id notification)
+    {
+        printf("window will move\n");
+        NSNotification noti(notification);
+        const auto& window = noti.Target;
+        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
+            ;//host->OnClose();
+    }
+    static void WindowDidMove(id self, SEL _sel, id notification)
+    {
+        printf("window did move\n");
+        NSNotification noti(notification);
+        const auto& window = noti.Target;
+        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
+            ;//host->OnClose();
     }
     
     //@interface WindowDelegate : NSObject<NSWindowDelegate>
+    //-(BOOL)windowShouldClose:(NSWindow*)sender;
     //-(void)windowWillClose:(NSNotification*)notification;
+    //-(void)windowWillMove:(NSNotification*)notification;
+    //-(void)windowDidMove:(NSNotification*)notification;
     //@end
     inline static const ClzInit WindowDelegate = []()
     {
         ClassBuilder builder("WindowDelegate");
-        builder.AddProtocol("NSWindowDelegate");
-        builder.AddMethod("windowWillClose:", &WindowWillClose);
-        return builder.GetClassInit(true);
+        bool suc = true;
+        suc = builder.AddProtocol("NSWindowDelegate");
+        suc = builder.AddMethod("windowShouldClose:", &WindowShouldClose);
+        suc = builder.AddMethod("windowWillClose:", &WindowWillClose);
+        // suc = builder.AddMethod("windowWillMove:", &WindowWillMove);
+        // suc = builder.AddMethod("windowDidMove:", &WindowDidMove);
+        builder.Finish();
+        return builder.GetClassInit(false);
     }();
 
-    const Instance App;
+    Instance App;
+    Instance AppDlg;
     std::optional<NSAutoreleasePool> ARPool;
+    bool IsCapsLock = false;
 
     void SendControlRequest(const NSInteger request, const NSInteger data = 0) noexcept
     {
@@ -198,66 +382,34 @@ private:
         static SEL SelPostEvent = sel_registerName("postEvent:atStart:");
         App.Call<void, id, BOOL>(SelPostEvent, evt, NO);
     }
-    static event::Position GetMousePosition(const NSEvent& event)
-    {
-        static SEL SelView  = sel_registerName("contentView");
-        static SEL SelFrame = sel_registerName("frame");
-        static SEL SelLoc   = sel_registerName("locationInWindow");
-        const auto contentRect = Instance(event.Window.Call<id>(SelView)).Call<NSRect>(SelFrame);
-        const auto loc = event.Call<NSPoint>(SelLoc);
-        const auto x = loc.x, y = contentRect.size.height - loc.y;
-        return { static_cast<int32_t>(x), static_cast<int32_t>(y) };
-    }
     static event::CombinedKey ProcessKey(uint16_t keycode) noexcept;
 public:
-    WindowManagerCocoa() : App([]()
-    {
-        NSAutoreleasePool pool;
-        //[NSApplication sharedApplication];
-        static const Clz NSApplicationClass("NSApplication");
-        return NSApplicationClass.Call<id>("sharedApplication");
-    }()) { }
+    WindowManagerCocoa() : App(nullptr), AppDlg(nullptr){ }
     ~WindowManagerCocoa() override { }
 
     void Initialize() override
     {
         using common::BaseException;
-
         TheManager = this;
 
         NSAutoreleasePool pool;
 
+        //[NSApplication sharedApplication];
+        static const Clz NSApplicationClass("NSApplication");
+        App = NSApplicationClass.Call<id>("sharedApplication");
+
+        //AppDlg = [[AppDelegate alloc] init];
+        AppDlg = AppDelegate.Create();
+        //[NSApp setDelegate:adg];
+        App.Call<void, id>("setDelegate:", AppDlg);
+
         // only needed if we don't use [NSApp run]
         //[NSApp finishLaunching];
         App.Call<void>("finishLaunching");
-
-        //[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-        App.Call<void, NSInteger>("setActivationPolicy:", 0);
-        //[NSApp activateIgnoringOtherApps:YES];
-        App.Call<void, BOOL>("activateIgnoringOtherApps:", YES);
-
-        //id menubar = [[NSMenu alloc] init];
-        static const ClzInit NSMenuClass("NSMenu", true);
-        const Instance menubar = NSMenuClass.Create();
-
-        //id appMenuItem = [[NSMenuItem alloc] init];
-        static const ClzInit NSMenuItemClass("NSMenuItem", true);
-        const Instance appMenuItem = NSMenuItemClass.Create();
-
-        //[menubar addItem:appMenuItem];
-        menubar.Call<void, id>("addItem:", appMenuItem);
-
-        //[NSApp setMainMenu:menubar];
-        App.Call<void, id>("setMainMenu:", menubar);
-
-        //id appMenu = [[NSMenu alloc] init];
-        const Instance appMenu = NSMenuClass.Create();
-
-        //[appMenuItem setSubmenu:appMenu];
-        appMenuItem.Call<void, id>("setSubmenu:", appMenu);
     }
     void DeInitialize() noexcept override
     {
+        AppDlg.Release();
         TheManager = nullptr;
     }
 
@@ -269,19 +421,19 @@ public:
     {
         using EventType = NSEvent::NSEventType;
         static SEL SelNextEvt = sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:");
-        // bypass some events
-        constexpr auto EventMask = NSUIntegerMax & (~NSEvent::GetEventMask(EventType::SystemDefined, 
-            EventType::Gesture, EventType::Magnify, EventType::Swipe, EventType::Rotate, EventType::BeginGesture, EventType::EndGesture,
-            EventType::SmartMagnify, EventType::QuickLook, EventType::Pressure, EventType::DirectTouch)); 
+        static SEL SelSendEvt = sel_registerName("sendEvent:");
+        static SEL SelUpdWd   = sel_registerName("updateWindows");
+        static const auto& distFut = NSDate::DistantFuture();
         while (true)
         {
             NSAutoreleasePool pool;
-            const NSEvent evt = App.Call<id, NSUInteger, id, id, BOOL>(SelNextEvt, EventMask, NSDate::DistantFuture(), NSDefaultRunLoopMode, YES);
-            if (!evt) continue;
+            const NSEvent evt = App.Call<id, NSUInteger, id, id, BOOL>(SelNextEvt, NSUIntegerMax, distFut, NSDefaultRunLoopMode, YES);
+            Expects(evt);
             const auto host = GetWindow(evt.Window);
-            if (evt.Type == EventType::AppKitDefined)
+            switch (evt.Type)
             {
-    enum class AppKitSubType : short { WindowExposed = 0, AppActivated = 1, AppDeactivated = 2, WindowMoved = 4, ScreenChanged = 8 };
+            case EventType::AppKitDefined:
+            {
                 using AKType = NSEvent::AppKitSubType;
                 const auto data1   = evt.GetData1();
                 const auto data2   = evt.GetData2();
@@ -298,9 +450,8 @@ public:
                 }
                 Logger.verbose(u"Recieve [AppKit]message sub[{}][{}] host[{}] data[{}][{}]\n", 
                     evt.SubType, desc, (void*)host, data1, data2);
-                continue;
-            }
-            if (evt.Type == EventType::ApplicationDefined)
+            } break;
+            case EventType::ApplicationDefined:
             {
                 const auto request = evt.GetData1();
                 const auto data    = evt.GetData2();
@@ -308,95 +459,49 @@ public:
                 {
                 case MessageCreate:
                 {
-                    const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data));
-                    CreateNewWindow_(host);
+                    const auto realHost = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data));
+                    CreateNewWindow_(realHost);
                 } break;
                 case MessageTask:
                     HandleTask();
                     break;
                 }
-                continue;
-            }
-            if (!host)
-            {
-                if (evt.Type != EventType::MouseMoved) // ignore
-                    Logger.verbose(u"Recieve message [{}] without window\n", (uint32_t)evt.Type);
-                continue;
-            }
-            switch (evt.Type)
-            {
-            case EventType::LeftMouseDown:
-            case EventType::LeftMouseUp:
-            case EventType::RightMouseDown:
-            case EventType::RightMouseUp:
-            case EventType::OtherMouseDown:
-            case EventType::OtherMouseUp:
-            {
-                const auto type = common::enum_cast(evt.Type);
-                const bool isPress = type & 1;
-                event::MouseButton  btn = event::MouseButton::None;
-                if (type <= 2)      btn = event::MouseButton::Left;
-                else if (type <= 4) btn = event::MouseButton::Right;
-                else if (const auto btnNum = evt.GetButtonNumber(); btnNum == 2)
-                    btn = event::MouseButton::Middle;
-                host->OnMouseButton(btn, isPress);
-            } break;
-            case EventType::MouseMoved:
-            {
-                const auto pos = GetMousePosition(evt);
-                host->OnMouseMove(pos);
-            } break;
-            case EventType::MouseEntered:
-            {
-                //window.Call<void, BOOL>(SetAcceptMouseMove, YES);
-                const auto pos = GetMousePosition(evt);
-                host->OnMouseEnter(pos);
-            } break;
-            case EventType::MouseExited:
-            {
-                //window.Call<void, BOOL>(SetAcceptMouseMove, NO);
-                host->OnMouseLeave();
-            } break;
-            case EventType::KeyDown:
-            case EventType::KeyUp:
-            {
-                //uint16_t keyCode = [event keyCode];SelKeyCode
-                const auto keyCode = evt.GetKeyCode();
-                const auto key = ProcessKey(keyCode);
-                if (key.Key == event::CommonKeys::UNDEFINE)
-                {
-                    //NSString * inputText = [event characters];
-                    const auto str = evt.GetCharacters();
-                    const auto ch = str[0];
-                    Logger.verbose(u"key: [{}] => [{}]({})\n", keyCode, static_cast<uint16_t>(ch), ch);
-                }
-                if (evt.Type == EventType::KeyDown)
-                    host->OnKeyDown(key);
-                else
-                    host->OnKeyUp(key);
             } break;
             case EventType::FlagsChanged:
             {
-                const auto modifier = evt.GetModifierFlags();
-                //constexpr NSUInteger ModCaps    = 1 << 16;
+                constexpr NSUInteger ModCaps    = 1 << 16;
                 constexpr NSUInteger ModShift   = 1 << 17;
                 constexpr NSUInteger ModCtrl    = 1 << 18;
                 constexpr NSUInteger ModAlt     = 1 << 19;
-                //constexpr NSUInteger ModCommand = 1 << 20;
+                const auto modifier = evt.GetModifierFlags();
+                bool capsChanged = false;
+                if (const bool hasCaps = modifier & ModCaps; hasCaps != IsCapsLock)
+                    IsCapsLock = hasCaps, capsChanged = true;
+                if (host)
+                {
 #define CheckMod(mod)                                                                                               \
-if (const auto has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modifiers, event::ModifierKeys::mod))    \
+if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modifiers, event::ModifierKeys::mod))    \
 {                                                                                                                   \
     if (has##mod)   host->OnKeyDown(event::CommonKeys::mod);                                                        \
     else            host->OnKeyUp  (event::CommonKeys::mod);                                                        \
 }
-                CheckMod(Shift)
-                CheckMod(Ctrl)
-                CheckMod(Alt)
+                    CheckMod(Shift)
+                    CheckMod(Ctrl)
+                    CheckMod(Alt)
 #undef CheckMod
+                    if (capsChanged)
+                    {
+                        host->OnKeyDown(event::CommonKeys::CapsLock);
+                        host->OnKeyUp  (event::CommonKeys::CapsLock);
+                    }
+                }
             } break;
-            default:
-                Logger.verbose(u"Recieve message [{}]\n", (uint32_t)evt.Type);
+            default: 
+                // Logger.verbose(u"Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
+                break;
             }
+            App.Call<void, id>(SelSendEvt, evt);
+            App.Call<void>(SelUpdWd);
         }
     }
     void Terminate() noexcept override
@@ -407,65 +512,54 @@ if (const auto has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
     void CreateNewWindow_(WindowHost_* host)
     {
         using common::BaseException;
+        auto& data = host->template GetOSData<CocoaData>();
 
         //id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 500, 500) styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask backing:NSBackingStoreBuffered defer:NO];
-        static const ClzInit<NSRect, NSUInteger, NSUInteger, BOOL> NSWindowClass("NSWindow", true, "initWithContentRect:styleMask:backing:defer:");
+        static const ClzInit<NSRect, NSUInteger, NSUInteger, BOOL> NSWindowClass("NSWindow", false, "initWithContentRect:styleMask:backing:defer:");
         NSRect rect = {{0, 0}, { static_cast<CGFloat>(host->Width), static_cast<CGFloat>(host->Height) }};
         const Instance window = NSWindowClass.Create(rect, 15, 2, NO);
-
-        // when we are not using ARC, than window will be added to autorelease pool
-        // so if we close it by hand (pressing red button), we don't want it to be released for us
-        // so it will be released by autorelease pool later
-        //[window setReleasedWhenClosed:NO];
-        window.Call<void, BOOL>("setReleasedWhenClosed:", NO);
+        data.Window = window;
 
         //WindowDelegate * wdg = [[WindowDelegate alloc] init];
-        const auto wdg = WindowDelegate.Create();
+        data.WindowDlg = WindowDelegate.Create();
         //[window setDelegate:wdg];
-        window.Call<void, id>("setDelegate:", wdg);
+        window.Call<void, id>("setDelegate:", data.WindowDlg);
 
-        //NSView * contentView = [window contentView];
-        const Instance contentView = window.Call<id>("contentView");
+        //[window setReleasedWhenClosed:YES];
+        window.Call<void, BOOL>("setReleasedWhenClosed:", YES);
 
-        //[contentView setWantsBestResolutionOpenGLSurface:YES];
-        contentView.Call<void, BOOL>("setWantsBestResolutionOpenGLSurface:", YES);
+        const auto view = CocoaView::Create(host);
+        //[view setWantsBestResolutionOpenGLSurface:YES];
+        view.Call<void, BOOL>("setWantsBestResolutionOpenGLSurface:", YES);
+        //[window setContentView:view];
+        window.Call<void, id>("setContentView:", view);
+        //[window makeFirstResponder:view];
+        window.Call<void, id>("makeFirstResponder:", view);
 
-        {
-            // //[window cascadeTopLeftFromPoint:NSMakePoint(20,20)];
-            // NSPoint point = {20, 20};
-            // SEL cascadeTopLeftFromPointSel = sel_registerName("cascadeTopLeftFromPoint:");
-            // ((void (*)(id, SEL, NSPoint))objc_msgSend)(window, cascadeTopLeftFromPointSel, point);
-        }
-
-        //[window setTitle:@"sup"];
+        //[window setTitle:@"xxx"];
         const auto titleString = NSString::Create(host->Title);
         window.Call<void, id>("setTitle:", titleString);
 
         //[window makeKeyAndOrderFront:window];
-        window.Call<void, id>("makeKeyAndOrderFront:", nullptr);//window);
-
-        {
-            //[window setAcceptsMouseMovedEvents:YES];
-            window.Call<void, BOOL>("setAcceptsMouseMovedEvents:", YES);
-        }
-
-        // //[window setBackgroundColor:[NSColor blackColor]];
-        // Class NSColorClass = objc_getClass("NSColor");
-        // id blackColor = ((id (*)(Class, SEL))objc_msgSend)(NSColorClass, sel_registerName("blackColor"));
-        // SEL setBackgroundColorSel = sel_registerName("setBackgroundColor:");
-        // ((void (*)(id, SEL, id))objc_msgSend)(window, setBackgroundColorSel, blackColor);
-
-        // // TODO do we really need this?
-        // //[NSApp activateIgnoringOtherApps:YES];
-        // SEL activateIgnoringOtherAppsSel = sel_registerName("activateIgnoringOtherApps:");
-        // ((void (*)(id, SEL, BOOL))objc_msgSend)(NSApp, activateIgnoringOtherAppsSel, YES);
+        window.Call<void, id>("makeKeyAndOrderFront:", window);
+        //[window setAcceptsMouseMovedEvents:YES];
+        window.Call<void, BOOL>("setAcceptsMouseMovedEvents:", YES);
+        //[window setRestorable:NO];
+        window.Call<void, BOOL>("setRestorable:", NO);
 
         RegisterHost(static_cast<id>(window), host);
+        host->Initialize();
     }
     void NotifyTask() noexcept override
     {
         SendControlRequest(MessageTask);
     }
+
+    bool CheckCapsLock() const noexcept override
+    {
+        return IsCapsLock;
+    }
+
     void CreateNewWindow(WindowHost_* host) override
     {
         const NSInteger ptr = reinterpret_cast<uintptr_t>(host);
@@ -473,12 +567,109 @@ if (const auto has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
     }
     void CloseWindow(WindowHost_* host) override
     {
+        auto& data = host->template GetOSData<CocoaData>();
+        data.Window.Call<void>("close");
     }
     void ReleaseWindow(WindowHost_* host) override
     {
         UnregisterHost(host);
     }
 };
+
+void WindowManagerCocoa::CocoaView::UpdateTrackingAreas(id self, SEL _sel)
+{
+    static ClzInit<NSRect, NSUInteger, id, id> TrackAreaInit("NSTrackingArea", false, "initWithRect:options:owner:userInfo:");
+    static auto SelBounds   = sel_registerName("bounds");
+    static auto SelRemoveTA = sel_registerName("removeTrackingArea:");
+    static auto SelAddTA    = sel_registerName("addTrackingArea:");
+    static auto SelUpdTA    = sel_registerName("updateTrackingAreas");
+    CocoaView view(self);
+    const auto oldArea = view.GetTrackArea(); 
+    if (oldArea)
+    {
+        view.Call<void, id>(SelRemoveTA, oldArea);
+        oldArea.Release();
+    }
+    const auto bounds = view.Call<NSRect>(SelBounds);
+    constexpr NSUInteger options = 0x01 /*NSTrackingMouseEnteredAndExited*/ | 
+        0x02  /*NSTrackingMouseMoved*/ | 
+        0x20  /*NSTrackingActiveInKeyWindow*/ |
+        0x100 /*NSTrackingAssumeInside*/ |
+        0x200 /*NSTrackingInVisibleRect*/ |
+        0x400 /*NSTrackingMouseEnteredAndExited*/;
+    //trackingArea = [[NSTrackingArea alloc] initWithRect:[self bounds] options:options owner:self userInfo:nil];
+    const auto trackingArea = TrackAreaInit.Create(bounds, options, view, nullptr);
+    view.SetTrackArea(trackingArea);
+    //[self addTrackingArea:trackingArea];
+    view.Call<void, id>(SelAddTA, trackingArea);
+    view.CallSuper<void>(NSViewClass, SelUpdTA);
+}
+void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
+{
+    using EventType = NSEvent::NSEventType;
+    NSAutoreleasePool pool;
+    const CocoaView view(self);
+    const NSEvent evt(evt_);
+    Expects(evt);
+    const auto host = view.GetHost();
+    Expects(host);
+    auto& manager = host->Manager;
+    switch (evt.Type)
+    {
+    case EventType::LeftMouseDown:
+    case EventType::LeftMouseUp:
+    case EventType::RightMouseDown:
+    case EventType::RightMouseUp:
+    case EventType::OtherMouseDown:
+    case EventType::OtherMouseUp:
+    {
+        const auto type = common::enum_cast(evt.Type);
+        const bool isPress = type & 1;
+        event::MouseButton  btn = event::MouseButton::None;
+        if (type <= 2)      btn = event::MouseButton::Left;
+        else if (type <= 4) btn = event::MouseButton::Right;
+        else if (const auto btnNum = evt.GetButtonNumber(); btnNum == 2)
+            btn = event::MouseButton::Middle;
+        host->OnMouseButton(btn, isPress);
+    } break;
+    case EventType::MouseMoved:
+    {
+        const auto pos = GetMousePosition(view, evt);
+        if (pos.X >= 0 && pos.Y >= 0)
+            host->OnMouseMove(pos);
+    } break;
+    case EventType::MouseEntered:
+    {
+        const auto pos = GetMousePosition(view, evt);
+        if (pos.X >= 0 && pos.Y >= 0)
+            host->OnMouseEnter(pos);
+    } break;
+    case EventType::MouseExited:
+    {
+        host->OnMouseLeave();
+    } break;
+    case EventType::KeyDown:
+    case EventType::KeyUp:
+    {
+        //uint16_t keyCode = [event keyCode];SelKeyCode
+        const auto keyCode = evt.GetKeyCode();
+        const auto key = ProcessKey(keyCode);
+        if (key.Key == event::CommonKeys::UNDEFINE)
+        {
+            //NSString * inputText = [event characters];
+            const auto str = evt.GetCharacters();
+            const auto ch = str[0];
+            manager.Logger.verbose(u"key: [{}] => [{}]({})\n", keyCode, static_cast<uint16_t>(ch), ch);
+        }
+        if (evt.Type == EventType::KeyDown)
+            host->OnKeyDown(key);
+        else
+            host->OnKeyUp(key);
+    } break;
+    default:
+        manager.Logger.verbose(u"View Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);
+    }
+}
 
 
 // see http://macbiblioblog.blogspot.com/2014/12/key-codes-for-function-and-special-keys.html

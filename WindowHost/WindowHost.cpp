@@ -62,12 +62,11 @@ void WindowHost_::OnOpen() noexcept
     Openning(*this);
 }
 
-void WindowHost_::OnClose() noexcept
+bool WindowHost_::OnClose() noexcept
 {
-    bool shouldeClose = true;
-    Closing(*this, shouldeClose);
-    if (shouldeClose)
-        Manager.CloseWindow(this);
+    bool shouldClose = true;
+    Closing(*this, shouldClose);
+    return shouldClose;
 }
 
 void WindowHost_::OnDisplay() noexcept

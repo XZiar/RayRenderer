@@ -119,5 +119,11 @@ NSString NSString::Create(std::u16string_view text)
 }
 
 
+NSNotification::NSNotification(id instance) : Instance(instance), Target(nullptr)
+{
+    static SEL SelObject = sel_registerName("object");
+    Target = Call<id>(SelObject);
+}
+
 }
 }

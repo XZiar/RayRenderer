@@ -33,7 +33,11 @@ static void OpenTestWindow()
 {
     const auto window = WindowHost_::CreateActive();
     window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
-    window->Closing     += [](const auto&, bool& should) { should = true; };
+    window->Closing     += [clickcnt = 0](const auto&, bool& should) mutable 
+    {
+        log().info(u"attempt to close [{}].\n", clickcnt);
+        should = clickcnt++ > 0;
+    };
     window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
     window->Displaying  += [idx = 0u, tm = common::SimpleTimer()](const auto&) mutable
     {

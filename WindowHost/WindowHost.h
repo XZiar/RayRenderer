@@ -85,7 +85,7 @@ protected:
     virtual LoopAction OnLoopPass() = 0;
 
     virtual void OnOpen() noexcept;
-    virtual void OnClose() noexcept;
+    [[nodiscard]] virtual bool OnClose() noexcept;
     virtual void OnDisplay() noexcept;
 
     virtual void OnResize(int32_t width, int32_t height) noexcept;

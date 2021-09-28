@@ -234,7 +234,8 @@ public:
         {
             if (data.data32[0] == CloseAtom)
             {
-                host->OnClose();
+                if (host->OnClose())
+                    CloseWindow(host);
                 return;
             }
         }
@@ -389,7 +390,7 @@ public:
         SendControlRequest(MessageTask);
     }
 
-    bool CheckCapsLock() const noexcept
+    bool CheckCapsLock() const noexcept override
     {
         return IsCapsLock;
     }
@@ -460,6 +461,7 @@ public:
     {
         const auto cookie = xcb_destroy_window(Connection, host->GetOSData<XCBData>().Handle);
         GeneralHandleError(cookie);
+        host->Stop();
     }
     void ReleaseWindow(WindowHost_* host) override
     {

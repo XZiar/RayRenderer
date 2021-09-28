@@ -143,7 +143,7 @@ public:
             Logger.error(u"Error when post thread message: {}\n", err);
     }
 
-    bool CheckCapsLock() const noexcept
+    bool CheckCapsLock() const noexcept override
     {
         const auto state = GetKeyState(VK_CAPITAL);
         return state & 0x001;
@@ -286,7 +286,8 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             switch (msg)
             {
             case WM_CLOSE:
-                host->OnClose();
+                if (host->OnClose())
+                    break;
                 return 0;
             case WM_DESTROY:
                 host->Stop();
