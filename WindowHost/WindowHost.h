@@ -66,7 +66,7 @@ private:
     event::Position LastPos, LeftBtnPos;
     event::MouseButton PressedButton = event::MouseButton::None;
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
-    bool IsMouseDragging = false, MouseHasLeft = true;
+    bool NeedCheckDrag = true, IsMouseDragging = false, MouseHasLeft = true;
 
     template<typename T>
     T& GetOSData() noexcept
@@ -94,10 +94,12 @@ protected:
     virtual void OnMouseButton(event::MouseButton changedBtn, bool isPress) noexcept;
     virtual void OnMouseButtonChange(event::MouseButton btn) noexcept;
     virtual void OnMouseMove(event::Position pos) noexcept;
-    virtual void OnMouseWheel(event::Position pos, float dz) noexcept;
+    virtual void OnMouseDrag(event::Position pos) noexcept;
+    virtual void OnMouseScroll(event::Position pos, float dh, float dv) noexcept;
     virtual void OnKeyDown(event::CombinedKey key) noexcept;
     virtual void OnKeyUp(event::CombinedKey key) noexcept;
-    virtual void OnDropFile(std::u16string_view filePath) noexcept;
+    virtual void OnDropFile(event::Position pos, common::StringPool<char16_t>&& namepool, 
+        std::vector<common::StringPiece<char16_t>>&& names) noexcept;
 public:
     ~WindowHost_() override;
 
@@ -115,10 +117,10 @@ public:
     common::Delegate<WindowHost_&, const event::MouseButtonEvent&> MouseButtonUp;
     common::Delegate<WindowHost_&, const event::MouseMoveEvent&> MouseMove;
     common::Delegate<WindowHost_&, const event::MouseDragEvent&> MouseDrag;
-    common::Delegate<WindowHost_&, const event::MouseWheelEvent&> MouseWheel;
+    common::Delegate<WindowHost_&, const event::MouseScrollEvent&> MouseScroll;
     common::Delegate<WindowHost_&, const event::KeyEvent&> KeyDown;
     common::Delegate<WindowHost_&, const event::KeyEvent&> KeyUp;
-    common::Delegate<WindowHost_&, std::u16string_view> DropFile;
+    common::Delegate<WindowHost_&, const event::DropFileEvent&> DropFile;
 
     void Show();
     WindowHost GetSelf();

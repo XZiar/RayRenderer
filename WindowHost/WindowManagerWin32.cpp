@@ -359,6 +359,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 else
                     host->OnMouseMove(pos);
             } break;
+            case WM_MOUSEHWHEEL:
             case WM_MOUSEWHEEL:
             {
                 // const auto keys = GET_KEYSTATE_WPARAM(wParam);
@@ -367,7 +368,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 POINT point{ x,y };
                 ScreenToClient(hwnd, &point);
                 event::Position pos(point.x, point.y);
-                host->OnMouseWheel(pos, dz / 120.f);
+                float dh = 0, dv = 0;
+                (msg == WM_MOUSEHWHEEL ? dh : dv) = dz / 120.f;
+                host->OnMouseScroll(pos, dh, dv);
             } break;
 
             case WM_LBUTTONDOWN:
@@ -403,10 +406,27 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_DROPFILES:
             {
                 HDROP hdrop = (HDROP)wParam;
-                std::u16string pathBuf(2048, u'\0');
-                DragQueryFileW(hdrop, 0, reinterpret_cast<wchar_t*>(pathBuf.data()), 2000);
+                event::Position pos = host->LastPos;
+                POINT point{};
+                if (DragQueryPoint(hdrop, &point) == TRUE)
+                {
+                    ScreenToClient(hwnd, &point);
+                    pos = { point.x, point.y };
+                }
+                common::StringPool<char16_t> fileNamePool;
+                std::vector<common::StringPiece<char16_t>> fileNamePieces;
+                const auto count = DragQueryFileW(hdrop, 0xFFFFFFFF, nullptr, 0);
+                fileNamePieces.reserve(count);
+                std::u16string tmp;
+                for (uint32_t i = 0; i < count; ++i)
+                {
+                    const auto len = DragQueryFileW(hdrop, i, nullptr, 0);
+                    tmp.resize(len + 1);
+                    DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), tmp.size());
+                    fileNamePieces.emplace_back(fileNamePool.AllocateString(tmp));
+                }
                 DragFinish(hdrop);
-                host->OnDropFile(pathBuf.c_str());
+                host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
             } return 0;
 
             case WM_SETCURSOR:

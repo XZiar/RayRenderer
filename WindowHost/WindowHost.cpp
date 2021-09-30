@@ -152,9 +152,9 @@ void WindowHost_::OnMouseButtonChange(event::MouseButton btn) noexcept
 
 void WindowHost_::OnMouseMove(event::Position pos) noexcept
 {
-    event::MouseMoveEvent evt(LastPos, pos);
-    MouseMove(*this, evt);
-    if (HAS_FIELD(PressedButton, event::MouseButton::Left))
+    event::MouseMoveEvent moveEvt(LastPos, pos);
+    MouseMove(*this, moveEvt);
+    if (NeedCheckDrag && HAS_FIELD(PressedButton, event::MouseButton::Left))
     {
         if (!IsMouseDragging)
         {
@@ -173,10 +173,19 @@ void WindowHost_::OnMouseMove(event::Position pos) noexcept
     LastPos = pos;
 }
 
-void WindowHost_::OnMouseWheel(event::Position pos, float dz) noexcept
+void WindowHost_::OnMouseDrag(event::Position pos) noexcept
 {
-    event::MouseWheelEvent evt(pos, dz);
-    MouseWheel(*this, evt);
+    event::MouseMoveEvent moveEvt(LastPos, pos);
+    MouseMove(*this, moveEvt);
+    event::MouseDragEvent dragEvt(LeftBtnPos, LastPos, pos);
+    MouseDrag(*this, dragEvt);
+    LastPos = pos;
+}
+
+void WindowHost_::OnMouseScroll(event::Position pos, float dh, float dv) noexcept
+{
+    event::MouseScrollEvent evt(pos, dh, dv);
+    MouseScroll(*this, evt);
 }
 
 void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
@@ -197,9 +206,11 @@ void WindowHost_::OnKeyUp(event::CombinedKey key) noexcept
     KeyUp(*this, evt);
 }
 
-void WindowHost_::OnDropFile(std::u16string_view filePath) noexcept
+void WindowHost_::OnDropFile(event::Position pos, common::StringPool<char16_t>&& namepool, 
+        std::vector<common::StringPiece<char16_t>>&& names) noexcept
 {
-    DropFile(*this, filePath);
+    event::DropFileEvent evt(pos, std::move(namepool), std::move(names));
+    DropFile(*this, evt);
 }
 
 void WindowHost_::Show()

@@ -3,6 +3,7 @@
 
 #include "SystemCommon/ObjCHelper.h"
 #include "SystemCommon/NSFoundation.h"
+#include "StringUtil/Convert.h"
 #include "common/Exceptions.hpp"
 #include "common/StaticLookup.hpp"
 #include <array>
@@ -17,6 +18,8 @@ typedef CGPoint NSPoint;
 typedef CGRect NSRect;
 extern id NSApp;
 extern id const NSDefaultRunLoopMode;
+extern id const NSPasteboardTypeFileURL;
+extern id const NSPasteboardURLReadingFileURLsOnlyKey;
 
 
 namespace xziar::gui::detail
@@ -30,6 +33,9 @@ using common::foundation::NSAutoreleasePool;
 using common::foundation::NSString;
 using common::foundation::NSDate;
 using common::foundation::NSNotification;
+using common::foundation::NSNumber;
+using common::foundation::NSArray;
+using common::foundation::NSDictionary;
 using event::CommonKeys;
 
 constexpr short MessageCreate = 1;
@@ -41,6 +47,17 @@ struct CocoaData
     Instance Window = nullptr;
     Instance WindowDlg = nullptr;
 };
+
+template<typename F, typename T>
+forceinline constexpr T NormalCast(const F& val)
+{
+    if constexpr (std::is_same_v<F, BOOL>)
+        return static_cast<T>(val == YES);
+    else if constexpr (std::is_same_v<F, id>)
+        return val;
+    else
+        return static_cast<T>(val);
+}
 
 struct NSEvent : public Instance
 {
@@ -125,14 +142,18 @@ struct NSEvent : public Instance
 #define DefGetter(ret, name, type, sel) ret Get##name() const   \
 {                                                               \
     static SEL Sel##name  = sel_registerName(#sel);             \
-    return Call<type>(Sel##name);                               \
+    return NormalCast<type, ret>(Call<type>(Sel##name));        \
 }
-    DefGetter(NSInteger,    Data1,          NSInteger,  data1)
-    DefGetter(NSInteger,    Data2,          NSInteger,  data2)
-    DefGetter(uint16_t,     KeyCode,        uint16_t,   keyCode)
-    DefGetter(NSString,     Characters,     id,         characters)
-    DefGetter(NSUInteger,   ModifierFlags,  NSUInteger, modifierFlags)
-    DefGetter(NSInteger,    ButtonNumber,   NSInteger,  buttonNumber)
+    DefGetter(NSInteger,    Data1,           NSInteger,  data1)
+    DefGetter(NSInteger,    Data2,           NSInteger,  data2)
+    DefGetter(uint16_t,     KeyCode,         uint16_t,   keyCode)
+    DefGetter(NSString,     Characters,      id,         characters)
+    DefGetter(NSUInteger,   ModifierFlags,   NSUInteger, modifierFlags)
+    DefGetter(NSInteger,    ButtonNumber,    NSInteger,  buttonNumber)
+    DefGetter(NSPoint,      PosInWindow,     NSPoint,    locationInWindow)
+    DefGetter(float,        ScrollingDeltaX, CGFloat,    scrollingDeltaX)
+    DefGetter(float,        ScrollingDeltaY, CGFloat,    scrollingDeltaY)
+    DefGetter(bool,         IsPreciseScroll, BOOL,       hasPreciseScrollingDeltas)
 #undef DefGetter
     template<typename T>
     constexpr T GetSubType() const noexcept
@@ -178,12 +199,15 @@ private:
     private:
         static void HandleEvent(id self, SEL _sel, id evt_);
         static void UpdateTrackingAreas(id self, SEL _sel);
-        static event::Position GetMousePosition(const CocoaView& view, const NSEvent& event)
+        static NSUInteger DraggingEntered(id self, SEL _sel, id sender)
+        {
+            return 4; // NSDragOperationGeneric
+        }
+        static BOOL PerformDragOperation(id self, SEL _sel, id sender);
+        static event::Position GetPositionInView(const CocoaView& view, const NSPoint& loc)
         {
             static SEL SelFrame = sel_registerName("frame");
-            static SEL SelLoc   = sel_registerName("locationInWindow");
             const auto contentRect = view.Call<NSRect>(SelFrame);
-            const auto loc = event.Call<NSPoint>(SelLoc);
             const auto x = loc.x, y = contentRect.size.height - loc.y;
             return { static_cast<int32_t>(x), static_cast<int32_t>(y) };
         }
@@ -226,6 +250,8 @@ private:
             suc = builder.AddMethod("scrollWheel:", &HandleEvent);
             suc = builder.AddMethod("keyDown:", &HandleEvent);
             suc = builder.AddMethod("keyUp:", &HandleEvent);
+            suc = builder.AddMethod("draggingEntered:", &DraggingEntered);
+            suc = builder.AddMethod("performDragOperation:", &PerformDragOperation);
             builder.Finish();
             return builder.GetClassInit(false);
         }();
@@ -236,16 +262,17 @@ private:
         void SetHost(WindowHost_* host) 
         {
             SetVar(WdHostVar, host);
-            // const auto val = reinterpret_cast<uintptr_t>(host);
-            // SetVar<NSUInteger>(WdHostVar, val);
         }
     public:
         using Instance::Instance;
         WindowHost_* GetHost() const 
         {
             return GetVar<WindowHost_*>(WdHostVar);
-            // const uintptr_t host = GetVar<NSUInteger>(WdHostVar);
-            // return reinterpret_cast<WindowHost_*>(host);
+        }
+        Instance GetWindow() const
+        {
+            static const SEL Window = sel_registerName("window");
+            return Call<id>(Window);
         }
 
         static CocoaView Create(WindowHost_* host)
@@ -531,6 +558,14 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
         const auto view = CocoaView::Create(host);
         //[view setWantsBestResolutionOpenGLSurface:YES];
         view.Call<void, BOOL>("setWantsBestResolutionOpenGLSurface:", YES);
+        static const auto AllowDragTypes = []()
+        {
+            auto array = common::foundation::NSMutArray<id>::Create();
+            array.PushBack(NSPasteboardTypeFileURL);
+            return array;
+        }();
+        //[view registerForDraggedTypes:AllowDragTypes];
+        view.Call<void, id>("registerForDraggedTypes:", AllowDragTypes);
         //[window setContentView:view];
         window.Call<void, id>("setContentView:", view);
         //[window makeFirstResponder:view];
@@ -562,6 +597,7 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
 
     void CreateNewWindow(WindowHost_* host) override
     {
+        host->NeedCheckDrag = false;
         const NSInteger ptr = reinterpret_cast<uintptr_t>(host);
         SendControlRequest(MessageCreate, ptr);
     }
@@ -604,9 +640,52 @@ void WindowManagerCocoa::CocoaView::UpdateTrackingAreas(id self, SEL _sel)
     view.Call<void, id>(SelAddTA, trackingArea);
     view.CallSuper<void>(NSViewClass, SelUpdTA);
 }
+
+BOOL WindowManagerCocoa::CocoaView::PerformDragOperation(id self, SEL _sel, id sender)
+{
+    //static SEL SelTypes      = sel_registerName("types");
+    static SEL SelDragLoc    = sel_registerName("draggingLocation");
+    static SEL SelPasteboard = sel_registerName("draggingPasteboard");
+    static SEL SelReadObjs   = sel_registerName("readObjectsForClasses:options:");
+    static SEL SelFileName   = sel_registerName("fileSystemRepresentation");
+    static Clz NSURLClass("NSURL");
+    static auto AllowClasses = []()
+    {
+        auto array = common::foundation::NSMutArray<Class>::Create();
+        array.PushBack(NSURLClass);
+        return array;
+    }();
+    static auto AllowTypeOption = []()
+    {
+        auto dict = common::foundation::NSMutDictionary<NSString, id>::Create();
+        dict.Insert(NSPasteboardURLReadingFileURLsOnlyKey, NSNumber::FromBool(YES));
+        return dict;
+    }();
+    const CocoaView view(self);
+    const auto host = view.GetHost();
+    const Instance dragInfo(sender);
+    const auto loc = dragInfo.Call<NSPoint>(SelDragLoc);
+    const auto pos = GetPositionInView(view, loc);
+    const Instance board = dragInfo.Call<id>(SelPasteboard);
+    const NSArray<NSString> urls = board.Call<id, id, id>(SelReadObjs, AllowClasses, AllowTypeOption);
+
+    const auto count = urls.Count();
+    common::StringPool<char16_t> fileNamePool;
+    std::vector<common::StringPiece<char16_t>> fileNamePieces;
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto fname = urls[i].Call<const char*>(SelFileName);
+        fileNamePieces.emplace_back(fileNamePool.AllocateString(common::str::to_u16string(fname, common::str::Charset::UTF8)));
+    }
+    host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
+
+    return YES;
+}
+
 void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
 {
     using EventType = NSEvent::NSEventType;
+    static const SEL AcceptMove = sel_registerName("setAcceptsMouseMovedEvents:");
     NSAutoreleasePool pool;
     const CocoaView view(self);
     const NSEvent evt(evt_);
@@ -634,18 +713,36 @@ void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
     } break;
     case EventType::MouseMoved:
     {
-        const auto pos = GetMousePosition(view, evt);
+        const auto pos = GetPositionInView(view, evt.GetPosInWindow());
         if (pos.X >= 0 && pos.Y >= 0)
             host->OnMouseMove(pos);
+        else
+            printf("mouse move pos negative: [%d,%d]\n", pos.X, pos.Y);
     } break;
+    case EventType::LeftMouseDragged:
+    {
+        const auto pos = GetPositionInView(view, evt.GetPosInWindow());
+        if (pos.X >= 0 && pos.Y >= 0)
+            host->OnMouseDrag(pos);
+        else
+            printf("mouse drag pos negative: [%d,%d]\n", pos.X, pos.Y);
+    } break;
+    case EventType::RightMouseDragged:
+    case EventType::OtherMouseDragged:
+        // ignore for now
+        break;
     case EventType::MouseEntered:
     {
-        const auto pos = GetMousePosition(view, evt);
+        view.GetWindow().Call<void, BOOL>(AcceptMove, YES);
+        const auto pos = GetPositionInView(view, evt.GetPosInWindow());
         if (pos.X >= 0 && pos.Y >= 0)
             host->OnMouseEnter(pos);
+        else
+            printf("mouse enter pos negative: [%d,%d]\n", pos.X, pos.Y);
     } break;
     case EventType::MouseExited:
     {
+        view.GetWindow().Call<void, BOOL>(AcceptMove, NO);
         host->OnMouseLeave();
     } break;
     case EventType::KeyDown:
@@ -665,6 +762,20 @@ void WindowManagerCocoa::CocoaView::HandleEvent(id self, SEL _sel, id evt_)
             host->OnKeyDown(key);
         else
             host->OnKeyUp(key);
+    } break;
+    case EventType::ScrollWheel:
+    {
+        const auto pos = GetPositionInView(view, evt.GetPosInWindow());
+        if (pos.X >= 0 && pos.Y >= 0)
+        {
+            float dh = evt.GetScrollingDeltaX();
+            float dv = evt.GetScrollingDeltaY();
+            if (evt.GetIsPreciseScroll())
+                dh *= 0.1f, dv *= 0.1f;
+            host->OnMouseScroll(pos, dh, dv);
+        }
+        else
+            printf("mouse scroll pos negative: [%d,%d]\n", pos.X, pos.Y);
     } break;
     default:
         manager.Logger.verbose(u"View Recieve message[{}] host[{}]\n", (uint32_t)evt.Type, (void*)host);

@@ -56,6 +56,14 @@ static void OpenTestWindow()
     {
         log().info(u"resize to [{:4} x {:4}].\n", width, height);
     };
+    window->DropFile    += [](const auto&, const auto& evt)
+    {
+        log().info(u"drop {} files at [{:4},{:4}]:\n", evt.Size(), evt.Pos.X, evt.Pos.Y);
+        for (size_t i = 0; i < evt.Size(); ++i)
+        {
+            log().verbose(u"--{}\n", evt[i]);
+        }
+    };
     window->MouseEnter  += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
@@ -81,9 +89,9 @@ static void OpenTestWindow()
         log().info(u"Mouse drag from [{:4},{:4}] to [{:4},{:4}], just moved [{:4},{:4}]\n", 
             evt.BeginPos.X, evt.BeginPos.Y, evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
     };
-    window->MouseWheel  += [](const auto&, const auto& evt)
+    window->MouseScroll += [](const auto&, const auto& evt)
     {
-        log().info(u"Mouse wheel [{:6.3f}] at [{:4},{:4}].\n", evt.Delta, evt.Pos.X, evt.Pos.Y);
+        log().info(u"Mouse wheel [{:6.3f}, {:6.3f}] at [{:4},{:4}].\n", evt.Horizontal, evt.Vertical, evt.Pos.X, evt.Pos.Y);
     }; 
     const auto keyHandler = [](const auto&, const auto& evt)
     {
