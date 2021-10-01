@@ -586,7 +586,7 @@ public:
                                 {
                                     line.remove_prefix(7);
                                     fileNamePieces.emplace_back(fileNamePool.AllocateString(
-                                        common::str::to_u16string(line, common::str::Charset::UTF8))); 
+                                        common::str::to_u16string(line, common::str::Charset::URI))); 
                                 }
                             }
                             const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);

@@ -18,6 +18,8 @@ template<typename Char, typename Conv>
         return Transform(GetDecoder<UTF7>   (str), GetEncoder<Conv, Char>());
     case Charset::UTF8:
         return Transform(GetDecoder<UTF8>   (str), GetEncoder<Conv, Char>());
+    case Charset::URI:
+        return Transform(GetDecoder<URI>    (str), GetEncoder<Conv, Char>());
     case Charset::UTF16LE:
         return Transform(GetDecoder<UTF16LE>(str), GetEncoder<Conv, Char>());
     case Charset::UTF16BE:
@@ -42,6 +44,8 @@ std::string to_string(const common::span<const std::byte> data, const Charset ou
         return ConvertString<char, UTF7   >(data, inchset);
     case Charset::UTF8:
         return ConvertString<char, UTF8   >(data, inchset);
+    case Charset::URI:
+        return ConvertString<char, URI    >(data, inchset);
     case Charset::UTF16LE:
         return ConvertString<char, UTF16LE>(data, inchset);
     case Charset::UTF16BE:

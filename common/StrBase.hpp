@@ -228,7 +228,8 @@ enum class Charset
 { 
     ASCII, 
     UTF7 = ASCII, 
-    GB18030, 
+    URI,
+    GB18030,
     UTF8, 
     UTF16LE, 
     UTF16BE, 
@@ -291,6 +292,8 @@ inline constexpr Charset toCharset(const std::string_view chset) noexcept
 {
     switch (DJBHash::HashC(chset))
     {
+    case "URI"_hash:
+        return Charset::URI;
     case "GB18030"_hash:
         return Charset::GB18030;
     case "UTF-8"_hash:
@@ -317,6 +320,8 @@ inline constexpr std::string_view getCharsetName(const Charset chset) noexcept
     {
     case Charset::ASCII:
         return "ASCII"sv;
+    case Charset::URI:
+        return "URI"sv;
     case Charset::GB18030:
         return "GB18030"sv;
     case Charset::UTF8:
