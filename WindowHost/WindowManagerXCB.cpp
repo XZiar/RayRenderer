@@ -1,9 +1,15 @@
 #include "WindowManager.h"
 #include "WindowHost.h"
+#include "StringUtil/Convert.h"
 
 #include "common/Exceptions.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
+#include "common/StringEx.hpp"
+#include "common/StringPool.hpp"
+#include "common/StringLinq.hpp"
+
+#include <boost/container/small_vector.hpp>
 
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
@@ -26,23 +32,30 @@ namespace xziar::gui::detail
 using namespace std::string_view_literals;
 using event::CommonKeys;
 
+struct DragInfos
+{
+    boost::container::small_vector<uint32_t, 8> Types;
+    uint32_t Version = 0;
+    xcb_window_t SourceWindow = 0;
+    xcb_atom_t TargetType = 0;
+    int16_t PosX = 0, PosY = 0;
+    void Clear() noexcept
+    {
+        Types.clear();
+        Version = 0;
+        SourceWindow = 0;
+        TargetType = 0;
+        PosX = PosY = 0;
+    }
+};
+
 struct XCBData
 {
     xcb_window_t Handle = 0;
     Display* TheDisplay = nullptr;
+    DragInfos* DragInfo = nullptr;
 };
 
-
-static event::MouseButton TranslateButtonState(xcb_button_t xcbbtn)
-{
-    switch (xcbbtn)
-    {
-    case XCB_BUTTON_INDEX_1: return event::MouseButton::Left;
-    case XCB_BUTTON_INDEX_2: return event::MouseButton::Middle;
-    case XCB_BUTTON_INDEX_3: return event::MouseButton::Right;
-    default:                 return event::MouseButton::None;
-    }
-}
 
 class WindowManagerXCB : public WindowManager
 {
@@ -55,8 +68,23 @@ private:
     xcb_screen_t* Screen = nullptr;
     xcb_window_t ControlWindow = 0;
     xcb_atom_t MsgAtom = 0;
-    xcb_atom_t ProtocolAtom = 0;
+    xcb_atom_t WMProtocolAtom = 0;
     xcb_atom_t CloseAtom = 0;
+    xcb_atom_t XdndProxyAtom = 0;
+    xcb_atom_t XdndAwareAtom = 0;
+    xcb_atom_t XdndTypeListAtom = 0;
+    xcb_atom_t XdndEnterAtom = 0;
+    xcb_atom_t XdndLeaveAtom = 0;
+    xcb_atom_t XdndPositionAtom = 0;
+    xcb_atom_t XdndDropAtom = 0;
+    xcb_atom_t XdndStatusAtom = 0;
+    xcb_atom_t XdndFinishedAtom = 0;
+    xcb_atom_t XdndSelectionAtom = 0;
+    xcb_atom_t XdndActionCopyAtom = 0;
+    xcb_atom_t XdndActionMoveAtom = 0;
+    xcb_atom_t XdndActionLinkAtom = 0;
+    xcb_atom_t UrlListAtom = 0;
+    xcb_atom_t PrimaryAtom = 0;
     xkb_mod_index_t CapsLockIndex = 0;
     uint8_t XKBEventID = 0;
     uint8_t XKBErrorID = 0;
@@ -89,7 +117,7 @@ private:
         }
         return nullptr;
     }
-    xcb_atom_t QueryAtom(const std::string_view atomName, bool shouldCreate) const noexcept
+    xcb_atom_t QueryAtom(const std::string_view atomName, bool shouldCreate) noexcept
     {
         xcb_intern_atom_cookie_t cookie = xcb_intern_atom_unchecked(Connection,
             shouldCreate ? 0 : 1, gsl::narrow_cast<uint16_t>(atomName.size()), atomName.data());
@@ -98,29 +126,92 @@ private:
         free(reply);
         return atom;
     }
+    std::string QueryAtomName(xcb_atom_t atom) noexcept
+    {
+        xcb_get_atom_name_cookie_t cookie = xcb_get_atom_name(Connection, atom);
+        xcb_generic_error_t *err = nullptr;
+        xcb_get_atom_name_reply_t* reply = xcb_get_atom_name_reply(Connection, cookie, &err);
+        GeneralHandleError(err);
+        if (reply)
+        {
+            std::string ret(xcb_get_atom_name_name(reply), xcb_get_atom_name_name_length(reply));
+            free(reply);
+            return ret;
+        }
+        return {};
+    }
+    std::optional<boost::container::small_vector<std::byte, 48>> QueryProperty(xcb_window_t window, xcb_atom_t prop, xcb_atom_t type)
+    {
+        uint32_t offset = 0, want = 1024;
+        boost::container::small_vector<std::byte, 48> data;
+        do
+        {
+            xcb_get_property_cookie_t cookie = xcb_get_property(Connection, 0, window, prop, type, offset / 4, (want + 3) / 4);
+            xcb_generic_error_t *err = nullptr;
+            xcb_get_property_reply_t* reply = xcb_get_property_reply(Connection, cookie, &err);
+            GeneralHandleError(err);
+            if (!reply)
+                return {};
+            if (reply->type == XCB_NONE)
+            {
+                free(reply);
+                return {};
+            }
+            const auto ptr = xcb_get_property_value(reply);
+            const auto readLen = xcb_get_property_value_length(reply);
+            if (readLen)
+            {
+                data.resize(offset + readLen);
+                memcpy_s(&data[offset], readLen, ptr, readLen);
+                offset += readLen;
+            }
+            want = reply->bytes_after;
+            free(reply);
+        } while (want);
+        data.resize(offset);
+        return data;
+    }
     void UpdateXKBState()
     {
         IsCapsLock = xkb_state_mod_index_is_active(XKBState, CapsLockIndex, XKB_STATE_MODS_EFFECTIVE) > 0;
     }
+    template<typename T, size_t M, size_t N, size_t... I>
+    forceinline static void CopyData(T(&dst)[M], const T(&src)[N], std::index_sequence<I...>) noexcept
+    {
+        (..., void(dst[I] = src[I]));
+    }
+    template<typename T, size_t N>
+    forceinline void SendClientMessage(xcb_window_t window, xcb_atom_t type, const T(&data)[N]) noexcept
+    {
+        static_assert(std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t>, "need u32/u16/u8 data");
+        xcb_client_message_event_t evt = {};
+        evt.response_type = XCB_CLIENT_MESSAGE;
+        evt.type = type;
+        evt.window = window;
+        if constexpr (std::is_same_v<T, uint32_t>)
+        {
+            static_assert(N <= 5, "at most 5 u32");
+            evt.format = 32;
+            CopyData(evt.data.data32, data, std::make_index_sequence<N>{});
+        }
+        else if constexpr (std::is_same_v<T, uint16_t>)
+        {
+            static_assert(N <= 10, "at most 10 u16");
+            evt.format = 16;
+            CopyData(evt.data.data16, data, std::make_index_sequence<N>{});
+        }
+        else
+        {
+            static_assert(N <= 10, "at most 20 u8");
+            evt.format = 8;
+            CopyData(evt.data.data8, data, std::make_index_sequence<N>{});
+        }
+        xcb_send_event(Connection, False, window, XCB_EVENT_MASK_NO_EVENT, reinterpret_cast<const char*>(&evt));
+    }
     void SendControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) noexcept
     {
-        xcb_client_message_event_t event;
-        event.response_type = XCB_CLIENT_MESSAGE;
-        event.format = 32;
-        event.type = MsgAtom;
-        event.window = ControlWindow;
-        event.data.data32[0] = request;
-        event.data.data32[1] = data0;
-        event.data.data32[2] = data1;
-        event.data.data32[3] = data2;
-        event.data.data32[4] = data3;
-        xcb_send_event(
-            Connection,
-            False,
-            ControlWindow,
-            XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-            reinterpret_cast<const char*>(&event)
-        );
+        uint32_t data[5] = { request, data0, data1, data2, data3 };
+        SendClientMessage(ControlWindow, MsgAtom, data);
         xcb_flush(Connection);
     }
 public:
@@ -195,9 +286,24 @@ public:
         GeneralHandleError(cookie0);
 
         // prepare atoms
-        MsgAtom = QueryAtom("XZIAR_GUI_MSG", true);
-        ProtocolAtom = QueryAtom("WM_PROTOCOLS", false);
-        CloseAtom = QueryAtom("WM_DELETE_WINDOW", false);
+        MsgAtom             = QueryAtom("XZIAR_GUI_MSG",    true);
+        WMProtocolAtom      = QueryAtom("WM_PROTOCOLS",     false);
+        CloseAtom           = QueryAtom("WM_DELETE_WINDOW", false);
+        XdndProxyAtom       = QueryAtom("XdndProxy",        false);
+        XdndAwareAtom       = QueryAtom("XdndAware",        false);
+        XdndTypeListAtom    = QueryAtom("XdndTypeList",     false);
+        XdndEnterAtom       = QueryAtom("XdndEnter",        false);
+        XdndLeaveAtom       = QueryAtom("XdndLeave",        false);
+        XdndPositionAtom    = QueryAtom("XdndPosition",     false);
+        XdndDropAtom        = QueryAtom("XdndDrop",         false);
+        XdndStatusAtom      = QueryAtom("XdndStatus",       false);
+        XdndFinishedAtom    = QueryAtom("XdndFinished",     false);
+        XdndSelectionAtom   = QueryAtom("XdndSelection",    false);
+        XdndActionCopyAtom  = QueryAtom("XdndActionCopy",   false);
+        XdndActionMoveAtom  = QueryAtom("XdndActionMove",   false);
+        XdndActionLinkAtom  = QueryAtom("XdndActionLink",   false);
+        UrlListAtom         = QueryAtom("text/uri-list",    false);
+        PrimaryAtom         = QueryAtom("PRIMARY",          false);
 
         xcb_flush(Connection);
     }
@@ -228,9 +334,10 @@ public:
         } break;
         }
     }
-    void HandleClientMessage(WindowHost_* host, const xcb_atom_t atom, const xcb_client_message_data_t& data)
+    void HandleClientMessage(WindowHost_* host, xcb_window_t window, const xcb_atom_t atom, const xcb_client_message_data_t& data)
     {
-        if (atom == ProtocolAtom)
+        auto& hostData = host->GetOSData<XCBData>();
+        if (atom == WMProtocolAtom)
         {
             if (data.data32[0] == CloseAtom)
             {
@@ -238,6 +345,75 @@ public:
                     CloseWindow(host);
                 return;
             }
+        }
+        else if (atom == XdndEnterAtom)
+        {
+            auto& dragInfo = *hostData.DragInfo;
+            dragInfo.Clear();
+            dragInfo.SourceWindow = data.data32[0];
+            dragInfo.Version      = data.data32[1] >> 24;
+            if (data.data32[1] & 1) // > 3 types
+            {
+                const auto types = QueryProperty(dragInfo.SourceWindow, XdndTypeListAtom, XCB_ATOM_ATOM);
+                if (types.has_value())
+                {
+                    const auto count = types->size() / 4;
+                    const auto ptr = reinterpret_cast<const uint32_t*>(types->data());
+                    dragInfo.Types.assign(ptr, ptr + count);
+                }
+            }
+            else
+                dragInfo.Types.assign(&data.data32[2], &data.data32[5]);
+            Logger.info(u"DragEnter from [{}] with {} types:\n", uint32_t(dragInfo.SourceWindow), dragInfo.Types.size());
+            for (const auto& type : dragInfo.Types)
+            {
+                if (type == UrlListAtom)
+                    dragInfo.TargetType = type;
+                const auto name = QueryAtomName(type);
+                Logger.verbose(u"--[{:6}]: [{}]\n", type, name);
+            }
+        }
+        else if (atom == XdndLeaveAtom)
+        {
+            auto& dragInfo = *hostData.DragInfo;
+            dragInfo.Clear();
+            const xcb_window_t source = data.data32[0];
+            Logger.info(u"DragLeave from [{}]\n", uint32_t(source));
+        }
+        else if (atom == XdndPositionAtom)
+        {
+            auto& dragInfo = *hostData.DragInfo;
+            if (dragInfo.SourceWindow == data.data32[0])
+            {
+                dragInfo.PosX = static_cast<int16_t>(data.data32[2] >> 16);
+                dragInfo.PosY = static_cast<int16_t>(data.data32[2] & 0xffff);
+                uint32_t sendData[5] = { window, 0, 0, 0, 0 };
+                if (dragInfo.TargetType)
+                {
+                    sendData[1] = 1;
+                    sendData[4] = XdndActionLinkAtom;
+                }
+                SendClientMessage(dragInfo.SourceWindow, XdndStatusAtom, sendData);
+            }
+            else if (dragInfo.SourceWindow)
+                dragInfo.Clear();
+        }
+        else if (atom == XdndDropAtom)
+        {
+            auto& dragInfo = *hostData.DragInfo;
+            if (dragInfo.SourceWindow == data.data32[0])
+            {
+                if (dragInfo.TargetType)
+                {
+                    Logger.info(u"DragDrop from [{}]\n", uint32_t(dragInfo.SourceWindow));
+                    xcb_convert_selection(Connection, window, XdndSelectionAtom, dragInfo.TargetType, PrimaryAtom, dragInfo.Version >= 1 ? data.data32[2] : XCB_CURRENT_TIME);
+                    xcb_flush(Connection);
+                    return;
+                }
+            }
+            uint32_t sendData[3] = { window, 0, 0 }; // send reject
+            SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
+            dragInfo.Clear();
         }
     }
     void HandleXKBEvent(const xcb_generic_event_t* evt)
@@ -270,6 +446,7 @@ public:
             auto& data = host->template GetOSData<XCBData>();
             data.Handle = window;
             data.TheDisplay = TheDisplay;
+            data.DragInfo = new DragInfos();
             host->Initialize();
         }
     }
@@ -322,11 +499,27 @@ public:
                 const auto& msg = *reinterpret_cast<xcb_button_press_event_t*>(evt);
                 if (const auto host = GetWindow(msg.event); host)
                 {
-                    const bool isPress = evtType == XCB_BUTTON_PRESS;
-                    const auto btn = TranslateButtonState(msg.detail);
-                    host->OnMouseButton(btn, isPress);
+                    if (msg.detail >= 4 && msg.detail <= 7) // scroll
+                    {
+                        float dh = 0, dv = 0;
+                        (msg.detail & 0b10 ? dh : dv) = msg.detail & 0b01 ? -0.5f : 0.5f;
+                        event::Position pos(msg.event_x, msg.event_y);
+                        host->OnMouseScroll(pos, dh, dv);
+                    }
+                    else
+                    {
+                        event::MouseButton btn = event::MouseButton::None;
+                        switch (msg.detail)
+                        {
+                        case XCB_BUTTON_INDEX_1: btn = event::MouseButton::Left;   break;
+                        case XCB_BUTTON_INDEX_2: btn = event::MouseButton::Middle; break;
+                        case XCB_BUTTON_INDEX_3: btn = event::MouseButton::Right;  break;
+                        default: break;
+                        }
+                        const bool isPress = evtType == XCB_BUTTON_PRESS;
+                        host->OnMouseButton(btn, isPress);
+                    }
                 }
-
             } break;
             case XCB_KEY_PRESS:
             case XCB_KEY_RELEASE:
@@ -360,6 +553,51 @@ public:
                     }
                 }
             } break;
+            case XCB_SELECTION_NOTIFY:
+            {
+                const auto& msg = *reinterpret_cast<xcb_selection_notify_event_t*>(evt);
+                Logger.info(u"Recieve selection[{}]({}) target[{}]({}) property[{}]({})\n",
+                    QueryAtomName(msg.selection), uint32_t(msg.selection),
+                    QueryAtomName(msg.target),    uint32_t(msg.target),
+                    QueryAtomName(msg.property),  uint32_t(msg.property));
+                if (const auto host = GetWindow(msg.requestor); host)
+                {
+                    auto& hostData = host->template GetOSData<XCBData>();
+                    auto& dragInfo = *hostData.DragInfo;
+                    if (msg.selection == XdndSelectionAtom && msg.target == dragInfo.TargetType)
+                    {
+                        const auto ret = QueryProperty(msg.requestor, PrimaryAtom, XCB_ATOM_ANY);
+
+                        Expects(dragInfo.SourceWindow);
+                        uint32_t sendData[3] = { hostData.Handle, 1, XdndActionCopyAtom };
+                        SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
+
+                        if (ret)
+                        {
+                            const auto cookie = xcb_translate_coordinates(Connection, Screen->root, hostData.Handle, dragInfo.PosX, dragInfo.PosY);
+                            
+                            common::StringPool<char16_t> fileNamePool;
+                            std::vector<common::StringPiece<char16_t>> fileNamePieces;
+                            const auto ptr = reinterpret_cast<const char*>(ret->data());
+                            for (auto line : common::str::SplitStream(std::string_view(ptr, ret->size()), 
+                                [](auto ch){ return ch == '\r' || ch == '\n'; }, false))
+                            {
+                                if (common::str::IsBeginWith(line, "file://")) // only accept local file
+                                {
+                                    line.remove_prefix(7);
+                                    fileNamePieces.emplace_back(fileNamePool.AllocateString(
+                                        common::str::to_u16string(line, common::str::Charset::UTF8))); 
+                                }
+                            }
+                            const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);
+                            event::Position pos(reply->dst_x, reply->dst_y);
+                            free(reply);
+                            host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
+                        }
+                        dragInfo.Clear();
+                    }
+                }
+            } break;
             case XCB_CLIENT_MESSAGE:
             {
                 const auto& msg = *reinterpret_cast<xcb_client_message_event_t*>(evt);
@@ -369,7 +607,7 @@ public:
                 }
                 else if (const auto host = GetWindow(msg.window); host)
                 {
-                    HandleClientMessage(host, msg.type, msg.data);
+                    HandleClientMessage(host, msg.window, msg.type, msg.data);
                 }
             } break;
             default:
@@ -427,12 +665,24 @@ public:
 
         RegisterHost(window, host);
 
+
+        // //Property does not exist, so set it to redirect to me
+        // XChangeProperty(disp, root, XdndProxy, XA_WINDOW, 32, PropModeReplace, (unsigned char*)&w, 1);
+        // //Set the proxy on me to point to me (as per the spec)
+        // XChangeProperty(disp, w, XdndProxy, XA_WINDOW, 32, PropModeReplace, (unsigned char*)&w, 1);
+
+        const auto dummy = QueryProperty(Screen->root, XdndProxyAtom, XCB_ATOM_ANY);
+        // set Xdnd
+        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndProxyAtom, XCB_ATOM_WINDOW, 32, 1, &window);
+        constexpr xcb_atom_t xdndVersion = 5;
+        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndAwareAtom, XCB_ATOM_ATOM, 32, 1, &xdndVersion);
+
         // set close
         xcb_change_property(
             Connection,
             XCB_PROP_MODE_APPEND,
             window,
-            ProtocolAtom, XCB_ATOM_ATOM, 32,
+            WMProtocolAtom, XCB_ATOM_ATOM, 32,
             1,
             &CloseAtom
         );
@@ -465,6 +715,8 @@ public:
     }
     void ReleaseWindow(WindowHost_* host) override
     {
+        auto& data = host->GetOSData<XCBData>();
+        delete data.DragInfo;
         UnregisterHost(host);
     }
 };

@@ -160,6 +160,7 @@ public:
             host->Width, host->Height, // width, height
             NULL, NULL, // parent window, menu
             reinterpret_cast<HINSTANCE>(InstanceHandle), host); // instance, param
+        DragAcceptFiles(hwnd, TRUE);
         RegisterHost(hwnd, host);
         ShowWindow(hwnd, SW_SHOW);
     }
@@ -363,13 +364,16 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_MOUSEWHEEL:
             {
                 // const auto keys = GET_KEYSTATE_WPARAM(wParam);
-                const auto dz = GET_WHEEL_DELTA_WPARAM(wParam);
+                const auto dz = GET_WHEEL_DELTA_WPARAM(wParam) / 120.f;
                 const auto x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
                 POINT point{ x,y };
                 ScreenToClient(hwnd, &point);
                 event::Position pos(point.x, point.y);
                 float dh = 0, dv = 0;
-                (msg == WM_MOUSEHWHEEL ? dh : dv) = dz / 120.f;
+                if (msg == WM_MOUSEHWHEEL) 
+                    dh = -dz;
+                else 
+                    dv = dz;
                 host->OnMouseScroll(pos, dh, dv);
             } break;
 
@@ -422,7 +426,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 {
                     const auto len = DragQueryFileW(hdrop, i, nullptr, 0);
                     tmp.resize(len + 1);
-                    DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), tmp.size());
+                    DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), static_cast<uint32_t>(tmp.size()));
                     fileNamePieces.emplace_back(fileNamePool.AllocateString(tmp));
                 }
                 DragFinish(hdrop);
