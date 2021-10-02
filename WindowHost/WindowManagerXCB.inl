@@ -32,6 +32,7 @@ namespace xziar::gui::detail
 using namespace std::string_view_literals;
 using event::CommonKeys;
 
+
 struct DragInfos
 {
     boost::container::small_vector<uint32_t, 8> Types;
@@ -91,6 +92,21 @@ private:
     bool IsCapsLock = false;
 
     bool SupportNewThread() const noexcept override { return true; }
+    common::span<const std::string_view> GetFeature() const noexcept override
+    {
+        constexpr std::string_view Features[] =
+        {
+            "OpenGL"sv, "OpenGLES"sv, "Vulkan"sv
+        };
+        return Features;
+    }
+    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
+    {
+        const auto& data = host->GetOSData<XCBData>();
+        if (name == "window") return &data.Handle;
+        if (name == "display") return &data.TheDisplay;
+        return nullptr;
+    }
 
     bool GeneralHandleError(xcb_generic_error_t* err) noexcept
     {
@@ -116,15 +132,6 @@ private:
             }
         }
         return nullptr;
-    }
-    xcb_atom_t QueryAtom(const std::string_view atomName, bool shouldCreate) noexcept
-    {
-        xcb_intern_atom_cookie_t cookie = xcb_intern_atom_unchecked(Connection,
-            shouldCreate ? 0 : 1, gsl::narrow_cast<uint16_t>(atomName.size()), atomName.data());
-        xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(Connection, cookie, nullptr);
-        xcb_atom_t atom = reply->atom;
-        free(reply);
-        return atom;
     }
     std::string QueryAtomName(xcb_atom_t atom) noexcept
     {
@@ -286,25 +293,45 @@ public:
         GeneralHandleError(cookie0);
 
         // prepare atoms
-        MsgAtom             = QueryAtom("XZIAR_GUI_MSG",    true);
-        WMProtocolAtom      = QueryAtom("WM_PROTOCOLS",     false);
-        CloseAtom           = QueryAtom("WM_DELETE_WINDOW", false);
-        XdndProxyAtom       = QueryAtom("XdndProxy",        false);
-        XdndAwareAtom       = QueryAtom("XdndAware",        false);
-        XdndTypeListAtom    = QueryAtom("XdndTypeList",     false);
-        XdndEnterAtom       = QueryAtom("XdndEnter",        false);
-        XdndLeaveAtom       = QueryAtom("XdndLeave",        false);
-        XdndPositionAtom    = QueryAtom("XdndPosition",     false);
-        XdndDropAtom        = QueryAtom("XdndDrop",         false);
-        XdndStatusAtom      = QueryAtom("XdndStatus",       false);
-        XdndFinishedAtom    = QueryAtom("XdndFinished",     false);
-        XdndSelectionAtom   = QueryAtom("XdndSelection",    false);
-        XdndActionCopyAtom  = QueryAtom("XdndActionCopy",   false);
-        XdndActionMoveAtom  = QueryAtom("XdndActionMove",   false);
-        XdndActionLinkAtom  = QueryAtom("XdndActionLink",   false);
-        UrlListAtom         = QueryAtom("text/uri-list",    false);
-        PrimaryAtom         = QueryAtom("PRIMARY",          false);
-
+        {
+            const std::pair<xcb_atom_t*, std::string_view> atomList[] = 
+            {
+                { &MsgAtom,             "1XZIAR_GUI_MSG"sv    },
+                { &WMProtocolAtom,      "0WM_PROTOCOLS"sv     },
+                { &CloseAtom,           "0WM_DELETE_WINDOW"sv },
+                { &XdndProxyAtom,       "0XdndProxy"sv        },
+                { &XdndAwareAtom,       "0XdndAware"sv        },
+                { &XdndTypeListAtom,    "0XdndTypeList"sv     },
+                { &XdndEnterAtom,       "0XdndEnter"sv        },
+                { &XdndLeaveAtom,       "0XdndLeave"sv        },
+                { &XdndPositionAtom,    "0XdndPosition"sv     },
+                { &XdndDropAtom,        "0XdndDrop"sv         },
+                { &XdndStatusAtom,      "0XdndStatus"sv       },
+                { &XdndFinishedAtom,    "0XdndFinished"sv     },
+                { &XdndSelectionAtom,   "0XdndSelection"sv    },
+                { &XdndActionCopyAtom,  "0XdndActionCopy"sv   },
+                { &XdndActionMoveAtom,  "0XdndActionMove"sv   },
+                { &XdndActionLinkAtom,  "0XdndActionLink"sv   },
+                { &UrlListAtom,         "0text/uri-list"sv    },
+                { &PrimaryAtom,         "0PRIMARY"sv          },
+            };
+            std::vector<xcb_intern_atom_cookie_t> atomCookies;
+            atomCookies.reserve(sizeof(atomList) / sizeof(atomList[0]));
+            for (const auto& item : atomList)
+            {
+                const uint8_t onlyIfExists = item.second[0] == '1' ? 0 : 1;
+                const auto nameSize = gsl::narrow_cast<uint16_t>(item.second.size() - 1);
+                const auto namePtr  = item.second.data() + 1;
+                atomCookies.emplace_back(xcb_intern_atom_unchecked(Connection, onlyIfExists, nameSize, namePtr));
+            }
+            size_t atomIdx = 0;
+            for (const auto& cookie : atomCookies)
+            {
+                xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(Connection, cookie, nullptr);
+                *atomList[atomIdx++].first = reply->atom;
+                free(reply);
+            }
+        }
         xcb_flush(Connection);
     }
     void DeInitialize() noexcept override

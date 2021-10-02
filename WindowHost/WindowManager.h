@@ -38,6 +38,7 @@ private:
     void StopNewThread();
     void StartInplace(common::BasicPromise<void>* pms = nullptr);
     virtual bool SupportNewThread() const noexcept = 0;
+    virtual common::span<const std::string_view> GetFeature() const noexcept;
 protected:
     std::vector<std::pair<uintptr_t, WindowHost_*>> WindowList;
 
@@ -66,6 +67,7 @@ public:
     virtual void PrepareForWindow(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;
+    virtual const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept;
     void AddInvoke(std::function<void(void)>&& task);
 
     static WindowManager& Get();

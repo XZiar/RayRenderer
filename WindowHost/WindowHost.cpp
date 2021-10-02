@@ -22,6 +22,11 @@ WindowHost_::~WindowHost_()
     Stop();
 }
 
+const void* WindowHost_::GetWindowData_(std::string_view name) const noexcept
+{
+    return Manager.GetWindowData(this, name);
+}
+
 bool WindowHost_::OnStart(std::any cookie) noexcept
 {
     Manager.PrepareForWindow(this);

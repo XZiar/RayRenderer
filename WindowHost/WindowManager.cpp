@@ -80,6 +80,16 @@ void WindowManager::StartInplace(common::BasicPromise<void>* pms)
     Terminate();
 }
 
+common::span<const std::string_view> WindowManager::GetFeature() const noexcept
+{
+    return {};
+}
+const void* WindowManager::GetWindowData(const WindowHost_*, std::string_view) const noexcept
+{
+    return nullptr;
+}
+
+
 bool WindowManager::UnregisterHost(WindowHost_* host)
 {
     for (auto it = WindowList.begin(); it != WindowList.end(); ++it)
@@ -151,7 +161,12 @@ bool WindowRunner::SupportNewThread() const noexcept
     Expects(Manager);
     return Manager->SupportNewThread();
 }
-
+bool WindowRunner::CheckFeature(std::string_view feat) const noexcept
+{
+    Expects(Manager);
+    const auto feats = Manager->GetFeature();
+    return std::find(feats.begin(), feats.end(), feat) != feats.end();
+}
 
 WindowRunner WindowHost_::Init()
 {

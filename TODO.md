@@ -57,6 +57,15 @@
   - [ ] Move DataTypeConvertor to cpp, with runtime path selection
   - [ ] Add test for DataTypeConvertor
 
+* WindowHost
+  - [ ] Add support for direct image blit (for offscreen rendering)
+  - [ ] Add support for wayland
+  - [ ] Add support for iOS (Cocoa Touch)
+  - [ ] Add support for gesture
+  - [ ] Add support for touch screen logic
+  - [ ] Add support for remote redering on Android (with IPC and shares ANativeWindow?)
+  - [ ] Add multi-backend support
+
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
   - [x] Add genenral datatype for `Arg` for type-checking
@@ -83,11 +92,11 @@
   - [x] Seperate Executor and Runtime
   - [x] Correct handle *nary expression when facing custom object
   - [x] Seperate `AutoVar` and `AutoVar[]` to allow custom info when accessing AutoVar 
-  - [ ] Add bitwise operator support
+  - [x] Add bitwise operator support
   - [ ] Correctly handle self assign for customvar (for efficiency)
   - [ ] Add member func call for arg by `()`
   - [ ] Remove PartedName, func will only keep fullname
-  - [ ] Prefer member func than global func, use query to replace PatedName
+  - [ ] Prefer member func than global func, use query to replace PartedName
   - [ ] Translate Indexer to member func, and only keeps subfield to be chainable.
   - [ ] Add serialize/deserialize to/from json (with mempool)
   - [ ] Embed comment infomation into statement
@@ -138,8 +147,9 @@
 
 * OpenCLUtil
   - [ ] Remove explicit include of `cl*.h`
+  - [ ] Query functions explicitly to support both ICD Loader and non-icd platform
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
-  - [x] Add compatibility for OpenCL verson less than 1.2.
+  - [x] Add compatibility for OpenCL verson less than 1.2
   - [x] Make oclKernel associate with specific device
   - [x] Make oclPromise directly use cl_event for better management
   - [ ] Mimic FillBuffer using embeded kernel for pre-1.2

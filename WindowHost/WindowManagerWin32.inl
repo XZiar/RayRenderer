@@ -19,6 +19,7 @@ constexpr uint32_t MessageTask      = WM_USER + 2;
 
 namespace xziar::gui::detail
 {
+using namespace std::string_view_literals;
 using event::CommonKeys;
 
 struct Win32Data
@@ -50,7 +51,22 @@ private:
     void* InstanceHandle = nullptr;
     uint32_t ThreadId = 0;
 
-    bool SupportNewThread() const noexcept override { return true; }
+    bool SupportNewThread() const noexcept final { return true; }
+    common::span<const std::string_view> GetFeature() const noexcept final
+    {
+        constexpr std::string_view Features[] =
+        {
+            "OpenGL"sv, "OpenGLES"sv, "DirectX"sv, "Vulkan"sv
+        };
+        return Features;
+    }
+    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
+    {
+        const auto& data = host->GetOSData<Win32Data>();
+        if (name == "HWND" || name == "window") return &data.Handle;
+        if (name == "HDC" || name == "display") return &data.DCHandle;
+        return nullptr;
+    }
 public:
     WindowManagerWin32() { }
     ~WindowManagerWin32() override { }

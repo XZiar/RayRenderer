@@ -202,13 +202,7 @@
   <ItemGroup>
     <ClCompile Include="WindowManager.cpp" />
     <ClCompile Include="WindowHost.cpp" />
-    <ClCompile Include="WindowManagerCocoa.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="WindowManagerWin32.cpp" />
-    <ClCompile Include="WindowManagerXCB.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="WindowManagerBackend.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Win32MsgName.hpp" />
@@ -216,6 +210,9 @@
     <ClInclude Include="WindowManager.h" />
     <ClInclude Include="WindowHost.h" />
     <ClInclude Include="WindowHostRely.h" />
+    <ClInclude Include="WindowManagerCocoa.inl" />
+    <ClInclude Include="WindowManagerWin32.inl" />
+    <ClInclude Include="WindowManagerXCB.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -46,6 +46,7 @@ struct CocoaData
 {
     Instance Window = nullptr;
     Instance WindowDlg = nullptr;
+    id View = nullptr;
 };
 
 template<typename F, typename T>
@@ -285,6 +286,21 @@ private:
     };
 
     bool SupportNewThread() const noexcept override { return true; }
+    common::span<const std::string_view> GetFeature() const noexcept override
+    {
+        constexpr std::string_view Features[] =
+        {
+            "OpenGL"sv, "Metal"sv
+        };
+        return Features;
+    }
+    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
+    {
+        const auto& data = host->GetOSData<CocoaData>();
+        if (name == "window") return &data.Window;
+        return nullptr;
+    }
+
     forceinline WindowHost_* GetWindow(id window) const noexcept
     {
         for (const auto& pair : WindowList)
@@ -556,6 +572,7 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
         window.Call<void, BOOL>("setReleasedWhenClosed:", YES);
 
         const auto view = CocoaView::Create(host);
+        data.View = view;
         //[view setWantsBestResolutionOpenGLSurface:YES];
         view.Call<void, BOOL>("setWantsBestResolutionOpenGLSurface:", YES);
         static const auto AllowDragTypes = []()

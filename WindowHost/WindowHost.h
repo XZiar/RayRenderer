@@ -40,6 +40,7 @@ public:
     WDHOSTAPI bool RunInplace(common::BasicPromise<void>* pms = nullptr) const;
     WDHOSTAPI bool RunNewThread() const;
     WDHOSTAPI bool SupportNewThread() const noexcept;
+    WDHOSTAPI bool CheckFeature(std::string_view feat) const noexcept;
 };
 
 
@@ -69,11 +70,18 @@ private:
     bool NeedCheckDrag = true, IsMouseDragging = false, MouseHasLeft = true;
 
     template<typename T>
-    T& GetOSData() noexcept
+    [[nodiscard]] T& GetOSData() noexcept
     {
         static_assert(sizeof(T) <= sizeof(OSData) && alignof(T) <= alignof(uint64_t));
         return *reinterpret_cast<T*>(OSData);
     }
+    template<typename T>
+    [[nodiscard]] const T& GetOSData() const noexcept
+    {
+        static_assert(sizeof(T) <= sizeof(OSData) && alignof(T) <= alignof(uint64_t));
+        return *reinterpret_cast<const T*>(OSData);
+    }
+    [[nodiscard]] const void* GetWindowData_(std::string_view name) const noexcept;
     bool OnStart(std::any cookie) noexcept override final;
     LoopAction OnLoop() override final;
     void OnStop() noexcept override final;
@@ -82,12 +90,14 @@ private:
 protected:
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
     bool HandleInvoke() noexcept;
-    virtual LoopAction OnLoopPass() = 0;
 
+    // below callbacks are called inside UI thread (Window Loop)
     virtual void OnOpen() noexcept;
-    [[nodiscard]] virtual bool OnClose() noexcept;
+    virtual LoopAction OnLoopPass() = 0;
     virtual void OnDisplay() noexcept;
 
+    // below callbacks are called inside Manager thread (Main Loop)
+    [[nodiscard]] virtual bool OnClose() noexcept;
     virtual void OnResize(int32_t width, int32_t height) noexcept;
     virtual void OnMouseEnter(event::Position pos) noexcept;
     virtual void OnMouseLeave() noexcept;
@@ -105,11 +115,19 @@ public:
 
     event::ModifierKeys GetModifiers() const noexcept { return Modifiers; }
     event::Position     GetLastPosition() const noexcept { return LastPos; }
+    template<typename T>
+    const T* GetWindowData(std::string_view name) const noexcept 
+    { 
+        return reinterpret_cast<const T*>(GetWindowData_(name));
+    }
 
+    // below delegates are called inside UI thread (Window Loop)
     common::Delegate<WindowHost_&> Openning;
-    common::Delegate<WindowHost_&, bool&> Closing;
-    common::Delegate<WindowHost_&> Closed;
     common::Delegate<WindowHost_&> Displaying;
+    common::Delegate<WindowHost_&> Closed;
+
+    // below delegates are called inside Manager thread (Main Loop)
+    common::Delegate<WindowHost_&, bool&> Closing;
     common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
     common::Delegate<WindowHost_&, const event::MouseEvent&> MouseEnter;
     common::Delegate<WindowHost_&, const event::MouseEvent&> MouseLeave;
@@ -122,15 +140,14 @@ public:
     common::Delegate<WindowHost_&, const event::KeyEvent&> KeyUp;
     common::Delegate<WindowHost_&, const event::DropFileEvent&> DropFile;
 
+    // below delegates are called from any thread
     void Show();
+    void Close();
     WindowHost GetSelf();
-    //void SetTimerCallback(std::function<bool(WindowHost_&, uint32_t)> funTime, const uint16_t ms);
     void SetTitle(const std::u16string_view title);
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
     virtual void Invalidate();
-
-    void Close();
 
     static WindowRunner Init();
     static WindowHost CreatePassive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
