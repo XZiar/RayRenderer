@@ -15,6 +15,8 @@
 
 constexpr uint32_t MessageCreate    = WM_USER + 1;
 constexpr uint32_t MessageTask      = WM_USER + 2;
+constexpr uint32_t MessageUpdTitle  = WM_USER + 3;
+constexpr uint32_t MessageClose     = WM_USER + 4;
 
 
 namespace xziar::gui::detail
@@ -60,6 +62,16 @@ private:
         };
         return Features;
     }
+    size_t AllocateOSData(void* ptr) const noexcept final
+    {
+        if (ptr)
+            new(ptr) Win32Data;
+        return sizeof(Win32Data);
+    }
+    void DeallocateOSData(void* ptr) const noexcept final
+    {
+        reinterpret_cast<Win32Data*>(ptr)->~Win32Data();
+    }
     const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
     {
         const auto& data = host->GetOSData<Win32Data>();
@@ -69,7 +81,7 @@ private:
     }
 public:
     WindowManagerWin32() { }
-    ~WindowManagerWin32() override { }
+    ~WindowManagerWin32() final { }
 
     static void SetDPIMode()
     {
@@ -85,7 +97,7 @@ public:
                 break;
     }
 
-    void Initialize() override
+    void Initialize() final
     {
         const auto instance = GetModuleHandleW(nullptr);
         InstanceHandle = instance;
@@ -121,11 +133,11 @@ public:
         DestroyWindow(tmp);
     }
 
-    void Prepare() noexcept override
+    void Prepare() noexcept final
     {
         ThreadId = GetCurrentThreadId();
     }
-    void MessageLoop() override
+    void MessageLoop() final
     {
         MSG msg;
         while (GetMessageW(&msg, nullptr, 0, 0) > 0)//, PM_REMOVE))
@@ -133,7 +145,6 @@ public:
             TranslateMessage(&msg);
             if (msg.hwnd == nullptr)
             {
-                Logger.verbose(FMT_STRING(u"Thread, MSG[{:x}]\n"), msg.message);
                 switch (msg.message)
                 {
                 case MessageCreate:
@@ -142,24 +153,38 @@ public:
                 case MessageTask:
                     HandleTask();
                     continue;
+                case MessageUpdTitle:
+                {
+                    const auto host = reinterpret_cast<WindowHost_*>(msg.wParam);
+                    while (host->Flags.Add(detail::WindowFlag::TitleLocked))
+                        COMMON_PAUSE();
+                    SetWindowTextW(host->template GetOSData<Win32Data>().Handle,
+                        reinterpret_cast<const wchar_t*>(host->Title.c_str())); // expects return after finish
+                    host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
+                } continue;
+                case MessageClose:
+                    DestroyWindow(reinterpret_cast<WindowHost_*>(msg.wParam)->template GetOSData<Win32Data>().Handle);
+                    continue;
+                default:
+                    Logger.verbose(FMT_STRING(u"Thread unknown MSG[{:x}]\n"), msg.message);
                 }
             }
             DispatchMessageW(&msg);
         }
     }
-    void Terminate() noexcept override
+    void Terminate() noexcept final
     {
         ThreadId = 0;
     }
 
-    void NotifyTask() noexcept override
+    void NotifyTask() noexcept final
     {
         PostThreadMessageW(ThreadId, MessageTask, NULL, NULL);
         if (const auto err = GetLastError(); err != NO_ERROR)
             Logger.error(u"Error when post thread message: {}\n", err);
     }
 
-    bool CheckCapsLock() const noexcept override
+    bool CheckCapsLock() const noexcept final
     {
         const auto state = GetKeyState(VK_CAPITAL);
         return state & 0x001;
@@ -182,23 +207,33 @@ public:
         RegisterHost(hwnd, host);
         ShowWindow(hwnd, SW_SHOW);
     }
-    void CreateNewWindow(CreatePayload& payload) override
+    bool SendGeneralMessage(uintptr_t data, uint32_t msg) const
     {
-        if (0 == PostThreadMessageW(ThreadId, MessageCreate, reinterpret_cast<uintptr_t>(&payload), NULL))
+        if (0 == PostThreadMessageW(ThreadId, msg, data, NULL))
+        {
             Logger.error(u"Error when post thread message: {}\n", GetLastError());
-        else
+            return false;
+        }
+        return true;
+    }
+    void CreateNewWindow(CreatePayload& payload) final
+    {
+        if (SendGeneralMessage(reinterpret_cast<uintptr_t>(&payload), MessageCreate))
             payload.Promise.get_future().get();
     }
-    void PrepareForWindow(WindowHost_*) const override
+    void PrepareForWindow(WindowHost_*) const final
     {
         SetDPIMode();
     }
-    void CloseWindow(WindowHost_* host) override
+    void UpdateTitle(WindowHost_* host) const final
     {
-        DestroyWindow(host->template GetOSData<Win32Data>().Handle);
-        //PostMessageW(reinterpret_cast<HWND>(host->Handle), WM_CLOSE, 0, 0);
+        SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageUpdTitle);
     }
-    void ReleaseWindow(WindowHost_* host) override
+    void CloseWindow(WindowHost_* host) const final
+    {
+        SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageClose);
+    }
+    void ReleaseWindow(WindowHost_* host) final
     {
         UnregisterHost(host);
         const auto& data = host->template GetOSData<Win32Data>();
@@ -452,6 +487,11 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
             } return 0;
 
+            case WM_GETICON:
+            case WM_SETICON:
+            case WM_GETTEXT:
+            case WM_SETTEXT:
+            case 0xae: // WM_NCUAHDRAWCAPTION
             case WM_SETCURSOR:
                 break;
 

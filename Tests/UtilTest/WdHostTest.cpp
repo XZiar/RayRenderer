@@ -64,13 +64,16 @@ static void OpenTestWindow()
             log().verbose(u"--{}\n", evt[i]);
         }
     };
-    window->MouseEnter() += [](const auto&, const auto& evt)
+    window->MouseEnter() += [](auto& wd, const auto& evt)
     {
+        wd.SetWindowData("enter", evt.Pos);
         log().info(u"Mouse enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
     };
-    window->MouseLeave() += [](const auto&, const auto& evt)
+    window->MouseLeave() += [](const auto& wd, const auto& evt)
     {
-        log().info(u"Mouse leave at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
+        const auto enterPos = wd.GetWindowData<event::Position>("enter");
+        log().info(u"Mouse leave at [{:4},{:4}], prev enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, 
+            enterPos ? enterPos->X : -1, enterPos ? enterPos->Y : -1);
     };
     window->MouseButtonDown() += [](const auto&, const auto& evt)
     {
@@ -80,10 +83,11 @@ static void OpenTestWindow()
     {
         log().info(u"BtnUp  : [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
     };
-    /*window->MouseMove() += [](const auto&, const auto& evt)
+    window->MouseMove() += [](auto& wd, const auto& evt)
     {
-        log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
-    };*/
+        wd.SetTitle(fmt::format(u"Mouse move to [{:4},{:4}]", evt.Pos.X, evt.Pos.Y));
+        //log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
+    };
     window->MouseDrag() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse drag from [{:4},{:4}] to [{:4},{:4}], just moved [{:4},{:4}]\n", 

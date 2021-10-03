@@ -66,6 +66,7 @@
   - [ ] Add support for remote redering on Android (with IPC and shares ANativeWindow?)
   - [ ] Add multi-backend support
   - [ ] Add vsync signal support
+  - [ ] Add Icon support
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`

@@ -20,33 +20,12 @@ using common::loop::LoopBase;
 MAKE_ENABLER_IMPL(WindowHostPassive)
 MAKE_ENABLER_IMPL(WindowHostActive)
 
+
 #define WD_EVT_NAMES BOOST_PP_VARIADIC_TO_SEQ(Openning, Displaying, Closed,     \
     Closing, Resizing, MouseEnter, MouseLeave, MouseButtonDown, MouseButtonUp,  \
     MouseMove, MouseDrag, MouseScroll, KeyDown, KeyUp, DropFile)
 #define WD_EVT_EACH_(r, func, name) func(name)
 #define WD_EVT_EACH(func) BOOST_PP_SEQ_FOR_EACH(WD_EVT_EACH_, func, WD_EVT_NAMES)
-
-
-#define WD_EVT_MAP BOOST_PP_VARIADIC_TO_SEQ(                            \
-    (Openning,          WindowHost_&),                                  \
-    (Displaying,        WindowHost_&),                                  \
-    (Closed,            WindowHost_&),                                  \
-    (Closing,           WindowHost_&, bool&),                           \
-    (Resizing,          WindowHost_&, int32_t, int32_t),                \
-    (MouseEnter,        WindowHost_&, const event::MouseEvent&),        \
-    (MouseLeave,        WindowHost_&, const event::MouseEvent&),        \
-    (MouseButtonDown,   WindowHost_&, const event::MouseButtonEvent&),  \
-    (MouseButtonUp,     WindowHost_&, const event::MouseButtonEvent&),  \
-    (MouseMove,         WindowHost_&, const event::MouseMoveEvent&),    \
-    (MouseDrag,         WindowHost_&, const event::MouseDragEvent&),    \
-    (MouseScroll,       WindowHost_&, const event::MouseScrollEvent&),  \
-    (KeyDown,           WindowHost_&, const event::KeyEvent&),          \
-    (KeyUp,             WindowHost_&, const event::KeyEvent&),          \
-    (DropFile,          WindowHost_&, const event::DropFileEvent&)      \
-)
-//#define WD_EVT_EACH_(r, func, tp) func(BOOST_PP_TUPLE_ELEM(0, tp), BOOST_PP_TUPLE_ENUM(BOOST_PP_TUPLE_POP_FRONT(tp)))
-//#define WD_EVT_EACH(func) BOOST_PP_SEQ_FOR_EACH(WD_EVT_EACH_, func, WD_EVT_MAP)
-
 
 template<typename T> struct CastEventType;
 template<typename... Args>
@@ -57,38 +36,53 @@ struct CastEventType<WindowEventDelegate<Args...>>
 };
 
 
-
-struct WindowHost_::PrivateData
+struct alignas(uint64_t) WindowHost_::PrivateData
 {
+    struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
+    {
+        std::function<void(WindowHost_&)> Task;
+        InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
+    };
     struct DataHeader
     {
-        void* ValPtr;
-        uint16_t NameLength;
-#if COMMON_OS_BIT == 64
-        char16_t Name[3];
-#else
-        char16_t Name[1];
-#endif
+        DataHeader* Next = nullptr;
+        std::byte* ValPtr = nullptr;
+        uint32_t DataSize = 0;
+        uint32_t NameLength = 0;
+        std::string_view Name() const noexcept { return { reinterpret_cast<const char*>(this + 1), NameLength }; }
     };
     common::container::TrunckedContainer<std::byte> DataHolder;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
 #define DEF_DELEGATE(name) typename CastEventType<decltype(std::declval<WindowHost_&>().name())>::DlgType name;
     WD_EVT_EACH(DEF_DELEGATE)
 #undef DEF_DELEGATE
+    DataHeader* FirstData = nullptr;
+    common::RWSpinLock DataLock;
 
     PrivateData() : DataHolder(4096, 8)
     { }
+    static PrivateData* Create(detail::WindowManager& manager) noexcept
+    {
+        static_assert(alignof(PrivateData) == alignof(uint64_t));
+        const auto size = sizeof(PrivateData) + manager.AllocateOSData(nullptr);
+        const auto raw = common::malloc_align(size, alignof(PrivateData));
+        const auto ptr = new(raw) PrivateData;
+        manager.AllocateOSData(ptr + 1);
+        return ptr;
+    }
 };
 
 
 WindowHost_::WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title) : 
-    LoopBase(LoopBase::GetThreadedExecutor), Manager(detail::WindowManager::Get()),
-    Data(std::make_unique<PrivateData>()),
-    Title(std::u16string(title)), Width(width), Height(height)
+    LoopBase(LoopBase::GetThreadedExecutor), Manager(detail::WindowManager::Get()), Data(PrivateData::Create(Manager)),
+    Title(std::u16string(title)), Width(width), Height(height), Flags(detail::WindowFlag::None)
 { }
 WindowHost_::~WindowHost_()
 {
     Stop();
+    Manager.DeallocateOSData(Data + 1);
+    Data->~PrivateData();
+    common::free_align(Data);
 }
 
 #define DEF_ACCESSOR(name) static bool Handle##name(void* dlg, void* cb, CallbackToken* tk) \
@@ -111,9 +105,58 @@ decltype(std::declval<WindowHost_&>().name()) WindowHost_::name() const noexcept
 WD_EVT_EACH(DEF_ACCESSOR)
 #undef DEF_ACCESSOR
 
+uintptr_t WindowHost_::GetPrivateExtData() const noexcept
+{
+    return reinterpret_cast<uintptr_t>(Data + 1);
+}
+
 const void* WindowHost_::GetWindowData_(std::string_view name) const noexcept
 {
+    {
+        const auto scope = Data->DataLock.ReadScope();
+        for (auto ptr = Data->FirstData; ptr; ptr = ptr->Next)
+        {
+            if (ptr->Name() == name)
+                return ptr->ValPtr;
+        }
+    }
     return Manager.GetWindowData(this, name);
+}
+void WindowHost_::SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept
+{
+    const auto scope = Data->DataLock.WriteScope();
+    auto ptr = Data->FirstData;
+    for (; ptr; ptr = ptr->Next)
+    {
+        if (ptr->Name() == name)
+        {
+            if (ptr->DataSize == data.size() && reinterpret_cast<uintptr_t>(ptr->ValPtr) % align == 0)
+            {
+                memcpy_s(ptr->ValPtr, ptr->DataSize, data.data(), data.size());
+                return;
+            }
+            else // release and wait to alter size
+            {
+                Data->DataHolder.TryDealloc({ ptr->ValPtr,ptr->DataSize });
+                ptr->ValPtr = nullptr, ptr->DataSize = 0;
+                break;
+            }
+        }
+    }
+    if (!ptr)
+    {
+        constexpr auto HeaderAlign = alignof(PrivateData::DataHeader);
+        const auto nameSize = (name.size() + HeaderAlign - 1) / HeaderAlign * HeaderAlign;
+        const auto header = Data->DataHolder.Alloc(sizeof(PrivateData::DataHeader) + nameSize, HeaderAlign);
+        ptr = new(header.data()) PrivateData::DataHeader;
+        if (!Data->FirstData)
+            Data->FirstData = ptr;
+        ptr->NameLength = gsl::narrow_cast<uint32_t>(name.size());
+        memcpy_s(ptr + 1, nameSize, name.data(), name.size());
+    }
+    const auto realData = Data->DataHolder.Alloc(data.size(), align);
+    memcpy_s(realData.data(), realData.size(), data.data(), data.size());
+    ptr->ValPtr = realData.data(), ptr->DataSize = gsl::narrow_cast<uint32_t>(realData.size());
 }
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
@@ -309,9 +352,9 @@ void WindowHost_::OnDropFile(event::Position pos, common::StringPool<char16_t>&&
 
 void WindowHost_::Show(const std::function<const void* (std::string_view)>& provider)
 {
-    if (!IsOpened.test_and_set())
+    if (!Flags.Add(detail::WindowFlag::Running))
     {
-        detail::WindowManager::CreatePayload payload{ this, provider ? &provider : nullptr };
+        detail::CreatePayload payload{ this, provider ? &provider : nullptr };
         Manager.CreateNewWindow(payload);
     }
 }
@@ -321,6 +364,15 @@ WindowHost WindowHost_::GetSelf()
     return shared_from_this();
 }
 
+void WindowHost_::SetTitle(const std::u16string_view title)
+{
+    while (Flags.Add(detail::WindowFlag::TitleLocked))
+        COMMON_PAUSE();
+    Title.assign(title.begin(), title.end());
+    if (!Flags.Add(detail::WindowFlag::TitleChanged))
+        Manager.UpdateTitle(this);
+    Flags.Extract(detail::WindowFlag::TitleLocked);
+}
 
 void WindowHost_::Invoke(std::function<void(void)> task)
 {
@@ -329,7 +381,7 @@ void WindowHost_::Invoke(std::function<void(void)> task)
 
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
 {
-    Data->InvokeList.AppendNode(new InvokeNode(std::move(task)));
+    Data->InvokeList.AppendNode(new PrivateData::InvokeNode(std::move(task)));
     Wakeup();
 }
 

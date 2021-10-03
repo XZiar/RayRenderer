@@ -23,8 +23,10 @@
 #undef Always
 #undef None
 
-constexpr uint32_t MessageCreate = 1;
-constexpr uint32_t MessageTask = 2;
+constexpr uint32_t MessageCreate    = 1;
+constexpr uint32_t MessageTask      = 2;
+constexpr uint32_t MessageUpdTitle  = 3;
+constexpr uint32_t MessageClose     = 4;
 
 
 namespace xziar::gui::detail
@@ -54,7 +56,7 @@ struct XCBData
 {
     xcb_window_t Handle = 0;
     Display* TheDisplay = nullptr;
-    DragInfos* DragInfo = nullptr;
+    DragInfos DragInfo;
 };
 
 
@@ -91,14 +93,24 @@ private:
     uint8_t XKBErrorID = 0;
     bool IsCapsLock = false;
 
-    bool SupportNewThread() const noexcept override { return true; }
-    common::span<const std::string_view> GetFeature() const noexcept override
+    bool SupportNewThread() const noexcept final { return true; }
+    common::span<const std::string_view> GetFeature() const noexcept final
     {
         constexpr std::string_view Features[] =
         {
             "OpenGL"sv, "OpenGLES"sv, "Vulkan"sv
         };
         return Features;
+    }
+    size_t AllocateOSData(void* ptr) const noexcept final
+    {
+        if (ptr)
+            new(ptr) XCBData;
+        return sizeof(XCBData);
+    }
+    void DeallocateOSData(void* ptr) const noexcept final
+    {
+        reinterpret_cast<XCBData*>(ptr)->~XCBData();
     }
     const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
     {
@@ -121,17 +133,6 @@ private:
     forceinline bool GeneralHandleError(xcb_void_cookie_t cookie) noexcept
     {
         return GeneralHandleError(xcb_request_check(Connection, cookie));
-    }
-    forceinline WindowHost_* GetWindow(xcb_window_t window) const noexcept
-    {
-        for (const auto& pair : WindowList)
-        {
-            if (pair.first == window)
-            {
-                return pair.second;
-            }
-        }
-        return nullptr;
     }
     std::string QueryAtomName(xcb_atom_t atom) noexcept
     {
@@ -188,7 +189,7 @@ private:
         (..., void(dst[I] = src[I]));
     }
     template<typename T, size_t N>
-    forceinline void SendClientMessage(xcb_window_t window, xcb_atom_t type, const T(&data)[N]) noexcept
+    forceinline void SendClientMessage(xcb_window_t window, xcb_atom_t type, const T(&data)[N]) const noexcept
     {
         static_assert(std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t>, "need u32/u16/u8 data");
         xcb_client_message_event_t evt = {};
@@ -215,17 +216,23 @@ private:
         }
         xcb_send_event(Connection, False, window, XCB_EVENT_MASK_NO_EVENT, reinterpret_cast<const char*>(&evt));
     }
-    void SendControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) noexcept
+    void SendControlRequest(const uint32_t request, const uint32_t data0 = 0, const uint32_t data1 = 0, const uint32_t data2 = 0, const uint32_t data3 = 0) const noexcept
     {
         uint32_t data[5] = { request, data0, data1, data2, data3 };
         SendClientMessage(ControlWindow, MsgAtom, data);
         xcb_flush(Connection);
     }
+    void SetTitle(xcb_window_t window, std::u16string_view name)
+    {
+        const auto title = common::str::to_u8string(name, common::str::Charset::UTF16LE);
+        xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
+            gsl::narrow_cast<uint32_t>(title.size()), title.c_str());
+    }
 public:
     WindowManagerXCB() { }
-    ~WindowManagerXCB() override { }
+    ~WindowManagerXCB() final { }
 
-    void Initialize() override
+    void Initialize() final
     {
         using common::BaseException;
         // XInitThreads();
@@ -334,7 +341,7 @@ public:
         }
         xcb_flush(Connection);
     }
-    void DeInitialize() noexcept override
+    void DeInitialize() noexcept final
     {
         xcb_destroy_window(Connection, ControlWindow);
 
@@ -359,6 +366,23 @@ public:
         {
             HandleTask();
         } break;
+        case MessageUpdTitle:
+        {
+            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
+            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
+            while (host->Flags.Add(detail::WindowFlag::TitleLocked))
+                COMMON_PAUSE();
+            SetTitle(host->template GetOSData<XCBData>().Handle, host->Title);
+            host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
+        } break;
+        case MessageClose:
+        {
+            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
+            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
+            const auto cookie = xcb_destroy_window(Connection, host->GetOSData<XCBData>().Handle);
+            GeneralHandleError(cookie);
+            host->Stop();
+        } break;
         }
     }
     void HandleClientMessage(WindowHost_* host, xcb_window_t window, const xcb_atom_t atom, const xcb_client_message_data_t& data)
@@ -375,7 +399,7 @@ public:
         }
         else if (atom == XdndEnterAtom)
         {
-            auto& dragInfo = *hostData.DragInfo;
+            auto& dragInfo = hostData.DragInfo;
             dragInfo.Clear();
             dragInfo.SourceWindow = data.data32[0];
             dragInfo.Version      = data.data32[1] >> 24;
@@ -402,14 +426,14 @@ public:
         }
         else if (atom == XdndLeaveAtom)
         {
-            auto& dragInfo = *hostData.DragInfo;
+            auto& dragInfo = hostData.DragInfo;
             dragInfo.Clear();
             const xcb_window_t source = data.data32[0];
             Logger.info(u"DragLeave from [{}]\n", uint32_t(source));
         }
         else if (atom == XdndPositionAtom)
         {
-            auto& dragInfo = *hostData.DragInfo;
+            auto& dragInfo = hostData.DragInfo;
             if (dragInfo.SourceWindow == data.data32[0])
             {
                 dragInfo.PosX = static_cast<int16_t>(data.data32[2] >> 16);
@@ -427,7 +451,7 @@ public:
         }
         else if (atom == XdndDropAtom)
         {
-            auto& dragInfo = *hostData.DragInfo;
+            auto& dragInfo = hostData.DragInfo;
             if (dragInfo.SourceWindow == data.data32[0])
             {
                 if (dragInfo.TargetType)
@@ -472,12 +496,10 @@ public:
         {
             auto& data = host->template GetOSData<XCBData>();
             data.Handle = window;
-            data.TheDisplay = TheDisplay;
-            data.DragInfo = new DragInfos();
             host->Initialize();
         }
     }
-    void MessageLoop() override
+    void MessageLoop() final
     {
         xcb_generic_event_t* evt;
         while ((evt = xcb_wait_for_event(Connection)))
@@ -590,7 +612,7 @@ public:
                 if (const auto host = GetWindow(msg.requestor); host)
                 {
                     auto& hostData = host->template GetOSData<XCBData>();
-                    auto& dragInfo = *hostData.DragInfo;
+                    auto& dragInfo = hostData.DragInfo;
                     if (msg.selection == XdndSelectionAtom && msg.target == dragInfo.TargetType)
                     {
                         const auto ret = QueryProperty(msg.requestor, PrimaryAtom, XCB_ATOM_ANY);
@@ -650,12 +672,12 @@ public:
             free(evt);
         }
     }
-    void NotifyTask() noexcept override
+    void NotifyTask() noexcept final
     {
         SendControlRequest(MessageTask);
     }
 
-    bool CheckCapsLock() const noexcept override
+    bool CheckCapsLock() const noexcept final
     {
         return IsCapsLock;
     }
@@ -663,9 +685,19 @@ public:
     void CreateNewWindow_(CreatePayload& payload)
     {
         const auto host = payload.Host;
+        auto& data = host->template GetOSData<XCBData>();
+        data.TheDisplay = TheDisplay;
+
+        int visualId = Screen->root_visual;
+        if (payload.ExtraData)
+        {
+            const auto vi = (*payload.ExtraData)("visual");
+            if (vi)
+                visualId = *reinterpret_cast<const int*>(vi);
+        }
+
         // Create XID's for window 
         xcb_window_t window = xcb_generate_id(Connection);
-
         /* Create window */
         const uint32_t valuemask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
         const uint32_t eventmask = XCB_EVENT_MASK_EXPOSURE |
@@ -685,7 +717,7 @@ public:
             host->Width, host->Height,
             0,
             XCB_WINDOW_CLASS_INPUT_OUTPUT,
-            Screen->root_visual,
+            visualId,
             valuemask,
             valuelist
         );
@@ -706,29 +738,14 @@ public:
         xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XdndAwareAtom, XCB_ATOM_ATOM, 32, 1, &xdndVersion);
 
         // set close
-        xcb_change_property(
-            Connection,
-            XCB_PROP_MODE_APPEND,
-            window,
-            WMProtocolAtom, XCB_ATOM_ATOM, 32,
-            1,
-            &CloseAtom
-        );
+        xcb_change_property(Connection, XCB_PROP_MODE_APPEND, window, WMProtocolAtom, XCB_ATOM_ATOM, 32, 1, &CloseAtom);
         // set title
-        const auto title = common::str::to_u8string(host->Title, common::str::Charset::UTF16LE);
-        xcb_change_property(
-            Connection,
-            XCB_PROP_MODE_REPLACE,
-            window,
-            XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
-            gsl::narrow_cast<uint32_t>(host->Title.size()),
-            title.c_str()
-        );
+        SetTitle(window, host->Title);
 
         xcb_map_window(Connection, window);
         xcb_flush(Connection);
     }
-    void CreateNewWindow(CreatePayload& payload) override
+    void CreateNewWindow(CreatePayload& payload) final
     {
         const uint64_t ptr = reinterpret_cast<uintptr_t>(&payload);
         SendControlRequest(MessageCreate,
@@ -736,16 +753,22 @@ public:
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
         payload.Promise.get_future().get();
     }
-    void CloseWindow(WindowHost_* host) override
+    void UpdateTitle(WindowHost_* host) const final
     {
-        const auto cookie = xcb_destroy_window(Connection, host->GetOSData<XCBData>().Handle);
-        GeneralHandleError(cookie);
-        host->Stop();
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        SendControlRequest(MessageUpdTitle,
+            static_cast<uint32_t>(ptr & 0xffffffff),
+            static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }
-    void ReleaseWindow(WindowHost_* host) override
+    void CloseWindow(WindowHost_* host) const final
     {
-        auto& data = host->GetOSData<XCBData>();
-        delete data.DragInfo;
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        SendControlRequest(MessageClose,
+            static_cast<uint32_t>(ptr & 0xffffffff),
+            static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
+    }
+    void ReleaseWindow(WindowHost_* host) final
+    {
         UnregisterHost(host);
     }
 };

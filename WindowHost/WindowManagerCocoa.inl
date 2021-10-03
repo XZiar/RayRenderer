@@ -38,8 +38,9 @@ using common::foundation::NSArray;
 using common::foundation::NSDictionary;
 using event::CommonKeys;
 
-constexpr short MessageCreate = 1;
-constexpr short MessageTask = 2;
+constexpr short MessageCreate   = 1;
+constexpr short MessageTask     = 2;
+constexpr short MessageUpdTitle = 3;
 
 static WindowManager* TheManager = nullptr;
 struct CocoaData
@@ -285,8 +286,8 @@ private:
         }
     };
 
-    bool SupportNewThread() const noexcept override { return true; }
-    common::span<const std::string_view> GetFeature() const noexcept override
+    bool SupportNewThread() const noexcept final { return true; }
+    common::span<const std::string_view> GetFeature() const noexcept final
     {
         constexpr std::string_view Features[] =
         {
@@ -294,22 +295,20 @@ private:
         };
         return Features;
     }
+    size_t AllocateOSData(void* ptr) const noexcept final
+    {
+        if (ptr)
+            new(ptr) CocoaData;
+        return sizeof(CocoaData);
+    }
+    void DeallocateOSData(void* ptr) const noexcept final
+    {
+        reinterpret_cast<CocoaData*>(ptr)->~CocoaData();
+    }
     const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
     {
         const auto& data = host->GetOSData<CocoaData>();
         if (name == "window") return &data.Window;
-        return nullptr;
-    }
-
-    forceinline WindowHost_* GetWindow(id window) const noexcept
-    {
-        for (const auto& pair : WindowList)
-        {
-            if (pair.first == reinterpret_cast<uintptr_t>(window))
-            {
-                return pair.second;
-            }
-        }
         return nullptr;
     }
 
@@ -377,22 +376,6 @@ private:
         if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
             host->Stop();
     }
-    static void WindowWillMove(id self, SEL _sel, id notification)
-    {
-        printf("window will move\n");
-        NSNotification noti(notification);
-        const auto& window = noti.Target;
-        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
-            ;//host->OnClose();
-    }
-    static void WindowDidMove(id self, SEL _sel, id notification)
-    {
-        printf("window did move\n");
-        NSNotification noti(notification);
-        const auto& window = noti.Target;
-        if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
-            ;//host->OnClose();
-    }
     
     //@interface WindowDelegate : NSObject<NSWindowDelegate>
     //-(BOOL)windowShouldClose:(NSWindow*)sender;
@@ -413,6 +396,8 @@ private:
         return builder.GetClassInit(false);
     }();
 
+    inline static const SEL SetTitleSel = sel_registerName("setTitle:");
+
     Instance App;
     Instance AppDlg;
     std::optional<NSAutoreleasePool> ARPool;
@@ -428,9 +413,9 @@ private:
     static event::CombinedKey ProcessKey(uint16_t keycode) noexcept;
 public:
     WindowManagerCocoa() : App(nullptr), AppDlg(nullptr){ }
-    ~WindowManagerCocoa() override { }
+    ~WindowManagerCocoa() final { }
 
-    void Initialize() override
+    void Initialize() final
     {
         using common::BaseException;
         TheManager = this;
@@ -450,17 +435,17 @@ public:
         //[NSApp finishLaunching];
         App.Call<void>("finishLaunching");
     }
-    void DeInitialize() noexcept override
+    void DeInitialize() noexcept final
     {
         AppDlg.Release();
         TheManager = nullptr;
     }
 
-    void Prepare() noexcept override
+    void Prepare() noexcept final
     {
         ARPool.emplace();
     }
-    void MessageLoop() override
+    void MessageLoop() final
     {
         using EventType = NSEvent::NSEventType;
         static SEL SelNextEvt = sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:");
@@ -508,6 +493,15 @@ public:
                 case MessageTask:
                     HandleTask();
                     break;
+                case MessageUpdTitle:
+                {
+                    const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data));
+                    while (host->Flags.Add(detail::WindowFlag::TitleLocked))
+                        COMMON_PAUSE();
+                    const auto titleString = NSString::Create(host->Title);
+                    host->template GetOSData<CocoaData>().Window.Call<void, id>(SetTitleSel, titleString);
+                    host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
+                } break;
                 }
             } break;
             case EventType::FlagsChanged:
@@ -547,7 +541,7 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
             App.Call<void>(SelUpdWd);
         }
     }
-    void Terminate() noexcept override
+    void Terminate() noexcept final
     {
         ARPool.reset();
     }
@@ -592,7 +586,7 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
 
         //[window setTitle:@"xxx"];
         const auto titleString = NSString::Create(host->Title);
-        window.Call<void, id>("setTitle:", titleString);
+        window.Call<void, id>(SetTitleSel, titleString);
 
         //[window makeKeyAndOrderFront:window];
         window.Call<void, id>("makeKeyAndOrderFront:", window);
@@ -604,28 +598,33 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
         RegisterHost(static_cast<id>(window), host);
         host->Initialize();
     }
-    void NotifyTask() noexcept override
+    void NotifyTask() noexcept final
     {
         SendControlRequest(MessageTask);
     }
 
-    bool CheckCapsLock() const noexcept override
+    bool CheckCapsLock() const noexcept final
     {
         return IsCapsLock;
     }
 
-    void CreateNewWindow(CreatePayload& payload) override
+    void CreateNewWindow(CreatePayload& payload) final
     {
         const NSInteger ptr = reinterpret_cast<uintptr_t>(&payload);
         SendControlRequest(MessageCreate, ptr);
         payload.Promise.get_future().get();
     }
-    void CloseWindow(WindowHost_* host) override
+    void UpdateTitle(WindowHost_* host) const final
+    {
+        const NSInteger ptr = reinterpret_cast<uintptr_t>(host);
+        SendControlRequest(MessageUpdTitle, ptr);
+    }
+    void CloseWindow(WindowHost_* host) const final
     {
         auto& data = host->template GetOSData<CocoaData>();
         data.Window.Call<void>("close");
     }
-    void ReleaseWindow(WindowHost_* host) override
+    void ReleaseWindow(WindowHost_* host) final
     {
         UnregisterHost(host);
     }

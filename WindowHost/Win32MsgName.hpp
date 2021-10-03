@@ -98,6 +98,8 @@ constexpr std::pair<uint32_t, std::string_view> MSG_NAMES[] = {
     {171,   "WM_NCXBUTTONDOWN" },
     {172,   "WM_NCXBUTTONUP" },
     {173,   "WM_NCXBUTTONDBLCLK" },
+    {174,   "WM_NCUAHDRAWCAPTION" },
+    {175,   "WM_NCUAHDRAWFRAME" },
     {176,   "EM_GETSEL" },
     {177,   "EM_SETSEL" },
     {178,   "EM_GETRECT" },

@@ -11,17 +11,17 @@ namespace oglu
 {
 
 
-class OGLUAPI oglUtil
+class oglUtil
 {
 private:
 public:
-    static void InJectRenderDoc(const common::fs::path& dllPath);
-    static void InitGLEnvironment();
-    static void SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept;
-    static void InitLatestVersion();
-    static std::optional<std::string_view> GetError();
-    static common::PromiseResult<void> SyncGL();
-    static common::PromiseResult<void> ForceSyncGL();
+    OGLUAPI static void InJectRenderDoc(const common::fs::path& dllPath);
+    OGLUAPI static void InitGLEnvironment();
+    OGLUAPI static void SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept;
+    OGLUAPI static void InitLatestVersion();
+    OGLUAPI static std::optional<std::string_view> GetError();
+    OGLUAPI static common::PromiseResult<void> SyncGL();
+    OGLUAPI static common::PromiseResult<void> ForceSyncGL();
 };
 
 

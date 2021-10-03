@@ -5,6 +5,7 @@
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
+#include "common/AtomicUtil.hpp"
 #include "common/TimeUtil.hpp"
 
 
@@ -24,7 +25,14 @@ class WindowManager;
 class WindowManagerWin32;
 class WindowManagerXCB;
 class WindowManagerCocoa;
+
+enum class WindowFlag : uint8_t
+{
+    None = 0x0, Running = 0x1, TitleChanged = 0x2, TitleLocked = 0x4
+};
+MAKE_ENUM_BITFIELD(WindowFlag)
 }
+
 
 class WindowRunner
 {
@@ -94,33 +102,22 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManagerCocoa;
 private:
     struct PrivateData;
-    struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
-    {
-        std::function<void(WindowHost_&)> Task;
-        InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
-    };
     detail::WindowManager& Manager;
-    std::unique_ptr<PrivateData> Data;
-    uint64_t OSData[4] = { 0 };
+    PrivateData* Data;
     std::u16string Title;
-    std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
     int32_t Width, Height;
     event::Position LastPos, LeftBtnPos;
+    common::AtomicBitfield<detail::WindowFlag> Flags;
     event::MouseButton PressedButton = event::MouseButton::None;
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
     bool NeedCheckDrag = true, IsMouseDragging = false, MouseHasLeft = true;
 
+    [[nodiscard]] uintptr_t GetPrivateExtData() const noexcept;
     template<typename T>
-    [[nodiscard]] T& GetOSData() noexcept
+    [[nodiscard]] T& GetOSData() const noexcept
     {
-        static_assert(sizeof(T) <= sizeof(OSData) && alignof(T) <= alignof(uint64_t));
-        return *reinterpret_cast<T*>(OSData);
-    }
-    template<typename T>
-    [[nodiscard]] const T& GetOSData() const noexcept
-    {
-        static_assert(sizeof(T) <= sizeof(OSData) && alignof(T) <= alignof(uint64_t));
-        return *reinterpret_cast<const T*>(OSData);
+        static_assert(alignof(T) <= alignof(uint64_t));
+        return *reinterpret_cast<T*>(GetPrivateExtData());
     }
     [[nodiscard]] const void* GetWindowData_(std::string_view name) const noexcept;
     bool OnStart(std::any cookie) noexcept override final;
@@ -160,6 +157,12 @@ public:
     const T* GetWindowData(std::string_view name) const noexcept 
     { 
         return reinterpret_cast<const T*>(GetWindowData_(name));
+    }
+    void SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept;
+    template<typename T>
+    void SetWindowData(std::string_view name, const T& data) const noexcept
+    {
+        SetWindowData(name, { reinterpret_cast<const std::byte*>(&data), sizeof(T) }, alignof(T));
     }
 
     // below delegates are called inside UI thread (Window Loop)
