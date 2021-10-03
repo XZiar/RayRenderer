@@ -25,8 +25,8 @@
             [
                 "*.cpp", 
                 {"-": ["DXStub.cpp", "CURLTest.cpp"]},
-                {"ifhas": "android", "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]},
-                {"ifeq": {"osname": "Darwin"}, "-": ["GLStub.cpp", "FreeGLUTTest.cpp"]},
+                {"ifhas": "android", "-": ["GLStub.cpp", "WdHostGLTest.cpp", "FreeGLUTTest.cpp"]},
+                {"ifeq": {"osname": "Darwin"}, "-": ["GLStub.cpp", "WdHostGLTest.cpp", "FreeGLUTTest.cpp"]},
                 {"ifhas": "iOS", "-": ["WdHostTest.cpp"]}
             ],
             "flags": ["-Wno-unused-function"]

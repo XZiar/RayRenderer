@@ -213,6 +213,7 @@ private:
 #endif
     void Init(const bool isCurrent);
     void FinishGL();
+    static void PushToMap(oglContext ctx);
 public:
     const ContextCapability* Capability = nullptr;
     ~oglContext_();
@@ -221,6 +222,7 @@ public:
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
+    void SwapBuffer();
     //void SetRetain(const bool isRetain);
     template<bool IsShared, typename T, bool Dummy>
     [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
@@ -250,6 +252,7 @@ public:
     [[nodiscard]] static oglContext Refresh();
     [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
     [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
+    [[nodiscard]] static oglContext InitContext(const GLContextInfo& info, const uint32_t drawable, uint32_t version = 40);
     static bool ReleaseExternContext();
     static bool ReleaseExternContext(void* hrc);
 };

@@ -56,7 +56,7 @@ struct ResourceKeeper
             return funcs->get();
         else
         {
-            const auto [it, ret] = Map.emplace(key, std::make_unique<T>());
+            const auto [it, ret] = Map.emplace(key, std::make_unique<T>(key));
             return it->second.get();
         }
     }
@@ -99,6 +99,75 @@ static void PrepareCtxFuncs(void* hRC)
         CtxFunc = rmap.FindOrCreate(hRC);
     }
 }
+
+
+#if COMMON_OS_LINUX
+constexpr int visualAttrs[] = 
+{
+    GLX_X_RENDERABLE, True,
+    GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+    GLX_RENDER_TYPE, GLX_RGBA_BIT,
+    GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+    GLX_RED_SIZE, 8,
+    GLX_GREEN_SIZE, 8,
+    GLX_BLUE_SIZE, 8,
+    GLX_ALPHA_SIZE, 8,
+    GLX_DEPTH_SIZE, 24,
+    GLX_STENCIL_SIZE, 8,
+    GLX_DOUBLEBUFFER, True,
+    0
+};
+std::optional<GLContextInfo> oglUtil::GetBasicContextInfo(void* display)
+{
+    GLContextInfo info;
+    info.Display = display;
+    const auto disp = reinterpret_cast<Display*>(display);
+    int fbCount = 0;
+    const auto configs = glXChooseFBConfig(disp, DefaultScreen(disp), visualAttrs, &fbCount);
+    if (!configs || fbCount == 0)
+        return {};
+    info.FBConfig = configs[0];
+    if (0 != glXGetFBConfigAttrib(disp, configs[0], GLX_VISUAL_ID, &info.VisualId))
+        return {};
+    return info;
+}
+uint32_t oglUtil::CreateDrawable(const GLContextInfo& info, uint32_t window)
+{
+    const auto glxwindow = glXCreateWindow(reinterpret_cast<Display*>(info.Display),
+        reinterpret_cast<GLXFBConfig>(info.FBConfig), window, nullptr);
+    return glxwindow;
+}
+void oglUtil::DestroyDrawable(void* display, uint32_t drawable)
+{
+    glXDestroyWindow(reinterpret_cast<Display*>(display), drawable);
+}
+oglContext oglContext_::InitContext(const GLContextInfo& info, const uint32_t drawable, uint32_t version)
+{
+    const auto disp = reinterpret_cast<Display*>(info.Display);
+    PreparePlatFuncs(disp);
+    //const auto tmpCtx = glXCreateNewContext(disp, reinterpret_cast<GLXFBConfig>(info.FBConfig), GLX_RGBA_TYPE, nullptr, GL_TRUE);
+    //glXMakeContextCurrent(disp, drawable, drawable, tmpCtx);
+    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, false);
+    const auto context = PlatFunc->glXCreateContextAttribsARB_(disp, 
+        reinterpret_cast<GLXFBConfig>(info.FBConfig), nullptr, true, ctxAttrb.data());
+    if (!context)
+    {
+        oglLog().error(u"failed to init context on Display[{}] Drawable[{}], error: {}\n", 
+            info.Display, drawable, PlatFuncs::GetSystemError());
+        return {};
+    }
+    oglContext newCtx;
+    newCtx.reset(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
+        info.Display, context, drawable));
+    newCtx->UseContext();
+    PrepareCtxFuncs(context);
+    newCtx->Init(true);
+    PushToMap(newCtx);
+    //oglContext_::ReleaseExternContext(tmpCtx);
+    //glXDestroyContext(disp, tmpCtx);
+    return newCtx;
+}
+#endif
 
 #if COMMON_OS_UNIX
 static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
@@ -253,7 +322,7 @@ common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(voi
 }
 #endif
 
-PlatFuncs::PlatFuncs()
+PlatFuncs::PlatFuncs(void* display)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
@@ -272,7 +341,6 @@ PlatFuncs::PlatFuncs()
     QUERY_FUNC_(wglCreateContextAttribsARB, "");
 #else
     QUERY_FUNC_(glXGetCurrentDisplay,       "");
-    const auto display = glXGetCurrentDisplay_();
     Extensions = GetExtensions(display, DefaultScreen(display));
     QUERY_FUNC_(glXCreateContextAttribsARB, "");
 #endif
@@ -543,11 +611,18 @@ void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShare
 #endif
     }
 }
+void PlatFuncs::SwapBuffer(const oglContext_& ctx)
+{
+#if COMMON_OS_WIN
+    SwapBuffers(ctx.Hdc);
+#elif COMMON_OS_LINUX
+    glXSwapBuffers(reinterpret_cast<Display*>(ctx.Hdc), ctx.DRW);
+#endif
+}
 
 
 
-
-CtxFuncs::CtxFuncs()
+CtxFuncs::CtxFuncs(void*)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 

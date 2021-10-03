@@ -127,6 +127,7 @@ private:
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
     WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
+    using LoopBase::Wakeup;
     bool HandleInvoke() noexcept;
 
     // below callbacks are called inside UI thread (Window Loop)
@@ -158,11 +159,11 @@ public:
     { 
         return reinterpret_cast<const T*>(GetWindowData_(name));
     }
-    void SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept;
+    std::byte* SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept;
     template<typename T>
-    void SetWindowData(std::string_view name, const T& data) const noexcept
+    T* SetWindowData(std::string_view name, const T& data) const noexcept
     {
-        SetWindowData(name, { reinterpret_cast<const std::byte*>(&data), sizeof(T) }, alignof(T));
+        return reinterpret_cast<T*>(SetWindowData(name, { reinterpret_cast<const std::byte*>(&data), sizeof(T) }, alignof(T)));
     }
 
     // below delegates are called inside UI thread (Window Loop)

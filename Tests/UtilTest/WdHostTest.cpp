@@ -71,7 +71,7 @@ static void OpenTestWindow()
     };
     window->MouseLeave() += [](const auto& wd, const auto& evt)
     {
-        const auto enterPos = wd.GetWindowData<event::Position>("enter");
+        const auto enterPos = wd.template GetWindowData<event::Position>("enter");
         log().info(u"Mouse leave at [{:4},{:4}], prev enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, 
             enterPos ? enterPos->X : -1, enterPos ? enterPos->Y : -1);
     };

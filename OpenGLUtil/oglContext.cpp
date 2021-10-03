@@ -145,6 +145,12 @@ void oglContext_::FinishGL()
     CtxFunc->ogluFinish();
 }
 
+void oglContext_::SwapBuffer()
+{
+    CHECKCURRENT();
+    PlatFuncs::SwapBuffer(*this);
+}
+
 oglContext_::~oglContext_()
 {
 #if defined(_DEBUG)
@@ -442,6 +448,11 @@ oglContext oglContext_::Refresh()
 }
 
 
+void oglContext_::PushToMap(oglContext ctx)
+{
+    auto lock = CTX_LOCK.WriteScope();
+    CTX_MAP.emplace(ctx->Hrc, std::move(ctx));
+}
 oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs)
 {
     oglContext newCtx;
@@ -466,12 +477,8 @@ oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, c
         ctx->Hdc, newHrc, ctx->DRW));
 #endif
     newCtx->Init(false);
-
-    {
-        auto lock = CTX_LOCK.WriteScope();
-        CTX_MAP.emplace(newHrc, newCtx);
-    }
-
+    
+    PushToMap(newCtx);
     return newCtx;
 }
 oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, uint32_t version)

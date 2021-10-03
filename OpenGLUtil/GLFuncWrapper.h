@@ -55,7 +55,7 @@ public:
     bool SupportFlushControl;
     bool SupportSRGB;
 
-    PlatFuncs();
+    PlatFuncs(void* display);
 
     static void InitEnvironment();
     static void InJectRenderDoc(const common::fs::path& dllPath);
@@ -65,6 +65,7 @@ public:
     static void  DeleteGLContext(void* hDC, void* hRC);
     [[nodiscard]] static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
     [[nodiscard]] static void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs);
+    static void SwapBuffer(const oglContext_& ctx);
 #if COMMON_OS_WIN
     [[nodiscard]] static bool  MakeGLContextCurrent(void* hDC, void* hRC);
     [[nodiscard]] static uint32_t GetSystemError();
@@ -496,7 +497,7 @@ public:
     void           (GLAPIENTRYP ogluClipControl) (GLenum origin, GLenum depth) = nullptr;
     void           (GLAPIENTRYP ogluMemoryBarrier) (GLbitfield barriers) = nullptr;
 
-    CtxFuncs();
+    CtxFuncs(void*);
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:

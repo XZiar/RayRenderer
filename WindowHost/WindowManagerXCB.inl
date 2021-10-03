@@ -230,7 +230,7 @@ private:
     }
 public:
     WindowManagerXCB() { }
-    ~WindowManagerXCB() final { }
+    ~WindowManagerXCB() override { }
 
     void Initialize() final
     {
@@ -602,6 +602,14 @@ public:
                     }
                 }
             } break;
+            case XCB_EXPOSE:
+            {
+                const auto& msg = *reinterpret_cast<xcb_expose_event_t*>(evt);
+                if (const auto host = GetWindow(msg.window); host)
+                {
+                    host->Invalidate();
+                }
+            } break;
             case XCB_SELECTION_NOTIFY:
             {
                 const auto& msg = *reinterpret_cast<xcb_selection_notify_event_t*>(evt);
@@ -659,6 +667,11 @@ public:
                     HandleClientMessage(host, msg.window, msg.type, msg.data);
                 }
             } break;
+            case 0: // error
+            {
+                const auto& err = *reinterpret_cast<xcb_generic_error_t*>(evt);
+                Logger.error(u"Error: [{}] [{},{}]\n", err.error_code, err.major_code, err.minor_code);
+            } break;
             default:
             {
                 if (evtType == XKBEventID) // handle xkb event
@@ -689,24 +702,35 @@ public:
         data.TheDisplay = TheDisplay;
 
         int visualId = Screen->root_visual;
+        bool needBackground = true;
         if (payload.ExtraData)
         {
             const auto vi = (*payload.ExtraData)("visual");
             if (vi)
                 visualId = *reinterpret_cast<const int*>(vi);
+            const auto bg = (*payload.ExtraData)("background");
+            if (bg)
+                needBackground = *reinterpret_cast<const bool*>(bg);
         }
 
         // Create XID's for window 
         xcb_window_t window = xcb_generate_id(Connection);
         /* Create window */
-        const uint32_t valuemask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
         const uint32_t eventmask = XCB_EVENT_MASK_EXPOSURE |
             XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
             XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
             XCB_EVENT_MASK_POINTER_MOTION |
             XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
             XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
-        const uint32_t valuelist[] = { Screen->white_pixel, eventmask };
+        uint32_t valuemask = XCB_CW_EVENT_MASK;
+        std::array<uint32_t, 2> valuelist = {0};
+        size_t valueIdx = 0;
+        if (needBackground)
+        {
+            valuemask |= XCB_CW_BACK_PIXEL;
+            valuelist[valueIdx++] = Screen->white_pixel;
+        }
+        valuelist[valueIdx++] = eventmask;
 
         const auto cookie0 = xcb_create_window(
             Connection,
@@ -718,8 +742,7 @@ public:
             0,
             XCB_WINDOW_CLASS_INPUT_OUTPUT,
             visualId,
-            valuemask,
-            valuelist
+            valuemask, valuelist.data()
         );
         GeneralHandleError(cookie0);
 

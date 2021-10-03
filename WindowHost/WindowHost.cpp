@@ -122,7 +122,7 @@ const void* WindowHost_::GetWindowData_(std::string_view name) const noexcept
     }
     return Manager.GetWindowData(this, name);
 }
-void WindowHost_::SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept
+std::byte* WindowHost_::SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept
 {
     const auto scope = Data->DataLock.WriteScope();
     auto ptr = Data->FirstData;
@@ -133,7 +133,7 @@ void WindowHost_::SetWindowData(std::string_view name, common::span<const std::b
             if (ptr->DataSize == data.size() && reinterpret_cast<uintptr_t>(ptr->ValPtr) % align == 0)
             {
                 memcpy_s(ptr->ValPtr, ptr->DataSize, data.data(), data.size());
-                return;
+                return ptr->ValPtr;
             }
             else // release and wait to alter size
             {
@@ -157,6 +157,7 @@ void WindowHost_::SetWindowData(std::string_view name, common::span<const std::b
     const auto realData = Data->DataHolder.Alloc(data.size(), align);
     memcpy_s(realData.data(), realData.size(), data.data(), data.size());
     ptr->ValPtr = realData.data(), ptr->DataSize = gsl::narrow_cast<uint32_t>(realData.size());
+    return ptr->ValPtr;
 }
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
@@ -418,7 +419,7 @@ LoopBase::LoopAction WindowHostPassive::OnLoopPass()
         if (!IsUptodate.test_and_set())
             OnDisplay();
         else
-            return ::common::loop::LoopBase::LoopAction::SleepFor(10);
+            return ::common::loop::LoopBase::LoopAction::Sleep();
     }
     return ::common::loop::LoopBase::LoopAction::Continue();
 }
@@ -426,6 +427,7 @@ LoopBase::LoopAction WindowHostPassive::OnLoopPass()
 void WindowHostPassive::Invalidate()
 {
     IsUptodate.clear();
+    Wakeup();
 }
 
 

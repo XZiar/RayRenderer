@@ -107,6 +107,14 @@ inline constexpr GLuint OGLUMsgIdMax = 0xdeafcafe;
 class oglWorker;
 class oglContext_;
 
+#if COMMON_OS_LINUX
+struct GLContextInfo
+{
+    void* Display = nullptr;
+    void* FBConfig = nullptr;
+    int VisualId = 0;
+};
+#endif
 
 namespace detail
 {
