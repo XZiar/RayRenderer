@@ -1,13 +1,14 @@
 #pragma once
 
 #include "WindowHostRely.h"
+#include "WindowHost.h"
 
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/LoopBase.h"
 #include "SystemCommon/PromiseTask.h"
 #include <map>
 #include <thread>
-
+#include <future>
 
 
 namespace xziar::gui
@@ -17,11 +18,9 @@ class WindowHost_;
 
 namespace detail
 {
-struct ManagerBlock;
 
 class WindowManager
 {
-    friend ManagerBlock;
     friend WindowRunner;
 private:
     struct InvokeNode : public common::NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
@@ -59,11 +58,17 @@ protected:
     virtual void Terminate() noexcept;
     virtual void NotifyTask() noexcept = 0;
 public:
+    struct CreatePayload
+    {
+        WindowHost_* Host;
+        const std::function<const void* (std::string_view)>* Provider;
+        std::promise<void> Promise;
+    };
     common::mlog::MiniLogger<false> Logger;
 
     virtual ~WindowManager();
     virtual bool CheckCapsLock() const noexcept = 0;
-    virtual void CreateNewWindow(WindowHost_* host) = 0;
+    virtual void CreateNewWindow(CreatePayload& payload) = 0;
     virtual void PrepareForWindow(WindowHost_*) const {}
     virtual void CloseWindow(WindowHost_* host) = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;

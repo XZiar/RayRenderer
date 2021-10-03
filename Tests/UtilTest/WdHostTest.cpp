@@ -32,14 +32,14 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
 static void OpenTestWindow()
 {
     const auto window = WindowHost_::CreateActive();
-    window->Openning    += [](const auto&) { log().info(u"opened.\n"); };
-    window->Closing     += [clickcnt = 0](const auto&, bool& should) mutable 
+    window->Openning() += [](const auto&) { log().info(u"opened.\n"); };
+    window->Closing() += [clickcnt = 0](const auto&, bool& should) mutable 
     {
         log().info(u"attempt to close [{}].\n", clickcnt);
         should = clickcnt++ > 0;
     };
-    window->Closed      += [](const auto&) { log().info(u"closed.\n"); };
-    window->Displaying  += [idx = 0u, tm = common::SimpleTimer()](const auto&) mutable
+    window->Closed() += [](const auto&) { log().info(u"closed.\n"); };
+    window->Displaying() += [idx = 0u, tm = common::SimpleTimer()](const auto&) mutable
     {
         if (idx++ % 300 == 0)
         {
@@ -52,11 +52,11 @@ static void OpenTestWindow()
             tm.Start();
         }
     };
-    window->Resizing    += [](const auto&, int32_t width, int32_t height)
+    window->Resizing() += [](const auto&, int32_t width, int32_t height)
     {
         log().info(u"resize to [{:4} x {:4}].\n", width, height);
     };
-    window->DropFile    += [](const auto&, const auto& evt)
+    window->DropFile() += [](const auto&, const auto& evt)
     {
         log().info(u"drop {} files at [{:4},{:4}]:\n", evt.Size(), evt.Pos.X, evt.Pos.Y);
         for (size_t i = 0; i < evt.Size(); ++i)
@@ -64,32 +64,32 @@ static void OpenTestWindow()
             log().verbose(u"--{}\n", evt[i]);
         }
     };
-    window->MouseEnter  += [](const auto&, const auto& evt)
+    window->MouseEnter() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse enter at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
     };
-    window->MouseLeave  += [](const auto&, const auto& evt)
+    window->MouseLeave() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse leave at [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y);
     };
-    window->MouseButtonDown += [](const auto&, const auto& evt)
+    window->MouseButtonDown() += [](const auto&, const auto& evt)
     {
         log().info(u"BtnDown: [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
     };
-    window->MouseButtonUp   += [](const auto&, const auto& evt)
+    window->MouseButtonUp() += [](const auto&, const auto& evt)
     {
         log().info(u"BtnUp  : [{}], pressed: [{}]\n", BtnToStr(evt.ChangedButton), BtnToStr(evt.PressedButton));
     };
-    /*window->MouseMove   += [](const auto&, const auto& evt)
+    /*window->MouseMove() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse move to [{:4},{:4}], moved [{:4},{:4}]\n", evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
     };*/
-    window->MouseDrag   += [](const auto&, const auto& evt)
+    window->MouseDrag() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse drag from [{:4},{:4}] to [{:4},{:4}], just moved [{:4},{:4}]\n", 
             evt.BeginPos.X, evt.BeginPos.Y, evt.Pos.X, evt.Pos.Y, evt.Delta.X, evt.Delta.Y);
     };
-    window->MouseScroll += [](const auto&, const auto& evt)
+    window->MouseScroll() += [](const auto&, const auto& evt)
     {
         log().info(u"Mouse wheel [{:6.3f}, {:6.3f}] at [{:4},{:4}].\n", evt.Horizontal, evt.Vertical, evt.Pos.X, evt.Pos.Y);
     }; 
@@ -104,8 +104,8 @@ static void OpenTestWindow()
             evt.HasShift() ? "Shift"sv : "     "sv,
             evt.HasAlt()   ? "Alt"sv   : "   "sv);
     };
-    window->KeyDown += keyHandler;
-    window->KeyUp   += keyHandler;
+    window->KeyDown() += keyHandler;
+    window->KeyUp() += keyHandler;
     window->Show();
     getchar();
     window->Close();

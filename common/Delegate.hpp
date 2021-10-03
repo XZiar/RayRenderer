@@ -69,7 +69,7 @@ private:
         else if constexpr (std::is_invocable_v<T>)
             return new CallbackNodeNoArg(id, UID, std::forward<T>(callback));
         else
-            static_assert(AlwaysTrue<T>, "unsupported callback type");
+            static_assert(!AlwaysTrue<T>, "unsupported callback type");
     }
 public:
     constexpr Delegate() : Indexer(0), Lock(), UID(std::random_device()())

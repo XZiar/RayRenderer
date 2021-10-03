@@ -352,8 +352,8 @@ public:
         case MessageCreate:
         {
             const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
-            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
-            CreateNewWindow_(host);
+            auto& payload = *reinterpret_cast<CreatePayload*>(static_cast<uintptr_t>(ptr));
+            CreateNewWindow_(payload);
         } break;
         case MessageTask:
         {
@@ -660,8 +660,9 @@ public:
         return IsCapsLock;
     }
 
-    void CreateNewWindow_(WindowHost_* host)
+    void CreateNewWindow_(CreatePayload& payload)
     {
+        const auto host = payload.Host;
         // Create XID's for window 
         xcb_window_t window = xcb_generate_id(Connection);
 
@@ -727,12 +728,13 @@ public:
         xcb_map_window(Connection, window);
         xcb_flush(Connection);
     }
-    void CreateNewWindow(WindowHost_* host) override
+    void CreateNewWindow(CreatePayload& payload) override
     {
-        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(&payload);
         SendControlRequest(MessageCreate,
             static_cast<uint32_t>(ptr & 0xffffffff),
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
+        payload.Promise.get_future().get();
     }
     void CloseWindow(WindowHost_* host) override
     {

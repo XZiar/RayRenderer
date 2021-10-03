@@ -17,29 +17,6 @@ using common::loop::LoopBase;
 
 std::unique_ptr<WindowManager> CreateManagerImpl();
 
-struct ManagerBlock
-{
-    std::unique_ptr<WindowManager> Manager;
-    std::atomic_bool IsRunnerOwned = false;
-    ManagerBlock() : Manager(CreateManagerImpl())
-    {
-        try
-        {
-            Manager->Initialize();
-        }
-        catch (const common::BaseException& be)
-        {
-            Manager->Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
-            std::rethrow_exception(std::current_exception());
-        }
-    }
-};
-ManagerBlock& GetManagerBlock()
-{
-    static ManagerBlock Block;
-    return Block;
-}
-
 
 WindowManager::WindowManager() : RunningFlag(false),
     Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
@@ -126,16 +103,26 @@ void WindowManager::AddInvoke(std::function<void(void)>&& task)
 
 WindowManager& WindowManager::Get()
 {
-    return *GetManagerBlock().Manager;
+    static auto Manager = []()
+    {
+        auto man = CreateManagerImpl();
+        try
+        {
+            man->Initialize();
+        }
+        catch (const common::BaseException& be)
+        {
+            man->Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
+            std::rethrow_exception(std::current_exception());
+        }
+        return man;
+    }();
+    return *Manager;
 }
 
 }
 
 
-WindowRunner::~WindowRunner()
-{
-    detail::GetManagerBlock().IsRunnerOwned = false;
-}
 bool WindowRunner::RunInplace(common::BasicPromise<void>* pms) const
 {
     Expects(Manager);
@@ -170,10 +157,7 @@ bool WindowRunner::CheckFeature(std::string_view feat) const noexcept
 
 WindowRunner WindowHost_::Init()
 {
-    auto& block = detail::GetManagerBlock();
-    if (!block.IsRunnerOwned.exchange(true))
-        return block.Manager.get();
-    return nullptr;
+    return &detail::WindowManager::Get();
 }
 
 }

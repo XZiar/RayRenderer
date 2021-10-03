@@ -137,7 +137,7 @@ public:
                 switch (msg.message)
                 {
                 case MessageCreate:
-                    CreateNewWindow_(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    CreateNewWindow_(*reinterpret_cast<CreatePayload*>(msg.wParam));
                     continue;
                 case MessageTask:
                     HandleTask();
@@ -165,8 +165,9 @@ public:
         return state & 0x001;
     }
 
-    void CreateNewWindow_(WindowHost_* host)
+    void CreateNewWindow_(CreatePayload& payload)
     {
+        const auto host = payload.Host;
         const auto hwnd = CreateWindowExW(
             0, //WS_EX_ACCEPTFILES, // extended style
             L"XZIAR_GUI_WINDOWHOST", // window class 
@@ -176,15 +177,17 @@ public:
             host->Width, host->Height, // width, height
             NULL, NULL, // parent window, menu
             reinterpret_cast<HINSTANCE>(InstanceHandle), host); // instance, param
+        payload.Promise.set_value(); // can release now
         DragAcceptFiles(hwnd, TRUE);
         RegisterHost(hwnd, host);
         ShowWindow(hwnd, SW_SHOW);
     }
-    void CreateNewWindow(WindowHost_* host) override
+    void CreateNewWindow(CreatePayload& payload) override
     {
-        PostThreadMessageW(ThreadId, MessageCreate, (uintptr_t)(host), NULL);
-        if (const auto err = GetLastError(); err != NO_ERROR)
-            Logger.error(u"Error when post thread message: {}\n", err);
+        if (0 == PostThreadMessageW(ThreadId, MessageCreate, reinterpret_cast<uintptr_t>(&payload), NULL))
+            Logger.error(u"Error when post thread message: {}\n", GetLastError());
+        else
+            payload.Promise.get_future().get();
     }
     void PrepareForWindow(WindowHost_*) const override
     {

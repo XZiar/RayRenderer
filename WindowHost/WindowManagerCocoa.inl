@@ -502,8 +502,8 @@ public:
                 {
                 case MessageCreate:
                 {
-                    const auto realHost = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data));
-                    CreateNewWindow_(realHost);
+                    auto& payload = *reinterpret_cast<CreatePayload*>(static_cast<uintptr_t>(data));
+                    CreateNewWindow_(payload);
                 } break;
                 case MessageTask:
                     HandleTask();
@@ -552,9 +552,11 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
         ARPool.reset();
     }
 
-    void CreateNewWindow_(WindowHost_* host)
+    void CreateNewWindow_(CreatePayload& payload)
     {
         using common::BaseException;
+        const auto host = payload.Host;
+        host->NeedCheckDrag = false;
         auto& data = host->template GetOSData<CocoaData>();
 
         //id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 500, 500) styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask backing:NSBackingStoreBuffered defer:NO];
@@ -612,11 +614,11 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
         return IsCapsLock;
     }
 
-    void CreateNewWindow(WindowHost_* host) override
+    void CreateNewWindow(CreatePayload& payload) override
     {
-        host->NeedCheckDrag = false;
-        const NSInteger ptr = reinterpret_cast<uintptr_t>(host);
+        const NSInteger ptr = reinterpret_cast<uintptr_t>(&payload);
         SendControlRequest(MessageCreate, ptr);
+        payload.Promise.get_future().get();
     }
     void CloseWindow(WindowHost_* host) override
     {

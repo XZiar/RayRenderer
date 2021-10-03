@@ -35,12 +35,52 @@ class WindowRunner
 public:
     COMMON_NO_COPY(WindowRunner)
     COMMON_DEF_MOVE(WindowRunner)
-    WDHOSTAPI ~WindowRunner();
     constexpr explicit operator bool() const noexcept { return Manager; }
     WDHOSTAPI bool RunInplace(common::BasicPromise<void>* pms = nullptr) const;
     WDHOSTAPI bool RunNewThread() const;
     WDHOSTAPI bool SupportNewThread() const noexcept;
     WDHOSTAPI bool CheckFeature(std::string_view feat) const noexcept;
+};
+
+
+
+template<typename... Args>
+class WindowEventDelegate;
+class CallbackToken
+{
+    template<typename...> friend class WindowEventDelegate;
+    void* CallbackPtr = nullptr;
+    uint32_t ID = 0;
+};
+template<typename... Args>
+class WindowEventDelegate
+{
+    friend WindowHost_;
+    void* Target;
+    bool (*Handler)(void*, void*, CallbackToken*);
+    constexpr WindowEventDelegate(void* target, bool (*handler)(void*, void*, CallbackToken*)) noexcept :
+        Target(target), Handler(handler) { }
+public:
+    template<typename T>
+    CallbackToken operator+=(T&& callback)
+    {
+        std::function<void(WindowHost_&, Args...)> cb;
+        if constexpr (std::is_invocable_v<T, WindowHost_&, Args...>)
+            cb = std::forward<T>(callback);
+        else if constexpr (std::is_invocable_v<T, Args...>)
+            cb = [real = std::forward<T>(callback)](WindowHost_&, Args... args) { real(args...); };
+        else if constexpr (std::is_invocable_v<T>)
+            cb = [real = std::forward<T>(callback)](WindowHost_&, Args...) { real(); };
+        else
+            static_assert(!common::AlwaysTrue<T>, "unsupported callback type");
+        CallbackToken token;
+        Handler(Target, &cb, &token);
+        return token;
+    }
+    bool operator-=(CallbackToken token)
+    {
+        return Handler(Target, nullptr, &token);
+    }
 };
 
 
@@ -53,16 +93,17 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManagerXCB;
     friend detail::WindowManagerCocoa;
 private:
+    struct PrivateData;
     struct InvokeNode : public NonMovable, public common::container::IntrusiveDoubleLinkListNodeBase<InvokeNode>
     {
         std::function<void(WindowHost_&)> Task;
         InvokeNode(std::function<void(WindowHost_&)>&& task) : Task(std::move(task)) { }
     };
     detail::WindowManager& Manager;
+    std::unique_ptr<PrivateData> Data;
     uint64_t OSData[4] = { 0 };
     std::u16string Title;
     std::atomic_flag IsOpened = ATOMIC_FLAG_INIT;
-    common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
     int32_t Width, Height;
     event::Position LastPos, LeftBtnPos;
     event::MouseButton PressedButton = event::MouseButton::None;
@@ -122,26 +163,26 @@ public:
     }
 
     // below delegates are called inside UI thread (Window Loop)
-    common::Delegate<WindowHost_&> Openning;
-    common::Delegate<WindowHost_&> Displaying;
-    common::Delegate<WindowHost_&> Closed;
+    WindowEventDelegate<> Openning() const noexcept;
+    WindowEventDelegate<> Displaying() const noexcept;
+    WindowEventDelegate<> Closed() const noexcept;
 
     // below delegates are called inside Manager thread (Main Loop)
-    common::Delegate<WindowHost_&, bool&> Closing;
-    common::Delegate<WindowHost_&, int32_t, int32_t> Resizing;
-    common::Delegate<WindowHost_&, const event::MouseEvent&> MouseEnter;
-    common::Delegate<WindowHost_&, const event::MouseEvent&> MouseLeave;
-    common::Delegate<WindowHost_&, const event::MouseButtonEvent&> MouseButtonDown;
-    common::Delegate<WindowHost_&, const event::MouseButtonEvent&> MouseButtonUp;
-    common::Delegate<WindowHost_&, const event::MouseMoveEvent&> MouseMove;
-    common::Delegate<WindowHost_&, const event::MouseDragEvent&> MouseDrag;
-    common::Delegate<WindowHost_&, const event::MouseScrollEvent&> MouseScroll;
-    common::Delegate<WindowHost_&, const event::KeyEvent&> KeyDown;
-    common::Delegate<WindowHost_&, const event::KeyEvent&> KeyUp;
-    common::Delegate<WindowHost_&, const event::DropFileEvent&> DropFile;
+    WindowEventDelegate<bool&> Closing() const noexcept;
+    WindowEventDelegate<int32_t, int32_t> Resizing() const noexcept;
+    WindowEventDelegate<const event::MouseEvent&> MouseEnter() const noexcept;
+    WindowEventDelegate<const event::MouseEvent&> MouseLeave() const noexcept;
+    WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonDown() const noexcept;
+    WindowEventDelegate<const event::MouseButtonEvent&> MouseButtonUp() const noexcept;
+    WindowEventDelegate<const event::MouseMoveEvent&> MouseMove() const noexcept;
+    WindowEventDelegate<const event::MouseDragEvent&> MouseDrag() const noexcept;
+    WindowEventDelegate<const event::MouseScrollEvent&> MouseScroll() const noexcept;
+    WindowEventDelegate<const event::KeyEvent&> KeyDown() const noexcept;
+    WindowEventDelegate<const event::KeyEvent&> KeyUp() const noexcept;
+    WindowEventDelegate<const event::DropFileEvent&> DropFile() const noexcept;
 
     // below delegates are called from any thread
-    void Show();
+    void Show(const std::function<const void* (std::string_view)>& provider = {});
     void Close();
     WindowHost GetSelf();
     void SetTitle(const std::u16string_view title);

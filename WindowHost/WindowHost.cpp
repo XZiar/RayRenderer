@@ -1,6 +1,15 @@
 #include "WindowHost.h"
 #include "WindowManager.h"
 #include "StringUtil/Convert.h"
+#include "common/Delegate.hpp"
+#include "common/TrunckedContainer.hpp"
+
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/tuple/enum.hpp>
+#include <boost/preprocessor/tuple/pop_front.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
+
 #include <thread>
 
 
@@ -11,16 +20,96 @@ using common::loop::LoopBase;
 MAKE_ENABLER_IMPL(WindowHostPassive)
 MAKE_ENABLER_IMPL(WindowHostActive)
 
+#define WD_EVT_NAMES BOOST_PP_VARIADIC_TO_SEQ(Openning, Displaying, Closed,     \
+    Closing, Resizing, MouseEnter, MouseLeave, MouseButtonDown, MouseButtonUp,  \
+    MouseMove, MouseDrag, MouseScroll, KeyDown, KeyUp, DropFile)
+#define WD_EVT_EACH_(r, func, name) func(name)
+#define WD_EVT_EACH(func) BOOST_PP_SEQ_FOR_EACH(WD_EVT_EACH_, func, WD_EVT_NAMES)
+
+
+#define WD_EVT_MAP BOOST_PP_VARIADIC_TO_SEQ(                            \
+    (Openning,          WindowHost_&),                                  \
+    (Displaying,        WindowHost_&),                                  \
+    (Closed,            WindowHost_&),                                  \
+    (Closing,           WindowHost_&, bool&),                           \
+    (Resizing,          WindowHost_&, int32_t, int32_t),                \
+    (MouseEnter,        WindowHost_&, const event::MouseEvent&),        \
+    (MouseLeave,        WindowHost_&, const event::MouseEvent&),        \
+    (MouseButtonDown,   WindowHost_&, const event::MouseButtonEvent&),  \
+    (MouseButtonUp,     WindowHost_&, const event::MouseButtonEvent&),  \
+    (MouseMove,         WindowHost_&, const event::MouseMoveEvent&),    \
+    (MouseDrag,         WindowHost_&, const event::MouseDragEvent&),    \
+    (MouseScroll,       WindowHost_&, const event::MouseScrollEvent&),  \
+    (KeyDown,           WindowHost_&, const event::KeyEvent&),          \
+    (KeyUp,             WindowHost_&, const event::KeyEvent&),          \
+    (DropFile,          WindowHost_&, const event::DropFileEvent&)      \
+)
+//#define WD_EVT_EACH_(r, func, tp) func(BOOST_PP_TUPLE_ELEM(0, tp), BOOST_PP_TUPLE_ENUM(BOOST_PP_TUPLE_POP_FRONT(tp)))
+//#define WD_EVT_EACH(func) BOOST_PP_SEQ_FOR_EACH(WD_EVT_EACH_, func, WD_EVT_MAP)
+
+
+template<typename T> struct CastEventType;
+template<typename... Args>
+struct CastEventType<WindowEventDelegate<Args...>>
+{
+    using DlgType  = common::Delegate<WindowHost_&, Args...>;
+    using FuncType = std::function<void(WindowHost_&, Args...)>;
+};
+
+
+
+struct WindowHost_::PrivateData
+{
+    struct DataHeader
+    {
+        void* ValPtr;
+        uint16_t NameLength;
+#if COMMON_OS_BIT == 64
+        char16_t Name[3];
+#else
+        char16_t Name[1];
+#endif
+    };
+    common::container::TrunckedContainer<std::byte> DataHolder;
+    common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
+#define DEF_DELEGATE(name) typename CastEventType<decltype(std::declval<WindowHost_&>().name())>::DlgType name;
+    WD_EVT_EACH(DEF_DELEGATE)
+#undef DEF_DELEGATE
+
+    PrivateData() : DataHolder(4096, 8)
+    { }
+};
+
 
 WindowHost_::WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title) : 
     LoopBase(LoopBase::GetThreadedExecutor), Manager(detail::WindowManager::Get()),
+    Data(std::make_unique<PrivateData>()),
     Title(std::u16string(title)), Width(width), Height(height)
 { }
-
 WindowHost_::~WindowHost_()
 {
     Stop();
 }
+
+#define DEF_ACCESSOR(name) static bool Handle##name(void* dlg, void* cb, CallbackToken* tk) \
+{                                                                                           \
+    using Caster = CastEventType<decltype(std::declval<WindowHost_&>().name())>;            \
+    const auto token = reinterpret_cast<common::CallbackToken*>(tk);                        \
+    const auto target = reinterpret_cast<typename Caster::DlgType*>(dlg);                   \
+    if (cb)                                                                                 \
+    {                                                                                       \
+        *token = *target += std::move(*reinterpret_cast<typename Caster::FuncType*>(cb));   \
+        return true;                                                                        \
+    }                                                                                       \
+    else                                                                                    \
+        return *target -= *token;                                                           \
+}                                                                                           \
+decltype(std::declval<WindowHost_&>().name()) WindowHost_::name() const noexcept            \
+{                                                                                           \
+    return { &Data->name, &Handle##name };                                                  \
+}
+WD_EVT_EACH(DEF_ACCESSOR)
+#undef DEF_ACCESSOR
 
 const void* WindowHost_::GetWindowData_(std::string_view name) const noexcept
 {
@@ -41,7 +130,7 @@ LoopBase::LoopAction WindowHost_::OnLoop()
 
 void WindowHost_::OnStop() noexcept
 {
-    Closed(*this);
+    Data->Closed(*this);
     Manager.ReleaseWindow(this);
 }
 
@@ -52,11 +141,11 @@ void WindowHost_::Initialize()
 
 bool WindowHost_::HandleInvoke() noexcept
 {
-    if (!InvokeList.IsEmpty())
+    if (!Data->InvokeList.IsEmpty())
     {
-        auto task = InvokeList.Begin();
+        auto task = Data->InvokeList.Begin();
         task->Task(*this);
-        InvokeList.PopNode(task);
+        Data->InvokeList.PopNode(task);
         return true;
     }
     return false;
@@ -64,24 +153,24 @@ bool WindowHost_::HandleInvoke() noexcept
 
 void WindowHost_::OnOpen() noexcept
 {
-    Openning(*this);
+    Data->Openning(*this);
 }
 
 bool WindowHost_::OnClose() noexcept
 {
     bool shouldClose = true;
-    Closing(*this, shouldClose);
+    Data->Closing(*this, shouldClose);
     return shouldClose;
 }
 
 void WindowHost_::OnDisplay() noexcept
 {
-    Displaying(*this);
+    Data->Displaying(*this);
 }
 
 void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
 {
-    Resizing(*this, width, height);
+    Data->Resizing(*this, width, height);
     Width = width; Height = height;
 }
 
@@ -94,14 +183,14 @@ void WindowHost_::OnMouseEnter(event::Position pos) noexcept
 {
     event::MouseEvent evt(pos);
     LastPos = pos;
-    MouseEnter(*this, evt);
+    Data->MouseEnter(*this, evt);
     MouseHasLeft = false;
 }
 
 void WindowHost_::OnMouseLeave() noexcept
 {
     event::MouseEvent evt(LastPos);
-    MouseLeave(*this, evt);
+    Data->MouseLeave(*this, evt);
     MouseHasLeft = true;
 }
 
@@ -123,9 +212,9 @@ void WindowHost_::OnMouseButton(event::MouseButton changedBtn, bool isPress) noe
     event::MouseButtonEvent evt(LastPos, PressedButton, changedBtn);
     
     if (isPress)
-        MouseButtonDown(*this, evt);
+        Data->MouseButtonDown(*this, evt);
     else
-        MouseButtonUp(*this, evt);
+        Data->MouseButtonUp(*this, evt);
 }
 
 void WindowHost_::OnMouseButtonChange(event::MouseButton btn) noexcept
@@ -144,12 +233,12 @@ void WindowHost_::OnMouseButtonChange(event::MouseButton btn) noexcept
     if (released != event::MouseButton::None) // already pressed button changed
     {
         event::MouseButtonEvent evt(LastPos, btn, released);
-        MouseButtonUp(*this, evt);
+        Data->MouseButtonUp(*this, evt);
     }
     if (pressed != event::MouseButton::None) // not pressed button changed
     {
         event::MouseButtonEvent evt(LastPos, btn, pressed);
-        MouseButtonDown(*this, evt);
+        Data->MouseButtonDown(*this, evt);
     }
 
     PressedButton = btn;
@@ -158,7 +247,7 @@ void WindowHost_::OnMouseButtonChange(event::MouseButton btn) noexcept
 void WindowHost_::OnMouseMove(event::Position pos) noexcept
 {
     event::MouseMoveEvent moveEvt(LastPos, pos);
-    MouseMove(*this, moveEvt);
+    Data->MouseMove(*this, moveEvt);
     if (NeedCheckDrag && HAS_FIELD(PressedButton, event::MouseButton::Left))
     {
         if (!IsMouseDragging)
@@ -172,7 +261,7 @@ void WindowHost_::OnMouseMove(event::Position pos) noexcept
         if (IsMouseDragging)
         {
             event::MouseDragEvent dragEvt(LeftBtnPos, LastPos, pos);
-            MouseDrag(*this, dragEvt);
+            Data->MouseDrag(*this, dragEvt);
         }
     }
     LastPos = pos;
@@ -181,16 +270,16 @@ void WindowHost_::OnMouseMove(event::Position pos) noexcept
 void WindowHost_::OnMouseDrag(event::Position pos) noexcept
 {
     event::MouseMoveEvent moveEvt(LastPos, pos);
-    MouseMove(*this, moveEvt);
+    Data->MouseMove(*this, moveEvt);
     event::MouseDragEvent dragEvt(LeftBtnPos, LastPos, pos);
-    MouseDrag(*this, dragEvt);
+    Data->MouseDrag(*this, dragEvt);
     LastPos = pos;
 }
 
 void WindowHost_::OnMouseScroll(event::Position pos, float dh, float dv) noexcept
 {
     event::MouseScrollEvent evt(pos, dh, dv);
-    MouseScroll(*this, evt);
+    Data->MouseScroll(*this, evt);
 }
 
 void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
@@ -201,28 +290,29 @@ void WindowHost_::OnKeyDown(event::CombinedKey key) noexcept
     }
     Modifiers |= key.GetModifier();
     event::KeyEvent evt(LastPos, Modifiers, key);
-    KeyDown(*this, evt);
+    Data->KeyDown(*this, evt);
 }
 
 void WindowHost_::OnKeyUp(event::CombinedKey key) noexcept
 {
     Modifiers &= ~key.GetModifier();
     event::KeyEvent evt(LastPos, Modifiers, key);
-    KeyUp(*this, evt);
+    Data->KeyUp(*this, evt);
 }
 
 void WindowHost_::OnDropFile(event::Position pos, common::StringPool<char16_t>&& namepool, 
         std::vector<common::StringPiece<char16_t>>&& names) noexcept
 {
     event::DropFileEvent evt(pos, std::move(namepool), std::move(names));
-    DropFile(*this, evt);
+    Data->DropFile(*this, evt);
 }
 
-void WindowHost_::Show()
+void WindowHost_::Show(const std::function<const void* (std::string_view)>& provider)
 {
     if (!IsOpened.test_and_set())
     {
-        Manager.CreateNewWindow(this);
+        detail::WindowManager::CreatePayload payload{ this, provider ? &provider : nullptr };
+        Manager.CreateNewWindow(payload);
     }
 }
 
@@ -239,7 +329,7 @@ void WindowHost_::Invoke(std::function<void(void)> task)
 
 void WindowHost_::InvokeUI(std::function<void(WindowHost_&)> task)
 {
-    InvokeList.AppendNode(new InvokeNode(std::move(task)));
+    Data->InvokeList.AppendNode(new InvokeNode(std::move(task)));
     Wakeup();
 }
 
