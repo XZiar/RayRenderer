@@ -99,7 +99,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;FreeGLUTView.dll;XComputeBase.dll;WindowHost.dll;AsyncExecutor.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;XComputeBase.dll;WindowHost.dll;AsyncExecutor.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -206,9 +206,6 @@
     <ProjectReference Include="..\..\Nailang\Nailang.vcxproj">
       <Project>{5b68ea93-2c83-4af3-9e5f-f4f90917376f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\FreeGLUTView\FreeGLUTView.vcxproj">
-      <Project>{944b3981-336e-4807-b5be-55b8f05920d4}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
@@ -265,14 +262,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="DXStub.cpp" />
-    <ClCompile Include="FreeGLUTTest.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">false</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="GLStub.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
@@ -292,6 +281,7 @@
     <ClCompile Include="LogTest.cpp" />
     <ClCompile Include="NailangTest.cpp" />
     <ClCompile Include="UtilTest.cpp" />
+    <ClCompile Include="WdHostGLTest.cpp" />
     <ClCompile Include="WdHostTest.cpp" />
     <ClCompile Include="XCompCommon.cpp" />
   </ItemGroup>

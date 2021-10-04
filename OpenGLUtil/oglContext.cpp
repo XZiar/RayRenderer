@@ -38,7 +38,7 @@ thread_local oglContext InnerCurCtx{ };
 #endif
 
 
-static std::atomic_uint32_t LatestVersion = 0;
+std::atomic_uint32_t LatestVersion = 0;
 static std::map<void*, std::weak_ptr<oglContext_>> CTX_MAP;
 static std::map<void*, std::weak_ptr<oglContext_>> EXTERN_CTX_MAP;
 static common::RWSpinLock CTX_LOCK;
@@ -201,7 +201,7 @@ bool oglContext_::UnloadContext()
             return false;
         }
 #else
-        if (!PlatFuncs::MakeGLContextCurrent(Hdc, DRW, nullptr))
+        if (!PlatFuncs::MakeGLContextCurrent(Hdc, 0, nullptr))
         {
             oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, PlatFuncs::GetSystemError());
             return false;

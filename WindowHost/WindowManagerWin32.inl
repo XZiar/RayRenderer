@@ -28,6 +28,7 @@ struct Win32Data
 {
     HWND Handle = nullptr;
     HDC DCHandle = nullptr;
+    bool NeedBackground = true;
 };
 
 
@@ -201,7 +202,7 @@ public:
             0, 0, // position x, y
             host->Width, host->Height, // width, height
             NULL, NULL, // parent window, menu
-            reinterpret_cast<HINSTANCE>(InstanceHandle), host); // instance, param
+            reinterpret_cast<HINSTANCE>(InstanceHandle), &payload); // instance, param
         payload.Promise.set_value(); // can release now
         DragAcceptFiles(hwnd, TRUE);
         RegisterHost(hwnd, host);
@@ -321,12 +322,19 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     const auto handle = reinterpret_cast<uintptr_t>(hwnd);
     if (msg == WM_CREATE)
     {
-        const auto host = reinterpret_cast<WindowHost_*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+        const auto& payload = *reinterpret_cast<CreatePayload*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+        const auto host = payload.Host;
         TheManager->Logger.success(FMT_STRING(u"Create window HWND[{:x}] with host [{:p}]\n"), handle, (void*)host);
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
         auto& data = host->template GetOSData<Win32Data>();
         data.Handle = hwnd;
         data.DCHandle = GetDC(hwnd);
+        if (payload.ExtraData)
+        {
+            const auto bg = (*payload.ExtraData)("background");
+            if (bg)
+                data.NeedBackground = *reinterpret_cast<const bool*>(bg);
+        }
         host->Initialize();
     }
     else if (msg == WM_NCCREATE)
@@ -378,9 +386,13 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             } return 0;
 
             case WM_ERASEBKGND:
-                return 1; // just ignore
+                if (host->template GetOSData<Win32Data>().NeedBackground) // let defwndproc to handle it
+                    break;
+                else // return 1(handled) to ignore
+                    return 1;
             case WM_PAINT:
             {
+                host->Invalidate();
                 RECT rect;
                 if (GetUpdateRect(hwnd, &rect, FALSE))
                 {
@@ -504,12 +516,14 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_GETMINMAXINFO:
                 break;
 
+            case WM_CHAR:
             case WM_IME_NOTIFY:
             case WM_IME_REQUEST:
             case WM_IME_SETCONTEXT:
                 break;
 
             case WM_NCHITTEST:
+            case WM_NCCALCSIZE:
             case WM_NCACTIVATE:
             case WM_NCLBUTTONDOWN:
             case WM_NCLBUTTONUP:

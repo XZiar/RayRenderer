@@ -33,9 +33,6 @@
     <ClCompile Include="GLStub.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FreeGLUTTest.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="LogTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -52,6 +49,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="XCompCommon.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WdHostGLTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

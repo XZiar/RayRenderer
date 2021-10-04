@@ -93,15 +93,20 @@ static void RunTest()
     window->Openning() += [&](const auto&) 
     {
         log().info(u"opened.\n"); 
-        const auto info = window->GetWindowData<GLContextInfo>("glinfo");
-        const auto wd = window->GetWindowData<uint32_t>("window");
-        const auto drawable = oglUtil::CreateDrawable(*info, *wd);
-        window->SetWindowData("drawable", drawable);
+#if COMMON_OS_WIN
+        const auto& hdc = *window->GetWindowData<void*>("HDC");
+        oglUtil::SetPixFormat(hdc);
+        GLContextInfo info{ hdc };
+#elif COMMON_OS_LINUX
+        auto& info = *const_cast<GLContextInfo*>(window->GetWindowData<GLContextInfo>("glinfo"));
+        const auto wd = *window->GetWindowData<uint32_t>("window");
+        oglUtil::InitDrawable(info, wd);
+#endif
         oglUtil::SetFuncLoadingDebug(true, true);
-        context = oglContext_::InitContext(*info, drawable, 43);
+        context = oglContext_::InitContext(info);
         oglUtil::SetFuncLoadingDebug(false, false);
-        TestErr();
         context->UseContext();
+        TestErr();
 
         log().debug(u"{}\n", context->Capability->GenerateSupportLog());
         const auto fbo = oglu::oglDefaultFrameBuffer_::Get();
@@ -163,9 +168,10 @@ static void RunTest()
         lutTex.reset();
         lutter.release();
         context->Release();
-        if (const auto drawable = window->GetWindowData<uint32_t>("drawable"); drawable)
-            if (const auto display = window->GetWindowData<void*>("display"); display)
-                oglUtil::DestroyDrawable(*display, *drawable);
+#if COMMON_OS_LINUX
+        if (const auto info = window->GetWindowData<GLContextInfo>("glinfo"); info)
+            oglUtil::DestroyDrawable(*const_cast<GLContextInfo*>(info));
+#endif
         closePms.set_value();
     };
     window->Displaying() += [&](const auto& wd) 
@@ -215,7 +221,13 @@ static void RunTest()
     };
     window->Show([&](std::string_view name) -> const void* 
     {
-        if (name == "visual")
+        if (name == "background")
+        {
+            static constexpr bool NoNeed = false;
+            return &NoNeed;
+        }
+#if COMMON_OS_LINUX
+        else if (name == "visual")
         {
             if (const auto display = window->GetWindowData<void*>("display"); display)
             {
@@ -226,11 +238,7 @@ static void RunTest()
                 }
             }
         }
-        else if (name == "background")
-        {
-            static constexpr bool NoNeed = false;
-            return &NoNeed;
-        }
+#endif
         return nullptr;
     });
 
