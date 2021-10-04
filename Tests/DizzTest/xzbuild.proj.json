@@ -1,8 +1,8 @@
 {
-    "name": "GLUTTest",
+    "name": "DizzTest",
     "type": "executable",
-    "description": "Test Program based on FreeGLUT",
-    "dependency": ["FreeGLUTView", "OpenGLUtil", "RenderCore", "FontHelper", "ResourcePackager", "ImageUtil", "SystemCommon", "StringUtil"],
+    "description": "Test Program based on WindowHost",
+    "dependency": ["WindowHost", "OpenGLUtil", "RenderCore", "FontHelper", "ResourcePackager", "ImageUtil", "SystemCommon", "StringUtil"],
     "library": 
     {
         "static": 

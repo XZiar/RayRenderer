@@ -116,7 +116,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;FreeGLUTView.dll;XComputeBase.dll;WindowHost.dll;AsyncExecutor.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;XComputeBase.dll;WindowHost.dll;AsyncExecutor.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

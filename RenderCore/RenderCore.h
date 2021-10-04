@@ -39,7 +39,7 @@ private:
     void RefreshContext() const;
     void InitShaders();
 public:
-    RenderCore();
+    RenderCore(const oglu::GLContextInfo& info);
     ~RenderCore();
     void TestSceneInit();
     void Draw();

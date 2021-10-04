@@ -73,8 +73,9 @@ oglContext InitContext()
         log().error(u"Failed to init basic info\n");
         COMMON_THROW(BaseException, u"Error");
     }
-    const auto pmap = XCreatePixmap(display, XDefaultRootWindow(display), 100, 100, 32);
-    oglUtil::InitDrawable(*glinfo, pmap);
+    glinfo->Drawable = 0; // use None drawable 
+    // const auto pmap = XCreatePixmap(display, XDefaultRootWindow(display), 100, 100, 32);
+    // oglUtil::InitDrawable(*glinfo, pmap);
     oglu::oglUtil::SetFuncLoadingDebug(true, true);
     auto ctx = oglContext_::InitContext(*glinfo);
     oglu::oglUtil::SetFuncLoadingDebug(false, false);

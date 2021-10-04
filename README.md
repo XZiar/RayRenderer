@@ -36,14 +36,13 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Win & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Win & Linux |
 | [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Win & Linux |
-| [FreeGLUTView](./FreeGLUTView) | Wrapper of FreeGLUT | C++ | Win & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Win & Linux |
 | [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Win & Linux |
 | [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | C++/CLI | Win |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | C# | Win |
 | [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | C# | Win |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | C++/CLI | Win |
-| [GLUTTest](./GLUTTest) | Test Program(C++) (using FreeGLUTView) | C++ | Win & Linux |
+| [DizzTest](./Tests/DizzTest) | Test Program(C++) (using WindowHost) | C++ | Win & Linux |
 | [UtilTest](./Tests/UtilTest) | Utilities Test Program(C++) | C++ | Win & Linux |
 | [WPFTest](./WPFTest) | Test Program(C#) in WPF (using OpenGLView) | C# | Win |
 

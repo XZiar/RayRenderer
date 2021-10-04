@@ -491,8 +491,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                 for (uint32_t i = 0; i < count; ++i)
                 {
                     const auto len = DragQueryFileW(hdrop, i, nullptr, 0);
-                    tmp.resize(len + 1);
+                    tmp.resize(len + 1); // reserve for null-end
                     DragQueryFileW(hdrop, i, reinterpret_cast<wchar_t*>(tmp.data()), static_cast<uint32_t>(tmp.size()));
+                    tmp.resize(len);
                     fileNamePieces.emplace_back(fileNamePool.AllocateString(tmp));
                 }
                 DragFinish(hdrop);

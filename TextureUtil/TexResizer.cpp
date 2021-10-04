@@ -89,7 +89,7 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             texLog().warning(u"TexResizer has no shared CL context attached\n");
         if (!KerToImg)
         {
-            texLog().warning(u"OpenCL Kernel is disabled");
+            texLog().warning(u"OpenCL Kernel is disabled.\n");
         }
     })->Get();
 }

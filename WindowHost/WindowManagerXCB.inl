@@ -745,9 +745,9 @@ public:
             valuemask, valuelist.data()
         );
         GeneralHandleError(cookie0);
-
+        
+        payload.Promise.set_value(); // can release now
         RegisterHost(window, host);
-
 
         // //Property does not exist, so set it to redirect to me
         // XChangeProperty(disp, root, XdndProxy, XA_WINDOW, 32, PropModeReplace, (unsigned char*)&w, 1);
