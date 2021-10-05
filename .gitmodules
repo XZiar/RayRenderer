@@ -36,10 +36,6 @@
 	shallow = true
 	path = 3rdParty/uchardet
 	url = https://github.com/freedesktop/uchardet.git
-[submodule "3rdParty/FreeGLUT"]
-	shallow = true
-	path = 3rdParty/FreeGLUT
-	url = https://github.com/dcnieho/FreeGLUT.git
 [submodule "3rdParty/ghc_filesystem"]
 	shallow = true
 	path = 3rdParty/ghc_filesystem

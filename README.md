@@ -92,11 +92,7 @@ python3 xzbuild buildall UtilTest
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [FreeGLUT](http://freeglut.sourceforge.net) `submodule` 3.2.1
-
-  [MIT License](./3rdParty/freeglut/license.txt)
-
-* [boost](http://www.boost.org/)  1.76.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.77.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 

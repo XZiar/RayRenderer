@@ -23,25 +23,30 @@
   - [ ] Applying SIMD acceleration 
   - [x] Merge fmt with better format-context support
   - [ ] Add BOM detection
+  - [ ] Add custom opcode-based compile-time parsing&format support 
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
   - [ ] Add hugepage memory allocation
-  - [ ] Add SpinLock implementation
   - [x] Seperate PromiseTask's functionalities of task-info and ret-value
   - [x] Move SIMD copy into SystemCommon
   - [ ] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
   - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
-  - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
+  - [ ] Maybe move AsyncExecutor into SystemCommon, since OS-related
+  - [ ] Maybe move SpinLock into SystemCommon, enable HW&OS-specific waiting strategy
+  - [ ] Move common's exception into SystemCommon
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
+  - [ ] Desgin common waitable, with native support of multi-wait
   * MiniLogger
     - [ ] Add pre-defined color arg
     - [ ] Add color filter to non-terminal backend (spin-lock based processing)
     - [ ] Use Pascal naming
+    - [ ] Use new formating strategy, handle formating on worker thread and disable color on file output
 
 * AsyncExecutor
   - [x] Add support for returning value
+  - [ ] Add passive executor, provide a way to handle task by outsider
   - [ ] Add multi thread executor
   - [ ] Embed boost.context, make boost.context a submodule
 
@@ -67,6 +72,7 @@
   - [ ] Add multi-backend support
   - [ ] Add vsync signal support
   - [ ] Add Icon support
+  - [ ] Add timer support
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
@@ -95,6 +101,7 @@
   - [x] Correct handle *nary expression when facing custom object
   - [x] Seperate `AutoVar` and `AutoVar[]` to allow custom info when accessing AutoVar 
   - [x] Add bitwise operator support
+  - [ ] Add stack-like EvaluateContext, put all args into the same container (since no way to add var into prev caller)
   - [ ] Correctly handle self assign for customvar (for efficiency)
   - [ ] Add member func call for arg by `()`
   - [ ] Remove PartedName, func will only keep fullname
@@ -238,16 +245,17 @@
 * Global
   - [x] Port some utilities to Linux 
   - [x] Port core components to Linux 
-  - [ ] Move to .net core 3.1/5 with WPF/Winform
+  - [ ] Move to .net core 5 with WPF/Winform
   - [ ] Add Vulkan backend
-  - [ ] Add custom window host (for OGL/vulkan)
+  - [x] Add custom window host (for OGL/vulkan)
   - [ ] Seperate OGL/DX/Vulkan backend
   - [ ] Add remote rendering backend (out-of-process or network-based)
   - [x] Add custom base DSL for OpenGL and OpenCL
   - [x] Switch to github actions for CI?
   - [x] Repalce cryptopp with lightweighted digest library (maybe setup a new project)
   - [x] Embed gtest for latest fixes for C++20
-  - [ ] Move to submodule-based 3rdParty libraries
+  - [x] Move to submodule-based 3rdParty libraries
   - [x] Add basic DX12 runtime wrapper
   - [ ] Adopt `std::launder` when necessary to reduce UB
+  - [ ] Seperate sub projects into different repos within a group
 
