@@ -2,6 +2,14 @@
 #include "StringConvert.h"
 #include "StrEncoding.hpp"
 
+
+#if COMMON_COMPILER_MSVC
+#   define SYSCOMMONTPL SYSCOMMONAPI
+#else
+#   define SYSCOMMONTPL
+#endif
+
+
 namespace common::str
 {
 
@@ -83,10 +91,10 @@ SYSCOMMONAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> s
     return DirectConv<Char>(str, inchset, EngUpper);
 
 }
-template SYSCOMMONAPI std::basic_string<char>     ToUEng(const std::basic_string_view<char>     str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<wchar_t>  ToUEng(const std::basic_string_view<wchar_t>  str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<char16_t> ToUEng(const std::basic_string_view<char16_t> str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<char32_t> ToUEng(const std::basic_string_view<char32_t> str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char>     ToUEng(const std::basic_string_view<char>     str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<wchar_t>  ToUEng(const std::basic_string_view<wchar_t>  str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char16_t> ToUEng(const std::basic_string_view<char16_t> str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char32_t> ToUEng(const std::basic_string_view<char32_t> str, const Encoding inchset);
 
 template<typename Char>
 SYSCOMMONAPI std::basic_string<Char> ToLEng(const std::basic_string_view<Char> str, const Encoding inchset)
@@ -94,15 +102,15 @@ SYSCOMMONAPI std::basic_string<Char> ToLEng(const std::basic_string_view<Char> s
     using namespace common::str::charset::detail;
     return DirectConv<Char>(str, inchset, EngLower);
 }
-template SYSCOMMONAPI std::basic_string<char>     ToLEng(const std::basic_string_view<char>     str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<wchar_t>  ToLEng(const std::basic_string_view<wchar_t>  str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<char16_t> ToLEng(const std::basic_string_view<char16_t> str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<char32_t> ToLEng(const std::basic_string_view<char32_t> str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char>     ToLEng(const std::basic_string_view<char>     str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<wchar_t>  ToLEng(const std::basic_string_view<wchar_t>  str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char16_t> ToLEng(const std::basic_string_view<char16_t> str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<char32_t> ToLEng(const std::basic_string_view<char32_t> str, const Encoding inchset);
 
 
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template SYSCOMMONAPI std::basic_string<u8ch_t>   ToUEng(const std::basic_string_view<u8ch_t>   str, const Encoding inchset);
-template SYSCOMMONAPI std::basic_string<u8ch_t>   ToLEng(const std::basic_string_view<u8ch_t>   str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<u8ch_t>   ToUEng(const std::basic_string_view<u8ch_t>   str, const Encoding inchset);
+template SYSCOMMONTPL std::basic_string<u8ch_t>   ToLEng(const std::basic_string_view<u8ch_t>   str, const Encoding inchset);
 #endif
 }
 

@@ -76,7 +76,7 @@ namespace WPFTest
 
         private void InitializeCore()
         {
-            Core = new RenderCore();
+            Core = new RenderCore(glMain.DCHandle);
             ThumbnailBinding.ThumbMan.SetTarget(Core.ThumbMan);
             ThumbnailBinding.TexLoad.SetTarget(Core.TexLoader);
             OperateTargets[0] = Core.TheScene.MainCamera;

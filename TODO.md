@@ -209,6 +209,7 @@
     - [x] Add pass concept (customizable)
     - [x] Add render pipeline concept (layers of passes)
     - [ ] Add batch of drawables
+    - [ ] Seperate renderer with support of offscreen rendering and multi-backend
   * Rendering
     - [ ] Add Cubemap (environment map) with HDR
     - [ ] Implement IBL
@@ -244,7 +245,8 @@
 * Global
   - [x] Port some utilities to Linux 
   - [x] Port core components to Linux 
-  - [ ] Move to .net core 5 with WPF/Winform
+  - [ ] Move to .net core 6 with WPF/Winform
+  - [ ] Move to avalonia as GUI
   - [ ] Add Vulkan backend
   - [x] Add custom window host (for OGL/vulkan)
   - [ ] Seperate OGL/DX/Vulkan backend
@@ -256,5 +258,5 @@
   - [x] Move to submodule-based 3rdParty libraries
   - [x] Add basic DX12 runtime wrapper
   - [ ] Adopt `std::launder` when necessary to reduce UB
-  - [ ] Seperate sub projects into different repos within a group
+  - [ ] Seperate sub projects into different repos
 

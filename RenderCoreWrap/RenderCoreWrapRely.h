@@ -68,7 +68,7 @@ forceinline boost::uuids::uuid FromGuid(System::Guid^ uid)
     return ret;
 }
 
-forceinline String^ ToStr(const fmt::basic_memory_buffer<char16_t>& strBuffer)
+forceinline String^ ToStr(const std::vector<char16_t>& strBuffer)
 {
     return gcnew String(reinterpret_cast<const wchar_t*>(strBuffer.data()), 0, (int)strBuffer.size());
 }

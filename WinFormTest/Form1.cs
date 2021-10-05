@@ -35,7 +35,7 @@ namespace WinFormTest
                 Size = ClientSize,
                 ResizeBGDraw = false
             };
-            Core = new RenderCore();
+            Core = new RenderCore(GLView.DCHandle);
             OperateTargets[0] = Core.TheScene.MainCamera;
             OperateTargets[1] = Core.TheScene.Drawables.LastOrDefault();
             OperateTargets[2] = Core.TheScene.Lights.LastOrDefault();

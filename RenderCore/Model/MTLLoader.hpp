@@ -23,9 +23,21 @@ private:
     {
         if (fs::exists(picPath))
             return picPath;
-        picPath = fallbackPath / picPath.filename();
-        if (fs::exists(picPath))
-            return picPath;
+        auto picPath2 = fallbackPath / picPath.filename();
+        if (fs::exists(picPath2))
+            return picPath2;
+#if COMMON_OS_UNIX
+        if (!picPath.has_parent_path())
+        {
+            if (auto picPath_ = picPath.string(); picPath_.find_first_of('\\') != std::string::npos)
+            {
+                std::replace(picPath_.begin(), picPath_.end(), '\\', '/');
+                return FallbackImgPath(picPath_, fallbackPath);
+                // auto picPath3 = fallbackPath / fs::path(picPath_).filename();
+            }
+        }
+#endif
+        dizzLog().warning(u"Cannot find img of [{}]\n", picPath.u16string());
         return {};
     }
 public:

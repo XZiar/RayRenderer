@@ -39,8 +39,13 @@ String^ RenderPass::ToString()
         return "[Pass]";
 }
 
+static oglu::GLContextInfo PrepareGL(void* hdc)
+{
+    oglu::oglUtil::SetPixFormat(hdc);
+    return { hdc };
+}
 
-RenderCore::RenderCore() : Core(TryConstruct<dizz::RenderCore>())
+RenderCore::RenderCore(IntPtr hdc) : Core(TryConstruct<dizz::RenderCore>(PrepareGL(hdc.ToPointer())))
 {
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);
@@ -84,7 +89,10 @@ void RenderCore::Draw()
 {
     try
     {
+        const auto ctx = oglu::oglContext_::CurrentContext();
+        oglu::oglDefaultFrameBuffer_::Get()->ClearAll();
         Core->Draw();
+        ctx->SwapBuffer();
         theScene->PrepareScene();
     }
     catch (const common::BaseException& be)

@@ -17,14 +17,14 @@
 #include <string>
 #include <vector>
 
-#pragma unmanaged
-thread_local HGLRC curRC = nullptr;
-static void makeCurrent(HDC hDC, HGLRC hRC)
-{
-    if (curRC != hRC)
-        wglMakeCurrent(hDC, curRC = hRC);
-}
-#pragma managed
+//#pragma unmanaged
+//thread_local HGLRC curRC = nullptr;
+//static void makeCurrent(HDC hDC, HGLRC hRC)
+//{
+//    if (curRC != hRC)
+//        wglMakeCurrent(hDC, curRC = hRC);
+//}
+//#pragma managed
 
 
 using namespace System;
@@ -35,13 +35,13 @@ namespace OpenGLView
     public ref class OGLView : public Control
     {
     private:
-        static PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = nullptr;
+        /*static PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = nullptr;
         static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = nullptr;
         static PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = nullptr;
         static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = nullptr;
-        static bool supportFlushControl = false;
+        static bool supportFlushControl = false;*/
         HDC hDC = nullptr;
-        HGLRC hRC = nullptr;
+        //HGLRC hRC = nullptr;
         common::AvgCounter<uint64_t> *DrawTimeCounter = nullptr;
         uint64_t avgDrawTime = 0;
         int lastX, lastY, startX, startY, curX, curY;
@@ -60,6 +60,10 @@ namespace OpenGLView
         {
             uint64_t get() { return avgDrawTime; }
         }
+        property IntPtr DCHandle
+        {
+            IntPtr get() { return IntPtr(hDC); }
+        }
         delegate void DrawEventHandler();
         delegate void ResizeEventHandler(Object^ o, ResizeEventArgs^ e);
         delegate void MouseEventExHandler(Object^ o, MouseEventExArgs^ e);
@@ -71,52 +75,52 @@ namespace OpenGLView
         event KeyBoardEventHandler^ KeyAction;
 
     private:
-        static OGLView()
-        {
-            HWND tmpWND = CreateWindow(
-                L"Static", L"Fake Window",            // window class, title
-                WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
-                0, 0,                               // position x, y
-                1, 1,                               // width, height
-                NULL, NULL,                         // parent window, menu
-                nullptr, NULL);                     // instance, param
-            HDC tmpDC = GetDC(tmpWND);
-            static PIXELFORMATDESCRIPTOR pfd =  // pfd Tells Windows How We Want Things To Be
-            {
-                sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
-                1,                              // Version Number
-                PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/ | PFD_GENERIC_ACCELERATED,
-                PFD_TYPE_RGBA,                  // Request An RGBA Format
-                32,                             // Select Our Color Depth
-                0, 0, 0, 0, 0, 0,               // Color Bits Ignored
-                0, 0,                           // No Alpha Buffer, Shift Bit Ignored
-                0, 0, 0, 0, 0,                  // No Accumulation Buffer, Accumulation Bits Ignored
-                24,                             // 24Bit Z-Buffer (Depth Buffer) 
-                8,                              // 8Bit Stencil Buffer
-                0,                              // No Auxiliary Buffer
-                PFD_MAIN_PLANE,                 // Main Drawing Layer
-                0,                              // Reserved
-                0, 0, 0                         // Layer Masks Ignored
-            };
-            const int PixelFormat = ChoosePixelFormat(tmpDC, &pfd);
-            SetPixelFormat(tmpDC, PixelFormat, &pfd);
-            HGLRC tmpRC = wglCreateContext(tmpDC);
-            wglMakeCurrent(tmpDC, tmpRC);
-            
-            wglChoosePixelFormatARB = reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(wglGetProcAddress("wglChoosePixelFormatARB"));
-            wglCreateContextAttribsARB = reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(wglGetProcAddress("wglCreateContextAttribsARB"));
-            wglGetExtensionsStringEXT = reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGEXTPROC>(wglGetProcAddress("wglGetExtensionsStringEXT"));
-            const auto exts = wglGetExtensionsStringEXT();
-            if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
-                wglSwapIntervalEXT = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(wglGetProcAddress("wglSwapIntervalEXT"));
-            if (strstr(exts, "KHR_context_flush_control") != nullptr)
-                supportFlushControl = true;
-            
-            wglMakeCurrent(nullptr, nullptr);
-            wglDeleteContext(tmpRC);
-            DeleteDC(tmpDC);
-            DestroyWindow(tmpWND);
-        }
+        //static OGLView()
+        //{
+        //    HWND tmpWND = CreateWindow(
+        //        L"Static", L"Fake Window",            // window class, title
+        //        WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
+        //        0, 0,                               // position x, y
+        //        1, 1,                               // width, height
+        //        NULL, NULL,                         // parent window, menu
+        //        nullptr, NULL);                     // instance, param
+        //    HDC tmpDC = GetDC(tmpWND);
+        //    static PIXELFORMATDESCRIPTOR pfd =  // pfd Tells Windows How We Want Things To Be
+        //    {
+        //        sizeof(PIXELFORMATDESCRIPTOR),  // Size Of This Pixel Format Descriptor
+        //        1,                              // Version Number
+        //        PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/ | PFD_GENERIC_ACCELERATED,
+        //        PFD_TYPE_RGBA,                  // Request An RGBA Format
+        //        32,                             // Select Our Color Depth
+        //        0, 0, 0, 0, 0, 0,               // Color Bits Ignored
+        //        0, 0,                           // No Alpha Buffer, Shift Bit Ignored
+        //        0, 0, 0, 0, 0,                  // No Accumulation Buffer, Accumulation Bits Ignored
+        //        24,                             // 24Bit Z-Buffer (Depth Buffer) 
+        //        8,                              // 8Bit Stencil Buffer
+        //        0,                              // No Auxiliary Buffer
+        //        PFD_MAIN_PLANE,                 // Main Drawing Layer
+        //        0,                              // Reserved
+        //        0, 0, 0                         // Layer Masks Ignored
+        //    };
+        //    const int PixelFormat = ChoosePixelFormat(tmpDC, &pfd);
+        //    SetPixelFormat(tmpDC, PixelFormat, &pfd);
+        //    HGLRC tmpRC = wglCreateContext(tmpDC);
+        //    wglMakeCurrent(tmpDC, tmpRC);
+        //    
+        //    wglChoosePixelFormatARB = reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(wglGetProcAddress("wglChoosePixelFormatARB"));
+        //    wglCreateContextAttribsARB = reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(wglGetProcAddress("wglCreateContextAttribsARB"));
+        //    wglGetExtensionsStringEXT = reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGEXTPROC>(wglGetProcAddress("wglGetExtensionsStringEXT"));
+        //    const auto exts = wglGetExtensionsStringEXT();
+        //    if (strstr(exts, "WGL_EXT_swap_control_tear") != nullptr)
+        //        wglSwapIntervalEXT = reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(wglGetProcAddress("wglSwapIntervalEXT"));
+        //    if (strstr(exts, "KHR_context_flush_control") != nullptr)
+        //        supportFlushControl = true;
+        //    
+        //    wglMakeCurrent(nullptr, nullptr);
+        //    wglDeleteContext(tmpRC);
+        //    DeleteDC(tmpDC);
+        //    DestroyWindow(tmpWND);
+        //}
     public:
         OGLView() : OGLView(false, 0) { }
         OGLView(const bool isSRGB, const uint32_t multiSample)
@@ -128,51 +132,51 @@ namespace OpenGLView
             Deshake = true;
             hDC = GetDC(HWND(this->Handle.ToPointer()));
 
-            std::vector<int32_t> pixelAttribs(
-                {
-                WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
-                WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
-                WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
-                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-                WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-                WGL_COLOR_BITS_ARB, 32,
-                WGL_ALPHA_BITS_ARB, 8,
-                WGL_DEPTH_BITS_ARB, 24,
-                WGL_STENCIL_BITS_ARB, 8,
-                });
-            if (isSRGB)
-            {
-                pixelAttribs.push_back(WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB);
-                pixelAttribs.push_back(GL_TRUE);
-            }
-            if (multiSample > 0)
-            {
-                pixelAttribs.push_back(WGL_SAMPLE_BUFFERS_ARB);
-                pixelAttribs.push_back(1);
-                pixelAttribs.push_back(WGL_SAMPLES_ARB);
-                pixelAttribs.push_back((int32_t)multiSample);
-            }
-            pixelAttribs.push_back(0);
-            int pixelFormatID; UINT numFormats;
-            wglChoosePixelFormatARB(hDC, pixelAttribs.data(), NULL, 1, &pixelFormatID, &numFormats);
-            PIXELFORMATDESCRIPTOR pfd;
-            DescribePixelFormat(hDC, pixelFormatID, sizeof(pfd), &pfd);
-            SetPixelFormat(hDC, pixelFormatID, &pfd);
+            //std::vector<int32_t> pixelAttribs(
+            //    {
+            //    WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+            //    WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+            //    WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+            //    WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+            //    WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+            //    WGL_COLOR_BITS_ARB, 32,
+            //    WGL_ALPHA_BITS_ARB, 8,
+            //    WGL_DEPTH_BITS_ARB, 24,
+            //    WGL_STENCIL_BITS_ARB, 8,
+            //    });
+            //if (isSRGB)
+            //{
+            //    pixelAttribs.push_back(WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB);
+            //    pixelAttribs.push_back(GL_TRUE);
+            //}
+            //if (multiSample > 0)
+            //{
+            //    pixelAttribs.push_back(WGL_SAMPLE_BUFFERS_ARB);
+            //    pixelAttribs.push_back(1);
+            //    pixelAttribs.push_back(WGL_SAMPLES_ARB);
+            //    pixelAttribs.push_back((int32_t)multiSample);
+            //}
+            //pixelAttribs.push_back(0);
+            //int pixelFormatID; UINT numFormats;
+            //wglChoosePixelFormatARB(hDC, pixelAttribs.data(), NULL, 1, &pixelFormatID, &numFormats);
+            //PIXELFORMATDESCRIPTOR pfd;
+            //DescribePixelFormat(hDC, pixelFormatID, sizeof(pfd), &pfd);
+            //SetPixelFormat(hDC, pixelFormatID, &pfd);
 
-            std::vector<int32_t> ctxAttrb =
-            {
-                /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
-                WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
-                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-                WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
-            };
-            if (supportFlushControl)
-                ctxAttrb.insert(ctxAttrb.end(), { WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB });
-            ctxAttrb.push_back(0);
-            hRC = wglCreateContextAttribsARB(hDC, nullptr, ctxAttrb.data());
-            makeCurrent(hDC, hRC);
-            if (wglSwapIntervalEXT)
-                wglSwapIntervalEXT(-1);
+            //std::vector<int32_t> ctxAttrb =
+            //{
+            //    /*WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+            //    WGL_CONTEXT_MINOR_VERSION_ARB, 2,*/
+            //    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+            //    WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
+            //};
+            //if (supportFlushControl)
+            //    ctxAttrb.insert(ctxAttrb.end(), { WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB });
+            //ctxAttrb.push_back(0);
+            //hRC = wglCreateContextAttribsARB(hDC, nullptr, ctxAttrb.data());
+            //makeCurrent(hDC, hRC);
+            //if (wglSwapIntervalEXT)
+            //    wglSwapIntervalEXT(-1);
         }
         ~OGLView() { this->!OGLView(); };
         !OGLView()
@@ -180,8 +184,8 @@ namespace OpenGLView
             if (DrawTimeCounter)
             {
                 delete DrawTimeCounter;
-                makeCurrent(nullptr, nullptr);
-                wglDeleteContext(hRC);
+                /*makeCurrent(nullptr, nullptr);
+                wglDeleteContext(hRC);*/
                 DeleteDC(hDC);
                 DrawTimeCounter = nullptr;
             }
@@ -189,7 +193,7 @@ namespace OpenGLView
     protected:
         void OnResize(EventArgs^ e) override
         {
-            makeCurrent(hDC, hRC);
+            //makeCurrent(hDC, hRC);
             Control::OnResize(e);
             Resize((Object^)this, gcnew ResizeEventArgs(Width, Height));
             this->Invalidate();
@@ -203,10 +207,10 @@ namespace OpenGLView
         {
             common::SimpleTimer timer;
             timer.Start();
-            makeCurrent(hDC, hRC);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            /*makeCurrent(hDC, hRC);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
             Draw();
-            SwapBuffers(hDC);
+            //SwapBuffers(hDC);
             timer.Stop();
             avgDrawTime = DrawTimeCounter->Push(timer.ElapseUs());
         }

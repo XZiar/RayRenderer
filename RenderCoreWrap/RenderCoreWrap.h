@@ -46,7 +46,7 @@ public:
     initonly ThumbnailMan^ ThumbMan;
     initonly TextureLoader^ TexLoader;
 
-    RenderCore();
+    RenderCore(IntPtr hdc);
     ~RenderCore() { this->!RenderCore(); }
     !RenderCore();
 
