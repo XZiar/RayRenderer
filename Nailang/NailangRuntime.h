@@ -1,6 +1,6 @@
 #pragma once
 #include "NailangStruct.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/StringPool.hpp"
 #include "common/STLEx.hpp"
 #include <boost/container/small_vector.hpp>

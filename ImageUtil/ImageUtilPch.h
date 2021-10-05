@@ -11,7 +11,7 @@
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/FileMapperEx.h"
 #include "SystemCommon/CopyEx.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 
 #include "common/FileBase.hpp"
 #include "common/Linq2.hpp"

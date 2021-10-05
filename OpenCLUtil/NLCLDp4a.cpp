@@ -46,7 +46,7 @@ using xziar::nailang::FuncEvalPack;
 using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
-using common::str::Charset;
+using common::str::Encoding;
 
 
 
@@ -143,7 +143,7 @@ constexpr auto MimicParser = SWITCH_PACK(
 std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mimic, std::u32string_view args) const
 {
     bool hasIntelDp4a = HasIntelDp4a;
-    const auto args_ = common::str::to_string(args, Charset::ASCII);
+    const auto args_ = common::str::to_string(args, Encoding::ASCII);
     for (auto arg : common::str::SplitStream(args_, ',', false))
     {
         if (arg.empty()) continue;

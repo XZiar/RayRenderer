@@ -42,7 +42,7 @@ using xziar::nailang::FuncEvalPack;
 using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using common::simd::VecDataInfo;
-using common::str::Charset;
+using common::str::Encoding;
 
 
 constexpr char32_t Idx16Names[] = U"0123456789abcdef";
@@ -265,7 +265,7 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
 {
     SubgroupAttributes attr;
     attr.Mimic = SubgroupMimicParser(mimic).value_or(SubgroupAttributes::MimicType::Auto);
-    attr.Args = common::str::to_string(args, Charset::ASCII);
+    attr.Args = common::str::to_string(args, Encoding::ASCII);
     auto cap = GenerateCapabiity(context, attr);
 
     SubgroupAttributes::MimicType mType = attr.Mimic;

@@ -3,7 +3,7 @@
 #include "RenderPass.h"
 #include "FontHelper/FontHelper.h"
 
-namespace rayr
+namespace dizz
 {
 enum class FontUpdate : uint32_t { FONT = 0x1, TARGET = 0x2 };
 MAKE_ENUM_BITFIELD(FontUpdate)
@@ -12,7 +12,7 @@ MAKE_ENUM_BITFIELD(FontUpdate)
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI FontTester : public common::NonCopyable, public RenderPass
+class RENDERCOREAPI FontTester : public common::NonCopyable, public RenderPass
 {
 private:
     static inline std::u16string TestName = u"FontTest";
@@ -88,7 +88,7 @@ public:
 
     virtual void Serialize(xziar::respak::SerializeUtil&, xziar::ejson::JObject&) const override {}
     virtual void Deserialize(xziar::respak::DeserializeUtil&, const xziar::ejson::JObjectRef<true>&) override {}
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#FontTester")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#FontTester")
 };
 
 

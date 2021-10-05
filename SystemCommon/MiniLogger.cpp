@@ -318,7 +318,7 @@ public:
     }
     static void PrintText(const std::u16string_view txt, const std::string_view tag = {}, int prio = ANDROID_LOG_INFO)
     {
-        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
+        const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
         __android_log_write(prio, tag.data(), text.c_str());
     }
     void virtual OnPrint(const LogMessage& msg) override
@@ -328,7 +328,7 @@ public:
 #else
     static void PrintText(const std::u16string_view txt)
     {
-        const auto text = str::to_u8string(txt, str::Charset::UTF16LE);
+        const auto text = str::to_u8string(txt, str::Encoding::UTF16LE);
         fprintf(stderr, "%s", text.c_str());
     }
     void virtual OnPrint(const LogMessage& msg) override

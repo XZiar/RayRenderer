@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "StringUtil/StrCharset.hpp"
+#include "SystemCommon/StrEncoding.hpp"
 
 using namespace common::str;
 using namespace std::string_view_literals;
@@ -142,8 +142,8 @@ TEST(StrChset, Upper)
 {
     EXPECT_EQ(ToUpperEng(""), "");
     EXPECT_EQ(ToUpperEng("aBcD1\0/"), "ABCD1\0/");
-    EXPECT_EQ(ToUpperEng(u"aBcD1\0/\u0444", Charset::UTF16LE), u"ABCD1\0/\u0444");
-    EXPECT_EQ(ToUpperEng(U"aBcD1\0/\u0444", Charset::UTF32LE), U"ABCD1\0/\u0444");
+    EXPECT_EQ(ToUpperEng(u"aBcD1\0/\u0444", Encoding::UTF16LE), u"ABCD1\0/\u0444");
+    EXPECT_EQ(ToUpperEng(U"aBcD1\0/\u0444", Encoding::UTF32LE), U"ABCD1\0/\u0444");
 }
 
 
@@ -151,31 +151,31 @@ TEST(StrChset, Lower)
 {
     EXPECT_EQ(ToLowerEng(""), "");
     EXPECT_EQ(ToLowerEng("aBcD1\0/"), "abcd1\0/");
-    EXPECT_EQ(ToLowerEng(u"aBcD1\0/\u0444", Charset::UTF16LE), u"abcd1\0/\u0444");
-    EXPECT_EQ(ToLowerEng(U"aBcD1\0/\u0444", Charset::UTF32LE), U"abcd1\0/\u0444");
+    EXPECT_EQ(ToLowerEng(u"aBcD1\0/\u0444", Encoding::UTF16LE), u"abcd1\0/\u0444");
+    EXPECT_EQ(ToLowerEng(U"aBcD1\0/\u0444", Encoding::UTF32LE), U"abcd1\0/\u0444");
 }
 
 
 TEST(StrChset, utf16)
 {
     EXPECT_EQ(to_u16string("A0"), u"A0");
-    EXPECT_EQ(to_u16string(U32Str, Charset::UTF32LE), U16Str);
-    EXPECT_EQ(to_u32string(U16Str, Charset::UTF16LE), U32Str);
+    EXPECT_EQ(to_u16string(U32Str, Encoding::UTF32LE), U16Str);
+    EXPECT_EQ(to_u32string(U16Str, Encoding::UTF16LE), U32Str);
 }
 
 
 TEST(StrChset, utf8)
 {
     CHK_STR_UNIT_EQ(to_u8string ("A0"), "A0");
-    CHK_STR_UNIT_EQ(to_u8string (U32Str, Charset::UTF32LE),  U8Str);
-    CHK_STR_UNIT_EQ(to_u32string(U8Str , Charset::UTF8   ), U32Str);
+    CHK_STR_UNIT_EQ(to_u8string (U32Str, Encoding::UTF32LE),  U8Str);
+    CHK_STR_UNIT_EQ(to_u32string(U8Str , Encoding::UTF8   ), U32Str);
 }
 
 
 TEST(StrChset, utf32)
 {
     EXPECT_EQ(to_u32string("A0"), U"A0");
-    EXPECT_EQ(to_string(U32Str, Charset::ASCII, Charset::UTF32LE), "aBcD1");
+    EXPECT_EQ(to_string(U32Str, Encoding::ASCII, Encoding::UTF32LE), "aBcD1");
 }
 
 

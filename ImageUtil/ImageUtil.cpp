@@ -83,7 +83,7 @@ Image ReadImage(const common::fs::path& path, const ImageDataType dataType)
 
 Image ReadImage(RandomInputStream& stream, const std::u16string& ext, const ImageDataType dataType)
 {
-    const auto extName = common::str::ToUpperEng(ext, common::str::Charset::UTF16LE);
+    const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, dataType, true, true);
     for (const ImgSupport& support : testList)
     {
@@ -116,7 +116,7 @@ void WriteImage(const Image& image, const common::fs::path & path, const uint8_t
 
 void WriteImage(const Image& image, RandomOutputStream& stream, const std::u16string& ext, const uint8_t quality)
 {
-    const auto extName = common::str::ToUpperEng(ext, common::str::Charset::UTF16LE);
+    const auto extName = common::str::ToUpperEng(ext, common::str::Encoding::UTF16LE);
     auto testList = GenerateSupportList(extName, image.GetDataType(), false, false);
     for (const ImgSupport& support : testList)
     {

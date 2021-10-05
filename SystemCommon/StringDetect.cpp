@@ -1,6 +1,7 @@
-#include "Detect.h"
-#include "3rdParty/uchardet/src/nscore.h"
-#include "3rdParty/uchardet/src/nsUniversalDetector.h"
+#include "SystemCommonPch.h"
+#include "StringDetect.h"
+#include "uchardet/src/nscore.h"
+#include "uchardet/src/nsUniversalDetector.h"
 
 namespace common::str
 {
@@ -11,10 +12,10 @@ namespace detail
 class Uchardet : public nsUniversalDetector
 {
 protected:
-    std::string Charset;
+    std::string Encoding;
     virtual void Report(const char* charset) override
     {
-        Charset = charset;
+        Encoding = charset;
     }
 public:
     Uchardet() : nsUniversalDetector(NS_FILTER_ALL) { }
@@ -22,7 +23,7 @@ public:
     virtual void Reset() override
     {
         nsUniversalDetector::Reset();
-        Charset.clear();
+        Encoding.clear();
     }
 
     bool IsDone() const
@@ -32,20 +33,20 @@ public:
 
     std::string GetEncoding() const
     {
-        return Charset.empty() ? (IsDone() ? mDetectedCharset : "") : Charset;
+        return Encoding.empty() ? (IsDone() ? mDetectedCharset : "") : Encoding;
     }
 };
 
 }
 
 
-CharsetDetector::CharsetDetector() : Tool(std::make_unique<detail::Uchardet>())
+EncodingDetector::EncodingDetector() : Tool(std::make_unique<detail::Uchardet>())
 {
 }
 
-CharsetDetector::~CharsetDetector() {}
+EncodingDetector::~EncodingDetector() {}
 
-bool CharsetDetector::HandleData(const common::span<const std::byte> data) const
+bool EncodingDetector::HandleData(const common::span<const std::byte> data) const
 {
     const size_t len = data.size();
     for (size_t offset = 0; offset < len && !Tool->IsDone();)
@@ -58,24 +59,24 @@ bool CharsetDetector::HandleData(const common::span<const std::byte> data) const
     return true;
 }
 
-void CharsetDetector::Reset() const 
+void EncodingDetector::Reset() const 
 {
     Tool->Reset();
 }
 
-void CharsetDetector::EndData() const
+void EncodingDetector::EndData() const
 {
     Tool->DataEnd();
 }
 
-std::string CharsetDetector::GetEncoding() const
+std::string EncodingDetector::GetEncoding() const
 {
     return Tool->GetEncoding();
 }
 
 std::string GetEncoding(const common::span<const std::byte> data)
 {
-    thread_local CharsetDetector detector;
+    thread_local EncodingDetector detector;
     detector.Reset();
     if (!detector.HandleData(data))
         return "error";

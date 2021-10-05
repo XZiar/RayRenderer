@@ -3,8 +3,8 @@
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
 #include "SystemCommon/MiscIntrins.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Format.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 #include <cmath>
 
 
@@ -46,7 +46,7 @@ testing::AssertionResult CheckArg(const Arg& arg, const Arg::Type type)
     else
     {
         const auto detail = common::str::to_string(FMTSTR(U"arg is [{}]({:#04x})"sv,
-            arg.GetTypeName(), common::enum_cast(arg.TypeData)), common::str::Charset::ASCII);
+            arg.GetTypeName(), common::enum_cast(arg.TypeData)), common::str::Encoding::ASCII);
         return testing::AssertionFailure() << detail;
     }
 }

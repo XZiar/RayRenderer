@@ -23,7 +23,7 @@
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/CommonRely.hpp"
 
 #if COMMON_COMPILER_CLANG

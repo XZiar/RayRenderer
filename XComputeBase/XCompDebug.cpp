@@ -1,6 +1,6 @@
 #include "XCompDebug.h"
-#include "StringUtil/Format.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/StringConvert.h"
 #include <ctime>
 #include <algorithm>
 
@@ -108,7 +108,7 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using common::simd::VecDataInfo;
 using common::BaseException;
-using common::str::Charset;
+using common::str::Encoding;
 
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
@@ -764,7 +764,7 @@ void ExcelXmlPrinter::AppendXmlStr(std::string& output, std::string_view str)
 
 void ExcelXmlPrinter::AppendXmlStr(std::string& output, std::u32string_view str)
 {
-    return AppendXmlStr(output, common::str::to_string(str, Charset::UTF8));
+    return AppendXmlStr(output, common::str::to_string(str, Encoding::UTF8));
 }
 
 

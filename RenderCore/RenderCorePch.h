@@ -8,15 +8,15 @@
 #include "OpenGLUtil/PointEnhance.hpp"
 #include "OpenGLUtil/oglWorker.h"
 #include "ImageUtil/ImageUtil.h"
-#include "AsyncExecutor/AsyncManager.h"
+#include "SystemCommon/AsyncManager.h"
 #include "ResourcePackager/ResourceUtil.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/PromiseTaskSTD.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringDetect.h"
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
@@ -33,7 +33,7 @@
 #include <deque>
 
 
-namespace rayr
+namespace dizz
 {
 
 

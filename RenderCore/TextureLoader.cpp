@@ -2,10 +2,10 @@
 #include "TextureLoader.h"
 #include "TextureUtil/TexCompressor.h"
 #include "TextureUtil/TexMipmap.h"
-#include "AsyncExecutor/AsyncManager.h"
+#include "SystemCommon/AsyncManager.h"
 #include <thread>
 
-namespace rayr
+namespace dizz
 {
 using std::set;
 using std::vector;

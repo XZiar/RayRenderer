@@ -5,7 +5,7 @@
 #include "XComputeBase/XCompDebug.h"
 #include "Nailang/NailangParser.h"
 #include "Nailang/NailangRuntime.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 
 #include "common/Linq2.hpp"
 #include "common/StringLinq.hpp"

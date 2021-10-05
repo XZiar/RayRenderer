@@ -1,6 +1,6 @@
 #include "XCompNailang.h"
 #include "SystemCommon/StackTrace.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "common/StrParsePack.hpp"
 #include "common/StaticLookup.hpp"
 #include <shared_mutex>
@@ -33,7 +33,7 @@ using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
-using common::str::Charset;
+using common::str::Encoding;
 using common::str::IsBeginWith;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
 
@@ -373,14 +373,14 @@ XCNLContext::XCNLContext(const common::CLikeDefines& info)
 {
     for (const auto [key, val] : info)
     {
-        const auto varName = common::str::to_u32string(key, Charset::UTF8);
+        const auto varName = common::str::to_u32string(key, Encoding::UTF8);
         const xziar::nailang::LateBindVar var(varName);
         switch (val.index())
         {
         case 1: LocateArg(var, true).Set(std::get<1>(val)); break;
         case 2: LocateArg(var, true).Set(std::get<2>(val)); break;
         case 3: LocateArg(var, true).Set(std::get<3>(val)); break;
-        case 4: LocateArg(var, true).Set(common::str::to_u32string(std::get<4>(val), Charset::UTF8)); break;
+        case 4: LocateArg(var, true).Set(common::str::to_u32string(std::get<4>(val), Encoding::UTF8)); break;
         case 0:
         default:
             break;
@@ -1338,7 +1338,7 @@ std::string XCNLRuntime::GenerateOutput()
     std::string output;
     for (const auto& part : std::array<std::u32string_view, 4>{ prefixes, structs, globals, kernels })
     {
-        output.append(common::str::to_string(part, Charset::UTF8, Charset::UTF32));
+        output.append(common::str::to_string(part, Encoding::UTF8, Encoding::UTF32));
     }
 
     return output;

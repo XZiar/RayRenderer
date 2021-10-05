@@ -23,10 +23,10 @@ private:
     const uint8_t TypeId;
     initonly String^ name;
     initonly String^ format;
-    TexHolder(const rayr::TexHolder& holder);
+    TexHolder(const dizz::TexHolder& holder);
 internal:
-    static TexHolder^ CreateTexHolder(const rayr::TexHolder& holder);
-    rayr::TexHolder ExtractHolder();
+    static TexHolder^ CreateTexHolder(const dizz::TexHolder& holder);
+    dizz::TexHolder ExtractHolder();
 public:
     ~TexHolder() { this->!TexHolder(); }
     !TexHolder();
@@ -35,12 +35,12 @@ public:
 };
 
 
-public enum class TexLoadType : uint8_t { Color = (uint8_t)rayr::TexLoadType::Color, Normal = (uint8_t)rayr::TexLoadType::Normal };
+public enum class TexLoadType : uint8_t { Color = (uint8_t)dizz::TexLoadType::Color, Normal = (uint8_t)dizz::TexLoadType::Normal };
 public ref class TextureLoader
 {
 internal:
-    const std::weak_ptr<rayr::TextureLoader> *Loader;
-    TextureLoader(const std::shared_ptr<rayr::TextureLoader>& loader);
+    const std::weak_ptr<dizz::TextureLoader> *Loader;
+    TextureLoader(const std::shared_ptr<dizz::TextureLoader>& loader);
 public:
     ~TextureLoader() { this->!TextureLoader(); }
     !TextureLoader();
@@ -55,13 +55,13 @@ private:
 internal:
     //Common::NativeWrapper<std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>> ThumbnailMap;
     std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor> * const ThumbnailMap = nullptr;
-    const std::weak_ptr<rayr::ThumbnailManager> *ThumbMan;
+    const std::weak_ptr<dizz::ThumbnailManager> *ThumbMan;
 
-    ThumbnailMan(const std::shared_ptr<rayr::ThumbnailManager>& thumbMan);
+    ThumbnailMan(const std::shared_ptr<dizz::ThumbnailManager>& thumbMan);
 
     BitmapSource^ GetThumbnail(const xziar::img::ImageView& img);
     //BitmapSource^ GetThumbnail3(IntPtr imgptr);
-    BitmapSource^ GetThumbnail(const rayr::TexHolder& holder);
+    BitmapSource^ GetThumbnail(const dizz::TexHolder& holder);
 public:
     ~ThumbnailMan() { this->!ThumbnailMan(); }
     !ThumbnailMan();

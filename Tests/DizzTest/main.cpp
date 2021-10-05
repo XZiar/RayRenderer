@@ -57,13 +57,13 @@ void PrintException(const common::ExceptionBasicInfo& be)
 
 void RunDizzCore()
 {
-    std::unique_ptr<rayr::RenderCore> tester;
-    std::shared_ptr<rayr::Drawable> CurObj;
+    std::unique_ptr<dizz::RenderCore> tester;
+    std::shared_ptr<dizz::Drawable> CurObj;
     uint16_t CurPipe = 0;
     bool isAnimate = false;
     bool isPostproc = true;
 
-    const auto LocateDrawable = [&](const bool isPrev) -> std::shared_ptr<rayr::Drawable>
+    const auto LocateDrawable = [&](const bool isPrev) -> std::shared_ptr<dizz::Drawable>
     {
         const auto& drws = tester->GetScene()->GetDrawables();
         auto cur = drws.begin();
@@ -102,21 +102,21 @@ void RunDizzCore()
 
         log().debug(u"{}\n", context->Capability->GenerateSupportLog());*/
 
-        tester.reset(new rayr::RenderCore(info));
+        tester.reset(new dizz::RenderCore(info));
         tester->TestSceneInit();
         tester->Resize(1280, 720);
         CurObj = tester->GetScene()->GetDrawables().begin()->second;
 
         //if (false)
         {
-            const auto light = std::make_shared<rayr::PointLight>();
+            const auto light = std::make_shared<dizz::PointLight>();
             light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
             tester->GetScene()->AddLight(light);
             //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
         }
 
         const auto ftest = common::linq::FromIterable(tester->GetRenderPasses())
-            .Select([](const auto& pipe) { return std::dynamic_pointer_cast<rayr::FontTester>(pipe); })
+            .Select([](const auto& pipe) { return std::dynamic_pointer_cast<dizz::FontTester>(pipe); })
             .Where([](const auto& pipe) { return (bool)pipe; })
             .TryGetFirst();
         if (ftest.has_value())

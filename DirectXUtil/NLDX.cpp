@@ -2,8 +2,8 @@
 #include "NLDX.h"
 #include "NLDXRely.h"
 #include "Nailang/NailangAutoVar.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringDetect.h"
 #include "common/StaticLookup.hpp"
 
 
@@ -29,7 +29,7 @@ using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
-using common::str::Charset;
+using common::str::Encoding;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
@@ -173,7 +173,7 @@ Arg NLDXConfigurator::EvaluateFunc(FuncEvalPack& func)
         HashCase(subName, U"CompilerFlag")
         {
             ThrowByParamTypes<1>(func, { Arg::Type::String });
-            const auto flag = common::str::to_string(func.Params[0].GetStr().value(), Charset::UTF8, Charset::UTF32);
+            const auto flag = common::str::to_string(func.Params[0].GetStr().value(), Encoding::UTF8, Encoding::UTF32);
             for (const auto& item : runtime.Context.CompilerFlags)
             {
                 if (item == flag)
@@ -533,7 +533,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
     using xcomp::InstanceArgInfo;
     using TexTypes = xcomp::InstanceArgInfo::TexTypes;
     using common::str::to_string;
-    using common::str::Charset;
+    using common::str::Encoding;
     auto& kerCtx = static_cast<KernelContext&>(ctx);
 
     if (source)
@@ -636,7 +636,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             if (Context.FindStruct(arg.DataType) == SIZE_MAX)
                 NLRT_THROW_EX(FMTSTR(u"RawBufArg [{}] has unrecoginized struct datatype [{}]"sv, arg.Name, arg.DataType), meta);
         }
-        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     case InstanceArgInfo::Types::TypedBuf:
@@ -644,7 +644,7 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
         const auto [space, reg, count] = ParseCommonInfo();
-        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     case InstanceArgInfo::Types::Simple:
@@ -652,14 +652,14 @@ void NLDXRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
         if (HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write))
             NLRT_THROW_EX(FMTSTR(u"SimpleArg [{}] cannot be writable since it's in shader constants"sv, arg.Name), meta);
         const auto [space, reg, count] = ParseCommonInfo();
-        Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8), count);
+        Context.AddConstant(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8), count);
     } return;
     case InstanceArgInfo::Types::Texture:
     {
         BoundedResourceType type = HAS_FIELD(arg.Flag, InstanceArgInfo::Flags::Write) ?
             BoundedResourceType::RWTyped : BoundedResourceType::Typed;
         const auto [space, reg, count] = ParseCommonInfo();
-        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Charset::UTF8), to_string(arg.DataType, Charset::UTF8),
+        Context.AddResource(source, kerCtx.KernelId, to_string(arg.Name, Encoding::UTF8), to_string(arg.DataType, Encoding::UTF8),
             space, reg, count, arg.TexType, type);
     } return;
     default:
@@ -951,7 +951,7 @@ std::unique_ptr<NLDXResult> NLDXProcessor::CompileIntoProgram(NLDXProgStub& stub
         for (const auto kerName : nldxCtx.KernelNames)
         {
             config.EntryPoint = common::str::to_u16string(kerName);
-            auto kerNameU8 = common::str::to_string(kerName, common::str::Charset::UTF8);
+            auto kerNameU8 = common::str::to_string(kerName, common::str::Encoding::UTF8);
             const auto defName = "DXU_KERNEL_" + kerNameU8;
             config.Defines.Add(defName);
             auto progStub = DxShader_::Create(dev, ShaderType::Compute, str);
@@ -971,7 +971,7 @@ std::shared_ptr<xcomp::XCNLProgram> NLDXProcessor::Parse(common::span<const std:
 {
     auto& logger = Logger();
     const auto encoding = common::str::DetectEncoding(source);
-    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::getCharsetName(encoding));
+    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
     auto src = common::str::to_u32string(source, encoding);
     logger.info(u"Translate into [utf32] for [{}] chars.\n", src.size());
     const auto prog = xcomp::XCNLProgram::Create(std::move(src), std::move(fileName));

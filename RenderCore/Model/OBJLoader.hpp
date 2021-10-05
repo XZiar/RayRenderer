@@ -1,9 +1,9 @@
 #pragma once
 #include "RenderCoreRely.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringDetect.h"
 #include "common/CharConvs.hpp"
 
-namespace rayr::detail
+namespace dizz::detail
 {
 
 
@@ -14,24 +14,24 @@ private:
     std::vector<uint8_t> Content;
     size_t CurPos, Length;
 public:
-    common::str::Charset chset;
+    common::str::Encoding chset;
     struct TextLine
     {
         uint64_t Type;
         std::string_view Line;
         std::vector<std::string_view> Params;
-        common::str::Charset charset;
+        common::str::Encoding charset;
 
         TextLine() {}
 
-        TextLine(const common::str::Charset chset, const string& prefix) : 
+        TextLine(const common::str::Encoding chset, const string& prefix) : 
             Type(common::DJBHash::HashC(prefix)), charset(chset) {}
 
         template<size_t N>
-        TextLine(const common::str::Charset chset, const char(&prefix)[N] = "EMPTY") : 
+        TextLine(const common::str::Encoding chset, const char(&prefix)[N] = "EMPTY") : 
             Type(common::DJBHash::HashP(prefix)), charset(chset) {}
 
-        TextLine(const common::str::Charset chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
+        TextLine(const common::str::Encoding chset, const std::string_view& line) : Line(line), charset(chset) { Params.reserve(8); }
 
         TextLine(const TextLine& other) = default;
         TextLine(TextLine&& other) = default;
@@ -127,7 +127,7 @@ public:
         Length = Content.size() - 1;
         CurPos = 0;
         chset = common::str::DetectEncoding(Content);
-        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), getCharsetName(chset));
+        dizzLog().debug(u"obj file[{}]--encoding[{}]\n", FilePath.u16string(), GetEncodingName(chset));
     }
 
     TextLine ReadLine()

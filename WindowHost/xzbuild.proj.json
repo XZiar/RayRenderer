@@ -2,7 +2,7 @@
     "name": "WindowHost",
     "type": "dynamic",
     "description": "window host",
-    "dependency": ["StringUtil", "SystemCommon"],
+    "dependency": ["SystemCommon"],
     "library": 
     {
         "static": [],

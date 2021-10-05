@@ -1,6 +1,6 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "common/FileBase.hpp"
+#include "FileEx.h"
 
 #include <cstdio>
 

@@ -2,7 +2,7 @@
 #include "Model.h"
 
 
-namespace rayr
+namespace dizz
 {
 using std::map;
 using common::container::FindInMap;

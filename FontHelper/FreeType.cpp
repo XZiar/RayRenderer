@@ -1,8 +1,10 @@
 #include "FreeType.h"
+#include "SystemCommon/FileEx.h"
+#include "SystemCommon/Exceptions.h"
+#include "common/FileBase.hpp"
 #include "ft2build.h"
 #include <freetype/freetype.h>
 #include <freetype/ftoutln.h>
-#include "common/FileBase.hpp"
 #include <vector>
 
 #pragma message("Compile FreeType2 with FreeType2[" STRINGIZE(FREETYPE2_VERSION) "]")

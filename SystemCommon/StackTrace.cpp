@@ -1,7 +1,7 @@
 #include "SystemCommonPch.h"
 #include "StackTrace.h"
 #include "ThreadEx.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "common/SharedString.hpp"
 #if COMMON_OS_WIN
 #   define BOOST_STACKTRACE_USE_WINDBG_CACHED 1

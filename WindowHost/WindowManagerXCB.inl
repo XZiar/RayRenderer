@@ -1,8 +1,8 @@
 #include "WindowManager.h"
 #include "WindowHost.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
 #include "common/StringEx.hpp"
@@ -224,7 +224,7 @@ private:
     }
     void SetTitle(xcb_window_t window, std::u16string_view name)
     {
-        const auto title = common::str::to_u8string(name, common::str::Charset::UTF16LE);
+        const auto title = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
         xcb_change_property(Connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
             gsl::narrow_cast<uint32_t>(title.size()), title.c_str());
     }
@@ -643,7 +643,7 @@ public:
                                 {
                                     line.remove_prefix(7);
                                     fileNamePieces.emplace_back(fileNamePool.AllocateString(
-                                        common::str::to_u16string(line, common::str::Charset::URI))); 
+                                        common::str::to_u16string(line, common::str::Encoding::URI))); 
                                 }
                             }
                             const auto reply = xcb_translate_coordinates_reply(Connection, cookie, nullptr);

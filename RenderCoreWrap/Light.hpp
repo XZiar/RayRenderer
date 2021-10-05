@@ -7,21 +7,21 @@ using namespace System;
 #define TryGetFromWeak(weak, func, def) if (const auto obj_ = weak->lock()) { return func; } else { return def; }
 #define TryDoWithWeak(weak, func) if (const auto obj_ = weak->lock()) { func; }
 
-namespace RayRender
+namespace DizzRender
 {
 using namespace common;
 
 public enum class LightType : int32_t
 {
-    Parallel = (int32_t)rayr::LightType::Parallel, Point = (int32_t)rayr::LightType::Point, Spot = (int32_t)rayr::LightType::Spot
+    Parallel = (int32_t)dizz::LightType::Parallel, Point = (int32_t)dizz::LightType::Point, Spot = (int32_t)dizz::LightType::Spot
 };
 
 public ref class Light : public BaseViewModel
 {
 internal:
-    std::shared_ptr<rayr::Light> *light;
+    std::shared_ptr<dizz::Light> *light;
     initonly LightType type;
-    Light(const std::shared_ptr<rayr::Light>& obj) : light(new std::shared_ptr<rayr::Light>(obj)), type(LightType(obj->Type)) { }
+    Light(const std::shared_ptr<dizz::Light>& obj) : light(new std::shared_ptr<dizz::Light>(obj)), type(LightType(obj->Type)) { }
 public:
     ~Light() { this->!Light(); }
     !Light() { delete light; }

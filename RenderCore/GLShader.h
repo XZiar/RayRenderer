@@ -2,14 +2,14 @@
 #include "RenderCoreRely.h"
 
 
-namespace rayr
+namespace dizz
 {
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-struct RAYCOREAPI GLShader : public virtual common::Controllable, public virtual xziar::respak::Serializable
+struct RENDERCOREAPI GLShader : public virtual common::Controllable, public virtual xziar::respak::Serializable
 {
 private:
     void RegistControllable();
@@ -26,7 +26,7 @@ public:
     }
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#GLShader")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#GLShader")
 };
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)

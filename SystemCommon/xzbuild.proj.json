@@ -4,7 +4,7 @@
     "description": "common library for some system-level utilities",
     "dependency": 
     [
-        "StringUtil", 
+        "uchardet", "boost.context",
         {"ifneq": {"arch": "arm"}, "+": "cpuid"}
     ],
     "library": 
@@ -31,6 +31,7 @@
     {
         "cpp":
         {
+            "incpath": ["$(SolutionDir)/3rdParty/fmt/include/"],
             "sources": ["*.cpp", {"-": "HResultHelper.cpp"}, {"ifneq": {"osname": "Darwin"}, "-": "ObjCHelper.cpp"}],
             "defines":  ["SYSCOMMON_EXPORT"],
             "pch": "SystemCommonPch.h"

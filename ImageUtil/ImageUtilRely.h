@@ -14,7 +14,7 @@
 #include "common/CommonRely.hpp"
 #include "common/AlignedBuffer.hpp"
 #include "common/EnumEx.hpp"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/MemoryStream.hpp"
 
 #include <cstddef>

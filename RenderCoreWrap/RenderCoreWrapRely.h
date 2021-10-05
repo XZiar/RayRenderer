@@ -11,7 +11,7 @@
 #include "RenderCore/ThumbnailManager.h"
 #include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/MiniLogger.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 
 using std::vector;
 

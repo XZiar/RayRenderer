@@ -10,10 +10,10 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/composite_key.hpp>
 
-namespace rayr
+namespace dizz
 {
 using std::map;
-using common::str::Charset;
+using common::str::Encoding;
 using oglu::oglTex2D;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
@@ -224,7 +224,7 @@ void Drawable::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
 void Drawable::Deserialize(DeserializeUtil & context, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("Name"), Encoding::UTF8);
     Uid = DrawableHelper::GenerateUUID(object.Get<string_view>("Uid"));
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));

@@ -1,10 +1,11 @@
-#include "Format.h"
+#include "SystemCommonPch.h"
+#include "StringFormat.h"
 #include <ctime>
 
-#include "3rdParty/fmt/src/format.cc"
+#include "fmt/src/format.cc"
 #pragma message("Compiling StringUtil with fmt[" STRINGIZE(FMT_VERSION) "]" )
 
-using common::str::Charset;
+using common::str::Encoding;
 
 FMT_BEGIN_NAMESPACE
 

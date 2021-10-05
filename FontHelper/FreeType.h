@@ -1,7 +1,7 @@
 #pragma once
 #include "common/AlignedBuffer.hpp"
 #include "common/FileBase.hpp"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include <cstddef>
 #include <cstdint>
 #include <tuple>

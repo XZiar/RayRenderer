@@ -7,12 +7,12 @@ namespace Dizz
 {
 
 
-std::shared_ptr<rayr::PBRMaterial> PBRMaterial::GetSelf()
+std::shared_ptr<dizz::PBRMaterial> PBRMaterial::GetSelf()
 {
-    return std::static_pointer_cast<rayr::PBRMaterial>(GetControl()); // type promised
+    return std::static_pointer_cast<dizz::PBRMaterial>(GetControl()); // type promised
 }
 
-PBRMaterial::PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material) : Controllable(material)
+PBRMaterial::PBRMaterial(const std::shared_ptr<dizz::PBRMaterial>& material) : Controllable(material)
 {
     diffuseMap = TexHolder::CreateTexHolder(material->DiffuseMap);
 }
@@ -46,14 +46,14 @@ void Drawable::OnMaterialChanged(Object^ sender, PBRMaterial^ material, Property
     RaisePropertyChanged("Material");
 }
 
-std::shared_ptr<rayr::Drawable> Drawable::GetSelf()
+std::shared_ptr<dizz::Drawable> Drawable::GetSelf()
 {
-    return std::static_pointer_cast<rayr::Drawable>(GetControl()); // type promised
+    return std::static_pointer_cast<dizz::Drawable>(GetControl()); // type promised
 }
 bool Drawable::CreateMaterials()
 {
     materials->InnerClear();
-    const std::shared_ptr<rayr::Drawable>& drawable = GetSelf();
+    const std::shared_ptr<dizz::Drawable>& drawable = GetSelf();
     const auto matCount = drawable->MaterialHolder.GetSize();
     if (matCount == 0)
         return false;
@@ -63,14 +63,14 @@ bool Drawable::CreateMaterials()
     }
     return true;
 }
-Drawable::Drawable(const std::shared_ptr<rayr::Drawable>& drawable) : Controllable(drawable)
+Drawable::Drawable(const std::shared_ptr<dizz::Drawable>& drawable) : Controllable(drawable)
 {
     materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
     materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
     Uid = ToGuid(drawable->GetUid());
     DrawableType = ToStr(drawable->GetType());
 }
-Drawable::Drawable(std::shared_ptr<rayr::Drawable>&& drawable) : Controllable(drawable), TempHandle(new std::shared_ptr<rayr::Drawable>(drawable))
+Drawable::Drawable(std::shared_ptr<dizz::Drawable>&& drawable) : Controllable(drawable), TempHandle(new std::shared_ptr<dizz::Drawable>(drawable))
 {
     materials = gcnew ObservableProxyReadonlyContainer<PBRMaterial^>();
     materials->ObjectPropertyChanged += gcnew ObjectPropertyChangedEventHandler<PBRMaterial^>(this, &Drawable::OnMaterialChanged);
@@ -107,16 +107,16 @@ String^ Drawable::ToString()
 }
 
 
-std::shared_ptr<rayr::Light> Light::GetSelf()
+std::shared_ptr<dizz::Light> Light::GetSelf()
 {
-    return std::static_pointer_cast<rayr::Light>(GetControl()); // type promised
+    return std::static_pointer_cast<dizz::Light>(GetControl()); // type promised
 }
 
-Light::Light(const std::shared_ptr<rayr::Light>& light) : Controllable(light)
+Light::Light(const std::shared_ptr<dizz::Light>& light) : Controllable(light)
 {
     LgtType = static_cast<LightType>(light->Type);
 }
-Light::Light(std::shared_ptr<rayr::Light>&& light) : Controllable(light), TempHandle(new std::shared_ptr<rayr::Light>(light))
+Light::Light(std::shared_ptr<dizz::Light>&& light) : Controllable(light), TempHandle(new std::shared_ptr<dizz::Light>(light))
 {
     LgtType = static_cast<LightType>((*TempHandle)->Type);
 }
@@ -145,21 +145,21 @@ String^ Light::ToString()
 }
 
 #pragma managed(push, off)
-static std::shared_ptr<rayr::Light> CreateLight(rayr::LightType type)
+static std::shared_ptr<dizz::Light> CreateLight(dizz::LightType type)
 {
-    std::shared_ptr<rayr::Light> light;
+    std::shared_ptr<dizz::Light> light;
     switch (type)
     {
-    case rayr::LightType::Parallel:
-        light = std::make_shared<rayr::ParallelLight>();
+    case dizz::LightType::Parallel:
+        light = std::make_shared<dizz::ParallelLight>();
         light->Color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
         break;
-    case rayr::LightType::Point:
-        light = std::make_shared<rayr::PointLight>();
+    case dizz::LightType::Point:
+        light = std::make_shared<dizz::PointLight>();
         light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
         break;
-    case rayr::LightType::Spot:
-        light = std::make_shared<rayr::SpotLight>();
+    case dizz::LightType::Spot:
+        light = std::make_shared<dizz::SpotLight>();
         light->Color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
         break;
     }
@@ -169,16 +169,16 @@ static std::shared_ptr<rayr::Light> CreateLight(rayr::LightType type)
 #pragma managed(pop)
 Light^ Light::NewLight(LightType type)
 {
-    return gcnew Light(CreateLight((rayr::LightType)type));
+    return gcnew Light(CreateLight((dizz::LightType)type));
 }
 
 
-std::shared_ptr<rayr::Camera> Camera::GetSelf()
+std::shared_ptr<dizz::Camera> Camera::GetSelf()
 {
-    return std::static_pointer_cast<rayr::Camera>(GetControl()); // type promised
+    return std::static_pointer_cast<dizz::Camera>(GetControl()); // type promised
 }
 
-Camera::Camera(const std::shared_ptr<rayr::Camera>& camera) : Controllable(camera)
+Camera::Camera(const std::shared_ptr<dizz::Camera>& camera) : Controllable(camera)
 {
 }
 
@@ -224,10 +224,10 @@ static Scene::Scene()
 {
     DrawablePrepareFunc = gcnew Func<Drawable^, bool>(PrepareDrawableMaterial);
 }
-Scene::Scene(const rayr::RenderCore * core) : Core(core)
+Scene::Scene(const dizz::RenderCore * core) : Core(core)
 {
     const auto& scene = Core->GetScene();
-    TheScene = new std::weak_ptr<rayr::Scene>(scene);
+    TheScene = new std::weak_ptr<dizz::Scene>(scene);
     MainCamera = gcnew Camera(scene->GetCamera());
     Drawables = gcnew ObservableProxyContainer<Drawable^>();
     Drawables->BeforeAddObject += gcnew AddObjectEventHandler<Drawable^>(this, &Scene::BeforeAddModel);
@@ -316,7 +316,7 @@ void Scene::OnDrawablesChanged(Object ^ sender, NotifyCollectionChangedEventArgs
 
 void Scene::OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e)
 {
-    TheScene->lock()->ReportChanged(rayr::SceneChange::Light);
+    TheScene->lock()->ReportChanged(dizz::SceneChange::Light);
 }
 
 Scene::!Scene()

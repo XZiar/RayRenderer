@@ -4,7 +4,7 @@
 #include "../Material.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
-namespace rayr
+namespace dizz
 {
 class Model;
 
@@ -14,7 +14,7 @@ namespace detail
 
 class alignas(b3d::Vec3)_ModelMesh : public common::NonCopyable, public xziar::respak::Serializable
 {
-    friend class ::rayr::Model;
+    friend class ::dizz::Model;
 private:
     static std::shared_ptr<_ModelMesh> GetModel(xziar::respak::DeserializeUtil& context, const string& id);
     static std::shared_ptr<_ModelMesh> GetModel(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer = {});
@@ -37,7 +37,7 @@ private:
 public:
     void PrepareVAO(oglu::oglVAO_::VAOPrep& vaoPrep) const;
 
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#ModelMesh")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#ModelMesh")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };

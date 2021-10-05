@@ -2,8 +2,8 @@
 #include "Nailang/NailangParser.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "SystemCommon/ColorConsole.h"
-#include "StringUtil/Detect.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringDetect.h"
+#include "SystemCommon/StringConvert.h"
 #include "common/Linq2.hpp"
 #include <iostream>
 
@@ -109,7 +109,7 @@ static void TestNailang()
             string fpath = common::console::ConsoleEx::ReadLine("input nailang file:");
             const auto data = common::file::ReadAll<std::byte>(fpath);
             const auto chset = common::str::DetectEncoding(data);
-            log().verbose(u"file has encoding [{}].\n", common::str::getCharsetName(chset));
+            log().verbose(u"file has encoding [{}].\n", common::str::GetEncodingName(chset));
             const auto u32str = common::str::to_u32string(data, chset);
             const auto u16fname = common::str::to_u16string(fpath, common::str::DetectEncoding(fpath));
 

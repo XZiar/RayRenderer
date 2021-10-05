@@ -24,10 +24,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [3rdParty](./3rdParty) | 3rd party library | C,C++ | N/A |
 | [common](./common) | Basic but useful things | Multi | N/A |
 | [3DBasic](./3DBasic) | Self-made BLAS library and simple 3D things | C++ | N/A |
-| [StringUtil](./StringUtil) | String Charset Library | C++ | Win & Linux & Android & iOS |
 | [SystemCommon](./SystemCommon) | System-level common library | C++ | Win & Linux & Android & iOS |
 | [Nailang](./Nailang) | A customizable language | C++ | Win & Linux & Android & iOS |
-| [AsyncExecutor](./AsyncExecutor) | Async Executor | C++ | Win & Linux & iOS |
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |
 | [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android & iOS |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux |
@@ -37,8 +35,8 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Win & Linux |
 | [WindowHost](./WindowHost) | Multi-threaded GUI host | C++ | Win & Linux |
 | [ResourcePackager](./ResourcePackager) | Resource (de)serialize support | C++ | Win & Linux |
-| [RenderCore](./RenderCore) | Core of RayRenderer | C++ | Win & Linux |
-| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RayRender core | C++/CLI | Win |
+| [RenderCore](./RenderCore) | Core of DizzRenderer | C++ | Win & Linux |
+| [RenderCoreWrap](./RenderCoreWrap) | C++/CLI Wrapper for RenderCore | C++/CLI | Win |
 | [CommonUtil](./CommonUtil) | Basic utilities for C# | C# | Win |
 | [AnyDock](./AnyDock) | Flexible dock layout like AvalonDock for WPF | C# | Win |
 | [OpenGLView](./OpenGLView) | Wrapper of OpenGL window in WinForm | C++/CLI | Win |

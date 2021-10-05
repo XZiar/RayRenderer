@@ -4,8 +4,8 @@
 
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/MiscIntrins.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Format.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 
 #include "common/parser/ParserBase.hpp"
 #include "common/StringEx.hpp"

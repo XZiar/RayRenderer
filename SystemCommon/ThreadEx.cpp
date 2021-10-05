@@ -67,11 +67,11 @@ bool SetThreadName(const std::u16string_view threadName)
         ::SetThreadDescription(::GetCurrentThread(), (PCWSTR)threadName.data()); 
     else
     {
-        const auto asciiThreadName = str::to_string(threadName, str::Charset::ASCII, str::Charset::UTF16LE);
+        const auto asciiThreadName = str::to_string(threadName, str::Encoding::ASCII, str::Encoding::UTF16LE);
         SetThreadNameImpl(asciiThreadName, ::GetCurrentThreadId());
     }
 #else
-    const auto u8TName = str::to_u8string(threadName, str::Charset::UTF16LE);
+    const auto u8TName = str::to_u8string(threadName, str::Encoding::UTF16LE);
     if (u8TName.length() >= 16) // pthread limit name to 16 bytes(including null)
         return SetThreadName(u8TName.substr(0, 15));
 # if COMMON_OS_DARWIN
@@ -106,7 +106,7 @@ std::u16string GetThreadName()
 #   endif
     prctl(PR_GET_NAME, reinterpret_cast<unsigned long>(tmp), 0, 0, 0);
 # endif
-    return str::to_u16string(&tmp[0], str::Charset::UTF8);
+    return str::to_u16string(&tmp[0], str::Encoding::UTF8);
 #endif
 }
 

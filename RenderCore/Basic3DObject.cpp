@@ -1,7 +1,7 @@
 #include "RenderCorePch.h"
 #include "Basic3DObject.h"
 
-namespace rayr
+namespace dizz
 {
 using std::set;
 using std::map;

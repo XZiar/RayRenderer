@@ -225,7 +225,7 @@ std::u16string TryErrorString(std::u16string str, const Microsoft::WRL::ComPtr<I
     {
         const auto msg = reinterpret_cast<const char*>(errBlob->GetBufferPointer());
         str.append(u":\n");
-        str.append(common::str::to_u16string(msg, common::str::Charset::UTF8));
+        str.append(common::str::to_u16string(msg, common::str::Encoding::UTF8));
     }
     return str;
 }

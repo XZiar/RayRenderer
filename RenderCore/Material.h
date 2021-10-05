@@ -7,14 +7,14 @@
 #   pragma warning(disable:4275 4251)
 #endif
 
-namespace rayr
+namespace dizz
 {
 class TextureLoader;
 class ThumbnailManager;
 
 constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1)) == 0; }
 
-struct RAYCOREAPI RawMaterialData
+struct RENDERCOREAPI RawMaterialData
 {
 public:
     b3d::Vec4 ambient, diffuse, specular, emission;
@@ -34,7 +34,7 @@ public:
 
 namespace detail
 {
-struct RAYCOREAPI _FakeTex : public common::NonCopyable, public xziar::respak::Serializable
+struct RENDERCOREAPI _FakeTex : public common::NonCopyable, public xziar::respak::Serializable
 {
 public:
     std::vector<common::AlignedBuffer> TexData;
@@ -50,14 +50,14 @@ public:
     {
         return static_cast<uint8_t>(TexData.size());
     }
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#FakeTex")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#FakeTex")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 }
 using FakeTex = std::shared_ptr<detail::_FakeTex>;
 
-struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D, FakeTex>
+struct RENDERCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D, FakeTex>
 {
     using std::variant<std::monostate, oglu::oglTex2D, FakeTex>::variant;
     xziar::img::TextureFormat GetInnerFormat() const;
@@ -69,7 +69,7 @@ struct RAYCOREAPI TexHolder : public std::variant<std::monostate, oglu::oglTex2D
 };
 
 
-struct RAYCOREAPI PBRMaterial : public xziar::respak::Serializable, public common::Controllable
+struct RENDERCOREAPI PBRMaterial : public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     virtual u16string_view GetControlType() const override
@@ -91,7 +91,7 @@ public:
     virtual ~PBRMaterial() override {}
     //uint32_t WriteData(std::byte *ptr) const;
 
-    RESPAK_DECL_SIMP_DESERIALIZE("rayr#PBRMaterial")
+    RESPAK_DECL_SIMP_DESERIALIZE("dizz#PBRMaterial")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
@@ -117,7 +117,7 @@ union TexTag
 };
 }
 
-struct RAYCOREAPI MultiMaterialHolder : public common::NonCopyable, public xziar::respak::Serializable
+struct RENDERCOREAPI MultiMaterialHolder : public common::NonCopyable, public xziar::respak::Serializable
 {
 public:
     using Mapping = std::pair<detail::TexTag, uint16_t>;
@@ -147,7 +147,7 @@ public:
     
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
-    RESPAK_DECL_SIMP_DESERIALIZE("rayr#MultiMaterialHolder")
+    RESPAK_DECL_SIMP_DESERIALIZE("dizz#MultiMaterialHolder")
 };
 
 

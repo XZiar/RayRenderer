@@ -136,9 +136,6 @@
     <ProjectReference Include="..\..\OpenCLUtil\OpenCLUtil.vcxproj">
       <Project>{45231916-6d39-4fd5-a232-40daafea819b}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\StringUtil\StringUtil.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>

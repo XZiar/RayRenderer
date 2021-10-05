@@ -4,7 +4,7 @@
     "description": "Utility test",
     "dependency": 
     [
-        "AsyncExecutor", "ImageUtil", "OpenCLUtil", "StringUtil", "SystemCommon", "Nailang", "XComputeBase",
+        "ImageUtil", "OpenCLUtil", "SystemCommon", "Nailang", "XComputeBase",
         {"ifno": ["iOS"], "+": ["WindowHost"]},
         {"ifno": ["android"], "ifneq": {"osname": "Darwin"}, "+": ["OpenGLUtil"]}
     ],

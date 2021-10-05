@@ -9,15 +9,15 @@ namespace Dizz
 {
 
 
-std::shared_ptr<rayr::RenderPass> RenderPass::GetSelf()
+std::shared_ptr<dizz::RenderPass> RenderPass::GetSelf()
 {
-    return std::dynamic_pointer_cast<rayr::RenderPass>(GetControl()); // virtual base require dynamic_cast
+    return std::dynamic_pointer_cast<dizz::RenderPass>(GetControl()); // virtual base require dynamic_cast
 }
 
-RenderPass::RenderPass(const std::shared_ptr<rayr::RenderPass>& shader) : Controllable(shader)
+RenderPass::RenderPass(const std::shared_ptr<dizz::RenderPass>& shader) : Controllable(shader)
 {
 }
-RenderPass::RenderPass(std::shared_ptr<rayr::RenderPass>&& shader) : Controllable(shader), TempHandle(new std::shared_ptr<rayr::RenderPass>(shader))
+RenderPass::RenderPass(std::shared_ptr<dizz::RenderPass>&& shader) : Controllable(shader), TempHandle(new std::shared_ptr<dizz::RenderPass>(shader))
 {
 }
 void RenderPass::ReleaseTempHandle()
@@ -40,7 +40,7 @@ String^ RenderPass::ToString()
 }
 
 
-RenderCore::RenderCore() : Core(TryConstruct<rayr::RenderCore>())
+RenderCore::RenderCore() : Core(TryConstruct<dizz::RenderCore>())
 {
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);
@@ -100,39 +100,39 @@ void RenderCore::Resize(const uint32_t w, const uint32_t h)
 
 
 
-static gcroot<Drawable^> __cdecl ConvDrawable(std::shared_ptr<rayr::Model> theModel)
+static gcroot<Drawable^> __cdecl ConvDrawable(std::shared_ptr<dizz::Model> theModel)
 {
     return gcnew Drawable(std::move(theModel));
 }
 
 Task<Drawable^>^ RenderCore::LoadModelAsync(String^ fname)
 {
-    return NewDoAsync<&rayr::RenderCore::LoadModelAsync2, ConvDrawable>(*Core, ToU16Str(fname));
+    return NewDoAsync<&dizz::RenderCore::LoadModelAsync2, ConvDrawable>(*Core, ToU16Str(fname));
 }
 
-static gcroot<RenderPass^> ConvRenderPass(std::shared_ptr<rayr::DefaultRenderPass> pass)
+static gcroot<RenderPass^> ConvRenderPass(std::shared_ptr<dizz::DefaultRenderPass> pass)
 {
     return gcnew RenderPass(std::move(pass));
 }
 Task<RenderPass^>^ RenderCore::LoadShaderAsync(String^ fname, String^ shaderName)
 {
-    return NewDoAsync<&rayr::RenderCore::LoadShaderAsync2, ConvRenderPass>(*Core, ToU16Str(fname), ToU16Str(shaderName));
+    return NewDoAsync<&dizz::RenderCore::LoadShaderAsync2, ConvRenderPass>(*Core, ToU16Str(fname), ToU16Str(shaderName));
 }
 
 
-//static RenderPass^ ConstructRenderPass(CLIWrapper<Wrapper<rayr::DefaultRenderPass>>^ pass)
+//static RenderPass^ ConstructRenderPass(CLIWrapper<Wrapper<dizz::DefaultRenderPass>>^ pass)
 //{
 //    return gcnew RenderPass(pass->Extract());
 //}
 //Task<RenderPass^>^ RenderCore::LoadShaderAsync(String^ fname, String^ shaderName)
 //{
-//    return doAsync3<RenderPass^>(gcnew Func<CLIWrapper<Wrapper<rayr::DefaultRenderPass>>^, RenderPass^>(&ConstructRenderPass),
-//        &rayr::RenderCore::LoadShaderAsync, *Core, ToU16Str(fname), ToU16Str(shaderName));
+//    return doAsync3<RenderPass^>(gcnew Func<CLIWrapper<Wrapper<dizz::DefaultRenderPass>>^, RenderPass^>(&ConstructRenderPass),
+//        &dizz::RenderCore::LoadShaderAsync, *Core, ToU16Str(fname), ToU16Str(shaderName));
 //}
 
 void RenderCore::BeforeAddPass(Object^ sender, RenderPass^ object, bool% shouldAdd)
 {
-    const auto self = std::dynamic_pointer_cast<rayr::DefaultRenderPass>(object->GetSelf());
+    const auto self = std::dynamic_pointer_cast<dizz::DefaultRenderPass>(object->GetSelf());
     if (self && Core->AddShader(self))
     {
         object->ReleaseTempHandle();
@@ -141,7 +141,7 @@ void RenderCore::BeforeAddPass(Object^ sender, RenderPass^ object, bool% shouldA
 }
 void RenderCore::BeforeDelPass(Object^ sender, RenderPass^ object, bool% shouldDel)
 {
-    const auto self = std::dynamic_pointer_cast<rayr::DefaultRenderPass>(object->GetSelf());
+    const auto self = std::dynamic_pointer_cast<dizz::DefaultRenderPass>(object->GetSelf());
     if (Core->DelShader(self))
     {
         shouldDel = true;

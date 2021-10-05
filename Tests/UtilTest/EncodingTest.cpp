@@ -2,18 +2,18 @@
 #include "SystemCommon/FileEx.h"
 #include "common/Linq2.hpp"
 #include "common/TimeUtil.hpp"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringDetect.h"
 
 using namespace common::mlog;
 using namespace common;
 using std::vector;
 using std::byte;
-using str::Charset;
+using str::Encoding;
 
 static MiniLogger<false>& log()
 {
-    static MiniLogger<false> log(u"CharsetTest", { GetConsoleBackend() });
+    static MiniLogger<false> log(u"EncodingTest", { GetConsoleBackend() });
     return log;
 }
 
@@ -32,17 +32,17 @@ static void TestStrConv()
 
     const auto ret = str::to_u16string(std::u32string(U"hh"));
     std::u16string utf16(u"𤭢");
-    std::string utf8 = str::to_string(utf16, Charset::UTF8);
+    std::string utf8 = str::to_string(utf16, Encoding::UTF8);
     vector<uint8_t> tmp(utf8.cbegin(), utf8.cend());
     for (size_t i = 0; i < tmp.size(); ++i)
         log().debug(u"byte {} : {:#x}\n", i, tmp[i]);
 
     tmp.assign({ 0x31,0x30,0x68,0xe6,0x88,0x91 });
     utf8.assign(tmp.cbegin(), tmp.cend());
-    utf16 = str::to_u16string(utf8, Charset::UTF8);
+    utf16 = str::to_u16string(utf8, Encoding::UTF8);
     log().debug(u"output u16: {}\n", utf16);
 
-    const auto utf16be = str::to_string(utf16, Charset::UTF16BE, Charset::UTF16LE);
+    const auto utf16be = str::to_string(utf16, Encoding::UTF16BE, Encoding::UTF16LE);
     for (size_t i = 0; i < utf8.size(); ++i)
         log().debug(u"byte {} : LE {:#x}\tBE {:#x}\n", i, ((const uint8_t*)(utf16.data()))[i], (uint8_t)(utf16be[i]));
 
@@ -56,9 +56,9 @@ static void TestStrConv()
     memcpy_s(&csvdest[2], csvdest.size() - 2, utf16.data(), utf16.size() * 2);
     file::WriteAll(basePath / u"utf8-sample-utf16.html", csvdest);
 
-    const auto myget = str::to_string(utf16, Charset::GB18030);
+    const auto myget = str::to_string(utf16, Encoding::GB18030);
     file::WriteAll(basePath / u"utf8-sample-gb18030.html", myget);
-    const auto myout = str::to_u8string(myget, Charset::GB18030);
+    const auto myout = str::to_u8string(myget, Encoding::GB18030);
     file::WriteAll(basePath / u"utf8-sample-myout.html", myout);
     {
         const auto allMatch = common::linq::FromIterable(u8raw)
@@ -96,4 +96,4 @@ static void TestStrConv()
 }
 #pragma warning(default:4996)
 
-const static uint32_t ID = RegistTest("CharsetTest", &TestStrConv);
+const static uint32_t ID = RegistTest("EncodingTest", &TestStrConv);

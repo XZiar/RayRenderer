@@ -1,11 +1,11 @@
 #include "XCompCommon.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "Nailang/NailangAutoVar.h"
 
 using namespace xziar::nailang;
 using namespace xcomp;
 using namespace std::string_view_literals;
-using common::str::Charset;
+using common::str::Encoding;
 
 
 std::u16string_view RunArgInfo::GetTypeName(const ArgType type) noexcept
@@ -60,7 +60,7 @@ struct XCStubHelper::RunConfigVar : public xziar::nailang::AutoVarHandler<RunCon
                         argHandler.SetExtendIndexer([&](common::span<const RunArgInfo> all, const Arg& idx) -> std::optional<size_t>
                             {
                                 if (idx.IsStr())
-                                    return Helper.FindArgIdx(all, common::str::to_string(idx.GetStr().value(), Charset::UTF8));
+                                    return Helper.FindArgIdx(all, common::str::to_string(idx.GetStr().value(), Encoding::UTF8));
                                 return {};
                             });
                     }).SetConst(false);
@@ -99,7 +99,7 @@ public:
             {
                 executor.ThrowByParamTypes<2>(func, { Arg::Type::String, Arg::Type::String });
                 const auto name = func.Params[0].GetStr().value();
-                const auto kerName = common::str::to_string(func.Params[1].GetStr().value(), Charset::UTF8);
+                const auto kerName = common::str::to_string(func.Params[1].GetStr().value(), Encoding::UTF8);
                 const auto cookie = Helper.TryFindKernel(Context, kerName);
                 if (!cookie.has_value())
                     COMMON_THROW(NailangRuntimeException, FMTSTR(u"Does not found kernel [{}]", kerName));

@@ -5,8 +5,9 @@
 #endif
 
 #include "CLICommonRely.hpp"
-#include "Exceptions.hpp"
 #include "FileBase.hpp"
+#include "SystemCommon/Exceptions.h"
+#include "SystemCommon/FileEx.h"
 
 using namespace System;
 

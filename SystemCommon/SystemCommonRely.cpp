@@ -1,4 +1,5 @@
 #include "SystemCommonPch.h"
+#include "Exceptions.h"
 #include "common/FrozenDenseSet.hpp"
 #include "common/simd/SIMD.hpp"
 #if COMMON_ARCH_X86
@@ -184,30 +185,6 @@ span<const std::string_view> GetCPUFeatures() noexcept
     return features.FeatureText;
 }
 
-//static std::vector<void(*)()noexcept>& GetInitializerMap() noexcept
-//{
-//    static std::vector<void(*)()noexcept> initializers;
-//    return initializers;
-//}
-//
-//uint32_t RegisterInitializer(void(*func)()noexcept) noexcept
-//{
-//    GetInitializerMap().emplace_back(func);
-//    return 0;
-//}
-//
-//#if COMMON_OS_UNIX
-//__attribute__((constructor))
-//#endif
-//static void ExecuteInitializers() noexcept
-//{
-//    // printf("==[SystemCommon]==\tInit here.\n");
-//    for (const auto func : GetInitializerMap())
-//    {
-//        func();
-//    }
-//}
-
 
 void FastPathBase::Init(common::span<const PathInfo> info, common::span<const VarItem> requests) noexcept
 {
@@ -250,28 +227,54 @@ void FastPathBase::Init(common::span<const PathInfo> info, common::span<const Va
 }
 
 
+std::shared_ptr<ExceptionBasicInfo> detail::ExceptionHelper::GetCurrentException() noexcept
+{
+    const auto cex = std::current_exception();
+    if (!cex)
+        return {};
+    try
+    {
+        std::rethrow_exception(cex);
+    }
+    catch (const BaseException& be)
+    {
+        return be.Info;
+    }
+    catch (...)
+    {
+        return OtherException(cex).Info;
+    }
+}
+
+[[nodiscard]] std::vector<StackTraceItem> BaseException::ExceptionStacks() const
+{
+    std::vector<StackTraceItem> ret;
+    for (auto ex = Info.get(); ex; ex = ex->InnerException.get())
+    {
+        if (ex->StackTrace.size() > 0)
+            ret.push_back(ex->StackTrace[0]);
+        else
+            ret.emplace_back(u"Undefined", u"Undefined", 0);
+    }
+    return ret;
+}
+
+[[nodiscard]] std::u16string_view BaseException::GetDetailMessage() const noexcept
+{
+    const auto ptr = Info->Resources.QueryItem("detail");
+    if (ptr)
+    {
+        if (ptr->type() == typeid(common::SharedString<char16_t>))
+            return *std::any_cast<common::SharedString<char16_t>>(ptr);
+        if (ptr->type() == typeid(std::u16string))
+            return *std::any_cast<std::u16string>(ptr);
+        if (ptr->type() == typeid(std::u16string_view))
+            return *std::any_cast<std::u16string_view>(ptr);
+    }
+    return {};
+}
 
 
 }
 
 
-#if COMMON_OS_WIN
-
-//BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID)
-//{
-//    switch (fdwReason)
-//    {
-//    case DLL_PROCESS_ATTACH:
-//        common::ExecuteInitializers();
-//        break;
-//    case DLL_PROCESS_DETACH:
-//        break;
-//    case DLL_THREAD_ATTACH:
-//        break;
-//    case DLL_THREAD_DETACH:
-//        break;
-//    }
-//    return TRUE;
-//}
-
-#endif

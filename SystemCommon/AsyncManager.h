@@ -1,8 +1,12 @@
 #pragma once
-#include "AsyncExecutorRely.h"
+#include "SystemCommonRely.h"
 #include "AsyncAgent.h"
-#include "SystemCommon/MiniLogger.h"
-#include "SystemCommon/LoopBase.h"
+#include "Exceptions.h"
+#include "LoopBase.h"
+#include "MiniLogger.h"
+#include "PromiseTask.h"
+#include "common/IntrusiveDoubleLinkList.hpp"
+#include "common/TimeUtil.hpp"
 #include <atomic>
 
 #if COMMON_COMPILER_MSVC
@@ -15,10 +19,31 @@ namespace common
 namespace asyexe
 {
 
+struct StackSize
+{
+    constexpr static uint32_t Default = 0, Tiny = 4096, Small = 65536, Big = 512 * 1024, Large = 1024 * 1024, Huge = 4 * 1024 * 1024;
+};
+
+class AsyncTaskException : public BaseException
+{
+public:
+    enum class Reasons : uint8_t { Terminated, Timeout, Cancelled };
+private:
+    PREPARE_EXCEPTION(AsyncTaskException, BaseException,
+        const Reasons Reason;
+        ExceptionInfo(const std::u16string_view msg, const Reasons reason)
+            : TPInfo(TYPENAME, msg), Reason(reason)
+        { }
+    );
+    AsyncTaskException(const Reasons reason, const std::u16string_view msg)
+        : BaseException(T_<ExceptionInfo>{}, msg, reason)
+    { }
+};
+
 namespace detail
 {
 
-class ASYEXEAPI AsyncTaskPromiseProvider : public common::BasicPromiseProvider
+class SYSCOMMONAPI AsyncTaskPromiseProvider : public common::BasicPromiseProvider
 {
     friend struct AsyncTaskNodeBase;
 protected:
@@ -47,7 +72,7 @@ enum class AsyncTaskStatus : uint8_t
 };
 
 
-struct ASYEXEAPI AsyncTaskNodeBase : public common::container::IntrusiveDoubleLinkListNodeBase<AsyncTaskNodeBase>
+struct SYSCOMMONAPI AsyncTaskNodeBase : public common::container::IntrusiveDoubleLinkListNodeBase<AsyncTaskNodeBase>
 {
     friend class ::common::asyexe::AsyncManager;
     friend class ::common::asyexe::AsyncAgent;
@@ -142,7 +167,7 @@ struct RetTypeGetter<F, false>
 
 
 
-class ASYEXEAPI AsyncManager final : private common::loop::LoopBase
+class SYSCOMMONAPI AsyncManager final : private common::loop::LoopBase
 {
     friend class AsyncAgent;
 private:

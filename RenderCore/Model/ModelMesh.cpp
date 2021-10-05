@@ -6,10 +6,10 @@
 #include "OpenGLUtil/oglWorker.h"
 #include "OpenGLUtil/PointEnhance.hpp"
 
-namespace rayr::detail
+namespace dizz::detail
 {
 using std::vector;
-using common::str::Charset;
+using common::str::Encoding;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
 using b3d::Vec3;
@@ -279,7 +279,7 @@ _ModelMesh::_ModelMesh(const u16string& fname, const std::shared_ptr<TextureLoad
 
 RESPAK_IMPL_COMP_DESERIALIZE(_ModelMesh, u16string)
 {
-    u16string name = common::str::to_u16string(object.Get<string>("mfname"), Charset::UTF8);
+    u16string name = common::str::to_u16string(object.Get<string>("mfname"), Encoding::UTF8);
     return std::any(std::make_tuple(name));
 }
 void _ModelMesh::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) const

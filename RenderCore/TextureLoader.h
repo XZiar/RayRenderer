@@ -3,11 +3,11 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 #include "TextureUtil/TexMipmap.h"
-#include "AsyncExecutor/AsyncAgent.h"
+#include "SystemCommon/AsyncAgent.h"
 #include "common/Controllable.hpp"
 
 
-namespace rayr
+namespace dizz
 {
 
 
@@ -18,7 +18,7 @@ enum class TexProcType : uint8_t { CompressBC7, CompressBC5, Plain };
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI TextureLoader : public common::NonCopyable, public common::NonMovable, public common::Controllable
+class RENDERCOREAPI TextureLoader : public common::NonCopyable, public common::NonMovable, public common::Controllable
 {
 private:
     struct TexProc

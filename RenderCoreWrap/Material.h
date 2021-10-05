@@ -8,19 +8,19 @@ using namespace System::Collections::Generic;
 using System::Windows::Media::Imaging::BitmapSource;
 
 
-namespace RayRender
+namespace DizzRender
 {
 
 
 public ref class TexMap
 {
 private:
-    rayr::TexHolder& Holder;
+    dizz::TexHolder& Holder;
     BitmapSource^ thumbnail;
     String^ name;
     String^ description;
 public:
-    TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailManager>& thumbman);
+    TexMap(dizz::TexHolder& holder, const std::shared_ptr<dizz::ThumbnailManager>& thumbman);
     property String^ Name
     {
         String^ get() { return name; }
@@ -38,12 +38,12 @@ public:
 public ref class PBRMaterial : public BaseViewModel
 {
 private:
-    std::weak_ptr<rayr::Drawable>& Drawable;
-    rayr::PBRMaterial& Material;
+    std::weak_ptr<dizz::Drawable>& Drawable;
+    dizz::PBRMaterial& Material;
     TexMap ^albedoMap, ^normalMap;
     void RefreshMaterial();
 internal:
-    PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material, const std::shared_ptr<rayr::ThumbnailManager>& thumbman);
+    PBRMaterial(std::weak_ptr<dizz::Drawable>* drawable, dizz::PBRMaterial& material, const std::shared_ptr<dizz::ThumbnailManager>& thumbman);
 public:
     property String^ Name
     {

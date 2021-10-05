@@ -1,6 +1,6 @@
 #include "TestRely.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Format.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
 #define CURL_STATICLIB
@@ -76,7 +76,7 @@ static void CURLTest()
     log().info(u"Access {}\n", url);
     request.Perform();
     const auto& data = request.GetData();
-    const auto content = common::str::to_u16string(data.data(), data.size(), common::str::Charset::UTF8);
+    const auto content = common::str::to_u16string(data.data(), data.size(), common::str::Encoding::UTF8);
     log().info(u"Response:\n{}\n\n\n", content);
     getchar();
 }

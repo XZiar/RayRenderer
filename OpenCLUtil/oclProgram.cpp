@@ -303,7 +303,7 @@ public:
 std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool releaseRuntime) const
 {
     if (!DebugMan) return {};
-    const auto exeName = common::str::to_u32string(Kernel->Name, common::str::Charset::UTF8);
+    const auto exeName = common::str::to_u32string(Kernel->Name, common::str::Encoding::UTF8);
     const auto info = InfoBuf->Map(Queue, oclu::MapFlag::Read);
     const auto infoData = info.AsType<uint32_t>();
     const auto dbgSize = std::min(infoData[0] * sizeof(uint32_t), DebugBuf->Size);
@@ -585,7 +585,7 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev
         string logstr(logsize, '\0');
         clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
         logstr.pop_back();
-        result.append(common::str::to_u16string(logstr, common::str::Charset::UTF8));
+        result.append(common::str::to_u16string(logstr, common::str::Encoding::UTF8));
     }
     return result;
 }

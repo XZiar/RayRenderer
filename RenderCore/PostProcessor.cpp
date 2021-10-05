@@ -4,7 +4,7 @@
 #include "resource.h"
 
 
-namespace rayr
+namespace dizz
 {
 using namespace oclu;
 using namespace oglu;

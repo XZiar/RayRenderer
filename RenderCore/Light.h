@@ -2,13 +2,13 @@
 
 #include "RenderCoreRely.h"
 
-namespace rayr
+namespace dizz
 {
 
 
 enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
-struct RAYCOREAPI LightData
+struct RENDERCOREAPI LightData
 {
     b3d::Vec4 Color = b3d::Vec4::one();
     b3d::Vec3 Position = b3d::Vec3::zero();
@@ -44,7 +44,7 @@ public:
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI Light : public LightData, public xziar::respak::Serializable, public common::Controllable
+class RENDERCOREAPI Light : public LightData, public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     Light(const LightType type, const std::u16string& name);
@@ -58,7 +58,7 @@ public:
     bool IsOn = true;
     std::u16string Name;
     virtual ~Light() override {}
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#Light")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#Light")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };

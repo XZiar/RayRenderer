@@ -5,7 +5,7 @@
 #pragma message("Compiling RenderCore with boost[" STRINGIZE(BOOST_LIB_VERSION) "]" )
 #pragma message("Compiling RenderCore with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
-namespace rayr
+namespace dizz
 {
 using common::ResourceHelper;
 

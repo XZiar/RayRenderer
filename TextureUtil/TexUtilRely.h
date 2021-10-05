@@ -19,7 +19,7 @@
 #include "OpenCLUtil/oclBuffer.h"
 #include "ImageUtil/ImageCore.h"
 #include "SystemCommon/PromiseTask.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include <cstdint>
 #include <cstdio>
 #include <string>

@@ -1,9 +1,9 @@
 ﻿#include "RenderCorePch.h"
 #include "Camera.h"
 
-namespace rayr
+namespace dizz
 {
-using common::str::Charset;
+using common::str::Encoding;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 
@@ -48,7 +48,7 @@ void Camera::Serialize(SerializeUtil&, xziar::ejson::JObject& jself) const
 void Camera::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
     using detail::JsonConv;
-    Name = common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("Name"), Encoding::UTF8);
     object.TryGet<JsonConv>(EJ_FIELD(Position));
     object.TryGet<JsonConv>(EJ_FIELD(Rotation));
     object.TryGet<JsonConv>("Right", CamMat.x);

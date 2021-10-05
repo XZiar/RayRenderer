@@ -1,7 +1,7 @@
 #pragma once
 #include "GLFuncWrapper.h"
 #include "oglRely.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"

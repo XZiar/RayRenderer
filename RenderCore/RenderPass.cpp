@@ -3,9 +3,9 @@
 #include "SceneManager.h"
 
 
-namespace rayr
+namespace dizz
 {
-using common::str::Charset;
+using common::str::Encoding;
 using common::container::FindInSet;
 using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
@@ -112,7 +112,7 @@ void RenderPass::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself
 
 void RenderPass::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
-    SetName(common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+    SetName(common::str::to_u16string(object.Get<string>("Name"), Encoding::UTF8));
 }
 
 

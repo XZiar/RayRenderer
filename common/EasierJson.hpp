@@ -23,8 +23,6 @@
 
 namespace xziar::ejson
 {
-using common::NonCopyable;
-using common::BaseException;
 using std::string;
 using std::string_view;
 
@@ -325,7 +323,7 @@ public:
     }
     char Take() const
     {
-        return Backend.ReadByteNE<char>();
+        return *Backend.ReadByteNE<char>();
     }
     size_t Tell() const
     {
@@ -412,7 +410,7 @@ struct JPointerSupport
 };
 
 // JSON Document
-class JDoc : public NonCopyable, public DocumentHandle, public JNode<JDoc>, public JPointerSupport<JDoc, false>
+class JDoc : public DocumentHandle, public JNode<JDoc>, public JPointerSupport<JDoc, false>
 {
     friend struct JNode<JDoc>;
     friend struct JPointerSupport<JDoc, false>;
@@ -426,6 +424,8 @@ protected:
     [[nodiscard]] rapidjson::Value& GetValRef() { return Val; }
     [[nodiscard]] const rapidjson::Value& GetValRef() const { return Val; }
 public:
+    COMMON_NO_COPY(JDoc)
+    COMMON_DEF_MOVE(JDoc)
     [[nodiscard]] explicit operator rapidjson::Value() { return std::move(Val); }
     [[nodiscard]] static JDoc Parse(const string_view& json)
     {

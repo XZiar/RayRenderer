@@ -1,13 +1,13 @@
 #pragma once
 
-#include "StringUtilRely.h"
-#include "Convert.h"
+#include "SystemCommonRely.h"
+#include "StringConvert.h"
 
 #ifdef FMT_FORMAT_H_
 #  error "Don't include format.h before Format.h"
 #endif
 #define FMT_USE_FULL_CACHE_DRAGONBOX 1
-#ifdef STRCHSET_EXPORT
+#ifdef SYSCOMMON_EXPORT
 #  define FMT_EXPORT
 #else
 #  define FMT_SHARED
@@ -57,41 +57,41 @@ template<typename DstChar, typename SrcChar>
 std::basic_string<DstChar> ConvertStr(const SrcChar* str, const size_t size);
 template<typename DstChar>
 std::basic_string<DstChar> ConvertU8Str(const char* str, const size_t size);
-using Charset = common::str::Charset;
+using Encoding = common::str::Encoding;
 
 template<>
 inline std::basic_string<char16_t> ConvertStr(const char* str, const size_t size)
 {
-    return common::str::to_u16string(str, size, Charset::UTF7);
+    return common::str::to_u16string(str, size, Encoding::UTF7);
 }
 template<>
 inline std::basic_string<char16_t> ConvertU8Str(const char* str, const size_t size)
 {
-    return common::str::to_u16string(str, size, Charset::UTF8);
+    return common::str::to_u16string(str, size, Encoding::UTF8);
 }
 template<>
 inline std::basic_string<char16_t> ConvertStr(const char32_t* str, const size_t size)
 {
-    return common::str::to_u16string(str, size, Charset::UTF32);
+    return common::str::to_u16string(str, size, Encoding::UTF32);
 }
 
 template<>
 inline std::basic_string<char32_t> ConvertStr(const char* str, const size_t size)
 {
-    return common::str::to_u32string(str, size, Charset::UTF7);
+    return common::str::to_u32string(str, size, Encoding::UTF7);
 }
 template<>
 inline std::basic_string<char32_t> ConvertU8Str(const char* str, const size_t size)
 {
-    return common::str::to_u32string(str, size, Charset::UTF8);
+    return common::str::to_u32string(str, size, Encoding::UTF8);
 }
 template<>
 inline std::basic_string<char32_t> ConvertStr(const char16_t* str, const size_t size)
 {
-    return common::str::to_u32string(str, size, Charset::UTF16);
+    return common::str::to_u32string(str, size, Encoding::UTF16);
 }
 
-[[nodiscard]] STRCHSETAPI std::string& GetLocalString();
+SYSCOMMONAPI [[nodiscard]] std::string& GetLocalString();
 
 }
 
@@ -99,7 +99,7 @@ inline std::size_t strftime(char16_t* str, std::size_t count, const char16_t* fo
 {
     auto& buffer = temp::GetLocalString();
     buffer.resize(count);
-    const auto u7format = common::str::to_string(std::u16string_view(format), temp::Charset::UTF7);
+    const auto u7format = common::str::to_string(std::u16string_view(format), temp::Encoding::UTF7);
     const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
     for (size_t idx = 0; idx < ret;)
         *str++ = buffer[idx++];
@@ -110,7 +110,7 @@ inline std::size_t strftime(char32_t* str, std::size_t count, const char32_t* fo
 {
     auto& buffer = temp::GetLocalString();
     buffer.resize(count);
-    const auto u7format = common::str::to_string(std::u32string_view(format), temp::Charset::UTF7);
+    const auto u7format = common::str::to_string(std::u32string_view(format), temp::Encoding::UTF7);
     const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
     for (size_t idx = 0; idx < ret;)
         *str++ = buffer[idx++];

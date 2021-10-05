@@ -2,7 +2,7 @@
     "name": "TextureUtil",
     "type": "dynamic",
     "description": "Texture Utility",
-    "dependency": ["OpenGLUtil", "ispc_texcomp", "ImageUtil", "OpenCLUtil", "OpenCLInterop", "StringUtil", "AsyncExecutor", "SystemCommon"],
+    "dependency": ["OpenGLUtil", "ispc_texcomp", "ImageUtil", "OpenCLUtil", "OpenCLInterop", "SystemCommon"],
     "library": 
     {
         "static": [],

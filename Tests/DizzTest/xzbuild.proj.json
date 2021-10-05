@@ -2,7 +2,7 @@
     "name": "DizzTest",
     "type": "executable",
     "description": "Test Program based on WindowHost",
-    "dependency": ["WindowHost", "OpenGLUtil", "RenderCore", "FontHelper", "ResourcePackager", "ImageUtil", "SystemCommon", "StringUtil"],
+    "dependency": ["WindowHost", "OpenGLUtil", "RenderCore", "FontHelper", "ResourcePackager", "ImageUtil", "SystemCommon"],
     "library": 
     {
         "static": 

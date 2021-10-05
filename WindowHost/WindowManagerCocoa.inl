@@ -3,8 +3,8 @@
 
 #include "SystemCommon/ObjCHelper.h"
 #include "SystemCommon/NSFoundation.h"
-#include "StringUtil/Convert.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/Exceptions.h"
 #include "common/StaticLookup.hpp"
 #include <array>
 #include <tuple>
@@ -693,7 +693,7 @@ BOOL WindowManagerCocoa::CocoaView::PerformDragOperation(id self, SEL _sel, id s
     for (size_t i = 0; i < count; ++i)
     {
         const auto fname = urls[i].Call<const char*>(SelFileName);
-        fileNamePieces.emplace_back(fileNamePool.AllocateString(common::str::to_u16string(fname, common::str::Charset::UTF8)));
+        fileNamePieces.emplace_back(fileNamePool.AllocateString(common::str::to_u16string(fname, common::str::Encoding::UTF8)));
     }
     host->OnDropFile(pos, std::move(fileNamePool), std::move(fileNamePieces));
 

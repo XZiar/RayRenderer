@@ -16,7 +16,7 @@
 #include <future>
 
 
-namespace rayr
+namespace dizz
 {
 using std::vector;
 using common::container::FindInSet;

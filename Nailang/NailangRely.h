@@ -15,7 +15,7 @@
 #include "common/TrunckedContainer.hpp"
 #include "common/EnumEx.hpp"
 #include "common/StrBase.hpp"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/StringLinq.hpp"
 #include "common/StringPool.hpp"
 #include "common/SharedString.hpp"

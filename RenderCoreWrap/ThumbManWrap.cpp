@@ -9,7 +9,7 @@ namespace Dizz
 {
 
 
-TexHolder::TexHolder(const rayr::TexHolder& holder) : TypeId(static_cast<uint8_t>(holder.index()))
+TexHolder::TexHolder(const dizz::TexHolder& holder) : TypeId(static_cast<uint8_t>(holder.index()))
 {
     switch (holder.index())
     {
@@ -29,7 +29,7 @@ TexHolder::!TexHolder()
     WeakRef.Destruct();
 }
 
-TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
+TexHolder^ TexHolder::CreateTexHolder(const dizz::TexHolder& holder)
 {
     switch (holder.index())
     {
@@ -46,22 +46,22 @@ TexHolder^ TexHolder::CreateTexHolder(const rayr::TexHolder& holder)
     return gcnew TexHolder(holder);
 }
 
-rayr::TexHolder TexHolder::ExtractHolder()
+dizz::TexHolder TexHolder::ExtractHolder()
 {
     WRAPPER_NATIVE_PTR_DO(WeakRef, holder, lock());
     if (!holder) return {};
     switch (TypeId)
     {
     case 1: return oglu::oglTex2D(std::reinterpret_pointer_cast<oglu::oglTex2D_>(holder));
-    case 2: return std::reinterpret_pointer_cast<rayr::detail::_FakeTex>(holder);
+    case 2: return std::reinterpret_pointer_cast<dizz::detail::_FakeTex>(holder);
     default: return {};
     }
 }
 
 
-TextureLoader::TextureLoader(const std::shared_ptr<rayr::TextureLoader>& loader)
+TextureLoader::TextureLoader(const std::shared_ptr<dizz::TextureLoader>& loader)
 {
-    Loader = new std::weak_ptr<rayr::TextureLoader>(loader);
+    Loader = new std::weak_ptr<dizz::TextureLoader>(loader);
 }
 
 TextureLoader::!TextureLoader()
@@ -72,9 +72,9 @@ TextureLoader::!TextureLoader()
 
 //static TexHolder^ ToTexHolder(IntPtr ptr)
 //{
-//    return TexHolder::CreateTexHolder(*reinterpret_cast<rayr::FakeTex*>(ptr.ToPointer()));
+//    return TexHolder::CreateTexHolder(*reinterpret_cast<dizz::FakeTex*>(ptr.ToPointer()));
 //}
-static gcroot<TexHolder^> ConvTexHolder(const rayr::FakeTex& tex)
+static gcroot<TexHolder^> ConvTexHolder(const dizz::FakeTex& tex)
 {
     return TexHolder::CreateTexHolder(tex);
 }
@@ -83,40 +83,40 @@ Task<TexHolder^>^ TextureLoader::LoadTextureAsync(BitmapSource^ image, TexLoadTy
     auto bmp = static_cast<BitmapImage^>(image);
     auto fpath = ToU16Str(bmp->UriSource->AbsolutePath);
     auto img = XZiar::Img::ImageUtil::Convert(image);
-    auto ret = Loader->lock()->GetTexureAsync(fpath, std::move(img), static_cast<rayr::TexLoadType>(type), true);
-    if (const auto it = std::get_if<rayr::FakeTex>(&ret); it)
+    auto ret = Loader->lock()->GetTexureAsync(fpath, std::move(img), static_cast<dizz::TexLoadType>(type), true);
+    if (const auto it = std::get_if<dizz::FakeTex>(&ret); it)
     {
         return Task::FromResult(TexHolder::CreateTexHolder(*it));
     }
     else
     {
-        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)));
-        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
+        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<dizz::FakeTex>>(&ret)));
+        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<dizz::FakeTex>>(&ret)),
             gcnew Func<IntPtr, TexHolder^>(ToTexHolder));*/
     }
 }
 
 Task<TexHolder^>^ TextureLoader::LoadTextureAsync(String^ fname, TexLoadType type)
 {
-    auto ret = Loader->lock()->GetTexureAsync(ToU16Str(fname), static_cast<rayr::TexLoadType>(type), true);
-    if (const auto it = std::get_if<rayr::FakeTex>(&ret); it)
+    auto ret = Loader->lock()->GetTexureAsync(ToU16Str(fname), static_cast<dizz::TexLoadType>(type), true);
+    if (const auto it = std::get_if<dizz::FakeTex>(&ret); it)
     {
         return Task::FromResult(TexHolder::CreateTexHolder(*it));
     }
     else
     {
-        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)));
-        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<rayr::FakeTex>>(&ret)),
+        return ReturnTask<ConvTexHolder>(std::move(*std::get_if<common::PromiseResult<dizz::FakeTex>>(&ret)));
+        /*return AsyncWaiter::ReturnTask(std::move(*std::get_if<common::PromiseResult<dizz::FakeTex>>(&ret)),
             gcnew Func<IntPtr, TexHolder^>(ToTexHolder));*/
     }
 }
 
 
-ThumbnailMan::ThumbnailMan(const std::shared_ptr<rayr::ThumbnailManager>& thumbMan)
+ThumbnailMan::ThumbnailMan(const std::shared_ptr<dizz::ThumbnailManager>& thumbMan)
     : ThumbnailMap(new std::map<xziar::img::ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>())
 {
     Lock = gcnew ReaderWriterLockSlim();
-    ThumbMan = new std::weak_ptr<rayr::ThumbnailManager>(thumbMan);
+    ThumbMan = new std::weak_ptr<dizz::ThumbnailManager>(thumbMan);
 }
 
 ThumbnailMan::!ThumbnailMan()
@@ -161,7 +161,7 @@ BitmapSource^ ThumbnailMan::GetThumbnail(const xziar::img::ImageView& img)
 //        return nullptr;
 //}
 
-BitmapSource ^ ThumbnailMan::GetThumbnail(const rayr::TexHolder & holder)
+BitmapSource ^ ThumbnailMan::GetThumbnail(const dizz::TexHolder & holder)
 {
     auto img = ThumbMan->lock()->GetThumbnail(holder)->Get();
     if (!img.has_value())

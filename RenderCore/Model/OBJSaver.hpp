@@ -3,7 +3,7 @@
 #include "ModelMesh.h"
 
 
-namespace rayr::detail
+namespace dizz::detail
 {
 
 

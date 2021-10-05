@@ -2,7 +2,7 @@
 #include "RenderCoreRely.h"
 
 
-namespace rayr
+namespace dizz
 {
 
 

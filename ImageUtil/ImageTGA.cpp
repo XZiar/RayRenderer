@@ -474,14 +474,14 @@ private:
     {
         while (limit)
         {
-            const byte info = Stream.ReadByteNE();
+            const byte info = *Stream.ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
             limit -= size;
             if (::HAS_FIELD(info, 0x80))
             {
-                const auto obj = Stream.ReadByteNE<uint8_t>();
+                const auto obj = *Stream.ReadByteNE<uint8_t>();
                 common::CopyEx.BroadcastMany(output, obj, size);
                 output += size;
                 /*for (auto count = size; count--;)
@@ -500,7 +500,7 @@ private:
     {
         while (limit)
         {
-            const byte info = Stream.ReadByteNE();
+            const byte info = *Stream.ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
@@ -528,7 +528,7 @@ private:
     {
         while (limit)
         {
-            const byte info = Stream.ReadByteNE();
+            const byte info = *Stream.ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;
@@ -558,7 +558,7 @@ private:
     {
         while (limit)
         {
-            const byte info = Stream.ReadByteNE();
+            const byte info = *Stream.ReadByteNE();
             const uint8_t size = ByteToSize(info);
             if (size > limit)
                 return false;

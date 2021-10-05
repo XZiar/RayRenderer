@@ -1,13 +1,13 @@
 #include "DxPch.h"
 #include "DxProgram.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringDetect.h"
 
 
 namespace dxu
 {
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
-using common::str::Charset;
+using common::str::Encoding;
 using common::str::HashedStrView;
 
 

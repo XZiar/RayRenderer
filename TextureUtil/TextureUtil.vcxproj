@@ -202,9 +202,6 @@
     <ProjectReference Include="..\3rdParty\ispc_texcomp\ispc_texcomp.vcxproj">
       <Project>{4f70f1ab-8f3e-471b-96f9-0b2989652f50}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\AsyncExecutor\AsyncExecutor.vcxproj">
-      <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">
       <Project>{45660991-51c4-4972-916f-9f2d2227bc4a}</Project>
     </ProjectReference>
@@ -216,9 +213,6 @@
     </ProjectReference>
     <ProjectReference Include="..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>

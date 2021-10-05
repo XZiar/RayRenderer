@@ -5,7 +5,7 @@
 #include "Camera.h"
 #include "Model.h"
 
-namespace rayr
+namespace dizz
 {
 
 enum class SceneChange : uint32_t { Light = 0x1, Object = 0x2 };
@@ -16,7 +16,7 @@ MAKE_ENUM_BITFIELD(SceneChange)
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI Scene : public xziar::respak::Serializable
+class RENDERCOREAPI Scene : public xziar::respak::Serializable
 {
     // TODO: make AddLight/AddObject able to be called by other thread?
     //       currently only changes are reported atomicly
@@ -30,7 +30,7 @@ private:
     common::AtomicBitfield<SceneChange> SceneChanges = SceneChange::Light;
 public:
     Scene();
-    RESPAK_DECL_SIMP_DESERIALIZE("rayr#Scene")
+    RESPAK_DECL_SIMP_DESERIALIZE("dizz#Scene")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 

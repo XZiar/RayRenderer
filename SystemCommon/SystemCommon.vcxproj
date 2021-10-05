@@ -82,6 +82,9 @@
     <Import Project="$(SolutionDir)SolutionInclude.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty/fmt/include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
@@ -96,6 +99,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -111,6 +115,7 @@
       <DisableSpecificWarnings>4275;4251</DisableSpecificWarnings>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -127,6 +132,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>SystemCommonPch.h</PrecompiledHeaderFile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -195,18 +201,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AsyncManager.cpp" />
+    <ClCompile Include="ColorConsole.cpp" />
+    <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="CopyEx.cpp" />
+    <ClCompile Include="FileEx.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="FileMapperEx.cpp" />
     <ClCompile Include="HResultHelper.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MiniLogger.cpp" />
     <ClCompile Include="MiscIntrins.cpp" />
-    <ClCompile Include="ColorConsole.cpp" />
-    <ClCompile Include="ConsoleEx.cpp" />
-    <ClCompile Include="FileEx.cpp">
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-    </ClCompile>
-    <ClCompile Include="FileMapperEx.cpp" />
     <ClCompile Include="LoopBase.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -216,22 +223,28 @@
     <ClCompile Include="PromiseTask.cpp" />
     <ClCompile Include="RawFileEx.cpp" />
     <ClCompile Include="StackTrace.cpp" />
+    <ClCompile Include="StringConvert.cpp" />
+    <ClCompile Include="StringDetect.cpp" />
+    <ClCompile Include="StringFormat.cpp" />
     <ClCompile Include="SystemCommonRely.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ThreadEx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AsyncManager.h" />
+    <ClInclude Include="AsyncAgent.h" />
+    <ClInclude Include="ColorConsole.h" />
+    <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
+    <ClInclude Include="Exceptions.h" />
+    <ClInclude Include="FileEx.h" />
+    <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="HResultHelper.h" />
+    <ClInclude Include="LoopBase.h" />
     <ClInclude Include="MiniLogger.h" />
     <ClInclude Include="MiniLoggerBackend.h" />
     <ClInclude Include="MiscIntrins.h" />
-    <ClInclude Include="ColorConsole.h" />
-    <ClInclude Include="ConsoleEx.h" />
-    <ClInclude Include="FileEx.h" />
-    <ClInclude Include="FileMapperEx.h" />
-    <ClInclude Include="LoopBase.h" />
     <ClInclude Include="NSFoundation.h" />
     <ClInclude Include="ObjCHelper.h" />
     <ClInclude Include="PromiseTask.h" />
@@ -239,23 +252,35 @@
     <ClInclude Include="RawFileEx.h" />
     <ClInclude Include="RuntimeFastPath.h" />
     <ClInclude Include="StackTrace.h" />
+    <ClInclude Include="StrEncoding.hpp" />
+    <ClInclude Include="StringConvert.h" />
+    <ClInclude Include="StringDetect.h" />
+    <ClInclude Include="StringFormat.h" />
     <ClInclude Include="SystemCommonPch.h" />
     <ClInclude Include="SystemCommonRely.h" />
     <ClInclude Include="ThreadEx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rdParty\Projects\boost.context\boost.context.vcxproj">
+      <Project>{e308a1b2-da99-4d69-a2e5-ff5b57e6efc7}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdParty\Projects\uchardet\uchardet.vcxproj">
+      <Project>{7be97d3d-f242-4ab9-8eee-05b974e0e15e}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\3rdParty\Projects\cpuid\cpuid.vcxproj">
       <Project>{8f5adf15-4807-4ec9-888e-290c1a3169a4}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="AsyncExecutor.md" />
+    <None Include="MiniLogger.md" />
     <None Include="README.md" />
+    <None Include="StringUtil.md" />
     <None Include="xzbuild.proj.json" />
   </ItemGroup>
   <ItemGroup>
+    <Natvis Include="AsyncExecutor.natvis" />
+    <Natvis Include="Exceptions.natvis" />
     <Natvis Include="FileStream.natvis" />
     <Natvis Include="MiniLogger.natvis" />
     <Natvis Include="PromiseTask.natvis" />

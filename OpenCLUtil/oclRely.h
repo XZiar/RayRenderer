@@ -20,7 +20,7 @@
 #include "common/FrozenDenseSet.hpp"
 #include "common/Delegate.hpp"
 #include "common/EnumEx.hpp"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 
 #include <cstdio>
 #include <memory>

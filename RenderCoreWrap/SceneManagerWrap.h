@@ -49,8 +49,8 @@ public ref class PBRMaterial : public Controllable
 private:
     TexHolder^ diffuseMap;
 internal:
-    std::shared_ptr<rayr::PBRMaterial> GetSelf();
-    PBRMaterial(const std::shared_ptr<rayr::PBRMaterial>& material);
+    std::shared_ptr<dizz::PBRMaterial> GetSelf();
+    PBRMaterial(const std::shared_ptr<dizz::PBRMaterial>& material);
 public:
     virtual String^ ToString() override;
     DECLARE_TEX_PROPERTY(DiffuseMap, diffuseMap, DiffuseMap);
@@ -65,15 +65,15 @@ public:
 public ref class Drawable : public Controllable, public IMovable
 {
 private:
-    const std::shared_ptr<rayr::Drawable>* TempHandle;
+    const std::shared_ptr<dizz::Drawable>* TempHandle;
     initonly String^ DrawableType;
     initonly ObjectPropertyChangedEventHandler<PBRMaterial^>^ MaterialPropertyChangedCallback;
     void OnMaterialChanged(Object^ sender, PBRMaterial^ material, PropertyChangedEventArgs^ e);
     initonly ObservableProxyReadonlyContainer<PBRMaterial^>^ materials;
 internal:
-    std::shared_ptr<rayr::Drawable> GetSelf();
-    Drawable(const std::shared_ptr<rayr::Drawable>& drawable);
-    Drawable(std::shared_ptr<rayr::Drawable>&& drawable);
+    std::shared_ptr<dizz::Drawable> GetSelf();
+    Drawable(const std::shared_ptr<dizz::Drawable>& drawable);
+    Drawable(std::shared_ptr<dizz::Drawable>&& drawable);
     void ReleaseTempHandle();
     bool CreateMaterials();
 public:
@@ -89,16 +89,16 @@ public:
 
 public enum class LightType : int32_t
 {
-    Parallel = (int32_t)rayr::LightType::Parallel, Point = (int32_t)rayr::LightType::Point, Spot = (int32_t)rayr::LightType::Spot
+    Parallel = (int32_t)dizz::LightType::Parallel, Point = (int32_t)dizz::LightType::Point, Spot = (int32_t)dizz::LightType::Spot
 };
 public ref class Light : public Controllable, public IMovable
 {
 private:
-    const std::shared_ptr<rayr::Light>* TempHandle;
+    const std::shared_ptr<dizz::Light>* TempHandle;
 internal:
-    std::shared_ptr<rayr::Light> GetSelf();
-    Light(const std::shared_ptr<rayr::Light>& light);
-    Light(std::shared_ptr<rayr::Light>&& light);
+    std::shared_ptr<dizz::Light> GetSelf();
+    Light(const std::shared_ptr<dizz::Light>& light);
+    Light(std::shared_ptr<dizz::Light>&& light);
     void ReleaseTempHandle();
 public:
     initonly LightType LgtType;
@@ -112,8 +112,8 @@ public:
 public ref class Camera : public Controllable, public IMovable
 {
 internal:
-    std::shared_ptr<rayr::Camera> GetSelf();
-    Camera(const std::shared_ptr<rayr::Camera>& camera);
+    std::shared_ptr<dizz::Camera> GetSelf();
+    Camera(const std::shared_ptr<dizz::Camera>& camera);
 public:
     virtual void Move(const float dx, const float dy, const float dz);
     virtual void Rotate(const float dx, const float dy, const float dz);
@@ -140,9 +140,9 @@ private:
     //void OnLightsChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
     void OnLightPropertyChanged(Object^ sender, Light^ object, PropertyChangedEventArgs^ e);
 internal:
-    const rayr::RenderCore * const Core;
-    const std::weak_ptr<rayr::Scene> *TheScene;
-    Scene(const rayr::RenderCore * core);
+    const dizz::RenderCore * const Core;
+    const std::weak_ptr<dizz::Scene> *TheScene;
+    Scene(const dizz::RenderCore * core);
     void PrepareScene();
     void RefreshScene();
 public:

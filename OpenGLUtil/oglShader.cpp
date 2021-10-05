@@ -17,7 +17,7 @@ using std::vector;
 using std::regex;
 using std::smatch;
 using common::BaseException;
-using common::str::Charset;
+using common::str::Encoding;
 using common::file::FileException;
 using common::fs::path;
 using common::container::FindInMap;
@@ -61,7 +61,7 @@ void oglShader_::compile()
         CtxFunc->ogluGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
         CtxFunc->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
-        const auto logdat = common::str::to_u16string(logstr.c_str(), Charset::UTF8);
+        const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         oglLog().verbose(u"source:\n{}\n\n", Src);
         common::SharedString<char16_t> log(logdat);

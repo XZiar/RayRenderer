@@ -1,6 +1,6 @@
 #pragma once
 #include "DxRely.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"
@@ -8,7 +8,7 @@
 #include "SystemCommon/MiniLogger.h"
 #include "ImageUtil/ImageUtil.h"
 #include "ImageUtil/TexFormat.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"

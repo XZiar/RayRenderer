@@ -8,7 +8,7 @@
 #include "DirectXUtil/NLDX.h"
 #include "DirectXUtil/NLDXRely.h"
 #include "SystemCommon/ConsoleEx.h"
-#include "StringUtil/Convert.h"
+#include "SystemCommon/StringConvert.h"
 #include "common/Linq2.hpp"
 #include "common/ContainerEx.hpp"
 
@@ -212,7 +212,7 @@ static void RunKernel(DxDevice dev, DxComputeCmdQue cmdque, DxComputeProgram pro
             const auto flag = (item.Type & BoundedResourceType::CategoryMask) == BoundedResourceType::UAVs ?
                 ResourceFlags::AllowUnorderAccess : ResourceFlags::Empty;
             const auto buf = DxBuffer_::Create(dev, HeapType::Default, HeapFlags::Empty, 4096, flag);
-            buf->SetName(common::str::to_u16string(item.Name, common::str::Charset::UTF8));
+            buf->SetName(common::str::to_u16string(item.Name, common::str::Encoding::UTF8));
             switch (item.Type & BoundedResourceType::InnerTypeMask)
             {
             case BoundedResourceType::InnerTyped:

@@ -2,9 +2,9 @@
 #include "SceneManager.h"
 
 
-namespace rayr
+namespace dizz
 {
-using common::str::Charset;
+using common::str::Encoding;
 using common::container::ValSet;
 using common::container::FindInMap;
 using xziar::respak::SerializeUtil;
@@ -128,8 +128,8 @@ void Scene::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef
         for (const auto ele : jdrawables)
         {
             const xziar::ejson::JObjectRef<true> jdrw(ele);
-            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::str::to_u16string(jdrw.Get<string>("Name"), Charset::UTF8),
-                common::str::to_u16string(jdrw.Get<string>("#Type"), Charset::UTF8));
+            dizzLog().debug(u"Deserialize Drawable: [{}]({})\n", common::str::to_u16string(jdrw.Get<string>("Name"), Encoding::UTF8),
+                common::str::to_u16string(jdrw.Get<string>("#Type"), Encoding::UTF8));
             const auto drw = context.DeserializeShare<Drawable>(jdrw);
             if (Drawables.try_emplace(drw->GetUid(), drw).second)
                 WaitDrawables.insert(drw);

@@ -4,7 +4,7 @@
 #include "TextureUtil/TexResizer.h"
 
 
-namespace rayr
+namespace dizz
 {
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;

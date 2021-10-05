@@ -1,16 +1,20 @@
 #pragma once
 
-#include "AsyncExecutorRely.h"
+#include "SystemCommonRely.h"
+#include "PromiseTask.h"
+#include <memory>
+
 
 namespace common
 {
 namespace asyexe
 {
+class AsyncManager;
 
 
-class ASYEXEAPI AsyncAgent
+class SYSCOMMONAPI AsyncAgent
 {
-    friend class AsyncManager;
+    friend AsyncManager;
 private:
     AsyncManager &Manager;
     void AddPms(::common::PmsCore pmscore) const;

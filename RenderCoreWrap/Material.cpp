@@ -6,7 +6,7 @@ using common::container::FindInMap;
 using namespace xziar::img;
 
 
-namespace RayRender
+namespace DizzRender
 {
 
 private ref class ThumbnailContainer
@@ -19,7 +19,7 @@ public:
     {
         ThumbnailMap = new std::map<ImageView, gcroot<BitmapSource^>, common::AlignBufLessor>();
     }
-    static BitmapSource^ GetThumbnail(const ImageView& img, const rayr::TexHolder& holder)
+    static BitmapSource^ GetThumbnail(const ImageView& img, const dizz::TexHolder& holder)
     {
         const auto bmp = FindInMap(*ThumbnailMap, img, std::in_place);
         if (bmp)
@@ -34,7 +34,7 @@ public:
     }
 };
 
-TexMap::TexMap(rayr::TexHolder& holder, const std::shared_ptr<rayr::ThumbnailManager>& thumbman) : Holder(holder)
+TexMap::TexMap(dizz::TexHolder& holder, const std::shared_ptr<dizz::ThumbnailManager>& thumbman) : Holder(holder)
 {
     const auto matName = Holder.GetName();
     name = matName.empty() ? "(None)" : ToStr(matName);
@@ -64,7 +64,7 @@ void PBRMaterial::RefreshMaterial()
     d->AssignMaterial();
 }
 
-PBRMaterial::PBRMaterial(std::weak_ptr<rayr::Drawable>* drawable, rayr::PBRMaterial& material, const std::shared_ptr<rayr::ThumbnailManager>& thumbman)
+PBRMaterial::PBRMaterial(std::weak_ptr<dizz::Drawable>* drawable, dizz::PBRMaterial& material, const std::shared_ptr<dizz::ThumbnailManager>& thumbman)
     : Drawable(*drawable), Material(material)
 {
     albedoMap = gcnew TexMap(material.DiffuseMap, thumbman);

@@ -7,7 +7,7 @@
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-namespace rayr
+namespace dizz
 {
 
 class Scene;
@@ -31,7 +31,7 @@ public:
     void SetTexture(const string_view& name, const oglu::oglTex2D& tex);
 };
 
-class RAYCOREAPI RenderPass : public virtual common::Controllable, public virtual xziar::respak::Serializable
+class RENDERCOREAPI RenderPass : public virtual common::Controllable, public virtual xziar::respak::Serializable
 {
 private:
     std::vector<std::weak_ptr<Drawable>> WaitAddDrawables;
@@ -64,7 +64,7 @@ public:
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };
 
-class RAYCOREAPI DefaultRenderPass : public RenderPass, public GLShader
+class RENDERCOREAPI DefaultRenderPass : public RenderPass, public GLShader
 {
 protected:
     virtual bool OnRegistDrawable(const std::shared_ptr<Drawable>& drawable) override;
@@ -82,10 +82,10 @@ public:
     ~DefaultRenderPass() {}
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#DefaultRenderPass")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#DefaultRenderPass")
 };
 
-class RAYCOREAPI RenderPipeLine : public common::Controllable
+class RENDERCOREAPI RenderPipeLine : public common::Controllable
 {
 protected:
     const oglu::oglContext GLContext;

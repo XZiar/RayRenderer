@@ -28,7 +28,7 @@
     <ClCompile Include="SplitTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="StrCharsetTest.cpp">
+    <ClCompile Include="StrEncodingTest.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="TrunkedContianerTest.cpp">

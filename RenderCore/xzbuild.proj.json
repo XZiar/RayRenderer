@@ -2,7 +2,7 @@
     "name": "RenderCore",
     "type": "dynamic",
     "description": "Renderer core",
-    "dependency": ["OpenGLUtil", "ImageUtil", "OpenGLUtil", "OpenCLInterop", "StringUtil", "AsyncExecutor", "ResourcePackager", "FontHelper", "TextureUtil", "SystemCommon"],
+    "dependency": ["OpenGLUtil", "ImageUtil", "OpenCLUtil", "OpenCLInterop", "ResourcePackager", "FontHelper", "TextureUtil", "SystemCommon"],
     "library": 
     {
         "static": [],
@@ -17,7 +17,7 @@
                 "*.cpp", "Model/*.cpp",
                 {"-": ["dllmain.cpp", "ShadowMapping.cpp"]}
             ],
-            "defines": ["RAYCORE_EXPORT"],
+            "defines": ["RENDERCORE_EXPORT"],
             "incpath": ["."],
             "pch": "RenderCoreRely.h"
         },

@@ -788,22 +788,22 @@ template<typename Dst, typename Src>
 
 
 template<typename Char>
-[[nodiscard]] inline u8string to_u8string_impl(const std::basic_string_view<Char> str, const Charset inchset)
+[[nodiscard]] inline u8string to_u8string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
 {
     switch (inchset)
     {
-    case Charset::ASCII:
-    case Charset::UTF8:
+    case Encoding::ASCII:
+    case Encoding::UTF8:
         return DirectCopyStr<u8ch_t>(str);
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF8, u8ch_t>());
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF8, u8ch_t>());
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF8, u8ch_t>());
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF8, u8ch_t>());
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return Transform(GetDecoder<GB18030>(str), GetEncoder<UTF8, u8ch_t>());
     default: // should not enter, to please compiler
         Expects(false);
@@ -813,23 +813,23 @@ template<typename Char>
 
 
 template<typename Char>
-[[nodiscard]] inline std::u16string to_u16string_impl(const std::basic_string_view<Char> str, const Charset inchset)
+[[nodiscard]] inline std::u16string to_u16string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
 {
     switch (inchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return Transform(GetDecoder<UTF7>   (str), GetEncoder<UTF16LE, char16_t>());
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return Transform(GetDecoder<UTF8>   (str), GetEncoder<UTF16LE, char16_t>());
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return DirectCopyStr<char16_t>(str);
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF16LE, char16_t>());
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return Transform(GetDecoder<UTF32LE>(str), GetEncoder<UTF16LE, char16_t>());
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF16LE, char16_t>());
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return Transform(GetDecoder<GB18030>(str), GetEncoder<UTF16LE, char16_t>());
     default: // should not enter, to please compiler
         Expects(false);
@@ -839,23 +839,23 @@ template<typename Char>
 
 
 template<typename Char>
-[[nodiscard]] inline std::u32string to_u32string_impl(const std::basic_string_view<Char> str, const Charset inchset)
+[[nodiscard]] inline std::u32string to_u32string_impl(const std::basic_string_view<Char> str, const Encoding inchset)
 {
     switch (inchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return Transform(GetDecoder<UTF7>   (str), GetEncoder<UTF32LE, char32_t>());
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return Transform(GetDecoder<UTF8>   (str), GetEncoder<UTF32LE, char32_t>());
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return Transform(GetDecoder<UTF16LE>(str), GetEncoder<UTF32LE, char32_t>());
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return Transform(GetDecoder<UTF16BE>(str), GetEncoder<UTF32LE, char32_t>());
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return DirectCopyStr<char32_t>(str);
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return Transform(GetDecoder<UTF32BE>(str), GetEncoder<UTF32LE, char32_t>());
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return Transform(GetDecoder<GB18030>(str), GetEncoder<UTF32LE, char32_t>());
     default: // should not enter, to please compiler
         Expects(false);
@@ -865,23 +865,23 @@ template<typename Char>
 
 
 template<typename Decoder>
-[[nodiscard]] inline std::string to_string_impl(Decoder decoder, const Charset outchset)
+[[nodiscard]] inline std::string to_string_impl(Decoder decoder, const Encoding outchset)
 {
     switch (outchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return Transform(std::move(decoder), GetEncoder<UTF7,    char>());
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return Transform(std::move(decoder), GetEncoder<UTF8,    char>());
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return Transform(std::move(decoder), GetEncoder<UTF16LE, char>());
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return Transform(std::move(decoder), GetEncoder<UTF16BE, char>());
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return Transform(std::move(decoder), GetEncoder<UTF32LE, char>());
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return Transform(std::move(decoder), GetEncoder<UTF32BE, char>());
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return Transform(std::move(decoder), GetEncoder<GB18030, char>());
     default: // should not enter, to please compiler
         Expects(false);
@@ -889,25 +889,25 @@ template<typename Decoder>
     }
 }
 template<typename Char>
-[[nodiscard]] inline std::string to_string_impl(const std::basic_string_view<Char> str, const Charset inchset, const Charset outchset)
+[[nodiscard]] inline std::string to_string_impl(const std::basic_string_view<Char> str, const Encoding inchset, const Encoding outchset)
 {
     if (inchset == outchset)
         return DirectCopyStr<char>(str);
     switch (inchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return to_string_impl(GetDecoder<UTF7>   (str), outchset);
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return to_string_impl(GetDecoder<UTF8>   (str), outchset);
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return to_string_impl(GetDecoder<UTF16LE>(str), outchset);
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return to_string_impl(GetDecoder<UTF16BE>(str), outchset);
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return to_string_impl(GetDecoder<UTF32LE>(str), outchset);
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return to_string_impl(GetDecoder<UTF32BE>(str), outchset);
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return to_string_impl(GetDecoder<GB18030>(str), outchset);
     default: // should not enter, to please compiler
         Expects(false);
@@ -920,7 +920,7 @@ template<typename Char>
 
 
 template<typename T>
-[[nodiscard]] forceinline std::string to_string(const T& str_, const Charset outchset = Charset::ASCII, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline std::string to_string(const T& str_, const Encoding outchset = Encoding::ASCII, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -938,7 +938,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline u8string to_u8string(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline u8string to_u8string(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -956,7 +956,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline std::u16string to_u16string(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline std::u16string to_u16string(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -974,7 +974,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline std::u32string to_u32string(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline std::u32string to_u32string(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -992,7 +992,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline std::wstring to_wstring(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline std::wstring to_wstring(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (sizeof(wchar_t) == sizeof(char16_t))
     {
@@ -1191,16 +1191,16 @@ public:
 
 // work around for MSVC's Release build 
 template<typename Char, typename TransFunc>
-[[nodiscard]] forceinline std::basic_string<Char> DirectConv2(const std::basic_string_view<Char> str, const Charset inchset, TransFunc&& trans)
+[[nodiscard]] forceinline std::basic_string<Char> DirectConv2(const std::basic_string_view<Char> str, const Encoding inchset, TransFunc&& trans)
 {
     //static_assert(std::is_invocable_r_v<char32_t, TransFunc, char32_t>, "TransFunc should accept char32_t and return char32_t");
     switch (inchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return EngConver<UTF7,    Char>::Convert(str, std::forward<TransFunc>(trans));
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return EngConver<UTF8,    Char>::Convert(str, std::forward<TransFunc>(trans));
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return EngConver<GB18030, Char>::Convert(str, std::forward<TransFunc>(trans));
     default: // should not enter, to please compiler
         Expects(false);
@@ -1208,18 +1208,18 @@ template<typename Char, typename TransFunc>
     }
 }
 template<typename Char, typename TransFunc>
-[[nodiscard]] forceinline std::basic_string<Char> DirectConv(const std::basic_string_view<Char> str, const Charset inchset, TransFunc&& trans)
+[[nodiscard]] forceinline std::basic_string<Char> DirectConv(const std::basic_string_view<Char> str, const Encoding inchset, TransFunc&& trans)
 {
     //static_assert(std::is_invocable_r_v<char32_t, TransFunc, char32_t>, "TransFunc should accept char32_t and return char32_t");
     switch (inchset)
     {
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return EngConver<UTF16LE, Char>::Convert(str, std::forward<TransFunc>(trans));
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return EngConver<UTF16BE, Char>::Convert(str, std::forward<TransFunc>(trans));
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return EngConver<UTF32LE, Char>::Convert(str, std::forward<TransFunc>(trans));
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return EngConver<UTF32BE, Char>::Convert(str, std::forward<TransFunc>(trans));
     default: // should not enter, to please compiler
         return DirectConv2<Char, TransFunc>(str, inchset, std::forward<TransFunc>(trans));
@@ -1231,7 +1231,7 @@ template<typename Char, typename TransFunc>
 
 
 template<typename T>
-[[nodiscard]] forceinline auto ToUpperEng(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline auto ToUpperEng(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -1248,7 +1248,7 @@ template<typename T>
 
 
 template<typename T>
-[[nodiscard]] forceinline auto ToLowerEng(const T& str_, const Charset inchset = Charset::ASCII)
+[[nodiscard]] forceinline auto ToLowerEng(const T& str_, const Encoding inchset = Encoding::ASCII)
 {
     if constexpr (common::is_specialization<T, std::basic_string_view>::value)
     {
@@ -1292,23 +1292,23 @@ template<typename Decoder>
 
 
 template<typename Char>
-[[nodiscard]] inline bool IsIBeginWith_impl(const std::basic_string_view<Char> str, const std::basic_string_view<Char> prefix, const Charset strchset)
+[[nodiscard]] inline bool IsIBeginWith_impl(const std::basic_string_view<Char> str, const std::basic_string_view<Char> prefix, const Encoding strchset)
 {
     switch (strchset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return CaseInsensitiveCompare(GetDecoder<UTF7>   (str), GetDecoder<UTF7>   (prefix));
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return CaseInsensitiveCompare(GetDecoder<UTF8>   (str), GetDecoder<UTF8>   (prefix));
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return CaseInsensitiveCompare(GetDecoder<UTF16LE>(str), GetDecoder<UTF16LE>(prefix));
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return CaseInsensitiveCompare(GetDecoder<UTF16BE>(str), GetDecoder<UTF16BE>(prefix));
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return CaseInsensitiveCompare(GetDecoder<UTF32LE>(str), GetDecoder<UTF32LE>(prefix));
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return CaseInsensitiveCompare(GetDecoder<UTF32BE>(str), GetDecoder<UTF32BE>(prefix));
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return CaseInsensitiveCompare(GetDecoder<GB18030>(str), GetDecoder<GB18030>(prefix));
     default: // should not enter, to please compiler
         Expects(false);
@@ -1319,7 +1319,7 @@ template<typename Char>
 
 }
 template<typename T1, typename T2>
-[[nodiscard]] forceinline bool IsIBeginWith(const T1& str_, const T2& prefix_, const Charset strchset = Charset::ASCII)
+[[nodiscard]] forceinline bool IsIBeginWith(const T1& str_, const T2& prefix_, const Encoding strchset = Encoding::ASCII)
 {
     const auto str = ToStringView(str_);
     using Char = typename decltype(str)::value_type;

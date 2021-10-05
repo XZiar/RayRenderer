@@ -3,8 +3,8 @@
 #include "oclNLCLRely.h"
 #include "oclException.h"
 #include "Nailang/NailangAutoVar.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringDetect.h"
 #include "common/StaticLookup.hpp"
 
 namespace oclu
@@ -29,7 +29,7 @@ using xziar::nailang::NailangRuntime;
 using xziar::nailang::NailangRuntimeException;
 using xziar::nailang::detail::ExceptionTarget;
 using common::mlog::LogLevel;
-using common::str::Charset;
+using common::str::Encoding;
 using common::str::IsBeginWith;
 using common::simd::VecDataInfo;
 using FuncInfo = xziar::nailang::FuncName::FuncInfo;
@@ -54,7 +54,7 @@ struct NLCLContext::OCLUVar final : public AutoVarHandler<NLCLContext>
             const auto& exts = reinterpret_cast<const oclDevice_*>(var.Meta0)->Extensions;
             if (name == U"Length"sv)
                 return static_cast<uint64_t>(exts.Size());
-            const auto extName = common::str::to_string(name, Charset::UTF8);
+            const auto extName = common::str::to_string(name, Encoding::UTF8);
             return exts.Has(extName);
         }
         Arg IndexerGetter(const CustomVar& var, const Arg& idx, const Expr& src) override
@@ -206,7 +206,7 @@ Arg NLCLConfigurator::EvaluateFunc(FuncEvalPack& func)
         HashCase(subName, U"CompilerFlag")
         {
             ThrowByParamTypes<1>(func, { Arg::Type::String });
-            const auto flag = common::str::to_string(func.Params[0].GetStr().value(), Charset::UTF8, Charset::UTF32);
+            const auto flag = common::str::to_string(func.Params[0].GetStr().value(), Encoding::UTF8, Encoding::UTF32);
             for (const auto& item : runtime.Context.CompilerFlags)
             {
                 if (item == flag)
@@ -271,21 +271,21 @@ void NLCLRawExecutor::StringifyKernelArg(std::u32string& out, const KernelArgInf
     case KerArgType::Simple:
         APPEND_FMT(out, U"{:8} {:5}  {} {}", ArgFlags::ToCLString(arg.Space),
             HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
-            common::str::to_u32string(arg.Type, Charset::UTF8),
-            common::str::to_u32string(arg.Name, Charset::UTF8));
+            common::str::to_u32string(arg.Type, Encoding::UTF8),
+            common::str::to_u32string(arg.Name, Encoding::UTF8));
         break;
     case KerArgType::Buffer:
         APPEND_FMT(out, U"{:8} {:5} {} {} {} {}", ArgFlags::ToCLString(arg.Space),
             HAS_FIELD(arg.Qualifier, KerArgFlag::Const) ? U"const"sv : U""sv,
             HAS_FIELD(arg.Qualifier, KerArgFlag::Volatile) ? U"volatile"sv : U""sv,
-            common::str::to_u32string(arg.Type, Charset::UTF8),
+            common::str::to_u32string(arg.Type, Encoding::UTF8),
             HAS_FIELD(arg.Qualifier, KerArgFlag::Restrict) ? U"restrict"sv : U""sv,
-            common::str::to_u32string(arg.Name, Charset::UTF8));
+            common::str::to_u32string(arg.Name, Encoding::UTF8));
         break;
     case KerArgType::Image:
         APPEND_FMT(out, U"{:10} {} {}", ArgFlags::ToCLString(arg.Access),
-            common::str::to_u32string(arg.Type, Charset::UTF8),
-            common::str::to_u32string(arg.Name, Charset::UTF8));
+            common::str::to_u32string(arg.Type, Encoding::UTF8),
+            common::str::to_u32string(arg.Name, Encoding::UTF8));
         break;
     default:
         NLRT_THROW_EX(u"Does not support KerArg of type[Any]");
@@ -337,7 +337,7 @@ void NLCLRawExecutor::OutputInstance(const xcomp::OutputBlock& block, std::u32st
             arg.Qualifier = REMOVE_MASK(arg.Qualifier, KerArgFlag::Const); // const will be ignored for simple arg
     }
     GetRuntime().Context.CompiledKernels.emplace_back(
-        common::str::to_string(block.Name(), Charset::UTF8, Charset::UTF32),
+        common::str::to_string(block.Name(), Encoding::UTF8, Encoding::UTF32),
         std::move(kerCtx.Args));
 }
 
@@ -400,8 +400,8 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
                         return flag;
                     }, KerArgFlag::None);
             kerCtx.AddArg(KerArgType::Simple, space.value(), ImgAccess::None, flags,
-                common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name,    Encoding::UTF8, Encoding::UTF32),
+                common::str::to_string(argType, Encoding::UTF8, Encoding::UTF32));
         } return true;
         HashCase(subName, U"BufArg")
         {
@@ -424,8 +424,8 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
             if (space.value() == KerArgSpace::Private)
                 NLRT_THROW_EX(FMTSTR(u"BufArg [{}] cannot be in private space: [{}]"sv, name, space_), meta);
             kerCtx.AddArg(KerArgType::Buffer, space.value(), ImgAccess::None, flags,
-                common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name,    Encoding::UTF8, Encoding::UTF32),
+                common::str::to_string(argType, Encoding::UTF8, Encoding::UTF32));
         } return true;
         HashCase(subName, U"ImgArg")
         {
@@ -436,8 +436,8 @@ bool NLCLRawExecutor::HandleInstanceMeta(FuncPack& meta)
             const auto argType = meta.Params[1].GetStr().value();
             const auto name = meta.Params[2].GetStr().value();
             kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access.value(), KerArgFlag::None,
-                common::str::to_string(name,    Charset::UTF8, Charset::UTF32),
-                common::str::to_string(argType, Charset::UTF8, Charset::UTF32));
+                common::str::to_string(name,    Encoding::UTF8, Encoding::UTF32),
+                common::str::to_string(argType, Encoding::UTF8, Encoding::UTF32));
         } return true;
         default:
             break;
@@ -631,8 +631,8 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             oclLog().warning(u"BufArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Buffer, space, ImgAccess::None, flag,
-            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
-            common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32) + '*');
+            common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32),
+            common::str::to_string(arg.DataType, Encoding::UTF8, Encoding::UTF32) + '*');
     } return;
     case InstanceArgInfo::Types::TypedBuf:
     {
@@ -651,7 +651,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             oclLog().warning(u"TypedArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
-            common::str::to_string(arg.Name, Charset::UTF8, Charset::UTF32), "image1d_buffer_t"sv);
+            common::str::to_string(arg.Name, Encoding::UTF8, Encoding::UTF32), "image1d_buffer_t"sv);
     } return;
     case InstanceArgInfo::Types::Simple:
     {
@@ -677,8 +677,8 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             oclLog().warning(u"SimpleArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Simple, space, ImgAccess::None, flag,
-            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32),
-            common::str::to_string(arg.DataType, Charset::UTF8, Charset::UTF32));
+            common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32),
+            common::str::to_string(arg.DataType, Encoding::UTF8, Encoding::UTF32));
     } return;
     case InstanceArgInfo::Types::Texture:
     {
@@ -707,7 +707,7 @@ void NLCLRuntime::HandleInstanceArg(const xcomp::InstanceArgInfo& arg, xcomp::In
             oclLog().warning(u"ImgArg [{}] has unrecoginzed flags: [{}].\n", arg.Name, unknwonExtra);
         }
         kerCtx.AddArg(KerArgType::Image, KerArgSpace::Global, access, KerArgFlag::None,
-            common::str::to_string(arg.Name,     Charset::UTF8, Charset::UTF32), tname);
+            common::str::to_string(arg.Name,     Encoding::UTF8, Encoding::UTF32), tname);
     } return;
     default:
         return;
@@ -934,7 +934,7 @@ std::shared_ptr<xcomp::XCNLProgram> NLCLProcessor::Parse(common::span<const std:
 {
     auto& logger = Logger();
     const auto encoding = common::str::DetectEncoding(source);
-    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::getCharsetName(encoding));
+    logger.info(u"File[{}], detected encoding[{}].\n", fileName, common::str::GetEncodingName(encoding));
     auto src = common::str::to_u32string(source, encoding);
     logger.info(u"Translate into [utf32] for [{}] chars.\n", src.size());
     const auto prog = xcomp::XCNLProgram::Create(std::move(src), std::move(fileName));

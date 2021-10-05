@@ -2,7 +2,7 @@
     "name": "OpenCLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenCL Utility",
-    "dependency": ["SystemCommon", "ImageUtil", "StringUtil", "Nailang", "XComputeBase", {"ifno": "ocl_noicd", "+": ["OpenCL"]}],
+    "dependency": ["SystemCommon", "ImageUtil", "Nailang", "XComputeBase", {"ifno": "ocl_noicd", "+": ["OpenCL"]}],
     "library": 
     {
         "static": [],

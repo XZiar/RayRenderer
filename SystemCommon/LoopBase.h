@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SystemCommonRely.h"
+#include "Exceptions.h"
 #include <atomic>
 #include <any>
 #include <memory>

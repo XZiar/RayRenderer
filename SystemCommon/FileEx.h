@@ -3,6 +3,7 @@
 #include "common/FileBase.hpp"
 #include "common/Stream.hpp"
 #include "common/ContainerHelper.hpp"
+#include "Exceptions.h"
 
 #include <cstdio>
 #include <vector>
@@ -16,6 +17,22 @@ namespace common::file
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
+
+class SYSCOMMONAPI FileException : public BaseException
+{
+    PREPARE_EXCEPTION(FileException, BaseException,
+        fs::path Filepath;
+        FileErrReason Reason;
+        ExceptionInfo(const std::u16string_view msg, const fs::path& filepath, const FileErrReason reason)
+            : TPInfo(TYPENAME, msg), Filepath(filepath), Reason(reason)
+        { }
+    );
+    FileException(const FileErrReason why, const fs::path& file, const std::u16string_view msg)
+        : BaseException(T_<ExceptionInfo>{}, msg, file, why)
+    { }
+    FileErrReason Reason() const noexcept { return GetInfo().Reason; }
+    const fs::path& FilePath() const noexcept { return GetInfo().Filepath; }
+};
 
 
 class SYSCOMMONAPI FileObject : public NonCopyable, public NonMovable

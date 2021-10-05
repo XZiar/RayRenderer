@@ -2,14 +2,14 @@
 
 #include "RenderCoreRely.h"
 
-namespace rayr
+namespace dizz
 {
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI Camera : public xziar::respak::Serializable, public common::Controllable
+class RENDERCOREAPI Camera : public xziar::respak::Serializable, public common::Controllable
 {
 protected:
     virtual u16string_view GetControlType() const override
@@ -28,7 +28,7 @@ public:
     Camera() noexcept;
     ~Camera() {}
 
-    RESPAK_DECL_SIMP_DESERIALIZE("rayr#Camera")
+    RESPAK_DECL_SIMP_DESERIALIZE("dizz#Camera")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 

@@ -77,13 +77,10 @@ It aims at providing a OOP wrapper which makes OpenGL's states transparent to up
   
   used for Image-Texture processing
 
-* [AsyncExecutor](../AsyncExecutor)
+* [SystemCommon](../SystemCommon)
 
-  provide async-execution environment for OpenGL workers.
-
-* [SystemCommon](../3rdParty/SystemCommon)
-
-  provide system-related functionality
+  * provide system-related functionality
+  * provide async-execution environment for OpenGL workers.
 
 ## Requirements
 

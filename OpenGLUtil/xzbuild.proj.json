@@ -2,7 +2,7 @@
     "name": "OpenGLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenGL Utility",
-    "dependency": ["ImageUtil", "AsyncExecutor", "StringUtil", "SystemCommon"],
+    "dependency": ["ImageUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

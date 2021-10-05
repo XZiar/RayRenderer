@@ -2,9 +2,9 @@
 #include "GLShader.h"
 
 
-namespace rayr
+namespace dizz
 {
-using common::str::Charset;
+using common::str::Encoding;
 using namespace oglu;
 using namespace std::literals;
 using common::container::FindInSet;
@@ -69,7 +69,7 @@ void GLShader::RegistControllable()
     }
     for (const auto& res : Program->getSubroutineResources())
     {
-        const auto u16name = common::str::to_u16string(res.GetName(), Charset::UTF8);
+        const auto u16name = common::str::to_u16string(res.GetName(), Encoding::UTF8);
         auto rtNames = common::linq::FromIterable(res.GetRoutines())
             .Select([](const auto& rt) { return string(rt.Name); }).ToVector();
         RegistItem<string>("Subroutine_" + res.GetName(), "Subroutine", u16name, ArgType::Enum, std::move(rtNames), u16name)
@@ -82,8 +82,8 @@ void GLShader::RegistControllable()
         if (auto prop = common::container::FindInSet(props, res.Name); prop)
         {
             const GLint loc = res.location;
-            auto prep = RegistItem("Uniform_" + res.Name, "Uniform", common::str::to_u16string(res.Name, Charset::UTF8),
-                ArgType::RawValue, prop->Data, common::str::to_u16string(prop->Description, Charset::UTF8));
+            auto prep = RegistItem("Uniform_" + res.Name, "Uniform", common::str::to_u16string(res.Name, Encoding::UTF8),
+                ArgType::RawValue, prop->Data, common::str::to_u16string(prop->Description, Encoding::UTF8));
             if (prop->Type == oglu::ShaderPropertyType::Range && prop->Data.has_value())
             {
                 prep.AsType<std::pair<float, float>>()
@@ -224,7 +224,7 @@ RESPAK_IMPL_COMP_DESERIALIZE(GLShader, u16string, string, ShaderConfig)
                 [](const auto& kvpair) { return string(kvpair.first); },
                 [](const auto& kvpair) { return kvpair.second.template AsValue<string>(); });
     }
-    u16string name = common::str::to_u16string(object.Get<string>("config"), Charset::UTF8);
+    u16string name = common::str::to_u16string(object.Get<string>("config"), Encoding::UTF8);
     const auto srchandle = object.Get<string>("source");
     const auto source = context.GetResource(srchandle);
     return std::any(std::make_tuple(name, string(source.GetRawPtr<const char>(), source.GetSize()), config));

@@ -1,12 +1,12 @@
 ﻿#include "RenderCorePch.h"
 #include "Material.h"
 
-namespace rayr
+namespace dizz
 {
 using std::set;
 using std::map;
 using std::vector;
-using common::str::Charset;
+using common::str::Encoding;
 using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
@@ -39,7 +39,7 @@ void _FakeTex::Serialize(SerializeUtil&, xziar::ejson::JObject&) const
 }
 void _FakeTex::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = common::str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("name"), Encoding::UTF8);
 }
 }
 
@@ -212,7 +212,7 @@ void PBRMaterial::Serialize(SerializeUtil & context, xziar::ejson::JObject& jsel
 }
 void PBRMaterial::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object)
 {
-    Name = common::str::to_u16string(object.Get<string>("name"), Charset::UTF8);
+    Name = common::str::to_u16string(object.Get<string>("name"), Encoding::UTF8);
     detail::FromJArray(object.GetArray("albedo"), Albedo);
     object.TryGet(EJ_FIELD(Metalness));
     object.TryGet(EJ_FIELD(Roughness));

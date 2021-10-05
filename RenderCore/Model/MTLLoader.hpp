@@ -4,7 +4,7 @@
 #include "../Material.h"
 #include "OBJLoader.hpp"
 
-namespace rayr
+namespace dizz
 {
 using oglu::oglTex2DV;
 class Model;

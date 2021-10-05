@@ -4,7 +4,7 @@
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/StackTrace.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/Linq2.hpp"
 
 // ResFile Structure

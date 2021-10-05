@@ -99,7 +99,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;XComputeBase.dll;WindowHost.dll;AsyncExecutor.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
+      <DelayLoadDLLs>DirectXUtil.dll;OpenCLUtil.dll;OpenGLUtil.dll;XComputeBase.dll;WindowHost.dll;ImageUtil.dll;Nailang.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
@@ -197,9 +197,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\AsyncExecutor\AsyncExecutor.vcxproj">
-      <Project>{1fe31563-6f8f-4def-a552-ee9cf04c1c58}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\DirectXUtil\DirectXUtil.vcxproj">
       <Project>{cc934298-6b2a-4538-b656-71dfe4f37c89}</Project>
     </ProjectReference>
@@ -214,9 +211,6 @@
     </ProjectReference>
     <ProjectReference Include="..\..\OpenGLUtil\OpenGLUtil.vcxproj">
       <Project>{cc937530-6b2a-4538-b764-71dfe8d84c89}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\StringUtil\StringUtil.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
@@ -237,7 +231,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="CharsetTest.cpp">
+    <ClCompile Include="EncodingTest.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>

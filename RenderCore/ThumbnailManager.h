@@ -3,10 +3,10 @@
 #include "Material.h"
 
 
-namespace rayr
+namespace dizz
 {
 
-class RAYCOREAPI ThumbnailManager
+class RENDERCOREAPI ThumbnailManager
 {
 private:
     using Image = xziar::img::Image;

@@ -17,13 +17,6 @@
     - [ ] Implement new vector lib with new SIMD
     - [x] Add compare capability with variable result requirement
 
-* StringUtil
-  - [x] Add general charset default value
-  - [x] Add compile-time LE/BE decision
-  - [ ] Applying SIMD acceleration 
-  - [x] Merge fmt with better format-context support
-  - [ ] Add BOM detection
-  - [ ] Add custom opcode-based compile-time parsing&format support 
 
 * SystemCommon
   - [ ] Add async file operation (cross-platform)
@@ -31,24 +24,30 @@
   - [x] Seperate PromiseTask's functionalities of task-info and ret-value
   - [x] Move SIMD copy into SystemCommon
   - [ ] Seperate implementation of different SIMD into diff file with diff flags, try keep compatibility even with march=native
-  - [ ] Maybe move StringUtil into SystemCommon, enable OS-specific path
+  - [x] Maybe move StringUtil into SystemCommon, enable OS-specific path
   - [x] Maybe move MiniLigger into SystemCommon, since commonlly used
-  - [ ] Maybe move AsyncExecutor into SystemCommon, since OS-related
+  - [x] Maybe move AsyncExecutor into SystemCommon, since OS-related
   - [ ] Maybe move SpinLock into SystemCommon, enable HW&OS-specific waiting strategy
-  - [ ] Move common's exception into SystemCommon
+  - [x] Move common's exception into SystemCommon
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   - [ ] Desgin common waitable, with native support of multi-wait
+  * StringUtil
+    - [x] Add general charset default value
+    - [x] Add compile-time LE/BE decision
+    - [ ] Applying SIMD acceleration 
+    - [x] Merge fmt with better format-context support
+    - [ ] Add BOM detection
+    - [ ] Add custom opcode-based compile-time parsing&format support 
   * MiniLogger
     - [ ] Add pre-defined color arg
     - [ ] Add color filter to non-terminal backend (spin-lock based processing)
     - [ ] Use Pascal naming
     - [ ] Use new formating strategy, handle formating on worker thread and disable color on file output
-
-* AsyncExecutor
-  - [x] Add support for returning value
-  - [ ] Add passive executor, provide a way to handle task by outsider
-  - [ ] Add multi thread executor
-  - [ ] Embed boost.context, make boost.context a submodule
+  * AsyncExecutor
+    - [x] Add support for returning value
+    - [ ] Add passive executor, provide a way to handle task by outsider
+    - [ ] Add multi thread executor
+    - [ ] Embed boost.context, make boost.context a submodule
 
 * ImageUtil
   - [x] Add memory input/output

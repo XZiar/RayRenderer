@@ -2,7 +2,7 @@
     "name": "XComputeBase",
     "type": "dynamic",
     "description": "Base of XCompute",
-    "dependency": ["StringUtil", "Nailang", "SystemCommon"],
+    "dependency": ["Nailang", "SystemCommon"],
     "library": 
     {
         "static": [],

@@ -21,7 +21,7 @@
 #include "OpenCLUtil/oclBuffer.h"
 #include "ImageUtil/ImageCore.h"
 #include "SystemCommon/FileEx.h"
-#include "common/Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "common/TimeUtil.hpp"
 #include "common/Controllable.hpp"
 #include <cstdint>

@@ -1,7 +1,7 @@
 #pragma once
 #include "SystemCommonRely.h"
-#include "StringUtil/Convert.h"
-#include "StringUtil/Format.h"
+#include "SystemCommon/StringConvert.h"
+#include "SystemCommon/StringFormat.h"
 #include "common/StrBase.hpp"
 #include "common/FileBase.hpp"
 #include "common/EnumEx.hpp"
@@ -172,9 +172,9 @@ private:
         if constexpr (std::is_same_v<Char, char16_t>)
             return buffer;
         else if constexpr (std::is_same_v<Char, char>)
-            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF8);
+            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Encoding::UTF8);
         else if constexpr (std::is_same_v<Char, char32_t>)
-            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Charset::UTF32LE);
+            return common::str::to_u16string(buffer.data(), buffer.size(), common::str::Encoding::UTF32LE);
         else
             static_assert(!common::AlwaysTrue<Char>, "unexpected Char type");
     }
@@ -197,7 +197,7 @@ public:
         {
             const auto u8str = static_cast<const std::string_view&>(formatter);
             if constexpr (!hasArgs)
-                return common::str::to_u16string(u8str.data(), u8str.size(), common::str::Charset::UTF8);
+                return common::str::to_u16string(u8str.data(), u8str.size(), common::str::Encoding::UTF8);
             else
             {
                 auto& buffer = GetBuffer<char>();
@@ -221,7 +221,7 @@ public:
         {
             const auto u32str = static_cast<const std::u32string_view&>(formatter);
             if constexpr (!hasArgs)
-                return common::str::to_u16string(u32str.data(), u32str.size(), common::str::Charset::UTF32LE);
+                return common::str::to_u16string(u32str.data(), u32str.size(), common::str::Encoding::UTF32LE);
             else
             {
                 auto& buffer = GetBuffer<char32_t>();

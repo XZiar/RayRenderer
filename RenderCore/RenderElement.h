@@ -3,7 +3,7 @@
 #include "RenderCoreRely.h"
 #include "Material.h"
 
-namespace rayr
+namespace dizz
 {
 
 
@@ -11,7 +11,7 @@ namespace rayr
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI Drawable : public common::NonCopyable,
+class RENDERCOREAPI Drawable : public common::NonCopyable,
     public xziar::respak::Serializable, public common::Controllable
 {
 public:

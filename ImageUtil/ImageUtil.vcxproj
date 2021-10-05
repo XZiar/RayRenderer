@@ -218,9 +218,6 @@
     <ProjectReference Include="..\3rdParty\Projects\zlib-ng\zlib-ng.vcxproj">
       <Project>{fb9d7258-b61e-4d77-ba53-c10fdf9db1f9}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\StringUtil\StringUtil.vcxproj">
-      <Project>{82f6b626-fc93-4089-8c78-5e5ed82a68ef}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\SystemCommon\SystemCommon.vcxproj">
       <Project>{2965da11-4c56-48b6-840e-a16b8fdf21e2}</Project>
     </ProjectReference>

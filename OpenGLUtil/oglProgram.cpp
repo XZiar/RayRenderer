@@ -17,7 +17,7 @@ using std::set;
 using std::map;
 using std::pair;
 using std::vector;
-using common::str::Charset;
+using common::str::Encoding;
 using common::container::FindInSet;
 using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
@@ -200,7 +200,7 @@ oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, co
     CtxFunc->ogluGetProgramInfoLog(ProgramID, len, &len, logstr.data());
     if (len > 0 && logstr.back() == '\0')
         logstr.pop_back(); //null-terminated so pop back
-    const auto logdat = common::str::to_u16string(logstr.c_str(), Charset::UTF8);
+    const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
     if (!result)
     {
         oglLog().warning(u"Link program failed.\n{}\n", logdat);

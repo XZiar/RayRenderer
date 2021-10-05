@@ -1,6 +1,6 @@
 #include "DxPch.h"
 #include "BindingManager.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringDetect.h"
 
 
 namespace dxu

@@ -17,11 +17,11 @@ namespace Dizz
 public ref class RenderPass : public Controllable
 {
 private:
-    const std::shared_ptr<rayr::RenderPass>* TempHandle;
+    const std::shared_ptr<dizz::RenderPass>* TempHandle;
 internal:
-    std::shared_ptr<rayr::RenderPass> GetSelf();
-    RenderPass(const std::shared_ptr<rayr::RenderPass>& shader);
-    RenderPass(std::shared_ptr<rayr::RenderPass>&& shader);
+    std::shared_ptr<dizz::RenderPass> GetSelf();
+    RenderPass(const std::shared_ptr<dizz::RenderPass>& shader);
+    RenderPass(std::shared_ptr<dizz::RenderPass>&& shader);
     void ReleaseTempHandle();
 public:
     ~RenderPass() { this->!RenderPass(); }
@@ -35,7 +35,7 @@ public ref class RenderCore : public BaseViewModel
 private:
     void OnDrawablesChanged(Object^ sender, NotifyCollectionChangedEventArgs^ e);
 internal:
-    rayr::RenderCore * const Core;
+    dizz::RenderCore * const Core;
     Scene^ theScene;
     void BeforeAddPass(Object^ sender, RenderPass^ object, bool% shouldAdd);
     void BeforeDelPass(Object^ sender, RenderPass^ object, bool% shouldDel);

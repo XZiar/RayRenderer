@@ -3,7 +3,7 @@
 #include "RenderPass.h"
 #include "GLShader.h"
 
-namespace rayr
+namespace dizz
 {
 
 enum class PostProcUpdate : uint32_t { LUT = 0x1, FBO = 0x2 };
@@ -13,7 +13,7 @@ MAKE_ENUM_BITFIELD(PostProcUpdate)
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI PostProcessor : public common::NonCopyable, public RenderPass
+class RENDERCOREAPI PostProcessor : public common::NonCopyable, public RenderPass
 {
 private:
     struct FBOConfig
@@ -63,7 +63,7 @@ public:
 
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#PostProcessor")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#PostProcessor")
 };
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)

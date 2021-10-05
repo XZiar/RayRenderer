@@ -144,7 +144,7 @@ struct NativeGetSet final : public GetSet::Handler
         else if constexpr (common::is_specialization<T, std::basic_string>::value || common::is_specialization<T, std::basic_string_view>::value)
         {
             using Char = typename T::value_type;
-            constexpr auto chset = std::is_same_v<Char, char> ? common::str::Charset::UTF8 : common::str::DefaultCharset<Char>;
+            constexpr auto chset = std::is_same_v<Char, char> ? common::str::Encoding::UTF8 : common::str::DefaultEncoding<Char>;
             return common::str::to_u32string(*ptr, chset);
         }
         else if constexpr (std::is_same_v<T, bool>)

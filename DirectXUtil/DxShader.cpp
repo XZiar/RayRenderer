@@ -1,6 +1,6 @@
 #include "DxPch.h"
 #include "DxShader.h"
-#include "StringUtil/Detect.h"
+#include "SystemCommon/StringDetect.h"
 #include <dxcapi.h>
 
 
@@ -9,7 +9,7 @@ namespace dxu
 ClzProxy(DxShader_, ShaderBlob, IDxcBlob);
 using namespace std::string_view_literals;
 using Microsoft::WRL::ComPtr;
-using common::str::Charset;
+using common::str::Encoding;
 using common::str::HashedStrView;
 
 
@@ -123,7 +123,7 @@ public:
         std::vector<std::pair<std::u16string, std::u16string>> defstrs;
         for (const auto& [k, v] : config.Defines)
         {
-            defstrs.emplace_back(to_u16string(k, Charset::UTF8), u"");
+            defstrs.emplace_back(to_u16string(k, Encoding::UTF8), u"");
             std::visit([&](const auto val)
                 {
                     using T = std::decay_t<decltype(val)>;
@@ -139,7 +139,7 @@ public:
         std::vector<std::u16string> flagstrs = { u"-Zi", u"-O3", u"-Qembed_debug" };
         for (const auto& flag : config.Flags)
         {
-            flagstrs.emplace_back(to_u16string(flag, Charset::UTF8));
+            flagstrs.emplace_back(to_u16string(flag, Encoding::UTF8));
         }
         std::vector<const wchar_t*> flags;
         for (const auto& flag : flagstrs)
@@ -264,19 +264,19 @@ void DxShaderStub_::Build(const DxShaderConfig& config)
             BOOL isKnown = false;
             if (SUCCEEDED(err->GetEncoding(&isKnown, &codePage)))
             {
-                std::optional<Charset> chset;
+                std::optional<Encoding> chset;
                 if (isKnown || codePage != 0)
                 {
                     switch (codePage)
                     {
-                    case 936:   chset = Charset::GB18030; break;
-                    case 1200:  chset = Charset::UTF16LE; break;
-                    case 1201:  chset = Charset::UTF16BE; break;
-                    case 1252:  chset = Charset::UTF7;    break;
-                    case 12000: chset = Charset::UTF32LE; break;
-                    case 12001: chset = Charset::UTF32BE; break;
-                    case 65000: chset = Charset::UTF7;    break;
-                    case 65001: chset = Charset::UTF8;    break;
+                    case 936:   chset = Encoding::GB18030; break;
+                    case 1200:  chset = Encoding::UTF16LE; break;
+                    case 1201:  chset = Encoding::UTF16BE; break;
+                    case 1252:  chset = Encoding::UTF7;    break;
+                    case 12000: chset = Encoding::UTF32LE; break;
+                    case 12001: chset = Encoding::UTF32BE; break;
+                    case 65000: chset = Encoding::UTF7;    break;
+                    case 65001: chset = Encoding::UTF8;    break;
                     default:                              break;
                     }
                 }

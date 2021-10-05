@@ -2,14 +2,14 @@
 
 
 #include "CommonRely.hpp"
-#include "Exceptions.hpp"
 #include "AlignedBuffer.hpp"
-//#include "ContainerHelper.hpp"
 
 #include <cstddef>
 #include <cstdio>
 #include <cstdint>
 #include <array>
+#include <optional>
+#include <system_error>
 
 namespace common
 {
@@ -59,10 +59,10 @@ private:
     [[nodiscard]] forceinline virtual std::byte ReadByteME()
     {
         std::byte data{ 0xff };
-        if (ReadMany(1, 1, &data) != 1)
-            COMMON_THROW(BaseException, u"read from stream failed");
-        else
+        if (ReadMany(1, 1, &data) == 1)
             return data;
+        else
+            throw std::system_error(std::make_error_code(std::errc::operation_not_supported), "failed to read a byte");
     }
 protected:
     [[nodiscard]] virtual size_t AvaliableSpace() { return SIZE_MAX; };
@@ -82,11 +82,15 @@ public:
         return Read(sizeof(T), &output);
     }
     template<typename T = std::byte>
-    [[nodiscard]] T ReadByteNE() noexcept // without checking
+    [[nodiscard]] std::optional<T> ReadByteNE() noexcept // without checking
     {
         static_assert(sizeof(T) == 1, "only 1-byte length type allowed");
         bool isSuccess = true;
-        return static_cast<T>(ReadByteNE(isSuccess));
+        auto val = static_cast<T>(ReadByteNE(isSuccess));
+        if (isSuccess)
+            return val;
+        else
+            return {};
     }
     template<typename T = std::byte>
     [[nodiscard]] T ReadByte()
@@ -304,11 +308,6 @@ protected:
     std::unique_ptr<RandomInputStream> BackStream;
     AlignedBuffer Buffer;
     size_t BufBegin, BufPos = 0, BufLen = 0;
-    forceinline void CheckStreamValid()
-    {
-        if (!BackStream)
-            COMMON_THROW(BaseException, u"operate a released buffered stream");
-    }
     forceinline void LoadBuffer()
     {
         BufPos = 0;
@@ -454,7 +453,7 @@ public:
         if (BufLen > 0)
             return Buffer.GetRawPtr()[BufPos++];
         else
-            COMMON_THROW(BaseException, u"reach end of inputstream");
+            throw std::system_error(std::make_error_code(std::errc::operation_not_supported), "reach end of inputstream");
     }
 
 };

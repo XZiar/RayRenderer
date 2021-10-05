@@ -1,10 +1,10 @@
 ﻿#include "RenderCorePch.h"
 #include "Light.h"
 
-namespace rayr
+namespace dizz
 {
 using std::map;
-using common::str::Charset;
+using common::str::Encoding;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 
@@ -85,7 +85,7 @@ void Light::Deserialize(DeserializeUtil&, const xziar::ejson::JObjectRef<true>& 
 RESPAK_IMPL_COMP_DESERIALIZE(Light, LightType, u16string)
 {
     return std::make_tuple(static_cast<LightType>(object.Get<int32_t>("LightType")),
-        common::str::to_u16string(object.Get<string>("Name"), Charset::UTF8));
+        common::str::to_u16string(object.Get<string>("Name"), Encoding::UTF8));
 }
 
 

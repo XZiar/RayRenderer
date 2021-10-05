@@ -209,10 +209,13 @@ jobs:
         run: |
           python3 xzbuild rebuild "${{matrix.env_module}},-curl,-libressl,-BasicsTest,-SystemCommonTest,-NailangTest,-NullTest,-Blur" /threads=x1.5 /dsymlv=0
 
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - uses: actions/upload-artifact@v2
-        if: failure()
         with:
-          name: failed-debug-${{matrix.cxx}}
+          name: debug-${{matrix.cxx}}-${{steps.date.outputs.date}}
           path: x64/Debug
           retention-days: 3
           

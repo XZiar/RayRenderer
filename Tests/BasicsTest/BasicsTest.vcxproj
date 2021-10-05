@@ -84,7 +84,7 @@
     <ClCompile Include="SplitTest.cpp">
       <PrecompiledHeader>Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="StrCharsetTest.cpp">
+    <ClCompile Include="StrEncodingTest.cpp">
       <PrecompiledHeader>Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="TestAVX.cpp">

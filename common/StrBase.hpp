@@ -224,7 +224,7 @@ struct ShortStrVal
 };
 
 
-enum class Charset 
+enum class Encoding 
 { 
     ASCII, 
     UTF7 = ASCII, 
@@ -248,91 +248,91 @@ enum class Charset
 namespace detail
 {
 template<typename T>
-struct DefCharset
+struct DefEncoding
 {
-    static constexpr Charset Val = Charset::ASCII;
+    static constexpr Encoding Val = Encoding::ASCII;
 };
-template<> struct DefCharset<char>
+template<> struct DefEncoding<char>
 {
-    static constexpr Charset Val = Charset::ASCII;
+    static constexpr Encoding Val = Encoding::ASCII;
 };
 #if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
-template<> struct DefCharset<char8_t>
+template<> struct DefEncoding<char8_t>
 {
-    static constexpr Charset Val = Charset::UTF8;
+    static constexpr Encoding Val = Encoding::UTF8;
 };
 #endif
 #if BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
-template<> struct DefCharset<char16_t>
+template<> struct DefEncoding<char16_t>
 {
-    static constexpr Charset Val = Charset::UTF16;
+    static constexpr Encoding Val = Encoding::UTF16;
 };
-template<> struct DefCharset<char32_t>
+template<> struct DefEncoding<char32_t>
 {
-    static constexpr Charset Val = Charset::UTF32;
+    static constexpr Encoding Val = Encoding::UTF32;
 };
 #endif
 #if COMMON_COMPILER_MSVC
-template<> struct DefCharset<wchar_t>
+template<> struct DefEncoding<wchar_t>
 {
-    static constexpr Charset Val = Charset::UTF16LE;
+    static constexpr Encoding Val = Encoding::UTF16LE;
 };
 #elif BOOST_ENDIAN_LITTLE_BYTE || BOOST_ENDIAN_BIG_BYTE
-template<> struct DefCharset<wchar_t>
+template<> struct DefEncoding<wchar_t>
 {
-    static constexpr Charset Val = sizeof(wchar_t) == 4 ? Charset::UTF32 : Charset::UTF16;
+    static constexpr Encoding Val = sizeof(wchar_t) == 4 ? Encoding::UTF32 : Encoding::UTF16;
 };
 #endif
 }
 template<typename T>
-inline constexpr Charset DefaultCharset = detail::DefCharset<std::decay_t<T>>::Val;
+inline constexpr Encoding DefaultEncoding = detail::DefEncoding<std::decay_t<T>>::Val;
 
 
-inline constexpr Charset toCharset(const std::string_view chset) noexcept
+inline constexpr Encoding EncodingFromName(const std::string_view chset) noexcept
 {
     switch (DJBHash::HashC(chset))
     {
     case "URI"_hash:
-        return Charset::URI;
+        return Encoding::URI;
     case "GB18030"_hash:
-        return Charset::GB18030;
+        return Encoding::GB18030;
     case "UTF-8"_hash:
-        return Charset::UTF8;
+        return Encoding::UTF8;
     case "UTF-16LE"_hash:
-        return Charset::UTF16LE;
+        return Encoding::UTF16LE;
     case "UTF-16BE"_hash:
-        return Charset::UTF16BE;
+        return Encoding::UTF16BE;
     case "UTF-32LE"_hash:
-        return Charset::UTF32LE;
+        return Encoding::UTF32LE;
     case "UTF-32BE"_hash:
-        return Charset::UTF32BE;
+        return Encoding::UTF32BE;
     case "error"_hash:
-        return Charset::ASCII;
+        return Encoding::ASCII;
     default:
-        return Charset::ASCII;
+        return Encoding::ASCII;
     }
 }
 
-inline constexpr std::string_view getCharsetName(const Charset chset) noexcept
+inline constexpr std::string_view GetEncodingName(const Encoding chset) noexcept
 {
     using namespace std::string_view_literals;
     switch (chset)
     {
-    case Charset::ASCII:
+    case Encoding::ASCII:
         return "ASCII"sv;
-    case Charset::URI:
+    case Encoding::URI:
         return "URI"sv;
-    case Charset::GB18030:
+    case Encoding::GB18030:
         return "GB18030"sv;
-    case Charset::UTF8:
+    case Encoding::UTF8:
         return "UTF-8"sv;
-    case Charset::UTF16BE:
+    case Encoding::UTF16BE:
         return "UTF-16BE"sv;
-    case Charset::UTF16LE:
+    case Encoding::UTF16LE:
         return "UTF-16LE"sv;
-    case Charset::UTF32LE:
+    case Encoding::UTF32LE:
         return "UTF-32LE"sv;
-    case Charset::UTF32BE:
+    case Encoding::UTF32BE:
         return "UTF-32BE"sv;
     default:
         return "error"sv;

@@ -3,7 +3,7 @@
 #include "RenderCoreRely.h"
 
 
-namespace rayr
+namespace dizz
 {
 class ThumbnailManager;
 class TextureLoader;
@@ -19,7 +19,7 @@ class Model;
 #   pragma warning(push)
 #   pragma warning(disable:4275 4251)
 #endif
-class RAYCOREAPI RenderCore final : public common::NonCopyable
+class RENDERCOREAPI RenderCore final : public common::NonCopyable
 {
 private:
     oglu::oglContext GLContext;

@@ -2,10 +2,10 @@
 
 #include "RenderElement.h"
 #include "Material.h"
-#include "AsyncExecutor/AsyncAgent.h"
+#include "SystemCommon/AsyncAgent.h"
 #include "Model/ModelMesh.h"
 
-namespace rayr
+namespace dizz
 {
 
 class alignas(16) Model : public Drawable
@@ -16,7 +16,7 @@ protected:
     virtual u16string_view GetControlType() const override
     {
         using namespace std::literals;
-        return u"rayr#Drawable#Model"sv;
+        return u"dizz#Drawable#Model"sv;
     }
 public:
     static constexpr auto TYPENAME = u"Model";
@@ -25,7 +25,7 @@ public:
     ~Model() override;
     virtual void PrepareGL(const oglu::oglDrawProgram& prog, const std::map<string, string>& translator = std::map<string, string>()) override;
     virtual void Draw(Drawcall& drawcall) const override;
-    RESPAK_DECL_COMP_DESERIALIZE("rayr#Drawable#Model")
+    RESPAK_DECL_COMP_DESERIALIZE("dizz#Drawable#Model")
     virtual void Serialize(xziar::respak::SerializeUtil& context, xziar::ejson::JObject& object) const override;
     virtual void Deserialize(xziar::respak::DeserializeUtil& context, const xziar::ejson::JObjectRef<true>& object) override;
 };

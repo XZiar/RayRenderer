@@ -87,8 +87,8 @@ public:
     {
         if (CurPos < TotalSize)
             return Ptr[CurPos++];
-        else
-            COMMON_THROW(BaseException, u"reach end of memoryinputstream");
+        else 
+            throw std::system_error(std::make_error_code(std::errc::operation_not_supported), "reach end of memoryinputstream");
     }
 };
 

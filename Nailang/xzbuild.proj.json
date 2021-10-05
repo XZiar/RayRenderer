@@ -2,7 +2,7 @@
     "name": "Nailang",
     "type": "dynamic",
     "description": "Nailang, not an intresting language",
-    "dependency": ["StringUtil", "SystemCommon"],
+    "dependency": ["SystemCommon"],
     "library": 
     {
         "static": [],

@@ -1,7 +1,7 @@
 #pragma once
 #include "CommonRely.hpp"
 #include "ContainerEx.hpp"
-#include "Exceptions.hpp"
+#include "SystemCommon/Exceptions.h"
 #include "Linq2.hpp"
 #include "STLEx.hpp"
 #include "3DBasic/miniBLAS.hpp"

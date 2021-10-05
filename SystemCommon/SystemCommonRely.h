@@ -12,7 +12,6 @@
 
 
 #include "common/CommonRely.hpp"
-#include "common/Exceptions.hpp"
 #include "common/EnumEx.hpp"
 #include "common/StrBase.hpp"
 #include <cstddef>
@@ -75,4 +74,40 @@ private:
 protected:
     void Init(common::span<const VarItem> requests) noexcept { Init(T::GetSupportMap(), requests); }
 };
+
+
+namespace str::detail
+{
+template <typename T>
+inline common::span<const std::byte> ToByteSpan(T&& arg)
+{
+    using U = common::remove_cvref_t<T>;
+    if constexpr (common::is_span_v<T>)
+        return common::as_bytes(arg);
+    else if constexpr (common::has_valuetype_v<U>)
+        return ToByteSpan(common::span<std::add_const_t<typename U::value_type>>(arg));
+    else if constexpr (std::is_convertible_v<T, common::span<const std::byte>>)
+        return arg;
+    else if constexpr (std::is_pointer_v<U>)
+        return ToByteSpan(std::basic_string_view(arg));
+    else
+        static_assert(!common::AlwaysTrue<T>, "unsupported");
+}
+template <typename T>
+inline constexpr common::str::Encoding GetDefaultEncoding() noexcept
+{
+    using U = common::remove_cvref_t<T>;
+    if constexpr (common::is_span_v<T>)
+        return common::str::DefaultEncoding<typename T::value_type>;
+    else if constexpr (common::has_valuetype_v<U>)
+        return common::str::DefaultEncoding<typename U::value_type>;
+    else if constexpr (std::is_pointer_v<U>)
+        return common::str::DefaultEncoding<std::remove_pointer_t<U>>;
+    else if constexpr (std::is_convertible_v<T, common::span<const std::byte>>)
+        return common::str::DefaultEncoding<std::byte>;
+    else
+        return common::str::DefaultEncoding<T>;
+}
+}
+
 }

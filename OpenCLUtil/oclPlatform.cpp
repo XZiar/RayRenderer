@@ -11,7 +11,7 @@ using std::u16string;
 using std::string_view;
 using std::u16string_view;
 using std::vector;
-using common::str::Charset;
+using common::str::Encoding;
 
 
 vector<cl_context_properties> oclPlatform_::GetCLProps() const
