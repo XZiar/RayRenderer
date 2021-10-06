@@ -24,6 +24,16 @@
 
 namespace common
 {
+
+enum class CommonColor : uint8_t
+{
+    Black = 0, Red = 1, Green = 2, Yellow = 3, Blue = 4, Magenta = 5, Cyan = 6, White = 7,
+    BrightBlack = 8, BrightRed = 9, BrightGreen = 10, BrightYellow = 11, BrightBlue = 12, BrightMagenta = 13, BrightCyan = 14, BrightWhite = 15
+};
+MAKE_ENUM_BITFIELD(CommonColor)
+[[nodiscard]] SYSCOMMONAPI std::string_view GetColorName(CommonColor color) noexcept;
+
+
 [[nodiscard]] SYSCOMMONAPI bool CheckCPUFeature(str::HashedStrView<char> feature) noexcept;
 [[nodiscard]] SYSCOMMONAPI span<const std::string_view> GetCPUFeatures() noexcept;
 

@@ -68,6 +68,7 @@
     <IncludePath>$(SolutionDir);$(SolutionDir)3rdParty;$(SolutionDir)3rdParty\googletest\googletest\include;$(SolutionDir)3rdParty\googletest\googlemock\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="FormatTest.cpp" />
     <ClCompile Include="MiscIntrinsTest.cpp" />
     <ClCompile Include="rely.cpp" />
   </ItemGroup>

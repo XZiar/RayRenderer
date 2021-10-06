@@ -48,6 +48,17 @@ uint32_t GetWinBuildNumber() noexcept
 }
 #endif
 
+std::string_view GetColorName(CommonColor color) noexcept
+{
+    constexpr std::string_view names[16] =
+    {
+        "Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
+        "BrightBlack", "BrightRed", "BrightGreen", "BrightYellow", "BrightBlue", "BrightMagenta", "BrightCyan", "BrightWhite"
+    };
+    if (const auto idx = enum_cast(color); idx < 16) return names[idx];
+    return "Unknown"sv;
+}
+
 struct CPUFeature
 {
     std::vector<std::string_view> FeatureText;

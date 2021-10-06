@@ -1,3 +1,5 @@
+#pragma once
+
 #include "SystemCommonRely.h"
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/tuple/enum.hpp>

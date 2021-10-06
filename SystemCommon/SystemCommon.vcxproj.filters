@@ -155,6 +155,9 @@
     <ClInclude Include="StrEncoding.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Format.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />

@@ -240,6 +240,7 @@
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
+    <ClInclude Include="Format.h" />
     <ClInclude Include="HResultHelper.h" />
     <ClInclude Include="LoopBase.h" />
     <ClInclude Include="MiniLogger.h" />
