@@ -1,5 +1,13 @@
 #include "pch.h"
-namespace
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC push_options
+#   pragma GCC target("avx512f", "avx512vl", "avx512bw", "avx512dq")
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute push (__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq"))), apply_to=function)
+#endif
+
+namespace avx512
 {
 using namespace common;
 #define COMMON_SIMD_LV 320

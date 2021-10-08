@@ -10,7 +10,8 @@ namespace common::str::exp
 
 enum class ArgType : uint8_t
 {
-    Any = 0, String = 0x1, Char = 0x2, Integer = 0x4, Float = 0x8, Pointer = 0x10, Time = 0x20
+    Any = 0, String, Char, Integer, Float, Pointer, Time, 
+    Custom = 0xf
 };
 MAKE_ENUM_BITFIELD(ArgType)
 
@@ -28,13 +29,49 @@ struct ParseResult
         Error = 0xff00, FmtTooLong, TooManyIdxArg, TooManyNamedArg, TooManyOp, 
         MissingLeftBrace, MissingRightBrace, 
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
-        InvalidArgIdx, ArgIdxTooLarge, InvalidArgName,
+        InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
         InvalidType, ExtraFmtSpec, IncompType, InvalidFmt
     };
+    template<uint16_t ErrorPos, uint16_t OpCount>
+    static constexpr void CheckErrorCompile() noexcept
+    {
+        if constexpr (ErrorPos != UINT16_MAX)
+        {
+            constexpr auto err = static_cast<ErrorCode>(OpCount);
+#define CHECK_ERROR_MSG(e, msg) static_assert(err != ErrorCode::e, msg)
+            CHECK_ERROR_MSG(FmtTooLong,         "Format string too long");
+            CHECK_ERROR_MSG(TooManyIdxArg,      "Too many IdxArg");
+            CHECK_ERROR_MSG(TooManyNamedArg,    "Too many NamedArg");
+            CHECK_ERROR_MSG(TooManyOp,          "Format string too complex with too many generated OP");
+            CHECK_ERROR_MSG(MissingLeftBrace,   "Missing left brace");
+            CHECK_ERROR_MSG(MissingRightBrace,  "Missing right brace");
+            CHECK_ERROR_MSG(InvalidColor,       "Invalid color format");
+            CHECK_ERROR_MSG(MissingColorFGBG,   "Missing color foreground/background identifier");
+            CHECK_ERROR_MSG(InvalidCommonColor, "Invalid common color");
+            CHECK_ERROR_MSG(Invalid8BitColor,   "Invalid 8bit color");
+            CHECK_ERROR_MSG(Invalid24BitColor,  "Invalid 24bit color");
+            CHECK_ERROR_MSG(InvalidArgIdx,      "Invalid index for IdxArg");
+            CHECK_ERROR_MSG(ArgIdxTooLarge,     "Arg index is too large");
+            CHECK_ERROR_MSG(InvalidArgName,     "Invalid name for NamedArg");
+            CHECK_ERROR_MSG(ArgNameTooLong,     "Arg name is too long");
+            CHECK_ERROR_MSG(WidthTooLarge,      "Width is too large");
+            CHECK_ERROR_MSG(InvalidPrecision,   "Invalid format for precision");
+            CHECK_ERROR_MSG(PrecisionTooLarge,  "Precision is too large");
+            CHECK_ERROR_MSG(InvalidType,        "Invalid type specified for arg");
+            CHECK_ERROR_MSG(ExtraFmtSpec,       "Unknown extra format spec left at the end");
+            CHECK_ERROR_MSG(IncompType,         "In-compatible type being specified for the arg");
+            CHECK_ERROR_MSG(InvalidFmt,         "Invalid format string");
+#undef CHECK_ERROR_MSG
+            static_assert(!AlwaysTrue2<OpCount>, "Unknown internal error");
+        }
+    }
+
+
     struct NamedArgType
     {
-        std::pair<uint16_t, uint16_t> Name = { (uint16_t)0, (uint16_t)0 };
+        uint16_t Offset = 0;
+        uint8_t Length = 0;
         ArgType Type = ArgType::Any;
     };
     std::string_view FormatString;
@@ -47,7 +84,7 @@ struct ParseResult
     constexpr ParseResult& SetError(size_t pos, ErrorCode err) noexcept
     {
         ErrorPos = static_cast<uint16_t>(pos);
-        OpCount = common::enum_cast(err);
+        OpCount = enum_cast(err);
         return *this;
     }
     
@@ -133,7 +170,7 @@ struct ParseResult
                 result.SetError(offset, ParseResult::ErrorCode::TooManyOp);
                 return false;
             }
-            result.Opcodes[result.OpCount++] = Op | FieldCommon | (isForeground ? FieldForeground : FieldBackground) | common::enum_cast(color);
+            result.Opcodes[result.OpCount++] = Op | FieldCommon | (isForeground ? FieldForeground : FieldBackground) | enum_cast(color);
             return true;
         }
         static constexpr bool EmitDefault(ParseResult& result, size_t offset, bool isForeground) noexcept
@@ -225,8 +262,8 @@ struct ParseResult
             case '\0': output[0] |= 0x00; type = ArgType::Any;     break;
             default: break; // should not happen
             }
-            output[0] |= static_cast<uint8_t>((common::enum_cast(spec.Alignment) & 0x3) << 2);
-            output[0] |= static_cast<uint8_t>((common::enum_cast(spec.SignFlag)  & 0x3) << 0);
+            output[0] |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
+            output[0] |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
             uint8_t idx = 2;
             if (spec.Fill != ' ') // + 0~4
             {
@@ -317,7 +354,7 @@ struct ParseResult
                 for (uint8_t i = 0; i < result.NamedArgCount; ++i)
                 {
                     auto& target = result.NamedTypes[i];
-                    const auto targetName = result.FormatString.substr(target.Name.first, target.Name.second);
+                    const auto targetName = result.FormatString.substr(target.Offset, target.Length);
                     if (targetName == name)
                     {
                         argIdx = i;
@@ -333,9 +370,10 @@ struct ParseResult
                         return false;
                     }
                     argIdx = result.NamedArgCount;
-                    const auto nameOffset = static_cast<uint16_t>(name.data() - result.FormatString.data());
-                    result.NamedTypes[argIdx].Name = { nameOffset, static_cast<uint16_t>(name.size()) };
-                    dstType = &result.NamedTypes[argIdx].Type;
+                    auto& target = result.NamedTypes[argIdx];
+                    target.Offset = static_cast<uint16_t>(name.data() - result.FormatString.data());
+                    target.Length = static_cast<uint8_t>(name.size());
+                    dstType = &target.Type;
                 }
                 opcode |= FieldNamed;
             }
@@ -420,7 +458,7 @@ struct ParseResult
     static constexpr bool ParseColor(ParseResult& result, size_t pos, std::string_view str) noexcept
     {
         using namespace std::string_view_literals;
-        if (str.size() <= 2)
+        if (str.size() <= 2) // at least 2 char needed
         {
             result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
             return false;
@@ -436,7 +474,8 @@ struct ParseResult
         if (str == "default")
             return ColorOp::EmitDefault(result, pos, isFG);
         std::optional<CommonColor> commonclr;
-#define CHECK_COLOR_CASE(s, clr) if (str.find(s) != std::string_view::npos) { commonclr = CommonColor::clr; str.remove_prefix(s.size()); }
+#define CHECK_COLOR_CASE(s, clr) if (str.size() >= s.size() && std::char_traits<char>::compare(str.data(), s.data(), s.size()) == 0)    \
+    { commonclr = CommonColor::clr; str.remove_prefix(s.size()); }
              CHECK_COLOR_CASE("black"sv,    Black)
         else CHECK_COLOR_CASE("red"sv,      Red)
         else CHECK_COLOR_CASE("green"sv,    Green)
@@ -726,6 +765,8 @@ struct ParseResult
                         else
                             return result.SetError(offset + i, ParseResult::ErrorCode::InvalidArgName);
                     }
+                    if (argPart1.size() > UINT8_MAX)
+                        return result.SetError(offset, ParseResult::ErrorCode::ArgNameTooLong);
                     argId = { argPart1 };
                 }
                 else if (firstCh == '@') // Color
@@ -754,6 +795,213 @@ struct ParseResult
     }
 };
 
+template<uint8_t IdxArgCount>
+struct IdxArgLimiter
+{
+    ArgType IndexTypes[IdxArgCount] = { ArgType::Any };
+    constexpr IdxArgLimiter(const ArgType* type) noexcept
+    {
+        for (uint8_t i = 0; i < IdxArgCount; ++i)
+            IndexTypes[i] = type[i];
+    }
+};
+template<>
+struct IdxArgLimiter<0>
+{ 
+    constexpr IdxArgLimiter(const ArgType*) noexcept {}
+};
+template<uint8_t NamedArgCount>
+struct NamedArgLimiter
+{
+    ParseResult::NamedArgType NamedTypes[NamedArgCount] = {};
+    constexpr NamedArgLimiter(const ParseResult::NamedArgType* type) noexcept
+    {
+        for (uint8_t i = 0; i < NamedArgCount; ++i)
+            NamedTypes[i] = type[i];
+    }
+};
+template<>
+struct NamedArgLimiter<0>
+{ 
+    constexpr NamedArgLimiter(const ParseResult::NamedArgType*) noexcept {}
+};
+template<uint16_t OpCount>
+struct OpHolder
+{
+    std::string_view FormatString;
+    uint8_t Opcodes[OpCount] = { 0 };
+    constexpr OpHolder(std::string_view str, const uint8_t* op) noexcept : FormatString(str)
+    {
+        for (uint16_t i = 0; i < OpCount; ++i)
+            Opcodes[i] = op[i];
+    }
+};
+template<>
+struct OpHolder<0>
+{
+    std::string_view FormatString;
+    constexpr OpHolder(std::string_view str, const uint8_t*) noexcept : FormatString(str)
+    { }
+};
+
+template<uint16_t OpCount, uint8_t NamedArgCount, uint8_t IdxArgCount>
+struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<OpCount>, NamedArgLimiter<NamedArgCount>, IdxArgLimiter<IdxArgCount>
+{
+    constexpr TrimedResult(const ParseResult& result) noexcept :
+        OpHolder<OpCount>(result.FormatString, result.Opcodes),
+        NamedArgLimiter<NamedArgCount>(result.NamedTypes),
+        IdxArgLimiter<IdxArgCount>(result.IndexTypes)
+    { }
+};
+
+
+struct NamedArgTag {};
+template<typename T>
+struct NamedArgDynamic : public NamedArgTag
+{
+    std::string_view Name;
+    T Data;
+    template<typename U>
+    constexpr NamedArgDynamic(std::string_view name, U&& data) noexcept :
+        Name(name), Data(std::forward<U>(data)) { }
+};
+template<typename T>
+inline constexpr auto WithName(std::string_view name, T&& arg) noexcept -> NamedArgDynamic<std::decay_t<T>>
+{
+    return { name, std::forward<T>(arg) };
+}
+#define NAMEARG(name) [](auto&& arg)                \
+{                                                   \
+    using T = decltype(arg);                        \
+    using U = std::decay_t<T>;                      \
+    struct NameT { std::string_view Name = name; }; \
+    struct NamedArg : public NamedArgTag            \
+    {                                               \
+        using NameType = NameT;                     \
+        NameT Name;                                 \
+        U Data;                                     \
+        constexpr NamedArg(T data) noexcept :       \
+            Data(std::forward<T>(data)) { }         \
+    };                                              \
+    return NamedArg{std::forward<T>(arg)};          \
+}
+
+struct ArgResult
+{
+    std::string_view Names[ParseResult::NamedArgSlots] = {};
+    uint8_t NamedTypes[ParseResult::NamedArgSlots] = { enum_cast(ArgType::Any) };
+    uint8_t IndexTypes[ParseResult::IdxArgSlots] = { enum_cast(ArgType::Any) };
+    uint8_t NamedArgCount = 0, IdxArgCount = 0;
+    template<typename T>
+    static constexpr uint8_t EncodeTypeSizeData() noexcept
+    {
+        switch (sizeof(T))
+        {
+        case 1:  return 0x00;
+        case 2:  return 0x10;
+        case 4:  return 0x20;
+        case 8:  return 0x30;
+        case 16: return 0x40;
+        case 32: return 0x50;
+        case 64: return 0x60;
+        default: return 0xff;
+        }
+    }
+    template<typename T>
+    static constexpr uint8_t GetCharTypeData() noexcept
+    {
+        constexpr auto data = EncodeTypeSizeData<T>();
+        static_assert(data <= 0x20);
+        return data;
+    }
+    template<typename T>
+    static constexpr bool CheckCharType() noexcept
+    {
+        bool result = std::is_same_v<T, char> || std::is_same_v<T, char16_t> || std::is_same_v<T, wchar_t> || std::is_same_v<T, char32_t>;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+        result |= std::is_same_v<T, char8_t>;
+#endif
+        return result;
+    }
+    template<typename T>
+    static constexpr uint8_t GetArgType() noexcept
+    {
+        using U = std::decay_t<T>;
+        if constexpr (common::is_specialization<U, std::basic_string_view>::value || 
+            common::is_specialization<U, std::basic_string>::value)
+        {
+            return GetCharTypeData<typename U::value_type>() | enum_cast(ArgType::String);
+        }
+        else if constexpr (CheckCharType<U>())
+        {
+            return GetCharTypeData<U>() | enum_cast(ArgType::Char);
+        }
+        else if constexpr (std::is_pointer_v<U>)
+        {
+            using X = std::decay_t<std::remove_pointer_t<U>>;
+            if constexpr (CheckCharType<X>())
+                return GetCharTypeData<X>() | enum_cast(ArgType::String);
+            return uint8_t(std::is_same_v<X, void> ? 0x80 : 0x0) | enum_cast(ArgType::Pointer);
+        }
+        else if constexpr (std::is_floating_point_v<U>)
+        {
+            return EncodeTypeSizeData<U>() | enum_cast(ArgType::Float);
+        }
+        else if constexpr (std::is_integral_v<U>)
+        {
+            return uint8_t(std::is_unsigned_v<U> ? 0x80 : 0x0) | EncodeTypeSizeData<U>() | enum_cast(ArgType::Integer);
+        }
+        else
+        {
+            static_assert(!AlwaysTrue<T>, "unsupported type");
+        }
+    }
+    template<typename T>
+    static constexpr void ParseAnArg(ArgResult& result) noexcept
+    {
+        if constexpr (std::is_base_of_v<NamedArgTag, T>)
+        {
+            result.NamedTypes[result.NamedArgCount] = GetArgType<decltype(std::declval<T&>().Data)>();
+            if constexpr (!common::is_specialization<T, NamedArgDynamic>::value) // static
+            {
+                constexpr typename T::NameType Name {};
+                static_assert(!Name.Name.empty(), "Arg name should not be empty");
+                result.Names[result.NamedArgCount] = Name.Name;
+            }
+            result.NamedArgCount++;
+        }
+        else
+        {
+            result.IndexTypes[result.IdxArgCount++] = GetArgType<T>();
+        }
+    }
+    template<typename... Args>
+    static constexpr ArgResult ParseArgs() noexcept
+    {
+        ArgResult result;
+        (..., ParseAnArg<Args>(result));
+        return result;
+    }
+};
+
+template<uint16_t OpCount, uint8_t NamedArgCount, uint8_t IdxArgCount, typename... Args>
+std::string FormatSS(const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie, Args&&... args)
+{
+    std::string target; 
+    target.reserve(cookie.FormatString.size());
+    return target;
+}
+
+#define PasreFmtString(str) []()                                    \
+{                                                                   \
+    constexpr auto Result = ParseResult::ParseString(str);          \
+    constexpr auto OpCount       = Result.OpCount;                  \
+    constexpr auto NamedArgCount = Result.NamedArgCount;            \
+    constexpr auto IdxArgCount   = Result.IdxArgCount;              \
+    ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();     \
+    TrimedResult<OpCount, NamedArgCount, IdxArgCount> ret(Result);  \
+    return ret;                                                     \
+}()
 
 
 }

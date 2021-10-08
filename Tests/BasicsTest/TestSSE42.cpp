@@ -1,10 +1,11 @@
 #include "pch.h"
-namespace
+
+namespace sse42
 {
 using namespace common;
 #define COMMON_SIMD_LV 42
 #include "common/simd/SIMD.hpp"
-#if COMMON_SIMD_LV_ >= 42
+#if COMMON_SIMD_LV_ >= 42 || COMMON_COMPILER_MSVC
 #   include "common/simd/SIMD128.hpp"
 using namespace common::simd;
 #   include "SIMDBaseTest.h"
@@ -57,6 +58,7 @@ RegisterSIMDTest(I32x4, 42, shuftest::ShuffleTest<I32x4>);
 
 RegisterSIMDTest(F32x4, 42, dottest::DotProdTest<F32x4>);
 
-
+#else
+#   error "assume SSE4.2 is always enabled"
 #endif
 }
