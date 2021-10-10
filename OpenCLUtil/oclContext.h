@@ -15,7 +15,7 @@ class oclPlatform_;
 class oclContext_;
 using oclContext = std::shared_ptr<const oclContext_>;
 
-class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovable
+class OCLUAPI oclContext_ : public detail::oclCommon
 {
     friend class GLInterop;
     friend class NLCLContext;
@@ -28,8 +28,15 @@ class OCLUAPI oclContext_ : public common::NonCopyable, public common::NonMovabl
     friend class oclImage_;
 private:
     MAKE_ENABLER();
-    oclContext_(std::shared_ptr<const oclPlatform_> plat, std::vector<cl_context_properties> props, const std::vector<oclDevice>& devices);
+    CLHandle<detail::CLContext> Context;
+    const oclPlatform_* Plat;
+    mutable std::atomic_bool DebugResource = false;
+    oclContext_(const oclPlatform_* plat, std::vector<intptr_t> props, const std::vector<oclDevice>& devices);
 public:
+    std::vector<oclDevice> Devices;
+    uint32_t Version;
+    COMMON_NO_COPY(oclContext_)
+    COMMON_NO_MOVE(oclContext_)
     ~oclContext_();
     [[nodiscard]] std::u16string GetPlatformName() const;
     [[nodiscard]] Vendors GetVendor() const;
@@ -38,20 +45,11 @@ public:
     [[nodiscard]] bool ShouldDebugResurce() const;
     [[nodiscard]] bool CheckExtensionSupport(const std::string_view name) const;
     [[nodiscard]] bool CheckIncludeDevice(const oclDevice dev) const noexcept;
-
-private:
-    const std::shared_ptr<const oclPlatform_> Plat;
-    cl_context Context = nullptr;
-public:
-    const std::vector<oclDevice> Devices;
-    const uint32_t Version;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img2DFormatSupport;
     common::container::FrozenDenseSet<xziar::img::TextureFormat> Img3DFormatSupport;
     mutable common::Delegate<const std::u16string&> OnMessage;
 
     common::PromiseResult<void> CreateUserEvent(common::PmsCore pms);
-private:
-    mutable std::atomic_bool DebugResource = false;
 };
 MAKE_ENABLER_IMPL(oclContext_)
 

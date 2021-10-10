@@ -36,9 +36,6 @@
     <ClInclude Include="OpenCLUtil.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oclException.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="oclCmdQue.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -70,6 +67,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="NLCLDp4a.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="oclInternal.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

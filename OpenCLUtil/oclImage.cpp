@@ -142,7 +142,7 @@ static cl_image_format ParseTextureFormat(const TextureFormat format)
 
 static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t width, const uint32_t height, const uint32_t depth = 1)
 {
-    cl_image_desc desc;
+    cl_image_desc desc = {};
     desc.image_type = type;
     desc.image_width = width;
     desc.image_height = height;
@@ -156,25 +156,26 @@ static cl_image_desc CreateImageDesc(cl_mem_object_type type, const uint32_t wid
     return desc;
 }
 
-static cl_mem CreateMem(const uint32_t version, const cl_context ctx, const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
+static cl_mem CreateMem(const detail::PlatFuncs* funcs, const uint32_t version, const cl_context ctx, 
+    const MemFlag flag, const cl_image_desc& desc, const TextureFormat format, const void* ptr)
 {
     cl_int errcode;
     const auto clFormat = ParseTextureFormat(format);
     cl_mem id = nullptr;
     if (version >= 12)
     {
-        id = clCreateImage(ctx, common::enum_cast(flag), &clFormat, &desc, const_cast<void*>(ptr), &errcode);
+        id = funcs->clCreateImage(ctx, common::enum_cast(flag), &clFormat, &desc, const_cast<void*>(ptr), &errcode);
     }
     else
     {
         switch (desc.image_type)
         {
         case CL_MEM_OBJECT_IMAGE2D:
-            id = clCreateImage2D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height, 
+            id = funcs->clCreateImage2D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height,
                 desc.image_row_pitch, const_cast<void*>(ptr), &errcode);
             break;
         case CL_MEM_OBJECT_IMAGE3D:
-            id = clCreateImage3D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height, desc.image_depth,
+            id = funcs->clCreateImage3D(ctx, common::enum_cast(flag), &clFormat, desc.image_width, desc.image_height, desc.image_depth,
                 desc.image_row_pitch, desc.image_slice_pitch, const_cast<void*>(ptr), &errcode);
             break;
         default:
@@ -199,12 +200,12 @@ bool oclImage_::CheckFormatCompatible(TextureFormat format)
     }
 }
 
-oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const cl_mem id)
+oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, void* id)
     :oclMem_(ctx, id, flag), Width(width), Height(height), Depth(depth), Format(format)
 { }
-oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, cl_mem_object_type type, const void* ptr)
+oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, uint32_t type, const void* ptr)
     :oclImage_(ctx, flag, width, height, depth, format, 
-        CreateMem(ctx->Version, ctx->Context, flag, 
+        CreateMem(ctx->Funcs, ctx->Version, *ctx->Context, flag, 
             CreateImageDesc(type, width, height, depth), format, ptr))
 { }
 
@@ -212,17 +213,17 @@ oclImage_::oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t w
 oclImage_::~oclImage_()
 { 
     if (Context->ShouldDebugResurce())
-        oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)MemID, Width, Height, Depth);
+        oclLog().debug(u"oclImage {:p} with size [{}x{}x{}], being destroyed.\n", (void*)*MemID, Width, Height, Depth);
 }
 
-common::span<std::byte> oclImage_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
+common::span<std::byte> oclImage_::MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag)
 {
     constexpr size_t origin[3] = { 0,0,0 };
     const size_t region[3] = { Width,Height,Depth };
     cl_int ret;
     size_t image_row_pitch = 0, image_slice_pitch = 0;
     const auto size = Width * Height * Depth * TexFormatUtil::BitPerPixel(Format) / 8;
-    const auto ptr = clEnqueueMapImage(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 
+    const auto ptr = Funcs->clEnqueueMapImage(*que, *MemID, CL_TRUE, common::enum_cast(mapFlag), 
         origin, region, &image_row_pitch, &image_slice_pitch,
         0, nullptr, nullptr, &ret);
     if (ret != CL_SUCCESS)
@@ -245,7 +246,8 @@ PromiseResult<void> oclImage_::ReadSpan(const common::PromiseStub& pmss, const o
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buf.data(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueReadImage(*que->CmdQue, *MemID, CL_FALSE, origin, region, 0, 0, buf.data(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return oclPromise<void>::Create(std::move(evts), e, que);
@@ -260,7 +262,8 @@ PromiseResult<Image> oclImage_::Read(const common::PromiseStub& pmss, const oclC
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueReadImage(*que->CmdQue, *MemID, CL_FALSE, origin, region, 0, 0, img.GetRawPtr(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return oclPromise<Image>::Create(std::move(evts), e, que, std::move(img));
@@ -274,7 +277,8 @@ PromiseResult<common::AlignedBuffer> oclImage_::ReadRaw(const common::PromiseStu
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
     cl_event e;
-    const auto ret = clEnqueueReadImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueReadImage(*que->CmdQue, *MemID, CL_FALSE, origin, region, 0, 0, buffer.GetRawPtr(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clImage");
     return oclPromise<common::AlignedBuffer>::Create(std::move(evts), e, que, std::move(buffer));
@@ -289,7 +293,8 @@ PromiseResult<void> oclImage_::WriteSpan(const common::PromiseStub& pmss, const 
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, buf.data(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueWriteImage(*que->CmdQue, *MemID, CL_FALSE, origin, region, 0, 0, buf.data(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
     return oclPromise<void>::Create(std::move(evts), e, que);
@@ -307,7 +312,8 @@ PromiseResult<void> oclImage_::Write(const common::PromiseStub& pmss, const oclC
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
     cl_event e;
-    const auto ret = clEnqueueWriteImage(que->CmdQue, MemID, CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueWriteImage(*que->CmdQue, *MemID, CL_FALSE, origin, region, 0, 0, image.GetRawPtr(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clImage");
     return oclPromise<void>::Create(std::move(evts), e, que);

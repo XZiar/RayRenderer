@@ -1,7 +1,6 @@
 #include "oclPch.h"
 #include "oclKernelDebug.h"
 #include "oclNLCLRely.h"
-#include "oclException.h"
 #include "XComputeBase/XCompDebugExt.h"
 
 

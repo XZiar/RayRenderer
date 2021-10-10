@@ -1,6 +1,5 @@
 #include "oclPch.h"
 #include "oclContext.h"
-#include "oclException.h"
 #include "oclDevice.h"
 #include "oclPlatform.h"
 #include "oclUtil.h"
@@ -32,20 +31,21 @@ static void CL_CALLBACK onNotify(const char * errinfo, [[maybe_unused]]const voi
 
 extern xziar::img::TextureFormat ParseCLImageFormat(const cl_image_format& format);
 
-static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupportedImageFormat(const cl_context& ctx, const cl_mem_object_type type)
+static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupportedImageFormat(
+    const detail::PlatFuncs* funcs, const cl_context& ctx, const cl_mem_object_type type)
 {
     cl_uint count;
-    clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, 0, nullptr, &count);
+    funcs->clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, 0, nullptr, &count);
     vector<cl_image_format> formats(count);
-    clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, count, formats.data(), &count);
+    funcs->clGetSupportedImageFormats(ctx, CL_MEM_READ_ONLY, type, count, formats.data(), &count);
     set<xziar::img::TextureFormat, std::less<>> dformats;
     for (const auto format : formats)
         dformats.insert(ParseCLImageFormat(format));
     return dformats;
 }
 
-oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, const vector<oclDevice>& devices)
-    : Plat(std::move(plat)), Devices(devices), Version(Plat->Version)
+oclContext_::oclContext_(const oclPlatform_* plat, vector<cl_context_properties> props, const vector<oclDevice>& devices) : 
+    detail::oclCommon(*plat), Plat(std::move(plat)), Devices(devices), Version(Plat->Version)
 {
     if (Plat->Version < 12)
         oclLog().warning(u"Try to create context on [{}], which does not even support OpenCL1.2\n", Plat->Ver);
@@ -61,32 +61,32 @@ oclContext_::oclContext_(oclPlatform plat, vector<cl_context_properties> props, 
     bool supportIntelDiag = true;
     for (const auto& dev : Devices)
     {
-        DeviceIDs.push_back(*dev);
+        DeviceIDs.push_back(*dev->DeviceID);
         supportIntelDiag &= dev->Extensions.Has("cl_intel_driver_diagnostics");
     }
     constexpr cl_context_properties intelDiagnostics = CL_CONTEXT_DIAGNOSTICS_LEVEL_BAD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_GOOD_INTEL | CL_CONTEXT_DIAGNOSTICS_LEVEL_NEUTRAL_INTEL;
     if (supportIntelDiag)
         props.insert(--props.cend(), { CL_CONTEXT_SHOW_DIAGNOSTICS_INTEL, intelDiagnostics });
-    Context = clCreateContext(props.data(), (cl_uint)DeviceIDs.size(), DeviceIDs.data(), &onNotify, this, &ret);
+    Context = Funcs->clCreateContext(props.data(), (cl_uint)DeviceIDs.size(), DeviceIDs.data(), &onNotify, this, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot create opencl-context");
 
-    Img2DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE2D);
-    Img3DFormatSupport = GetSupportedImageFormat(Context, CL_MEM_OBJECT_IMAGE3D);
+    Img2DFormatSupport = GetSupportedImageFormat(Funcs, *Context, CL_MEM_OBJECT_IMAGE2D);
+    Img3DFormatSupport = GetSupportedImageFormat(Funcs, *Context, CL_MEM_OBJECT_IMAGE3D);
 }
 
 oclContext_::~oclContext_()
 {
 #ifdef _DEBUG
     uint32_t refCount = 0;
-    clGetContextInfo(Context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
+    Funcs->clGetContextInfo(*Context, CL_CONTEXT_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
     if (refCount == 1)
     {
-        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)Context, GetPlatformName(), refCount);
-        clReleaseContext(Context);
+        oclLog().debug(u"oclContext {:p} named {}, has {} reference being release.\n", (void*)*Context, GetPlatformName(), refCount);
+        Funcs->clReleaseContext(*Context);
     }
     else
-        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)Context, GetPlatformName(), refCount);
+        oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)*Context, GetPlatformName(), refCount);
 #else
     clReleaseContext(Context);
 #endif
@@ -154,7 +154,7 @@ common::PromiseResult<void> oclContext_::CreateUserEvent(common::PmsCore pms)
     if (Version < 11)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"clUserEvent requires version at least 1.1");
     cl_int err;
-    const auto evt = clCreateUserEvent(Context, &err);
+    const auto evt = Funcs->clCreateUserEvent(*Context, &err);
     if (err != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, err, u"cannot create user-event");
     auto ret = MAKE_ENABLER_SHARED(oclCustomEvent, (std::move(pms), evt));

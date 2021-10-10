@@ -98,7 +98,7 @@ protected:
     std::shared_ptr<xcomp::debug::InfoProvider> InfoProv;
     uint32_t DebugBuffer;
     bool HasInfo, HasDebug;
-    KernelArgStore(cl_kernel kernel, const KernelArgStore& reference);
+    KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::CLKernel> kernel, const KernelArgStore& reference);
     const ArgInfo* GetArg(const size_t idx, const bool check = true) const;
     void AddArg(const KerArgType argType, const KerArgSpace space, const ImgAccess access, const KerArgFlag qualifier,
         const std::string_view name, const std::string_view type);
@@ -217,7 +217,7 @@ struct SizeN
 };
 
 
-class OCLUAPI oclKernel_ : public common::NonCopyable
+class OCLUAPI oclKernel_ : public detail::oclCommon
 {
     friend class oclProgram_;
 private:
@@ -327,8 +327,10 @@ private:
         }
     };
 
-    oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, std::string name, KernelArgStore&& argStore);
+    oclKernel_(const oclProgram_* prog, void* kerID, std::string name, KernelArgStore&& argStore);
 public:
+    COMMON_NO_COPY(oclKernel_)
+    COMMON_DEF_MOVE(oclKernel_)
     ~oclKernel_();
 
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
@@ -353,9 +355,8 @@ public:
     }
 
 private:
-    const oclPlatform_& Plat;
-    const oclProgram_& Prog;
-    cl_kernel KernelID;
+    CLHandle<detail::CLKernel> Kernel;
+    const oclProgram_& Program;
     mutable common::SpinLocker ArgLock;
     uint32_t ReqDbgBufSize;
 public:
@@ -380,10 +381,10 @@ class OCLUAPI [[nodiscard]] oclProgStub : public common::NonCopyable
     friend class NLCLProcessor;
     friend struct NLCLDebugExtension;
 private:
+    CLHandle<detail::CLProgram> Program;
     oclContext Context;
     oclDevice Device;
     std::string Source;
-    cl_program ProgID;
     std::vector<std::pair<std::string, KernelArgStore>> ImportedKernelInfo;
     std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
     oclProgStub(const oclContext& ctx, const oclDevice& dev, std::string&& str);
@@ -394,22 +395,22 @@ public:
     [[nodiscard]] oclProgram Finish();
 };
 
-class OCLUAPI oclProgram_ : public std::enable_shared_from_this<oclProgram_>, public common::NonCopyable
+class OCLUAPI oclProgram_ : public detail::oclCommon, public std::enable_shared_from_this<oclProgram_>
 {
     friend class oclContext_;
     friend class oclKernel_;
     friend class oclProgStub;
 private:
     MAKE_ENABLER();
+    CLHandle<detail::CLProgram> Program;
     const oclContext Context;
     const oclDevice Device;
     const std::string Source;
-    cl_program ProgID;
     std::vector<std::string> KernelNames;
     std::vector<std::unique_ptr<oclKernel_>> Kernels;
     std::shared_ptr<xcomp::debug::DebugManager> DebugMan;
 
-    [[nodiscard]] static std::u16string GetProgBuildLog(cl_program progID, const cl_device_id dev);
+    [[nodiscard]] static std::u16string GetProgBuildLog(const detail::PlatFuncs* funcs, CLHandle<detail::CLProgram> progID, CLHandle<detail::CLDevice> dev);
     [[nodiscard]] oclKernel GetKernelByIdx(const size_t idx) const
     {
         return std::shared_ptr<const oclKernel_>(shared_from_this(), Kernels[idx].get());
@@ -438,12 +439,14 @@ private:
         }
     };
 public:
+    COMMON_NO_COPY(oclProgram_)
+    COMMON_DEF_MOVE(oclProgram_)
     ~oclProgram_();
     [[nodiscard]] std::string_view GetSource() const noexcept { return Source; }
     [[nodiscard]] oclKernel GetKernel(const std::string_view& name) const;
     [[nodiscard]] constexpr KernelContainer GetKernels() const { return this; }
     [[nodiscard]] const std::vector<std::string>& GetKernelNames() const { return KernelNames; }
-    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(ProgID, *Device); }
+    [[nodiscard]] std::u16string GetBuildLog() const { return GetProgBuildLog(Funcs, Program, Device->DeviceID); }
     [[nodiscard]] std::vector<std::byte> GetBinary() const;
 
     [[nodiscard]] static oclProgStub Create(const oclContext& ctx, std::string str, const oclDevice& dev = {});

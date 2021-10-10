@@ -1,5 +1,15 @@
 #include "oclPch.h"
 
+#if COMMON_OS_WIN
+#   define WIN32_LEAN_AND_MEAN 1
+#   define NOMINMAX 1
+#   include <Windows.h>
+#elif COMMON_OS_UNIX
+#   include <dlfcn.h>
+#else
+#   error "unknown os"
+#endif
+
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
 namespace oclu
@@ -30,6 +40,70 @@ std::pair<uint32_t, uint32_t> ParseVersionString(std::u16string_view str, const 
                 });
     }
     return version;
+}
+
+
+namespace detail
+{
+
+PlatFuncs::PlatFuncs()
+{
+#define SET_FUNC_PTR(f) this->f = &::f; // use icd's export
+    SET_FUNC_PTR(clGetExtensionFunctionAddress)
+    SET_FUNC_PTR(clGetExtensionFunctionAddressForPlatform)
+    PLATFUNCS_EACH(SET_FUNC_PTR)
+#undef SET_FUNC_PTR
+    InitExtensionFunc();
+}
+
+PlatFuncs::PlatFuncs(std::string_view dllName)
+{
+#if COMMON_OS_WIN
+    Library = LoadLibraryExA(dllName.data(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+#else
+    Library = dlopen(dllName.data(), RTLD_LAZY);
+#endif
+    if (!Library) return;
+#define SET_FUNC_PTR(f) f = reinterpret_cast<decltype(&::f)>(TryLoadFunc(#f));
+    SET_FUNC_PTR(clGetExtensionFunctionAddress)
+    SET_FUNC_PTR(clGetExtensionFunctionAddressForPlatform)
+    PLATFUNCS_EACH(SET_FUNC_PTR)
+#undef SET_FUNC_PTR
+    InitExtensionFunc();
+}
+
+void* PlatFuncs::TryLoadFunc(const char* fname) const noexcept
+{
+    void* func = nullptr;
+    if (this->clGetExtensionFunctionAddress)
+        func = this->clGetExtensionFunctionAddress(fname);
+    if (!func && Library)
+#if COMMON_OS_WIN
+        func = GetProcAddress((HMODULE)Library, fname);
+#else
+        func = dlsym(Library, fname);
+#endif
+    return func;
+}
+
+void PlatFuncs::InitExtensionFunc() noexcept
+{
+#define SET_FUNC_PTR(f) f = reinterpret_cast<decltype(&::f)>(TryLoadFunc(#f));
+    SET_FUNC_PTR(clGetGLContextInfoKHR)
+    SET_FUNC_PTR(clGetKernelSubGroupInfoKHR)
+#undef SET_FUNC_PTR
+}
+
+PlatFuncs::~PlatFuncs()
+{
+    if (Library)
+#if COMMON_OS_WIN
+        FreeLibrary((HMODULE)Library);
+#else
+        dlclose(Library);
+#endif
+}
+
 }
 
 

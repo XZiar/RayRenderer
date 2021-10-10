@@ -1,5 +1,6 @@
 #include "oclPch.h"
 #include "NLCLSubgroup.h"
+#include "oclPlatform.h"
 
 
 using namespace std::string_view_literals;
@@ -52,6 +53,12 @@ constexpr char32_t Idx16Names[] = U"0123456789abcdef";
 #define RET_FAIL(func) return {U"No proper [" STRINGIZE(func) "]"sv, false}
 
 
+NLCLSubgroupExtension::NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) :
+    NLCLExtension(context), Logger(logger)
+{
+    DefaultProvider = Generate(logger, {}, {});
+}
+
 void NLCLSubgroupExtension::BeginInstance(xcomp::XCNLRuntime& runtime, xcomp::InstanceContext& ctx)
 {
     SubgroupSize = 0;
@@ -79,7 +86,7 @@ void NLCLSubgroupExtension::InstanceMeta(xcomp::XCNLExecutor& executor, const xz
         executor.ThrowByParamTypes<2, ArgLimits::AtMost>(meta, { Arg::Type::String, Arg::Type::String });
         const auto mimic = meta.TryGet(0, &Arg::GetStr).Or({});
         const auto args  = meta.TryGet(1, &Arg::GetStr).Or({});
-        Provider = NLCLSubgroupExtension::Generate(GetLogger(runtime), Context, mimic, args);
+        Provider = Generate(GetLogger(runtime), mimic, args);
     }
 }
 
@@ -197,7 +204,7 @@ std::optional<Arg> NLCLSubgroupExtension::ConfigFunc(xcomp::XCNLExecutor& execut
         SubgroupSize = 32;
         const auto mimic = func.TryGet(2, &Arg::GetStr).Or({});
         const auto args  = func.TryGet(3, &Arg::GetStr).Or({});
-        const auto provider = Generate(Logger, Context, mimic, args);
+        const auto provider = Generate(Logger, mimic, args);
         const std::u32string_view dummyArgs[] = { U"x"sv, U"y"sv };
         const auto ret = provider->FuncShuffle(vtype, dummyArgs,
             isShuffle ? SubgroupShuffleOp::Shuffle : SubgroupShuffleOp::Broadcast, false);
@@ -260,18 +267,18 @@ inline std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::GenerateProvider
     ret->Prepare();
     return ret;
 }
-std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context,
+std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::MiniLogger<false>& logger,
     std::u32string_view mimic, std::u32string_view args)
 {
     SubgroupAttributes attr;
     attr.Mimic = SubgroupMimicParser(mimic).value_or(SubgroupAttributes::MimicType::Auto);
     attr.Args = common::str::to_string(args, Encoding::ASCII);
-    auto cap = GenerateCapabiity(context, attr);
+    auto cap = GenerateCapabiity(Context, attr);
 
     SubgroupAttributes::MimicType mType = attr.Mimic;
     if (mType == SubgroupAttributes::MimicType::Auto)
     {
-        if (context.Device->PlatVendor == Vendors::NVIDIA)
+        if (Context.Device->PlatVendor == Vendors::NVIDIA)
             mType = SubgroupAttributes::MimicType::Ptx;
         else if (cap.SupportIntel)
             mType = SubgroupAttributes::MimicType::Intel;
@@ -283,25 +290,16 @@ std::shared_ptr<SubgroupProvider> NLCLSubgroupExtension::Generate(common::mlog::
     Ensures(mType != SubgroupAttributes::MimicType::Auto);
 
     if (mType == SubgroupAttributes::MimicType::Intel)
-        return GenerateProvider<NLCLSubgroupIntel>(logger, context, cap);
+        return GenerateProvider<NLCLSubgroupIntel>(logger, Context, cap);
     else if (mType == SubgroupAttributes::MimicType::Ptx)
-    {
-        uint32_t smVer = cap.NvSmVer;
-        if (context.Device->Extensions.Has("cl_nv_device_attribute_query"sv))
-        {
-            uint32_t major = 0, minor = 0;
-            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
-            clGetDeviceInfo(*context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
-            smVer = major * 10 + minor;
-        }
-        return GenerateProvider<NLCLSubgroupPtx>(logger, context, cap, smVer);
-    }
+        return GenerateProvider<NLCLSubgroupPtx>(logger, Context, cap, 
+            Context.Device->GetNvidiaSMVersion().value_or(cap.NvSmVer));
     else if (mType == SubgroupAttributes::MimicType::Local)
-        return GenerateProvider<NLCLSubgroupLocal>(logger, context, cap);
+        return GenerateProvider<NLCLSubgroupLocal>(logger, Context, cap);
     else if (mType == SubgroupAttributes::MimicType::Khr)
-        return GenerateProvider<NLCLSubgroupKHR>(logger, context, cap);
+        return GenerateProvider<NLCLSubgroupKHR>(logger, Context, cap);
     else
-        return GenerateProvider<SubgroupProvider>(logger, context, cap);
+        return GenerateProvider<SubgroupProvider>(logger, Context, cap);
 }
 
 
@@ -1090,10 +1088,10 @@ NLCLSubgroupIntel::NLCLSubgroupIntel(common::mlog::MiniLogger<false>& logger, NL
         // FeatureNonUniform: "These built-in functions need not be encountered by all work items in a subgroup executing the kernel"
         const auto feats = static_cast<uint8_t>(Shuffle::FeatureBroadcast | Shuffle::FeatureShuffle | Shuffle::FeatureShuffleRel | Shuffle::FeatureNonUniform);
         auto& algo = ShuffleSupport.emplace_back(LevelIntel, AlgoIntelShuffle, feats);
-        const auto int64 = context.Device->Platform.BeignetFix ? support0 : support1;
+        const auto int64 = context.Device->Platform->BeignetFix ? support0 : support1;
         algo.Bit64.Set(int64, cap.SupportFP64 ? support1 : support0);
         algo.Bit32.Set(supportAll);
-        const auto int16 = Cap.SupportIntel16 ? (context.Device->Platform.BeignetFix ? support1 : supportAll) : support0;
+        const auto int16 = Cap.SupportIntel16 ? (context.Device->Platform->BeignetFix ? support1 : supportAll) : support0;
         algo.Bit16.Set(int16, cap.SupportFP16 ? support1 : support0);
         if (cap.SupportIntel8)
             algo.Bit8.Set(REMOVE_MASK(xcomp::VTypeDimSupport::All, xcomp::VTypeDimSupport::Support3), support0);

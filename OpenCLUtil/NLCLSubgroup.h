@@ -1,6 +1,5 @@
 #pragma once
 #include "oclNLCLRely.h"
-#include "common/StrParsePack.hpp"
 
 namespace oclu
 {
@@ -39,9 +38,7 @@ public:
     std::shared_ptr<SubgroupProvider> Provider;
     uint32_t SubgroupSize = 0;
 
-    NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context) : 
-        NLCLExtension(context), DefaultProvider(Generate(logger, context, {}, {})), Logger(logger)
-    { }
+    NLCLSubgroupExtension(common::mlog::MiniLogger<false>& logger, NLCLContext& context);
     ~NLCLSubgroupExtension() override { }
     
     void  BeginInstance(xcomp::XCNLRuntime&, xcomp::InstanceContext& ctx) final;
@@ -51,9 +48,9 @@ public:
     [[nodiscard]] xcomp::ReplaceResult ReplaceFunc(xcomp::XCNLRawExecutor& executor, std::u32string_view func,
         common::span<const std::u32string_view> args) final;
     [[nodiscard]] std::optional<xziar::nailang::Arg> ConfigFunc(xcomp::XCNLExecutor& executor, xziar::nailang::FuncEvalPack& call) final;
+    std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, std::u32string_view mimic, std::u32string_view args);
 
     static NLCLSubgroupCapbility GenerateCapabiity(NLCLContext& context, const SubgroupAttributes& attr);
-    static std::shared_ptr<SubgroupProvider> Generate(common::mlog::MiniLogger<false>& logger, NLCLContext& context, std::u32string_view mimic, std::u32string_view args);
     
     XCNL_EXT_REG(NLCLSubgroupExtension,
     {

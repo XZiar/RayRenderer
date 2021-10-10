@@ -23,8 +23,8 @@ class OCLUAPI oclSubBuffer_ : public oclMem_
     friend class oclContext_;
 protected:
     MAKE_ENABLER();
-    oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
-    virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
+    oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const uintptr_t id);
+    virtual common::span<std::byte> MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag) override;
 public:
     const size_t Size;
     virtual ~oclSubBuffer_();
@@ -96,7 +96,7 @@ private:
     MAKE_ENABLER();
 protected:
     oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr);
-    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id);
+    oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const uintptr_t id);
 public:
     [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size, MemFlag flag) const;
     [[nodiscard]] oclSubBuffer CreateSubBuffer(const size_t offset, const size_t size) const

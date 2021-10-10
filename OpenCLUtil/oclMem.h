@@ -14,12 +14,12 @@ namespace oclu
 class oclMem_;
 using oclMem = std::shared_ptr<oclMem_>;
 
-enum class MemFlag : cl_mem_flags
+enum class MemFlag : uint64_t
 {
     Empty = 0,
-    ReadOnly = CL_MEM_READ_ONLY,    WriteOnly = CL_MEM_WRITE_ONLY,     ReadWrite = CL_MEM_READ_WRITE,
-    UseHost  = CL_MEM_USE_HOST_PTR, HostAlloc = CL_MEM_ALLOC_HOST_PTR, HostCopy  = CL_MEM_COPY_HOST_PTR,
-    HostWriteOnly = CL_MEM_HOST_WRITE_ONLY, HostReadOnly = CL_MEM_HOST_READ_ONLY, HostNoAccess = CL_MEM_HOST_NO_ACCESS,
+    ReadOnly = (1 << 2), WriteOnly = (1 << 1), ReadWrite = (1 << 0),
+    UseHost  = (1 << 3), HostAlloc = (1 << 4), HostCopy  = (1 << 5),
+    HostWriteOnly = (1 << 7), HostReadOnly = (1 << 8), HostNoAccess = (1 << 9),
     DeviceAccessMask = ReadOnly      | WriteOnly    | ReadWrite, 
     HostInitMask     = UseHost       | HostAlloc    | HostCopy, 
     HostAccessMask   = HostWriteOnly | HostReadOnly | HostNoAccess,
@@ -48,23 +48,23 @@ MAKE_ENUM_BITFIELD(MemFlag)
        return true;
 }
 
-enum class MapFlag : cl_map_flags
+enum class MapFlag : uint64_t
 {
-    Read = CL_MAP_READ, Write = CL_MAP_WRITE, ReadWrite = Read | Write, InvalidWrite = CL_MAP_WRITE_INVALIDATE_REGION,
+    Read = (1 << 0), Write = (1 << 1), ReadWrite = Read | Write, InvalidWrite = (1 << 2),
 };
 MAKE_ENUM_BITFIELD(MapFlag)
 
 
 class oclMapPtr;
 
-class OCLUAPI oclMem_ : public common::NonCopyable, public common::NonMovable, public std::enable_shared_from_this<oclMem_>
+class OCLUAPI oclMem_ : public detail::oclCommon, public std::enable_shared_from_this<oclMem_>
 {
     friend class oclKernel_;
     friend class oclContext_;
     friend class oclMapPtr;
     template<typename> friend class oclGLObject_;
 private:
-    class OCLUAPI oclMapPtr_ : public common::NonCopyable, public common::NonMovable
+    class OCLUAPI oclMapPtr_
     {
         friend class oclMapPtr;
     private:
@@ -73,16 +73,20 @@ private:
         common::span<std::byte> MemSpace;
     public:
         MAKE_ENABLER();
+        COMMON_NO_COPY(oclMapPtr_)
+        COMMON_NO_MOVE(oclMapPtr_)
         oclMapPtr_(oclCmdQue&& que, oclMem_* mem, const MapFlag mapFlag);
         ~oclMapPtr_();
     };
 protected:
     const oclContext Context;
-    const cl_mem MemID;
+    CLHandle<detail::CLMem> MemID;
     const MemFlag Flag;
-    oclMem_(oclContext ctx, cl_mem mem, const MemFlag flag);
-    [[nodiscard]] virtual common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) = 0;
+    oclMem_(oclContext ctx, void* mem, const MemFlag flag);
+    [[nodiscard]] virtual common::span<std::byte> MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag) = 0;
 public:
+    COMMON_NO_COPY(oclMem_)
+    COMMON_NO_MOVE(oclMem_)
     virtual ~oclMem_();
     [[nodiscard]] oclMapPtr Map(oclCmdQue que, const MapFlag mapFlag);
     void Flush(const oclCmdQue& que);

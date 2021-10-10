@@ -24,14 +24,14 @@ enum class FPConfig : uint64_t
 };
 MAKE_ENUM_BITFIELD(FPConfig)
 
-class OCLUAPI oclDevice_ : public common::NonCopyable
+class OCLUAPI oclDevice_ : public detail::oclCommon
 {
     friend class oclPlatform_;
 private:
-    cl_device_id DeviceID;
-    oclDevice_(const oclPlatform_& plat, const cl_device_id dID);
+    oclDevice_(const oclPlatform_* plat, void* dID);
 public:
-    const oclPlatform_& Platform;
+    CLHandle<detail::CLDevice> DeviceID;
+    const oclPlatform_* Platform;
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseStringSet<char> Extensions;
     FPConfig F64Caps, F32Caps, F16Caps;
@@ -45,10 +45,10 @@ public:
     Vendors PlatVendor;
     DeviceType Type;
 
-    [[nodiscard]] std::u16string_view GetTypeName() const { return GetDeviceTypeName(Type); }
-
-    constexpr operator cl_device_id() const noexcept { return DeviceID; }
-    constexpr bool operator== (const cl_device_id other) const noexcept { return DeviceID == other; }
+    COMMON_NO_COPY(oclDevice_)
+    COMMON_DEF_MOVE(oclDevice_)
+    [[nodiscard]] std::u16string_view GetTypeName() const noexcept { return GetDeviceTypeName(Type); }
+    [[nodiscard]] std::optional<uint32_t> GetNvidiaSMVersion() const noexcept;
 
     [[nodiscard]] static std::u16string_view GetDeviceTypeName(const DeviceType type);
     [[nodiscard]] static std::string GetFPCapabilityStr(const FPConfig cap);

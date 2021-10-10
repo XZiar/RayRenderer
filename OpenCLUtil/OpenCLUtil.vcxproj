@@ -237,9 +237,9 @@
     <ClInclude Include="oclDevice.h" />
     <ClInclude Include="oclCmdQue.h" />
     <ClInclude Include="oclContext.h" />
-    <ClInclude Include="oclException.h" />
     <ClInclude Include="oclBuffer.h" />
     <ClInclude Include="oclImage.h" />
+    <ClInclude Include="oclInternal.h" />
     <ClInclude Include="oclKernelDebug.h" />
     <ClInclude Include="oclMem.h" />
     <ClInclude Include="oclNLCL.h" />
@@ -284,7 +284,7 @@
     <ClCompile Include="oclUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\3rdParty\Projects\OpenCL\OpenCL.vcxproj">
+    <ProjectReference Include="..\3rdParty\Projects\OpenCLICDLoader\OpenCLICDLoader.vcxproj">
       <Project>{5c5933e1-4992-47f8-87ed-7921735157ba}</Project>
     </ProjectReference>
     <ProjectReference Include="..\ImageUtil\ImageUtil.vcxproj">

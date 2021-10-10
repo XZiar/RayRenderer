@@ -1,3 +1,4 @@
+#include "OpenCLUtil/oclInternal.h"
 #include "GLInterop.h"
 #include "OpenGLUtil/oglUtil.h"
 
@@ -16,27 +17,28 @@ MAKE_ENABLER_IMPL(oclGLInterImg2D_)
 MAKE_ENABLER_IMPL(oclGLInterImg3D_)
 
 
-GLInterop::GLResLocker::GLResLocker(const oclCmdQue& que, const cl_mem mem) : Queue(que), Mem(mem)
+GLInterop::GLResLocker::GLResLocker(const oclCmdQue& que, CLHandle<detail::CLMem> mem) :
+    detail::oclCommon(*que), Queue(que), Mem(mem)
 {
     if (!Queue->SupportImplicitGLSync())
         oglu::oglContext_::CurrentContext()->FinishGL();
     cl_event evt = nullptr;
-    cl_int ret = clEnqueueAcquireGLObjects(Queue->CmdQue, 1, &mem, 0, nullptr, &evt);
+    cl_int ret = Funcs->clEnqueueAcquireGLObjects(*Queue->CmdQue, 1, &mem, 0, nullptr, &evt);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot lock oglObject for oclMemObject");
     if (evt)
-        clWaitForEvents(1, &evt);
+        Funcs->clWaitForEvents(1, &evt);
 }
 GLInterop::GLResLocker::~GLResLocker()
 {
     if (!Queue->SupportImplicitGLSync())
         Queue->Flush(); // assume promise is correctly waited before relase lock
     cl_event evt = nullptr;
-    cl_int ret = clEnqueueReleaseGLObjects(Queue->CmdQue, 1, &Mem, 0, nullptr, &evt);
+    cl_int ret = Funcs->clEnqueueReleaseGLObjects(*Queue->CmdQue, 1, &Mem, 0, nullptr, &evt);
     if (ret != CL_SUCCESS)
         oclUtil::GetOCLLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
     if (evt)
-        clWaitForEvents(1, &evt);
+        Funcs->clWaitForEvents(1, &evt);
 }
 
 //common::mlog::MiniLogger<false>& GLInterop::GetOCLLog()
@@ -44,15 +46,15 @@ GLInterop::GLResLocker::~GLResLocker()
 //    return oclUtil::GetOCLLog();
 //}
 
-cl_mem GLInterop::CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& buf)
+void* GLInterop::CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& buf)
 {
     cl_int errcode;
-    const auto id = clCreateFromGLBuffer(ctx.Context, common::enum_cast(flag), buf->BufferID, &errcode);
+    const auto id = ctx.Funcs->clCreateFromGLBuffer(*ctx.Context, common::enum_cast(flag), buf->BufferID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glBuffer");
     return id;
 }
-cl_mem GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex)
+void* GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex)
 {
     if (HAS_FIELD(flag, MemFlag::HostAccessMask) || HAS_FIELD(flag, MemFlag::HostInitMask))
     {
@@ -62,7 +64,7 @@ cl_mem GLInterop::CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const
     cl_int errcode;
     if (xziar::img::TexFormatUtil::IsCompressType(tex->GetInnerFormat()))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"OpenCL does not support Comressed Texture");
-    const auto id = clCreateFromGLTexture(ctx.Context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->TextureID, &errcode);
+    const auto id = ctx.Funcs->clCreateFromGLTexture(*ctx.Context, common::enum_cast(flag), common::enum_cast(tex->Type), 0, tex->TextureID, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create clMem from glTexture");
     return id;
@@ -89,16 +91,17 @@ vector<cl_context_properties> GLInterop::GetGLProps(const oclPlatform_& plat, co
     return props;
 }
 
-oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_context_properties>& props)
+oclDevice GLInterop::GetGLDevice(const oclPlatform_& plat, const vector<cl_context_properties>& props)
 {
-    if (!plat->FuncClGetGLContext)
+    if (!plat.Funcs->clGetGLContextInfoKHR || !plat.Extensions.Has("cl_khr_gl_sharing") || 
+        plat.BeignetFix/*beignet didn't implement that*/)
         return {};
     {
         cl_device_id dID;
         size_t retSize = 0;
-        const auto ret = plat->FuncClGetGLContext(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
+        const auto ret = plat.Funcs->clGetGLContextInfoKHR(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
         if (ret == CL_SUCCESS && retSize)
-            if (auto dev = FindInVec(plat->Devices, [=](const oclDevice_& dev) { return dev == dID; }); dev)
+            if (auto dev = FindInVec(plat.Devices, [=](const oclDevice_& dev) { return *dev.DeviceID == dID; }); dev)
                 return dev;
         if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
             oclUtil::GetOCLLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
@@ -120,15 +123,15 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform& plat, const vector<cl_contex
 bool GLInterop::CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context)
 {
     const auto props = GetGLProps(plat, context);
-    return (bool)GetGLDevice(plat.shared_from_this(), props);
+    return (bool)GetGLDevice(plat, props);
 }
 
 oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
 {
-    for (const auto& plat : oclUtil::GetPlatforms())
+    for (const auto& plat : oclPlatform_::GetPlatforms())
     {
         const auto props = GetGLProps(*plat, context);
-        const auto dev = GetGLDevice(plat, props);
+        const auto dev = GetGLDevice(*plat, props);
         if (dev)
             return plat->CreateContext({ dev }, props);
     }
@@ -138,7 +141,7 @@ oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
 oclContext GLInterop::CreateGLSharedContext(const oclPlatform_& plat, const oglu::oglContext& context)
 {
     const auto props = GetGLProps(plat, context);
-    const auto dev = GetGLDevice(plat.shared_from_this(), props);
+    const auto dev = GetGLDevice(plat, props);
     if (dev)
         return plat.CreateContext({ dev }, props);
     return {};

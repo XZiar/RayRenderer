@@ -35,22 +35,22 @@ class OCLIOPAPI GLInterop
     friend class oclGLImage3D_;
 private:
 
-    class OCLIOPAPI GLResLocker : public common::NonCopyable, public common::NonMovable
+    class OCLIOPAPI GLResLocker : public detail::oclCommon
     {
         template<typename> friend class oclGLObject_;
     private:
         MAKE_ENABLER();
         const oclCmdQue Queue;
-        const cl_mem Mem;
-        GLResLocker(const oclCmdQue& que, const cl_mem mem);
+        const CLHandle<detail::CLMem> Mem;
+        GLResLocker(const oclCmdQue& que, CLHandle<detail::CLMem> mem);
     public:
         ~GLResLocker();
     };
 
-    static cl_mem CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& bufId);
-    static cl_mem CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex);
-    static std::vector<cl_context_properties> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
-    static oclDevice GetGLDevice(const oclPlatform& plat, const std::vector<cl_context_properties>& props);
+    static void* CreateMemFromGLBuf(const oclContext_& ctx, MemFlag flag, const oglu::oglBuffer& bufId);
+    static void* CreateMemFromGLTex(const oclContext_& ctx, MemFlag flag, const oglu::oglTexBase& tex);
+    static std::vector<intptr_t> GetGLProps(const oclPlatform_& plat, const oglu::oglContext& context);
+    static oclDevice GetGLDevice(const oclPlatform_& plat, const std::vector<intptr_t>& props);
 public:
     static bool CheckIsGLShared(const oclPlatform_& plat, const oglu::oglContext& context);
     static oclContext CreateGLSharedContext(const oglu::oglContext& context);
@@ -72,7 +72,7 @@ public:
     private:
         std::shared_ptr<oclGLObject_<T>> Host;
         std::shared_ptr<GLInterop::GLResLocker> ResLocker;
-        oclGLMem(std::shared_ptr<oclGLObject_<T>> host, const oclCmdQue& que, const cl_mem mem) :
+        oclGLMem(std::shared_ptr<oclGLObject_<T>> host, const oclCmdQue& que, const CLHandle<detail::CLMem> mem) :
             Host(std::move(host)), ResLocker(MAKE_ENABLER_SHARED(GLInterop::GLResLocker, (que, mem)))
         { }
     public:

@@ -1,7 +1,6 @@
 #include "oclPch.h"
 #include "oclNLCL.h"
 #include "oclNLCLRely.h"
-#include "oclException.h"
 #include "Nailang/NailangAutoVar.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/StringDetect.h"
@@ -148,7 +147,7 @@ SubgroupCapbility::SubgroupCapbility(oclDevice dev) noexcept :
 
 
 NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
-    xcomp::XCNLContext(info), Device(dev),
+    xcomp::XCNLContext(info), detail::oclCommon(*Device), Device(dev),
     SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
     SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
     SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),
@@ -846,17 +845,17 @@ oclProgram NLCLUnBuildResult::GetProgram() const
 }
 
 NLCLBuiltResult::NLCLBuiltResult(const std::shared_ptr<NLCLContext>& context, oclProgram prog) :
-    NLCLBaseResult(context), Prog(std::move(prog))
+    NLCLBaseResult(context), Program(std::move(prog))
 { }
 NLCLBuiltResult::~NLCLBuiltResult()
 { }
 std::string_view NLCLBuiltResult::GetNewSource() const noexcept
 {
-    return Prog->GetSource();
+    return Program->GetSource();
 }
 oclProgram NLCLBuiltResult::GetProgram() const
 {
-    return Prog;
+    return Program;
 }
 
 NLCLBuildFailResult::NLCLBuildFailResult(const std::shared_ptr<NLCLContext>& context, std::string&& source, std::shared_ptr<common::ExceptionBasicInfo> ex) :

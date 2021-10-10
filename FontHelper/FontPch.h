@@ -1,7 +1,6 @@
 #pragma once
 #include "FontRely.h"
 #include "FreeType.h"
-#include "OpenCLUtil/oclException.h"
 #include "SystemCommon/MiniLogger.h"
 #include <cmath>
 #include "resource.h"

@@ -94,7 +94,7 @@ struct SubgroupCapbility
 };
 
 
-class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext
+class OCLUAPI COMMON_EMPTY_BASES NLCLContext : public xcomp::XCNLContext, public detail::oclCommon
 {
     friend NLCLExecutor;
     friend NLCLConfigurator;
@@ -112,6 +112,7 @@ public:
     NLCLContext(oclDevice dev, const common::CLikeDefines& info);
     ~NLCLContext() override;
     [[nodiscard]] xziar::nailang::Arg LocateArg(const xziar::nailang::LateBindVar& var, bool create) noexcept override;
+    const detail::PlatFuncs& PlatFunc() const noexcept { return *Funcs; }
 protected:
     std::vector<bool> EnabledExtensions;
     std::vector<std::string> CompilerFlags;
@@ -253,7 +254,7 @@ public:
 class OCLUAPI NLCLBuiltResult : public NLCLBaseResult
 {
 protected:
-    oclProgram Prog;
+    oclProgram Program;
 public:
     NLCLBuiltResult(const std::shared_ptr<NLCLContext>& context, oclProgram prog);
     ~NLCLBuiltResult() override;

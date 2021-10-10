@@ -2,12 +2,11 @@
     "name": "OpenCLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenCL Utility",
-    "dependency": ["SystemCommon", "ImageUtil", "Nailang", "XComputeBase", {"ifno": "ocl_noicd", "+": ["OpenCL"]}],
+    "dependency": ["SystemCommon", "ImageUtil", "Nailang", "XComputeBase", "OpenCLICDLoader"],
     "library": 
     {
         "static": [],
-        "dynamic": [{"ifhas": "ocl_noicd", "+": ["OpenCL"]}],
-        "path": [{"ifhas": ["ocl_noicd", "android"], "+": "/system/vendor/lib64"}]
+        "dynamic": []
     },
     "targets":
     {

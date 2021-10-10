@@ -14,7 +14,7 @@ namespace oclu
 {
 
 
-class OCLUAPI oclCmdQue_ : public common::NonCopyable
+class OCLUAPI oclCmdQue_ : public detail::oclCommon
 {
     friend class GLInterop;
     friend class oclPromiseCore;
@@ -27,10 +27,10 @@ class OCLUAPI oclCmdQue_ : public common::NonCopyable
     friend class oclKernel_;
 private:
     MAKE_ENABLER();
-    const oclContext Context;
-    const oclDevice Device;
-    cl_command_queue CmdQue;
-    const bool IsProfiling, IsOutOfOrder;
+    CLHandle<detail::CLCmdQue> CmdQue;
+    oclContext Context;
+    oclDevice Device;
+    bool IsProfiling, IsOutOfOrder;
     oclCmdQue_(const oclContext& ctx, const oclDevice& dev, const bool enableProfiling, const bool enableOutOfOrder);
 public:
     ~oclCmdQue_();

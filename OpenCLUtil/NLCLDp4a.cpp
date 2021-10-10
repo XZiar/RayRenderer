@@ -193,7 +193,8 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mi
         if (hasKhrDP4A)
         {
             cl_device_integer_dot_product_capabilities_khr supports;
-            clGetDeviceInfo(*Context.Device, CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR, sizeof(uint32_t), &supports, nullptr);
+            Context.PlatFunc().clGetDeviceInfo(*Context.Device->DeviceID,
+                CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR, sizeof(uint32_t), &supports, nullptr);
             supportUnpacked = supports & CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_KHR;
         }
         return std::make_shared<NLCLDp4aKhr>(Context, supportUnpacked);
@@ -203,17 +204,7 @@ std::shared_ptr<Dp4aProvider> NLCLDp4aExtension::Generate(std::u32string_view mi
     else if (mType == MimicType::Arm)
         return std::make_shared<NLCLDp4aArm>(Context, hasArmDP8, hasArmDPA8, hasArmDPA8S);
     else if (mType == MimicType::Ptx)
-    {
-        uint32_t smVer = 0;
-        if (Context.Device->Extensions.Has("cl_nv_device_attribute_query"sv))
-        {
-            uint32_t major = 0, minor = 0;
-            clGetDeviceInfo(*Context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
-            clGetDeviceInfo(*Context.Device, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
-            smVer = major * 10 + minor;
-        }
-        return std::make_shared<NLCLDp4aPtx>(Context, smVer);
-    }
+        return std::make_shared<NLCLDp4aPtx>(Context, Context.Device->GetNvidiaSMVersion().value_or(0));
     else
         return std::make_shared<NLCLDp4aPlain>(Context);
 }

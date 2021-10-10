@@ -1,6 +1,5 @@
 #include "oclPch.h"
 #include "oclBuffer.h"
-#include "oclException.h"
 #include "oclUtil.h"
 #include "oclPromise.h"
 
@@ -13,30 +12,31 @@ MAKE_ENABLER_IMPL(oclSubBuffer_)
 MAKE_ENABLER_IMPL(oclBuffer_)
 
 
-static cl_mem CreateMem(const cl_context ctx, const MemFlag flag, const size_t size, const void* ptr)
+static uintptr_t CreateMem(const detail::PlatFuncs* funcs, const cl_context ctx, 
+    const MemFlag flag, const size_t size, const void* ptr)
 {
     cl_int errcode;
-    const auto id = clCreateBuffer(ctx, common::enum_cast(flag), size, const_cast<void*>(ptr), &errcode);
+    const auto id = funcs->clCreateBuffer(ctx, common::enum_cast(flag), size, const_cast<void*>(ptr), &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create memory");
-    return id;
+    return reinterpret_cast<uintptr_t>(id);
 }
 
-oclSubBuffer_::oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
-    : oclMem_(ctx, id, flag), Size(size)
+oclSubBuffer_::oclSubBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const uintptr_t id)
+    : oclMem_(ctx, reinterpret_cast<void*>(id), flag), Size(size)
 {
 }
 
 oclSubBuffer_::~oclSubBuffer_()
 { 
     if (Context->ShouldDebugResurce())
-        oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)MemID, Size);
+        oclLog().debug(u"oclBuffer {:p} with size {}, being destroyed.\n", (void*)*MemID, Size);
 }
 
-common::span<std::byte> oclSubBuffer_::MapObject(const cl_command_queue& que, const MapFlag mapFlag)
+common::span<std::byte> oclSubBuffer_::MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag)
 {
     cl_int ret;
-    const auto ptr = clEnqueueMapBuffer(que, MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, nullptr, &ret);
+    const auto ptr = Funcs->clEnqueueMapBuffer(*que, *MemID, CL_TRUE, common::enum_cast(mapFlag), 0, Size, 0, nullptr, nullptr, &ret);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot map clBuffer");
     return common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Size);
@@ -49,7 +49,8 @@ PromiseResult<void> oclSubBuffer_::ReadSpan(const common::PromiseStub& pmss, con
     cl_event e;
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
-    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
+    auto ret = Funcs->clEnqueueReadBuffer(*que->CmdQue, *MemID, CL_FALSE, offset, buf.size(), buf.data(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
     return oclPromise<void>::Create(std::move(evts), e, que);
@@ -63,7 +64,8 @@ common::PromiseResult<common::AlignedBuffer> oclSubBuffer_::Read(const common::P
     cl_event e;
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
-    auto ret = clEnqueueReadBuffer(que->CmdQue, MemID, CL_FALSE, offset, size, buf.GetRawPtr(), evtCnt, evtPtr, &e);
+    auto ret = Funcs->clEnqueueReadBuffer(*que->CmdQue, *MemID, CL_FALSE, offset, size, buf.GetRawPtr(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot read clBuffer");
     return oclPromise<common::AlignedBuffer>::Create(std::move(evts), e, que, std::move(buf));
@@ -76,20 +78,21 @@ PromiseResult<void> oclSubBuffer_::WriteSpan(const common::PromiseStub& pmss, co
     cl_event e;
     DependEvents evts(pmss);
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
-    const auto ret = clEnqueueWriteBuffer(que->CmdQue, MemID, CL_FALSE, offset, buf.size(), buf.data(), evtCnt, evtPtr, &e);
+    const auto ret = Funcs->clEnqueueWriteBuffer(*que->CmdQue, *MemID, CL_FALSE, offset, buf.size(), buf.data(), 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"cannot write clMemory");
     return oclPromise<void>::Create(std::move(evts), e, que);
 }
 
 
-oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const cl_mem id)
+oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const uintptr_t id)
     : oclSubBuffer_(ctx, flag, size, id)
 {
 }
 
 oclBuffer_::oclBuffer_(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)
-    : oclSubBuffer_(ctx, flag, size, CreateMem(ctx->Context, flag, size, ptr))
+    : oclSubBuffer_(ctx, flag, size, CreateMem(ctx->Funcs, *ctx->Context, flag, size, ptr))
 {
 }
 
@@ -122,12 +125,12 @@ oclSubBuffer oclBuffer_::CreateSubBuffer(const size_t offset, const size_t size,
 
     cl_buffer_region region{ offset, size };
     cl_int errcode;
-    const auto id = clCreateSubBuffer(MemID, common::enum_cast(flag), CL_BUFFER_CREATE_TYPE_REGION, &region, &errcode);
+    const auto id = Funcs->clCreateSubBuffer(*MemID, common::enum_cast(flag), CL_BUFFER_CREATE_TYPE_REGION, &region, &errcode);
 
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create sub-buffer");
 
-    return MAKE_ENABLER_SHARED(oclSubBuffer_, (Context, flag, size, id));
+    return MAKE_ENABLER_SHARED(oclSubBuffer_, (Context, flag, size, reinterpret_cast<uintptr_t>(id)));
 }
 
 oclBuffer oclBuffer_::Create(const oclContext& ctx, const MemFlag flag, const size_t size, const void* ptr)

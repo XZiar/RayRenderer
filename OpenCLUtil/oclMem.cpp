@@ -1,7 +1,6 @@
 #include "oclPch.h"
 #include "oclMem.h"
 #include "oclUtil.h"
-#include "oclException.h"
 
 
 namespace oclu
@@ -43,32 +42,33 @@ bool oclMapPtr::CheckIsCLBuffer(const common::AlignedBuffer& buffer) noexcept
 oclMem_::oclMapPtr_::oclMapPtr_(oclCmdQue&& que, oclMem_* mem, const MapFlag mapFlag) :
     Queue(std::move(que)), Mem(*mem)
 {
-    MemSpace = Mem.MapObject(Queue->CmdQue, mapFlag);
+    MemSpace = Mem.MapObject(*Queue->CmdQue, mapFlag);
 }
 
 oclMem_::oclMapPtr_::~oclMapPtr_()
 {
     cl_event e;
-    const auto ret = clEnqueueUnmapMemObject(Queue->CmdQue, Mem.MemID, MemSpace.data(), 0, nullptr, &e);
+    const auto ret = Mem.Funcs->clEnqueueUnmapMemObject(*Queue->CmdQue, *Mem.MemID, MemSpace.data(), 0, nullptr, &e);
     if (ret != CL_SUCCESS)
         oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::GetErrorString(ret));
 }
 
 
-oclMem_::oclMem_(oclContext ctx, cl_mem mem, const MemFlag flag) : Context(std::move(ctx)), MemID(mem), Flag(flag)
+oclMem_::oclMem_(oclContext ctx, void* mem, const MemFlag flag) :
+    detail::oclCommon(*ctx), Context(std::move(ctx)), MemID(mem), Flag(flag)
 { }
 oclMem_::~oclMem_()
 {
     if (Context->ShouldDebugResurce())
     {
         uint32_t refCount = 0;
-        clGetMemObjectInfo(MemID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
+        Funcs->clGetMemObjectInfo(*MemID, CL_MEM_REFERENCE_COUNT, sizeof(uint32_t), &refCount, nullptr);
         if (refCount != 1)
         {
-            oclLog().warning(u"oclMem {:p} has {} reference and not able to release.\n", (void*)MemID, refCount);
+            oclLog().warning(u"oclMem {:p} has {} reference and not able to release.\n", (void*)*MemID, refCount);
         }
     }
-    clReleaseMemObject(MemID);
+    Funcs->clReleaseMemObject(*MemID);
 }
 
 oclMapPtr oclMem_::Map(oclCmdQue que, const MapFlag mapFlag)

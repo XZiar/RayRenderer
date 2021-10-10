@@ -4,7 +4,6 @@
 #include "OpenCLUtil/oclNLCL.h"
 #include "OpenCLUtil/oclNLCLRely.h"
 #include "OpenCLUtil/oclKernelDebug.h"
-#include "OpenCLUtil/oclException.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "SystemCommon/StringConvert.h"
 #include "common/Linq2.hpp"
@@ -366,7 +365,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
 
 static void OCLStub()
 {
-    const auto& plats = oclUtil::GetPlatforms();
+    const auto plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)
     {
         log().error(u"No OpenCL platform found!\n");

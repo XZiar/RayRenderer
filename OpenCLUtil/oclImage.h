@@ -4,7 +4,6 @@
 #include "oclCmdQue.h"
 #include "oclMem.h"
 #include "oclContext.h"
-#include "oclException.h"
 
 
 #if COMMON_COMPILER_MSVC
@@ -22,7 +21,7 @@ class oclImage3D_;
 using oclImg3D = std::shared_ptr<oclImage3D_>;
 
 
-class OCLWrongFormatException : public OCLException
+class OCLUAPI OCLWrongFormatException : public OCLException
 {
     PREPARE_EXCEPTION(OCLWrongFormatException, OCLException,
         xziar::img::TextureFormat Format;
@@ -44,9 +43,9 @@ class OCLUAPI oclImage_ : public oclMem_
 protected:
     const uint32_t Width, Height, Depth;
     const xziar::img::TextureFormat Format;
-    oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, const cl_mem id);
-    oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, cl_mem_object_type type, const void* ptr = nullptr);
-    common::span<std::byte> MapObject(const cl_command_queue& que, const MapFlag mapFlag) override;
+    oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, void* id);
+    oclImage_(const oclContext& ctx, const MemFlag flag, const uint32_t width, const uint32_t height, const uint32_t depth, const xziar::img::TextureFormat format, uint32_t type, const void* ptr = nullptr);
+    common::span<std::byte> MapObject(CLHandle<detail::CLCmdQue> que, const MapFlag mapFlag) override;
     [[nodiscard]] size_t CalculateSize() const;
 public:
     virtual ~oclImage_();

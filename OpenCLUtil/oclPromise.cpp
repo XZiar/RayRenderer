@@ -1,6 +1,6 @@
 #include "oclPch.h"
 #include "oclPromise.h"
-#include "oclException.h"
+#include "oclPlatform.h"
 #include "oclCmdQue.h"
 #include "oclUtil.h"
 #include "common/ContainerEx.hpp"
@@ -12,19 +12,27 @@ namespace oclu
 using namespace std::string_view_literals;
 
 
-DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
+DependEvents::DependEvents(const common::PromiseStub& pmss)
 {
     auto clpmss = pmss.FilterOut<oclPromiseCore>();
     if (clpmss.size() < pmss.size())
         oclLog().warning(u"Some non-ocl promise detected as dependent events, will be ignored!\n");
+    std::optional<std::pair<const detail::PlatFuncs*, const oclPlatform_*>> plat;
     for (const auto& clpms : clpmss)
     {
+        if (plat)
+        {
+            if (plat->second != clpms->GetPlatform())
+                COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"Cannot mixing events from different platforms");
+        }
+        else
+            plat.emplace(clpms->Funcs, clpms->GetPlatform());
         for (const auto& que : clpms->Depends.Queues)
         {
             if (que && !common::container::ContainInVec(Queues, que))
                 Queues.push_back(que);
         }
-        if (clpms->Event != nullptr)
+        if (*clpms->Event != nullptr)
         {
             Events.push_back(clpms->Event);
             const auto& que = clpms->Queue;
@@ -32,6 +40,8 @@ DependEvents::DependEvents(const common::PromiseStub& pmss) noexcept
                 Queues.push_back(que);
         }
     }
+    if (plat)
+        Funcs = plat->first;
     Events.shrink_to_fit();
 }
 DependEvents::DependEvents() noexcept
@@ -44,37 +54,42 @@ void DependEvents::FlushAllQueues() const
 }
 
 
-void CL_CALLBACK oclPromiseCore::EventCallback(cl_event event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
+void CL_CALLBACK oclPromiseCore::EventCallback(void* event, [[maybe_unused]]cl_int event_command_exec_status, void* user_data)
 {
     auto& self = *reinterpret_cast<common::PmsCore*>(user_data);
-    Expects(event == static_cast<oclPromiseCore&>(self->GetPromise()).Event);
+    Expects(event == *static_cast<oclPromiseCore&>(self->GetPromise()).Event);
     self->ExecuteCallback();
     delete &self;
 }
 
-oclPromiseCore::oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que, const bool isException) :
-    Depends(std::move(depend)), Event(e), Queue(std::move(que)), IsException(isException)
+oclPromiseCore::oclPromiseCore(DependEvents&& depend, void* e, oclCmdQue que, const bool isException) :
+    detail::oclCommon(*que), Depends(std::move(depend)), Event(e), Queue(std::move(que)), IsException(isException)
 {
     if (const auto it = std::find(Depends.Queues.begin(), Depends.Queues.end(), Queue); it != Depends.Queues.end())
     {
         Depends.Queues.erase(it);
     }
     for (const auto evt : Depends.Events)
-        clRetainEvent(evt);
+        Funcs->clRetainEvent(*evt);
 }
 oclPromiseCore::~oclPromiseCore()
 {
     for (const auto evt : Depends.Events)
-        clReleaseEvent(evt);
-    if (Event)
-        clReleaseEvent(Event);
+        Funcs->clReleaseEvent(*evt);
+    if (*Event)
+        Funcs->clReleaseEvent(*Event);
+}
+
+const oclPlatform_* oclPromiseCore::GetPlatform() noexcept 
+{
+    return Queue->Device->Platform;
 }
 
 void oclPromiseCore::PreparePms()
 {
     Depends.FlushAllQueues();
     if (Queue)
-        clFlush(Queue->CmdQue);
+        Funcs->clFlush(*Queue->CmdQue);
 }
 
 inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
@@ -90,7 +105,7 @@ inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
     if (IsException)
         return PromiseState::Error;
     cl_int status;
-    const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+    const auto ret = Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
     if (ret != CL_SUCCESS)
     {
         oclLog().warning(u"Error in reading cl_event's status: {}\n", oclUtil::GetErrorString(ret));
@@ -113,11 +128,11 @@ inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
 
 common::PromiseState oclPromiseCore::WaitPms() noexcept
 {
-    if (!Event)
+    if (!*Event)
         return common::PromiseState::Invalid;
     if (WaitException)
         return common::PromiseState::Error;
-    const auto ret = clWaitForEvents(1, &Event);
+    const auto ret = Funcs->clWaitForEvents(1, reinterpret_cast<const cl_event*>(&Event));
     if (ret != CL_SUCCESS)
     {
         if (Queue) Queue->Finish();
@@ -132,17 +147,22 @@ bool oclPromiseCore::RegisterCallback(const common::PmsCore& pms)
     if (Queue->Context->Version < 11)
         return false;
     const auto ptr = new common::PmsCore(pms);
-    const auto ret = clSetEventCallback(Event, CL_COMPLETE, &EventCallback, ptr);
+    /*void (CL_CALLBACK * pfn_notify)(cl_event event,
+        cl_int   event_command_status,
+        void* user_data)*/
+    
+    const auto ret = Funcs->clSetEventCallback(*Event, CL_COMPLETE, 
+        reinterpret_cast<void (CL_CALLBACK *)(cl_event, cl_int, void*)>(&EventCallback), ptr);
     return ret == CL_SUCCESS;
 }
 
 [[nodiscard]] uint64_t oclPromiseCore::ElapseNs() noexcept
 {
-    if (Event)
+    if (*Event)
     {
         uint64_t from = 0, to = 0;
-        const auto ret1 = clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &from, nullptr);
-        const auto ret2 = clGetEventProfilingInfo(Event, CL_PROFILING_COMMAND_END,   sizeof(cl_ulong), &to,   nullptr);
+        const auto ret1 = Funcs->clGetEventProfilingInfo(*Event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &from, nullptr);
+        const auto ret2 = Funcs->clGetEventProfilingInfo(*Event, CL_PROFILING_COMMAND_END,   sizeof(cl_ulong), &to,   nullptr);
         if (ret1 == CL_SUCCESS && ret2 == CL_SUCCESS)
             return to - from;
     }
@@ -151,7 +171,7 @@ bool oclPromiseCore::RegisterCallback(const common::PmsCore& pms)
 
 uint64_t oclPromiseCore::QueryTime(oclPromiseCore::TimeType type) const noexcept
 {
-    if (Event)
+    if (*Event)
     {
         cl_profiling_info info = UINT32_MAX;
         switch (type)
@@ -165,7 +185,7 @@ uint64_t oclPromiseCore::QueryTime(oclPromiseCore::TimeType type) const noexcept
         if (info != UINT32_MAX)
         {
             uint64_t time;
-            clGetEventProfilingInfo(Event, info, sizeof(cl_ulong), &time, nullptr);
+            Funcs->clGetEventProfilingInfo(*Event, info, sizeof(cl_ulong), &time, nullptr);
             return time;
         }
     }
@@ -174,10 +194,10 @@ uint64_t oclPromiseCore::QueryTime(oclPromiseCore::TimeType type) const noexcept
 
 std::string_view oclPromiseCore::GetEventName() const noexcept
 {
-    if (Event)
+    if (*Event)
     {
         cl_command_type type;
-        const auto ret = clGetEventInfo(Event, CL_EVENT_COMMAND_TYPE, sizeof(cl_command_type), &type, nullptr);
+        const auto ret = Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_TYPE, sizeof(cl_command_type), &type, nullptr);
         if (ret != CL_SUCCESS)
         {
             oclLog().warning(u"Error in reading cl_event's coommand type: {}\n", oclUtil::GetErrorString(ret));
@@ -229,7 +249,7 @@ std::optional<common::BaseException> oclPromiseCore::GetException() const
 }
 
 
-oclCustomEvent::oclCustomEvent(common::PmsCore&& pms, cl_event evt) : oclPromiseCore({}, evt, {}), Pms(std::move(pms))
+oclCustomEvent::oclCustomEvent(common::PmsCore&& pms, void* evt) : oclPromiseCore({}, evt, {}), Pms(std::move(pms))
 { }
 oclCustomEvent::~oclCustomEvent()
 { }
@@ -238,7 +258,7 @@ void oclCustomEvent::Init()
 {
     Pms->AddCallback([self = std::static_pointer_cast<oclCustomEvent>(shared_from_this())]()
         {
-        clSetUserEventStatus(self->Event, CL_COMPLETE);
+        self->Funcs->clSetUserEventStatus(*self->Event, CL_COMPLETE);
         self->ExecuteCallback();
         });
 }

@@ -1,6 +1,6 @@
 #include "oclPch.h"
+#include "oclPlatform.h"
 #include "oclProgram.h"
-#include "oclException.h"
 #include "oclUtil.h"
 
 namespace oclu
@@ -120,13 +120,13 @@ string_view ArgFlags::GetQualifierName() const noexcept
 #pragma GCC diagnostic pop
 #endif
 
-KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference) : 
+KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::CLKernel> kernel, const KernelArgStore& reference) :
     InfoProv(reference.InfoProv), DebugBuffer(0), HasInfo(true), HasDebug(false)
 {
     uint32_t size = 0;
     {
         size_t dummy = 0;
-        clGetKernelInfo(kernel, CL_KERNEL_NUM_ARGS, sizeof(uint32_t), &size, &dummy);
+        funcs->clGetKernelInfo(*kernel, CL_KERNEL_NUM_ARGS, sizeof(uint32_t), &size, &dummy);
         ArgsInfo.reserve(size);
     }
     static constexpr auto retReporter = [](cl_int ret, std::u16string_view info) 
@@ -134,16 +134,16 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         if (ret != CL_SUCCESS)
             oclLog().warning(u"Recieve [{}] when {}.\n", oclUtil::GetErrorString(ret), info);
     };
-    auto GetKernelArgStr = [tmp = std::string{}](auto kernel, auto idx, cl_kernel_arg_info info) mutable
+    auto GetKernelArgStr = [&, tmp = std::string{}](auto kernel, auto idx, cl_kernel_arg_info info) mutable
     {
         tmp.resize(255, '\0'); // in case not returning correct length
         size_t length = 0;
         cl_int clRet;
-        clRet = clGetKernelArgInfo(kernel, idx, info, 0, nullptr, &length);
+        clRet = funcs->clGetKernelArgInfo(*kernel, idx, info, 0, nullptr, &length);
         retReporter(clRet, u"get length"sv);
         if (length > 255) tmp.resize(length, '\0');
         // Mali require size to be at least sizeof(char[]), although it does not return length when query.
-        clRet = clGetKernelArgInfo(kernel, idx, info, tmp.size(), tmp.data(), &length);
+        clRet = funcs->clGetKernelArgInfo(*kernel, idx, info, tmp.size(), tmp.data(), &length);
         retReporter(clRet, u"get str"sv);
         return std::string_view(tmp.data(), length > 0 ? length - 1 : 0);
     };
@@ -154,7 +154,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         size_t dummy = 0;
         cl_int clRet;
         cl_kernel_arg_address_qualifier space;
-        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
+        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
         retReporter(clRet, u"get arg addr qualifier"sv);
         switch (space)
         {
@@ -165,7 +165,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
         }
 
         cl_kernel_arg_access_qualifier access;
-        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
+        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
         retReporter(clRet, u"get arg access qualifier"sv);
         switch (access)
         {
@@ -178,7 +178,7 @@ KernelArgStore::KernelArgStore(cl_kernel kernel, const KernelArgStore& reference
             info.ArgType = KerArgType::Image;
 
         cl_kernel_arg_type_qualifier qualifier;
-        clRet = clGetKernelArgInfo(kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
+        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
         retReporter(clRet, u"get arg type qualifier"sv);
         info.Qualifier = static_cast<KerArgFlag>(qualifier);
 
@@ -328,9 +328,9 @@ std::unique_ptr<xcomp::debug::DebugPackage> CallResult::GetDebugData(const bool 
 }
 
 
-static void GetWorkGroupInfo(WorkGroupInfo& info, const cl_kernel kerId, const oclDevice dev)
+static void GetWorkGroupInfo(const detail::PlatFuncs* funcs, WorkGroupInfo& info, const cl_kernel kerId, const oclDevice dev)
 {
-#define GetInfo(name, field) clGetKernelWorkGroupInfo(kerId, *dev, name, sizeof(info.field), &info.field, nullptr)
+#define GetInfo(name, field) funcs->clGetKernelWorkGroupInfo(kerId, *dev->DeviceID, name, sizeof(info.field), &info.field, nullptr)
     GetInfo(CL_KERNEL_LOCAL_MEM_SIZE,                       LocalMemorySize);
     GetInfo(CL_KERNEL_PRIVATE_MEM_SIZE,                     PrivateMemorySize);
     GetInfo(CL_KERNEL_WORK_GROUP_SIZE,                      WorkGroupSize);
@@ -342,12 +342,12 @@ static void GetWorkGroupInfo(WorkGroupInfo& info, const cl_kernel kerId, const o
         info.SpillMemSize = 0;
 }
 
-oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_kernel kerID, string name, KernelArgStore&& argStore) :
-    Plat(*plat), Prog(*prog), KernelID(kerID), ReqDbgBufSize(0), Name(std::move(name))
+oclKernel_::oclKernel_(const oclProgram_* prog, void* kerID, string name, KernelArgStore&& argStore) :
+    detail::oclCommon(*prog), Kernel(kerID), Program(*prog), ReqDbgBufSize(0), Name(std::move(name))
 {
-    GetWorkGroupInfo(WgInfo, KernelID, Prog.Device);
-    if (Prog.Context->Version >= 12)
-        ArgStore = KernelArgStore(KernelID, argStore);
+    GetWorkGroupInfo(Funcs, WgInfo, *Kernel, Program.Device);
+    if (Program.Context->Version >= 12)
+        ArgStore = KernelArgStore(Funcs, *Kernel, argStore);
     else if (argStore.HasInfo)
     {
         oclLog().verbose(u"use external arg-info for kernel [{}].\n", Name);
@@ -358,21 +358,21 @@ oclKernel_::oclKernel_(const oclPlatform_* plat, const oclProgram_* prog, cl_ker
 
 oclKernel_::~oclKernel_()
 {
-    clReleaseKernel(KernelID);
+    clReleaseKernel(*Kernel);
 }
 
 std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const
 {
-    if (!Plat.FuncClGetKernelSubGroupInfo)
+    if (!Funcs->clGetKernelSubGroupInfoKHR)
         return {};
-    if (!Prog.Device->Extensions.Has("cl_khr_subgroups"sv) && !Prog.Device->Extensions.Has("cl_intel_subgroups"sv))
+    if (!Program.Device->Extensions.Has("cl_khr_subgroups"sv) && !Program.Device->Extensions.Has("cl_intel_subgroups"sv))
         return {};
     SubgroupInfo info;
-    const cl_device_id devid = *Prog.Device;
-    Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
-    Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
-    if (Prog.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
-        Plat.FuncClGetKernelSubGroupInfo(KernelID, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
+    const cl_device_id devid = *Program.Device->DeviceID;
+    Funcs->clGetKernelSubGroupInfoKHR(*Kernel, devid, CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupSize, nullptr);
+    Funcs->clGetKernelSubGroupInfoKHR(*Kernel, devid, CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE_KHR, sizeof(size_t) * dim, localsize, sizeof(size_t), &info.SubgroupCount, nullptr);
+    if (Program.Device->Extensions.Has("cl_intel_required_subgroup_size"sv))
+        Funcs->clGetKernelSubGroupInfoKHR(*Kernel, devid, CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, 0, nullptr, sizeof(size_t), &info.CompiledSubgroupSize, nullptr);
     else
         info.CompiledSubgroupSize = 0;
     return info;
@@ -381,7 +381,7 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const
 
 
 oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
-    Kernel(kernel->Prog.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
+    Kernel(kernel->Program.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
 {
 }
 
@@ -389,7 +389,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclSubBuffer
 {
     if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Buffer))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"buffer is set to a non-buffer kernel argument slot");
-    auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &buf.MemID);
+    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
@@ -398,7 +398,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & 
 {
     if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Image))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"image is set to an non-image kernel argument slot");
-    auto ret = clSetKernelArg(Kernel->KernelID, idx, sizeof(cl_mem), &img.MemID);
+    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
@@ -408,7 +408,7 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
     if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Simple))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"simple is set to an non-simple kernel argument slot");
     Kernel->ArgStore.GetArg(idx);
-    auto ret = clSetKernelArg(Kernel->KernelID, idx, size, dat);
+    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, size, dat);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
@@ -416,13 +416,13 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
 PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, DependEvents depend,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
-    if (Kernel->Prog.Device != que->Device)
+    if (Kernel->Program.Device != que->Device)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"queue's device is not the same as this kernel");
 
     CallResult result;
     if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
     {
-        result.DebugMan = Kernel->Prog.DebugMan;
+        result.DebugMan = Kernel->Program.DebugMan;
         result.InfoProv = Kernel->ArgStore.InfoProv;
         result.Kernel = this->Kernel;
         result.Queue = que;
@@ -432,9 +432,9 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
         const uint32_t dbgBufCnt = Kernel->ReqDbgBufSize * 1024u / sizeof(uint32_t);
         result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, tmp.size(), tmp.data());
         result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, dbgBufCnt * sizeof(uint32_t));
-        clSetKernelArg(Kernel->KernelID, startIdx + 0, sizeof(uint32_t), &dbgBufCnt);
-        clSetKernelArg(Kernel->KernelID, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
-        clSetKernelArg(Kernel->KernelID, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
+        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 0, sizeof(uint32_t), &dbgBufCnt);
+        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
+        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
     }
 
     cl_int ret;
@@ -446,7 +446,8 @@ PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, D
         oclLog().warning(FMT_STRING(u"passing nullptr to LocalSize, while attributes shows [{},{},{}]\n"), 
             localsize[0], localsize[1], localsize[2]);
     }
-    ret = clEnqueueNDRangeKernel(que->CmdQue, Kernel->KernelID, dim, workoffset, worksize, localsize, evtCnt, evtPtr, &e);
+    ret = Kernel->Funcs->clEnqueueNDRangeKernel(*que->CmdQue, *Kernel->Kernel, dim, workoffset, worksize, localsize, 
+        evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
     return oclPromise<CallResult>::Create(std::move(depend), e, que, std::move(result));
@@ -474,22 +475,22 @@ oclKernel_::KernelDynCallSiteInternal::KernelDynCallSiteInternal(const oclKernel
 
 
 oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
-    : Context(ctx), Device(dev), Source(std::move(str)), ProgID(nullptr)
+    : Context(ctx), Device(dev), Source(std::move(str)), Program(nullptr)
 {
     cl_int errcode;
     auto* ptr = Source.c_str();
     size_t size = Source.length();
-    ProgID = clCreateProgramWithSource(Context->Context, 1, &ptr, &size, &errcode);
+    Program = Context->Funcs->clCreateProgramWithSource(*Context->Context, 1, &ptr, &size, &errcode);
     if (errcode != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, errcode, u"cannot create program");
 }
 
 oclProgStub::~oclProgStub()
 {
-    if (ProgID)
+    if (*Program)
     {
         oclLog().warning(u"oclProg released before finished.\n");
-        clReleaseProgram(ProgID);
+        Context->Funcs->clReleaseProgram(*Program);
     }
 }
 
@@ -533,18 +534,18 @@ void oclProgStub::Build(const CLProgConfig& config)
         options.append(flag).append(" "sv);
     fmt::format_to(std::back_inserter(options), "-cl-std=CL{}.{} ", cver / 10, cver % 10);
     
-    const cl_device_id devid = *Device;
-    cl_int ret = clBuildProgram(ProgID, 1, &devid, options.c_str(), nullptr, nullptr);
+    const cl_device_id devid = *Device->DeviceID;
+    cl_int ret = Context->Funcs->clBuildProgram(*Program, 1, &devid, options.c_str(), nullptr, nullptr);
 
     std::vector<oclDevice> devs2;
     u16string buildlog = Device->Name + u":\n" + GetBuildLog();
     if (ret == CL_SUCCESS)
     {
-        oclLog().success(u"build program {:p} success:\n{}\n", (void*)ProgID, buildlog);
+        oclLog().success(u"build program {:p} success:\n{}\n", (void*)*Program, buildlog);
     }
     else
     {
-        oclLog().error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)ProgID, options, buildlog);
+        oclLog().error(u"build program {:p} failed:\nwith option:\t{}\n{}\n", (void*)*Program, options, buildlog);
         common::SharedString<char16_t> log(buildlog);
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"Build Program failed")
             .Attach("dev", Device)
@@ -557,7 +558,7 @@ void oclProgStub::Build(const CLProgConfig& config)
 
 std::u16string oclProgStub::GetBuildLog() const
 { 
-    return oclProgram_::GetProgBuildLog(ProgID, *Device); 
+    return oclProgram_::GetProgBuildLog(Context->Funcs, Program, Device->DeviceID); 
 }
 
 oclProgram oclProgStub::Finish()
@@ -566,11 +567,11 @@ oclProgram oclProgStub::Finish()
 }
 
 
-u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev)
+u16string oclProgram_::GetProgBuildLog(const detail::PlatFuncs* funcs, CLHandle<detail::CLProgram> progID, CLHandle<detail::CLDevice> dev)
 {
     u16string result;
     cl_build_status status = CL_BUILD_NONE;
-    clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
+    funcs->clGetProgramBuildInfo(*progID, *dev, CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr);
     switch (status)
     {
     case CL_BUILD_NONE:     return u"Not been built yet";
@@ -579,36 +580,36 @@ u16string oclProgram_::GetProgBuildLog(cl_program progID, const cl_device_id dev
     default:                return u"";
     }
     size_t logsize;
-    clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
+    funcs->clGetProgramBuildInfo(*progID, *dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &logsize);
     if (logsize > 0)
     {
         string logstr(logsize, '\0');
-        clGetProgramBuildInfo(progID, dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
+        funcs->clGetProgramBuildInfo(*progID, *dev, CL_PROGRAM_BUILD_LOG, logstr.size(), logstr.data(), &logsize);
         logstr.pop_back();
         result.append(common::str::to_u16string(logstr, common::str::Encoding::UTF8));
     }
     return result;
 }
 
-oclProgram_::oclProgram_(oclProgStub* stub) : 
-    Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)), ProgID(stub->ProgID),
+oclProgram_::oclProgram_(oclProgStub* stub) : detail::oclCommon(*stub->Context), Program(stub->Program),
+    Context(std::move(stub->Context)), Device(std::move(stub->Device)), Source(std::move(stub->Source)),
     DebugMan(std::move(stub->DebugMan))
 {
-    stub->ProgID = nullptr;
+    stub->Program = nullptr;
 
     cl_uint numKernels;
-    clCreateKernelsInProgram(ProgID, 0, nullptr, &numKernels);
+    Funcs->clCreateKernelsInProgram(*Program, 0, nullptr, &numKernels);
     std::vector<cl_kernel> kernelIDs;
     kernelIDs.resize(numKernels);
-    clCreateKernelsInProgram(ProgID, numKernels, kernelIDs.data(), &numKernels);
+    Funcs->clCreateKernelsInProgram(*Program, numKernels, kernelIDs.data(), &numKernels);
     KernelNames.reserve(numKernels);
 
     for (const auto kerID : kernelIDs)
     {
         size_t strSize = 0;
-        clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, 0, nullptr, &strSize);
+        Funcs->clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, 0, nullptr, &strSize);
         std::string name; name.resize(strSize, '\0');
-        clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, strSize, name.data(), &strSize);
+        Funcs->clGetKernelInfo(kerID, CL_KERNEL_FUNCTION_NAME, strSize, name.data(), &strSize);
         if (strSize > 0 && name.back() == '\0') 
             name.pop_back();
 
@@ -621,14 +622,14 @@ oclProgram_::oclProgram_(oclProgStub* stub) :
                 break;
             }
         }
-        Kernels.emplace_back(MAKE_ENABLER_UNIQUE(oclKernel_, (Context->Plat.get(), this, kerID, name, std::move(argInfo))));
+        Kernels.emplace_back(MAKE_ENABLER_UNIQUE(oclKernel_, (this, kerID, name, std::move(argInfo))));
         KernelNames.emplace_back(std::move(name));
     }
 }
 
 oclProgram_::~oclProgram_()
 {
-    clReleaseProgram(ProgID);
+    Funcs->clReleaseProgram(*Program);
 }
 
 oclKernel oclProgram_::GetKernel(const string_view& name) const
@@ -644,27 +645,27 @@ std::vector<std::byte> oclProgram_::GetBinary() const
     std::vector<std::byte> ret;
     uint32_t devCnt = 0;
 #define CHK_SUC(x) if (x != CL_SUCCESS) return ret
-    CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &devCnt, nullptr));
+    CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &devCnt, nullptr));
     if (devCnt == 1)
     {
         size_t size = 0;
-        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARY_SIZES, sizeof(size), &size, nullptr));
+        CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_BINARY_SIZES, sizeof(size), &size, nullptr));
         ret.resize(size);
         auto ptr = ret.data();
-        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARIES, sizeof(ptr), &ptr, nullptr));
+        CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_BINARIES, sizeof(ptr), &ptr, nullptr));
         return ret;
     }
     else if (devCnt > 1) 
     {
         std::vector<size_t> sizes; sizes.resize(devCnt, 0);
-        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARY_SIZES, sizeof(size_t) * devCnt, sizes.data(), nullptr));
+        CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t) * devCnt, sizes.data(), nullptr));
         std::vector<cl_device_id> devs; devs.resize(devCnt);
-        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * devCnt, devs.data(), nullptr));
+        CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * devCnt, devs.data(), nullptr));
         std::vector<std::byte*> ptrs; ptrs.resize(devCnt, nullptr);
         size_t idx = 0;
         for (const auto dev : devs)
         {
-            if (dev == *Device)
+            if (dev == *Device->DeviceID)
             {
                 ret.resize(sizes[idx]);
                 ptrs[idx] = ret.data();
@@ -672,7 +673,7 @@ std::vector<std::byte> oclProgram_::GetBinary() const
             }
             idx++;
         }
-        CHK_SUC(clGetProgramInfo(ProgID, CL_PROGRAM_BINARIES, sizeof(std::byte*) * devCnt, ptrs.data(), nullptr));
+        CHK_SUC(Funcs->clGetProgramInfo(*Program, CL_PROGRAM_BINARIES, sizeof(std::byte*) * devCnt, ptrs.data(), nullptr));
         return ret;
     }
     return ret;

@@ -1,11 +1,13 @@
 #include "oclPch.h"
 #include "oclUtil.h"
 #include "oclPromise.h"
+#include "oclPlatform.h"
 //#include "3rdParty/CL/cl_dx9_media_sharing.h"
 //#include "3rdParty/CL/cl_d3d10.h"
 //#include "3rdParty/CL/cl_d3d11.h"
 #include "3rdParty/CL/cl_egl.h"
 //#include "3rdParty/CL/cl_va_api_media_sharing_intel.h"
+
 
 namespace oclu
 {
@@ -15,8 +17,6 @@ using std::string_view;
 using std::u16string_view;
 using std::vector;
 
-MAKE_ENABLER_IMPL(oclPlatform_)
-
 
 common::mlog::MiniLogger<false>& oclUtil::GetOCLLog()
 {
@@ -25,7 +25,7 @@ common::mlog::MiniLogger<false>& oclUtil::GetOCLLog()
 
 void oclUtil::LogCLInfo()
 {
-    for (const auto& plat : GetPlatforms())
+    for (const auto& plat : oclPlatform_::GetPlatforms())
     {
         auto strBuf = FMTSTR(u"\nPlatform {} --- {}\n", plat->Name, plat->Ver);
         for (const auto dev : plat->GetDevices())
@@ -35,33 +35,9 @@ void oclUtil::LogCLInfo()
     }
 }
 
-const vector<oclPlatform>& oclUtil::GetPlatforms()
-{
-    static vector<oclPlatform> Plats = []()
-    {
-        vector<oclPlatform> plats;
-        cl_uint numPlatforms = 0;
-        clGetPlatformIDs(0, nullptr, &numPlatforms);
-        //Get all Platforms
-        vector<cl_platform_id> platformIDs(numPlatforms);
-        clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
-        for (const auto& pID : platformIDs)
-        {
-            auto plt = MAKE_ENABLER_SHARED(oclPlatform_, (pID));
-            try
-            {
-                plt->InitDevice();
-                plats.emplace_back(std::move(plt));
-            }
-            catch (const std::exception& ex)
-            {
-                oclLog().error(FMT_STRING(u"Failed to init platform [{}]:\n {}\n"), plt->Name, ex.what());
-            }
-        }
-        return plats;
-    }();
-    return Plats;
-}
+OCLException::OCLException(const CLComponent source, int32_t errcode, std::u16string msg)
+    : BaseException(T_<ExceptionInfo>{}, msg.append(u" --ERROR: ").append(oclUtil::GetErrorString(errcode)), source)
+{ }
 
 
 using namespace std::literals;
@@ -182,8 +158,9 @@ void oclUtil::WaitMany(common::PromiseStub promises)
     DependEvents evts(promises);
     evts.FlushAllQueues();
     const auto [evtPtr, evtCnt] = evts.GetWaitList();
-    clWaitForEvents(evtCnt, evtPtr);
+    clWaitForEvents(evtCnt, reinterpret_cast<const cl_event*>(evtPtr));
 }
 
+constexpr auto klp = sizeof(detail::PlatFuncs);
 
 }

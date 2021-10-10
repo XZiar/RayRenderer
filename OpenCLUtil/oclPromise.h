@@ -19,34 +19,43 @@ template<typename T>
 class oclPromise;
 
 
-class OCLUAPI COMMON_EMPTY_BASES DependEvents : public common::NonCopyable
+class OCLUAPI COMMON_EMPTY_BASES DependEvents
 {
     friend class oclPromiseCore;
 private:
-    std::vector<cl_event> Events;
+    std::vector<CLHandle<detail::CLEvent>> Events;
     std::vector<oclCmdQue> Queues;
+    const detail::PlatFuncs* Funcs = nullptr;
 public:
-    DependEvents(const common::PromiseStub& pmss) noexcept;
+    DependEvents(const common::PromiseStub& pmss);
     DependEvents() noexcept;
+    COMMON_NO_COPY(DependEvents)
+    COMMON_DEF_MOVE(DependEvents)
 
-    [[nodiscard]] std::pair<const cl_event*, cl_uint> GetWaitList() const noexcept
+    [[nodiscard]] std::pair<const CLHandle<detail::CLEvent>*, uint32_t> GetWaitList() const noexcept
     {
         return { Events.data(), gsl::narrow_cast<uint32_t>(Events.size()) };
     }
     void FlushAllQueues() const;
 };
 
-class OCLUAPI oclPromiseCore : public common::PromiseProvider
+class OCLUAPI oclPromiseCore : public common::PromiseProvider, public detail::oclCommon
 {
     friend class oclBuffer_;
     friend class oclImage_;
     friend class oclKernel_;
     friend class DependEvents;
 private:
-    static void CL_CALLBACK EventCallback(cl_event event, cl_int event_command_exec_status, void* user_data);
+#if COMMON_OS_WIN
+#   define CBEXTRA __stdcall
+#else
+#   define CBEXTRA
+#endif
+    static void CBEXTRA EventCallback(void* event, int32_t event_command_exec_status, void* user_data);
+    [[nodiscard]] const oclPlatform_* GetPlatform() noexcept;
 protected:
     DependEvents Depends;
-    const cl_event Event;
+    const CLHandle<detail::CLEvent> Event;
     const oclCmdQue Queue;
     std::shared_ptr<common::ExceptionBasicInfo> WaitException;
     bool IsException;
@@ -56,7 +65,7 @@ protected:
     [[nodiscard]] common::PromiseState WaitPms() noexcept override;
     [[nodiscard]] uint64_t ElapseNs() noexcept override;
 public:
-    oclPromiseCore(DependEvents&& depend, const cl_event e, oclCmdQue que, const bool isException = false);
+    oclPromiseCore(DependEvents&& depend, void* e, oclCmdQue que, const bool isException = false);
     ~oclPromiseCore();
     enum class TimeType { Queued, Submit, Start, End };
     uint64_t QueryTime(TimeType type) const noexcept;
@@ -88,7 +97,7 @@ private:
     }
     void GetResult() override 
     { }
-    oclCustomEvent(common::PmsCore&& pms, cl_event evt);
+    oclCustomEvent(common::PmsCore&& pms, void* evt);
     void Init();
 public:
     ~oclCustomEvent() override;
@@ -119,11 +128,11 @@ public:
     {
         Holder.SetException(ex);
     }
-    oclPromise(DependEvents&& depend, const cl_event e, const oclCmdQue& que) : 
+    oclPromise(DependEvents&& depend, void* e, const oclCmdQue& que) :
         Promise(std::move(depend), e, que)
     { }
     template<typename U>
-    oclPromise(DependEvents&& depend, const cl_event e, const oclCmdQue& que, U&& data) : 
+    oclPromise(DependEvents&& depend, void* e, const oclCmdQue& que, U&& data) :
         Promise(std::move(depend), e, que)
     {
         Holder.Result = std::forward<U>(data);
@@ -138,24 +147,24 @@ public:
     {
         return std::make_shared<oclPromise>(ex);
     }
-    [[nodiscard]] static std::shared_ptr<oclPromise> Create(const cl_event e, oclCmdQue que)
+    [[nodiscard]] static std::shared_ptr<oclPromise> Create(void* e, oclCmdQue que)
     {
         static_assert(std::is_same_v<T, void>, "Need return value");
         return std::make_shared<oclPromise>(std::monostate{}, e, que);
     }
     template<typename U>
-    [[nodiscard]] static std::shared_ptr<oclPromise> Create(const cl_event e, oclCmdQue que, U&& data)
+    [[nodiscard]] static std::shared_ptr<oclPromise> Create(void* e, oclCmdQue que, U&& data)
     {
         static_assert(!std::is_same_v<T, void>, "Don't want return value");
         return std::make_shared<oclPromise>(std::monostate{}, e, que, std::forward<U>(data));
     }
-    [[nodiscard]] static std::shared_ptr<oclPromise> Create(DependEvents&& depend, const cl_event e, oclCmdQue que)
+    [[nodiscard]] static std::shared_ptr<oclPromise> Create(DependEvents&& depend, void* e, oclCmdQue que)
     {
         static_assert(std::is_same_v<T, void>, "Need return value");
         return std::make_shared<oclPromise>(std::move(depend), e, que);
     }
     template<typename U>
-    [[nodiscard]] static std::shared_ptr<oclPromise> Create(DependEvents&& depend, const cl_event e, oclCmdQue que, U&& data)
+    [[nodiscard]] static std::shared_ptr<oclPromise> Create(DependEvents&& depend, void* e, oclCmdQue que, U&& data)
     {
         static_assert(!std::is_same_v<T, void>, "Don't want return value");
         return std::make_shared<oclPromise>(std::move(depend), e, que, std::forward<U>(data));
