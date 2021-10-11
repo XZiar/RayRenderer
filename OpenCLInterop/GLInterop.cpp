@@ -34,9 +34,8 @@ GLInterop::GLResLocker::~GLResLocker()
     if (!Queue->SupportImplicitGLSync())
         Queue->Flush(); // assume promise is correctly waited before relase lock
     cl_event evt = nullptr;
-    cl_int ret = Funcs->clEnqueueReleaseGLObjects(*Queue->CmdQue, 1, &Mem, 0, nullptr, &evt);
-    if (ret != CL_SUCCESS)
-        oclUtil::GetOCLLog().error(u"cannot unlock oglObject for oclObject : {}\n", oclUtil::GetErrorString(ret));
+    LogCLError(Funcs->clEnqueueReleaseGLObjects(*Queue->CmdQue, 1, &Mem, 0, nullptr, &evt),
+            u"Failed to unlock oglObject for oclObject");
     if (evt)
         Funcs->clWaitForEvents(1, &evt);
 }
@@ -95,16 +94,16 @@ oclDevice GLInterop::GetGLDevice(const oclPlatform_& plat, const vector<cl_conte
 {
     if (!plat.Funcs->clGetGLContextInfoKHR || !plat.Extensions.Has("cl_khr_gl_sharing") || 
         plat.BeignetFix/*beignet didn't implement that*/)
-        return {};
+        return nullptr;
     {
         cl_device_id dID;
         size_t retSize = 0;
         const auto ret = plat.Funcs->clGetGLContextInfoKHR(props.data(), CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR, sizeof(cl_device_id), &dID, &retSize);
-        if (ret == CL_SUCCESS && retSize)
+        if (ret == CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
+            return nullptr; // no gl context, simply return
+        if (LogCLError(ret, u"Failed to get current device for glContext") && retSize)
             if (auto dev = FindInVec(plat.Devices, [=](const oclDevice_& dev) { return *dev.DeviceID == dID; }); dev)
                 return dev;
-        if (ret != CL_SUCCESS && ret != CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR)
-            oclUtil::GetOCLLog().warning(u"Failed to get current device for glContext: [{}]\n", oclUtil::GetErrorString(ret));
     }
     //try context that may be associated 
     /*{

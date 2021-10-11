@@ -147,7 +147,7 @@ SubgroupCapbility::SubgroupCapbility(oclDevice dev) noexcept :
 
 
 NLCLContext::NLCLContext(oclDevice dev, const common::CLikeDefines& info) :
-    xcomp::XCNLContext(info), detail::oclCommon(*Device), Device(dev),
+    xcomp::XCNLContext(info), detail::oclCommon(*dev), Device(dev),
     SupportFP16(Device->Extensions.Has("cl_khr_fp16")),
     SupportFP64(Device->Extensions.Has("cl_khr_fp64") || Device->Extensions.Has("cl_amd_fp64")),
     SupportNVUnroll(Device->Extensions.Has("cl_nv_pragma_unroll")),

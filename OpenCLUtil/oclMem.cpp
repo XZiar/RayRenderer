@@ -48,9 +48,8 @@ oclMem_::oclMapPtr_::oclMapPtr_(oclCmdQue&& que, oclMem_* mem, const MapFlag map
 oclMem_::oclMapPtr_::~oclMapPtr_()
 {
     cl_event e;
-    const auto ret = Mem.Funcs->clEnqueueUnmapMemObject(*Queue->CmdQue, *Mem.MemID, MemSpace.data(), 0, nullptr, &e);
-    if (ret != CL_SUCCESS)
-        oclLog().error(u"cannot unmap clObject : {}\n", oclUtil::GetErrorString(ret));
+    LogCLError(Mem.Funcs->clEnqueueUnmapMemObject(*Queue->CmdQue, *Mem.MemID, MemSpace.data(), 0, nullptr, &e),
+        u"cannot unmap clObject");
 }
 
 

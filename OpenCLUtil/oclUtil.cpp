@@ -23,6 +23,16 @@ common::mlog::MiniLogger<false>& oclUtil::GetOCLLog()
     return oclLog();
 }
 
+bool LogCLError(cl_int err, std::u16string_view msg)
+{
+    if (err != CL_SUCCESS)
+    {
+        oclLog().error(u"{}: [{}]({})\n", msg, oclUtil::GetErrorString(err), err);
+        return false;
+    }
+    return true;
+}
+
 void oclUtil::LogCLInfo()
 {
     for (const auto& plat : oclPlatform_::GetPlatforms())
@@ -142,14 +152,6 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     default:    return u"Unknown OpenCL error"sv;
 #undef RET_ERR
     }
-}
-
-namespace detail
-{
-std::u16string_view GetCLErrorString(const cl_int err)
-{
-    return oclUtil::GetErrorString(err);
-}
 }
 
 

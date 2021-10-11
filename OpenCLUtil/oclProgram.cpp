@@ -129,22 +129,16 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
         funcs->clGetKernelInfo(*kernel, CL_KERNEL_NUM_ARGS, sizeof(uint32_t), &size, &dummy);
         ArgsInfo.reserve(size);
     }
-    static constexpr auto retReporter = [](cl_int ret, std::u16string_view info) 
-    {
-        if (ret != CL_SUCCESS)
-            oclLog().warning(u"Recieve [{}] when {}.\n", oclUtil::GetErrorString(ret), info);
-    };
     auto GetKernelArgStr = [&, tmp = std::string{}](auto kernel, auto idx, cl_kernel_arg_info info) mutable
     {
         tmp.resize(255, '\0'); // in case not returning correct length
         size_t length = 0;
-        cl_int clRet;
-        clRet = funcs->clGetKernelArgInfo(*kernel, idx, info, 0, nullptr, &length);
-        retReporter(clRet, u"get length"sv);
+        LogCLError(funcs->clGetKernelArgInfo(*kernel, idx, info, 0, nullptr, &length),
+            u"error when get length");
         if (length > 255) tmp.resize(length, '\0');
         // Mali require size to be at least sizeof(char[]), although it does not return length when query.
-        clRet = funcs->clGetKernelArgInfo(*kernel, idx, info, tmp.size(), tmp.data(), &length);
-        retReporter(clRet, u"get str"sv);
+        LogCLError(funcs->clGetKernelArgInfo(*kernel, idx, info, tmp.size(), tmp.data(), &length),
+            u"error when get str");
         return std::string_view(tmp.data(), length > 0 ? length - 1 : 0);
     };
     for (uint32_t i = 0; i < size; ++i)
@@ -152,10 +146,10 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
         ArgInfo info;
 
         size_t dummy = 0;
-        cl_int clRet;
         cl_kernel_arg_address_qualifier space;
-        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy);
-        retReporter(clRet, u"get arg addr qualifier"sv);
+        
+        LogCLError(funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(space), &space, &dummy),
+            u"error when get arg addr qualifier");
         switch (space)
         {
         case CL_KERNEL_ARG_ADDRESS_GLOBAL:      info.Space = KerArgSpace::Global;   break;
@@ -165,8 +159,8 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
         }
 
         cl_kernel_arg_access_qualifier access;
-        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy);
-        retReporter(clRet, u"get arg access qualifier"sv);
+        LogCLError(funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_ACCESS_QUALIFIER, sizeof(access), &access, &dummy),
+            u"error when get arg access qualifier");
         switch (access)
         {
         case CL_KERNEL_ARG_ACCESS_READ_ONLY:    info.Access = ImgAccess::ReadOnly;  break;
@@ -178,8 +172,8 @@ KernelArgStore::KernelArgStore(const detail::PlatFuncs* funcs, CLHandle<detail::
             info.ArgType = KerArgType::Image;
 
         cl_kernel_arg_type_qualifier qualifier;
-        clRet = funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy);
-        retReporter(clRet, u"get arg type qualifier"sv);
+        LogCLError(funcs->clGetKernelArgInfo(*kernel, i, CL_KERNEL_ARG_TYPE_QUALIFIER, sizeof(qualifier), &qualifier, &dummy),
+            u"error when get arg type qualifier");
         info.Qualifier = static_cast<KerArgFlag>(qualifier);
 
         info.Name = ArgTexts.AllocateString(GetKernelArgStr(kernel, i, CL_KERNEL_ARG_NAME));
@@ -475,7 +469,7 @@ oclKernel_::KernelDynCallSiteInternal::KernelDynCallSiteInternal(const oclKernel
 
 
 oclProgStub::oclProgStub(const oclContext& ctx, const oclDevice& dev, string&& str)
-    : Context(ctx), Device(dev), Source(std::move(str)), Program(nullptr)
+    : Context(ctx), Device(dev), Source(std::move(str))
 {
     cl_int errcode;
     auto* ptr = Source.c_str();

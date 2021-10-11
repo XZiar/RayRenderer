@@ -756,8 +756,17 @@ SubgroupProvider::TypedAlgoResult SubgroupProvider::HandleSubgroupOperation(VecD
                 const VecDataInfo vectorUType{ VecDataInfo::DataTypes::Unsigned, bit, newDim0, 0 };
                 if (auto ret = HandleSubgroupOperation<Op, true>(vectorUType, algoCheck, std::forward<Args>(args)...); ret)
                 {
-                    ret.SrcType = scalarUType;
-                    return ret;
+                    if (vtype.Dim0 > 1)
+                    {
+                        auto result = VectorizePatch<Op>(vtype, ret, std::forward<Args>(args)...);
+                        result.SrcType = vtype;
+                        return result;
+                    }
+                    else
+                    {
+                        ret.SrcType = scalarUType;
+                        return ret;
+                    }
                 }
             }
         }

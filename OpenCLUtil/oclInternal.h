@@ -72,5 +72,6 @@ public:
 
 }
 
+OCLUAPI bool LogCLError(cl_int err, std::u16string_view msg);
 
 }

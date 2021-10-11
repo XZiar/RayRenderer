@@ -88,7 +88,7 @@ oclContext_::~oclContext_()
     else
         oclLog().warning(u"oclContext {:p} named {}, has {} reference and not able to release.\n", (void*)*Context, GetPlatformName(), refCount);
 #else
-    clReleaseContext(Context);
+    Funcs->clReleaseContext(*Context);
 #endif
 }
 

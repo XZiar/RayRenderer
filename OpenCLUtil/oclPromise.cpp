@@ -105,12 +105,9 @@ inline void oclPromiseCore::MakeActive(common::PmsCore&& pms)
     if (IsException)
         return PromiseState::Error;
     cl_int status;
-    const auto ret = Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
-    if (ret != CL_SUCCESS)
-    {
-        oclLog().warning(u"Error in reading cl_event's status: {}\n", oclUtil::GetErrorString(ret));
+    if (!LogCLError(Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr),
+        u"Error in reading cl_event's status"))
         return PromiseState::Invalid;
-    }
     if (status < 0)
     {
         oclLog().warning(u"cl_event's status shows an error: {}\n", oclUtil::GetErrorString(status));
@@ -197,12 +194,9 @@ std::string_view oclPromiseCore::GetEventName() const noexcept
     if (*Event)
     {
         cl_command_type type;
-        const auto ret = Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_TYPE, sizeof(cl_command_type), &type, nullptr);
-        if (ret != CL_SUCCESS)
-        {
-            oclLog().warning(u"Error in reading cl_event's coommand type: {}\n", oclUtil::GetErrorString(ret));
-            return "Error";
-        }
+        if (!LogCLError(Funcs->clGetEventInfo(*Event, CL_EVENT_COMMAND_TYPE, sizeof(cl_command_type), &type, nullptr),
+            u"Error in reading cl_event's coommand type"))
+            return "Error"sv;
         switch (type)
         {
         case CL_COMMAND_NDRANGE_KERNEL:         return "NDRangeKernel"sv;

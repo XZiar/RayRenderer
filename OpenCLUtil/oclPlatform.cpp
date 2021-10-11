@@ -157,7 +157,9 @@ oclPlatform_::oclPlatform_(const detail::PlatFuncs* funcs, void* pID) :
 void oclPlatform_::InitDevice()
 {
     cl_uint numDevices;
-    Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
+    if (!LogCLError(Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices),
+        u"Failed to get device ids"))
+        return;
     // Get all Device Info
     vector<cl_device_id> DeviceIDs(numDevices);
     Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, numDevices, DeviceIDs.data(), nullptr);

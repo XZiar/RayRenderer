@@ -330,7 +330,7 @@ private:
     oclKernel_(const oclProgram_* prog, void* kerID, std::string name, KernelArgStore&& argStore);
 public:
     COMMON_NO_COPY(oclKernel_)
-    COMMON_DEF_MOVE(oclKernel_)
+    COMMON_NO_MOVE(oclKernel_)
     ~oclKernel_();
 
     [[nodiscard]] std::optional<SubgroupInfo> GetSubgroupInfo(const uint8_t dim, const size_t* localsize) const;
@@ -440,7 +440,7 @@ private:
     };
 public:
     COMMON_NO_COPY(oclProgram_)
-    COMMON_DEF_MOVE(oclProgram_)
+    COMMON_NO_MOVE(oclProgram_)
     ~oclProgram_();
     [[nodiscard]] std::string_view GetSource() const noexcept { return Source; }
     [[nodiscard]] oclKernel GetKernel(const std::string_view& name) const;
