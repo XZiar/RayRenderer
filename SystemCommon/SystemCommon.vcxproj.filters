@@ -21,9 +21,6 @@
     <ClCompile Include="LoopBase.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ColorConsole.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ThreadEx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -84,9 +81,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="LoopBase.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ColorConsole.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ThreadEx.h">

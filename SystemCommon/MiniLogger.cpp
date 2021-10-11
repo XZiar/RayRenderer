@@ -3,7 +3,7 @@
 #include "MiniLoggerBackend.h"
 #include "FileEx.h"
 #include "ThreadEx.h"
-#include "ColorConsole.h"
+#include "ConsoleEx.h"
 #include "common/AlignedBase.hpp"
 #include <thread>
 #include <array>
@@ -344,19 +344,18 @@ public:
 class ConsoleBackend : public LoggerQBackend
 {
 private:
-    std::unique_ptr<const console::ConsoleHelper> Helper;
-    static constexpr console::ConsoleColor ToColor(const LogLevel lv) noexcept
+    const console::ColorConsole& Console;
+    static constexpr CommonColor ToColor(const LogLevel lv) noexcept
     {
-        using console::ConsoleColor;
         switch (lv)
         {
-        case LogLevel::Error:   return ConsoleColor::BrightRed;
-        case LogLevel::Warning: return ConsoleColor::BrightYellow;
-        case LogLevel::Success: return ConsoleColor::BrightGreen;
-        case LogLevel::Info:    return ConsoleColor::BrightWhite;
-        case LogLevel::Verbose: return ConsoleColor::BrightMagenta;
-        case LogLevel::Debug:   return ConsoleColor::BrightCyan;
-        default:                return ConsoleColor::White;
+        case LogLevel::Error:   return CommonColor::BrightRed;
+        case LogLevel::Warning: return CommonColor::BrightYellow;
+        case LogLevel::Success: return CommonColor::BrightGreen;
+        case LogLevel::Info:    return CommonColor::BrightWhite;
+        case LogLevel::Verbose: return CommonColor::BrightMagenta;
+        case LogLevel::Debug:   return CommonColor::BrightCyan;
+        default:                return CommonColor::White;
         }
     }
     bool virtual OnStart(std::any) noexcept override
@@ -365,27 +364,16 @@ private:
         return true;
     }
 public:
-    ConsoleBackend()
-    {
-        try
-        {
-            Helper = std::make_unique<const console::ConsoleHelper>();
-        }
-        catch (const std::runtime_error&)
-        {
-            DebuggerBackend::PrintText(u"Cannot initilzie the Console\n");
-        }
-    }
+    ConsoleBackend() : Console(console::ColorConsole::Get())
+    { }
     ~ConsoleBackend() override
     { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        if (!Helper)
-            return;
-        const auto& color = console::ConsoleHelper::GetColorStr(ToColor(msg.Level));
+        const auto& color = console::ColorConsole::GetColorStr(ToColor(msg.Level));
 
         const auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"{}[{}]{}\x1b[39m"), color, msg.GetSource(), msg.GetContent());
-        Helper->Print(std::u16string_view(buffer.data(), buffer.size()));
+        Console.Print(std::u16string_view(buffer.data(), buffer.size()));
     }
 };
 

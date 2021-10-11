@@ -13,7 +13,7 @@
 using std::string;
 using std::map;
 using std::vector;
-using common::console::ConsoleColor;
+using common::CommonColor;
 namespace fs = common::fs;
 
 static common::mlog::MiniLogger<false>& log()
@@ -77,23 +77,22 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
-void PrintColored(const common::console::ConsoleColor color, const std::u16string_view str)
+void PrintColored(const CommonColor color, const std::u16string_view str)
 {
-    static common::console::ConsoleHelper helper;
-    helper.Print(color, str);
+    common::console::ColorConsole::Get().Print(color, str);
 }
 
 void PrintException(const common::BaseException& be, std::u16string_view info)
 {
     common::mlog::SyncConsoleBackend();
-    PrintColored(ConsoleColor::BrightRed,
+    PrintColored(CommonColor::BrightRed,
         FMTSTR(u"{}:{}\n{}\n", info, be.Message(), be.GetDetailMessage()));
     {
         std::u16string str;
         for (const auto& stack : be.Stack())
             fmt::format_to(std::back_inserter(str), FMT_STRING(u"[{}:{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-        PrintColored(ConsoleColor::BrightWhite, u"stack trace:\n");
-        PrintColored(ConsoleColor::BrightYellow, str);
+        PrintColored(CommonColor::BrightWhite, u"stack trace:\n");
+        PrintColored(CommonColor::BrightYellow, str);
     }
     if (const auto inEx = be.NestedException(); inEx.has_value())
         return PrintException(*inEx, u"Caused by");
@@ -132,7 +131,7 @@ uint32_t Select36(const size_t size)
 int main(int argc, char *argv[])
 {
     common::ResourceHelper::Init(nullptr);
-    PrintColored(ConsoleColor::BrightGreen, u"UnitTest\n");
+    PrintColored(CommonColor::BrightGreen, u"UnitTest\n");
 
     std::vector<std::string_view> args;
     {
@@ -147,18 +146,18 @@ int main(int argc, char *argv[])
 
     if (args.size() >= 1)
         BasePathHolder() = fs::absolute(args[0]).parent_path().parent_path().parent_path();
-    PrintColored(ConsoleColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
+    PrintColored(CommonColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
 
     const auto& testMap = GetTestMap();
     {
         uint32_t idx = 0;
         for (const auto& pair : testMap)
         {
-            PrintColored(ConsoleColor::BrightWhite, 
+            PrintColored(CommonColor::BrightWhite,
                 FMTSTR(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
         }
     }
-    PrintColored(ConsoleColor::BrightWhite, u"Select One To Execute...\n");
+    PrintColored(CommonColor::BrightWhite, u"Select One To Execute...\n");
     
     const auto idx = args.size() >= 2 ?
         [&]() -> uint32_t 

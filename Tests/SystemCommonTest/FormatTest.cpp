@@ -307,8 +307,10 @@ TEST(Format, ParseString)
 #   pragma GCC diagnostic ignored "-Wpedantic"
 #elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic push
-#   if COMMON_CLANG_VER >= 100000
+#   if COMMON_CLANG_VER >= 110000
 #       pragma clang diagnostic ignored "-Wc++20-extensions"
+#   elif COMMON_CLANG_VER >= 100000
+#       pragma clang diagnostic ignored "-Wc++2a-extensions"
 #   else
 #       pragma clang diagnostic ignored "-Wc99-extensions"
 #   endif

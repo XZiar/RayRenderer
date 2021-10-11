@@ -202,7 +202,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AsyncManager.cpp" />
-    <ClCompile Include="ColorConsole.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="CopyEx.cpp" />
     <ClCompile Include="FileEx.cpp">
@@ -234,7 +233,6 @@
   <ItemGroup>
     <ClInclude Include="AsyncManager.h" />
     <ClInclude Include="AsyncAgent.h" />
-    <ClInclude Include="ColorConsole.h" />
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
     <ClInclude Include="Exceptions.h" />

@@ -124,14 +124,13 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         size_t idx = 0;
         for (const auto& conf : info.Configs)
         {
-            PrintColored(common::console::ConsoleColor::BrightWhite,
-                FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
+            PrintColored(common::CommonColor::BrightWhite, FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
         }
     }
     while (true)
     {
         common::mlog::SyncConsoleBackend();
-        PrintColored(common::console::ConsoleColor::BrightWhite, u"Enter command <kenrel|idx>[,repeat,wkX,wkY,wkZ] :\n"sv);
+        PrintColored(common::CommonColor::BrightWhite, u"Enter command <kenrel|idx>[,repeat,wkX,wkY,wkZ] :\n"sv);
         const auto line = common::console::ConsoleEx::ReadLine();
         if (line == "break")
             break;
@@ -346,7 +345,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
                         arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
             }
             txt.append(u"\n"sv);
-            PrintColored(common::console::ConsoleColor::BrightWhite, txt);
+            PrintColored(common::CommonColor::BrightWhite, txt);
         }
         const auto bin = clProg->GetBinary();
         if (!bin.empty())

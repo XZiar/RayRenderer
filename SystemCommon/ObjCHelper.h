@@ -26,9 +26,11 @@ template<typename R>
 static constexpr auto ObjCMsgSend()
 {
     // Struct-returning Messaging Primitives
+#if !(COMMON_ARCH_ARM && COMMON_OSBIT == 64) // 'objc_msgSend_stret' is unavailable: not available in arm64
     if constexpr (std::is_class_v<R>)
         if(sizeof(R) > LargeStructSize)
             return objc_msgSend_stret;
+#endif
 
     // Floating-point-returning Messaging Primitives
 #if defined(__i386__) || defined(__x86_64__)
@@ -48,9 +50,11 @@ template<typename R>
 static constexpr auto ObjCMsgSendSuper()
 {
     // Struct-returning Messaging Primitives
+#if !(COMMON_ARCH_ARM && COMMON_OSBIT == 64) // 'objc_msgSend_stret' is unavailable: not available in arm64
     if constexpr (std::is_class_v<R>)
         if(sizeof(R) > LargeStructSize)
             return objc_msgSendSuper_stret;
+#endif
 
 //     // Floating-point-returning Messaging Primitives
 // #if defined(__i386__) || defined(__x86_64__)

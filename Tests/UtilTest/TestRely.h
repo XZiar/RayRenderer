@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SystemCommon/ColorConsole.h"
 #include "SystemCommon/FileEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/ResourceHelper.h"
@@ -20,7 +19,7 @@ const std::vector<std::string_view>& GetCmdArgs();
 uint32_t RegistTest(const char *name, void(*func)());
 std::string LoadShaderFallback(const std::u16string& filename, int32_t id);
 
-void PrintColored(const common::console::ConsoleColor color, const std::u16string_view str);
+void PrintColored(const common::CommonColor color, const std::u16string_view str);
 void PrintException(const common::BaseException& be, std::u16string_view info);
 void ClearReturn();
 
@@ -33,12 +32,12 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
     size_t idx = 0;
     for (const auto& item : container)
     {
-        PrintColored(common::console::ConsoleColor::BrightWhite,
+        PrintColored(common::CommonColor::BrightWhite,
             FMTSTR(u"{}[{}] {}\n", name, GetIdx36(idx++), printer(item)));
     }
     if (container.size() <= 1)
         return 0;
-    PrintColored(common::console::ConsoleColor::BrightWhite,
+    PrintColored(common::CommonColor::BrightWhite,
         FMTSTR(u"Select {}:\n", name));
     return Select36(container.size());
 }

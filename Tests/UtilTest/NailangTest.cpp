@@ -1,7 +1,6 @@
 #include "TestRely.h"
 #include "Nailang/NailangParser.h"
 #include "SystemCommon/ConsoleEx.h"
-#include "SystemCommon/ColorConsole.h"
 #include "SystemCommon/StringDetect.h"
 #include "SystemCommon/StringConvert.h"
 #include "common/Linq2.hpp"
@@ -24,19 +23,18 @@ static MiniLogger<false>& log()
     static MiniLogger<false> log(u"Nailang", { GetConsoleBackend() });
     return log;
 }
-static const common::console::ConsoleHelper& out()
+static const common::console::ColorConsole& out()
 {
-    static common::console::ConsoleHelper helper;
-    return helper;
+    return common::console::ColorConsole::Get();
 }
 
-#define OutLine(clr, indent, obj, type, syntax, ...) \
-    out().Print(FMTSTR(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,\
-    indent, common::console::ConsoleHelper::GetColorStr(common::console::ConsoleColor::clr), __VA_ARGS__))
+#define OutLine(clr, indent, obj, type, syntax, ...) common::console::ColorConsole::Get()           \
+    .Print(FMTSTR(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,   \
+        indent, common::console::ColorConsole::GetColorStr(common::CommonColor::clr), __VA_ARGS__))
 
 static void OutIndent(const u16string& indent)
 {
-    out().Print(FMTSTR(u"\x1b[37m       {}\x1b[39m\n", indent));
+    common::console::ColorConsole::Get().Print(FMTSTR(u"\x1b[37m       {}\x1b[39m\n", indent));
 }
 
 

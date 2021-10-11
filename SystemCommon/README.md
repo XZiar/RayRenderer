@@ -109,9 +109,14 @@ Provide basic file mapping support with native file resources. `FileMappingStrea
 
 ### [ConsoleEx](./ConsoleEx.h)
 
-Provide console-related operation, like quering console size. It also provides `getch`, `getche` for linux using `termios`.
+Provide console-related operation.
 
-### [ColorConsole](./ColorConsole.h)
+#### Basic operations
+* Console size quering
+* `getch`, `getche` for linux using `termios`.
+* getline with history support for linux using `libreadline`.
+* 
+#### ColorConsole
 
 Provide color support for console. For Win32 which doesn't support VT mode, it emulating it using `SetConsoleTextAttribute`.
 
