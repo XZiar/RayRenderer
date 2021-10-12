@@ -79,7 +79,7 @@ private:
     {
         //constexpr common::parser::ParserToken ExpectToken = ExpectHolder::Token;
         constexpr auto ExpectMatcher = common::parser::detail::TokenMatcherHelper::GetMatcher(std::array{ ExpectHolder::Token });
-        constexpr auto IgnoreChar = common::parser::ASCIIChecker("\r\n\v\t ");
+        constexpr auto IgnoreChar = common::ASCIIChecker("\r\n\v\t ");
         constexpr auto Lexer = common::parser::ParserLexerBase<common::parser::tokenizer::CommentTokenizer, TKs...>();
         ExpectNextToken(Lexer, IgnoreChar, IgnoreCommentToken, ExpectMatcher);
     }

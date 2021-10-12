@@ -6,33 +6,22 @@ namespace common
 namespace console
 {
 
-class SYSCOMMONAPI ConsoleEx
-{
-public:
-    static char ReadCharImmediate(bool ShouldEcho) noexcept;
-    [[nodiscard]] static std::pair<uint32_t, uint32_t> GetConsoleSize() noexcept;
-    static bool ClearConsole() noexcept;
-    static std::string ReadLine(const std::string& prompt = {});
-};
-
-
-#if COMMON_COMPILER_MSVC
-#   pragma warning(push)
-#   pragma warning(disable:4275 4251)
-#endif
-
-
-class ColorConsole
+class ConsoleEx
 {
 protected:
-    ColorConsole();
+    ConsoleEx();
 public:
-    COMMON_NO_COPY(ColorConsole)
-    COMMON_NO_MOVE(ColorConsole)
-    virtual ~ColorConsole();
-    virtual void Print(const CommonColor color, const std::u16string_view& str) const = 0;
-    virtual void Print(const std::u16string_view& str) const = 0;
-    SYSCOMMONAPI static const ColorConsole& Get() noexcept;
+    COMMON_NO_COPY(ConsoleEx)
+    COMMON_NO_MOVE(ConsoleEx)
+    virtual ~ConsoleEx();
+    virtual void Print(const CommonColor color, std::u16string_view str) const = 0;
+    virtual void Print(std::u16string_view str) const = 0;
+    [[nodiscard]] virtual std::pair<uint32_t, uint32_t> GetConsoleSize() const noexcept = 0;
+    virtual bool ClearConsole() const noexcept = 0;
+
+    SYSCOMMONAPI static char ReadCharImmediate(bool ShouldEcho) noexcept;
+    SYSCOMMONAPI static std::string ReadLine(const std::string& prompt = {});
+    SYSCOMMONAPI static const ConsoleEx& Get() noexcept;
     static constexpr const char16_t(&GetColorStr(const CommonColor color) noexcept)[6]
     {
         switch (color)
@@ -57,11 +46,6 @@ public:
         }
     }
 };
-
-
-#if COMMON_COMPILER_MSVC
-#   pragma warning(pop)
-#endif
 
 
 }

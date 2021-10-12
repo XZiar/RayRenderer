@@ -122,7 +122,7 @@ static void WDHost()
     bool runInplace = true;
     if (runner.SupportNewThread())
     {
-        PrintColored(common::CommonColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
+        GetConsole().Print(common::CommonColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
         while (true)
         {
             const auto ch = common::console::ConsoleEx::ReadCharImmediate(false);

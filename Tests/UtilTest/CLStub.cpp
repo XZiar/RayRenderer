@@ -124,13 +124,13 @@ static void RunKernel(oclDevice dev, oclContext ctx, oclProgram prog, const RunI
         size_t idx = 0;
         for (const auto& conf : info.Configs)
         {
-            PrintColored(common::CommonColor::BrightWhite, FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
+            GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR(u"[{:3}] {}\n", idx++, conf.Name));
         }
     }
     while (true)
     {
         common::mlog::SyncConsoleBackend();
-        PrintColored(common::CommonColor::BrightWhite, u"Enter command <kenrel|idx>[,repeat,wkX,wkY,wkZ] :\n"sv);
+        GetConsole().Print(common::CommonColor::BrightWhite, u"Enter command <kenrel|idx>[,repeat,wkX,wkY,wkZ] :\n"sv);
         const auto line = common::console::ConsoleEx::ReadLine();
         if (line == "break")
             break;
@@ -345,7 +345,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
                         arg.GetArgTypeName(), arg.GetSpaceName(), arg.Type, arg.Name, arg.GetQualifierName());
             }
             txt.append(u"\n"sv);
-            PrintColored(common::CommonColor::BrightWhite, txt);
+            GetConsole().Print(common::CommonColor::BrightWhite, txt);
         }
         const auto bin = clProg->GetBinary();
         if (!bin.empty())
@@ -472,7 +472,7 @@ static void OCLStub()
             }
             else if (fpath == "clear")
             {
-                common::console::ConsoleEx::ClearConsole();
+                GetConsole().ClearConsole();
                 continue;
             }
             else if (fpath.empty())

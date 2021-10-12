@@ -1,5 +1,4 @@
 #include "TestRely.h"
-#include "SystemCommon/ConsoleEx.h"
 #include "common/Linq2.hpp"
 #include "common/TimeUtil.hpp"
 #include "common/StringEx.hpp"
@@ -77,22 +76,17 @@ string LoadShaderFallback(const std::u16string& filename, int32_t id)
     return std::string(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
-void PrintColored(const CommonColor color, const std::u16string_view str)
-{
-    common::console::ColorConsole::Get().Print(color, str);
-}
-
 void PrintException(const common::BaseException& be, std::u16string_view info)
 {
     common::mlog::SyncConsoleBackend();
-    PrintColored(CommonColor::BrightRed,
+    GetConsole().Print(CommonColor::BrightRed,
         FMTSTR(u"{}:{}\n{}\n", info, be.Message(), be.GetDetailMessage()));
     {
         std::u16string str;
         for (const auto& stack : be.Stack())
             fmt::format_to(std::back_inserter(str), FMT_STRING(u"[{}:{}]\t{}\n"), stack.File, stack.Line, stack.Func);
-        PrintColored(CommonColor::BrightWhite, u"stack trace:\n");
-        PrintColored(CommonColor::BrightYellow, str);
+        GetConsole().Print(CommonColor::BrightWhite, u"stack trace:\n");
+        GetConsole().Print(CommonColor::BrightYellow, str);
     }
     if (const auto inEx = be.NestedException(); inEx.has_value())
         return PrintException(*inEx, u"Caused by");
@@ -131,7 +125,7 @@ uint32_t Select36(const size_t size)
 int main(int argc, char *argv[])
 {
     common::ResourceHelper::Init(nullptr);
-    PrintColored(CommonColor::BrightGreen, u"UnitTest\n");
+    GetConsole().Print(CommonColor::BrightGreen, u"UnitTest\n");
 
     std::vector<std::string_view> args;
     {
@@ -146,18 +140,18 @@ int main(int argc, char *argv[])
 
     if (args.size() >= 1)
         BasePathHolder() = fs::absolute(args[0]).parent_path().parent_path().parent_path();
-    PrintColored(CommonColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
+    GetConsole().Print(CommonColor::BrightMagenta, FMTSTR(u"Locate BasePath to [{}]\n", BasePathHolder().u16string()));
 
     const auto& testMap = GetTestMap();
     {
         uint32_t idx = 0;
         for (const auto& pair : testMap)
         {
-            PrintColored(CommonColor::BrightWhite,
+            GetConsole().Print(CommonColor::BrightWhite,
                 FMTSTR(u"[{}] {:<20} {}\n", GetIdx36(idx++), pair.first, (void*)pair.second));
         }
     }
-    PrintColored(CommonColor::BrightWhite, u"Select One To Execute...\n");
+    GetConsole().Print(CommonColor::BrightWhite, u"Select One To Execute...\n");
     
     const auto idx = args.size() >= 2 ?
         [&]() -> uint32_t 

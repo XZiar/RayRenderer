@@ -17,13 +17,13 @@ using common::parser::tokenizer::IntTokenizer;
 using common::parser::tokenizer::FPTokenizer;
 using common::parser::tokenizer::BoolTokenizer;
 using common::parser::tokenizer::ASCII2PartTokenizer;
-using common::parser::ASCIICheckerNBit;
-using common::parser::ASCIIChecker;
 using common::parser::BaseToken;
 using common::parser::ParserToken;
 using common::parser::ContextReader;
 using common::parser::ParserBase;
 using common::parser::ParserLexerBase;
+using common::ASCIICheckerNBit;
+using common::ASCIIChecker;
 
 
 enum class ExtraOps : uint16_t { Quest = 256, Colon };

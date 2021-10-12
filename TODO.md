@@ -154,8 +154,8 @@
     - [ ] Replace preprocessor-based ExtShader to NLGL-based
 
 * OpenCLUtil
-  - [ ] Remove explicit include of `cl*.h`
-  - [ ] Query functions explicitly to support both ICD Loader and non-icd platform
+  - [x] Remove explicit include of `cl*.h`
+  - [x] Query functions explicitly to support both ICD Loader and non-icd platform
   - [x] Remove dependency of `OpenGLUtil`, seperate inter-op into new project
   - [x] Add compatibility for OpenCL verson less than 1.2
   - [x] Make oclKernel associate with specific device

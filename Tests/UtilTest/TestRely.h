@@ -1,9 +1,10 @@
 #pragma once
 
 #include "SystemCommon/FileEx.h"
+#include "SystemCommon/MiniLogger.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "common/TimeUtil.hpp"
 #include "common/ResourceHelper.h"
-#include "SystemCommon/MiniLogger.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -19,7 +20,11 @@ const std::vector<std::string_view>& GetCmdArgs();
 uint32_t RegistTest(const char *name, void(*func)());
 std::string LoadShaderFallback(const std::u16string& filename, int32_t id);
 
-void PrintColored(const common::CommonColor color, const std::u16string_view str);
+//void GetConsole().Print(const common::CommonColor color, const std::u16string_view str);
+inline const common::console::ConsoleEx& GetConsole()
+{
+    return common::console::ConsoleEx::Get();
+}
 void PrintException(const common::BaseException& be, std::u16string_view info);
 void ClearReturn();
 
@@ -32,12 +37,11 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
     size_t idx = 0;
     for (const auto& item : container)
     {
-        PrintColored(common::CommonColor::BrightWhite,
+        GetConsole().Print(common::CommonColor::BrightWhite,
             FMTSTR(u"{}[{}] {}\n", name, GetIdx36(idx++), printer(item)));
     }
     if (container.size() <= 1)
         return 0;
-    PrintColored(common::CommonColor::BrightWhite,
-        FMTSTR(u"Select {}:\n", name));
+    GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR(u"Select {}:\n", name));
     return Select36(container.size());
 }

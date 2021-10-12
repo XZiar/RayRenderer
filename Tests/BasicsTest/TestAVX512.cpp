@@ -30,3 +30,9 @@ RegisterSIMDCastTest(U32x8,  320, F64x4, U8x32);
 
 #endif
 }
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif

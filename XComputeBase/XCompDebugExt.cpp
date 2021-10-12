@@ -70,8 +70,8 @@ static NamedVecPair GenerateInput(XCNLRuntime& runtime, std::u32string_view str,
         if (idx != 0)
         {
             name = str.substr(0, idx);
-            constexpr auto firstCheck = common::parser::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-            constexpr auto restCheck = common::parser::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+            constexpr auto firstCheck = common::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+            constexpr auto restCheck = common::ASCIIChecker<true>("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
             bool pass = firstCheck(name[0]);
             for (size_t i = 1; i < name.size() && pass;)
                 pass &= restCheck(name[i++]);

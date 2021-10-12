@@ -344,7 +344,7 @@ public:
 class ConsoleBackend : public LoggerQBackend
 {
 private:
-    const console::ColorConsole& Console;
+    const console::ConsoleEx& Console;
     static constexpr CommonColor ToColor(const LogLevel lv) noexcept
     {
         switch (lv)
@@ -364,13 +364,13 @@ private:
         return true;
     }
 public:
-    ConsoleBackend() : Console(console::ColorConsole::Get())
+    ConsoleBackend() : Console(console::ConsoleEx::Get())
     { }
     ~ConsoleBackend() override
     { }
     void virtual OnPrint(const LogMessage& msg) override
     {
-        const auto& color = console::ColorConsole::GetColorStr(ToColor(msg.Level));
+        const auto& color = console::ConsoleEx::GetColorStr(ToColor(msg.Level));
 
         const auto& buffer = detail::StrFormater::ToU16Str(FMT_STRING(u"{}[{}]{}\x1b[39m"), color, msg.GetSource(), msg.GetContent());
         Console.Print(std::u16string_view(buffer.data(), buffer.size()));

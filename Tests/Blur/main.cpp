@@ -164,7 +164,7 @@ int main() try
     log().verbose(u"nlcl path:{}\n", kernelPath.u16string());
     const auto str = common::file::ReadAllText(kernelPath);
 
-    const auto& plats = oclUtil::GetPlatforms();
+    const auto& plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)
         return {};
 

@@ -36,6 +36,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{9ED3D8
 		common\AlignedBufer.natvis = common\AlignedBufer.natvis
 		common\AlignedBuffer.hpp = common\AlignedBuffer.hpp
 		common\AlignedContainer.hpp = common\AlignedContainer.hpp
+		common\ASCIIChecker.hpp = common\ASCIIChecker.hpp
 		common\AtomicUtil.hpp = common\AtomicUtil.hpp
 		common\CharConvs.hpp = common\CharConvs.hpp
 		common\CLIAsync.hpp = common\CLIAsync.hpp

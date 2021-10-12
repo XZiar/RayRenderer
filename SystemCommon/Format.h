@@ -665,6 +665,7 @@ struct ParseResult
     }
     static constexpr ParseResult ParseString(const std::string_view str) noexcept
     {
+        using namespace std::string_view_literals;
         constexpr auto End = std::string_view::npos;
         ParseResult result;
         result.FormatString = str;
@@ -676,7 +677,7 @@ struct ParseResult
         }
         while (offset < size)
         {
-            const auto occur = str.find_first_of("{}", offset);
+            const auto occur = str.find_first_of("{}"sv, offset);
             bool isBrace = false;
             if (occur != End)
             {

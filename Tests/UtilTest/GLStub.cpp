@@ -105,7 +105,7 @@ static void OGLStub()
         }
         else if (fpath == "clear")
         {
-            common::console::ConsoleEx::ClearConsole();
+            GetConsole().ClearConsole();
             continue;
         }
         bool exConfig = false;

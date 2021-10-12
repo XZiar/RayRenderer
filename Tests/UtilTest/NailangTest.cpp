@@ -23,18 +23,14 @@ static MiniLogger<false>& log()
     static MiniLogger<false> log(u"Nailang", { GetConsoleBackend() });
     return log;
 }
-static const common::console::ColorConsole& out()
-{
-    return common::console::ColorConsole::Get();
-}
 
-#define OutLine(clr, indent, obj, type, syntax, ...) common::console::ColorConsole::Get()           \
-    .Print(FMTSTR(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,   \
-        indent, common::console::ColorConsole::GetColorStr(common::CommonColor::clr), __VA_ARGS__))
+#define OutLine(clr, indent, obj, type, syntax, ...)\
+    GetConsole().Print(FMTSTR(u"\x1b[37m[{:5}]{}\x1b[92m" type " {}" syntax "\x1b[39m\n", obj.Position.first,   \
+        indent, common::console::ConsoleEx::GetColorStr(common::CommonColor::clr), __VA_ARGS__))
 
 static void OutIndent(const u16string& indent)
 {
-    common::console::ColorConsole::Get().Print(FMTSTR(u"\x1b[37m       {}\x1b[39m\n", indent));
+    GetConsole().Print(FMTSTR(u"\x1b[37m       {}\x1b[39m\n", indent));
 }
 
 
@@ -42,7 +38,7 @@ static void ShowMeta(const common::span<const FuncCall> metas, const u16string& 
 {
     for (const auto& meta : metas)
     {
-        OutLine(Magenta, indent, meta, "@meta ", "func[{}], arg[{}]", meta.FullFuncName(), meta.Args.size());
+        OutLine(White, indent, meta, "@meta ", "\x1b[48;5;13mfunc[{}], arg[{}]\x1b[49m", meta.FullFuncName(), meta.Args.size());
     }
 }
 

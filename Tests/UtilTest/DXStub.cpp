@@ -359,7 +359,7 @@ static void DXStub()
                     break;
                 else if (fpath == "clear")
                 {
-                    common::console::ConsoleEx::ClearConsole();
+                    GetConsole().ClearConsole();
                     continue;
                 }
                 else if (fpath == "BUFTEST")

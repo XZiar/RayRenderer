@@ -51,3 +51,9 @@ RegisterSIMDTest(I32x4, 100, shuftest::ShuffleVarTest<I32x4>);
 
 #endif
 }
+
+#if COMMON_COMPILER_GCC
+#   pragma GCC pop_options
+#elif COMMON_COMPILER_CLANG
+#   pragma clang attribute pop
+#endif
