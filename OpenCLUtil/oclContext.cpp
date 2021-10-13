@@ -44,8 +44,8 @@ static common::container::FrozenDenseSet<xziar::img::TextureFormat> GetSupported
     return dformats;
 }
 
-oclContext_::oclContext_(const oclPlatform_* plat, vector<cl_context_properties> props, const vector<oclDevice>& devices) : 
-    detail::oclCommon(*plat), Plat(std::move(plat)), Devices(devices), Version(Plat->Version)
+oclContext_::oclContext_(const oclPlatform_* plat, vector<cl_context_properties> props, common::span<const oclDevice> devices) :
+    detail::oclCommon(*plat), Plat(std::move(plat)), Devices(devices.begin(), devices.end()), Version(Plat->Version)
 {
     if (Plat->Version < 12)
         oclLog().warning(u"Try to create context on [{}], which does not even support OpenCL1.2\n", Plat->Ver);

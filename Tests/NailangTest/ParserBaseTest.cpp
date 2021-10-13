@@ -38,7 +38,7 @@ struct DummyParser : ParserBase
 TEST(ParserBase, GetNext)
 {
     constexpr ParserLexerBase<CommentTokenizer, DelimTokenizer, ASCIIRawTokenizer> lexer;
-    constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+    constexpr common::ASCIIChecker ignore = " \t\r\n\v"sv;
     constexpr auto source = U"/*Empty*/Hello,There"sv;
     {
         ParserContext context(source);

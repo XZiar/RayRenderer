@@ -31,7 +31,7 @@ private:
     CLHandle<detail::CLContext> Context;
     const oclPlatform_* Plat;
     mutable std::atomic_bool DebugResource = false;
-    oclContext_(const oclPlatform_* plat, std::vector<intptr_t> props, const std::vector<oclDevice>& devices);
+    oclContext_(const oclPlatform_* plat, std::vector<intptr_t> props, common::span<const oclDevice> devices);
 public:
     std::vector<oclDevice> Devices;
     uint32_t Version;

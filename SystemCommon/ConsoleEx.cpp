@@ -349,7 +349,7 @@ const ConsoleEx& ConsoleEx::Get() noexcept
             DWORD mode;
             if (::GetConsoleMode(handle, &mode) != 0)
             {
-                if (GetWinBuildNumber() >= 90586) // since win10 1511(th2)
+                if (GetWinBuildNumber() >= 10586) // since win10 1511(th2)
                 {
                     mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
                     ::SetConsoleMode(handle, mode);

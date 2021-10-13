@@ -137,6 +137,9 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -1011: return u"CL_INVALID_DX9_MEDIA_SURFACE_KHR"sv;
     case -1012: return u"CL_DX9_MEDIA_SURFACE_ALREADY_ACQUIRED_KHR"sv;
     case -1013: return u"CL_DX9_MEDIA_SURFACE_NOT_ACQUIRED_KHR"sv;
+    RET_ERR(CL_DEVICE_PARTITION_FAILED_EXT);
+    RET_ERR(CL_INVALID_PARTITION_COUNT_EXT);
+    RET_ERR(CL_INVALID_PARTITION_NAME_EXT);
     RET_ERR(CL_EGL_RESOURCE_NOT_ACQUIRED_KHR);
     RET_ERR(CL_INVALID_EGL_OBJECT_KHR);
     RET_ERR(CL_INVALID_ACCELERATOR_INTEL);
@@ -147,6 +150,7 @@ u16string_view oclUtil::GetErrorString(const cl_int err)
     case -1099: return u"CL_INVALID_VA_API_MEDIA_SURFACE_INTEL"sv;
     case -1100: return u"CL_VA_API_MEDIA_SURFACE_ALREADY_ACQUIRED_INTEL"sv;
     case -1101: return u"CL_VA_API_MEDIA_SURFACE_NOT_ACQUIRED_INTEL"sv;
+    RET_ERR(CL_CONTEXT_TERMINATED_KHR);
     // vendor errors
     case -9999: return u"Illegal read or write to a buffer"sv;
     default:    return u"Unknown OpenCL error"sv;

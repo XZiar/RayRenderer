@@ -7,7 +7,7 @@ auto TKParse_(const std::u32string_view src, const Lexer& lexer)
 {
     using namespace common::parser;
     using namespace std::string_view_literals;
-    constexpr ASCIIChecker ignore = " \t\r\n\v"sv;
+    constexpr common::ASCIIChecker ignore = " \t\r\n\v"sv;
     ParserContext context(src);
     std::vector<DetailToken> tokens;
     while (true)

@@ -132,7 +132,7 @@ oclContext GLInterop::CreateGLSharedContext(const oglu::oglContext& context)
         const auto props = GetGLProps(*plat, context);
         const auto dev = GetGLDevice(*plat, props);
         if (dev)
-            return plat->CreateContext({ dev }, props);
+            return plat->CreateContext({ &dev, 1 }, props);
     }
     return {};
 }
@@ -142,7 +142,7 @@ oclContext GLInterop::CreateGLSharedContext(const oclPlatform_& plat, const oglu
     const auto props = GetGLProps(plat, context);
     const auto dev = GetGLDevice(plat, props);
     if (dev)
-        return plat.CreateContext({ dev }, props);
+        return plat.CreateContext({ &dev, 1 }, props);
     return {};
 }
 

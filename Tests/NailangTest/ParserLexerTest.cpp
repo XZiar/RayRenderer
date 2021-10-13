@@ -26,7 +26,7 @@ TEST(ParserLexer, ASCIIChecker)
     std::string str;
     for (uint32_t i = 0; i < 128; i += 2)
         str.push_back(static_cast<char>(i));
-    ASCIIChecker checker(str);
+    common::ASCIIChecker checker(str);
 
     for (uint16_t i = 0; i < 128; i++)
         EXPECT_EQ(checker(i), (i & 1) == 0 ? true : false);

@@ -25,13 +25,14 @@ private:
     MAKE_ENABLER();
     CLHandle<detail::CLPlatform> PlatformID;
     std::vector<oclDevice_> Devices;
+    std::vector<oclDevice> DevsHolder;
     oclDevice DefDevice;
     common::container::FrozenDenseStringSet<char> Extensions;
 
     oclPlatform_(const detail::PlatFuncs* funcs, void* platID);
     void InitDevice();
     std::vector<intptr_t> GetCLProps() const;
-    oclContext CreateContext(const std::vector<oclDevice>& devs, const std::vector<intptr_t>& props) const;
+    oclContext CreateContext(common::span<const oclDevice> devs, const std::vector<intptr_t>& props) const;
 public:
     std::u16string Name, Ver;
     uint32_t Version;
@@ -39,11 +40,11 @@ public:
     bool BeignetFix = false;
     COMMON_NO_COPY(oclPlatform_)
     COMMON_NO_MOVE(oclPlatform_)
-    [[nodiscard]] std::vector<oclDevice> GetDevices() const;
+    [[nodiscard]] common::span<const oclDevice> GetDevices() const;
     [[nodiscard]] const common::container::FrozenDenseStringSet<char>& GetExtensions() const { return Extensions; }
     [[nodiscard]] oclDevice GetDefaultDevice() const { return DefDevice; }
-    [[nodiscard]] oclContext CreateContext(const std::vector<oclDevice>& devs) const { return CreateContext(devs, GetCLProps()); }
-    [[nodiscard]] oclContext CreateContext(oclDevice dev) const { return CreateContext(std::vector<oclDevice>{ dev }); }
+    [[nodiscard]] oclContext CreateContext(common::span<const oclDevice> devs) const { return CreateContext(devs, GetCLProps()); }
+    [[nodiscard]] oclContext CreateContext(oclDevice dev) const { return CreateContext(common::span<const oclDevice>{ &dev, 1 }); }
     [[nodiscard]] oclContext CreateContext() const;
 
     [[nodiscard]] static common::span<const oclPlatform> GetPlatforms();

@@ -362,6 +362,30 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
 }
 
 
+template<size_t N>
+static std::string Hex2Str(const std::array<std::byte, N>& data)
+{
+    constexpr auto ch = "0123456789abcdef";
+    std::string ret;
+    ret.reserve(N * 2);
+    for (size_t i = 0; i < N; ++i)
+    {
+        const uint8_t dat = static_cast<uint8_t>(data[i]);
+        ret.push_back(ch[dat / 16]);
+        ret.push_back(ch[dat % 16]);
+    }
+    return ret;
+}
+template<typename T>
+static std::string Hex2Str(const std::optional<T>& data)
+{
+    if (data)
+        return Hex2Str(*data);
+    else
+        return {};
+}
+
+
 static void OCLStub()
 {
     const auto plats = oclPlatform_::GetPlatforms();
@@ -374,7 +398,7 @@ static void OCLStub()
     {
         const auto platidx = SelectIdx(plats, u"platform", [](const auto& plat)
             {
-                return FMTSTR(u"{}  {{{}}}", plat->Name, plat->Ver);
+                return FMTSTR(u"{} [{} dev] {{{}}}", plat->Name, plat->GetDevices().size(), plat->Ver);
             });
         const auto plat = plats[platidx];
 
@@ -443,7 +467,7 @@ static void OCLStub()
 #define ADD_INFO(info) APPEND_FMT(infotxt, u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
                 ADD_INFO(Name);
                 ADD_INFO(Vendor);
-                APPEND_FMT(infotxt, u"VendorId: [{:#08x}]\n"sv, dev->VendorId);
+                APPEND_FMT(infotxt, u"VendorId: [{:#010x}]\n"sv, dev->VendorId);
                 ADD_INFO(Ver);
                 ADD_INFO(CVer);
                 ADD_INFO(ConstantBufSize);
@@ -466,6 +490,8 @@ static void OCLStub()
                 APPEND_FMT(infotxt, u"F64Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F64Caps));
                 APPEND_FMT(infotxt, u"F32Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F32Caps));
                 APPEND_FMT(infotxt, u"F16Caps: [ {} ]\n"sv, oclDevice_::GetFPCapabilityStr(dev->F16Caps));
+                APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(dev->GetLUID()));
+                APPEND_FMT(infotxt, u"UUID: [{}]\n"sv, Hex2Str(dev->GetUUID()));
 #undef ADD_INFO
                 log().verbose(u"Device Info:\n{}\n", infotxt);
                 continue;

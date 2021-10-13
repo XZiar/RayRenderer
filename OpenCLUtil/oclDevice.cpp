@@ -81,6 +81,10 @@ oclDevice_::oclDevice_(const oclPlatform_* plat, void* dID) : detail::oclCommon(
 
     Extensions = common::str::Split(GetStr(Funcs, *DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
 
+}
+
+void oclDevice_::Init()
+{
     F64Caps = static_cast<FPConfig>(GetNum<uint64_t>(Funcs, *DeviceID, CL_DEVICE_DOUBLE_FP_CONFIG));
     F32Caps = static_cast<FPConfig>(GetNum<uint64_t>(Funcs, *DeviceID, CL_DEVICE_SINGLE_FP_CONFIG));
     F16Caps = static_cast<FPConfig>(GetNum<uint64_t>(Funcs, *DeviceID, CL_DEVICE_HALF_FP_CONFIG));
@@ -126,8 +130,8 @@ oclDevice_::oclDevice_(const oclPlatform_* plat, void* dID) : detail::oclCommon(
         if (Extensions.Has("cl_khr_pci_bus_info") && 
             CL_SUCCESS == Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(pciinfo), &pciinfo, nullptr))
         {
-            PCIEBus = pciinfo.pci_bus;
-            PCIEDev = pciinfo.pci_device;
+            PCIEBus  = pciinfo.pci_bus;
+            PCIEDev  = pciinfo.pci_device;
             PCIEFunc = pciinfo.pci_function;
         }
     }
@@ -149,6 +153,31 @@ std::optional<uint32_t> oclDevice_::GetNvidiaSMVersion() const noexcept
         Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, sizeof(uint32_t), &major, nullptr);
         Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV, sizeof(uint32_t), &minor, nullptr);
         return major * 10 + minor;
+    }
+    return {};
+}
+std::optional<std::array<std::byte, 8>> oclDevice_::GetLUID() const noexcept
+{
+    if (Extensions.Has("cl_khr_device_uuid"sv))
+    {
+        cl_bool support = CL_FALSE;
+        if(CL_SUCCESS == Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_LUID_VALID_KHR, sizeof(support), &support, nullptr)
+            && support)
+        {
+            std::array<std::byte, 8> luid = { std::byte(0) };
+            Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_LUID_KHR, sizeof(luid), luid.data(), nullptr);
+            return luid;
+        }
+    }
+    return {};
+}
+std::optional<std::array<std::byte, 16>> oclDevice_::GetUUID() const noexcept
+{
+    if (Extensions.Has("cl_khr_device_uuid"sv))
+    {
+        std::array<std::byte, 16> uuid = { std::byte(0) };
+        if (CL_SUCCESS == Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_UUID_KHR, sizeof(uuid), &uuid, nullptr))
+            return uuid;
     }
     return {};
 }

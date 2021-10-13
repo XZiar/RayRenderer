@@ -29,19 +29,20 @@ class OCLUAPI oclDevice_ : public detail::oclCommon
     friend class oclPlatform_;
 private:
     oclDevice_(const oclPlatform_* plat, void* dID);
+    void Init();
 public:
     CLHandle<detail::CLDevice> DeviceID;
     const oclPlatform_* Platform;
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseStringSet<char> Extensions;
-    FPConfig F64Caps, F32Caps, F16Caps;
-    uint64_t ConstantBufSize, GlobalMemSize, LocalMemSize, MaxMemAllocSize, GlobalCacheSize;
-    size_t MaxWorkItemSize[3], MaxWorkGroupSize;
-    uint32_t GlobalCacheLine, MemBaseAddrAlign, ComputeUnits, MaxSubgroupCount, WaveSize;
-    uint32_t VendorId, PCIEBus, PCIEDev, PCIEFunc;
-    uint32_t Version, CVersion;
-    bool SupportProfiling, SupportOutOfOrder, SupportImplicitGLSync, SupportImage;
-    bool LittleEndian, HasCompiler;
+    FPConfig F64Caps = FPConfig::Empty, F32Caps = FPConfig::Empty, F16Caps = FPConfig::Empty;
+    uint64_t ConstantBufSize = 0, GlobalMemSize = 0, LocalMemSize = 0, MaxMemAllocSize = 0, GlobalCacheSize = 0;
+    size_t MaxWorkItemSize[3] = { 0 }, MaxWorkGroupSize = 0;
+    uint32_t GlobalCacheLine = 0, MemBaseAddrAlign = 0, ComputeUnits = 0, MaxSubgroupCount = 0, WaveSize = 0;
+    uint32_t VendorId = 0, PCIEBus = 0, PCIEDev = 0, PCIEFunc = 0;
+    uint32_t Version = 0, CVersion = 0;
+    bool SupportProfiling = false, SupportOutOfOrder = false, SupportImplicitGLSync = false, SupportImage = false;
+    bool LittleEndian = true, HasCompiler = false;
     Vendors PlatVendor;
     DeviceType Type;
 
@@ -49,6 +50,8 @@ public:
     COMMON_DEF_MOVE(oclDevice_)
     [[nodiscard]] std::u16string_view GetTypeName() const noexcept { return GetDeviceTypeName(Type); }
     [[nodiscard]] std::optional<uint32_t> GetNvidiaSMVersion() const noexcept;
+    [[nodiscard]] std::optional<std::array<std::byte, 8>> GetLUID() const noexcept;
+    [[nodiscard]] std::optional<std::array<std::byte, 16>> GetUUID() const noexcept;
 
     [[nodiscard]] static std::u16string_view GetDeviceTypeName(const DeviceType type);
     [[nodiscard]] static std::string GetFPCapabilityStr(const FPConfig cap);

@@ -45,10 +45,16 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
             holder.NonIcdDllNames.resize(ele1);
             GetOpenCLIcdLoaderDllNames(false, holder.NonIcdDllNames.data());
         }
-        const auto InitPlatform = [&](bool isIcd, const detail::PlatFuncs* platFuncs)
+        const auto InitPlatform = [&](const std::string_view* dll, const detail::PlatFuncs* platFuncs)
         {
             cl_uint numPlatforms = 0;
-            platFuncs->clGetPlatformIDs(0, nullptr, &numPlatforms);
+            if (const auto err = platFuncs->clGetPlatformIDs(0, nullptr, &numPlatforms); err != CL_SUCCESS)
+            {
+                if (dll || err != CL_PLATFORM_NOT_FOUND_KHR)
+                    oclLog().error(u"Failed to get platform ids on [{}]: [{}]({})\n", 
+                        dll ? *dll : "icd"sv, msg, oclUtil::GetErrorString(err), err);
+                return;
+            }
             //Get all Platforms
             vector<cl_platform_id> platformIDs(numPlatforms);
             platFuncs->clGetPlatformIDs(numPlatforms, platformIDs.data(), nullptr);
@@ -63,7 +69,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
                 catch (const std::exception& ex)
                 {
                     oclLog().error(FMT_STRING(u"Failed to init platform [{}]({}):\n {}\n"), 
-                        plat->Name, isIcd ? u"icd"sv: u"nonicd"sv, ex.what());
+                        plat->Name, dll ? *dll : "icd"sv, ex.what());
                 }
             }
         };
@@ -74,7 +80,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
                 msg.append(common::str::to_u16string(dll)).append(u"\n");
 
             holder.Funcs.emplace_back(std::make_unique<detail::PlatFuncs>());
-            InitPlatform(true, holder.Funcs.back().get());
+            InitPlatform(nullptr, holder.Funcs.back().get());
         }
         // init non-icds
         {
@@ -85,7 +91,7 @@ common::span<const oclPlatform> oclPlatform_::GetPlatforms()
                 auto platFuncs = std::make_unique<detail::PlatFuncs>(dll);
                 if (!platFuncs->clGetPlatformIDs) continue;
 
-                InitPlatform(true, platFuncs.get());
+                InitPlatform(&dll, platFuncs.get());
                 holder.Funcs.emplace_back(std::move(platFuncs));
             }
         }
@@ -156,37 +162,47 @@ oclPlatform_::oclPlatform_(const detail::PlatFuncs* funcs, void* pID) :
 
 void oclPlatform_::InitDevice()
 {
+    DevsHolder.clear();
+    Devices.clear();
+
     cl_uint numDevices;
-    if (!LogCLError(Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices),
-        u"Failed to get device ids"))
+    if (const auto err = Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices); err != CL_SUCCESS)
+    {
+        oclLog().error(u"Failed to get device ids on [{}]: [{}]({})\n", Name, oclUtil::GetErrorString(err), err);
         return;
+    }
     // Get all Device Info
     vector<cl_device_id> DeviceIDs(numDevices);
     Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_ALL, numDevices, DeviceIDs.data(), nullptr);
     cl_device_id defDevID;
     Funcs->clGetDeviceIDs(*PlatformID, CL_DEVICE_TYPE_DEFAULT, 1, &defDevID, nullptr);
 
-    size_t defIdx = SIZE_MAX;
     Devices.reserve(numDevices);
     for (const auto id : DeviceIDs)
     {
+        oclDevice_ dev(this, id);
         try
         {
-            Devices.push_back(oclDevice_(this, id));
-            if (id == defDevID) defIdx = Devices.size() - 1;
+            dev.Init();
+            Devices.push_back(std::move(dev));
         }
         catch (const std::exception& ex)
         {
-            oclLog().error(FMT_STRING(u"Failed to init platform[{}]'s device[{}]:\n {}\n"),
-                Name, (void*)id, ex.what());
+            oclLog().error(FMT_STRING(u"Failed to init platform[{}]'s device[{}]({}):\n {}\n"),
+                Name, dev.Name, (void*)id, ex.what());
         }
     }
     
-    if (defIdx != SIZE_MAX)
-        DefDevice = &Devices[defIdx];
+    DevsHolder.reserve(Devices.size());
+    for (const auto& dev : Devices)
+    {
+        DevsHolder.push_back(&dev);
+        if (*dev.DeviceID == defDevID)
+            DefDevice = &dev;
+    }
 }
 
-oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vector<cl_context_properties>& props) const
+oclContext oclPlatform_::CreateContext(common::span<const oclDevice> devs, const vector<cl_context_properties>& props) const
 {
 
     for (const auto& dev : devs)
@@ -200,11 +216,9 @@ oclContext oclPlatform_::CreateContext(const vector<oclDevice>& devs, const vect
     return MAKE_ENABLER_SHARED(oclContext_, (this, props, devs));
 }
 
-vector<oclDevice> oclPlatform_::GetDevices() const
+common::span<const oclDevice> oclPlatform_::GetDevices() const
 {
-    return common::linq::FromIterable(Devices)
-        .Select([](const auto& dev) { return &dev; })
-        .ToVector();
+    return DevsHolder;
 }
 
 oclContext oclPlatform_::CreateContext() const
