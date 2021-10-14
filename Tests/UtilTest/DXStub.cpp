@@ -27,6 +27,7 @@ static MiniLogger<false>& log()
     static MiniLogger<false> logger(u"DXStub", { GetConsoleBackend() });
     return logger;
 }
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 namespace
 {
@@ -343,7 +344,7 @@ static void DXStub()
         const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [](DxDevice dev)
             {
                 return FMTSTR(u"{} [SM{}.{}]\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
-                    dev->IsTBR() ? u"TBR"sv : u""sv, dev->IsUMA() ? u"UMA"sv : u""sv);
+                    dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
             });
         const auto& dev = devs[devidx];
         const auto cmdque = DxComputeCmdQue_::Create(dev);
@@ -365,6 +366,32 @@ static void DXStub()
                 else if (fpath == "BUFTEST")
                 {
                     BufTest(dev, cmdque);
+                    continue;
+                }
+                else if (fpath == "INFO")
+                {
+
+                    std::u16string infotxt;
+#define ADD_INFO(info) APPEND_FMT(infotxt, u"" #info ": [{}]\n"sv, dev->info)
+                    ADD_INFO(AdapterName);
+                    ADD_INFO(SMVer);
+                    APPEND_FMT(infotxt, u"WaveSize: [{} - {}]\n"sv, dev->WaveSize.first, dev->WaveSize.second);
+                    ADD_INFO(IsTBR);
+                    ADD_INFO(IsUMA);
+                    ADD_INFO(IsUMACacheCoherent);
+                    ADD_INFO(IsIsolatedMMU);
+                    ADD_INFO(SupportFP64);
+                    ADD_INFO(SupportINT64);
+                    ADD_INFO(SupportFP16);
+                    ADD_INFO(SupportINT16);
+                    ADD_INFO(SupportROV);
+                    ADD_INFO(ExtComputeResState);
+                    ADD_INFO(DepthBoundTest);
+                    ADD_INFO(CopyQueueTimeQuery);
+                    ADD_INFO(BackgroundProcessing);
+                    APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(dev->GetLUID()));
+#undef ADD_INFO
+                    log().verbose(u"Device Info:\n{}\n", infotxt);
                     continue;
                 }
                 else if (fpath.empty())

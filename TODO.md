@@ -31,6 +31,7 @@
   - [x] Move common's exception into SystemCommon
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   - [ ] Desgin common waitable, with native support of multi-wait
+  - [ ] Add delayed stacktrace resolve for Exceptions
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision
@@ -181,6 +182,7 @@
   - [ ] Add sampler support
   - [ ] Add shared desc heap
   - [ ] Move to dx12 namespace and create similar framework for dx11 in dx11 namespace (can share some common struct)
+  - [ ] Add consideration of multi-read state for resource (read->read, or add extra state without transit)
   * NLDX
     - [x] Add basic NLDX
     - [ ] Mimic subgroup on platform without Wave support

@@ -67,16 +67,16 @@ struct NLDXContext::DXUVar final : public AutoVarHandler<NLDXContext>
 #define MEMBER(name) argHandler.AddSimpleMember(U"" STRINGIZE(name) ""sv, [](DxDevice_& dev) { return dev.name; })
 #define MEMBERFUNC(name) argHandler.AddSimpleMember(U"" STRINGIZE(name) ""sv, [](DxDevice_& dev) { return dev.name(); })
                 MEMBER(SMVer);
-                MEMBER(WaveSize);
+                argHandler.AddSimpleMember(U"WaveSize"sv, [](DxDevice_& dev) { return dev.WaveSize.first; });
                 MEMBER(AdapterName);
-                MEMBERFUNC(IsTBR);
-                MEMBERFUNC(IsUMA);
-                MEMBERFUNC(IsUMACacheCoherent);
-                MEMBERFUNC(IsIsolatedMMU);
-                MEMBERFUNC(SupportFP64);
-                MEMBERFUNC(SupportINT64);
-                MEMBERFUNC(SupportFP16);
-                MEMBERFUNC(SupportINT16);
+                MEMBER(IsTBR);
+                MEMBER(IsUMA);
+                MEMBER(IsUMACacheCoherent);
+                MEMBER(IsIsolatedMMU);
+                MEMBER(SupportFP64);
+                MEMBER(SupportINT64);
+                MEMBER(SupportFP16);
+                MEMBER(SupportINT16);
 #undef MEMBER
             });
     }
@@ -821,9 +821,9 @@ xcomp::VTypeInfo NLDXRuntime::TryParseVecType(const std::u32string_view type, bo
     else if (info.Bits == 64) // 64bit handling
     {
         if (info.Type == xcomp::VTypeInfo::DataTypes::Float) // FP64
-            typeSupport = Context.Device->SupportFP64();
+            typeSupport = Context.Device->SupportFP64;
         else // INT64
-            typeSupport = Context.Device->SupportINT64();
+            typeSupport = Context.Device->SupportINT64;
     }
     if (info.Dim0() > 4)
         typeSupport = false;

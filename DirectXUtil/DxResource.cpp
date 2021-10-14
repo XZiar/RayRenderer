@@ -34,7 +34,7 @@ static HeapProps ProcessProps(HeapProps props, DxDevice dev) noexcept
                 dxLog().warning(reason);
             }
         };
-        if (dev->IsUMA()) 
+        if (dev->IsUMA) 
             FixProp(props.Memory, MemPrefer::PreferCPU, u"Force PreferCPU because UMA arch.\n");
         if (props.Memory == MemPrefer::PreferGPU) 
             FixProp(props.CPUPage, CPUPageProps::NotAvailable, u"Force CPU-Not-Available because PreferGPU.\n");

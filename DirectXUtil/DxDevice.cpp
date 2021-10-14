@@ -23,9 +23,9 @@ static std::pair<CPUPageProps, MemPrefer> QueryHeapProp(ID3D12Device* dev, D3D12
 
 DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name) :
     Adapter(std::move(adapter)), Device(std::move(device)), AdapterName(name), 
-    SMVer(0), WaveSize(0), 
-    HeapUpload(QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), HeapDefault(QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
-    Arch(Architecture::None), DtypeSupport(ShaderDType::None), OptSupport(OptionalSupport::None)
+    HeapUpload  (QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), 
+    HeapDefault (QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), 
+    HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK))
 {
 #define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)
 #define CheckFeat2(dev, feat, ...) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev, __VA_ARGS__)
@@ -35,42 +35,48 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
         COMMON_THROWEX(DxException, feat.HResult, u"Failed to check SM version");
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS))
     {
-        if (feat->DoublePrecisionFloatShaderOps) DtypeSupport |= ShaderDType::FP64;
+        SupportFP64 = feat->DoublePrecisionFloatShaderOps;
+        SupportROV  = feat->ROVsSupported;
     }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS1))
     {
-        if (feat->WaveOps) WaveSize = feat->WaveLaneCountMin;
-        if (feat->Int64ShaderOps) DtypeSupport |= ShaderDType::INT64;
+        if (feat->WaveOps)
+        {
+            WaveSize.first  = feat->WaveLaneCountMin;
+            WaveSize.second = feat->WaveLaneCountMax;
+        }
+        SupportINT64 = feat->Int64ShaderOps;
+        ExtComputeResState = feat->ExpandedComputeResourceStates;
     }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS2))
     {
-        if (feat->DepthBoundsTestSupported) OptSupport |= OptionalSupport::DepthBoundTest;
+        DepthBoundTest = feat->DepthBoundsTestSupported;
     }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS3))
     {
-        if (feat->CopyQueueTimestampQueriesSupported) OptSupport |= OptionalSupport::CopyQueueTimeQuery;
+        CopyQueueTimeQuery = feat->CopyQueueTimestampQueriesSupported;
     }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS4))
     {
-        if (feat->Native16BitShaderOpsSupported) DtypeSupport |= ShaderDType::FP16 | ShaderDType::INT16;
+        SupportINT16 = SupportFP16 = feat->Native16BitShaderOpsSupported;
     }
     if (const auto feat = CheckFeat(Device, D3D12_OPTIONS6))
     {
-        if (feat->BackgroundProcessingSupported) OptSupport |= OptionalSupport::BackgroundProcessing;
+        BackgroundProcessing = feat->BackgroundProcessingSupported;
     }
     
     if (const auto feat1 = CheckFeat(Device, ARCHITECTURE1))
     {
-        if (feat1->TileBasedRenderer) Arch |= Architecture::TBR;
-        if (feat1->UMA)               Arch |= Architecture::UMA;
-        if (feat1->CacheCoherentUMA)  Arch |= Architecture::CacheCoherent;
-        if (feat1->IsolatedMMU)       Arch |= Architecture::IsolatedMMU;
+        IsTBR                       = feat1->TileBasedRenderer;
+        IsUMA                       = feat1->UMA;
+        IsUMACacheCoherent = IsUMA  = feat1->CacheCoherentUMA;
+        IsIsolatedMMU               = feat1->IsolatedMMU;
     }
     else if (const auto feat2 = CheckFeat(Device, ARCHITECTURE))
     {
-        if (feat2->TileBasedRenderer) Arch |= Architecture::TBR;
-        if (feat2->UMA)               Arch |= Architecture::UMA;
-        if (feat2->CacheCoherentUMA)  Arch |= Architecture::CacheCoherent;
+        IsTBR                       = feat2->TileBasedRenderer;
+        IsUMA                       = feat2->UMA;
+        IsUMACacheCoherent = IsUMA  = feat2->CacheCoherentUMA;
     }
     else
     {
@@ -80,6 +86,14 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
 }
 DxDevice_::~DxDevice_()
 { }
+
+std::array<std::byte, 8> DxDevice_::GetLUID() const noexcept
+{
+    const auto luid = Device->GetAdapterLuid();
+    std::array<std::byte, 8> data;
+    memcpy_s(data.data(), sizeof(data), &luid, sizeof(luid));
+    return data;
+}
 
 common::span<const DxDevice> DxDevice_::GetDevices()
 {
@@ -112,11 +126,11 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             if (FAILED(adapter->GetDesc1(&desc)))
                 continue;
             std::u16string_view adapterName = reinterpret_cast<const char16_t*>(desc.Description);
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            /*if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             {
                 dxLog().verbose(u"Skip software adapter [{}].\n", adapterName);
                 continue;
-            }
+            }*/
             ID3D12Device* device = nullptr;
             {
                 constexpr std::array<D3D_FEATURE_LEVEL, 2> FeatureLvs =

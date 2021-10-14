@@ -88,12 +88,17 @@ protected:
         bool IsBufOrSATex;
         RecordStatus Status;
         ResStateRecord(const DxResource_* res, const ResourceState state) noexcept;
+        [[nodiscard]] bool CheckWillBePromote(ResourceState newState) const noexcept;
+        [[noreturn]] void ThrowOnTransit(ResourceState newState, const bool isCommitted, const bool isBegin) const;
+        // return if it's promote
+        [[nodiscard]] bool NewTransit(ResourceState newState, uint32_t flushIdx, bool isBegin) noexcept;
     };
     PtrProxy<detail::CmdAllocator> CmdAllocator;
     PtrProxy<detail::CmdList> CmdList;
     DxDevice Device;
     std::shared_ptr<DxQueryProvider> QueryProvider;
     std::vector<ResStateRecord> ResStateTable;
+    // a promise of the end state to enable parallel cmdlist creation
     ResStateList EndResStates;
     common::StackDataset<std::vector<ResStateRecord>> FlushRecord;
     const ListType Type;
@@ -125,9 +130,10 @@ protected:
      * @param res target DxResource
      * @param newState target state
      * @param updFlag flags
-     * @return wheather the update completes
+     * @return wheather the update completes immediately
     */
     bool UpdateResState(const DxResource_* res, const ResourceState newState, ResStateUpdFlag updFlag);
+    void TransitToEndState();
 public:
     ~DxCmdList_() override;
     void AddMarker(std::u16string name) const final;

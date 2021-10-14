@@ -362,20 +362,6 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
 }
 
 
-template<size_t N>
-static std::string Hex2Str(const std::array<std::byte, N>& data)
-{
-    constexpr auto ch = "0123456789abcdef";
-    std::string ret;
-    ret.reserve(N * 2);
-    for (size_t i = 0; i < N; ++i)
-    {
-        const uint8_t dat = static_cast<uint8_t>(data[i]);
-        ret.push_back(ch[dat / 16]);
-        ret.push_back(ch[dat % 16]);
-    }
-    return ret;
-}
 template<typename T>
 static std::string Hex2Str(const std::optional<T>& data)
 {
@@ -464,7 +450,7 @@ static void OCLStub()
             else if (fpath == "INFO")
             {
                 std::u16string infotxt;
-#define ADD_INFO(info) APPEND_FMT(infotxt, u"{}: [{}]\n"sv, PPCAT(u, STRINGIZE(info)), dev->info)
+#define ADD_INFO(info) APPEND_FMT(infotxt, u"" #info ": [{}]\n"sv, dev->info)
                 ADD_INFO(Name);
                 ADD_INFO(Vendor);
                 APPEND_FMT(infotxt, u"VendorId: [{:#010x}]\n"sv, dev->VendorId);
