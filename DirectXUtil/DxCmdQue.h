@@ -3,6 +3,7 @@
 #include "DxDevice.h"
 #include "DxPromise.h"
 #include "DxQuery.h"
+#include "XComputeBase/XCompRely.h"
 #include "SystemCommon/StackTrace.h"
 
 
@@ -41,20 +42,6 @@ struct ResStateRecord
     const DxResource_* Resource;
     ResourceState State;
 };
-struct DXUAPI DebugEventHolder : public std::enable_shared_from_this<DebugEventHolder>
-{
-private:
-    struct Range;
-    std::weak_ptr<Range> CurrentRange;
-    virtual void BeginEvent(std::u16string_view msg) const = 0;
-    virtual void EndEvent() const = 0;
-protected:
-    bool CheckRangeEmpty() const noexcept;
-public:
-    virtual ~DebugEventHolder();
-    virtual void AddMarker(std::u16string name) const = 0;
-    std::shared_ptr<void> DeclareRange(std::u16string msg);
-};
 }
 
 class DXUAPI ResStateList
@@ -66,7 +53,7 @@ public:
 };
 
 
-class DXUAPI DxCmdList_ : public DxNamable, public detail::DebugEventHolder
+class DXUAPI DxCmdList_ : public DxNamable, public xcomp::RangeHolder, public std::enable_shared_from_this<DxCmdList_>
 {
     friend DxQueryProvider;
     friend DxCmdQue_;
@@ -136,7 +123,7 @@ protected:
     void TransitToEndState();
 public:
     ~DxCmdList_() override;
-    void AddMarker(std::u16string name) const final;
+    void AddMarker(std::u16string_view name) const noexcept final;
     void FlushResourceState();
     [[nodiscard]] ResStateList GenerateStateList() const;
     [[nodiscard]] DxTimestampToken CaptureTimestamp();
@@ -148,8 +135,8 @@ public:
 private:
     uint32_t FlushIdx;
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
-    void BeginEvent(std::u16string_view msg) const final;
-    void EndEvent() const final;
+    std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept final;
+    void EndRange() const noexcept final;
 };
 MAKE_ENUM_BITFIELD(DxCmdList_::Capability)
 MAKE_ENUM_BITFIELD(DxCmdList_::ResStateUpdFlag)
@@ -206,7 +193,7 @@ public:
 };
 
 
-class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public detail::DebugEventHolder
+class DXUAPI COMMON_EMPTY_BASES DxCmdQue_ : public DxNamable, public xcomp::RangeHolder, public std::enable_shared_from_this<DxCmdQue_>
 {
     friend DxQueryProvider;
     friend DxPromiseCore;
@@ -214,8 +201,8 @@ private:
     mutable std::atomic<uint64_t> FenceNum;
     uint64_t TimestampFreq;
     [[nodiscard]] void* GetD3D12Object() const noexcept final;
-    void BeginEvent(std::u16string_view msg) const final;
-    void EndEvent() const final;
+    std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept final;
+    void EndRange() const noexcept final;
     static void EnsureClosed(const DxCmdList_& list);
 protected:
     enum class QueType { Copy, Compute, Direct };
@@ -242,7 +229,7 @@ protected:
 public:
     ~DxCmdQue_() override;
     constexpr uint64_t GetTimestampFreq() const noexcept { return TimestampFreq; }
-    void AddMarker(std::u16string name) const final;
+    void AddMarker(std::u16string_view name) const noexcept final;
     template<typename... Args>
     DxCmdList CreateList(Args&&... args) const
     {

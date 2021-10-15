@@ -17,36 +17,6 @@ using common::enum_cast;
 #define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
-namespace detail
-{
-struct DebugEventHolder::Range
-{
-    std::shared_ptr<DebugEventHolder> Host;
-    std::shared_ptr<Range> Previous;
-    Range(std::shared_ptr<DebugEventHolder> host) :
-        Host(std::move(host)), Previous(Host->CurrentRange.lock())
-    { }
-    ~Range()
-    {
-        Host->EndEvent();
-    }
-};
-
-DebugEventHolder::~DebugEventHolder()
-{}
-bool DebugEventHolder::CheckRangeEmpty() const noexcept
-{
-    return CurrentRange.expired();
-}
-std::shared_ptr<void> DebugEventHolder::DeclareRange(std::u16string msg)
-{
-    BeginEvent(msg);
-    auto range = std::make_shared<Range>(shared_from_this());
-    CurrentRange = range;
-    return range;
-}
-}
-
 
 void ResStateList::AddState(const DxResource_* res, ResourceState state)
 {
@@ -156,15 +126,16 @@ void* DxCmdList_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(CmdList.Ptr());
 }
-void DxCmdList_::BeginEvent(std::u16string_view msg) const
+std::shared_ptr<const xcomp::RangeHolder> DxCmdList_::BeginRange(std::u16string_view msg) const noexcept
 {
     detail::pix::BeginEvent(CmdList.Ptr(), 0, msg);
+    return shared_from_this();
 }
-void DxCmdList_::EndEvent() const
+void DxCmdList_::EndRange() const noexcept
 {
     detail::pix::EndEvent(CmdList.Ptr());
 }
-void DxCmdList_::AddMarker(std::u16string name) const
+void DxCmdList_::AddMarker(std::u16string_view name) const noexcept
 {
     detail::pix::SetMarker(CmdList.Ptr(), 0, name);
 }
@@ -495,15 +466,16 @@ void* DxCmdQue_::GetD3D12Object() const noexcept
 {
     return static_cast<ID3D12Object*>(CmdQue.Ptr());
 }
-void DxCmdQue_::BeginEvent(std::u16string_view msg) const
+std::shared_ptr<const xcomp::RangeHolder> DxCmdQue_::BeginRange(std::u16string_view msg) const noexcept
 {
     detail::pix::BeginEvent(CmdQue.Ptr(), 0, msg);
+    return shared_from_this();
 }
-void DxCmdQue_::EndEvent() const
+void DxCmdQue_::EndRange() const noexcept
 {
     detail::pix::EndEvent(CmdQue.Ptr());
 }
-void DxCmdQue_::AddMarker(std::u16string name) const
+void DxCmdQue_::AddMarker(std::u16string_view name) const noexcept
 {
     detail::pix::SetMarker(CmdQue.Ptr(), 0, name);
 }

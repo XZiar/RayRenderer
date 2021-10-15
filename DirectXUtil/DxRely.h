@@ -16,6 +16,7 @@
 #include "ImageUtil/TexFormat.h"
 #include "SystemCommon/HResultHelper.h"
 #include "SystemCommon/PromiseTask.h"
+#include "SystemCommon/Exceptions.h"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/EasyIterator.hpp"
@@ -23,7 +24,6 @@
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
-#include "SystemCommon/Exceptions.h"
 #include "common/CommonRely.hpp"
 
 #if COMMON_COMPILER_CLANG

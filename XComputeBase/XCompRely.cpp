@@ -86,4 +86,26 @@ std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept
 }
 
 
+struct RangeHolder::Range
+{
+    std::shared_ptr<const RangeHolder> Host;
+    std::shared_ptr<Range> Previous;
+    Range(std::shared_ptr<const RangeHolder> host) noexcept :
+        Host(std::move(host)), Previous(Host->CurrentRange.lock())
+    { }
+    ~Range()
+    {
+        Host->EndRange();
+    }
+};
+
+RangeHolder::~RangeHolder() {}
+std::shared_ptr<void> RangeHolder::DeclareRange(std::u16string_view msg)
+{
+    auto range = std::make_shared<Range>(BeginRange(msg));
+    CurrentRange = range;
+    return range;
+}
+
+
 }

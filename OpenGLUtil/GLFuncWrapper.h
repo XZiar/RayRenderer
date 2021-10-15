@@ -463,8 +463,10 @@ public:
     // debug
     GLint MaxLabelLen = 0;
     GLsizei MaxMessageLen = 0;
-    using DebugCallback = void (GLAPIENTRYP)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar * message, const void* userParam);
+    using DebugCallback    = void (GLAPIENTRYP)(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+    using DebugCallbackAMD = void (GLAPIENTRYP)(GLuint id, GLenum category, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
     void (GLAPIENTRYP ogluDebugMessageCallback) (DebugCallback callback, const void* userParam) = nullptr;
+    void (GLAPIENTRYP ogluDebugMessageCallbackAMD) (DebugCallbackAMD callback, const void* userParam) = nullptr;
     void (GLAPIENTRYP ogluObjectLabel_) (GLenum identifier, GLuint name, GLsizei length, const GLchar* label) = nullptr;
     void (GLAPIENTRYP ogluLabelObjectEXT_) (GLenum type, GLuint object, GLsizei length, const GLchar* label) = nullptr;
     void (GLAPIENTRYP ogluObjectPtrLabel_) (void* ptr, GLsizei length, const GLchar* label) = nullptr;
@@ -472,11 +474,14 @@ public:
     void (GLAPIENTRYP ogluPopDebugGroup_) () = nullptr;
     void (GLAPIENTRYP ogluPushGroupMarkerEXT_) (GLsizei length, const GLchar* marker) = nullptr;
     void (GLAPIENTRYP ogluPopGroupMarkerEXT_) () = nullptr;
+    void (GLAPIENTRYP ogluDebugMessageInsert_) (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* buf) = nullptr;
+    void (GLAPIENTRYP ogluDebugMessageInsertAMD) (GLenum category, GLenum severity, GLuint id, GLsizei length, const GLchar* buf) = nullptr;
 
     void ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const;
     void ogluSetObjectLabel(GLsync sync, std::u16string_view name) const;
     void ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const;
     void ogluPopDebugGroup() const;
+    void ogluInsertDebugMarker(GLuint id, std::u16string_view name) const;
 
     // others
     GLenum         (GLAPIENTRYP ogluGetError) () = nullptr;

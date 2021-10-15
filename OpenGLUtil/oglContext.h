@@ -1,5 +1,6 @@
 #pragma once
 #include "oglRely.h"
+#include "XComputeBase/XCompRely.h"
 #include "3DElement.hpp"
 
 
@@ -19,7 +20,7 @@ using oglContext = std::shared_ptr<oglContext_>;
 
 enum class MsgSrc :uint8_t 
 {
-    OpenGL = 0x1, System = 0x2, Compiler = 0x4, ThreeRD = 0x8, Application = 0x10, Other = 0x20, 
+    OpenGL = 0x1, WindowSystem = 0x2, Compiler = 0x4, ThreeRD = 0x8, Application = 0x10, Other = 0x20, 
     Empty = 0x0, All = 0x2f
 };
 MAKE_ENUM_BITFIELD(MsgSrc)
@@ -33,17 +34,17 @@ MAKE_ENUM_BITFIELD(MsgType)
 enum class MsgLevel :uint8_t { High = 3, Medium = 2, Low = 1, Notfication = 0 };
 MAKE_ENUM_RANGE(MsgLevel)
 
-struct OGLUAPI DebugMessage
+struct DebugMessage
 {
     friend class oglContext_;
 public:
-    const MsgType Type;
-    const MsgSrc From;
-    const MsgLevel Level;
+    MsgType Type;
+    MsgSrc From;
+    MsgLevel Level;
     std::u16string Msg;
 
-    DebugMessage(const GLenum from, const GLenum type, const GLenum lv);
-    ~DebugMessage();
+    DebugMessage(MsgSrc from, MsgType type, MsgLevel lv) noexcept :
+        Type(type), From(from), Level(lv) {}
 };
 
 
@@ -173,7 +174,7 @@ struct OGLUAPI SharedContextCore
 
 
 ///<summary>oglContext, all set/get method should be called after UseContext</summary>  
-class OGLUAPI oglContext_ : public common::NonCopyable, public std::enable_shared_from_this<oglContext_>
+class OGLUAPI oglContext_ : public xcomp::RangeHolder, public std::enable_shared_from_this<oglContext_>
 {
     friend class oglProgram_;
     friend class oglWorker;
@@ -213,11 +214,16 @@ private:
 #endif
     void Init(const bool isCurrent);
     void FinishGL();
+    std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept final;
+    void EndRange() const noexcept final;
     static void PushToMap(oglContext ctx);
 public:
     const ContextCapability* Capability = nullptr;
+    COMMON_NO_COPY(oglContext_)
+    COMMON_DEF_MOVE(oglContext_)
     ~oglContext_();
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
+    void AddMarker(std::u16string_view name) const noexcept final;
 
     bool UseContext(const bool force = false);
     bool UnloadContext();
@@ -244,7 +250,6 @@ public:
     
     [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
-    std::shared_ptr<void> DeclareRange(std::u16string_view name);
 
 
     [[nodiscard]] static uint32_t GetLatestVersion();

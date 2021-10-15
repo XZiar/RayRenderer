@@ -105,12 +105,18 @@ bool CheckPixLoad()
 void BeginEvent(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str)
 {
     if (CheckPixLoad())
-        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+    {
+        std::u16string str_(str); // reuqire null-ended string
+        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str_.data()));
+    }
 }
 void BeginEvent(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str)
 {
     if (CheckPixLoad())
-        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+    {
+        std::u16string str_(str); // reuqire null-ended string
+        PIXBeginEvent(context, color, L"%s", reinterpret_cast<const wchar_t*>(str_.data()));
+    }
 }
 void EndEvent(ID3D12CommandQueue* context)
 {
@@ -125,12 +131,18 @@ void EndEvent(ID3D12GraphicsCommandList* context)
 void SetMarker(ID3D12CommandQueue* context, UINT64 color, std::u16string_view str)
 {
     if (CheckPixLoad())
-        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+    {
+        std::u16string str_(str); // reuqire null-ended string
+        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str_.data()));
+    }
 }
 void SetMarker(ID3D12GraphicsCommandList* context, UINT64 color, std::u16string_view str)
 {
     if (CheckPixLoad())
-        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str.data()));
+    {
+        std::u16string str_(str); // reuqire null-ended string
+        PIXSetMarker(context, color, L"%s", reinterpret_cast<const wchar_t*>(str_.data()));
+    }
 }
 void NotifyWakeFromFenceSignal(HANDLE handle)
 {

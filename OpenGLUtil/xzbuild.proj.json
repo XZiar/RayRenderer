@@ -2,7 +2,7 @@
     "name": "OpenGLUtil",
     "type": "dynamic",
     "description": "Wrapper of OpenGL Utility",
-    "dependency": ["ImageUtil", "SystemCommon"],
+    "dependency": ["XComputeBase", "ImageUtil", "SystemCommon"],
     "library": 
     {
         "static": [],

@@ -45,18 +45,30 @@ static common::RWSpinLock CTX_LOCK;
 static common::SpinLocker EXTERN_CTX_LOCK;
 
 
-static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+static MsgLevel ParseLevel(const GLenum lv) noexcept
 {
-    if (type == GL_DEBUG_TYPE_MARKER || type == GL_DEBUG_TYPE_PUSH_GROUP || type == GL_DEBUG_TYPE_POP_GROUP)
-        return;
-    if (source == GL_DEBUG_SOURCE_THIRD_PARTY && (id >= OGLUMsgIdMin && id <= OGLUMsgIdMax))
-        return;
-    DebugMessage msg(source, type, severity);
-    const oglContext_::DBGLimit& limit = *reinterpret_cast<const oglContext_::DBGLimit*>(userParam);
-    if (((limit.src & msg.From) != MsgSrc::Empty)
-        && ((limit.type & msg.Type) != MsgType::Empty)
-        && (uint8_t)limit.minLV <= (uint8_t)msg.Level)
+    switch (lv)
     {
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        return MsgLevel::Notfication;
+    case GL_DEBUG_SEVERITY_LOW:
+        return MsgLevel::Low;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        return MsgLevel::Medium;
+    case GL_DEBUG_SEVERITY_HIGH:
+        return MsgLevel::High;
+    default:
+        return MsgLevel::Notfication;
+    }
+}
+static void HandleMsg(MsgSrc msgFrom, MsgType msgType, MsgLevel msgLevel, GLsizei length, const GLchar* message, const void* userParam)
+{
+    const oglContext_::DBGLimit& limit = *reinterpret_cast<const oglContext_::DBGLimit*>(userParam);
+    if (((limit.src & msgFrom) != MsgSrc::Empty)
+        && ((limit.type & msgType) != MsgType::Empty)
+        && (uint8_t)limit.minLV <= (uint8_t)msgLevel)
+    {
+        DebugMessage msg(msgFrom, msgType, msgLevel);
         msg.Msg.assign(message, message + length);
 
         if (msg.Type == MsgType::Error)
@@ -71,6 +83,49 @@ static void GLAPIENTRY onMsg(GLenum source, GLenum type, [[maybe_unused]]GLuint 
             oglLog().verbose(u"OpenGL message\n{}\n", msg.Msg);
         }
     }
+}
+
+static void GLAPIENTRY HandleMsgARB(GLenum source, GLenum type, [[maybe_unused]]GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+    if (type == GL_DEBUG_TYPE_MARKER || type == GL_DEBUG_TYPE_PUSH_GROUP || type == GL_DEBUG_TYPE_POP_GROUP)
+        return;
+    if (source == GL_DEBUG_SOURCE_THIRD_PARTY && (id >= OGLUMsgIdMin && id <= OGLUMsgIdMax))
+        return;
+    const auto msgFrom  = static_cast<MsgSrc>(1 << (source - GL_DEBUG_SOURCE_API));
+    const auto msgType  = static_cast<MsgType>(type <= GL_DEBUG_TYPE_OTHER ?
+        1 << (type - GL_DEBUG_TYPE_ERROR) : 0x40 << (type - GL_DEBUG_TYPE_MARKER));
+    const auto msgLevel = ParseLevel(severity);
+    HandleMsg(msgFrom, msgType, msgLevel, length, message, userParam);
+}
+
+static void GLAPIENTRY HandleMsgAMD(GLuint id, GLenum category, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+    if (category == GL_DEBUG_CATEGORY_APPLICATION_AMD && (id >= OGLUMsgIdMin && id <= OGLUMsgIdMax))
+        return;
+    MsgSrc  msgFrom;
+    MsgType msgType;
+    switch (category)
+    {
+    case GL_DEBUG_CATEGORY_API_ERROR_AMD: 
+        msgFrom = MsgSrc::OpenGL,       msgType = MsgType::Error;       break;
+    case GL_DEBUG_CATEGORY_WINDOW_SYSTEM_AMD: 
+        msgFrom = MsgSrc::WindowSystem, msgType = MsgType::Error;       break;
+    case GL_DEBUG_CATEGORY_DEPRECATION_AMD: 
+        msgFrom = MsgSrc::OpenGL,       msgType = MsgType::Deprecated;  break;
+    case GL_DEBUG_CATEGORY_UNDEFINED_BEHAVIOR_AMD: 
+        msgFrom = MsgSrc::OpenGL,       msgType = MsgType::UndefBehav;  break;
+    case GL_DEBUG_CATEGORY_PERFORMANCE_AMD: 
+        msgFrom = MsgSrc::OpenGL,       msgType = MsgType::Performance; break;
+    case GL_DEBUG_CATEGORY_SHADER_COMPILER_AMD: 
+        msgFrom = MsgSrc::Compiler,     msgType = MsgType::Other;       break;
+    case GL_DEBUG_CATEGORY_APPLICATION_AMD: 
+        msgFrom = MsgSrc::Application,  msgType = MsgType::Other;       break;
+    case GL_DEBUG_CATEGORY_OTHER_AMD: 
+    default:
+        msgFrom = MsgSrc::Other,        msgType = MsgType::Other;       break;
+    }
+    const auto msgLevel = ParseLevel(severity);
+    HandleMsg(msgFrom, msgType, msgLevel, length, message, userParam);
 }
 
 
@@ -185,7 +240,7 @@ bool oglContext_::UseContext(const bool force)
         return false;
     }
 #endif
-    InnerCurCtx = this->shared_from_this();
+    InnerCurCtx = shared_from_this();
     return true;
 }
 
@@ -257,7 +312,10 @@ void oglContext_::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
     {
         CtxFunc->ogluEnable(GL_DEBUG_OUTPUT);
         CtxFunc->ogluEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        CtxFunc->ogluDebugMessageCallback(onMsg, &DbgLimit);
+        if (CtxFunc->ogluDebugMessageCallback)
+            CtxFunc->ogluDebugMessageCallback(HandleMsgARB, &DbgLimit);
+        else if (CtxFunc->ogluDebugMessageCallbackAMD)
+            CtxFunc->ogluDebugMessageCallbackAMD(HandleMsgAMD, &DbgLimit);
     }
 }
 
@@ -366,26 +424,21 @@ void oglContext_::MemBarrier(const GLMemBarrier mbar)
     CtxFunc->ogluMemoryBarrier(common::enum_cast(mbar));
 }
 
-struct oglContext_::oglMarker
+std::shared_ptr<const xcomp::RangeHolder> oglContext_::BeginRange(std::u16string_view msg) const noexcept
 {
-    oglContext Context;
-    std::shared_ptr<oglContext_::oglMarker> Previous;
-    oglMarker(oglContext_* ctx) : Context(ctx->shared_from_this()), 
-        Previous(ctx->CurrentRangeMarker.lock())
-    { }
-    ~oglMarker()
-    {
-        CtxFunc->ogluPopDebugGroup();
-        Context->CurrentRangeMarker = Previous;
-    }
-};
-std::shared_ptr<void> oglContext_::DeclareRange(std::u16string_view name)
+    Expects(InnerCurCtx && InnerCurCtx.get() == this);
+    CtxFunc->ogluPushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, OGLUMsgIdMin, msg);
+    return shared_from_this();
+}
+void oglContext_::EndRange() const noexcept
 {
-    CHECKCURRENT();
-    CtxFunc->ogluPushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, OGLUMsgIdMin, name);
-    const auto marker = std::make_shared<oglMarker>(this);
-    CurrentRangeMarker = marker;
-    return marker;
+    Expects(InnerCurCtx && InnerCurCtx.get() == this);
+    CtxFunc->ogluPopDebugGroup();
+}
+void oglContext_::AddMarker(std::u16string_view name) const noexcept
+{
+    Expects(InnerCurCtx && InnerCurCtx.get() == this);
+    CtxFunc->ogluInsertDebugMarker(OGLUMsgIdMin, name);
 }
 
 uint32_t oglContext_::GetLatestVersion()
@@ -568,40 +621,5 @@ bool oglCtxObject<false>::EnsureValid()
     return false;
 }
 }
-
-static MsgSrc ParseSrc(const GLenum src)
-{
-    return static_cast<MsgSrc>(1 << (src - GL_DEBUG_SOURCE_API));
-}
-
-static MsgType ParseType(const GLenum type)
-{
-    if (type <= GL_DEBUG_TYPE_OTHER)
-        return static_cast<MsgType>(1 << (type - GL_DEBUG_TYPE_ERROR));
-    else
-        return static_cast<MsgType>(0x40 << (type - GL_DEBUG_TYPE_MARKER));
-}
-
-static MsgLevel ParseLevel(const GLenum lv)
-{
-    switch (lv)
-    {
-    case GL_DEBUG_SEVERITY_NOTIFICATION:
-        return MsgLevel::Notfication;
-    case GL_DEBUG_SEVERITY_LOW:
-        return MsgLevel::Low;
-    case GL_DEBUG_SEVERITY_MEDIUM:
-        return MsgLevel::Medium;
-    case GL_DEBUG_SEVERITY_HIGH:
-        return MsgLevel::High;
-    default:
-        return MsgLevel::Notfication;
-    }
-}
-
-DebugMessage::DebugMessage(const GLenum from, const GLenum type, const GLenum lv)
-    :Type(ParseType(type)), From(ParseSrc(from)), Level(ParseLevel(lv)) { }
-
-DebugMessage::~DebugMessage(){ }
 
 }

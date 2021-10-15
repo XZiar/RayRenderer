@@ -1011,14 +1011,17 @@ CtxFuncs::CtxFuncs(void*)
     QUERY_FUNC (GetSynciv,              "", "APPLE");
 
     //debug
-    QUERY_FUNC (DebugMessageCallback,   "", "ARB", "AMD");
-    QUERY_FUNC_(ObjectLabel,            "");
-    QUERY_FUNC_(LabelObjectEXT,         "");
-    QUERY_FUNC_(ObjectPtrLabel,         "");
-    QUERY_FUNC_(PushDebugGroup,         "");
-    QUERY_FUNC_(PopDebugGroup,          "");
-    QUERY_FUNC_(PushGroupMarkerEXT,     "");
-    QUERY_FUNC_(PopGroupMarkerEXT,      "");
+    QUERY_FUNC (DebugMessageCallback,       "", "ARB");
+    QUERY_FUNC (DebugMessageCallbackAMD,    "");
+    QUERY_FUNC_(ObjectLabel,                "");
+    QUERY_FUNC_(LabelObjectEXT,             "");
+    QUERY_FUNC_(ObjectPtrLabel,             "");
+    QUERY_FUNC_(PushDebugGroup,             "");
+    QUERY_FUNC_(PopDebugGroup,              "");
+    QUERY_FUNC_(PushGroupMarkerEXT,         "");
+    QUERY_FUNC_(PopGroupMarkerEXT,          "");
+    QUERY_FUNC_(DebugMessageInsert,         "", "ARB");
+    QUERY_FUNC (DebugMessageInsertAMD,      "");
 
     //others
     PLAIN_FUNC (GetError);
@@ -1053,7 +1056,7 @@ CtxFuncs::CtxFuncs(void*)
         ogluGetIntegerv(GL_MINOR_VERSION, &minor);
         Version = major * 10 + minor;
     }
-    SupportDebug            = ogluDebugMessageCallback != nullptr;
+    SupportDebug            = ogluDebugMessageCallback != nullptr || ogluDebugMessageCallbackAMD != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ogluClipControl != nullptr;
     SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
@@ -1805,6 +1808,23 @@ void CtxFuncs::ogluPopDebugGroup() const
         ogluPopDebugGroup_();
     else if (ogluPopGroupMarkerEXT_)
         ogluPopGroupMarkerEXT_();
+}
+void CtxFuncs::ogluInsertDebugMarker(GLuint id, std::u16string_view name) const
+{
+    if (ogluDebugMessageInsert_)
+    {
+        const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
+        ogluDebugMessageInsert_(GL_DEBUG_SOURCE_THIRD_PARTY, GL_DEBUG_TYPE_MARKER, id, GL_DEBUG_SEVERITY_NOTIFICATION,
+            static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+    else if (ogluDebugMessageInsertAMD)
+    {
+        const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
+        ogluDebugMessageInsertAMD(GL_DEBUG_CATEGORY_OTHER_AMD, GL_DEBUG_SEVERITY_LOW_AMD, id,
+            static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
+            reinterpret_cast<const GLchar*>(str.c_str()));
+    }
 }
 
 

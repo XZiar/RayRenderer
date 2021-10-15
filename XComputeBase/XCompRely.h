@@ -11,10 +11,10 @@
 #endif
 
 #include "SystemCommon/MiniLogger.h"
+#include "SystemCommon/Exceptions.h"
 
 #include "common/CommonRely.hpp"
 #include "common/EnumEx.hpp"
-#include "SystemCommon/Exceptions.h"
 #include "common/simd/SIMD.hpp"
 
 #include <cstdio>
@@ -24,6 +24,7 @@
 #include <string_view>
 #include <cstring>
 #include <vector>
+#include <memory>
 #include <tuple>
 #include <optional>
 #include <variant>
@@ -134,6 +135,25 @@ struct VecDimSupport
         }
     }
 };
+
+struct RangeHolder
+{
+private:
+    struct Range;
+    std::weak_ptr<Range> CurrentRange;
+    virtual std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept = 0;
+    virtual void EndRange() const noexcept = 0;
+protected:
+    bool CheckRangeEmpty() const noexcept
+    {
+        return CurrentRange.expired();
+    }
+    XCOMPBASAPI virtual ~RangeHolder();
+public:
+    XCOMPBASAPI std::shared_ptr<void> DeclareRange(std::u16string_view msg);
+    virtual void AddMarker(std::u16string_view name) const noexcept = 0;
+};
+
 
 XCOMPBASAPI VTypeInfo ParseVDataType(const std::u32string_view type) noexcept;
 XCOMPBASAPI std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept;
