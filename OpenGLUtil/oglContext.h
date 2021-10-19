@@ -51,13 +51,13 @@ public:
 struct OGLUAPI BindingState
 {
     void* HRC = nullptr;
-    GLint Prog = 0, VAO = 0, FBO = 0, DFB = 0, RFB = 0, VBO = 0, IBO = 0, EBO = 0;
-    GLint Tex2D = 0, Tex2DArray = 0, Tex3D = 0;
+    int32_t Prog = 0, VAO = 0, FBO = 0, DFB = 0, RFB = 0, VBO = 0, IBO = 0, EBO = 0;
+    int32_t Tex2D = 0, Tex2DArray = 0, Tex3D = 0;
     BindingState();
 };
 
 
-enum class DepthTestType : GLenum 
+enum class DepthTestType : uint32_t 
 {
     OFF          = 0xFFFFFFFF/*GL_INVALID_INDEX*/,
     Never        = 0x0200/*GL_NEVER*/,
@@ -71,7 +71,7 @@ enum class DepthTestType : GLenum
 };
 enum class FaceCullingType : uint8_t { OFF, CullCW, CullCCW, CullAll };
 
-enum class GLMemBarrier : GLbitfield 
+enum class GLMemBarrier : uint32_t 
 {
     VertAttrib = 0x00000001     /*GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT*/,
     EBO        = 0x00000002     /*GL_ELEMENT_ARRAY_BARRIER_BIT*/,

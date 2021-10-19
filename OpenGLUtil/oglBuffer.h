@@ -29,7 +29,7 @@ class oglIndirectBuffer_;
 using oglIBO    = std::shared_ptr<oglIndirectBuffer_>;
 
 
-enum class BufferTypes : GLenum
+enum class BufferTypes : uint32_t
 {
     Array           = 0x8892/*GL_ARRAY_BUFFER*/,
     Element         = 0x8893/*GL_ELEMENT_ARRAY_BUFFER*/,
@@ -88,7 +88,7 @@ protected:
     std::u16string Name;
     std::optional<oglMapPtr_> PersistentPtr;
     size_t BufSize;
-    GLuint BufferID;
+    uint32_t BufferID;
     const BufferTypes BufferType;
     void bind() const noexcept;
     void unbind() const noexcept;
@@ -199,22 +199,22 @@ private:
 public:
     struct DrawElementsIndirectCommand
     {
-        GLuint count;
-        GLuint instanceCount;
-        GLuint firstIndex;
-        GLuint baseVertex;
-        GLuint baseInstance;
+        uint32_t count;
+        uint32_t instanceCount;
+        uint32_t firstIndex;
+        uint32_t baseVertex;
+        uint32_t baseInstance;
     };
     struct DrawArraysIndirectCommand
     {
-        GLuint count;
-        GLuint instanceCount;
-        GLuint first;
-        GLuint baseInstance;
+        uint32_t count;
+        uint32_t instanceCount;
+        uint32_t first;
+        uint32_t baseInstance;
     };
 protected:
     std::variant<std::vector<DrawElementsIndirectCommand>, std::vector<DrawArraysIndirectCommand>> Commands;
-    GLsizei Count = 0;
+    int32_t Count = 0;
     [[nodiscard]] bool IsIndexed() const;
 public:
     virtual ~oglIndirectBuffer_() noexcept override;
@@ -248,7 +248,7 @@ private:
     MAKE_ENABLER();
     oglElementBuffer_() noexcept;
 protected:
-    GLenum IndexType;
+    uint32_t IndexType;
     uint8_t IndexSize;
     void SetSize(const uint8_t elesize);
 public:

@@ -50,13 +50,13 @@ oglBuffer_::oglMapPtr_::oglMapPtr_(oglBuffer_* buf, const MapFlag flags) :
     else
         access = GL_READ_WRITE;
 
-    const auto ptr = CtxFunc->ogluMapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID, access);
+    const auto ptr = CtxFunc->MapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID, access);
     MemSpace = common::span<std::byte>(reinterpret_cast<std::byte*>(ptr), Buffer.BufSize);
 }
 
 oglBuffer_::oglMapPtr_::~oglMapPtr_()
 {
-    if (CtxFunc->ogluUnmapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID) == GL_FALSE)
+    if (CtxFunc->UnmapNamedBuffer(common::enum_cast(Buffer.BufferType), Buffer.BufferID) == GL_FALSE)
         oglLog().error(u"unmap buffer [{}] with size[{}] failed.\n", Buffer.BufferID, MemSpace.size());
 }
 
@@ -64,9 +64,9 @@ oglBuffer_::oglMapPtr_::~oglMapPtr_()
 oglBuffer_::oglBuffer_(const BufferTypes type) noexcept :
     BufSize(0), BufferID(GL_INVALID_INDEX), BufferType(type)
 {
-    CtxFunc->ogluGenBuffers(1, &BufferID);
-    CtxFunc->ogluBindBuffer(common::enum_cast(BufferType), BufferID);
-    CtxFunc->ogluBindBuffer(common::enum_cast(BufferType), 0);
+    CtxFunc->GenBuffers(1, &BufferID);
+    CtxFunc->BindBuffer(common::enum_cast(BufferType), BufferID);
+    CtxFunc->BindBuffer(common::enum_cast(BufferType), 0);
 }
 
 oglBuffer_::~oglBuffer_() noexcept
@@ -75,7 +75,7 @@ oglBuffer_::~oglBuffer_() noexcept
     if (PersistentPtr)
         PersistentPtr.reset();
     if (BufferID != GL_INVALID_INDEX)
-        CtxFunc->ogluDeleteBuffers(1, &BufferID);
+        CtxFunc->DeleteBuffers(1, &BufferID);
     else
         oglLog().error(u"re-release oglBuffer [{}] of type [{}] with size [{}]\n", BufferID, (uint32_t)BufferType, BufSize);
 }
@@ -83,7 +83,7 @@ oglBuffer_::~oglBuffer_() noexcept
 void oglBuffer_::bind() const noexcept
 {
     CheckCurrent();
-    CtxFunc->ogluBindBuffer(common::enum_cast(BufferType), BufferID);
+    CtxFunc->BindBuffer(common::enum_cast(BufferType), BufferID);
     //if (BufferType== BufferType::Indirect)
         //oglLog().verbose(u"binding ibo[{}].\n", BufferID);
 }
@@ -91,13 +91,13 @@ void oglBuffer_::bind() const noexcept
 void oglBuffer_::unbind() const noexcept
 {
     CheckCurrent();
-    CtxFunc->ogluBindBuffer(common::enum_cast(BufferType), 0);
+    CtxFunc->BindBuffer(common::enum_cast(BufferType), 0);
 }
 
 void oglBuffer_::PersistentMap(MapFlag flags)
 {
     flags |= MapFlag::CoherentMap | MapFlag::PersistentMap;
-    CtxFunc->ogluNamedBufferStorage(common::enum_cast(BufferType), BufferID, BufSize, nullptr, 
+    CtxFunc->NamedBufferStorage(common::enum_cast(BufferType), BufferID, BufSize, nullptr, 
         common::enum_cast(flags & MapFlag::PrepareMask));
     PersistentPtr.emplace(this, flags);
 }
@@ -121,7 +121,7 @@ oglMapPtr oglBuffer_::Map(const MapFlag flags)
 void oglBuffer_::SetName(std::u16string name) noexcept
 {
     Name = std::move(name);
-    CtxFunc->ogluSetObjectLabel(GL_BUFFER, BufferID, Name);
+    CtxFunc->SetObjectLabel(GL_BUFFER, BufferID, Name);
 }
 
 common::span<std::byte> oglBuffer_::GetPersistentPtr() const
@@ -138,7 +138,7 @@ void oglBuffer_::WriteSpan(const common::span<const std::byte> space, const Buff
     }
     else
     {
-        CtxFunc->ogluNamedBufferData(common::enum_cast(BufferType), BufferID, space.size(), space.data(), ParseBufferWriteMode(mode));
+        CtxFunc->NamedBufferData(common::enum_cast(BufferType), BufferID, space.size(), space.data(), ParseBufferWriteMode(mode));
         BufSize = space.size();
     }
 }
@@ -201,7 +201,7 @@ detail::ResourceBinder<oglUniformBuffer_>& oglUniformBuffer_::GetUBOMan() noexce
 void oglUniformBuffer_::BindToUnit(const uint16_t pos) const
 {
     CheckCurrent();
-    CtxFunc->ogluBindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
+    CtxFunc->BindBufferBase(GL_UNIFORM_BUFFER, pos, BufferID);
 }
 
 

@@ -136,7 +136,7 @@ struct VecDimSupport
     }
 };
 
-struct RangeHolder
+struct XCOMPBASAPI RangeHolder
 {
 private:
     struct Range;
@@ -148,9 +148,9 @@ protected:
     {
         return CurrentRange.expired();
     }
-    XCOMPBASAPI virtual ~RangeHolder();
+    virtual ~RangeHolder();
 public:
-    XCOMPBASAPI std::shared_ptr<void> DeclareRange(std::u16string_view msg);
+    std::shared_ptr<void> DeclareRange(std::u16string_view msg);
     virtual void AddMarker(std::u16string_view name) const noexcept = 0;
 };
 

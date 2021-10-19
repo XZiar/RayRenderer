@@ -39,7 +39,7 @@ class oglImg3D_;
 using oglImg3D      = std::shared_ptr<oglImg3D_>;
 
 
-enum class TextureType : GLenum
+enum class TextureType : uint32_t
 {
     Tex2D      = 0x0DE1/*GL_TEXTURE_2D*/,
     Tex3D      = 0x806F/*GL_TEXTURE_3D*/,
@@ -64,20 +64,20 @@ class OGLWrongFormatException : public OGLException
 
 struct OGLUAPI OGLTexUtil
 {
-    [[nodiscard]] static GLenum GetInnerFormat(const xziar::img::TextureFormat format) noexcept;
-    [[nodiscard]] static bool ParseFormat(const xziar::img::TextureFormat dformat, const bool isUpload, GLenum& datatype, GLenum& comptype) noexcept;
-    [[nodiscard]] static std::pair<GLenum, GLenum> ParseFormat(const xziar::img::TextureFormat dformat, const bool isUpload) noexcept
+    [[nodiscard]] static uint32_t GetInnerFormat(const xziar::img::TextureFormat format) noexcept;
+    [[nodiscard]] static bool ParseFormat(const xziar::img::TextureFormat dformat, const bool isUpload, uint32_t& datatype, uint32_t& comptype) noexcept;
+    [[nodiscard]] static std::pair<uint32_t, uint32_t> ParseFormat(const xziar::img::TextureFormat dformat, const bool isUpload) noexcept
     {
-        GLenum datatype, comptype;
+        uint32_t datatype, comptype;
         if (ParseFormat(dformat, isUpload, datatype, comptype))
             return { datatype,comptype };
         else
             return { GLInvalidEnum, GLInvalidEnum };
     }
-    [[nodiscard]] static bool ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized, GLenum& datatype, GLenum& comptype) noexcept;
-    [[nodiscard]] static std::pair<GLenum, GLenum> ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized) noexcept
+    [[nodiscard]] static bool ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized, uint32_t& datatype, uint32_t& comptype) noexcept;
+    [[nodiscard]] static std::pair<uint32_t, uint32_t> ParseFormat(const xziar::img::ImageDataType dformat, const bool normalized) noexcept
     {
-        GLenum datatype, comptype;
+        uint32_t datatype, comptype;
         if (ParseFormat(dformat, normalized, datatype, comptype))
             return { datatype,comptype };
         else
@@ -115,9 +115,9 @@ class OGLUAPI oglTexBase_ : public common::NonMovable, public detail::oglCtxObje
     friend class ::oclu::GLInterop;
 protected:
     std::u16string Name;
-    std::optional<GLuint64> Handle;
+    std::optional<uint64_t> Handle;
     const TextureType Type;
-    GLuint TextureID;
+    uint32_t TextureID;
     xziar::img::TextureFormat InnerFormat;
     uint8_t Mipmap;
     [[nodiscard]] static detail::ResourceBinder<oglTexBase_>& GetTexMan() noexcept;
@@ -197,7 +197,7 @@ protected:
     explicit oglTex2D_(const bool shouldBindType) noexcept 
         : oglTexBase_(TextureType::Tex2D, shouldBindType), Width(0), Height(0) {}
 
-    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
+    void SetData(const bool isSub, const uint32_t datatype, const uint32_t comptype, const void *data, const uint8_t level);
     void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level) noexcept;
     using oglTexCommon_<oglTex2D_>::SetData;
     using oglTexCommon_<oglTex2D_>::SetCompressedData;
@@ -362,7 +362,7 @@ protected:
     explicit oglTex3D_(const bool shouldBindType) noexcept 
         : oglTexBase_(TextureType::Tex3D, shouldBindType), Width(0), Height(0), Depth(0) {}
 
-    void SetData(const bool isSub, const GLenum datatype, const GLenum comptype, const void *data, const uint8_t level);
+    void SetData(const bool isSub, const uint32_t datatype, const uint32_t comptype, const void *data, const uint8_t level);
     void SetCompressedData(const bool isSub, const void *data, const size_t size, const uint8_t level);
     using oglTexCommon_<oglTex3D_>::SetData;
     using oglTexCommon_<oglTex3D_>::SetCompressedData;
@@ -443,13 +443,13 @@ class OGLUAPI oglImgBase_ : public common::NonMovable, public detail::oglCtxObje
     friend class ProgDraw;
 protected:
     oglTexBase InnerTex;
-    std::optional<GLuint64> Handle;
+    std::optional<uint64_t> Handle;
     TexImgUsage Usage;
     const bool IsLayered;
     [[nodiscard]] static detail::ResourceBinder<oglImgBase_>& GetImgMan() noexcept;
     oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const bool isLayered);
 private:
-    GLuint GetTextureID() const noexcept;
+    uint32_t GetTextureID() const noexcept;
     void BindToUnit(const uint16_t pos) const noexcept;
     void PinToHandle() noexcept;
 public:

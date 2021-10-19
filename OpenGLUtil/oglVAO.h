@@ -17,7 +17,7 @@ class oglVAO_;
 using oglVAO = std::shared_ptr<oglVAO_>;
 
 
-enum class VAODrawMode : GLenum
+enum class VAODrawMode : uint32_t
 {
     Triangles = 0x0004/*GL_TRIANGLES*/
 };
@@ -80,11 +80,11 @@ private:
     MAKE_ENABLER();
     enum class DrawMethod : uint8_t { UnPrepared, Array, Arrays, Index, Indexs, IndirectArrays, IndirectIndexes };
     std::u16string Name;
-    std::variant<std::monostate, GLsizei, std::vector<GLsizei>> Count;
-    std::variant<std::monostate, const void*, GLint, std::vector<const void*>, std::vector<GLint>> Offsets;
+    std::variant<std::monostate, int32_t, std::vector<int32_t>> Count;
+    std::variant<std::monostate, const void*, int32_t, std::vector<const void*>, std::vector<int32_t>> Offsets;
     oglEBO IndexBuffer;
     oglIBO IndirectBuffer;
-    GLuint VAOId;
+    uint32_t VAOId;
     VAODrawMode DrawMode;
     DrawMethod Method = DrawMethod::UnPrepared;
     oglVAO_(const VAODrawMode) noexcept;
@@ -98,12 +98,12 @@ public:
         oglVAO_* VAO;
         const oglDrawProgram_& Prog;
         VAOPrep(oglVAO_* vao, const oglDrawProgram_& prog) noexcept;
-        GLint GetLoc(const std::string_view name) const noexcept;
-        void GetLocs(const common::span<const std::string_view> names, const common::span<GLint> idxs) const noexcept;
-        void SetInteger(const VAValType valType, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
-        void SetFloat(const VAValType valType, const bool isNormalize, const GLint attridx, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor);
+        int32_t GetLoc(const std::string_view name) const noexcept;
+        void GetLocs(const common::span<const std::string_view> names, const common::span<int32_t> idxs) const noexcept;
+        void SetInteger(const VAValType valType, const int32_t attridx, const uint16_t stride, const uint8_t size, const size_t offset, uint32_t divisor);
+        void SetFloat(const VAValType valType, const bool isNormalize, const int32_t attridx, const uint16_t stride, const uint8_t size, const size_t offset, uint32_t divisor);
         template<typename T>
-        void SetAttrib(const uint16_t eleSize, const size_t offset, const GLint attridx)
+        void SetAttrib(const uint16_t eleSize, const size_t offset, const int32_t attridx)
         {
             static_assert(detail::IsVAComp<T>::value, "Attribe descriptor should be VARawComponent or VAComponent");
             if constexpr(T::AsInteger)
@@ -112,7 +112,7 @@ public:
                 SetFloat(T::ValType, T::IsNormalize, attridx, eleSize, T::Size, offset + T::Offset, 0);
         }
         template<typename Tuple, size_t N, std::size_t... Indexes>
-        void SetAttribs(const uint16_t eleSize, const size_t offset, const GLint(&attridx)[N], std::index_sequence<Indexes...>)
+        void SetAttribs(const uint16_t eleSize, const size_t offset, const int32_t(&attridx)[N], std::index_sequence<Indexes...>)
         {
             (SetAttrib<std::tuple_element_t<Indexes, Tuple>>(eleSize, offset, attridx[Indexes]), ...);
         }
@@ -127,10 +127,10 @@ public:
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
         template<typename Attr, typename Val = uint32_t>
-        VAOPrep& SetInteger(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
+        VAOPrep& SetInteger(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, uint32_t divisor = 0)
         {
             static_assert(std::is_integral_v<Val>, "Only integral types are allowed when using SetInteger.");
-            if constexpr (std::is_same_v<Attr, GLint>)
+            if constexpr (std::is_same_v<Attr, int32_t>)
             {
                 VAO->CheckCurrent();
                 vbo->bind();
@@ -148,9 +148,9 @@ public:
         ///<param name="offset">offset(byte) of the 1st elements</param>
         ///<param name="divisor">increase attri index foreach {x} instance</param>
         template<typename Attr, typename Val = float>
-        VAOPrep& SetFloat(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, GLuint divisor = 0)
+        VAOPrep& SetFloat(const oglVBO& vbo, const Attr& attr, const uint16_t stride, const uint8_t size, const size_t offset, uint32_t divisor = 0)
         {
-            if constexpr (std::is_same_v<Attr, GLint>)
+            if constexpr (std::is_same_v<Attr, int32_t>)
             {
                 VAO->CheckCurrent();
                 vbo->bind();
@@ -172,13 +172,13 @@ public:
             static_assert(std::tuple_size_v<C> == N, "attrib index size mismatch with component count");
             VAO->CheckCurrent();
             vbo->bind();
-            if constexpr (std::is_same_v<Attr, GLint>)
+            if constexpr (std::is_same_v<Attr, int32_t>)
             {
                 SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attr, std::make_index_sequence<N>{});
             }
             else
             {
-                GLint attrIdx[N] = { GLInvalidIndex };
+                int32_t attrIdx[N] = { GLInvalidIndex };
                 GetLocs(attr, attrIdx);
                 SetAttribs<C>(static_cast<uint16_t>(sizeof(T)), offset, attrIdx, std::make_index_sequence<N>{});
             }
@@ -186,7 +186,7 @@ public:
         }
         ///<summary>Set DrawId</summary>  
         ///<param name="attridx">drawID attribute index</param>
-        VAOPrep& SetDrawId(const GLint attridx);
+        VAOPrep& SetDrawId(const int32_t attridx);
         ///<summary>Set DrawId</summary>  
         VAOPrep& SetDrawId();
         ///<summary>Set Indexed buffer</summary>  
@@ -202,7 +202,7 @@ public:
         VAOPrep& SetDrawSizes(const std::vector<uint32_t>& offsets, const std::vector<uint32_t>& sizes);
         ///<summary>Set Indirect buffer</summary>  
         ///<param name="ibo">indirect buffer</param>
-        VAOPrep& SetDrawSizeFrom(const oglIBO& ibo, GLint offset = 0, GLsizei size = 0);
+        VAOPrep& SetDrawSizeFrom(const oglIBO& ibo, int32_t offset = 0, int32_t size = 0);
     };
     ~oglVAO_() noexcept;
 

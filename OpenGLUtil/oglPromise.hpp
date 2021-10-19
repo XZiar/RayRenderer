@@ -13,24 +13,24 @@ public:
     GLuint Query;
     oglPromiseCore()
     {
-        CtxFunc->ogluGenQueries(1, &Query);
-        CtxFunc->ogluGetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
-        CtxFunc->ogluQueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
-        SyncObj = CtxFunc->ogluFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-        CtxFunc->ogluFlush(); //ensure sync object sended
+        CtxFunc->GenQueries(1, &Query);
+        CtxFunc->GetInteger64v(GL_TIMESTAMP, (GLint64*)&TimeBegin); //suppose it is the time all commands are issued.
+        CtxFunc->QueryCounter(Query, GL_TIMESTAMP); //this should be the time all commands are completed.
+        SyncObj = CtxFunc->FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        CtxFunc->Flush(); //ensure sync object sended
     }
     ~oglPromiseCore()
     {
         if (EnsureValid())
         {
-            CtxFunc->ogluDeleteSync(SyncObj);
-            CtxFunc->ogluDeleteQueries(1, &Query);
+            CtxFunc->DeleteSync(SyncObj);
+            CtxFunc->DeleteQueries(1, &Query);
         }
     }
     common::PromiseState GetState() noexcept override
     {
         CheckCurrent();
-        switch (CtxFunc->ogluClientWaitSync(SyncObj, 0, 0))
+        switch (CtxFunc->ClientWaitSync(SyncObj, 0, 0))
         {
         case GL_TIMEOUT_EXPIRED:
             return common::PromiseState::Executing;
@@ -51,7 +51,7 @@ public:
         CheckCurrent();
         do
         {
-            switch (CtxFunc->ogluClientWaitSync(SyncObj, 0, 1000'000'000))
+            switch (CtxFunc->ClientWaitSync(SyncObj, 0, 1000'000'000))
             {
             case GL_TIMEOUT_EXPIRED:
                 continue;
@@ -74,7 +74,7 @@ public:
         if (TimeEnd == 0)
         {
             CheckCurrent();
-            CtxFunc->ogluGetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
+            CtxFunc->GetQueryObjectui64v(Query, GL_QUERY_RESULT, &TimeEnd);
         }
         if (TimeEnd == 0)
             return 0;

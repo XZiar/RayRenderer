@@ -1,6 +1,6 @@
 #pragma once
-#include "GLFuncWrapper.h"
 #include "oglRely.h"
+#include "GLFuncWrapper.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"

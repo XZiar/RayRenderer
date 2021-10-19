@@ -268,7 +268,7 @@ void CachedResManager<oglTexBase_>::BindRess(const oglTexBase_* tex, const uint1
 template<>
 void CachedResManager<oglTexBase_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
 {
-    CtxFunc->ogluProgramUniform1i(progId, loc, slot);
+    CtxFunc->ProgramUniform1i(progId, loc, slot);
 }
 
 
@@ -285,7 +285,7 @@ void CachedResManager<oglImgBase_>::BindRess(const oglImgBase_* img, const uint1
 template<>
 void CachedResManager<oglImgBase_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
 {
-    CtxFunc->ogluProgramUniform1i(progId, loc, slot);
+    CtxFunc->ProgramUniform1i(progId, loc, slot);
 }
 
 
@@ -302,7 +302,7 @@ void CachedResManager<oglUniformBuffer_>::BindRess(const oglUniformBuffer_* ubo,
 template<>
 void CachedResManager<oglUniformBuffer_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
 {
-    CtxFunc->ogluUniformBlockBinding(progId, loc, slot);
+    CtxFunc->UniformBlockBinding(progId, loc, slot);
 }
 
 
@@ -314,7 +314,7 @@ void BindlessTexManager::BindAll(const GLuint progId, const std::map<GLuint, ogl
         {
             if (!res->Handle.has_value())
                 res->PinToHandle();
-            CtxFunc->ogluProgramUniformHandleui64(progId, loc, res->Handle.value());
+            CtxFunc->ProgramUniformHandleui64(progId, loc, res->Handle.value());
         }
     }
 }
@@ -331,7 +331,7 @@ void BindlessImgManager::BindAll(const GLuint progId, const std::map<GLuint, ogl
         {
             if (!res->Handle.has_value())
                 res->PinToHandle();
-            CtxFunc->ogluProgramUniformHandleui64(progId, loc, res->Handle.value());
+            CtxFunc->ProgramUniformHandleui64(progId, loc, res->Handle.value());
         }
     }
 }

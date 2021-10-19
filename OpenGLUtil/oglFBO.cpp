@@ -38,8 +38,8 @@ static GLenum ParseRBOFormat(const RBOFormat format)
 oglRenderBuffer_::oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format)
     : RBOId(GL_INVALID_INDEX), InnerFormat(format), Width(width), Height(height)
 {
-    CtxFunc->ogluCreateRenderbuffers(1, &RBOId);
-    CtxFunc->ogluNamedRenderbufferStorage(RBOId, ParseRBOFormat(InnerFormat), Width, Height);
+    CtxFunc->CreateRenderbuffers(1, &RBOId);
+    CtxFunc->NamedRenderbufferStorage(RBOId, ParseRBOFormat(InnerFormat), Width, Height);
 }
 oglRBO oglRenderBuffer_::Create(const uint32_t width, const uint32_t height, const RBOFormat format)
 {
@@ -49,13 +49,13 @@ oglRBO oglRenderBuffer_::Create(const uint32_t width, const uint32_t height, con
 oglRenderBuffer_::~oglRenderBuffer_()
 {
     if (!EnsureValid()) return;
-    CtxFunc->ogluDeleteRenderbuffers(1, &RBOId);
+    CtxFunc->DeleteRenderbuffers(1, &RBOId);
 }
 
 void oglRenderBuffer_::SetName(std::u16string name) noexcept
 {
     Name = std::move(name);
-    CtxFunc->ogluSetObjectLabel(GL_RENDERBUFFER, RBOId, Name);
+    CtxFunc->SetObjectLabel(GL_RENDERBUFFER, RBOId, Name);
 }
 
 
@@ -95,28 +95,28 @@ oglFrameBuffer_::FBOClear::FBOClear(oglFrameBuffer_* fbo) :
 { }
 oglFrameBuffer_::FBOClear::~FBOClear()
 {
-    CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, OldFBOId);
+    CtxFunc->BindFramebuffer(GL_DRAW_FRAMEBUFFER, OldFBOId);
 }
 
 oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearColors(const b3d::Vec4& color)
 {
-    CtxFunc->ogluClearColor(color.x, color.y, color.z, color.w);
-    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT);
+    CtxFunc->ClearColor(color.x, color.y, color.z, color.w);
+    CtxFunc->Clear(GL_COLOR_BUFFER_BIT);
     return *this;
 }
 oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearDepth(const float depth)
 {
-    CtxFunc->ogluClearNamedFramebufferfv(NewFBOId(), GL_DEPTH, 0, &depth);
+    CtxFunc->ClearNamedFramebufferfv(NewFBOId(), GL_DEPTH, 0, &depth);
     return *this;
 }
 oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearStencil(const GLint stencil)
 {
-    CtxFunc->ogluClearNamedFramebufferiv(NewFBOId(), GL_STENCIL, 0, &stencil);
+    CtxFunc->ClearNamedFramebufferiv(NewFBOId(), GL_STENCIL, 0, &stencil);
     return *this;
 }
 oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearDepthStencil(const float depth, const GLint stencil)
 {
-    CtxFunc->ogluClearNamedFramebufferDepthStencil(NewFBOId(), depth, stencil);
+    CtxFunc->ClearNamedFramebufferDepthStencil(NewFBOId(), depth, stencil);
     return *this;
 }
 
@@ -144,7 +144,7 @@ GLenum oglFrameBuffer_::CheckIfBinded() const
 bool oglFrameBuffer_::CheckIsSrgb(const GLenum attachment) const
 {
     GLint isSrgb = GL_LINEAR;
-    CtxFunc->ogluGetNamedFramebufferAttachmentParameteriv(FBOId, attachment, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &isSrgb);
+    CtxFunc->GetNamedFramebufferAttachmentParameteriv(FBOId, attachment, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &isSrgb);
     return isSrgb == GL_SRGB;
 }
 
@@ -155,7 +155,7 @@ bool oglFrameBuffer_::SetViewPort(const uint32_t width, const uint32_t height)
     Width = width, Height = height;
     if (CtxFunc->DrawFBO == FBOId)
     {
-        CtxFunc->ogluViewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
+        CtxFunc->Viewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
         return false;
     }
     return true;
@@ -169,7 +169,7 @@ void oglFrameBuffer_::BindDraws(const common::span<GLenum> bindings)
         .AllIf([](const auto& pair) { return pair.first == pair.second; });
     if (!nochange)
     {
-        CtxFunc->ogluDrawBuffers((GLsizei)bindings.size(), bindings.data());
+        CtxFunc->DrawBuffers((GLsizei)bindings.size(), bindings.data());
         DrawBindings.assign(bindings.data(), bindings.data() + bindings.size());
     }
 }
@@ -177,7 +177,7 @@ void oglFrameBuffer_::BindDraws(const common::span<GLenum> bindings)
 FBOStatus oglFrameBuffer_::CheckStatus() const
 {
     CheckCurrent();
-    switch (CtxFunc->ogluCheckNamedFramebufferStatus(FBOId, GL_DRAW_FRAMEBUFFER))
+    switch (CtxFunc->CheckNamedFramebufferStatus(FBOId, GL_DRAW_FRAMEBUFFER))
     {
     case GL_FRAMEBUFFER_COMPLETE:
         return FBOStatus::Complete;
@@ -205,8 +205,8 @@ FBOStatus oglFrameBuffer_::CheckStatus() const
 void oglFrameBuffer_::Use()
 {
     CheckCurrent();
-    CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOId);
-    CtxFunc->ogluViewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
+    CtxFunc->BindFramebuffer(GL_DRAW_FRAMEBUFFER, FBOId);
+    CtxFunc->Viewport(0, 0, static_cast<GLsizei>(Width), static_cast<GLsizei>(Height));
     oglContext_::CurrentContext()->GetOrCreate<false>(FBO_CTXCFG)->Use(this);
 }
 
@@ -219,15 +219,15 @@ void oglFrameBuffer_::ClearAll()
 {
     const auto oldFBOId = CtxFunc->DrawFBO;
     Use();
-    CtxFunc->ogluClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    CtxFunc->ogluBindFramebuffer(GL_DRAW_FRAMEBUFFER, oldFBOId);
+    CtxFunc->Clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    CtxFunc->BindFramebuffer(GL_DRAW_FRAMEBUFFER, oldFBOId);
 }
 
 
 static void BlitColor(const GLuint from, const GLuint to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
     const auto& [x0, y0, x1, y1] = rect;
-    CtxFunc->ogluBlitNamedFramebuffer(from, to, x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    CtxFunc->BlitNamedFramebuffer(from, to, x0, y0, x1, y1, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 void oglFrameBuffer_::BlitColorTo(const oglFBO& to, const std::tuple<int32_t, int32_t, int32_t, int32_t> rect)
 {
@@ -246,25 +246,25 @@ void oglFrameBuffer_::BlitColorFrom(const oglFBO& from, const std::tuple<int32_t
 oglDefaultFrameBuffer_::FBOClear& oglDefaultFrameBuffer_::FBOClear::DiscardColors()
 {
     const GLenum slot = GL_COLOR;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglDefaultFrameBuffer_::FBOClear& oglDefaultFrameBuffer_::FBOClear::DiscardDepth()
 {
     const GLenum slot = GL_DEPTH;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglDefaultFrameBuffer_::FBOClear& oglDefaultFrameBuffer_::FBOClear::DiscardStencil()
 {
     const GLenum slot = GL_STENCIL;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglDefaultFrameBuffer_::FBOClear& oglDefaultFrameBuffer_::FBOClear::DiscardDepthStencil()
 {
     const GLenum slot[] = { GL_DEPTH, GL_STENCIL };
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 2, slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 2, slot);
     return *this;
 }
 
@@ -331,12 +331,12 @@ oglCustomFrameBuffer_::FBOClear::~FBOClear()
         att++;
     }
     BindDraws(targets);
-    //CtxFunc->ogluDrawBuffers((GLsizei)targets.size(), targets.data());
+    //CtxFunc->DrawBuffers((GLsizei)targets.size(), targets.data());
     uint8_t idx = 0;
     for (const auto& clr : ColorClears)
     {
         if (clr.has_value())
-            CtxFunc->ogluClearNamedFramebufferfv(NewFBOId(), GL_COLOR, GL_DRAW_BUFFER0 + (idx++), clr.value());
+            CtxFunc->ClearNamedFramebufferfv(NewFBOId(), GL_COLOR, GL_DRAW_BUFFER0 + (idx++), clr.value());
     }
 }
 oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::ClearColor(const uint8_t attachment, const b3d::Vec4& color)
@@ -349,32 +349,32 @@ oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::DiscardColor(c
 {
     Expects(attachment < TheFBO.ColorAttachemnts.size()); // u"attachment index overflow"
     const GLenum slot = GL_COLOR_ATTACHMENT0 + attachment;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::DiscardDepth()
 {
     const GLenum slot = GL_DEPTH_ATTACHMENT;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::DiscardStencil()
 {
     const GLenum slot = GL_STENCIL_ATTACHMENT;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::DiscardDepthStencil()
 {
     const GLenum slot = GL_DEPTH_STENCIL_ATTACHMENT;
-    CtxFunc->ogluInvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
+    CtxFunc->InvalidateNamedFramebufferData(NewFBOId(), 1, &slot);
     return *this;
 }
 
 
 oglCustomFrameBuffer_::oglCustomFrameBuffer_() : oglFrameBuffer_(GL_INVALID_INDEX)
 {
-    CtxFunc->ogluCreateFramebuffers(1, &FBOId);
+    CtxFunc->CreateFramebuffers(1, &FBOId);
     ColorAttachemnts.resize(CtxFunc->MaxColorAttachment);
     ColorAttachNames.resize(CtxFunc->MaxColorAttachment);
     DrawBindings[0] = GL_COLOR_ATTACHMENT0;
@@ -382,7 +382,7 @@ oglCustomFrameBuffer_::oglCustomFrameBuffer_() : oglFrameBuffer_(GL_INVALID_INDE
 oglCustomFrameBuffer_::~oglCustomFrameBuffer_()
 {
     if (!EnsureValid()) return;
-    CtxFunc->ogluDeleteFramebuffers(1, &FBOId);
+    CtxFunc->DeleteFramebuffers(1, &FBOId);
 }
 
 bool oglCustomFrameBuffer_::IsSrgb(const uint8_t attachment) const
@@ -416,7 +416,7 @@ void oglCustomFrameBuffer_::CheckAttachmentMatch(const uint32_t width, const uin
 void oglCustomFrameBuffer_::SetName(std::u16string name) noexcept
 {
     Name = std::move(name);
-    CtxFunc->ogluSetObjectLabel(GL_FRAMEBUFFER, FBOId, Name);
+    CtxFunc->SetObjectLabel(GL_FRAMEBUFFER, FBOId, Name);
 }
 
 oglCustomFrameBuffer_::FBOClear oglCustomFrameBuffer_::Clear()
@@ -432,8 +432,8 @@ std::pair<GLuint, GLuint> oglCustomFrameBuffer_::DebugBinding() const
 std::pair<GLuint, GLuint> oglCustomFrameBuffer_::DebugBinding(GLuint id)
 {
     GLint clrId = 0, depId = 0;
-    CtxFunc->ogluGetNamedFramebufferAttachmentParameteriv(id, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &clrId);
-    CtxFunc->ogluGetNamedFramebufferAttachmentParameteriv(id, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depId);
+    CtxFunc->GetNamedFramebufferAttachmentParameteriv(id, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &clrId);
+    CtxFunc->GetNamedFramebufferAttachmentParameteriv(id, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depId);
     return std::pair<GLuint, GLuint>(clrId, depId);
 }
 
@@ -447,7 +447,7 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglTex2D& tex, const uint8_t at
 {
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D, GetID(tex), 0);
     oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
 
@@ -456,7 +456,7 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglTex2DArray& tex, const uint3
     Expects(layer < tex->Layers); // u"texture layer overflow"
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTextureLayer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0, layer);
+    CtxFunc->NamedFramebufferTextureLayer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0, layer);
     oglCustomFrameBuffer_::AttachColorTexture(attachment, name, std::make_pair(tex, layer));
 }
 
@@ -465,7 +465,7 @@ void oglFrameBuffer2D_::AttachColorTexture(const oglRBO& rbo, const uint8_t atta
     Expects(rbo->GetType() == RBOFormat::TYPE_COLOR); // u"rbo type missmatch"
     CheckCurrent();
     CheckAttachmentMatch(rbo);
-    CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, GetID(rbo));
+    CtxFunc->NamedFramebufferRenderbuffer(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_RENDERBUFFER, GetID(rbo));
     oglCustomFrameBuffer_::AttachColorTexture(attachment, name, rbo);
 }
 
@@ -473,7 +473,7 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglTex2D& tex)
 {
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     DepthAttachment = tex;
 }
 
@@ -482,7 +482,7 @@ void oglFrameBuffer2D_::AttachDepthTexture(const oglRBO& rbo)
     Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH); // u"rbo type missmatch"
     CheckCurrent();
     CheckAttachmentMatch(rbo);
-    CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
+    CtxFunc->NamedFramebufferRenderbuffer(FBOId, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo;
 }
 
@@ -490,7 +490,7 @@ void oglFrameBuffer2D_::AttachStencilTexture(const oglTex2D& tex)
 {
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetID(tex), 0);
     StencilAttachment = tex;
 }
 
@@ -499,7 +499,7 @@ void oglFrameBuffer2D_::AttachStencilTexture(const oglRBO& rbo)
     Expects(rbo->GetType() == RBOFormat::TYPE_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
     CheckAttachmentMatch(rbo);
-    CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
+    CtxFunc->NamedFramebufferRenderbuffer(FBOId, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     StencilAttachment = rbo;
 }
 
@@ -508,7 +508,7 @@ void oglFrameBuffer2D_::AttachDepthStencilBuffer(const oglRBO& rbo)
     Expects(rbo->GetType() == RBOFormat::TYPE_DEPTH_STENCIL); // u"rbo type missmatch"
     CheckCurrent();
     CheckAttachmentMatch(rbo);
-    CtxFunc->ogluNamedFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
+    CtxFunc->NamedFramebufferRenderbuffer(FBOId, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GetID(rbo));
     DepthAttachment = rbo; StencilAttachment = rbo;
 }
 
@@ -535,7 +535,7 @@ void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex3D& tex, const uint8
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_3D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_3D, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
     oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
@@ -545,7 +545,7 @@ void oglLayeredFrameBuffer_::AttachColorTexture(const oglTex2DArray& tex, const 
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_COLOR_ATTACHMENT0 + attachment, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     ColorAttachemnts[attachment] = tex;
     oglCustomFrameBuffer_::AttachColorTexture(attachment, name, tex);
 }
@@ -555,7 +555,7 @@ void oglLayeredFrameBuffer_::AttachDepthTexture(const oglTex3D& tex)
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     DepthAttachment = tex;
 }
 
@@ -564,7 +564,7 @@ void oglLayeredFrameBuffer_::AttachDepthTexture(const oglTex2DArray& tex)
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     DepthAttachment = tex;
 }
 
@@ -573,7 +573,7 @@ void oglLayeredFrameBuffer_::AttachStencilTexture(const oglTex3D& tex)
     CheckLayerMatch(tex->Depth);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_3D, GetID(tex), 0);
     StencilAttachment = tex;
 }
 
@@ -582,7 +582,7 @@ void oglLayeredFrameBuffer_::AttachStencilTexture(const oglTex2DArray& tex)
     CheckLayerMatch(tex->Layers);
     CheckCurrent();
     CheckAttachmentMatch(tex);
-    CtxFunc->ogluNamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
+    CtxFunc->NamedFramebufferTexture(FBOId, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D_ARRAY, GetID(tex), 0);
     StencilAttachment = tex;
 }
 

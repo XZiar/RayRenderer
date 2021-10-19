@@ -5,9 +5,38 @@
 #include "oglContext.h"
 #include "oglBuffer.h"
 
+#include <boost/preprocessor/control/if.hpp>
 #include <boost/preprocessor/punctuation/comma_if.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+
+
+typedef void (APIENTRYP PFNGLDRAWARRAYSPROC) (GLenum mode, GLint first, GLsizei count);
+typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLenum type, const void* indices);
+typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint* textures);
+typedef void (APIENTRYP PFNGLBINDTEXTUREPROC) (GLenum target, GLuint texture);
+typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint* textures);
+typedef void (APIENTRYP PFNGLCULLFACEPROC) (GLenum mode);
+typedef void (APIENTRYP PFNGLFRONTFACEPROC) (GLenum mode);
+typedef void (APIENTRYP PFNGLHINTPROC) (GLenum target, GLenum mode);
+typedef void (APIENTRYP PFNGLDISABLEPROC) (GLenum cap);
+typedef void (APIENTRYP PFNGLENABLEPROC) (GLenum cap);
+typedef GLboolean (APIENTRYP PFNGLISENABLEDPROC) (GLenum cap);
+typedef void (APIENTRYP PFNGLFINISHPROC) (void);
+typedef void (APIENTRYP PFNGLFLUSHPROC) (void);
+typedef void (APIENTRYP PFNGLCLEARPROC) (GLbitfield mask);
+typedef void (APIENTRYP PFNGLCLEARCOLORPROC) (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+typedef void (APIENTRYP PFNGLCLEARSTENCILPROC) (GLint s);
+typedef void (APIENTRYP PFNGLCLEARDEPTHPROC) (GLdouble depth); typedef void (APIENTRYP PFNGLGETBOOLEANVPROC) (GLenum pname, GLboolean* data);
+typedef void (APIENTRYP PFNGLGETDOUBLEVPROC) (GLenum pname, GLdouble* data);
+typedef void (APIENTRYP PFNGLDEPTHFUNCPROC) (GLenum func);
+typedef void (APIENTRYP PFNGLVIEWPORTPROC) (GLint x, GLint y, GLsizei width, GLsizei height);
+typedef GLenum (APIENTRYP PFNGLGETERRORPROC) (void);
+typedef void (APIENTRYP PFNGLGETFLOATVPROC) (GLenum pname, GLfloat* data);
+typedef void (APIENTRYP PFNGLGETINTEGERVPROC) (GLenum pname, GLint* data);
+typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC) (GLenum name);
 
 
 #undef APIENTRY
@@ -40,8 +69,11 @@
 #endif
 
 
+
+
 namespace oglu
 {
+using namespace std::string_view_literals;
 [[maybe_unused]] constexpr auto PlatFuncsSize = sizeof(PlatFuncs);
 [[maybe_unused]] constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
 
@@ -273,7 +305,7 @@ static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
 
 static void ShowQuerySuc (const std::string_view tarName, const std::string_view ext, void* ptr)
 {
-    oglLog().verbose(FMT_STRING(u"Func [{}] uses [gl...{{{}}}] ({:p})\n"), tarName, ext, (void*)ptr);
+    oglLog().verbose(FMT_STRING(u"Func [{}] uses [{}] ({:p})\n"), tarName, ext, (void*)ptr);
 }
 static void ShowQueryFail(const std::string_view tarName)
 {
@@ -284,71 +316,16 @@ static void ShowQueryFall(const std::string_view tarName)
     oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
 }
 
-//template<typename T, std::size_T N, std::size_t ...Ns>
-//std::array<T, N> make_array_impl(
-//    std::initializer_list<T> t,
-//    std::index_sequence<Ns...>)
-//{
-//    return std::array<T, N>{ *(t.begin() + Ns) ... };
-//}
-//
-//template<typename T, std::size_t N>
-//std::array<T, N> make_array(std::initializer_list<T> t) {
-//    if (N > t.size())
-//        throw std::out_of_range("that's crazy!");
-//    return make_array_impl<T, N>(t, std::make_index_sequence<N>());
-//}
-//
-//template<std::size_t... Idxes>
-//static constexpr auto CreateSVArray_(const std::initializer_list<std::string_view> txts, std::index_sequence<Idxes...>)
-//{
-//    return std::array<std::string_view, sizeof...(Idxes)>{ *(t.begin() + Idxes)... };
-//}
-//static constexpr auto CreateSVArray(const std::initializer_list<std::string_view> txts)
-//{
-//    return CreateSVArray_(txts, std::make_index_sequence<txts.size()>());
-//}
-
-template<typename T, size_t N>
-static void QueryFunc(T& target, const std::string_view tarName, const std::pair<bool, bool> shouldPrint, 
-    const std::array<std::string_view, N> names, const std::array<std::string_view, N> suffixes)
-{
-    const auto [printSuc, printFail] = shouldPrint;
-    size_t idx = 0;
-    for (const auto& name : names)
-    {
-#if COMMON_OS_WIN
-        const auto ptr = wglGetProcAddress(name.data());
-#elif COMMON_OS_DARWIN
-        const auto ptr = NSGLGetProcAddress(name.data());
-#else
-        const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
-#endif
-        if (ptr)
-        {
-            target = reinterpret_cast<T>(ptr);
-            if (printSuc)
-                ShowQuerySuc(tarName, suffixes[idx], (void*)ptr);
-            return;
-        }
-        idx++;
-    }
-    target = nullptr;
-    if (printFail)
-        ShowQueryFail(tarName);
-}
-
 template<typename T>
-static void QueryPlainFunc(T& target, const std::string_view tarName,
-    const std::pair<bool, bool> shouldPrint, const std::string_view name, void* fallback)
+static void QueryPlatFunc(T& target, const std::string_view tarName, const std::pair<bool, bool> shouldPrint)
 {
     const auto [printSuc, printFail] = shouldPrint;
 #if COMMON_OS_WIN
-    const auto ptr = wglGetProcAddress(name.data());
+    const auto ptr = wglGetProcAddress(tarName.data());
 #elif COMMON_OS_DARWIN
-    const auto ptr = NSGLGetProcAddress(name.data());
+    const auto ptr = NSGLGetProcAddress(tarName.data());
 #else
-    const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(name.data()));
+    const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(tarName.data()));
 #endif
     if (ptr)
     {
@@ -358,9 +335,9 @@ static void QueryPlainFunc(T& target, const std::string_view tarName,
     }
     else
     {
-        target = reinterpret_cast<T>(fallback);
+        target = nullptr;
         if (printFail)
-            ShowQueryFall(tarName);
+            ShowQueryFail(tarName);
     }
 }
 
@@ -382,8 +359,6 @@ static std::pair<bool, bool> GetFuncShouldPrint() noexcept
     const bool printFail = (val & 0x2u) == 0x2u;
     return { printSuc, printFail };
 }
-
-
 
 
 #if COMMON_OS_WIN
@@ -414,14 +389,8 @@ PlatFuncs::PlatFuncs(void* target)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
-#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) std::string_view(name sfx)
-#define WITH_SUFFIXS(name, ...) std::array{ BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
-#define QUERY_FUNC(name, ...)  QueryFunc(name,          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
-#define QUERY_FUNC_(name, ...) QueryFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
+#define QUERY_FUNC(name) QueryPlatFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint)
     
-    //constexpr std::array<std::string_view, 2> kk{ "xx", "yy" };
-    //constexpr auto kkk = CreateSVArray("xx", "yy");
-
 #if COMMON_OS_WIN
     const auto hdc = reinterpret_cast<HDC>(target);
     HGLRC tmpHrc = nullptr;
@@ -430,10 +399,10 @@ PlatFuncs::PlatFuncs(void* target)
         tmpHrc = wglCreateContext(hdc);
         wglMakeCurrent(hdc, tmpHrc);
     }
-    QUERY_FUNC_(wglGetExtensionsStringARB,  "");
-    QUERY_FUNC_(wglGetExtensionsStringEXT,  "");
+    QUERY_FUNC(wglGetExtensionsStringARB);
+    QUERY_FUNC(wglGetExtensionsStringEXT);
     Extensions = GetExtensions(hdc);
-    QUERY_FUNC_(wglCreateContextAttribsARB, "");
+    QUERY_FUNC(wglCreateContextAttribsARB);
     if (tmpHrc)
     {
         wglMakeCurrent(hdc, nullptr);
@@ -441,9 +410,9 @@ PlatFuncs::PlatFuncs(void* target)
     }
 #else
     const auto display = reinterpret_cast<Display*>(target);
-    QUERY_FUNC_(glXGetCurrentDisplay,       "");
+    QUERY_FUNC(glXGetCurrentDisplay);
     Extensions = GetExtensions(display, DefaultScreen(display));
-    QUERY_FUNC_(glXCreateContextAttribsARB, "");
+    QUERY_FUNC(glXCreateContextAttribsARB);
 #endif
 
 #if COMMON_OS_WIN
@@ -455,10 +424,7 @@ PlatFuncs::PlatFuncs(void* target)
 #endif
     
 
-#undef WITH_SUFFIX
-#undef WITH_SUFFIXS
 #undef QUERY_FUNC
-#undef QUERY_FUNC_
 }
 
 
@@ -696,369 +662,436 @@ void PlatFuncs::SwapBuffer(const oglContext_& ctx)
 }
 
 
+template<typename T, size_t N>
+static void QueryGLFunc(T& target, const std::string_view tarName, const std::pair<bool, bool> shouldPrint, const std::array<std::string_view, N> suffixes,
+    void* fallback = nullptr)
+{
+    Expects(tarName.size() < 96);
+    const auto [printSuc, printFail] = shouldPrint;
+    std::array<char, 128> funcName = { 0 };
+    funcName[0] = 'g', funcName[1] = 'l';
+    memcpy_s(&funcName[2], funcName.size() - 2, tarName.data(), tarName.size());
+    const size_t baseLen = tarName.size() + 2;
+    for (const auto& sfx : suffixes)
+    {
+        memcpy_s(&funcName[baseLen], funcName.size() - baseLen, sfx.data(), sfx.size());
+        funcName[baseLen + sfx.size()] = '\0';
+#if COMMON_OS_WIN
+        const auto ptr = wglGetProcAddress(funcName.data());
+#elif COMMON_OS_DARWIN
+        const auto ptr = NSGLGetProcAddress(funcName.data());
+#else
+        const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(funcName.data()));
+#endif
+        if (ptr)
+        {
+            target = reinterpret_cast<T>(ptr);
+            if (printSuc)
+                ShowQuerySuc(tarName, sfx, (void*)ptr);
+            return;
+        }
+    }
+    if (fallback)
+    {
+        target = reinterpret_cast<T>(fallback);
+        if (printFail)
+            ShowQueryFall(tarName);
+    }
+    else
+    {
+        target = nullptr;
+        if (printFail)
+            ShowQueryFail(tarName);
+    }
+}
+
+template <typename L, typename R> struct FuncTypeMatcher
+{
+    static constexpr bool IsMatch = false;
+};
+template<typename L, typename R>
+inline constexpr bool ArgTypeMatcher()
+{
+    if constexpr (std::is_same_v<L, R>) return true;
+    if constexpr (std::is_same_v<L, GLenum> && std::is_same_v<R, GLint>) return true; // some function use GLint for GLEnum
+    return false;
+}
+template <typename R, typename... A, typename... B>
+struct FuncTypeMatcher<R(*)(A...), R(*)(B...)>
+{
+    static constexpr bool IsMatch = (... && ArgTypeMatcher<A, B>());
+};
+
+
+#if COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4003)
+#endif
 
 CtxFuncs::CtxFuncs(void*)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
-#define WITH_SUFFIX(r, name, i, sfx)    BOOST_PP_COMMA_IF(i) std::string_view("gl" name sfx)
-#define WITH_SUFFIXS(name, ...) std::array{ BOOST_PP_SEQ_FOR_EACH_I(WITH_SUFFIX, name, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) }
-#define QUERY_FUNC(name, ...)   QueryFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
-#define QUERY_FUNC_(name, ...)  QueryFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, WITH_SUFFIXS(#name, __VA_ARGS__), {__VA_ARGS__})
-#define PLAIN_FUNC(name)   QueryPlainFunc(PPCAT(oglu, name),          STRINGIZE(name), shouldPrint, STRINGIZE(PPCAT(gl, name)), (void*)&PPCAT(gl, name))
-#define PLAIN_FUNC_(name)  QueryPlainFunc(PPCAT(PPCAT(oglu, name),_), STRINGIZE(name), shouldPrint, STRINGIZE(PPCAT(gl, name)), (void*)&PPCAT(gl, name))
-
+#define FUNC_TYPE_CHECK_(dst, part, name, sfx) static_assert(FuncTypeMatcher<decltype(dst), \
+    BOOST_PP_CAT(BOOST_PP_CAT(PFNGL, part), BOOST_PP_CAT(sfx, PROC))>::IsMatch, \
+    "mismatch type for variant [" #sfx "] on [" STRINGIZE(name) "]");
+#define FUNC_TYPE_CHECK(r, tp, sfx) FUNC_TYPE_CHECK_(BOOST_PP_TUPLE_ELEM(0, tp), BOOST_PP_TUPLE_ELEM(1, tp), BOOST_PP_TUPLE_ELEM(2, tp), sfx)
+#define SFX_STR(r, data, i, sfx) BOOST_PP_COMMA_IF(i) STRINGIZE(sfx)""sv
+#define QUERY_FUNC_(dst, part, name, sfxs, fall) BOOST_PP_SEQ_FOR_EACH(FUNC_TYPE_CHECK, (dst, part, name), sfxs)\
+    QueryGLFunc(dst, #name, shouldPrint, std::array{ BOOST_PP_SEQ_FOR_EACH_I(SFX_STR, , sfxs) }, fall)
+#define QUERY_FUNC(direct, fall, part, name, ...) QUERY_FUNC_(BOOST_PP_CAT(name, BOOST_PP_IF(direct, , _)), part, name, \
+    BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), BOOST_PP_IF(fall, (void*)&gl##name, nullptr))
+    
     // buffer related
-    QUERY_FUNC (GenBuffers,             "", "ARB");
-    QUERY_FUNC (DeleteBuffers,          "", "ARB");
-    QUERY_FUNC (BindBuffer,             "", "ARB");
-    QUERY_FUNC (BindBufferBase,         "", "EXT", "NV");
-    QUERY_FUNC (BindBufferRange,        "", "EXT", "NV");
-    QUERY_FUNC_(NamedBufferStorage,     "", "EXT");
-    QUERY_FUNC_(BufferStorage,          "", "EXT");
-    QUERY_FUNC_(NamedBufferData,        "", "EXT");
-    QUERY_FUNC_(BufferData,             "", "ARB");
-    QUERY_FUNC_(NamedBufferSubData,     "", "EXT");
-    QUERY_FUNC_(BufferSubData,          "", "ARB");
-    QUERY_FUNC_(MapNamedBuffer,         "", "EXT");
-    QUERY_FUNC_(MapBuffer,              "", "ARB");
-    QUERY_FUNC_(UnmapNamedBuffer,       "", "EXT");
-    QUERY_FUNC_(UnmapBuffer,            "", "ARB");
+    QUERY_FUNC(1, 0, GENBUFFERS,         GenBuffers,        , ARB);
+    QUERY_FUNC(1, 0, DELETEBUFFERS,      DeleteBuffers,     , ARB);
+    QUERY_FUNC(1, 0, BINDBUFFER,         BindBuffer,        , ARB);
+    QUERY_FUNC(1, 0, BINDBUFFERBASE,     BindBufferBase,    , EXT, NV);
+    QUERY_FUNC(1, 0, BINDBUFFERRANGE,    BindBufferRange,   , EXT, NV);
+    QUERY_FUNC(0, 0, NAMEDBUFFERSTORAGE, NamedBufferStorage,, EXT);
+    QUERY_FUNC(0, 0, BUFFERSTORAGE,      BufferStorage,     );
+    QUERY_FUNC(0, 0, NAMEDBUFFERDATA,    NamedBufferData,   , EXT);
+    QUERY_FUNC(0, 0, BUFFERDATA,         BufferData,        , ARB);
+    QUERY_FUNC(0, 0, NAMEDBUFFERSUBDATA, NamedBufferSubData,, EXT);
+    QUERY_FUNC(0, 0, BUFFERSUBDATA,      BufferSubData,     , ARB);
+    QUERY_FUNC(0, 0, MAPNAMEDBUFFER,     MapNamedBuffer,    , EXT);
+    QUERY_FUNC(0, 0, MAPBUFFER,          MapBuffer,         , ARB);
+    QUERY_FUNC(0, 0, UNMAPNAMEDBUFFER,   UnmapNamedBuffer,  , EXT);
+    QUERY_FUNC(0, 0, UNMAPBUFFER,        UnmapBuffer,       , ARB);
 
     // vao related
-    QUERY_FUNC (GenVertexArrays,            "", "ARB");
-    QUERY_FUNC (DeleteVertexArrays,         "", "ARB");
-    QUERY_FUNC_(BindVertexArray,            "", "ARB");
-    QUERY_FUNC_(EnableVertexAttribArray,    "", "ARB");
-    QUERY_FUNC_(EnableVertexArrayAttrib,    "", "EXT");
-    QUERY_FUNC_(VertexAttribIPointer,       "", "ARB");
-    QUERY_FUNC_(VertexAttribLPointer,       "", "EXT");
-    QUERY_FUNC_(VertexAttribPointer,        "", "ARB");
-    QUERY_FUNC (VertexAttribDivisor,        "", "ARB", "EXT", "NV");
+    QUERY_FUNC(1, 0, GENVERTEXARRAYS,         GenVertexArrays,        , APPLE);
+    QUERY_FUNC(1, 0, DELETEVERTEXARRAYS,      DeleteVertexArrays,     , APPLE);
+    QUERY_FUNC(0, 0, BINDVERTEXARRAY,         BindVertexArray,        , APPLE);
+    QUERY_FUNC(0, 0, ENABLEVERTEXATTRIBARRAY, EnableVertexAttribArray,, ARB);
+    QUERY_FUNC(0, 0, ENABLEVERTEXARRAYATTRIB, EnableVertexArrayAttrib,, EXT);
+    QUERY_FUNC(0, 0, VERTEXATTRIBIPOINTER,    VertexAttribIPointer,   , EXT);
+    QUERY_FUNC(0, 0, VERTEXATTRIBLPOINTER,    VertexAttribLPointer,   , EXT);
+    QUERY_FUNC(0, 0, VERTEXATTRIBPOINTER,     VertexAttribPointer,    , ARB);
+    QUERY_FUNC(1, 0, VERTEXATTRIBDIVISOR,     VertexAttribDivisor,    , ARB);
 
     // draw related
-    PLAIN_FUNC (DrawArrays);
-    PLAIN_FUNC (DrawElements);
-    QUERY_FUNC (MultiDrawArrays,                                "", "EXT");
-    QUERY_FUNC (MultiDrawElements,                              "", "EXT");
-    QUERY_FUNC_(MultiDrawArraysIndirect,                        "", "EXT", "AMD");
-    QUERY_FUNC_(DrawArraysInstancedBaseInstance,                "", "EXT");
-    QUERY_FUNC_(DrawArraysInstanced,                            "", "ARB", "EXT", "NV");
-    QUERY_FUNC_(MultiDrawElementsIndirect,                      "", "EXT", "AMD");
-    QUERY_FUNC_(DrawElementsInstancedBaseVertexBaseInstance,    "", "EXT");
-    QUERY_FUNC_(DrawElementsInstancedBaseInstance,              "", "EXT");
-    QUERY_FUNC_(DrawElementsInstanced,                          "", "ARB", "EXT", "NV");
+    QUERY_FUNC(1, 1, DRAWARRAYS,                                  DrawArrays,                                 , EXT);
+    QUERY_FUNC(1, 1, DRAWELEMENTS,                                DrawElements,                               );
+    QUERY_FUNC(1, 0, MULTIDRAWARRAYS,                             MultiDrawArrays,                            , EXT);
+    QUERY_FUNC(1, 0, MULTIDRAWELEMENTS,                           MultiDrawElements,                          , EXT);
+    QUERY_FUNC(0, 0, MULTIDRAWARRAYSINDIRECT,                     MultiDrawArraysIndirect,                    , AMD);
+    QUERY_FUNC(0, 0, DRAWARRAYSINSTANCEDBASEINSTANCE,             DrawArraysInstancedBaseInstance,            );
+    QUERY_FUNC(0, 0, DRAWARRAYSINSTANCED,                         DrawArraysInstanced,                        , ARB, EXT);
+    QUERY_FUNC(0, 0, MULTIDRAWELEMENTSINDIRECT,                   MultiDrawElementsIndirect,                  , AMD);
+    QUERY_FUNC(0, 0, DRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCE, DrawElementsInstancedBaseVertexBaseInstance,);
+    QUERY_FUNC(0, 0, DRAWELEMENTSINSTANCEDBASEINSTANCE,           DrawElementsInstancedBaseInstance,          );
+    QUERY_FUNC(0, 0, DRAWELEMENTSINSTANCED,                       DrawElementsInstanced,                      , ARB, EXT);
 
     //texture related
-    PLAIN_FUNC (GenTextures);
-    QUERY_FUNC_(CreateTextures,                 "");
-    PLAIN_FUNC (DeleteTextures);
-    QUERY_FUNC (ActiveTexture,                  "", "ARB");
-    PLAIN_FUNC (BindTexture);
-    QUERY_FUNC_(BindTextureUnit,                "");
-    QUERY_FUNC_(BindMultiTextureEXT,            "");
-    QUERY_FUNC (BindImageTexture,               "", "EXT");
-    QUERY_FUNC (TextureView,                    "", "EXT");
-    QUERY_FUNC_(TextureBuffer,                  "");
-    QUERY_FUNC_(TextureBufferEXT,               "");
-    QUERY_FUNC_(TexBuffer,                      "", "ARB", "EXT");
-    QUERY_FUNC_(GenerateTextureMipmap,          "");
-    QUERY_FUNC_(GenerateTextureMipmapEXT,       "");
-    QUERY_FUNC_(GenerateMipmap,                 "", "EXT");
-    QUERY_FUNC (GetTextureHandle,               "ARB", "NV");
-    QUERY_FUNC (MakeTextureHandleResident,      "ARB", "NV");
-    QUERY_FUNC (MakeTextureHandleNonResident,   "ARB", "NV");
-    QUERY_FUNC (GetImageHandle,                 "ARB", "NV");
-    QUERY_FUNC (MakeImageHandleResident,        "ARB", "NV");
-    QUERY_FUNC (MakeImageHandleNonResident,     "ARB", "NV");
-    QUERY_FUNC_(TextureParameteri,              "");
-    QUERY_FUNC_(TextureParameteriEXT,           "");
-    QUERY_FUNC_(TextureSubImage1D,              "");
-    QUERY_FUNC_(TextureSubImage1DEXT,           "");
-    QUERY_FUNC_(TextureSubImage2D,              "");
-    QUERY_FUNC_(TextureSubImage2DEXT,           "");
-    QUERY_FUNC_(TextureSubImage3D,              "");
-    QUERY_FUNC_(TextureSubImage3DEXT,           "");
-    QUERY_FUNC_(TexSubImage3D,                  "", "EXT", "NV");
-    QUERY_FUNC_(TextureImage1DEXT,              "");
-    QUERY_FUNC_(TextureImage2DEXT,              "");
-    QUERY_FUNC_(TextureImage3DEXT,              "");
-    QUERY_FUNC_(TexImage3D,                     "", "EXT", "NV");
-    QUERY_FUNC_(CompressedTextureSubImage1D,    "");
-    QUERY_FUNC_(CompressedTextureSubImage1DEXT, "");
-    QUERY_FUNC_(CompressedTextureSubImage2D,    "");
-    QUERY_FUNC_(CompressedTextureSubImage2DEXT, "");
-    QUERY_FUNC_(CompressedTextureSubImage3D,    "");
-    QUERY_FUNC_(CompressedTextureSubImage3DEXT, "");
-    QUERY_FUNC_(CompressedTexSubImage1D,        "", "ARB");
-    QUERY_FUNC_(CompressedTexSubImage2D,        "", "ARB");
-    QUERY_FUNC_(CompressedTexSubImage3D,        "", "ARB");
-    QUERY_FUNC_(CompressedTextureImage1DEXT,    "");
-    QUERY_FUNC_(CompressedTextureImage2DEXT,    "");
-    QUERY_FUNC_(CompressedTextureImage3DEXT,    "");
-    QUERY_FUNC_(CompressedTexImage1D,           "", "ARB");
-    QUERY_FUNC_(CompressedTexImage2D,           "", "ARB");
-    QUERY_FUNC_(CompressedTexImage3D,           "", "ARB");
-    QUERY_FUNC (CopyImageSubData,               "", "EXT", "NV");
-    QUERY_FUNC_(TextureStorage1D,               "");
-    QUERY_FUNC_(TextureStorage1DEXT,            "");
-    QUERY_FUNC_(TextureStorage2D,               "");
-    QUERY_FUNC_(TextureStorage2DEXT,            "");
-    QUERY_FUNC_(TextureStorage3D,               "");
-    QUERY_FUNC_(TextureStorage3DEXT,            "");
-    QUERY_FUNC_(TexStorage1D,                   "", "EXT");
-    QUERY_FUNC_(TexStorage2D,                   "", "EXT");
-    QUERY_FUNC_(TexStorage3D,                   "", "EXT");
-    QUERY_FUNC (ClearTexImage,                  "", "EXT");
-    QUERY_FUNC (ClearTexSubImage,               "", "EXT");
-    QUERY_FUNC_(GetTextureLevelParameteriv,     "");
-    QUERY_FUNC_(GetTextureLevelParameterivEXT,  "");
-    QUERY_FUNC_(GetTextureImage,                "");
-    QUERY_FUNC_(GetTextureImageEXT,             "");
-    QUERY_FUNC_(GetCompressedTextureImage,      "");
-    QUERY_FUNC_(GetCompressedTextureImageEXT,   "");
-    QUERY_FUNC_(GetCompressedTexImage,          "", "ARB");
+    QUERY_FUNC(1, 1, GENTEXTURES,                    GenTextures,                   );
+    QUERY_FUNC(0, 0, CREATETEXTURES,                 CreateTextures,                );
+    QUERY_FUNC(1, 1, DELETETEXTURES,                 DeleteTextures,                );
+    QUERY_FUNC(1, 0, ACTIVETEXTURE,                  ActiveTexture,                 , ARB);
+    QUERY_FUNC(1, 1, BINDTEXTURE,                    BindTexture,                   );
+    QUERY_FUNC(0, 0, BINDTEXTUREUNIT,                BindTextureUnit,               );
+    QUERY_FUNC(0, 0, BINDMULTITEXTUREEXT,            BindMultiTextureEXT,           );
+    QUERY_FUNC(1, 0, BINDIMAGETEXTURE,               BindImageTexture,              , EXT);
+    QUERY_FUNC(1, 0, TEXTUREVIEW,                    TextureView,                   );
+    QUERY_FUNC(0, 0, TEXTUREBUFFER,                  TextureBuffer,                 );
+    QUERY_FUNC(0, 0, TEXTUREBUFFEREXT,               TextureBufferEXT,              );
+    QUERY_FUNC(0, 0, TEXBUFFER,                      TexBuffer,                     , ARB, EXT);
+    QUERY_FUNC(0, 0, GENERATETEXTUREMIPMAP,          GenerateTextureMipmap,         );
+    QUERY_FUNC(0, 0, GENERATETEXTUREMIPMAPEXT,       GenerateTextureMipmapEXT,      );
+    QUERY_FUNC(0, 0, GENERATEMIPMAP,                 GenerateMipmap,                , EXT);
+    QUERY_FUNC(1, 0, GETTEXTUREHANDLE,               GetTextureHandle               , ARB, NV);
+    QUERY_FUNC(1, 0, MAKETEXTUREHANDLERESIDENT,      MakeTextureHandleResident      , ARB, NV);
+    QUERY_FUNC(1, 0, MAKETEXTUREHANDLENONRESIDENT,   MakeTextureHandleNonResident   , ARB, NV);
+    QUERY_FUNC(1, 0, GETIMAGEHANDLE,                 GetImageHandle                 , ARB, NV);
+    QUERY_FUNC(1, 0, MAKEIMAGEHANDLERESIDENT,        MakeImageHandleResident        , ARB, NV);
+    QUERY_FUNC(1, 0, MAKEIMAGEHANDLENONRESIDENT,     MakeImageHandleNonResident     , ARB, NV);
+    QUERY_FUNC(0, 0, TEXTUREPARAMETERI,              TextureParameteri,             );
+    QUERY_FUNC(0, 0, TEXTUREPARAMETERIEXT,           TextureParameteriEXT,          );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE1D,              TextureSubImage1D,             );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE2D,              TextureSubImage2D,             );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE3D,              TextureSubImage3D,             );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE1DEXT,           TextureSubImage1DEXT,          );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE2DEXT,           TextureSubImage2DEXT,          );
+    QUERY_FUNC(0, 0, TEXTURESUBIMAGE3DEXT,           TextureSubImage3DEXT,          );
+    QUERY_FUNC(0, 0, TEXSUBIMAGE3D,                  TexSubImage3D,                 , EXT);
+    QUERY_FUNC(0, 0, TEXTUREIMAGE1DEXT,              TextureImage1DEXT,             );
+    QUERY_FUNC(0, 0, TEXTUREIMAGE2DEXT,              TextureImage2DEXT,             );
+    QUERY_FUNC(0, 0, TEXTUREIMAGE3DEXT,              TextureImage3DEXT,             );
+    QUERY_FUNC(0, 0, TEXIMAGE3D,                     TexImage3D,                    , EXT);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE1D,    CompressedTextureSubImage1D,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE2D,    CompressedTextureSubImage2D,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE3D,    CompressedTextureSubImage3D,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE1DEXT, CompressedTextureSubImage1DEXT,);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE2DEXT, CompressedTextureSubImage2DEXT,);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE3DEXT, CompressedTextureSubImage3DEXT,);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXSUBIMAGE1D,        CompressedTexSubImage1D,       , ARB);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXSUBIMAGE2D,        CompressedTexSubImage2D,       , ARB);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXSUBIMAGE3D,        CompressedTexSubImage3D,       , ARB);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTUREIMAGE1DEXT,    CompressedTextureImage1DEXT,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTUREIMAGE2DEXT,    CompressedTextureImage2DEXT,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXTUREIMAGE3DEXT,    CompressedTextureImage3DEXT,   );
+    QUERY_FUNC(0, 0, COMPRESSEDTEXIMAGE1D,           CompressedTexImage1D,          , ARB);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXIMAGE2D,           CompressedTexImage2D,          , ARB);
+    QUERY_FUNC(0, 0, COMPRESSEDTEXIMAGE3D,           CompressedTexImage3D,          , ARB);
+    QUERY_FUNC(1, 0, COPYIMAGESUBDATA,               CopyImageSubData,              , NV);
+    QUERY_FUNC(0, 0, TEXTURESTORAGE1D,               TextureStorage1D,              );
+    QUERY_FUNC(0, 0, TEXTURESTORAGE2D,               TextureStorage2D,              );
+    QUERY_FUNC(0, 0, TEXTURESTORAGE3D,               TextureStorage3D,              );
+    QUERY_FUNC(0, 0, TEXTURESTORAGE1DEXT,            TextureStorage1DEXT,           );
+    QUERY_FUNC(0, 0, TEXTURESTORAGE2DEXT,            TextureStorage2DEXT,           );
+    QUERY_FUNC(0, 0, TEXTURESTORAGE3DEXT,            TextureStorage3DEXT,           );
+    QUERY_FUNC(0, 0, TEXSTORAGE1D,                   TexStorage1D,                  );
+    QUERY_FUNC(0, 0, TEXSTORAGE2D,                   TexStorage2D,                  );
+    QUERY_FUNC(0, 0, TEXSTORAGE3D,                   TexStorage3D,                  );
+    QUERY_FUNC(1, 0, CLEARTEXIMAGE,                  ClearTexImage,                 );
+    QUERY_FUNC(1, 0, CLEARTEXSUBIMAGE,               ClearTexSubImage,              );
+    QUERY_FUNC(0, 0, GETTEXTURELEVELPARAMETERIV,     GetTextureLevelParameteriv,    );
+    QUERY_FUNC(0, 0, GETTEXTURELEVELPARAMETERIVEXT,  GetTextureLevelParameterivEXT, );
+    QUERY_FUNC(0, 0, GETTEXTUREIMAGE,                GetTextureImage,               );
+    QUERY_FUNC(0, 0, GETTEXTUREIMAGEEXT,             GetTextureImageEXT,            );
+    QUERY_FUNC(0, 0, GETCOMPRESSEDTEXTUREIMAGE,      GetCompressedTextureImage,     );
+    QUERY_FUNC(0, 0, GETCOMPRESSEDTEXTUREIMAGEEXT,   GetCompressedTextureImageEXT,  );
+    QUERY_FUNC(0, 0, GETCOMPRESSEDTEXIMAGE,          GetCompressedTexImage,         , ARB);
 
     //rbo related
-    QUERY_FUNC_(GenRenderbuffers,                               "", "EXT");
-    QUERY_FUNC_(CreateRenderbuffers,                            "");
-    QUERY_FUNC (DeleteRenderbuffers,                            "", "EXT");
-    QUERY_FUNC_(BindRenderbuffer,                               "", "EXT");
-    QUERY_FUNC_(NamedRenderbufferStorage,                       "", "EXT");
-    QUERY_FUNC_(RenderbufferStorage,                            "", "EXT");
-    QUERY_FUNC_(NamedRenderbufferStorageMultisample,            "", "EXT");
-    QUERY_FUNC_(RenderbufferStorageMultisample,                 "", "EXT", "NV", "APPLE");
-    QUERY_FUNC_(NamedRenderbufferStorageMultisampleCoverageEXT, "");
-    QUERY_FUNC_(RenderbufferStorageMultisampleCoverageNV,       "");
-    QUERY_FUNC_(GetRenderbufferParameteriv,                     "", "EXT");
-
+    QUERY_FUNC(0, 0, GENRENDERBUFFERS,                               GenRenderbuffers,                              , EXT);
+    QUERY_FUNC(0, 0, CREATERENDERBUFFERS,                            CreateRenderbuffers,                           );
+    QUERY_FUNC(1, 0, DELETERENDERBUFFERS,                            DeleteRenderbuffers,                           , EXT);
+    QUERY_FUNC(0, 0, BINDRENDERBUFFER,                               BindRenderbuffer,                              , EXT);
+    QUERY_FUNC(0, 0, NAMEDRENDERBUFFERSTORAGE,                       NamedRenderbufferStorage,                      , EXT);
+    QUERY_FUNC(0, 0, RENDERBUFFERSTORAGE,                            RenderbufferStorage,                           , EXT);
+    QUERY_FUNC(0, 0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLE,            NamedRenderbufferStorageMultisample,           , EXT);
+    QUERY_FUNC(0, 0, RENDERBUFFERSTORAGEMULTISAMPLE,                 RenderbufferStorageMultisample,                , EXT);
+    QUERY_FUNC(0, 0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLECOVERAGEEXT, NamedRenderbufferStorageMultisampleCoverageEXT,);
+    QUERY_FUNC(0, 0, RENDERBUFFERSTORAGEMULTISAMPLECOVERAGENV,       RenderbufferStorageMultisampleCoverageNV,      );
+    QUERY_FUNC(0, 0, GETRENDERBUFFERPARAMETERIV,                     GetRenderbufferParameteriv,                    , EXT);
     
     //fbo related
-    QUERY_FUNC_(GenFramebuffers,                            "", "EXT");
-    QUERY_FUNC_(CreateFramebuffers,                         "", "EXT");
-    QUERY_FUNC (DeleteFramebuffers,                         "", "EXT");
-    QUERY_FUNC_(BindFramebuffer,                            "", "EXT");
-    QUERY_FUNC_(BlitNamedFramebuffer,                       "");
-    QUERY_FUNC_(BlitFramebuffer,                            "", "EXT");
-    QUERY_FUNC (DrawBuffers,                                "", "ARB", "ATI");
-    QUERY_FUNC_(InvalidateNamedFramebufferData,             "");
-    QUERY_FUNC_(InvalidateFramebuffer,                      "");
-    QUERY_FUNC_(DiscardFramebufferEXT,                      "");
-    QUERY_FUNC_(NamedFramebufferRenderbuffer,               "", "EXT");
-    QUERY_FUNC_(FramebufferRenderbuffer,                    "", "EXT");
-    QUERY_FUNC_(NamedFramebufferTexture1DEXT,               "");
-    QUERY_FUNC_(FramebufferTexture1D,                       "", "EXT");
-    QUERY_FUNC_(NamedFramebufferTexture2DEXT,               "");
-    QUERY_FUNC_(FramebufferTexture2D,                       "", "EXT");
-    QUERY_FUNC_(NamedFramebufferTexture3DEXT,               "");
-    QUERY_FUNC_(FramebufferTexture3D,                       "", "EXT");
-    QUERY_FUNC_(NamedFramebufferTexture,                    "", "EXT");
-    QUERY_FUNC_(FramebufferTexture,                         "", "EXT");
-    QUERY_FUNC_(NamedFramebufferTextureLayer,               "", "EXT");
-    QUERY_FUNC_(FramebufferTextureLayer,                    "", "EXT");
-    QUERY_FUNC_(CheckNamedFramebufferStatus,                "", "EXT");
-    QUERY_FUNC_(CheckFramebufferStatus,                     "", "EXT");
-    QUERY_FUNC_(GetNamedFramebufferAttachmentParameteriv,   "", "EXT");
-    QUERY_FUNC_(GetFramebufferAttachmentParameteriv,        "", "EXT");
-    PLAIN_FUNC (Clear);
-    PLAIN_FUNC (ClearColor);
-    PLAIN_FUNC_(ClearDepth);
-    QUERY_FUNC_(ClearDepthf,                                "");
-    PLAIN_FUNC (ClearStencil);
-    QUERY_FUNC_(ClearNamedFramebufferiv,                    "");
-    QUERY_FUNC_(ClearBufferiv,                              "");
-    QUERY_FUNC_(ClearNamedFramebufferuiv,                   "");
-    QUERY_FUNC_(ClearBufferuiv,                             "");
-    QUERY_FUNC_(ClearNamedFramebufferfv,                    "");
-    QUERY_FUNC_(ClearBufferfv,                              "");
-    QUERY_FUNC_(ClearNamedFramebufferfi,                    "");
-    QUERY_FUNC_(ClearBufferfi,                              "");
+    QUERY_FUNC(0, 0, GENFRAMEBUFFERS,                          GenFramebuffers,                         , EXT);
+    QUERY_FUNC(0, 0, CREATEFRAMEBUFFERS,                       CreateFramebuffers,                      );
+    QUERY_FUNC(1, 0, DELETEFRAMEBUFFERS,                       DeleteFramebuffers,                      , EXT);
+    QUERY_FUNC(0, 0, BINDFRAMEBUFFER,                          BindFramebuffer,                         , EXT);
+    QUERY_FUNC(0, 0, BLITNAMEDFRAMEBUFFER,                     BlitNamedFramebuffer,                    );
+    QUERY_FUNC(0, 0, BLITFRAMEBUFFER,                          BlitFramebuffer,                         , EXT);
+    QUERY_FUNC(1, 0, DRAWBUFFERS,                              DrawBuffers,                             , ARB, ATI);
+    QUERY_FUNC(0, 0, INVALIDATENAMEDFRAMEBUFFERDATA,           InvalidateNamedFramebufferData,          );
+    QUERY_FUNC(0, 0, INVALIDATEFRAMEBUFFER,                    InvalidateFramebuffer,                   );
+    //QUERY_FUC(0, 0, DISCARDFRAMEBUFFEREXT,                     DiscardFramebufferEXT,                   );
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERRENDERBUFFER,             NamedFramebufferRenderbuffer,            , EXT);
+    QUERY_FUNC(0, 0, FRAMEBUFFERRENDERBUFFER,                  FramebufferRenderbuffer,                 , EXT);
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERTEXTURE1DEXT,             NamedFramebufferTexture1DEXT,            );
+    QUERY_FUNC(0, 0, FRAMEBUFFERTEXTURE1D,                     FramebufferTexture1D,                    , EXT);
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERTEXTURE2DEXT,             NamedFramebufferTexture2DEXT,            );
+    QUERY_FUNC(0, 0, FRAMEBUFFERTEXTURE2D,                     FramebufferTexture2D,                    , EXT);
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERTEXTURE3DEXT,             NamedFramebufferTexture3DEXT,            );
+    QUERY_FUNC(0, 0, FRAMEBUFFERTEXTURE3D,                     FramebufferTexture3D,                    , EXT);
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERTEXTURE,                  NamedFramebufferTexture,                 , EXT);
+    QUERY_FUNC(0, 0, FRAMEBUFFERTEXTURE,                       FramebufferTexture,                      , EXT);
+    QUERY_FUNC(0, 0, NAMEDFRAMEBUFFERTEXTURELAYER,             NamedFramebufferTextureLayer,            , EXT);
+    QUERY_FUNC(0, 0, FRAMEBUFFERTEXTURELAYER,                  FramebufferTextureLayer,                 , EXT);
+    QUERY_FUNC(0, 0, CHECKNAMEDFRAMEBUFFERSTATUS,              CheckNamedFramebufferStatus,             , EXT);
+    QUERY_FUNC(0, 0, CHECKFRAMEBUFFERSTATUS,                   CheckFramebufferStatus,                  , EXT);
+    QUERY_FUNC(0, 0, GETNAMEDFRAMEBUFFERATTACHMENTPARAMETERIV, GetNamedFramebufferAttachmentParameteriv,, EXT);
+    QUERY_FUNC(0, 0, GETFRAMEBUFFERATTACHMENTPARAMETERIV,      GetFramebufferAttachmentParameteriv,     , EXT);
+    QUERY_FUNC(1, 1, CLEAR,                                    Clear,                                   );
+    QUERY_FUNC(1, 1, CLEARCOLOR,                               ClearColor,                              );
+    QUERY_FUNC(0, 1, CLEARDEPTH,                               ClearDepth,                              );
+    QUERY_FUNC(0, 0, CLEARDEPTHF,                              ClearDepthf,                             );
+    QUERY_FUNC(1, 1, CLEARSTENCIL,                             ClearStencil,                            );
+    QUERY_FUNC(0, 0, CLEARNAMEDFRAMEBUFFERIV,                  ClearNamedFramebufferiv,                 );
+    QUERY_FUNC(0, 0, CLEARBUFFERIV,                            ClearBufferiv,                           );
+    QUERY_FUNC(0, 0, CLEARNAMEDFRAMEBUFFERUIV,                 ClearNamedFramebufferuiv,                );
+    QUERY_FUNC(0, 0, CLEARBUFFERUIV,                           ClearBufferuiv,                          );
+    QUERY_FUNC(0, 0, CLEARNAMEDFRAMEBUFFERFV,                  ClearNamedFramebufferfv,                 );
+    QUERY_FUNC(0, 0, CLEARBUFFERFV,                            ClearBufferfv,                           );
+    QUERY_FUNC(0, 0, CLEARNAMEDFRAMEBUFFERFI,                  ClearNamedFramebufferfi,                 );
+    QUERY_FUNC(0, 0, CLEARBUFFERFI,                            ClearBufferfi,                           );
 
     //shader related
-    QUERY_FUNC (CreateShader,       "");
-    QUERY_FUNC (DeleteShader,       "");
-    QUERY_FUNC (ShaderSource,       "");
-    QUERY_FUNC (CompileShader,      "");
-    QUERY_FUNC (GetShaderInfoLog,   "");
-    QUERY_FUNC (GetShaderSource,    "");
-    QUERY_FUNC (GetShaderiv,        "");
+    QUERY_FUNC(1, 0, CREATESHADER,     CreateShader,    );
+    QUERY_FUNC(1, 0, DELETESHADER,     DeleteShader,    );
+    QUERY_FUNC(1, 0, SHADERSOURCE,     ShaderSource,    );
+    QUERY_FUNC(1, 0, COMPILESHADER,    CompileShader,   );
+    QUERY_FUNC(1, 0, GETSHADERINFOLOG, GetShaderInfoLog,);
+    QUERY_FUNC(1, 0, GETSHADERSOURCE,  GetShaderSource, );
+    QUERY_FUNC(1, 0, GETSHADERIV,      GetShaderiv,     );
 
     //program related
-    QUERY_FUNC (CreateProgram,                      "");
-    QUERY_FUNC (DeleteProgram,                      "");
-    QUERY_FUNC (AttachShader,                       "");
-    QUERY_FUNC (DetachShader,                       "");
-    QUERY_FUNC (LinkProgram,                        "");
-    QUERY_FUNC (UseProgram,                         "");
-    QUERY_FUNC (DispatchCompute,                    "");
-    QUERY_FUNC (DispatchComputeIndirect,            "");
+    QUERY_FUNC(1, 0, CREATEPROGRAM,           CreateProgram,          );
+    QUERY_FUNC(1, 0, DELETEPROGRAM,           DeleteProgram,          );
+    QUERY_FUNC(1, 0, ATTACHSHADER,            AttachShader,           );
+    QUERY_FUNC(1, 0, DETACHSHADER,            DetachShader,           );
+    QUERY_FUNC(1, 0, LINKPROGRAM,             LinkProgram,            );
+    QUERY_FUNC(1, 0, USEPROGRAM,              UseProgram,             );
+    QUERY_FUNC(1, 0, DISPATCHCOMPUTE,         DispatchCompute,        );
+    QUERY_FUNC(1, 0, DISPATCHCOMPUTEINDIRECT, DispatchComputeIndirect,); 
 
-    QUERY_FUNC_(Uniform1f,                          "");
-    QUERY_FUNC_(Uniform1fv,                         "");
-    QUERY_FUNC_(Uniform1i,                          "");
-    QUERY_FUNC_(Uniform1iv,                         "");
-    QUERY_FUNC_(Uniform2f,                          "");
-    QUERY_FUNC_(Uniform2fv,                         "");
-    QUERY_FUNC_(Uniform2i,                          "");
-    QUERY_FUNC_(Uniform2iv,                         "");
-    QUERY_FUNC_(Uniform3f,                          "");
-    QUERY_FUNC_(Uniform3fv,                         "");
-    QUERY_FUNC_(Uniform3i,                          "");
-    QUERY_FUNC_(Uniform3iv,                         "");
-    QUERY_FUNC_(Uniform4f,                          "");
-    QUERY_FUNC_(Uniform4fv,                         "");
-    QUERY_FUNC_(Uniform4i,                          "");
-    QUERY_FUNC_(Uniform4iv,                         "");
-    QUERY_FUNC_(UniformMatrix2fv,                   "");
-    QUERY_FUNC_(UniformMatrix3fv,                   "");
-    QUERY_FUNC_(UniformMatrix4fv,                   "");
+    QUERY_FUNC(0, 0, UNIFORM1F,        Uniform1f,       );
+    QUERY_FUNC(0, 0, UNIFORM1FV,       Uniform1fv,      );
+    QUERY_FUNC(0, 0, UNIFORM1I,        Uniform1i,       );
+    QUERY_FUNC(0, 0, UNIFORM1IV,       Uniform1iv,      );
+    QUERY_FUNC(0, 0, UNIFORM2F,        Uniform2f,       );
+    QUERY_FUNC(0, 0, UNIFORM2FV,       Uniform2fv,      );
+    QUERY_FUNC(0, 0, UNIFORM2I,        Uniform2i,       );
+    QUERY_FUNC(0, 0, UNIFORM2IV,       Uniform2iv,      );
+    QUERY_FUNC(0, 0, UNIFORM3F,        Uniform3f,       );
+    QUERY_FUNC(0, 0, UNIFORM3FV,       Uniform3fv,      );
+    QUERY_FUNC(0, 0, UNIFORM3I,        Uniform3i,       );
+    QUERY_FUNC(0, 0, UNIFORM3IV,       Uniform3iv,      );
+    QUERY_FUNC(0, 0, UNIFORM4F,        Uniform4f,       );
+    QUERY_FUNC(0, 0, UNIFORM4FV,       Uniform4fv,      );
+    QUERY_FUNC(0, 0, UNIFORM4I,        Uniform4i,       );
+    QUERY_FUNC(0, 0, UNIFORM4IV,       Uniform4iv,      );
+    QUERY_FUNC(0, 0, UNIFORMMATRIX2FV, UniformMatrix2fv,);
+    QUERY_FUNC(0, 0, UNIFORMMATRIX3FV, UniformMatrix3fv,);
+    QUERY_FUNC(0, 0, UNIFORMMATRIX4FV, UniformMatrix4fv,);
+    
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1D,          ProgramUniform1d,         );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1DV,         ProgramUniform1dv,        );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1F,          ProgramUniform1f,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1FV,         ProgramUniform1fv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1I,          ProgramUniform1i,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1IV,         ProgramUniform1iv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1UI,         ProgramUniform1ui,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM1UIV,        ProgramUniform1uiv,       , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2D,          ProgramUniform2d,         );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2DV,         ProgramUniform2dv,        );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2F,          ProgramUniform2f,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2FV,         ProgramUniform2fv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2I,          ProgramUniform2i,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2IV,         ProgramUniform2iv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2UI,         ProgramUniform2ui,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM2UIV,        ProgramUniform2uiv,       , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3D,          ProgramUniform3d,         );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3DV,         ProgramUniform3dv,        );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3F,          ProgramUniform3f,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3FV,         ProgramUniform3fv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3I,          ProgramUniform3i,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3IV,         ProgramUniform3iv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3UI,         ProgramUniform3ui,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM3UIV,        ProgramUniform3uiv,       , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4D,          ProgramUniform4d,         );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4DV,         ProgramUniform4dv,        );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4F,          ProgramUniform4f,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4FV,         ProgramUniform4fv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4I,          ProgramUniform4i,         , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4IV,         ProgramUniform4iv,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4UI,         ProgramUniform4ui,        , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORM4UIV,        ProgramUniform4uiv,       , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2DV,   ProgramUniformMatrix2dv,  );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2FV,   ProgramUniformMatrix2fv,  , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2X3DV, ProgramUniformMatrix2x3dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2X3FV, ProgramUniformMatrix2x3fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2X4DV, ProgramUniformMatrix2x4dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX2X4FV, ProgramUniformMatrix2x4fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3DV,   ProgramUniformMatrix3dv,  );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3FV,   ProgramUniformMatrix3fv,  , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3X2DV, ProgramUniformMatrix3x2dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3X2FV, ProgramUniformMatrix3x2fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3X4DV, ProgramUniformMatrix3x4dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX3X4FV, ProgramUniformMatrix3x4fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4DV,   ProgramUniformMatrix4dv,  );
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4FV,   ProgramUniformMatrix4fv,  , EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4X2DV, ProgramUniformMatrix4x2dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4X2FV, ProgramUniformMatrix4x2fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4X3DV, ProgramUniformMatrix4x3dv,);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMMATRIX4X3FV, ProgramUniformMatrix4x3fv,, EXT);
+    QUERY_FUNC(1, 0, PROGRAMUNIFORMHANDLEUI64,  ProgramUniformHandleui64  , ARB, NV);
 
-    QUERY_FUNC (ProgramUniform1d,                   "");
-    QUERY_FUNC (ProgramUniform1dv,                  "");
-    QUERY_FUNC (ProgramUniform1f,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform1fv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform1i,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform1iv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform1ui,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform1uiv,                 "", "EXT");
-    QUERY_FUNC (ProgramUniform2d,                   "");
-    QUERY_FUNC (ProgramUniform2dv,                  "");
-    QUERY_FUNC (ProgramUniform2f,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform2fv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform2i,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform2iv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform2ui,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform2uiv,                 "", "EXT");
-    QUERY_FUNC (ProgramUniform3d,                   "");
-    QUERY_FUNC (ProgramUniform3dv,                  "");
-    QUERY_FUNC (ProgramUniform3f,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform3fv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform3i,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform3iv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform3ui,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform3uiv,                 "", "EXT");
-    QUERY_FUNC (ProgramUniform4d,                   "");
-    QUERY_FUNC (ProgramUniform4dv,                  "");
-    QUERY_FUNC (ProgramUniform4f,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform4fv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform4i,                   "", "EXT");
-    QUERY_FUNC (ProgramUniform4iv,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform4ui,                  "", "EXT");
-    QUERY_FUNC (ProgramUniform4uiv,                 "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix2dv,            "");
-    QUERY_FUNC (ProgramUniformMatrix2fv,            "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix2x3dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix2x3fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix2x4dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix2x4fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix3dv,            "");
-    QUERY_FUNC (ProgramUniformMatrix3fv,            "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix3x2dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix3x2fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix3x4dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix3x4fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix4dv,            "");
-    QUERY_FUNC (ProgramUniformMatrix4fv,            "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix4x2dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix4x2fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformMatrix4x3dv,          "");
-    QUERY_FUNC (ProgramUniformMatrix4x3fv,          "", "EXT");
-    QUERY_FUNC (ProgramUniformHandleui64,           "ARB", "NV");
-
-    QUERY_FUNC (GetUniformfv,                       "");
-    QUERY_FUNC (GetUniformiv,                       "");
-    QUERY_FUNC (GetUniformuiv,                      "");
-    QUERY_FUNC (GetProgramInfoLog,                  "");
-    QUERY_FUNC (GetProgramiv,                       "");
-    QUERY_FUNC (GetProgramInterfaceiv,              "");
-    QUERY_FUNC (GetProgramResourceIndex,            "");
-    QUERY_FUNC (GetProgramResourceLocation,         "");
-    QUERY_FUNC (GetProgramResourceLocationIndex,    "");
-    QUERY_FUNC (GetProgramResourceName,             "");
-    QUERY_FUNC (GetProgramResourceiv,               "");
-    QUERY_FUNC (GetActiveSubroutineName,            "");
-    QUERY_FUNC (GetActiveSubroutineUniformName,     "");
-    QUERY_FUNC (GetActiveSubroutineUniformiv,       "");
-    QUERY_FUNC (GetProgramStageiv,                  "");
-    QUERY_FUNC (GetSubroutineIndex,                 "");
-    QUERY_FUNC (GetSubroutineUniformLocation,       "");
-    QUERY_FUNC (GetUniformSubroutineuiv,            "");
-    QUERY_FUNC (UniformSubroutinesuiv,              "");
-    QUERY_FUNC (GetActiveUniformBlockName,          "");
-    QUERY_FUNC (GetActiveUniformBlockiv,            "");
-    QUERY_FUNC (GetActiveUniformName,               "");
-    QUERY_FUNC (GetActiveUniformsiv,                "");
-    QUERY_FUNC (GetIntegeri_v,                      "");
-    QUERY_FUNC (GetUniformBlockIndex,               "");
-    QUERY_FUNC (GetUniformIndices,                  "");
-    QUERY_FUNC (UniformBlockBinding,                "");
+    QUERY_FUNC(1, 0, GETUNIFORMFV,                    GetUniformfv,                   );
+    QUERY_FUNC(1, 0, GETUNIFORMIV,                    GetUniformiv,                   );
+    QUERY_FUNC(1, 0, GETUNIFORMUIV,                   GetUniformuiv,                  );
+    QUERY_FUNC(1, 0, GETPROGRAMINFOLOG,               GetProgramInfoLog,              );
+    QUERY_FUNC(1, 0, GETPROGRAMIV,                    GetProgramiv,                   );
+    QUERY_FUNC(1, 0, GETPROGRAMINTERFACEIV,           GetProgramInterfaceiv,          );
+    QUERY_FUNC(1, 0, GETPROGRAMRESOURCEINDEX,         GetProgramResourceIndex,        );
+    QUERY_FUNC(1, 0, GETPROGRAMRESOURCELOCATION,      GetProgramResourceLocation,     );
+    QUERY_FUNC(1, 0, GETPROGRAMRESOURCELOCATIONINDEX, GetProgramResourceLocationIndex,); 
+    QUERY_FUNC(1, 0, GETPROGRAMRESOURCENAME,          GetProgramResourceName,         );
+    QUERY_FUNC(1, 0, GETPROGRAMRESOURCEIV,            GetProgramResourceiv,           );
+    QUERY_FUNC(1, 0, GETACTIVESUBROUTINENAME,         GetActiveSubroutineName,        );
+    QUERY_FUNC(1, 0, GETACTIVESUBROUTINEUNIFORMNAME,  GetActiveSubroutineUniformName, );
+    QUERY_FUNC(1, 0, GETACTIVESUBROUTINEUNIFORMIV,    GetActiveSubroutineUniformiv,   );
+    QUERY_FUNC(1, 0, GETPROGRAMSTAGEIV,               GetProgramStageiv,              );
+    QUERY_FUNC(1, 0, GETSUBROUTINEINDEX,              GetSubroutineIndex,             );
+    QUERY_FUNC(1, 0, GETSUBROUTINEUNIFORMLOCATION,    GetSubroutineUniformLocation,   );
+    QUERY_FUNC(1, 0, GETUNIFORMSUBROUTINEUIV,         GetUniformSubroutineuiv,        );
+    QUERY_FUNC(1, 0, UNIFORMSUBROUTINESUIV,           UniformSubroutinesuiv,          );
+    QUERY_FUNC(1, 0, GETACTIVEUNIFORMBLOCKNAME,       GetActiveUniformBlockName,      );
+    QUERY_FUNC(1, 0, GETACTIVEUNIFORMBLOCKIV,         GetActiveUniformBlockiv,        );
+    QUERY_FUNC(1, 0, GETACTIVEUNIFORMNAME,            GetActiveUniformName,           );
+    QUERY_FUNC(1, 0, GETACTIVEUNIFORMSIV,             GetActiveUniformsiv,            );
+    QUERY_FUNC(1, 0, GETINTEGERI_V,                   GetIntegeri_v,                  );
+    QUERY_FUNC(1, 0, GETUNIFORMBLOCKINDEX,            GetUniformBlockIndex,           );
+    QUERY_FUNC(1, 0, GETUNIFORMINDICES,               GetUniformIndices,              );
+    QUERY_FUNC(1, 0, UNIFORMBLOCKBINDING,             UniformBlockBinding,            );
 
     //query related
-    QUERY_FUNC (GenQueries,             "");
-    QUERY_FUNC (DeleteQueries,          "");
-    QUERY_FUNC (BeginQuery,             "");
-    QUERY_FUNC (QueryCounter,           "");
-    QUERY_FUNC (GetQueryObjectiv,       "");
-    QUERY_FUNC (GetQueryObjectuiv,      "");
-    QUERY_FUNC (GetQueryObjecti64v,     "", "EXT");
-    QUERY_FUNC (GetQueryObjectui64v,    "", "EXT");
-    QUERY_FUNC (GetQueryiv,             "");
-    QUERY_FUNC (FenceSync,              "", "APPLE");
-    QUERY_FUNC (DeleteSync,             "", "APPLE");
-    QUERY_FUNC (ClientWaitSync,         "", "APPLE");
-    QUERY_FUNC (WaitSync,               "", "APPLE");
-    QUERY_FUNC (GetInteger64v,          "", "APPLE");
-    QUERY_FUNC (GetSynciv,              "", "APPLE");
+    QUERY_FUNC(1, 0, GENQUERIES,          GenQueries,         );
+    QUERY_FUNC(1, 0, DELETEQUERIES,       DeleteQueries,      );
+    QUERY_FUNC(1, 0, BEGINQUERY,          BeginQuery,         );
+    QUERY_FUNC(1, 0, QUERYCOUNTER,        QueryCounter,       );
+    QUERY_FUNC(1, 0, GETQUERYOBJECTIV,    GetQueryObjectiv,   );
+    QUERY_FUNC(1, 0, GETQUERYOBJECTUIV,   GetQueryObjectuiv,  );
+    QUERY_FUNC(1, 0, GETQUERYOBJECTI64V,  GetQueryObjecti64v, , EXT);
+    QUERY_FUNC(1, 0, GETQUERYOBJECTUI64V, GetQueryObjectui64v,, EXT);
+    QUERY_FUNC(1, 0, GETQUERYIV,          GetQueryiv,         );
+    QUERY_FUNC(1, 0, FENCESYNC,           FenceSync,          );
+    QUERY_FUNC(1, 0, DELETESYNC,          DeleteSync,         );
+    QUERY_FUNC(1, 0, CLIENTWAITSYNC,      ClientWaitSync,     );
+    QUERY_FUNC(1, 0, WAITSYNC,            WaitSync,           );
+    QUERY_FUNC(1, 0, GETINTEGER64V,       GetInteger64v,      );
+    QUERY_FUNC(1, 0, GETSYNCIV,           GetSynciv,          );
 
     //debug
-    QUERY_FUNC (DebugMessageCallback,       "", "ARB");
-    QUERY_FUNC (DebugMessageCallbackAMD,    "");
-    QUERY_FUNC_(ObjectLabel,                "");
-    QUERY_FUNC_(LabelObjectEXT,             "");
-    QUERY_FUNC_(ObjectPtrLabel,             "");
-    QUERY_FUNC_(PushDebugGroup,             "");
-    QUERY_FUNC_(PopDebugGroup,              "");
-    QUERY_FUNC_(PushGroupMarkerEXT,         "");
-    QUERY_FUNC_(PopGroupMarkerEXT,          "");
-    QUERY_FUNC_(DebugMessageInsert,         "", "ARB");
-    QUERY_FUNC (DebugMessageInsertAMD,      "");
+    QUERY_FUNC(1, 0, DEBUGMESSAGECALLBACK,    DebugMessageCallback,   , ARB);
+    QUERY_FUNC(1, 0, DEBUGMESSAGECALLBACKAMD, DebugMessageCallbackAMD,);
+    QUERY_FUNC(0, 0, OBJECTLABEL,             ObjectLabel,            );
+    QUERY_FUNC(0, 0, LABELOBJECTEXT,          LabelObjectEXT,         );
+    QUERY_FUNC(0, 0, OBJECTPTRLABEL,          ObjectPtrLabel,         );
+    QUERY_FUNC(0, 0, PUSHDEBUGGROUP,          PushDebugGroup,         );
+    QUERY_FUNC(0, 0, POPDEBUGGROUP,           PopDebugGroup,          );
+    QUERY_FUNC(0, 0, PUSHGROUPMARKEREXT,      PushGroupMarkerEXT,     );
+    QUERY_FUNC(0, 0, POPGROUPMARKEREXT,       PopGroupMarkerEXT,      );
+    QUERY_FUNC(0, 0, DEBUGMESSAGEINSERT,      DebugMessageInsert,     , ARB);
+    QUERY_FUNC(1, 0, DEBUGMESSAGEINSERTAMD,   DebugMessageInsertAMD,  );
+    QUERY_FUNC(1, 0, INSERTEVENTMARKEREXT,    InsertEventMarkerEXT,   );
 
     //others
-    PLAIN_FUNC (GetError);
-    PLAIN_FUNC (GetFloatv);
-    PLAIN_FUNC (GetIntegerv);
-    PLAIN_FUNC (GetString);
-    QUERY_FUNC (GetStringi,             "");
-    PLAIN_FUNC (IsEnabled);
-    PLAIN_FUNC (Enable);
-    PLAIN_FUNC (Disable);
-    PLAIN_FUNC (Finish);
-    PLAIN_FUNC (Flush);
-    PLAIN_FUNC (DepthFunc);
-    PLAIN_FUNC (CullFace);
-    PLAIN_FUNC (FrontFace);
-    PLAIN_FUNC (Viewport);
-    QUERY_FUNC (ViewportArrayv,         "", "NV");
-    QUERY_FUNC (ViewportIndexedf,       "", "NV");
-    QUERY_FUNC (ViewportIndexedfv,      "", "NV");
-    QUERY_FUNC (ClipControl,            "", "EXT");
-    QUERY_FUNC (MemoryBarrier,          "", "EXT");
-
+    QUERY_FUNC(0, 1, GETERROR,          GetError,         );
+    QUERY_FUNC(1, 1, GETFLOATV,         GetFloatv,        );
+    QUERY_FUNC(1, 1, GETINTEGERV,       GetIntegerv,      );
+    QUERY_FUNC(1, 1, GETSTRING,         GetString,        );
+    QUERY_FUNC(1, 0, GETSTRINGI,        GetStringi,       );
+    QUERY_FUNC(1, 1, ISENABLED,         IsEnabled,        );
+    QUERY_FUNC(1, 1, ENABLE,            Enable,           );
+    QUERY_FUNC(1, 1, DISABLE,           Disable,          );
+    QUERY_FUNC(1, 1, FINISH,            Finish,           );
+    QUERY_FUNC(1, 1, FLUSH,             Flush,            );
+    QUERY_FUNC(1, 1, DEPTHFUNC,         DepthFunc,        );
+    QUERY_FUNC(1, 1, CULLFACE,          CullFace,         );
+    QUERY_FUNC(1, 1, FRONTFACE,         FrontFace,        );
+    QUERY_FUNC(1, 1, VIEWPORT,          Viewport,         );
+    QUERY_FUNC(1, 0, VIEWPORTARRAYV,    ViewportArrayv,   );
+    QUERY_FUNC(1, 0, VIEWPORTINDEXEDF,  ViewportIndexedf, );
+    QUERY_FUNC(1, 0, VIEWPORTINDEXEDFV, ViewportIndexedfv,);
+    QUERY_FUNC(1, 0, CLIPCONTROL,       ClipControl,      );
+    QUERY_FUNC(1, 0, MEMORYBARRIER,     MemoryBarrier,    , EXT);
 
     Extensions = GetExtensions();
     {
         VendorString = common::str::to_u16string(
-            reinterpret_cast<const char*>(ogluGetString(GL_VENDOR)), common::str::Encoding::UTF8);
+            reinterpret_cast<const char*>(GetString(GL_VENDOR)), common::str::Encoding::UTF8);
         VersionString = common::str::to_u16string(
-            reinterpret_cast<const char*>(ogluGetString(GL_VERSION)), common::str::Encoding::UTF8);
+            reinterpret_cast<const char*>(GetString(GL_VERSION)), common::str::Encoding::UTF8);
         int32_t major = 0, minor = 0;
-        ogluGetIntegerv(GL_MAJOR_VERSION, &major);
-        ogluGetIntegerv(GL_MINOR_VERSION, &minor);
+        GetIntegerv(GL_MAJOR_VERSION, &major);
+        GetIntegerv(GL_MINOR_VERSION, &minor);
         Version = major * 10 + minor;
     }
-    SupportDebug            = ogluDebugMessageCallback != nullptr || ogluDebugMessageCallbackAMD != nullptr;
+    SupportDebug            = DebugMessageCallback != nullptr || DebugMessageCallbackAMD != nullptr;
     SupportSRGB             = PlatFunc->SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
-    SupportClipControl      = ogluClipControl != nullptr;
+    SupportClipControl      = ClipControl != nullptr;
     SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
     SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
     SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
@@ -1069,64 +1102,68 @@ CtxFuncs::CtxFuncs(void*)
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
     SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     
-    ogluGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
-    ogluGetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);
-    ogluGetIntegerv(GL_MAX_COLOR_ATTACHMENTS,               &MaxColorAttachment);
-    ogluGetIntegerv(GL_MAX_DRAW_BUFFERS,                    &MaxDrawBuffers);
-    ogluGetIntegerv(GL_MAX_LABEL_LENGTH,                    &MaxLabelLen);
-    ogluGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,            &MaxMessageLen);
+    GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
+    GetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);
+    GetIntegerv(GL_MAX_COLOR_ATTACHMENTS,               &MaxColorAttachment);
+    GetIntegerv(GL_MAX_DRAW_BUFFERS,                    &MaxDrawBuffers);
+    GetIntegerv(GL_MAX_LABEL_LENGTH,                    &MaxLabelLen);
+    GetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,            &MaxMessageLen);
     if (SupportImageLoadStore)
-        ogluGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &MaxTextureUnits);
+        GetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &MaxTextureUnits);
 
-#undef WITH_SUFFIX
-#undef WITH_SUFFIXS
 #undef QUERY_FUNC
 #undef QUERY_FUNC_
-#undef PLAIN_FUNC
+#undef SFX_STR
+#undef FUNC_TYPE_CHECK
+#undef FUNC_TYPE_CHECK_
 }
+
+#if COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 #define CALL_EXISTS(func, ...) if (func) { return func(__VA_ARGS__); }
 
 
-void CtxFuncs::ogluNamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
+void CtxFuncs::NamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const
 {
-    CALL_EXISTS(ogluNamedBufferStorage_, buffer, size, data, flags)
+    CALL_EXISTS(NamedBufferStorage_, buffer, size, data, flags)
     {
-        ogluBindBuffer(target, buffer);
-        ogluBufferStorage_(target, size, data, flags);
+        BindBuffer(target, buffer);
+        BufferStorage_(target, size, data, flags);
     }
 }
-void CtxFuncs::ogluNamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
+void CtxFuncs::NamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const
 {
-    CALL_EXISTS(ogluNamedBufferData_, buffer, size, data, usage)
+    CALL_EXISTS(NamedBufferData_, buffer, size, data, usage)
     {
-        ogluBindBuffer(target, buffer);
-        ogluBufferData_(target, size, data, usage);
+        BindBuffer(target, buffer);
+        BufferData_(target, size, data, usage);
     }
 }
-void CtxFuncs::ogluNamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
+void CtxFuncs::NamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const
 {
-    CALL_EXISTS(ogluNamedBufferSubData_, buffer, offset, size, data)
+    CALL_EXISTS(NamedBufferSubData_, buffer, offset, size, data)
     {
-        ogluBindBuffer(target, buffer);
-        ogluBufferSubData_(target, offset, size, data);
+        BindBuffer(target, buffer);
+        BufferSubData_(target, offset, size, data);
     }
 }
-void* CtxFuncs::ogluMapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
+void* CtxFuncs::MapNamedBuffer(GLenum target, GLuint buffer, GLenum access) const
 {
-    CALL_EXISTS(ogluMapNamedBuffer_, buffer, access)
+    CALL_EXISTS(MapNamedBuffer_, buffer, access)
     {
-        ogluBindBuffer(target, buffer);
-        return ogluMapBuffer_(target, access);
+        BindBuffer(target, buffer);
+        return MapBuffer_(target, access);
     }
 }
-GLboolean CtxFuncs::ogluUnmapNamedBuffer(GLenum target, GLuint buffer) const
+GLboolean CtxFuncs::UnmapNamedBuffer(GLenum target, GLuint buffer) const
 {
-    CALL_EXISTS(ogluUnmapNamedBuffer_, buffer)
+    CALL_EXISTS(UnmapNamedBuffer_, buffer)
     {
-        ogluBindBuffer(target, buffer);
-        return ogluUnmapBuffer_(target);
+        BindBuffer(target, buffer);
+        return UnmapBuffer_(target);
     }
 }
 
@@ -1140,96 +1177,96 @@ struct VAOBinder : public common::NonCopyable
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), Changed(false)
     {
         if (newVAO != DSA.VAO)
-            Changed = true, DSA.ogluBindVertexArray_(newVAO);
+            Changed = true, DSA.BindVertexArray_(newVAO);
     }
     ~VAOBinder()
     {
         if (Changed)
-            DSA.ogluBindVertexArray_(DSA.VAO);
+            DSA.BindVertexArray_(DSA.VAO);
     }
 };
 void CtxFuncs::RefreshVAOState() const
 {
     const auto lock = DataLock.LockScope();
-    ogluGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
+    GetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint*>(&VAO));
 }
-void CtxFuncs::ogluBindVertexArray(GLuint vaobj) const
+void CtxFuncs::BindVertexArray(GLuint vaobj) const
 {
     const auto lock = DataLock.LockScope();
-    ogluBindVertexArray_(vaobj);
+    BindVertexArray_(vaobj);
     VAO = vaobj;
 }
-void CtxFuncs::ogluEnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
+void CtxFuncs::EnableVertexArrayAttrib(GLuint vaobj, GLuint index) const
 {
-    CALL_EXISTS(ogluEnableVertexArrayAttrib_, vaobj, index)
+    CALL_EXISTS(EnableVertexArrayAttrib_, vaobj, index)
     {
-        ogluBindVertexArray_(vaobj); // ensure be in binding
-        ogluEnableVertexAttribArray_(index);
+        BindVertexArray_(vaobj); // ensure be in binding
+        EnableVertexAttribArray_(index);
     }
 }
-void CtxFuncs::ogluVertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
+void CtxFuncs::VertexAttribPointer(GLuint index, GLint size, GLenum type, bool normalized, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
-    ogluVertexAttribPointer_(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
+    VertexAttribPointer_(index, size, type, normalized ? GL_TRUE : GL_FALSE, stride, pointer);
 }
-void CtxFuncs::ogluVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+void CtxFuncs::VertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
-    ogluVertexAttribIPointer_(index, size, type, stride, pointer);
+    VertexAttribIPointer_(index, size, type, stride, pointer);
 }
-void CtxFuncs::ogluVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
+void CtxFuncs::VertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, size_t offset) const
 {
     const auto pointer = reinterpret_cast<const void*>(uintptr_t(offset));
-    ogluVertexAttribLPointer_(index, size, type, stride, pointer);
+    VertexAttribLPointer_(index, size, type, stride, pointer);
 }
 
 
-void CtxFuncs::ogluDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
+void CtxFuncs::DrawArraysInstanced(GLenum mode, GLint first, GLsizei count, uint32_t instancecount, uint32_t baseinstance) const
 {
     if (baseinstance != 0)
-        CALL_EXISTS(ogluDrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
-    CALL_EXISTS(ogluDrawArraysInstanced_, mode, first, count, static_cast<GLsizei>(instancecount)) // baseInstance ignored
+        CALL_EXISTS(DrawArraysInstancedBaseInstance_, mode, first, count, static_cast<GLsizei>(instancecount), baseinstance)
+    CALL_EXISTS(DrawArraysInstanced_, mode, first, count, static_cast<GLsizei>(instancecount)) // baseInstance ignored
     {
         for (uint32_t i = 0; i < instancecount; i++)
         {
-            ogluDrawArrays(mode, first, count);
+            DrawArrays(mode, first, count);
         }
     }
 }
-void CtxFuncs::ogluDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
+void CtxFuncs::DrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, uint32_t instancecount, uint32_t baseinstance) const
 {
     if (baseinstance != 0)
-        CALL_EXISTS(ogluDrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
-    CALL_EXISTS(ogluDrawElementsInstanced_, mode, count, type, indices, static_cast<GLsizei>(instancecount)) // baseInstance ignored
+        CALL_EXISTS(DrawElementsInstancedBaseInstance_, mode, count, type, indices, static_cast<GLsizei>(instancecount), baseinstance)
+    CALL_EXISTS(DrawElementsInstanced_, mode, count, type, indices, static_cast<GLsizei>(instancecount)) // baseInstance ignored
     {
         for (uint32_t i = 0; i < instancecount; i++)
         {
-            ogluDrawElements(mode, count, type, indices);
+            DrawElements(mode, count, type, indices);
         }
     }
 }
-void CtxFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
+void CtxFuncs::MultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
-    if (ogluMultiDrawArraysIndirect_)
+    if (MultiDrawArraysIndirect_)
     {
-        ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
+        BindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
         const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
-        ogluMultiDrawArraysIndirect_(mode, pointer, drawcount, 0);
+        MultiDrawArraysIndirect_(mode, pointer, drawcount, 0);
     }
-    else if (ogluDrawArraysInstancedBaseInstance_)
+    else if (DrawArraysInstancedBaseInstance_)
     {
         const auto& cmd = indirect.GetArrayCommands();
         for (GLsizei i = offset; i < drawcount; i++)
         {
-            ogluDrawArraysInstancedBaseInstance_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
+            DrawArraysInstancedBaseInstance_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount, cmd[i].baseInstance);
         }
     }
-    else if (ogluDrawArraysInstanced_)
+    else if (DrawArraysInstanced_)
     {
         const auto& cmd = indirect.GetArrayCommands();
         for (GLsizei i = offset; i < drawcount; i++)
         {
-            ogluDrawArraysInstanced_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
+            DrawArraysInstanced_(mode, cmd[i].first, cmd[i].count, cmd[i].instanceCount); // baseInstance ignored
         }
     }
     else
@@ -1237,39 +1274,39 @@ void CtxFuncs::ogluMultiDrawArraysIndirect(GLenum mode, const oglIndirectBuffer_
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for MultiDrawArraysIndirect");
     }
 }
-void CtxFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
+void CtxFuncs::MultiDrawElementsIndirect(GLenum mode, GLenum type, const oglIndirectBuffer_& indirect, GLint offset, GLsizei drawcount) const
 {
-    if (ogluMultiDrawElementsIndirect_)
+    if (MultiDrawElementsIndirect_)
     {
-        ogluBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
+        BindBuffer(GL_DRAW_INDIRECT_BUFFER, indirect.BufferID); //IBO not included in VAO
         const auto pointer = reinterpret_cast<const void*>(uintptr_t(sizeof(oglIndirectBuffer_::DrawArraysIndirectCommand) * offset));
-        ogluMultiDrawElementsIndirect_(mode, type, pointer, drawcount, 0);
+        MultiDrawElementsIndirect_(mode, type, pointer, drawcount, 0);
     }
-    else if (ogluDrawElementsInstancedBaseVertexBaseInstance_)
+    else if (DrawElementsInstancedBaseVertexBaseInstance_)
     {
         const auto& cmd = indirect.GetElementCommands();
         for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
-            ogluDrawElementsInstancedBaseVertexBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
+            DrawElementsInstancedBaseVertexBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseVertex, cmd[i].baseInstance);
         }
     }
-    else if (ogluDrawElementsInstancedBaseInstance_)
+    else if (DrawElementsInstancedBaseInstance_)
     {
         const auto& cmd = indirect.GetElementCommands();
         for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
-            ogluDrawElementsInstancedBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseInstance); // baseInstance ignored
+            DrawElementsInstancedBaseInstance_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount, cmd[i].baseInstance); // baseInstance ignored
         }
     }
-    else if (ogluDrawElementsInstanced_)
+    else if (DrawElementsInstanced_)
     {
         const auto& cmd = indirect.GetElementCommands();
         for (GLsizei i = offset; i < drawcount; i++)
         {
             const auto pointer = reinterpret_cast<const void*>(uintptr_t(cmd[i].firstIndex));
-            ogluDrawElementsInstanced_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount); // baseInstance & baseVertex ignored
+            DrawElementsInstanced_(mode, cmd[i].count, type, pointer, cmd[i].instanceCount); // baseInstance & baseVertex ignored
         }
     }
     else
@@ -1279,261 +1316,261 @@ void CtxFuncs::ogluMultiDrawElementsIndirect(GLenum mode, GLenum type, const ogl
 }
 
 
-void CtxFuncs::ogluCreateTextures(GLenum target, GLsizei n, GLuint* textures) const
+void CtxFuncs::CreateTextures(GLenum target, GLsizei n, GLuint* textures) const
 {
-    CALL_EXISTS(ogluCreateTextures_, target, n, textures)
+    CALL_EXISTS(CreateTextures_, target, n, textures)
     {
-        ogluGenTextures(n, textures);
-        ogluActiveTexture(GL_TEXTURE0);
+        GenTextures(n, textures);
+        ActiveTexture(GL_TEXTURE0);
         for (GLsizei i = 0; i < n; ++i)
             glBindTexture(target, textures[i]);
         glBindTexture(target, 0);
     }
 }
-void CtxFuncs::ogluBindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
+void CtxFuncs::BindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
 {
-    CALL_EXISTS(ogluBindTextureUnit_,                   unit,         texture)
-    CALL_EXISTS(ogluBindMultiTextureEXT_, GL_TEXTURE0 + unit, target, texture)
+    CALL_EXISTS(BindTextureUnit_,                   unit,         texture)
+    CALL_EXISTS(BindMultiTextureEXT_, GL_TEXTURE0 + unit, target, texture)
     {
-        ogluActiveTexture(GL_TEXTURE0 + unit);
+        ActiveTexture(GL_TEXTURE0 + unit);
         glBindTexture(target, texture);
     }
 }
-void CtxFuncs::ogluTextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
+void CtxFuncs::TextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
 {
-    CALL_EXISTS(ogluTextureBuffer_,    target,         internalformat, buffer)
-    CALL_EXISTS(ogluTextureBufferEXT_, target, target, internalformat, buffer)
+    CALL_EXISTS(TextureBuffer_,    target,         internalformat, buffer)
+    CALL_EXISTS(TextureBufferEXT_, target, target, internalformat, buffer)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexBuffer_(target, internalformat, buffer);
+        TexBuffer_(target, internalformat, buffer);
         glBindTexture(target, 0);
     }
 }
-void CtxFuncs::ogluGenerateTextureMipmap(GLuint texture, GLenum target) const
+void CtxFuncs::GenerateTextureMipmap(GLuint texture, GLenum target) const
 {
-    CALL_EXISTS(ogluGenerateTextureMipmap_,    texture)
-    CALL_EXISTS(ogluGenerateTextureMipmapEXT_, texture, target)
+    CALL_EXISTS(GenerateTextureMipmap_,    texture)
+    CALL_EXISTS(GenerateTextureMipmapEXT_, texture, target)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluGenerateMipmap_(target);
+        GenerateMipmap_(target);
     }
 }
-void CtxFuncs::ogluTextureParameteri(GLuint texture, GLenum target, GLenum pname, GLint param) const
+void CtxFuncs::TextureParameteri(GLuint texture, GLenum target, GLenum pname, GLint param) const
 {
-    CALL_EXISTS(ogluTextureParameteri_,    texture,         pname, param)
-    CALL_EXISTS(ogluTextureParameteriEXT_, texture, target, pname, param)
+    CALL_EXISTS(TextureParameteri_,    texture,         pname, param)
+    CALL_EXISTS(TextureParameteriEXT_, texture, target, pname, param)
     {
         glBindTexture(target, texture);
         glTexParameteri(target, pname, param);
     }
 }
-void CtxFuncs::ogluTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureSubImage1D_,    texture,         level, xoffset, width, format, type, pixels)
-    CALL_EXISTS(ogluTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, type, pixels)
+    CALL_EXISTS(TextureSubImage1D_,    texture,         level, xoffset, width, format, type, pixels)
+    CALL_EXISTS(TextureSubImage1DEXT_, texture, target, level, xoffset, width, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
         glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
     }
 }
-void CtxFuncs::ogluTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, type, pixels)
-    CALL_EXISTS(ogluTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, type, pixels)
+    CALL_EXISTS(TextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, type, pixels)
+    CALL_EXISTS(TextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
         glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
     }
 }
-void CtxFuncs::ogluTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
-    CALL_EXISTS(ogluTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
+    CALL_EXISTS(TextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
+    CALL_EXISTS(TextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+        TexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
     }
 }
-void CtxFuncs::ogluTextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureImage1D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureImage1DEXT_, texture, target, level, internalformat, width, border, format, type, pixels)
+    CALL_EXISTS(TextureImage1DEXT_, texture, target, level, internalformat, width, border, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
         glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
     }
 }
-void CtxFuncs::ogluTextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, format, type, pixels)
+    CALL_EXISTS(TextureImage2DEXT_, texture, target, level, internalformat, width, height, border, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
         glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
     }
 }
-void CtxFuncs::ogluTextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
+void CtxFuncs::TextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
 {
-    CALL_EXISTS(ogluTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, format, type, pixels)
+    CALL_EXISTS(TextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, format, type, pixels)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexImage3D_(target, level, internalformat, width, height, depth, border, format, type, pixels);
+        TexImage3D_(target, level, internalformat, width, height, depth, border, format, type, pixels);
     }
 }
-void CtxFuncs::ogluCompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureSubImage1D_,    texture,         level, xoffset, width, format, imageSize, data)
-    CALL_EXISTS(ogluCompressedTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage1D_,    texture,         level, xoffset, width, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexSubImage1D_(target, level, xoffset, width, format, imageSize, data);
+        CompressedTexSubImage1D_(target, level, xoffset, width, format, imageSize, data);
     }
 }
-void CtxFuncs::ogluCompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, imageSize, data)
-    CALL_EXISTS(ogluCompressedTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage2D_,    texture,         level, xoffset, yoffset, width, height, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexSubImage2D_(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+        CompressedTexSubImage2D_(target, level, xoffset, yoffset, width, height, format, imageSize, data);
     }
 }
-void CtxFuncs::ogluCompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
-    CALL_EXISTS(ogluCompressedTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage3D_,    texture,         level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
+    CALL_EXISTS(CompressedTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
+        CompressedTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
     }
 }
-void CtxFuncs::ogluCompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureImage1D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLint border, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureImage1DEXT_, texture, target, level, internalformat, width, border, imageSize, data)
+    CALL_EXISTS(CompressedTextureImage1DEXT_, texture, target, level, internalformat, width, border, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexImage1D_(target, level, internalformat, width, border, imageSize, data);
+        CompressedTexImage1D_(target, level, internalformat, width, border, imageSize, data);
     }
 }
-void CtxFuncs::ogluCompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureImage2D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, imageSize, data)
+    CALL_EXISTS(CompressedTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexImage2D_(target, level, internalformat, width, height, border, imageSize, data);
+        CompressedTexImage2D_(target, level, internalformat, width, height, border, imageSize, data);
     }
 }
-void CtxFuncs::ogluCompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void* data) const
+void CtxFuncs::CompressedTextureImage3D(GLuint texture, GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void* data) const
 {
-    CALL_EXISTS(ogluCompressedTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, imageSize, data)
+    CALL_EXISTS(CompressedTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, imageSize, data)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluCompressedTexImage3D_(target, level, internalformat, width, height, depth, border, imageSize, data);
+        CompressedTexImage3D_(target, level, internalformat, width, height, depth, border, imageSize, data);
     }
 }
-void CtxFuncs::ogluTextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
+void CtxFuncs::TextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
 {
-    CALL_EXISTS(ogluTextureStorage1D_,    texture,         levels, internalformat, width)
-    CALL_EXISTS(ogluTextureStorage1DEXT_, texture, target, levels, internalformat, width)
+    CALL_EXISTS(TextureStorage1D_,    texture,         levels, internalformat, width)
+    CALL_EXISTS(TextureStorage1DEXT_, texture, target, levels, internalformat, width)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexStorage1D_(target, levels, internalformat, width);
+        TexStorage1D_(target, levels, internalformat, width);
     }
 }
-void CtxFuncs::ogluTextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::TextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
 {
-    CALL_EXISTS(ogluTextureStorage2D_,    texture,         levels, internalformat, width, height)
-    CALL_EXISTS(ogluTextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
+    CALL_EXISTS(TextureStorage2D_,    texture,         levels, internalformat, width, height)
+    CALL_EXISTS(TextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexStorage2D_(target, levels, internalformat, width, height);
+        TexStorage2D_(target, levels, internalformat, width, height);
     }
 }
-void CtxFuncs::ogluTextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
+void CtxFuncs::TextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
 {
-    CALL_EXISTS(ogluTextureStorage3D_,    texture,         levels, internalformat, width, height, depth)
-    CALL_EXISTS(ogluTextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
+    CALL_EXISTS(TextureStorage3D_,    texture,         levels, internalformat, width, height, depth)
+    CALL_EXISTS(TextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
     {
-        ogluActiveTexture(GL_TEXTURE0);
+        ActiveTexture(GL_TEXTURE0);
         glBindTexture(target, texture);
-        ogluTexStorage3D_(target, levels, internalformat, width, height, depth);
+        TexStorage3D_(target, levels, internalformat, width, height, depth);
     }
 }
-void CtxFuncs::ogluGetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const
+void CtxFuncs::GetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const
 {
-    CALL_EXISTS(ogluGetTextureLevelParameteriv_,    texture,         level, pname, params)
-    CALL_EXISTS(ogluGetTextureLevelParameterivEXT_, texture, target, level, pname, params)
+    CALL_EXISTS(GetTextureLevelParameteriv_,    texture,         level, pname, params)
+    CALL_EXISTS(GetTextureLevelParameterivEXT_, texture, target, level, pname, params)
     {
         glBindTexture(target, texture);
         glGetTexLevelParameteriv(target, level, pname, params);
     }
 }
-void CtxFuncs::ogluGetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
+void CtxFuncs::GetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
 {
-    CALL_EXISTS(ogluGetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
-    CALL_EXISTS(ogluGetTextureImageEXT_, texture, target, level, format, type, pixels)
+    CALL_EXISTS(GetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
+    CALL_EXISTS(GetTextureImageEXT_, texture, target, level, format, type, pixels)
     {
         glBindTexture(target, texture);
         glGetTexImage(target, level, format, type, pixels);
     }
 }
-void CtxFuncs::ogluGetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
+void CtxFuncs::GetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
 {
-    CALL_EXISTS(ogluGetCompressedTextureImage_,    texture,         level, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), img)
-    CALL_EXISTS(ogluGetCompressedTextureImageEXT_, texture, target, level, img)
+    CALL_EXISTS(GetCompressedTextureImage_,    texture,         level, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), img)
+    CALL_EXISTS(GetCompressedTextureImageEXT_, texture, target, level, img)
     {
         glBindTexture(target, texture);
-        ogluGetCompressedTexImage_(target, level, img);
+        GetCompressedTexImage_(target, level, img);
     }
 }
 
 
-void CtxFuncs::ogluCreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
+void CtxFuncs::CreateRenderbuffers(GLsizei n, GLuint* renderbuffers) const
 {
-    CALL_EXISTS(ogluCreateRenderbuffers_, n, renderbuffers)
+    CALL_EXISTS(CreateRenderbuffers_, n, renderbuffers)
     {
-        ogluGenRenderbuffers_(n, renderbuffers);
+        GenRenderbuffers_(n, renderbuffers);
         for (GLsizei i = 0; i < n; ++i)
-            ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffers[i]);
+            BindRenderbuffer_(GL_RENDERBUFFER, renderbuffers[i]);
     }
 }
-void CtxFuncs::ogluNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::NamedRenderbufferStorage(GLuint renderbuffer, GLenum internalformat, GLsizei width, GLsizei height) const
 {
-    CALL_EXISTS(ogluNamedRenderbufferStorage_, renderbuffer, internalformat, width, height)
+    CALL_EXISTS(NamedRenderbufferStorage_, renderbuffer, internalformat, width, height)
     {
-        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
-        ogluRenderbufferStorage_(GL_RENDERBUFFER, internalformat, width, height);
+        BindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        RenderbufferStorage_(GL_RENDERBUFFER, internalformat, width, height);
     }
 }
-void CtxFuncs::ogluNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::NamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) const
 {
-    CALL_EXISTS(ogluNamedRenderbufferStorageMultisample_, renderbuffer, samples, internalformat, width, height)
+    CALL_EXISTS(NamedRenderbufferStorageMultisample_, renderbuffer, samples, internalformat, width, height)
     {
-        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
-        ogluRenderbufferStorageMultisample_(GL_RENDERBUFFER, samples, internalformat, width, height);
+        BindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        RenderbufferStorageMultisample_(GL_RENDERBUFFER, samples, internalformat, width, height);
     }
 }
-void CtxFuncs::ogluNamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const
+void CtxFuncs::NamedRenderbufferStorageMultisampleCoverage(GLuint renderbuffer, GLsizei coverageSamples, GLsizei colorSamples, GLenum internalformat, GLsizei width, GLsizei height) const
 {
-    CALL_EXISTS(ogluNamedRenderbufferStorageMultisampleCoverageEXT_, renderbuffer, coverageSamples, colorSamples, internalformat, width, height)
-    if (ogluRenderbufferStorageMultisampleCoverageNV_)
+    CALL_EXISTS(NamedRenderbufferStorageMultisampleCoverageEXT_, renderbuffer, coverageSamples, colorSamples, internalformat, width, height)
+    if (RenderbufferStorageMultisampleCoverageNV_)
     {
-        ogluBindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
-        ogluRenderbufferStorageMultisampleCoverageNV_(GL_RENDERBUFFER, coverageSamples, colorSamples, internalformat, width, height);
+        BindRenderbuffer_(GL_RENDERBUFFER, renderbuffer);
+        RenderbufferStorageMultisampleCoverageNV_(GL_RENDERBUFFER, coverageSamples, colorSamples, internalformat, width, height);
     }
     else
     {
@@ -1554,9 +1591,9 @@ struct FBOBinder : public common::NonCopyable
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
     {
         if (DSA.ReadFBO != newFBO.first)
-            ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO.first);
+            ChangeRead = true, DSA.BindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO.first);
         if (DSA.DrawFBO != newFBO.second)
-            ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO.second);
+            ChangeDraw = true, DSA.BindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO.second);
     }
     FBOBinder(const CtxFuncs* dsa, const GLenum target, const GLuint newFBO) noexcept :
         Lock(dsa->DataLock.LockScope()), DSA(*dsa), ChangeRead(false), ChangeDraw(false)
@@ -1564,97 +1601,97 @@ struct FBOBinder : public common::NonCopyable
         if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         {
             if (DSA.ReadFBO != newFBO)
-                ChangeRead = true, DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO);
+                ChangeRead = true, DSA.BindFramebuffer_(GL_READ_FRAMEBUFFER, newFBO);
         }
         if (target == GL_DRAW_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         {
             if (DSA.DrawFBO != newFBO)
-                ChangeDraw = true, DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO);
+                ChangeDraw = true, DSA.BindFramebuffer_(GL_DRAW_FRAMEBUFFER, newFBO);
         }
     }
     ~FBOBinder()
     {
         if (ChangeRead)
-            DSA.ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, DSA.ReadFBO);
+            DSA.BindFramebuffer_(GL_READ_FRAMEBUFFER, DSA.ReadFBO);
         if (ChangeDraw)
-            DSA.ogluBindFramebuffer_(GL_DRAW_FRAMEBUFFER, DSA.DrawFBO);
+            DSA.BindFramebuffer_(GL_DRAW_FRAMEBUFFER, DSA.DrawFBO);
     }
 };
 void CtxFuncs::RefreshFBOState() const
 {
     const auto lock = DataLock.LockScope();
-    ogluGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
-    ogluGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
+    GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&ReadFBO));
+    GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint*>(&DrawFBO));
 }
-void CtxFuncs::ogluCreateFramebuffers(GLsizei n, GLuint* framebuffers) const
+void CtxFuncs::CreateFramebuffers(GLsizei n, GLuint* framebuffers) const
 {
-    CALL_EXISTS(ogluCreateFramebuffers_, n, framebuffers)
+    CALL_EXISTS(CreateFramebuffers_, n, framebuffers)
     {
-        ogluGenFramebuffers_(n, framebuffers);
+        GenFramebuffers_(n, framebuffers);
         const auto backup = FBOBinder(this);
         for (GLsizei i = 0; i < n; ++i)
-            ogluBindFramebuffer_(GL_READ_FRAMEBUFFER, framebuffers[i]);
+            BindFramebuffer_(GL_READ_FRAMEBUFFER, framebuffers[i]);
     }
 }
-void CtxFuncs::ogluBindFramebuffer(GLenum target, GLuint framebuffer) const
+void CtxFuncs::BindFramebuffer(GLenum target, GLuint framebuffer) const
 {
     const auto lock = DataLock.LockScope();
-    ogluBindFramebuffer_(target, framebuffer);
+    BindFramebuffer_(target, framebuffer);
     if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         ReadFBO = framebuffer;
     if (target == GL_DRAW_FRAMEBUFFER || target == GL_FRAMEBUFFER)
         DrawFBO = framebuffer;
 }
-void CtxFuncs::ogluBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const
+void CtxFuncs::BlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) const
 {
-    CALL_EXISTS(ogluBlitNamedFramebuffer_, readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
+    CALL_EXISTS(BlitNamedFramebuffer_, readFramebuffer, drawFramebuffer, srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
     {
         const auto backup = FBOBinder(this, { readFramebuffer, drawFramebuffer });
-        ogluBlitFramebuffer_(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+        BlitFramebuffer_(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
     }
 }
-void CtxFuncs::ogluInvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) const
+void CtxFuncs::InvalidateNamedFramebufferData(GLuint framebuffer, GLsizei numAttachments, const GLenum* attachments) const
 {
-    CALL_EXISTS(ogluInvalidateNamedFramebufferData_, framebuffer, numAttachments, attachments)
-    const auto invalidator = ogluInvalidateFramebuffer_ ? ogluInvalidateFramebuffer_ : ogluDiscardFramebufferEXT_;
+    CALL_EXISTS(InvalidateNamedFramebufferData_, framebuffer, numAttachments, attachments)
+    const auto invalidator = InvalidateFramebuffer_ ? InvalidateFramebuffer_ : DiscardFramebufferEXT_;
     if (invalidator)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
         invalidator(GL_DRAW_FRAMEBUFFER, numAttachments, attachments);
     }
 }
-void CtxFuncs::ogluNamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
+void CtxFuncs::NamedFramebufferRenderbuffer(GLuint framebuffer, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer) const
 {
-    CALL_EXISTS(ogluNamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
+    CALL_EXISTS(NamedFramebufferRenderbuffer_, framebuffer, attachment, renderbuffertarget, renderbuffer)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluFramebufferRenderbuffer_(GL_DRAW_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
+        FramebufferRenderbuffer_(GL_DRAW_FRAMEBUFFER, attachment, renderbuffertarget, renderbuffer);
     }
 }
-void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
+void CtxFuncs::NamedFramebufferTexture(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level) const
 {
-    CALL_EXISTS(ogluNamedFramebufferTexture_, framebuffer, attachment, texture, level)
-    if (ogluFramebufferTexture_)
+    CALL_EXISTS(NamedFramebufferTexture_, framebuffer, attachment, texture, level)
+    if (FramebufferTexture_)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluFramebufferTexture_(GL_DRAW_FRAMEBUFFER, attachment, texture, level);
+        FramebufferTexture_(GL_DRAW_FRAMEBUFFER, attachment, texture, level);
     }
     else
     {
         switch (textarget)
         {
         case GL_TEXTURE_1D:
-            CALL_EXISTS(ogluNamedFramebufferTexture1DEXT_, framebuffer, attachment, textarget, texture, level)
+            CALL_EXISTS(NamedFramebufferTexture1DEXT_, framebuffer, attachment, textarget, texture, level)
             {
                 const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-                ogluFramebufferTexture1D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
+                FramebufferTexture1D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
             }
             break;
         case GL_TEXTURE_2D:
-            CALL_EXISTS(ogluNamedFramebufferTexture2DEXT_, framebuffer, attachment, textarget, texture, level)
+            CALL_EXISTS(NamedFramebufferTexture2DEXT_, framebuffer, attachment, textarget, texture, level)
             {
                 const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-                ogluFramebufferTexture2D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
+                FramebufferTexture2D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level);
             }
             break;
         default:
@@ -1662,23 +1699,23 @@ void CtxFuncs::ogluNamedFramebufferTexture(GLuint framebuffer, GLenum attachment
         }
     }
 }
-void CtxFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const
+void CtxFuncs::NamedFramebufferTextureLayer(GLuint framebuffer, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint layer) const
 {
-    CALL_EXISTS(ogluNamedFramebufferTextureLayer_, framebuffer, attachment, texture, level, layer)
-    if (ogluFramebufferTextureLayer_)
+    CALL_EXISTS(NamedFramebufferTextureLayer_, framebuffer, attachment, texture, level, layer)
+    if (FramebufferTextureLayer_)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluFramebufferTextureLayer_(GL_DRAW_FRAMEBUFFER, attachment, texture, level, layer);
+        FramebufferTextureLayer_(GL_DRAW_FRAMEBUFFER, attachment, texture, level, layer);
     }
     else
     {
         switch (textarget)
         {
         case GL_TEXTURE_3D:
-            CALL_EXISTS(ogluNamedFramebufferTexture3DEXT_, framebuffer, attachment, textarget, texture, level, layer)
+            CALL_EXISTS(NamedFramebufferTexture3DEXT_, framebuffer, attachment, textarget, texture, level, layer)
             {
                 const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-                ogluFramebufferTexture3D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level, layer);
+                FramebufferTexture3D_(GL_DRAW_FRAMEBUFFER, attachment, textarget, texture, level, layer);
             }
             break;
         default:
@@ -1686,74 +1723,74 @@ void CtxFuncs::ogluNamedFramebufferTextureLayer(GLuint framebuffer, GLenum attac
         }
     }
 }
-GLenum CtxFuncs::ogluCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const
+GLenum CtxFuncs::CheckNamedFramebufferStatus(GLuint framebuffer, GLenum target) const
 {
-    CALL_EXISTS(ogluCheckNamedFramebufferStatus_, framebuffer, target)
+    CALL_EXISTS(CheckNamedFramebufferStatus_, framebuffer, target)
     {
         const auto backup = FBOBinder(this, target, framebuffer);
-        return ogluCheckFramebufferStatus_(target);
+        return CheckFramebufferStatus_(target);
     }
 }
-void CtxFuncs::ogluGetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const
+void CtxFuncs::GetNamedFramebufferAttachmentParameteriv(GLuint framebuffer, GLenum attachment, GLenum pname, GLint* params) const
 {
-    CALL_EXISTS(ogluGetNamedFramebufferAttachmentParameteriv_, framebuffer, attachment, pname, params)
+    CALL_EXISTS(GetNamedFramebufferAttachmentParameteriv_, framebuffer, attachment, pname, params)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluGetFramebufferAttachmentParameteriv_(GL_DRAW_FRAMEBUFFER, attachment, pname, params);
+        GetFramebufferAttachmentParameteriv_(GL_DRAW_FRAMEBUFFER, attachment, pname, params);
     }
 }
-void CtxFuncs::ogluClearDepth(GLclampd d) const
+void CtxFuncs::ClearDepth(GLclampd d) const
 {
-    CALL_EXISTS(ogluClearDepth_, d)
-    CALL_EXISTS(ogluClearDepthf_, static_cast<GLclampf>(d))
+    CALL_EXISTS(ClearDepth_, d)
+    CALL_EXISTS(ClearDepthf_, static_cast<GLclampf>(d))
     {
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"unsupported textarget with calling ClearDepth");
     }
 }
-void CtxFuncs::ogluClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint* value) const
+void CtxFuncs::ClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLint* value) const
 {
-    CALL_EXISTS(ogluClearNamedFramebufferiv_, framebuffer, buffer, drawbuffer, value)
+    CALL_EXISTS(ClearNamedFramebufferiv_, framebuffer, buffer, drawbuffer, value)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluClearBufferiv_(buffer, drawbuffer, value);
+        ClearBufferiv_(buffer, drawbuffer, value);
     }
 }
-void CtxFuncs::ogluClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint* value) const
+void CtxFuncs::ClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLuint* value) const
 {
-    CALL_EXISTS(ogluClearNamedFramebufferuiv_, framebuffer, buffer, drawbuffer, value)
+    CALL_EXISTS(ClearNamedFramebufferuiv_, framebuffer, buffer, drawbuffer, value)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluClearBufferuiv_(buffer, drawbuffer, value);
+        ClearBufferuiv_(buffer, drawbuffer, value);
     }
 }
-void CtxFuncs::ogluClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat* value) const
+void CtxFuncs::ClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint drawbuffer, const GLfloat* value) const
 {
-    CALL_EXISTS(ogluClearNamedFramebufferfv_, framebuffer, buffer, drawbuffer, value)
+    CALL_EXISTS(ClearNamedFramebufferfv_, framebuffer, buffer, drawbuffer, value)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluClearBufferfv_(buffer, drawbuffer, value);
+        ClearBufferfv_(buffer, drawbuffer, value);
     }
 }
-void CtxFuncs::ogluClearNamedFramebufferDepthStencil(GLuint framebuffer, GLfloat depth, GLint stencil) const
+void CtxFuncs::ClearNamedFramebufferDepthStencil(GLuint framebuffer, GLfloat depth, GLint stencil) const
 {
-    CALL_EXISTS(ogluClearNamedFramebufferfi_, framebuffer, GL_DEPTH_STENCIL, 0, depth, stencil)
+    CALL_EXISTS(ClearNamedFramebufferfi_, framebuffer, GL_DEPTH_STENCIL, 0, depth, stencil)
     {
         const auto backup = FBOBinder(this, GL_DRAW_FRAMEBUFFER, framebuffer);
-        ogluClearBufferfi_(GL_DEPTH_STENCIL, 0, depth, stencil);
+        ClearBufferfi_(GL_DEPTH_STENCIL, 0, depth, stencil);
     }
 }
 
 
-void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const
+void CtxFuncs::SetObjectLabel(GLenum identifier, GLuint id, std::u16string_view name) const
 {
-    if (ogluObjectLabel_)
+    if (ObjectLabel_)
     {
         const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
-        ogluObjectLabel_(identifier, id,
+        ObjectLabel_(identifier, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
-    else if (ogluLabelObjectEXT_)
+    else if (LabelObjectEXT_)
     {
         GLenum type;
         switch (identifier)
@@ -1772,56 +1809,61 @@ void CtxFuncs::ogluSetObjectLabel(GLenum identifier, GLuint id, std::u16string_v
         default:                    return;
         }
         const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
-        ogluLabelObjectEXT_(type, id,
+        LabelObjectEXT_(type, id,
             static_cast<GLsizei>(str.size()),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
-void CtxFuncs::ogluSetObjectLabel(GLsync sync, std::u16string_view name) const
+void CtxFuncs::SetObjectLabel(GLsync sync, std::u16string_view name) const
 {
-    if (ogluObjectPtrLabel_)
+    if (ObjectPtrLabel_)
     {
         const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
-        ogluObjectPtrLabel_(sync,
+        ObjectPtrLabel_(sync,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxLabelLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
-void CtxFuncs::ogluPushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const
+void CtxFuncs::PushDebugGroup(GLenum source, GLuint id, std::u16string_view message) const
 {
-    if (ogluPushDebugGroup_)
+    if (PushDebugGroup_)
     {
         const auto str = common::str::to_u8string(message, common::str::Encoding::UTF16LE);
-        ogluPushDebugGroup_(source, id,
+        PushDebugGroup_(source, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
-    else if (ogluPushGroupMarkerEXT_)
+    else if (PushGroupMarkerEXT_)
     {
         const auto str = common::str::to_u8string(message, common::str::Encoding::UTF16LE);
-        ogluPushGroupMarkerEXT_(0, reinterpret_cast<const GLchar*>(str.c_str()));
+        PushGroupMarkerEXT_(static_cast<GLsizei>(str.size()), reinterpret_cast<const GLchar*>(str.c_str()));
     }
 }
-void CtxFuncs::ogluPopDebugGroup() const
+void CtxFuncs::PopDebugGroup() const
 {
-    if (ogluPopDebugGroup_)
-        ogluPopDebugGroup_();
-    else if (ogluPopGroupMarkerEXT_)
-        ogluPopGroupMarkerEXT_();
+    if (PopDebugGroup_)
+        PopDebugGroup_();
+    else if (PopGroupMarkerEXT_)
+        PopGroupMarkerEXT_();
 }
-void CtxFuncs::ogluInsertDebugMarker(GLuint id, std::u16string_view name) const
+void CtxFuncs::InsertDebugMarker(GLuint id, std::u16string_view name) const
 {
-    if (ogluDebugMessageInsert_)
+    if (DebugMessageInsert_)
     {
         const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
-        ogluDebugMessageInsert_(GL_DEBUG_SOURCE_THIRD_PARTY, GL_DEBUG_TYPE_MARKER, id, GL_DEBUG_SEVERITY_NOTIFICATION,
+        DebugMessageInsert_(GL_DEBUG_SOURCE_THIRD_PARTY, GL_DEBUG_TYPE_MARKER, id, GL_DEBUG_SEVERITY_NOTIFICATION,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
-    else if (ogluDebugMessageInsertAMD)
+    else if (InsertEventMarkerEXT)
     {
         const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
-        ogluDebugMessageInsertAMD(GL_DEBUG_CATEGORY_OTHER_AMD, GL_DEBUG_SEVERITY_LOW_AMD, id,
+        InsertEventMarkerEXT(static_cast<GLsizei>(str.size()), reinterpret_cast<const GLchar*>(str.c_str()));
+    }
+    else if (DebugMessageInsertAMD)
+    {
+        const auto str = common::str::to_u8string(name, common::str::Encoding::UTF16LE);
+        DebugMessageInsertAMD(GL_DEBUG_CATEGORY_OTHER_AMD, GL_DEBUG_SEVERITY_LOW_AMD, id,
             static_cast<GLsizei>(std::min<size_t>(str.size(), MaxMessageLen)),
             reinterpret_cast<const GLchar*>(str.c_str()));
     }
@@ -1830,27 +1872,28 @@ void CtxFuncs::ogluInsertDebugMarker(GLuint id, std::u16string_view name) const
 
 common::container::FrozenDenseSet<std::string_view> CtxFuncs::GetExtensions() const
 {
-    if (ogluGetStringi)
+    if (GetStringi)
     {
         GLint count;
-        ogluGetIntegerv(GL_NUM_EXTENSIONS, &count);
+        GetIntegerv(GL_NUM_EXTENSIONS, &count);
         std::vector<std::string_view> exts;
         exts.reserve(count);
         for (GLint i = 0; i < count; i++)
         {
-            exts.emplace_back(ogluGetStringi(GL_EXTENSIONS, i));
+            const GLubyte* ext = GetStringi(GL_EXTENSIONS, i);
+            exts.emplace_back(reinterpret_cast<const char*>(ext));
         }
         return exts;
     }
     else
     {
-        const GLubyte* exts = ogluGetString(GL_EXTENSIONS);
+        const GLubyte* exts = GetString(GL_EXTENSIONS);
         return common::str::Split(reinterpret_cast<const char*>(exts), ' ', false);
     }
 }
 std::optional<std::string_view> CtxFuncs::GetError() const
 {
-    const auto err = ogluGetError();
+    const auto err = GetError_();
     switch (err)
     {
     case GL_NO_ERROR:                       return {};

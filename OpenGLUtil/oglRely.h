@@ -75,33 +75,11 @@ class GLInterOP;
 
 namespace oglu
 {
-using GLboolean  = uint8_t;
-using GLbyte     = int8_t;
-using GLubyte    = uint8_t;
-using GLshort    = int16_t;
-using GLushort   = uint16_t;
-using GLint      = int32_t;
-using GLuint     = uint32_t;
-using GLfixed    = uint32_t;
-using GLint64    = int64_t;
-using GLuint64   = uint64_t;
-using GLsizei    = int32_t;
-using GLenum     = uint32_t;
-using GLintptr   = ptrdiff_t;
-using GLsizeiptr = ptrdiff_t;
-using GLbitfield = uint32_t;
-using GLhalf     = uint16_t;
-using GLfloat    = float;
-using GLclampf   = float;
-using GLdouble   = double;
-using GLclampd   = double;
-using GLchar     = char;
-using GLsync     = void*;
 
-inline constexpr GLenum GLInvalidEnum  = UINT32_MAX;
-inline constexpr GLint  GLInvalidIndex = -1;
-inline constexpr GLuint OGLUMsgIdMin = 0xdeafbeef;
-inline constexpr GLuint OGLUMsgIdMax = 0xdeafcafe;
+inline constexpr uint32_t GLInvalidEnum  = UINT32_MAX;
+inline constexpr int32_t  GLInvalidIndex = -1;
+inline constexpr uint32_t OGLUMsgIdMin = 0xdeafbeef;
+inline constexpr uint32_t OGLUMsgIdMax = 0xdeafcafe;
 
 
 class oglWorker;
@@ -144,7 +122,7 @@ class ResourceBinder
 {
 public:
     virtual ~ResourceBinder() { }
-    virtual void BindAll(const GLuint progId, const std::map<GLuint, std::shared_ptr<T>>&, std::vector<GLint>&) = 0;
+    virtual void BindAll(const uint32_t progId, const std::map<uint32_t, std::shared_ptr<T>>&, std::vector<int32_t>&) = 0;
     virtual void ReleaseRes(const T* res) = 0;
 };
 template<typename T>

@@ -37,7 +37,7 @@ template<typename T = GLint>
 static T ProgResGetValue(const GLuint pid, const GLenum type, const GLint ifidx, const GLenum prop)
 {
     GLint ret;
-    CtxFunc->ogluGetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
+    CtxFunc->GetProgramResourceiv(pid, type, ifidx, 1, &prop, 1, NULL, &ret);
     return static_cast<T>(ret);
 }
 
@@ -82,7 +82,7 @@ static ProgramResource GenProgRes(const string& name, const GLenum type, const G
     {
         progres.Valtype = GL_UNIFORM_BLOCK;
         progres.ResType |= ProgResType::CAT_UBO;
-        progres.location = CtxFunc->ogluGetProgramResourceIndex(ProgramID, type, name.c_str());
+        progres.location = CtxFunc->GetProgramResourceIndex(ProgramID, type, name.c_str());
         progres.size = ProgResGetValue<uint16_t>(ProgramID, type, idx, GL_BUFFER_DATA_SIZE);
         progres.len = 1;
     }
@@ -110,7 +110,7 @@ static ProgramResource GenProgRes(const string& name, const GLenum type, const G
                 progres.ResType |= ProgResType::TYPE_PRIMITIVE;
             break;
         }
-        progres.location = CtxFunc->ogluGetProgramResourceLocation(ProgramID, type, name.c_str());
+        progres.location = CtxFunc->GetProgramResourceLocation(ProgramID, type, name.c_str());
         progres.size = 0;
         progres.len = ProgResGetValue<GLuint>(ProgramID, type, idx, GL_ARRAY_SIZE);
     }
@@ -180,31 +180,31 @@ static ProgRecCtxConfig PROGREC_CTXCFG;
 
 oglProgram_::oglProgram_(const std::u16string& name, const oglProgStub* stub, const bool isDraw) : Name(name)
 {
-    ProgramID = CtxFunc->ogluCreateProgram();
-    CtxFunc->ogluSetObjectLabel(GL_PROGRAM, ProgramID, name);
+    ProgramID = CtxFunc->CreateProgram();
+    CtxFunc->SetObjectLabel(GL_PROGRAM, ProgramID, name);
     for (const auto& [type, shader] : stub->Shaders)
     {
         if ((type != ShaderType::Compute) == isDraw)
         {
             Shaders.emplace(type, shader);
-            CtxFunc->ogluAttachShader(ProgramID, shader->ShaderID);
+            CtxFunc->AttachShader(ProgramID, shader->ShaderID);
         }
     }
-    CtxFunc->ogluLinkProgram(ProgramID);
+    CtxFunc->LinkProgram(ProgramID);
 
     int result;
-    CtxFunc->ogluGetProgramiv(ProgramID, GL_LINK_STATUS, &result);
+    CtxFunc->GetProgramiv(ProgramID, GL_LINK_STATUS, &result);
     int len;
-    CtxFunc->ogluGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &len);
+    CtxFunc->GetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &len);
     string logstr((size_t)len, '\0');
-    CtxFunc->ogluGetProgramInfoLog(ProgramID, len, &len, logstr.data());
+    CtxFunc->GetProgramInfoLog(ProgramID, len, &len, logstr.data());
     if (len > 0 && logstr.back() == '\0')
         logstr.pop_back(); //null-terminated so pop back
     const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
     if (!result)
     {
         oglLog().warning(u"Link program failed.\n{}\n", logdat);
-        CtxFunc->ogluDeleteProgram(ProgramID);
+        CtxFunc->DeleteProgram(ProgramID);
         common::SharedString<char16_t> log(logdat);
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Compiler, u"Link program failed")
             .Attach("detail", log)
@@ -222,9 +222,9 @@ oglProgram_::~oglProgram_()
     if (usethis(*this, false)) //need unuse
     {
         auto& progRec = oglContext_::CurrentContext()->GetOrCreate<false>(PROGREC_CTXCFG);
-        CtxFunc->ogluUseProgram(progRec = 0);
+        CtxFunc->UseProgram(progRec = 0);
     }
-    CtxFunc->ogluDeleteProgram(ProgramID);
+    CtxFunc->DeleteProgram(ProgramID);
 }
 
 bool oglProgram_::usethis(oglProgram_& prog, const bool change)
@@ -236,7 +236,7 @@ bool oglProgram_::usethis(oglProgram_& prog, const bool change)
     if (!change)//only return status
         return false;
 
-    CtxFunc->ogluUseProgram(progRec = prog.ProgramID);
+    CtxFunc->UseProgram(progRec = prog.ProgramID);
     return true;
 }
 
@@ -263,16 +263,16 @@ void oglProgram_::InitLocs(const ShaderExtInfo& extInfo)
     for (const GLenum dtype : datatypes)
     {
         GLint cnt = 0;
-        CtxFunc->ogluGetProgramInterfaceiv(ProgramID, dtype, GL_ACTIVE_RESOURCES, &cnt);
+        CtxFunc->GetProgramInterfaceiv(ProgramID, dtype, GL_ACTIVE_RESOURCES, &cnt);
         GLint maxNameLen = 0;
-        CtxFunc->ogluGetProgramInterfaceiv(ProgramID, dtype, GL_MAX_NAME_LENGTH, &maxNameLen);
+        CtxFunc->GetProgramInterfaceiv(ProgramID, dtype, GL_MAX_NAME_LENGTH, &maxNameLen);
         for (GLint a = 0; a < cnt; ++a)
         {
             string_view resName;
             {
                 nameBuf.resize(maxNameLen);
                 GLsizei nameLen = 0;
-                CtxFunc->ogluGetProgramResourceName(ProgramID, dtype, a, maxNameLen, &nameLen, nameBuf.data());
+                CtxFunc->GetProgramResourceName(ProgramID, dtype, a, maxNameLen, &nameLen, nameBuf.data());
                 resName = string_view(nameBuf.c_str(), nameLen);
             }
             common::str::CutStringViewSuffix(resName, '.');//remove struct
@@ -347,32 +347,32 @@ void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
         {
             const auto stage = common::enum_cast(stype);
             GLint count;
-            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
+            CtxFunc->GetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORMS, &count);
             GLint maxNameLen = 0;
-            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
+            CtxFunc->GetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_MAX_LENGTH, &maxNameLen);
             {
                 GLint maxUNameLen = 0;
-                CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
+                CtxFunc->GetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_MAX_LENGTH, &maxUNameLen);
                 maxNameLen = std::max(maxNameLen, maxUNameLen);
             }
             nameBuf.resize(maxNameLen);
             for (GLint a = 0; a < count; ++a)
             {
                 GLint uniformNameLen = 0;
-                CtxFunc->ogluGetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &uniformNameLen, nameBuf.data());
+                CtxFunc->GetActiveSubroutineUniformName(ProgramID, stage, a, maxNameLen, &uniformNameLen, nameBuf.data());
                 const string_view uniformName(nameBuf.data(), uniformNameLen);
-                const auto uniformLoc = CtxFunc->ogluGetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
+                const auto uniformLoc = CtxFunc->GetSubroutineUniformLocation(ProgramID, stage, uniformName.data());
                 auto& sr = *SubroutineRess.emplace(stage, uniformLoc, uniformName).first;
                 
                 GLint srcnt = 0;
-                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
+                CtxFunc->GetActiveSubroutineUniformiv(ProgramID, stage, a, GL_NUM_COMPATIBLE_SUBROUTINES, &srcnt);
                 vector<GLint> srIDs(srcnt, GL_INVALID_INDEX);
-                CtxFunc->ogluGetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, srIDs.data());
+                CtxFunc->GetActiveSubroutineUniformiv(ProgramID, stage, a, GL_COMPATIBLE_SUBROUTINES, srIDs.data());
                 const auto srinfos = common::linq::FromIterable(srIDs)
                     .Select([&](const auto subridx)
                     {
                         GLint srNameLen = 0;
-                        CtxFunc->ogluGetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &srNameLen, nameBuf.data());
+                        CtxFunc->GetActiveSubroutineName(ProgramID, stage, subridx, maxNameLen, &srNameLen, nameBuf.data());
                         sr.SRNames.append(nameBuf.data(), srNameLen);
                         return std::pair(subridx, srNameLen);
                     })
@@ -388,7 +388,7 @@ void oglProgram_::InitSubroutines(const ShaderExtInfo& extInfo)
                     .ToVector();
             }
             GLint locCount = 0;
-            CtxFunc->ogluGetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
+            CtxFunc->GetProgramStageiv(ProgramID, stage, GL_ACTIVE_SUBROUTINE_UNIFORM_LOCATIONS, &locCount);
             SubroutineSettings[stage].resize(locCount);
         }
     }
@@ -467,37 +467,37 @@ void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
                 case ShaderPropertyType::Color:
                     {
                         Vec4 vec;
-                        CtxFunc->ogluGetUniformfv(ProgramID, res->location, vec);
+                        CtxFunc->GetUniformfv(ProgramID, res->location, vec);
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Range:
                     {
                         b3d::Coord2D vec;
-                        CtxFunc->ogluGetUniformfv(ProgramID, res->location, vec);
+                        CtxFunc->GetUniformfv(ProgramID, res->location, vec);
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Bool:
                     {
                         int32_t flag = 0;
-                        CtxFunc->ogluGetUniformiv(ProgramID, res->location, &flag);
+                        CtxFunc->GetUniformiv(ProgramID, res->location, &flag);
                         UniValCache.insert_or_assign(res->location, (bool)flag);
                     } break;
                 case ShaderPropertyType::Int:
                     {
                         int32_t val = 0;
-                        CtxFunc->ogluGetUniformiv(ProgramID, res->location, &val);
+                        CtxFunc->GetUniformiv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 case ShaderPropertyType::Uint:
                     {
                         uint32_t val = 0;
-                        CtxFunc->ogluGetUniformuiv(ProgramID, res->location, &val);
+                        CtxFunc->GetUniformuiv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 case ShaderPropertyType::Float:
                     {
                         float val = 0;
-                        CtxFunc->ogluGetUniformfv(ProgramID, res->location, &val);
+                        CtxFunc->GetUniformfv(ProgramID, res->location, &val);
                         UniValCache.insert_or_assign(res->location, val);
                     } break;
                 default:
@@ -597,13 +597,13 @@ void oglProgram_::SetSubroutines() noexcept
     {
         GLsizei cnt = (GLsizei)subrs.size();
         if (cnt > 0)
-            CtxFunc->ogluUniformSubroutinesuiv(stage, cnt, subrs.data());
+            CtxFunc->UniformSubroutinesuiv(stage, cnt, subrs.data());
     }
     for (const auto [subr, routine] : SubroutineBindings)
     {
         if (subr->Stage == GLInvalidEnum) // emulate subroutine
         {
-            CtxFunc->ogluProgramUniform1ui(ProgramID, subr->UniLoc, routine->Id);
+            CtxFunc->ProgramUniform1ui(ProgramID, subr->UniLoc, routine->Id);
         }
     }
 }
@@ -670,7 +670,7 @@ void oglProgram_::SetVec_(const ProgramResource* res, const b3d::Coord2D& vec, c
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ogluProgramUniform2fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform2fv(ProgramID, res->location, 1, vec);
     }
 }
 void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec, const bool keep)
@@ -680,7 +680,7 @@ void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec,
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ogluProgramUniform3fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform3fv(ProgramID, res->location, 1, vec);
     }
 }
 void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec, const bool keep)
@@ -690,7 +690,7 @@ void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec,
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ogluProgramUniform4fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform4fv(ProgramID, res->location, 1, vec);
     }
 }
 void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& mat, const bool keep)
@@ -700,7 +700,7 @@ void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& ma
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, mat);
-        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
+        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
     }
 }
 void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& mat, const bool keep)
@@ -710,7 +710,7 @@ void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& ma
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, mat);
-        CtxFunc->ogluProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
+        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
     }
 }
 void oglProgram_::SetVal_(const ProgramResource* res, const bool val, const bool keep)
@@ -720,7 +720,7 @@ void oglProgram_::SetVal_(const ProgramResource* res, const bool val, const bool
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, val);
-        CtxFunc->ogluProgramUniform1i(ProgramID, res->location, val);
+        CtxFunc->ProgramUniform1i(ProgramID, res->location, val);
     }
 }
 void oglProgram_::SetVal_(const ProgramResource* res, const float val, const bool keep)
@@ -730,7 +730,7 @@ void oglProgram_::SetVal_(const ProgramResource* res, const float val, const boo
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, val);
-        CtxFunc->ogluProgramUniform1f(ProgramID, res->location, val);
+        CtxFunc->ProgramUniform1f(ProgramID, res->location, val);
     }
 }
 void oglProgram_::SetVal_(const ProgramResource* res, const int32_t val, const bool keep)
@@ -740,7 +740,7 @@ void oglProgram_::SetVal_(const ProgramResource* res, const int32_t val, const b
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, val);
-        CtxFunc->ogluProgramUniform1i(ProgramID, res->location, val);
+        CtxFunc->ProgramUniform1i(ProgramID, res->location, val);
     }
 }
 void oglProgram_::SetVal_(const ProgramResource* res, const uint32_t val, const bool keep)
@@ -750,7 +750,7 @@ void oglProgram_::SetVal_(const ProgramResource* res, const uint32_t val, const 
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, val);
-        CtxFunc->ogluProgramUniform1ui(ProgramID, res->location, val);
+        CtxFunc->ProgramUniform1ui(ProgramID, res->location, val);
     }
 }
 
@@ -1020,7 +1020,7 @@ ProgDraw& ProgDraw::SetSubroutine(const string_view subrName, const string_view 
 oglComputeProgram_::oglComputeProgram_(const std::u16string& name, const oglProgStub* stub)
     : oglProgram_(name, stub, false)
 {
-    CtxFunc->ogluGetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
+    CtxFunc->GetProgramiv(ProgramID, GL_COMPUTE_WORK_GROUP_SIZE, reinterpret_cast<GLint*>(LocalSize.data()));
     oglLog().debug(u"Compute Shader has a LocalSize [{}x{}x{}]\n", LocalSize[0], LocalSize[1], LocalSize[2]);
 }
 
@@ -1030,9 +1030,9 @@ void oglComputeProgram_::Run(const uint32_t groupX, const uint32_t groupY, const
     usethis(*this);
     SetSubroutines();
     SetBindings();
-    CtxFunc->ogluDispatchCompute(groupX, groupY, groupZ);
-    CtxFunc->ogluMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-    //CtxFunc->ogluMemoryBarrier(GL_ALL_BARRIER_BITS);
+    CtxFunc->DispatchCompute(groupX, groupY, groupZ);
+    CtxFunc->MemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+    //CtxFunc->MemoryBarrier(GL_ALL_BARRIER_BITS);
 }
 
 oglComputeProgram oglComputeProgram_::Create(const std::u16string& name, const std::string& extSrc, const ShaderConfig& config)

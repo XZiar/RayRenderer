@@ -10,7 +10,7 @@ class oglShader_;
 using oglShader = std::shared_ptr<oglShader_>;
 
 
-enum class ShaderType : GLenum
+enum class ShaderType : uint32_t
 {
     Vertex   = 0x8B31/*GL_VERTEX_SHADER*/, 
     Geometry = 0x8DD9/*GL_GEOMETRY_SHADER*/, 
@@ -58,7 +58,7 @@ class OGLUAPI oglShader_ : public detail::oglCtxObject<true>
 private:
     MAKE_ENABLER();
     std::string Src;
-    GLuint ShaderID;
+    uint32_t ShaderID;
     oglShader_(const ShaderType type, const std::string& txt);
 public:
     const ShaderType Type;

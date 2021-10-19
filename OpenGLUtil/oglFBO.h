@@ -51,7 +51,7 @@ class OGLUAPI oglRenderBuffer_ : public common::NonMovable, public detail::oglCt
 private:
     MAKE_ENABLER();
     std::u16string Name;
-    GLuint RBOId;
+    uint32_t RBOId;
     RBOFormat InnerFormat;
     uint32_t Width, Height;
     oglRenderBuffer_(const uint32_t width, const uint32_t height, const RBOFormat format);
@@ -77,45 +77,45 @@ class OGLUAPI oglFrameBuffer_ :
     friend class ProgDraw;
 private:
     static std::pair<oglFBO, common::RWSpinLock::ReadScopeType> LockCurFBOLock();
-    GLenum CheckIfBinded() const;
+    uint32_t CheckIfBinded() const;
 protected:
     class OGLUAPI FBOClear : public common::NonCopyable
     {
     protected:
         oglFrameBuffer_& NewFBO;
-        forceinline GLuint NewFBOId() const noexcept { return NewFBO.FBOId; }
-        forceinline void BindDraws(const common::span<GLenum> bindings) { NewFBO.BindDraws(bindings); }
+        forceinline uint32_t NewFBOId() const noexcept { return NewFBO.FBOId; }
+        forceinline void BindDraws(const common::span<uint32_t> bindings) { NewFBO.BindDraws(bindings); }
     private:
         static common::RWSpinLock::ReadScopeType AcquireLock(oglFrameBuffer_& fbo);
-        GLuint OldFBOId;
+        uint32_t OldFBOId;
         common::RWSpinLock::ReadScopeType Lock;
     public:
         FBOClear(oglFrameBuffer_* fbo);
         virtual ~FBOClear();
         FBOClear& ClearColors(const b3d::Vec4& color = b3d::Vec4::zero());
         FBOClear& ClearDepth(const float depth = 0.f);
-        FBOClear& ClearStencil(const GLint stencil = 0);
-        FBOClear& ClearDepthStencil(const float depth = 0.f, const GLint stencil = 0);
-        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const GLint stencil = 0)
+        FBOClear& ClearStencil(const int32_t stencil = 0);
+        FBOClear& ClearDepthStencil(const float depth = 0.f, const int32_t stencil = 0);
+        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const int32_t stencil = 0)
         {
             return ClearColors(color).ClearDepthStencil(depth, stencil);
         }
     };
 
-    std::vector<GLenum> DrawBindings;
-    GLuint FBOId;
+    std::vector<uint32_t> DrawBindings;
+    uint32_t FBOId;
     uint32_t Width, Height;
 
-    oglFrameBuffer_(const GLuint id);
-    bool CheckIsSrgb(const GLenum attachment) const;
+    oglFrameBuffer_(const uint32_t id);
+    bool CheckIsSrgb(const uint32_t attachment) const;
     /// return if delay update viewport
     bool SetViewPort(const uint32_t width, const uint32_t height);
-    void BindDraws(const common::span<GLenum> bindings);
+    void BindDraws(const common::span<uint32_t> bindings);
 public:
     virtual ~oglFrameBuffer_();
 
     [[nodiscard]] FBOStatus CheckStatus() const;
-    [[nodiscard]] virtual GLenum GetAttachPoint(const std::string_view name) const = 0;
+    [[nodiscard]] virtual uint32_t GetAttachPoint(const std::string_view name) const = 0;
 
     void Use();
     FBOClear Clear();
@@ -148,7 +148,7 @@ public:
     ~oglDefaultFrameBuffer_() override;
 
     [[nodiscard]] bool IsSrgb() const;
-    [[nodiscard]] GLenum GetAttachPoint(const std::string_view name) const override;
+    [[nodiscard]] uint32_t GetAttachPoint(const std::string_view name) const override;
 
     void SetWindowSize(const uint32_t width, const uint32_t height);
     FBOClear Clear();
@@ -187,8 +187,8 @@ protected:
     { 
         CheckAttachmentMatch(tex->Width, tex->Height);
     }
-    [[nodiscard]] forceinline static GLuint GetID(const oglRBO&     rbo) noexcept { return rbo->RBOId; }
-    [[nodiscard]] forceinline static GLuint GetID(const oglTexBase& tex) noexcept { return tex->TextureID; }
+    [[nodiscard]] forceinline static uint32_t GetID(const oglRBO&     rbo) noexcept { return rbo->RBOId; }
+    [[nodiscard]] forceinline static uint32_t GetID(const oglTexBase& tex) noexcept { return tex->TextureID; }
     template<typename T>
     forceinline void AttachColorTexture(const uint8_t attachment, const std::string_view name, T&& obj) noexcept
     {
@@ -215,13 +215,13 @@ public:
     ~oglCustomFrameBuffer_() override;
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }
     [[nodiscard]] bool IsSrgb(const uint8_t attachment) const;
-    [[nodiscard]] GLenum GetAttachPoint(const std::string_view name) const override;
-    [[nodiscard]] std::pair<GLuint, GLuint> DebugBinding() const;
+    [[nodiscard]] uint32_t GetAttachPoint(const std::string_view name) const override;
+    [[nodiscard]] std::pair<uint32_t, uint32_t> DebugBinding() const;
 
     void SetName(std::u16string name) noexcept;
     FBOClear Clear();
 
-    [[nodiscard]] static std::pair<GLuint, GLuint> DebugBinding(GLuint id);
+    [[nodiscard]] static std::pair<uint32_t, uint32_t> DebugBinding(uint32_t id);
 };
 
 

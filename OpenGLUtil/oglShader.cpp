@@ -37,30 +37,30 @@ oglShader_::oglShader_(const ShaderType type, const string & txt) :
     else if ((Type == ShaderType::TessCtrl || Type == ShaderType::TessEval) && !CtxFunc->SupportTessShader)
         oglLog().warning(u"Attempt to create TessShader on unsupported context\n");
     auto ptr = txt.c_str();
-    ShaderID = CtxFunc->ogluCreateShader(common::enum_cast(type));
-    CtxFunc->ogluShaderSource(ShaderID, 1, &ptr, NULL);
+    ShaderID = CtxFunc->CreateShader(common::enum_cast(type));
+    CtxFunc->ShaderSource(ShaderID, 1, &ptr, NULL);
 }
 
 oglShader_::~oglShader_()
 {
     if (ShaderID != GL_INVALID_INDEX)
-        CtxFunc->ogluDeleteShader(ShaderID);
+        CtxFunc->DeleteShader(ShaderID);
 }
 
 void oglShader_::compile()
 {
     CheckCurrent();
-    CtxFunc->ogluCompileShader(ShaderID);
+    CtxFunc->CompileShader(ShaderID);
 
     GLint result;
 
-    CtxFunc->ogluGetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
+    CtxFunc->GetShaderiv(ShaderID, GL_COMPILE_STATUS, &result);
     if (!result)
     {
         GLsizei len = 0;
-        CtxFunc->ogluGetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
+        CtxFunc->GetShaderiv(ShaderID, GL_INFO_LOG_LENGTH, &len);
         string logstr((size_t)len, '\0');
-        CtxFunc->ogluGetShaderInfoLog(ShaderID, len, &len, logstr.data());
+        CtxFunc->GetShaderInfoLog(ShaderID, len, &len, logstr.data());
         const auto logdat = common::str::to_u16string(logstr.c_str(), Encoding::UTF8);
         oglLog().warning(u"Compile shader failed:\n{}\n", logdat);
         oglLog().verbose(u"source:\n{}\n\n", Src);
