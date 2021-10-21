@@ -332,7 +332,8 @@ static void TestDX(DxDevice dev, DxComputeCmdQue cmdque, std::string fpath)
 
 static void DXStub()
 {
-    const auto& devs = DxDevice_::GetDevices();
+    const auto devs = DxDevice_::GetDevices();
+    const auto commondevs = xcomp::ProbeDevice();
     const bool isAuto = common::container::FindInVec(GetCmdArgs(), [](const auto str) { return str == "auto"; }) != nullptr;
     if (devs.size() == 0)
     {
@@ -341,9 +342,11 @@ static void DXStub()
     }
     while (true)
     {
-        const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [](DxDevice dev)
+        const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [&](DxDevice dev)
             {
-                return FMTSTR(u"{} [SM{}.{}]\t {:3} {:3}", dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
+                return FMTSTR(u"[{}][@{:1}]{} {{SM{}.{}}}\t [{:3} {:3}]", 
+                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_', 
+                    dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
                     dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
             });
         const auto& dev = devs[devidx];

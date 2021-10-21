@@ -19,8 +19,7 @@ static string GetStr(const detail::PlatFuncs* funcs, const cl_device_id DeviceID
     funcs->clGetDeviceInfo(DeviceID, type, 0, nullptr, &size);
     ret.resize(size, '\0');
     funcs->clGetDeviceInfo(DeviceID, type, size, ret.data(), &size);
-    if (size > 0)
-        ret.pop_back();//null-terminated
+    ProcessCLStr(ret);
     return ret;
 }
 static u16string GetUStr(const detail::PlatFuncs* funcs, const cl_device_id DeviceID, const cl_device_info type)
@@ -80,7 +79,76 @@ oclDevice_::oclDevice_(const oclPlatform_* plat, void* dID) : detail::oclCommon(
     }
 
     Extensions = common::str::Split(GetStr(Funcs, *DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
+}
 
+template<size_t N>
+static std::string Hex2Str(const std::array<std::byte, N>& data)
+{
+    constexpr auto ch = "0123456789abcdef";
+    std::string ret;
+    ret.reserve(N * 2);
+    for (size_t i = 0; i < N; ++i)
+    {
+        const uint8_t dat = static_cast<uint8_t>(data[i]);
+        ret.push_back(ch[dat / 16]);
+        ret.push_back(ch[dat % 16]);
+    }
+    return ret;
+}
+static const xcomp::CommonDeviceInfo* TryGetCommonDev(const oclDevice_& target)
+{
+    const auto devs = xcomp::ProbeDevice();
+    const auto pcie = target.PCIEAddress;
+    const auto luid = target.GetLUID();
+    const auto guid = target.GetUUID();
+    const xcomp::CommonDeviceInfo* ret = nullptr;
+    if (!pcie && !luid && !guid)
+    {
+        for (const auto& dev : devs)
+        {
+            if (target.Name == dev.Name)
+            {
+                if (!ret)
+                    ret = &dev;
+                else // multiple devices have same name, give up
+                    return nullptr;
+            }
+        }
+    }
+    else
+    {
+        for (const auto& dev : devs)
+        {
+            if (pcie && pcie == dev.PCIEAddress)
+            {
+                ret = &dev;
+                break;
+            }
+            if (luid && *luid == dev.Luid)
+            {
+                ret = &dev;
+                break;
+            }
+            if (guid && *guid == dev.Guid)
+            {
+                ret = &dev;
+                break;
+            }
+        }
+        if (ret)
+        {
+            if (pcie && pcie != ret->PCIEAddress)
+                oclLog().warning(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})",
+                    target.Name, pcie, ret->Name, ret->PCIEAddress);
+            if (luid && *luid == ret->Luid)
+                oclLog().warning(u"Found luid mismatch for device [{}]({}) to [{}]({})",
+                    target.Name, Hex2Str(*luid), ret->Name, Hex2Str(ret->Luid));
+            if (guid && *guid == ret->Guid)
+                oclLog().warning(u"Found guid mismatch for device [{}]({}) to [{}]({})",
+                    target.Name, Hex2Str(*guid), ret->Name, Hex2Str(ret->Guid));
+        }
+    }
+    return ret;
 }
 
 void oclDevice_::Init()
@@ -100,14 +168,14 @@ void oclDevice_::Init()
     ComputeUnits        = GetNum<uint32_t>(Funcs, *DeviceID, CL_DEVICE_MAX_COMPUTE_UNITS);
     MaxSubgroupCount    = GetNum<uint32_t>(Funcs, *DeviceID, CL_DEVICE_MAX_NUM_SUB_GROUPS);
     VendorId            = GetNum<uint32_t>(Funcs, *DeviceID, CL_DEVICE_VENDOR_ID);
-    PCIEBus = PCIEDev = PCIEFunc = 0;
     if (Extensions.Has("cl_nv_device_attribute_query"))
     {
         WaveSize = GetNum<uint32_t>(Funcs, *DeviceID, CL_DEVICE_WARP_SIZE_NV);
-        PCIEBus  = GetNum<uint32_t>(Funcs, *DeviceID, 0x4008/*CL_DEVICE_PCI_BUS_ID_NV*/) & 0xff;
+        const auto bus  = GetNum<uint32_t>(Funcs, *DeviceID, 0x4008/*CL_DEVICE_PCI_BUS_ID_NV*/) & 0xff;
         const auto slot = GetNum<uint32_t>(Funcs, *DeviceID, 0x4009/*CL_DEVICE_PCI_SLOT_ID_NV*/);
-        PCIEDev  = slot >> 3;
-        PCIEFunc = slot & 0x7;
+        const auto dev  = slot >> 3;
+        const auto func = slot & 0x7;
+        PCIEAddress = { bus, dev, func };
     }
     else if (Extensions.Has("cl_amd_device_attribute_query"))
     {
@@ -116,9 +184,7 @@ void oclDevice_::Init()
         Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_TOPOLOGY_AMD, sizeof(topology), &topology, nullptr);
         if (topology.raw.type == 1)
         {
-            PCIEBus  = topology.pcie.bus;
-            PCIEDev  = topology.pcie.device;
-            PCIEFunc = topology.pcie.function;
+            PCIEAddress = { (uint32_t)topology.pcie.bus, (uint32_t)topology.pcie.device, (uint32_t)topology.pcie.function };
         }
     }
     else if (PlatVendor == Vendors::Intel && Type == DeviceType::GPU)
@@ -130,11 +196,10 @@ void oclDevice_::Init()
         if (Extensions.Has("cl_khr_pci_bus_info") && 
             CL_SUCCESS == Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(pciinfo), &pciinfo, nullptr))
         {
-            PCIEBus  = pciinfo.pci_bus;
-            PCIEDev  = pciinfo.pci_device;
-            PCIEFunc = pciinfo.pci_function;
+            PCIEAddress = { pciinfo.pci_bus, pciinfo.pci_device, pciinfo.pci_function };
         }
     }
+    XCompDevice = TryGetCommonDev(*this);
 
     const auto props        = GetNum<cl_command_queue_properties>(Funcs, *DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;

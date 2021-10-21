@@ -136,8 +136,7 @@ static string GetStr(const detail::PlatFuncs* funcs, const cl_platform_id platfo
     funcs->clGetPlatformInfo(platformID, type, 0, nullptr, &size);
     ret.resize(size, '\0');
     funcs->clGetPlatformInfo(platformID, type, size, ret.data(), &size);
-    if(!ret.empty())
-        ret.pop_back();
+    ProcessCLStr(ret);
     return ret;
 }
 static u16string GetUStr(const detail::PlatFuncs* funcs, const cl_platform_id platformID, const cl_platform_info type)

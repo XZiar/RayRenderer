@@ -125,7 +125,8 @@
   - [ ] Write program completely in XCNL, generate native code based on AST with correct type tracking and conversion. 
   - [ ] Add common interface for texture/buffer, SRV/UAV
   - [ ] Add design to seperate program and parameter for VK/DX. Add abstraction of PSO for GL, use delay bind for CL.
-  - [ ] Make better design with prefix deprendency, prefix generator should be able to register multiple dependencies
+  - [ ] Make better design with prefix dependency, prefix generator should be able to register multiple dependencies
+  - [ ] Add common layer for device discovery
 
 * OpenGLUtil
   - [x] Implement FrameBuffer
@@ -149,6 +150,7 @@
   - [ ] Move VAO's prepare before returning actual VAO
   - [ ] Move to use threadpool to provide 1:1 context support, add cmdlist to record api calls and use IPC to execute remotely
   - [ ] Direct load ICD lib to support multi-device/context
+  - [ ] Seperate desktop/ES support
   * NLGL
     - [ ] Add basic NLGL
     - [ ] Add proper drawstate setting with NLGL

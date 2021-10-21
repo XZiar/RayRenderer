@@ -12,7 +12,7 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": ["*.cpp", {"-": "DeviceDiscoveryWin32.cpp"}],
             "defines": ["XCOMPBAS_EXPORT"]
         }
     }

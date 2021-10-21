@@ -11,7 +11,7 @@
 #endif
 
 
-
+#include "XComputeBase/XCompRely.h"
 #include "ImageUtil/ImageCore.h"
 #include "ImageUtil/TexFormat.h"
 #include "SystemCommon/HResultHelper.h"

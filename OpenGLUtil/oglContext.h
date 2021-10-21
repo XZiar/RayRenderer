@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "XComputeBase/XCompRely.h"
 #include "3DElement.hpp"
 
 

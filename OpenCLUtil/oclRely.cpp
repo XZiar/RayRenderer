@@ -14,7 +14,7 @@
 
 namespace oclu
 {
-
+using namespace std::string_view_literals;
 using namespace common::mlog;
 MiniLogger<false>& oclLog()
 {
@@ -40,6 +40,13 @@ std::pair<uint32_t, uint32_t> ParseVersionString(std::u16string_view str, const 
                 });
     }
     return version;
+}
+
+
+void ProcessCLStr(std::string& str)
+{
+    if (const auto pos = str.find_last_not_of("\0 "sv); pos != std::string::npos)
+        str.resize(pos + 1); // resize to null-terminated and trim trailing space
 }
 
 

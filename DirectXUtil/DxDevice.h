@@ -36,8 +36,10 @@ public:
     [[nodiscard]] static common::span<const DxDevice> GetDevices();
 public:
     std::u16string AdapterName;
+    const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
     uint32_t SMVer = 0;
     std::pair<uint32_t, uint32_t> WaveSize = { 0,0 };
+    xcomp::PCI_BDF PCIEAddress;
     std::pair<CPUPageProps, MemPrefer> HeapUpload, HeapDefault, HeapReadback;
     bool IsTBR              : 1 = false;
     bool IsUMA              : 1 = false;

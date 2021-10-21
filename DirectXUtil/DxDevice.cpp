@@ -27,6 +27,19 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
     HeapDefault (QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), 
     HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK))
 {
+    {
+        const auto luid = GetLUID();
+        for (const auto& dev : xcomp::ProbeDevice())
+        {
+            if (dev.Luid == luid)
+            {
+                XCompDevice = &dev;
+                PCIEAddress = dev.PCIEAddress;
+                break;
+            }
+        }
+    }
+
 #define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)
 #define CheckFeat2(dev, feat, ...) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev, __VA_ARGS__)
     if (const auto feat = CheckFeat2(Device, SHADER_MODEL, D3D_SHADER_MODEL_6_5))

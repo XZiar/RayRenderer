@@ -32,6 +32,7 @@ private:
     void Init();
 public:
     CLHandle<detail::CLDevice> DeviceID;
+    const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
     const oclPlatform_* Platform;
     std::u16string Name, Vendor, Ver, CVer;
     common::container::FrozenDenseStringSet<char> Extensions;
@@ -39,8 +40,9 @@ public:
     uint64_t ConstantBufSize = 0, GlobalMemSize = 0, LocalMemSize = 0, MaxMemAllocSize = 0, GlobalCacheSize = 0;
     size_t MaxWorkItemSize[3] = { 0 }, MaxWorkGroupSize = 0;
     uint32_t GlobalCacheLine = 0, MemBaseAddrAlign = 0, ComputeUnits = 0, MaxSubgroupCount = 0, WaveSize = 0;
-    uint32_t VendorId = 0, PCIEBus = 0, PCIEDev = 0, PCIEFunc = 0;
+    uint32_t VendorId = 0;
     uint32_t Version = 0, CVersion = 0;
+    xcomp::PCI_BDF PCIEAddress;
     bool SupportProfiling = false, SupportOutOfOrder = false, SupportImplicitGLSync = false, SupportImage = false;
     bool LittleEndian = true, HasCompiler = false;
     Vendors PlatVendor;

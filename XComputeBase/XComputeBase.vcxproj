@@ -243,6 +243,7 @@
     <ClInclude Include="XCompRely.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DeviceDiscoveryWin32.cpp" />
     <ClCompile Include="XCompDebug.cpp" />
     <ClCompile Include="XCompDebugExt.cpp" />
     <ClCompile Include="XCompNailang.cpp" />

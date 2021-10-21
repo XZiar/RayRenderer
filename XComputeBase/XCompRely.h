@@ -34,6 +34,20 @@
 namespace xcomp
 {
 
+struct PCI_BDF
+{
+    uint16_t Val;
+    constexpr PCI_BDF() noexcept : Val(0) {}
+    constexpr PCI_BDF(uint32_t bus, uint32_t dev, uint32_t func) noexcept :
+        Val(static_cast<uint16_t>((bus << 8) | ((dev & 0b11111) << 3) | (func & 0b111))) {}
+    constexpr uint32_t Bus() const noexcept { return Val >> 8; }
+    constexpr uint32_t Device() const noexcept { return (Val >> 3) & 0b11111; }
+    constexpr uint32_t Function() const noexcept { return Val & 0b111; }
+    constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
+    constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
+};
+
+
 struct VTypeInfo
 {
     static constexpr uint8_t DimPackMap[33] = { 0,1,2,3,4,0,0,0,5,0,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7 };
@@ -136,6 +150,22 @@ struct VecDimSupport
     }
 };
 
+
+struct CommonDeviceInfo
+{
+    std::u16string Name;
+    std::u16string OpenGLICDPath;
+    std::u16string OpenCLICDPath;
+    std::u16string VulkanICDPath;
+    std::u16string LvZeroICDPath;
+    std::array<std::byte, 16> Guid = { std::byte(0) };
+    std::array<std::byte, 8>  Luid = { std::byte(0) };
+    uint32_t VendorId = 0, DeviceId = 0;
+    PCI_BDF PCIEAddress;
+};
+XCOMPBASAPI common::span<const CommonDeviceInfo> ProbeDevice();
+
+
 struct XCOMPBASAPI RangeHolder
 {
 private:
@@ -159,3 +189,28 @@ XCOMPBASAPI VTypeInfo ParseVDataType(const std::u32string_view type) noexcept;
 XCOMPBASAPI std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept;
 
 }
+
+template<typename Char>
+struct fmt::formatter<xcomp::PCI_BDF, Char>
+{
+    template<typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+    template<typename FormatContext>
+    auto format(const xcomp::PCI_BDF& bdf, FormatContext& ctx)
+    {
+        if constexpr (std::is_same_v<Char, char16_t>)
+            return fmt::format_to(ctx.out(), FMT_STRING(u"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
+        else if constexpr (std::is_same_v<Char, char32_t>)
+            return fmt::format_to(ctx.out(), FMT_STRING(U"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
+        else if constexpr (std::is_same_v<Char, wchar_t>)
+            return fmt::format_to(ctx.out(), FMT_STRING(L"{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
+        else if constexpr (std::is_same_v<Char, char>)
+            return fmt::format_to(ctx.out(), FMT_STRING( "{:02X}:{:02X}.{:1X}"), bdf.Bus(), bdf.Device(), bdf.Function());
+        else
+            static_assert(!common::AlwaysTrue<Char>);
+    }
+};
+

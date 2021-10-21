@@ -374,6 +374,7 @@ static std::string Hex2Str(const std::optional<T>& data)
 
 static void OCLStub()
 {
+    const auto commondevs = xcomp::ProbeDevice();
     const auto plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)
     {
@@ -394,10 +395,10 @@ static void OCLStub()
             log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
             return;
         }
-        const auto devidx = SelectIdx(devs, u"device", [](const auto& dev) 
+        const auto devidx = SelectIdx(devs, u"device", [&](const auto& dev) 
             {
-                return FMTSTR(u"[{:04X}:{:02X}.{:<2X}]{}  {{{} | {}}}\t[{} CU]", 
-                    dev->PCIEBus, dev->PCIEDev, dev->PCIEFunc,
+                return FMTSTR(u"[{}][@{:1}]{}  {{{} | {}}}\t[{} CU]", 
+                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_',
                     dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
         const auto dev = devs[devidx];
