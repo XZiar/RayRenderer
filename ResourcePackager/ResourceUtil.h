@@ -8,13 +8,6 @@ namespace xziar::respak
 class RESPAKAPI ResourceUtil
 {
 public:
-    template<typename T>
-    forceinline static std::string Hex2Str(const T& data)
-    {
-        return Hex2Str(data.data(), data.size() * sizeof(typename T::value_type));
-    }
-    static std::string Hex2Str(const void* data, const size_t size);
-
     static std::vector<std::byte> Str2Hex(const std::string_view& str);
 
     template<typename T>

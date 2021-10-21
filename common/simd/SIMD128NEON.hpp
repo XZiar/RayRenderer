@@ -301,25 +301,42 @@ public:
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
-        static_assert(N >= 0 && N <= 63, "NEON limits left  shift within [0,63]");
-        const auto data = AsType<uint64x2_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u64(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 64)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint64x2_t>(this->Data);
+            return AsType<SIMDType>(vshlq_n_u64(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
-        static_assert(N >= 1 && N <= 64, "NEON limits right shift within [1,64]");
-        const auto data = AsType<uint64x2_t>(this->Data);
-        return AsType<SIMDType>(vshrq_n_u64(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 64)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint64x2_t>(this->Data);
+            return AsType<SIMDType>(vshrq_n_u64(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const 
     { 
-        static_assert(N >= 1 && N <= 64, "NEON limits right shift within [1,64]");
-        if constexpr (std::is_unsigned_v<E>)
-            return vshrq_n_u64(this->Data, N);
-        else 
-            return vshrq_n_s64(this->Data, N);
+        static_assert(N <= 64, "NEON limits right shift within [0,64]");
+        if constexpr (N == 0)
+            return *this;
+        else
+        {
+            if constexpr (std::is_unsigned_v<E>)
+                return vshrq_n_u64(this->Data, N);
+            else
+                return vshrq_n_s64(this->Data, N);
+        }
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -327,6 +344,10 @@ public:
     forceinline static T LoadLo(const E val) noexcept 
     { 
         return AsType<SIMDType>(vcombine_u64(vld1_u64(reinterpret_cast<const uint64_t*>(&val)), vdup_n_u64(0)));
+    }
+    forceinline static T LoadLo(const E* ptr) noexcept
+    {
+        return AsType<SIMDType>(vcombine_u64(vld1_u64(reinterpret_cast<const uint64_t*>(ptr)), vdup_n_u64(0)));
     }
 };
 
@@ -493,25 +514,42 @@ public:
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
-        static_assert(N >= 0 && N <= 31, "NEON limits left  shift within [0,31]");
-        const auto data = AsType<uint32x4_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u32(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 32)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint32x4_t>(this->Data);
+            return AsType<SIMDType>(vshlq_n_u32(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
-        static_assert(N >= 1 && N <= 32, "NEON limits right shift within [1,32]");
-        const auto data = AsType<uint32x4_t>(this->Data);
-        return AsType<SIMDType>(vshrq_n_u32(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 32)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint32x4_t>(this->Data);
+            return AsType<SIMDType>(vshrq_n_u32(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const 
     { 
-        static_assert(N >= 1 && N <= 32, "NEON limits right shift within [1,32]");
-        if constexpr (std::is_unsigned_v<E>)
-            return vshrq_n_u32(this->Data, N);
-        else 
-            return vshrq_n_s32(this->Data, N);
+        static_assert(N <= 32, "NEON limits right shift within [0,32]");
+        if constexpr (N == 0)
+            return *this;
+        else
+        {
+            if constexpr (std::is_unsigned_v<E>)
+                return vshrq_n_u32(this->Data, N);
+            else
+                return vshrq_n_s32(this->Data, N);
+        }
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -519,6 +557,10 @@ public:
     forceinline static T LoadLo(const E val) noexcept
     {
         return AsType<SIMDType>(vsetq_lane_u32(static_cast<uint32_t>(val), vdupq_n_u32(0), 0));
+    }
+    forceinline static T LoadLo(const E* ptr) noexcept
+    {
+        return LoadLo(*ptr);
     }
 };
 
@@ -672,25 +714,42 @@ public:
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
-        static_assert(N >= 0 && N <= 15, "NEON limits left  shift within [0,15]");
-        const auto data = AsType<uint16x8_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u16(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 16)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint16x8_t>(this->Data);
+            return AsType<SIMDType>(vshlq_n_u16(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
-        static_assert(N >= 1 && N <= 16, "NEON limits right shift within [1,16]");
-        const auto data = AsType<uint16x8_t>(this->Data);
-        return AsType<SIMDType>(vshrq_n_u16(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 16)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint16x8_t>(this->Data);
+            return AsType<SIMDType>(vshrq_n_u16(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const 
     { 
-        static_assert(N >= 1 && N <= 16, "NEON limits right shift within [1,16]");
-        if constexpr (std::is_unsigned_v<E>)
-            return vshrq_n_u16(this->Data, N);
-        else 
-            return vshrq_n_s16(this->Data, N);
+        static_assert(N <= 16, "NEON limits right shift within [0,16]");
+        if constexpr (N == 0)
+            return *this;
+        else
+        {
+            if constexpr (std::is_unsigned_v<E>)
+                return vshrq_n_u16(this->Data, N);
+            else
+                return vshrq_n_s16(this->Data, N);
+        }
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }
@@ -698,6 +757,10 @@ public:
     forceinline static T LoadLo(const E val) noexcept
     {
         return AsType<SIMDType>(vsetq_lane_u16(static_cast<uint16_t>(val), vdupq_n_u16(0), 0));
+    }
+    forceinline static T LoadLo(const E* ptr) noexcept
+    {
+        return LoadLo(*ptr);
     }
 };
 
@@ -781,25 +844,42 @@ public:
     template<uint8_t N>
     forceinline T VECCALL ShiftLeftLogic () const
     {
-        static_assert(N >= 0 && N <= 7, "NEON limits left  shift within [0,7]");
-        const auto data = AsType<uint8x16_t>(this->Data);
-        return AsType<SIMDType>(vshlq_n_u8(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint8x16_t>(this->Data);
+            return AsType<SIMDType>(vshlq_n_u8(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightLogic() const
     {
-        static_assert(N >= 1 && N <= 8, "NEON limits right shift within [1,8]");
-        const auto data = AsType<uint8x16_t>(this->Data);
-        return AsType<SIMDType>(vshrq_n_u8(data, N));
+        if constexpr (N == 0)
+            return *this;
+        else if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto data = AsType<uint8x16_t>(this->Data);
+            return AsType<SIMDType>(vshrq_n_u8(data, N));
+        }
     }
     template<uint8_t N>
     forceinline T VECCALL ShiftRightArith() const 
     { 
-        static_assert(N >= 1 && N <= 8, "NEON limits right shift within [1,8]");
-        if constexpr (std::is_unsigned_v<E>)
-            return vshrq_n_u8(this->Data, N);
-        else 
-            return vshrq_n_s8(this->Data, N);
+        static_assert(N <= 8, "NEON limits right shift within [0,8]");
+        if constexpr (N == 0)
+            return *this;
+        else
+        {
+            if constexpr (std::is_unsigned_v<E>)
+                return vshrq_n_u8(this->Data, N);
+            else
+                return vshrq_n_s8(this->Data, N);
+        }
     }
 
     forceinline T VECCALL operator*(const T& other) const { return static_cast<const T*>(this)->MulLo(other); }

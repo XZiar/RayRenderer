@@ -1,6 +1,7 @@
 #include "oclPch.h"
 #include "oclDevice.h"
 #include "oclPlatform.h"
+#include "SystemCommon/MiscIntrins.h"
 
 
 namespace oclu
@@ -81,20 +82,6 @@ oclDevice_::oclDevice_(const oclPlatform_* plat, void* dID) : detail::oclCommon(
     Extensions = common::str::Split(GetStr(Funcs, *DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
 }
 
-template<size_t N>
-static std::string Hex2Str(const std::array<std::byte, N>& data)
-{
-    constexpr auto ch = "0123456789abcdef";
-    std::string ret;
-    ret.reserve(N * 2);
-    for (size_t i = 0; i < N; ++i)
-    {
-        const uint8_t dat = static_cast<uint8_t>(data[i]);
-        ret.push_back(ch[dat / 16]);
-        ret.push_back(ch[dat % 16]);
-    }
-    return ret;
-}
 static const xcomp::CommonDeviceInfo* TryGetCommonDev(const oclDevice_& target)
 {
     const auto devs = xcomp::ProbeDevice();
@@ -142,10 +129,10 @@ static const xcomp::CommonDeviceInfo* TryGetCommonDev(const oclDevice_& target)
                     target.Name, pcie, ret->Name, ret->PCIEAddress);
             if (luid && *luid == ret->Luid)
                 oclLog().warning(u"Found luid mismatch for device [{}]({}) to [{}]({})",
-                    target.Name, Hex2Str(*luid), ret->Name, Hex2Str(ret->Luid));
+                    target.Name, common::MiscIntrin.HexToStr(*luid), ret->Name, common::MiscIntrin.HexToStr(ret->Luid));
             if (guid && *guid == ret->Guid)
                 oclLog().warning(u"Found guid mismatch for device [{}]({}) to [{}]({})",
-                    target.Name, Hex2Str(*guid), ret->Name, Hex2Str(ret->Guid));
+                    target.Name, common::MiscIntrin.HexToStr(*guid), ret->Name, common::MiscIntrin.HexToStr(ret->Guid));
         }
     }
     return ret;

@@ -8,20 +8,6 @@ using std::string_view;
 using std::vector;
 
 
-string ResourceUtil::Hex2Str(const void * data, const size_t size)
-{
-    constexpr auto ch = "0123456789abcdef";
-    string ret;
-    ret.reserve(size * 2);
-    for (size_t i = 0; i < size; ++i)
-    {
-        const uint8_t dat = reinterpret_cast<const uint8_t*>(data)[i];
-        ret.push_back(ch[dat / 16]);
-        ret.push_back(ch[dat % 16]);
-    }
-    return ret;
-}
-
 vector<byte> ResourceUtil::Str2Hex(const string_view& str)
 {
     auto conv = [](const char ch) constexpr->uint32_t

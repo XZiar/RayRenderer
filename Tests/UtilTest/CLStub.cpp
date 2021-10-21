@@ -366,7 +366,7 @@ template<typename T>
 static std::string Hex2Str(const std::optional<T>& data)
 {
     if (data)
-        return Hex2Str(*data);
+        return common::MiscIntrin.HexToStr(*data);
     else
         return {};
 }

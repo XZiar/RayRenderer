@@ -17,12 +17,14 @@ using common::DigestFuncs;
 #define TailZero64Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define PopCount32Args BOOST_PP_VARIADIC_TO_SEQ(num)
 #define PopCount64Args BOOST_PP_VARIADIC_TO_SEQ(num)
+#define Hex2StrArgs    BOOST_PP_VARIADIC_TO_SEQ(data, size, isCapital)
 DEFINE_FASTPATH(MiscIntrins, LeadZero32);
 DEFINE_FASTPATH(MiscIntrins, LeadZero64);
 DEFINE_FASTPATH(MiscIntrins, TailZero32);
 DEFINE_FASTPATH(MiscIntrins, TailZero64);
 DEFINE_FASTPATH(MiscIntrins, PopCount32);
 DEFINE_FASTPATH(MiscIntrins, PopCount64);
+DEFINE_FASTPATH(MiscIntrins, Hex2Str);
 #define Sha256Args BOOST_PP_VARIADIC_TO_SEQ(data, size)
 DEFINE_FASTPATH(DigestFuncs, Sha256);
 
@@ -34,6 +36,28 @@ using common::fastpath::FuncVarBase;
 struct NAIVE : FuncVarBase {};
 struct COMPILER : FuncVarBase {};
 struct OS : FuncVarBase {};
+struct SIMD128
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("sse2"sv);
+#else
+        return CheckCPUFeature("asimd"sv);
+#endif
+    }
+};
+struct SIMDSSSE3
+{
+    static bool RuntimeCheck() noexcept
+    {
+#if COMMON_ARCH_X86
+        return CheckCPUFeature("ssse3"sv);
+#else
+        return false;
+#endif
+    }
+};
 struct LZCNT 
 { 
     static bool RuntimeCheck() noexcept 
@@ -285,6 +309,65 @@ DEFINE_FASTPATH_METHOD(PopCount64, POPCNT)
 #   endif
 }
 
+#endif
+
+
+static void Hex2Str(std::string& ret, const uint8_t* data, size_t size, bool isCapital)
+{
+    constexpr auto ch = "0123456789abcdef0123456789ABCDEF";
+    const auto ptr = isCapital ? ch + 16 : ch;
+    for (size_t i = 0; i < size; ++i)
+    {
+        const uint8_t dat = data[i];
+        ret.push_back(ptr[dat / 16]);
+        ret.push_back(ptr[dat % 16]);
+    }
+}
+
+DEFINE_FASTPATH_METHOD(Hex2Str, NAIVE)
+{
+    std::string ret;
+    ret.reserve(size * 2);
+    Hex2Str(ret, data, size, isCapital);
+    return ret;
+}
+
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 31) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 10)
+# if COMMON_ARCH_X86
+#   define ALGO SIMDSSSE3
+# else
+#   define ALGO SIMD128
+# endif
+DEFINE_FASTPATH_METHOD(Hex2Str, ALGO)
+{
+    alignas(16) constexpr uint8_t strs[] = "0123456789abcdef0123456789ABCDEF";
+    const U8x16 chars(isCapital ? strs + 16 : strs);
+    std::string ret;
+    ret.reserve(size * 2);
+    ret.resize((size / 8) * 16);
+    auto dst = reinterpret_cast<uint8_t*>(ret.data());
+    while (size >= 16)
+    {
+        const U8x16 dat(data);
+        const auto loData = dat.And(0x0f), hiData = dat.ShiftRightLogic<4>();
+        const auto loChar = chars.Shuffle(loData), hiChar = chars.Shuffle(hiData);
+        const auto part0  = hiChar.ZipLo(loChar), part1 = hiChar.ZipHi(loChar);
+        part0.Save(dst), part1.Save(dst + 16);
+        data += 16, size -= 16, dst += 32;
+    }
+    if (size >= 8)
+    {
+        const auto dat = U64x2::LoadLo(reinterpret_cast<const uint64_t*>(data)).As<U8x16>();
+        const auto loData   = dat.And(0x0f), hiData = dat.ShiftRightLogic<4>();
+        const auto fullData = hiData.ZipLo(loData);
+        const auto fullChar = chars.Shuffle(fullData);
+        fullChar.Save(dst);
+        data += 8, size -= 8, dst += 16;
+    }
+    Hex2Str(ret, data, size, isCapital);
+    return ret;
+}
+# undef ALGO
 #endif
 
 
@@ -726,6 +809,7 @@ common::span<const MiscIntrins::PathInfo> MiscIntrins::GetSupportMap() noexcept
         RegistFuncVars(MiscIntrins, TailZero64, TZCNT, COMPILER);
         RegistFuncVars(MiscIntrins, PopCount32, POPCNT, COMPILER, NAIVE);
         RegistFuncVars(MiscIntrins, PopCount64, POPCNT, COMPILER, NAIVE);
+        RegistFuncVars(MiscIntrins, Hex2Str, SIMDSSSE3, SIMD128, NAIVE);
         return ret;
     }();
     return list;
@@ -734,7 +818,7 @@ MiscIntrins::MiscIntrins(common::span<const VarItem> requests) noexcept { Init(r
 MiscIntrins::~MiscIntrins() {}
 bool MiscIntrins::IsComplete() const noexcept
 {
-    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64;
+    return LeadZero32 && LeadZero64 && TailZero32 && TailZero64 && PopCount32 && PopCount64 && Hex2Str;
 }
 
 const MiscIntrins MiscIntrin;

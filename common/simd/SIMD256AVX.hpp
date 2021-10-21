@@ -131,6 +131,7 @@ struct AVX256Common : public CommonOperators<T>
     forceinline static T AllZero() noexcept { return _mm256_setzero_si256(); }
     forceinline static T LoadLoLane(const L& lane) noexcept { return _mm256_zextsi128_si256(lane); }
     forceinline static T LoadLo(const E val) noexcept { return LoadLoLane(L::LoadLo(val)); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return LoadLoLane(L::LoadLo(ptr)); }
 };
 
 
@@ -647,6 +648,7 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     forceinline static F64x4 AllZero() noexcept { return _mm256_setzero_pd(); }
     forceinline static F64x4 LoadLoLane(const F64x2& lane) noexcept { return _mm256_zextpd128_pd256(lane); }
     forceinline static F64x4 LoadLo(const double val) noexcept { return LoadLoLane(F64x2::LoadLo(val)); }
+    forceinline static F64x4 LoadLo(const double* ptr) noexcept { return LoadLoLane(F64x2::LoadLo(ptr)); }
 };
 
 
@@ -852,6 +854,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline static F32x8 AllZero() noexcept { return _mm256_setzero_ps(); }
     forceinline static F32x8 LoadLoLane(const F32x4& lane) noexcept { return _mm256_zextps128_ps256(lane); }
     forceinline static F32x8 LoadLo(const float val) noexcept { return LoadLoLane(F32x4::LoadLo(val)); }
+    forceinline static F32x8 LoadLo(const float* ptr) noexcept { return LoadLoLane(F32x4::LoadLo(ptr)); }
 };
 
 

@@ -1,6 +1,7 @@
 #include "DxPch.h"
 #include "DxShader.h"
 #include "SystemCommon/StringDetect.h"
+#include "SystemCommon/MiscIntrins.h"
 #include <dxcapi.h>
 
 
@@ -223,17 +224,7 @@ public:
     std::string GetShaderHashStr() const
     {
         const auto hash = GetShaderHash();
-        std::string str;
-        str.reserve(hash->GetBufferSize() * 2);
-        constexpr auto ch = "0123456789abcdef";
-        const auto pHash = reinterpret_cast<const uint8_t*>(hash->GetBufferPointer());
-        for (size_t i = 0; i < hash->GetBufferSize(); ++i)
-        {
-            const uint8_t dat = pHash[i];
-            str.push_back(ch[dat / 16]);
-            str.push_back(ch[dat % 16]);
-        }
-        return str;
+        return common::MiscIntrin.HexToStr(hash->GetBufferPointer(), hash->GetBufferSize());
     }
 #undef GetPartIdx
 };

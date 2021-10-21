@@ -478,11 +478,7 @@ static void TestSLL(const T* ptr)
         { 
             data.template ShiftLeftLogic<Bits[0]>(), data.template ShiftLeftLogic<Bits[1]>(),
             data.template ShiftLeftLogic<Bits[2]>(), data.template ShiftLeftLogic<Bits[3]>(),
-#if COMMON_ARCH_ARM // NEON limit to [0, 2^N)
-            T::AllZero(),
-#else
             data.template ShiftLeftLogic<Bits[4]>(),
-#endif
         };
         const T output1[5] = { data.ShiftLeftLogic(Bits[0]), data.ShiftLeftLogic(Bits[1]),
             data.ShiftLeftLogic(Bits[2]), data.ShiftLeftLogic(Bits[3]), data.ShiftLeftLogic(Bits[4]) };
@@ -510,11 +506,7 @@ static void TestSRL(const T* ptr)
         const auto data = ptr[k + 0];
         const T output0[5] = 
         { 
-#if COMMON_ARCH_ARM // NEON limit to [1, 2^N]
-            data,
-#else
             data.template ShiftRightLogic<Bits[0]>(), 
-#endif
             data.template ShiftRightLogic<Bits[1]>(), data.template ShiftRightLogic<Bits[2]>(), 
             data.template ShiftRightLogic<Bits[3]>(), data.template ShiftRightLogic<Bits[4]>() 
         };
@@ -543,11 +535,7 @@ static void TestSRA(const T* ptr)
         const auto data = ptr[k + 0];
         const T output0[5] = 
         { 
-#if COMMON_ARCH_ARM // NEON limit to [1, 2^N]
-            data,
-#else
             data.template ShiftRightArith<Bits[0]>(),
-#endif
             data.template ShiftRightArith<Bits[1]>(), data.template ShiftRightArith<Bits[2]>(),
             data.template ShiftRightArith<Bits[3]>(), data.template ShiftRightArith<Bits[4]>() 
         };

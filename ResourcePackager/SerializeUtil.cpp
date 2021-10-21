@@ -5,6 +5,7 @@
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/Exceptions.h"
+#include "SystemCommon/MiscIntrins.h"
 #include "common/Linq2.hpp"
 
 // ResFile Structure
@@ -52,7 +53,7 @@ ResourceItem::ResourceItem(bytearray<32>&& sha256, const uint64_t size, const ui
 
 string ResourceItem::ExtractHandle() const
 {
-    return "@" + ResourceUtil::Hex2Str(SHA256);
+    return "@" + common::MiscIntrin.HexToStr(SHA256);
 }
 
 uint64_t ResourceItem::GetSize() const

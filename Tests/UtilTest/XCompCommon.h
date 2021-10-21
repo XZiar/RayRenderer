@@ -1,24 +1,10 @@
 #include "XComputeBase/XCompNailang.h"
 #include "Nailang/NailangStruct.h"
+#include "SystemCommon/MiscIntrins.h"
 #include <deque>
 #include <any>
 #include <memory>
 
-
-template<size_t N>
-inline std::string Hex2Str(const std::array<std::byte, N>& data)
-{
-    constexpr auto ch = "0123456789abcdef";
-    std::string ret;
-    ret.reserve(N * 2);
-    for (size_t i = 0; i < N; ++i)
-    {
-        const uint8_t dat = static_cast<uint8_t>(data[i]);
-        ret.push_back(ch[dat / 16]);
-        ret.push_back(ch[dat % 16]);
-    }
-    return ret;
-}
 
 struct RunArgInfo
 {

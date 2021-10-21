@@ -8,6 +8,21 @@
 
 using namespace std::string_view_literals;
 
+template<size_t N>
+std::string Hex2Str(const std::array<std::byte, N>& data)
+{
+    constexpr auto ch = "0123456789abcdef";
+    std::string ret;
+    ret.reserve(N * 2);
+    for (size_t i = 0; i < N; ++i)
+    {
+        const uint8_t dat = static_cast<uint8_t>(data[i]);
+        ret.push_back(ch[dat / 16]);
+        ret.push_back(ch[dat % 16]);
+    }
+    return ret;
+}
+
 INTRIN_TESTSUITE(CopyEx, common::CopyManager, common::CopyEx);
 
 
@@ -279,24 +294,22 @@ INTRIN_TEST(MiscIntrins, PopCount64)
     EXPECT_EQ(Intrin->PopCount<int64_t> (INT64_MIN),        1u);
 }
 
+INTRIN_TEST(MiscIntrins, Hex2Str)
+{
+    constexpr auto data = []() 
+    {
+        std::array<std::byte, 267> data = {};
+        uint8_t i = 0;
+        for (auto& dat : data)
+            dat = std::byte(i++);
+        return data;
+    }();
+    EXPECT_EQ(Intrin->HexToStr(data), Hex2Str(data));
+}
+
 
 INTRIN_TESTSUITE(DigestFuncs, common::DigestFuncs, common::DigestFunc);
 
-
-template<size_t N>
-std::string Hex2Str(const std::array<std::byte, N>& data)
-{
-    constexpr auto ch = "0123456789abcdef";
-    std::string ret;
-    ret.reserve(N * 2);
-    for (size_t i = 0; i < N; ++i)
-    {
-        const uint8_t dat = static_cast<uint8_t>(data[i]);
-        ret.push_back(ch[dat / 16]);
-        ret.push_back(ch[dat % 16]);
-    }
-    return ret;
-}
 
 // Test cases come from https://www.di-mgt.com.au/sha_testvectors.html
 

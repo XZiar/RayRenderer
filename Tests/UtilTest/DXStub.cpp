@@ -392,7 +392,7 @@ static void DXStub()
                     ADD_INFO(DepthBoundTest);
                     ADD_INFO(CopyQueueTimeQuery);
                     ADD_INFO(BackgroundProcessing);
-                    APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(dev->GetLUID()));
+                    APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, common::MiscIntrin.HexToStr(dev->GetLUID()));
 #undef ADD_INFO
                     log().verbose(u"Device Info:\n{}\n", infotxt);
                     continue;

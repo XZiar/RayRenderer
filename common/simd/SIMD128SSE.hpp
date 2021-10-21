@@ -230,6 +230,7 @@ public:
     }
 
     forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si64(&val); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si64(ptr); }
 };
 
 
@@ -311,6 +312,7 @@ public:
     }
 
     forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si32(&val); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si32(ptr); }
 };
 
 
@@ -404,6 +406,7 @@ public:
     }
 
     forceinline static T LoadLo(const E val) noexcept { return _mm_loadu_si16(&val); }
+    forceinline static T LoadLo(const E* ptr) noexcept { return _mm_loadu_si16(ptr); }
 };
 
 
@@ -465,6 +468,57 @@ public:
     forceinline T VECCALL Sub(const T& other) const { return _mm_sub_epi8(this->Data, other.Data); }
     forceinline T VECCALL operator*(const T& other) const { return static_cast<T*>(this)->MulLo(other); }
     forceinline T& VECCALL operator*=(const T& other) { this->Data = operator*(other); return *static_cast<T*>(this); }
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        if (bits >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff << bits));
+            const auto shift16 = _mm_sll_epi16(this->Data, _mm_cvtsi32_si128(bits));
+            return _mm_and_si128(shift16, mask);
+        }
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const 
+    { 
+        if (bits >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff >> bits));
+            const auto shift16 = _mm_srl_epi16(this->Data, _mm_cvtsi32_si128(bits));
+            return _mm_and_si128(shift16, mask);
+        }
+    }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const;
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic(bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const 
+    {
+        if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff << N));
+            const auto shift16 = _mm_slli_epi16(this->Data, N);
+            return _mm_and_si128(shift16, mask);
+        }
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm_set1_epi8(static_cast<uint8_t>(0xff >> N));
+            const auto shift16 = _mm_srli_epi16(this->Data, N);
+            return _mm_and_si128(shift16, mask);
+        }
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightArith() const;
 };
 
 }
@@ -616,6 +670,7 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 
     forceinline static F64x2 AllZero() noexcept { return _mm_setzero_pd(); }
     forceinline static F64x2 LoadLo(const double val) noexcept { return _mm_load_sd(&val); }
+    forceinline static F64x2 LoadLo(const double* ptr) noexcept { return _mm_load_sd(ptr); }
 };
 
 
@@ -795,6 +850,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 
     forceinline static F32x4 AllZero() noexcept { return _mm_setzero_ps(); }
     forceinline static F32x4 LoadLo(const float val) noexcept { return _mm_load_ss(&val); }
+    forceinline static F32x4 LoadLo(const float* ptr) noexcept { return _mm_load_ss(ptr); }
 };
 
 
@@ -1432,6 +1488,35 @@ template<typename T, typename E>
 forceinline T VECCALL detail::Common8x16<T, E>::Shuffle(const U8x16& pos) const
 {
     return _mm_shuffle_epi8(this->Data, pos);
+}
+template<typename T, typename E>
+forceinline T VECCALL detail::Common8x16<T, E>::ShiftRightArith(const uint8_t bits) const
+{
+    if constexpr (std::is_unsigned_v<E>)
+        return ShiftRightLogic(bits);
+    else
+    {
+        const auto bit16 = static_cast<const T&>(*this).template As<I16x8>();
+        const I16x8 keepMask(static_cast<int16_t>(0xff00));
+        const auto shiftHi = bit16                             .ShiftRightArith(bits).And(keepMask).template As<T>();
+        const auto shiftLo = bit16.template ShiftLeftLogic<8>().ShiftRightArith(bits).And(keepMask);
+        return shiftHi.Or(shiftLo.template ShiftRightLogic<8>().template As<T>());
+    }
+}
+template<typename T, typename E>
+template<uint8_t N>
+forceinline T VECCALL detail::Common8x16<T, E>::ShiftRightArith() const
+{
+    if constexpr (std::is_unsigned_v<E>)
+        return ShiftRightLogic<N>();
+    else
+    {
+        const auto bit16 = static_cast<const T&>(*this).template As<I16x8>();
+        const I16x8 keepMask(static_cast<int16_t>(0xff00));
+        const auto shiftHi = bit16                             .template ShiftRightArith<N>().And(keepMask).template As<T>();
+        const auto shiftLo = bit16.template ShiftLeftLogic<8>().template ShiftRightArith<N>().And(keepMask);
+        return shiftHi.Or(shiftLo.template ShiftRightLogic<8>().template As<T>());
+    }
 }
 
 
