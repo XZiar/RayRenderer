@@ -15,10 +15,10 @@ using namespace common::simd;
 
 RegisterSIMDBaseTest(F64x2, 42,      SEL, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
 RegisterSIMDBaseTest(F32x4, 42,      SEL, Add, Sub,                               Mul, Div, Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(I64x2, 42, SWE, SEL, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
+RegisterSIMDBaseTest(I64x2, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
 RegisterSIMDBaseTest(U64x2, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(I32x4, 42, SWE, SEL, Add, Sub,                 MulLo,                  Neg, Abs, Min, Max, SLL, SRL, SRA);
-RegisterSIMDBaseTest(U32x4, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                       Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(I32x4, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
+RegisterSIMDBaseTest(U32x4, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX,          Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(I16x8, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(U16x8, 42, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,          Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(I8x16, 42,      SEL, Add, Sub, SatAdd, SatSub, MulLo, MulHi, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);

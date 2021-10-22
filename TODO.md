@@ -16,6 +16,7 @@
   * SIMD
     - [ ] Implement new vector lib with new SIMD
     - [x] Add compare capability with variable result requirement
+    - [ ] Add latency/throughput hint to help decide which implementation to use
 
 
 * SystemCommon

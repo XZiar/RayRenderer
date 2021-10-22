@@ -142,19 +142,25 @@ public:
 #endif
     forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi64(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi64(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
-        if constexpr (Msk != MaskType::FullEle) // make sure all bits are covered
-# if COMMON_SIMD_LV >= 320
-            mask = _mm_srai_epi64(mask, 64);
-# else
-            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32);
-# endif
-        return _mm_blendv_epi8(this->Data, other.Data, mask);
-    }
+#if COMMON_SIMD_LV >= 41
+        if constexpr (Msk != MaskType::FullEle)
+            return _mm_castpd_si128(_mm_blendv_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(other.Data), _mm_castsi128_pd(mask))); // less inst with higher latency
+//# if COMMON_SIMD_LV >= 320
+//        mask = _mm_srai_epi64(mask, 64);
+//# else
+//        mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32);
+//# endif
+        else
+            return _mm_blendv_epi8(this->Data, other.Data, mask);
+#else
+        if constexpr (Msk != MaskType::FullEle)
+            mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32); // make sure all bits are covered
+        return mask.AndNot(this->Data).Or(mask.And(other.Data));
 #endif
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi64(this->Data, other.Data); }
@@ -269,15 +275,21 @@ public:
 #endif
     forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi32(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi32(this->Data, other.Data); }
-#if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
+#if COMMON_SIMD_LV >= 41
+        if constexpr (Msk != MaskType::FullEle)
+            return _mm_castps_si128(_mm_blendv_ps(_mm_castsi128_ps(this->Data), _mm_castsi128_ps(other.Data), _mm_castsi128_ps(mask))); // less inst with higher latency
+            //mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
+        else
+            return _mm_blendv_epi8(this->Data, other.Data, mask);
+#else
         if constexpr (Msk != MaskType::FullEle)
             mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
-        return _mm_blendv_epi8(this->Data, other.Data, mask);
-    }
+        return mask.AndNot(this->Data).Or(mask.And(other.Data));
 #endif
+    }
 
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm_add_epi32(this->Data, other.Data); }
@@ -816,7 +828,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const
     { 
-#if COMMON_SIMD_LV >= 42
+#if COMMON_SIMD_LV >= 41
         return _mm_dp_ps(Data, other.Data, static_cast<uint8_t>(Mul) << 4 | static_cast<uint8_t>(Res));
 #else
         const float sum = Dot<Mul>(other);
@@ -829,7 +841,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     template<DotPos Mul>
     forceinline float VECCALL Dot(const F32x4& other) const
     {
-#if COMMON_SIMD_LV >= 42
+#if COMMON_SIMD_LV >= 41
         return _mm_cvtss_f32(Dot<Mul, DotPos::XYZW>(other).Data);
 #else
         const auto prod = Mul(other);
@@ -878,6 +890,38 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
 
     // arithmetic operations
     forceinline I64x2 VECCALL Neg() const { return _mm_sub_epi64(_mm_setzero_si128(), Data); }
+    forceinline I64x2 VECCALL SatAdd(const I64x2& other) const
+    {
+        const auto added = Add(other);
+#if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,1,0,0,0,0,1,0 -> 0x42
+        const auto overflow = _mm_ternarylogic_epi64(this->Data, other.Data, added, 0x42);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm_mask_add_epi64(added, _mm_movepi64_mask(overflow), ShiftRightLogic<63>(), I64x2(INT64_MAX));
+#else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.AndNot(Xor(added)); // !diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<63>().Add(INT64_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+#endif
+    }
+    forceinline I64x2 VECCALL SatSub(const I64x2& other) const
+    {
+        const auto added = Sub(other);
+#if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,0,0,1,1,0,0,0 -> 0x18
+        const auto overflow = _mm_ternarylogic_epi64(this->Data, other.Data, added, 0x18);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm_mask_add_epi64(added, _mm_movepi64_mask(overflow), ShiftRightLogic<63>(), I64x2(INT64_MAX));
+#else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.And(Xor(added)); // diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<63>().Add(INT64_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+#endif
+    }
 #if COMMON_SIMD_LV >= 41
     forceinline I64x2 VECCALL Max(const I64x2& other) const
     {
@@ -895,16 +939,15 @@ struct alignas(16) I64x2 : public detail::Common64x2<I64x2, int64_t>
         return _mm_blendv_epi8(Data, other.Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # endif
     }
-    forceinline I64x2 VECCALL Abs() const 
-    { 
-# if COMMON_SIMD_LV >= 320
-        return _mm_abs_epi64(Data);
-# else
-        const auto neg = Neg().As<F64x2>(), self = As<F64x2>();
-        return _mm_castpd_si128(_mm_blendv_pd(self, neg, self));
-# endif
-    }
 #endif
+    forceinline I64x2 VECCALL Abs() const
+    {
+#if COMMON_SIMD_LV >= 320
+        return _mm_abs_epi64(Data);
+#else
+        return SelectWith<MaskType::SigBit>(Neg(), *this);
+#endif
+    }
     template<typename T, CastMode Mode = detail::CstMode<I64x2, T>(), typename... Args>
     typename CastTyper<I64x2, T>::Type VECCALL Cast(const Args&... args) const;
 };
@@ -947,7 +990,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     {
 # if COMMON_SIMD_LV >= 320
         return Max(other).Sub(other);
-# elif COMMON_SIMD_LV >= 42
+# elif COMMON_SIMD_LV >= 41
         return Sub(other).And(Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 return sub, 0|1 return 0, 1|1/0|0 use sub
@@ -962,7 +1005,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     { 
 # if COMMON_SIMD_LV >= 320
         return _mm_max_epu64(Data, other.Data);
-# elif COMMON_SIMD_LV >= 42
+# elif COMMON_SIMD_LV >= 41
         return _mm_blendv_epi8(other, Data, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 choose A, 0|1 choose B, 1|1/0|0 use sub
@@ -977,7 +1020,7 @@ struct alignas(16) U64x2 : public detail::Common64x2<U64x2, uint64_t>
     { 
 # if COMMON_SIMD_LV >= 320
         return _mm_min_epu64(Data, other.Data);
-# elif COMMON_SIMD_LV >= 42
+# elif COMMON_SIMD_LV >= 41
         return _mm_blendv_epi8(Data, other, Compare<CompareType::GreaterThan, MaskType::FullEle>(other));
 # else
         // sig: 1|0 choose B, 0|1 choose A, 1|1/0|0 use sub
@@ -1016,13 +1059,47 @@ struct alignas(16) I32x4 : public detail::Common32x4<I32x4, int32_t>
     }
 
     // arithmetic operations
+    forceinline I32x4 VECCALL SatAdd(const I32x4& other) const 
+    {
+        const auto added    = Add(other);
+#if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,1,0,0,0,0,1,0 -> 0x42
+        const auto overflow = _mm_ternarylogic_epi32(this->Data, other.Data, added, 0x42);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm_mask_add_epi32(added, _mm_movepi32_mask(overflow), ShiftRightLogic<31>(), I32x4(INT32_MAX));
+#else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.AndNot(Xor(added)); // !diffFlag && (this != added)
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        const auto satVal   = ShiftRightLogic<31>().Add(INT32_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+#endif
+    }
+    forceinline I32x4 VECCALL SatSub(const I32x4& other) const
+    {
+        const auto added = Sub(other);
+#if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this != other && this != added -> 0,0,0,1,1,0,0,0 -> 0x18
+        const auto overflow = _mm_ternarylogic_epi32(this->Data, other.Data, added, 0x18);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm_mask_add_epi32(added, _mm_movepi32_mask(overflow), ShiftRightLogic<31>(), I32x4(INT32_MAX));
+#else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.And(Xor(added)); // diffFlag && (this != added)
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<31>().Add(INT32_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+#endif
+    }
     forceinline I32x4 VECCALL Neg() const { return _mm_sub_epi32(_mm_setzero_si128(), Data); }
 #if COMMON_SIMD_LV >= 41
     forceinline I32x4 VECCALL Max(const I32x4& other) const { return _mm_max_epi32(Data, other.Data); }
     forceinline I32x4 VECCALL Min(const I32x4& other) const { return _mm_min_epi32(Data, other.Data); }
     forceinline Pack<I64x2, 2> VECCALL MulX(const I32x4& other) const
     {
-        return { I64x2(_mm_mul_epi32(Data, other.Data)), I64x2(_mm_mul_epi32(MoveHiToLo(), other.MoveHiToLo())) };
+        const I64x2 even = _mm_mul_epi32(Data, other.Data);
+        const I64x2 odd  = _mm_mul_epi32(As<I64x2>().ShiftRightLogic<32>(), other.As<I64x2>().ShiftRightLogic<32>());
+        return { even.ZipLo(odd), even.ZipHi(odd) };
     }
 #endif
 #if COMMON_SIMD_LV >= 31
@@ -1086,7 +1163,9 @@ struct alignas(16) U32x4 : public detail::Common32x4<U32x4, uint32_t>
     forceinline U32x4 VECCALL Abs() const { return Data; }
     forceinline Pack<U64x2, 2> VECCALL MulX(const U32x4& other) const
     {
-        return { U64x2(_mm_mul_epu32(Data, other.Data)), U64x2(_mm_mul_epu32(MoveHiToLo(), other.MoveHiToLo())) };
+        const U64x2 even = _mm_mul_epu32(Data, other.Data);
+        const U64x2 odd  = _mm_mul_epu32(As<U64x2>().ShiftRightLogic<32>(), other.As<U64x2>().ShiftRightLogic<32>());
+        return { even.ZipLo(odd), even.ZipHi(odd) };
     }
     template<typename T, CastMode Mode = detail::CstMode<U32x4, T>(), typename... Args>
     typename CastTyper<U32x4, T>::Type VECCALL Cast(const Args&... args) const;

@@ -45,6 +45,7 @@ struct PCI_BDF
     constexpr uint32_t Function() const noexcept { return Val & 0b111; }
     constexpr explicit operator bool() const noexcept { return Val != 0 && Val != UINT16_MAX; }
     constexpr bool operator==(const PCI_BDF& other) const noexcept { return Val == other.Val; }
+    constexpr bool operator!=(const PCI_BDF& other) const noexcept { return Val != other.Val; }
 };
 
 

@@ -79,13 +79,6 @@ struct AVX256Common : public CommonOperators<T>
         const auto lolane = static_cast<const T*>(this)->ZipLoLane(other), hilane = static_cast<const T*>(this)->ZipHiLane(other);
         return _mm256_permute2x128_si256(lolane, hilane, 0x31);
     }
-    template<MaskType Msk>
-    forceinline T VECCALL SelectWith(const T& other, T mask) const
-    {
-        if constexpr (Msk != MaskType::FullEle)
-            mask = _mm256_srai_epi32(_mm256_unpackhi_epi32(mask, mask), 32); // make sure all bits are covered
-        return _mm256_blendv_epi8(this->Data, other.Data, mask);
-    }
 
     // logic operations
     forceinline T VECCALL And(const T& other) const
@@ -170,15 +163,16 @@ public:
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
-        if constexpr (Msk != MaskType::FullEle) // make sure all bits are covered
-# if COMMON_SIMD_LV >= 320
-            mask = _mm256_srai_epi64(mask, 64);
-# else
-            mask = _mm256_srai_epi32(_mm256_shuffle_epi32(mask, 0xf5), 32);
-# endif
-        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+        if constexpr (Msk != MaskType::FullEle)
+            return _mm256_castpd_si256(_mm256_blendv_pd(_mm256_castsi256_pd(this->Data), _mm256_castsi256_pd(other.Data), _mm256_castsi256_pd(mask))); // less inst with higher latency
+//# if COMMON_SIMD_LV >= 320
+//        mask = _mm256_srai_epi64(mask, 64);
+//# else
+//        mask = _mm256_srai_epi32(_mm256_shuffle_epi32(mask, 0xf5), 32);
+//# endif
+        else
+            return _mm256_blendv_epi8(this->Data, other.Data, mask);
     }
-
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi64(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi64(this->Data, other.Data); }
@@ -307,8 +301,10 @@ public:
     forceinline T VECCALL SelectWith(const T& other, T mask) const
     {
         if constexpr (Msk != MaskType::FullEle)
-            mask = _mm256_srai_epi32(mask, 32); // make sure all bits are covered
-        return _mm256_blendv_epi8(this->Data, other.Data, mask);
+            return _mm256_castps_si256(_mm256_blendv_ps(_mm256_castsi256_ps(this->Data), _mm256_castsi256_ps(other.Data), _mm256_castsi256_ps(mask))); // less inst with higher latency
+            // mask = _mm256_srai_epi32(mask, 32);
+        else
+            return _mm256_blendv_epi8(this->Data, other.Data, mask);
     }
 
     // arithmetic operations
@@ -476,6 +472,57 @@ public:
     // arithmetic operations
     forceinline T VECCALL Add(const T& other) const { return _mm256_add_epi8(this->Data, other.Data); }
     forceinline T VECCALL Sub(const T& other) const { return _mm256_sub_epi8(this->Data, other.Data); }
+    forceinline T VECCALL ShiftLeftLogic(const uint8_t bits) const
+    {
+        if (bits >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff << bits));
+            const auto shift16 = _mm256_sll_epi16(this->Data, _mm_cvtsi32_si128(bits));
+            return _mm256_and_si256(shift16, mask);
+        }
+    }
+    forceinline T VECCALL ShiftRightLogic(const uint8_t bits) const
+    {
+        if (bits >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff >> bits));
+            const auto shift16 = _mm256_srl_epi16(this->Data, _mm_cvtsi32_si128(bits));
+            return _mm256_and_si256(shift16, mask);
+        }
+    }
+    forceinline T VECCALL ShiftRightArith(const uint8_t bits) const;
+    forceinline T VECCALL operator<<(const uint8_t bits) const { return ShiftLeftLogic(bits); }
+    forceinline T VECCALL operator>>(const uint8_t bits) const { return ShiftRightArith(bits); }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftLeftLogic() const
+    {
+        if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff << N));
+            const auto shift16 = _mm256_slli_epi16(this->Data, N);
+            return _mm256_and_si256(shift16, mask);
+        }
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightLogic() const
+    {
+        if constexpr (N >= 8)
+            return T::AllZero();
+        else
+        {
+            const auto mask = _mm256_set1_epi8(static_cast<uint8_t>(0xff >> N));
+            const auto shift16 = _mm256_srli_epi16(this->Data, N);
+            return _mm256_and_si256(shift16, mask);
+        }
+    }
+    template<uint8_t N>
+    forceinline T VECCALL ShiftRightArith() const;
 #endif
 };
 
@@ -880,6 +927,38 @@ struct alignas(32) I64x4 : public detail::Common64x4<I64x4, I64x2, int64_t>
 
     // arithmetic operations
     forceinline I64x4 VECCALL Neg() const { return _mm256_sub_epi64(_mm256_setzero_si256(), Data); }
+    forceinline I64x4 VECCALL SatAdd(const I64x4& other) const
+    {
+        const auto added = Add(other);
+# if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,1,0,0,0,0,1,0 -> 0x42
+        const auto overflow = _mm256_ternarylogic_epi64(this->Data, other.Data, added, 0x42);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm256_mask_add_epi64(added, _mm256_movepi64_mask(overflow), ShiftRightLogic<63>(), I64x4(INT64_MAX));
+# else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.AndNot(Xor(added)); // !diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<63>().Add(INT64_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+# endif
+    }
+    forceinline I64x4 VECCALL SatSub(const I64x4& other) const
+    {
+        const auto added = Sub(other);
+# if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,0,0,1,1,0,0,0 -> 0x18
+        const auto overflow = _mm256_ternarylogic_epi64(this->Data, other.Data, added, 0x18);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm256_mask_add_epi64(added, _mm256_movepi64_mask(overflow), ShiftRightLogic<63>(), I64x4(INT64_MAX));
+# else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.And(Xor(added)); // diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<63>().Add(INT64_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+# endif
+    }
     forceinline I64x4 VECCALL Max(const I64x4& other) const
     {
 # if COMMON_SIMD_LV >= 320
@@ -988,10 +1067,42 @@ struct alignas(32) I32x8 : public detail::Common32x8<I32x8, I32x4, int32_t>
 
     // arithmetic operations
     forceinline I32x8 VECCALL Neg() const { return _mm256_sub_epi32(_mm256_setzero_si256(), Data); }
+    forceinline I32x8 VECCALL SatAdd(const I32x8& other) const
+    {
+        const auto added = Add(other);
+# if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,1,0,0,0,0,1,0 -> 0x42
+        const auto overflow = _mm256_ternarylogic_epi32(this->Data, other.Data, added, 0x42);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm256_mask_add_epi32(added, _mm256_movepi32_mask(overflow), ShiftRightLogic<31>(), I32x8(INT32_MAX));
+# else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.AndNot(Xor(added)); // !diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<31>().Add(INT32_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+# endif
+    }
+    forceinline I32x8 VECCALL SatSub(const I32x8& other) const
+    {
+        const auto added = Sub(other);
+# if COMMON_SIMD_LV >= 320
+        // this|other|added -> 000,001,010,011,100,101,110,111 -> this == other && this != added -> 0,0,0,1,1,0,0,0 -> 0x18
+        const auto overflow = _mm256_ternarylogic_epi32(this->Data, other.Data, added, 0x18);
+        // 0 -> 0x7fffffff(MAX), 1 -> 0x80000000(MIN) => MAX + signbit
+        return _mm256_mask_add_epi32(added, _mm256_movepi32_mask(overflow), ShiftRightLogic<31>(), I32x8(INT32_MAX));
+# else
+        const auto diffFlag = Xor(other);
+        const auto overflow = diffFlag.And(Xor(added)); // diffFlag && (this != added)
+        // 0 -> 0x7f...f(MAX), 1 -> 0x80...0(MIN) => MAX + signbit
+        const auto satVal = ShiftRightLogic<31>().Add(INT32_MAX);
+        return added.SelectWith<MaskType::SigBit>(satVal, overflow);
+# endif
+    }
     forceinline I32x8 VECCALL Abs() const { return _mm256_abs_epi32(Data); }
     forceinline I32x8 VECCALL Max(const I32x8& other) const { return _mm256_max_epi32(Data, other.Data); }
     forceinline I32x8 VECCALL Min(const I32x8& other) const { return _mm256_min_epi32(Data, other.Data); }
-    Pack<I64x4, 2> MulX(const I32x8& other) const
+    forceinline Pack<I64x4, 2> MulX(const I32x8& other) const
     {
         // 02,46 | 13,57
         const auto even = _mm256_mul_epi32(Data, other.Data), odd = _mm256_mul_epi32(_mm256_srli_epi64(Data, 32), _mm256_srli_epi64(other.Data, 32));
@@ -1464,6 +1575,39 @@ forceinline Pack<U16x16, 2> VECCALL U8x32::MulX(const U8x32& other) const
 {
     const auto self16 = Cast<U16x16>(), other16 = other.Cast<U16x16>();
     return { self16[0].MulLo(other16[0]), self16[1].MulLo(other16[1]) };
+}
+#endif
+
+
+#if COMMON_SIMD_LV >= 200
+template<typename T, typename L, typename E>
+forceinline T VECCALL detail::Common8x32<T, L, E>::ShiftRightArith(const uint8_t bits) const
+{
+    if constexpr (std::is_unsigned_v<E>)
+        return ShiftRightLogic(bits);
+    else
+    {
+        const auto bit16 = static_cast<const T&>(*this).template As<I16x16>();
+        const I16x16 keepMask(static_cast<int16_t>(0xff00));
+        const auto shiftHi = bit16                             .ShiftRightArith(bits).And(keepMask).template As<T>();
+        const auto shiftLo = bit16.template ShiftLeftLogic<8>().ShiftRightArith(bits).And(keepMask);
+        return shiftHi.Or(shiftLo.template ShiftRightLogic<8>().template As<T>());
+    }
+}
+template<typename T, typename L, typename E>
+template<uint8_t N>
+forceinline T VECCALL detail::Common8x32<T, L, E>::ShiftRightArith() const
+{
+    if constexpr (std::is_unsigned_v<E>)
+        return ShiftRightLogic<N>();
+    else
+    {
+        const auto bit16 = static_cast<const T&>(*this).template As<I16x16>();
+        const I16x16 keepMask(static_cast<int16_t>(0xff00));
+        const auto shiftHi = bit16                             .template ShiftRightArith<N>().And(keepMask).template As<T>();
+        const auto shiftLo = bit16.template ShiftLeftLogic<8>().template ShiftRightArith<N>().And(keepMask);
+        return shiftHi.Or(shiftLo.template ShiftRightLogic<8>().template As<T>());
+    }
 }
 #endif
 

@@ -302,7 +302,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic () const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 64)
             return T::AllZero();
         else
@@ -315,7 +315,7 @@ public:
     forceinline T VECCALL ShiftRightLogic() const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 64)
             return T::AllZero();
         else
@@ -329,7 +329,7 @@ public:
     { 
         static_assert(N <= 64, "NEON limits right shift within [0,64]");
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else
         {
             if constexpr (std::is_unsigned_v<E>)
@@ -515,7 +515,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic () const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 32)
             return T::AllZero();
         else
@@ -528,7 +528,7 @@ public:
     forceinline T VECCALL ShiftRightLogic() const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 32)
             return T::AllZero();
         else
@@ -542,7 +542,7 @@ public:
     { 
         static_assert(N <= 32, "NEON limits right shift within [0,32]");
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else
         {
             if constexpr (std::is_unsigned_v<E>)
@@ -715,7 +715,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic () const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 16)
             return T::AllZero();
         else
@@ -728,7 +728,7 @@ public:
     forceinline T VECCALL ShiftRightLogic() const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 16)
             return T::AllZero();
         else
@@ -742,7 +742,7 @@ public:
     { 
         static_assert(N <= 16, "NEON limits right shift within [0,16]");
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else
         {
             if constexpr (std::is_unsigned_v<E>)
@@ -845,7 +845,7 @@ public:
     forceinline T VECCALL ShiftLeftLogic () const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 8)
             return T::AllZero();
         else
@@ -858,7 +858,7 @@ public:
     forceinline T VECCALL ShiftRightLogic() const
     {
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else if constexpr (N >= 8)
             return T::AllZero();
         else
@@ -872,7 +872,7 @@ public:
     { 
         static_assert(N <= 8, "NEON limits right shift within [0,8]");
         if constexpr (N == 0)
-            return *this;
+            return this->Data;
         else
         {
             if constexpr (std::is_unsigned_v<E>)
