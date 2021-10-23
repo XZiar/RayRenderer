@@ -28,7 +28,7 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     RegistControllable();
 }
 template<typename T>
-static T GetProgCurUniform(const common::Controllable& control, const GLint location, const T defVal = {})
+static T GetProgCurUniform(const common::Controllable& control, const int32_t location, const T defVal = {})
 {
     const auto ptrVal = common::container::FindInMap(dynamic_cast<const GLShader&>(control).Program->getCurUniforms(), location);
     if (ptrVal)
@@ -81,7 +81,7 @@ void GLShader::RegistControllable()
     {
         if (auto prop = common::container::FindInSet(props, res.Name); prop)
         {
-            const GLint loc = res.location;
+            const auto loc = res.location;
             auto prep = RegistItem("Uniform_" + res.Name, "Uniform", common::str::to_u16string(res.Name, Encoding::UTF8),
                 ArgType::RawValue, prop->Data, common::str::to_u16string(prop->Description, Encoding::UTF8));
             if (prop->Type == oglu::ShaderPropertyType::Range && prop->Data.has_value())

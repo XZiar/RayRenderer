@@ -246,6 +246,9 @@
     <ProjectReference Include="..\TextureUtil\TextureUtil.vcxproj">
       <Project>{2546bbda-0ad8-409a-8fcf-bb89ac8a9635}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\XComputeBase\XComputeBase.vcxproj">
+      <Project>{45234356-6d39-4fa5-a252-40d017ea8190}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="2d.glsl" />

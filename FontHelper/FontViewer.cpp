@@ -25,7 +25,7 @@ void FontViewer::RegisterControllable()
         .RegistObject<false>(FontViewControlName);
     if (const auto res = prog->GetResource("fontColor"); res)
     {
-        const GLint loc = res->location;
+        const auto loc = res->location;
         RegistItem<miniBLAS::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"文字颜色")
             .RegistGetterProxy<FontViewer>([loc](const FontViewer& self)
             { 
@@ -38,7 +38,7 @@ void FontViewer::RegisterControllable()
     }
     if (const auto res = prog->GetResource("distRange"); res)
     {
-        const GLint loc = res->location;
+        const auto loc = res->location;
         RegistItem<std::pair<float, float>>("Dist", "", u"边缘阈值", ArgType::RawValue, std::pair<float, float>(0.f, 1.f), u"sdf边缘阈值")
             .RegistGetterProxy<FontViewer>([loc](const FontViewer & self)
             {

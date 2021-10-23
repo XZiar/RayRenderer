@@ -45,7 +45,7 @@ void oglUtil::InitLatestVersion()
             oglLog().info(u"No newer GL version found\n");
             break;
         }
-        else if (const auto ctx = oglContext_::NewContext(glctx, false, ver); ctx)
+        else if (const auto ctx = glctx->NewContext(false, ver); ctx)
         {
             oglLog().info(u"Latest GL Version:{}\n", ctx->Capability->VersionString);
             break;

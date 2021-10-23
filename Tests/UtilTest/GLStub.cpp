@@ -97,8 +97,11 @@ static void OGLStub()
         string fpath = common::console::ConsoleEx::ReadLine("input opengl file:");
         if (fpath == "EXTENSION")
         {
-            string exttxts("Extensions:\n");
-            for(const auto& ext : ctx->GetExtensions())
+            string exttxts("Platform Extensions:\n");
+            for (const auto& ext : ctx->GetPlatformExtensions())
+                exttxts.append(ext).append("\n");
+            exttxts.append("Extensions:\n");
+            for (const auto& ext : ctx->GetExtensions())
                 exttxts.append(ext).append("\n");
             log().verbose(u"{}\n", exttxts);
             continue;

@@ -84,7 +84,7 @@ vector<cl_context_properties> GLInterop::GetGLProps(const oclPlatform_& plat, co
                 //OpenGL context
                 CL_GL_CONTEXT_KHR,   (cl_context_properties)context->Hrc,
                 //HDC used to create the OpenGL context
-                glPropName,          (cl_context_properties)context->Hdc
+                glPropName,          (cl_context_properties)context->GetDeviceContext()
             });
     props.push_back(0);
     return props;

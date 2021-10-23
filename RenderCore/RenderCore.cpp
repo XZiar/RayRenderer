@@ -63,17 +63,17 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
     if (venderClPlat)
     {
         const auto glPlat = common::linq::FromIterable(gpuPlats)
-            .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext)&&false; })
+            .Where([&](const auto& plat) { return GLInterop::CheckIsGLShared(*plat, glContext); })
             .TryGetFirst().value_or(nullptr);
         oclContext defCtx, sharedCtx;
         if (glPlat)
         {
             sharedCtx = GLInterop::CreateGLSharedContext(*glPlat, glContext);
-            dizzLog().success(u"Created Shared OCLContext in platform {}!\n", glPlat->Name);
             sharedCtx->OnMessage += [](const u16string& txt)
             {
                 dizzLog().verbose(u"From shared CLContext:\t{}\n", txt);
             };
+            dizzLog().success(u"Created Shared OCLContext on platform [{}]'s device [{}]!\n", glPlat->Name, sharedCtx->Devices[0]->Name);
         }
         if (glPlat == venderClPlat)
             defCtx = sharedCtx;
@@ -84,8 +84,8 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
             {
                 dizzLog().verbose(u"From CLContext:\t{}\n", txt);
             };
+            dizzLog().success(u"Created OCLContext in platform [{}]'s device [{}]!\n", venderClPlat->Name, defCtx->Devices[0]->Name);
         }
-        dizzLog().success(u"Created OCLContext in platform {}!\n", venderClPlat->Name);
         return { defCtx, sharedCtx };
     }
     else
@@ -123,7 +123,7 @@ RenderCore::RenderCore(const oglu::GLContextInfo& info)
     }
     GLWorker = std::make_shared<oglu::oglWorker>(u"Core");
     GLWorker->Start();
-    TexWorker = std::make_shared<texutil::TexUtilWorker>(oglContext_::NewContext(GLContext, true), CLSharedContext);
+    TexWorker = std::make_shared<texutil::TexUtilWorker>(GLContext->NewContext(true), CLSharedContext);
     MipMapper = std::make_shared<texutil::TexMipmap>(TexWorker);
     TexLoader = std::make_shared<TextureLoader>(MipMapper);
     //MipMapper->Test2();

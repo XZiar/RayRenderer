@@ -154,12 +154,20 @@ SharedContextCore::~SharedContextCore()
 }
 
 #if defined(_WIN32)
-oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external) : 
-    Hdc(hdc), Hrc(hrc), SharedCore(sharedCore), IsExternal(external) { }
+oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, const bool external) :
+    PlatHolder(*plat), Hrc(hrc), SharedCore(sharedCore), IsExternal(external) { }
 #else
-oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external) : 
-    Hdc(hdc), Hrc(hrc), DRW(drw), SharedCore(sharedCore), IsExternal(external) { }
+oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, unsigned long drw, const bool external) :
+    PlatHolder(*plat), Hrc(hrc), DRW(drw), SharedCore(sharedCore), IsExternal(external) { }
 #endif
+void* oglContext_::GetDeviceContext() const noexcept
+{
+    return PlatHolder.Target;
+}
+const common::container::FrozenDenseSet<std::string_view>& oglContext_::GetPlatformExtensions() const noexcept
+{
+    return PlatHolder.Extensions;
+}
 
 void oglContext_::Init(const bool isCurrent)
 {
@@ -203,7 +211,7 @@ void oglContext_::FinishGL()
 void oglContext_::SwapBuffer()
 {
     CHECKCURRENT();
-    PlatFuncs::SwapBuffer(*this);
+    PlatHolder.SwapBuffer(*this);
 }
 
 oglContext_::~oglContext_()
@@ -216,7 +224,7 @@ oglContext_::~oglContext_()
     //if (!IsRetain)
     if (!IsExternal)
     {
-        PlatFuncs::DeleteGLContext(Hdc, Hrc);
+        PlatHolder.DeleteGLContext(Hrc);
     }
 }
 
@@ -228,15 +236,15 @@ bool oglContext_::UseContext(const bool force)
             return true;
     }
 #if defined(_WIN32)
-    if (!PlatFuncs::MakeGLContextCurrent(Hdc, Hrc))
+    if (!PlatHolder.MakeGLContextCurrent(Hrc))
     {
-        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, PlatFuncs::GetSystemError());
+        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", GetDeviceContext(), Hrc, PlatFuncs::GetSystemError());
         return false;
     }
 #else
-    if (!PlatFuncs::MakeGLContextCurrent(Hdc, DRW, Hrc))
+    if (!PlatHolder.MakeGLContextCurrent(DRW, Hrc))
     {
-        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, PlatFuncs::GetSystemError());
+        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", GetDeviceContext(), DRW, Hrc, PlatFuncs::GetSystemError());
         return false;
     }
 #endif
@@ -250,15 +258,15 @@ bool oglContext_::UnloadContext()
     {
         InnerCurCtx.reset();
 #if defined(_WIN32)
-        if (!PlatFuncs::MakeGLContextCurrent(Hdc, nullptr))
+        if (!PlatHolder.MakeGLContextCurrent(nullptr))
         {
-            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", Hdc, Hrc, PlatFuncs::GetSystemError());
+            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", GetDeviceContext(), Hrc, PlatFuncs::GetSystemError());
             return false;
         }
 #else
-        if (!PlatFuncs::MakeGLContextCurrent(Hdc, 0, nullptr))
+        if (!PlatHolder.MakeGLContextCurrent(0, nullptr))
         {
-            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", Hdc, DRW, Hrc, PlatFuncs::GetSystemError());
+            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", GetDeviceContext(), DRW, Hrc, PlatFuncs::GetSystemError());
             return false;
         }
 #endif
@@ -460,6 +468,7 @@ oglContext oglContext_::Refresh()
         oglLog().debug(u"currently no GLContext\n");
         return {};
     }
+    Expects(PlatFunc);
     oglContext ctx;
     {
         auto lock = CTX_LOCK.ReadScope();
@@ -479,10 +488,10 @@ oglContext oglContext_::Refresh()
             {
 #if defined(_WIN32)
                 ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
-                    PlatFuncs::GetCurrentDeviceContext(), hrc, true));
+                    PlatFunc, hrc, true));
 #else
                 ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
-                    PlatFuncs::GetCurrentDeviceContext(), hrc, PlatFuncs::GetCurrentDrawable(), true));
+                    PlatFunc, hrc, PlatFuncs::GetCurrentDrawable(), true));
 #endif
                 CTX_MAP.emplace(hrc, ctx);
             }
@@ -506,41 +515,43 @@ void oglContext_::PushToMap(oglContext ctx)
     auto lock = CTX_LOCK.WriteScope();
     CTX_MAP.emplace(ctx->Hrc, std::move(ctx));
 }
-oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, const int32_t *attribs)
+oglContext oglContext_::NewContext(const bool isShared, const int32_t *attribs) const
 {
+    CHECKCURRENT();
     oglContext newCtx;
-    const auto newHrc = PlatFuncs::CreateNewContext(ctx.get(), isShared, attribs);
+    const auto newHrc = PlatHolder.CreateNewContext(this, isShared, attribs);
 #if defined(_WIN32)
     if (!newHrc)
     {
         oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", 
-            ctx->Hdc, ctx->Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
+            GetDeviceContext(), Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
         return {};
     }
-    newCtx.reset(new oglContext_(isShared ? ctx->SharedCore : std::make_shared<detail::SharedContextCore>(), 
-        ctx->Hdc, newHrc));
+    newCtx.reset(new oglContext_(isShared ? SharedCore : std::make_shared<detail::SharedContextCore>(), 
+        &PlatHolder, newHrc));
 #else
     if (!newHrc)
     {
         oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", 
-            ctx->Hdc, ctx->DRW, ctx->Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
+            GetDeviceContext(), DRW, Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
         return {};
     }
-    newCtx.reset(new oglContext_(isShared ? ctx->SharedCore : std::make_shared<detail::SharedContextCore>(), 
-        ctx->Hdc, newHrc, ctx->DRW));
+    newCtx.reset(new oglContext_(isShared ? SharedCore : std::make_shared<detail::SharedContextCore>(), 
+        &PlatHolder, newHrc, DRW));
 #endif
     newCtx->Init(false);
     
     PushToMap(newCtx);
     return newCtx;
 }
-oglContext oglContext_::NewContext(const oglContext& ctx, const bool isShared, uint32_t version)
+oglContext oglContext_::NewContext(const bool isShared, uint32_t version) const
 {
-    if (version == 0) 
+    CHECKCURRENT();
+    if (version == 0)
         version = LatestVersion;
     const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, 
-        ctx->Capability->Extensions.Has("GL_KHR_context_flush_control"));
-    return NewContext(ctx, isShared, ctxAttrb.data());
+        Capability->Extensions.Has("GL_KHR_context_flush_control"));
+    return NewContext(isShared, ctxAttrb.data());
 }
 
 bool oglContext_::ReleaseExternContext()

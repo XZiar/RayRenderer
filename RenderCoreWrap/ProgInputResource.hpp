@@ -7,9 +7,9 @@ namespace OpenGLUtil
 {
 
 #pragma managed(push, off)
-inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::GLint location)
+inline const oglu::UniformValue* GetProgCurUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const int32_t location)
 {
-    return common::container::FindInMap(prog.lock()->getCurUniforms(), (oglu::GLint)location);
+    return common::container::FindInMap(prog.lock()->getCurUniforms(), location);
 }
 template<typename... Args>
 inline void SetProgVec(const std::weak_ptr<oglu::oglProgram_>& prog, const oglu::ProgramResource* loc, Args&&... args)

@@ -13,7 +13,7 @@ namespace OpenGLUtil
 using std::string;
 using std::u16string;
 
-public enum class DepthTestType : oglu::GLenum
+public enum class DepthTestType : uint32_t
 {
 #define COPY_ENUM(x) x = common::enum_cast(::oglu::DepthTestType::x)
     COPY_ENUM(OFF),

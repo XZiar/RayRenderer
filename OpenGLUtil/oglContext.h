@@ -192,24 +192,23 @@ public:
     };
 private:
     MAKE_ENABLER();
-    struct oglMarker;
-    void *Hdc, *Hrc;
+    const PlatFuncs& PlatHolder;
+    void *Hrc;
 #if defined(_WIN32)
 #else
     unsigned long DRW;
 #endif
     detail::CtxResHandler ResHandler;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
-    std::weak_ptr<oglMarker> CurrentRangeMarker;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
     bool IsExternal;
     //bool IsRetain = false;
 #if defined(_WIN32)
-    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, const bool external = false);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, const bool external = false);
 #else
-    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, void *hdc, void *hrc, unsigned long drw, const bool external = false);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, unsigned long drw, const bool external = false);
 #endif
     void Init(const bool isCurrent);
     void FinishGL();
@@ -221,7 +220,9 @@ public:
     COMMON_NO_COPY(oglContext_)
     COMMON_DEF_MOVE(oglContext_)
     ~oglContext_();
+    [[nodiscard]] void* GetDeviceContext() const noexcept;
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
+    [[nodiscard]] const common::container::FrozenDenseSet<std::string_view>& GetPlatformExtensions() const noexcept;
     void AddMarker(std::u16string_view name) const noexcept final;
 
     bool UseContext(const bool force = false);
@@ -249,13 +250,12 @@ public:
     
     [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
-
+    [[nodiscard]] oglContext NewContext(const bool isShared, const int32_t* attribs) const;
+    [[nodiscard]] oglContext NewContext(const bool isShared = false, uint32_t version = 0) const;
 
     [[nodiscard]] static uint32_t GetLatestVersion();
     [[nodiscard]] static oglContext CurrentContext();
     [[nodiscard]] static oglContext Refresh();
-    [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared, const int32_t* attribs);
-    [[nodiscard]] static oglContext NewContext(const oglContext& ctx, const bool isShared = false, uint32_t version = 0);
     [[nodiscard]] static oglContext InitContext(const GLContextInfo& info);
     static bool ReleaseExternContext();
     static bool ReleaseExternContext(void* hrc);

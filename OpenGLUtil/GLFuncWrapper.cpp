@@ -80,24 +80,30 @@ using namespace std::string_view_literals;
 template<typename T>
 struct ResourceKeeper
 {
-    std::map<void*, std::unique_ptr<T>> Map;
+    std::vector<std::unique_ptr<T>> Items;
     common::SpinLocker Locker;
     auto Lock() { return Locker.LockScope(); }
     T* FindOrCreate(void* key)
     {
         const auto lock = Lock();
-        if (const auto funcs = common::container::FindInMap(Map, key); funcs)
-            return funcs->get();
-        else
+        for (const auto& item : Items)
         {
-            const auto [it, ret] = Map.emplace(key, std::make_unique<T>(key));
-            return it->second.get();
+            if (item->Target == key)
+                return item.get();
         }
+        return Items.emplace_back(std::make_unique<T>(key)).get();
     }
     void Remove(void* key)
     {
         const auto lock = Lock();
-        Map.erase(key);
+        for (auto it = Items.begin(); it != Items.end(); ++it)
+        {
+            if ((*it)->Target == key)
+            {
+                Items.erase(it);
+                return;
+            }
+        }
     }
 };
 thread_local const PlatFuncs* PlatFunc = nullptr;
@@ -240,12 +246,13 @@ oglContext oglContext_::InitContext(const GLContextInfo& info)
     constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
     const auto oldCtx = Refresh();
     PreparePlatFuncs(info.DeviceContext); // ensure PlatFuncs exists
+    Expects(PlatFunc);
     void* ctx = nullptr;
     if (LatestVersion == 0) // perform update
     {
         for (const auto ver : VERSIONS)
         {
-            if (ctx = PlatFuncs::CreateNewContext(info, ver); ctx && PlatFuncs::MakeGLContextCurrent(info, ctx))
+            if (ctx = PlatFunc->CreateNewContext(info, ver); ctx && PlatFunc->MakeGLContextCurrent(info, ctx))
             {
                 const auto verStr = common::str::to_u16string(
                     reinterpret_cast<const char*>(glGetString(GL_VERSION)), common::str::Encoding::UTF8);
@@ -263,7 +270,7 @@ oglContext oglContext_::InitContext(const GLContextInfo& info)
     }
     else
     {
-        ctx = PlatFuncs::CreateNewContext(info, LatestVersion.load());
+        ctx = PlatFunc->CreateNewContext(info, LatestVersion.load());
     }
     if (!ctx)
     {
@@ -276,9 +283,9 @@ oglContext oglContext_::InitContext(const GLContextInfo& info)
         return {};
     }
 #if COMMON_OS_WIN
-    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), info.DeviceContext, ctx));
+    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), PlatFunc, ctx));
 #elif COMMON_OS_LINUX
-    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), info.DeviceContext, ctx, info.Drawable));
+    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), PlatFunc, ctx, info.Drawable));
 #endif
     newCtx->Init(true);
     PushToMap(newCtx);
@@ -385,14 +392,14 @@ common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(voi
 }
 #endif
 
-PlatFuncs::PlatFuncs(void* target)
+PlatFuncs::PlatFuncs(void* target) : Target(target)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 
 #define QUERY_FUNC(name) QueryPlatFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint)
     
 #if COMMON_OS_WIN
-    const auto hdc = reinterpret_cast<HDC>(target);
+    const auto hdc = reinterpret_cast<HDC>(Target);
     HGLRC tmpHrc = nullptr;
     if (!wglGetCurrentContext())
     { // create temp hrc since wgl requires a context to use wglGetProcAddress
@@ -409,7 +416,7 @@ PlatFuncs::PlatFuncs(void* target)
         wglDeleteContext(tmpHrc);
     }
 #else
-    const auto display = reinterpret_cast<Display*>(target);
+    const auto display = reinterpret_cast<Display*>(Target);
     QUERY_FUNC(glXGetCurrentDisplay);
     Extensions = GetExtensions(display, DefaultScreen(display));
     QUERY_FUNC(glXCreateContextAttribsARB);
@@ -529,37 +536,37 @@ void* PlatFuncs::GetCurrentGLContext()
     PrepareCtxFuncs(hRC);
     return hRC;
 }
-void  PlatFuncs::DeleteGLContext([[maybe_unused]] void* hDC, void* hRC)
+void PlatFuncs::DeleteGLContext(void* hRC) const
 {
 #if COMMON_OS_WIN
     wglDeleteContext((HGLRC)hRC);
 #else
-    glXDestroyContext((Display*)hDC, (GLXContext)hRC);
+    glXDestroyContext((Display*)Target, (GLXContext)hRC);
 #endif
     GetCtxFuncsMap().Remove(hRC);
 }
 #if COMMON_OS_WIN
-bool  PlatFuncs::MakeGLContextCurrent(void* hDC, void* hRC)
+bool  PlatFuncs::MakeGLContextCurrent(void* hRC) const
 {
-    const bool ret = wglMakeCurrent((HDC)hDC, (HGLRC)hRC);
+    const bool ret = wglMakeCurrent((HDC)Target, (HGLRC)hRC);
 #else
-bool  PlatFuncs::MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC)
+bool  PlatFuncs::MakeGLContextCurrent(unsigned long DRW, void* hRC) const
 {
-    const bool ret = glXMakeCurrent((Display*)hDC, DRW, (GLXContext)hRC);
+    const bool ret = glXMakeCurrent((Display*)Target, DRW, (GLXContext)hRC);
 #endif
     if (ret)
     {
-        PreparePlatFuncs(hDC);
         PrepareCtxFuncs(hRC);
     }
     return ret;
 }
-bool PlatFuncs::MakeGLContextCurrent(const GLContextInfo& info, void* hRC)
+bool PlatFuncs::MakeGLContextCurrent(const GLContextInfo& info, void* hRC) const
 {
+    if (info.DeviceContext != Target) return false;
 #if COMMON_OS_WIN
-    return MakeGLContextCurrent(info.DeviceContext, hRC);
+    return MakeGLContextCurrent(hRC);
 #else
-    return MakeGLContextCurrent(info.DeviceContext, info.Drawable, hRC);
+    return MakeGLContextCurrent(info.Drawable, hRC);
 #endif
 }
 #if COMMON_OS_WIN
@@ -617,47 +624,46 @@ std::vector<int32_t> PlatFuncs::GenerateContextAttrib(const uint32_t version, bo
     ctxAttrb.push_back(0);
     return ctxAttrb;
 }
-void* PlatFuncs::CreateNewContext(const GLContextInfo& info, const uint32_t version)
+void* PlatFuncs::CreateNewContext(const GLContextInfo& info, const uint32_t version) const
 {
-    if (PlatFunc == nullptr)
+    if (info.DeviceContext != Target)
         return nullptr;
-    const auto target = reinterpret_cast<DCType>(info.DeviceContext);
+    const auto target = reinterpret_cast<DCType>(Target);
     const auto ctxAttrb = GenerateContextAttrib(version, true);
 #if COMMON_OS_WIN
-    return PlatFunc->wglCreateContextAttribsARB_(target, nullptr, ctxAttrb.data());
+    return wglCreateContextAttribsARB_(target, nullptr, ctxAttrb.data());
 #elif COMMON_OS_LINUX
-    return PlatFunc->glXCreateContextAttribsARB_(target,
+    return glXCreateContextAttribsARB_(target,
         reinterpret_cast<GLXFBConfig*>(info.FBConfigs)[0], nullptr, true, ctxAttrb.data());
 #endif
 }
-void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs)
+void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs) const
 {
-    if (prevCtx == nullptr || PlatFunc == nullptr)
+    if (prevCtx == nullptr || &prevCtx->PlatHolder != this)
     {
         return nullptr;
     }
     else
     {
+        const auto target = reinterpret_cast<DCType>(Target);
 #if defined(_WIN32)
-        const auto newHrc = PlatFunc->wglCreateContextAttribsARB_(
-            prevCtx->Hdc, isShared ? prevCtx->Hrc : nullptr, attribs);
+        const auto newHrc = wglCreateContextAttribsARB_(target, isShared ? prevCtx->Hrc : nullptr, attribs);
         return newHrc;
 #else
         int num_fbc = 0;
-        const auto fbc = glXChooseFBConfig(
-            (Display*)prevCtx->Hdc, DefaultScreen((Display*)prevCtx->Hdc), VisualAttrs, &num_fbc);
-        const auto newHrc = PlatFunc->glXCreateContextAttribsARB_(
-            prevCtx->Hdc, fbc[0], isShared ? prevCtx->Hrc : nullptr, true, attribs);
+        const auto fbc = glXChooseFBConfig(target, DefaultScreen(target), VisualAttrs, &num_fbc);
+        const auto newHrc = glXCreateContextAttribsARB_(target, fbc[0], isShared ? prevCtx->Hrc : nullptr, true, attribs);
         return newHrc;
 #endif
     }
 }
-void PlatFuncs::SwapBuffer(const oglContext_& ctx)
+void PlatFuncs::SwapBuffer(const oglContext_& ctx) const
 {
+    const auto target = reinterpret_cast<DCType>(Target);
 #if COMMON_OS_WIN
-    SwapBuffers(reinterpret_cast<HDC>(ctx.Hdc));
+    SwapBuffers(target);
 #elif COMMON_OS_LINUX
-    glXSwapBuffers(reinterpret_cast<Display*>(ctx.Hdc), ctx.DRW);
+    glXSwapBuffers(target, ctx.DRW);
 #endif
 }
 
@@ -728,7 +734,7 @@ struct FuncTypeMatcher<R(*)(A...), R(*)(B...)>
 #   pragma warning(disable:4003)
 #endif
 
-CtxFuncs::CtxFuncs(void*)
+CtxFuncs::CtxFuncs(void* target) : Target(target)
 {
     const auto shouldPrint = GetFuncShouldPrint();
 

@@ -50,31 +50,32 @@ public:
     void* (*glXCreateContextAttribsARB_) (void* dpy, GLXFBConfig config, void* share_context, bool direct, const int* attrib_list);
 #endif
 public:
+    void* Target;
     common::container::FrozenDenseSet<std::string_view> Extensions;
     bool SupportFlushControl;
     bool SupportSRGB;
 
     PlatFuncs(void* target);
+    [[nodiscard]] void* CreateNewContext(const GLContextInfo& info, const uint32_t version) const;
+    [[nodiscard]] void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs) const;
+    void DeleteGLContext(void* hRC) const;
+    void SwapBuffer(const oglContext_& ctx) const;
 
     static void InitEnvironment();
     static void InJectRenderDoc(const common::fs::path& dllPath);
 
     [[nodiscard]] static void* GetCurrentDeviceContext();
     [[nodiscard]] static void* GetCurrentGLContext();
-    static void  DeleteGLContext(void* hDC, void* hRC);
     [[nodiscard]] static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
-    [[nodiscard]] static void* CreateNewContext(const GLContextInfo& info, const uint32_t version);
-    [[nodiscard]] static void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs);
-    static void SwapBuffer(const oglContext_& ctx);
 #if COMMON_OS_WIN
-    [[nodiscard]] static bool MakeGLContextCurrent(void* hDC, void* hRC);
+    [[nodiscard]] bool MakeGLContextCurrent(void* hRC) const;
     [[nodiscard]] static uint32_t GetSystemError();
 #else
-    [[nodiscard]] static bool MakeGLContextCurrent(void* hDC, unsigned long DRW, void* hRC);
+    [[nodiscard]] bool MakeGLContextCurrent(unsigned long DRW, void* hRC) const;
     [[nodiscard]] static unsigned long GetCurrentDrawable();
     [[nodiscard]] static int32_t GetSystemError();
 #endif
-    [[nodiscard]] static bool MakeGLContextCurrent(const GLContextInfo& info, void* hRC);
+    [[nodiscard]] bool MakeGLContextCurrent(const GLContextInfo& info, void* hRC) const;
 };
 extern thread_local const PlatFuncs* PlatFunc;
 
@@ -89,6 +90,7 @@ class CtxFuncs : public ContextCapability
 private:
     mutable common::SpinLocker DataLock;
 public:
+    void* Target;
     // buffer related
     GLint MaxUBOUnits = 0;
     void      (GLAPIENTRYP GenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
