@@ -53,7 +53,7 @@ void ProcessCLStr(std::string& str)
 namespace detail
 {
 
-PlatFuncs::PlatFuncs()
+PlatFuncs::PlatFuncs() : IsICD(true)
 {
 #define SET_FUNC_PTR(f) this->f = &::f; // use icd's export
     SET_FUNC_PTR(clGetExtensionFunctionAddress)
@@ -63,7 +63,7 @@ PlatFuncs::PlatFuncs()
     InitExtensionFunc();
 }
 
-PlatFuncs::PlatFuncs(std::string_view dllName)
+PlatFuncs::PlatFuncs(std::string_view dllName) : IsICD(false)
 {
 #if COMMON_OS_WIN
     Library = LoadLibraryExA(dllName.data(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);

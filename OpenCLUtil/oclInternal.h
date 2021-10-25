@@ -45,8 +45,8 @@ DefType(CLMem, cl_mem);
     clCreateImage, clCreateImage2D, clCreateImage3D, clEnqueueMapImage, clEnqueueReadImage, clEnqueueWriteImage, \
     clGetMemObjectInfo, clReleaseMemObject, clEnqueueUnmapMemObject, \
     clCreateProgramWithSource, clReleaseProgram, clBuildProgram, clGetProgramBuildInfo, clGetProgramInfo, \
-    clCreateKernelsInProgram, clGetKernelInfo, clGetKernelArgInfo, clGetKernelWorkGroupInfo, clSetKernelArg, \
-    clEnqueueNDRangeKernel, \
+    clCreateKernel, clCreateKernelsInProgram, clCloneKernel, clSetKernelArg, clEnqueueNDRangeKernel, \
+    clGetKernelInfo, clGetKernelArgInfo, clGetKernelWorkGroupInfo, \
     clEnqueueAcquireGLObjects, clEnqueueReleaseGLObjects, clCreateFromGLBuffer, clCreateFromGLTexture)
 #define PLATFUNCS_EACH_(r, func, f) func(f)
 #define PLATFUNCS_EACH(func) BOOST_PP_SEQ_FOR_EACH(PLATFUNCS_EACH_, func, PLATFUNCS)
@@ -65,6 +65,7 @@ public:
     DEF_FUNC_PTR(clGetKernelSubGroupInfoKHR)
     PLATFUNCS_EACH(DEF_FUNC_PTR)
 #undef DEF_FUNC_PTR
+    bool IsICD;
     PlatFuncs();
     PlatFuncs(std::string_view dllName);
     ~PlatFuncs();

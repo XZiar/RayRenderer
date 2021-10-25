@@ -232,15 +232,15 @@ private:
         return nullptr;
     }
 
-    struct OCLUAPI CallSiteInternal
+    struct CallSiteInternal
     {
-        oclKernel Kernel;
-        common::SpinLocker::ScopeType KernelLock;
+        oclKernel KernelHost;
+        CLHandle<detail::CLKernel> Kernel;
 
-        CallSiteInternal(const oclKernel_* kernel);
-        void SetArg(const uint32_t idx, const oclSubBuffer_& buf) const;
-        void SetArg(const uint32_t idx, const oclImage_& img) const;
-        void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
+        OCLUAPI CallSiteInternal(const oclKernel_* kernel);
+        OCLUAPI void SetArg(const uint32_t idx, const oclSubBuffer_& buf) const;
+        OCLUAPI void SetArg(const uint32_t idx, const oclImage_& img) const;
+        OCLUAPI void SetArg(const uint32_t idx, const void* dat, const size_t size) const;
         template<typename T>
         void SetSpanArg(const uint32_t idx, const T& dat) const
         {
@@ -253,7 +253,7 @@ private:
             static_assert(!std::is_same_v<T, bool>, "boolean is implementation-defined and cannot be pass as kernel argument.");
             return SetArg(idx, &dat, sizeof(T));
         }
-        [[nodiscard]] common::PromiseResult<CallResult> Run(const uint8_t dim, DependEvents depend,
+        OCLUAPI [[nodiscard]] common::PromiseResult<CallResult> Run(const uint8_t dim, DependEvents depend,
             const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize);
     };
 
@@ -299,14 +299,14 @@ private:
         }
     };
 
-    class OCLUAPI KernelDynCallSiteInternal : protected CallSiteInternal
+    class KernelDynCallSiteInternal : protected CallSiteInternal
     {
         friend class oclKernel_;
     private:
         // clSetKernelArg does not hold parameter ownership, so need to manully hold it
         CallArgs Args;
     protected:
-        KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args);
+        OCLUAPI KernelDynCallSiteInternal(const oclKernel_* kernel, CallArgs&& args);
     };
 
     template<uint8_t N>
@@ -357,7 +357,6 @@ public:
 private:
     CLHandle<detail::CLKernel> Kernel;
     const oclProgram_& Program;
-    mutable common::SpinLocker ArgLock;
     uint32_t ReqDbgBufSize;
 public:
     KernelArgStore ArgStore;

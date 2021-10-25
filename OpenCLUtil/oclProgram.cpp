@@ -349,7 +349,6 @@ oclKernel_::oclKernel_(const oclProgram_* prog, void* kerID, string name, Kernel
     }
     ReqDbgBufSize = ArgStore.DebugBuffer == 0 ? 512 : ArgStore.DebugBuffer;
 }
-
 oclKernel_::~oclKernel_()
 {
     clReleaseKernel(*Kernel);
@@ -373,36 +372,47 @@ std::optional<SubgroupInfo> oclKernel_::GetSubgroupInfo(const uint8_t dim, const
 }
 
 
-
-oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) :
-    Kernel(kernel->Program.shared_from_this(), kernel), KernelLock(Kernel->ArgLock.LockScope())
+static cl_kernel CloneKernel(const detail::PlatFuncs* funcs, cl_program prog, cl_kernel ker, const std::string& name, const oclDevice dev)
 {
+    if (dev->Version < 22)
+    {
+        if (funcs->IsICD || !funcs->clCloneKernel)
+        {
+            return funcs->clCreateKernel(prog, name.c_str(), nullptr);
+        }
+    }
+    return funcs->clCloneKernel(ker, nullptr);
 }
+
+oclKernel_::CallSiteInternal::CallSiteInternal(const oclKernel_* kernel) : 
+    KernelHost(kernel->Program.shared_from_this(), kernel), 
+    Kernel(CloneKernel(kernel->Funcs, *kernel->Program.Program, *kernel->Kernel, kernel->Name, kernel->Program.Device))
+{ }
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclSubBuffer_& buf) const
 {
-    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Buffer))
+    if (const auto info = KernelHost->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Buffer))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"buffer is set to a non-buffer kernel argument slot");
-    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, sizeof(cl_mem), &buf.MemID);
+    auto ret = KernelHost->Funcs->clSetKernelArg(*Kernel, idx, sizeof(cl_mem), &buf.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const oclImage_ & img) const
 {
-    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Image))
+    if (const auto info = KernelHost->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Image))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"image is set to an non-image kernel argument slot");
-    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, sizeof(cl_mem), &img.MemID);
+    auto ret = KernelHost->Funcs->clSetKernelArg(*Kernel, idx, sizeof(cl_mem), &img.MemID);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
 
 void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, const size_t size) const
 {
-    if (const auto info = Kernel->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Simple))
+    if (const auto info = KernelHost->ArgStore.GetArg(idx); info && !info->IsType(KerArgType::Simple))
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"simple is set to an non-simple kernel argument slot");
-    Kernel->ArgStore.GetArg(idx);
-    auto ret = Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, idx, size, dat);
+    KernelHost->ArgStore.GetArg(idx);
+    auto ret = KernelHost->Funcs->clSetKernelArg(*Kernel, idx, size, dat);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"set kernel argument error");
 }
@@ -410,37 +420,37 @@ void oclKernel_::CallSiteInternal::SetArg(const uint32_t idx, const void* dat, c
 PromiseResult<CallResult> oclKernel_::CallSiteInternal::Run(const uint8_t dim, DependEvents depend,
     const oclCmdQue& que, const size_t* worksize, const size_t* workoffset, const size_t* localsize)
 {
-    if (Kernel->Program.Device != que->Device)
+    if (KernelHost->Program.Device != que->Device)
         COMMON_THROW(OCLException, OCLException::CLComponent::OCLU, u"queue's device is not the same as this kernel");
 
     CallResult result;
-    if (Kernel->ArgStore.HasInfo && Kernel->ArgStore.HasDebug) // inject debug buffer
+    if (KernelHost->ArgStore.HasInfo && KernelHost->ArgStore.HasDebug) // inject debug buffer
     {
-        result.DebugMan = Kernel->Program.DebugMan;
-        result.InfoProv = Kernel->ArgStore.InfoProv;
-        result.Kernel = this->Kernel;
+        result.DebugMan = KernelHost->Program.DebugMan;
+        result.InfoProv = KernelHost->ArgStore.InfoProv;
+        result.Kernel = this->KernelHost;
         result.Queue = que;
         const auto infosize = result.InfoProv->GetInfoBufferSize(worksize, dim);
-        const auto startIdx = static_cast<uint32_t>(Kernel->ArgStore.GetSize());
+        const auto startIdx = static_cast<uint32_t>(KernelHost->ArgStore.GetSize());
         std::vector<std::byte> tmp(infosize);
-        const uint32_t dbgBufCnt = Kernel->ReqDbgBufSize * 1024u / sizeof(uint32_t);
+        const uint32_t dbgBufCnt = KernelHost->ReqDbgBufSize * 1024u / sizeof(uint32_t);
         result.InfoBuf  = oclBuffer_::Create(que->Context, MemFlag::ReadWrite, tmp.size(), tmp.data());
         result.DebugBuf = oclBuffer_::Create(que->Context, MemFlag::HostReadOnly | MemFlag::WriteOnly, dbgBufCnt * sizeof(uint32_t));
-        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 0, sizeof(uint32_t), &dbgBufCnt);
-        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
-        Kernel->Funcs->clSetKernelArg(*Kernel->Kernel, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
+        KernelHost->Funcs->clSetKernelArg(*Kernel, startIdx + 0, sizeof(uint32_t), &dbgBufCnt);
+        KernelHost->Funcs->clSetKernelArg(*Kernel, startIdx + 1, sizeof(cl_mem),   &result.InfoBuf->MemID);
+        KernelHost->Funcs->clSetKernelArg(*Kernel, startIdx + 2, sizeof(cl_mem),   &result.DebugBuf->MemID);
     }
 
     cl_int ret;
     cl_event e;
     const auto [evtPtr, evtCnt] = depend.GetWaitList();
-    if (localsize == nullptr && Kernel->WgInfo.HasCompiledWGSize())
+    if (localsize == nullptr && KernelHost->WgInfo.HasCompiledWGSize())
     {
-        localsize = Kernel->WgInfo.CompiledWorkGroupSize;
+        localsize = KernelHost->WgInfo.CompiledWorkGroupSize;
         oclLog().warning(FMT_STRING(u"passing nullptr to LocalSize, while attributes shows [{},{},{}]\n"), 
             localsize[0], localsize[1], localsize[2]);
     }
-    ret = Kernel->Funcs->clEnqueueNDRangeKernel(*que->CmdQue, *Kernel->Kernel, dim, workoffset, worksize, localsize, 
+    ret = KernelHost->Funcs->clEnqueueNDRangeKernel(*que->CmdQue, *Kernel, dim, workoffset, worksize, localsize,
         evtCnt, reinterpret_cast<const cl_event*>(evtPtr), &e);
     if (ret != CL_SUCCESS)
         COMMON_THROW(OCLException, OCLException::CLComponent::Driver, ret, u"execute kernel error");
