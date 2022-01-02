@@ -36,6 +36,7 @@
 #   endif
 #   include <cerrno>
 #   include <errno.h>
+#   include <dlfcn.h>
 #   include <fcntl.h>
 #   include <pthread.h>
 #   include <termios.h>

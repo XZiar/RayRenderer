@@ -69,6 +69,9 @@
     <ClCompile Include="StringFormat.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DynamicLibrary.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SystemCommonRely.h">
@@ -150,6 +153,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Format.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DynamicLibrary.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

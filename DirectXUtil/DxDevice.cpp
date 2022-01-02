@@ -1,5 +1,14 @@
 #include "DxPch.h"
 #include "DxDevice.h"
+#if __has_include("dxcore.h")
+#   include <initguid.h>
+#   include <dxcore.h>
+#   define HAS_DXCORE 1
+#   pragma message("Compiling DirectXUtil with DXCore")
+#   include "SystemCommon/DynamicLibrary.h"
+#endif
+
+typedef _Check_return_ HRESULT(APIENTRY* PFN_DXCoreCreateAdapterFactory)(REFIID riid, _COM_Outptr_ void** ppvFactory);
 
 namespace dxu
 {
@@ -164,6 +173,45 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             dxLog().verbose(u"Created device on {}.\n", adapterName);
             devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, adapterName)));
         }
+
+#ifdef HAS_DXCORE
+        const auto dxcore = common::DynLib::TryCreate(L"dxcore.dll");
+        if (dxcore)
+        {
+            const auto CreateAdapterFactory = dxcore.GetFunction<PFN_DXCoreCreateAdapterFactory>("DXCoreCreateAdapterFactory");
+
+            IDXCoreAdapterFactory* coreFactory = nullptr;
+            THROW_HR(CreateAdapterFactory(IID_PPV_ARGS(&coreFactory)), u"Cannot create DXCoreFactory");
+            IDXCoreAdapterList* coreAdapters = nullptr;
+            const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+            THROW_HR(coreFactory->CreateAdapterList(1, dxGUIDs, IID_PPV_ARGS(&coreAdapters)), u"Cannot create DXCoreAdapterList");
+            for (uint32_t i = 0; i < coreAdapters->GetAdapterCount(); i++)
+            {
+                IDXCoreAdapter* adapter = nullptr;
+                coreAdapters->GetAdapter(i, &adapter);
+                if (adapter)
+                {
+                    size_t descSize = 0;
+                    THROW_HR(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &descSize), u"Cannot get adapter name size");
+                    std::string desc(descSize, '\0');
+                    THROW_HR(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, descSize, desc.data()), u"Cannot get adapter name");
+                    std::u16string adapterName(desc.begin(), desc.end());
+
+                    ID3D12Device* device = nullptr;
+                    {
+                        common::HResultHolder hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_1_0_CORE, IID_PPV_ARGS(&device));
+                        if (!device)
+                        {
+                            dxLog().warning(u"Failed to create device on [{}]:\nCore1_0: {}\n", adapterName, hr);
+                            continue;
+                        }
+                    }
+                    dxLog().verbose(u"Create device on {}.\n", adapterName);
+                    devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, adapterName)));
+                }
+            }
+        }
+#endif
 
         return devs;
     }();

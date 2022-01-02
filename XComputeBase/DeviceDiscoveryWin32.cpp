@@ -1,4 +1,5 @@
 #include "XCompRely.h"
+#include "SystemCommon/DynamicLibrary.h"
 #include "SystemCommon/HResultHelper.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/Exceptions.h"
@@ -8,13 +9,19 @@
 
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
-#include <Windows.h>
+#include <wrl/client.h>
+#define COM_NO_WINDOWS_H 1
 #include <dxgi.h>
-#pragma comment (lib, "DXGI.lib")
+
+#if __has_include("dxcore.h")
+#   include <initguid.h>
+#   include <dxcore.h>
+#   define HAS_DXCORE 1
+#endif
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
-#   pragma warning(disable:4201)
+#   pragma warning(disable:4201 26812)
 #endif
 
 #ifndef NTSTATUS
@@ -23,8 +30,10 @@ constexpr NTSTATUS STATUS_SUCCESS = 0x00000000L;
 constexpr NTSTATUS STATUS_BUFFER_TOO_SMALL = 0xC0000023;
 #endif
 
-#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) COMMON_THROWEX(common::BaseException, msg)\
-    .Attach("HResult", hr___).Attach("detail", hr___.ToStr())
+#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) \
+    COMMON_THROWEX(common::BaseException, msg).Attach("HResult", hr___).Attach("detail", hr___.ToStr())
+
+typedef _Check_return_ HRESULT(APIENTRY* PFN_DXCoreCreateAdapterFactory)(REFIID riid, _COM_Outptr_ void** ppvFactory);
 
 typedef struct _D3DKMT_OPENADAPTERFROMLUID {
     LUID AdapterLuid;
@@ -181,146 +190,241 @@ typedef struct _D3DDDI_QUERYREGISTRY_INFO {
 
 namespace xcomp
 {
+using Microsoft::WRL::ComPtr;
 
-
-static std::optional<std::u16string> QueryReg(PFN_D3DKMTQueryAdapterInfo QueryAdapterInfo, UINT adpater, std::wstring_view path)
+struct D3DKMTHelper
 {
-    if (path.empty()) return {};
-
-    D3DDDI_QUERYREGISTRY_INFO queryArgs = { };
-    queryArgs.QueryType = D3DDDI_QUERYREGISTRY_ADAPTERKEY;
-    queryArgs.QueryFlags.TranslatePath = TRUE;
-    wcscpy_s(queryArgs.ValueName, path.data());
-    queryArgs.ValueType = REG_SZ;
-
-    D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
-    queryAdapterInfo.handle = adpater;
-    queryAdapterInfo.type = KMTQAITYPE_QUERYREGISTRY;
-    queryAdapterInfo.private_data = &queryArgs;
-    queryAdapterInfo.private_data_size = sizeof(queryArgs);
-    auto status = QueryAdapterInfo(&queryAdapterInfo);
-    if (status != STATUS_SUCCESS)
+    common::DynLib Gdi32;
+    PFN_D3DKMTOpenAdapterFromLuid OpenAdapterFromLuid = nullptr;
+    PFN_D3DKMTQueryAdapterInfo QueryAdapterInfo = nullptr;
+    PFN_D3DKMTCloseAdapter CloseAdapter = nullptr;
+    D3DKMTHelper() : Gdi32(L"gdi32.dll")
     {
-        queryArgs.ValueType = REG_MULTI_SZ;
-        status = QueryAdapterInfo(&queryAdapterInfo);
+        OpenAdapterFromLuid = Gdi32.TryGetFunction<PFN_D3DKMTOpenAdapterFromLuid>("D3DKMTOpenAdapterFromLuid");
+        QueryAdapterInfo    = Gdi32.TryGetFunction<PFN_D3DKMTQueryAdapterInfo>   ("D3DKMTQueryAdapterInfo");
+        CloseAdapter        = Gdi32.TryGetFunction<PFN_D3DKMTCloseAdapter>       ("D3DKMTCloseAdapter");
     }
-    const D3DDDI_QUERYREGISTRY_INFO* regInfo = &queryArgs;
-    common::AlignedBuffer buf;
-    if (status == STATUS_SUCCESS && regInfo->Status == D3DDDI_QUERYREGISTRY_STATUS_BUFFER_OVERFLOW)
+    ~D3DKMTHelper()
+    { }
+    std::optional<std::u16string> QueryReg(UINT adpater, std::wstring_view path) const
     {
-        const auto queryBufferSize = gsl::narrow_cast<UINT>(sizeof(D3DDDI_QUERYREGISTRY_INFO) + queryArgs.OutputValueSize);
-        buf = common::AlignedBuffer(queryBufferSize, std::byte(0), alignof(D3DDDI_QUERYREGISTRY_INFO));
-        const auto ptr = buf.GetRawPtr<D3DDDI_QUERYREGISTRY_INFO>();
-        *ptr = queryArgs;
-        regInfo = ptr;
-        queryAdapterInfo.private_data = buf.GetRawPtr();
-        queryAdapterInfo.private_data_size = queryBufferSize;
-        status = QueryAdapterInfo(&queryAdapterInfo);
-    }
-    if (status == STATUS_SUCCESS && regInfo->Status == D3DDDI_QUERYREGISTRY_STATUS_SUCCESS)
-    {
-        if (buf.GetSize())
+        if (path.empty()) return {};
+
+        D3DDDI_QUERYREGISTRY_INFO queryArgs = { };
+        queryArgs.QueryType = D3DDDI_QUERYREGISTRY_ADAPTERKEY;
+        queryArgs.QueryFlags.TranslatePath = TRUE;
+        wcscpy_s(queryArgs.ValueName, path.data());
+        queryArgs.ValueType = REG_SZ;
+
+        D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
+        queryAdapterInfo.handle = adpater;
+        queryAdapterInfo.type = KMTQAITYPE_QUERYREGISTRY;
+        queryAdapterInfo.private_data = &queryArgs;
+        queryAdapterInfo.private_data_size = sizeof(queryArgs);
+        auto status = QueryAdapterInfo(&queryAdapterInfo);
+        if (status != STATUS_SUCCESS)
         {
-            return reinterpret_cast<const char16_t*>(regInfo->OutputString);
+            queryArgs.ValueType = REG_MULTI_SZ;
+            status = QueryAdapterInfo(&queryAdapterInfo);
         }
+        const D3DDDI_QUERYREGISTRY_INFO* regInfo = &queryArgs;
+        common::AlignedBuffer buf;
+        if (status == STATUS_SUCCESS && regInfo->Status == D3DDDI_QUERYREGISTRY_STATUS_BUFFER_OVERFLOW)
+        {
+            const auto queryBufferSize = gsl::narrow_cast<UINT>(sizeof(D3DDDI_QUERYREGISTRY_INFO) + queryArgs.OutputValueSize);
+            buf = common::AlignedBuffer(queryBufferSize, std::byte(0), alignof(D3DDDI_QUERYREGISTRY_INFO));
+            const auto ptr = buf.GetRawPtr<D3DDDI_QUERYREGISTRY_INFO>();
+            *ptr = queryArgs;
+            regInfo = ptr;
+            queryAdapterInfo.private_data = buf.GetRawPtr();
+            queryAdapterInfo.private_data_size = queryBufferSize;
+            status = QueryAdapterInfo(&queryAdapterInfo);
+        }
+        if (status == STATUS_SUCCESS && regInfo->Status == D3DDDI_QUERYREGISTRY_STATUS_SUCCESS)
+        {
+            if (buf.GetSize())
+            {
+                return reinterpret_cast<const char16_t*>(regInfo->OutputString);
+            }
+        }
+        return {};
     }
-    return {};
-}
-
-static std::vector<CommonDeviceInfo> GatherDeviceInfo()
-{
-    std::vector<CommonDeviceInfo> infos;
-    const auto& console = common::console::ConsoleEx::Get();
-    const auto gdi = LoadLibraryW(L"gdi32.dll");
-    if (gdi)
+    void FillDeviceInfo(CommonDeviceInfo& info) const
     {
-        const auto OpenAdapterFromLuid  = (PFN_D3DKMTOpenAdapterFromLuid)GetProcAddress(gdi, "D3DKMTOpenAdapterFromLuid");
-        const auto QueryAdapterInfo     = (PFN_D3DKMTQueryAdapterInfo)   GetProcAddress(gdi, "D3DKMTQueryAdapterInfo");
-        const auto CloseAdapter         = (PFN_D3DKMTCloseAdapter)       GetProcAddress(gdi, "D3DKMTCloseAdapter");
         if (OpenAdapterFromLuid && QueryAdapterInfo && CloseAdapter)
         {
-            IDXGIFactory* factory = nullptr;
-            if (const common::HResultHolder hr = CreateDXGIFactory(IID_PPV_ARGS(&factory)); hr)
+            D3DKMT_OPENADAPTERFROMLUID openFromLuid = {};
+            memcpy_s(&openFromLuid.AdapterLuid, sizeof(openFromLuid.AdapterLuid), info.Luid.data(), sizeof(info.Luid));
+            openFromLuid.hAdapter = 0;
+            if (const auto status = OpenAdapterFromLuid(&openFromLuid); status == STATUS_SUCCESS)
             {
-                for (uint32_t idx = 0; ; ++idx)
                 {
-                    IDXGIAdapter* adapter = nullptr;
-                    if (factory->EnumAdapters(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
-                        break;
-                    DXGI_ADAPTER_DESC desc = {};
-                    if (FAILED(adapter->GetDesc(&desc)))
-                        continue;
-
-                    auto& info = infos.emplace_back();
-                    info.Name = reinterpret_cast<const char16_t*>(desc.Description);
-                    memcpy_s(info.Luid.data(), sizeof(info.Luid), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
-                    info.VendorId = desc.VendorId, info.DeviceId = desc.DeviceId;
-
-                    D3DKMT_OPENADAPTERFROMLUID openFromLuid = {};
-                    openFromLuid.AdapterLuid = desc.AdapterLuid;
-                    openFromLuid.hAdapter = 0;
-                    if (const auto status = OpenAdapterFromLuid(&openFromLuid); status == STATUS_SUCCESS)
-                    {
-                        {
-                            D3DKMT_ADAPTERADDRESS queryArgs = {};
-                            D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
-                            queryAdapterInfo.handle = openFromLuid.hAdapter;
-                            queryAdapterInfo.type = KMTQAITYPE_ADAPTERADDRESS;
-                            queryAdapterInfo.private_data = &queryArgs;
-                            queryAdapterInfo.private_data_size = sizeof(queryArgs);
-                            if (const auto ret = QueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
-                                info.PCIEAddress = { queryArgs.BusNumber, queryArgs.DeviceNumber, queryArgs.FunctionNumber };
-                        }
-                        {
-                            GUID guid;
-                            D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
-                            queryAdapterInfo.handle = openFromLuid.hAdapter;
-                            queryAdapterInfo.type = KMTQAITYPE_ADAPTERGUID;
-                            queryAdapterInfo.private_data = &guid;
-                            queryAdapterInfo.private_data_size = sizeof(guid);
-                            if (const auto ret = QueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
-                                memcpy_s(info.Guid.data(), sizeof(info.Guid), &guid, sizeof(guid));
-                        }
-#if COMMON_OSBIT == 64
-                        constexpr std::wstring_view OpenGLPath = L"OpenGLDriverName";
-                        constexpr std::wstring_view OpenCLPath = L"OpenCLDriverName";
-                        constexpr std::wstring_view VulkanPath = L"VulkanDriverName";
-                        constexpr std::wstring_view LvZeroPath = L"LevelZeroDriverPath";
-#else
-                        constexpr std::wstring_view OpenGLPath = L"OpenGLDriverNameWow";
-                        constexpr std::wstring_view OpenCLPath = L"OpenCLDriverNameWow";
-                        constexpr std::wstring_view VulkanPath = L"VulkanDriverNameWow";
-                        constexpr std::wstring_view LvZeroPath = L"";
-#endif
-                        if (auto ret = QueryReg(QueryAdapterInfo, openFromLuid.hAdapter, OpenGLPath); ret)
-                            info.OpenGLICDPath = std::move(*ret);
-                        if (auto ret = QueryReg(QueryAdapterInfo, openFromLuid.hAdapter, OpenCLPath); ret)
-                            info.OpenCLICDPath = std::move(*ret);
-                        if (auto ret = QueryReg(QueryAdapterInfo, openFromLuid.hAdapter, VulkanPath); ret)
-                            info.VulkanICDPath = std::move(*ret);
-                        if (auto ret = QueryReg(QueryAdapterInfo, openFromLuid.hAdapter, LvZeroPath); ret)
-                            info.LvZeroICDPath = std::move(*ret);
-                        D3DKMT_CLOSEADAPTER closeApadter = {};
-                        closeApadter.hAdapter = openFromLuid.hAdapter;
-                        CloseAdapter(&closeApadter);
-                    }
+                    D3DKMT_ADAPTERADDRESS queryArgs = {};
+                    D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
+                    queryAdapterInfo.handle = openFromLuid.hAdapter;
+                    queryAdapterInfo.type = KMTQAITYPE_ADAPTERADDRESS;
+                    queryAdapterInfo.private_data = &queryArgs;
+                    queryAdapterInfo.private_data_size = sizeof(queryArgs);
+                    if (const auto ret = QueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
+                        info.PCIEAddress = { queryArgs.BusNumber, queryArgs.DeviceNumber, queryArgs.FunctionNumber };
                 }
-                factory->Release();
-            }
-            else
-            {
-                console.Print(common::CommonColor::BrightRed, fmt::format(u"Cannot create DXGIFactory: {}\n", hr.ToStr()));
+                {
+                    GUID guid;
+                    D3DKMT_QUERYADAPTERINFO queryAdapterInfo = {};
+                    queryAdapterInfo.handle = openFromLuid.hAdapter;
+                    queryAdapterInfo.type = KMTQAITYPE_ADAPTERGUID;
+                    queryAdapterInfo.private_data = &guid;
+                    queryAdapterInfo.private_data_size = sizeof(guid);
+                    if (const auto ret = QueryAdapterInfo(&queryAdapterInfo); ret == STATUS_SUCCESS)
+                        memcpy_s(info.Guid.data(), sizeof(info.Guid), &guid, sizeof(guid));
+                }
+#if COMMON_OSBIT == 64
+                constexpr std::wstring_view OpenGLPath = L"OpenGLDriverName";
+                constexpr std::wstring_view OpenCLPath = L"OpenCLDriverName";
+                constexpr std::wstring_view VulkanPath = L"VulkanDriverName";
+                constexpr std::wstring_view LvZeroPath = L"LevelZeroDriverPath";
+#else
+                constexpr std::wstring_view OpenGLPath = L"OpenGLDriverNameWow";
+                constexpr std::wstring_view OpenCLPath = L"OpenCLDriverNameWow";
+                constexpr std::wstring_view VulkanPath = L"VulkanDriverNameWow";
+                constexpr std::wstring_view LvZeroPath = L"";
+#endif
+                if (auto ret = QueryReg(openFromLuid.hAdapter, OpenGLPath); ret)
+                    info.OpenGLICDPath = std::move(*ret);
+                if (auto ret = QueryReg(openFromLuid.hAdapter, OpenCLPath); ret)
+                    info.OpenCLICDPath = std::move(*ret);
+                if (auto ret = QueryReg(openFromLuid.hAdapter, VulkanPath); ret)
+                    info.VulkanICDPath = std::move(*ret);
+                if (auto ret = QueryReg(openFromLuid.hAdapter, LvZeroPath); ret)
+                    info.LvZeroICDPath = std::move(*ret);
+                D3DKMT_CLOSEADAPTER closeApadter = {};
+                closeApadter.hAdapter = openFromLuid.hAdapter;
+                CloseAdapter(&closeApadter);
             }
         }
-        FreeLibrary(gdi);
     }
-    return infos;
+};
+
+#define FAILED_CONTINUE(eval, ...) if (const common::HResultHolder hr___ = eval; !hr___)    \
+{                                                                                           \
+    console.Print(common::CommonColor::BrightRed, fmt::format(__VA_ARGS__, hr___.ToStr())); \
+    continue;                                                                               \
+}
+
+#define GET_FUNCTION(var, dll, name) const auto var = (PFN_##name)GetProcAddress(dll, #name);                                           \
+do                                                                                                                                      \
+{                                                                                                                                       \
+    if (!var)                                                                                                                           \
+    {                                                                                                                                   \
+        const auto err = common::Win32ErrorHolder::GetLastError();                                                                      \
+        COMMON_THROWEX(common::BaseException, u"Cannot Load function [" #name "]").Attach("errcode", err).Attach("detail", err.ToStr());\
+    }                                                                                                                                   \
+} while (0)
+
+#ifdef HAS_DXCORE
+static void GatherDeviceInfoByDxCore(const D3DKMTHelper& helper, std::vector<CommonDeviceInfo>& infos)
+{
+    const auto& console = common::console::ConsoleEx::Get();
+    common::DynLib dxcore(L"dxcore.dll");
+    const auto CreateAdapterFactory = dxcore.GetFunction<PFN_DXCoreCreateAdapterFactory>("DXCoreCreateAdapterFactory");
+
+    ComPtr<IDXCoreAdapterFactory> coreFactory;
+    THROW_HR(CreateAdapterFactory(IID_PPV_ARGS(&coreFactory)), u"Cannot create DXCoreFactory");
+    ComPtr<IDXCoreAdapterList> coreAdapters;
+    const GUID dxGUIDs[] = { DXCORE_ADAPTER_ATTRIBUTE_D3D12_CORE_COMPUTE };
+    THROW_HR(coreFactory->CreateAdapterList(1, dxGUIDs, IID_PPV_ARGS(&coreAdapters)), u"Cannot create DXCoreAdapterList");
+
+    for (uint32_t i = 0; i < coreAdapters->GetAdapterCount(); i++)
+    {
+        ComPtr<IDXCoreAdapter> adapter;
+        coreAdapters->GetAdapter(i, adapter.GetAddressOf());
+        if (adapter)
+        {
+            size_t nameSize = 0;
+            FAILED_CONTINUE(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &nameSize), u"Cannot get adapter name size: {}\n");
+            std::string name(nameSize, '\0');
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name.data()), u"Cannot get adapter name: {}\n", name);
+
+            LUID luid;
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, sizeof(luid), &luid), u"Cannot get adapter LUID for [{}]: {}\n", name);
+
+            DXCoreHardwareID hwId;
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::HardwareID, sizeof(DXCoreHardwareID), &hwId), u"Cannot get adapter ID for [{}]: {}\n", name);
+
+            auto& info = infos.emplace_back();
+            info.Name.assign(name.begin(), name.end());
+            memcpy_s(info.Luid.data(), sizeof(info.Luid), &luid, sizeof(luid));
+            info.VendorId = hwId.vendorID, info.DeviceId = hwId.deviceID;
+            helper.FillDeviceInfo(info);
+        }
+    }
+}
+#endif
+
+static void GatherDeviceInfoByDxgi(const D3DKMTHelper& helper, std::vector<CommonDeviceInfo>& infos)
+{
+    const auto& console = common::console::ConsoleEx::Get();
+    common::DynLib dxgi(L"dxgi.dll");
+    const auto CreateFactory = dxgi.GetFunction<decltype(&CreateDXGIFactory)>("CreateDXGIFactory");
+
+    ComPtr<IDXGIFactory> factory;
+    THROW_HR(CreateFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
+
+    for (uint32_t idx = 0; ; ++idx)
+    {
+        ComPtr<IDXGIAdapter> adapter;
+        if (factory->EnumAdapters(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
+            break;
+        DXGI_ADAPTER_DESC desc = {};
+        FAILED_CONTINUE(adapter->GetDesc(&desc), u"Cannot get adapter desc: {}\n");
+
+        auto& info = infos.emplace_back();
+        info.Name = reinterpret_cast<const char16_t*>(desc.Description);
+        memcpy_s(info.Luid.data(), sizeof(info.Luid), &desc.AdapterLuid, sizeof(desc.AdapterLuid));
+        info.VendorId = desc.VendorId, info.DeviceId = desc.DeviceId;
+        helper.FillDeviceInfo(info);
+    }
 }
 
 common::span<const CommonDeviceInfo> ProbeDevice()
 {
-    static const auto infos = GatherDeviceInfo();
-    return infos;
+    static const auto devs = []() 
+    {
+        std::vector<CommonDeviceInfo> infos;
+        const auto& console = common::console::ConsoleEx::Get();
+        try
+        {
+            const D3DKMTHelper helper;
+#ifdef HAS_DXCORE
+            try
+            {
+                GatherDeviceInfoByDxCore(helper, infos);
+                if (!infos.empty())
+                    return infos;
+            }
+            catch (const common::BaseException& be)
+            {
+                console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxcore: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+            }
+#endif
+            try
+            {
+                GatherDeviceInfoByDxgi(helper, infos);
+                if (!infos.empty())
+                    return infos;
+            }
+            catch (const common::BaseException& be)
+            {
+                console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when try using dxgi: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+            }
+        }
+        catch (const common::BaseException& be)
+        {
+            console.Print(common::CommonColor::BrightRed, fmt::format(u"Failed when load D3DKMT: [{}]\n{}\n", be.Message(), be.GetDetailMessage()));
+        }
+        return infos;
+    }();
+    return devs;
 }
 
 

@@ -100,6 +100,8 @@ inline common::span<const std::byte> ToByteSpan(T&& arg)
         return arg;
     else if constexpr (std::is_pointer_v<U>)
         return ToByteSpan(std::basic_string_view(arg));
+    else if constexpr (std::is_array_v<U>)
+        return ToByteSpan(std::basic_string_view(arg));
     else
         static_assert(!common::AlwaysTrue<T>, "unsupported");
 }
@@ -113,6 +115,8 @@ inline constexpr common::str::Encoding GetDefaultEncoding() noexcept
         return common::str::DefaultEncoding<typename U::value_type>;
     else if constexpr (std::is_pointer_v<U>)
         return common::str::DefaultEncoding<std::remove_pointer_t<U>>;
+    else if constexpr (std::is_array_v<U>)
+        return common::str::DefaultEncoding<std::remove_extent_t<U>>;
     else if constexpr (std::is_convertible_v<T, common::span<const std::byte>>)
         return common::str::DefaultEncoding<std::byte>;
     else

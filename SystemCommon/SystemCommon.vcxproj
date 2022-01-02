@@ -204,6 +204,7 @@
     <ClCompile Include="AsyncManager.cpp" />
     <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="CopyEx.cpp" />
+    <ClCompile Include="DynamicLibrary.cpp" />
     <ClCompile Include="FileEx.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -235,6 +236,7 @@
     <ClInclude Include="AsyncAgent.h" />
     <ClInclude Include="ConsoleEx.h" />
     <ClInclude Include="CopyEx.h" />
+    <ClInclude Include="DynamicLibrary.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
