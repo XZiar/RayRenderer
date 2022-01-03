@@ -131,12 +131,11 @@ static Vendors JudgeBand(const u16string& name)
 
 static string GetStr(const detail::PlatFuncs* funcs, const cl_platform_id platformID, const cl_platform_info type)
 {
-    thread_local string ret;
     size_t size = 0;
     funcs->clGetPlatformInfo(platformID, type, 0, nullptr, &size);
-    ret.resize(size, '\0');
+    std::string ret(size, '\0');
     funcs->clGetPlatformInfo(platformID, type, size, ret.data(), &size);
-    ProcessCLStr(ret);
+    common::str::TrimString(ret);
     return ret;
 }
 static u16string GetUStr(const detail::PlatFuncs* funcs, const cl_platform_id platformID, const cl_platform_info type)

@@ -1,5 +1,6 @@
 #include "DxPch.h"
 #include "DxDevice.h"
+#include "common/StringEx.hpp"
 #if __has_include("dxcore.h")
 #   include <initguid.h>
 #   include <dxcore.h>
@@ -30,11 +31,13 @@ static std::pair<CPUPageProps, MemPrefer> QueryHeapProp(ID3D12Device* dev, D3D12
     return { static_cast<CPUPageProps>(prop.CPUPageProperty), static_cast<MemPrefer>(prop.MemoryPoolPreference) };
 }
 
-DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name) :
+DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, 
+    std::u16string_view name, FeatureLevels featLv, bool isDxcore) :
     Adapter(std::move(adapter)), Device(std::move(device)), AdapterName(name), 
     HeapUpload  (QueryHeapProp(Device, D3D12_HEAP_TYPE_UPLOAD)), 
     HeapDefault (QueryHeapProp(Device, D3D12_HEAP_TYPE_DEFAULT)), 
-    HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK))
+    HeapReadback(QueryHeapProp(Device, D3D12_HEAP_TYPE_READBACK)),
+    FeatureLevel(featLv), IsDxCore(isDxcore)
 {
     {
         const auto luid = GetLUID();
@@ -51,7 +54,19 @@ DxDevice_::DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device>
 
 #define CheckFeat(dev, feat) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev)
 #define CheckFeat2(dev, feat, ...) CheckFeat_<D3D12_FEATURE_DATA_##feat>(D3D12_FEATURE_##feat, dev, __VA_ARGS__)
-    if (const auto feat = CheckFeat2(Device, SHADER_MODEL, D3D_SHADER_MODEL_6_5))
+    for (int smver = 0x69; smver >= 0x60; smver--) // loop smver to fit different OS version.
+    {
+        const auto ret = CheckFeat2(Device, SHADER_MODEL, static_cast<D3D_SHADER_MODEL>(smver));
+        if (ret)
+        {
+            SMVer = (ret->HighestShaderModel & 0xf) + (ret->HighestShaderModel >> 4) * 10;
+            break;
+        }
+        else if (ret.HResult.Value != E_INVALIDARG)
+            COMMON_THROWEX(DxException, ret.HResult, u"Failed to check SM version");
+    }
+    SMVer = std::max(SMVer, 51u); // at least SM5.1 for DX12
+    if (const auto feat = CheckFeat2(Device, SHADER_MODEL, D3D_SHADER_MODEL(0x66)))
         SMVer = (feat->HighestShaderModel & 0xf) + (feat->HighestShaderModel >> 4) * 10;
     else
         COMMON_THROWEX(DxException, feat.HResult, u"Failed to check SM version");
@@ -135,48 +150,61 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             }
         }
 #endif
-        IDXGIFactory4* factory = nullptr;
-        THROW_HR(CreateDXGIFactory(IID_PPV_ARGS(&factory)), u"Cannot create DXGIFactory");
-
         std::vector<std::unique_ptr<DxDevice_>> devs;
-        for (uint32_t idx = 0; ; ++idx)
+
+        const auto CreateDevice = [&](IUnknown* adapter, std::u16string_view name, bool isDxcore) -> DxDevice_*
         {
-            IDXGIAdapter1* adapter = nullptr;
-            if (factory->EnumAdapters1(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
-                break;
-            DXGI_ADAPTER_DESC1 desc = {};
-            if (FAILED(adapter->GetDesc1(&desc)))
-                continue;
-            std::u16string_view adapterName = reinterpret_cast<const char16_t*>(desc.Description);
-            /*if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                dxLog().verbose(u"Skip software adapter [{}].\n", adapterName);
-                continue;
-            }*/
+            constexpr std::array<std::pair<D3D_FEATURE_LEVEL, FeatureLevels>, 2> FeatureLvs = 
+            { 
+                std::pair{ D3D_FEATURE_LEVEL_12_0,     FeatureLevels::Dx12  }, 
+                std::pair{ D3D_FEATURE_LEVEL_1_0_CORE, FeatureLevels::Core1 } 
+            };
+            std::array<common::HResultHolder, FeatureLvs.size()> hrs = {};
+
             ID3D12Device* device = nullptr;
+            for (size_t fid = 0; fid < FeatureLvs.size(); ++fid)
             {
-                constexpr std::array<D3D_FEATURE_LEVEL, 2> FeatureLvs =
-                    { D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_1_0_CORE };
-                std::array<common::HResultHolder, 2> hrs = { };
-                for (size_t fid = 0; fid < FeatureLvs.size(); ++fid)
+                const auto [featEnum, featLv] = FeatureLvs[fid];
+                hrs[fid] = D3D12CreateDevice(adapter, featEnum, IID_PPV_ARGS(&device));
+                if (hrs[fid] && device)
                 {
-                    hrs[fid] = D3D12CreateDevice(adapter, FeatureLvs[fid], IID_PPV_ARGS(&device));
-                    if (hrs[fid])
-                        break;
-                }
-                if (!device)
-                {
-                    dxLog().warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", adapterName, hrs[0], hrs[1]);
-                    continue;
+                    dxLog().verbose(u"Created device on [{}].\n", name);
+                    auto& dev = devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, 
+                        name, featLv, isDxcore)));
+                    return dev.get();
                 }
             }
-            dxLog().verbose(u"Created device on {}.\n", adapterName);
-            devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, adapterName)));
-        }
+            Expects(!device);
+            dxLog().warning(u"Failed to created device on [{}]:\n12_0: {}\nCore1_0: {}\n", name, hrs[0], hrs[1]);
+            return nullptr;
+        };
+
+        // dx12 need dxgi1.4, and dxgi1.4 need win10
+        IDXGIFactory4* dxgiFactory = nullptr;
+        THROW_HR(CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory)), u"Cannot create DXGIFactory4");
+        std::vector<LUID> dxgiLUIDs;
+        const auto CreateByDxgi = [&](IDXGIAdapter1* adapter) -> bool
+        {
+            DXGI_ADAPTER_DESC1 desc = {};
+            if (FAILED(adapter->GetDesc1(&desc)))
+                return false;
+            for (const auto& luid : dxgiLUIDs)
+                if (luid.HighPart == desc.AdapterLuid.HighPart && luid.LowPart == desc.AdapterLuid.LowPart)
+                    return true; // adapter already created a device, skip
+
+            const auto name = common::str::TrimStringView<char16_t>(reinterpret_cast<const char16_t*>(desc.Description), u' ');
+            const auto dev = CreateDevice(adapter, name, false);
+            if (dev)
+            {
+                dxgiLUIDs.emplace_back(desc.AdapterLuid);
+                dev->IsSoftware = desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE;
+                return true;
+            }
+            return false;
+        };
 
 #ifdef HAS_DXCORE
-        const auto dxcore = common::DynLib::TryCreate(L"dxcore.dll");
-        if (dxcore)
+        if (const auto dxcore = common::DynLib::TryCreate(L"dxcore.dll"); dxcore)
         {
             const auto CreateAdapterFactory = dxcore.GetFunction<PFN_DXCoreCreateAdapterFactory>("DXCoreCreateAdapterFactory");
 
@@ -189,29 +217,49 @@ common::span<const DxDevice> DxDevice_::GetDevices()
             {
                 IDXCoreAdapter* adapter = nullptr;
                 coreAdapters->GetAdapter(i, &adapter);
-                if (adapter)
+                if (!adapter)
+                    continue;
+                // use dxgi for GPU
+                // see https://github.com/microsoft/Windows-Machine-Learning/blob/master/Tools/WinMLRunner/src/LearningModelDeviceHelper.cpp#L167-L171
+                if (adapter->IsAttributeSupported(DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS))
                 {
-                    size_t descSize = 0;
-                    THROW_HR(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &descSize), u"Cannot get adapter name size");
-                    std::string desc(descSize, '\0');
-                    THROW_HR(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, descSize, desc.data()), u"Cannot get adapter name");
-                    std::u16string adapterName(desc.begin(), desc.end());
-
-                    ID3D12Device* device = nullptr;
+                    LUID luid;
+                    THROW_HR(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, &luid), u"Cannot get adapter LUID");
+                    IDXGIAdapter1* dxgiAdapter = nullptr;
+                    if (const common::HResultHolder hr = dxgiFactory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgiAdapter)); hr && dxgiAdapter)
                     {
-                        common::HResultHolder hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_1_0_CORE, IID_PPV_ARGS(&device));
-                        if (!device)
-                        {
-                            dxLog().warning(u"Failed to create device on [{}]:\nCore1_0: {}\n", adapterName, hr);
+                        if (CreateByDxgi(dxgiAdapter))
                             continue;
-                        }
                     }
-                    dxLog().verbose(u"Create device on {}.\n", adapterName);
-                    devs.emplace_back(MAKE_ENABLER_UNIQUE(DxDevice_, (PtrProxy<detail::Adapter>{ adapter }, PtrProxy<detail::Device>{ device }, adapterName)));
+                }
+
+                //use dxcore for creation
+                size_t nameSize = 0;
+                THROW_HR(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &nameSize), u"Cannot get adapter name size");
+                std::string name_(nameSize, '\0');
+                THROW_HR(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name_.data()), u"Cannot get adapter name");
+                const auto name = common::str::TrimStringView<char>(name_);
+                std::u16string adapterName(name.begin(), name.end());
+                bool isHW = true;
+                THROW_HR(adapter->GetProperty(DXCoreAdapterProperty::IsHardware, &isHW), u"Cannot get adapter isHardware");
+
+                const auto dev = CreateDevice(adapter, adapterName, true);
+                if (dev)
+                {
+                    dev->IsSoftware = !isHW;
                 }
             }
         }
 #endif
+        for (uint32_t idx = 0; ; ++idx)
+        {
+            IDXGIAdapter1* adapter = nullptr;
+            if (dxgiFactory->EnumAdapters1(idx, &adapter) == DXGI_ERROR_NOT_FOUND)
+                break;
+
+            Ensures(adapter);
+            CreateByDxgi(adapter);
+        }
 
         return devs;
     }();

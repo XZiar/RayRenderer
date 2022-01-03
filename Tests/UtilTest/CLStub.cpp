@@ -381,32 +381,37 @@ static void OCLStub()
         log().error(u"No OpenCL platform found!\n");
         return;
     }
+    std::vector<std::pair<oclDevice, uint32_t>> allDevs;
+    {
+        uint32_t idx = 0;
+        for (const auto& plat : plats)
+        {
+            for (const auto& dev : plat->GetDevices())
+                allDevs.emplace_back(dev, idx);
+            idx++;
+        }}
     while (true)
     {
-        const auto platidx = SelectIdx(plats, u"platform", [](const auto& plat)
-            {
-                return FMTSTR(u"{} [{} dev] {{{}}}", plat->Name, plat->GetDevices().size(), plat->Ver);
-            });
-        const auto plat = plats[platidx];
-
-        const auto devs = plat->GetDevices();
-        if (devs.size() == 0)
         {
-            log().error(u"No OpenCL device on the platform [{}]!\n", plat->Name);
-            return;
+            common::mlog::SyncConsoleBackend();
+            size_t idx = 0;
+            for (const auto& plat : plats)
+                GetConsole().Print(common::CommonColor::BrightWhite, 
+                    FMTSTR(u"platform[{}]{} [{} dev] {{{}}}\n", idx++, plat->Name, plat->GetDevices().size(), plat->Ver));
         }
-        const auto devidx = SelectIdx(devs, u"device", [&](const auto& dev) 
+        const auto devidx = SelectIdx(allDevs, u"device", [&](const auto& devpair)
             {
-                return FMTSTR(u"[{}][@{:1}]{}  {{{} | {}}}\t[{} CU]", 
+                const auto& [dev, idx] = devpair;
+                return FMTSTR(u"[{}][@{:1}][plat{:2}]{}  {{{} | {}}}\t[{} CU]", 
                     dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_',
-                    dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
+                    idx, dev->Name, dev->Ver, dev->CVer, dev->ComputeUnits);
             });
-        const auto dev = devs[devidx];
+        const auto dev = allDevs[devidx].first;
 
-        const auto ctx = plat->CreateContext(dev);
+        const auto ctx = dev->Platform->CreateContext(dev);
         ctx->OnMessage += [](const auto& str) { log().debug(u"[MSG]{}\n", str); };
         auto que = oclCmdQue_::Create(ctx, dev);
-        log().success(u"Create context with [{}] on [{}]!\n", dev->Name, plat->Name);
+        log().success(u"Create context with [{}] on [{}]!\n", dev->Name, dev->Platform->Name);
         //ClearReturn();
         //SimpleTest(ctx);
         while (true)

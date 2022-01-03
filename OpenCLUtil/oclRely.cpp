@@ -43,13 +43,6 @@ std::pair<uint32_t, uint32_t> ParseVersionString(std::u16string_view str, const 
 }
 
 
-void ProcessCLStr(std::string& str)
-{
-    if (const auto pos = str.find_last_not_of("\0 "sv); pos != std::string::npos)
-        str.resize(pos + 1); // resize to null-terminated and trim trailing space
-}
-
-
 namespace detail
 {
 

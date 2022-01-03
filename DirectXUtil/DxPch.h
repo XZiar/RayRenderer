@@ -76,7 +76,7 @@ struct type : public dxtype             \
     __VA_ARGS__                         \
 }
 
-ProxyType(Adapter,              IDXGIAdapter1);
+ProxyType(Adapter,              IUnknown);
 ProxyType(Device,               ID3D12Device);
 ProxyType(QueryHeap,            ID3D12QueryHeap);
 ProxyType(CmdAllocator,         ID3D12CommandAllocator);

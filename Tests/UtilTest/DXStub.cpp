@@ -342,12 +342,24 @@ static void DXStub()
     }
     while (true)
     {
+        constexpr auto GetFeatLvStr = [](dxu::FeatureLevels lv)
+        {
+            switch (lv)
+            {
+            case dxu::FeatureLevels::Core1: return u"Core1"sv;
+            case dxu::FeatureLevels::Dx9:   return u"Dx9"sv;
+            case dxu::FeatureLevels::Dx10:  return u"Dx10"sv;
+            case dxu::FeatureLevels::Dx11:  return u"Dx11"sv;
+            case dxu::FeatureLevels::Dx12:  return u"Dx12"sv;
+            default:                        return u"Error"sv;
+            }
+        };
         const auto devidx = isAuto ? 0u : SelectIdx(devs, u"device", [&](DxDevice dev)
             {
-                return FMTSTR(u"[{}][@{:1}]{} {{SM{}.{}}}\t [{:3} {:3}]", 
-                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_', 
-                    dev->AdapterName, dev->SMVer / 10, dev->SMVer % 10,
-                    dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
+                return FMTSTR(u"[{}][@{:1}]{} \t {:5}{{SM{}.{}}}[{:2}|{:3}|{:3}]", 
+                    dev->PCIEAddress, dev->XCompDevice ? GetIdx36(dev->XCompDevice - commondevs.data()) : '_', dev->AdapterName, 
+                    GetFeatLvStr(dev->FeatureLevel), dev->SMVer / 10, dev->SMVer % 10, 
+                    dev->IsSoftware ? u"SW"sv : u"HW"sv, dev->IsTBR ? u"TBR"sv : u""sv, dev->IsUMA ? u"UMA"sv : u""sv);
             });
         const auto& dev = devs[devidx];
         const auto cmdque = DxComputeCmdQue_::Create(dev);

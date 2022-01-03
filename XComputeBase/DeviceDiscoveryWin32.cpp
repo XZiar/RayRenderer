@@ -6,6 +6,7 @@
 #include "SystemCommon/StringFormat.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/AlignedBuffer.hpp"
+#include "common/StringEx.hpp"
 
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX 1
@@ -342,14 +343,15 @@ static void GatherDeviceInfoByDxCore(const D3DKMTHelper& helper, std::vector<Com
         {
             size_t nameSize = 0;
             FAILED_CONTINUE(adapter->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &nameSize), u"Cannot get adapter name size: {}\n");
-            std::string name(nameSize, '\0');
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name.data()), u"Cannot get adapter name: {}\n", name);
+            std::string name_(nameSize, '\0');
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::DriverDescription, nameSize, name_.data()), u"Cannot get adapter name: {}\n");
+            const auto name = common::str::TrimStringView<char>(name_);
 
             LUID luid;
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, sizeof(luid), &luid), u"Cannot get adapter LUID for [{}]: {}\n", name);
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::InstanceLuid, &luid), u"Cannot get adapter LUID for [{}]: {}\n", name);
 
             DXCoreHardwareID hwId;
-            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::HardwareID, sizeof(DXCoreHardwareID), &hwId), u"Cannot get adapter ID for [{}]: {}\n", name);
+            FAILED_CONTINUE(adapter->GetProperty(DXCoreAdapterProperty::HardwareID, &hwId), u"Cannot get adapter ID for [{}]: {}\n", name);
 
             auto& info = infos.emplace_back();
             info.Name.assign(name.begin(), name.end());

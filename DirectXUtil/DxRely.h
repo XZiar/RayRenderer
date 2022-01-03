@@ -109,9 +109,9 @@ struct PtrProxy
         ptr.~PtrProxy();
         return *this;
     }
-    T* Ptr() const noexcept 
+    auto Ptr() const noexcept
     {
-        return reinterpret_cast<T*>(Pointer);
+        return reinterpret_cast<T::RealType*>(Pointer);
     }
     template<typename U>
     PtrProxy<U>& AsDerive() noexcept
@@ -121,17 +121,17 @@ struct PtrProxy
     }
     operator T* () const noexcept
     {
-        return Ptr();
+        return reinterpret_cast<T*>(Pointer);
     }
     constexpr explicit operator bool() const noexcept
     {
         return Pointer != nullptr;
     }
-    T& operator*() const noexcept
+    auto& operator*() const noexcept
     {
         return *Ptr();
     }
-    T* operator->() const noexcept
+    auto operator->() const noexcept
     {
         return Ptr();
     }

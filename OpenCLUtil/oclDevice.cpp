@@ -15,12 +15,11 @@ using namespace std::literals;
 
 static string GetStr(const detail::PlatFuncs* funcs, const cl_device_id DeviceID, const cl_device_info type)
 {
-    string ret;
     size_t size = 0;
     funcs->clGetDeviceInfo(DeviceID, type, 0, nullptr, &size);
-    ret.resize(size, '\0');
+    std::string ret(size, '\0');
     funcs->clGetDeviceInfo(DeviceID, type, size, ret.data(), &size);
-    ProcessCLStr(ret);
+    common::str::TrimString(ret);
     return ret;
 }
 static u16string GetUStr(const detail::PlatFuncs* funcs, const cl_device_id DeviceID, const cl_device_info type)
@@ -221,6 +220,8 @@ std::optional<std::array<std::byte, 8>> oclDevice_::GetLUID() const noexcept
             return luid;
         }
     }
+    if (XCompDevice)
+        return XCompDevice->Luid;
     return {};
 }
 std::optional<std::array<std::byte, 16>> oclDevice_::GetUUID() const noexcept
@@ -231,6 +232,8 @@ std::optional<std::array<std::byte, 16>> oclDevice_::GetUUID() const noexcept
         if (CL_SUCCESS == Funcs->clGetDeviceInfo(*DeviceID, CL_DEVICE_UUID_KHR, sizeof(uuid), &uuid, nullptr))
             return uuid;
     }
+    if (XCompDevice)
+        return XCompDevice->Guid;
     return {};
 }
 

@@ -18,6 +18,11 @@ class DxShader_;
 class DxProgram_;
 class DxBindingManager;
 
+enum class FeatureLevels : uint8_t 
+{
+    Core1 = 0, Dx9 = 128, Dx10, Dx11, Dx12
+};
+
 class DXUAPI COMMON_EMPTY_BASES DxDevice_ : public common::NonCopyable, public common::NonMovable
 {
     friend DxQueryProvider;
@@ -32,15 +37,17 @@ protected:
     PtrProxy<detail::Device> Device;
 public:
     ~DxDevice_();
-
     [[nodiscard]] static common::span<const DxDevice> GetDevices();
-public:
+
     std::u16string AdapterName;
     const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
     uint32_t SMVer = 0;
     std::pair<uint32_t, uint32_t> WaveSize = { 0,0 };
     xcomp::PCI_BDF PCIEAddress;
     std::pair<CPUPageProps, MemPrefer> HeapUpload, HeapDefault, HeapReadback;
+    FeatureLevels FeatureLevel;
+    bool IsDxCore           : 1 = false;
+    bool IsSoftware         : 1 = false;
     bool IsTBR              : 1 = false;
     bool IsUMA              : 1 = false;
     bool IsUMACacheCoherent : 1 = false;
@@ -57,7 +64,8 @@ public:
     [[nodiscard]] std::array<std::byte, 8> GetLUID() const noexcept;
 private:
     MAKE_ENABLER();
-    DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, std::u16string_view name);
+    DxDevice_(PtrProxy<detail::Adapter> adapter, PtrProxy<detail::Device> device, 
+        std::u16string_view name, FeatureLevels featLv, bool isDxcore);
 };
 
 

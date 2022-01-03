@@ -13,34 +13,77 @@ namespace common
 namespace str
 {
 
-
 template<typename Char>
-inline std::basic_string_view<Char> TrimStringView(const std::basic_string_view<Char> sv, const Char obj)
+[[nodiscard]] inline constexpr std::basic_string_view<Char> TrimStringView(std::basic_string_view<Char> sv, const Char obj) noexcept
 {
     const auto pStart = sv.find_first_not_of(obj);
     if (pStart == sv.npos)
         return {};
-    const auto pEnd = sv.find_last_not_of(obj);
+    sv.remove_prefix(pStart);
+    const auto pEnd = sv.find_last_not_of(obj); // ensured not npos
+    return sv.substr(0, pEnd + 1);
+}
+
+namespace detail
+{
+template<typename Char>
+inline constexpr std::basic_string_view<Char> GetTrimEndSv() noexcept
+{
+    using namespace std::string_view_literals;
+         if constexpr (std::is_same_v<Char, char>)     return   "\0 "sv;
+    else if constexpr (std::is_same_v<Char, wchar_t>)  return  L"\0 "sv;
+    else if constexpr (std::is_same_v<Char, char16_t>) return  u"\0 "sv;
+    else if constexpr (std::is_same_v<Char, char32_t>) return  U"\0 "sv;
+#if defined(__cpp_char8_t) && __cpp_char8_t >= 201811L
+    else if constexpr (std::is_same_v<Char, char8_t>)  return u8"\0 "sv;
+#endif
+    else static_assert(!AlwaysTrue<Char>, "unsupportted char type");
+
+}
+}
+
+// trim space and null-terminator
+template<typename Char>
+[[nodiscard]] inline constexpr std::basic_string_view<Char> TrimStringView(std::basic_string_view<Char> sv) noexcept
+{
+    const auto pStart = sv.find_first_not_of(static_cast<Char>(' '));
+    if (pStart == sv.npos)
+        return {};
+    const auto pEnd = sv.find_last_not_of(detail::GetTrimEndSv<Char>());
+    if (pEnd == sv.npos)
+        return {};
     return sv.substr(pStart, pEnd - pStart + 1);
 }
 
+// resize to null-terminated and trim trailing space
 template<typename Char>
-inline std::basic_string_view<Char> TrimPairStringView(const std::basic_string_view<Char> sv, const Char front, const Char back)
+inline void TrimString(std::basic_string<Char>& str) noexcept
 {
-    const auto pStart = sv.find_first_not_of(front);
-    if (pStart == sv.npos)
-        return sv;
-    const auto pEnd = sv.find_last_not_of(back);
-    if (pStart == sv.npos)
-        return sv;
-    const auto count = std::min(pStart, sv.size() - pEnd - 1);
-    return sv.substr(count, sv.size() - 2 * count);
+    const auto pStart = str.find_first_not_of(static_cast<Char>(' '));
+    if (pStart == str.npos)
+        str.clear();
+    else
+    {
+        const auto pEnd = str.find_last_not_of(detail::GetTrimEndSv<Char>());
+        if (pEnd == str.npos)
+            str.clear();
+        else if (pStart == 0)
+            str.resize(pEnd + 1);
+        else
+            str = str.substr(pStart, pEnd - pStart + 1);
+    }
 }
 
+// trim some pairs of chars
 template<typename Char>
-inline std::basic_string_view<Char> TrimPairStringView(const std::basic_string_view<Char> sv, const Char obj)
+[[nodiscard]] inline constexpr std::basic_string_view<Char> TrimPairStringView(std::basic_string_view<Char> sv, const Char obj) noexcept
 {
-    return TrimPairStringView(sv, obj, obj);
+    const auto pStart = sv.find_first_not_of(obj);
+    if (pStart == sv.npos) // all are obj or empty
+        return sv.substr(sv.size() / 2, sv.empty() ? 0 : 1);
+    const auto pEnd = sv.find_last_not_of(obj); // ensured not npos
+    const auto count = std::min(pStart, sv.size() - pEnd - 1);
+    return sv.substr(count, sv.size() - 2 * count);
 }
 
 template<typename Char>
