@@ -590,7 +590,7 @@ DEFINE_FASTPATH_METHOD(Sha256, SHANI)
     return Sha256Main128<Sha256Round_SHANI>(data, size);
 }
 
-# elif COMMON_ARCH_ARM
+# elif COMMON_ARCH_ARM && defined(__ARM_FEATURE_CRYPTO)
 
 #   pragma message("Compiling DigestFuncs with SHA2")
 struct Sha256Round_SHA2 : public Sha256State

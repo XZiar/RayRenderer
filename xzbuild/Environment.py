@@ -77,6 +77,15 @@ def strToVer(verstr:str, count:int) -> int:
         muler /= 100
     return int(ver)
 
+def loadConfig() -> dict:
+    try:
+        with open(os.path.join(os.path.expanduser("~"), ".xzbuild.json")) as fp:
+            conf = json.load(fp)
+            print("System user config loaded.")
+            return conf.get("params", {})
+    except:
+        return {}
+
 def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     solDir = os.getcwd()
     xzbuildPath = os.path.relpath(os.path.abspath(os.path.dirname(__file__)), solDir)

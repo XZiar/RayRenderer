@@ -4,6 +4,7 @@
 #include "common/StrParsePack.hpp"
 #include "common/StaticLookup.hpp"
 #include <shared_mutex>
+#include <mutex>
 
 namespace xcomp
 {

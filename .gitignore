@@ -255,3 +255,5 @@ kernel*_ispc*.h
 /.vscode
 /__pycache__
 /xzbuild/__pycache__
+
+xzbuild.user.json

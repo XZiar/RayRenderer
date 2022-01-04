@@ -268,16 +268,22 @@ class ProjectSet:
         if os.path.isfile(solFile):
             with open(solFile, 'r') as f:
                 solData = json.load(f)
-            
-            if "environments" in solData:
-                for x in solData["environments"]:
-                    addEnv(env, x, None)
-            else:
-                addEnv(env, solData, "environment")
-
+            for x in solData.get("environments", []):
+                addEnv(env, x, None)
             combinePath(solData, "incDirs", env)
             combinePath(solData, "libDirs", env)
             a,d = PList.solveElementList(solData, "defines", env)
+            env["defines"] = PList.combineElements([], a, d)
+
+        usrFile = os.path.join(solDir, "xzbuild.user.json")
+        if os.path.isfile(usrFile):
+            with open(usrFile, 'r') as f:
+                usrData = json.load(f)
+            for x in usrData.get("environments", []):
+                addEnv(env, x, None)
+            combinePath(usrData, "incDirs", env)
+            combinePath(usrData, "libDirs", env)
+            a,d = PList.solveElementList(usrData, "defines", env)
             env["defines"] = PList.combineElements([], a, d)
                 
 

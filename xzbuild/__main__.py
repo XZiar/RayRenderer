@@ -13,7 +13,7 @@ if not __package__:
 from xzbuild import COLOR
 from xzbuild.Target import _AllTargets
 from xzbuild.Project import ProjectType, Project, ProjectSet
-from xzbuild.Environment import collectEnv, writeEnv
+from xzbuild.Environment import loadConfig, collectEnv, writeEnv
 
 def help():
     print(f"{COLOR.white}python3 xzbuild {COLOR.cyan}<build|clean|buildall|cleanall|rebuild|rebuildall> <project,[project]|all> "
@@ -104,7 +104,7 @@ def parseProj(proj:str, projs:ProjectSet):
         else: print(f"{COLOR.red}Unknwon project{COLOR.cyan}[{x}]{COLOR.clear}")
     return wanted
 
-def main(argv:list, paras:dict):
+def main(argv:list, params:dict):
     try:
         action = argv[0]
         if action == "help":
@@ -112,7 +112,9 @@ def main(argv:list, paras:dict):
             return 0
 
         # initialize environment data
-        env = collectEnv(paras, argv[3] if len(argv) > 3 else None, argv[2] if len(argv) > 2 else None)
+        baseParams = loadConfig()
+        params = {**baseParams, **params}
+        env = collectEnv(params, argv[3] if len(argv) > 3 else None, argv[2] if len(argv) > 2 else None)
         for t in _AllTargets:
             t.initEnv(env)
         ProjectSet.loadSolution(env)
@@ -156,6 +158,6 @@ def main(argv:list, paras:dict):
     pass
 
 args  = [x for x in sys.argv[1:] if not x.startswith("/")]
-paras = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
-paras = {p[0]:"=".join(p[1:]) for p in paras}
-sys.exit(main(args, paras))
+params = [x[1:].split("=") for x in sys.argv[1:] if x.startswith("/")]
+params = {p[0]:"=".join(p[1:]) for p in params}
+sys.exit(main(args, params))
