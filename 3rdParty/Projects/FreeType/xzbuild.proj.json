@@ -2,7 +2,7 @@
     "name": "FreeType",
     "type": "static",
     "description": "A freely available software library to render fonts",
-    "version": "2.11.0",
+    "version": "2.11.1",
     "dependency": ["zlib-ng", "png"],
     "srcPath": "../../FreeType",
     "library": 

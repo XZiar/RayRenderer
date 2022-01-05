@@ -2,7 +2,7 @@
     "name": "zlib-ng",
     "type": "static",
     "description": "zlib replacement with optimizations for \"next generation\" systems",
-    "version": "2.0.5",
+    "version": "2.0.6",
     "dependency": [],
     "srcPath": "../../zlib-ng",
     "library": 
@@ -25,8 +25,9 @@
                 {"ifin": {"intrin": "ssse3"},   "+": ["X86_SSSE3", "X86_SSSE3_ADLER32"]},
                 {"ifin": {"intrin": "sse2"},    "+": ["X86_SSE2", "X86_SSE2_CHUNKSET", "X86_SSE2_SLIDEHASH"]},
                 {"ifin": {"intrin": "neon"},    "+": ["ARM_NEON_ADLER32", "ARM_NEON_CHUNKSET", "ARM_NEON_SLIDEHASH"]},
-                {"ifin": {"intrin": "acle_crc"},"+": ["ARM_ACLE_CRC_HASH"]},
-                {"ifin": {"arch": "arm"}, "ifge": {"armArch": 8}, "+": ["UNALIGNED64_OK"]},
+                {"ifin": {"intrin": "acle_crc"}, "ifge": {"armArch": 8}, "+": ["ARM_ACLE_CRC_HASH"]},
+                {"ifin": {"arch": "arm"},        "ifge": {"armArch": 8}, "+": ["UNALIGNED64_OK"]},
+                {"ifin": {"arch": "arm"},        "ifeq": {"bits": 64},   "+": ["UNALIGNED64_OK"]},
                 "HAVE_VISIBILITY_HIDDEN", "HAVE_VISIBILITY_INTERNAL", "HAVE_BUILTIN_CTZ", "HAVE_BUILTIN_CTZL",
                 "_LARGEFILE64_SOURCE=1", "__USE_LARGEFILE64", "HAVE_UNISTD_H", "HAVE_STDARG_H",
                 "ZLIB_COMPAT", "WITH_GZFILEOP", "UNALIGNED_OK"

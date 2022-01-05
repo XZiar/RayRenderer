@@ -42,16 +42,6 @@
 #ifdef __unix__ // for unix
 #define HAVE_UNISTD_H 1
 #define HAVE_FCNTL_H 1
-
-#undef FT_USE_AUTOCONF_SIZEOF_TYPES
-#ifdef FT_USE_AUTOCONF_SIZEOF_TYPES
-
-#undef SIZEOF_INT
-#undef SIZEOF_LONG
-#define FT_SIZEOF_INT  SIZEOF_INT
-#define FT_SIZEOF_LONG SIZEOF_LONG
-
-#endif /* FT_USE_AUTOCONF_SIZEOF_TYPES */
 #endif
 
 #include <freetype/config/integer-types.h>

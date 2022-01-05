@@ -36,7 +36,7 @@ It's bitfield arrangement is listed below
 
 ## Dependency
 
-* [zlib-ng](https://github.com/zlib-ng/zlib-ng) `submodule` 2.0.5
+* [zlib-ng](https://github.com/zlib-ng/zlib-ng) `submodule` 2.0.6
 
   [zlib License](../3rdParty/zlib-ng/LICENSE.md)
 
@@ -44,7 +44,7 @@ It's bitfield arrangement is listed below
 
   [libpng License](../3rdParty/libpng/LICENSE)
 
-* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage) `submodule`  2.1.0
+* [libjpeg-turbo](https://www.libjpeg-turbo.org/Main/HomePage) `submodule`  2.1.2
 
   [IJG License, BSD-3 License, zlib License](../3rdParty/libjpeg-turbo/LICENSE.md)
   
