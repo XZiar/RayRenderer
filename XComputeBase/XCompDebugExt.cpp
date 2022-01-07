@@ -13,52 +13,55 @@ using namespace std::string_view_literals;
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTION(xziar::nailang::NailangRuntimeException, __VA_ARGS__))
 
 
-template<typename V3, typename V4, typename IV4>
+template<typename V2, typename V3, typename IV3, typename V4, typename IV4>
 void TestVec()
 {
-    V3 a3, b3;
-    const auto c3 = Dot(a3, b3);
-    const auto d3 = Cross(a3, b3);
-    const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
-    const auto f3 = e3.Length();
+    static_assert(sizeof(V2)  == 8);
+    static_assert(sizeof(V3)  == 16);
+    static_assert(sizeof(IV3) == 16);
+    static_assert(sizeof(V4)  == 16);
+    static_assert(sizeof(IV4) == 16);
 
-    V4 a4, b4;
-    const auto c4 = Dot(a4, b4);
-    const auto e4 = (a4[1] + Min(c4, d3.template As<V4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
-    const auto f4 = e4.Length();
+    V2 a2, b2, d2;
+    [[maybe_unused]] const auto c2 = Dot(a2, b2);
+    [[maybe_unused]] const auto e2 = (a2[1] + Min(c2, d2)) + (b2[1] - Max(a2, b2)) - c2 + a2[0] - b2[0];
+    [[maybe_unused]] const auto f2 = b2[1] / (a2[1] * (e2 * a2[0] / b2[1]));
+    [[maybe_unused]] const auto g2 = e2.Sqrt().Negative().Length();
 
-    IV4 a5, b5;
-    const auto c5 = Dot(a5, b5);
-    const auto e5 = (a5[1] + Min(c5, d3.template As<IV4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
+    V3 a3, b3(1.0f, b2);
+    [[maybe_unused]] const auto c3 = Dot(a3, b3);
+    [[maybe_unused]] const auto d3 = Cross(a3, b3);
+    [[maybe_unused]] const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
+    [[maybe_unused]] const auto f3 = b3[1] / (a3[1] * (e3 * a3[0] / b3[1]));
+    [[maybe_unused]] const auto g3 = e3.Sqrt().Negative().Length();
+
+    IV3 a3i, b3i;
+    [[maybe_unused]] const auto c3i = Dot(a3i, b3i);
+    [[maybe_unused]] const auto e3i = (a3i[1] + Min(c3i, d3.template As<IV3>())) + (b3i[1] - Max(a3i, b3i)) - c3i + a3i[0] - b3i[0];
+    [[maybe_unused]] const auto f3i = b3i[1] / (a3i[1] * (e3i * a3i[0] / b3i[1]));
+    [[maybe_unused]] const auto g3i = e3i.Negative().LengthSqr();
+
+    V4 a4(a2, b2), b4(3.0f, b3);
+    [[maybe_unused]] const auto c4 = Dot(a4, b4);
+    [[maybe_unused]] const auto e4 = (a4[1] + Min(c4, d3.template As<V4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
+    [[maybe_unused]] const auto f4 = b4[1] / (a4[1] * (e4 * a4[0] / b4[1]));
+    [[maybe_unused]] const auto g4 = e4.Sqrt().Negative().Length();
+
+    IV4 a4i, b4i;
+    [[maybe_unused]] const auto c4i = Dot(a4i, b4i);
+    [[maybe_unused]] const auto e4i = (a4i[1] + Min(c4i, d3.template As<IV4>())) + (b4i[1] - Max(a4i, b4i)) - c4i + a4i[0] - b4i[0];
+    [[maybe_unused]] const auto f4i = b4i[1] / (a4i[1] * (e4i * a4i[0] / b4i[1]));
+    [[maybe_unused]] const auto g4i = e4i.Negative().LengthSqr();
 }
-
-template<> void TestVec<math::base::Vec3, math::base::Vec4, math::base::IVec4>();
-template<> void TestVec<math::simd::Vec3, math::simd::Vec4, math::simd::IVec4>();
 
 void TestVec2()
 {
-    /*static_assert(std::is_base_of<xcomp::math::base::Vec4Base<typename math::base::Vec4::EleType, math::base::Vec4>, math::base::Vec4>::value);
-    static_assert(common::is_specialization<std::vector<int>, std::vector>::value);
-    static_assert(common::is_specialization<math::base::Vec4, xcomp::math::base::Vec4Base>::value);*/
-    math::base::Vec3 a3, b3;
-    const auto c3 = Dot(a3, b3);
-    const auto d3 = Cross(a3, b3);
-    const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
-    const auto f3 = b3[1] / (a3[1] * (e3 * a3[0] / b3[1]));
-    const auto g3 = e3.Sqrt().Negative().Length();
-
-    math::base::Vec4 a4, b4;
-    const auto c4 = Dot(a4, b4);
-    const auto e4 = (a4[1] + Min(c4, d3.template As<math::base::Vec4>())) + (b4[1] - Max(a4, b4)) - c4 + a4[0] - b4[0];
-    const auto f4 = b4[1] / (a4[1] * (e4 * a4[0] / b4[1]));
-    const auto g4 = e4.Sqrt().Negative().Length();
-
-    math::base::IVec4 a5, b5;
-    const auto c5 = Dot(a5, b5);
-    const auto e5 = (a5[1] + Min(c5, d3.template As<math::base::IVec4>())) + (b5[1] - Max(a5, b5)) - c5 + a5[0] - b5[0];
-    const auto f5 = b5[1] / (a5[1] * (e5 * a5[0] / b5[1]));
-    const auto g5 = e5.Negative().LengthSqr();
+    using namespace math;
+    TestVec<base::Vec2, base::Vec3, base::IVec3, base::Vec4, base::IVec4>();
+    TestVec<simd::Vec2, simd::Vec3, simd::IVec3, simd::Vec4, simd::IVec4>();
+    [[maybe_unused]] base::Normal x, y, z = x + y;
 }
+
 
 template<typename F>
 static NamedVecPair GenerateInput(XCNLRuntime& runtime, std::u32string_view str, F&& errInfo)

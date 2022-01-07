@@ -15,6 +15,7 @@ template<> struct V4SimdConv<int32_t>  { using T = common::simd::I32x4; };
 template<> struct V4SimdConv<uint32_t> { using T = common::simd::U32x4; };
 template<typename T> using V4SIMD = typename V4SimdConv<T>::T;
 
+
 /*a vector contains 4 element(int32 or float)*/
 template<typename T>
 class alignas(16) Vec4Base
@@ -28,10 +29,9 @@ protected:
         T X, Y, Z, W;
     };
     constexpr Vec4Base(T x, T y, T z, T w) noexcept : Data(x, y, z, w) {}
-    constexpr Vec4Base(SIMDType val) noexcept : Data(val) {}
 public:
-    using EleType = T;
-    constexpr Vec4Base() noexcept : Data(0) { }
+    constexpr Vec4Base() noexcept : Data(SIMDType::AllZero()) { }
+    constexpr Vec4Base(SIMDType val) noexcept : Data(val) {}
 
     template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec4Base<typename V::EleType>, V>>>
     forceinline V& As() noexcept
@@ -58,7 +58,7 @@ struct VecBasic
         auto& self = *static_cast<const T*>(this);
         if constexpr (N == 4)
             self.Data.Save(ptr);
-        else
+        else if constexpr (N == 3)
             ptr[0] = self.X, ptr[1] = self.Y, ptr[2] = self.Z;
     }
 
@@ -66,7 +66,7 @@ struct VecBasic
     {
         if constexpr (N == 4)
             return U::Load(ptr);
-        else
+        else if constexpr (N == 3)
             return T{ ptr[0], ptr[1], ptr[2] };
     }
     forceinline static constexpr T Zeros() noexcept
@@ -152,7 +152,7 @@ struct FuncSMulDiv
         {
             if constexpr (N == 4)
                 return { left.X / right, left.Y / right, left.Z / right, left.W / right };
-            else
+            else if constexpr (N == 3)
                 return { left.X / right, left.Y / right, left.Z / right };
         }
     }
@@ -169,20 +169,20 @@ struct FuncVMulDivBase
 {
     forceinline friend constexpr R operator*(const T& left, const V& right) noexcept
     {
-        if constexpr (std::is_floating_point_v<decltype(right.Data.Val[0])>)
+        if constexpr (std::is_floating_point_v<typename T::EleType>)
             return left.Data.Mul(right.Data);
         else
             return left.Data.MulLo(right.Data);
     }
     forceinline friend constexpr R operator/(const T& left, const V& right) noexcept
     {
-        if constexpr (std::is_floating_point_v<decltype(right.Data.Val[0])>)
+        if constexpr (std::is_floating_point_v<typename T::EleType>)
             return left.Data.Mul(right.Data.Rcp());
         else
         {
             if constexpr (N == 4)
                 return { left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W };
-            else
+            else if constexpr (N == 3)
                 return { left.X / right.X, left.Y / right.Y, left.Z / right.Z };
         }
     }
@@ -211,9 +211,9 @@ struct FuncDotBase
         if constexpr (std::is_floating_point_v<E>)
         {
             if constexpr (N == 4)
-                return l.Data.Dot<common::simd::DotPos::XYZW>(r.Data);
+                return l.Data.template Dot<common::simd::DotPos::XYZW>(r.Data);
             else if constexpr (N == 3)
-                return l.Data.Dot<common::simd::DotPos::XYZ>(r.Data);
+                return l.Data.template Dot<common::simd::DotPos::XYZ> (r.Data);
         }
         else
         {
@@ -246,15 +246,15 @@ struct FuncFPMath
 {
     forceinline constexpr T Rcp() const noexcept
     {
-        return static_cast<const T*>(this)->Rcp();
+        return static_cast<const T*>(this)->Data.Rcp();
     }
     forceinline constexpr T Sqrt() const noexcept
     {
-        return static_cast<const T*>(this)->Sqrt();
+        return static_cast<const T*>(this)->Data.Sqrt();
     }
     forceinline constexpr T Rsqrt() const noexcept
     {
-        return static_cast<const T*>(this)->Rsqrt();
+        return static_cast<const T*>(this)->Data.Rsqrt();
     }
 };
 
@@ -264,12 +264,17 @@ struct FuncNegative
 {
     forceinline constexpr T Negative() const noexcept
     {
-        return static_cast<const T*>(this)->Neg();
+        return static_cast<const T*>(this)->Data.Neg();
     }
 };
 
 }
 
+#define VEC_EXTRA_DEF using Vec4Base::Data;
 #include "VecMain.hpp"
+#undef VEC_EXTRA_DEF
+using  Vec2 = base:: Vec2;
+using IVec2 = base::IVec2;
+using UVec2 = base::UVec2;
 
 }
