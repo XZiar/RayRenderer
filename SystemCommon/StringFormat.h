@@ -95,28 +95,6 @@ SYSCOMMONAPI [[nodiscard]] std::string& GetLocalString();
 
 }
 
-inline std::size_t strftime(char16_t* str, std::size_t count, const char16_t* format, const std::tm* time)
-{
-    auto& buffer = temp::GetLocalString();
-    buffer.resize(count);
-    const auto u7format = common::str::to_string(std::u16string_view(format), temp::Encoding::UTF7);
-    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
-    for (size_t idx = 0; idx < ret;)
-        *str++ = buffer[idx++];
-    return ret;
-}
-
-inline std::size_t strftime(char32_t* str, std::size_t count, const char32_t* format, const std::tm* time)
-{
-    auto& buffer = temp::GetLocalString();
-    buffer.resize(count);
-    const auto u7format = common::str::to_string(std::u32string_view(format), temp::Encoding::UTF7);
-    const auto ret = std::strftime(buffer.data(), count, u7format.c_str(), time);
-    for (size_t idx = 0; idx < ret;)
-        *str++ = buffer[idx++];
-    return ret;
-}
-
 
 constexpr inline size_t SizeTag   = size_t(0b11) << (sizeof(size_t) * 8 - 2);
 constexpr inline size_t CharTag   = size_t(0b00) << (sizeof(size_t) * 8 - 2);
