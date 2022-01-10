@@ -233,6 +233,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="MatBase.hpp" />
+    <ClInclude Include="MatMain.hpp" />
     <ClInclude Include="MatSIMD.hpp" />
     <ClInclude Include="VecBase.hpp" />
     <ClInclude Include="VecMain.hpp" />

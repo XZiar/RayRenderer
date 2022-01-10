@@ -80,73 +80,45 @@ struct VecBasic
 };
 
 
-template<typename E, size_t N, typename T, typename R>
-struct FuncSAdd
+template<typename E, size_t N, typename T>
+struct FuncSAddSubMulDiv
 {
-    forceinline friend constexpr R operator+(const T& left, const E right) noexcept
+    using U = V4SIMD<E>;
+    forceinline friend constexpr T operator+(const T& left, const E right) noexcept
     {
         return left.Data.Add(right);
     }
-    forceinline friend constexpr R operator+(const E left, const T& right) noexcept
+    forceinline friend constexpr T operator+(const E left, const T& right) noexcept
     {
         return right.Data.Add(left);
     }
-};
-template<size_t N, typename T, typename R, typename V>
-struct FuncVAddBase
-{
-    forceinline friend constexpr R operator+(const T& left, const V& right) noexcept
-    {
-        return left.Data.Add(right.Data);
-    }
-};
-
-
-template<typename E, size_t N, typename T, typename R>
-struct FuncSSub
-{
-    using U = V4SIMD<E>;
-    forceinline friend constexpr R operator-(const T& left, const E right) noexcept
+    forceinline friend constexpr T operator-(const T& left, const E right) noexcept
     {
         return left.Data.Sub(right);
     }
-    forceinline friend constexpr R operator-(const E left, const T& right) noexcept
+    forceinline friend constexpr T operator-(const E left, const T& right) noexcept
     {
         return U(left).Sub(right.Data);
     }
-};
-template<size_t N, typename T, typename R, typename V>
-struct FuncVSub
-{
-    forceinline friend constexpr R operator-(const T& left, const V& right) noexcept
-    {
-        return left.Data.Sub(right.Data);
-    }
-};
-
-
-template<typename E, size_t N, typename T, typename R>
-struct FuncSMulDiv
-{
-    forceinline friend constexpr R operator*(const T& left, const E right) noexcept
+    forceinline friend constexpr T operator*(const T& left, const E right) noexcept
     {
         if constexpr (std::is_floating_point_v<E>)
             return left.Data.Mul(right);
         else
             return left.Data.MulLo(right);
     }
-    forceinline friend constexpr R operator*(const E left, const T& right) noexcept
+    forceinline friend constexpr T operator*(const E left, const T& right) noexcept
     {
         if constexpr (std::is_floating_point_v<E>)
             return right.Data.Mul(left);
         else
             return right.Data.MulLo(left);
     }
-    forceinline friend constexpr R operator/(const T& left, const E right) noexcept
+    forceinline friend constexpr T operator/(const T& left, const E right) noexcept
     {
         if constexpr (std::is_floating_point_v<E>)
         {
-            return left * (E(1) / right);
+            return left * (static_cast<E>(1) / right);
         }
         else
         {
@@ -156,7 +128,7 @@ struct FuncSMulDiv
                 return { left.X / right, left.Y / right, left.Z / right };
         }
     }
-    forceinline friend constexpr R operator/(const E left, const T& right) noexcept
+    forceinline friend constexpr T operator/(const E left, const T& right) noexcept
     {
         if constexpr (std::is_floating_point_v<E>)
             return right.Data.Rcp().Mul(left);
@@ -164,17 +136,26 @@ struct FuncSMulDiv
             return T{ left } / right;
     }
 };
-template<size_t N, typename T, typename R, typename V>
-struct FuncVMulDivBase
+
+template<typename E, size_t N, typename T>
+struct FuncVAddSubMulDiv
 {
-    forceinline friend constexpr R operator*(const T& left, const V& right) noexcept
+    forceinline friend constexpr T operator+(const T& left, const T& right) noexcept
+    {
+        return left.Data.Add(right.Data);
+    }
+    forceinline friend constexpr T operator-(const T& left, const T& right) noexcept
+    {
+        return left.Data.Sub(right.Data);
+    }
+    forceinline friend constexpr T operator*(const T& left, const T& right) noexcept
     {
         if constexpr (std::is_floating_point_v<typename T::EleType>)
             return left.Data.Mul(right.Data);
         else
             return left.Data.MulLo(right.Data);
     }
-    forceinline friend constexpr R operator/(const T& left, const V& right) noexcept
+    forceinline friend constexpr T operator/(const T& left, const T& right) noexcept
     {
         if constexpr (std::is_floating_point_v<typename T::EleType>)
             return left.Data.Mul(right.Data.Rcp());

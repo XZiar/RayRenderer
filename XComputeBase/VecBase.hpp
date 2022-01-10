@@ -96,8 +96,231 @@ struct Concater
 
 }
 
+
+namespace shared
+{
+
+template<typename T>
+struct FuncSelfCalc
+{
+    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() + std::declval<X>()), T>>>
+    forceinline constexpr T& operator+=(const X& other) noexcept
+    {
+        auto& self = *static_cast<T*>(this);
+        self = self + other;
+        return self;
+    }
+    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() - std::declval<X>()), T>>>
+    forceinline constexpr T& operator-=(const X& other) noexcept
+    {
+        auto& self = *static_cast<T*>(this);
+        self = self - other;
+        return self;
+    }
+    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>()* std::declval<X>()), T>>>
+    forceinline constexpr T& operator*=(const X& other) noexcept
+    {
+        auto& self = *static_cast<T*>(this);
+        self = self * other;
+        return self;
+    }
+    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() / std::declval<X>()), T>>>
+    forceinline constexpr T& operator/=(const X& other) noexcept
+    {
+        auto& self = *static_cast<T*>(this);
+        self = self / other;
+        return self;
+    }
+};
+
+}
+
+
 namespace base
 {
+
+namespace basics
+{
+
+namespace detail
+{
+template<typename T>
+using RcpTyper = decltype(std::declval<const T&>().Rcp());
+template<typename T>
+inline static constexpr bool HasRcp = common::is_detected_v<RcpTyper, T>;
+}
+
+
+template<size_t N, typename T, typename R, typename U>
+struct SameAddSubMulDiv
+{
+    static_assert(!std::is_same_v<T, U>);
+    forceinline static constexpr R Add(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X + right, left.Y + right, left.Z + right, left.W + right };
+        else if constexpr (N == 3)
+            return { left.X + right, left.Y + right, left.Z + right };
+        else if constexpr (N == 2)
+            return { left.X + right, left.Y + right };
+    }
+    forceinline static constexpr R Sub(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X - right, left.Y - right, left.Z - right, left.W - right };
+        else if constexpr (N == 3)
+            return { left.X - right, left.Y - right, left.Z - right };
+        else if constexpr (N == 2)
+            return { left.X - right, left.Y - right };
+    }
+    forceinline static constexpr R Sub(const U& left, const T& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left - right.X, left - right.Y, left - right.Z, left - right.W };
+        else if constexpr (N == 3)
+            return { left - right.X, left - right.Y, left - right.Z };
+        else if constexpr (N == 2)
+            return { left - right.X, left - right.Y };
+    }
+    forceinline static constexpr R Mul(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X * right, left.Y * right, left.Z * right, left.W * right };
+        else if constexpr (N == 3)
+            return { left.X * right, left.Y * right, left.Z * right };
+        else if constexpr (N == 2)
+            return { left.X * right, left.Y * right };
+    }
+    forceinline static constexpr R Div(const T& left, const U& right) noexcept
+    {
+        if constexpr (std::is_floating_point_v<U>)
+            return Mul(left, (static_cast<U>(1) / right));
+        else if constexpr (detail::HasRcp<U>)
+            return Mul(left, right.Rcp());
+        else
+        {
+            if constexpr (N == 4)
+                return { left.X / right, left.Y / right, left.Z / right, left.W / right };
+            else if constexpr (N == 3)
+                return { left.X / right, left.Y / right, left.Z / right };
+            else if constexpr (N == 2)
+                return { left.X / right, left.Y / right };
+        }
+    }
+    forceinline static constexpr R Div(const U& left, const T& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left / right.X, left / right.Y, left / right.Z, left / right.W };
+        else if constexpr (N == 3)
+            return { left / right.X, left / right.Y, left / right.Z };
+        else if constexpr (N == 2)
+            return { left / right.X, left / right.Y };
+    }
+};
+
+template<size_t N, typename T, typename R, typename U>
+struct EachAddSubMulDiv
+{
+    forceinline static constexpr R Add(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W };
+        else if constexpr (N == 3)
+            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z };
+        else if constexpr (N == 2)
+            return { left.X + right.X, left.Y + right.Y };
+    }
+    forceinline static constexpr R Sub(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X - right.X, left.Y - right.Y, left.Z - right.Z, left.W - right.W };
+        else if constexpr (N == 3)
+            return { left.X - right.X, left.Y - right.Y, left.Z - right.Z };
+        else if constexpr (N == 2)
+            return { left.X - right.X, left.Y - right.Y };
+    }
+    forceinline static constexpr R Mul(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X * right.X, left.Y * right.Y, left.Z * right.Z, left.W * right.W };
+        else if constexpr (N == 3)
+            return { left.X * right.X, left.Y * right.Y, left.Z * right.Z };
+        else if constexpr (N == 2)
+            return { left.X * right.X, left.Y * right.Y };
+    }
+    forceinline static constexpr R Div(const T& left, const U& right) noexcept
+    {
+        if constexpr (N == 4)
+            return { left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W };
+        else if constexpr (N == 3)
+            return { left.X / right.X, left.Y / right.Y, left.Z / right.Z };
+        else if constexpr (N == 2)
+            return { left.X / right.X, left.Y / right.Y };
+    }
+};
+
+
+template<size_t N, typename T, typename R, typename U>
+struct FuncSameAddSubMulDiv
+{
+    static_assert(!std::is_same_v<T, U>);
+    forceinline friend constexpr R operator+(const T& left, const U& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Add(left, right);
+    }
+    forceinline friend constexpr R operator+(const U& left, const T& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Add(right, left);
+    }
+    forceinline friend constexpr R operator-(const T& left, const U& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Sub(left, right);
+    }
+    forceinline friend constexpr R operator-(const U& left, const T& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Sub(left, right);
+    }
+    forceinline friend constexpr R operator*(const T& left, const U& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Mul(left, right);
+    }
+    forceinline friend constexpr R operator*(const U& left, const T& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Mul(right, left);
+    }
+    forceinline friend constexpr R operator/(const T& left, const U& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Div(left, right);
+    }
+    forceinline friend constexpr R operator/(const U& left, const T& right) noexcept
+    {
+        return SameAddSubMulDiv<N, T, R, U>::Div(left, right);
+    }
+};
+
+
+template<size_t N, typename T, typename R, typename U>
+struct FuncEachAddSubMulDiv
+{
+    forceinline friend constexpr R operator+(const T& left, const U& right) noexcept
+    {
+        return EachAddSubMulDiv<N, T, R, U>::Add(left, right);
+    }
+    forceinline friend constexpr R operator-(const T& left, const U& right) noexcept
+    {
+        return EachAddSubMulDiv<N, T, R, U>::Sub(left, right);
+    }
+    forceinline friend constexpr R operator*(const T& left, const U& right) noexcept
+    {
+        return EachAddSubMulDiv<N, T, R, U>::Mul(left, right);
+    }
+    forceinline friend constexpr R operator/(const T& left, const U& right) noexcept
+    {
+        return EachAddSubMulDiv<N, T, R, U>::Div(left, right);
+    }
+};
+
+}
 
 namespace vec
 {
@@ -202,129 +425,10 @@ struct VecBasic
 };
 
 
-template<typename E, size_t N, typename T, typename R>
-struct FuncSAdd
-{
-    forceinline friend constexpr R operator+(const T& left, const E right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X + right, left.Y + right, left.Z + right, left.W + right };
-        else if constexpr (N == 3)
-            return { left.X + right, left.Y + right, left.Z + right };
-        else if constexpr (N == 2)
-            return { left.X + right, left.Y + right };
-    }
-    forceinline friend constexpr R operator+(const E left, const T& right) noexcept
-    {
-        return right + left;
-    }
-};
-template<size_t N, typename T, typename R, typename V>
-struct FuncVAddBase
-{
-    forceinline friend constexpr R operator+(const T& left, const V& right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W };
-        else if constexpr (N == 3)
-            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z };
-        else if constexpr (N == 2)
-            return { left.X + right.X, left.Y + right.Y };
-    }
-};
-
-
-template<typename E, size_t N, typename T, typename R>
-struct FuncSSub
-{
-    forceinline friend constexpr R operator-(const T& left, const E right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X - right, left.Y - right, left.Z - right, left.W - right };
-        else if constexpr (N == 3)
-            return { left.X - right, left.Y - right, left.Z - right };
-        else if constexpr (N == 2)
-            return { left.X - right, left.Y - right };
-    }
-    forceinline friend constexpr R operator-(const E left, const T& right) noexcept
-    {
-        return T{ left } - right;
-    }
-};
-template<size_t N, typename T, typename R, typename V>
-struct FuncVSub
-{
-    forceinline friend constexpr R operator-(const T& left, const V& right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W };
-        else if constexpr (N == 3)
-            return { left.X + right.X, left.Y + right.Y, left.Z + right.Z };
-        else if constexpr (N == 2)
-            return { left.X + right.X, left.Y + right.Y };
-    }
-};
-
-
-template<typename E, size_t N, typename T, typename R>
-struct FuncSMulDiv
-{
-    forceinline friend constexpr R operator*(const T& left, const E right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X * right, left.Y * right, left.Z * right, left.W * right };
-        else if constexpr (N == 3)
-            return { left.X * right, left.Y * right, left.Z * right };
-        else if constexpr (N == 2)
-            return { left.X * right, left.Y * right };
-    }
-    forceinline friend constexpr R operator*(const E left, const T& right) noexcept
-    {
-        return right * left;
-    }
-    forceinline friend constexpr R operator/(const T& left, const E right) noexcept
-    {
-        if constexpr (std::is_floating_point_v<E>)
-        {
-            return left * (E(1) / right);
-        }
-        else
-        {
-            if constexpr (N == 4)
-                return { left.X / right, left.Y / right, left.Z / right, left.W / right };
-            else if constexpr (N == 3)
-                return { left.X / right, left.Y / right, left.Z / right };
-            else if constexpr (N == 2)
-                return { left.X / right, left.Y / right };
-        }
-    }
-    forceinline friend constexpr R operator/(const E left, const T& right) noexcept
-    {
-        return T{ left } / right;
-    }
-};
-template<size_t N, typename T, typename R, typename V>
-struct FuncVMulDivBase
-{
-    forceinline friend constexpr R operator*(const T& left, const V& right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X * right.X, left.Y * right.Y, left.Z * right.Z, left.W * right.W };
-        else if constexpr (N == 3)
-            return { left.X * right.X, left.Y * right.Y, left.Z * right.Z };
-        else if constexpr (N == 2)
-            return { left.X * right.X, left.Y * right.Y };
-    }
-    forceinline friend constexpr R operator/(const T& left, const V& right) noexcept
-    {
-        if constexpr (N == 4)
-            return { left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W };
-        else if constexpr (N == 3)
-            return { left.X / right.X, left.Y / right.Y, left.Z / right.Z };
-        else if constexpr (N == 2)
-            return { left.X / right.X, left.Y / right.Y };
-    }
-};
+template<typename E, size_t N, typename T>
+using FuncSAddSubMulDiv = basics::FuncSameAddSubMulDiv<N, T, T, E>;
+template<typename E, size_t N, typename T>
+using FuncVAddSubMulDiv = basics::FuncEachAddSubMulDiv<N, T, T, T>;
 
 
 template<size_t N, typename T>

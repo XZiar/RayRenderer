@@ -2,7 +2,7 @@
 #include "Nailang/NailangRuntime.h"
 #include "VecBase.hpp"
 #include "VecSIMD.hpp"
-//#include "MatBase.hpp"
+#include "MatBase.hpp"
 
 namespace xcomp::debug
 {

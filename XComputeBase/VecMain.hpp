@@ -2,32 +2,6 @@
 namespace vec
 {
 
-template<size_t N, typename T, typename R, typename V>
-struct FuncVAdd : public FuncVAddBase<N, T, R, V>
-{
-    forceinline friend constexpr R operator+(const V left, const T& right) noexcept
-    {
-        return right + left;
-    }
-};
-template<size_t N, typename T, typename R>
-struct FuncVAdd<N, T, R, T> : public FuncVAddBase<N, T, R, T>
-{ };
-
-
-template<size_t N, typename T, typename R, typename V>
-struct FuncVMulDiv : public FuncVMulDivBase<N, T, R, V>
-{
-    forceinline friend constexpr R operator*(const V left, const T& right) noexcept
-    {
-        return right * left;
-    }
-};
-template<size_t N, typename T, typename R>
-struct FuncVMulDiv<N, T, R, T> : public FuncVMulDivBase<N, T, R, T>
-{ };
-
-
 template<typename E, size_t N, typename T>
 struct FuncDot : public FuncDotBase<E, N, T>
 {
@@ -47,46 +21,10 @@ struct FuncDot : public FuncDotBase<E, N, T>
     }
 };
 
-
-template<typename T>
-struct FuncSelfCalc
-{
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() + std::declval<X>()), T>>>
-    forceinline constexpr T& operator+=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self + other;
-        return self;
-    }
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() - std::declval<X>()), T>>>
-    forceinline constexpr T& operator-=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self - other;
-        return self;
-    }
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() * std::declval<X>()), T>>>
-    forceinline constexpr T& operator*=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self * other;
-        return self;
-    }
-    template<typename X, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<T>() / std::declval<X>()), T>>>
-    forceinline constexpr T& operator/=(const X& other) noexcept
-    {
-        auto& self = *static_cast<T*>(this);
-        self = self / other;
-        return self;
-    }
-};
-
 template<typename E, size_t N, typename T>
 struct COMMON_EMPTY_BASES FuncBasics : public VecBasic<E, N, T>,
-    public FuncSAdd   <E, N, T, T>, public FuncVAdd   <N, T, T, T>, 
-    public FuncSSub   <E, N, T, T>, public FuncVSub   <N, T, T, T>,
-    public FuncSMulDiv<E, N, T, T>, public FuncVMulDiv<N, T, T, T>,
-    public FuncDot    <E, N, T>,    public FuncMinMax <   N, T>, public FuncSelfCalc <      T>
+    public FuncSAddSubMulDiv<E, N, T>, public FuncVAddSubMulDiv<E, N, T>, public shared::FuncSelfCalc<      T>,
+    public FuncDot<E, N, T>, public FuncMinMax<   N, T>
 { };
 
 }
@@ -128,7 +66,7 @@ struct COMMON_EMPTY_BASES alignas(8) IVec2 : public rule::ElementBasic<int32_t, 
 };
 
 struct COMMON_EMPTY_BASES alignas(8) UVec2 : public rule::ElementBasic<uint32_t, 2, 2>, public vec::Vec2Base<uint32_t>,
-    public vec::FuncBasics<uint32_t, 2, UVec2>, public vec::FuncNegative<2, UVec2>
+    public vec::FuncBasics<uint32_t, 2, UVec2>
 {
     using EleType = uint32_t;
     using Vec2Base::X;
@@ -146,8 +84,8 @@ struct COMMON_EMPTY_BASES alignas(8) UVec2 : public rule::ElementBasic<uint32_t,
 #endif
 
 struct COMMON_EMPTY_BASES alignas(16) Vec3 : public rule::ElementBasic<float, 3, 4>, public vec::Vec4Base<float>, 
-    public vec::FuncBasics<float, 3, Vec3>, public vec::FuncNegative<3, Vec3>,
-    public vec::FuncCross<Vec3>, public vec::FuncFPMath<3, Vec3>
+    public vec::FuncBasics<float, 3, Vec3>, public vec::FuncNegative<3, Vec3>, public vec::FuncFPMath<3, Vec3>,
+    public vec::FuncCross<Vec3>
 {
     using EleType = float;
     using Vec4Base::X;
