@@ -207,6 +207,18 @@ template<typename T, typename SIMDType>
 struct Shuffle64Common
 {
     // shuffle operations
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 2, "shuffle index should be in [0,1]");
+        using V = typename T::VecType;
+        const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
+#if COMMON_SIMD_LV >= 200
+        return AsType<V>(vdupq_laneq_u64(data, Idx));
+#else
+        return AsType<V>(vdupq_n_u64(vgetq_lane_u64(data, Idx)));
+#endif
+    }
     template<uint8_t Lo, uint8_t Hi>
     forceinline T VECCALL Shuffle() const
     {
@@ -214,11 +226,7 @@ struct Shuffle64Common
         using V = typename T::VecType;
         const auto data = AsType<uint64x2_t>(static_cast<const T*>(this)->Data);
         if constexpr (Lo == Hi)
-#if COMMON_SIMD_LV >= 200
-            return AsType<V>(vdupq_laneq_u64(data, Lo));
-#else
-            return AsType<V>(vdupq_n_u64(vgetq_lane_u64(data, Lo)));
-#endif
+            return Broadcast<Lo>();
         else if constexpr (Lo == 0 && Hi == 1)
             return AsType<V>(data);
         else
@@ -262,6 +270,20 @@ struct Shuffle64Common
         else
             msk = AsType<uint64x2_t>(mask.Data);
         return AsType<SIMDType>(vbslq_u64(msk, AsType<uint64x2_t>(other.Data), AsType<uint64x2_t>(static_cast<const T*>(this)->Data)));
+    }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        static_assert(Mask <= 0b11, "Only allow 2 bits");
+        if constexpr (Mask == 0b00)
+            return *static_cast<const T*>(this);
+        else if constexpr (Mask == 0b11)
+            return other;
+        else
+        {
+            alignas(16) constexpr int64_t maskVal[] = { static_cast<int64_t>(Mask & 0b1 ? -1 : 0), static_cast<int64_t>(Mask & 0b10 ? -1 : 0) };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s64(maskVal)));
+        }
     }
 };
 
@@ -356,6 +378,18 @@ template<typename T, typename SIMDType>
 struct Shuffle32Common
 {
     // shuffle operations
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 4, "shuffle index should be in [0,3]"); 
+        using V = typename T::VecType;
+        const auto data = AsType<uint32x4_t>(static_cast<const T*>(this)->Data);
+#if COMMON_SIMD_LV >= 200
+        return AsType<V>(vdupq_laneq_u32(data, Idx));
+#else
+        return AsType<V>(vdupq_n_u32(vgetq_lane_u32(data, Idx)));
+#endif
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline T VECCALL Shuffle() const
     {
@@ -365,11 +399,7 @@ struct Shuffle32Common
         if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Hi3 == 3)
             return AsType<V>(data);
         else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Hi3)
-#if COMMON_SIMD_LV >= 200
-            return AsType<V>(vdupq_laneq_u32(data, Lo0));
-#else
-            return AsType<V>(vdupq_n_u32(vgetq_lane_u32(data, Lo0)));
-#endif
+            return Broadcast<Lo0>();
         else if constexpr (Lo1 == (Lo0 + 1) % 4 && Lo2 == (Lo1 + 1) % 4 && Hi3 == (Lo2 + 1) % 4)
             return AsType<V>(vextq_u32(data, data, Lo0));
         else if constexpr (Lo0 == Lo1 && Lo2 == Hi3) // xxyy
@@ -476,6 +506,24 @@ struct Shuffle32Common
             msk = AsType<uint32x4_t>(mask.Data);
         return AsType<SIMDType>(vbslq_u32(msk, AsType<uint32x4_t>(other.Data), AsType<uint32x4_t>(static_cast<const T*>(this)->Data)));
     }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        static_assert(Mask <= 0b1111, "Only allow 4 bits");
+        if constexpr (Mask == 0b0000)
+            return *static_cast<const T*>(this);
+        else if constexpr (Mask == 0b1111)
+            return other;
+        else
+        {
+            alignas(16) constexpr int32_t maskVal[] = 
+            { 
+                static_cast<int32_t>(Mask & 0b1   ? -1 : 0), static_cast<int32_t>(Mask & 0b10   ? -1 : 0),
+                static_cast<int32_t>(Mask & 0b100 ? -1 : 0), static_cast<int32_t>(Mask & 0b1000 ? -1 : 0),
+            };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s32(maskVal)));
+        }
+    }
 };
 
 
@@ -573,6 +621,18 @@ private:
 public:
     using Neon128Common::Neon128Common; 
     // shuffle operations
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 8, "shuffle index should be in [0,7]");
+        using V = typename T::VecType;
+        const auto data = AsType<uint16x8_t>(this->Data);
+#if COMMON_SIMD_LV >= 200
+        return AsType<V>(vdupq_laneq_u16(data, Lo0));
+#else
+        return AsType<V>(vdupq_n_u16(vgetq_lane_u16(data, Lo0)));
+#endif
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
     forceinline T VECCALL Shuffle() const
     {
@@ -582,11 +642,7 @@ public:
         if constexpr (Lo0 == 0 && Lo1 == 1 && Lo2 == 2 && Lo3 == 3 && Lo4 == 4 && Lo5 == 5 && Lo6 == 6 && Hi7 == 7)
             return AsType<V>(data);
         else if constexpr (Lo0 == Lo1 && Lo1 == Lo2 && Lo2 == Lo3 && Lo3 == Lo4 && Lo5 == Lo6 && Lo6 == Hi7)
-#if COMMON_SIMD_LV >= 200
-            return AsType<V>(vdupq_laneq_u16(data, Lo0));
-#else
-            return AsType<V>(vdupq_n_u16(vgetq_lane_u16(data, Lo0)));
-#endif
+            return Broadcast<Lo0>();
         else if constexpr (Lo1 == (Lo0 + 1) % 8 && Lo2 == (Lo1 + 1) % 8 && Lo3 == (Lo2 + 1) % 8 && 
             Lo4 == (Lo3 + 1) % 8 && Lo5 == (Lo4 + 1) % 8 && Lo6 == (Lo5 + 1) % 8 && Hi7 == (Lo6 + 1) % 8)
             return AsType<V>(vextq_u16(data, data, Lo0));
@@ -690,6 +746,25 @@ public:
             msk = AsType<uint16x8_t>(mask.Data);
         return AsType<SIMDType>(vbslq_u16(msk, AsType<uint16x8_t>(other.Data), AsType<uint16x8_t>(this->Data)));
     }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        if constexpr (Mask == 0b00000000)
+            return *static_cast<const T*>(this);
+        else if constexpr (Mask == 0b11111111)
+            return other;
+        else
+        {
+            alignas(16) constexpr int16_t maskVal[] =
+            {
+                static_cast<int16_t>(Mask & 0b1       ? -1 : 0), static_cast<int16_t>(Mask & 0b10       ? -1 : 0),
+                static_cast<int16_t>(Mask & 0b100     ? -1 : 0), static_cast<int16_t>(Mask & 0b1000     ? -1 : 0),
+                static_cast<int16_t>(Mask & 0b10000   ? -1 : 0), static_cast<int16_t>(Mask & 0b100000   ? -1 : 0),
+                static_cast<int16_t>(Mask & 0b1000000 ? -1 : 0), static_cast<int16_t>(Mask & 0b10000000 ? -1 : 0),
+            };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s16(maskVal)));
+        }
+    }
 
     // arithmetic operations
     forceinline T VECCALL ShiftLeftLogic (const uint8_t bits) const
@@ -773,6 +848,18 @@ private:
 public:
     using Neon128Common::Neon128Common;
     // shuffle operations
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 16, "shuffle index should be in [0,15]");
+        using V = typename T::VecType;
+        const auto data = AsType<uint16x8_t>(this->Data);
+#if COMMON_SIMD_LV >= 200
+        return AsType<V>(vdupq_laneq_u8(data, Lo0));
+#else
+        return AsType<V>(vdupq_n_u8(vgetq_lane_u8(data, Lo0)));
+#endif
+    }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
     forceinline T VECCALL Shuffle() const
     {
@@ -819,6 +906,29 @@ public:
         else
             msk = AsType<uint8x16_t>(mask.Data);
         return AsType<SIMDType>(vbslq_u8(msk, AsType<uint8x16_t>(other.Data), AsType<uint8x16_t>(this->Data)));
+    }
+    template<uint16_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        if constexpr (Mask == 0x0)
+            return *static_cast<const T*>(this);
+        else if constexpr (Mask == 0xffff)
+            return other;
+        else
+        {
+            alignas(16) constexpr int8_t maskVal[] =
+            {
+                MEle8<Mask & 0x1>,        MEle8<Mask & 0x2>,        MEle8<Mask & 0x4>,        MEle8<Mask & 0x8>,
+                MEle8<Mask & 0x10>,       MEle8<Mask & 0x20>,       MEle8<Mask & 0x40>,       MEle8<Mask & 0x80>,
+                MEle8<Mask & 0x100>,      MEle8<Mask & 0x200>,      MEle8<Mask & 0x400>,      MEle8<Mask & 0x800>,
+                MEle8<Mask & 0x1000>,     MEle8<Mask & 0x2000>,     MEle8<Mask & 0x4000>,     MEle8<Mask & 0x8000>,
+                MEle8<Mask & 0x10000>,    MEle8<Mask & 0x20000>,    MEle8<Mask & 0x40000>,    MEle8<Mask & 0x80000>,
+                MEle8<Mask & 0x100000>,   MEle8<Mask & 0x200000>,   MEle8<Mask & 0x400000>,   MEle8<Mask & 0x800000>,
+                MEle8<Mask & 0x1000000>,  MEle8<Mask & 0x2000000>,  MEle8<Mask & 0x4000000>,  MEle8<Mask & 0x8000000>,
+                MEle8<Mask & 0x10000000>, MEle8<Mask & 0x20000000>, MEle8<Mask & 0x40000000>, MEle8<Mask & 0x80000000>
+            };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s8(maskVal)));
+        }
     }
 
     // arithmetic operations
@@ -1029,9 +1139,28 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         return vmlaq_f32(adder.Data, Data, muler.Data);
 #endif
     }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL MulAdd(const F32x4& muler, const F32x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+        return vfmaq_laneq_f32(adder.Data, Data, muler.Data, Idx);
+#else
+        if constexpr (Idx < 2)
+            return vmlaq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data) Idx);
+        else
+            return vmlaq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data) Idx - 2);
+#endif
+    }
     forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
     {
         return MulAdd(muler, vnegq_f32(suber.Data));
+    }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulAdd<Idx>(muler, vnegq_f32(suber.Data));
     }
     forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
     {
@@ -1041,9 +1170,28 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         return vmlsq_f32(adder.Data, Data, muler.Data);
 #endif
     }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+#if COMMON_SIMD_LV >= 200
+        return vfmsq_laneq_f32(adder.Data, Data, muler.Data, Idx);
+#else
+        if constexpr (Idx < 2)
+            return vmlsq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data) Idx);
+        else
+            return vmlsq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data) Idx - 2);
+#endif
+    }
     forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
         return vnegq_f32(MulAdd(muler, suber.Data));
+    }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return vnegq_f32(MulAdd<Idx>(muler, suber.Data));
     }
     template<DotPos Mul>
     forceinline float VECCALL Dot(const F32x4& other) const

@@ -50,6 +50,10 @@ struct alignas(T) Pack
 
 namespace detail
 {
+
+template<typename T, bool Set> inline constexpr T MaskedElement = static_cast<T>(Set ? -1 : 0);
+template<bool Set> inline constexpr char MEle8 = MaskedElement<char, Set>;
+
 template<typename To, typename From>
 forceinline To AsType(From) noexcept
 {

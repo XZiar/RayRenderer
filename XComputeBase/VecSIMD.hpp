@@ -6,7 +6,7 @@
 namespace xcomp::math::simd
 {
 
-namespace vec
+namespace simds
 {
 
 template<typename T> struct V4SimdConv;
@@ -15,18 +15,36 @@ template<> struct V4SimdConv<int32_t>  { using T = common::simd::I32x4; };
 template<> struct V4SimdConv<uint32_t> { using T = common::simd::U32x4; };
 template<typename T> using V4SIMD = typename V4SimdConv<T>::T;
 
+}
 
+namespace vec
+{
+
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic push
+#   pragma clang diagnostic ignored "-Wnested-anon-types"
+#   pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_ICC
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wpedantic"
+#elif COMMON_COMPILER_MSVC
+#   pragma warning(push)
+#   pragma warning(disable:4201)
+#endif
 /*a vector contains 4 element(int32 or float)*/
 template<typename T>
 class alignas(16) Vec4Base
 {
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
-    using SIMDType = V4SIMD<T>;
+    using SIMDType = simds::V4SIMD<T>;
     union
     {
         SIMDType Data;
-        T X, Y, Z, W;
+        struct
+        {
+            T X, Y, Z, W;
+        };
     };
     constexpr Vec4Base(T x, T y, T z, T w) noexcept : Data(x, y, z, w) {}
 public:
@@ -47,12 +65,19 @@ public:
     forceinline constexpr T operator[](size_t idx) const noexcept { return Data.Val[idx]; }
     forceinline constexpr T& operator[](size_t idx) noexcept { return Data.Val[idx]; }
 };
+#if COMMON_COMPILER_CLANG
+#   pragma clang diagnostic pop
+#elif COMMON_COMPILER_GCC || COMMON_COMPILER_ICC
+#   pragma GCC diagnostic pop
+#elif COMMON_COMPILER_MSVC
+#   pragma warning(pop)
+#endif
 
 
 template<typename E, size_t N, typename T>
 struct VecBasic
 {
-    using U = V4SIMD<E>;
+    using U = simds::V4SIMD<E>;
     forceinline constexpr void Save(E* ptr) const noexcept
     {
         auto& self = *static_cast<const T*>(this);
@@ -83,7 +108,7 @@ struct VecBasic
 template<typename E, size_t N, typename T>
 struct FuncSAddSubMulDiv
 {
-    using U = V4SIMD<E>;
+    using U = simds::V4SIMD<E>;
     forceinline friend constexpr T operator+(const T& left, const E right) noexcept
     {
         return left.Data.Add(right);

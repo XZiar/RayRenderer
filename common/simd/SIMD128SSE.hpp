@@ -133,6 +133,12 @@ public:
         default: return T(); // should not happen
         }
     }
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 2, "shuffle index should be in [0,1]");
+        return Shuffle<Idx, Idx>();
+    }
 #if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const
     {
@@ -159,6 +165,25 @@ public:
         if constexpr (Msk != MaskType::FullEle)
             mask = _mm_srai_epi32(_mm_shuffle_epi32(mask, 0xf5), 32); // make sure all bits are covered
         return mask.AndNot(this->Data).Or(mask.And(other.Data));
+#endif
+    }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        static_assert(Mask <= 0b11, "Only allow 2 bits");
+#if COMMON_SIMD_LV >= 200
+        return _mm_blend_epi32(this->Data, other.Data, (Mask & 0b1 ? 0b11 : 0b00) | (Mask & 0b10 ? 0b1100 : 0b0000));
+#elif COMMON_SIMD_LV >= 41
+        return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
+#else
+        if constexpr (Mask == 0b00)
+            return *this;
+        else if constexpr (Mask == 0b11)
+            return other;
+        else if constexpr (Mask == 0b01)
+            return _mm_castpd_si128(_mm_shuffle_pd(_mm_castsi128_pd(other.Data), _mm_castsi128_pd(this->Data), 0b10));
+        else if constexpr (Mask == 0b10)
+            return _mm_castpd_si128(_mm_shuffle_pd(_mm_castsi128_pd(this->Data), _mm_castsi128_pd(other.Data), 0b10));
 #endif
     }
 
@@ -266,6 +291,12 @@ public:
         return T(this->Val[Lo0], this->Val[Lo1], this->Val[Lo2], this->Val[Hi3]);
 #endif
     }
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 4, "shuffle index should be in [0,3]");
+        return Shuffle<Idx, Idx>();
+    }
 #if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const
     {
@@ -288,6 +319,28 @@ public:
         if constexpr (Msk != MaskType::FullEle)
             mask = _mm_srai_epi32(mask, 32); // make sure all bits are covered
         return mask.AndNot(this->Data).Or(mask.And(other.Data));
+#endif
+    }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        static_assert(Mask <= 0b1111, "Only allow 4 bits");
+#if COMMON_SIMD_LV >= 200
+        return _mm_blend_epi32(this->Data, other.Data, Mask);
+#elif COMMON_SIMD_LV >= 41
+        return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0b11 : 0) |
+            (Mask & 0b10 ? 0b1100 : 0) | (Mask & 0b100 ? 0b110000 : 0) | (Mask & 0b1000 ? 0b11000000 : 0));
+#else
+        if constexpr (Mask == 0b0000)
+            return *this;
+        else if constexpr (Mask == 0b1111)
+            return other;
+        else if constexpr (Mask == 0b0011)
+            return _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(other.Data), _mm_castsi128_ps(this->Data), 0b11100100));
+        else if constexpr (Mask == 0b1100)
+            return _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(this->Data), _mm_castsi128_ps(other.Data), 0b11100100));
+        else
+            return SelectWith<MaskType::FullEle>(other, _mm_setr_epi32(Mask & 0b1 ? -1 : 0, Mask & 0b10 ? -1 : 0, Mask & 0b100 ? -1 : 0, Mask & 0b1000 ? -1 : 0));
 #endif
     }
 
@@ -368,6 +421,30 @@ public:
         return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Hi7]);
 #endif
     }
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 8, "shuffle index should be in [0,7]");
+#if COMMON_SIMD_LV >= 200
+        auto shifted = this->Data;
+        if constexpr (Idx > 0)
+            shifted = _mm_srli_si128(this->Data, Idx * 2);
+        return _mm_broadcastw_epi16(shifted);
+#else
+        constexpr auto NewIdx = Idx % 4;
+        constexpr auto Idx4 = (NewIdx << 6) + (NewIdx << 4) + (NewIdx << 2) + NewIdx;
+        if constexpr (Idx < 4) // lo half
+        {
+            const auto lo = _mm_shufflelo_epi16(this->Data, Idx4);
+            return _mm_unpacklo_epi64(lo, lo);
+        }
+        else // hi half
+        {
+            const auto hi = _mm_shufflehi_epi16(this->Data, Idx4);
+            return _mm_unpackhi_epi64(hi, hi);
+        }
+#endif
+    }
 #if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const
     {
@@ -384,6 +461,11 @@ public:
         if constexpr(Msk != MaskType::FullEle)
             mask = _mm_srai_epi16(mask, 16); // make sure all bits are covered
         return _mm_blendv_epi8(this->Data, other.Data, mask);
+    }
+    template<uint8_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        return _mm_blend_epi16(this->Data, other.Data, Mask);
     }
 #endif
 
@@ -468,11 +550,57 @@ public:
         return T(Val[Lo0], Val[Lo1], Val[Lo2], Val[Lo3], Val[Lo4], Val[Lo5], Val[Lo6], Val[Lo7], Val[Lo8], Val[Lo9], Val[Lo10], Val[Lo11], Val[Lo12], Val[Lo13], Val[Lo14], Val[Hi15]);
 #endif
     }
+    template<uint8_t Idx>
+    forceinline T VECCALL Broadcast() const
+    {
+        static_assert(Idx < 16, "shuffle index should be in [0,15]");
+#if COMMON_SIMD_LV >= 200 && false
+        auto shifted = this->Data;
+        if constexpr (Idx > 0)
+            shifted = _mm_srli_si128(this->Data, Idx);
+        return _mm_broadcastb_epi8(shifted);
+#else
+        constexpr auto PairIdx = Idx % 8;
+        __m128i paired;
+        if constexpr (Idx < 8) // lo half
+            paired = _mm_unpacklo_epi8(this->Data, this->Data);
+        else // hi half
+            paired = _mm_unpackhi_epi8(this->Data, this->Data);
+        constexpr auto NewIdx = PairIdx % 4;
+        constexpr auto Idx4 = (NewIdx << 6) + (NewIdx << 4) + (NewIdx << 2) + NewIdx;
+        if constexpr (PairIdx < 4) // lo half
+        {
+            const auto lo = _mm_shufflelo_epi16(paired, Idx4);
+            return _mm_unpacklo_epi64(lo, lo);
+        }
+        else // hi half
+        {
+            const auto hi = _mm_shufflehi_epi16(paired, Idx4);
+            return _mm_unpackhi_epi64(hi, hi);
+        }
+#endif
+    }
     forceinline T VECCALL ZipLo(const T& other) const { return _mm_unpacklo_epi8(this->Data, other.Data); }
     forceinline T VECCALL ZipHi(const T& other) const { return _mm_unpackhi_epi8(this->Data, other.Data); }
 #if COMMON_SIMD_LV >= 41
     template<MaskType Msk>
     forceinline T VECCALL SelectWith(const T& other, T mask) const { return _mm_blendv_epi8(this->Data, other.Data, mask); }
+    template<uint16_t Mask>
+    forceinline T VECCALL SelectWith(const T& other) const
+    {
+        if constexpr (Mask == 0)
+            return *this;
+        else if constexpr (Mask == 0xffff)
+            return other;
+        else
+        {
+            return SelectWith<MaskType::FullEle>(other, _mm_setr_epi8(
+                MEle8<Mask & 0x1>,    MEle8<Mask & 0x2>,    MEle8<Mask & 0x4>,    MEle8<Mask & 0x8>,
+                MEle8<Mask & 0x10>,   MEle8<Mask & 0x20>,   MEle8<Mask & 0x40>,   MEle8<Mask & 0x80>,
+                MEle8<Mask & 0x100>,  MEle8<Mask & 0x200>,  MEle8<Mask & 0x400>,  MEle8<Mask & 0x800>,
+                MEle8<Mask & 0x1000>, MEle8<Mask & 0x2000>, MEle8<Mask & 0x4000>, MEle8<Mask & 0x8000>));
+        }
+    }
 #endif
 
     // arithmetic operations
@@ -579,6 +707,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         default: return F64x2(); // should not happen
         }
     }
+    template<uint8_t Idx>
+    forceinline F64x2 VECCALL Broadcast() const
+    {
+        static_assert(Idx < 2, "shuffle index should be in [0,1]");
+        return Shuffle<Idx, Idx>();
+    }
     forceinline F64x2 VECCALL ZipLo(const F64x2& other) const { return _mm_unpacklo_pd(Data, other); }
     forceinline F64x2 VECCALL ZipHi(const F64x2& other) const { return _mm_unpackhi_pd(Data, other); }
 #if COMMON_SIMD_LV >= 41
@@ -586,6 +720,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     forceinline F64x2 VECCALL SelectWith(const F64x2& other, F64x2 mask) const
     {
         return _mm_blendv_pd(this->Data, other.Data, mask);
+    }
+    template<uint8_t Mask>
+    forceinline F64x2 VECCALL SelectWith(const F64x2& other) const
+    {
+        static_assert(Mask <= 0b11, "Only allow 2 bits");
+        return _mm_blend_pd(this->Data, other.Data, Mask);
     }
 #endif
 
@@ -731,6 +871,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         return F32x4(Val[Lo0], Val[Lo1], Val[Lo2], Val[Hi3]);
 #endif
     }
+    template<uint8_t Idx>
+    forceinline F32x4 VECCALL Broadcast() const
+    {
+        static_assert(Idx < 4, "shuffle index should be in [0,3]");
+        return Shuffle<Idx, Idx, Idx, Idx>();
+    }
     forceinline F32x4 VECCALL ZipLo(const F32x4& other) const { return _mm_unpacklo_ps(Data, other); }
     forceinline F32x4 VECCALL ZipHi(const F32x4& other) const { return _mm_unpackhi_ps(Data, other); }
 #if COMMON_SIMD_LV >= 41
@@ -738,6 +884,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     forceinline F32x4 VECCALL SelectWith(const F32x4& other, F32x4 mask) const
     {
         return _mm_blendv_ps(this->Data, other.Data, mask);
+    }
+    template<uint8_t Mask>
+    forceinline F32x4 VECCALL SelectWith(const F32x4& other) const
+    {
+        static_assert(Mask <= 0b1111, "Only allow 4 bits");
+        return _mm_blend_ps(this->Data, other.Data, Mask);
     }
 #endif
 
@@ -801,6 +953,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         return _mm_add_ps(_mm_mul_ps(Data, muler.Data), adder.Data);
 #endif
     }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL MulAdd(const F32x4& muler, const F32x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -808,6 +966,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #else
         return _mm_sub_ps(_mm_mul_ps(Data, muler.Data), suber.Data);
 #endif
+    }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulSub(muler.Broadcast<Idx>(), suber);
     }
     forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
     {
@@ -817,6 +981,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         return _mm_sub_ps(adder.Data, _mm_mul_ps(Data, muler.Data));
 #endif
     }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL NMulAdd(const F32x4& muler, const F32x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return NMulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -824,6 +994,12 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
 #else
         return _mm_xor_ps(_mm_add_ps(_mm_mul_ps(Data, muler.Data), suber.Data), _mm_set1_ps(-0.));
 #endif
+    }
+    template<size_t Idx>
+    forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return NMulSub(muler.Broadcast<Idx>(), suber);
     }
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const

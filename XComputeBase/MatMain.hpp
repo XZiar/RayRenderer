@@ -6,8 +6,7 @@ namespace mat
 template<typename E, size_t N, typename V, typename T>
 struct COMMON_EMPTY_BASES FuncBasics : public MatBasic<E, N, V, T>,
     public FuncSAddSubMulDiv<E, N, V, T>, public FuncVAddSubMulDiv<E, N, V, T>, public FuncMAddSubMulDiv<E, N, V, T>,
-    public shared::FuncSelfCalc<T>, public FuncMinMax<N, T>/*,
-    public FuncDot    <E, N, T>*/
+    public shared::FuncSelfCalc<T>, public FuncMinMax<N, T>
 { };
 
 

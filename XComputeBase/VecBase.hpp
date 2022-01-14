@@ -488,7 +488,7 @@ struct FuncFPMath
 {
     forceinline constexpr T Rcp() const noexcept
     {
-        return 1.f / static_cast<const T*>(this);
+        return 1.f / *static_cast<const T*>(this);
     }
     forceinline constexpr T Sqrt() const noexcept
     {

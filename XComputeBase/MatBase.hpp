@@ -91,12 +91,38 @@ struct MatBasic
     }
     forceinline static constexpr T Identity() noexcept
     {
+        constexpr E y = 1, n = 0;
         if constexpr (N == 4)
-            return T{ {1,0,0,0}, {0,1,0,0}, {0,0,1,0}, {0,0,0,1} };
+            return T{ {y,n,n,n}, {n,y,n,n}, {n,n,y,n}, {n,n,n,y} };
         else if constexpr (N == 3)
-            return T{ {1,0,0}, {0,1,0}, {0,0,1} };
+            return T{ {y,n,n}, {n,y,n}, {n,n,y} };
         else if constexpr (N == 2)
-            return T{ {1,0}, {0,1} };
+            return T{ {y,n}, {n,y} };
+    }
+
+    forceinline friend constexpr T Transpose(const T& self) noexcept
+    {
+        if constexpr (N == 4)
+            return 
+        {
+            { self.X.X, self.X.X, self.X.X, self.X.X },
+            { self.Y.X, self.Y.X, self.Y.X, self.Y.X },
+            { self.Z.X, self.Z.X, self.Z.X, self.Z.X },
+            { self.W.X, self.W.X, self.W.X, self.W.X }
+        };
+        else if constexpr (N == 3)
+            return
+        {
+            { self.X.X, self.X.X, self.X.X },
+            { self.Y.X, self.Y.X, self.Y.X },
+            { self.Z.X, self.Z.X, self.Z.X }
+        };
+        else if constexpr (N == 2)
+            return
+        {
+            { self.X.X, self.X.X },
+            { self.Y.X, self.Y.X }
+        };
     }
 };
 

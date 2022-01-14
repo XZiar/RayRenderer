@@ -3,6 +3,7 @@
 #include "VecBase.hpp"
 #include "VecSIMD.hpp"
 #include "MatBase.hpp"
+#include "MatSIMD.hpp"
 
 namespace xcomp::debug
 {
@@ -53,13 +54,33 @@ void TestVec()
     [[maybe_unused]] const auto f4i = b4i[1] / (a4i[1] * (e4i * a4i[0] / b4i[1]));
     [[maybe_unused]] const auto g4i = e4i.Negative().LengthSqr();
 }
-
 void TestVec2()
 {
     using namespace math;
     TestVec<base::Vec2, base::Vec3, base::IVec3, base::Vec4, base::IVec4>();
     TestVec<simd::Vec2, simd::Vec3, simd::IVec3, simd::Vec4, simd::IVec4>();
     [[maybe_unused]] base::Normal x, y, z = x + y;
+}
+
+template<typename V3, typename V4, typename M3, typename M4>
+void TestMat()
+{
+    static_assert(sizeof(M3) == 64);
+    static_assert(sizeof(M4) == 64);
+
+    V3 v3_1, v3_2, v3_3;
+    M3 m3_1(v3_1, v3_2, v3_3), m3_2 = M3::Identity();
+    [[maybe_unused]] const auto m3_5 = EleWiseMul(EleWiseSub(m3_1 + 4.f, m3_2), m3_1) / 4.f;
+    [[maybe_unused]] const auto m3_6 = EleWiseDiv(EleWiseAdd(m3_1, v3_1), v3_2) * 2.f;
+    [[maybe_unused]] const auto v3_5 = v3_3 * m3_5;
+    [[maybe_unused]] const auto v3_6 = Transpose(m3_6) * v3_3;
+    [[maybe_unused]] const auto m3_7 = m3_6 * m3_5;
+}
+void TestMat2()
+{
+    using namespace math;
+    TestMat<base::Vec3, base::Vec4, base::Mat3, base::Mat4>();
+    TestMat<simd::Vec3, simd::Vec4, simd::Mat3, simd::Mat4>();
 }
 
 
