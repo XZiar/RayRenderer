@@ -51,9 +51,6 @@ struct alignas(T) Pack
 namespace detail
 {
 
-template<typename T, bool Set> inline constexpr T MaskedElement = static_cast<T>(Set ? -1 : 0);
-template<bool Set> inline constexpr char MEle8 = MaskedElement<char, Set>;
-
 template<typename To, typename From>
 forceinline To AsType(From) noexcept
 {
@@ -85,6 +82,7 @@ forceinline Pack<D, N * M> PackCastExpand(const Pack<S, N>& src, std::index_sequ
     const Pack<D, M> mid[] = { src[I].template Cast<D>()... };
     return Pack<D, N * M>{ ExtractPackData<J, D, M, N>(mid)... };
 }
+
 }
 
 template<typename From, typename To>
@@ -184,6 +182,35 @@ inline constexpr CastMode CstMode() noexcept
     {
         return CastMode::RangeUndef;
     }
+}
+
+
+inline constexpr auto FullMask64 = []()
+{
+    std::array<uint64_t, 256> dat = {};
+    for (uint32_t i = 0; i < 256; ++i)
+    {
+        uint64_t val = 0;
+        for (uint8_t j = 0; j < 8; ++j)
+            if ((i >> j) & 0x1)
+                val |= uint64_t(0xff) << (j * 8);
+        dat[i] = val;
+    }
+    return dat;
+}();
+template<size_t EleBits, size_t N>
+inline constexpr uint64_t ConvertMaskTo8(uint64_t mask)
+{
+    const auto unitBits = EleBits / 8;
+    auto unit = (uint64_t(1) << unitBits) - 1;
+    uint64_t ret = 0;
+    for (size_t i = 0; i < N; ++i)
+    {
+        if (mask & 0x1)
+            ret |= unit;
+        mask >>= 1, unit <<= unitBits;
+    }
+    return ret;
 }
 
 }

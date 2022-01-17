@@ -54,6 +54,7 @@ inline constexpr int CmpTypeImm(CompareType cmp) noexcept
     }
 }
 
+
 template<typename T, typename E, size_t N>
 struct SSE128Common : public CommonOperators<T>
 {
@@ -177,7 +178,7 @@ public:
         return _mm_blend_epi16(this->Data, other.Data, (Mask & 0b1 ? 0xf : 0x0) | (Mask & 0b10 ? 0xf0 : 0x00));
 #else
         if constexpr (Mask == 0b00)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Mask == 0b11)
             return other;
         else if constexpr (Mask == 0b01)
@@ -295,7 +296,7 @@ public:
     forceinline T VECCALL Broadcast() const
     {
         static_assert(Idx < 4, "shuffle index should be in [0,3]");
-        return Shuffle<Idx, Idx>();
+        return Shuffle<Idx, Idx, Idx, Idx>();
     }
 #if COMMON_SIMD_LV >= 31
     forceinline T VECCALL SwapEndian() const
@@ -332,7 +333,7 @@ public:
             (Mask & 0b10 ? 0b1100 : 0) | (Mask & 0b100 ? 0b110000 : 0) | (Mask & 0b1000 ? 0b11000000 : 0));
 #else
         if constexpr (Mask == 0b0000)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Mask == 0b1111)
             return other;
         else if constexpr (Mask == 0b0011)
@@ -554,7 +555,7 @@ public:
     forceinline T VECCALL Broadcast() const
     {
         static_assert(Idx < 16, "shuffle index should be in [0,15]");
-#if COMMON_SIMD_LV >= 200 && false
+#if COMMON_SIMD_LV >= 200
         auto shifted = this->Data;
         if constexpr (Idx > 0)
             shifted = _mm_srli_si128(this->Data, Idx);
@@ -589,16 +590,18 @@ public:
     forceinline T VECCALL SelectWith(const T& other) const
     {
         if constexpr (Mask == 0)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Mask == 0xffff)
             return other;
         else
         {
-            return SelectWith<MaskType::FullEle>(other, _mm_setr_epi8(
-                MEle8<Mask & 0x1>,    MEle8<Mask & 0x2>,    MEle8<Mask & 0x4>,    MEle8<Mask & 0x8>,
-                MEle8<Mask & 0x10>,   MEle8<Mask & 0x20>,   MEle8<Mask & 0x40>,   MEle8<Mask & 0x80>,
-                MEle8<Mask & 0x100>,  MEle8<Mask & 0x200>,  MEle8<Mask & 0x400>,  MEle8<Mask & 0x800>,
-                MEle8<Mask & 0x1000>, MEle8<Mask & 0x2000>, MEle8<Mask & 0x4000>, MEle8<Mask & 0x8000>));
+#   ifdef CMSIMD_LESS_SPACE
+            const auto mask = _mm_insert_epi64(_mm_loadu_si64(&FullMask64[Mask & 0xff]), static_cast<int64_t>(FullMask64[(Mask >> 8) & 0xff]), 1);
+            return _mm_blendv_epi8(this->Data, other.Data, mask);
+#   else
+            constexpr uint64_t mask[2] = { FullMask64[Mask & 0xff], FullMask64[(Mask >> 8) & 0xff] };
+            return _mm_blendv_epi8(this->Data, other.Data, _mm_loadu_si128(reinterpret_cast<const __m128i*>(mask)));
+#   endif
         }
     }
 #endif

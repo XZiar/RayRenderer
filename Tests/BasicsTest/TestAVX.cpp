@@ -34,6 +34,13 @@ RegisterSIMDCastModeTest(F32x8, 100, RangeSaturate, I32x8);
 RegisterSIMDCmpTest(100, F64x4, F32x8, F64x2, F32x4)
 
 
+RegisterSIMDBroadcastTest(100, F64x4, F32x8, F64x2, F32x4)
+RegisterSIMDBroadcastLaneTest(100, F64x4, F32x8)
+
+
+RegisterSIMDSelectTest(100, F64x4, F32x8)
+
+
 RegisterSIMDTest(F64x4, 100, shuftest::ShuffleTest<F64x4>);
 RegisterSIMDTest(F64x2, 100, shuftest::ShuffleTest<F64x2>);
 RegisterSIMDTest(I64x2, 100, shuftest::ShuffleTest<I64x2>);

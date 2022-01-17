@@ -4,6 +4,9 @@ namespace sse42
 {
 using namespace common;
 #define COMMON_SIMD_LV 42
+//#if COMMON_COMPILER_MSVC
+//#   define CMSIMD_LESS_SPACE 1
+//#endif
 #include "common/simd/SIMD.hpp"
 #if COMMON_SIMD_LV_ >= 42 || COMMON_COMPILER_MSVC
 #   include "common/simd/SIMD128.hpp"
@@ -50,13 +53,21 @@ RegisterSIMDCmpTest(42, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, 
 RegisterSIMDZipTest(42, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
 
 
+RegisterSIMDBroadcastTest(42, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+
+
+RegisterSIMDSelectTest(42, F64x2, F32x4, I64x2, I32x4, I16x8)
+RegisterSIMDSelectSlimTest(42, I8x16)
+
+
 RegisterSIMDTest(F64x2, 42, shuftest::ShuffleTest<F64x2>);
 RegisterSIMDTest(I64x2, 42, shuftest::ShuffleTest<I64x2>);
 RegisterSIMDTest(F32x4, 42, shuftest::ShuffleTest<F32x4>);
 RegisterSIMDTest(I32x4, 42, shuftest::ShuffleTest<I32x4>);
 
 
-RegisterSIMDTest(F32x4, 42, dottest::DotProdTest<F32x4>);
+RegisterSIMDTest(F32x4, 41, dottest::DotProdTest<F32x4>);
+
 
 #else
 #   error "assume SSE4.2 is always enabled"

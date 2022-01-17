@@ -56,6 +56,14 @@ RegisterSIMDZipTest(200, F64x4, F32x8, I64x4, U64x4, I32x8, U32x8, I16x16, U16x1
 RegisterSIMDZipLaneTest(200, F64x4, F32x8, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
 
 
+RegisterSIMDBroadcastTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32, I16x8, U16x8, I8x16, U8x16)
+RegisterSIMDBroadcastLaneTest(200, I64x4, U64x4, I32x8, U32x8, I16x16, U16x16, I8x32, U8x32)
+
+
+RegisterSIMDSelectTest(200, I64x4, I32x8, I64x2, I32x4)
+RegisterSIMDSelectSlimTest(200, I16x16, I8x32)
+
+
 RegisterSIMDTest(F64x4, 200, shuftest::ShuffleTest<F64x4>);
 RegisterSIMDTest(I64x4, 200, shuftest::ShuffleTest<I64x4>);
 RegisterSIMDTest(F64x2, 200, shuftest::ShuffleTest<F64x2>);

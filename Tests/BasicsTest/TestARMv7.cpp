@@ -50,6 +50,9 @@ RegisterSIMDCmpTest(30, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, 
 RegisterSIMDZipTest(30, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
 
 
+RegisterSIMDBroadcastTest(30, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+
+
 RegisterSIMDTest(U64x2, 30, shuftest::ShuffleTest<U64x2>);
 RegisterSIMDTest(U32x4, 30, shuftest::ShuffleTest<U32x4>);
 

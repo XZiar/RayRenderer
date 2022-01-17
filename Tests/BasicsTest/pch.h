@@ -60,19 +60,6 @@ std::vector<std::array<uint8_t, 4>> PosesHolder<4>::Poses;
 template<>
 std::vector<std::array<uint8_t, 8>> PosesHolder<8>::Poses;
 
-
-template<size_t N>
-constexpr std::array<uint8_t, N> GeneratePoses(uint64_t val) noexcept
-{
-    std::array<uint8_t, N> poses = {};
-    for (size_t i = 0; i < N; ++i)
-    {
-        poses[i] = val % N;
-        val /= N;
-    }
-    return poses;
-}
-
 std::mt19937& GetRanEng();
 uint32_t GetARand();
 

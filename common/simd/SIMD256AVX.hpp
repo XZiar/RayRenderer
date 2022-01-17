@@ -171,7 +171,7 @@ public:
     {
         static_assert(Lo < 2 && Hi < 2, "shuffle index should be in [0,1]");
         constexpr uint8_t Lo2 = Lo * 2, Hi2 = Hi * 2;
-        return _mm256_shuffle_epi32(this->Data, (Hi2 << 6) + (Hi2 << 4) + (Lo2 << 2) + Lo2);
+        return _mm256_shuffle_epi32(this->Data, ((Hi2 + 1) << 6) + (Hi2 << 4) + ((Lo2 + 1) << 2) + Lo2);
     }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Hi3>
     forceinline T VECCALL Shuffle() const
@@ -592,7 +592,7 @@ public:
     {
         static_assert(Idx < 16, "shuffle index should be in [0,15]");
         constexpr auto PairIdx = Idx % 8;
-        __m128i paired;
+        __m256i paired;
         if constexpr (Idx < 8) // lo half
             paired = _mm256_unpacklo_epi8(this->Data, this->Data);
         else // hi half
@@ -636,7 +636,7 @@ public:
     forceinline T VECCALL SelectWith(const T& other) const
     {
         if constexpr (Mask == 0)
-            return *this;
+            return *static_cast<const T*>(this);
         else if constexpr (Mask == 0xffffffffu)
             return other;
         else if constexpr ((Mask & 0xaaaaaaaau) == ((Mask & 0x55555555) << 1)) // actually 16bit
@@ -658,15 +658,18 @@ public:
         }
         else
         {
-            return SelectWith<MaskType::FullEle>(other, _mm256_setr_epi8(
-                MEle8<Mask & 0x1>,        MEle8<Mask & 0x2>,        MEle8<Mask & 0x4>,        MEle8<Mask & 0x8>,
-                MEle8<Mask & 0x10>,       MEle8<Mask & 0x20>,       MEle8<Mask & 0x40>,       MEle8<Mask & 0x80>,
-                MEle8<Mask & 0x100>,      MEle8<Mask & 0x200>,      MEle8<Mask & 0x400>,      MEle8<Mask & 0x800>,
-                MEle8<Mask & 0x1000>,     MEle8<Mask & 0x2000>,     MEle8<Mask & 0x4000>,     MEle8<Mask & 0x8000>,
-                MEle8<Mask & 0x10000>,    MEle8<Mask & 0x20000>,    MEle8<Mask & 0x40000>,    MEle8<Mask & 0x80000>,
-                MEle8<Mask & 0x100000>,   MEle8<Mask & 0x200000>,   MEle8<Mask & 0x400000>,   MEle8<Mask & 0x800000>,
-                MEle8<Mask & 0x1000000>,  MEle8<Mask & 0x2000000>,  MEle8<Mask & 0x4000000>,  MEle8<Mask & 0x8000000>,
-                MEle8<Mask & 0x10000000>, MEle8<Mask & 0x20000000>, MEle8<Mask & 0x40000000>, MEle8<Mask & 0x80000000>));
+#   ifdef CMSIMD_LESS_SPACE
+            const auto maskLo = _mm_insert_epi64(_mm_loadu_si64(&FullMask64[ Mask        & 0xff]), static_cast<int64_t>(FullMask64[(Mask >>  8) & 0xff]), 1);
+            const auto maskHi = _mm_insert_epi64(_mm_loadu_si64(&FullMask64[(Mask >> 16) & 0xff]), static_cast<int64_t>(FullMask64[(Mask >> 24) & 0xff]), 1);
+            return _mm256_blendv_epi8(this->Data, other.Data, _mm256_set_m128i(maskHi, maskLo));
+#   else
+            constexpr uint64_t mask[4] =
+            { 
+                FullMask64[Mask         & 0xff], FullMask64[(Mask >> 8)  & 0xff], 
+                FullMask64[(Mask >> 16) & 0xff], FullMask64[(Mask >> 24) & 0xff]
+            };
+            return _mm256_blendv_epi8(this->Data, other.Data, _mm256_loadu_si256(reinterpret_cast<const __m256i*>(mask)));
+#   endif
         }
     }
 

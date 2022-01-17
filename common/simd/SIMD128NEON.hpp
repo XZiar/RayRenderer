@@ -281,8 +281,9 @@ struct Shuffle64Common
             return other;
         else
         {
-            alignas(16) constexpr int64_t maskVal[] = { static_cast<int64_t>(Mask & 0b1 ? -1 : 0), static_cast<int64_t>(Mask & 0b10 ? -1 : 0) };
-            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s64(maskVal)));
+            constexpr auto Mask8 = ConvertMaskTo8<64, 2>(Mask);
+            constexpr uint64_t mask[2] = { FullMask64[Mask8 & 0xff], FullMask64[(Mask8 >> 8) & 0xff] };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
 };
@@ -516,12 +517,9 @@ struct Shuffle32Common
             return other;
         else
         {
-            alignas(16) constexpr int32_t maskVal[] = 
-            { 
-                static_cast<int32_t>(Mask & 0b1   ? -1 : 0), static_cast<int32_t>(Mask & 0b10   ? -1 : 0),
-                static_cast<int32_t>(Mask & 0b100 ? -1 : 0), static_cast<int32_t>(Mask & 0b1000 ? -1 : 0),
-            };
-            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s32(maskVal)));
+            constexpr auto Mask8 = ConvertMaskTo8<32, 4>(Mask);
+            constexpr uint64_t mask[2] = { FullMask64[Mask8 & 0xff], FullMask64[(Mask8 >> 8) & 0xff] };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
 };
@@ -755,14 +753,9 @@ public:
             return other;
         else
         {
-            alignas(16) constexpr int16_t maskVal[] =
-            {
-                static_cast<int16_t>(Mask & 0b1       ? -1 : 0), static_cast<int16_t>(Mask & 0b10       ? -1 : 0),
-                static_cast<int16_t>(Mask & 0b100     ? -1 : 0), static_cast<int16_t>(Mask & 0b1000     ? -1 : 0),
-                static_cast<int16_t>(Mask & 0b10000   ? -1 : 0), static_cast<int16_t>(Mask & 0b100000   ? -1 : 0),
-                static_cast<int16_t>(Mask & 0b1000000 ? -1 : 0), static_cast<int16_t>(Mask & 0b10000000 ? -1 : 0),
-            };
-            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s16(maskVal)));
+            constexpr auto Mask8 = ConvertMaskTo8<16, 8>(Mask);
+            constexpr uint64_t mask[2] = { FullMask64[Mask8 & 0xff], FullMask64[(Mask8 >> 8) & 0xff] };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
 
@@ -916,18 +909,8 @@ public:
             return other;
         else
         {
-            alignas(16) constexpr int8_t maskVal[] =
-            {
-                MEle8<Mask & 0x1>,        MEle8<Mask & 0x2>,        MEle8<Mask & 0x4>,        MEle8<Mask & 0x8>,
-                MEle8<Mask & 0x10>,       MEle8<Mask & 0x20>,       MEle8<Mask & 0x40>,       MEle8<Mask & 0x80>,
-                MEle8<Mask & 0x100>,      MEle8<Mask & 0x200>,      MEle8<Mask & 0x400>,      MEle8<Mask & 0x800>,
-                MEle8<Mask & 0x1000>,     MEle8<Mask & 0x2000>,     MEle8<Mask & 0x4000>,     MEle8<Mask & 0x8000>,
-                MEle8<Mask & 0x10000>,    MEle8<Mask & 0x20000>,    MEle8<Mask & 0x40000>,    MEle8<Mask & 0x80000>,
-                MEle8<Mask & 0x100000>,   MEle8<Mask & 0x200000>,   MEle8<Mask & 0x400000>,   MEle8<Mask & 0x800000>,
-                MEle8<Mask & 0x1000000>,  MEle8<Mask & 0x2000000>,  MEle8<Mask & 0x4000000>,  MEle8<Mask & 0x8000000>,
-                MEle8<Mask & 0x10000000>, MEle8<Mask & 0x20000000>, MEle8<Mask & 0x40000000>, MEle8<Mask & 0x80000000>
-            };
-            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_s8(maskVal)));
+            constexpr uint64_t mask[2] = { FullMask64[Mask & 0xff], FullMask64[(Mask >> 8) & 0xff] };
+            return SelectWith<MaskType::FullEle>(other, AsType<SIMDType>(vld1q_u64(mask)));
         }
     }
 
