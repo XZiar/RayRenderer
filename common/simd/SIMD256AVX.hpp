@@ -907,6 +907,25 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_add_pd(_mm256_mul_pd(Data, muler), adder);
 #endif
     }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulAddLane(const F64x4& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return MulAdd(muler.BroadcastLane<Idx>(), adder);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulAdd(const F64x2& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        const auto full = muler.Broadcast<Idx>();
+        return MulAdd(F64x4(full, full), adder);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulAdd(const F64x4& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F64x4 VECCALL MulSub(const F64x4& muler, const F64x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -914,6 +933,25 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
 #else
         return _mm256_sub_pd(_mm256_mul_pd(Data, muler), suber);
 #endif
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulSubLane(const F64x4& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return MulSub(muler.BroadcastLane<Idx>(), suber);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulSub(const F64x2& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        const auto full = muler.Broadcast<Idx>();
+        return MulSub(F64x4(full, full), suber);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL MulSub(const F64x4& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return MulSub(muler.Broadcast<Idx>(), suber);
     }
     forceinline F64x4 VECCALL NMulAdd(const F64x4& muler, const F64x4& adder) const
     {
@@ -923,6 +961,25 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_sub_pd(adder, _mm256_mul_pd(Data, muler));
 #endif
     }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulAddLane(const F64x4& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return NMulAdd(muler.BroadcastLane<Idx>(), adder);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulAdd(const F64x2& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        const auto full = muler.Broadcast<Idx>();
+        return NMulAdd(F64x4(full, full), adder);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulAdd(const F64x4& muler, const F64x4& adder) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return NMulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F64x4 VECCALL NMulSub(const F64x4& muler, const F64x4& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -931,6 +988,26 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
         return _mm256_xor_pd(_mm256_add_pd(_mm256_mul_pd(Data, muler), suber), _mm256_set1_pd(-0.));
 #endif
     }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulSubLane(const F64x4& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return NMulSub(muler.BroadcastLane<Idx>(), suber);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulSub(const F64x2& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        const auto full = muler.Broadcast<Idx>();
+        return NMulSub(F64x4(full, full), suber);
+    }
+    template<size_t Idx>
+    forceinline F64x4 VECCALL NMulSub(const F64x4& muler, const F64x4& suber) const
+    {
+        static_assert(Idx < 4, "select index should be in [0,3]");
+        return NMulSub(muler.Broadcast<Idx>(), suber);
+    }
+
     forceinline F64x4 VECCALL operator*(const F64x4& other) const { return Mul(other); }
     forceinline F64x4 VECCALL operator/(const F64x4& other) const { return Div(other); }
     forceinline F64x4& VECCALL operator*=(const F64x4& other) { Data = Mul(other); return *this; }
@@ -1126,6 +1203,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline F32x8 VECCALL Rcp() const { return _mm256_rcp_ps(Data); }
     forceinline F32x8 VECCALL Sqrt() const { return _mm256_sqrt_ps(Data); }
     forceinline F32x8 VECCALL Rsqrt() const { return _mm256_rsqrt_ps(Data); }
+
     forceinline F32x8 VECCALL MulAdd(const F32x8& muler, const F32x8& adder) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -1234,6 +1312,7 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
         static_assert(Idx < 8, "select index should be in [0,7]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
     }
+
     template<DotPos Mul, DotPos Res>
     forceinline F32x8 VECCALL Dot2(const F32x8& other) const 
     { 

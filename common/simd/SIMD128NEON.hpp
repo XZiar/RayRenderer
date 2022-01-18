@@ -626,9 +626,9 @@ public:
         using V = typename T::VecType;
         const auto data = AsType<uint16x8_t>(this->Data);
 #if COMMON_SIMD_LV >= 200
-        return AsType<V>(vdupq_laneq_u16(data, Lo0));
+        return AsType<V>(vdupq_laneq_u16(data, Idx));
 #else
-        return AsType<V>(vdupq_n_u16(vgetq_lane_u16(data, Lo0)));
+        return AsType<V>(vdupq_n_u16(vgetq_lane_u16(data, Idx)));
 #endif
     }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Hi7>
@@ -848,9 +848,9 @@ public:
         using V = typename T::VecType;
         const auto data = AsType<uint16x8_t>(this->Data);
 #if COMMON_SIMD_LV >= 200
-        return AsType<V>(vdupq_laneq_u8(data, Lo0));
+        return AsType<V>(vdupq_laneq_u8(data, Idx));
 #else
-        return AsType<V>(vdupq_n_u8(vgetq_lane_u8(data, Lo0)));
+        return AsType<V>(vdupq_n_u8(vgetq_lane_u8(data, Idx)));
 #endif
     }
     template<uint8_t Lo0, uint8_t Lo1, uint8_t Lo2, uint8_t Lo3, uint8_t Lo4, uint8_t Lo5, uint8_t Lo6, uint8_t Lo7, uint8_t Lo8, uint8_t Lo9, uint8_t Lo10, uint8_t Lo11, uint8_t Lo12, uint8_t Lo13, uint8_t Lo14, uint8_t Hi15>
@@ -1021,17 +1021,41 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, doub
     {
         return vfmaq_f64(adder.Data, Data, muler.Data);
     }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL MulAdd(const F64x2& muler, const F64x2& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return vfmaq_laneq_f64(adder.Data, Data, muler.Data, Idx);
+    }
     forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const
     {
         return MulAdd(muler, vnegq_f64(suber.Data));
+    }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return MulAdd<Idx>(muler, vnegq_f64(suber.Data));
     }
     forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const
     {
         return vfmsq_f64(adder.Data, Data, muler.Data);
     }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return vfmsq_laneq_f64(adder.Data, Data, muler.Data, Idx);
+    }
     forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const
     {
-        return vnegq_f64(MulAdd(muler, suber.Data));
+        return vnegq_f64(MulAdd(muler, suber));
+    }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return vnegq_f64(MulAdd<Idx>(muler, suber));
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
@@ -1130,9 +1154,9 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         return vfmaq_laneq_f32(adder.Data, Data, muler.Data, Idx);
 #else
         if constexpr (Idx < 2)
-            return vmlaq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data) Idx);
+            return vmlaq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data), Idx);
         else
-            return vmlaq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data) Idx - 2);
+            return vmlaq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data), Idx - 2);
 #endif
     }
     forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
@@ -1161,20 +1185,20 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
         return vfmsq_laneq_f32(adder.Data, Data, muler.Data, Idx);
 #else
         if constexpr (Idx < 2)
-            return vmlsq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data) Idx);
+            return vmlsq_lane_f32(adder.Data, Data, vget_low_f32(muler.Data), Idx);
         else
-            return vmlsq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data) Idx - 2);
+            return vmlsq_lane_f32(adder.Data, Data, vget_high_f32(muler.Data), Idx - 2);
 #endif
     }
     forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
-        return vnegq_f32(MulAdd(muler, suber.Data));
+        return vnegq_f32(MulAdd(muler, suber));
     }
     template<size_t Idx>
-    forceinline F32x4 VECCALL MulSub(const F32x4& muler, const F32x4& suber) const
+    forceinline F32x4 VECCALL NMulSub(const F32x4& muler, const F32x4& suber) const
     {
         static_assert(Idx < 4, "select index should be in [0,3]");
-        return vnegq_f32(MulAdd<Idx>(muler, suber.Data));
+        return vnegq_f32(MulAdd<Idx>(muler, suber));
     }
     template<DotPos Mul>
     forceinline float VECCALL Dot(const F32x4& other) const

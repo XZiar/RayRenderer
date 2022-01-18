@@ -14,7 +14,7 @@ using namespace common::simd;
 using namespace common::simd;
 
 
-RegisterSIMDBaseTest(F32x4, 30,      SEL, Add, Sub,                        Mul, Div, Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(F32x4, 30,      SEL, Add, Sub,                        Mul, Div, Neg, Abs, Min, Max, FMA);
 RegisterSIMDBaseTest(I64x2, 30, SWE, SEL, Add, Sub, SatAdd, SatSub,                  Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
 RegisterSIMDBaseTest(U64x2, 30, SWE, SEL, Add, Sub, SatAdd, SatSub,                       Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(I32x4, 30, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo, MulX,     Neg, Abs, Min, Max, SLL, SRL, SRA);
@@ -51,6 +51,10 @@ RegisterSIMDZipTest(30, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, 
 
 
 RegisterSIMDBroadcastTest(30, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+
+
+RegisterSIMDSelectTest(30, F32x4, I64x2, I32x4, I16x8)
+RegisterSIMDSelectSlimTest(30, I8x16)
 
 
 RegisterSIMDTest(U64x2, 30, shuftest::ShuffleTest<U64x2>);

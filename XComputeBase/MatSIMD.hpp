@@ -193,7 +193,7 @@ struct MatBasic
             T4{_mm_movelh_ps(zw12.Data, zw34.Data)}, T4{_mm_movehl_ps(zw12.Data, zw34.Data)} 
         };
 #else // COMMON_ARCH_ARM
-        const auto mat4 = vld4q_f32(&self.RowX.X);
+        const auto mat4 = vld4q_f32(&self.X.X);
         return
         {
             T4{mat4.val[0]}, T4{mat4.val[1]},

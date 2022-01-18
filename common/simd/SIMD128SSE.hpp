@@ -792,6 +792,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         return _mm_add_pd(_mm_mul_pd(Data, muler.Data), adder.Data);
 #endif
     }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL MulAdd(const F64x2& muler, const F64x2& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return MulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -799,6 +805,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #else
         return _mm_sub_pd(_mm_mul_pd(Data, muler.Data), suber.Data);
 #endif
+    }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL MulSub(const F64x2& muler, const F64x2& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return MulSub(muler.Broadcast<Idx>(), suber);
     }
     forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const
     {
@@ -808,6 +820,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         return _mm_sub_pd(adder.Data, _mm_mul_pd(Data, muler.Data));
 #endif
     }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL NMulAdd(const F64x2& muler, const F64x2& adder) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return NMulAdd(muler.Broadcast<Idx>(), adder);
+    }
     forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const
     {
 #if COMMON_SIMD_LV >= 150
@@ -815,6 +833,12 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
 #else
         return _mm_xor_pd(_mm_add_pd(_mm_mul_pd(Data, muler.Data), suber.Data), _mm_set1_pd(-0.));
 #endif
+    }
+    template<size_t Idx>
+    forceinline F64x2 VECCALL NMulSub(const F64x2& muler, const F64x2& suber) const
+    {
+        static_assert(Idx < 2, "select index should be in [0,1]");
+        return NMulSub(muler.Broadcast<Idx>(), suber);
     }
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }

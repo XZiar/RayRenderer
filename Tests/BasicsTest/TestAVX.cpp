@@ -20,8 +20,8 @@ using namespace common::simd;
 #   include "ShuffleTest.h"
 
 
-RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max);
-RegisterSIMDBaseTest(F32x8, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(F64x4, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA);
+RegisterSIMDBaseTest(F32x8, 100, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA);
 
 
 RegisterSIMDCastTest(I32x8,  100,               F32x8, F64x4);

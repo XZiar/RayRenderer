@@ -12,7 +12,7 @@ using namespace common::simd;
 #   include "DotProdTest.h"
 
 
-RegisterSIMDBaseTest(F64x2, 200, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max);
+RegisterSIMDBaseTest(F64x2, 200, SEL, Add, Sub, Mul, Div, Neg, Abs, Min, Max, FMA);
 RegisterSIMDBaseTest(F32x4, 200, SEL,                Div);
 RegisterSIMDBaseTest(I64x2, 200,                          Abs, Min, Max);
 RegisterSIMDBaseTest(U64x2, 200,                          Abs, Min, Max);
@@ -52,6 +52,9 @@ RegisterSIMDZipTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8,
 
 
 RegisterSIMDBroadcastTest(200, F64x2, F32x4, I64x2, U64x2, I32x4, U32x4, I16x8, U16x8, I8x16, U8x16)
+
+
+RegisterSIMDSelectTest(200, F64x2)
 
 
 RegisterSIMDTest(F64x2, 200, shuftest::ShuffleTest<F64x2>);

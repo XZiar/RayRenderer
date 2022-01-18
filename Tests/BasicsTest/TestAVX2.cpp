@@ -20,6 +20,10 @@ using namespace common::simd;
 #   include "ShuffleTest.h"
 
 
+RegisterSIMDBaseTest(F64x4,  150, FMA);
+RegisterSIMDBaseTest(F32x8,  150, FMA);
+RegisterSIMDBaseTest(F64x2,  150, FMA);
+RegisterSIMDBaseTest(F32x4,  150, FMA);
 RegisterSIMDBaseTest(I64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,              Neg, Abs, Min, Max, SLL, SRL, SRA, And, Or, Xor, AndNot, Not);
 RegisterSIMDBaseTest(U64x4,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,                   Abs, Min, Max, SLL, SRL, SRA);
 RegisterSIMDBaseTest(I32x8,  200, SWE, SEL, Add, Sub, SatAdd, SatSub, MulLo,        MulX, Neg, Abs, Min, Max, SLL, SRL, SRA);

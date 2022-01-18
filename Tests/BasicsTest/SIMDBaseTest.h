@@ -465,6 +465,56 @@ static void TestMax(const T* ptr)
     }
 }
 
+template<typename T, size_t N, size_t... Idx>
+static void FillFMALane(const T& base, const T& muler, const T& adder, T (&out)[N][4], std::index_sequence<Idx...>)
+{
+    (..., void(out[Idx][0] = base.template MulAdd <Idx>(muler, adder)));
+    (..., void(out[Idx][1] = base.template MulSub <Idx>(muler, adder)));
+    (..., void(out[Idx][2] = base.template NMulAdd<Idx>(muler, adder)));
+    (..., void(out[Idx][3] = base.template NMulSub<Idx>(muler, adder)));
+}
+template<typename T>
+static void TestFMA(const T* ptr)
+{
+    using U = typename T::EleType;
+    constexpr size_t N = T::Count;
+    ForKItem(3)
+    {
+        const auto base = ptr[k + 0], muler = ptr[k + 1], adder = ptr[k + 2];
+        const T out1[4] = { base.MulAdd(muler, adder), base.MulSub(muler, adder), base.NMulAdd(muler, adder), base.NMulSub(muler, adder) };
+        std::array<U, N> ref1[4] = { {0}, {0}, {0}, {0} };
+        for (uint8_t i = 0; i < N; ++i)
+        {
+            ref1[0][i] = base.Val[i] * muler.Val[i] + adder.Val[i];
+            ref1[1][i] = base.Val[i] * muler.Val[i] - adder.Val[i];
+            ref1[2][i] = adder.Val[i] - base.Val[i] * muler.Val[i];
+            ref1[3][i] = -ref1[0][i];
+        }
+        EXPECT_THAT(out1[0].Val, MatchVec(ref1[0])) << "when testing FMA-MulAdd";
+        EXPECT_THAT(out1[1].Val, MatchVec(ref1[1])) << "when testing FMA-MulSub";
+        EXPECT_THAT(out1[2].Val, MatchVec(ref1[2])) << "when testing FMA-NMulAdd";
+        EXPECT_THAT(out1[3].Val, MatchVec(ref1[3])) << "when testing FMA-NMulSub";
+        T out2[N][4];
+        FillFMALane(base, muler, adder, out2, std::make_index_sequence<N>{});
+        for (size_t i = 0; i < N; ++i)
+        {
+            std::array<U, N> ref2[4] = { {0}, {0}, {0}, {0} };
+            const auto mul = muler.Val[i];
+            for (size_t j = 0; j < N; ++j)
+            {
+                ref2[0][j] = base.Val[j] * mul + adder.Val[j];
+                ref2[1][j] = base.Val[j] * mul - adder.Val[j];
+                ref2[2][j] = adder.Val[j] - base.Val[j] * mul;
+                ref2[3][j] = -ref2[0][j];
+            }
+            EXPECT_THAT(out2[i][0].Val, MatchVec(ref2[0])) << "when testing FMA-MulAdd<" << i << ">";
+            EXPECT_THAT(out2[i][1].Val, MatchVec(ref2[1])) << "when testing FMA-MulSub<" << i << ">";
+            EXPECT_THAT(out2[i][2].Val, MatchVec(ref2[2])) << "when testing FMA-NMulAdd<" << i << ">";
+            EXPECT_THAT(out2[i][3].Val, MatchVec(ref2[3])) << "when testing FMA-NMulSub<" << i << ">";
+        }
+    }
+}
+
 template<typename T>
 static void TestSLL(const T* ptr)
 {
@@ -775,7 +825,7 @@ enum class TestItem : uint32_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SRL = 0x4000, SRA = 0x8000,
-    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, 
+    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, FMA = 0x200000,
     SWE = 0x10000000, SEL = 0x20000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
@@ -790,7 +840,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA)
 #undef AddItems
 #undef AddItem
     }
