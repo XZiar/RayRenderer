@@ -16,7 +16,6 @@ using namespace std::string_view_literals;
 using namespace xziar::gui;
 using namespace common;
 using namespace oglu;
-using namespace b3d;
 using std::string;
 using std::wstring;
 using std::u16string;
@@ -31,7 +30,7 @@ static common::mlog::MiniLogger<false>& log()
 
 
 //convert to radius
-constexpr float muler = (float)(PI_float / 180);
+constexpr float muler = (float)(common::math::PI_float / 180);
 
 
 auto FindPath()
@@ -110,7 +109,7 @@ void RunDizzCore()
         //if (false)
         {
             const auto light = std::make_shared<dizz::PointLight>();
-            light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+            light->Color = mbase::Vec4(0.3f, 1.0f, 0.3f, 1.0f);
             tester->GetScene()->AddLight(light);
             //tester->Cur3DProg()->State().SetSubroutine("lighter", "basic");
         }
@@ -339,7 +338,6 @@ void RunDizzCore()
 
 int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 {
-    log().info("miniBLAS intrin:[{}]\n", miniBLAS::miniBLAS_intrin());
     const auto runner = WindowHost_::Init();
     Expects(runner);
     common::BasicPromise<void> pms;

@@ -22,15 +22,15 @@ using std::vector;
 #include "common/CLIViewModel.hpp"
 using namespace System;
 using namespace Common;
+namespace mbase = common::math::base;
 
-
-forceinline System::Windows::Media::Color ToColor(const miniBLAS::Vec3& color)
+forceinline System::Windows::Media::Color ToColor(const mbase::Vec3& color)
 {
-    return System::Windows::Media::Color::FromScRgb(1.0f, color.x, color.y, color.z);
+    return System::Windows::Media::Color::FromScRgb(1.0f, color.X, color.Y, color.Z);
 }
-forceinline System::Windows::Media::Color ToColor(const miniBLAS::Vec4& color)
+forceinline System::Windows::Media::Color ToColor(const mbase::Vec4& color)
 {
-    return System::Windows::Media::Color::FromScRgb(color.w, color.x, color.y, color.z);
+    return System::Windows::Media::Color::FromScRgb(color.W, color.X, color.Y, color.Z);
 }
 forceinline System::Windows::Media::Color ToColor(const std::tuple<float, float, float>& vec)
 {
@@ -40,13 +40,13 @@ forceinline System::Windows::Media::Color ToColor(const std::tuple<float, float,
 {
     return System::Windows::Media::Color::FromScRgb(std::get<3>(vec), std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
 }
-forceinline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec4& color)
+forceinline void FromColor(System::Windows::Media::Color value, mbase::Vec4& color)
 {
-    color.x = value.ScR, color.y = value.ScG, color.z = value.ScB, color.w = value.ScA;
+    color.X = value.ScR, color.Y = value.ScG, color.Z = value.ScB, color.W = value.ScA;
 }
-forceinline void FromColor(System::Windows::Media::Color value, miniBLAS::Vec3& color)
+forceinline void FromColor(System::Windows::Media::Color value, mbase::Vec3& color)
 {
-    color.x = value.ScR, color.y = value.ScG, color.z = value.ScB;
+    color.X = value.ScR, color.Y = value.ScG, color.Z = value.ScB;
 }
 
 forceinline System::Guid^ ToGuid(const boost::uuids::uuid& uid)
@@ -83,29 +83,29 @@ forceinline void StoreVector2(Vector3% val, std::pair<float, float>& pair)
 {
     pair.first = val.X, pair.second = val.Y;
 }
-forceinline Vector3 ToVector3(const miniBLAS::Vec3& vec)
+forceinline Vector3 ToVector3(const mbase::Vec3& vec)
 {
-    return Vector3(vec.x, vec.y, vec.z);
+    return Vector3(vec.X, vec.Y, vec.Z);
 }
 forceinline Vector3 ToVector3(const std::tuple<float, float, float>& vec)
 {
     return Vector3(std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
 }
-forceinline void StoreVector3(Vector3% val, miniBLAS::Vec3& vec)
+forceinline void StoreVector3(Vector3% val, mbase::Vec3& vec)
 {
-    vec.x = val.X, vec.y = val.Y, vec.z = val.Z;
+    vec.X = val.X, vec.Y = val.Y, vec.Z = val.Z;
 }
-forceinline Vector4 ToVector4(const miniBLAS::Vec4& vec)
+forceinline Vector4 ToVector4(const mbase::Vec4& vec)
 {
-    return Vector4(vec.x, vec.y, vec.z, vec.w);
+    return Vector4(vec.X, vec.Y, vec.Z, vec.W);
 }
 forceinline Vector4 ToVector4(const std::tuple<float, float, float, float>& vec)
 {
     return Vector4(std::get<0>(vec), std::get<1>(vec), std::get<2>(vec), std::get<3>(vec));
 }
-forceinline void StoreVector4(Vector4% val, miniBLAS::Vec4& vec)
+forceinline void StoreVector4(Vector4% val, mbase::Vec4& vec)
 {
-    vec.x = val.X, vec.y = val.Y, vec.z = val.Z, vec.w = val.W;
+    vec.X = val.X, vec.Y = val.Y, vec.Z = val.Z, vec.W = val.W;
 }
 
 

@@ -418,11 +418,11 @@ void oglContext_::SetSRGBFBO(const bool isEnable)
 //    CtxFunc->Viewport(x, y, (GLsizei)width, (GLsizei)height);
 //}
 
-miniBLAS::VecI4 oglContext_::GetViewPort() const
+mbase::IVec4 oglContext_::GetViewPort() const
 {
     CHECKCURRENT();
-    miniBLAS::VecI4 viewport;
-    CtxFunc->GetIntegerv(GL_VIEWPORT, viewport);
+    mbase::IVec4 viewport;
+    CtxFunc->GetIntegerv(GL_VIEWPORT, viewport.Ptr());
     return viewport;
 }
 

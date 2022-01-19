@@ -657,7 +657,7 @@ void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShare
 #endif
     }
 }
-void PlatFuncs::SwapBuffer(const oglContext_& ctx) const
+void PlatFuncs::SwapBuffer([[maybe_unused]] const oglContext_& ctx) const
 {
     const auto target = reinterpret_cast<DCType>(Target);
 #if COMMON_OS_WIN

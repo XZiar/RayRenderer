@@ -232,12 +232,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="MatBase.hpp" />
-    <ClInclude Include="MatMain.hpp" />
-    <ClInclude Include="MatSIMD.hpp" />
-    <ClInclude Include="VecBase.hpp" />
-    <ClInclude Include="VecMain.hpp" />
-    <ClInclude Include="VecSIMD.hpp" />
     <ClInclude Include="XCompDebug.h" />
     <ClInclude Include="XCompDebugExt.h" />
     <ClInclude Include="XCompNailang.h" />

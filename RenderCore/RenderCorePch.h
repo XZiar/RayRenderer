@@ -17,6 +17,8 @@
 #include "SystemCommon/PromiseTaskSTD.h"
 #include "SystemCommon/StringConvert.h"
 #include "SystemCommon/StringDetect.h"
+#include "common/math/VecSIMD.hpp"
+#include "common/math/MatSIMD.hpp"
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
@@ -35,6 +37,7 @@
 
 namespace dizz
 {
+namespace msimd = common::math::simd;
 
 
 common::mlog::MiniLogger<false>& dizzLog();
@@ -49,22 +52,22 @@ struct JsonConv : xziar::ejson::JsonConvertor
     EJSONCOV_TOVAL_BEGIN
     {
         using xziar::ejson::JArray;
-        if constexpr (std::is_same_v<PlainType, b3d::Coord2D>)
+        if constexpr (std::is_same_v<PlainType, mbase::Vec2>)
         {
             auto ret = handle.NewArray();
-            ret.Push(val.u, val.v);
+            ret.Push(val.X, val.Y);
             return static_cast<rapidjson::Value>(ret);
         }
-        else if constexpr (std::is_same_v<PlainType, miniBLAS::Vec3> || std::is_same_v<PlainType, b3d::Vec3>)
+        else if constexpr (std::is_same_v<PlainType, mbase::Vec3>)
         {
             auto ret = handle.NewArray();
-            ret.Push(val.x, val.y, val.z);
+            ret.Push(val.X, val.Y, val.Z);
             return static_cast<rapidjson::Value>(ret);
         }
-        else if constexpr (std::is_same_v<PlainType, miniBLAS::Vec4> || std::is_same_v<PlainType, b3d::Vec4>)
+        else if constexpr (std::is_same_v<PlainType, mbase::Vec4>)
         {
             auto ret = handle.NewArray();
-            ret.Push(val.x, val.y, val.z, val.w);
+            ret.Push(val.X, val.Y, val.Z, val.W);
             return static_cast<rapidjson::Value>(ret);
         }
         else if constexpr (std::is_same_v<PlainType, boost::uuids::uuid>)
@@ -76,26 +79,26 @@ struct JsonConv : xziar::ejson::JsonConvertor
 
     EJSONCOV_FROMVAL
     {
-        if constexpr (std::is_same_v<T, b3d::Coord2D>)
+        if constexpr (std::is_same_v<T, mbase::Vec2>)
         {
             if (!value.IsArray() || value.Size() != 2) return false;
-            JsonConvertor::FromVal(value[0], val.u);
-            JsonConvertor::FromVal(value[1], val.v);
+            JsonConvertor::FromVal(value[0], val.X);
+            JsonConvertor::FromVal(value[1], val.Y);
         }
-        else if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, b3d::Vec3>)
+        else if constexpr (std::is_same_v<T, mbase::Vec3>)
         {
             if (!value.IsArray() || value.Size() != 3) return false;
-            JsonConvertor::FromVal(value[0], val.x);
-            JsonConvertor::FromVal(value[1], val.y);
-            JsonConvertor::FromVal(value[2], val.z);
+            JsonConvertor::FromVal(value[0], val.X);
+            JsonConvertor::FromVal(value[1], val.Y);
+            JsonConvertor::FromVal(value[2], val.Z);
         }
-        else if constexpr (std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Vec4>)
+        else if constexpr (std::is_same_v<T, mbase::Vec4>)
         {
             if (!value.IsArray() || value.Size() != 4) return false;
-            JsonConvertor::FromVal(value[0], val.x);
-            JsonConvertor::FromVal(value[1], val.y);
-            JsonConvertor::FromVal(value[2], val.z);
-            JsonConvertor::FromVal(value[3], val.w);
+            JsonConvertor::FromVal(value[0], val.X);
+            JsonConvertor::FromVal(value[1], val.Y);
+            JsonConvertor::FromVal(value[2], val.Z);
+            JsonConvertor::FromVal(value[3], val.W);
         }
     /*else if constexpr (std::is_same_v<T, boost::uuids::uuid>)
     {
@@ -110,40 +113,40 @@ struct JsonConv : xziar::ejson::JsonConvertor
 };
 
 template<typename T>
-forceinline xziar::ejson::JArray ToJArray(T& handle, const b3d::Coord2D& vec)
+forceinline xziar::ejson::JArray ToJArray(T& handle, const mbase::Vec2& vec)
 {
     auto ret = handle.NewArray();
-    ret.Push(vec.u, vec.v);
+    ret.Push(vec.X, vec.Y);
     return ret;
 }
 template<typename T>
-forceinline xziar::ejson::JArray ToJArray(T& handle, const miniBLAS::Vec3& vec)
+forceinline xziar::ejson::JArray ToJArray(T& handle, const mbase::Vec3& vec)
 {
     auto ret = handle.NewArray();
-    ret.Push(vec.x, vec.y, vec.z);
+    ret.Push(vec.X, vec.Y, vec.Z);
     return ret;
 }
 template<typename T>
-forceinline xziar::ejson::JArray ToJArray(T& handle, const miniBLAS::Vec4& vec)
+forceinline xziar::ejson::JArray ToJArray(T& handle, const mbase::Vec4& vec)
 {
     auto ret = handle.NewArray();
-    ret.Push(vec.x, vec.y, vec.z, vec.w);
+    ret.Push(vec.X, vec.Y, vec.Z, vec.W);
     return ret;
 }
 template<typename T>
-forceinline void FromJArray(const T& jarray, b3d::Coord2D& vec)
+forceinline void FromJArray(const T& jarray, mbase::Vec2& vec)
 {
-    jarray.TryGetMany(0, vec.u, vec.v);
+    jarray.TryGetMany(0, vec.X, vec.Y);
 }
 template<typename T>
-forceinline void FromJArray(const T& jarray, miniBLAS::Vec3& vec)
+forceinline void FromJArray(const T& jarray, mbase::Vec3& vec)
 {
-    jarray.TryGetMany(0, vec.x, vec.y, vec.z);
+    jarray.TryGetMany(0, vec.X, vec.Y, vec.Z);
 }
 template<typename T>
-forceinline void FromJArray(const T& jarray, miniBLAS::Vec4& vec)
+forceinline void FromJArray(const T& jarray, mbase::Vec4& vec)
 {
-    jarray.TryGetMany(0, vec.x, vec.y, vec.z, vec.w);
+    jarray.TryGetMany(0, vec.X, vec.Y, vec.Z, vec.W);
 }
 }
 

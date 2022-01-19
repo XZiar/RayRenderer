@@ -18,7 +18,6 @@ using oglu::oglTex2D;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 using namespace std::string_view_literals;
-using namespace b3d;
 
 
 struct DrawableHelper
@@ -113,6 +112,22 @@ Drawable::~Drawable()
     vaomap.erase(its.first, its.second);
 }
 
+void Drawable::Rotate(const mbase::Vec3& angles)
+{
+    const auto rotation = msimd::Vec3(Rotation) + msimd::Vec3(angles);
+    constexpr auto PI2 = math::PI_float * 2;
+    constexpr auto PI2Rcp = 1 / PI2;
+    const auto dived = rotation * PI2Rcp;
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
+    const common::simd::F32x4 rounded = _mm_round_ps(dived.Data, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+    Rotation = msimd::Vec3(rounded.NMulAdd(PI2, rotation.Data));
+#else
+    Rotation.X -= std::floor(dived.X) * PI2;
+    Rotation.Y -= std::floor(dived.Y) * PI2;
+    Rotation.Z -= std::floor(dived.Z) * PI2;
+#endif
+}
+
 void Drawable::PrepareMaterial()
 {
     MaterialHolder = OnPrepareMaterial();
@@ -151,7 +166,7 @@ MultiMaterialHolder Drawable::OnPrepareMaterial() const
     MultiMaterialHolder holder(1);
     holder[0]->DiffuseMap = MultiMaterialHolder::GetCheckTex();
     holder[0]->UseDiffuseMap = true;
-    holder[0]->Albedo = Vec3(0.58, 0.58, 0.58);
+    holder[0]->Albedo = mbase::Vec3(0.58f, 0.58f, 0.58f);
     holder[0]->Metalness = 0.1f;
     return holder;
 }
@@ -166,8 +181,9 @@ auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, 
 
 oglu::ProgDraw& Drawable::DrawPosition(Drawcall& drawcall) const
 {
-    const auto normMat = Mat3x3::RotateMatXYZ(Rotation);
-    const auto modelMat = Mat4x4::TranslateMat(Position) * Mat4x4(normMat * Mat3x3::ScaleMat(Scale));
+    const auto normMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
+    const auto modelMat = math::TranslateMat<mbase::Mat4>(Position) * 
+        math::ToHomoCoord<mbase::Mat4>(normMat * math::ScaleMat<mbase::Mat3>(Scale));
     const auto mvpMat = drawcall.PVMat * modelMat;
     return drawcall.Drawer
         .SetMat("@MVPMat", mvpMat)
@@ -202,11 +218,11 @@ void Drawable::RegistControllable()
         .RegistMember(&Drawable::Name);
     RegistItem<bool>("ShouldRender", "", u"启用", ArgType::RawValue, {}, u"是否渲染该物体")
         .RegistMember(&Drawable::ShouldRender);
-    RegistItem<miniBLAS::Vec3>("Position", "", u"位置", ArgType::RawValue, {}, u"物体位置")
+    RegistItem<mbase::Vec3>("Position", "", u"位置", ArgType::RawValue, {}, u"物体位置")
         .RegistMember<false>(&Drawable::Position);
-    RegistItem<miniBLAS::Vec3>("Rotation", "", u"旋转", ArgType::RawValue, {}, u"物体旋转方向")
+    RegistItem<mbase::Vec3>("Rotation", "", u"旋转", ArgType::RawValue, {}, u"物体旋转方向")
         .RegistMember<false>(&Drawable::Rotation);
-    RegistItem<miniBLAS::Vec3>("Scale", "", u"缩放", ArgType::RawValue, {}, u"物体缩放")
+    RegistItem<mbase::Vec3>("Scale", "", u"缩放", ArgType::RawValue, {}, u"物体缩放")
         .RegistMember<false>(&Drawable::Scale);
 }
 

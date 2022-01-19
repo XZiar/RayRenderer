@@ -17,7 +17,7 @@ constexpr forceinline bool IsPower2(const uint32_t num) { return (num & (num - 1
 struct RENDERCOREAPI RawMaterialData
 {
 public:
-    b3d::Vec4 ambient, diffuse, specular, emission;
+    mbase::Vec4 ambient, diffuse, specular, emission;
     float shiness, reflect, refract, rfr;
     enum class Property : uint8_t
     {
@@ -79,7 +79,7 @@ protected:
     }
     void RegistControllable();
 public:
-    b3d::Vec3 Albedo;
+    mbase::Vec3 Albedo;
     TexHolder DiffuseMap, NormalMap, MetalMap, RoughMap, AOMap;
     float Metalness;
     float Roughness;

@@ -180,19 +180,19 @@ void RenderCore::TestSceneInit()
     const auto pbrPass = *RenderPasses.begin();
     auto pyramid = std::make_shared<Pyramid>(1.0f);
     pyramid->Name = u"Pyramid";
-    pyramid->Position = { 0,0,0 };
+    pyramid->Position = { 0.f,0.f,0.f };
     TheScene->AddObject(pyramid);
     auto ball = std::make_shared<Sphere>(0.75f);
     ball->Name = u"Ball";
-    ball->Position = { 1,0,0 };
+    ball->Position = { 1.f,0.f,0.f };
     TheScene->AddObject(ball);
     auto box = std::make_shared<Box>(0.5f, 1.0f, 2.0f);
     box->Name = u"Box";
-    box->Position = { 0,1,0 };
+    box->Position = { 0.f,1.f,0.f };
     TheScene->AddObject(box);
     auto ground = std::make_shared<Plane>(500.0f, 50.0f);
     ground->Name = u"Ground";
-    ground->Position = { 0,-2,0 };
+    ground->Position = { 0.f,-2.f,0.f };
     TheScene->AddObject(ground);
     for (const auto& pass : RenderPasses)
     {

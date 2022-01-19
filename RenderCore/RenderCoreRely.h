@@ -18,6 +18,9 @@
 #include "ResourcePackager/SerializeUtil.h"
 #include "SystemCommon/PromiseTask.h"
 #include "common/CommonRely.hpp"
+#include "common/math/VecBase.hpp"
+#include "common/math/MatBase.hpp"
+#include "common/math/3DUtil.hpp"
 #include "common/EnumEx.hpp"
 #include "common/AtomicUtil.hpp"
 #include "common/Controllable.hpp"
@@ -38,6 +41,8 @@
 namespace dizz
 {
 namespace fs = common::fs;
+namespace math = common::math;
+namespace mbase = common::math::base;
 using std::wstring;
 using std::string;
 using std::u16string;

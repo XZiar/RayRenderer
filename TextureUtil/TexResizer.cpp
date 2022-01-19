@@ -11,7 +11,6 @@ using std::string_view;
 using std::u16string;
 using common::BaseException;
 using common::PromiseResult;
-using b3d::Vec4;
 using namespace xziar::img;
 using namespace oclu;
 using namespace std::literals;
@@ -48,23 +47,23 @@ TexResizer::TexResizer(const std::shared_ptr<TexUtilWorker>& worker) : Worker(wo
             }
         }
         ScreenBox = oglArrayBuffer_::Create();
-        const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
-        const Vec4 paf(-1.0f, -1.0f, 0.0f, 1.0f), pbf(1.0f, -1.0f, 1.0f, 1.0f), pcf(-1.0f, 1.0f, 0.0f, 0.0f), pdf(1.0f, 1.0f, 1.0f, 0.0f);
-        const Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb, paf,pbf,pcf, pdf,pcf,pbf };
+        const mbase::Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
+        const mbase::Vec4 paf(-1.0f, -1.0f, 0.0f, 1.0f), pbf(1.0f, -1.0f, 1.0f, 1.0f), pcf(-1.0f, 1.0f, 0.0f, 0.0f), pdf(1.0f, 1.0f, 1.0f, 0.0f);
+        const mbase::Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb, paf,pbf,pcf, pdf,pcf,pbf };
         ScreenBox->SetName(u"TexResizerScreenBox");
         ScreenBox->WriteSpan(DatVert);
 
         NormalVAO = oglVAO_::Create(VAODrawMode::Triangles);
         NormalVAO->SetName(u"TexResizerNormalVAO");
         NormalVAO->Prepare(GLResizer)
-            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(mbase::Vec4), 2, 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(mbase::Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         FlipYVAO = oglVAO_::Create(VAODrawMode::Triangles);
         FlipYVAO->SetName(u"TexResizerFlipYVAO");
         FlipYVAO->Prepare(GLResizer)
-            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, 0)
-            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(mbase::Vec4), 2, 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(mbase::Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(6, 6);
 
         if (CLContext)
@@ -219,7 +218,7 @@ TEXUTILAPI PromiseResult<oglTex2DS> TexResizer::ResizeToTex<ResizeMethod::Comput
         auto outtex = oglTex2DStatic_::Create(width, height, outformat);
         outtex->SetProperty(TextureFilterVal::BothLinear, TextureWrapVal::Repeat);
         auto outimg = oglImg2D_::Create(outtex, TexImgUsage::WriteOnly);
-        b3d::Coord2D coordStep(1.0f / width, 1.0f / height);
+        mbase::Vec2 coordStep(1.0f / width, 1.0f / height);
         const auto& localSize = GLResizer2->GetLocalSize();
         GLResizer2->SetVec("coordStep", coordStep);
         GLResizer2->SetVal("isSrgbDst", HAS_FIELD(output, TextureFormat::MASK_SRGB));

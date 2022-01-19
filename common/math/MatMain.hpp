@@ -29,6 +29,8 @@ struct COMMON_EMPTY_BASES alignas(32) Mat3 : public rule::ElementBasic<float, 9,
     /*template<typename Arg, typename... Args>
     constexpr Mat3(Arg&& arg, Args&&... args) noexcept :
         Mat3(rule::Concater<Mat3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}*/
+private:
+    constexpr Mat3(const VecType& x, const VecType& y, const VecType& z, const VecType& w) noexcept : Mat4x4Base(x, y, z, w) { }
 };
 
 struct COMMON_EMPTY_BASES alignas(32) Mat4 : public rule::ElementBasic<float, 16, 16>, public mat::Mat4x4Base<float, Vec4>,

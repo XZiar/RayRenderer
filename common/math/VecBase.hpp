@@ -1,8 +1,8 @@
 #pragma once
-#include "XCompRely.h"
+#include "../CommonRely.hpp"
 #include <cmath>
 
-namespace xcomp::math
+namespace common::math
 {
 
 namespace rule
@@ -13,6 +13,8 @@ struct ElementBasic
     static constexpr size_t ElementCount = N;
     static constexpr size_t StorageCount = M;
 };
+
+enum class ArgType : uint8_t { Basic, Scalar, Pair };
 
 template<template<class, size_t, size_t> class T, class U>
 struct BasicChecker
@@ -25,22 +27,45 @@ private:
 public:
     static constexpr bool IsBasic = decltype(BasicChecker::Test(std::declval<U>()))::value;
 };
-
-template<class T, bool IsBasic = BasicChecker<ElementBasic, T>::IsBasic>
-struct CheckBasic;
 template<typename T>
-struct CheckBasic<T, true>
+struct Pairchecker
 {
-    static constexpr bool IsBasic = true;
+    static constexpr bool IsPairSame = false;
+};
+template<typename T>
+struct Pairchecker<std::pair<T, T>>
+{
+    static constexpr bool IsPairSame = true;
+};
+
+template<typename T>
+inline constexpr ArgType ToArgType = BasicChecker<ElementBasic, T>::IsBasic ? ArgType::Basic :
+    (Pairchecker<T>::IsPairSame ? ArgType::Pair : ArgType::Scalar);
+
+
+template<typename T, ArgType Type = ToArgType<T>>
+struct ArgChecker;
+template<typename T>
+struct ArgChecker<T, ArgType::Basic>
+{
+    static constexpr ArgType AType = ArgType::Basic;
     using Type = typename T::EleType;
     static constexpr size_t Count = T::ElementCount;
 };
 template<typename T>
-struct CheckBasic<T, false>
+struct ArgChecker<T, ArgType::Scalar>
 {
-    static constexpr bool IsBasic = false;
+    static constexpr ArgType AType = ArgType::Scalar;
     using Type = T;
     static constexpr size_t Count = 1;
+};
+template<typename T>
+struct ArgChecker<T, ArgType::Pair>
+{
+    static_assert(std::is_same_v<typename T::first_type, typename T::second_type>);
+    static constexpr ArgType AType = ArgType::Pair;
+    using Type = typename T::first_type;
+    static constexpr size_t Count = 2;
 };
 
 
@@ -48,23 +73,29 @@ template<typename T>
 struct Concater
 {
     using E = typename T::EleType;
-    static constexpr size_t N = CheckBasic<T>::Count;
+    static constexpr size_t N = T::ElementCount;
     static constexpr auto Indexes = std::make_index_sequence<N>();
 
     template<typename... Args>
     static constexpr std::array<std::pair<uint8_t, uint8_t>, N> Generate() noexcept
     {
-        static_assert((... && std::is_same_v<E, typename CheckBasic<Args>::Type>),
+        static_assert((... && std::is_same_v<E, typename ArgChecker<Args>::Type>),
             "Concat element type does not match");
-        static_assert((... + CheckBasic<Args>::Count) == N,
+        static_assert((... + ArgChecker<Args>::Count) == N,
             "Concat length does not match");
-        constexpr std::array<size_t, sizeof...(Args)> Lengths{ CheckBasic<Args>::Count... };
+        constexpr std::array<ArgType, sizeof...(Args)> Types  { ArgChecker<Args>::AType... };
+        constexpr std::array<size_t,  sizeof...(Args)> Lengths{ ArgChecker<Args>::Count... };
         std::array<std::pair<uint8_t, uint8_t>, N> ret = {};
         uint8_t argIdx = 0, eleIdx = 0;
         for (auto& p : ret)
         {
             p.first = argIdx;
-            p.second = Lengths[argIdx] > 1 ? eleIdx : UINT8_MAX;
+            switch (Types[argIdx])
+            {
+            case ArgType::Basic:  p.second = eleIdx; break;
+            case ArgType::Scalar: p.second = UINT8_MAX; break;
+            case ArgType::Pair:   p.second = static_cast<uint8_t>(253 + eleIdx); break;
+            }
             if (Lengths[argIdx] <= ++eleIdx)
                 argIdx++, eleIdx = 0;
         }
@@ -76,6 +107,8 @@ struct Concater
     {
         if constexpr (EleIdx == UINT8_MAX)
             return std::get<ArgIdx>(tp);
+        else if constexpr (EleIdx >= 253)
+            return std::get<EleIdx - 253>(std::get<ArgIdx>(tp));
         else
             return std::get<ArgIdx>(tp)[EleIdx];
     }
@@ -348,8 +381,10 @@ public:
         return *reinterpret_cast<const V*>(this);
     }
 
-    forceinline constexpr T operator[](size_t idx) const noexcept { return (&X)[idx]; }
-    forceinline constexpr T& operator[](size_t idx) noexcept { return (&X)[idx]; }
+    forceinline constexpr T  operator[](size_t idx) const noexcept { return (&X)[idx]; }
+    forceinline constexpr T& operator[](size_t idx)       noexcept { return (&X)[idx]; }
+    forceinline constexpr const T* Ptr() const noexcept { return &X; }
+    forceinline constexpr       T* Ptr()       noexcept { return &X; }
 };
 
 
@@ -361,7 +396,6 @@ class alignas(16) Vec4Base
 protected:
     T X, Y, Z, W;
     constexpr Vec4Base(T x, T y, T z, T w) noexcept : X(x), Y(y), Z(z), W(w) {}
-
 public:
     constexpr Vec4Base() noexcept : X(0), Y(0), Z(0), W(0) { }
 
@@ -376,8 +410,10 @@ public:
         return *reinterpret_cast<const V*>(this);
     }
 
-    forceinline constexpr T operator[](size_t idx) const noexcept { return (&X)[idx]; }
-    forceinline constexpr T& operator[](size_t idx) noexcept { return (&X)[idx]; }
+    forceinline constexpr T  operator[](size_t idx) const noexcept { return (&X)[idx]; }
+    forceinline constexpr T& operator[](size_t idx)       noexcept { return (&X)[idx]; }
+    forceinline constexpr const T* Ptr() const noexcept { return &X; }
+    forceinline constexpr       T* Ptr()       noexcept { return &X; }
 };
 
 
@@ -407,20 +443,20 @@ struct VecBasic
     forceinline static constexpr T Zeros() noexcept
     {
         if constexpr (N == 4)
-            return T{ 0, 0, 0, 0 };
+            return T{ E(0), E(0), E(0), E(0) };
         else if constexpr (N == 3)
-            return T{ 0, 0, 0 };
+            return T{ E(0), E(0), E(0) };
         else if constexpr (N == 2)
-            return T{ 0, 0 };
+            return T{ E(0), E(0) };
     }
     forceinline static constexpr T Ones() noexcept
     {
         if constexpr (N == 4)
-            return T{ 1, 1, 1, 1 };
+            return T{ E(1), E(1), E(1), E(1) };
         else if constexpr (N == 3)
-            return T{ 1, 1, 1 };
+            return T{ E(1), E(1), E(1) };
         else if constexpr (N == 2)
-            return T{ 1, 1 };
+            return T{ E(1), E(1) };
     }
 };
 

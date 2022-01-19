@@ -59,30 +59,30 @@ public:
 
         u16string ToUString() const { return common::str::to_u16string(Line, charset); }
 
-        b3d::Coord2D ParamsToFloat2(size_t offset) const
+        mbase::Vec2 ParamsToFloat2(size_t offset) const
         {
-            b3d::Coord2D ret;
+            mbase::Vec2 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 2; ++offset, ++i)
                 common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
-        miniBLAS::Vec3 ParamsToFloat3(size_t offset) const
+        mbase::Vec3 ParamsToFloat3(size_t offset) const
         {
-            miniBLAS::Vec3 ret;
+            mbase::Vec3 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 3; ++offset, ++i)
                 common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
-        miniBLAS::Vec4 ParamsToFloat4(size_t offset) const
+        mbase::Vec4 ParamsToFloat4(size_t offset) const
         {
-            miniBLAS::Vec4 ret;
+            mbase::Vec4 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
                 common::StrToFP(Params[offset], ret[i]);
             return ret;
         }
-        miniBLAS::VecI4 ParamsToInt4(size_t offset) const
+        mbase::IVec4 ParamsToInt4(size_t offset) const
         {
-            miniBLAS::VecI4 ret;
+            mbase::IVec4 ret;
             for (uint8_t i = 0; offset < Params.size() && i < 4; ++offset, ++i)
                 common::StrToInt(Params[offset], ret[i]);
             return ret;

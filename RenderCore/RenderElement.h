@@ -19,14 +19,14 @@ public:
     {
     public:
         oglu::ProgDraw Drawer;
-        b3d::Mat4x4 ProjMat;
-        b3d::Mat4x4 ViewMat;
-        b3d::Mat4x4 PVMat;
-        Drawcall(const oglu::oglDrawProgram& prog, const b3d::Mat4x4& projMat, const b3d::Mat4x4& viewMat)
+        mbase::Mat4 ProjMat;
+        mbase::Mat4 ViewMat;
+        mbase::Mat4 PVMat;
+        Drawcall(const oglu::oglDrawProgram& prog, const mbase::Mat4& projMat, const mbase::Mat4& viewMat)
             : Drawer(prog->Draw()), ProjMat(projMat), ViewMat(viewMat), PVMat(projMat * viewMat)
         { }
     };
-    b3d::Vec3 Position = b3d::Vec3::zero(), Rotation = b3d::Vec3::zero(), Scale = b3d::Vec3::one();
+    mbase::Vec3 Position = mbase::Vec3::Zeros(), Rotation = mbase::Vec3::Zeros(), Scale = mbase::Vec3::Ones();
     MultiMaterialHolder MaterialHolder;
     u16string Name;
     bool ShouldRender = true;
@@ -47,20 +47,16 @@ public:
 
     void Move(const float x, const float y, const float z)
     {
-        Position += b3d::Vec3(x, y, z);
+        Position += mbase::Vec3(x, y, z);
     }
-    void Move(const b3d::Vec3& offset)
+    void Move(const mbase::Vec3& offset)
     {
         Position += offset;
     }
+    void Rotate(const mbase::Vec3& angles);
     void Rotate(const float x, const float y, const float z)
     {
-        Rotate(b3d::Vec3(x, y, z));
-    }
-    void Rotate(const b3d::Vec3& angles)
-    {
-        Rotation += angles;
-        Rotation.RepeatClampPos(b3d::Vec3::Vec3_2PI());
+        Rotate({ x, y, z });
     }
     void PrepareMaterial();
     void AssignMaterial();

@@ -42,9 +42,9 @@ static T GetProgCurUniform(const common::Controllable& control, const int32_t lo
 template<typename T>
 static void SetProgUniform(const common::Controllable& control, const oglu::ProgramResource* res, const T& val)
 {
-    if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Coord2D>)
+    if constexpr (std::is_same_v<T, mbase::Vec3> || std::is_same_v<T, mbase::Vec4> || std::is_same_v<T, mbase::Vec2>)
         dynamic_cast<const GLShader&>(control).Program->SetVec(res, val);
-    else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3> || std::is_same_v<T, miniBLAS::Mat4x4>)
+    else if constexpr (std::is_same_v<T, mbase::Mat3> || std::is_same_v<T, mbase::Mat4>)
         dynamic_cast<const GLShader&>(control).Program->SetMat(res, val);
     else
         dynamic_cast<const GLShader&>(control).Program->SetVal(res, val);
@@ -88,9 +88,9 @@ void GLShader::RegistControllable()
             {
                 prep.AsType<std::pair<float, float>>()
                     .RegistGetter([loc](const Controllable& self, const string&)
-                    { return (std::pair<float, float>)GetProgCurUniform<b3d::Coord2D>(self, loc); })
+                    { const auto v = GetProgCurUniform<mbase::Vec2>(self, loc); return std::pair{v.X, v.Y}; })
                     .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg)
-                    { SetProgUniform(self, &res, (b3d::Coord2D)std::get<std::pair<float, float>>(arg)); });
+                    { SetProgUniform(self, &res, mbase::Vec2(std::get<std::pair<float, float>>(arg))); });
             }
             else if (prop->Type == oglu::ShaderPropertyType::Float && prop->Data.has_value())
             {
@@ -100,9 +100,9 @@ void GLShader::RegistControllable()
             }
             else if (prop->Type == oglu::ShaderPropertyType::Color)
             {
-                prep.AsType<miniBLAS::Vec4>().SetArgType(ArgType::Color)
-                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<miniBLAS::Vec4>(self, loc, miniBLAS::Vec4::zero()); })
-                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<miniBLAS::Vec4>(arg)); });
+                prep.AsType<mbase::Vec4>().SetArgType(ArgType::Color)
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<mbase::Vec4>(self, loc, mbase::Vec4::Zeros()); })
+                    .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<mbase::Vec4>(arg)); });
             }
             else if (prop->Type == oglu::ShaderPropertyType::Bool)
             {
@@ -174,9 +174,9 @@ void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
             {
                 //<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
                 using T = std::decay_t<decltype(rval)>;
-                if constexpr (std::is_same_v<T, miniBLAS::Vec3> || std::is_same_v<T, miniBLAS::Vec4> || std::is_same_v<T, b3d::Coord2D>)
+                if constexpr (std::is_same_v<T, mbase::Vec3> || std::is_same_v<T, mbase::Vec4> || std::is_same_v<T, mbase::Vec2>)
                     uniforms.Add(key, detail::ToJArray(context, rval));
-                else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3> || std::is_same_v<T, miniBLAS::Mat4x4>)
+                else if constexpr (std::is_same_v<T, mbase::Mat3> || std::is_same_v<T, mbase::Mat4>)
                     return;
                 else
                     uniforms.Add(key, rval);

@@ -12,7 +12,7 @@ class Model;
 namespace detail
 {
 
-class alignas(b3d::Vec3)_ModelMesh : public common::NonCopyable, public xziar::respak::Serializable
+class alignas(mbase::Vec3)_ModelMesh : public common::NonCopyable, public xziar::respak::Serializable
 {
     friend class ::dizz::Model;
 private:
@@ -20,7 +20,7 @@ private:
     static std::shared_ptr<_ModelMesh> GetModel(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer = {});
     static void ReleaseModel(const u16string& fname);
 public:
-    b3d::Vec3 size;
+    mbase::Vec3 size;
 private:
     std::vector<oglu::PointEx> pts;
     std::vector<uint32_t> indexs;

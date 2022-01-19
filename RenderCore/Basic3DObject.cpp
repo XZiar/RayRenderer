@@ -6,10 +6,6 @@ namespace dizz
 using std::set;
 using std::map;
 using std::vector;
-using b3d::Vec3;
-using b3d::Normal;
-using b3d::Coord2D;
-using b3d::PI_float;
 using oglu::Point;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
@@ -23,18 +19,18 @@ Pyramid::Pyramid(const float len) : Drawable(this, TYPENAME), Sidelen(len)
     constexpr float sqrt3_6 = float(sqrt3 / 6);
     Point pts[] =
     { 
-        { {  0.0f, sqrt3_2,  0.0f },{ -0.86326f,0.33227f,0.37998f },{ 0.0f, 0.0f } },
-        { { -0.5f, 0.0f, -sqrt3_6 },{ -0.86326f,0.33227f,0.37998f },{ 2.0f, 0.0f } },
-        { {  0.0f, 0.0f,  sqrt3_3 },{ -0.86326f,0.33227f,0.37998f },{ 0.0f, 2.0f } },
-        { {  0.0f, sqrt3_2,  0.0f },{  0.86326f,0.33227f,0.37998f },{ 0.0f, 0.0f } },
-        { {  0.0f, 0.0f,  sqrt3_3 },{  0.86326f,0.33227f,0.37998f },{ 0.0f, 2.0f } },
-        { {  0.5f, 0.0f, -sqrt3_6 },{  0.86326f,0.33227f,0.37998f },{ 2.0f, 2.0f } },
-        { {  0.0f, sqrt3_2,  0.0f },{  0.0f, 0.316228f, -0.94868f },{ 0.0f, 0.0f } },
-        { {  0.5f, 0.0f, -sqrt3_6 },{  0.0f, 0.316228f, -0.94868f },{ 2.0f, 2.0f } },
-        { { -0.5f, 0.0f, -sqrt3_6 },{  0.0f, 0.316228f, -0.94868f },{ 2.0f, 0.0f } },
-        { {  0.0f, 0.0f,  sqrt3_3 },{  0.0f, -1.0f, 0.0f },{ 0.0f, 2.0f } },
-        { { -0.5f, 0.0f, -sqrt3_6 },{  0.0f, -1.0f, 0.0f },{ 2.0f, 0.0f } },
-        { {  0.5f, 0.0f, -sqrt3_6 },{  0.0f, -1.0f, 0.0f },{ 2.0f, 2.0f } }
+        { {  0.0f, sqrt3_2,  0.0f },{ -0.86326f,0.33227f,0.37998f },mbase::Vec2{ 0.0f, 0.0f } },
+        { { -0.5f, 0.0f, -sqrt3_6 },{ -0.86326f,0.33227f,0.37998f },mbase::Vec2{ 2.0f, 0.0f } },
+        { {  0.0f, 0.0f,  sqrt3_3 },{ -0.86326f,0.33227f,0.37998f },mbase::Vec2{ 0.0f, 2.0f } },
+        { {  0.0f, sqrt3_2,  0.0f },{  0.86326f,0.33227f,0.37998f },mbase::Vec2{ 0.0f, 0.0f } },
+        { {  0.0f, 0.0f,  sqrt3_3 },{  0.86326f,0.33227f,0.37998f },mbase::Vec2{ 0.0f, 2.0f } },
+        { {  0.5f, 0.0f, -sqrt3_6 },{  0.86326f,0.33227f,0.37998f },mbase::Vec2{ 2.0f, 2.0f } },
+        { {  0.0f, sqrt3_2,  0.0f },{  0.0f, 0.316228f, -0.94868f },mbase::Vec2{ 0.0f, 0.0f } },
+        { {  0.5f, 0.0f, -sqrt3_6 },{  0.0f, 0.316228f, -0.94868f },mbase::Vec2{ 2.0f, 2.0f } },
+        { { -0.5f, 0.0f, -sqrt3_6 },{  0.0f, 0.316228f, -0.94868f },mbase::Vec2{ 2.0f, 0.0f } },
+        { {  0.0f, 0.0f,  sqrt3_3 },{  0.0f, -1.0f, 0.0f },mbase::Vec2{ 0.0f, 2.0f } },
+        { { -0.5f, 0.0f, -sqrt3_6 },{  0.0f, -1.0f, 0.0f },mbase::Vec2{ 2.0f, 0.0f } },
+        { {  0.5f, 0.0f, -sqrt3_6 },{  0.0f, -1.0f, 0.0f },mbase::Vec2{ 2.0f, 2.0f } }
     };
     for (auto& pt : pts)
         pt.pos *= Sidelen;
@@ -78,11 +74,11 @@ static std::pair<vector<Point>, vector<uint16_t>> CreateSphere(const float radiu
         scnt = sectors;
         for (float s = 0; scnt--; s += sstep)
         {
-            const auto x = cos(2 * PI_float * s) * sin(PI_float * r);
-            const auto y = sin(PI_float * r - PI_float / 2);
-            const auto z = sin(2 * PI_float * s) * sin(PI_float * r);
-            Normal norm(x, y, z);
-            Coord2D texc(s, r);
+            const auto x = cos(2 * math::PI_float * s) * sin(math::PI_float * r);
+            const auto y = sin(math::PI_float * r - math::PI_float / 2);
+            const auto z = sin(2 * math::PI_float * s) * sin(math::PI_float * r);
+            mbase::Normal norm(x, y, z);
+            mbase::Vec2 texc(s, r);
             Point pt(norm * radius, norm, texc);
             pts.push_back(pt);
         }
@@ -153,52 +149,52 @@ RESPAK_IMPL_COMP_DESERIALIZE(Sphere, float)
  **/
 const Point BoxBasePts[] = 
 { 
-    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
-    { { +0.5f, -0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 0.0f } },//v2
-    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
-    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f } },//v3
-    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f } },//v6
-    { { +0.5f, +0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 0.0f } },//v7
+    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 0.0f } },//v3
+    { { +0.5f, -0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 0.0f, 0.0f } },//v2
+    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 0.0f } },//v6
+    { { +0.5f, +0.5f, +0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 0.0f } },//v3
+    { { +0.5f, -0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 0.0f } },//v6
+    { { +0.5f, +0.5f, -0.5f },{ +1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 1.0f, 0.0f } },//v7
 
-    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
-    { { -0.5f, -0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 0.0f, 1.0f } },//v5
-    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
-    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 1.0f } },//v4
-    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 1.0f } },//v1
-    { { -0.5f, +0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f } },//v0
+    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 1.0f } },//v4
+    { { -0.5f, -0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 0.0f, 1.0f } },//v5
+    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 1.0f } },//v1
+    { { -0.5f, +0.5f, -0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 1.0f } },//v4
+    { { -0.5f, -0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 1.0f } },//v1
+    { { -0.5f, +0.5f, +0.5f },{ -1.0f, 0.0f, 0.0f },mbase::Vec3{ 1.0f, 1.0f, 1.0f } },//v0
 
-    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
-    { { -0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f, 2.0f } },//v0
-    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
-    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 1.0f, 2.0f } },//v4
-    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 0.0f, 2.0f } },//v3
-    { { +0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },{ 1.0f, 1.0f, 2.0f } },//v7
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 2.0f } },//v4
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 0.0f, 0.0f, 2.0f } },//v0
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 2.0f } },//v3
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 2.0f } },//v4
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 2.0f } },//v3
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, +1.0f, 0.0f },mbase::Vec3{ 1.0f, 1.0f, 2.0f } },//v7
 
-    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
-    { { -0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 0.0f, 3.0f } },//v5
-    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
-    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 0.0f, 1.0f, 3.0f } },//v1
-    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 0.0f, 3.0f } },//v6
-    { { +0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },{ 1.0f, 1.0f, 3.0f } },//v2
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 3.0f } },//v1
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 0.0f, 0.0f, 3.0f } },//v5
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 3.0f } },//v6
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 0.0f, 1.0f, 3.0f } },//v1
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 1.0f, 0.0f, 3.0f } },//v6
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, -1.0f, 0.0f },mbase::Vec3{ 1.0f, 1.0f, 3.0f } },//v2
 
-    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
-    { { -0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 0.0f, 4.0f } },//v1
-    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
-    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 0.0f, 1.0f, 4.0f } },//v0
-    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 0.0f, 4.0f } },//v2
-    { { +0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },{ 1.0f, 1.0f, 4.0f } },//v3
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 0.0f, 1.0f, 4.0f } },//v0
+    { { -0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 0.0f, 0.0f, 4.0f } },//v1
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 1.0f, 0.0f, 4.0f } },//v2
+    { { -0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 0.0f, 1.0f, 4.0f } },//v0
+    { { +0.5f, -0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 1.0f, 0.0f, 4.0f } },//v2
+    { { +0.5f, +0.5f, +0.5f },{ 0.0f, 0.0f, +1.0f },mbase::Vec3{ 1.0f, 1.0f, 4.0f } },//v3
 
-    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
-    { { +0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 0.0f, 5.0f } },//v6
-    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
-    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 0.0f, 1.0f, 5.0f } },//v7
-    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 0.0f, 5.0f } },//v5
-    { { -0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },{ 1.0f, 1.0f, 5.0f } },//v4
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 0.0f, 1.0f, 5.0f } },//v7
+    { { +0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 0.0f, 0.0f, 5.0f } },//v6
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 1.0f, 0.0f, 5.0f } },//v5
+    { { +0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 0.0f, 1.0f, 5.0f } },//v7
+    { { -0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 1.0f, 0.0f, 5.0f } },//v5
+    { { -0.5f, +0.5f, -0.5f },{ 0.0f, 0.0f, -1.0f },mbase::Vec3{ 1.0f, 1.0f, 5.0f } },//v4
 };
 
 Box::Box(const float length, const float height, const float width) : Drawable(this, TYPENAME)
 {
-    Size = Vec3(length, height, width);
+    Size = mbase::Vec3(length, height, width);
     vector<Point> pts;
     pts.assign(BoxBasePts, BoxBasePts + 36);
     for (auto& pt : pts)
@@ -227,9 +223,9 @@ void Box::Deserialize(DeserializeUtil& context, const xziar::ejson::JObjectRef<t
 
 RESPAK_IMPL_COMP_DESERIALIZE(Box, float, float, float)
 {
-    b3d::Vec3 Size;
+    mbase::Vec3 Size;
     detail::FromJArray(object.GetArray("Size"), Size);
-    return std::tuple(Size.x, Size.y, Size.z);
+    return std::tuple(Size.X, Size.Y, Size.Z);
 }
 
 
@@ -237,12 +233,12 @@ Plane::Plane(const float len, const float texRepeat) : Drawable(this, TYPENAME),
 {
     const Point pts[] =
     {
-        { { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, texRepeat } },//v4
-        { { -len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, 0.0f } },//v0
-        { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
-        { { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ 0.0f, texRepeat } },//v4
-        { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, 0.0f } },//v3
-        { { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },{ texRepeat, texRepeat } },//v7
+        { { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ 0.0f,      texRepeat } }, //v4
+        { { -len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ 0.0f,      0.0f } },      //v0
+        { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ texRepeat, 0.0f } },      //v3
+        { { -len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ 0.0f,      texRepeat } }, //v4
+        { { +len,0.0f,+len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ texRepeat, 0.0f } },      //v3
+        { { +len,0.0f,-len },{ 0.0f, +1.0f, 0.0f },mbase::Vec2{ texRepeat, texRepeat } }, //v7
     };
     vbo = oglu::oglArrayBuffer_::Create();
     vbo->WriteSpan(pts);

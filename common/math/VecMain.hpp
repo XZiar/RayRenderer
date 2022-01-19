@@ -100,6 +100,8 @@ struct COMMON_EMPTY_BASES alignas(16) Vec3 : public rule::ElementBasic<float, 3,
     template<typename Arg, typename... Args>
     constexpr Vec3(Arg&& arg, Args&&... args) noexcept :
         Vec3(rule::Concater<Vec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+private:
+    constexpr Vec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
 struct COMMON_EMPTY_BASES alignas(16) IVec3 : public rule::ElementBasic<int32_t, 3, 4>, public vec::Vec4Base<int32_t>,
@@ -118,6 +120,8 @@ struct COMMON_EMPTY_BASES alignas(16) IVec3 : public rule::ElementBasic<int32_t,
     template<typename Arg, typename... Args>
     constexpr IVec3(Arg&& arg, Args&&... args) noexcept :
         IVec3(rule::Concater<IVec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+private:
+    constexpr IVec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
 struct COMMON_EMPTY_BASES alignas(16) UVec3 : public rule::ElementBasic<uint32_t, 3, 4>, public vec::Vec4Base<uint32_t>,
@@ -136,6 +140,8 @@ struct COMMON_EMPTY_BASES alignas(16) UVec3 : public rule::ElementBasic<uint32_t
     template<typename Arg, typename... Args>
     constexpr UVec3(Arg&& arg, Args&&... args) noexcept :
         UVec3(rule::Concater<IVec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+private:
+    constexpr UVec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
 struct Normal : public Vec3

@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef OLD_BLAS
+#   error miniBLAS deprecated
+#endif
+
 #include "miniBLAS/BLASrely.h"
 
 #if COMMON_COMPILER_GCC

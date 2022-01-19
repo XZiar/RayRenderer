@@ -17,8 +17,8 @@ static constexpr size_t ValIndexUInt32  = common::get_variant_index_v<uint32_t, 
 static constexpr size_t ValIndexUInt64  = common::get_variant_index_v<uint64_t,                 common::Controllable::ControlArg>();
 static constexpr size_t ValIndexFloat   = common::get_variant_index_v<float,                    common::Controllable::ControlArg>();
 static constexpr size_t ValIndexFPair   = common::get_variant_index_v<std::pair<float, float>,  common::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec3    = common::get_variant_index_v<miniBLAS::Vec3,           common::Controllable::ControlArg>();
-static constexpr size_t ValIndexVec4    = common::get_variant_index_v<miniBLAS::Vec4,           common::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec3    = common::get_variant_index_v<mbase::Vec3,              common::Controllable::ControlArg>();
+static constexpr size_t ValIndexVec4    = common::get_variant_index_v<mbase::Vec4,              common::Controllable::ControlArg>();
 static constexpr size_t ValIndexStr     = common::get_variant_index_v<string,                   common::Controllable::ControlArg>();
 static constexpr size_t ValIndexU16Str  = common::get_variant_index_v<u16string,                common::Controllable::ControlArg>();
 
@@ -62,13 +62,13 @@ static u16string GetU16Str(const common::Controllable::ControlItem* item, const 
 }
 static std::tuple<float, float, float> GetVec3(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
-    const auto& val = std::get<miniBLAS::Vec3>(item->Getter(*control, item->Id));
-    return { val.x,val.y,val.z };
+    const auto& val = std::get<mbase::Vec3>(item->Getter(*control, item->Id));
+    return { val.X,val.Y,val.Z };
 }
 static std::tuple<float, float, float, float> GetVec4(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
 {
-    const auto& val = std::get<miniBLAS::Vec4>(item->Getter(*control, item->Id));
-    return { val.x,val.y,val.z,val.w };
+    const auto& val = std::get<mbase::Vec4>(item->Getter(*control, item->Id));
+    return { val.X,val.Y,val.Z,val.W };
 }
 template<typename T>
 static std::u16string_view GetEnum(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control)
@@ -115,11 +115,11 @@ static void SetArg(const common::Controllable::ControlItem* item, const std::sha
 }
 static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float x, const float y, const float z)
 {
-    item->Setter(*control, item->Id, miniBLAS::Vec3(x, y, z));
+    item->Setter(*control, item->Id, mbase::Vec3(x, y, z));
 }
 static void SetArg(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const float x, const float y, const float z, const float w)
 {
-    item->Setter(*control, item->Id, miniBLAS::Vec4(x, y, z, w));
+    item->Setter(*control, item->Id, mbase::Vec4(x, y, z, w));
 }
 template<typename T>
 static void SetEnum(const common::Controllable::ControlItem* item, const std::shared_ptr<common::Controllable>& control, const u16string& arg)

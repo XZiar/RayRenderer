@@ -1,6 +1,5 @@
 #pragma once
 #include "oglRely.h"
-#include "3DElement.hpp"
 
 
 #if COMMON_COMPILER_MSVC
@@ -248,7 +247,7 @@ public:
 
     void SetSRGBFBO(const bool isEnable);
     
-    [[nodiscard]] miniBLAS::VecI4 GetViewPort() const;
+    [[nodiscard]] mbase::IVec4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
     [[nodiscard]] oglContext NewContext(const bool isShared, const int32_t* attribs) const;
     [[nodiscard]] oglContext NewContext(const bool isShared = false, uint32_t version = 0) const;

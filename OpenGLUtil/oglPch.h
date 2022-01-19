@@ -13,11 +13,14 @@
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
 #include "common/ContainerEx.hpp"
+#include "common/math/VecSIMD.hpp"
+#include "common/math/MatSIMD.hpp"
 
 #include <algorithm>
 
 
 namespace oglu
 {
+namespace msimd = common::math::simd;
 common::mlog::MiniLogger<false>& oglLog();
 }

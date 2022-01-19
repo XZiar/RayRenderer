@@ -1,7 +1,6 @@
 #pragma once
 #include "oglRely.h"
 #include "oglBuffer.h"
-#include "3DElement.hpp"
 
 
 #if COMMON_COMPILER_MSVC
@@ -45,7 +44,7 @@ template<typename Val>
 inline constexpr VAValType ParseType()
 {
          if constexpr (std::is_same_v<Val, float>)      return VAValType::Float;
-    else if constexpr (std::is_same_v<Val, b3d::half>)  return VAValType::Half;
+    //else if constexpr (std::is_same_v<Val, b3d::half>)  return VAValType::Half;
     else if constexpr (std::is_same_v<Val, uint32_t>)   return VAValType::U32;
     else if constexpr (std::is_same_v<Val, int32_t>)    return VAValType::I32;
     else if constexpr (std::is_same_v<Val, uint16_t>)   return VAValType::U16;

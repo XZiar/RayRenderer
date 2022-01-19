@@ -23,10 +23,6 @@ using common::container::FindInMap;
 using common::container::FindInMapOrDefault;
 using common::container::FindInVec;
 using common::container::ReplaceInVec;
-using b3d::Vec3;
-using b3d::Vec4;
-using b3d::Mat3x3;
-using b3d::Mat4x4;
 using namespace std::literals;
 
 MAKE_ENABLER_IMPL(oglDrawProgram_)
@@ -466,14 +462,14 @@ void oglProgram_::FilterProperties(const ShaderExtInfo& extInfo)
                 {
                 case ShaderPropertyType::Color:
                     {
-                        Vec4 vec;
-                        CtxFunc->GetUniformfv(ProgramID, res->location, vec);
+                        mbase::Vec4 vec;
+                        CtxFunc->GetUniformfv(ProgramID, res->location, vec.Ptr());
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Range:
                     {
-                        b3d::Coord2D vec;
-                        CtxFunc->GetUniformfv(ProgramID, res->location, vec);
+                        mbase::Vec2 vec;
+                        CtxFunc->GetUniformfv(ProgramID, res->location, vec.Ptr());
                         UniValCache.insert_or_assign(res->location, vec);
                     } break;
                 case ShaderPropertyType::Bool:
@@ -643,15 +639,15 @@ forceinline static bool CheckResource(const ProgramResource* res, const T&)
     if (res && res->location != GLInvalidIndex)
     {
         const auto valType = res->Valtype;
-        if constexpr (std::is_same_v<T, b3d::Coord2D>)
+        if constexpr (std::is_same_v<T, mbase::Vec2>)
             return valType == GL_FLOAT_VEC2;
-        else if constexpr (std::is_same_v<T, miniBLAS::Vec3>)
+        else if constexpr (std::is_same_v<T, mbase::Vec3>)
             return valType == GL_FLOAT_VEC2 || valType == GL_FLOAT_VEC3;
-        else if constexpr (std::is_same_v<T, miniBLAS::Vec4>)
+        else if constexpr (std::is_same_v<T, mbase::Vec4>)
             return valType == GL_FLOAT_VEC2 || valType == GL_FLOAT_VEC3 || valType == GL_FLOAT_VEC4;
-        else if constexpr (std::is_same_v<T, miniBLAS::Mat3x3>)
+        else if constexpr (std::is_same_v<T, mbase::Mat3>)
             return valType == GL_FLOAT_MAT3;
-        else if constexpr (std::is_same_v<T, miniBLAS::Mat4x4>)
+        else if constexpr (std::is_same_v<T, mbase::Mat4>)
             return valType == GL_FLOAT_MAT4;
         else if constexpr (std::is_same_v<T, bool>)
             return valType == GL_BOOL;
@@ -663,54 +659,54 @@ forceinline static bool CheckResource(const ProgramResource* res, const T&)
     return false;
 }
 
-void oglProgram_::SetVec_(const ProgramResource* res, const b3d::Coord2D& vec, const bool keep)
+void oglProgram_::SetVec_(const ProgramResource* res, const mbase::Vec2& vec, const bool keep)
 {
     CheckCurrent();
     if (CheckResource(res, vec))
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ProgramUniform2fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform2fv(ProgramID, res->location, 1, vec.Ptr());
     }
 }
-void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec, const bool keep)
+void oglProgram_::SetVec_(const ProgramResource* res, const mbase::Vec3& vec, const bool keep)
 {
     CheckCurrent();
     if (CheckResource(res, vec))
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ProgramUniform3fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform3fv(ProgramID, res->location, 1, vec.Ptr());
     }
 }
-void oglProgram_::SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec, const bool keep)
+void oglProgram_::SetVec_(const ProgramResource* res, const mbase::Vec4& vec, const bool keep)
 {
     CheckCurrent();
     if (CheckResource(res, vec))
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, vec);
-        CtxFunc->ProgramUniform4fv(ProgramID, res->location, 1, vec);
+        CtxFunc->ProgramUniform4fv(ProgramID, res->location, 1, vec.Ptr());
     }
 }
-void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& mat, const bool keep)
+void oglProgram_::SetMat_(const ProgramResource* res, const mbase::Mat3& mat, const bool keep)
 {
     CheckCurrent();
     if (CheckResource(res, mat))
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, mat);
-        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
+        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, Transpose(mat).Ptr());
     }
 }
-void oglProgram_::SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& mat, const bool keep)
+void oglProgram_::SetMat_(const ProgramResource* res, const mbase::Mat4& mat, const bool keep)
 {
     CheckCurrent();
     if (CheckResource(res, mat))
     {
         if (keep)
             UniValCache.insert_or_assign(res->location, mat);
-        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, mat.inv());
+        CtxFunc->ProgramUniformMatrix4fv(ProgramID, res->location, 1, GL_FALSE, Transpose(mat).Ptr());
     }
 }
 void oglProgram_::SetVal_(const ProgramResource* res, const bool val, const bool keep)

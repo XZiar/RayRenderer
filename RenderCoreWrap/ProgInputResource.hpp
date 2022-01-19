@@ -112,8 +112,8 @@ public ref class Ranged2ProgInputRes_Float : public Ranged2ProgInputRes<float>
 protected:
     virtual float Convert(const oglu::UniformValue* value, const bool isLow) override
     {
-        const auto& c2d = std::get<b3d::Coord2D>(*value);
-        return isLow ? c2d.u : c2d.v;
+        const auto& c2d = std::get<mbase::Vec2>(*value);
+        return isLow ? c2d.X : c2d.Y;
     };
     virtual void SetValue(float val, const bool isLow) override
     {
@@ -124,8 +124,8 @@ protected:
         }
         else
         {
-            const auto& c2d = std::get<b3d::Coord2D>(*ptr);
-            SetProgVec(Prog, ptrRes, isLow ? val : c2d.u, isLow ? c2d.v : val);
+            const auto& c2d = std::get<mbase::Vec2>(*ptr);
+            SetProgVec(Prog, ptrRes, isLow ? val : c2d.X, isLow ? c2d.Y : val);
         }
     };
 internal:
@@ -150,7 +150,7 @@ public:
         System::Windows::Media::Color get()
         {
             auto ptr = GetValue();
-            return ptr ? ToColor(std::get<miniBLAS::Vec4>(*ptr)) : defValue;
+            return ptr ? ToColor(std::get<mbase::Vec4>(*ptr)) : defValue;
         }
         void set(System::Windows::Media::Color value)
         {

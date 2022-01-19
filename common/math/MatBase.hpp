@@ -1,9 +1,9 @@
 #pragma once
-#include "XCompRely.h"
+#include "../CommonRely.hpp"
 #include "VecBase.hpp"
 #include <cmath>
 
-namespace xcomp::math
+namespace common::math
 {
 
 namespace rule
@@ -25,26 +25,27 @@ class alignas(32) Mat4x4Base
     static_assert(sizeof(V) == 16, "only 16-byte length vec type allowed");
 protected:
     V X, Y, Z, W;
-    constexpr Mat4x4Base(V x, V y, V z, V w) noexcept : X(x), Y(y), Z(z), W(w) {}
-
+    constexpr Mat4x4Base(const V& x, const V& y, const V& z, const V& w) noexcept : X(x), Y(y), Z(z), W(w) {}
 public:
     constexpr Mat4x4Base() noexcept { }
-
+    
     template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
     forceinline M& As() noexcept
     {
-        return *reinterpret_cast<V*>(this);
+        return *reinterpret_cast<M*>(this);
     }
     template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
     forceinline const M& As() const noexcept
     {
-        return *reinterpret_cast<const V*>(this);
+        return *reinterpret_cast<const M*>(this);
     }
 
     forceinline constexpr const V& operator[](size_t idx) const noexcept { return (&X)[idx]; }
     forceinline constexpr       V& operator[](size_t idx)       noexcept { return (&X)[idx]; }
     forceinline constexpr const T& operator()(size_t row, size_t col) const noexcept { return (&X)[row][col]; }
     forceinline constexpr       T& operator()(size_t row, size_t col)       noexcept { return (&X)[row][col]; }
+    forceinline constexpr const T* Ptr() const noexcept { return &X.X; }
+    forceinline constexpr       T* Ptr()       noexcept { return &X.X; }
 };
 
 
@@ -105,23 +106,23 @@ struct MatBasic
         if constexpr (N == 4)
             return 
         {
-            { self.X.X, self.X.X, self.X.X, self.X.X },
-            { self.Y.X, self.Y.X, self.Y.X, self.Y.X },
-            { self.Z.X, self.Z.X, self.Z.X, self.Z.X },
-            { self.W.X, self.W.X, self.W.X, self.W.X }
+            { self.X.X, self.Y.X, self.Z.X, self.W.X },
+            { self.X.Y, self.Y.Y, self.Z.Y, self.W.Y },
+            { self.X.Z, self.Y.Z, self.Z.Z, self.W.Z },
+            { self.X.W, self.Y.W, self.Z.W, self.W.W }
         };
         else if constexpr (N == 3)
             return
         {
-            { self.X.X, self.X.X, self.X.X },
-            { self.Y.X, self.Y.X, self.Y.X },
-            { self.Z.X, self.Z.X, self.Z.X }
+            { self.X.X, self.Y.X, self.Z.X },
+            { self.X.Y, self.Y.Y, self.Z.Y },
+            { self.X.Z, self.Y.Z, self.Z.Z },
         };
         else if constexpr (N == 2)
             return
         {
-            { self.X.X, self.X.X },
-            { self.Y.X, self.Y.X }
+            { self.X.X, self.Y.X },
+            { self.X.Y, self.Y.Y }
         };
     }
 };

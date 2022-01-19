@@ -22,6 +22,8 @@
 #include "common/FileBase.hpp"
 #include "common/SpinLock.hpp"
 #include "common/TimeUtil.hpp"
+#include "common/math/VecBase.hpp"
+#include "common/math/MatBase.hpp"
 #include "common/CommonRely.hpp"
 
 #if COMMON_COMPILER_CLANG
@@ -75,6 +77,8 @@ class GLInterOP;
 
 namespace oglu
 {
+
+namespace mbase = common::math::base;
 
 inline constexpr uint32_t GLInvalidEnum  = UINT32_MAX;
 inline constexpr int32_t  GLInvalidIndex = -1;

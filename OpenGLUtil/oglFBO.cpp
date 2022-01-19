@@ -98,9 +98,9 @@ oglFrameBuffer_::FBOClear::~FBOClear()
     CtxFunc->BindFramebuffer(GL_DRAW_FRAMEBUFFER, OldFBOId);
 }
 
-oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearColors(const b3d::Vec4& color)
+oglFrameBuffer_::FBOClear& oglFrameBuffer_::FBOClear::ClearColors(const mbase::Vec4& color)
 {
-    CtxFunc->ClearColor(color.x, color.y, color.z, color.w);
+    CtxFunc->ClearColor(color.X, color.Y, color.Z, color.W);
     CtxFunc->Clear(GL_COLOR_BUFFER_BIT);
     return *this;
 }
@@ -273,7 +273,7 @@ oglDefaultFrameBuffer_::oglDefaultFrameBuffer_() : oglFrameBuffer_(0)
 {
     DrawBindings[0] = GL_BACK_LEFT;
     const auto viewport = oglContext_::CurrentContext()->GetViewPort(); 
-    Width = viewport.z; Height = viewport.w;
+    Width = viewport.Z; Height = viewport.W;
     IsSrgbColor = CheckIsSrgb(GL_BACK_LEFT);
 }
 oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
@@ -336,10 +336,10 @@ oglCustomFrameBuffer_::FBOClear::~FBOClear()
     for (const auto& clr : ColorClears)
     {
         if (clr.has_value())
-            CtxFunc->ClearNamedFramebufferfv(NewFBOId(), GL_COLOR, GL_DRAW_BUFFER0 + (idx++), clr.value());
+            CtxFunc->ClearNamedFramebufferfv(NewFBOId(), GL_COLOR, GL_DRAW_BUFFER0 + (idx++), &clr->X);
     }
 }
-oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::ClearColor(const uint8_t attachment, const b3d::Vec4& color)
+oglCustomFrameBuffer_::FBOClear& oglCustomFrameBuffer_::FBOClear::ClearColor(const uint8_t attachment, const mbase::Vec4& color)
 {
     Expects(attachment < TheFBO.ColorAttachemnts.size()); // u"attachment index overflow"
     ColorClears[attachment] = color;

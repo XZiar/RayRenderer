@@ -1,7 +1,6 @@
 #pragma once
 #include "oglRely.h"
 #include "oglTexture.h"
-#include "3DElement.hpp"
 #include <bitset>
 
 
@@ -92,11 +91,11 @@ protected:
     public:
         FBOClear(oglFrameBuffer_* fbo);
         virtual ~FBOClear();
-        FBOClear& ClearColors(const b3d::Vec4& color = b3d::Vec4::zero());
+        FBOClear& ClearColors(const mbase::Vec4& color = mbase::Vec4::Zeros());
         FBOClear& ClearDepth(const float depth = 0.f);
         FBOClear& ClearStencil(const int32_t stencil = 0);
         FBOClear& ClearDepthStencil(const float depth = 0.f, const int32_t stencil = 0);
-        FBOClear& ClearAll(const b3d::Vec4& color = b3d::Vec4::zero(), const float depth = 0.f, const int32_t stencil = 0)
+        FBOClear& ClearAll(const mbase::Vec4& color = mbase::Vec4::Zeros(), const float depth = 0.f, const int32_t stencil = 0)
         {
             return ClearColors(color).ClearDepthStencil(depth, stencil);
         }
@@ -201,11 +200,11 @@ public:
         friend class oglCustomFrameBuffer_;
     private:
         oglCustomFrameBuffer_& TheFBO;
-        std::vector<std::optional<b3d::Vec4>> ColorClears;
+        std::vector<std::optional<mbase::Vec4>> ColorClears;
         FBOClear(oglCustomFrameBuffer_* fbo);
     public:
         ~FBOClear() override;
-        FBOClear& ClearColor(const uint8_t attachment, const b3d::Vec4& color = b3d::Vec4::zero());
+        FBOClear& ClearColor(const uint8_t attachment, const mbase::Vec4& color = mbase::Vec4::Zeros());
         FBOClear& DiscardColor(const uint8_t attachment);
         FBOClear& DiscardDepth();
         FBOClear& DiscardStencil();

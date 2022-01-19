@@ -152,18 +152,18 @@ static std::shared_ptr<dizz::Light> CreateLight(dizz::LightType type)
     {
     case dizz::LightType::Parallel:
         light = std::make_shared<dizz::ParallelLight>();
-        light->Color = b3d::Vec4(1.0, 0.3, 0.3, 1.0);
+        light->Color = mbase::Vec4(1.0f, 0.3f, 0.3f, 1.0f);
         break;
     case dizz::LightType::Point:
         light = std::make_shared<dizz::PointLight>();
-        light->Color = b3d::Vec4(0.3, 1.0, 0.3, 1.0);
+        light->Color = mbase::Vec4(0.3f, 1.0f, 0.3f, 1.0f);
         break;
     case dizz::LightType::Spot:
         light = std::make_shared<dizz::SpotLight>();
-        light->Color = b3d::Vec4(0.3, 0.3, 1.0, 1.0);
+        light->Color = mbase::Vec4(0.3f, 0.3f, 1.0f, 1.0f);
         break;
     }
-    light->Direction = b3d::Vec4(0, 0, 1, 0);
+    light->Direction = mbase::Vec3(0.f, 0.f, 1.f);
     return light;
 }
 #pragma managed(pop)

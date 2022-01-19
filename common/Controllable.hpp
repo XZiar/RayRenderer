@@ -4,7 +4,7 @@
 #include "SystemCommon/Exceptions.h"
 #include "Linq2.hpp"
 #include "STLEx.hpp"
-#include "3DBasic/miniBLAS.hpp"
+#include "math/VecBase.hpp"
 #include <string>
 #include <string_view>
 #include <map>
@@ -28,7 +28,8 @@ class Controllable
 {
     friend struct ControlHelper;
 public:
-    using ControlArg = std::variant<bool, uint16_t, int32_t, uint32_t, uint64_t, float, std::pair<float, float>, miniBLAS::Vec3, miniBLAS::Vec4, std::string, std::u16string, std::any>;
+    using ControlArg = std::variant<bool, uint16_t, int32_t, uint32_t, uint64_t, float, std::pair<float, float>, 
+        math::base::Vec3, math::base::Vec4, std::string, std::u16string, std::any>;
     enum class ArgType : uint8_t { RawValue, Color, LongText, Enum };
     struct ControlItem
     {

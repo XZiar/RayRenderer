@@ -10,10 +10,10 @@ enum class LightType : int32_t { Parallel = 0, Point = 1, Spot = 2 };
 
 struct RENDERCOREAPI LightData
 {
-    b3d::Vec4 Color = b3d::Vec4::one();
-    b3d::Vec3 Position = b3d::Vec3::zero();
-    b3d::Vec3 Direction = b3d::Vec3(0, -1, 0);
-    b3d::Vec4 Attenuation = b3d::Vec4(0.5, 0.3, 0.0, 10.0);
+    mbase::Vec4 Color       = mbase::Vec4::Ones();
+    mbase::Vec3 Position    = mbase::Vec3::Zeros();
+    mbase::Vec3 Direction   = mbase::Vec3(0.f, -1.f, 0.f);
+    mbase::Vec4 Attenuation = mbase::Vec4(0.5f, 0.3f, 0.0f, 10.0f);
     float CutoffOuter, CutoffInner;
     const LightType Type;
 protected:
@@ -22,19 +22,19 @@ public:
     static constexpr size_t WriteSize = 4 * 4 * sizeof(float);
     void Move(const float x, const float y, const float z)
     {
-        Position += b3d::Vec3(x, y, z);
+        Position += mbase::Vec3(x, y, z);
     }
-    void Move(const b3d::Vec3& offset)
+    void Move(const mbase::Vec3& offset)
     {
         Position += offset;
     }
     void Rotate(const float x, const float y, const float z)
     {
-        Rotate(b3d::Vec3(x, y, z));
+        Rotate(mbase::Vec3(x, y, z));
     }
-    void Rotate(const b3d::Vec3& radius)
+    void Rotate(const mbase::Vec3& radius)
     {
-        const auto rMat = b3d::Mat3x3::RotateMatXYZ(radius);
+        const auto rMat = math::RotateMatXYZ<mbase::Mat3>(radius);
         Direction = rMat * Direction;
     }
     void WriteData(const common::span<std::byte> space) const;
@@ -69,7 +69,7 @@ public:
 class ParallelLight : public Light
 {
 public:
-    ParallelLight() : Light(LightType::Parallel, u"ParallelLight") { Attenuation.w = 1.0f; }
+    ParallelLight() : Light(LightType::Parallel, u"ParallelLight") { Attenuation.W = 1.0f; }
 };
 
 class PointLight : public Light

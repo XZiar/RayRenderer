@@ -1,9 +1,9 @@
 #include "XCompDebugExt.h"
 #include "Nailang/NailangRuntime.h"
-#include "VecBase.hpp"
-#include "VecSIMD.hpp"
-#include "MatBase.hpp"
-#include "MatSIMD.hpp"
+#include "common/math/VecBase.hpp"
+#include "common/math/VecSIMD.hpp"
+#include "common/math/MatBase.hpp"
+#include "common/math/MatSIMD.hpp"
 
 namespace xcomp::debug
 {
@@ -23,13 +23,15 @@ void TestVec()
     static_assert(sizeof(V4)  == 16);
     static_assert(sizeof(IV4) == 16);
 
-    V2 a2, b2, d2;
+    std::pair p2{ 1.0f, 3.0f };
+
+    V2 a2, b2, d2(p2);
     [[maybe_unused]] const auto c2 = Dot(a2, b2);
     [[maybe_unused]] const auto e2 = (a2[1] + Min(c2, d2)) + (b2[1] - Max(a2, b2)) - c2 + a2[0] - b2[0];
     [[maybe_unused]] const auto f2 = b2[1] / (a2[1] * (e2 * a2[0] / b2[1]));
     [[maybe_unused]] const auto g2 = e2.Sqrt().Negative().Length();
 
-    V3 a3, b3(1.0f, b2);
+    V3 a3(5.3f, p2), b3(1.0f, b2);
     [[maybe_unused]] const auto c3 = Dot(a3, b3);
     [[maybe_unused]] const auto d3 = Cross(a3, b3);
     [[maybe_unused]] const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
@@ -56,7 +58,7 @@ void TestVec()
 }
 void TestVec2()
 {
-    using namespace math;
+    using namespace common::math;
     TestVec<base::Vec2, base::Vec3, base::IVec3, base::Vec4, base::IVec4>();
     TestVec<simd::Vec2, simd::Vec3, simd::IVec3, simd::Vec4, simd::IVec4>();
     [[maybe_unused]] base::Normal x, y, z = x + y;
@@ -78,7 +80,7 @@ void TestMat()
 }
 void TestMat2()
 {
-    using namespace math;
+    using namespace common::math;
     TestMat<base::Vec3, base::Vec4, base::Mat3, base::Mat4>();
     TestMat<simd::Vec3, simd::Vec4, simd::Mat3, simd::Mat4>();
 }

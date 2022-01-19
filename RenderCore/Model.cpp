@@ -7,7 +7,6 @@ namespace dizz
 using std::map;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
-using b3d::Vec3;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 using namespace std::string_view_literals;
@@ -28,8 +27,8 @@ MultiMaterialHolder Model::OnPrepareMaterial() const
 
 Model::Model(ModelMesh mesh) : Drawable(this, TYPENAME), Mesh(mesh)
 {
-    const auto resizer = 2 / common::max(common::max(Mesh->size.x, Mesh->size.y), Mesh->size.z);
-    Scale = Vec3(resizer, resizer, resizer);
+    const auto resizer = 2 / common::max(common::max(Mesh->size.X, Mesh->size.Y), Mesh->size.Z);
+    Scale = mbase::Vec3(resizer, resizer, resizer);
 }
 
 Model::Model(const u16string& fname, const std::shared_ptr<TextureLoader>& texLoader, const std::shared_ptr<oglu::oglWorker>& asyncer)

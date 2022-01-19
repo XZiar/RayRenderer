@@ -4,7 +4,6 @@
 #include "oglBuffer.h"
 #include "oglTexture.h"
 #include "oglVAO.h"
-#include "3DElement.hpp"
 
 #if COMMON_COMPILER_MSVC
 #   pragma warning(push)
@@ -22,7 +21,7 @@ class oglComputeProgram_;
 using oglComputeProgram = std::shared_ptr<oglComputeProgram_>;
 
 
-using UniformValue = std::variant<b3d::Coord2D, miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, bool, float, int32_t, uint32_t>;
+using UniformValue = std::variant<mbase::Vec2, mbase::Vec3, mbase::Vec4, mbase::Mat3, mbase::Mat4, bool, float, int32_t, uint32_t>;
 
 
 enum class ProgResType : uint16_t 
@@ -196,15 +195,15 @@ protected:
     void SetSubroutine(const SubroutineResource::Routine* routine);
     void SetSubroutine(const SubroutineResource* subr, const SubroutineResource::Routine* routine);
 
-    void SetVec_(const ProgramResource* res, const b3d::Coord2D& vec,     const bool keep = true);
-    void SetVec_(const ProgramResource* res, const miniBLAS::Vec3& vec,   const bool keep = true);
-    void SetVec_(const ProgramResource* res, const miniBLAS::Vec4& vec,   const bool keep = true);
-    void SetMat_(const ProgramResource* res, const miniBLAS::Mat4x4& mat, const bool keep = true);
-    void SetMat_(const ProgramResource* res, const miniBLAS::Mat3x3& mat, const bool keep = true);
-    void SetVal_(const ProgramResource* res, const bool val,              const bool keep = true);
-    void SetVal_(const ProgramResource* res, const float val,             const bool keep = true);
-    void SetVal_(const ProgramResource* res, const int32_t val,           const bool keep = true);
-    void SetVal_(const ProgramResource* res, const uint32_t val,          const bool keep = true);
+    void SetVec_(const ProgramResource* res, const mbase::Vec2& vec, const bool keep = true);
+    void SetVec_(const ProgramResource* res, const mbase::Vec3& vec, const bool keep = true);
+    void SetVec_(const ProgramResource* res, const mbase::Vec4& vec, const bool keep = true);
+    void SetMat_(const ProgramResource* res, const mbase::Mat4& mat, const bool keep = true);
+    void SetMat_(const ProgramResource* res, const mbase::Mat3& mat, const bool keep = true);
+    void SetVal_(const ProgramResource* res, const bool         val, const bool keep = true);
+    void SetVal_(const ProgramResource* res, const float        val, const bool keep = true);
+    void SetVal_(const ProgramResource* res, const int32_t      val, const bool keep = true);
+    void SetVal_(const ProgramResource* res, const uint32_t     val, const bool keep = true);
 
 public:
     std::u16string Name;
@@ -239,17 +238,17 @@ public:
     template<typename K>
     forceinline void SetVec(const K& name, const float x, const float y)
     { 
-        SetVec_(UniformRess.GetResource(name), b3d::Coord2D  (x, y)      );
+        SetVec_(UniformRess.GetResource(name), mbase::Vec2(x, y)      );
     }
     template<typename K>
     forceinline void SetVec(const K& name, const float x, const float y, const float z)
     { 
-        SetVec_(UniformRess.GetResource(name), miniBLAS::Vec3(x, y, z)   );
+        SetVec_(UniformRess.GetResource(name), mbase::Vec3(x, y, z)   );
     }
     template<typename K>
     forceinline void SetVec(const K& name, const float x, const float y, const float z, const float w)
     { 
-        SetVec_(UniformRess.GetResource(name), miniBLAS::Vec4(x, y, z, w));
+        SetVec_(UniformRess.GetResource(name), mbase::Vec4(x, y, z, w));
     }
     
     [[nodiscard]] static oglProgStub Create();
@@ -348,11 +347,11 @@ public:
         if constexpr(sizeof...(Args) == 1)
             Prog.SetVal_(res, std::forward<Args>(args)..., false);
         else if constexpr (sizeof...(Args) == 2)
-            Prog.SetVal_(res, b3d::Coord2D  (std::forward<Args>(args)...), false);
+            Prog.SetVal_(res, mbase::Vec2(std::forward<Args>(args)...), false);
         else if constexpr (sizeof...(Args) == 3)
-            Prog.SetVal_(res, miniBLAS::Vec3(std::forward<Args>(args)...), false);
+            Prog.SetVal_(res, mbase::Vec3(std::forward<Args>(args)...), false);
         else if constexpr (sizeof...(Args) == 4)
-            Prog.SetVal_(res, miniBLAS::Vec4(std::forward<Args>(args)...), false);
+            Prog.SetVal_(res, mbase::Vec4(std::forward<Args>(args)...), false);
         return *this;
     }
 };

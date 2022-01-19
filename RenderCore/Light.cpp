@@ -8,22 +8,27 @@ using common::str::Encoding;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 
+template<typename T>
+forceinline void Save(const mbase::vec::Vec4Base<T>& vec, float* ptr) noexcept
+{
+    ptr[0] = vec[0], ptr[1] = vec[1], ptr[2] = vec[2], ptr[3] = vec[3];
+}
 
 void LightData::WriteData(const common::span<std::byte> space) const
 {
     Expects((size_t)space.size() >= Light::WriteSize);
     float *ptrFloat = reinterpret_cast<float*>(space.data());
     uint32_t *ptrI32 = reinterpret_cast<uint32_t*>(space.data());
-    Color.save(ptrFloat);
+    Color.Save(ptrFloat);
     ptrI32[3] = (int32_t)Type;
-    const float cosOuter = std::cos(b3d::ang2rad(CutoffOuter)),
-        cosInner = std::cos(b3d::ang2rad(CutoffInner)),
+    const float cosOuter = std::cos(math::Ang2Rad(CutoffOuter)),
+        cosInner = std::cos(math::Ang2Rad(CutoffInner)),
         cosDiff_1 = 1.0f / (cosInner - cosOuter);
-    Position.save(ptrFloat + 4);
+    Position.Save(ptrFloat + 4);
     ptrFloat[7] = cosOuter;
-    Direction.save(ptrFloat + 8);
+    Direction.Save(ptrFloat + 8);
     ptrFloat[11] = cosDiff_1;
-    Attenuation.save(ptrFloat + 12);
+    Attenuation.Save(ptrFloat + 12);
 }
 
 
@@ -40,17 +45,17 @@ void Light::RegistControllable()
     RegistItem<bool>("IsOn", "", u"开启", ArgType::RawValue, {}, u"是否开启灯光")
         .RegistMember(&Light::IsOn);
     RegistItem<float>("Luminance", "", u"亮度", ArgType::RawValue, {}, u"灯光强度")
-        .RegistMemberProxy<Light>([](auto & light) -> auto & { return light.Attenuation.w; });
-    RegistItem<miniBLAS::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"灯光颜色")
+        .RegistMemberProxy<Light>([](auto & light) -> auto & { return light.Attenuation.W; });
+    RegistItem<mbase::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"灯光颜色")
         .RegistMember(&Light::Color);
     if (Type != LightType::Parallel)
     {
-        RegistItem<miniBLAS::Vec3>("Position", "", u"位置", ArgType::RawValue, {}, u"灯光位置")
+        RegistItem<mbase::Vec3>("Position", "", u"位置", ArgType::RawValue, {}, u"灯光位置")
             .RegistMember<false>(&Light::Position);
     }
     if (Type != LightType::Point)
     {
-        RegistItem<miniBLAS::Vec3>("Direction", "", u"方向", ArgType::RawValue, {}, u"灯光朝向")
+        RegistItem<mbase::Vec3>("Direction", "", u"方向", ArgType::RawValue, {}, u"灯光朝向")
             .RegistMember<false>(&Light::Direction);
     }
     if (Type == LightType::Spot)

@@ -27,7 +27,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="3DElement.hpp" />
     <ClInclude Include="GLFuncWrapper.h" />
     <ClInclude Include="oglPch.h" />
     <ClInclude Include="oglWorker.h" />

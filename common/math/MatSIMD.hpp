@@ -1,14 +1,13 @@
 #pragma once
-#include "XCompRely.h"
 #include "MatBase.hpp"
 #include "VecSIMD.hpp"
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 100
+#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 200
 #   define XCOMP_HAS_SIMD256 1
-#   include "common/simd/SIMD256.hpp"
+#   include "../simd/SIMD256.hpp"
 #endif
 #include <cmath>
 
-namespace xcomp::math::simd
+namespace common::math::simd
 {
 
 namespace simds
@@ -73,7 +72,7 @@ public:
 #ifdef XCOMP_HAS_SIMD256
     constexpr Mat4x4Base(const SIMD8Type& xy, const SIMD8Type& zw) noexcept : XY(xy), ZW(zw) {}
 #endif
-    constexpr Mat4x4Base(const SIMD4Type& x, const SIMD4Type& y, const SIMD4Type& z, const SIMD4Type& w) noexcept : X(x), Y(y), Z(z), W(w) {}
+    //constexpr Mat4x4Base(const SIMD4Type& x, const SIMD4Type& y, const SIMD4Type& z, const SIMD4Type& w) noexcept : X(x), Y(y), Z(z), W(w) {}
 
     template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
     forceinline M& As() noexcept
@@ -90,6 +89,8 @@ public:
     forceinline constexpr       V& operator[](size_t idx)       noexcept { return (&X)[idx]; }
     forceinline constexpr const T& operator()(size_t row, size_t col) const noexcept { return (&X)[row][col]; }
     forceinline constexpr       T& operator()(size_t row, size_t col)       noexcept { return (&X)[row][col]; }
+    forceinline constexpr const T* Ptr() const noexcept { return &X.X; }
+    forceinline constexpr       T* Ptr()       noexcept { return &X.X; }
 };
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop

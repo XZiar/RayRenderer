@@ -1,9 +1,9 @@
 #pragma once
 #include "VecBase.hpp"
-#include "common/simd/SIMD128.hpp"
+#include "../simd/SIMD128.hpp"
 
 
-namespace xcomp::math::simd
+namespace common::math::simd
 {
 
 namespace simds
@@ -62,8 +62,10 @@ public:
         return *reinterpret_cast<const V*>(this);
     }
 
-    forceinline constexpr T operator[](size_t idx) const noexcept { return Data.Val[idx]; }
-    forceinline constexpr T& operator[](size_t idx) noexcept { return Data.Val[idx]; }
+    forceinline constexpr T  operator[](size_t idx) const noexcept { return Data.Val[idx]; }
+    forceinline constexpr T& operator[](size_t idx)       noexcept { return Data.Val[idx]; }
+    forceinline constexpr const T* Ptr() const noexcept { return &X; }
+    forceinline constexpr       T* Ptr()       noexcept { return &X; }
 };
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop

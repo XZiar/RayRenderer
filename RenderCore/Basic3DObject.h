@@ -51,7 +51,7 @@ public:
 class alignas(16) Box : public Drawable
 {
 protected:
-    b3d::Vec3 Size;
+    mbase::Vec3 Size;
     oglu::oglVBO vbo;
     virtual u16string_view GetControlType() const override
     {

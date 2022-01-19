@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28729.10
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLView", "OpenGLView\OpenGLView.vcxproj", "{2D168E14-C22D-4429-B97C-AF5D41010E48}"
 EndProject
@@ -378,6 +378,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "simd", "simd", "{4A40A101-9
 		common\simd\SIMD256.hpp = common\simd\SIMD256.hpp
 		common\simd\SIMD256AVX.hpp = common\simd\SIMD256AVX.hpp
 		common\simd\SIMDVec.hpp = common\simd\SIMDVec.hpp
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "math", "math", "{5C08AF6C-9269-494C-91D5-FE1D0DBCDDBA}"
+	ProjectSection(SolutionItems) = preProject
+		common\math\3DUtil.hpp = common\math\3DUtil.hpp
+		common\math\MatBase.hpp = common\math\MatBase.hpp
+		common\math\MatMain.hpp = common\math\MatMain.hpp
+		common\math\MatSIMD.hpp = common\math\MatSIMD.hpp
+		common\math\VecBase.hpp = common\math\VecBase.hpp
+		common\math\VecMain.hpp = common\math\VecMain.hpp
+		common\math\VecSIMD.hpp = common\math\VecSIMD.hpp
 	EndProjectSection
 EndProject
 Global
@@ -780,6 +791,7 @@ Global
 		{45234356-6D39-4FA5-A252-40D017EA8190} = {89B14C12-C524-4BDC-B7DC-32F6A3D8E0A5}
 		{89E210A7-7C00-378A-BA78-74493D370B99} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{4A40A101-97F5-4958-93FD-5E7F35D9A500} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
+		{5C08AF6C-9269-494C-91D5-FE1D0DBCDDBA} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

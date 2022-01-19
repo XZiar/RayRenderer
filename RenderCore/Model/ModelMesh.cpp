@@ -12,11 +12,7 @@ using std::vector;
 using common::str::Encoding;
 using common::container::FindInMap;
 using common::asyexe::AsyncAgent;
-using b3d::Vec3;
-using b3d::Vec4;
-using b3d::Normal;
 using oglu::PointEx;
-using b3d::Coord2D;
 using xziar::respak::SerializeUtil;
 using xziar::respak::DeserializeUtil;
 
@@ -120,18 +116,18 @@ void _ModelMesh::PrepareVAO(oglu::oglVAO_::VAOPrep& vaoPrep) const
 
 void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureLoader>& texLoader) try
 {
-    using miniBLAS::VecI4;
+    using mbase::IVec4;
     OBJLoder ldr(objpath);
     MTLLoader mtlLoader(texLoader);
-    vector<Vec3> points{ Vec3(0,0,0) };
-    vector<Normal> normals{ Normal(0,0,0) };
-    vector<Coord2D> texcs{ Coord2D(0,0) };
+    vector<mbase::Vec3> points{ mbase::Vec3(0.f,0.f,0.f) };
+    vector<mbase::Normal> normals{ mbase::Normal(0.f,0.f,0.f) };
+    vector<mbase::Vec2> texcs{ mbase::Vec2(0.f,0.f) };
     std::unordered_map<PTstub, uint32_t, PTstubHasher> idxmap;
     idxmap.reserve(32768);
     pts.clear();
     indexs.clear();
     groups.clear();
-    Vec3 maxv(-10e6, -10e6, -10e6), minv(10e6, 10e6, 10e6);
+    mbase::Vec3 maxv(-10e6f, -10e6f, -10e6f), minv(10e6f, 10e6f, 10e6f);
     OBJLoder::TextLine line;
     common::SimpleTimer tstTimer;
     while ((line = ldr.ReadLine()))
@@ -147,13 +143,13 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
             {
                 auto tmp = line.ParamsToFloat3(1);
                 //Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
-                maxv = miniBLAS::max(maxv, tmp);
-                minv = miniBLAS::min(minv, tmp);
+                maxv = Max(maxv, tmp);
+                minv = Min(minv, tmp);
                 points.push_back(tmp);
             }break;
         case "vn"_hash://normal
             {
-                Vec3 tmp = line.ParamsToFloat3(1);
+                mbase::Vec3 tmp = line.ParamsToFloat3(1);
                 //Vec3 tmp(atof(line.Params[1].data()), atof(line.Params[2].data()), atof(line.Params[3].data()));
                 normals.push_back(tmp);
             }break;
@@ -161,12 +157,15 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
             {
                 auto tmpc = line.ParamsToFloat2(1);
                 //Coord2D tmpc(atof(line.Params[1].data()), atof(line.Params[2].data()));
-                tmpc.regulized_mirror();
+                float intpart;
+                tmpc.X = std::abs(std::modf(tmpc.X, &intpart));
+                tmpc.Y = std::abs(std::modf(tmpc.Y, &intpart));
+                // tmpc.regulized_mirror();
                 texcs.push_back(tmpc);
             }break;
         case "f"_hash://face
             {
-                VecI4 tmpi, tmpidx;
+                mbase::IVec4 tmpidx;
                 const auto lim = common::min((size_t)4, line.Params.size() - 1);
                 if (lim < 3)
                 {
@@ -175,8 +174,9 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
                 }
                 for (uint32_t a = 0; a < lim; ++a)
                 {
-                    line.ParseInts(static_cast<uint8_t>(a + 1), tmpi.data);//vert,texc,norm
-                    PTstub stub(tmpi.x, tmpi.z, tmpi.y);
+                    int32_t tmpi[3] = { 0 };
+                    line.ParseInts(static_cast<uint8_t>(a + 1), tmpi);//vert,texc,norm
+                    PTstub stub(tmpi[0], tmpi[2], tmpi[1]);
                     auto[it, isAdd] = idxmap.try_emplace(stub, static_cast<uint32_t>(pts.size()));
                     if (isAdd)
                         pts.push_back(PointEx(points[stub.vid], normals[stub.nid],
@@ -185,23 +185,23 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
                 }
                 if (lim == 3)
                 {
-                    if (tmpidx.x == tmpidx.y || tmpidx.y == tmpidx.z || tmpidx.x == tmpidx.z)
+                    if (tmpidx.X == tmpidx.Y || tmpidx.Y == tmpidx.Z || tmpidx.X == tmpidx.Z)
                     {
                         dizzLog().warning(u"repeat index for face, ignored : {}\n", line.Line);
                         break;
                     }
-                    indexs.push_back(tmpidx.x);
-                    indexs.push_back(tmpidx.y);
-                    indexs.push_back(tmpidx.z);
+                    indexs.push_back(tmpidx.X);
+                    indexs.push_back(tmpidx.Y);
+                    indexs.push_back(tmpidx.Z);
                 }
                 else//4 vertex-> 3 vertex
                 {
-                    indexs.push_back(tmpidx.x);
-                    indexs.push_back(tmpidx.y);
-                    indexs.push_back(tmpidx.z);
-                    indexs.push_back(tmpidx.x);
-                    indexs.push_back(tmpidx.z);
-                    indexs.push_back(tmpidx.w);
+                    indexs.push_back(tmpidx.X);
+                    indexs.push_back(tmpidx.Y);
+                    indexs.push_back(tmpidx.Z);
+                    indexs.push_back(tmpidx.X);
+                    indexs.push_back(tmpidx.Z);
+                    indexs.push_back(tmpidx.W);
                 }
             }break;
         case "usemtl"_hash://each mtl is a group
@@ -227,7 +227,7 @@ void _ModelMesh::loadOBJ(const fs::path& objpath, const std::shared_ptr<TextureL
     size = maxv - minv;
     dizzLog().success(u"read {} vertex, {} normal, {} texcoord\n", points.size(), normals.size(), texcs.size());
     dizzLog().success(u"OBJ:\t{} points, {} indexs, {} triangles\n", pts.size(), indexs.size(), indexs.size() / 3);
-    dizzLog().info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.x, size.y, size.z);
+    dizzLog().info(u"OBJ size:\t [{:.5},{:.5},{:.5}]\n", size.X, size.Y, size.Z);
     MaterialMap = mtlLoader.GetMaterialMap();
 }
 catch (const common::file::FileException&)

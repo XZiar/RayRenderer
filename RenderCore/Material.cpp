@@ -7,7 +7,6 @@ using std::set;
 using std::map;
 using std::vector;
 using common::str::Encoding;
-using b3d::Vec4;
 using oglu::oglTex2D;
 using oglu::oglTex2DArray;
 using xziar::img::TextureFormat;
@@ -100,7 +99,7 @@ uintptr_t TexHolder::GetRawPtr() const
 
 
 PBRMaterial::PBRMaterial(const std::u16string& name) 
-    : Albedo(0.58, 0.58, 0.58), Metalness(0.0f), Roughness(0.8f), Specular(0.0f), AO(1.0f), Name(name)
+    : Albedo(0.58f, 0.58f, 0.58f), Metalness(0.0f), Roughness(0.8f), Specular(0.0f), AO(1.0f), Name(name)
 {
     RegistControllable();
 }
@@ -135,7 +134,7 @@ void PBRMaterial::RegistControllable()
         .RegistMember(&PBRMaterial::UseRoughMap);
     RegistItem<bool>("UseAOMap", "", u"AO贴图", ArgType::RawValue, {}, u"是否启用AO贴图")
         .RegistMember(&PBRMaterial::UseAOMap);
-    RegistItem<miniBLAS::Vec3>("Color", "", u"颜色", ArgType::Color, {}, u"Albedo颜色")
+    RegistItem<mbase::Vec3>("Color", "", u"颜色", ArgType::Color, {}, u"Albedo颜色")
         .RegistMember(&PBRMaterial::Albedo);
     RegistItem<float>("Metalness", "", u"金属度", ArgType::RawValue, std::pair(0.f, 1.f), u"全局金属度")
         .RegistMember(&PBRMaterial::Metalness);
@@ -440,8 +439,8 @@ uint32_t MultiMaterialHolder::WriteData(common::span<std::byte> space) const
             break;
         float *ptrFloat = reinterpret_cast<float*>(subSpace.data());
         uint32_t *ptrU32 = reinterpret_cast<uint32_t*>(subSpace.data());
-        Vec4 basic(mat->Albedo, mat->Metalness);
-        basic.save(ptrFloat);
+        mbase::Vec4 basic(mat->Albedo, mat->Metalness);
+        basic.Save(ptrFloat);
         ptrFloat[4] = mat->Roughness;
         ptrFloat[5] = mat->Specular;
         ptrFloat[6] = mat->AO;
