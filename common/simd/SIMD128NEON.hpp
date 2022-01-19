@@ -1,6 +1,7 @@
 #pragma once
 #include "SIMD.hpp"
 #include "SIMDVec.hpp"
+#include <cfenv>
 
 #if COMMON_SIMD_LV < 10
 #   error require at least NEON
@@ -1061,6 +1062,18 @@ struct alignas(16) F64x2 : public detail::Neon128Common<F64x2, float64x2_t, doub
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
     template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F64x2 VECCALL Round() const
+    {
+        switch (Mode)
+        {
+        case RoundMode::ToEven:     return vrndnq_f64(Data);
+        case RoundMode::ToZero:     return vrndq_f64 (Data);
+        case RoundMode::ToPosInf:   return vrndpq_f64(Data);
+        case RoundMode::ToNegInf:   return vrndmq_f64(Data);
+        default:                    return vrndiq_f64(Data);
+        }
+    }
 };
 #endif
 
@@ -1271,6 +1284,35 @@ struct alignas(16) F32x4 : public detail::Neon128Common<F32x4, float32x4_t, floa
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
     template<typename T, CastMode Mode = detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F32x4 VECCALL Round() const
+    {
+#if COMMON_SIMD_LV >= 100
+        switch (Mode)
+        {
+        case RoundMode::ToEven:     return vrndnq_f32(Data);
+        case RoundMode::ToZero:     return vrndq_f32(Data);
+        case RoundMode::ToPosInf:   return vrndpq_f32(Data);
+        case RoundMode::ToNegInf:   return vrndmq_f32(Data);
+        default:                    return vrndiq_f32(Data);
+        }
+#else
+        switch (Mode)
+        {
+        case RoundMode::ToPosInf:   return { std::ceil(Val[0]),  std::ceil(Val[1]),  std::ceil(Val[2]),  std::ceil(Val[3])  };
+        case RoundMode::ToNegInf:   return { std::floor(Val[0]), std::floor(Val[1]), std::floor(Val[2]), std::floor(Val[3]) };
+        case RoundMode::ToZero:     return 
+            { 
+                Val[0] > 0 ? std::floor(Val[0]) : std::ceil(Val[0]), Val[1] > 0 ? std::floor(Val[1]) : std::ceil(Val[1]),
+                Val[2] > 0 ? std::floor(Val[2]) : std::ceil(Val[2]), Val[3] > 0 ? std::floor(Val[3]) : std::ceil(Val[3])
+            };
+        case RoundMode::ToEven:
+        default:
+            std::fesetround(FE_TONEAREST);
+            return { std::nearbyint(Val[0]), std::nearbyint(Val[1]), std::nearbyint(Val[2]), std::nearbyint(Val[3]) };
+        }
+#endif
+    }
 };
 
 

@@ -21,6 +21,11 @@ enum class CastMode : uint8_t
 };
 MAKE_ENUM_BITFIELD(CastMode)
 
+enum class RoundMode : uint8_t
+{
+    ToEven, ToZero, ToPosInf, ToNegInf
+};
+
 enum class MaskType : uint8_t
 {
     SigBit = 0b1, FullEle = 0b11

@@ -384,6 +384,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "math", "math", "{5C08AF6C-9
 	ProjectSection(SolutionItems) = preProject
 		common\math\3DUtil.hpp = common\math\3DUtil.hpp
 		common\math\MatBase.hpp = common\math\MatBase.hpp
+		common\math\math.natvis = common\math\math.natvis
 		common\math\MatMain.hpp = common\math\MatMain.hpp
 		common\math\MatSIMD.hpp = common\math\MatSIMD.hpp
 		common\math\VecBase.hpp = common\math\VecBase.hpp

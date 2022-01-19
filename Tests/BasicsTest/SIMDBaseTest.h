@@ -466,7 +466,7 @@ static void TestMax(const T* ptr)
 }
 
 template<typename T, size_t N, size_t... Idx>
-static void FillFMALane(const T& base, const T& muler, const T& adder, T (&out)[N][4], std::index_sequence<Idx...>)
+forceinline void FillFMALane(const T& base, const T& muler, const T& adder, T (&out)[N][4], std::index_sequence<Idx...>)
 {
     (..., void(out[Idx][0] = base.template MulAdd <Idx>(muler, adder)));
     (..., void(out[Idx][1] = base.template MulSub <Idx>(muler, adder)));
@@ -513,6 +513,62 @@ static void TestFMA(const T* ptr)
             EXPECT_THAT(out2[i][3].Val, MatchVec(ref2[3])) << "when testing FMA-NMulSub<" << i << ">";
         }
     }
+}
+
+template<typename T>
+static void TestRnd(const T*)
+{
+    using U = typename T::EleType;
+    constexpr size_t N = T::Count, M = 16;
+    constexpr U Data[M] =
+    {
+        static_cast<U>( 0.75), static_cast<U>( 1.25), static_cast<U>( 1.5),  static_cast<U>( 2.5), 
+        static_cast<U>( 2.75), static_cast<U>( 3.5),  static_cast<U>( 1e10), static_cast<U>( HUGE_VAL),
+        static_cast<U>(-0.75), static_cast<U>(-1.25), static_cast<U>(-1.5),  static_cast<U>(-2.5), 
+        static_cast<U>(-2.75), static_cast<U>(-3.5),  static_cast<U>(-1e10), static_cast<U>(-HUGE_VAL)
+    };
+    constexpr U ToEven[] =
+    {
+        static_cast<U>( 1), static_cast<U>( 1), static_cast<U>( 2),    static_cast<U>( 2), 
+        static_cast<U>( 3), static_cast<U>( 4), static_cast<U>( 1e10), static_cast<U>( HUGE_VAL),
+        static_cast<U>(-1), static_cast<U>(-1), static_cast<U>(-2),    static_cast<U>(-2), 
+        static_cast<U>(-3), static_cast<U>(-4), static_cast<U>(-1e10), static_cast<U>(-HUGE_VAL)
+    };
+    constexpr U ToZero[] =
+    {
+        static_cast<U>( 0), static_cast<U>( 1), static_cast<U>( 1),    static_cast<U>( 2), 
+        static_cast<U>( 2), static_cast<U>( 3), static_cast<U>( 1e10), static_cast<U>( HUGE_VAL),
+        static_cast<U>(-0), static_cast<U>(-1), static_cast<U>(-1),    static_cast<U>(-2), 
+        static_cast<U>(-2), static_cast<U>(-3), static_cast<U>(-1e10), static_cast<U>(-HUGE_VAL)
+    };
+    constexpr U ToPInf[] =
+    {
+        static_cast<U>( 1), static_cast<U>( 2), static_cast<U>( 2),    static_cast<U>( 3), 
+        static_cast<U>( 3), static_cast<U>( 4), static_cast<U>( 1e10), static_cast<U>( HUGE_VAL),
+        static_cast<U>( 0), static_cast<U>(-1), static_cast<U>(-1),    static_cast<U>(-2), 
+        static_cast<U>(-2), static_cast<U>(-3), static_cast<U>(-1e10), static_cast<U>(-HUGE_VAL)
+    };
+    constexpr U ToNInf[] =
+    {
+        static_cast<U>( 0), static_cast<U>( 1), static_cast<U>( 1),    static_cast<U>( 2), 
+        static_cast<U>( 2), static_cast<U>( 3), static_cast<U>( 1e10), static_cast<U>( HUGE_VAL),
+        static_cast<U>(-1), static_cast<U>(-2), static_cast<U>(-2),    static_cast<U>(-3), 
+        static_cast<U>(-3), static_cast<U>(-4), static_cast<U>(-1e10), static_cast<U>(-HUGE_VAL)
+    };
+    std::array<U, M> out[4];
+    for (size_t i = 0; i < M; i += N)
+    {
+        T src;
+        src.Load(Data + i);
+        src.template Round<RoundMode::ToEven>()  .Save(out[0].data() + i);
+        src.template Round<RoundMode::ToZero>()  .Save(out[1].data() + i);
+        src.template Round<RoundMode::ToPosInf>().Save(out[2].data() + i);
+        src.template Round<RoundMode::ToNegInf>().Save(out[3].data() + i);
+    }
+    EXPECT_THAT(out[0], testing::ElementsAreArray(ToEven)) << "when testing Round-ToEven";
+    EXPECT_THAT(out[1], testing::ElementsAreArray(ToZero)) << "when testing Round-ToZero";
+    EXPECT_THAT(out[2], testing::ElementsAreArray(ToPInf)) << "when testing Round-ToPosInf";
+    EXPECT_THAT(out[3], testing::ElementsAreArray(ToNInf)) << "when testing Round-ToNegInf";
 }
 
 template<typename T>
@@ -825,7 +881,7 @@ enum class TestItem : uint32_t
 {
     Add = 0x1, Sub = 0x2, SatAdd = 0x4, SatSub = 0x8, Mul = 0x10, MulLo = 0x20, MulHi = 0x40, MulX = 0x80, 
     Div = 0x100, Neg = 0x200, Abs = 0x400, Min = 0x800, Max = 0x1000, SLL = 0x2000, SRL = 0x4000, SRA = 0x8000,
-    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, FMA = 0x200000,
+    And = 0x10000, Or = 0x20000, Xor = 0x40000, AndNot = 0x80000, Not = 0x100000, FMA = 0x200000, Rnd = 0x400000,
     SWE = 0x10000000, SEL = 0x20000000
 };
 MAKE_ENUM_BITFIELD(TestItem)
@@ -840,7 +896,7 @@ public:
 #define AddItem(r, data, x) if constexpr (HAS_FIELD(Items, TestItem::x)) \
     BOOST_PP_CAT(Test,x)<T>(GetRandPtr<T, typename T::EleType>());
 #define AddItems(...) BOOST_PP_SEQ_FOR_EACH(AddItem, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA)
+        AddItems(Add, Sub, SatAdd, SatSub, Mul, MulLo, MulHi, MulX, Div, Neg, Abs, Min, SLL, SRL, SRA, Max, And, Or, Xor, AndNot, Not, SWE, SEL, FMA, Rnd)
 #undef AddItems
 #undef AddItem
     }

@@ -118,8 +118,8 @@ void Drawable::Rotate(const mbase::Vec3& angles)
     constexpr auto PI2 = math::PI_float * 2;
     constexpr auto PI2Rcp = 1 / PI2;
     const auto dived = rotation * PI2Rcp;
-#if COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41
-    const common::simd::F32x4 rounded = _mm_round_ps(dived.Data, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC);
+#if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30)
+    const auto rounded = dived.Data.Round<common::simd::RoundMode::ToNegInf>();
     Rotation = msimd::Vec3(rounded.NMulAdd(PI2, rotation.Data));
 #else
     Rotation.X -= std::floor(dived.X) * PI2;

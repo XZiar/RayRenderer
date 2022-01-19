@@ -54,6 +54,18 @@ inline constexpr int CmpTypeImm(CompareType cmp) noexcept
     }
 }
 
+inline constexpr int RoundModeImm(RoundMode mode) noexcept
+{
+    switch (mode)
+    {
+    case RoundMode::ToEven:     return _MM_FROUND_TO_NEAREST_INT;
+    case RoundMode::ToZero:     return _MM_FROUND_TO_ZERO;
+    case RoundMode::ToPosInf:   return _MM_FROUND_TO_POS_INF;
+    case RoundMode::ToNegInf:   return _MM_FROUND_TO_NEG_INF; 
+    default:                    return _MM_FROUND_CUR_DIRECTION;
+    }
+}
+
 
 template<typename T, typename E, size_t N>
 struct SSE128Common : public CommonOperators<T>
@@ -840,12 +852,20 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
         static_assert(Idx < 2, "select index should be in [0,1]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
     }
+
     forceinline F64x2 VECCALL operator*(const F64x2& other) const { return Mul(other); }
     forceinline F64x2 VECCALL operator/(const F64x2& other) const { return Div(other); }
     forceinline F64x2& VECCALL operator*=(const F64x2& other) { Data = Mul(other); return *this; }
     forceinline F64x2& VECCALL operator/=(const F64x2& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x2, T>::Type VECCALL Cast(const Args&... args) const;
+#if COMMON_SIMD_LV >= 41
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F64x2 VECCALL Round() const
+    {
+        return _mm_round_pd(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+    }
+#endif
 
     forceinline static F64x2 AllZero() noexcept { return _mm_setzero_pd(); }
     forceinline static F64x2 LoadLo(const double val) noexcept { return _mm_load_sd(&val); }
@@ -1028,6 +1048,7 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         static_assert(Idx < 4, "select index should be in [0,3]");
         return NMulSub(muler.Broadcast<Idx>(), suber);
     }
+
     template<DotPos Mul, DotPos Res>
     forceinline F32x4 VECCALL Dot(const F32x4& other) const
     { 
@@ -1056,12 +1077,20 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
         return sum;
 #endif
     }
+
     forceinline F32x4 VECCALL operator*(const F32x4& other) const { return Mul(other); }
     forceinline F32x4 VECCALL operator/(const F32x4& other) const { return Div(other); }
     forceinline F32x4& VECCALL operator*=(const F32x4& other) { Data = Mul(other); return *this; }
     forceinline F32x4& VECCALL operator/=(const F32x4& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F32x4, T>(), typename... Args>
     typename CastTyper<F32x4, T>::Type VECCALL Cast(const Args&... args) const;
+#if COMMON_SIMD_LV >= 41
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F32x4 VECCALL Round() const
+    {
+        return _mm_round_ps(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+    }
+#endif
 
     forceinline static F32x4 AllZero() noexcept { return _mm_setzero_ps(); }
     forceinline static F32x4 LoadLo(const float val) noexcept { return _mm_load_ss(&val); }

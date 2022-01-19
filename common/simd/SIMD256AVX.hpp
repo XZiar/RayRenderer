@@ -1014,6 +1014,11 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     forceinline F64x4& VECCALL operator/=(const F64x4& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F64x2, T>(), typename... Args>
     typename CastTyper<F64x4, T>::Type VECCALL Cast(const Args&... args) const;
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F64x4 VECCALL Round() const
+    {
+        return _mm256_round_pd(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+    }
 
     forceinline F64x2 VECCALL GetLoLane() const { return _mm256_extractf128_pd(Data, 0); }
     forceinline F64x2 VECCALL GetHiLane() const { return _mm256_extractf128_pd(Data, 1); }
@@ -1324,6 +1329,11 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     forceinline F32x8& VECCALL operator/=(const F32x8& other) { Data = Div(other); return *this; }
     template<typename T, CastMode Mode = detail::CstMode<F32x8, T>(), typename... Args>
     typename CastTyper<F32x8, T>::Type VECCALL Cast(const Args&... args) const;
+    template<RoundMode Mode = RoundMode::ToEven>
+    forceinline F32x8 VECCALL Round() const
+    {
+        return _mm256_round_ps(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+    }
 
     forceinline F32x4 VECCALL GetLoLane() const { return _mm256_extractf128_ps(Data, 0); }
     forceinline F32x4 VECCALL GetHiLane() const { return _mm256_extractf128_ps(Data, 1); }

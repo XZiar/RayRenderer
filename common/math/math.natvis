@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="common::math::base::Vec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::IVec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::UVec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::Vec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::IVec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::UVec4">
+    <DisplayString>{{{X},{Y},{Z},{W}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="W" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::Vec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::IVec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::UVec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::Vec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::IVec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::UVec3">
+    <DisplayString>{{{X},{Y},{Z}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+      <Item Name="Z" ExcludeView="simple">Z</Item>
+      <Item Name="[W]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::Vec2">
+    <DisplayString>{{{X},{Y}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::IVec2">
+    <DisplayString>{{{X},{Y}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::UVec2">
+    <DisplayString>{{{X},{Y}}}</DisplayString>
+    <Expand>
+      <Item Name="X" ExcludeView="simple">X</Item>
+      <Item Name="Y" ExcludeView="simple">Y</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::Mat4">
+    <Expand>
+      <Item Name="Row1" ExcludeView="simple">X</Item>
+      <Item Name="Row2" ExcludeView="simple">Y</Item>
+      <Item Name="Row3" ExcludeView="simple">Z</Item>
+      <Item Name="Row4" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::Mat4">
+    <Expand>
+      <Item Name="Row1" ExcludeView="simple">X</Item>
+      <Item Name="Row2" ExcludeView="simple">Y</Item>
+      <Item Name="Row3" ExcludeView="simple">Z</Item>
+      <Item Name="Row4" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::base::Mat3">
+    <Expand>
+      <Item Name="Row1" ExcludeView="simple">X</Item>
+      <Item Name="Row2" ExcludeView="simple">Y</Item>
+      <Item Name="Row3" ExcludeView="simple">Z</Item>
+      <Item Name="[Row4]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+  <Type Name="common::math::simd::Mat3">
+    <Expand>
+      <Item Name="Row1" ExcludeView="simple">X</Item>
+      <Item Name="Row2" ExcludeView="simple">Y</Item>
+      <Item Name="Row3" ExcludeView="simple">Z</Item>
+      <Item Name="[Row4]" ExcludeView="simple">W</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>
