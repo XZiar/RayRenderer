@@ -67,6 +67,14 @@ protected:
         };
     };
     constexpr Mat4x4Base(const V& x, const V& y, const V& z, const V& w) noexcept : X(x), Y(y), Z(z), W(w) {}
+    forceinline static constexpr Mat4x4Base<T, V> LoadAll(const T* ptr) noexcept
+    {
+#ifdef XCOMP_HAS_SIMD256
+        return { SIMD8Type(ptr), SIMD8Type(ptr + 32) };
+#else
+        return { SIMD4Type(ptr), SIMD4Type(ptr + 16), SIMD4Type(ptr + 32), SIMD4Type(ptr + 48) };
+#endif
+    }
 public:
     constexpr Mat4x4Base() noexcept { }
 #ifdef XCOMP_HAS_SIMD256
@@ -91,6 +99,14 @@ public:
     forceinline constexpr       T& operator()(size_t row, size_t col)       noexcept { return (&X)[row][col]; }
     forceinline constexpr const T* Ptr() const noexcept { return &X.X; }
     forceinline constexpr       T* Ptr()       noexcept { return &X.X; }
+    forceinline constexpr void SaveAll(T* ptr) const noexcept
+    {
+#ifdef XCOMP_HAS_SIMD256
+        XY.Save(ptr); ZW.Save(ptr + 32);
+#else
+        RowX.Save(ptr); RowY.Save(ptr + 16); RowZ.Save(ptr + 32); RowW.Save(ptr + 48);
+#endif
+    }
 };
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
@@ -188,18 +204,22 @@ struct MatBasic
         const auto zw12 = self.RowX.ZipHi(self.RowY); // z1,z2,w1,w2
         const auto xy34 = self.RowZ.ZipLo(self.RowW); // x3,x4,y3,y4
         const auto zw34 = self.RowZ.ZipHi(self.RowW); // z3,z4,w3,w4
-        return 
-        { 
-            T4{_mm_movelh_ps(xy12.Data, xy34.Data)}, T4{_mm_movehl_ps(xy12.Data, xy34.Data)},
-            T4{_mm_movelh_ps(zw12.Data, zw34.Data)}, T4{_mm_movehl_ps(zw12.Data, zw34.Data)} 
-        };
+        T4 x = _mm_movelh_ps(xy12.Data, xy34.Data);
+        T4 y = _mm_movehl_ps(xy12.Data, xy34.Data);
+        T4 z = _mm_movelh_ps(zw12.Data, zw34.Data);
+        if constexpr (N == 4)
+        {
+            T4 w = _mm_movehl_ps(zw12.Data, zw34.Data);
+            return { x,y,z,w };
+        }
+        else
+            return { x,y,z };
 #else // COMMON_ARCH_ARM
         const auto mat4 = vld4q_f32(&self.X.X);
-        return
-        {
-            T4{mat4.val[0]}, T4{mat4.val[1]},
-            T4{mat4.val[2]}, T4{mat4.val[3]}
-        };
+        if constexpr (N == 4)
+            return { T4{mat4.val[0]}, T4{mat4.val[1]}, T4{mat4.val[2]}, T4{mat4.val[3]} };
+        else
+            return { T4{mat4.val[0]}, T4{mat4.val[1]}, T4{mat4.val[2]} };
 #endif
     }
 };

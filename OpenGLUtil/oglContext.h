@@ -217,7 +217,7 @@ private:
 public:
     const ContextCapability* Capability = nullptr;
     COMMON_NO_COPY(oglContext_)
-    COMMON_DEF_MOVE(oglContext_)
+    COMMON_NO_MOVE(oglContext_)
     ~oglContext_();
     [[nodiscard]] void* GetDeviceContext() const noexcept;
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }

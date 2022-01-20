@@ -26,10 +26,9 @@ struct COMMON_EMPTY_BASES alignas(32) Mat3 : public rule::ElementBasic<float, 9,
     using Mat4x4Base::Mat4x4Base;
     constexpr Mat3(const VecType& x, const VecType& y, const VecType& z) noexcept : Mat4x4Base(x, y, z, {}) { }
     constexpr Mat3(const VecType& all) noexcept : Mat4x4Base(all, all, all, {}) { }
-    /*template<typename Arg, typename... Args>
-    constexpr Mat3(Arg&& arg, Args&&... args) noexcept :
-        Mat3(rule::Concater<Mat3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}*/
+    forceinline static constexpr Mat3 LoadAll(const EleType* ptr) noexcept { return Mat4x4Base::LoadAll(ptr); }
 private:
+    forceinline constexpr Mat3(const Mat4x4Base& base) noexcept : Mat4x4Base(base) {}
     constexpr Mat3(const VecType& x, const VecType& y, const VecType& z, const VecType& w) noexcept : Mat4x4Base(x, y, z, w) { }
 };
 
@@ -48,7 +47,7 @@ struct COMMON_EMPTY_BASES alignas(32) Mat4 : public rule::ElementBasic<float, 16
     using Mat4x4Base::Mat4x4Base;
     constexpr Mat4(const VecType& x, const VecType& y, const VecType& z, const VecType& w) noexcept : Mat4x4Base(x, y, z, w) { }
     constexpr Mat4(const VecType& all) noexcept : Mat4x4Base(all, all, all, all) { }
-    /*template<typename Arg, typename... Args>
-    constexpr Mat3(Arg&& arg, Args&&... args) noexcept :
-        Mat3(rule::Concater<Mat3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}*/
+    forceinline static constexpr Mat4 LoadAll(const EleType* ptr) noexcept { return Mat4x4Base::LoadAll(ptr); }
+private:
+    forceinline constexpr Mat4(const Mat4x4Base& base) noexcept : Mat4x4Base(base) {}
 };

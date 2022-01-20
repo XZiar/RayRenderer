@@ -7,6 +7,9 @@ namespace common::math
 
 namespace rule
 {
+template<typename T, typename... Ts>
+inline constexpr bool DecayTypeMatchAny = (... || std::is_same_v<std::decay_t<T>, Ts>);
+
 template<typename E, size_t N, size_t M>
 struct ElementBasic 
 {
@@ -366,7 +369,10 @@ class alignas(8) Vec2Base
 protected:
     T X, Y;
     constexpr Vec2Base(T x, T y) noexcept : X(x), Y(y) {}
-
+    forceinline static constexpr Vec2Base<T> LoadAll(const T* ptr) noexcept
+    {
+        return { ptr[0], ptr[1] };
+    }
 public:
     constexpr Vec2Base() noexcept : X(0), Y(0) { }
 
@@ -385,6 +391,10 @@ public:
     forceinline constexpr T& operator[](size_t idx)       noexcept { return (&X)[idx]; }
     forceinline constexpr const T* Ptr() const noexcept { return &X; }
     forceinline constexpr       T* Ptr()       noexcept { return &X; }
+    forceinline constexpr void SaveAll(T* ptr) const noexcept
+    {
+        ptr[0] = X, ptr[1] = Y;
+    }
 };
 
 
@@ -396,6 +406,10 @@ class alignas(16) Vec4Base
 protected:
     T X, Y, Z, W;
     constexpr Vec4Base(T x, T y, T z, T w) noexcept : X(x), Y(y), Z(z), W(w) {}
+    forceinline static constexpr Vec4Base<T> LoadAll(const T* ptr) noexcept
+    {
+        return { ptr[0], ptr[1], ptr[2], ptr[3] };
+    }
 public:
     constexpr Vec4Base() noexcept : X(0), Y(0), Z(0), W(0) { }
 
@@ -414,6 +428,10 @@ public:
     forceinline constexpr T& operator[](size_t idx)       noexcept { return (&X)[idx]; }
     forceinline constexpr const T* Ptr() const noexcept { return &X; }
     forceinline constexpr       T* Ptr()       noexcept { return &X; }
+    forceinline constexpr void SaveAll(T* ptr) const noexcept
+    {
+        ptr[0] = X, ptr[1] = Y, ptr[2] = Z, ptr[3] = W;
+    }
 };
 
 

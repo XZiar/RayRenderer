@@ -21,7 +21,76 @@ class oglComputeProgram_;
 using oglComputeProgram = std::shared_ptr<oglComputeProgram_>;
 
 
-using UniformValue = std::variant<mbase::Vec2, mbase::Vec3, mbase::Vec4, mbase::Mat3, mbase::Mat4, bool, float, int32_t, uint32_t>;
+//using UniformValue = std::variant<mbase::Vec2, mbase::Vec3, mbase::Vec4, mbase::Mat3, mbase::Mat4, bool, float, int32_t, uint32_t>;
+struct UniformValue
+{
+    enum class Types : uint32_t { None, Vec2, Vec3, Vec4, Mat3, Mat4, Bool, F32, I32, U32 };
+    Types Type;
+    std::array<uint32_t, 16> DataStore;
+    template<typename T> 
+    forceinline T* Ptr() noexcept 
+    { 
+        return reinterpret_cast<T*>(DataStore.data());
+    }
+    template<typename T>
+    forceinline const T* Ptr() const noexcept
+    {
+        return reinterpret_cast<const T*>(DataStore.data());
+    }
+#define CASE_TYPE(te, type) static_assert(sizeof(type) <= sizeof(DataStore));\
+    UniformValue(const type& data) noexcept : Type(Types::te)
+    CASE_TYPE(Vec2, mbase::Vec2) { data.SaveAll(Ptr<float>()); }
+    CASE_TYPE(Vec3, mbase::Vec3) { data.SaveAll(Ptr<float>()); }
+    CASE_TYPE(Vec4, mbase::Vec4) { data.SaveAll(Ptr<float>()); }
+    CASE_TYPE(Mat3, mbase::Mat3) { data.SaveAll(Ptr<float>()); }
+    CASE_TYPE(Mat4, mbase::Mat4) { data.SaveAll(Ptr<float>()); }
+    CASE_TYPE(Bool, bool)        { Ptr<uint32_t>()[0] = data; }
+    CASE_TYPE(F32,  float)       { Ptr<   float>()[0] = data; }
+    CASE_TYPE(I32,  int32_t)     { Ptr< int32_t>()[0] = data; }
+    CASE_TYPE(U32,  uint32_t)    { Ptr<uint32_t>()[0] = data; }
+#undef CASE_TYPE
+    template<Types T> 
+    auto Get() const noexcept
+    {
+        if constexpr (T == Types::Vec2)
+            return mbase::Vec2::LoadAll(Ptr<float>());
+        else if constexpr (T == Types::Vec3)
+            return mbase::Vec3::LoadAll(Ptr<float>());
+        else if constexpr (T == Types::Vec4)
+            return mbase::Vec4::LoadAll(Ptr<float>());
+        else if constexpr (T == Types::Mat3)
+            return mbase::Mat3::LoadAll(Ptr<float>());
+        else if constexpr (T == Types::Mat4)
+            return mbase::Mat4::LoadAll(Ptr<float>());
+        else if constexpr (T == Types::Bool)
+            return bool(Ptr<uint32_t>()[0]);
+        else if constexpr (T == Types::F32)
+            return Ptr<float>()[0];
+        else if constexpr (T == Types::I32)
+            return Ptr<int32_t>()[0];
+        else if constexpr (T == Types::U32)
+            return Ptr<uint32_t>()[0];
+        else
+            static_assert(!common::AlwaysTrue2<T>, "Unsupport type");
+    }
+    template<typename T>
+    auto Visit(T&& visitor) const noexcept
+    {
+        switch (Type)
+        {
+        case Types::Vec2:   return visitor(Get<Types::Vec2>());
+        case Types::Vec3:   return visitor(Get<Types::Vec3>());
+        case Types::Vec4:   return visitor(Get<Types::Vec4>());
+        case Types::Mat3:   return visitor(Get<Types::Mat3>());
+        case Types::Mat4:   return visitor(Get<Types::Mat4>());
+        case Types::Bool:   return visitor(Get<Types::Bool>());
+        case Types::F32:    return visitor(Get<Types::F32> ());
+        case Types::I32:    return visitor(Get<Types::I32> ());
+        case Types::U32:    return visitor(Get<Types::U32> ());
+        default:            return visitor(Get<Types::Vec2>());
+        }
+    }
+};
 
 
 enum class ProgResType : uint16_t 

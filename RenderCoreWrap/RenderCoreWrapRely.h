@@ -40,6 +40,14 @@ forceinline System::Windows::Media::Color ToColor(const std::tuple<float, float,
 {
     return System::Windows::Media::Color::FromScRgb(std::get<3>(vec), std::get<0>(vec), std::get<1>(vec), std::get<2>(vec));
 }
+forceinline System::Windows::Media::Color ToColor3(const float* color)
+{
+    return System::Windows::Media::Color::FromScRgb(1.0f, color[0], color[1], color[2]);
+}
+forceinline System::Windows::Media::Color ToColor4(const float* color)
+{
+    return System::Windows::Media::Color::FromScRgb(color[3], color[0], color[1], color[2]);
+}
 forceinline void FromColor(System::Windows::Media::Color value, mbase::Vec4& color)
 {
     color.X = value.ScR, color.Y = value.ScG, color.Z = value.ScB, color.W = value.ScA;

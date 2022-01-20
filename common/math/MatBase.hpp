@@ -26,6 +26,10 @@ class alignas(32) Mat4x4Base
 protected:
     V X, Y, Z, W;
     constexpr Mat4x4Base(const V& x, const V& y, const V& z, const V& w) noexcept : X(x), Y(y), Z(z), W(w) {}
+    forceinline static constexpr Mat4x4Base<T, V> LoadAll(const T* ptr) noexcept
+    {
+        return { V::LoadAll(ptr), V::LoadAll(ptr + 16), V::LoadAll(ptr + 32), V::LoadAll(ptr + 48) };
+    }
 public:
     constexpr Mat4x4Base() noexcept { }
     
@@ -46,6 +50,10 @@ public:
     forceinline constexpr       T& operator()(size_t row, size_t col)       noexcept { return (&X)[row][col]; }
     forceinline constexpr const T* Ptr() const noexcept { return &X.X; }
     forceinline constexpr       T* Ptr()       noexcept { return &X.X; }
+    forceinline constexpr void SaveAll(T* ptr) const noexcept
+    {
+        X.SaveAll(ptr), Y.SaveAll(ptr + 4), Z.SaveAll(ptr + 8), W.SaveAll(ptr + 12);
+    }
 };
 
 

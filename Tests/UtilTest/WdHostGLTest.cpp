@@ -14,7 +14,6 @@ using namespace xziar::img;
 using namespace oglu;
 using std::string;
 using namespace xziar::gui;
-using namespace b3d;
 using std::wstring;
 using std::u16string;
 using std::vector;
@@ -38,14 +37,14 @@ struct Lutter
         LutGenerator = oglDrawProgram_::Create(u"Lutter", LoadShaderFallback(u"ColorLUT.glsl", IDR_GL_FGLUT));
         ScreenBox = oglu::oglArrayBuffer_::Create();
         {
-            const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
-            Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
+            const mbase::Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
+            mbase::Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
             ScreenBox->WriteSpan(DatVert);
         }
         VAOScreen = oglu::oglVAO_::Create(VAODrawMode::Triangles);
         VAOScreen->Prepare(LutGenerator)
-            .SetFloat(ScreenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
-            .SetFloat(ScreenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
+            .SetFloat(ScreenBox, "@VertPos",  sizeof(mbase::Vec4), 2, sizeof(float) * 0)
+            .SetFloat(ScreenBox, "@VertTexc", sizeof(mbase::Vec4), 2, sizeof(float) * 2)
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
@@ -150,12 +149,12 @@ static void RunTest()
         lutter = std::make_unique<Lutter>(64, lutTex);
 
         {
-            const Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
-            Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
+            const mbase::Vec4 pa(-1.0f, -1.0f, 0.0f, 0.0f), pb(1.0f, -1.0f, 1.0f, 0.0f), pc(-1.0f, 1.0f, 0.0f, 1.0f), pd(1.0f, 1.0f, 1.0f, 1.0f);
+            mbase::Vec4 DatVert[] = { pa,pb,pc, pd,pc,pb };
             screenBox->WriteSpan(DatVert);
             basicVAO->Prepare(drawer)
-                .SetFloat(screenBox, "@VertPos",  sizeof(Vec4), 2, sizeof(float) * 0)
-                .SetFloat(screenBox, "@VertTexc", sizeof(Vec4), 2, sizeof(float) * 2)
+                .SetFloat(screenBox, "@VertPos",  sizeof(mbase::Vec4), 2, sizeof(float) * 0)
+                .SetFloat(screenBox, "@VertTexc", sizeof(mbase::Vec4), 2, sizeof(float) * 2)
                 .SetDrawSize(0, 6);
             drawer->State().SetTexture(lutTex, "lut");
         }

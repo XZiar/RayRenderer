@@ -24,6 +24,7 @@ void TestVec()
     static_assert(sizeof(IV4) == 16);
 
     std::pair p2{ 1.0f, 3.0f };
+    float arr4[4] = { 1.0f,2.0f,3.0f,4.0f };
 
     V2 a2, b2, d2(p2);
     [[maybe_unused]] const auto c2 = Dot(a2, b2);
@@ -31,11 +32,11 @@ void TestVec()
     [[maybe_unused]] const auto f2 = b2[1] / (a2[1] * (e2 * a2[0] / b2[1]));
     [[maybe_unused]] const auto g2 = e2.Sqrt().Negative().Length();
 
-    V3 a3(5.3f, p2), b3(1.0f, b2);
+    V3 a3(5.3f, p2), b3(1.0f, b2), h3 = V3::LoadAll(arr4);
     [[maybe_unused]] const auto c3 = Dot(a3, b3);
     [[maybe_unused]] const auto d3 = Cross(a3, b3);
     [[maybe_unused]] const auto e3 = (a3[1] + Min(c3, d3)) + (b3[1] - Max(a3, b3)) - c3 + a3[0] - b3[0];
-    [[maybe_unused]] const auto f3 = b3[1] / (a3[1] * (e3 * a3[0] / b3[1]));
+    [[maybe_unused]] const auto f3 = b3[1] / (a3[1] * (e3 * a3[0] / h3[1]));
     [[maybe_unused]] const auto g3 = e3.Sqrt().Negative().Length();
 
     IV3 a3i, b3i;

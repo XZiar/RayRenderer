@@ -27,16 +27,12 @@ GLShader::GLShader(const u16string& name, const string& source, const oglu::Shad
     }
     RegistControllable();
 }
-template<typename T>
+template<oglu::UniformValue::Types Type, typename T = decltype(std::declval<oglu::UniformValue&>().Get<Type>())>
 static T GetProgCurUniform(const common::Controllable& control, const int32_t location, const T defVal = {})
 {
     const auto ptrVal = common::container::FindInMap(dynamic_cast<const GLShader&>(control).Program->getCurUniforms(), location);
-    if (ptrVal)
-    {
-        const auto ptrRealVal = std::get_if<T>(ptrVal);
-        if (ptrRealVal)
-            return *ptrRealVal;
-    }
+    if (ptrVal && ptrVal->Type == Type)
+        return ptrVal->Get<Type>();
     return defVal;
 }
 template<typename T>
@@ -84,30 +80,31 @@ void GLShader::RegistControllable()
             const auto loc = res.location;
             auto prep = RegistItem("Uniform_" + res.Name, "Uniform", common::str::to_u16string(res.Name, Encoding::UTF8),
                 ArgType::RawValue, prop->Data, common::str::to_u16string(prop->Description, Encoding::UTF8));
+            using UVT = oglu::UniformValue::Types;
             if (prop->Type == oglu::ShaderPropertyType::Range && prop->Data.has_value())
             {
                 prep.AsType<std::pair<float, float>>()
                     .RegistGetter([loc](const Controllable& self, const string&)
-                    { const auto v = GetProgCurUniform<mbase::Vec2>(self, loc); return std::pair{v.X, v.Y}; })
+                    { const auto v = GetProgCurUniform<UVT::Vec2>(self, loc); return std::pair{v.X, v.Y}; })
                     .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg)
                     { SetProgUniform(self, &res, mbase::Vec2(std::get<std::pair<float, float>>(arg))); });
             }
             else if (prop->Type == oglu::ShaderPropertyType::Float && prop->Data.has_value())
             {
                 prep.AsType<float>()
-                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<float>(self, loc); })
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<UVT::F32>(self, loc); })
                     .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<float>(arg)); });
             }
             else if (prop->Type == oglu::ShaderPropertyType::Color)
             {
                 prep.AsType<mbase::Vec4>().SetArgType(ArgType::Color)
-                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<mbase::Vec4>(self, loc, mbase::Vec4::Zeros()); })
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<UVT::Vec4>(self, loc, mbase::Vec4::Zeros()); })
                     .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<mbase::Vec4>(arg)); });
             }
             else if (prop->Type == oglu::ShaderPropertyType::Bool)
             {
                 prep.AsType<bool>()
-                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<bool>(self, loc); })
+                    .RegistGetter([loc](const Controllable& self, const string&) { return GetProgCurUniform<UVT::Bool>(self, loc); })
                     .RegistSetter([&res](Controllable& self, const string&, const ControlArg& arg) { SetProgUniform(self, &res, std::get<bool>(arg)); });
             }
             
@@ -169,10 +166,9 @@ void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
             if (!prop) continue;
             auto uni = common::container::FindInMap(unis, res.location);
             if (!uni) continue;
-            const auto key = res.Name + ',' + std::to_string(uni->index());
-            std::visit([&](auto&& rval)
+            const auto key = res.Name + ',' + std::to_string(common::enum_cast(uni->Type));
+            uni->Visit([&](auto&& rval)
             {
-                //<miniBLAS::Vec3, miniBLAS::Vec4, miniBLAS::Mat3x3, miniBLAS::Mat4x4, b3d::Coord2D, bool, int32_t, uint32_t, float>;
                 using T = std::decay_t<decltype(rval)>;
                 if constexpr (std::is_same_v<T, mbase::Vec3> || std::is_same_v<T, mbase::Vec4> || std::is_same_v<T, mbase::Vec2>)
                     uniforms.Add(key, detail::ToJArray(context, rval));
@@ -180,7 +176,7 @@ void GLShader::Serialize(SerializeUtil & context, xziar::ejson::JObject& jself) 
                     return;
                 else
                     uniforms.Add(key, rval);
-            }, *uni);
+            });
         }
         jself.Add("Uniforms", uniforms);
     }

@@ -47,6 +47,10 @@ protected:
         };
     };
     constexpr Vec4Base(T x, T y, T z, T w) noexcept : Data(x, y, z, w) {}
+    forceinline static constexpr Vec4Base<T> LoadAll(const T* ptr) noexcept
+    {
+        return SIMDType(ptr);
+    }
 public:
     constexpr Vec4Base() noexcept : Data(SIMDType::AllZero()) { }
     constexpr Vec4Base(SIMDType val) noexcept : Data(val) {}
@@ -66,6 +70,10 @@ public:
     forceinline constexpr T& operator[](size_t idx)       noexcept { return Data.Val[idx]; }
     forceinline constexpr const T* Ptr() const noexcept { return &X; }
     forceinline constexpr       T* Ptr()       noexcept { return &X; }
+    forceinline constexpr void SaveAll(T* ptr) const noexcept
+    {
+        Data.Save(ptr);
+    }
 };
 #if COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop

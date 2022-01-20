@@ -21,6 +21,11 @@ inline void SetProgUniform(const std::weak_ptr<oglu::oglProgram_>& prog, const o
 {
     prog.lock()->SetVal(loc, std::forward<Args>(args)...);
 }
+inline std::pair<float, float> GetVec2(const oglu::UniformValue* value)
+{
+    const auto val = value->Get<oglu::UniformValue::Types::Vec2>();
+    return { val.X, val.Y };
+}
 #pragma managed(pop)
 
 public ref class ProgInputResource : public ProgramResource
@@ -96,7 +101,7 @@ public ref class RangedProgInputRes_Float : public RangedProgInputRes<float>
 protected:
     virtual float Convert(const oglu::UniformValue* value) override
     {
-        return std::get<float>(*value);
+        return value->Get<oglu::UniformValue::Types::F32>();
     };
     virtual void SetValue(float val) override
     {
@@ -112,8 +117,7 @@ public ref class Ranged2ProgInputRes_Float : public Ranged2ProgInputRes<float>
 protected:
     virtual float Convert(const oglu::UniformValue* value, const bool isLow) override
     {
-        const auto& c2d = std::get<mbase::Vec2>(*value);
-        return isLow ? c2d.X : c2d.Y;
+        return value->Ptr<float>()[isLow ? 0 : 1];
     };
     virtual void SetValue(float val, const bool isLow) override
     {
@@ -124,8 +128,8 @@ protected:
         }
         else
         {
-            const auto& c2d = std::get<mbase::Vec2>(*ptr);
-            SetProgVec(Prog, ptrRes, isLow ? val : c2d.X, isLow ? c2d.Y : val);
+            const auto valptr = ptr->Ptr<float>();
+            SetProgVec(Prog, ptrRes, isLow ? val : valptr[0], isLow ? valptr[1] : val);
         }
     };
 internal:
@@ -150,7 +154,7 @@ public:
         System::Windows::Media::Color get()
         {
             auto ptr = GetValue();
-            return ptr ? ToColor(std::get<mbase::Vec4>(*ptr)) : defValue;
+            return ptr ? ToColor4(ptr->Ptr<float>()) : defValue;
         }
         void set(System::Windows::Media::Color value)
         {
@@ -173,7 +177,7 @@ public:
         bool get()
         {
             auto ptr = GetValue();
-            return ptr ? std::get<bool>(*ptr) : false;
+            return ptr ? ptr->Get<oglu::UniformValue::Types::Bool>() : false;
         }
         void set(bool value)
         {

@@ -899,17 +899,20 @@ ProgDraw& ProgDraw::Restore()
 
     for (const auto&[pos, val] : UniValBackup)
     {
-        switch (val.index())
+        switch (val.Type)
         {
-        case 0: Prog.SetVec_(pos, std::get<0>(val), false); break;
-        case 1: Prog.SetVec_(pos, std::get<1>(val), false); break;
-        case 2: Prog.SetVec_(pos, std::get<2>(val), false); break;
-        case 3: Prog.SetMat_(pos, std::get<3>(val), false); break;
-        case 4: Prog.SetMat_(pos, std::get<4>(val), false); break;
-        case 5: Prog.SetVal_(pos, std::get<5>(val), false); break;
-        case 6: Prog.SetVal_(pos, std::get<6>(val), false); break;
-        case 7: Prog.SetVal_(pos, std::get<7>(val), false); break;
-        case 8: Prog.SetVal_(pos, std::get<8>(val), false); break;
+#define CASE_TYPE(type, func) case UniformValue::Types::type: Prog.func(pos, val.Get<UniformValue::Types::type>(), false); break
+        CASE_TYPE(Vec2, SetVec_);
+        CASE_TYPE(Vec3, SetVec_);
+        CASE_TYPE(Vec4, SetVec_);
+        CASE_TYPE(Mat3, SetMat_);
+        CASE_TYPE(Mat4, SetMat_);
+        CASE_TYPE(Bool, SetVal_);
+        CASE_TYPE(F32,  SetVal_);
+        CASE_TYPE(I32,  SetVal_);
+        CASE_TYPE(U32,  SetVal_);
+        default: break;
+#undef CASE_TYPE
         }
     }
     UniValBackup.clear();

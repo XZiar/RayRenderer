@@ -28,7 +28,7 @@ void FontViewer::RegisterControllable()
         RegistItem<mbase::Vec4>("Color", "", u"颜色", ArgType::Color, {}, u"文字颜色")
             .RegistGetterProxy<FontViewer>([loc](const FontViewer& self)
             { 
-                return std::get<mbase::Vec4>(*common::container::FindInMap(self.prog->getCurUniforms(), loc));
+                return common::container::FindInMap(self.prog->getCurUniforms(), loc)->Get<UniformValue::Types::Vec4>();
             })
             .RegistSetterProxy<FontViewer>([res](FontViewer & self, const ControlArg& val)
             { 
@@ -41,7 +41,7 @@ void FontViewer::RegisterControllable()
         RegistItem<std::pair<float, float>>("Dist", "", u"边缘阈值", ArgType::RawValue, std::pair<float, float>(0.f, 1.f), u"sdf边缘阈值")
             .RegistGetterProxy<FontViewer>([loc](const FontViewer & self)
             {
-                const auto& c2d = std::get<mbase::Vec2>(*common::container::FindInMap(self.prog->getCurUniforms(), loc));
+                const auto& c2d = common::container::FindInMap(self.prog->getCurUniforms(), loc)->Get<UniformValue::Types::Vec2>();
                 return std::pair{ c2d.X, c2d.Y };
             })
             .RegistSetterProxy<FontViewer>([res](FontViewer & self, const ControlArg& val)

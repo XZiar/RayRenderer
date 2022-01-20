@@ -29,6 +29,10 @@ struct COMMON_EMPTY_BASES FuncBasics : public VecBasic<E, N, T>,
 
 }
 
+#define VEC_CC_TP(type, base, n) template<typename Arg, typename... Args, typename =        \
+    std::enable_if_t<!(sizeof...(Args) == 0 && rule::DecayTypeMatchAny<Arg, type, base>)>>  \
+    constexpr type(Arg&& arg, Args&&... args) noexcept :                                    \
+        type(rule::Concater<type>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
 
 #ifdef ENABLE_VEC2
 struct COMMON_EMPTY_BASES alignas(8) Vec2 : public rule::ElementBasic<float, 2, 2>, public vec::Vec2Base<float>, 
@@ -43,9 +47,10 @@ struct COMMON_EMPTY_BASES alignas(8) Vec2 : public rule::ElementBasic<float, 2, 
     using Vec2Base::Vec2Base;
     constexpr Vec2(EleType x, EleType y) noexcept : Vec2Base(x, y) { }
     constexpr Vec2(EleType all) noexcept : Vec2Base(all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr Vec2(Arg&& arg, Args&&... args) noexcept :
-        Vec2(rule::Concater<Vec2>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(Vec2, Vec2Base, 2)
+    forceinline static constexpr Vec2 LoadAll(const EleType* ptr) noexcept { return Vec2Base::LoadAll(ptr); }
+private:
+    forceinline constexpr Vec2(const Vec2Base& base) noexcept : Vec2Base(base) {}
 };
 
 struct COMMON_EMPTY_BASES alignas(8) IVec2 : public rule::ElementBasic<int32_t, 2, 2>, public vec::Vec2Base<int32_t>, 
@@ -60,9 +65,10 @@ struct COMMON_EMPTY_BASES alignas(8) IVec2 : public rule::ElementBasic<int32_t, 
     using Vec2Base::Vec2Base;
     constexpr IVec2(EleType x, EleType y) noexcept : Vec2Base(x, y) { }
     constexpr IVec2(EleType all) noexcept : Vec2Base(all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr IVec2(Arg&& arg, Args&&... args) noexcept :
-        IVec2(rule::Concater<Vec2>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(IVec2, Vec2Base, 2)
+    forceinline static constexpr IVec2 LoadAll(const EleType* ptr) noexcept { return Vec2Base::LoadAll(ptr); }
+private:
+    forceinline constexpr IVec2(const Vec2Base& base) noexcept : Vec2Base(base) {}
 };
 
 struct COMMON_EMPTY_BASES alignas(8) UVec2 : public rule::ElementBasic<uint32_t, 2, 2>, public vec::Vec2Base<uint32_t>,
@@ -77,9 +83,10 @@ struct COMMON_EMPTY_BASES alignas(8) UVec2 : public rule::ElementBasic<uint32_t,
     using Vec2Base::Vec2Base;
     constexpr UVec2(EleType x, EleType y) noexcept : Vec2Base(x, y) { }
     constexpr UVec2(EleType all) noexcept : Vec2Base(all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr UVec2(Arg&& arg, Args&&... args) noexcept :
-        UVec2(rule::Concater<Vec2>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(UVec2, Vec2Base, 2)
+    forceinline static constexpr UVec2 LoadAll(const EleType* ptr) noexcept { return Vec2Base::LoadAll(ptr); }
+private:
+    forceinline constexpr UVec2(const Vec2Base& base) noexcept : Vec2Base(base) {}
 };
 #endif
 
@@ -97,10 +104,10 @@ struct COMMON_EMPTY_BASES alignas(16) Vec3 : public rule::ElementBasic<float, 3,
     using Vec4Base::Vec4Base;
     constexpr Vec3(EleType x, EleType y, EleType z) noexcept : Vec4Base(x, y, z, 0.f) { }
     constexpr Vec3(EleType all) noexcept : Vec4Base(all, all, all, 0.f) { }
-    template<typename Arg, typename... Args>
-    constexpr Vec3(Arg&& arg, Args&&... args) noexcept :
-        Vec3(rule::Concater<Vec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(Vec3, Vec4Base, 3)
+    forceinline static constexpr Vec3 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
 private:
+    forceinline constexpr Vec3(const Vec4Base& base) noexcept : Vec4Base(base) {}
     constexpr Vec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
@@ -117,10 +124,10 @@ struct COMMON_EMPTY_BASES alignas(16) IVec3 : public rule::ElementBasic<int32_t,
     using Vec4Base::Vec4Base;
     constexpr IVec3(EleType x, EleType y, EleType z) noexcept : Vec4Base(x, y, z, 0) { }
     constexpr IVec3(EleType all) noexcept : Vec4Base(all, all, all, 0) { }
-    template<typename Arg, typename... Args>
-    constexpr IVec3(Arg&& arg, Args&&... args) noexcept :
-        IVec3(rule::Concater<IVec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(IVec3, Vec4Base, 3)
+    forceinline static constexpr IVec3 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
 private:
+    forceinline constexpr IVec3(const Vec4Base& base) noexcept : Vec4Base(base) {}
     constexpr IVec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
@@ -137,10 +144,10 @@ struct COMMON_EMPTY_BASES alignas(16) UVec3 : public rule::ElementBasic<uint32_t
     using Vec4Base::Vec4Base;
     constexpr UVec3(EleType x, EleType y, EleType z) noexcept : Vec4Base(x, y, z, 0) { }
     constexpr UVec3(EleType all) noexcept : Vec4Base(all, all, all, 0) { }
-    template<typename Arg, typename... Args>
-    constexpr UVec3(Arg&& arg, Args&&... args) noexcept :
-        UVec3(rule::Concater<IVec3>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(UVec3, Vec4Base, 3)
+    forceinline static constexpr UVec3 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
 private:
+    forceinline constexpr UVec3(const Vec4Base& base) noexcept : Vec4Base(base) {}
     constexpr UVec3(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
 };
 
@@ -174,9 +181,10 @@ struct COMMON_EMPTY_BASES alignas(16) Vec4 : public rule::ElementBasic<float, 4,
     using Vec4Base::Vec4Base;
     constexpr Vec4(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
     constexpr Vec4(EleType all) noexcept : Vec4Base(all, all, all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr Vec4(Arg&& arg, Args&&... args) noexcept :
-        Vec4(rule::Concater<Vec4>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(Vec4, Vec4Base, 4)
+    forceinline static constexpr Vec4 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
+private:
+    forceinline constexpr Vec4(const Vec4Base& base) noexcept : Vec4Base(base) {}
 };
 
 
@@ -194,9 +202,10 @@ struct COMMON_EMPTY_BASES alignas(16) IVec4 : public rule::ElementBasic<int32_t,
     using Vec4Base::Vec4Base;
     constexpr IVec4(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
     constexpr IVec4(EleType all) noexcept : Vec4Base(all, all, all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr IVec4(Arg&& arg, Args&&... args) noexcept :
-        IVec4(rule::Concater<IVec4>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(IVec4, Vec4Base, 4)
+    forceinline static constexpr IVec4 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
+private:
+    forceinline constexpr IVec4(const Vec4Base& base) noexcept : Vec4Base(base) {}
 };
 
 
@@ -214,8 +223,10 @@ struct COMMON_EMPTY_BASES alignas(16) UVec4 : public rule::ElementBasic<uint32_t
     using Vec4Base::Vec4Base;
     constexpr UVec4(EleType x, EleType y, EleType z, EleType w) noexcept : Vec4Base(x, y, z, w) { }
     constexpr UVec4(EleType all) noexcept : Vec4Base(all, all, all, all) { }
-    template<typename Arg, typename... Args>
-    constexpr UVec4(Arg&& arg, Args&&... args) noexcept :
-        UVec4(rule::Concater<UVec4>::Concat(std::forward<Arg>(arg), std::forward<Args>(args)...)) {}
+    VEC_CC_TP(UVec4, Vec4Base, 4)
+    forceinline static constexpr UVec4 LoadAll(const EleType* ptr) noexcept { return Vec4Base::LoadAll(ptr); }
+private:
+    forceinline constexpr UVec4(const Vec4Base& base) noexcept : Vec4Base(base) {}
 };
 
+#undef VEC_CC_TP
