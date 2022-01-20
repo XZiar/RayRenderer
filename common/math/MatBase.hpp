@@ -6,8 +6,19 @@
 namespace common::math
 {
 
-namespace rule
+namespace shared
 {
+
+namespace mat
+{
+
+template<typename E, size_t N>
+struct MatType
+{
+    static constexpr size_t ElementCount = N;
+};
+
+}
 
 }
 
@@ -19,7 +30,7 @@ namespace mat
 
 /*a vector contains 4x4 element(int32 or float)*/
 template<typename T, typename V>
-class alignas(32) Mat4x4Base
+class alignas(32) Mat4x4Base : public shared::Storage<sizeof(T), 16>
 {
     static_assert(sizeof(T) == 4,  "only  4-byte length type allowed");
     static_assert(sizeof(V) == 16, "only 16-byte length vec type allowed");
@@ -33,12 +44,12 @@ protected:
 public:
     constexpr Mat4x4Base() noexcept { }
     
-    template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
+    template<typename M, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 16>, M>>>
     forceinline M& As() noexcept
     {
         return *reinterpret_cast<M*>(this);
     }
-    template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
+    template<typename M, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 16>, M>>>
     forceinline const M& As() const noexcept
     {
         return *reinterpret_cast<const M*>(this);

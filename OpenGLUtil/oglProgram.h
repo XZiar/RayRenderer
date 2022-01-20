@@ -398,15 +398,15 @@ public:
     ProgDraw& SetSubroutine(const std::string_view subrName, const std::string_view routineName);
 
     template<typename T, typename Arg> 
-    ProgDraw& SetVec(const T& name, Arg&& arg)
+    ProgDraw& SetVec(const T& name, const Arg& arg)
     { 
-        Prog.SetVec_(BeforeSetVal(name), std::forward<Arg>(arg), false);
+        Prog.SetVec_(BeforeSetVal(name), arg, false);
         return *this;
     }
     template<typename T, typename Arg>
-    ProgDraw& SetMat(const T& name, Arg&& arg)
+    ProgDraw& SetMat(const T& name, const Arg& arg)
     { 
-        Prog.SetMat_(BeforeSetVal(name), std::forward<Arg>(arg), false);
+        Prog.SetMat_(BeforeSetVal(name), arg, false);
         return *this;
     }
     template<typename T, typename... Args>

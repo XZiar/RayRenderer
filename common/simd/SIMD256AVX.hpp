@@ -1017,7 +1017,8 @@ struct alignas(__m256d) F64x4 : public detail::CommonOperators<F64x4>
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F64x4 VECCALL Round() const
     {
-        return _mm256_round_pd(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+        constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
+        return _mm256_round_pd(Data, imm8);
     }
 
     forceinline F64x2 VECCALL GetLoLane() const { return _mm256_extractf128_pd(Data, 0); }
@@ -1332,7 +1333,8 @@ struct alignas(__m256) F32x8 : public detail::CommonOperators<F32x8>
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F32x8 VECCALL Round() const
     {
-        return _mm256_round_ps(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+        constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
+        return _mm256_round_ps(Data, imm8);
     }
 
     forceinline F32x4 VECCALL GetLoLane() const { return _mm256_extractf128_ps(Data, 0); }

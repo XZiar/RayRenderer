@@ -66,26 +66,26 @@ inline constexpr float PI_2 = math::PI_float / 2, PI2 = math::PI_float * 2;
 
 void Camera::Move(const float& x, const float& y, const float& z) noexcept
 {
-    Position += CamMat * mbase::Vec3(x, y, z);
+    Position.As<msimd::Vec3>() += CamMat.As<msimd::Mat3>() * msimd::Vec3(x, y, z);
 }
 //rotate along x-axis
 void Camera::Pitch(const float radx) noexcept
 {
     Rotation.X = std::clamp(Rotation.X + radx, -PI_2, PI_2); // limit to 90 degree
-    CamMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
+    CamMat.As<msimd::Mat3>() = math::RotateMatXYZ<msimd::Mat3>(Rotation.As<msimd::Vec3>());
 }
 //rotate along y-axis
 void Camera::Yaw(const float rady) noexcept
 {
     Rotation.Y += rady;
     Rotation.Y -= std::floor(Rotation.Y / PI2) * PI2;
-    CamMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
+    CamMat.As<msimd::Mat3>() = math::RotateMatXYZ<msimd::Mat3>(Rotation.As<msimd::Vec3>());
 }
 //rotate along z-axis
 void Camera::Roll(const float radz) noexcept
 {
     Rotation.Z = std::clamp(Rotation.Z + radz, -PI_2, PI_2); // limit to 90 degree
-    CamMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
+    CamMat.As<msimd::Mat3>() = math::RotateMatXYZ<msimd::Mat3>(Rotation.As<msimd::Vec3>());
 }
 
 void Camera::Rotate(const float x, const float y, const float z) noexcept
@@ -94,7 +94,7 @@ void Camera::Rotate(const float x, const float y, const float z) noexcept
     Rotation.Y += y;
     Rotation.Y -= std::floor(Rotation.Y / PI2) * PI2;
     Rotation.Z = std::clamp(Rotation.Z + z, -PI_2, PI_2); // limit to 90 degree
-    CamMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
+    CamMat.As<msimd::Mat3>() = math::RotateMatXYZ<msimd::Mat3>(Rotation.As<msimd::Vec3>());
 }
 void Camera::Rotate(const mbase::Vec3& angles) noexcept
 {
@@ -142,8 +142,8 @@ mbase::Mat4 Camera::GetView() const noexcept
 {
     //LookAt
     //matrix_View = glm::lookAt(vec3(cam.position), vec3(Vertex(cam.position + cam.n)), vec3(cam.v));
-    const auto rMat = Transpose(CamMat);
-    return math::TranslateMat<mbase::Mat4>(Position * -1, rMat);
+    const auto rMat = Transpose(CamMat.As<msimd::Mat3>());
+    return math::TranslateMat<mbase::Mat4>(Position.As<msimd::Vec3>().Negative(), rMat);
 }
 
 

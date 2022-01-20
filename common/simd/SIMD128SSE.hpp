@@ -863,7 +863,8 @@ struct alignas(16) F64x2 : public detail::CommonOperators<F64x2>
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F64x2 VECCALL Round() const
     {
-        return _mm_round_pd(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+        constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
+        return _mm_round_pd(Data, imm8);
     }
 #endif
 
@@ -1088,7 +1089,8 @@ struct alignas(16) F32x4 : public detail::CommonOperators<F32x4>
     template<RoundMode Mode = RoundMode::ToEven>
     forceinline F32x4 VECCALL Round() const
     {
-        return _mm_round_ps(Data, detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC);
+        constexpr auto imm8 = detail::RoundModeImm(Mode) | _MM_FROUND_NO_EXC;
+        return _mm_round_ps(Data, imm8);
     }
 #endif
 

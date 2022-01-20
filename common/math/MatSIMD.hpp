@@ -39,7 +39,7 @@ namespace mat
 #endif
 /*a vector contains 4x4 element(int32 or float)*/
 template<typename T, typename V>
-class alignas(32) Mat4x4Base
+class alignas(32) Mat4x4Base : public shared::Storage<sizeof(T), 16>
 {
     static_assert(sizeof(T) == 4,  "only  4-byte length type allowed");
     static_assert(sizeof(V) == 16, "only 16-byte length vec type allowed");
@@ -82,15 +82,15 @@ public:
 #endif
     //constexpr Mat4x4Base(const SIMD4Type& x, const SIMD4Type& y, const SIMD4Type& z, const SIMD4Type& w) noexcept : X(x), Y(y), Z(z), W(w) {}
 
-    template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
+    template<typename M, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 16>, M>>>
     forceinline M& As() noexcept
     {
-        return *reinterpret_cast<V*>(this);
+        return *reinterpret_cast<M*>(this);
     }
-    template<typename M, typename = std::enable_if_t<std::is_base_of_v<Mat4x4Base<typename M::EleType, typename M::VecType>, M>>>
+    template<typename M, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 16>, M>>>
     forceinline const M& As() const noexcept
     {
-        return *reinterpret_cast<const V*>(this);
+        return *reinterpret_cast<const M*>(this);
     }
 
     forceinline constexpr const V& operator[](size_t idx) const noexcept { return (&X)[idx]; }
@@ -303,7 +303,7 @@ struct FuncVAddSubMulDiv
         {
             const auto xy = left.XY.template Dot2<DotPos::XYZ, DotPos::XY>(r2);
             const auto z  = left.ZW.GetLoLane().template Dot<DotPos::XYZ, DotPos::Z>(right.Data);
-            const auto xxz = xy.GetLoLane().template SelectWith<0b1010>(z);
+            const auto xxz = xy.GetLoLane().template SelectWith<0b0100>(z);
             return xxz.template SelectWith<0b0010>(xy.GetHiLane());
         }
     }

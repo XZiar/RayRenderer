@@ -120,7 +120,8 @@ void Drawable::Rotate(const mbase::Vec3& angles)
     const auto dived = rotation * PI2Rcp;
 #if (COMMON_ARCH_X86 && COMMON_SIMD_LV >= 41) || (COMMON_ARCH_ARM && COMMON_SIMD_LV >= 30)
     const auto rounded = dived.Data.Round<common::simd::RoundMode::ToNegInf>();
-    Rotation = msimd::Vec3(rounded.NMulAdd(PI2, rotation.Data));
+    const auto newRot = rounded.NMulAdd(PI2, rotation.Data);
+    newRot.Save(Rotation.Ptr());
 #else
     Rotation.X -= std::floor(dived.X) * PI2;
     Rotation.Y -= std::floor(dived.Y) * PI2;
@@ -181,14 +182,14 @@ auto Drawable::DefaultBind(const oglu::oglDrawProgram& prog, oglu::oglVAO& vao, 
 
 oglu::ProgDraw& Drawable::DrawPosition(Drawcall& drawcall) const
 {
-    const auto normMat = math::RotateMatXYZ<mbase::Mat3>(Rotation);
-    const auto modelMat = math::TranslateMat<mbase::Mat4>(Position) * 
-        math::ToHomoCoord<mbase::Mat4>(normMat * math::ScaleMat<mbase::Mat3>(Scale));
-    const auto mvpMat = drawcall.PVMat * modelMat;
+    const auto normMat  = math::RotateMatXYZ<msimd::Mat3>(Rotation.As<msimd::Vec3>());
+    const auto modelMat = math::TranslateMat<msimd::Mat4>(Position.As<msimd::Vec3>()) *
+        math::ToHomoCoord<msimd::Mat4>(normMat * math::ScaleMat<msimd::Mat3>(Scale.As<msimd::Vec3>()));
+    const auto mvpMat = drawcall.PVMat.As<msimd::Mat4>() * modelMat;
     return drawcall.Drawer
-        .SetMat("@MVPMat", mvpMat)
-        .SetMat("@ModelMat", modelMat)
-        .SetMat("@MVPNormMat", normMat);
+        .SetMat("@MVPMat",      mvpMat  .As<mbase::Mat4>())
+        .SetMat("@ModelMat",    modelMat.As<mbase::Mat4>())
+        .SetMat("@MVPNormMat",  normMat .As<mbase::Mat3>());
 }
 
 void Drawable::SetVAO(const oglu::oglDrawProgram& prog, const oglu::oglVAO& vao) const

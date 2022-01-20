@@ -5,134 +5,6 @@
 namespace common::math
 {
 
-namespace rule
-{
-template<typename T, typename... Ts>
-inline constexpr bool DecayTypeMatchAny = (... || std::is_same_v<std::decay_t<T>, Ts>);
-
-template<typename E, size_t N, size_t M>
-struct ElementBasic 
-{
-    static constexpr size_t ElementCount = N;
-    static constexpr size_t StorageCount = M;
-};
-
-enum class ArgType : uint8_t { Basic, Scalar, Pair };
-
-template<template<class, size_t, size_t> class T, class U>
-struct BasicChecker
-{
-private:
-    template<class V, size_t N, size_t M>
-    static decltype(static_cast<const T<V, N, M>&>(std::declval<U>()), std::true_type{})
-        Test(const T<V, N, M>&);
-    static std::false_type Test(...);
-public:
-    static constexpr bool IsBasic = decltype(BasicChecker::Test(std::declval<U>()))::value;
-};
-template<typename T>
-struct Pairchecker
-{
-    static constexpr bool IsPairSame = false;
-};
-template<typename T>
-struct Pairchecker<std::pair<T, T>>
-{
-    static constexpr bool IsPairSame = true;
-};
-
-template<typename T>
-inline constexpr ArgType ToArgType = BasicChecker<ElementBasic, T>::IsBasic ? ArgType::Basic :
-    (Pairchecker<T>::IsPairSame ? ArgType::Pair : ArgType::Scalar);
-
-
-template<typename T, ArgType Type = ToArgType<T>>
-struct ArgChecker;
-template<typename T>
-struct ArgChecker<T, ArgType::Basic>
-{
-    static constexpr ArgType AType = ArgType::Basic;
-    using Type = typename T::EleType;
-    static constexpr size_t Count = T::ElementCount;
-};
-template<typename T>
-struct ArgChecker<T, ArgType::Scalar>
-{
-    static constexpr ArgType AType = ArgType::Scalar;
-    using Type = T;
-    static constexpr size_t Count = 1;
-};
-template<typename T>
-struct ArgChecker<T, ArgType::Pair>
-{
-    static_assert(std::is_same_v<typename T::first_type, typename T::second_type>);
-    static constexpr ArgType AType = ArgType::Pair;
-    using Type = typename T::first_type;
-    static constexpr size_t Count = 2;
-};
-
-
-template<typename T>
-struct Concater
-{
-    using E = typename T::EleType;
-    static constexpr size_t N = T::ElementCount;
-    static constexpr auto Indexes = std::make_index_sequence<N>();
-
-    template<typename... Args>
-    static constexpr std::array<std::pair<uint8_t, uint8_t>, N> Generate() noexcept
-    {
-        static_assert((... && std::is_same_v<E, typename ArgChecker<Args>::Type>),
-            "Concat element type does not match");
-        static_assert((... + ArgChecker<Args>::Count) == N,
-            "Concat length does not match");
-        constexpr std::array<ArgType, sizeof...(Args)> Types  { ArgChecker<Args>::AType... };
-        constexpr std::array<size_t,  sizeof...(Args)> Lengths{ ArgChecker<Args>::Count... };
-        std::array<std::pair<uint8_t, uint8_t>, N> ret = {};
-        uint8_t argIdx = 0, eleIdx = 0;
-        for (auto& p : ret)
-        {
-            p.first = argIdx;
-            switch (Types[argIdx])
-            {
-            case ArgType::Basic:  p.second = eleIdx; break;
-            case ArgType::Scalar: p.second = UINT8_MAX; break;
-            case ArgType::Pair:   p.second = static_cast<uint8_t>(253 + eleIdx); break;
-            }
-            if (Lengths[argIdx] <= ++eleIdx)
-                argIdx++, eleIdx = 0;
-        }
-        return ret;
-    }
-
-    template<uint8_t ArgIdx, uint8_t EleIdx, typename Tuple>
-    forceinline static constexpr E Get(Tuple&& tp) noexcept
-    {
-        if constexpr (EleIdx == UINT8_MAX)
-            return std::get<ArgIdx>(tp);
-        else if constexpr (EleIdx >= 253)
-            return std::get<EleIdx - 253>(std::get<ArgIdx>(tp));
-        else
-            return std::get<ArgIdx>(tp)[EleIdx];
-    }
-
-    template<typename... Args, size_t... I>
-    forceinline static constexpr T Concat_(std::index_sequence<I...>, Args&&... args) noexcept
-    {
-        constexpr auto Mappings = Generate<common::remove_cvref_t<Args>...>();
-        auto tmp = std::forward_as_tuple(args...);
-        return { Get<Mappings[I].first, Mappings[I].second>(tmp)... };
-    }
-    template<typename... Args>
-    forceinline static constexpr T Concat(Args&&... args) noexcept
-    {
-        return Concat_(Indexes, std::forward<Args>(args)...);
-    }
-};
-
-}
-
-
 namespace shared
 {
 
@@ -168,6 +40,156 @@ struct FuncSelfCalc
         return self;
     }
 };
+
+
+template<size_t ESize, size_t Count>
+struct Storage
+{
+    static constexpr size_t ElementSize  = ESize;
+    static constexpr size_t StorageCount = Count;
+};
+
+
+template<typename T, typename... Ts>
+inline constexpr bool DecayMatchAny = (... || std::is_same_v<std::decay_t<T>, Ts>);
+template<typename T, typename... Ts>
+inline constexpr bool DecayInheritAny = (... || (std::is_same_v<std::decay_t<T>, Ts> || std::is_base_of_v<Ts, std::decay_t<T>>));
+
+template<template<class, size_t> class T, class U>
+struct BasicChecker
+{
+private:
+    template<class V, size_t N>
+    static decltype(static_cast<const T<V, N>&>(std::declval<U>()), std::true_type{})
+        Test(const T<V, N>&);
+    static std::false_type Test(...);
+public:
+    static constexpr bool IsMatched = decltype(BasicChecker::Test(std::declval<U>()))::value;
+};
+template<typename T>
+struct Pairchecker
+{
+    static constexpr bool IsPairSame = false;
+};
+template<typename T>
+struct Pairchecker<std::pair<T, T>>
+{
+    static constexpr bool IsPairSame = true;
+};
+
+
+namespace vec
+{
+
+template<typename E, size_t N>
+struct VecType
+{
+    static constexpr size_t ElementCount = N;
+};
+
+enum class ArgType : uint8_t { Vec, Scalar, Pair };
+
+template<typename T>
+inline constexpr ArgType ToArgType = BasicChecker<VecType, T>::IsMatched ? ArgType::Vec :
+    (Pairchecker<T>::IsPairSame ? ArgType::Pair : ArgType::Scalar);
+
+
+template<typename T, ArgType Type = ToArgType<T>>
+struct ArgChecker;
+template<typename T>
+struct ArgChecker<T, ArgType::Vec>
+{
+    static constexpr ArgType AType = ArgType::Vec;
+    using Type = typename T::EleType;
+    static constexpr size_t Count = T::ElementCount;
+};
+template<typename T>
+struct ArgChecker<T, ArgType::Scalar>
+{
+    static constexpr ArgType AType = ArgType::Scalar;
+    using Type = T;
+    static constexpr size_t Count = 1;
+};
+template<typename T>
+struct ArgChecker<T, ArgType::Pair>
+{
+    static_assert(std::is_same_v<typename T::first_type, typename T::second_type>);
+    static constexpr ArgType AType = ArgType::Pair;
+    using Type = typename T::first_type;
+    static constexpr size_t Count = 2;
+};
+
+struct ConcaterBase
+{
+    static constexpr uint8_t IdxScalar = UINT8_MAX;
+    static constexpr uint8_t IdxPair = IdxScalar - 2;
+    struct Info
+    {
+        uint8_t ArgIdx = 0;
+        uint8_t EleIdx = 0;
+    };
+    template<uint8_t EleIdx, typename E, typename U>
+    forceinline static constexpr E Get(U&& val) noexcept
+    {
+        if constexpr (EleIdx == IdxScalar)
+            return val;
+        else if constexpr (EleIdx >= IdxPair)
+            return std::get<EleIdx - IdxPair>(val);
+        else
+            return val[EleIdx];
+    }
+};
+template<typename E, size_t N>
+struct ConcaterBase2 : public ConcaterBase
+{
+    template<typename... Args>
+    static constexpr std::array<Info, N> Generate() noexcept
+    {
+        static_assert((... && std::is_same_v<E, typename ArgChecker<Args>::Type>),
+            "Concat element type does not match");
+        static_assert((... + ArgChecker<Args>::Count) == N,
+            "Concat length does not match");
+        constexpr std::array<ArgType, sizeof...(Args)> Types{ ArgChecker<Args>::AType... };
+        constexpr std::array<size_t, sizeof...(Args)> Lengths{ ArgChecker<Args>::Count... };
+        std::array<Info, N> ret = {};
+        uint8_t argIdx = 0, eleIdx = 0;
+        for (auto& info : ret)
+        {
+            info.ArgIdx = argIdx;
+            switch (Types[argIdx])
+            {
+            case ArgType::Vec:    info.EleIdx = eleIdx; break;
+            case ArgType::Scalar: info.EleIdx = IdxScalar; break;
+            case ArgType::Pair:   info.EleIdx = static_cast<uint8_t>(IdxPair + eleIdx); break;
+            }
+            if (Lengths[argIdx] <= ++eleIdx)
+                argIdx++, eleIdx = 0;
+        }
+        return ret;
+    }
+};
+template<typename T>
+struct Concater : public ConcaterBase2<typename T::EleType, T::ElementCount>
+{
+    using E = typename T::EleType;
+    static constexpr size_t N = T::ElementCount;
+    static constexpr auto Indexes = std::make_index_sequence<N>();
+
+    template<typename... Args, size_t... I>
+    forceinline static constexpr T Concat_(std::index_sequence<I...>, Args&&... args) noexcept
+    {
+        constexpr auto Mappings = ConcaterBase2<E, N>::template Generate<common::remove_cvref_t<Args>...>();
+        auto tmp = std::forward_as_tuple(args...);
+        return { ConcaterBase2<E, N>::template Get<Mappings[I].EleIdx, E>(std::get<Mappings[I].ArgIdx>(tmp))... };
+    }
+    template<typename... Args>
+    forceinline static constexpr T Concat(Args&&... args) noexcept
+    {
+        return Concat_(Indexes, std::forward<Args>(args)...);
+    }
+};
+
+}
 
 }
 
@@ -363,7 +385,7 @@ namespace vec
 
 /*a vector contains 2 element(int32 or float)*/
 template<typename T>
-class alignas(8) Vec2Base
+class alignas(8) Vec2Base : public shared::Storage<sizeof(T), 2>
 {
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
@@ -376,12 +398,12 @@ protected:
 public:
     constexpr Vec2Base() noexcept : X(0), Y(0) { }
 
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec2Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 2>, V>>>
     forceinline V& As() noexcept
     {
         return *reinterpret_cast<V*>(this);
     }
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec2Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 2>, V>>>
     forceinline const V& As() const noexcept
     {
         return *reinterpret_cast<const V*>(this);
@@ -400,7 +422,7 @@ public:
 
 /*a vector contains 4 element(int32 or float)*/
 template<typename T>
-class alignas(16) Vec4Base
+class alignas(16) Vec4Base : public shared::Storage<sizeof(T), 4>
 {
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
@@ -413,12 +435,12 @@ protected:
 public:
     constexpr Vec4Base() noexcept : X(0), Y(0), Z(0), W(0) { }
 
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec4Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 4>, V>>>
     forceinline V& As() noexcept
     {
         return *reinterpret_cast<V*>(this);
     }
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec4Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 4>, V>>>
     forceinline const V& As() const noexcept
     {
         return *reinterpret_cast<const V*>(this);

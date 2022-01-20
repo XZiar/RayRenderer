@@ -21,12 +21,16 @@ inline constexpr T Rad2Ang(T in) noexcept
 template<typename T, typename U>
 inline constexpr T ToHomoCoord(const U& mat) noexcept
 {
+    static_assert(std::is_base_of_v<shared::mat::MatType<float,  9>, U>, " input should be 3x3");
+    static_assert(std::is_base_of_v<shared::mat::MatType<float, 16>, T>, "output should be 4x4");
+    static_assert(std::is_same_v<typename U::EleType, typename T::EleType>);
+    using V = typename T::VecType;
     return
     {
-        {mat.X, 0.f},
-        {mat.Y, 0.f},
-        {mat.Z, 0.f},
-        {0.f, 0.f, 0.f, 1.f},
+        V{mat.X, 0.f},
+        V{mat.Y, 0.f},
+        V{mat.Z, 0.f},
+        V{0.f, 0.f, 0.f, 1.f},
     };
 }
 

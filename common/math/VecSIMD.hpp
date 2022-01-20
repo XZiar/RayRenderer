@@ -33,7 +33,7 @@ namespace vec
 #endif
 /*a vector contains 4 element(int32 or float)*/
 template<typename T>
-class alignas(16) Vec4Base
+class alignas(16) Vec4Base : public shared::Storage<sizeof(T), 4>
 {
     static_assert(sizeof(T) == 4, "only 4-byte length type allowed");
 protected:
@@ -55,12 +55,12 @@ public:
     constexpr Vec4Base() noexcept : Data(SIMDType::AllZero()) { }
     constexpr Vec4Base(SIMDType val) noexcept : Data(val) {}
 
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec4Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 4>, V>>>
     forceinline V& As() noexcept
     {
         return *reinterpret_cast<V*>(this);
     }
-    template<typename V, typename = std::enable_if_t<std::is_base_of_v<Vec4Base<typename V::EleType>, V>>>
+    template<typename V, typename = std::enable_if_t<std::is_base_of_v<shared::Storage<sizeof(T), 4>, V>>>
     forceinline const V& As() const noexcept
     {
         return *reinterpret_cast<const V*>(this);
