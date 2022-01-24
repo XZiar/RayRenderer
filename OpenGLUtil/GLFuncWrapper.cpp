@@ -44,24 +44,11 @@ typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC) (GLenum name);
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
-//#   include "GL/wglext.h"
 //fucking wingdi defines some terrible macro
 #   undef ERROR
 #   undef MemoryBarrier
-//#   pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 #elif COMMON_OS_UNIX
 #   include <dlfcn.h>
-//#   include <X11/X.h>
-//#   include <X11/Xlib.h>
-////#   include <GL/glx.h>
-////#   include "GL/glxext.h"
-////fucking X11 defines some terrible macro
-//#   undef Success
-//#   undef Always
-//#   undef None
-//#   undef Bool
-//#   undef Int
-//#   pragma message("Compiling OpenGLUtil with glx-ext[" STRINGIZE(GLX_GLXEXT_VERSION) "]")
 #else
 #   error "unknown os"
 #endif
@@ -72,7 +59,6 @@ typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC) (GLenum name);
 namespace oglu
 {
 using namespace std::string_view_literals;
-//[[maybe_unused]] constexpr auto PlatFuncsSize = sizeof(PlatFuncs);
 [[maybe_unused]] constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
 
 template<typename T, typename... Args>
@@ -104,29 +90,13 @@ struct ResourceKeeper
         }
     }
 };
-//thread_local const PlatFuncs* PlatFunc = nullptr;
 thread_local const CtxFuncs* CtxFunc = nullptr;
 
-//static auto& GetPlatFuncsMap()
-//{
-//    static ResourceKeeper<PlatFuncs> PlatFuncMap;
-//    return PlatFuncMap;
-//}
 static auto& GetCtxFuncsMap()
 {
     static ResourceKeeper<CtxFuncs, const GLHost_&, std::pair<bool, bool>> CtxFuncMap;
     return CtxFuncMap;
 }
-//static void PreparePlatFuncs(void* hDC)
-//{
-//    if (hDC == nullptr)
-//        PlatFunc = nullptr;
-//    else
-//    {
-//        auto& rmap = GetPlatFuncsMap();
-//        PlatFunc = rmap.FindOrCreate(hDC);
-//    }
-//}
 static void PrepareCtxFuncs(void* hRC, const GLHost_& host, std::pair<bool, bool> shouldPrint)
 {
     if (hRC == nullptr)
@@ -137,175 +107,6 @@ static void PrepareCtxFuncs(void* hRC, const GLHost_& host, std::pair<bool, bool
         CtxFunc = rmap.FindOrCreate(hRC, host, shouldPrint);
     }
 }
-
-//#if COMMON_OS_WIN
-//constexpr PIXELFORMATDESCRIPTOR PixFmtDesc =    // pfd Tells Windows How We Want Things To Be
-//{
-//    sizeof(PIXELFORMATDESCRIPTOR),              // Size Of This Pixel Format Descriptor
-//    1,                                          // Version Number
-//    PFD_DRAW_TO_WINDOW/*Support Window*/ | PFD_SUPPORT_OPENGL/*Support OpenGL*/ | PFD_DOUBLEBUFFER/*Support Double Buffering*/ | PFD_GENERIC_ACCELERATED,
-//    PFD_TYPE_RGBA,                              // Request An RGBA Format
-//    32,                                         // Select Our Color Depth
-//    0, 0, 0, 0, 0, 0,                           // Color Bits Ignored
-//    0, 0,                                       // No Alpha Buffer, Shift Bit Ignored
-//    0, 0, 0, 0, 0,                              // No Accumulation Buffer, Accumulation Bits Ignored
-//    24,                                         // 24Bit Z-Buffer (Depth Buffer) 
-//    8,                                          // 8Bit Stencil Buffer
-//    0,                                          // No Auxiliary Buffer
-//    PFD_MAIN_PLANE,                             // Main Drawing Layer
-//    0,                                          // Reserved
-//    0, 0, 0                                     // Layer Masks Ignored
-//};
-//void oglUtil::SetPixFormat(void* hdc_)
-//{
-//    const auto hdc = reinterpret_cast<HDC>(hdc_);
-//    const int pixFormat = ChoosePixelFormat(hdc, &PixFmtDesc);
-//    SetPixelFormat(hdc, pixFormat, &PixFmtDesc);
-//}
-//#elif COMMON_OS_LINUX
-//constexpr int VisualAttrs[] =
-//{
-//    GLX_X_RENDERABLE,   1,
-//    GLX_X_VISUAL_TYPE,  GLX_TRUE_COLOR,
-//    GLX_RENDER_TYPE,    GLX_RGBA_BIT,
-//    GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT,
-//    GLX_RED_SIZE,       8,
-//    GLX_GREEN_SIZE,     8,
-//    GLX_BLUE_SIZE,      8,
-//    GLX_ALPHA_SIZE,     8,
-//    GLX_DEPTH_SIZE,     24,
-//    GLX_STENCIL_SIZE,   8,
-//    GLX_DOUBLEBUFFER,   1,
-//    0
-//};
-//constexpr int VisualAttrs2[] =
-//{
-//    GLX_X_RENDERABLE,   1,
-//    GLX_X_VISUAL_TYPE,  GLX_TRUE_COLOR,
-//    GLX_RENDER_TYPE,    GLX_RGBA_BIT,
-//    GLX_DRAWABLE_TYPE,  GLX_PIXMAP_BIT,
-//    GLX_RED_SIZE,       8,
-//    GLX_GREEN_SIZE,     8,
-//    GLX_BLUE_SIZE,      8,
-//    GLX_ALPHA_SIZE,     8,
-//    GLX_DEPTH_SIZE,     24,
-//    GLX_STENCIL_SIZE,   8,
-//    GLX_DOUBLEBUFFER,   1,
-//    0
-//};
-//std::optional<GLContextInfo> oglUtil::GetBasicContextInfo(void* display, bool useOffscreen)
-//{
-//    GLContextInfo info;
-//    info.DeviceContext = display;
-//    const auto disp = reinterpret_cast<Display*>(display);
-//    int fbCount = 0;
-//    const auto configs = glXChooseFBConfig(disp, DefaultScreen(disp), useOffscreen ? VisualAttrs2 : VisualAttrs, &fbCount);
-//    if (!configs || fbCount == 0)
-//        return {};
-//    if (0 != glXGetFBConfigAttrib(disp, configs[0], GLX_VISUAL_ID, &info.VisualId))
-//        return {};
-//    info.FBConfigs = configs;
-//    info.IsWindowDrawable = !useOffscreen;
-//    return info;
-//}
-//void oglUtil::InitDrawable(GLContextInfo& info, uint32_t host)
-//{
-//    const auto display = reinterpret_cast<Display*>(info.DeviceContext);
-//    const auto config  = reinterpret_cast<GLXFBConfig*>(info.FBConfigs)[0];
-//    if (info.IsWindowDrawable)
-//    {
-//        const auto glxwindow = glXCreateWindow(display, config, host, nullptr);
-//        info.Drawable = glxwindow;
-//    }
-//    else
-//    {
-//        XVisualInfo* vi = glXGetVisualFromFBConfig(display, config);
-//        const auto glxpixmap = glXCreateGLXPixmap(display, vi, host);
-//        info.Drawable = glxpixmap;
-//    }
-//}
-//void oglUtil::DestroyDrawable(GLContextInfo& info)
-//{
-//    const auto display = reinterpret_cast<Display*>(info.DeviceContext);
-//    if (info.IsWindowDrawable)
-//    {
-//        glXDestroyWindow(display, info.Drawable);
-//    }
-//    else
-//    {
-//        glXDestroyGLXPixmap(display, info.Drawable);
-//    }
-//    XFree(info.FBConfigs);
-//}
-//#endif
-
-//oglContext oglContext_::InitContext(const GLContextInfo& info)
-//{
-//    constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-//    const auto oldCtx = Refresh();
-//    PreparePlatFuncs(info.DeviceContext); // ensure PlatFuncs exists
-//    Expects(PlatFunc);
-//    void* ctx = nullptr;
-//    if (LatestVersion == 0) // perform update
-//    {
-//        for (const auto ver : VERSIONS)
-//        {
-//            if (ctx = PlatFunc->CreateNewContext(info, ver); ctx && PlatFunc->MakeGLContextCurrent(info, ctx))
-//            {
-//                const auto verStr = common::str::to_u16string(
-//                    reinterpret_cast<const char*>(glGetString(GL_VERSION)), common::str::Encoding::UTF8);
-//                const auto vendor = common::str::to_u16string(
-//                    reinterpret_cast<const char*>(glGetString(GL_VENDOR)), common::str::Encoding::UTF8);
-//                int32_t major = 0, minor = 0;
-//                glGetIntegerv(GL_MAJOR_VERSION, &major);
-//                glGetIntegerv(GL_MINOR_VERSION, &minor);
-//                const uint32_t realVer = major * 10 + minor;
-//                oglLog().info(u"Latest GL version [{}] from [{}]\n", verStr, vendor);
-//                common::UpdateAtomicMaximum(LatestVersion, realVer);
-//                break;
-//            }
-//        }
-//    }
-//    else
-//    {
-//        ctx = PlatFunc->CreateNewContext(info, LatestVersion.load());
-//    }
-//    if (!ctx)
-//    {
-//#if COMMON_OS_WIN
-//        oglLog().error(u"failed to init context on HDC[{}], error: {}\n", info.DeviceContext, PlatFuncs::GetSystemError());
-//#elif COMMON_OS_LINUX
-//        oglLog().error(u"failed to init context on Display[{}] Drawable[{}], error: {}\n",
-//            info.DeviceContext, info.Drawable, PlatFuncs::GetSystemError());
-//#endif
-//        return {};
-//    }
-//#if COMMON_OS_WIN
-//    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), PlatFunc, ctx));
-//#elif COMMON_OS_LINUX
-//    oglContext newCtx(new oglContext_(std::make_shared<detail::SharedContextCore>(), PlatFunc, ctx, info.Drawable));
-//#endif
-//    newCtx->Init(true);
-//    PushToMap(newCtx);
-//    newCtx->UnloadContext();
-//    if (oldCtx)
-//        oldCtx->UseContext();
-//    return newCtx;
-//}
-
-
-//#if COMMON_OS_UNIX
-//static int TmpXErrorHandler(Display* disp, XErrorEvent* evt)
-//{
-//    thread_local std::string txtBuf;
-//    txtBuf.resize(1024, '\0');
-//    XGetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
-//    txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
-//    oglLog().warning(u"X11 report an error with code[{}][{}]:\t{}\n", evt->error_code, evt->minor_code,
-//        common::str::to_u16string(txtBuf, common::str::Encoding::UTF8));
-//    return 0;
-//}
-//#endif
 
 
 static void ShowQuerySuc (const std::string_view tarName, const std::string_view ext, void* ptr)
@@ -321,49 +122,6 @@ static void ShowQueryFall(const std::string_view tarName)
     oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
 }
 
-//template<typename T>
-//static void QueryPlatFunc(T& target, const std::string_view tarName, const std::pair<bool, bool> shouldPrint)
-//{
-//    const auto [printSuc, printFail] = shouldPrint;
-//#if COMMON_OS_WIN
-//    const auto ptr = wglGetProcAddress(tarName.data());
-//#elif COMMON_OS_DARWIN
-//    const auto ptr = NSGLGetProcAddress(tarName.data());
-//#else
-//    const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(tarName.data()));
-//#endif
-//    if (ptr)
-//    {
-//        target = reinterpret_cast<T>(ptr);
-//        if (printSuc)
-//            ShowQuerySuc(tarName, "", (void*)ptr);
-//    }
-//    else
-//    {
-//        target = nullptr;
-//        if (printFail)
-//            ShowQueryFail(tarName);
-//    }
-//}
-
-
-//static std::atomic<uint32_t>& GetDebugPrintCore() noexcept
-//{
-//    static std::atomic<uint32_t> ShouldPrint = 0;
-//    return ShouldPrint;
-//}
-//void SetFuncShouldPrint(const bool printSuc, const bool printFail) noexcept
-//{
-//    const uint32_t val = (printSuc ? 0x1u : 0x0u) | (printFail ? 0x2u : 0x0u);
-//    GetDebugPrintCore() = val;
-//}
-//static std::pair<bool, bool> GetFuncShouldPrint() noexcept
-//{
-//    const uint32_t val = GetDebugPrintCore();
-//    const bool printSuc  = (val & 0x1u) == 0x1u;
-//    const bool printFail = (val & 0x2u) == 0x2u;
-//    return { printSuc, printFail };
-//}
 
 bool GLHost_::MakeGLContextCurrent(void* hRC) const
 {
@@ -380,83 +138,6 @@ const CtxFuncs* CtxFuncs::PrepareCurrent(const GLHost_& host, void* hRC, std::pa
     return rmap.FindOrCreate(hRC, host, shouldPrint);
 }
 
-//#if COMMON_OS_WIN
-//common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(void* hdc) const
-//{
-//    const char* exts = nullptr;
-//    if (wglGetExtensionsStringARB_)
-//    {
-//        exts = wglGetExtensionsStringARB_(hdc);
-//    }
-//    else if (wglGetExtensionsStringEXT_)
-//    {
-//        exts = wglGetExtensionsStringEXT_();
-//    }
-//    else
-//        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"no avaliable implementation for wglGetExtensionsString");
-//    return common::str::Split(exts, ' ', false);
-//}
-//#else
-//common::container::FrozenDenseSet<std::string_view> PlatFuncs::GetExtensions(void* dpy, int screen) const
-//{
-//    const char* exts = glXQueryExtensionsString((Display*)dpy, screen);
-//    return common::str::Split(exts, ' ', false);
-//}
-//#endif
-
-//PlatFuncs::PlatFuncs(void* target) : Target(target)
-//{
-//    const auto shouldPrint = GetFuncShouldPrint();
-//
-//#define QUERY_FUNC(name) QueryPlatFunc(PPCAT(name,_), STRINGIZE(name), shouldPrint)
-//    
-//#if COMMON_OS_WIN
-//    const auto hdc = reinterpret_cast<HDC>(Target);
-//    HGLRC tmpHrc = nullptr;
-//    if (!wglGetCurrentContext())
-//    { // create temp hrc since wgl requires a context to use wglGetProcAddress
-//        tmpHrc = wglCreateContext(hdc);
-//        wglMakeCurrent(hdc, tmpHrc);
-//    }
-//    /*QUERY_FUNC(wglGetExtensionsStringARB);
-//    QUERY_FUNC(wglGetExtensionsStringEXT);
-//    Extensions = GetExtensions(hdc);
-//    QUERY_FUNC(wglCreateContextAttribsARB);*/
-//    if (tmpHrc)
-//    {
-//        wglMakeCurrent(hdc, nullptr);
-//        wglDeleteContext(tmpHrc);
-//    }
-//#else
-//    /*const auto display = reinterpret_cast<Display*>(Target);
-//    QUERY_FUNC(glXGetCurrentDisplay);
-//    Extensions = GetExtensions(display, DefaultScreen(display));
-//    QUERY_FUNC(glXCreateContextAttribsARB);*/
-//#endif
-
-//#if COMMON_OS_WIN
-//    SupportFlushControl = Extensions.Has("WGL_ARB_context_flush_control");
-//    SupportSRGB = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
-//#else
-//    SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
-//    SupportSRGB = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
-//#endif
-//    
-//
-//#undef QUERY_FUNC
-//}
-
-
-//#if COMMON_OS_UNIX
-//struct X11Initor
-//{
-//    X11Initor()
-//    {
-//        XInitThreads();
-//        XSetErrorHandler(&TmpXErrorHandler);
-//    }
-//};
-//#endif
 
 void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
 {
@@ -472,227 +153,6 @@ void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
         dlopen("renderdoc.dll", RTLD_LAZY);
 #endif
 }
-//void PlatFuncs::InitEnvironment()
-//{
-//#if COMMON_OS_WIN
-//
-//    HWND tmpWND = CreateWindow(
-//        L"Static", L"Fake Window",          // window class, title
-//        WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
-//        0, 0,                               // position x, y
-//        1, 1,                               // width, height
-//        NULL, NULL,                         // parent window, menu
-//        nullptr, NULL);                     // instance, param
-//    HDC tmpDC = GetDC(tmpWND);
-//    const int PixelFormat = ChoosePixelFormat(tmpDC, &PixFmtDesc);
-//    SetPixelFormat(tmpDC, PixelFormat, &PixFmtDesc);
-//    HGLRC tmpRC = wglCreateContext(tmpDC);
-//    wglMakeCurrent(tmpDC, tmpRC);
-//
-//    wglMakeCurrent(nullptr, nullptr);
-//    wglDeleteContext(tmpRC);
-//    DeleteDC(tmpDC);
-//    DestroyWindow(tmpWND);
-//
-//#else
-//    
-//    XInitThreads();
-//    XSetErrorHandler(&TmpXErrorHandler);
-//    const char* const disp = getenv("DISPLAY");
-//    Display* display = XOpenDisplay(disp ? disp : ":0.0");
-//    /* open display */
-//    if (!display)
-//    {
-//        oglLog().error(u"Failed to open display\n");
-//        return;
-//    }
-//
-//    /* get framebuffer configs, any is usable (might want to add proper attribs) */
-//    int fbcount = 0;
-//    ::GLXFBConfig* fbc = glXChooseFBConfig(display, DefaultScreen(display), VisualAttrs, &fbcount);
-//    if (!fbc)
-//    {
-//        oglLog().error(u"Failed to get FBConfig\n");
-//        return;
-//    }
-//    XVisualInfo* vi = glXGetVisualFromFBConfig(display, fbc[0]);
-//    const auto tmpRC = glXCreateContext(display, vi, 0, GL_TRUE);
-//    Window win = DefaultRootWindow(display);
-//    glXMakeCurrent(display, win, tmpRC);
-//
-//    glXMakeCurrent(nullptr, win, nullptr);
-//    glXDestroyContext(display, tmpRC);
-//
-//#endif
-//}
-
-//void* PlatFuncs::GetCurrentDeviceContext()
-//{
-//#if COMMON_OS_WIN
-//    const auto hDC = wglGetCurrentDC();
-//#else
-//    static X11Initor initor;
-//    const auto hDC = glXGetCurrentDisplay();
-//#endif
-//    PreparePlatFuncs(hDC);
-//    return hDC;
-//}
-//void* PlatFuncs::GetCurrentGLContext()
-//{
-//    [[maybe_unused]] const auto dummy = GetCurrentDeviceContext();
-//#if COMMON_OS_WIN
-//    const auto hRC = wglGetCurrentContext();
-//#else
-//    const auto hRC = glXGetCurrentContext();
-//#endif
-//    PrepareCtxFuncs(hRC);
-//    return hRC;
-//}
-//void PlatFuncs::DeleteGLContext(void* hRC) const
-//{
-//#if COMMON_OS_WIN
-//    wglDeleteContext((HGLRC)hRC);
-//#else
-//    glXDestroyContext((Display*)Target, (GLXContext)hRC);
-//#endif
-//    GetCtxFuncsMap().Remove(hRC);
-//}
-//#if COMMON_OS_WIN
-//bool  PlatFuncs::MakeGLContextCurrent(void* hRC) const
-//{
-//    const bool ret = wglMakeCurrent((HDC)Target, (HGLRC)hRC);
-//#else
-//bool  PlatFuncs::MakeGLContextCurrent(unsigned long DRW, void* hRC) const
-//{
-//    const bool ret = glXMakeCurrent((Display*)Target, DRW, (GLXContext)hRC);
-//#endif
-//    if (ret)
-//    {
-//        PrepareCtxFuncs(hRC);
-//    }
-//    return ret;
-//}
-//bool PlatFuncs::MakeGLContextCurrent(const GLContextInfo& info, void* hRC) const
-//{
-//    if (info.DeviceContext != Target) return false;
-//#if COMMON_OS_WIN
-//    return MakeGLContextCurrent(hRC);
-//#else
-//    return MakeGLContextCurrent(info.Drawable, hRC);
-//#endif
-//}
-//#if COMMON_OS_WIN
-//uint32_t PlatFuncs::GetSystemError()
-//{
-//    return GetLastError();
-//}
-//#else
-//unsigned long PlatFuncs::GetCurrentDrawable()
-//{
-//    return glXGetCurrentDrawable();
-//}
-//int32_t  PlatFuncs::GetSystemError()
-//{
-//    return errno;
-//}
-//#endif
-//std::vector<int32_t> PlatFuncs::GenerateContextAttrib(const uint32_t version, bool needFlushControl)
-//{
-//    std::vector<int32_t> ctxAttrb;
-//#if COMMON_OS_WIN
-//    ctxAttrb.insert(ctxAttrb.end(),
-//    {
-//        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-//        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB
-//    });
-//    constexpr int32_t VerMajor  = WGL_CONTEXT_MAJOR_VERSION_ARB;
-//    constexpr int32_t VerMinor  = WGL_CONTEXT_MINOR_VERSION_ARB;
-//    constexpr int32_t FlushFlag = WGL_CONTEXT_RELEASE_BEHAVIOR_ARB;
-//    constexpr int32_t FlushVal  = WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
-//#else
-//    ctxAttrb.insert(ctxAttrb.end(),
-//    {
-//        GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
-//        GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB
-//    });
-//    constexpr int32_t VerMajor  = GLX_CONTEXT_MAJOR_VERSION_ARB;
-//    constexpr int32_t VerMinor  = GLX_CONTEXT_MINOR_VERSION_ARB;
-//    constexpr int32_t FlushFlag = GLX_CONTEXT_RELEASE_BEHAVIOR_ARB;
-//    constexpr int32_t FlushVal  = GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
-//    needFlushControl = false;
-//#endif
-//    if (version != 0)
-//    {
-//        ctxAttrb.insert(ctxAttrb.end(),
-//            {
-//                VerMajor, static_cast<int32_t>(version / 10),
-//                VerMinor, static_cast<int32_t>(version % 10),
-//            });
-//    }
-//    if (needFlushControl && PlatFunc->SupportFlushControl)
-//    {
-//        ctxAttrb.insert(ctxAttrb.end(), { FlushFlag, FlushVal }); // all the same
-//    }
-//    ctxAttrb.push_back(0);
-//    return ctxAttrb;
-//}
-//void* PlatFuncs::CreateNewContext(const GLContextInfo& info, const uint32_t version) const
-//{
-//    if (info.DeviceContext != Target)
-//        return nullptr;
-//    const auto target = reinterpret_cast<DCType>(Target);
-//    const auto ctxAttrb = GenerateContextAttrib(version, true);
-//#if COMMON_OS_WIN
-//    return wglCreateContextAttribsARB_(target, nullptr, ctxAttrb.data());
-//#elif COMMON_OS_LINUX
-//    return glXCreateContextAttribsARB_(target,
-//        reinterpret_cast<GLXFBConfig*>(info.FBConfigs)[0], nullptr, true, ctxAttrb.data());
-//#endif
-//}
-//void* PlatFuncs::CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs) const
-//{
-//    if (prevCtx == nullptr || &prevCtx->PlatHolder != this)
-//    {
-//        return nullptr;
-//    }
-//    else
-//    {
-//        const auto target = reinterpret_cast<DCType>(Target);
-//#if defined(_WIN32)
-//        const auto newHrc = wglCreateContextAttribsARB_(target, isShared ? prevCtx->Hrc : nullptr, attribs);
-//        return newHrc;
-//#else
-//        int num_fbc = 0;
-//        constexpr int VisualAttrs[] =
-//        {
-//            GLX_X_RENDERABLE,   1,
-//            GLX_X_VISUAL_TYPE,  GLX_TRUE_COLOR,
-//            GLX_RENDER_TYPE,    GLX_RGBA_BIT,
-//            GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT,
-//            GLX_RED_SIZE,       8,
-//            GLX_GREEN_SIZE,     8,
-//            GLX_BLUE_SIZE,      8,
-//            GLX_ALPHA_SIZE,     8,
-//            GLX_DEPTH_SIZE,     24,
-//            GLX_STENCIL_SIZE,   8,
-//            GLX_DOUBLEBUFFER,   1,
-//            0
-//        };
-//        const auto fbc = glXChooseFBConfig(target, DefaultScreen(target), VisualAttrs, &num_fbc);
-//        const auto newHrc = glXCreateContextAttribsARB_(target, fbc[0], isShared ? prevCtx->Hrc : nullptr, true, attribs);
-//        return newHrc;
-//#endif
-//    }
-//}
-//void PlatFuncs::SwapBuffer([[maybe_unused]] const oglContext_& ctx) const
-//{
-//    const auto target = reinterpret_cast<DCType>(Target);
-//#if COMMON_OS_WIN
-//    SwapBuffers(target);
-//#elif COMMON_OS_LINUX
-//    glXSwapBuffers(target, ctx.DRW);
-//#endif
-//}
 
 
 template<typename F, typename T, size_t N>
@@ -710,13 +170,6 @@ static void QueryGLFunc(T& target, F&& getFunc, const std::string_view tarName, 
         memcpy_s(&funcName[baseLen], funcName.size() - baseLen, sfx.data(), sfx.size());
         funcName[baseLen + sfx.size()] = '\0';
         const auto ptr = getFunc(funcName.data());
-//#if COMMON_OS_WIN
-//        const auto ptr = wglGetProcAddress(funcName.data());
-//#elif COMMON_OS_DARWIN
-//        const auto ptr = NSGLGetProcAddress(funcName.data());
-//#else
-//        const auto ptr = glXGetProcAddress(reinterpret_cast<const GLubyte*>(funcName.data()));
-//#endif
         if (ptr)
         {
             target = reinterpret_cast<T>(ptr);

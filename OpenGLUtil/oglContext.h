@@ -178,7 +178,6 @@ class OGLUAPI oglContext_ : public xcomp::RangeHolder, public std::enable_shared
     friend oglWorker;
     friend class oglProgram_;
     friend class oglUtil;
-    //friend class PlatFuncs;
     friend struct BindingState;
     friend class ::oclu::GLInterop;
     friend class ::oclu::oclPlatform_;
@@ -241,7 +240,6 @@ public:
 
     [[nodiscard]] static oglContext CurrentContext();
     //[[nodiscard]] static oglContext Refresh();
-    //[[nodiscard]] static oglContext InitContext(const GLContextInfo& info);
     /*static bool ReleaseExternContext();
     static bool ReleaseExternContext(void* hrc);*/
 };

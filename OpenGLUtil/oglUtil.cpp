@@ -105,40 +105,6 @@ oglContext oglLoader::CreateContext_(const GLHost& host, CreateInfo cinfo, const
 }
 
 
-//void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
-//{
-//    PlatFuncs::InJectRenderDoc(dllPath);
-//}
-
-//void oglUtil::InitGLEnvironment()
-//{
-//    PlatFuncs::InitEnvironment();
-//}
-//void oglUtil::SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept
-//{
-//    SetFuncShouldPrint(printSuc, printFail);
-//}
-
-//void oglUtil::InitLatestVersion()
-//{
-//    constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-//    const auto glctx = oglContext_::Refresh();
-//    oglLog().info(u"Current GL Version:{}\n", glctx->Capability->VersionString);
-//    for (const auto ver : VERSIONS)
-//    {
-//        if (ver == glctx->Capability->Version)
-//        {
-//            oglLog().info(u"No newer GL version found\n");
-//            break;
-//        }
-//        else if (const auto ctx = glctx->NewContext(false, ver); ctx)
-//        {
-//            oglLog().info(u"Latest GL Version:{}\n", ctx->Capability->VersionString);
-//            break;
-//        }
-//    }
-//}
-
 optional<string_view> oglUtil::GetError()
 {
     return CtxFunc->GetError();

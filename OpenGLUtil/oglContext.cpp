@@ -172,29 +172,6 @@ oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& share
     }
     else
         FaceCulling = FaceCullingType::OFF;
-    /*oglContext oldCtx = oglContext_::CurrentContext();
-    UseContext();
-    Capability = CtxFunc;
-
-    CtxFunc->GetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
-    if (CtxFunc->IsEnabled(GL_CULL_FACE))
-    {
-        GLint cullingMode;
-        CtxFunc->GetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
-        if (cullingMode == GL_FRONT_AND_BACK)
-            FaceCulling = FaceCullingType::CullAll;
-        else
-        {
-            GLint frontFace = GL_CCW;
-            CtxFunc->GetIntegerv(GL_FRONT_FACE, &frontFace);
-            FaceCulling = ((cullingMode == GL_BACK) ^ (frontFace == GL_CW)) ? FaceCullingType::CullCW : FaceCullingType::CullCCW;
-        }
-    }
-    else
-        FaceCulling = FaceCullingType::OFF;
-
-    if (oldCtx)
-        oldCtx->UseContext();*/
 }
 
 void oglContext_::FinishGL()
@@ -275,21 +252,6 @@ void oglContext_::Release()
     //Lock.UnlockWrite();
     UnloadContext();
 }
-//void oglContext_::SetRetain(const bool isRetain)
-//{
-//    static std::set<oglContext> retainMap;
-//    static std::atomic_flag mapLock = { };
-//    if(isRetain != IsRetain)
-//    {
-//        common::SpinLocker lock(mapLock);
-//        auto self = this->shared_from_this();
-//        if (isRetain)
-//            retainMap.insert(self);
-//        else
-//            retainMap.erase(self);
-//    }
-//    IsRetain = isRetain;
-//}
 
 void oglContext_::SetDebug(MsgSrc src, MsgType type, MsgLevel minLV)
 {

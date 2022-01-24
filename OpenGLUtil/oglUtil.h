@@ -111,8 +111,6 @@ class oglUtil
 private:
 public:
     OGLUAPI static void InJectRenderDoc(const common::fs::path& dllPath);
-    //OGLUAPI static void SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept;
-    //OGLUAPI static void InitLatestVersion();
     OGLUAPI static std::optional<std::string_view> GetError();
     OGLUAPI static common::PromiseResult<void> SyncGL();
     OGLUAPI static common::PromiseResult<void> ForceSyncGL();

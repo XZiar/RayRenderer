@@ -68,3 +68,6 @@
 	shallow = true
 	path = 3rdParty/boost.context
 	url = https://github.com/boostorg/context.git
+[submodule "3rdParty/EGL-Headers"]
+	path = 3rdParty/EGL-Headers
+	url = https://github.com/XZiar/EGL-Headers.git

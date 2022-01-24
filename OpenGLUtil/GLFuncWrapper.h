@@ -32,24 +32,6 @@ class oglIndirectBuffer_;
 class oglContext_;
 
 
-//class PlatFuncs
-//{
-//public:
-//    void* Target;
-//    bool SupportFlushControl;
-//    bool SupportSRGB;
-//
-//    PlatFuncs(void* target);
-//
-//    static void InJectRenderDoc(const common::fs::path& dllPath);
-//
-//    [[nodiscard]] static void* GetCurrentDeviceContext();
-//    [[nodiscard]] static void* GetCurrentGLContext();
-//};
-//extern thread_local const PlatFuncs* PlatFunc;
-
-
-
 /// xxx_ functions are internal and not recommanded to use directly
 
 class CtxFuncs : public ContextCapability
