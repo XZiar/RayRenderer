@@ -113,6 +113,15 @@
     <ClCompile Include="XZGLParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WGLInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="EGLInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GLXInterface.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

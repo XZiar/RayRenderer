@@ -87,6 +87,13 @@ static void RunTest()
     float lutZ = 0.5f;
     bool shouldLut = false;
 
+#if COMMON_OS_WIN
+    const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
+#elif COMMON_OS_LINUX
+    const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
+    using GLXHost = std::shared_ptr<GLXLoader::GLXHost>;
+#endif
+
     const auto window = WindowHost_::CreatePassive(1280, 720, u"WdHostGLTest"sv);
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 
@@ -94,16 +101,15 @@ static void RunTest()
         log().info(u"opened.\n"); 
 #if COMMON_OS_WIN
         const auto& hdc = *window->GetWindowData<void*>("HDC");
-        oglUtil::SetPixFormat(hdc);
-        GLContextInfo info{ hdc };
+        const auto host = loader->CreateHost(hdc);
 #elif COMMON_OS_LINUX
-        auto& info = *const_cast<GLContextInfo*>(window->GetWindowData<GLContextInfo>("glinfo"));
+        const auto& host = *window->GetWindowData<GLXHost>("glhost");
         const auto wd = *window->GetWindowData<uint32_t>("window");
-        oglUtil::InitDrawable(info, wd);
+        loader->InitDrawable(*host, wd);
 #endif
-        oglUtil::SetFuncLoadingDebug(true, true);
-        context = oglContext_::InitContext(info);
-        oglUtil::SetFuncLoadingDebug(false, false);
+        CreateInfo cinfo;
+        cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
+        context = loader->CreateContext(host, cinfo);
         context->UseContext();
         TestErr();
 
@@ -167,10 +173,7 @@ static void RunTest()
         lutTex.reset();
         lutter.release();
         context->Release();
-#if COMMON_OS_LINUX
-        if (const auto info = window->GetWindowData<GLContextInfo>("glinfo"); info)
-            oglUtil::DestroyDrawable(*const_cast<GLContextInfo*>(info));
-#endif
+        context = {};
         closePms.set_value();
     };
     window->Displaying() += [&](const auto& wd) 
@@ -228,12 +231,16 @@ static void RunTest()
 #if COMMON_OS_LINUX
         else if (name == "visual")
         {
-            if (const auto display = window->GetWindowData<void*>("display"); display)
+            const auto display   = window->GetWindowData<void*>("display");
+            const auto defscreen = window->GetWindowData<int>  ("defscreen");
+            if (display && defscreen)
             {
-                if (const auto info = oglUtil::GetBasicContextInfo(*display); info)
+                if (const auto host = loader->CreateHost(*display, *defscreen); host)
                 {
-                    const auto ptr = window->SetWindowData("glinfo", *info);
-                    return &ptr->VisualId;
+                    alignas(GLXHost) std::array<std::byte, sizeof(host)> tmp = {std::byte(0)};
+                    new (tmp.data())GLXHost(host);
+                    window->SetWindowData("glhost", tmp);
+                    return &host->GetVisualId();
                 }
             }
         }

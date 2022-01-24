@@ -35,9 +35,9 @@ static MiniLogger<false>& log()
 }
 
 
-#if COMMON_OS_WIN
 oglContext InitContext()
 {
+#if COMMON_OS_WIN
     HWND tmpWND = CreateWindow(
         L"Static", L"Fake Window",            // window class, title
         WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
@@ -46,18 +46,9 @@ oglContext InitContext()
         NULL, NULL,                         // parent window, menu
         nullptr, NULL);                     // instance, param
     HDC tmpDC = GetDC(tmpWND);
-    oglUtil::SetPixFormat(tmpDC);
-    GLContextInfo glinfo { tmpDC };
-    oglu::oglUtil::SetFuncLoadingDebug(true, true);
-    auto ctx = oglContext_::InitContext(glinfo);
-    oglu::oglUtil::SetFuncLoadingDebug(false, false);
-    ctx->UseContext();
-    ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-    return ctx;
-}
+    const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
+    const auto host = loader->CreateHost(tmpDC);
 #else
-oglContext InitContext()
-{
     const char* const disp = getenv("DISPLAY");
     Display* display = XOpenDisplay(disp ? disp : ":0.0");
     /* open display */
@@ -67,23 +58,25 @@ oglContext InitContext()
         COMMON_THROW(BaseException, u"Error");
     }
 
-    auto glinfo = oglUtil::GetBasicContextInfo(display, true);
-    if (!glinfo)
+    const auto defScreen = DefaultScreen(display);
+    const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
+    const auto host = loader->CreateHost(display, defScreen, true);
+    if (!host)
     {
-        log().error(u"Failed to init basic info\n");
+        log().error(u"Failed to init glx host\n");
         COMMON_THROW(BaseException, u"Error");
     }
-    glinfo->Drawable = 0; // use None drawable 
+    // glinfo->Drawable = 0; // use None drawable 
     // const auto pmap = XCreatePixmap(display, XDefaultRootWindow(display), 100, 100, 32);
     // oglUtil::InitDrawable(*glinfo, pmap);
-    oglu::oglUtil::SetFuncLoadingDebug(true, true);
-    auto ctx = oglContext_::InitContext(*glinfo);
-    oglu::oglUtil::SetFuncLoadingDebug(false, false);
+#endif
+    CreateInfo cinfo;
+    cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
+    auto ctx = loader->CreateContext(host, cinfo);
     ctx->UseContext();
     ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
     return ctx;
 }
-#endif
 
 
 static void OGLStub()

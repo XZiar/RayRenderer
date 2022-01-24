@@ -6,13 +6,13 @@
     "library": 
     {
         "static": [],
-        "dynamic": ["GL", "X11", "dl"]
+        "dynamic": ["GL", "dl"]
     },
     "targets":
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": ["*.cpp", {"-": "WGLInterface.cpp"}],
             "defines": ["OGLU_EXPORT"],
             "pch": "oglPch.h"
         }

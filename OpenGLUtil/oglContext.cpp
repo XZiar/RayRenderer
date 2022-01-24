@@ -6,13 +6,14 @@
 
 namespace oglu
 {
+using namespace std::string_view_literals;
 using std::string;
 using std::u16string;
 using std::vector;
 
 BindingState::BindingState()
 {
-    HRC = PlatFuncs::GetCurrentGLContext();
+    //HRC = PlatFuncs::GetCurrentGLContext();
     CtxFunc->GetIntegerv(GL_CURRENT_PROGRAM, &Prog);
     CtxFunc->GetIntegerv(GL_VERTEX_ARRAY_BINDING, &VAO);
     CtxFunc->GetIntegerv(GL_FRAMEBUFFER_BINDING, &FBO);
@@ -38,7 +39,6 @@ thread_local oglContext InnerCurCtx{ };
 #endif
 
 
-std::atomic_uint32_t LatestVersion = 0;
 static std::map<void*, std::weak_ptr<oglContext_>> CTX_MAP;
 static std::map<void*, std::weak_ptr<oglContext_>> EXTERN_CTX_MAP;
 static common::RWSpinLock CTX_LOCK;
@@ -153,33 +153,28 @@ SharedContextCore::~SharedContextCore()
 
 }
 
-#if defined(_WIN32)
-oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, const bool external) :
-    PlatHolder(*plat), Hrc(hrc), SharedCore(sharedCore), IsExternal(external) { }
-#else
-oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, unsigned long drw, const bool external) :
-    PlatHolder(*plat), Hrc(hrc), DRW(drw), SharedCore(sharedCore), IsExternal(external) { }
-#endif
-void* oglContext_::GetDeviceContext() const noexcept
+oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const GLHost& host, void *hrc, const CtxFuncs* ctxFunc) :
+    Host(host), Hrc(hrc), SharedCore(sharedCore), Capability(ctxFunc)
 {
-    return PlatHolder.Target;
-}
-const common::container::FrozenDenseSet<std::string_view>& oglContext_::GetPlatformExtensions() const noexcept
-{
-    return PlatHolder.Extensions;
-}
-
-void oglContext_::Init(const bool isCurrent)
-{
-    oglContext oldCtx;
-    if (!isCurrent)
+    ctxFunc->GetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
+    if (ctxFunc->IsEnabled(GL_CULL_FACE))
     {
-        oldCtx = oglContext_::CurrentContext();
-        UseContext();
+        GLint cullingMode;
+        ctxFunc->GetIntegerv(GL_CULL_FACE_MODE, &cullingMode);
+        if (cullingMode == GL_FRONT_AND_BACK)
+            FaceCulling = FaceCullingType::CullAll;
+        else
+        {
+            GLint frontFace = GL_CCW;
+            ctxFunc->GetIntegerv(GL_FRONT_FACE, &frontFace);
+            FaceCulling = ((cullingMode == GL_BACK) ^ (frontFace == GL_CW)) ? FaceCullingType::CullCW : FaceCullingType::CullCCW;
+        }
     }
+    else
+        FaceCulling = FaceCullingType::OFF;
+    /*oglContext oldCtx = oglContext_::CurrentContext();
+    UseContext();
     Capability = CtxFunc;
-    if (common::UpdateAtomicMaximum(LatestVersion, CtxFunc->Version))
-        oglLog().info(u"update API Version to [{}.{}]\n", CtxFunc->Version / 10, CtxFunc->Version % 10);
 
     CtxFunc->GetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (CtxFunc->IsEnabled(GL_CULL_FACE))
@@ -198,8 +193,8 @@ void oglContext_::Init(const bool isCurrent)
     else
         FaceCulling = FaceCullingType::OFF;
 
-    if (!isCurrent)
-        oldCtx->UseContext();
+    if (oldCtx)
+        oldCtx->UseContext();*/
 }
 
 void oglContext_::FinishGL()
@@ -211,20 +206,20 @@ void oglContext_::FinishGL()
 void oglContext_::SwapBuffer()
 {
     CHECKCURRENT();
-    PlatHolder.SwapBuffer(*this);
+    Host->SwapBuffer();
 }
 
 oglContext_::~oglContext_()
 {
 #if defined(_DEBUG)
-    if (!IsExternal)
+    //if (!IsExternal)
         oglLog().debug(u"Here destroy glContext [{}].\n", Hrc);
 #endif
     ResHandler.Release();
     //if (!IsRetain)
-    if (!IsExternal)
+    //if (!IsExternal)
     {
-        PlatHolder.DeleteGLContext(Hrc);
+        Host->DeleteGLContext(Hrc);
     }
 }
 
@@ -235,19 +230,11 @@ bool oglContext_::UseContext(const bool force)
         if (InnerCurCtx && InnerCurCtx.get() == this)
             return true;
     }
-#if defined(_WIN32)
-    if (!PlatHolder.MakeGLContextCurrent(Hrc))
+    if (!Host->MakeGLContextCurrent(Hrc))
     {
-        oglLog().error(u"Failed to use HDC[{}] HRC[{}], error: {}\n", GetDeviceContext(), Hrc, PlatFuncs::GetSystemError());
+        Host->ReportFailure(fmt::format(FMT_STRING(u"use context[{}]"sv), Hrc));
         return false;
     }
-#else
-    if (!PlatHolder.MakeGLContextCurrent(DRW, Hrc))
-    {
-        oglLog().error(u"Failed to use Disp[{}] Drawable[{}] CTX[{}], error: {}\n", GetDeviceContext(), DRW, Hrc, PlatFuncs::GetSystemError());
-        return false;
-    }
-#endif
     InnerCurCtx = shared_from_this();
     return true;
 }
@@ -257,19 +244,11 @@ bool oglContext_::UnloadContext()
     if (InnerCurCtx && InnerCurCtx.get() == this)
     {
         InnerCurCtx.reset();
-#if defined(_WIN32)
-        if (!PlatHolder.MakeGLContextCurrent(nullptr))
+        if (!Host->MakeGLContextCurrent(nullptr))
         {
-            oglLog().error(u"Failed to unload HDC[{}] HRC[{}], error: {}\n", GetDeviceContext(), Hrc, PlatFuncs::GetSystemError());
+            Host->ReportFailure(fmt::format(FMT_STRING(u"unload context[{}]"sv), Hrc));
             return false;
         }
-#else
-        if (!PlatHolder.MakeGLContextCurrent(0, nullptr))
-        {
-            oglLog().error(u"Failed to unload Disp[{}] Drawable[{}] CTX[{}], error: {}\n", GetDeviceContext(), DRW, Hrc, PlatFuncs::GetSystemError());
-            return false;
-        }
-#endif
     }
     return true;
 }
@@ -449,10 +428,6 @@ void oglContext_::AddMarker(std::u16string_view name) const noexcept
     CtxFunc->InsertDebugMarker(OGLUMsgIdMin, name);
 }
 
-uint32_t oglContext_::GetLatestVersion()
-{
-    return LatestVersion;
-}
 oglContext oglContext_::CurrentContext()
 {
     return InnerCurCtx;
@@ -460,54 +435,54 @@ oglContext oglContext_::CurrentContext()
 
 
 
-oglContext oglContext_::Refresh()
-{
-    void* hrc = PlatFuncs::GetCurrentGLContext();
-    if (hrc == nullptr)
-    {
-        oglLog().debug(u"currently no GLContext\n");
-        return {};
-    }
-    Expects(PlatFunc);
-    oglContext ctx;
-    {
-        auto lock = CTX_LOCK.ReadScope();
-        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock();
-    }
-    if (ctx)
-    {
-        InnerCurCtx = ctx;
-        return ctx;
-    }
-    else
-    {
-        {
-            auto lock = CTX_LOCK.WriteScope();
-            ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock(); // second check
-            if (!ctx) // need to create the wrapper
-            {
-#if defined(_WIN32)
-                ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
-                    PlatFunc, hrc, true));
-#else
-                ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
-                    PlatFunc, hrc, PlatFuncs::GetCurrentDrawable(), true));
-#endif
-                CTX_MAP.emplace(hrc, ctx);
-            }
-        }
-        InnerCurCtx = ctx;
-        ctx->Init(true);
-#if defined(_DEBUG) || 1
-        ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-#endif
-        {
-            const auto lock = EXTERN_CTX_LOCK.LockScope();
-            EXTERN_CTX_MAP.emplace(hrc, ctx);
-        }
-        return ctx;
-    }
-}
+//oglContext oglContext_::Refresh()
+//{
+//    void* hrc = PlatFuncs::GetCurrentGLContext();
+//    if (hrc == nullptr)
+//    {
+//        oglLog().debug(u"currently no GLContext\n");
+//        return {};
+//    }
+//    Expects(PlatFunc);
+//    oglContext ctx;
+//    {
+//        auto lock = CTX_LOCK.ReadScope();
+//        ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock();
+//    }
+//    if (ctx)
+//    {
+//        InnerCurCtx = ctx;
+//        return ctx;
+//    }
+//    else
+//    {
+//        {
+//            auto lock = CTX_LOCK.WriteScope();
+//            ctx = common::container::FindInMapOrDefault(CTX_MAP, hrc).lock(); // second check
+//            if (!ctx) // need to create the wrapper
+//            {
+//#if defined(_WIN32)
+//                ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
+//                    PlatFunc, hrc, true));
+//#else
+//                ctx = oglContext(new oglContext_(std::make_shared<detail::SharedContextCore>(), 
+//                    PlatFunc, hrc, PlatFuncs::GetCurrentDrawable(), true));
+//#endif
+//                CTX_MAP.emplace(hrc, ctx);
+//            }
+//        }
+//        InnerCurCtx = ctx;
+//        ctx->Init(true);
+//#if defined(_DEBUG) || 1
+//        ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
+//#endif
+//        {
+//            const auto lock = EXTERN_CTX_LOCK.LockScope();
+//            EXTERN_CTX_MAP.emplace(hrc, ctx);
+//        }
+//        return ctx;
+//    }
+//}
 
 
 void oglContext_::PushToMap(oglContext ctx)
@@ -515,68 +490,37 @@ void oglContext_::PushToMap(oglContext ctx)
     auto lock = CTX_LOCK.WriteScope();
     CTX_MAP.emplace(ctx->Hrc, std::move(ctx));
 }
-oglContext oglContext_::NewContext(const bool isShared, const int32_t *attribs) const
-{
-    CHECKCURRENT();
-    oglContext newCtx;
-    const auto newHrc = PlatHolder.CreateNewContext(this, isShared, attribs);
-#if defined(_WIN32)
-    if (!newHrc)
-    {
-        oglLog().error(u"failed to create context by HDC[{}] HRC[{}] ({}), error: {}\n", 
-            GetDeviceContext(), Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
-        return {};
-    }
-    newCtx.reset(new oglContext_(isShared ? SharedCore : std::make_shared<detail::SharedContextCore>(), 
-        &PlatHolder, newHrc));
-#else
-    if (!newHrc)
-    {
-        oglLog().error(u"failed to create context by Display[{}] Drawable[{}] HRC[{}] ({}), error: {}\n", 
-            GetDeviceContext(), DRW, Hrc, isShared ? u"shared" : u"", PlatFuncs::GetSystemError());
-        return {};
-    }
-    newCtx.reset(new oglContext_(isShared ? SharedCore : std::make_shared<detail::SharedContextCore>(), 
-        &PlatHolder, newHrc, DRW));
-#endif
-    newCtx->Init(false);
-    
-    PushToMap(newCtx);
-    return newCtx;
-}
 oglContext oglContext_::NewContext(const bool isShared, uint32_t version) const
 {
     CHECKCURRENT();
-    if (version == 0)
-        version = LatestVersion;
-    const auto ctxAttrb = PlatFuncs::GenerateContextAttrib(version, 
-        Capability->Extensions.Has("GL_KHR_context_flush_control"));
-    return NewContext(isShared, ctxAttrb.data());
+    CreateInfo cinfo;
+    cinfo.Version = version;
+    return Host->Loader.CreateContext_(Host, cinfo, isShared ? this : nullptr);
 }
 
-bool oglContext_::ReleaseExternContext()
-{
-    return ReleaseExternContext(PlatFuncs::GetCurrentGLContext());
-}
-bool oglContext_::ReleaseExternContext(void* hrc)
-{
-    size_t dels = 0;
-    {
-        const auto lock = EXTERN_CTX_LOCK.LockScope();
-        dels = EXTERN_CTX_MAP.erase(hrc);
-    }
-    if (dels > 0)
-    {
-        auto lock2 = CTX_LOCK.WriteScope();
-        CTX_MAP.erase(hrc);
-        return true;
-    }
-    else
-    {
-        oglLog().warning(u"unretained HRC[{:p}] was request to release.\n", hrc);
-        return false;
-    }
-}
+//bool oglContext_::ReleaseExternContext()
+//{
+//    return ReleaseExternContext(PlatFuncs::GetCurrentGLContext());
+//}
+//bool oglContext_::ReleaseExternContext(void* hrc)
+//{
+//    size_t dels = 0;
+//    {
+//        const auto lock = EXTERN_CTX_LOCK.LockScope();
+//        dels = EXTERN_CTX_MAP.erase(hrc);
+//    }
+//    if (dels > 0)
+//    {
+//        auto lock2 = CTX_LOCK.WriteScope();
+//        CTX_MAP.erase(hrc);
+//        return true;
+//    }
+//    else
+//    {
+//        oglLog().warning(u"unretained HRC[{:p}] was request to release.\n", hrc);
+//        return false;
+//    }
+//}
 
 
 namespace detail

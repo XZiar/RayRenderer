@@ -32,52 +32,21 @@ class oglIndirectBuffer_;
 class oglContext_;
 
 
-class PlatFuncs
-{
-#if COMMON_OS_WIN
-private:
-    const char* (GLAPIENTRYP wglGetExtensionsStringARB_) (void* hDC) = nullptr;
-    const char* (GLAPIENTRYP wglGetExtensionsStringEXT_) () = nullptr;
-    [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions(void* hdc) const;
-public:
-    void* (GLAPIENTRYP wglCreateContextAttribsARB_) (void* hDC, void* hShareContext, const int* attribList) = nullptr;
-#else
-private:
-    void* (*glXGetCurrentDisplay_) () = nullptr;
-    common::container::FrozenDenseSet<std::string_view> GetExtensions(void* dpy, int screen) const;
-public:
-    using GLXFBConfig = void*;
-    void* (*glXCreateContextAttribsARB_) (void* dpy, GLXFBConfig config, void* share_context, bool direct, const int* attrib_list);
-#endif
-public:
-    void* Target;
-    common::container::FrozenDenseSet<std::string_view> Extensions;
-    bool SupportFlushControl;
-    bool SupportSRGB;
-
-    PlatFuncs(void* target);
-    [[nodiscard]] void* CreateNewContext(const GLContextInfo& info, const uint32_t version) const;
-    [[nodiscard]] void* CreateNewContext(const oglContext_* prevCtx, const bool isShared, const int32_t* attribs) const;
-    void DeleteGLContext(void* hRC) const;
-    void SwapBuffer(const oglContext_& ctx) const;
-
-    static void InitEnvironment();
-    static void InJectRenderDoc(const common::fs::path& dllPath);
-
-    [[nodiscard]] static void* GetCurrentDeviceContext();
-    [[nodiscard]] static void* GetCurrentGLContext();
-    [[nodiscard]] static std::vector<int32_t> GenerateContextAttrib(const uint32_t version, bool needFlushControl);
-#if COMMON_OS_WIN
-    [[nodiscard]] bool MakeGLContextCurrent(void* hRC) const;
-    [[nodiscard]] static uint32_t GetSystemError();
-#else
-    [[nodiscard]] bool MakeGLContextCurrent(unsigned long DRW, void* hRC) const;
-    [[nodiscard]] static unsigned long GetCurrentDrawable();
-    [[nodiscard]] static int32_t GetSystemError();
-#endif
-    [[nodiscard]] bool MakeGLContextCurrent(const GLContextInfo& info, void* hRC) const;
-};
-extern thread_local const PlatFuncs* PlatFunc;
+//class PlatFuncs
+//{
+//public:
+//    void* Target;
+//    bool SupportFlushControl;
+//    bool SupportSRGB;
+//
+//    PlatFuncs(void* target);
+//
+//    static void InJectRenderDoc(const common::fs::path& dllPath);
+//
+//    [[nodiscard]] static void* GetCurrentDeviceContext();
+//    [[nodiscard]] static void* GetCurrentGLContext();
+//};
+//extern thread_local const PlatFuncs* PlatFunc;
 
 
 
@@ -507,15 +476,16 @@ public:
     void           (GLAPIENTRYP ClipControl) (GLenum origin, GLenum depth) = nullptr;
     void           (GLAPIENTRYP MemoryBarrier) (GLbitfield barriers) = nullptr;
 
-    CtxFuncs(void*);
+    CtxFuncs(void*, const GLHost_&, std::pair<bool, bool>);
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:
     [[nodiscard]] std::optional<std::string_view> GetError() const;
+    [[nodiscard]] static const CtxFuncs* PrepareCurrent(const GLHost_& host, void* hRC, std::pair<bool, bool> shouldPrint);
 };
 extern thread_local const CtxFuncs* CtxFunc;
 
-extern std::atomic_uint32_t LatestVersion;
+//extern std::atomic_uint32_t LatestVersion;
 
 
 }

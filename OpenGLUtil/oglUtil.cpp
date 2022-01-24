@@ -4,6 +4,7 @@
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"
+#include <mutex>
 
 
 namespace oglu
@@ -15,43 +16,128 @@ using std::set;
 using std::optional;
 using std::vector;
 using common::PromiseResult;
+MAKE_ENABLER_IMPL(oglContext_)
 
 
-void SetFuncShouldPrint(const bool printSuc, const bool printFail) noexcept;
+GLHost_::~GLHost_() {}
 
-void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
+struct oglLoader::Pimpl
 {
-    PlatFuncs::InJectRenderDoc(dllPath);
+    std::once_flag InitFlag;
+};
+oglLoader::oglLoader() : Impl(std::make_unique<Pimpl>()) {}
+oglLoader::~oglLoader() {}
+
+//void oglLoader::InitEnvironment()
+//{
+//    std::call_once(Impl->InitFlag, [&]() { this->Init(); });
+//}
+
+auto& AllLoaders() noexcept
+{
+    static std::vector<std::unique_ptr<oglLoader>> Loaders;
+    return Loaders;
+}
+void oglLoader::LogError(const common::BaseException& be) noexcept
+{
+    oglLog().warning(u"Failed to create loader: {}\n", be.Message());
+}
+oglLoader* oglLoader::RegisterLoader(std::unique_ptr<oglLoader> loader) noexcept
+{
+    const auto ptr = loader.get();
+    AllLoaders().emplace_back(std::move(loader));
+    return ptr;
+}
+common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
+{
+    return AllLoaders();
 }
 
-void oglUtil::InitGLEnvironment()
+oglContext oglLoader::CreateContext_(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx) noexcept
 {
-    PlatFuncs::InitEnvironment();
-}
-void oglUtil::SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept
-{
-    SetFuncShouldPrint(printSuc, printFail);
-}
-
-void oglUtil::InitLatestVersion()
-{
-    constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-    const auto glctx = oglContext_::Refresh();
-    oglLog().info(u"Current GL Version:{}\n", glctx->Capability->VersionString);
-    for (const auto ver : VERSIONS)
+    Expects(!sharedCtx || sharedCtx->Host == host);
+    constexpr uint32_t DesktopVersion[] = { 46,45,44,43,42,41,40,33,32,31,30 };
+    constexpr uint32_t ESVersion[] = { 32, 31, 30, 20 };
+    const auto Versions = cinfo.Type == GLType::Desktop ? common::to_span(DesktopVersion) : common::to_span(ESVersion);
+    auto& LatestVer = cinfo.Type == GLType::Desktop ? host->VersionDesktop : host->VersionES;
+    const auto targetVer = cinfo.Version;
+    if (LatestVer == 0) // perform update
     {
-        if (ver == glctx->Capability->Version)
+        for (const auto ver : Versions)
         {
-            oglLog().info(u"No newer GL version found\n");
-            break;
-        }
-        else if (const auto ctx = glctx->NewContext(false, ver); ctx)
-        {
-            oglLog().info(u"Latest GL Version:{}\n", ctx->Capability->VersionString);
-            break;
+            cinfo.Version = ver;
+            if (const auto ctx = CreateContext(host, cinfo, nullptr); ctx)
+            {
+                std::optional<ContextBaseInfo> binfo;
+                host->TemporalInsideContext(ctx, [&](const auto) 
+                    {
+                        binfo.emplace();
+                        FillCurrentBaseInfo(binfo.value());
+                    });
+                if (binfo.has_value())
+                {
+                    oglLog().info(u"Latest GL version [{}] from [{}]\n", binfo->VersionString, binfo->VendorString);
+                    const uint16_t realVer = gsl::narrow_cast<uint16_t>(binfo->Version);
+                    common::UpdateAtomicMaximum(LatestVer, realVer);
+                    host->DeleteGLContext(ctx);
+                    break;
+                }
+            }
         }
     }
+    if (targetVer == 0)
+        cinfo.Version = LatestVer.load();
+
+    oglContext newCtx;
+    const auto ctx = CreateContext(host, cinfo, sharedCtx ? sharedCtx->Hrc : nullptr);
+    if (ctx)
+    {
+        host->TemporalInsideContext(ctx, [&](const auto)
+            {
+                const auto ctxfunc = CtxFuncs::PrepareCurrent(*host, ctx, { cinfo.PrintFuncLoadSuccess, cinfo.PrintFuncLoadFail });
+                newCtx = MAKE_ENABLER_SHARED(oglContext_, (sharedCtx ? sharedCtx->SharedCore : std::make_shared<detail::SharedContextCore>(), host, ctx, ctxfunc));
+                oglContext_::PushToMap(newCtx);
+            });
+    }
+    if (!newCtx)
+        host->ReportFailure(u"create context");
+    return newCtx;
 }
+
+
+//void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
+//{
+//    PlatFuncs::InJectRenderDoc(dllPath);
+//}
+
+//void oglUtil::InitGLEnvironment()
+//{
+//    PlatFuncs::InitEnvironment();
+//}
+//void oglUtil::SetFuncLoadingDebug(const bool printSuc, const bool printFail) noexcept
+//{
+//    SetFuncShouldPrint(printSuc, printFail);
+//}
+
+//void oglUtil::InitLatestVersion()
+//{
+//    constexpr uint32_t VERSIONS[] = { 46,45,44,43,42,41,40,33,32,31,30 };
+//    const auto glctx = oglContext_::Refresh();
+//    oglLog().info(u"Current GL Version:{}\n", glctx->Capability->VersionString);
+//    for (const auto ver : VERSIONS)
+//    {
+//        if (ver == glctx->Capability->Version)
+//        {
+//            oglLog().info(u"No newer GL version found\n");
+//            break;
+//        }
+//        else if (const auto ctx = glctx->NewContext(false, ver); ctx)
+//        {
+//            oglLog().info(u"Latest GL Version:{}\n", ctx->Capability->VersionString);
+//            break;
+//        }
+//    }
+//}
 
 optional<string_view> oglUtil::GetError()
 {

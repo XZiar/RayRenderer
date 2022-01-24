@@ -65,6 +65,7 @@ class WindowManagerXCB : public WindowManager
 private:
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
+    int DefScreen = 0;
     xkb_context* XKBContext = nullptr;
     xkb_keymap* XKBKeymap = nullptr;
     xkb_state* XKBState = nullptr;
@@ -117,6 +118,7 @@ private:
         const auto& data = host->GetOSData<XCBData>();
         if (name == "window") return &data.Handle;
         if (name == "display") return &data.TheDisplay;
+        if (name == "defscreen") return &DefScreen;
         return nullptr;
     }
 

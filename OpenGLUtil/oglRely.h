@@ -86,20 +86,48 @@ inline constexpr uint32_t OGLUMsgIdMin = 0xdeafbeef;
 inline constexpr uint32_t OGLUMsgIdMax = 0xdeafcafe;
 
 
+class oglLoader;
 class oglWorker;
 class oglContext_;
+class CtxFuncs;
 
-struct GLContextInfo
+
+enum class GLType : uint8_t { Desktop, ES };
+struct CreateInfo
 {
-    void* DeviceContext = nullptr;
-#if COMMON_OS_WIN
-#elif COMMON_OS_LINUX
-    void* FBConfigs = nullptr;
-    int VisualId = 0;
-    uint32_t Drawable = 0;
-    bool IsWindowDrawable = false;
-#endif
+    uint32_t Version = 0;
+    GLType Type = GLType::Desktop;
+    bool PrintFuncLoadSuccess = false;
+    bool PrintFuncLoadFail = false;
+    bool DebugContext = true;
+    bool FlushWhenSwapContext = false;
 };
+
+struct ContextBaseInfo
+{
+    std::u16string VendorString;
+    std::u16string VersionString;
+    uint32_t Version = 0;
+};
+struct ContextCapability : public ContextBaseInfo
+{
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    bool SupportDebug           = false;
+    bool SupportSRGB            = false;
+    bool SupportClipControl     = false;
+    bool SupportGeometryShader  = false;
+    bool SupportComputeShader   = false;
+    bool SupportTessShader      = false;
+    bool SupportBindlessTexture = false;
+    bool SupportImageLoadStore  = false;
+    bool SupportSubroutine      = false;
+    bool SupportIndirectDraw    = false;
+    bool SupportBaseInstance    = false;
+    bool SupportVSMultiLayer    = false;
+
+    OGLUAPI std::string GenerateSupportLog() const;
+};
+
 
 namespace detail
 {
@@ -131,31 +159,34 @@ public:
 };
 template<typename T>
 class CachedResManager;
-
 }
 
 
-struct ContextCapability
+struct GLHost_
 {
+    friend oglLoader;
+    friend oglContext_;
+    friend CtxFuncs;
+private:
+    [[nodiscard]] virtual bool MakeGLContextCurrent_(void* hRC) const = 0;
+    virtual void DeleteGLContext(void* hRC) const = 0;
+    virtual void SwapBuffer() const = 0;
+    virtual void ReportFailure(std::u16string_view action) const = 0;
+    virtual void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const = 0;
+    [[nodiscard]] bool MakeGLContextCurrent(void* hRC) const;
+protected:
+    oglLoader& Loader;
     common::container::FrozenDenseSet<std::string_view> Extensions;
-    std::u16string VendorString;
-    std::u16string VersionString;
-    uint32_t Version            = 0;
-    bool SupportDebug           = false;
-    bool SupportSRGB            = false;
-    bool SupportClipControl     = false;
-    bool SupportGeometryShader  = false;
-    bool SupportComputeShader   = false;
-    bool SupportTessShader      = false;
-    bool SupportBindlessTexture = false;
-    bool SupportImageLoadStore  = false;
-    bool SupportSubroutine      = false;
-    bool SupportIndirectDraw    = false;
-    bool SupportBaseInstance    = false;
-    bool SupportVSMultiLayer    = false;
-
-    OGLUAPI std::string GenerateSupportLog() const;
+    std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
+    bool SupportSRGB : 1;
+    bool SupportFlushControl : 1;
+    GLHost_(oglLoader& loader) noexcept : Loader(loader), SupportSRGB(false), SupportFlushControl(false) {}
+public:
+    virtual ~GLHost_() = 0;
+    [[nodiscard]] virtual void* GetDeviceContext() const noexcept = 0;
+    [[nodiscard]] constexpr const common::container::FrozenDenseSet<std::string_view>& GetExtensions() const noexcept { return Extensions; }
 };
+using GLHost = std::shared_ptr<GLHost_>;
 
 
 }

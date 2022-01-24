@@ -174,10 +174,11 @@ struct OGLUAPI SharedContextCore
 ///<summary>oglContext, all set/get method should be called after UseContext</summary>  
 class OGLUAPI oglContext_ : public xcomp::RangeHolder, public std::enable_shared_from_this<oglContext_>
 {
+    friend oglLoader;
+    friend oglWorker;
     friend class oglProgram_;
-    friend class oglWorker;
     friend class oglUtil;
-    friend class PlatFuncs;
+    //friend class PlatFuncs;
     friend struct BindingState;
     friend class ::oclu::GLInterop;
     friend class ::oclu::oclPlatform_;
@@ -190,45 +191,32 @@ public:
         MsgLevel minLV;
     };
 private:
-    MAKE_ENABLER();
-    const PlatFuncs& PlatHolder;
+    const GLHost Host;
     void *Hrc;
-#if defined(_WIN32)
-#else
-    unsigned long DRW;
-#endif
     detail::CtxResHandler ResHandler;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
-    bool IsExternal;
-    //bool IsRetain = false;
-#if defined(_WIN32)
-    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, const bool external = false);
-#else
-    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const PlatFuncs* plat, void *hrc, unsigned long drw, const bool external = false);
-#endif
-    void Init(const bool isCurrent);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const GLHost& host, void *hrc, const CtxFuncs* ctxFunc);
     void FinishGL();
     std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept final;
     void EndRange() const noexcept final;
     static void PushToMap(oglContext ctx);
+    MAKE_ENABLER();
 public:
     const ContextCapability* Capability = nullptr;
     COMMON_NO_COPY(oglContext_)
     COMMON_NO_MOVE(oglContext_)
     ~oglContext_();
-    [[nodiscard]] void* GetDeviceContext() const noexcept;
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
-    [[nodiscard]] const common::container::FrozenDenseSet<std::string_view>& GetPlatformExtensions() const noexcept;
+    [[nodiscard]] const auto& GetPlatformExtensions() const noexcept { return Host->Extensions; }
     void AddMarker(std::u16string_view name) const noexcept final;
 
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
     void SwapBuffer();
-    //void SetRetain(const bool isRetain);
     template<bool IsShared, typename T, bool Dummy>
     [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {
@@ -249,15 +237,13 @@ public:
     
     [[nodiscard]] mbase::IVec4 GetViewPort() const;
     void MemBarrier(const GLMemBarrier mbar);
-    [[nodiscard]] oglContext NewContext(const bool isShared, const int32_t* attribs) const;
     [[nodiscard]] oglContext NewContext(const bool isShared = false, uint32_t version = 0) const;
 
-    [[nodiscard]] static uint32_t GetLatestVersion();
     [[nodiscard]] static oglContext CurrentContext();
-    [[nodiscard]] static oglContext Refresh();
-    [[nodiscard]] static oglContext InitContext(const GLContextInfo& info);
-    static bool ReleaseExternContext();
-    static bool ReleaseExternContext(void* hrc);
+    //[[nodiscard]] static oglContext Refresh();
+    //[[nodiscard]] static oglContext InitContext(const GLContextInfo& info);
+    /*static bool ReleaseExternContext();
+    static bool ReleaseExternContext(void* hrc);*/
 };
 
 

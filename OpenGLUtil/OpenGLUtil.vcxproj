@@ -48,7 +48,18 @@
     <ClInclude Include="XZGLParser.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="EGLInterface.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GLFuncWrapper.cpp" />
+    <ClCompile Include="GLXInterface.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="oglWorker.cpp" />
     <ClCompile Include="oglBuffer.cpp" />
     <ClCompile Include="oglContext.cpp" />
@@ -67,6 +78,7 @@
     <ClCompile Include="oglUtil.cpp" />
     <ClCompile Include="BindingManager.cpp" />
     <ClCompile Include="oglVAO.cpp" />
+    <ClCompile Include="WGLInterface.cpp" />
     <ClCompile Include="XZGLParser.cpp" />
   </ItemGroup>
   <ItemGroup>
