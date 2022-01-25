@@ -9,6 +9,7 @@
 
 namespace oglu
 {
+using namespace std::string_view_literals;
 using std::string;
 using std::string_view;
 using std::u16string;
@@ -53,20 +54,28 @@ common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
     return AllLoaders();
 }
 
-oglContext oglLoader::CreateContext_(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx) noexcept
+constexpr uint32_t DesktopVersion[] = { 46,45,44,43,42,41,40,33,32,31,30 };
+constexpr uint32_t ESVersion[] = { 32, 31, 30, 20 };
+oglContext oglLoader::CreateContext(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx)
 {
     Expects(!sharedCtx || sharedCtx->Host == host);
-    constexpr uint32_t DesktopVersion[] = { 46,45,44,43,42,41,40,33,32,31,30 };
-    constexpr uint32_t ESVersion[] = { 32, 31, 30, 20 };
+    if (!host->CheckSupport(cinfo.Type))
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::Loader,
+            fmt::format(u"Loader [{}] does not support [{}] context"sv, Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
+    if (cinfo.FlushWhenSwapContext && !host->SupportFlushControl)
+        oglLog().warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
+    if (cinfo.FramebufferSRGB && !host->SupportSRGB)
+        oglLog().warning(u"Request for FrameBufferSRGB[{}] not supported, will be ignored\n"sv, cinfo.FramebufferSRGB.value());
     const auto Versions = cinfo.Type == GLType::Desktop ? common::to_span(DesktopVersion) : common::to_span(ESVersion);
     auto& LatestVer = cinfo.Type == GLType::Desktop ? host->VersionDesktop : host->VersionES;
-    const auto targetVer = cinfo.Version;
     if (LatestVer == 0) // perform update
     {
+        CreateInfo tmpCinfo;
+        tmpCinfo.Type = cinfo.Type;
         for (const auto ver : Versions)
         {
-            cinfo.Version = ver;
-            if (const auto ctx = CreateContext(host, cinfo, nullptr); ctx)
+            tmpCinfo.Version = ver;
+            if (const auto ctx = CreateContext_(host, tmpCinfo, nullptr); ctx)
             {
                 std::optional<ContextBaseInfo> binfo;
                 host->TemporalInsideContext(ctx, [&](const auto) 
@@ -85,11 +94,11 @@ oglContext oglLoader::CreateContext_(const GLHost& host, CreateInfo cinfo, const
             }
         }
     }
-    if (targetVer == 0)
+    if (cinfo.Version == 0)
         cinfo.Version = LatestVer.load();
 
     oglContext newCtx;
-    const auto ctx = CreateContext(host, cinfo, sharedCtx ? sharedCtx->Hrc : nullptr);
+    const auto ctx = CreateContext_(host, cinfo, sharedCtx ? sharedCtx->Hrc : nullptr);
     if (ctx)
     {
         host->TemporalInsideContext(ctx, [&](const auto)

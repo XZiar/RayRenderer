@@ -93,15 +93,6 @@ class CtxFuncs;
 
 
 enum class GLType : uint8_t { Desktop, ES };
-struct CreateInfo
-{
-    uint32_t Version = 0;
-    GLType Type = GLType::Desktop;
-    bool PrintFuncLoadSuccess = false;
-    bool PrintFuncLoadFail = false;
-    bool DebugContext = true;
-    bool FlushWhenSwapContext = false;
-};
 
 struct ContextBaseInfo
 {
@@ -178,13 +169,26 @@ protected:
     oglLoader& Loader;
     common::container::FrozenDenseSet<std::string_view> Extensions;
     std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
+    bool SupportDesktop : 1;
+    bool SupportES : 1;
     bool SupportSRGB : 1;
     bool SupportFlushControl : 1;
-    GLHost_(oglLoader& loader) noexcept : Loader(loader), SupportSRGB(false), SupportFlushControl(false) {}
+    GLHost_(oglLoader& loader) noexcept : Loader(loader), 
+        SupportDesktop(false), SupportES(false), SupportSRGB(false), SupportFlushControl(false) {}
 public:
     virtual ~GLHost_() = 0;
     [[nodiscard]] virtual void* GetDeviceContext() const noexcept = 0;
+    [[nodiscard]] virtual uint32_t GetVersion() const noexcept = 0;
     [[nodiscard]] constexpr const common::container::FrozenDenseSet<std::string_view>& GetExtensions() const noexcept { return Extensions; }
+    [[nodiscard]] constexpr bool CheckSupport(GLType type) const noexcept
+    {
+        switch (type)
+        {
+        case GLType::Desktop: return SupportDesktop;
+        case GLType::ES:      return SupportES;
+        default:              return false;
+        }
+    }
 };
 using GLHost = std::shared_ptr<GLHost_>;
 

@@ -42,11 +42,12 @@ class WGLLoader_ final : public WGLLoader
 private:
     struct WGLHost final : public WGLLoader::WGLHost
     {
+        friend WGLLoader_;
         HDC DeviceContext;
         PFNWGLCREATECONTEXTATTRIBSARBPROC CreateContextAttribsARB = nullptr;
         WGLHost(WGLLoader_& loader, HDC dc) noexcept : WGLLoader::WGLHost(loader), DeviceContext(dc)
         {
-            using X = decltype(CreateContextAttribsARB);
+            SupportDesktop = true;
             if (const auto funcARB = loader.GetFunction<PFNWGLGETEXTENSIONSSTRINGARBPROC>("wglGetExtensionsStringARB"))
             {
                 Extensions = common::str::Split(funcARB(DeviceContext), ' ', false);
@@ -56,6 +57,7 @@ private:
                 Extensions = common::str::Split(funcEXT(), ' ', false);
             }
             CreateContextAttribsARB = loader.GetFunction<PFNWGLCREATECONTEXTATTRIBSARBPROC>("wglCreateContextAttribsARB");
+            SupportES = Extensions.Has("WGL_EXT_create_context_es2_profile");
             SupportSRGB = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("WGL_ARB_context_flush_control");
         }
@@ -86,6 +88,7 @@ private:
                 wglMakeCurrent(oldHdc, oldHrc);
             }
         }
+        uint32_t GetVersion() const noexcept final { return 0; }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
     };
 public:
@@ -103,6 +106,7 @@ private:
     {
         const auto hdc = reinterpret_cast<HDC>(hdc_);
         const int pixFormat = ChoosePixelFormat(hdc, &PixFmtDesc);
+        //WGL_ARB_pixel_format
         SetPixelFormat(hdc, pixFormat, &PixFmtDesc);
         const auto oldHdc = wglGetCurrentDC();
         const auto oldHrc = wglGetCurrentContext();
@@ -113,7 +117,7 @@ private:
         wglDeleteContext(tmpHrc);
         return info;
     }
-    void* CreateContext(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
+    void* CreateContext_(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
     {
         auto host = std::static_pointer_cast<WGLHost>(host_);
         detail::AttribList attrib;
@@ -125,9 +129,10 @@ private:
             attrib.Set(WGL_CONTEXT_MAJOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version / 10));
             attrib.Set(WGL_CONTEXT_MINOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version % 10));
         }
-        if (cinfo.FlushWhenSwapContext && false)
+        if (cinfo.FlushWhenSwapContext && host->SupportFlushControl)
         {
-            attrib.Set(WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
+            attrib.Set(WGL_CONTEXT_RELEASE_BEHAVIOR_ARB, cinfo.FlushWhenSwapContext.value() ? 
+                WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
         }
         return host->CreateContextAttribsARB(host->DeviceContext, reinterpret_cast<HGLRC>(sharedCtx), attrib.Data());
     }

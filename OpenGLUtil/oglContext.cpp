@@ -457,7 +457,7 @@ oglContext oglContext_::NewContext(const bool isShared, uint32_t version) const
     CHECKCURRENT();
     CreateInfo cinfo;
     cinfo.Version = version;
-    return Host->Loader.CreateContext_(Host, cinfo, isShared ? this : nullptr);
+    return Host->Loader.CreateContext(Host, cinfo, isShared ? this : nullptr);
 }
 
 //bool oglContext_::ReleaseExternContext()

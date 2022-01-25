@@ -10,6 +10,17 @@
 namespace oglu
 {
 
+struct CreateInfo
+{
+    uint32_t Version = 0;
+    GLType Type = GLType::Desktop;
+    bool PrintFuncLoadSuccess = false;
+    bool PrintFuncLoadFail = false;
+    bool DebugContext = true;
+    std::optional<bool> FramebufferSRGB;
+    std::optional<bool> FlushWhenSwapContext;
+};
+
 class oglLoader
 {
     friend oglContext_;
@@ -19,9 +30,9 @@ private:
     struct Pimpl;
     std::unique_ptr<Pimpl> Impl;
     //virtual void Init() = 0;
-    [[nodiscard]] virtual void* CreateContext(const GLHost& host, const CreateInfo& cinfo, void* sharedCtx) noexcept = 0;
+    [[nodiscard]] virtual void* CreateContext_(const GLHost& host, const CreateInfo& cinfo, void* sharedCtx) noexcept = 0;
     [[nodiscard]] virtual void* GetFunction_(std::string_view name) const noexcept = 0;
-    OGLUAPI [[nodiscard]] std::shared_ptr<oglContext_> CreateContext_(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx) noexcept;
+    OGLUAPI [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx);
     void FillCurrentBaseInfo(ContextBaseInfo& info) const;
     static void LogError(const common::BaseException& be) noexcept;
     static oglLoader* RegisterLoader(std::unique_ptr<oglLoader> loader) noexcept;
@@ -51,9 +62,9 @@ public:
     virtual ~oglLoader();
     [[nodiscard]] virtual std::string_view Name() const noexcept = 0;
     //void InitEnvironment();
-    [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(const GLHost& host, const CreateInfo& cinfo) noexcept
+    [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(const GLHost& host, const CreateInfo& cinfo)
     {
-        return CreateContext_(host, cinfo, {});
+        return CreateContext(host, cinfo, nullptr);
     }
 
     [[nodiscard]] OGLUAPI static common::span<const std::unique_ptr<oglLoader>> GetLoaders() noexcept;
@@ -103,6 +114,20 @@ public:
     };
     virtual std::shared_ptr<GLXHost> CreateHost(void* display, int32_t screen, bool useOffscreen = false) = 0;
     virtual void InitDrawable(GLXHost& host, uint32_t drawable) const = 0;
+};
+
+class EGLLoader : public oglLoader
+{
+public:
+    struct EGLHost : public GLHost_
+    {
+    protected:
+        using GLHost_::GLHost_;
+    public:
+        virtual const int& GetVisualId() const noexcept = 0;
+    };
+    virtual std::shared_ptr<EGLHost> CreateHost(void* display, bool useOffscreen = false) = 0;
+    virtual void InitSurface(EGLHost& host, uintptr_t surface) const = 0;
 };
 
 

@@ -60,6 +60,7 @@ constexpr int VisualAttrs2[] =
 PREPARE_FUNC(XFree,                     FreeXObject);
 PREPARE_FUNC(XSetErrorHandler,          SetErrorHandler);
 PREPARE_FUNC(XGetErrorText,             GetErrorText);
+PREPARE_FUNC(glXQueryVersion,           QueryVersion);
 PREPARE_FUNC(glXChooseFBConfig,         ChooseFBConfig);
 PREPARE_FUNC(glXGetFBConfigAttrib,      GetFBConfigAttrib);
 PREPARE_FUNC(glXGetVisualFromFBConfig,  GetVisualFromFBConfig);
@@ -98,17 +99,24 @@ private:
 
     struct GLXHost final : public GLXLoader::GLXHost
     {
+        friend GLXLoader_;
         Display* DeviceContext;
         GLXFBConfig* FBConfigs = nullptr;
         PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
+        uint32_t Version = 0;
         int VisualId = 0;
         GLXDrawable Drawable = 0;
         bool IsWindowDrawable = false;
         GLXHost(GLXLoader_& loader, Display* dc, int32_t screen) noexcept : GLXLoader::GLXHost(loader), DeviceContext(dc)
         {
+            SupportDesktop = true;
+            int verMajor = 0, verMinor = 0;
+            loader.QueryVersion(dc, &verMajor, &verMinor);
+            Version = verMajor * 10 + verMinor;
             glXCreateContextAttribsARB = loader.GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC>("glXCreateContextAttribsARB");
             const char* exts = loader.QueryExtensionsString(DeviceContext, screen);
             Extensions = common::str::Split(exts, ' ', false);
+            SupportES = Extensions.Has("GLX_EXT_create_context_es2_profile");
             SupportSRGB = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
         }
@@ -125,7 +133,6 @@ private:
             if (FBConfigs)
                 loader.FreeXObject(FBConfigs);
         }
-        const int& GetVisualId() const noexcept final { return VisualId; }
         bool MakeGLContextCurrent_(void* hRC) const final
         {
             return static_cast<GLXLoader_&>(Loader).MakeCurrent(DeviceContext, Drawable, (GLXContext)hRC);
@@ -156,6 +163,8 @@ private:
                 loader.MakeCurrent(oldHdc, oldDrw, oldHrc);
             }
         }
+        const int& GetVisualId() const noexcept final { return VisualId; }
+        uint32_t GetVersion() const noexcept final { return Version; }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
         GLXContext CreateContextAttribs(GLXContext share_context, const int32_t* attrib_list)
         {
@@ -171,6 +180,7 @@ private:
     PREPARE_FUNC(FreeXObject);
     PREPARE_FUNC(SetErrorHandler);
     PREPARE_FUNC(GetErrorText);
+    PREPARE_FUNC(QueryVersion);
     PREPARE_FUNC(ChooseFBConfig);
     PREPARE_FUNC(GetFBConfigAttrib);
     PREPARE_FUNC(GetVisualFromFBConfig);
@@ -194,6 +204,7 @@ public:
         PREPARE_FUNC(X11, FreeXObject);
         PREPARE_FUNC(X11, SetErrorHandler);
         PREPARE_FUNC(X11, GetErrorText);
+        PREPARE_FUNC(GLX, QueryVersion);
         PREPARE_FUNC(GLX, ChooseFBConfig);
         PREPARE_FUNC(GLX, GetFBConfigAttrib);
         PREPARE_FUNC(GLX, GetVisualFromFBConfig);
@@ -222,12 +233,11 @@ private:
         const auto disp = reinterpret_cast<Display*>(display);
         auto host = std::make_shared<GLXHost>(*this, disp, screen);
         int fbCount = 0;
-        const auto configs = ChooseFBConfig(disp, screen, useOffscreen ? VisualAttrs2 : VisualAttrs, &fbCount);
-        if (!configs || fbCount == 0)
+        host->FBConfigs = ChooseFBConfig(disp, screen, useOffscreen ? VisualAttrs2 : VisualAttrs, &fbCount);
+        if (!host->FBConfigs || fbCount == 0)
             return {};
-        if (0 != GetFBConfigAttrib(disp, configs[0], GLX_VISUAL_ID, &host->VisualId))
+        if (0 != GetFBConfigAttrib(disp, host->FBConfigs[0], GLX_VISUAL_ID, &host->VisualId))
             return {};
-        host->FBConfigs = configs;
         host->IsWindowDrawable = !useOffscreen;
         return host;
     }
@@ -248,7 +258,7 @@ private:
             host.Drawable = glxpixmap;
         }
     }
-    void* CreateContext(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
+    void* CreateContext_(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
     {
         auto host = std::static_pointer_cast<GLXHost>(host_);
         detail::AttribList attrib;
@@ -260,9 +270,10 @@ private:
             attrib.Set(GLX_CONTEXT_MAJOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version / 10));
             attrib.Set(GLX_CONTEXT_MINOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version % 10));
         }
-        if (cinfo.FlushWhenSwapContext && false)
+        if (cinfo.FlushWhenSwapContext && host->SupportFlushControl)
         {
-            attrib.Set(GLX_CONTEXT_RELEASE_BEHAVIOR_ARB, GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
+            attrib.Set(GLX_CONTEXT_RELEASE_BEHAVIOR_ARB, cinfo.FlushWhenSwapContext.value() ?
+                GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
         }
         return host->CreateContextAttribs(reinterpret_cast<GLXContext>(sharedCtx), attrib.Data());
     }

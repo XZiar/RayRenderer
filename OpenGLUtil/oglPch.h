@@ -28,8 +28,9 @@ namespace detail
 {
 class AttribList
 {
-    std::vector<int32_t> Attribs = { 0 };
+    std::vector<int32_t> Attribs;
 public:
+    AttribList(int32_t ending = 0) noexcept : Attribs{ ending } {}
     bool Set(int32_t key, int32_t val) noexcept
     {
         for (size_t i = 0; i + 1 < Attribs.size(); i += 2)

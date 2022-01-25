@@ -8,7 +8,7 @@ namespace oglu
 class OGLException : public common::BaseException
 {
 public:
-    enum class GLComponent { Compiler, Driver, GPU, OGLU, Tex };
+    enum class GLComponent { Compiler, Driver, GPU, OGLU, Loader, Tex };
 private:
     PREPARE_EXCEPTION(OGLException, BaseException,
         GLComponent Component;
