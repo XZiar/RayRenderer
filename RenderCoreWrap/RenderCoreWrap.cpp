@@ -2,6 +2,7 @@
 #include "RenderCoreWrap.h"
 #include "ImageUtil.h"
 #include "common/CLIAsync.hpp"
+#pragma comment(lib, "user32.lib")
 
 using common::container::ValSet;
 
@@ -39,13 +40,14 @@ String^ RenderPass::ToString()
         return "[Pass]";
 }
 
-static oglu::GLContextInfo PrepareGL(void* hdc)
+static dizz::RenderCore* CreateCore(void* hdc)
 {
-    oglu::oglUtil::SetPixFormat(hdc);
-    return { hdc };
+    const auto loader = static_cast<oglu::WGLLoader*>(oglu::oglLoader::GetLoader("WGL"));
+    const auto host = loader->CreateHost(reinterpret_cast<HDC>(hdc));
+    return TryConstruct<dizz::RenderCore>(*host);
 }
 
-RenderCore::RenderCore(IntPtr hdc) : Core(TryConstruct<dizz::RenderCore>(PrepareGL(hdc.ToPointer())))
+RenderCore::RenderCore(IntPtr hdc) : Core(CreateCore(hdc.ToPointer()))
 {
     Core->TestSceneInit();
     theScene = gcnew Scene(Core);
@@ -197,7 +199,16 @@ void RenderCore::InjectRenderDoc(String^ dllPath)
 }
 void RenderCore::InitGLEnvironment()
 {
-    oglu::oglUtil::InitGLEnvironment();
+    HWND tmpWND = CreateWindow(
+        L"Static", L"Fake Window",            // window class, title
+        WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
+        0, 0,                               // position x, y
+        1, 1,                               // width, height
+        NULL, NULL,                         // parent window, menu
+        nullptr, NULL);                     // instance, param
+    HDC tmpDC = GetDC(tmpWND);
+    const auto loader = static_cast<oglu::WGLLoader*>(oglu::oglLoader::GetLoader("WGL"));
+    loader->CreateHost(tmpDC);
 }
 
 

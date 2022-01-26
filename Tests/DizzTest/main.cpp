@@ -132,8 +132,9 @@ void RunDizzCore()
         isAnimate = false; 
         tester.release();
 #if COMMON_OS_LINUX
-        if (const auto info = window->GetWindowData<GLContextInfo>("glinfo"); info)
-            oglUtil::DestroyDrawable(*const_cast<GLContextInfo*>(info));
+        
+        if (const auto host = window->GetWindowData<GLXHost>("glhost"); host)
+            host->~GLXHost();
 #endif
         closePms.set_value();
     };
