@@ -106,29 +106,4 @@ public:
 };
 
 
-class COMMON_EMPTY_BASES oglFinishPromise : public common::detail::PromiseResult_<void>, protected common::PromiseProvider
-{
-protected:
-    common::PromiseState GetState() noexcept override
-    {
-        return common::PromiseState::Executed; // simply return, make it invoke wait
-    }
-    void PreparePms() override 
-    { 
-        glFinish();
-    }
-    common::PromiseState WaitPms() noexcept override
-    {
-        return common::PromiseState::Executed;
-    }
-    common::PromiseProvider& GetPromise() noexcept override 
-    { 
-        return *this;
-    }
-    void GetResult() override
-    { }
-public:
-};
-
-
 }

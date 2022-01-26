@@ -153,7 +153,7 @@ SharedContextCore::~SharedContextCore()
 
 }
 
-oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const GLHost& host, void *hrc, const CtxFuncs* ctxFunc) :
+oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const std::shared_ptr<GLHost>& host, void *hrc, const CtxFuncs* ctxFunc) :
     Host(host), Hrc(hrc), SharedCore(sharedCore), Capability(ctxFunc)
 {
     ctxFunc->GetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
@@ -174,6 +174,12 @@ oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& share
         FaceCulling = FaceCullingType::OFF;
 }
 
+const common::container::FrozenDenseSet<std::string_view>& oglContext_::GetPlatformExtensions() const noexcept
+{ 
+    return Host->Extensions;
+}
+
+
 void oglContext_::FinishGL()
 {
     CHECKCURRENT();
@@ -184,6 +190,12 @@ void oglContext_::SwapBuffer()
 {
     CHECKCURRENT();
     Host->SwapBuffer();
+}
+
+void oglContext_::ForceSync()
+{
+    CHECKCURRENT();
+    CtxFunc->Finish();
 }
 
 oglContext_::~oglContext_()
@@ -457,7 +469,7 @@ oglContext oglContext_::NewContext(const bool isShared, uint32_t version) const
     CHECKCURRENT();
     CreateInfo cinfo;
     cinfo.Version = version;
-    return Host->Loader.CreateContext(Host, cinfo, isShared ? this : nullptr);
+    return Host->CreateContext(cinfo, isShared ? this : nullptr);
 }
 
 //bool oglContext_::ReleaseExternContext()

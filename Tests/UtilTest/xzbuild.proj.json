@@ -14,7 +14,7 @@
         "dynamic": 
         [
             "pthread", 
-            {"ifno": ["android"], "ifneq": {"osname": "Darwin"}, "+": ["GL", "X11"]}
+            {"ifno": ["android"], "ifneq": {"osname": "Darwin"}, "+": ["X11"]}
         ]
     },
     "targets":

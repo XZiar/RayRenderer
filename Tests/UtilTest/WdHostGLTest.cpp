@@ -60,7 +60,7 @@ struct Lutter
         LutGenerator->Draw()
             .DrawInstance(VAOScreen, 64);
 
-        oglUtil::ForceSyncGL()->Get();
+        ctx->ForceSync();
         const auto lutdata = LutTex->GetData(TextureFormat::RGBA8);
     }
 };
@@ -105,11 +105,11 @@ static void RunTest()
 #elif COMMON_OS_LINUX
         const auto& host = *window->GetWindowData<GLXHost>("glhost");
         const auto wd = *window->GetWindowData<uint32_t>("window");
-        loader->InitDrawable(*host, wd);
+        host->InitDrawable(wd);
 #endif
         CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
-        context = loader->CreateContext(host, cinfo);
+        context = host->CreateContext(cinfo);
         context->UseContext();
         TestErr();
 
@@ -139,7 +139,7 @@ static void RunTest()
                 lutGenerator->SetVal("step", 1.0f / 64);
                 lutGenerator->SetVal("exposure", 1.0f);
                 lutGenerator->Run(64, 64, 64);
-                oglUtil::ForceSyncGL()->Get();
+                context->ForceSync();
                 const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
                 Image img(ImageDataType::RGBA);
                 img.SetSize(64, 64 * 64);

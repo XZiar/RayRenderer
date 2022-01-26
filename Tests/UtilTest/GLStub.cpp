@@ -37,51 +37,35 @@ static MiniLogger<false>& log()
 
 #if COMMON_OS_WIN
 template<typename... Args>
-static oglContext InitContextWGL(oglLoader& loader_, CreateInfo& cinfo, HDC dc, Args&&...)
+static std::shared_ptr<GLHost> GetHostWGL(oglLoader& loader, HDC dc, Args&&...)
 {
-    auto& loader = static_cast<WGLLoader&>(loader_);
-    const auto host = loader.CreateHost(dc);
-    return loader.CreateContext(host, cinfo);
+    return static_cast<WGLLoader&>(loader).CreateHost(dc);
 }
 #endif
 #if COMMON_OS_UNIX
 template<typename... Args>
-static oglContext InitContextGLX(oglLoader& loader_, CreateInfo& cinfo, Display* display, int32_t screen, Args&&...)
+static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, int32_t screen, Args&&...)
 {
-    auto& loader = static_cast<GLXLoader&>(loader_);
-    const auto host = loader.CreateHost(display, screen, true);
-    if (!host)
-    {
-        log().error(u"Failed to init glx host\n");
-        COMMON_THROW(BaseException, u"Error");
-    }
-    return loader.CreateContext(host, cinfo);
+    return static_cast<GLXLoader&>(loader).CreateHost(display, screen, true);
 }
 #endif
 template<typename... Args>
-static oglContext InitContextEGL(oglLoader& loader_, CreateInfo& cinfo, void* dc, Args&&...)
+static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, void* dc, Args&&...)
 {
-    auto& loader = static_cast<EGLLoader&>(loader_);
-    const auto host = loader.CreateHost(dc, true);
-    if (!host)
-    {
-        log().error(u"Failed to init egl host\n");
-        COMMON_THROW(BaseException, u"Error");
-    }
-    return loader.CreateContext(host, cinfo);
+    return static_cast<EGLLoader&>(loader).CreateHost(dc, true);
 }
 
 template<typename... Args>
-static oglContext InitContext(oglLoader& loader_, CreateInfo& cinfo, const Args&... args)
+static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 {
 #if COMMON_OS_WIN
-    if (loader_.Name() == "WGL") return InitContextWGL(loader_, cinfo, args...);
+    if (loader.Name() == "WGL") return GetHostWGL(loader, args...);
 #endif
 #if COMMON_OS_UNIX
-    if (loader_.Name() == "GLX") return InitContextGLX(loader_, cinfo, args...);
+    if (loader.Name() == "GLX") return GetHostGLX(loader, args...);
 #endif
-    if (loader_.Name() == "EGL") return InitContextEGL(loader_, cinfo, args...);
-
+    if (loader.Name() == "EGL") return GetHostEGL(loader, args...);
+    
     log().error(u"Unknown loader\n");
     return {};
 }
@@ -125,13 +109,19 @@ static void OGLStub()
             });
 
         auto& loader = *loaders[ldridx];
+#if COMMON_OS_WIN
+        const auto host = GetHost(loader, tmpDC);
+#else
+        const auto host = GetHost(loader, display, defScreen);
+#endif
+        if (!host)
+        {
+            log().error(u"Failed to init [{}] Host\n", loader.Name());
+            continue;
+        }
         CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
-#if COMMON_OS_WIN
-        auto ctx = InitContext(loader, cinfo, tmpDC);
-#else
-        auto ctx = InitContext(loader, cinfo, display, defScreen);
-#endif
+        const auto ctx = host->CreateContext(cinfo);
 
         ctx->UseContext();
         ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);

@@ -3,6 +3,7 @@
 #include "GLFuncWrapper.h"
 #include "SystemCommon/StringFormat.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/DynamicLibrary.h"
 #include "SystemCommon/FileEx.h"
 #include "SystemCommon/ThreadEx.h"
 #include "SystemCommon/StackTrace.h"
@@ -20,17 +21,25 @@
 #include <algorithm>
 
 
+#define DEFINE_FUNC(func, name) using T_P##name = decltype(&func); static constexpr auto N_##name = #func ""sv
+#define DEFINE_FUNC2(type, func, name) using T_P##name = type; static constexpr auto N_##name = #func ""sv
+#define DECLARE_FUNC(name) T_P##name name = nullptr
+#define LOAD_FUNC(lib, name) name = Lib##lib.GetFunction<T_P##name>(N_##name)
+
+
 namespace oglu
 {
 namespace msimd = common::math::simd;
 
 namespace detail
 {
+
 class AttribList
 {
     std::vector<int32_t> Attribs;
+    int32_t Ending;
 public:
-    AttribList(int32_t ending = 0) noexcept : Attribs{ ending } {}
+    AttribList(int32_t ending = 0) noexcept : Attribs{ ending }, Ending(ending) {}
     bool Set(int32_t key, int32_t val) noexcept
     {
         for (size_t i = 0; i + 1 < Attribs.size(); i += 2)
@@ -43,7 +52,7 @@ public:
         }
         Attribs.back() = key;
         Attribs.push_back(val);
-        Attribs.push_back(0);
+        Attribs.push_back(Ending);
         return true;
     }
     const int32_t* Data() const noexcept
@@ -51,6 +60,9 @@ public:
         return Attribs.data();
     }
 };
+
+//const common::container::FrozenDenseSet<std::string_view> GLBasicAPIs;
+
 }
 
 common::mlog::MiniLogger<false>& oglLog();

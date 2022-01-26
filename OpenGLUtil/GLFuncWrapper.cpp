@@ -18,6 +18,12 @@ typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLen
 typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint* textures);
 typedef void (APIENTRYP PFNGLBINDTEXTUREPROC) (GLenum target, GLuint texture);
 typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint* textures);
+typedef void (APIENTRYP PFNGLGETTEXIMAGEPROC) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels); 
+typedef void (APIENTRYP PFNGLTEXIMAGE1DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels);
+typedef void (APIENTRYP PFNGLTEXIMAGE2DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels);
+typedef void (APIENTRYP PFNGLTEXSUBIMAGE1DPROC) (GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels);
+typedef void (APIENTRYP PFNGLTEXSUBIMAGE2DPROC) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
+typedef void (APIENTRYP PFNGLGETTEXLEVELPARAMETERIVPROC) (GLenum target, GLint level, GLenum pname, GLint* params);
 typedef void (APIENTRYP PFNGLCULLFACEPROC) (GLenum mode);
 typedef void (APIENTRYP PFNGLFRONTFACEPROC) (GLenum mode);
 typedef void (APIENTRYP PFNGLHINTPROC) (GLenum target, GLenum mode);
@@ -61,6 +67,33 @@ namespace oglu
 using namespace std::string_view_literals;
 [[maybe_unused]] constexpr auto CtxFuncsSize = sizeof(CtxFuncs);
 
+
+namespace detail
+{
+const common::container::FrozenDenseSet<std::string_view> GLBasicAPIs = std::vector<std::string_view>
+{
+    "glGenTextures"sv,      "glDeleteTextures"sv,   "glBindTexture"sv,      "glGetTexImage"sv,
+    "glTexImage1D"sv,       "glTexImage2D"sv,       "glTexSubImage1D"sv,    "glTexSubImage2D"sv,
+    "glTexParameteri"sv,    "glGetTexLevelParameteriv"sv,                   "glClear"sv,
+    "glClearColor"sv,       "glClearDepth"sv,       "glClearStencil"sv,     "glGetError"sv,
+    "glGetFloatv"sv,        "glGetIntegerv"sv,      "glGetString"sv,        "glIsEnabled"sv,
+    "glEnable"sv,           "glDisable"sv,          "glFinish"sv,           "glFlush"sv,
+    "glDepthFunc"sv,        "glCullFace"sv,         "glFrontFace"sv,        "glViewport"sv,
+    "glDrawArrays"sv,       "glDrawElements"sv
+};
+}
+
+void* GLHost::GetFunction(std::string_view name) const noexcept
+{
+    if (const auto func = LoadFunction(name); func)
+        return func;
+    if (const auto ptr = detail::GLBasicAPIs.Find(name); ptr)
+        return GetBasicFunctions(ptr - detail::GLBasicAPIs.RawData().data(), *ptr);
+    return nullptr;
+}
+
+
+
 template<typename T, typename... Args>
 struct ResourceKeeper
 {
@@ -94,10 +127,10 @@ thread_local const CtxFuncs* CtxFunc = nullptr;
 
 static auto& GetCtxFuncsMap()
 {
-    static ResourceKeeper<CtxFuncs, const GLHost_&, std::pair<bool, bool>> CtxFuncMap;
+    static ResourceKeeper<CtxFuncs, const GLHost&, std::pair<bool, bool>> CtxFuncMap;
     return CtxFuncMap;
 }
-static void PrepareCtxFuncs(void* hRC, const GLHost_& host, std::pair<bool, bool> shouldPrint)
+static void PrepareCtxFuncs(void* hRC, const GLHost& host, std::pair<bool, bool> shouldPrint)
 {
     if (hRC == nullptr)
         CtxFunc = nullptr;
@@ -117,13 +150,13 @@ static void ShowQueryFail(const std::string_view tarName)
 {
     oglLog().warning(FMT_STRING(u"Func [{}] not found\n"), tarName);
 }
-static void ShowQueryFall(const std::string_view tarName)
-{
-    oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
-}
+//static void ShowQueryFall(const std::string_view tarName)
+//{
+//    oglLog().warning(FMT_STRING(u"Func [{}] fallback to default\n"), tarName);
+//}
 
 
-bool GLHost_::MakeGLContextCurrent(void* hRC) const
+bool GLHost::MakeGLContextCurrent(void* hRC) const
 {
     const auto ret = MakeGLContextCurrent_(hRC);
     if (ret || hRC == nullptr)
@@ -132,7 +165,7 @@ bool GLHost_::MakeGLContextCurrent(void* hRC) const
     }
     return ret;
 }
-const CtxFuncs* CtxFuncs::PrepareCurrent(const GLHost_& host, void* hRC, std::pair<bool, bool> shouldPrint)
+const CtxFuncs* CtxFuncs::PrepareCurrent(const GLHost& host, void* hRC, std::pair<bool, bool> shouldPrint)
 {
     auto& rmap = GetCtxFuncsMap();
     return rmap.FindOrCreate(hRC, host, shouldPrint);
@@ -156,8 +189,7 @@ void oglUtil::InJectRenderDoc(const common::fs::path& dllPath)
 
 
 template<typename F, typename T, size_t N>
-static void QueryGLFunc(T& target, F&& getFunc, const std::string_view tarName, const std::pair<bool, bool> shouldPrint, const std::array<std::string_view, N> suffixes,
-    void* fallback = nullptr)
+static void QueryGLFunc(T& target, F&& getFunc, const std::string_view tarName, const std::pair<bool, bool> shouldPrint, const std::array<std::string_view, N> suffixes)
 {
     Expects(tarName.size() < 96);
     const auto [printSuc, printFail] = shouldPrint;
@@ -178,13 +210,13 @@ static void QueryGLFunc(T& target, F&& getFunc, const std::string_view tarName, 
             return;
         }
     }
-    if (fallback)
+    /*if (fallback)
     {
         target = reinterpret_cast<T>(fallback);
         if (printFail)
             ShowQueryFall(tarName);
     }
-    else
+    else*/
     {
         target = nullptr;
         if (printFail)
@@ -228,28 +260,34 @@ static void FillConextBaseInfo(ContextBaseInfo& info, PFNGLGETSTRINGPROC GetStri
     info.Version = major * 10 + minor;
 }
 
-void oglLoader::FillCurrentBaseInfo(ContextBaseInfo& info) const
+std::optional<ContextBaseInfo> GLHost::FillBaseInfo(void* hRC) const
 {
-    const auto getFunc = [&](std::string_view func) { return GetFunction_(func); };
-#define QUERY_FUNC(part, name) PFNGL##part##PROC name = nullptr; QueryGLFunc(name, getFunc, #name, {false, false}, std::array{""sv}, (void*)&gl##name)
+    const auto getFunc = [&](std::string_view func) { return GetFunction(func); };
+#define QUERY_FUNC(part, name) PFNGL##part##PROC name = nullptr; QueryGLFunc(name, getFunc, #name, {false, false}, std::array{""sv})
     QUERY_FUNC(GETSTRING,   GetString);
     QUERY_FUNC(GETINTEGERV, GetIntegerv);
 #undef QUERY_FUNC
-    FillConextBaseInfo(info, GetString, GetIntegerv);
+    std::optional<ContextBaseInfo> binfo;
+    TemporalInsideContext(hRC, [&](const auto)
+    {
+        binfo.emplace();
+        FillConextBaseInfo(binfo.value(), GetString, GetIntegerv);
+    });
+    return binfo;
 }
 
-CtxFuncs::CtxFuncs(void* target, const GLHost_& host, std::pair<bool, bool> shouldPrint) : Target(target)
+CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shouldPrint) : Target(target)
 {
-    const auto getFunc = [&](std::string_view func) { return host.Loader.GetFunction_(func); };
+    const auto getFunc = [&](std::string_view func) { return host.GetFunction(func); };
 #define FUNC_TYPE_CHECK_(dst, part, name, sfx) static_assert(FuncTypeMatcher<decltype(dst), \
     BOOST_PP_CAT(BOOST_PP_CAT(PFNGL, part), BOOST_PP_CAT(sfx, PROC))>::IsMatch, \
     "mismatch type for variant [" #sfx "] on [" STRINGIZE(name) "]");
 #define FUNC_TYPE_CHECK(r, tp, sfx) FUNC_TYPE_CHECK_(BOOST_PP_TUPLE_ELEM(0, tp), BOOST_PP_TUPLE_ELEM(1, tp), BOOST_PP_TUPLE_ELEM(2, tp), sfx)
 #define SFX_STR(r, data, i, sfx) BOOST_PP_COMMA_IF(i) STRINGIZE(sfx)""sv
-#define QUERY_FUNC_(dst, part, name, sfxs, fall) BOOST_PP_SEQ_FOR_EACH(FUNC_TYPE_CHECK, (dst, part, name), sfxs)\
-    QueryGLFunc(dst, getFunc, #name, shouldPrint, std::array{ BOOST_PP_SEQ_FOR_EACH_I(SFX_STR, , sfxs) }, fall)
+#define QUERY_FUNC_(dst, part, name, sfxs) BOOST_PP_SEQ_FOR_EACH(FUNC_TYPE_CHECK, (dst, part, name), sfxs)\
+    QueryGLFunc(dst, getFunc, #name, shouldPrint, std::array{ BOOST_PP_SEQ_FOR_EACH_I(SFX_STR, , sfxs) })
 #define QUERY_FUNC(direct, fall, part, name, ...) QUERY_FUNC_(BOOST_PP_CAT(name, BOOST_PP_IF(direct, , _)), part, name, \
-    BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), BOOST_PP_IF(fall, (void*)&gl##name, nullptr))
+    BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
     
     // buffer related
     QUERY_FUNC(1, 0, GENBUFFERS,         GenBuffers,        , ARB);
@@ -305,6 +343,8 @@ CtxFuncs::CtxFuncs(void* target, const GLHost_& host, std::pair<bool, bool> shou
     QUERY_FUNC(0, 0, TEXTUREBUFFER,                  TextureBuffer,                 );
     QUERY_FUNC(0, 0, TEXTUREBUFFEREXT,               TextureBufferEXT,              );
     QUERY_FUNC(0, 0, TEXBUFFER,                      TexBuffer,                     , ARB, EXT);
+    QUERY_FUNC(1, 1, GETTEXIMAGE,                    GetTexImage,                   );
+    QUERY_FUNC(1, 1, GETTEXLEVELPARAMETERIV,         GetTexLevelParameteriv,        );
     QUERY_FUNC(0, 0, GENERATETEXTUREMIPMAP,          GenerateTextureMipmap,         );
     QUERY_FUNC(0, 0, GENERATETEXTUREMIPMAPEXT,       GenerateTextureMipmapEXT,      );
     QUERY_FUNC(0, 0, GENERATEMIPMAP,                 GenerateMipmap,                , EXT);
@@ -316,17 +356,21 @@ CtxFuncs::CtxFuncs(void* target, const GLHost_& host, std::pair<bool, bool> shou
     QUERY_FUNC(1, 0, MAKEIMAGEHANDLENONRESIDENT,     MakeImageHandleNonResident     , ARB, NV);
     QUERY_FUNC(0, 0, TEXTUREPARAMETERI,              TextureParameteri,             );
     QUERY_FUNC(0, 0, TEXTUREPARAMETERIEXT,           TextureParameteriEXT,          );
+    QUERY_FUNC(1, 1, TEXIMAGE1D,                     TexImage1D,                    );
+    QUERY_FUNC(1, 1, TEXIMAGE2D,                     TexImage2D,                    );
+    QUERY_FUNC(0, 0, TEXIMAGE3D,                     TexImage3D,                    , EXT);
+    QUERY_FUNC(0, 1, TEXSUBIMAGE1D,                  TexSubImage1D,                 , EXT);
+    QUERY_FUNC(0, 1, TEXSUBIMAGE2D,                  TexSubImage2D,                 , EXT);
+    QUERY_FUNC(0, 0, TEXSUBIMAGE3D,                  TexSubImage3D,                 , EXT);
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE1D,              TextureSubImage1D,             );
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE2D,              TextureSubImage2D,             );
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE3D,              TextureSubImage3D,             );
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE1DEXT,           TextureSubImage1DEXT,          );
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE2DEXT,           TextureSubImage2DEXT,          );
     QUERY_FUNC(0, 0, TEXTURESUBIMAGE3DEXT,           TextureSubImage3DEXT,          );
-    QUERY_FUNC(0, 0, TEXSUBIMAGE3D,                  TexSubImage3D,                 , EXT);
     QUERY_FUNC(0, 0, TEXTUREIMAGE1DEXT,              TextureImage1DEXT,             );
     QUERY_FUNC(0, 0, TEXTUREIMAGE2DEXT,              TextureImage2DEXT,             );
     QUERY_FUNC(0, 0, TEXTUREIMAGE3DEXT,              TextureImage3DEXT,             );
-    QUERY_FUNC(0, 0, TEXIMAGE3D,                     TexImage3D,                    , EXT);
     QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE1D,    CompressedTextureSubImage1D,   );
     QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE2D,    CompressedTextureSubImage2D,   );
     QUERY_FUNC(0, 0, COMPRESSEDTEXTURESUBIMAGE3D,    CompressedTextureSubImage3D,   );
@@ -823,8 +867,8 @@ void CtxFuncs::CreateTextures(GLenum target, GLsizei n, GLuint* textures) const
         GenTextures(n, textures);
         ActiveTexture(GL_TEXTURE0);
         for (GLsizei i = 0; i < n; ++i)
-            glBindTexture(target, textures[i]);
-        glBindTexture(target, 0);
+            BindTexture(target, textures[i]);
+        BindTexture(target, 0);
     }
 }
 void CtxFuncs::BindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
@@ -833,7 +877,7 @@ void CtxFuncs::BindTextureUnit(GLuint unit, GLuint texture, GLenum target) const
     CALL_EXISTS(BindMultiTextureEXT_, GL_TEXTURE0 + unit, target, texture)
     {
         ActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
     }
 }
 void CtxFuncs::TextureBuffer(GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) const
@@ -842,9 +886,9 @@ void CtxFuncs::TextureBuffer(GLuint texture, GLenum target, GLenum internalforma
     CALL_EXISTS(TextureBufferEXT_, target, target, internalformat, buffer)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexBuffer_(target, internalformat, buffer);
-        glBindTexture(target, 0);
+        BindTexture(target, 0);
     }
 }
 void CtxFuncs::GenerateTextureMipmap(GLuint texture, GLenum target) const
@@ -853,7 +897,7 @@ void CtxFuncs::GenerateTextureMipmap(GLuint texture, GLenum target) const
     CALL_EXISTS(GenerateTextureMipmapEXT_, texture, target)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         GenerateMipmap_(target);
     }
 }
@@ -862,8 +906,8 @@ void CtxFuncs::TextureParameteri(GLuint texture, GLenum target, GLenum pname, GL
     CALL_EXISTS(TextureParameteri_,    texture,         pname, param)
     CALL_EXISTS(TextureParameteriEXT_, texture, target, pname, param)
     {
-        glBindTexture(target, texture);
-        glTexParameteri(target, pname, param);
+        BindTexture(target, texture);
+        TexParameteri(target, pname, param);
     }
 }
 void CtxFuncs::TextureSubImage1D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) const
@@ -872,8 +916,8 @@ void CtxFuncs::TextureSubImage1D(GLuint texture, GLenum target, GLint level, GLi
     CALL_EXISTS(TextureSubImage1DEXT_, texture, target, level, xoffset, width, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
-        glTexSubImage1D(target, level, xoffset, width, format, type, pixels);
+        BindTexture(target, texture);
+        TexSubImage1D_(target, level, xoffset, width, format, type, pixels);
     }
 }
 void CtxFuncs::TextureSubImage2D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) const
@@ -882,8 +926,8 @@ void CtxFuncs::TextureSubImage2D(GLuint texture, GLenum target, GLint level, GLi
     CALL_EXISTS(TextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
-        glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+        BindTexture(target, texture);
+        TexSubImage2D_(target, level, xoffset, yoffset, width, height, format, type, pixels);
     }
 }
 void CtxFuncs::TextureSubImage3D(GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) const
@@ -892,7 +936,7 @@ void CtxFuncs::TextureSubImage3D(GLuint texture, GLenum target, GLint level, GLi
     CALL_EXISTS(TextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
     }
 }
@@ -901,8 +945,8 @@ void CtxFuncs::TextureImage1D(GLuint texture, GLenum target, GLint level, GLint 
     CALL_EXISTS(TextureImage1DEXT_, texture, target, level, internalformat, width, border, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
-        glTexImage1D(target, level, internalformat, width, border, format, type, pixels);
+        BindTexture(target, texture);
+        TexImage1D(target, level, internalformat, width, border, format, type, pixels);
     }
 }
 void CtxFuncs::TextureImage2D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) const
@@ -910,8 +954,8 @@ void CtxFuncs::TextureImage2D(GLuint texture, GLenum target, GLint level, GLint 
     CALL_EXISTS(TextureImage2DEXT_, texture, target, level, internalformat, width, height, border, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
-        glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+        BindTexture(target, texture);
+        TexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
     }
 }
 void CtxFuncs::TextureImage3D(GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) const
@@ -919,7 +963,7 @@ void CtxFuncs::TextureImage3D(GLuint texture, GLenum target, GLint level, GLint 
     CALL_EXISTS(TextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, format, type, pixels)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexImage3D_(target, level, internalformat, width, height, depth, border, format, type, pixels);
     }
 }
@@ -929,7 +973,7 @@ void CtxFuncs::CompressedTextureSubImage1D(GLuint texture, GLenum target, GLint 
     CALL_EXISTS(CompressedTextureSubImage1DEXT_, texture, target, level, xoffset, width, format, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexSubImage1D_(target, level, xoffset, width, format, imageSize, data);
     }
 }
@@ -939,7 +983,7 @@ void CtxFuncs::CompressedTextureSubImage2D(GLuint texture, GLenum target, GLint 
     CALL_EXISTS(CompressedTextureSubImage2DEXT_, texture, target, level, xoffset, yoffset, width, height, format, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexSubImage2D_(target, level, xoffset, yoffset, width, height, format, imageSize, data);
     }
 }
@@ -949,7 +993,7 @@ void CtxFuncs::CompressedTextureSubImage3D(GLuint texture, GLenum target, GLint 
     CALL_EXISTS(CompressedTextureSubImage3DEXT_, texture, target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexSubImage3D_(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
     }
 }
@@ -958,7 +1002,7 @@ void CtxFuncs::CompressedTextureImage1D(GLuint texture, GLenum target, GLint lev
     CALL_EXISTS(CompressedTextureImage1DEXT_, texture, target, level, internalformat, width, border, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexImage1D_(target, level, internalformat, width, border, imageSize, data);
     }
 }
@@ -967,7 +1011,7 @@ void CtxFuncs::CompressedTextureImage2D(GLuint texture, GLenum target, GLint lev
     CALL_EXISTS(CompressedTextureImage2DEXT_, texture, target, level, internalformat, width, height, border, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexImage2D_(target, level, internalformat, width, height, border, imageSize, data);
     }
 }
@@ -976,7 +1020,7 @@ void CtxFuncs::CompressedTextureImage3D(GLuint texture, GLenum target, GLint lev
     CALL_EXISTS(CompressedTextureImage3DEXT_, texture, target, level, internalformat, width, height, depth, border, imageSize, data)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         CompressedTexImage3D_(target, level, internalformat, width, height, depth, border, imageSize, data);
     }
 }
@@ -986,7 +1030,7 @@ void CtxFuncs::TextureStorage1D(GLuint texture, GLenum target, GLsizei levels, G
     CALL_EXISTS(TextureStorage1DEXT_, texture, target, levels, internalformat, width)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexStorage1D_(target, levels, internalformat, width);
     }
 }
@@ -996,7 +1040,7 @@ void CtxFuncs::TextureStorage2D(GLuint texture, GLenum target, GLsizei levels, G
     CALL_EXISTS(TextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexStorage2D_(target, levels, internalformat, width, height);
     }
 }
@@ -1006,7 +1050,7 @@ void CtxFuncs::TextureStorage3D(GLuint texture, GLenum target, GLsizei levels, G
     CALL_EXISTS(TextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
     {
         ActiveTexture(GL_TEXTURE0);
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         TexStorage3D_(target, levels, internalformat, width, height, depth);
     }
 }
@@ -1015,8 +1059,8 @@ void CtxFuncs::GetTextureLevelParameteriv(GLuint texture, GLenum target, GLint l
     CALL_EXISTS(GetTextureLevelParameteriv_,    texture,         level, pname, params)
     CALL_EXISTS(GetTextureLevelParameterivEXT_, texture, target, level, pname, params)
     {
-        glBindTexture(target, texture);
-        glGetTexLevelParameteriv(target, level, pname, params);
+        BindTexture(target, texture);
+        GetTexLevelParameteriv(target, level, pname, params);
     }
 }
 void CtxFuncs::GetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
@@ -1024,8 +1068,8 @@ void CtxFuncs::GetTextureImage(GLuint texture, GLenum target, GLint level, GLenu
     CALL_EXISTS(GetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
     CALL_EXISTS(GetTextureImageEXT_, texture, target, level, format, type, pixels)
     {
-        glBindTexture(target, texture);
-        glGetTexImage(target, level, format, type, pixels);
+        BindTexture(target, texture);
+        GetTexImage(target, level, format, type, pixels);
     }
 }
 void CtxFuncs::GetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const
@@ -1033,7 +1077,7 @@ void CtxFuncs::GetCompressedTextureImage(GLuint texture, GLenum target, GLint le
     CALL_EXISTS(GetCompressedTextureImage_,    texture,         level, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), img)
     CALL_EXISTS(GetCompressedTextureImageEXT_, texture, target, level, img)
     {
-        glBindTexture(target, texture);
+        BindTexture(target, texture);
         GetCompressedTexImage_(target, level, img);
     }
 }

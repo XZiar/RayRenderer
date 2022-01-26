@@ -96,7 +96,7 @@ static std::pair<oclContext, oclContext> CreateOCLContext(const Vendors vendor, 
 }
 
 
-RenderCore::RenderCore(oglu::oglLoader& loader, const oglu::GLHost& host)
+RenderCore::RenderCore(oglu::GLHost& host)
 {
     //oglu::oglUtil::InitLatestVersion();
     //const auto oriCtx = oglu::oglContext_::Refresh();
@@ -104,7 +104,7 @@ RenderCore::RenderCore(oglu::oglLoader& loader, const oglu::GLHost& host)
     //GLContext = oglu::oglContext_::NewContext(oriCtx);
     //GLContext->UseContext();
     oglu::CreateInfo cinfo;
-    GLContext = loader.CreateContext(host, cinfo);
+    GLContext = host.CreateContext(cinfo);
     GLContext->UseContext();
 
     //for reverse-z

@@ -174,7 +174,7 @@ struct OGLUAPI SharedContextCore
 ///<summary>oglContext, all set/get method should be called after UseContext</summary>  
 class OGLUAPI oglContext_ : public xcomp::RangeHolder, public std::enable_shared_from_this<oglContext_>
 {
-    friend oglLoader;
+    friend GLHost;
     friend oglWorker;
     friend class oglProgram_;
     friend class oglUtil;
@@ -190,14 +190,14 @@ public:
         MsgLevel minLV;
     };
 private:
-    const GLHost Host;
+    const std::shared_ptr<GLHost> Host;
     void *Hrc;
     detail::CtxResHandler ResHandler;
     const std::shared_ptr<detail::SharedContextCore> SharedCore;
     DBGLimit DbgLimit = { MsgType::All, MsgSrc::All, MsgLevel::Notfication };
     FaceCullingType FaceCulling = FaceCullingType::OFF;
     DepthTestType DepthTestFunc = DepthTestType::Less;
-    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const GLHost& host, void *hrc, const CtxFuncs* ctxFunc);
+    oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const std::shared_ptr<GLHost>& host, void *hrc, const CtxFuncs* ctxFunc);
     void FinishGL();
     std::shared_ptr<const RangeHolder> BeginRange(std::u16string_view msg) const noexcept final;
     void EndRange() const noexcept final;
@@ -209,13 +209,14 @@ public:
     COMMON_NO_MOVE(oglContext_)
     ~oglContext_();
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
-    [[nodiscard]] const auto& GetPlatformExtensions() const noexcept { return Host->Extensions; }
+    [[nodiscard]] const common::container::FrozenDenseSet<std::string_view>& GetPlatformExtensions() const noexcept;
     void AddMarker(std::u16string_view name) const noexcept final;
 
     bool UseContext(const bool force = false);
     bool UnloadContext();
     void Release();
     void SwapBuffer();
+    void ForceSync();
     template<bool IsShared, typename T, bool Dummy>
     [[nodiscard]] T& GetOrCreate(const CtxResConfig<Dummy, T>& cfg)
     {

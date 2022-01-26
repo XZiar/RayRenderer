@@ -119,6 +119,8 @@ public:
     void     (GLAPIENTRYP TextureBuffer_) (GLuint texture, GLenum internalformat, GLuint buffer) = nullptr;
     void     (GLAPIENTRYP TextureBufferEXT_) (GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) = nullptr;
     void     (GLAPIENTRYP TexBuffer_) (GLenum target, GLenum internalformat, GLuint buffer) = nullptr;
+    void     (GLAPIENTRYP GetTexImage) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels) = nullptr;
+    void     (GLAPIENTRYP GetTexLevelParameteriv) (GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;
     void     (GLAPIENTRYP GenerateTextureMipmap_) (GLuint texture) = nullptr;
     void     (GLAPIENTRYP GenerateTextureMipmapEXT_) (GLuint texture, GLenum target) = nullptr;
     void     (GLAPIENTRYP GenerateMipmap_) (GLenum target) = nullptr;
@@ -128,19 +130,24 @@ public:
     GLuint64 (GLAPIENTRYP GetImageHandle) (GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum format) = nullptr;
     void     (GLAPIENTRYP MakeImageHandleResident) (GLuint64 handle, GLenum access) = nullptr;
     void     (GLAPIENTRYP MakeImageHandleNonResident) (GLuint64 handle) = nullptr;
+    void     (GLAPIENTRYP TexParameteri) (GLenum target, GLenum pname, GLint param) = nullptr;
     void     (GLAPIENTRYP TextureParameteri_) (GLuint texture, GLenum pname, GLint param) = nullptr;
-    void     (GLAPIENTRYP TextureParameteriEXT_) (GLuint texture, GLenum target, GLenum pname, GLint param) = nullptr;
+    void     (GLAPIENTRYP TextureParameteriEXT_) (GLuint texture, GLenum target, GLenum pname, GLint param) = nullptr; 
+    void     (GLAPIENTRYP TexImage1D) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
+    void     (GLAPIENTRYP TexImage2D) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
+    void     (GLAPIENTRYP TexImage3D_) (GLenum target, GLint level, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
+    void     (GLAPIENTRYP TexSubImage1D_) (GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) = nullptr;
+    void     (GLAPIENTRYP TexSubImage2D_) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) = nullptr;
+    void     (GLAPIENTRYP TexSubImage3D_) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage1D_) (GLuint texture, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage2D_) (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage3D_) (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage1DEXT_) (GLuint texture, GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage2DEXT_) (GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureSubImage3DEXT_) (GLuint texture, GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) = nullptr;
-    void     (GLAPIENTRYP TexSubImage3D_) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureImage1DEXT_) (GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureImage2DEXT_) (GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP TextureImage3DEXT_) (GLuint texture, GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
-    void     (GLAPIENTRYP TexImage3D_) (GLenum target, GLint level, GLenum internalFormat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void* pixels) = nullptr;
     void     (GLAPIENTRYP CompressedTextureSubImage1D_) (GLuint texture, GLint level, GLint xoffset, GLsizei width, GLenum format, GLsizei imageSize, const void* data) = nullptr;
     void     (GLAPIENTRYP CompressedTextureSubImage2D_) (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void* data) = nullptr;
     void     (GLAPIENTRYP CompressedTextureSubImage3D_) (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void* data) = nullptr;
@@ -458,12 +465,12 @@ public:
     void           (GLAPIENTRYP ClipControl) (GLenum origin, GLenum depth) = nullptr;
     void           (GLAPIENTRYP MemoryBarrier) (GLbitfield barriers) = nullptr;
 
-    CtxFuncs(void*, const GLHost_&, std::pair<bool, bool>);
+    CtxFuncs(void*, const GLHost&, std::pair<bool, bool>);
 private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:
     [[nodiscard]] std::optional<std::string_view> GetError() const;
-    [[nodiscard]] static const CtxFuncs* PrepareCurrent(const GLHost_& host, void* hRC, std::pair<bool, bool> shouldPrint);
+    [[nodiscard]] static const CtxFuncs* PrepareCurrent(const GLHost& host, void* hRC, std::pair<bool, bool> shouldPrint);
 };
 extern thread_local const CtxFuncs* CtxFunc;
 

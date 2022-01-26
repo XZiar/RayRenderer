@@ -1,6 +1,5 @@
 #include "oglPch.h"
 #include "oglUtil.h"
-#include "SystemCommon/DynamicLibrary.h"
 
 
 #undef APIENTRY
@@ -14,45 +13,28 @@ namespace oglu
 using namespace std::string_view_literals;
 
 
-constexpr EGLint VisualAttrs[] =
-{
-    EGL_SURFACE_TYPE,   EGL_WINDOW_BIT | EGL_PIXMAP_BIT,
-    EGL_RED_SIZE,       8,
-    EGL_GREEN_SIZE,     8,
-    EGL_BLUE_SIZE,      8,
-    EGL_ALPHA_SIZE,     8,
-    EGL_DEPTH_SIZE,     24,
-    EGL_STENCIL_SIZE,   8,
-    EGL_NONE
-};
 
+DEFINE_FUNC(eglGetError,               GetError);
+DEFINE_FUNC(eglGetDisplay,             GetDisplay);
+DEFINE_FUNC(eglInitialize,             Initialize);
+DEFINE_FUNC(eglQueryString,            QueryString);
+DEFINE_FUNC(eglGetProcAddress,         GetProcAddress);
+DEFINE_FUNC(eglChooseConfig,           ChooseConfig);
+DEFINE_FUNC(eglGetConfigAttrib,        GetConfigAttrib);
+DEFINE_FUNC(eglCreateWindowSurface,    CreateWindowSurface);
+DEFINE_FUNC(eglCreatePixmapSurface,    CreatePixmapSurface);
+DEFINE_FUNC(eglBindAPI,                BindAPI);
+DEFINE_FUNC(eglCreateContext,          CreateContext);
+DEFINE_FUNC(eglMakeCurrent,            MakeCurrent);
+DEFINE_FUNC(eglQuerySurface,           QuerySurface);
+DEFINE_FUNC(eglGetCurrentDisplay,      GetCurrentDisplay);
+DEFINE_FUNC(eglGetCurrentContext,      GetCurrentContext);
+DEFINE_FUNC(eglGetCurrentSurface,      GetCurrentSurface);
+DEFINE_FUNC(eglDestroyContext,         DestroyContext);
+DEFINE_FUNC(eglDestroySurface,         DestroySurface);
+DEFINE_FUNC(eglTerminate,              Terminate);
+DEFINE_FUNC(eglSwapBuffers,            SwapBuffers);
 
-#define PREPARE_FUNC(func, name) using P##name = decltype(&func); static constexpr auto N##name = #func ""sv
-#define PREPARE_FUNC2(type, func, name) using P##name = type; static constexpr auto N##name = #func ""sv
-
-PREPARE_FUNC(eglGetError,               GetError);
-PREPARE_FUNC(eglGetDisplay,             GetDisplay);
-PREPARE_FUNC(eglInitialize,             Initialize);
-PREPARE_FUNC(eglQueryString,            QueryString);
-PREPARE_FUNC(eglGetProcAddress,         GetProcAddress);
-PREPARE_FUNC(eglChooseConfig,           ChooseConfig);
-PREPARE_FUNC(eglGetConfigAttrib,        GetConfigAttrib);
-PREPARE_FUNC(eglCreateWindowSurface,    CreateWindowSurface);
-PREPARE_FUNC(eglCreatePixmapSurface,    CreatePixmapSurface);
-PREPARE_FUNC(eglBindAPI,                BindAPI);
-PREPARE_FUNC(eglCreateContext,          CreateContext);
-PREPARE_FUNC(eglMakeCurrent,            MakeCurrent);
-PREPARE_FUNC(eglQuerySurface,           QuerySurface);
-PREPARE_FUNC(eglGetCurrentDisplay,      GetCurrentDisplay);
-PREPARE_FUNC(eglGetCurrentContext,      GetCurrentContext);
-PREPARE_FUNC(eglGetCurrentSurface,      GetCurrentSurface);
-PREPARE_FUNC(eglDestroyContext,         DestroyContext);
-PREPARE_FUNC(eglDestroySurface,         DestroySurface);
-PREPARE_FUNC(eglTerminate,              Terminate);
-PREPARE_FUNC(eglSwapBuffers,            SwapBuffers);
-
-#undef PREPARE_FUNC2
-#undef PREPARE_FUNC
 
 class EGLLoader_ : public EGLLoader
 {
@@ -102,6 +84,45 @@ private:
                 loader.DestroySurface(DeviceContext, Surface);
             loader.Terminate(DeviceContext);
         }
+        void InitSurface(uintptr_t surface) final
+        {
+            auto& loader = static_cast<EGLLoader_&>(Loader);
+            if (IsOffscreen)
+            {
+                Surface = loader.CreatePixmapSurface(DeviceContext, Config, (EGLNativePixmapType)surface, nullptr);
+            }
+            else
+            {
+                Surface = loader.CreateWindowSurface(DeviceContext, Config, (EGLNativeWindowType)surface, nullptr);
+            }
+        }
+        void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
+        {
+            auto& loader = static_cast<EGLLoader_&>(Loader);
+            loader.BindAPI(cinfo.Type == GLType::Desktop ? EGL_OPENGL_API : EGL_OPENGL_ES_API);
+            detail::AttribList attrib(EGL_NONE);
+            EGLint ctxFlags = 0;
+            if (cinfo.DebugContext)
+            {
+                if (Version >= 15)
+                    attrib.Set(EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE);
+                else if (Version >= 14)
+                    ctxFlags |= EGL_CONTEXT_OPENGL_DEBUG_BIT_KHR;
+            }
+            if (ctxFlags != 0 && Extensions.Has("EGL_KHR_create_context"))
+                attrib.Set(EGL_CONTEXT_FLAGS_KHR, ctxFlags);
+            if (cinfo.Version != 0)
+            {
+                attrib.Set(EGL_CONTEXT_MAJOR_VERSION, static_cast<int32_t>(cinfo.Version / 10));
+                attrib.Set(EGL_CONTEXT_MINOR_VERSION, static_cast<int32_t>(cinfo.Version % 10));
+            }
+            if (cinfo.FlushWhenSwapContext && SupportFlushControl)
+            {
+                attrib.Set(EGL_CONTEXT_RELEASE_BEHAVIOR_KHR, cinfo.FlushWhenSwapContext.value() ?
+                    EGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_KHR : EGL_CONTEXT_RELEASE_BEHAVIOR_NONE_KHR);
+            }
+            return loader.CreateContext(DeviceContext, Config, reinterpret_cast<EGLContext>(sharedCtx), attrib.Data());
+        }
         bool MakeGLContextCurrent_(void* hRC) const final
         {
             return static_cast<EGLLoader_&>(Loader).MakeCurrent(DeviceContext, Surface, Surface, (EGLContext)hRC);
@@ -117,8 +138,7 @@ private:
         void ReportFailure(std::u16string_view action) const final
         {
             oglLog().error(u"Failed to {} on Display[{}] {}[{}], error: {}\n"sv, action, (void*)DeviceContext,
-                IsOffscreen ? u"Pixmap"sv : u"Window"sv, (void*)Surface,
-                (int32_t)errno);
+                IsOffscreen ? u"Pixmap"sv : u"Window"sv, (void*)Surface, static_cast<EGLLoader_&>(Loader).GetCurErrStr());
         }
         void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const final
         {
@@ -136,30 +156,36 @@ private:
         const int& GetVisualId() const noexcept final { return VisualId; }
         uint32_t GetVersion() const noexcept final { return Version; }
         void* GetDeviceContext() const noexcept final { return DeviceContext; }
+        void* LoadFunction(std::string_view name) const noexcept final
+        {
+            return reinterpret_cast<void*>(static_cast<EGLLoader_&>(Loader).GetProcAddress(name.data()));
+        }
+        void* GetBasicFunctions(size_t, std::string_view) const noexcept final
+        {
+            return nullptr;
+        }
     };
     common::DynLib LibEGL;
-#define PREPARE_FUNC(name) P##name name = nullptr
-    PREPARE_FUNC(GetError);
-    PREPARE_FUNC(GetDisplay);
-    PREPARE_FUNC(Initialize);
-    PREPARE_FUNC(QueryString);
-    PREPARE_FUNC(GetProcAddress);
-    PREPARE_FUNC(ChooseConfig);
-    PREPARE_FUNC(GetConfigAttrib);
-    PREPARE_FUNC(CreateWindowSurface);
-    PREPARE_FUNC(CreatePixmapSurface);
-    PREPARE_FUNC(BindAPI);
-    PREPARE_FUNC(CreateContext);
-    PREPARE_FUNC(MakeCurrent);
-    PREPARE_FUNC(QuerySurface);
-    PREPARE_FUNC(GetCurrentDisplay);
-    PREPARE_FUNC(GetCurrentContext);
-    PREPARE_FUNC(GetCurrentSurface);
-    PREPARE_FUNC(DestroyContext);
-    PREPARE_FUNC(DestroySurface);
-    PREPARE_FUNC(Terminate);
-    PREPARE_FUNC(SwapBuffers);
-#undef PREPARE_FUNC
+    DECLARE_FUNC(GetError);
+    DECLARE_FUNC(GetDisplay);
+    DECLARE_FUNC(Initialize);
+    DECLARE_FUNC(QueryString);
+    DECLARE_FUNC(GetProcAddress);
+    DECLARE_FUNC(ChooseConfig);
+    DECLARE_FUNC(GetConfigAttrib);
+    DECLARE_FUNC(CreateWindowSurface);
+    DECLARE_FUNC(CreatePixmapSurface);
+    DECLARE_FUNC(BindAPI);
+    DECLARE_FUNC(CreateContext);
+    DECLARE_FUNC(MakeCurrent);
+    DECLARE_FUNC(QuerySurface);
+    DECLARE_FUNC(GetCurrentDisplay);
+    DECLARE_FUNC(GetCurrentContext);
+    DECLARE_FUNC(GetCurrentSurface);
+    DECLARE_FUNC(DestroyContext);
+    DECLARE_FUNC(DestroySurface);
+    DECLARE_FUNC(Terminate);
+    DECLARE_FUNC(SwapBuffers);
 public:
     EGLLoader_() : 
 #if COMMON_OS_WIN
@@ -170,28 +196,26 @@ public:
         LibEGL("libEGL.so")
 #endif
     {
-#define PREPARE_FUNC(lib, name) name = Lib##lib.GetFunction<P##name>(N##name)
-        PREPARE_FUNC(EGL, GetError);
-        PREPARE_FUNC(EGL, GetDisplay);
-        PREPARE_FUNC(EGL, Initialize);
-        PREPARE_FUNC(EGL, QueryString);
-        PREPARE_FUNC(EGL, GetProcAddress);
-        PREPARE_FUNC(EGL, ChooseConfig);
-        PREPARE_FUNC(EGL, GetConfigAttrib);
-        PREPARE_FUNC(EGL, CreateWindowSurface);
-        PREPARE_FUNC(EGL, CreatePixmapSurface);
-        PREPARE_FUNC(EGL, BindAPI);
-        PREPARE_FUNC(EGL, CreateContext);
-        PREPARE_FUNC(EGL, MakeCurrent);
-        PREPARE_FUNC(EGL, QuerySurface);
-        PREPARE_FUNC(EGL, GetCurrentDisplay);
-        PREPARE_FUNC(EGL, GetCurrentContext);
-        PREPARE_FUNC(EGL, GetCurrentSurface);
-        PREPARE_FUNC(EGL, DestroyContext);
-        PREPARE_FUNC(EGL, DestroySurface);
-        PREPARE_FUNC(EGL, Terminate);
-        PREPARE_FUNC(EGL, SwapBuffers);
-#undef PREPARE_FUNC
+        LOAD_FUNC(EGL, GetError);
+        LOAD_FUNC(EGL, GetDisplay);
+        LOAD_FUNC(EGL, Initialize);
+        LOAD_FUNC(EGL, QueryString);
+        LOAD_FUNC(EGL, GetProcAddress);
+        LOAD_FUNC(EGL, ChooseConfig);
+        LOAD_FUNC(EGL, GetConfigAttrib);
+        LOAD_FUNC(EGL, CreateWindowSurface);
+        LOAD_FUNC(EGL, CreatePixmapSurface);
+        LOAD_FUNC(EGL, BindAPI);
+        LOAD_FUNC(EGL, CreateContext);
+        LOAD_FUNC(EGL, MakeCurrent);
+        LOAD_FUNC(EGL, QuerySurface);
+        LOAD_FUNC(EGL, GetCurrentDisplay);
+        LOAD_FUNC(EGL, GetCurrentContext);
+        LOAD_FUNC(EGL, GetCurrentSurface);
+        LOAD_FUNC(EGL, DestroyContext);
+        LOAD_FUNC(EGL, DestroySurface);
+        LOAD_FUNC(EGL, Terminate);
+        LOAD_FUNC(EGL, SwapBuffers);
     }
     ~EGLLoader_() final {}
 private:
@@ -208,48 +232,26 @@ private:
         if (!disp)
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Display: [{}]"sv, GetCurErrStr()));
         auto host = std::make_shared<EGLHost>(*this, disp);
+        detail::AttribList cfgAttrib(EGL_NONE);
+        cfgAttrib.Set(EGL_SURFACE_TYPE, useOffscreen ? EGL_PIXMAP_BIT : EGL_WINDOW_BIT);
+        cfgAttrib.Set(EGL_RED_SIZE,     8);
+        cfgAttrib.Set(EGL_GREEN_SIZE,   8);
+        cfgAttrib.Set(EGL_BLUE_SIZE,    8);
+        cfgAttrib.Set(EGL_ALPHA_SIZE,   8);
+        cfgAttrib.Set(EGL_STENCIL_SIZE, 8);
+        cfgAttrib.Set(EGL_DEPTH_SIZE,   24);
+        EGLint cfmBit = 0;
+        if (host->SupportDesktop) cfmBit |= EGL_OPENGL_BIT;
+        if (host->SupportES)      cfmBit |= EGL_OPENGL_ES2_BIT;
+        if (host->Version >= 15)  cfmBit |= EGL_OPENGL_ES3_BIT;
+        cfgAttrib.Set(EGL_CONFORMANT, cfmBit);
         int cfgCount = 0;
-        if (EGL_TRUE != ChooseConfig(disp, VisualAttrs, &host->Config, 1, &cfgCount) || cfgCount == 0)
+        if (EGL_TRUE != ChooseConfig(disp, cfgAttrib.Data(), &host->Config, 1, &cfgCount) || cfgCount == 0)
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to choose EGL Config: [{}]"sv, GetCurErrStr()));
         if (EGL_TRUE != GetConfigAttrib(disp, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL VisualId: [{}]"sv, GetCurErrStr()));
         host->IsOffscreen = useOffscreen;
         return host;
-    }
-    void InitSurface(EGLLoader::EGLHost& host_, uintptr_t surface) const override
-    {
-        auto& host = static_cast<EGLHost&>(host_);
-        if (host.IsOffscreen)
-        {
-            host.Surface = CreatePixmapSurface(host.DeviceContext, host.Config, (EGLNativePixmapType)surface, nullptr);
-        }
-        else
-        {
-            host.Surface = CreateWindowSurface(host.DeviceContext, host.Config, (EGLNativeWindowType)surface, nullptr);
-        }
-    }
-    void* CreateContext_(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
-    {
-        auto host = std::static_pointer_cast<EGLHost>(host_);
-        BindAPI(cinfo.Type == GLType::Desktop ? EGL_OPENGL_API : EGL_OPENGL_ES_API);
-        detail::AttribList attrib(EGL_NONE);
-        if (cinfo.DebugContext)
-            attrib.Set(EGL_CONTEXT_OPENGL_DEBUG, EGL_TRUE);
-        if (cinfo.Version != 0)
-        {
-            attrib.Set(EGL_CONTEXT_MAJOR_VERSION, static_cast<int32_t>(cinfo.Version / 10));
-            attrib.Set(EGL_CONTEXT_MINOR_VERSION, static_cast<int32_t>(cinfo.Version % 10));
-        }
-        if (cinfo.FlushWhenSwapContext && host->SupportFlushControl)
-        {
-            attrib.Set(EGL_CONTEXT_RELEASE_BEHAVIOR_KHR, cinfo.FlushWhenSwapContext.value() ?
-                EGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_KHR : EGL_CONTEXT_RELEASE_BEHAVIOR_NONE_KHR);
-        }
-        return this->CreateContext(host->DeviceContext, host->Config, reinterpret_cast<EGLContext>(sharedCtx), attrib.Data());
-    }
-    void* GetFunction_(std::string_view name) const noexcept final
-    {
-        return reinterpret_cast<void*>(GetProcAddress(name.data()));
     }
 
     static inline const auto Singleton = oglLoader::RegisterLoader<EGLLoader_>();

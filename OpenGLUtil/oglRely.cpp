@@ -5,13 +5,15 @@
 
 namespace oglu
 {
-
 using namespace common::mlog;
+using namespace std::string_view_literals;
+
 MiniLogger<false>& oglLog()
 {
     static MiniLogger<false> ogllog(u"OpenGLUtil", { GetConsoleBackend() });
     return ogllog;
 }
+
 
 std::string ContextCapability::GenerateSupportLog() const
 {

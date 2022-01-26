@@ -90,6 +90,7 @@ class oglLoader;
 class oglWorker;
 class oglContext_;
 class CtxFuncs;
+class GLHost;
 
 
 enum class GLType : uint8_t { Desktop, ES };
@@ -151,46 +152,6 @@ public:
 template<typename T>
 class CachedResManager;
 }
-
-
-struct GLHost_
-{
-    friend oglLoader;
-    friend oglContext_;
-    friend CtxFuncs;
-private:
-    [[nodiscard]] virtual bool MakeGLContextCurrent_(void* hRC) const = 0;
-    virtual void DeleteGLContext(void* hRC) const = 0;
-    virtual void SwapBuffer() const = 0;
-    virtual void ReportFailure(std::u16string_view action) const = 0;
-    virtual void TemporalInsideContext(void* hRC, const std::function<void(void* hRC)>& func) const = 0;
-    [[nodiscard]] bool MakeGLContextCurrent(void* hRC) const;
-protected:
-    oglLoader& Loader;
-    common::container::FrozenDenseSet<std::string_view> Extensions;
-    std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
-    bool SupportDesktop : 1;
-    bool SupportES : 1;
-    bool SupportSRGB : 1;
-    bool SupportFlushControl : 1;
-    GLHost_(oglLoader& loader) noexcept : Loader(loader), 
-        SupportDesktop(false), SupportES(false), SupportSRGB(false), SupportFlushControl(false) {}
-public:
-    virtual ~GLHost_() = 0;
-    [[nodiscard]] virtual void* GetDeviceContext() const noexcept = 0;
-    [[nodiscard]] virtual uint32_t GetVersion() const noexcept = 0;
-    [[nodiscard]] constexpr const common::container::FrozenDenseSet<std::string_view>& GetExtensions() const noexcept { return Extensions; }
-    [[nodiscard]] constexpr bool CheckSupport(GLType type) const noexcept
-    {
-        switch (type)
-        {
-        case GLType::Desktop: return SupportDesktop;
-        case GLType::ES:      return SupportES;
-        default:              return false;
-        }
-    }
-};
-using GLHost = std::shared_ptr<GLHost_>;
 
 
 }

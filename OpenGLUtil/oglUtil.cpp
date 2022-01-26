@@ -20,7 +20,7 @@ using common::PromiseResult;
 MAKE_ENABLER_IMPL(oglContext_)
 
 
-GLHost_::~GLHost_() {}
+GLHost::~GLHost() {}
 
 struct oglLoader::Pimpl
 {
@@ -56,18 +56,18 @@ common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
 
 constexpr uint32_t DesktopVersion[] = { 46,45,44,43,42,41,40,33,32,31,30 };
 constexpr uint32_t ESVersion[] = { 32, 31, 30, 20 };
-oglContext oglLoader::CreateContext(const GLHost& host, CreateInfo cinfo, const oglContext_* sharedCtx)
+oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
 {
-    Expects(!sharedCtx || sharedCtx->Host == host);
-    if (!host->CheckSupport(cinfo.Type))
+    Expects(!sharedCtx || sharedCtx->Host.get() == this);
+    if (!CheckSupport(cinfo.Type))
         COMMON_THROWEX(OGLException, OGLException::GLComponent::Loader,
-            fmt::format(u"Loader [{}] does not support [{}] context"sv, Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
-    if (cinfo.FlushWhenSwapContext && !host->SupportFlushControl)
+            fmt::format(u"Loader [{}] does not support [{}] context"sv, Loader.Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
+    if (cinfo.FlushWhenSwapContext && !SupportFlushControl)
         oglLog().warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
-    if (cinfo.FramebufferSRGB && !host->SupportSRGB)
+    if (cinfo.FramebufferSRGB && !SupportSRGB)
         oglLog().warning(u"Request for FrameBufferSRGB[{}] not supported, will be ignored\n"sv, cinfo.FramebufferSRGB.value());
     const auto Versions = cinfo.Type == GLType::Desktop ? common::to_span(DesktopVersion) : common::to_span(ESVersion);
-    auto& LatestVer = cinfo.Type == GLType::Desktop ? host->VersionDesktop : host->VersionES;
+    auto& LatestVer = cinfo.Type == GLType::Desktop ? VersionDesktop : VersionES;
     if (LatestVer == 0) // perform update
     {
         CreateInfo tmpCinfo;
@@ -75,41 +75,36 @@ oglContext oglLoader::CreateContext(const GLHost& host, CreateInfo cinfo, const 
         for (const auto ver : Versions)
         {
             tmpCinfo.Version = ver;
-            if (const auto ctx = CreateContext_(host, tmpCinfo, nullptr); ctx)
+            if (const auto ctx = CreateContext_(tmpCinfo, nullptr); ctx)
             {
-                std::optional<ContextBaseInfo> binfo;
-                host->TemporalInsideContext(ctx, [&](const auto) 
-                    {
-                        binfo.emplace();
-                        FillCurrentBaseInfo(binfo.value());
-                    });
-                if (binfo.has_value())
+                if (const auto binfo = FillBaseInfo(ctx); binfo)
                 {
                     oglLog().info(u"Latest GL version [{}] from [{}]\n", binfo->VersionString, binfo->VendorString);
                     const uint16_t realVer = gsl::narrow_cast<uint16_t>(binfo->Version);
                     common::UpdateAtomicMaximum(LatestVer, realVer);
-                    host->DeleteGLContext(ctx);
+                    DeleteGLContext(ctx);
                     break;
                 }
             }
+            ReportFailure(fmt::format(u"test version [{}.{}] context"sv, ver / 10, ver % 10));
         }
     }
     if (cinfo.Version == 0)
         cinfo.Version = LatestVer.load();
 
     oglContext newCtx;
-    const auto ctx = CreateContext_(host, cinfo, sharedCtx ? sharedCtx->Hrc : nullptr);
+    const auto ctx = CreateContext_(cinfo, sharedCtx ? sharedCtx->Hrc : nullptr);
     if (ctx)
     {
-        host->TemporalInsideContext(ctx, [&](const auto)
-            {
-                const auto ctxfunc = CtxFuncs::PrepareCurrent(*host, ctx, { cinfo.PrintFuncLoadSuccess, cinfo.PrintFuncLoadFail });
-                newCtx = MAKE_ENABLER_SHARED(oglContext_, (sharedCtx ? sharedCtx->SharedCore : std::make_shared<detail::SharedContextCore>(), host, ctx, ctxfunc));
-                oglContext_::PushToMap(newCtx);
-            });
+        TemporalInsideContext(ctx, [&](const auto)
+        {
+            const auto ctxfunc = CtxFuncs::PrepareCurrent(*this, ctx, { cinfo.PrintFuncLoadSuccess, cinfo.PrintFuncLoadFail });
+            newCtx = MAKE_ENABLER_SHARED(oglContext_, (sharedCtx ? sharedCtx->SharedCore : std::make_shared<detail::SharedContextCore>(), shared_from_this(), ctx, ctxfunc));
+            oglContext_::PushToMap(newCtx);
+        });
     }
     if (!newCtx)
-        host->ReportFailure(u"create context");
+        ReportFailure(u"create context");
     return newCtx;
 }
 
@@ -175,11 +170,6 @@ optional<string_view> oglUtil::GetError()
 PromiseResult<void> oglUtil::SyncGL()
 {
     return std::make_shared<oglPromise<void>>(common::detail::EmptyDummy{});
-}
-
-PromiseResult<void> oglUtil::ForceSyncGL()
-{
-    return std::make_shared<oglFinishPromise>();
 }
 
 

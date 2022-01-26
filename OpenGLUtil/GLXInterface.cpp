@@ -1,6 +1,5 @@
 #include "oglPch.h"
 #include "oglUtil.h"
-#include "SystemCommon/DynamicLibrary.h"
 
 
 #undef APIENTRY
@@ -54,31 +53,26 @@ constexpr int VisualAttrs2[] =
 };
 
 
-#define PREPARE_FUNC(func, name) using P##name = decltype(&func); static constexpr auto N##name = #func ""sv
-#define PREPARE_FUNC2(type, func, name) using P##name = type; static constexpr auto N##name = #func ""sv
+DEFINE_FUNC(XFree,                     FreeXObject);
+DEFINE_FUNC(XSetErrorHandler,          SetErrorHandler);
+DEFINE_FUNC(XGetErrorText,             GetErrorText);
+DEFINE_FUNC(glXQueryVersion,           QueryVersion);
+DEFINE_FUNC(glXChooseFBConfig,         ChooseFBConfig);
+DEFINE_FUNC(glXGetFBConfigAttrib,      GetFBConfigAttrib);
+DEFINE_FUNC(glXGetVisualFromFBConfig,  GetVisualFromFBConfig);
+DEFINE_FUNC(glXCreateWindow,           CreateWindow);
+DEFINE_FUNC(glXCreateGLXPixmap,        CreateGLXPixmap);
+DEFINE_FUNC(glXDestroyWindow,          DestroyWindow);
+DEFINE_FUNC(glXDestroyGLXPixmap,       DestroyGLXPixmap);
+DEFINE_FUNC(glXMakeCurrent,            MakeCurrent);
+DEFINE_FUNC(glXDestroyContext,         DestroyContext);
+DEFINE_FUNC(glXSwapBuffers,            SwapBuffers);
+DEFINE_FUNC(glXQueryExtensionsString,  QueryExtensionsString);
+DEFINE_FUNC(glXGetCurrentDisplay,      GetCurrentDisplay);
+DEFINE_FUNC(glXGetCurrentDrawable,     GetCurrentDrawable);
+DEFINE_FUNC(glXGetCurrentContext,      GetCurrentContext);
+DEFINE_FUNC(glXGetProcAddress,         GetProcAddress);
 
-PREPARE_FUNC(XFree,                     FreeXObject);
-PREPARE_FUNC(XSetErrorHandler,          SetErrorHandler);
-PREPARE_FUNC(XGetErrorText,             GetErrorText);
-PREPARE_FUNC(glXQueryVersion,           QueryVersion);
-PREPARE_FUNC(glXChooseFBConfig,         ChooseFBConfig);
-PREPARE_FUNC(glXGetFBConfigAttrib,      GetFBConfigAttrib);
-PREPARE_FUNC(glXGetVisualFromFBConfig,  GetVisualFromFBConfig);
-PREPARE_FUNC(glXCreateWindow,           CreateWindow);
-PREPARE_FUNC(glXCreateGLXPixmap,        CreateGLXPixmap);
-PREPARE_FUNC(glXDestroyWindow,          DestroyWindow);
-PREPARE_FUNC(glXDestroyGLXPixmap,       DestroyGLXPixmap);
-PREPARE_FUNC(glXMakeCurrent,            MakeCurrent);
-PREPARE_FUNC(glXDestroyContext,         DestroyContext);
-PREPARE_FUNC(glXSwapBuffers,            SwapBuffers);
-PREPARE_FUNC(glXQueryExtensionsString,  QueryExtensionsString);
-PREPARE_FUNC(glXGetCurrentDisplay,      GetCurrentDisplay);
-PREPARE_FUNC(glXGetCurrentDrawable,     GetCurrentDrawable);
-PREPARE_FUNC(glXGetCurrentContext,      GetCurrentContext);
-PREPARE_FUNC(glXGetProcAddress,         GetProcAddress);
-
-#undef PREPARE_FUNC2
-#undef PREPARE_FUNC
 
 class GLXLoader_ : public GLXLoader
 {
@@ -100,6 +94,7 @@ private:
     struct GLXHost final : public GLXLoader::GLXHost
     {
         friend GLXLoader_;
+        //using GLHost::GetFunction;
         Display* DeviceContext;
         GLXFBConfig* FBConfigs = nullptr;
         PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
@@ -113,7 +108,7 @@ private:
             int verMajor = 0, verMinor = 0;
             loader.QueryVersion(dc, &verMajor, &verMinor);
             Version = verMajor * 10 + verMinor;
-            glXCreateContextAttribsARB = loader.GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC>("glXCreateContextAttribsARB");
+            glXCreateContextAttribsARB = GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC>("glXCreateContextAttribsARB");
             const char* exts = loader.QueryExtensionsString(DeviceContext, screen);
             Extensions = common::str::Split(exts, ' ', false);
             SupportES = Extensions.Has("GLX_EXT_create_context_es2_profile");
@@ -132,6 +127,40 @@ private:
             }
             if (FBConfigs)
                 loader.FreeXObject(FBConfigs);
+        }
+        void InitDrawable(uint32_t drawable) final
+        {
+            auto& loader = static_cast<GLXLoader_&>(Loader);
+            const auto& config = FBConfigs[0];
+            if (IsWindowDrawable)
+            {
+                const auto glxwindow = loader.CreateWindow(DeviceContext, config, drawable, nullptr);
+                Drawable = glxwindow;
+            }
+            else
+            {
+                XVisualInfo* vi = loader.GetVisualFromFBConfig(DeviceContext, config);
+                const auto glxpixmap = loader.CreateGLXPixmap(DeviceContext, vi, drawable);
+                Drawable = glxpixmap;
+            }
+        }
+        void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
+        {
+            detail::AttribList attrib;
+            attrib.Set(GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB);
+            if (cinfo.DebugContext)
+                attrib.Set(GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB);
+            if (cinfo.Version != 0)
+            {
+                attrib.Set(GLX_CONTEXT_MAJOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version / 10));
+                attrib.Set(GLX_CONTEXT_MINOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version % 10));
+            }
+            if (cinfo.FlushWhenSwapContext && SupportFlushControl)
+            {
+                attrib.Set(GLX_CONTEXT_RELEASE_BEHAVIOR_ARB, cinfo.FlushWhenSwapContext.value() ?
+                    GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
+            }
+            return CreateContextAttribs(reinterpret_cast<GLXContext>(sharedCtx), attrib.Data());
         }
         bool MakeGLContextCurrent_(void* hRC) const final
         {
@@ -174,53 +203,57 @@ private:
             loader.SetErrorHandler(oldHandler);
             return ret;
         }
+        void* LoadFunction(std::string_view name) const noexcept final
+        {
+            return reinterpret_cast<void*>(static_cast<GLXLoader_&>(Loader).GetProcAddress(reinterpret_cast<const GLubyte*>(name.data())));
+        }
+        void* GetBasicFunctions(size_t, std::string_view) const noexcept final
+        {
+            return nullptr;
+        }
     };
     common::DynLib LibX11, LibGLX;
-#define PREPARE_FUNC(name) P##name name = nullptr
-    PREPARE_FUNC(FreeXObject);
-    PREPARE_FUNC(SetErrorHandler);
-    PREPARE_FUNC(GetErrorText);
-    PREPARE_FUNC(QueryVersion);
-    PREPARE_FUNC(ChooseFBConfig);
-    PREPARE_FUNC(GetFBConfigAttrib);
-    PREPARE_FUNC(GetVisualFromFBConfig);
-    PREPARE_FUNC(CreateWindow);
-    PREPARE_FUNC(CreateGLXPixmap);
-    PREPARE_FUNC(DestroyWindow);
-    PREPARE_FUNC(DestroyGLXPixmap);
-    PREPARE_FUNC(MakeCurrent);
-    PREPARE_FUNC(DestroyContext);
-    PREPARE_FUNC(SwapBuffers);
-    PREPARE_FUNC(QueryExtensionsString);
-    PREPARE_FUNC(GetCurrentDisplay);
-    PREPARE_FUNC(GetCurrentDrawable);
-    PREPARE_FUNC(GetCurrentContext);
-    PREPARE_FUNC(GetProcAddress);
-#undef PREPARE_FUNC
+    DECLARE_FUNC(FreeXObject);
+    DECLARE_FUNC(SetErrorHandler);
+    DECLARE_FUNC(GetErrorText);
+    DECLARE_FUNC(QueryVersion);
+    DECLARE_FUNC(ChooseFBConfig);
+    DECLARE_FUNC(GetFBConfigAttrib);
+    DECLARE_FUNC(GetVisualFromFBConfig);
+    DECLARE_FUNC(CreateWindow);
+    DECLARE_FUNC(CreateGLXPixmap);
+    DECLARE_FUNC(DestroyWindow);
+    DECLARE_FUNC(DestroyGLXPixmap);
+    DECLARE_FUNC(MakeCurrent);
+    DECLARE_FUNC(DestroyContext);
+    DECLARE_FUNC(SwapBuffers);
+    DECLARE_FUNC(QueryExtensionsString);
+    DECLARE_FUNC(GetCurrentDisplay);
+    DECLARE_FUNC(GetCurrentDrawable);
+    DECLARE_FUNC(GetCurrentContext);
+    DECLARE_FUNC(GetProcAddress);
 public:
     GLXLoader_() : LibX11("libX11.so"), LibGLX("libGLX.so")
     {
-#define PREPARE_FUNC(lib, name) name = Lib##lib.GetFunction<P##name>(N##name)
-        PREPARE_FUNC(X11, FreeXObject);
-        PREPARE_FUNC(X11, SetErrorHandler);
-        PREPARE_FUNC(X11, GetErrorText);
-        PREPARE_FUNC(GLX, QueryVersion);
-        PREPARE_FUNC(GLX, ChooseFBConfig);
-        PREPARE_FUNC(GLX, GetFBConfigAttrib);
-        PREPARE_FUNC(GLX, GetVisualFromFBConfig);
-        PREPARE_FUNC(GLX, CreateWindow);
-        PREPARE_FUNC(GLX, CreateGLXPixmap);
-        PREPARE_FUNC(GLX, DestroyWindow);
-        PREPARE_FUNC(GLX, DestroyGLXPixmap);
-        PREPARE_FUNC(GLX, MakeCurrent);
-        PREPARE_FUNC(GLX, DestroyContext);
-        PREPARE_FUNC(GLX, SwapBuffers);
-        PREPARE_FUNC(GLX, QueryExtensionsString);
-        PREPARE_FUNC(GLX, GetCurrentDisplay);
-        PREPARE_FUNC(GLX, GetCurrentDrawable);
-        PREPARE_FUNC(GLX, GetCurrentContext);
-        PREPARE_FUNC(GLX, GetProcAddress);
-#undef PREPARE_FUNC
+        LOAD_FUNC(X11, FreeXObject);
+        LOAD_FUNC(X11, SetErrorHandler);
+        LOAD_FUNC(X11, GetErrorText);
+        LOAD_FUNC(GLX, QueryVersion);
+        LOAD_FUNC(GLX, ChooseFBConfig);
+        LOAD_FUNC(GLX, GetFBConfigAttrib);
+        LOAD_FUNC(GLX, GetVisualFromFBConfig);
+        LOAD_FUNC(GLX, CreateWindow);
+        LOAD_FUNC(GLX, CreateGLXPixmap);
+        LOAD_FUNC(GLX, DestroyWindow);
+        LOAD_FUNC(GLX, DestroyGLXPixmap);
+        LOAD_FUNC(GLX, MakeCurrent);
+        LOAD_FUNC(GLX, DestroyContext);
+        LOAD_FUNC(GLX, SwapBuffers);
+        LOAD_FUNC(GLX, QueryExtensionsString);
+        LOAD_FUNC(GLX, GetCurrentDisplay);
+        LOAD_FUNC(GLX, GetCurrentDrawable);
+        LOAD_FUNC(GLX, GetCurrentContext);
+        LOAD_FUNC(GLX, GetProcAddress);
     }
     ~GLXLoader_() final {}
 private:
@@ -240,46 +273,6 @@ private:
             return {};
         host->IsWindowDrawable = !useOffscreen;
         return host;
-    }
-    void InitDrawable(GLXLoader::GLXHost& host_, uint32_t drawable) const override
-    {
-        auto& host = static_cast<GLXHost&>(host_);
-        const auto& display = host.DeviceContext;
-        const auto& config  = host.FBConfigs[0];
-        if (host.IsWindowDrawable)
-        {
-            const auto glxwindow = CreateWindow(display, config, drawable, nullptr);
-            host.Drawable = glxwindow;
-        }
-        else
-        {
-            XVisualInfo* vi = GetVisualFromFBConfig(display, config);
-            const auto glxpixmap = CreateGLXPixmap(display, vi, drawable);
-            host.Drawable = glxpixmap;
-        }
-    }
-    void* CreateContext_(const GLHost& host_, const CreateInfo& cinfo, void* sharedCtx) noexcept final
-    {
-        auto host = std::static_pointer_cast<GLXHost>(host_);
-        detail::AttribList attrib;
-        attrib.Set(GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB);
-        if (cinfo.DebugContext)
-            attrib.Set(GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB);
-        if (cinfo.Version != 0)
-        {
-            attrib.Set(GLX_CONTEXT_MAJOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version / 10));
-            attrib.Set(GLX_CONTEXT_MINOR_VERSION_ARB, static_cast<int32_t>(cinfo.Version % 10));
-        }
-        if (cinfo.FlushWhenSwapContext && host->SupportFlushControl)
-        {
-            attrib.Set(GLX_CONTEXT_RELEASE_BEHAVIOR_ARB, cinfo.FlushWhenSwapContext.value() ?
-                GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
-        }
-        return host->CreateContextAttribs(reinterpret_cast<GLXContext>(sharedCtx), attrib.Data());
-    }
-    void* GetFunction_(std::string_view name) const noexcept final
-    {
-        return reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<const GLubyte*>(name.data())));
     }
 
     static inline const auto Singleton = oglLoader::RegisterLoader<GLXLoader_>();
