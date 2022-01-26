@@ -142,6 +142,7 @@ private:
     DECLARE_FUNC(GetCurrentContext);
     DECLARE_FUNC(GetProcAddress);
 public:
+    static constexpr std::string_view LoaderName = "WGL"sv;
     WGLLoader_() : LibGDI("gdi32.dll"), LibOGL("opengl32.dll")
     {
         LOAD_FUNC(GDI, ChoosePixelFormat);
@@ -156,7 +157,7 @@ public:
     }
     ~WGLLoader_() final {}
 private:
-    std::string_view Name() const noexcept final { return "WGL"sv; }
+    std::string_view Name() const noexcept final { return LoaderName; }
 
     /*void Init() override
     { }*/
@@ -176,7 +177,7 @@ private:
         return info;
     }
 
-    static inline const auto Singleton = oglLoader::RegisterLoader<WGLLoader_>();
+    static inline const auto Dummy = detail::RegisterLoader<WGLLoader_>();
 };
 
 }

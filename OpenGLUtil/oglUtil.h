@@ -84,24 +84,8 @@ private:
     struct Pimpl;
     std::unique_ptr<Pimpl> Impl;
     //virtual void Init() = 0;
-    static void LogError(const common::BaseException& be) noexcept;
-    static oglLoader* RegisterLoader(std::unique_ptr<oglLoader> loader) noexcept;
 protected:
     oglLoader();
-    template<typename T>
-    static T* RegisterLoader() noexcept
-    {
-        static_assert(std::is_base_of_v<oglLoader, T>);
-        try
-        {
-            return static_cast<T*>(RegisterLoader(std::make_unique<T>()));
-        }
-        catch (const common::BaseException& be)
-        {
-            LogError(be);
-        }
-        return nullptr;
-    }
 public:
 
     virtual ~oglLoader();

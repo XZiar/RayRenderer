@@ -34,24 +34,42 @@ oglLoader::~oglLoader() {}
 //    std::call_once(Impl->InitFlag, [&]() { this->Init(); });
 //}
 
-auto& AllLoaders() noexcept
+auto& LoaderCreators() noexcept
 {
-    static std::vector<std::unique_ptr<oglLoader>> Loaders;
-    return Loaders;
+    static std::vector<std::pair<std::string_view, std::function<std::unique_ptr<oglLoader>()>>> Creators;
+    return Creators;
 }
-void oglLoader::LogError(const common::BaseException& be) noexcept
+void detail::RegisterLoader(std::string_view name, std::function<std::unique_ptr<oglLoader>()> creator) noexcept
 {
-    oglLog().warning(u"Failed to create loader: {}\n", be.Message());
-}
-oglLoader* oglLoader::RegisterLoader(std::unique_ptr<oglLoader> loader) noexcept
-{
-    const auto ptr = loader.get();
-    AllLoaders().emplace_back(std::move(loader));
-    return ptr;
+    LoaderCreators().emplace_back(name, std::move(creator));
 }
 common::span<const std::unique_ptr<oglLoader>> oglLoader::GetLoaders() noexcept
 {
-    return AllLoaders();
+    static std::vector<std::unique_ptr<oglLoader>> Loaders = []() 
+    {
+        std::vector<std::unique_ptr<oglLoader>> loaders;
+        for (const auto& [name, creator] : LoaderCreators())
+        {
+            try
+            {
+                loaders.emplace_back(creator());
+            }
+            catch (const common::BaseException& be)
+            {
+                oglLog().warning(u"Failed to create loader [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
+            }
+            catch (const std::exception& ex)
+            {
+                oglLog().warning(u"Failed to create loader [{}]: {}\n", name, ex.what());
+            }
+            catch (...)
+            {
+                oglLog().warning(u"Failed to create loader [{}]\n", name);
+            }
+        }
+        return loaders;
+    }();
+    return Loaders;
 }
 
 constexpr uint32_t DesktopVersion[] = { 46,45,44,43,42,41,40,33,32,31,30 };

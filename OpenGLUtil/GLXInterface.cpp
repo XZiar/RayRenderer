@@ -73,15 +73,17 @@ DEFINE_FUNC(glXGetCurrentDrawable,     GetCurrentDrawable);
 DEFINE_FUNC(glXGetCurrentContext,      GetCurrentContext);
 DEFINE_FUNC(glXGetProcAddress,         GetProcAddress);
 
+class GLXLoader_;
+thread_local const GLXLoader_* CurLoader = nullptr;
 
-class GLXLoader_ : public GLXLoader
+class GLXLoader_ final : public GLXLoader
 {
 private:
     static int CreateContextXErrorHandler(Display* disp, XErrorEvent* evt)
     {
         std::string txtBuf;
         txtBuf.resize(1024, '\0');
-        Singleton->GetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
+        CurLoader->GetErrorText(disp, evt->error_code, txtBuf.data(), 1024); // return value undocumented, cannot rely on that
         txtBuf.resize(std::char_traits<char>::length(txtBuf.data()));
              if (txtBuf == "GLXBadFBConfig") oglLog().warning(u"Failed for FBConfig or unsupported version\n");
         else if (txtBuf == "GLXBadContext")  oglLog().warning(u"Failed for invalid RenderContext\n");
@@ -198,9 +200,11 @@ private:
         GLXContext CreateContextAttribs(GLXContext share_context, const int32_t* attrib_list)
         {
             const auto& loader = static_cast<const GLXLoader_&>(Loader);
+            CurLoader = &loader;
             const auto oldHandler = loader.SetErrorHandler(&CreateContextXErrorHandler);
             const auto ret = glXCreateContextAttribsARB(DeviceContext, FBConfigs[0], share_context, 1/*True*/, attrib_list);
             loader.SetErrorHandler(oldHandler);
+            CurLoader = nullptr;
             return ret;
         }
         void* LoadFunction(std::string_view name) const noexcept final
@@ -233,6 +237,7 @@ private:
     DECLARE_FUNC(GetCurrentContext);
     DECLARE_FUNC(GetProcAddress);
 public:
+    static constexpr std::string_view LoaderName = "GLX"sv;
     GLXLoader_() : LibX11("libX11.so"), LibGLX("libGLX.so")
     {
         LOAD_FUNC(X11, FreeXObject);
@@ -257,7 +262,7 @@ public:
     }
     ~GLXLoader_() final {}
 private:
-    std::string_view Name() const noexcept final { return "GLX"sv; }
+    std::string_view Name() const noexcept final { return LoaderName; }
 
     /*void Init() override
     { }*/
@@ -275,7 +280,7 @@ private:
         return host;
     }
 
-    static inline const auto Singleton = oglLoader::RegisterLoader<GLXLoader_>();
+    static inline const auto Dummy = detail::RegisterLoader<GLXLoader_>();
 };
 
 

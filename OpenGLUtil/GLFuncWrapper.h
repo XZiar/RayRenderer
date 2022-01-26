@@ -42,6 +42,7 @@ private:
     mutable common::SpinLocker DataLock;
 public:
     void* Target;
+    const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
     // buffer related
     GLint MaxUBOUnits = 0;
     void      (GLAPIENTRYP GenBuffers) (GLsizei n, GLuint* buffers) = nullptr;
@@ -448,6 +449,7 @@ public:
     GLenum         (GLAPIENTRYP GetError_) () = nullptr;
     void           (GLAPIENTRYP GetFloatv) (GLenum pname, GLfloat* params) = nullptr;
     void           (GLAPIENTRYP GetIntegerv) (GLenum pname, GLint* params) = nullptr;
+    void           (GLAPIENTRYP GetUnsignedBytevEXT) (GLenum pname, GLubyte* params) = nullptr;
     const GLubyte* (GLAPIENTRYP GetString) (GLenum name) = nullptr;
     const GLubyte* (GLAPIENTRYP GetStringi) (GLenum name, GLuint index) = nullptr;
     GLboolean      (GLAPIENTRYP IsEnabled) (GLenum cap) = nullptr;

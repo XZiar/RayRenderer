@@ -22,6 +22,7 @@
 #endif
 
 
+using namespace std::string_view_literals;
 using namespace common;
 using namespace common::mlog;
 using namespace oglu;
@@ -125,7 +126,12 @@ static void OGLStub()
 
         ctx->UseContext();
         ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-        log().success(u"GL Context Version: [{}]\n", ctx->Capability->VersionString);
+        log().success(u"GL Context [{}] [{}]: [{}]\n", ctx->Capability->VendorString, ctx->Capability->RendererString, ctx->Capability->VersionString);
+        if (ctx->XCompDevice)
+        {
+            log().success(FMT_STRING(u"Match common device: [{}] VID[{:#010x}] DID[{:#010x}]\n"sv), 
+                ctx->XCompDevice->Name, ctx->XCompDevice->VendorId, ctx->XCompDevice->DeviceId);
+        }
         log().info(u"{}\n", ctx->Capability->GenerateSupportLog());
         while (true)
         {

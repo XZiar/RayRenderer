@@ -205,6 +205,7 @@ private:
     MAKE_ENABLER();
 public:
     const ContextCapability* Capability = nullptr;
+    const xcomp::CommonDeviceInfo* XCompDevice = nullptr;
     COMMON_NO_COPY(oglContext_)
     COMMON_NO_MOVE(oglContext_)
     ~oglContext_();

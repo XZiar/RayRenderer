@@ -154,7 +154,7 @@ SharedContextCore::~SharedContextCore()
 }
 
 oglContext_::oglContext_(const std::shared_ptr<detail::SharedContextCore>& sharedCore, const std::shared_ptr<GLHost>& host, void *hrc, const CtxFuncs* ctxFunc) :
-    Host(host), Hrc(hrc), SharedCore(sharedCore), Capability(ctxFunc)
+    Host(host), Hrc(hrc), SharedCore(sharedCore), Capability(ctxFunc), XCompDevice(ctxFunc->XCompDevice)
 {
     ctxFunc->GetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint*>(&DepthTestFunc));
     if (ctxFunc->IsEnabled(GL_CULL_FACE))

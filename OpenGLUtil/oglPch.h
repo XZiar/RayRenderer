@@ -61,6 +61,15 @@ public:
     }
 };
 
+void RegisterLoader(std::string_view name, std::function<std::unique_ptr<oglLoader>()> creator) noexcept;
+template<typename T>
+inline bool RegisterLoader() noexcept
+{
+    static_assert(std::is_base_of_v<oglLoader, T>);
+    RegisterLoader(T::LoaderName, []() {return std::make_unique<T>(); });
+    return true;
+}
+
 //const common::container::FrozenDenseSet<std::string_view> GLBasicAPIs;
 
 }

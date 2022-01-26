@@ -36,7 +36,7 @@ DEFINE_FUNC(eglTerminate,              Terminate);
 DEFINE_FUNC(eglSwapBuffers,            SwapBuffers);
 
 
-class EGLLoader_ : public EGLLoader
+class EGLLoader_ final : public EGLLoader
 {
 private:
     static constexpr std::u16string_view GetErrorString(EGLint err) noexcept;
@@ -187,7 +187,8 @@ private:
     DECLARE_FUNC(Terminate);
     DECLARE_FUNC(SwapBuffers);
 public:
-    EGLLoader_() : 
+    static constexpr std::string_view LoaderName = "EGL"sv;
+    EGLLoader_() :
 #if COMMON_OS_WIN
         LibEGL("libEGL.dll")
 #elif COMMON_OS_DARWIN
@@ -219,7 +220,7 @@ public:
     }
     ~EGLLoader_() final {}
 private:
-    std::string_view Name() const noexcept final { return "EGL"sv; }
+    std::string_view Name() const noexcept final { return LoaderName; }
     std::u16string_view GetCurErrStr() const noexcept { return GetErrorString(GetError()); }
 
     /*void Init() override
@@ -254,7 +255,7 @@ private:
         return host;
     }
 
-    static inline const auto Singleton = oglLoader::RegisterLoader<EGLLoader_>();
+    static inline const auto Dummy = detail::RegisterLoader<EGLLoader_>();
 };
 
 

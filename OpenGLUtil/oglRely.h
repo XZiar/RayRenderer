@@ -97,6 +97,7 @@ enum class GLType : uint8_t { Desktop, ES };
 
 struct ContextBaseInfo
 {
+    std::u16string RendererString;
     std::u16string VendorString;
     std::u16string VersionString;
     uint32_t Version = 0;
