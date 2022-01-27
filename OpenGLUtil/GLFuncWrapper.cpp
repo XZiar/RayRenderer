@@ -278,12 +278,13 @@ std::optional<ContextBaseInfo> GLHost::FillBaseInfo(void* hRC) const
     return binfo;
 }
 
-static const xcomp::CommonDeviceInfo* TryGetCommonDev(const CtxFuncs* ctx, const std::array<std::byte, 8>& luid) noexcept
+static const xcomp::CommonDeviceInfo* TryGetCommonDev(const CtxFuncs* ctx, 
+    const std::optional<std::array<std::byte, 8>>& luid, const std::optional<std::array<std::byte, 16>>& uuid) noexcept
 {
     const auto devs = xcomp::ProbeDevice();
     for (const auto& dev : devs)
     {
-        if (dev.Luid == luid)
+        if (luid == dev.Luid || uuid == dev.Guid)
             return &dev;
     }
     const xcomp::CommonDeviceInfo* ret = nullptr;
@@ -635,26 +636,27 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     QUERY_FUNC(1, INSERTEVENTMARKEREXT,    InsertEventMarkerEXT,   );
 
     //others
-    QUERY_FUNC(0, GETERROR,             GetError,           );
-    QUERY_FUNC(1, GETFLOATV,            GetFloatv,          );
-    QUERY_FUNC(1, GETINTEGERV,          GetIntegerv,        );
-    QUERY_FUNC(1, GETUNSIGNEDBYTEVEXT,  GetUnsignedBytevEXT,);
-    QUERY_FUNC(1, GETSTRING,            GetString,          );
-    QUERY_FUNC(1, GETSTRINGI,           GetStringi,         );
-    QUERY_FUNC(1, ISENABLED,            IsEnabled,          );
-    QUERY_FUNC(1, ENABLE,               Enable,             );
-    QUERY_FUNC(1, DISABLE,              Disable,            );
-    QUERY_FUNC(1, FINISH,               Finish,             );
-    QUERY_FUNC(1, FLUSH,                Flush,              );
-    QUERY_FUNC(1, DEPTHFUNC,            DepthFunc,          );
-    QUERY_FUNC(1, CULLFACE,             CullFace,           );
-    QUERY_FUNC(1, FRONTFACE,            FrontFace,          );
-    QUERY_FUNC(1, VIEWPORT,             Viewport,           );
-    QUERY_FUNC(1, VIEWPORTARRAYV,       ViewportArrayv,     );
-    QUERY_FUNC(1, VIEWPORTINDEXEDF,     ViewportIndexedf,   );
-    QUERY_FUNC(1, VIEWPORTINDEXEDFV,    ViewportIndexedfv,  );
-    QUERY_FUNC(1, CLIPCONTROL,          ClipControl,        );
-    QUERY_FUNC(1, MEMORYBARRIER,        MemoryBarrier,      , EXT);
+    QUERY_FUNC(0, GETERROR,              GetError,             );
+    QUERY_FUNC(1, GETFLOATV,             GetFloatv,            );
+    QUERY_FUNC(1, GETINTEGERV,           GetIntegerv,          );
+    QUERY_FUNC(1, GETUNSIGNEDBYTEVEXT,   GetUnsignedBytevEXT,  );
+    QUERY_FUNC(1, GETUNSIGNEDBYTEI_VEXT, GetUnsignedBytei_vEXT,);
+    QUERY_FUNC(1, GETSTRING,             GetString,            );
+    QUERY_FUNC(1, GETSTRINGI,            GetStringi,           );
+    QUERY_FUNC(1, ISENABLED,             IsEnabled,            );
+    QUERY_FUNC(1, ENABLE,                Enable,               );
+    QUERY_FUNC(1, DISABLE,               Disable,              );
+    QUERY_FUNC(1, FINISH,                Finish,               );
+    QUERY_FUNC(1, FLUSH,                 Flush,                );
+    QUERY_FUNC(1, DEPTHFUNC,             DepthFunc,            );
+    QUERY_FUNC(1, CULLFACE,              CullFace,             );
+    QUERY_FUNC(1, FRONTFACE,             FrontFace,            );
+    QUERY_FUNC(1, VIEWPORT,              Viewport,             );
+    QUERY_FUNC(1, VIEWPORTARRAYV,        ViewportArrayv,       );
+    QUERY_FUNC(1, VIEWPORTINDEXEDF,      ViewportIndexedf,     );
+    QUERY_FUNC(1, VIEWPORTINDEXEDFV,     ViewportIndexedfv,    );
+    QUERY_FUNC(1, CLIPCONTROL,           ClipControl,          );
+    QUERY_FUNC(1, MEMORYBARRIER,         MemoryBarrier,        , EXT);
 
     FillConextBaseInfo(*this, GetString, GetIntegerv);
     Extensions = GetExtensions();
@@ -671,12 +673,9 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
     SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     
-    std::array<std::byte, 8> luid = { std::byte(0) };
-    if (GetUnsignedBytevEXT)
-    { //if (Extensions.Has("GL_EXT_memory_object_win32") || Extensions.Has("GL_EXT_semaphore_win32"))
-        GetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, reinterpret_cast<GLubyte*>(luid.data()));
-    }
-    XCompDevice = TryGetCommonDev(this, luid);
+    const auto luid = GetLUID();
+    const auto uuid = GetUUID();
+    XCompDevice = TryGetCommonDev(this, luid, uuid);
 
     GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
     GetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);
@@ -1482,6 +1481,36 @@ std::optional<std::string_view> CtxFuncs::GetError() const
     case GL_STACK_OVERFLOW:                 return "GL_STACK_OVERFLOW";
     default:                                return "UNKNOWN_ERROR";
     }
+}
+template<size_t N>
+forceinline bool AllZero(const std::array<std::byte, N>& data) noexcept
+{
+    for (const auto b : data)
+        if (b != std::byte(0))
+            return false;
+    return true;
+}
+std::optional<std::array<std::byte, 8>> CtxFuncs::GetLUID() const noexcept
+{
+    if (GetUnsignedBytevEXT && (Extensions.Has("GL_EXT_memory_object_win32") || Extensions.Has("GL_EXT_semaphore_win32")))
+    {
+        std::array<std::byte, 8> luid = { std::byte(0) };
+        GetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, reinterpret_cast<GLubyte*>(luid.data()));
+        if (!AllZero(luid))
+            return luid;
+    }
+    return {};
+}
+std::optional<std::array<std::byte, 16>> CtxFuncs::GetUUID() const noexcept
+{
+    if (GetUnsignedBytei_vEXT && Extensions.Has("GL_EXT_memory_object"))
+    {
+        std::array<std::byte, 16> uuid = { std::byte(0) };
+        GetUnsignedBytei_vEXT(GL_DEVICE_UUID_EXT, 0, reinterpret_cast<GLubyte*>(uuid.data()));
+        if (!AllZero(uuid))
+            return uuid;
+    }
+    return {};
 }
 
 

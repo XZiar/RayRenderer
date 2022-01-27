@@ -1,4 +1,5 @@
 #include "TestRely.h"
+#include "XCompCommon.h"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "OpenGLUtil/oglException.h"
 #include "SystemCommon/ConsoleEx.h"
@@ -10,12 +11,9 @@
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
-#   pragma comment(lib, "Opengl32.lib")
 #else
 #   include <X11/X.h>
 #   include <X11/Xlib.h>
-#   include <GL/gl.h>
-#   include <GL/glx.h>
 //fucking X11 defines some terrible macro
 #   undef Always
 #   undef None
@@ -83,7 +81,7 @@ static void OGLStub()
     }
 
 #if COMMON_OS_WIN
-    HWND tmpWND = CreateWindow(
+    HWND tmpWND = CreateWindowW(
         L"Static", L"Fake Window",            // window class, title
         WS_CLIPSIBLINGS | WS_CLIPCHILDREN,  // style
         0, 0,                               // position x, y
@@ -126,7 +124,11 @@ static void OGLStub()
 
         ctx->UseContext();
         ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
-        log().success(u"GL Context [{}] [{}]: [{}]\n", ctx->Capability->VendorString, ctx->Capability->RendererString, ctx->Capability->VersionString);
+        std::u16string infotxt;
+        APPEND_FMT(infotxt, u"GL Context [{}] [{}]: [{}]\n"sv, ctx->Capability->VendorString, ctx->Capability->RendererString, ctx->Capability->VersionString);
+        APPEND_FMT(infotxt, u"LUID: [{}]\n"sv, Hex2Str(ctx->GetLUID()));
+        APPEND_FMT(infotxt, u"UUID: [{}]\n"sv, Hex2Str(ctx->GetUUID()));
+        log().info(infotxt);
         if (ctx->XCompDevice)
         {
             log().success(FMT_STRING(u"Match common device: [{}] VID[{:#010x}] DID[{:#010x}]\n"sv), 

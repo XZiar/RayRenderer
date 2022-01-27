@@ -924,7 +924,7 @@ bool OGLTexUtil::ParseFormat(const TextureFormat format, const bool isUpload, GL
     case TextureFormat::CHANNEL_R:      comptype = normalized ? GL_RED   : GL_RED_INTEGER;   break;
     case TextureFormat::CHANNEL_G:      comptype = normalized ? GL_GREEN : GL_GREEN_INTEGER; break;
     case TextureFormat::CHANNEL_B:      comptype = normalized ? GL_BLUE  : GL_BLUE_INTEGER;  break;
-    case TextureFormat::CHANNEL_A:      comptype = normalized ? GL_ALPHA : GL_ALPHA_INTEGER; break;
+    case TextureFormat::CHANNEL_A:      comptype = normalized ? GL_ALPHA : GL_ALPHA_INTEGER_EXT; break;
     case TextureFormat::CHANNEL_RG:     comptype = normalized ? GL_RG    : GL_RG_INTEGER;    break;
     case TextureFormat::CHANNEL_RGB:    comptype = normalized ? GL_RGB   : GL_RGB_INTEGER;   break;
     case TextureFormat::CHANNEL_BGR:    comptype = normalized ? GL_BGR   : GL_BGR_INTEGER;   break;

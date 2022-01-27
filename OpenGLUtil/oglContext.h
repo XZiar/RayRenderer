@@ -211,6 +211,8 @@ public:
     ~oglContext_();
     [[nodiscard]] const auto& GetExtensions() const { return Capability->Extensions; }
     [[nodiscard]] const common::container::FrozenDenseSet<std::string_view>& GetPlatformExtensions() const noexcept;
+    [[nodiscard]] std::optional<std::array<std::byte, 8>> GetLUID() const noexcept;
+    [[nodiscard]] std::optional<std::array<std::byte, 16>> GetUUID() const noexcept;
     void AddMarker(std::u16string_view name) const noexcept final;
 
     bool UseContext(const bool force = false);

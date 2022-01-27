@@ -14,7 +14,7 @@
     - [ ] Add static control-item for Controllable
     - [ ] Remove unnecessary lambda func for direct access
   * SIMD
-    - [ ] Implement new vector lib with new SIMD
+    - [x] Implement new vector lib with new SIMD
     - [x] Add compare capability with variable result requirement
     - [ ] Add latency/throughput hint to help decide which implementation to use
 
@@ -74,6 +74,7 @@
   - [ ] Add vsync signal support
   - [ ] Add Icon support
   - [ ] Add timer support
+  - [ ] Revert to use std::any for data storage to ensure lifetime management
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`
@@ -146,16 +147,19 @@
   - [x] Re-design ResourceMappingManager
   - [x] Emulate subroutine on unsupported platform
   - [x] Add bindless texture support
-  - [ ] Add shader include support (file lookup management)
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
-  - [ ] Move to use threadpool to provide 1:1 context support, add cmdlist to record api calls and use IPC to execute remotely
   - [ ] Direct load ICD lib to support multi-device/context
   - [ ] Seperate desktop/ES support
+  * Threaded GL
+	- [ ] Provide 1:1 mapping between context and thread
+	- [ ] Add bundle and cmdlist to record api calls (use template to generate data pack/unpack)
+    - [ ] Seperate urgent task(res creation) and normal task(cmdlist) to ensure res created before use 
   * NLGL
     - [ ] Add basic NLGL
     - [ ] Add proper drawstate setting with NLGL
     - [ ] Replace preprocessor-based ExtShader to NLGL-based
+	- [ ] Add shader include support (file lookup management)
 
 * OpenCLUtil
   - [x] Remove explicit include of `cl*.h`

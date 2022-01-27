@@ -1,19 +1,21 @@
 #include "oglPch.h"
 #include "oglUtil.h"
 
-
-#undef APIENTRY
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include <GL/glx.h>
-#include "GL/glxext.h"
+#if !__has_include(<GL/glx.h>)
+#   pragma message("Missing GLX header, skip GLX Loader")
+#else
+#   undef APIENTRY
+#   include <X11/X.h>
+#   include <X11/Xlib.h>
+#   include <GL/glx.h>
+#   include "GL/glxext.h"
 //fucking X11 defines some terrible macro
-#undef Success
-#undef Always
-#undef None
-#undef Bool
-#undef Int
-#pragma message("Compiling OpenGLUtil with glx-ext[" STRINGIZE(GLX_GLXEXT_VERSION) "]")
+#   undef Success
+#   undef Always
+#   undef None
+#   undef Bool
+#   undef Int
+#   pragma message("Compiling OpenGLUtil with glx-ext[" STRINGIZE(GLX_GLXEXT_VERSION) "]")
 
 
 namespace oglu
@@ -285,3 +287,5 @@ private:
 
 
 }
+
+#endif

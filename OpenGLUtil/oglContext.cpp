@@ -178,6 +178,16 @@ const common::container::FrozenDenseSet<std::string_view>& oglContext_::GetPlatf
 { 
     return Host->Extensions;
 }
+std::optional<std::array<std::byte, 8>> oglContext_::GetLUID() const noexcept
+{
+    if (XCompDevice) return XCompDevice->Luid;
+    return CtxFunc->GetLUID();
+}
+std::optional<std::array<std::byte, 16>> oglContext_::GetUUID() const noexcept
+{
+    if (XCompDevice) return XCompDevice->Guid;
+    return CtxFunc->GetUUID();
+}
 
 
 void oglContext_::FinishGL()

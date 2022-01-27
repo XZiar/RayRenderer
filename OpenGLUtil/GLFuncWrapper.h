@@ -11,19 +11,21 @@
 #if COMMON_OS_WIN
 #   define APIENTRY __stdcall
 #   define WINGDIAPI _declspec(dllimport)
-#   include <GL/gl.h>
-#   undef WINGDIAPI
 #elif COMMON_OS_UNIX
 #   define APIENTRY
-#   include <GL/gl.h>
 #else
 #   error "unknown os"
 #endif
+#include "GL/glcorearb.h"
 #include "GL/glext.h"
+#if COMMON_OS_WIN
+#   undef WINGDIAPI
+#endif
 #ifndef GLAPIENTRY
 #   define GLAPIENTRY APIENTRY
 #endif
 #define GLAPIENTRYP GLAPIENTRY * 
+
 
 namespace oglu
 {
@@ -450,6 +452,7 @@ public:
     void           (GLAPIENTRYP GetFloatv) (GLenum pname, GLfloat* params) = nullptr;
     void           (GLAPIENTRYP GetIntegerv) (GLenum pname, GLint* params) = nullptr;
     void           (GLAPIENTRYP GetUnsignedBytevEXT) (GLenum pname, GLubyte* params) = nullptr;
+    void           (GLAPIENTRYP GetUnsignedBytei_vEXT) (GLenum target, GLuint index, GLubyte* data) = nullptr;
     const GLubyte* (GLAPIENTRYP GetString) (GLenum name) = nullptr;
     const GLubyte* (GLAPIENTRYP GetStringi) (GLenum name, GLuint index) = nullptr;
     GLboolean      (GLAPIENTRYP IsEnabled) (GLenum cap) = nullptr;
@@ -472,6 +475,8 @@ private:
     [[nodiscard]] common::container::FrozenDenseSet<std::string_view> GetExtensions() const;
 public:
     [[nodiscard]] std::optional<std::string_view> GetError() const;
+    [[nodiscard]] std::optional<std::array<std::byte, 8>> GetLUID() const noexcept;
+    [[nodiscard]] std::optional<std::array<std::byte, 16>> GetUUID() const noexcept;
     [[nodiscard]] static const CtxFuncs* PrepareCurrent(const GLHost& host, void* hRC, std::pair<bool, bool> shouldPrint);
 };
 extern thread_local const CtxFuncs* CtxFunc;

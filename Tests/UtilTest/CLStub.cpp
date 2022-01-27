@@ -32,7 +32,6 @@ static MiniLogger<false>& log()
     static MiniLogger<false> logger(u"OCLStub", { GetConsoleBackend() });
     return logger;
 }
-#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 namespace
@@ -359,16 +358,6 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
     {
         PrintException(be, u"Error here");
     }
-}
-
-
-template<typename T>
-static std::string Hex2Str(const std::optional<T>& data)
-{
-    if (data)
-        return common::MiscIntrin.HexToStr(*data);
-    else
-        return {};
 }
 
 
