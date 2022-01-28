@@ -142,8 +142,8 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     if not env["osname"] == "Windows":
         qarg = "march" if env["arch"] == "x86" else "mcpu"
         env["archparam"] = f"-{qarg}={targetarch}"
-        stdlibarg = f"-stdlib={paras['stdlib']}" if "stdlib" in paras else ""
-        rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} {stdlibarg} -xc++ -dM -E -", shell=True, input=_checkCpp.encode()).decode()
+        env["stdlibarg"] = f"-stdlib={paras['stdlib']}" if "stdlib" in paras else ""
+        rawdefs = subprocess.check_output(f"{cppcompiler} {env['archparam']} {env['stdlibarg']} -xc++ -dM -E -", shell=True, input=_checkCpp.encode()).decode()
         defs = dict([d.split(" ", 2)[1:3] for d in rawdefs.splitlines()])
         env["libDirs"] += splitPaths(os.environ.get("LD_LIBRARY_PATH"))
         env["compiler"] = "clang" if "__clang__" in defs else "gcc"

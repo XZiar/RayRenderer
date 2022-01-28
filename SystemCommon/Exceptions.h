@@ -64,9 +64,9 @@ public:
     std::shared_ptr<ExceptionBasicInfo> InnerException;
     container::ResourceDict Resources;
     ExceptionBasicInfo(const std::u16string_view msg) noexcept : ExceptionBasicInfo(TYPENAME, msg) { }
-    ExceptionBasicInfo(ExceptionBasicInfo&&) noexcept = default;
+    ExceptionBasicInfo(ExceptionBasicInfo&&) noexcept = delete;
     ExceptionBasicInfo(const ExceptionBasicInfo&) noexcept = delete;
-    ExceptionBasicInfo& operator=(ExceptionBasicInfo&&) noexcept = default;
+    ExceptionBasicInfo& operator=(ExceptionBasicInfo&&) noexcept = delete;
     ExceptionBasicInfo& operator=(const ExceptionBasicInfo&) noexcept = delete;
     virtual ~ExceptionBasicInfo();
     [[noreturn]] virtual void ThrowReal();

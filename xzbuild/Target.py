@@ -149,6 +149,7 @@ class CPPTarget(CXXTarget):
         return "-std=c++17"
     def solveTarget(self, targets, proj, env:dict):
         super().solveTarget(targets, proj, env)
+        self.flags += [env["stdlibarg"]]
         # it is agains c++ rules because class members also got influnced
         # https://stackoverflow.com/questions/48621251/why-fvisibility-inlines-hidden-is-not-the-default
         # if self.visibility == "hidden":

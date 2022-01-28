@@ -32,7 +32,7 @@
   - [x] Move common's exception into SystemCommon
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   - [ ] Desgin common waitable, with native support of multi-wait
-  - [ ] Add delayed stacktrace resolve for Exceptions
+  - [x] Add delayed stacktrace resolve for Exceptions
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision
@@ -250,6 +250,7 @@
   - [ ] Add support of different build flags for specific file 
   - [ ] Move to fully self-controlled build system
   - [ ] Add pseudo project, provide include-path info or install info or linkage info 
+  - [ ] Add topology-based device category to environment
 
 * Global
   - [x] Port some utilities to Linux 
