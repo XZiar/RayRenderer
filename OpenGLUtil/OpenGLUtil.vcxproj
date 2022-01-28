@@ -32,7 +32,6 @@
     <ClInclude Include="oglWorker.h" />
     <ClInclude Include="oglBuffer.h" />
     <ClInclude Include="oglContext.h" />
-    <ClInclude Include="oglException.h" />
     <ClInclude Include="oglFBO.h" />
     <ClInclude Include="oglProgram.h" />
     <ClInclude Include="oglPromise.hpp" />

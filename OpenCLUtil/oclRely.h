@@ -106,7 +106,7 @@ class OCLUAPI OCLException : public common::BaseException
 public:
     enum class CLComponent { Compiler, Driver, Accellarator, OCLU };
 private:
-    PREPARE_EXCEPTION(OCLException, BaseException,
+    COMMON_EXCEPTION_PREPARE(OCLException, BaseException,
         const CLComponent Component;
         template<typename T>
         ExceptionInfo(T&& msg, const CLComponent source)

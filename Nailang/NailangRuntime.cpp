@@ -17,6 +17,9 @@ using common::str::HashedStrView;
 
 #define NLRT_THROW_EX(...) HandleException(CREATE_EXCEPTIONEX(NailangRuntimeException, __VA_ARGS__))
 
+COMMON_EXCEPTION_IMPL(NailangRuntimeException)
+
+COMMON_EXCEPTION_IMPL(NailangFormatException)
 NailangFormatException::NailangFormatException(const std::u32string_view formatter, const std::runtime_error& err)
     : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, err.what()), formatter)
 { }
@@ -24,6 +27,7 @@ NailangFormatException::NailangFormatException(const std::u32string_view formatt
     : NailangRuntimeException(T_<ExceptionInfo>{}, FMTSTR(u"Error when formating string: {}"sv, reason), formatter, arg)
 { }
 
+COMMON_EXCEPTION_IMPL(NailangCodeException)
 NailangCodeException::ExceptionInfo::ExceptionInfo(const char* type, const std::u32string_view msg,
     detail::ExceptionTarget target, detail::ExceptionTarget scope)
     : NailangCodeException::TPInfo(type, common::str::to_u16string(msg), std::move(target), std::move(scope))
@@ -1399,14 +1403,14 @@ std::shared_ptr<EvaluateContext> NailangRuntime::GetContext(bool innerScope) con
 
 void NailangRuntime::HandleException(const NailangRuntimeException& ex) const
 {
-    if (auto& info = ex.GetInfo(); !info.Scope)
+    auto& info = ex.GetInfo();
+    if (!info.Scope)
     {
         if (const auto theFrame = dynamic_cast<NailangBlockFrame*>(CurFrame()); theFrame)
             info.Scope = *theFrame->CurContent;
     }
     auto stacks = FrameStack.CollectStacks();
-    ex.Info->StackTrace.insert(ex.Info->StackTrace.begin(), 
-        std::make_move_iterator(stacks.begin()), std::make_move_iterator(stacks.end()));
+    info.StackTrace.insert(info.StackTrace.begin(), std::make_move_iterator(stacks.begin()), std::make_move_iterator(stacks.end()));
     throw ex;
 }
 

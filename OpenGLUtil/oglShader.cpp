@@ -1,5 +1,4 @@
 #include "oglPch.h"
-#include "oglException.h"
 #include "oglShader.h"
 #include <regex>
 

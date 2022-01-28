@@ -70,7 +70,7 @@ public:
         constexpr name(clztype* host) noexcept : Host(host) { }                         \
     public:                                                                             \
         constexpr name##_ begin() const noexcept { return { Host, vbegin }; }           \
-        constexpr name##_ end()   const noexcept { return { Host, vend }; }             \
+                  name##_ end()   const noexcept { return { Host, vend }; }             \
                   size_t  size()  const noexcept { return vend - vbegin; }              \
                   bool    empty() const noexcept { return vend == vbegin; }             \
     }

@@ -198,7 +198,8 @@ struct ExceptionTarget
 class NAILANGAPI NailangRuntimeException : public common::BaseException
 {
     friend NailangRuntime;
-    PREPARE_EXCEPTION(NailangRuntimeException, BaseException,
+    COMMON_EXCEPTION_PREPARE(NailangRuntimeException, BaseException,
+        friend NailangRuntime;
         detail::ExceptionTarget Target;
         detail::ExceptionTarget Scope;
         ExceptionInfo(const std::u16string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope)
@@ -219,7 +220,7 @@ public:
 class NAILANGAPI NailangFormatException : public NailangRuntimeException
 {
     friend NailangRuntime;
-    PREPARE_EXCEPTION(NailangFormatException, NailangRuntimeException,
+    COMMON_EXCEPTION_PREPARE(NailangFormatException, NailangRuntimeException,
         std::u32string Formatter;
         ExceptionInfo(const std::u16string_view msg, const std::u32string_view formatter, detail::ExceptionTarget target = {})
             : ExceptionInfo(TYPENAME, msg, formatter, target)
@@ -236,7 +237,7 @@ public:
 
 class NAILANGAPI NailangCodeException : public NailangRuntimeException
 {
-    PREPARE_EXCEPTION(NailangCodeException, NailangRuntimeException,
+    COMMON_EXCEPTION_PREPARE(NailangCodeException, NailangRuntimeException,
         ExceptionInfo(const std::u32string_view msg, detail::ExceptionTarget target, detail::ExceptionTarget scope)
             : ExceptionInfo(TYPENAME, msg, target, scope)
         { }

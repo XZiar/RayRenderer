@@ -1,7 +1,6 @@
 #include "TestRely.h"
 #include "XCompCommon.h"
 #include "OpenGLUtil/OpenGLUtil.h"
-#include "OpenGLUtil/oglException.h"
 #include "SystemCommon/ConsoleEx.h"
 #include "common/StringLinq.hpp"
 #include <iostream>

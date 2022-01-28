@@ -2,7 +2,6 @@
 #include "TexUtilRely.h"
 #include "TexUtilWorker.h"
 #include "OpenCLInterop/GLInterop.h"
-#include "OpenGLUtil/oglException.h"
 #include "ImageUtil/ImageUtil.h"
 #include "SystemCommon/MiniLogger.h"
 #include "SystemCommon/FileEx.h"

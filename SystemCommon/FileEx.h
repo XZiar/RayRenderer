@@ -20,7 +20,7 @@ namespace common::file
 
 class SYSCOMMONAPI FileException : public BaseException
 {
-    PREPARE_EXCEPTION(FileException, BaseException,
+    COMMON_EXCEPTION_PREPARE(FileException, BaseException,
         fs::path Filepath;
         FileErrReason Reason;
         ExceptionInfo(const std::u16string_view msg, const fs::path& filepath, const FileErrReason reason)

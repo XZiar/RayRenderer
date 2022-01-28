@@ -10,6 +10,8 @@
 namespace common::asyexe
 {
 
+COMMON_EXCEPTION_IMPL(AsyncTaskException)
+
 namespace detail
 {
 

@@ -50,6 +50,9 @@ using std::byte;
 MAKE_ENABLER_IMPL(FileObject)
 
 
+COMMON_EXCEPTION_IMPL(FileException)
+
+
 #if COMMON_OS_WIN
 using FlagType = wchar_t;
 #   define StrText(x) L ##x

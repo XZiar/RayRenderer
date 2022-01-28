@@ -29,7 +29,7 @@ class AsyncTaskException : public BaseException
 public:
     enum class Reasons : uint8_t { Terminated, Timeout, Cancelled };
 private:
-    PREPARE_EXCEPTION(AsyncTaskException, BaseException,
+    COMMON_EXCEPTION_PREPARE(AsyncTaskException, BaseException,
         const Reasons Reason;
         ExceptionInfo(const std::u16string_view msg, const Reasons reason)
             : TPInfo(TYPENAME, msg), Reason(reason)

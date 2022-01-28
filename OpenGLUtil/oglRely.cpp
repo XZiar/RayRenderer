@@ -8,6 +8,8 @@ namespace oglu
 using namespace common::mlog;
 using namespace std::string_view_literals;
 
+COMMON_EXCEPTION_IMPL(OGLException)
+
 MiniLogger<false>& oglLog()
 {
     static MiniLogger<false> ogllog(u"OpenGLUtil", { GetConsoleBackend() });

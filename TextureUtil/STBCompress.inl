@@ -17,7 +17,6 @@
 #if COMMON_COMPILER_MSVC
 #   pragma warning(pop)
 #endif
-#include "OpenGLUtil/oglException.h"
 
 
 namespace oglu::texutil::detail

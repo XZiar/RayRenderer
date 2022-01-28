@@ -1,7 +1,6 @@
 #include "oglPch.h"
 #include "GLFuncWrapper.h"
 #include "oglUtil.h"
-#include "oglException.h"
 #include "oglContext.h"
 #include "oglBuffer.h"
 

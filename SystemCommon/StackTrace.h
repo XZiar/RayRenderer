@@ -8,8 +8,9 @@
 namespace common
 {
 
-SYSCOMMONAPI std::vector<StackTraceItem> GetStack(size_t skip = 0) noexcept;
-#define CREATE_EXCEPTIONEX(ex, ...) ::common::BaseException::CreateWithStacks<ex>(::common::GetStack(), __VA_ARGS__)
+[[nodiscard]] SYSCOMMONAPI std::vector<StackTraceItem> GetStack(size_t skip = 0) noexcept;
+[[nodiscard]] SYSCOMMONAPI AlignedBuffer GetDelayedStack(size_t skip = 0) noexcept;
+#define CREATE_EXCEPTIONEX(ex, ...) ::common::BaseException::CreateWithDelayedStacks<ex>(::common::GetDelayedStack(), __VA_ARGS__)
 #define COMMON_THROWEX(ex, ...) throw CREATE_EXCEPTIONEX(ex, __VA_ARGS__)
 
 

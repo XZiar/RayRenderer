@@ -237,55 +237,6 @@ void FastPathBase::Init(common::span<const PathInfo> info, common::span<const Va
     }
 }
 
-
-std::shared_ptr<ExceptionBasicInfo> detail::ExceptionHelper::GetCurrentException() noexcept
-{
-    const auto cex = std::current_exception();
-    if (!cex)
-        return {};
-    try
-    {
-        std::rethrow_exception(cex);
-    }
-    catch (const BaseException& be)
-    {
-        return be.Info;
-    }
-    catch (...)
-    {
-        return OtherException(cex).Info;
-    }
-}
-
-[[nodiscard]] std::vector<StackTraceItem> BaseException::ExceptionStacks() const
-{
-    std::vector<StackTraceItem> ret;
-    for (auto ex = Info.get(); ex; ex = ex->InnerException.get())
-    {
-        if (ex->StackTrace.size() > 0)
-            ret.push_back(ex->StackTrace[0]);
-        else
-            ret.emplace_back(u"Undefined", u"Undefined", 0);
-    }
-    return ret;
-}
-
-[[nodiscard]] std::u16string_view BaseException::GetDetailMessage() const noexcept
-{
-    const auto ptr = Info->Resources.QueryItem("detail");
-    if (ptr)
-    {
-        if (ptr->type() == typeid(common::SharedString<char16_t>))
-            return *std::any_cast<common::SharedString<char16_t>>(ptr);
-        if (ptr->type() == typeid(std::u16string))
-            return *std::any_cast<std::u16string>(ptr);
-        if (ptr->type() == typeid(std::u16string_view))
-            return *std::any_cast<std::u16string_view>(ptr);
-    }
-    return {};
-}
-
-
 }
 
 

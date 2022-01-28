@@ -4,6 +4,8 @@
 #include "common/CommonRely.hpp"
 #include "common/SharedString.hpp"
 #include "common/ResourceDict.hpp"
+#include "common/EasyIterator.hpp"
+#include "common/AlignedBuffer.hpp"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -27,12 +29,13 @@ public:
     SharedString<char16_t> File;
     SharedString<char16_t> Func;
     size_t Line;
-    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos)
+    StackTraceItem() noexcept : Line(0) {}
+    StackTraceItem(const char16_t* const file, const char16_t* const func, const size_t pos) noexcept
         : File(file), Func(func), Line(pos) {}
-    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos)
+    StackTraceItem(const char16_t* const file, const char* const func, const size_t pos) noexcept
         : File(file), Func(std::u16string(func, func + std::char_traits<char>::length(func))), Line(pos) {}
     template<typename T1, typename T2>
-    StackTraceItem(T1&& file, T2&& func, const size_t pos)
+    StackTraceItem(T1&& file, T2&& func, const size_t pos) noexcept
         : File(std::forward<T1>(file)), Func(std::forward<T2>(func)), Line(pos) {}
 };
 
@@ -42,32 +45,30 @@ public:
 #endif
 
 
-namespace detail
-{
-struct ExceptionHelper
-{
-public:
-    SYSCOMMONAPI [[nodiscard]] static std::shared_ptr<ExceptionBasicInfo> GetCurrentException() noexcept;
-};
-}
-
-class COMMON_EMPTY_BASES ExceptionBasicInfo : public NonCopyable, public std::enable_shared_from_this<ExceptionBasicInfo>
+class SYSCOMMONAPI ExceptionBasicInfo : public std::enable_shared_from_this<ExceptionBasicInfo>
 {
     friend class BaseException;
 private:
     static constexpr auto TYPENAME = "BaseException";
+    [[nodiscard]] virtual StackTraceItem GetStack(size_t idx) const noexcept;
+    [[nodiscard]] virtual size_t GetStackCount() const noexcept;
+    COMMON_EASY_CONST_ITER(StackList, ExceptionBasicInfo, StackTraceItem, GetStack, 0, Host->GetStackCount());
+    AlignedBuffer DelayedStacks;
 protected:
     template<typename T>
-    ExceptionBasicInfo(const char* type, T&& msg) noexcept
-        : TypeName(type), Message(std::forward<T>(msg)), InnerException(detail::ExceptionHelper::GetCurrentException()) { }
+    ExceptionBasicInfo(const char* type, T&& msg) noexcept;
+    std::vector<StackTraceItem> StackTrace;
 public:
     const char* TypeName;
     std::u16string Message;
-    std::vector<StackTraceItem> StackTrace;
     std::shared_ptr<ExceptionBasicInfo> InnerException;
     container::ResourceDict Resources;
     ExceptionBasicInfo(const std::u16string_view msg) noexcept : ExceptionBasicInfo(TYPENAME, msg) { }
-    virtual ~ExceptionBasicInfo() {}
+    ExceptionBasicInfo(ExceptionBasicInfo&&) noexcept = default;
+    ExceptionBasicInfo(const ExceptionBasicInfo&) noexcept = delete;
+    ExceptionBasicInfo& operator=(ExceptionBasicInfo&&) noexcept = default;
+    ExceptionBasicInfo& operator=(const ExceptionBasicInfo&) noexcept = delete;
+    virtual ~ExceptionBasicInfo();
     [[noreturn]] virtual void ThrowReal();
     [[nodiscard]] BaseException GetException();
     template<typename T>
@@ -82,13 +83,13 @@ public:
         using TInfo = typename T::TInfo;
         return dynamic_cast<TInfo*>(this);
     }
+    constexpr StackList GetStacks() const noexcept { return this; }
 };
 
 
 class SYSCOMMONAPI [[nodiscard]] BaseException : public std::runtime_error
 {
-    friend class ExceptionBasicInfo;
-    friend struct detail::ExceptionHelper;
+    friend ExceptionBasicInfo;
 public:
     static constexpr auto TYPENAME = ExceptionBasicInfo::TYPENAME;
 protected:
@@ -107,8 +108,8 @@ public:
     { }
     BaseException(const BaseException& baseEx) = default;
     BaseException(BaseException&& baseEx) noexcept = default;
-    ~BaseException() override {}
-    const char* what() const noexcept override { return Info->TypeName; }
+    ~BaseException() override;
+    const char* what() const noexcept override;
     const std::shared_ptr<ExceptionBasicInfo>& InnerInfo() const noexcept
     {
         return Info;
@@ -123,14 +124,7 @@ public:
             return Info->GetException();
         return {};
     }
-    [[nodiscard]] const std::vector<StackTraceItem>& Stack() const noexcept
-    {
-        return Info->StackTrace;
-    }
-    [[nodiscard]] std::u16string_view Message() const noexcept
-    {
-        return Info->Message;
-    }
+    [[nodiscard]] std::vector<StackTraceItem> GetAllStacks() const noexcept;
     [[nodiscard]] std::vector<StackTraceItem> ExceptionStacks() const;
     template<typename T, typename S, typename U = T>
     const BaseException& Attach(S&& key, T&& value) const
@@ -143,7 +137,12 @@ public:
     {
         return Info->Resources.QueryItem<T>(key);
     }
+    [[nodiscard]] std::u16string_view Message() const noexcept
+    {
+        return Info->Message;
+    }
     [[nodiscard]] std::u16string_view GetDetailMessage() const noexcept;
+
     template<typename T, typename... Args>
     [[nodiscard]] static T CreateWithStack(StackTraceItem&& sti, Args... args)
     {
@@ -160,29 +159,28 @@ public:
         static_cast<BaseException*>(&ex)->Info->StackTrace = std::move(stacks);
         return ex;
     }
+    template<typename T, typename... Args>
+    [[nodiscard]] static T CreateWithDelayedStacks(AlignedBuffer&& stacks, Args... args)
+    {
+        static_assert(std::is_base_of_v<BaseException, T>, "COMMON_THROW can only be used on Exception derivered from BaseException");
+        T ex(std::forward<Args>(args)...);
+        static_cast<BaseException*>(&ex)->Info->DelayedStacks = std::move(stacks);
+        return ex;
+    }
+    [[nodiscard]] static std::shared_ptr<ExceptionBasicInfo> GetCurrentException() noexcept;
 };
 
+template<typename T>
+inline ExceptionBasicInfo::ExceptionBasicInfo(const char* type, T&& msg) noexcept
+    : TypeName(type), Message(std::forward<T>(msg)), InnerException(BaseException::GetCurrentException()) { }
 
-[[noreturn]] inline void ExceptionBasicInfo::ThrowReal()
-{
-    throw BaseException(std::nullopt, this->shared_from_this());
-}
-inline BaseException ExceptionBasicInfo::GetException()
-{
-    return BaseException{ std::nullopt, this->shared_from_this() };
-}
-
-
-#define PREPARE_EXCEPTION(type, parent, ...)                                        \
+#define COMMON_EXCEPTION_PREPARE(type, parent, ...)                                 \
     using TPInfo = parent::TInfo;                                                   \
     struct ExceptionInfo : public TPInfo                                            \
     {                                                                               \
         static constexpr auto TYPENAME = #type;                                     \
-        ~ExceptionInfo() override { }                                               \
-        [[noreturn]] void ThrowReal() override                                      \
-        {                                                                           \
-            throw type(std::nullopt, this->shared_from_this());                     \
-        }                                                                           \
+        ~ExceptionInfo() override;                                                  \
+        [[noreturn]] void ThrowReal() override;                                     \
         __VA_ARGS__                                                                 \
     };                                                                              \
     ExceptionInfo& GetInfo() const noexcept                                         \
@@ -202,12 +200,21 @@ public:                                                                         
     using TInfo = ExceptionInfo;                                                    \
     type(const type& ex) = default;                                                 \
     type(type&& ex) noexcept = default;                                             \
-    ~type() override {}
+    ~type() override
+
+
+#define COMMON_EXCEPTION_IMPL(type)                     \
+type::ExceptionInfo::~ExceptionInfo() {}                \
+type::~type() {}                                        \
+[[noreturn]] void type::ExceptionInfo::ThrowReal()      \
+{                                                       \
+    throw type(std::nullopt, this->shared_from_this()); \
+}
 
 
 class SYSCOMMONAPI [[nodiscard]] OtherException : public BaseException
 {
-    PREPARE_EXCEPTION(OtherException, BaseException, 
+    COMMON_EXCEPTION_PREPARE(OtherException, BaseException, 
         std::exception_ptr StdException;
         ExceptionInfo(const std::u16string_view msg, const std::exception_ptr& exptr)
             : TPInfo(TYPENAME, msg), StdException(exptr)
@@ -234,10 +241,7 @@ class SYSCOMMONAPI [[nodiscard]] OtherException : public BaseException
         }
     );
     OtherException(const std::exception_ptr& exptr) : BaseException(T_<ExceptionInfo>{}, u"std_exception", exptr) {}
-    const char* what() const noexcept override 
-    { 
-        return GetInfo().GetInnerMessage();
-    }
+    const char* what() const noexcept override;
 };
 
 #if COMMON_COMPILER_MSVC

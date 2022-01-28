@@ -14,10 +14,15 @@
 #include <condition_variable>
 #include <mutex>
 #include <atomic>
+#include <variant>
 
 
 namespace common
 {
+
+using FrameRequest = std::pair<const boost::stacktrace::frame*, StackTraceItem*>;
+using StackRequest = std::pair<const boost::stacktrace::stacktrace*, std::vector<StackTraceItem>*>;
+
 
 class StackExplainer
 {
@@ -28,9 +33,19 @@ private:
     std::mutex WorkerMutex;
     std::condition_variable WorkerCV;
     std::unordered_map<std::string, SharedString<char16_t>> FileCache;
-    const boost::stacktrace::stacktrace* Stk;
-    std::vector<StackTraceItem>* Output;
+    std::variant<std::monostate, FrameRequest, StackRequest> Request;
     bool ShouldRun;
+    SharedString<char16_t> CachedFileName(const boost::stacktrace::frame& frame)
+    {
+        auto fileName = frame.source_file();
+        if (const auto it = FileCache.find(fileName); it != FileCache.end())
+            return it->second;
+        else
+        {
+            const auto file16 = str::to_u16string(fileName);
+            return FileCache.emplace(std::move(fileName), file16).first->second;
+        }
+    }
 public:
     StackExplainer() noexcept : ShouldRun(true)
     {
@@ -45,25 +60,30 @@ public:
                 WorkerCV.wait(lock);
                 while (ShouldRun)
                 {
-                    for (auto frame = Stk->begin(); frame != Stk->end(); ++frame)
+                    switch (Request.index())
                     {
-                        try
+                    case 1:
+                    {
+                        const auto [frame, output] = std::get<1>(Request);
+                        *output = { CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line() };
+                    } break;
+                    case 2:
+                    {
+                        const auto [stks, output] = std::get<2>(Request);
+                        for (auto frame = stks->begin(); frame != stks->end(); ++frame)
                         {
-                            auto fileName = frame->source_file();
-                            SharedString<char16_t> file;
-                            if (const auto it = FileCache.find(fileName); it != FileCache.end())
-                                file = it->second;
-                            else
+                            try
                             {
-                                const auto file16 = str::to_u16string(fileName);
-                                file = FileCache.emplace(std::move(fileName), file16).first->second;
+                                output->emplace_back(CachedFileName(*frame), str::to_u16string(frame->name()), frame->source_line());
                             }
-                            Output->emplace_back(std::move(file), str::to_u16string(frame->name()), frame->source_line());
+                            catch (...)
+                            {
+                            }
                         }
-                        catch (...)
-                        {
-                        }
+                    } break;
+                    default: break;
                     }
+                    Request = std::monostate{};
                     CallerCV.notify_one();
                     WorkerCV.wait(lock);
                 }
@@ -93,11 +113,26 @@ public:
         {
             std::unique_lock<std::mutex> callerLock(CallerMutex);
             std::unique_lock<std::mutex> workerLock(WorkerMutex);
-            Stk = &st; Output = &ret;
+            Request = StackRequest{ &st, &ret };
             WorkerCV.notify_one();
             CallerCV.wait(workerLock);
         }
         return ret;
+    }
+    StackTraceItem Explain(const boost::stacktrace::frame& frame) noexcept
+    {
+        StackTraceItem ret;
+        std::unique_lock<std::mutex> callerLock(CallerMutex);
+        std::unique_lock<std::mutex> workerLock(WorkerMutex);
+        Request = FrameRequest{ &frame, &ret };
+        WorkerCV.notify_one();
+        CallerCV.wait(workerLock);
+        return ret;
+    }
+    static StackExplainer& GetExplainer() noexcept
+    {
+        static StackExplainer Explainer;
+        return Explainer;
     }
 };
 
@@ -107,9 +142,36 @@ std::vector<StackTraceItem> GetStack(size_t skip) noexcept
 #ifdef _DEBUG
     skip += 3;
 #endif
-    static StackExplainer Explainer;
     boost::stacktrace::stacktrace st(skip, UINT32_MAX);
-    return Explainer.Explain(st);
+    return StackExplainer::GetExplainer().Explain(st);
+}
+
+AlignedBuffer GetDelayedStack(size_t skip) noexcept
+{
+#ifdef _DEBUG
+    skip += 3;
+#endif
+    boost::stacktrace::stacktrace st(skip, UINT32_MAX);
+    const auto& stacks = st.as_vector();
+    AlignedBuffer ret(stacks.size() * sizeof(boost::stacktrace::frame), alignof(boost::stacktrace::frame));
+    memcpy_s(ret.GetRawPtr(), ret.GetSize(), stacks.data(), stacks.size() * sizeof(boost::stacktrace::frame));
+    return ret;
+}
+
+
+StackTraceItem ExceptionBasicInfo::GetStack(size_t idx) const noexcept
+{
+    if (idx < StackTrace.size())
+        return StackTrace[idx];
+    else
+    {
+        const auto ptr = DelayedStacks.GetRawPtr<boost::stacktrace::frame>();
+        return StackExplainer::GetExplainer().Explain(ptr[idx - StackTrace.size()]);
+    }
+}
+size_t ExceptionBasicInfo::GetStackCount() const noexcept
+{
+    return StackTrace.size() + DelayedStacks.GetSize() / sizeof(boost::stacktrace::frame);
 }
 
 

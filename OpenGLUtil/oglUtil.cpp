@@ -1,6 +1,5 @@
 #include "oglPch.h"
 #include "oglUtil.h"
-#include "oglException.h"
 #include "oglContext.h"
 #include "oglProgram.h"
 #include "oglPromise.hpp"

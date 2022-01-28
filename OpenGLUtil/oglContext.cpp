@@ -1,7 +1,6 @@
 #include "oglPch.h"
 #include "oglContext.h"
 #include "oglUtil.h"
-#include "oglException.h"
 
 
 namespace oglu

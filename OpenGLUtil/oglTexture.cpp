@@ -1,7 +1,6 @@
 #include "oglPch.h"
 #include "oglTexture.h"
 #include "oglContext.h"
-#include "oglException.h"
 #include "oglUtil.h"
 #include "BindingManager.h"
 
@@ -16,6 +15,8 @@ using xziar::img::ImageDataType;
 using xziar::img::TextureFormat;
 using xziar::img::TexFormatUtil;
 using xziar::img::Image;
+
+COMMON_EXCEPTION_IMPL(OGLWrongFormatException)
 
 MAKE_ENABLER_IMPL(oglTex2DView_)
 MAKE_ENABLER_IMPL(oglTex2DStatic_)

@@ -1,7 +1,6 @@
 #pragma once
 #include "oglRely.h"
 #include "oglBuffer.h"
-#include "oglException.h"
 #include "ImageUtil/TexFormat.h"
 
 #if COMMON_COMPILER_MSVC
@@ -50,7 +49,7 @@ enum class TextureType : uint32_t
 
 class OGLWrongFormatException : public OGLException
 {
-    PREPARE_EXCEPTION(OGLWrongFormatException, OGLException,
+    COMMON_EXCEPTION_PREPARE(OGLWrongFormatException, OGLException,
         xziar::img::TextureFormat Format;
         ExceptionInfo(const std::u16string_view msg, const xziar::img::TextureFormat format)
             : TPInfo(TYPENAME, msg, OGLException::GLComponent::OGLU), Format(format)

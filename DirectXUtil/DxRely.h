@@ -200,7 +200,7 @@ class DxException : public common::BaseException
 public:
     enum class DXComponent { Compiler, Driver, DXU };
 private:
-    PREPARE_EXCEPTION(DxException, BaseException,
+    COMMON_EXCEPTION_PREPARE(DxException, BaseException,
         template<typename T>
         ExceptionInfo(T&& msg)
             : ExceptionInfo(TYPENAME, std::forward<T>(msg))

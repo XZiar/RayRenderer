@@ -83,7 +83,7 @@ void PrintException(const common::BaseException& be, std::u16string_view info)
         FMTSTR(u"{}:{}\n{}\n", info, be.Message(), be.GetDetailMessage()));
     {
         std::u16string str;
-        for (const auto& stack : be.Stack())
+        for (const auto& stack : be.InnerInfo()->GetStacks())
             fmt::format_to(std::back_inserter(str), FMT_STRING(u"[{}:{}]\t{}\n"), stack.File, stack.Line, stack.Func);
         GetConsole().Print(CommonColor::BrightWhite, u"stack trace:\n");
         GetConsole().Print(CommonColor::BrightYellow, str);

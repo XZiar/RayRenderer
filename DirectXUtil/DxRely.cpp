@@ -14,6 +14,8 @@ namespace dxu
 using namespace common::mlog;
 using Microsoft::WRL::ComPtr;
 
+COMMON_EXCEPTION_IMPL(DxException)
+
 MiniLogger<false>& dxLog()
 {
     static MiniLogger<false> dxlog(u"DirectXUtil", { GetConsoleBackend() });

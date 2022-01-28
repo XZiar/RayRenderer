@@ -13,6 +13,7 @@ using xziar::img::ImageView;
 using xziar::img::TexFormatUtil;
 using xziar::img::TextureFormat;
 
+COMMON_EXCEPTION_IMPL(OCLWrongFormatException)
 MAKE_ENABLER_IMPL(oclImage2D_)
 MAKE_ENABLER_IMPL(oclImage3D_)
 

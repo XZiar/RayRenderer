@@ -239,7 +239,7 @@ public:
 class NAILANGAPI NailangPartedNameException final : public common::BaseException
 {
     friend class NailangParser;
-    PREPARE_EXCEPTION(NailangPartedNameException, BaseException,
+    COMMON_EXCEPTION_PREPARE(NailangPartedNameException, BaseException,
         std::u32string_view Name;
         std::u32string_view Part;
         ExceptionInfo(const std::u16string_view msg, const std::u32string_view name, const std::u32string_view part) noexcept

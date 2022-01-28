@@ -2,7 +2,6 @@
 #include "common/Linq2.hpp"
 #include "OpenGLUtil/OpenGLUtil.h"
 #include "ImageUtil/ImageUtil.h"
-#include "OpenGLUtil/oglException.h"
 #include "WindowHost/WindowHost.h"
 #include <thread>
 #include <future>

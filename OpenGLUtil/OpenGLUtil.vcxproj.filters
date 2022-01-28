@@ -39,9 +39,6 @@
     <ClInclude Include="oglShader.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="oglException.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="BindingManager.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -18,6 +18,8 @@ using common::fs::path;
 using common::file::FileException;
 using common::file::FileErrReason;
 
+COMMON_EXCEPTION_IMPL(FTException)
+
 
 static void* CreateLibrary()
 {

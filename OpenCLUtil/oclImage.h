@@ -23,7 +23,7 @@ using oclImg3D = std::shared_ptr<oclImage3D_>;
 
 class OCLUAPI OCLWrongFormatException : public OCLException
 {
-    PREPARE_EXCEPTION(OCLWrongFormatException, OCLException,
+    COMMON_EXCEPTION_PREPARE(OCLWrongFormatException, OCLException,
         xziar::img::TextureFormat Format;
         template<typename T>
         ExceptionInfo(T&& msg, const xziar::img::TextureFormat format)

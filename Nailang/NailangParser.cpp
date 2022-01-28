@@ -8,6 +8,10 @@ namespace xziar::nailang
 {
 using tokenizer::NailangToken;
 
+COMMON_EXCEPTION_IMPL(NailangParseException)
+COMMON_EXCEPTION_IMPL(NailangPartedNameException)
+COMMON_EXCEPTION_IMPL(UnexpectedTokenException)
+
 
 void DoThrow()
 {

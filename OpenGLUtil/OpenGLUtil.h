@@ -1,7 +1,6 @@
 #pragma once
 
 #include "oglRely.h"
-#include "oglException.h"
 #include "oglContext.h"
 #include "oglBuffer.h"
 #include "oglShader.h"

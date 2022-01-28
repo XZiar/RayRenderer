@@ -18,7 +18,7 @@ NAILANGAPI void DoThrow();
 class NAILANGAPI NailangParseException : public common::BaseException
 {
     friend class NailangParser;
-    PREPARE_EXCEPTION(NailangParseException, BaseException,
+    COMMON_EXCEPTION_PREPARE(NailangParseException, BaseException,
         std::u16string File;
         std::pair<size_t, size_t> Position;
         ExceptionInfo(const std::u16string_view msg, const std::u16string_view file, std::pair<size_t, size_t> pos = { 0,0 }) noexcept
@@ -38,7 +38,7 @@ class NAILANGAPI NailangParseException : public common::BaseException
 class NAILANGAPI UnexpectedTokenException : public NailangParseException
 {
     friend class NailangParser;
-    PREPARE_EXCEPTION(UnexpectedTokenException, NailangParseException,
+    COMMON_EXCEPTION_PREPARE(UnexpectedTokenException, NailangParseException,
         common::parser::DetailToken Token;
         ExceptionInfo(const std::u16string_view msg, const common::parser::DetailToken& token, const std::u16string_view file) noexcept
             : TPInfo(TYPENAME, msg, file), Token(token) { }

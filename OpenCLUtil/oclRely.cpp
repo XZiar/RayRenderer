@@ -16,6 +16,9 @@ namespace oclu
 {
 using namespace std::string_view_literals;
 using namespace common::mlog;
+
+COMMON_EXCEPTION_IMPL(OCLException)
+
 MiniLogger<false>& oclLog()
 {
     static MiniLogger<false> ocllog(u"OpenCLUtil", { GetConsoleBackend() });

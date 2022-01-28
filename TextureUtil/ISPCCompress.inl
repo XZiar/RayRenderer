@@ -2,7 +2,6 @@
 
 #include "TexUtilRely.h"
 #include "ispc_texcomp/ispc_texcomp.h"
-#include "OpenGLUtil/oglException.h"
 
 namespace oglu::texutil::detail
 {

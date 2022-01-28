@@ -205,6 +205,9 @@
     <ClCompile Include="ConsoleEx.cpp" />
     <ClCompile Include="CopyEx.cpp" />
     <ClCompile Include="DynamicLibrary.cpp" />
+    <ClCompile Include="Exceptions.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="FileEx.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
