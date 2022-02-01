@@ -13,54 +13,199 @@ namespace xziar::gui
 
 namespace detail
 {
+common::mlog::MiniLogger<false>& wdLog()
+{
+    static common::mlog::MiniLogger<false> wdlog(u"WindowHost", { common::mlog::GetConsoleBackend() });
+    return wdlog;
+}
+}
+
+auto& AllBackends() noexcept
+{
+    static std::vector<std::unique_ptr<WindowBackend>> Backends;
+    return Backends;
+}
+void detail::RegisterBackend(std::unique_ptr<WindowBackend> backend) noexcept
+{
+    AllBackends().emplace_back(std::move(backend));
+}
+common::span<WindowBackend* const> WindowBackend::GetBackends() noexcept
+{
+    static_assert(sizeof(WindowBackend*) == sizeof(std::unique_ptr<WindowBackend>));
+    const auto& backends = AllBackends();
+    const auto ptr = reinterpret_cast<WindowBackend* const*>(backends.data());
+    return { ptr, backends.size() };
+}
+
+enum class BackendStatus : uint8_t
+{
+    None = 0, Inited = 1, Running = 2
+};
+struct WindowBackend::Pimpl
+{
+    std::thread MainThread;
+    std::promise<void> RunningPromise;
+    std::atomic<uint8_t> Status;
+    bool SupportNewThread : 1;
+    Pimpl(bool supportNewThread) noexcept : Status(0), SupportNewThread(supportNewThread) {}
+};
+
+WindowBackend::WindowBackend(bool supportNewThread) noexcept : Impl(std::make_unique<Pimpl>(supportNewThread))
+{
+}
+WindowBackend::~WindowBackend()
+{}
+
+void WindowBackend::OnInitialize(const void*) 
+{
+    [[maybe_unused]] const auto ret = common::TransitAtomicEnum(Impl->Status, BackendStatus::None, BackendStatus::Inited);
+    Ensures(ret);
+}
+void WindowBackend::OnDeInitialize() noexcept 
+{
+    [[maybe_unused]] const auto ret = common::TransitAtomicEnum(Impl->Status, BackendStatus::Inited, BackendStatus::None);
+    Ensures(ret);
+}
+void WindowBackend::OnPrepare() noexcept { }
+void WindowBackend::OnTerminate() noexcept { }
+
+void WindowBackend::CheckIfInited()
+{
+    if (Impl->Status >= common::enum_cast(BackendStatus::Inited))
+        COMMON_THROW(common::BaseException, u"WindowHostBackend already initialized!").Attach("status", Impl->Status.load());
+}
+bool WindowBackend::Run(bool isNewThread, common::BasicPromise<void>* pms)
+{
+    if (isNewThread && !Impl->SupportNewThread)
+        COMMON_THROW(common::BaseException, u"WindowHostBackend does not support run in new thread!");
+    if (common::TransitAtomicEnum(Impl->Status, BackendStatus::Inited, BackendStatus::Running))
+    {
+        Impl->RunningPromise = {};
+        if (isNewThread)
+        { // new thread
+            std::promise<void> pms2;
+            Impl->MainThread = std::thread([&]()
+                {
+                    common::SetThreadName(u"WindowManager");
+                    OnPrepare();
+                    if (pms)
+                        pms->SetData();
+                    pms2.set_value();
+                    OnMessageLoop();
+                    OnTerminate();
+                    common::TransitAtomicEnum(Impl->Status, BackendStatus::Running, BackendStatus::Inited);
+                    Impl->RunningPromise.set_value();
+                });
+            pms2.get_future().get();
+        }
+        else
+        { // in place
+            OnPrepare();
+            if (pms)
+                pms->SetData();
+            OnMessageLoop();
+            OnTerminate();
+            common::TransitAtomicEnum(Impl->Status, BackendStatus::Running, BackendStatus::Inited);
+            Impl->RunningPromise.set_value();
+        }
+        return true;
+    }
+    return false;
+}
+
+bool WindowBackend::Stop()
+{
+    if (Impl->Status == common::enum_cast(BackendStatus::Running))
+    {
+        if (RequestStop())
+        {
+            Impl->RunningPromise.get_future().get();
+            if (Impl->MainThread.joinable()) // ensure MainThread invalid
+            {
+                Impl->MainThread.join();
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+//void WindowManager::StartNewThread()
+//{
+//    std::promise<void> pms;
+//    MainThread = std::thread([&]()
+//        {
+//            common::SetThreadName(u"WindowManager");
+//            Prepare();
+//            pms.set_value();
+//            MessageLoop();
+//            Terminate();
+//        });
+//    pms.get_future().get();
+//}
+//
+//void WindowManager::StopNewThread()
+//{
+//    if (MainThread.joinable()) // ensure MainThread invalid
+//    {
+//        MainThread.join();
+//    }
+//}
+//
+//void WindowManager::StartInplace(common::BasicPromise<void>* pms)
+//{
+//    Prepare();
+//    if (pms)
+//        pms->SetData();
+//    MessageLoop();
+//    Terminate();
+//}
+
+
+namespace detail
+{
 using common::loop::LoopBase;
 
-std::unique_ptr<WindowManager> CreateManagerImpl();
 
-
-WindowManager::WindowManager() : RunningFlag(false),
-    Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
+WindowManager::WindowManager() : Logger(u"WindowManager", { common::mlog::GetConsoleBackend() })
 { }
 WindowManager::~WindowManager()
 {
-    StopNewThread();
+    //StopNewThread();
 }
 
-void WindowManager::StartNewThread()
-{
-    std::promise<void> pms;
-    MainThread = std::thread([&]()
-        {
-            common::SetThreadName(u"WindowManager");
-            Prepare();
-            pms.set_value();
-            MessageLoop();
-            Terminate();
-        });
-    pms.get_future().get();
-}
 
-void WindowManager::StopNewThread()
-{
-    if (MainThread.joinable()) // ensure MainThread invalid
-    {
-        MainThread.join();
-    }
-}
+//void WindowManager::StartNewThread()
+//{
+//    std::promise<void> pms;
+//    MainThread = std::thread([&]()
+//        {
+//            common::SetThreadName(u"WindowManager");
+//            Prepare();
+//            pms.set_value();
+//            MessageLoop();
+//            Terminate();
+//        });
+//    pms.get_future().get();
+//}
+//
+//void WindowManager::StopNewThread()
+//{
+//    if (MainThread.joinable()) // ensure MainThread invalid
+//    {
+//        MainThread.join();
+//    }
+//}
+//
+//void WindowManager::StartInplace(common::BasicPromise<void>* pms)
+//{
+//    Prepare();
+//    if (pms)
+//        pms->SetData();
+//    MessageLoop();
+//    Terminate();
+//}
 
-void WindowManager::StartInplace(common::BasicPromise<void>* pms)
-{
-    Prepare();
-    if (pms)
-        pms->SetData();
-    MessageLoop();
-    Terminate();
-}
-
-common::span<const std::string_view> WindowManager::GetFeature() const noexcept
-{
-    return {};
-}
 const void* WindowManager::GetWindowData(const WindowHost_*, std::string_view) const noexcept
 {
     return nullptr;
@@ -89,74 +234,32 @@ void WindowManager::HandleTask()
     }
 }
 
-void WindowManager::Initialize() { }
-void WindowManager::DeInitialize() noexcept { }
-void WindowManager::Prepare() noexcept { }
-void WindowManager::Terminate() noexcept { }
-
 void WindowManager::AddInvoke(std::function<void(void)>&& task)
 {
     InvokeList.AppendNode(new InvokeNode(std::move(task)));
     NotifyTask();
 }
 
-WindowManager& WindowManager::Get()
-{
-    static auto Manager = []()
-    {
-        auto man = CreateManagerImpl();
-        try
-        {
-            man->Initialize();
-        }
-        catch (const common::BaseException& be)
-        {
-            man->Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
-            std::rethrow_exception(std::current_exception());
-        }
-        return man;
-    }();
-    return *Manager;
-}
+//WindowManager& WindowManager::Get()
+//{
+//    static auto Manager = []()
+//    {
+//        auto man = CreateManagerImpl();
+//        try
+//        {
+//            man->Initialize();
+//        }
+//        catch (const common::BaseException& be)
+//        {
+//            man->Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
+//            std::rethrow_exception(std::current_exception());
+//        }
+//        return man;
+//    }();
+//    return *Manager;
+//}
 
 }
 
-
-bool WindowRunner::RunInplace(common::BasicPromise<void>* pms) const
-{
-    Expects(Manager);
-    if (!Manager->RunningFlag.exchange(true))
-    {
-        Manager->StartInplace(pms);
-        return true;
-    }
-    return false;
-}
-bool WindowRunner::RunNewThread() const
-{
-    Expects(Manager && Manager->SupportNewThread());
-    if (!Manager->RunningFlag.exchange(true))
-    {
-        Manager->StartNewThread();
-        return true;
-    }
-    return false;
-}
-bool WindowRunner::SupportNewThread() const noexcept 
-{
-    Expects(Manager);
-    return Manager->SupportNewThread();
-}
-bool WindowRunner::CheckFeature(std::string_view feat) const noexcept
-{
-    Expects(Manager);
-    const auto feats = Manager->GetFeature();
-    return std::find(feats.begin(), feats.end(), feat) != feats.end();
-}
-
-WindowRunner WindowHost_::Init()
-{
-    return &detail::WindowManager::Get();
-}
 
 }

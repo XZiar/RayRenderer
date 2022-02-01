@@ -27,6 +27,15 @@
     <ClCompile Include="WindowManagerBackend.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WindowManagerCocoa.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowManagerWin32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowManagerXCB.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHostRely.h">
@@ -42,15 +51,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="WindowEvent.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="WindowManagerCocoa.inl">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="WindowManagerWin32.inl">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="WindowManagerXCB.inl">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

@@ -41,14 +41,9 @@ using event::CommonKeys;
 constexpr short MessageCreate   = 1;
 constexpr short MessageTask     = 2;
 constexpr short MessageUpdTitle = 3;
+constexpr short MessageStop     = 4;
 
 static WindowManager* TheManager = nullptr;
-struct CocoaData
-{
-    Instance Window = nullptr;
-    Instance WindowDlg = nullptr;
-    id View = nullptr;
-};
 
 template<typename F, typename T>
 forceinline constexpr T NormalCast(const F& val)
@@ -192,10 +187,24 @@ struct NSMenuItem : public Instance
 };
 
 
-class WindowManagerCocoa : public WindowManager
+class WindowManagerCocoa : public CocoaBackend, public WindowManager
 {
     static_assert(sizeof(NSInteger) == sizeof(intptr_t), "Expects NSInteger to be as large as intptr_t");
+public:
+    static constexpr std::string_view BackendName = "Cocoa"sv;
 private:
+    class WdHost final : public CocoaBackend::CocoaWdHost
+    {
+    public:
+        Instance Window = nullptr;
+        Instance WindowDlg = nullptr;
+        id View = nullptr;
+        bool NeedBackground = true;
+        WdHost(WindowManagerCocoa& manager, const CocoaCreateInfo& info) noexcept :
+            CocoaWdHost(manager, info) { }
+        ~WdHost() final {}
+        void* GetWindow() const noexcept final { return Window; }
+    };
     class CocoaView : public Instance
     {
     private:
@@ -286,30 +295,14 @@ private:
         }
     };
 
-    bool SupportNewThread() const noexcept final { return true; }
-    common::span<const std::string_view> GetFeature() const noexcept final
+    std::string_view Name() const noexcept { return BackendName; }
+    bool CheckFeature(std::string_view feat) const noexcept
     {
         constexpr std::string_view Features[] =
         {
             "OpenGL"sv, "Metal"sv
         };
-        return Features;
-    }
-    size_t AllocateOSData(void* ptr) const noexcept final
-    {
-        if (ptr)
-            new(ptr) CocoaData;
-        return sizeof(CocoaData);
-    }
-    void DeallocateOSData(void* ptr) const noexcept final
-    {
-        reinterpret_cast<CocoaData*>(ptr)->~CocoaData();
-    }
-    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
-    {
-        const auto& data = host->GetOSData<CocoaData>();
-        if (name == "window") return &data.Window;
-        return nullptr;
+        return std::find(std::begin(Features), std::end(Features), feat) != std::end(Features);
     }
 
     static NSUInteger AppShouldTerminate(id self, SEL _sel, id sender)
@@ -412,10 +405,10 @@ private:
     }
     static event::CombinedKey ProcessKey(uint16_t keycode) noexcept;
 public:
-    WindowManagerCocoa() : App(nullptr), AppDlg(nullptr){ }
+    WindowManagerCocoa() : CocoaBackend(false), App(nullptr), AppDlg(nullptr){ }
     ~WindowManagerCocoa() final { }
 
-    void Initialize() final
+    void OnInitialize(const void* info) final
     {
         using common::BaseException;
         TheManager = this;
@@ -434,25 +427,29 @@ public:
         // only needed if we don't use [NSApp run]
         //[NSApp finishLaunching];
         App.Call<void>("finishLaunching");
+
+        CocoaBackend::OnInitialize(info);
     }
     void DeInitialize() noexcept final
     {
         AppDlg.Release();
         TheManager = nullptr;
+        CocoaBackend::OnDeInitialize();
     }
 
-    void Prepare() noexcept final
+    void OnPrepare() noexcept final
     {
         ARPool.emplace();
     }
-    void MessageLoop() final
+    void OnMessageLoop() final
     {
         using EventType = NSEvent::NSEventType;
         static SEL SelNextEvt = sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:");
         static SEL SelSendEvt = sel_registerName("sendEvent:");
         static SEL SelUpdWd   = sel_registerName("updateWindows");
         static const auto& distFut = NSDate::DistantFuture();
-        while (true)
+        bool shouldContinue = true;
+        while (shouldContinue)
         {
             NSAutoreleasePool pool;
             const NSEvent evt = App.Call<id, NSUInteger, id, id, BOOL>(SelNextEvt, NSUIntegerMax, distFut, NSDefaultRunLoopMode, YES);
@@ -495,13 +492,14 @@ public:
                     break;
                 case MessageUpdTitle:
                 {
-                    const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data));
-                    while (host->Flags.Add(detail::WindowFlag::TitleLocked))
-                        COMMON_PAUSE();
+                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(data)));
+                    TitleLock lock(host);
                     const auto titleString = NSString::Create(host->Title);
-                    host->template GetOSData<CocoaData>().Window.Call<void, id>(SetTitleSel, titleString);
-                    host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
+                    host->Window.Call<void, id>(SetTitleSel, titleString);
                 } break;
+                case MessageStop:
+                    shouldContinue = false;
+                    break;
                 }
             } break;
             case EventType::FlagsChanged:
@@ -541,34 +539,38 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
             App.Call<void>(SelUpdWd);
         }
     }
-    void Terminate() noexcept final
+    void OnTerminate() noexcept final
     {
         ARPool.reset();
+    }
+    bool RequestStop() noexcept final
+    {
+        SendControlRequest(MessageStop, 0);
+        return true;
     }
 
     void CreateNewWindow_(CreatePayload& payload)
     {
         using common::BaseException;
-        const auto host = payload.Host;
+        const auto host = static_cast<WdHost*>(payload.Host);
         host->NeedCheckDrag = false;
-        auto& data = host->template GetOSData<CocoaData>();
 
         //id window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 500, 500) styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask backing:NSBackingStoreBuffered defer:NO];
         static const ClzInit<NSRect, NSUInteger, NSUInteger, BOOL> NSWindowClass("NSWindow", false, "initWithContentRect:styleMask:backing:defer:");
         NSRect rect = {{0, 0}, { static_cast<CGFloat>(host->Width), static_cast<CGFloat>(host->Height) }};
         const Instance window = NSWindowClass.Create(rect, 15, 2, NO);
-        data.Window = window;
+        host->Window = window;
 
         //WindowDelegate * wdg = [[WindowDelegate alloc] init];
-        data.WindowDlg = WindowDelegate.Create();
+        host->WindowDlg = WindowDelegate.Create();
         //[window setDelegate:wdg];
-        window.Call<void, id>("setDelegate:", data.WindowDlg);
+        window.Call<void, id>("setDelegate:", host->WindowDlg);
 
         //[window setReleasedWhenClosed:YES];
         window.Call<void, BOOL>("setReleasedWhenClosed:", YES);
 
         const auto view = CocoaView::Create(host);
-        data.View = view;
+        host->View = view;
         //[view setWantsBestResolutionOpenGLSurface:YES];
         view.Call<void, BOOL>("setWantsBestResolutionOpenGLSurface:", YES);
         static const auto AllowDragTypes = []()
@@ -621,13 +623,14 @@ if (const bool has##mod = modifier & Mod##mod; has##mod != HAS_FIELD(host->Modif
     }
     void CloseWindow(WindowHost_* host) const final
     {
-        auto& data = host->template GetOSData<CocoaData>();
-        data.Window.Call<void>("close");
+        static_cast<WdHost*>(host)->Window.Call<void>("close");
     }
     void ReleaseWindow(WindowHost_* host) final
     {
         UnregisterHost(host);
     }
+
+    static inline const auto Dummy = RegisterBackend<WindowManagerCocoa>();
 };
 
 void WindowManagerCocoa::CocoaView::UpdateTrackingAreas(id self, SEL _sel)
@@ -906,10 +909,6 @@ event::CombinedKey WindowManagerCocoa::ProcessKey(uint16_t keycode) noexcept
     return KeyCodeLookup(keycode).value_or(CommonKeys::UNDEFINE);
 }
 
-std::unique_ptr<WindowManager> CreateManagerImpl()
-{
-    return std::make_unique<WindowManagerCocoa>();
-}
 
 
 }

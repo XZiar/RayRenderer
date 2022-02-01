@@ -18,6 +18,33 @@ class WindowHost_;
 
 namespace detail
 {
+common::mlog::MiniLogger<false>& wdLog();
+
+void RegisterBackend(std::unique_ptr<WindowBackend> backend) noexcept;
+template<typename T>
+inline bool RegisterBackend() noexcept
+{
+    static_assert(std::is_base_of_v<WindowBackend, T>);
+    std::string_view name = T::BackendName;
+    try
+    {
+        RegisterBackend(std::make_unique<T>());
+    }
+    catch (const common::BaseException& be)
+    {
+        wdLog().warning(u"Failed to create backend [{}]: {}\n{}\n", name, be.Message(), be.GetDetailMessage());
+    }
+    catch (const std::exception& ex)
+    {
+        wdLog().warning(u"Failed to create backend [{}]: {}\n", name, ex.what());
+    }
+    catch (...)
+    {
+        wdLog().warning(u"Failed to create backend [{}]\n", name);
+    }
+    return true;
+}
+
 template<typename T = void>
 struct WaitablePayload;
 template<>
@@ -56,17 +83,20 @@ private:
 
     std::vector<std::pair<uintptr_t, WindowHost>> WindowList;
     common::container::IntrusiveDoubleLinkList<InvokeNode> InvokeList;
-    std::thread MainThread;
-    std::atomic_bool RunningFlag;
-
-    void StartNewThread();
-    void StopNewThread();
-    void StartInplace(common::BasicPromise<void>* pms = nullptr);
-    virtual bool SupportNewThread() const noexcept = 0;
-    virtual common::span<const std::string_view> GetFeature() const noexcept;
 protected:
-
     WindowManager();
+
+    class TitleLock
+    {
+        WindowHost_* Host;
+    public:
+        TitleLock(WindowHost_* host);
+        TitleLock(const TitleLock&) noexcept = delete;
+        TitleLock(TitleLock&&) noexcept = delete;
+        TitleLock& operator=(const TitleLock&) noexcept = delete;
+        TitleLock& operator=(TitleLock&&) noexcept = delete;
+        ~TitleLock();
+    };
 
     template<typename T>
     void RegisterHost(T handle, WindowHost_* host)
@@ -89,11 +119,6 @@ protected:
     bool UnregisterHost(WindowHost_* host);
     void HandleTask();
 
-    virtual void Initialize();
-    virtual void DeInitialize() noexcept;
-    virtual void Prepare() noexcept;
-    virtual void MessageLoop() = 0;
-    virtual void Terminate() noexcept;
     virtual void NotifyTask() noexcept = 0;
 public:
     mutable common::mlog::MiniLogger<false> Logger;
@@ -107,11 +132,8 @@ public:
     virtual void ReleaseWindow(WindowHost_* host) = 0;
     virtual const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept;
 
-    virtual size_t AllocateOSData(void* ptr) const noexcept = 0;
-    virtual void DeallocateOSData(void* ptr) const noexcept = 0;
     void AddInvoke(std::function<void(void)>&& task);
 
-    static WindowManager& Get();
     // void Invoke(std::function<void(WindowHost_&)> task);
 };
 

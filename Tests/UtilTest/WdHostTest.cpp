@@ -29,9 +29,9 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
     }
 };
 
-static void OpenTestWindow()
+static void OpenTestWindow(WindowBackend& backend)
 {
-    const auto window = WindowHost_::CreateActive();
+    const auto window = backend.Create();
     window->Openning() += [](const auto&) { log().info(u"opened.\n"); };
     window->Closing() += [clickcnt = 0](const auto&, bool& should) mutable 
     {
@@ -117,10 +117,27 @@ static void OpenTestWindow()
 
 static void WDHost()
 {
-    const auto runner = WindowHost_::Init();
-    Expects(runner);
+    const auto backends = WindowBackend::GetBackends();
+    if (backends.size() == 0)
+    {
+        log().error(u"No WindowHost backend found!\n");
+        return;
+    }
+    const auto whbidx = SelectIdx(backends, u"backend", [&](const auto& backend)
+        {
+            return FMTSTR(u"[{}] {:2}|{:4}|{:2}|{:2}|{:2}", backend->Name(),
+                backend->CheckFeature("OpenGL")     ? u"GL"   : u"",
+                backend->CheckFeature("OpenGLES")   ? u"GLES" : u"",
+                backend->CheckFeature("DirectX")    ? u"DX"   : u"",
+                backend->CheckFeature("Vulkan")     ? u"VK"   : u"",
+                backend->CheckFeature("NewThread")  ? u"NT"   : u"");
+        });
+
+    auto& backend = *backends[whbidx];
+    backend.Init();
+
     bool runInplace = true;
-    if (runner.SupportNewThread())
+    if (backend.CheckFeature("NewThread"))
     {
         GetConsole().Print(common::CommonColor::BrightWhite, u"Run WdHost on new thread? [y/n]\n");
         while (true)
@@ -137,16 +154,16 @@ static void WDHost()
         std::thread Thread([&]() 
             {
                 pms.GetPromiseResult()->Get();
-                OpenTestWindow();
+                OpenTestWindow(backend);
             });
-        runner.RunInplace(&pms);
+        backend.Run(false, &pms);
         if (Thread.joinable())
             Thread.join();
     }
     else
     {
-        runner.RunNewThread();
-        OpenTestWindow();
+        backend.Run(true);
+        OpenTestWindow(backend);
     }
 }
 

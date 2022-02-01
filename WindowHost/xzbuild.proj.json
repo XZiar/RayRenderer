@@ -19,7 +19,12 @@
     {
         "cpp":
         {
-            "sources": ["*.cpp"],
+            "sources": 
+            [
+                "*.cpp",
+                {"-": "WindowManagerWin32.cpp"}, 
+                {"ifneq": {"osname": "Darwin"}, "-": "WindowManagerCocoa.cpp"}
+            ],
             "defines": ["WDHOST_EXPORT"]
         }
     }

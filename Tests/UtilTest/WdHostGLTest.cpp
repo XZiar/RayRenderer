@@ -70,7 +70,7 @@ static void TestErr()
         log().warning(u"Here occurs error due to {}.\n", e.value());
 }
 
-static void RunTest()
+static void RunTest(WindowBackend& backend)
 {
     if (!common::linq::FromIterable(GetCmdArgs())
         .Where([](const auto arg) { return arg == "-renderdoc"; })
@@ -88,25 +88,27 @@ static void RunTest()
 
 #if COMMON_OS_WIN
     const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
+    using WdType = Win32Backend::Win32WdHost;
 #elif COMMON_OS_LINUX
     const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
-    using GLXHost = std::shared_ptr<GLXLoader::GLXHost>;
+    using WdType = XCBBackend::XCBWdHost;
+    const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+    const auto host = loader->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
 #endif
 
-    const auto window = WindowHost_::CreatePassive(1280, 720, u"WdHostGLTest"sv);
+    xziar::gui::CreateInfo wdInfo;
+    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.Title = u"WdHostGLTest";
+    const auto window = std::dynamic_pointer_cast<WdType>(backend.Create(wdInfo));
     std::promise<void> closePms;
     window->Openning() += [&](const auto&) 
     {
         log().info(u"opened.\n"); 
 #if COMMON_OS_WIN
-        const auto& hdc = *window->GetWindowData<void*>("HDC");
-        const auto host = loader->CreateHost(hdc);
+        const auto host = loader->CreateHost(window->GetHDC());
 #elif COMMON_OS_LINUX
-        const auto& host = *window->GetWindowData<GLXHost>("glhost");
-        const auto wd = *window->GetWindowData<uint32_t>("window");
-        host->InitDrawable(wd);
+        host->InitDrawable(window->GetWindow());
 #endif
-        CreateInfo cinfo;
+        oglu::CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
         context = host->CreateContext(cinfo);
         context->UseContext();
@@ -230,18 +232,7 @@ static void RunTest()
 #if COMMON_OS_LINUX
         else if (name == "visual")
         {
-            const auto display   = window->GetWindowData<void*>("display");
-            const auto defscreen = window->GetWindowData<int>  ("defscreen");
-            if (display && defscreen)
-            {
-                if (const auto host = loader->CreateHost(*display, *defscreen); host)
-                {
-                    alignas(GLXHost) std::array<std::byte, sizeof(host)> tmp = {std::byte(0)};
-                    new (tmp.data())GLXHost(host);
-                    window->SetWindowData("glhost", tmp);
-                    return &host->GetVisualId();
-                }
-            }
+            return &host->GetVisualId();
         }
 #endif
         return nullptr;
@@ -252,15 +243,15 @@ static void RunTest()
 
 static void WdGLTest()
 {
-    const auto runner = WindowHost_::Init();
-    Expects(runner);
+    const auto backend = WindowBackend::GetBackends()[0];
+    backend->Init();
     common::BasicPromise<void> pms;
     std::thread Thread([&]() 
         {
             pms.GetPromiseResult()->Get();
-            RunTest();
+            RunTest(*backend);
         });
-    runner.RunInplace(&pms);
+    backend->Run(true, &pms);
     if (Thread.joinable())
         Thread.join();
 }

@@ -35,6 +35,15 @@ inline bool UpdateAtomicMinimum(std::atomic<T>& dest, const T& newVal)
 
 
 template<typename T>
+inline bool TransitAtomicEnum(std::atomic<std::underlying_type_t<T>>& dest, const T from, const T to)
+{
+    using DT = std::underlying_type_t<T>;
+    auto from_ = static_cast<DT>(from);
+    return dest.compare_exchange_strong(from_, static_cast<DT>(to));
+}
+
+
+template<typename T>
 struct AtomicBitfield : protected std::atomic<std::underlying_type_t<T>>
 {
     using DT = std::underlying_type_t<T>;

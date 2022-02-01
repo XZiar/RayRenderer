@@ -27,12 +27,13 @@ constexpr uint32_t MessageCreate    = 1;
 constexpr uint32_t MessageTask      = 2;
 constexpr uint32_t MessageUpdTitle  = 3;
 constexpr uint32_t MessageClose     = 4;
+constexpr uint32_t MessageStop      = 5;
 
 
 namespace xziar::gui::detail
 {
 using namespace std::string_view_literals;
-using event::CommonKeys;
+using xziar::gui::event::CommonKeys;
 
 
 struct DragInfos
@@ -52,17 +53,23 @@ struct DragInfos
     }
 };
 
-struct XCBData
+class WindowManagerXCB final : public XCBBackend, public WindowManager
 {
-    xcb_window_t Handle = 0;
-    Display* TheDisplay = nullptr;
-    DragInfos DragInfo;
-};
-
-
-class WindowManagerXCB : public WindowManager
-{
+public:
+    static constexpr std::string_view BackendName = "XCB"sv;
 private:
+    class WdHost final : public XCBBackend::XCBWdHost
+    {
+    public:
+        xcb_window_t Handle = 0;
+        DragInfos DragInfo;
+        bool NeedBackground = true;
+        WdHost(WindowManagerXCB& manager, const XCBCreateInfo& info) noexcept :
+            XCBWdHost(manager, info) { }
+        ~WdHost() final {}
+        uint32_t GetWindow() const noexcept final { return Handle; }
+    };
+
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
     int DefScreen = 0;
@@ -94,33 +101,18 @@ private:
     uint8_t XKBErrorID = 0;
     bool IsCapsLock = false;
 
-    bool SupportNewThread() const noexcept final { return true; }
-    common::span<const std::string_view> GetFeature() const noexcept final
+    std::string_view Name() const noexcept { return BackendName; }
+    bool CheckFeature(std::string_view feat) const noexcept
     {
         constexpr std::string_view Features[] =
         {
-            "OpenGL"sv, "OpenGLES"sv, "Vulkan"sv
+            "OpenGL"sv, "OpenGLES"sv, "Vulkan"sv, "NewThread"sv,
         };
-        return Features;
+        return std::find(std::begin(Features), std::end(Features), feat) != std::end(Features);
     }
-    size_t AllocateOSData(void* ptr) const noexcept final
-    {
-        if (ptr)
-            new(ptr) XCBData;
-        return sizeof(XCBData);
-    }
-    void DeallocateOSData(void* ptr) const noexcept final
-    {
-        reinterpret_cast<XCBData*>(ptr)->~XCBData();
-    }
-    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
-    {
-        const auto& data = host->GetOSData<XCBData>();
-        if (name == "window") return &data.Handle;
-        if (name == "display") return &data.TheDisplay;
-        if (name == "defscreen") return &DefScreen;
-        return nullptr;
-    }
+    void* GetDisplay() const noexcept final { return TheDisplay; }
+    void* GetConnection() const noexcept final { return Connection; }
+    int32_t GetDefaultScreen() const noexcept final { return DefScreen; }
 
     bool GeneralHandleError(xcb_generic_error_t* err) noexcept
     {
@@ -231,10 +223,10 @@ private:
             gsl::narrow_cast<uint32_t>(title.size()), title.c_str());
     }
 public:
-    WindowManagerXCB() { }
+    WindowManagerXCB() : XCBBackend(true) { }
     ~WindowManagerXCB() override { }
 
-    void Initialize() final
+    void OnInitialize(const void* info) final
     {
         using common::BaseException;
         // XInitThreads();
@@ -342,8 +334,9 @@ public:
             }
         }
         xcb_flush(Connection);
+        XCBBackend::OnInitialize(info);
     }
-    void DeInitialize() noexcept final
+    void OnDeInitialize() noexcept final
     {
         xcb_destroy_window(Connection, ControlWindow);
 
@@ -352,9 +345,15 @@ public:
         xkb_context_unref(XKBContext);
 
         xcb_disconnect(Connection);
+        XCBBackend::OnDeInitialize();
+    }
+    bool RequestStop() noexcept final
+    {
+        SendControlRequest(MessageStop, 0, 0);
+        return true;
     }
 
-    void HandleControlMessage(const uint32_t(&data)[5])
+    bool HandleControlMessage(const uint32_t(&data)[5])
     {
         switch (data[0])
         {
@@ -370,26 +369,27 @@ public:
         } break;
         case MessageUpdTitle:
         {
-            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
-            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
-            while (host->Flags.Add(detail::WindowFlag::TitleLocked))
-                COMMON_PAUSE();
-            SetTitle(host->template GetOSData<XCBData>().Handle, host->Title);
-            host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
+            const uintptr_t ptr = static_cast<uintptr_t>(((uint64_t)(data[2]) << 32) + data[1]);
+            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
+            TitleLock lock(host);
+            SetTitle(host->Handle, host->Title);
         } break;
         case MessageClose:
         {
-            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
-            const auto host = reinterpret_cast<WindowHost_*>(static_cast<uintptr_t>(ptr));
-            const auto cookie = xcb_destroy_window(Connection, host->GetOSData<XCBData>().Handle);
+            const uintptr_t ptr = static_cast<uintptr_t>(((uint64_t)(data[2]) << 32) + data[1]);
+            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
+            const auto cookie = xcb_destroy_window(Connection, host->Handle);
             GeneralHandleError(cookie);
             host->Stop();
         } break;
+        case MessageStop:
+            return false;
         }
+        return true;
     }
-    void HandleClientMessage(WindowHost_* host, xcb_window_t window, const xcb_atom_t atom, const xcb_client_message_data_t& data)
+    void HandleClientMessage(WindowHost_* host_, xcb_window_t window, const xcb_atom_t atom, const xcb_client_message_data_t& data)
     {
-        auto& hostData = host->GetOSData<XCBData>();
+        const auto host = static_cast<WdHost*>(host_);
         if (atom == WMProtocolAtom)
         {
             if (data.data32[0] == CloseAtom)
@@ -401,7 +401,7 @@ public:
         }
         else if (atom == XdndEnterAtom)
         {
-            auto& dragInfo = hostData.DragInfo;
+            auto& dragInfo = host->DragInfo;
             dragInfo.Clear();
             dragInfo.SourceWindow = data.data32[0];
             dragInfo.Version      = data.data32[1] >> 24;
@@ -428,14 +428,14 @@ public:
         }
         else if (atom == XdndLeaveAtom)
         {
-            auto& dragInfo = hostData.DragInfo;
+            auto& dragInfo = host->DragInfo;
             dragInfo.Clear();
             const xcb_window_t source = data.data32[0];
             Logger.info(u"DragLeave from [{}]\n", uint32_t(source));
         }
         else if (atom == XdndPositionAtom)
         {
-            auto& dragInfo = hostData.DragInfo;
+            auto& dragInfo = host->DragInfo;
             if (dragInfo.SourceWindow == data.data32[0])
             {
                 dragInfo.PosX = static_cast<int16_t>(data.data32[2] >> 16);
@@ -453,7 +453,7 @@ public:
         }
         else if (atom == XdndDropAtom)
         {
-            auto& dragInfo = hostData.DragInfo;
+            auto& dragInfo = host->DragInfo;
             if (dragInfo.SourceWindow == data.data32[0])
             {
                 if (dragInfo.TargetType)
@@ -494,17 +494,18 @@ public:
 
     void InitializeWindow(xcb_window_t window)
     {
-        if (const auto host = GetWindow(window); host)
+        if (const auto host_ = GetWindow(window); host_)
         {
-            auto& data = host->template GetOSData<XCBData>();
-            data.Handle = window;
+            const auto host = static_cast<WdHost*>(host_);
+            host->Handle = window;
             host->Initialize();
         }
     }
-    void MessageLoop() final
+    void OnMessageLoop() final
     {
         xcb_generic_event_t* evt;
-        while ((evt = xcb_wait_for_event(Connection)))
+        bool shouldContinue = true;
+        while (shouldContinue && (evt = xcb_wait_for_event(Connection)))
         {
             // Logger.verbose(u"Recieve message [{}]\n", (uint32_t)event->response_type);
             switch (const auto evtType = evt->response_type & 0x7f; evtType)
@@ -619,21 +620,21 @@ public:
                     QueryAtomName(msg.selection), uint32_t(msg.selection),
                     QueryAtomName(msg.target),    uint32_t(msg.target),
                     QueryAtomName(msg.property),  uint32_t(msg.property));
-                if (const auto host = GetWindow(msg.requestor); host)
+                if (const auto host_ = GetWindow(msg.requestor); host_)
                 {
-                    auto& hostData = host->template GetOSData<XCBData>();
-                    auto& dragInfo = hostData.DragInfo;
+                    const auto host = static_cast<WdHost*>(host_);
+                    auto& dragInfo = host->DragInfo;
                     if (msg.selection == XdndSelectionAtom && msg.target == dragInfo.TargetType)
                     {
                         const auto ret = QueryProperty(msg.requestor, PrimaryAtom, XCB_ATOM_ANY);
 
                         Expects(dragInfo.SourceWindow);
-                        uint32_t sendData[3] = { hostData.Handle, 1, XdndActionCopyAtom };
+                        uint32_t sendData[3] = { host->Handle, 1, XdndActionCopyAtom };
                         SendClientMessage(dragInfo.SourceWindow, XdndFinishedAtom, sendData);
 
                         if (ret)
                         {
-                            const auto cookie = xcb_translate_coordinates(Connection, Screen->root, hostData.Handle, dragInfo.PosX, dragInfo.PosY);
+                            const auto cookie = xcb_translate_coordinates(Connection, Screen->root, host->Handle, dragInfo.PosX, dragInfo.PosY);
                             
                             common::StringPool<char16_t> fileNamePool;
                             std::vector<common::StringPiece<char16_t>> fileNamePieces;
@@ -662,7 +663,7 @@ public:
                 const auto& msg = *reinterpret_cast<xcb_client_message_event_t*>(evt);
                 if (msg.window == ControlWindow)
                 {
-                    HandleControlMessage(msg.data.data32);
+                    shouldContinue = HandleControlMessage(msg.data.data32);
                 }
                 else if (const auto host = GetWindow(msg.window); host)
                 {
@@ -699,9 +700,7 @@ public:
 
     void CreateNewWindow_(CreatePayload& payload)
     {
-        const auto host = payload.Host;
-        auto& data = host->template GetOSData<XCBData>();
-        data.TheDisplay = TheDisplay;
+        const auto host = static_cast<WdHost*>(payload.Host);
 
         int visualId = Screen->root_visual;
         bool needBackground = true;
@@ -796,6 +795,19 @@ public:
     {
         UnregisterHost(host);
     }
+
+    WindowHost Create(const CreateInfo& info_) final
+    {
+        XCBCreateInfo info;
+        static_cast<CreateInfo&>(info) = info_;
+        return Create(info);
+    }
+    std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info) final
+    {
+        return std::make_shared<WdHost>(*this, info);
+    }
+
+    static inline const auto Dummy = RegisterBackend<WindowManagerXCB>();
 };
 
 
@@ -870,11 +882,6 @@ event::CombinedKey WindowManagerXCB::ProcessKey(xcb_keycode_t keycode) noexcept
     return KeyCodeLookup(keysym).value_or(CommonKeys::UNDEFINE);
 }
 
-
-std::unique_ptr<WindowManager> CreateManagerImpl()
-{
-    return std::make_unique<WindowManagerXCB>();
-}
 
 
 }

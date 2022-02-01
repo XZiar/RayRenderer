@@ -33,6 +33,7 @@
   - [ ] Add high precision waitable condition varaible (WaitableTimer and nanosleep?)
   - [ ] Desgin common waitable, with native support of multi-wait
   - [x] Add delayed stacktrace resolve for Exceptions
+  - [ ] Use libdawrf/libdw as fallback support for stacktrace
   * StringUtil
     - [x] Add general charset default value
     - [x] Add compile-time LE/BE decision
@@ -70,11 +71,11 @@
   - [ ] Add support for gesture
   - [ ] Add support for touch screen logic
   - [ ] Add support for remote redering on Android (with IPC and shares ANativeWindow?)
-  - [ ] Add multi-backend support
+  - [x] Add multi-backend support
   - [ ] Add vsync signal support
   - [ ] Add Icon support
   - [ ] Add timer support
-  - [ ] Revert to use std::any for data storage to ensure lifetime management
+  - [x] Revert to use std::any for data storage to ensure lifetime management
 
 * Nailang
   - [x] Re-design operators handling to support `short-circuit evaluation` and `assign if null`

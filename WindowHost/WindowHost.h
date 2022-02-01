@@ -26,30 +26,66 @@ class WindowManagerWin32;
 class WindowManagerXCB;
 class WindowManagerCocoa;
 
-enum class WindowFlag : uint8_t
-{
-    None = 0x0, Running = 0x1, TitleChanged = 0x2, TitleLocked = 0x4
-};
-MAKE_ENUM_BITFIELD(WindowFlag)
 }
 
 
-class WindowRunner
+struct CreateInfo
 {
-    friend detail::WindowManager;
-    friend WindowHost_;
-    detail::WindowManager* Manager;
-    WindowRunner(detail::WindowManager* manager) : Manager(manager) {}
-public:
-    COMMON_NO_COPY(WindowRunner)
-    COMMON_DEF_MOVE(WindowRunner)
-    constexpr explicit operator bool() const noexcept { return Manager; }
-    WDHOSTAPI bool RunInplace(common::BasicPromise<void>* pms = nullptr) const;
-    WDHOSTAPI bool RunNewThread() const;
-    WDHOSTAPI bool SupportNewThread() const noexcept;
-    WDHOSTAPI bool CheckFeature(std::string_view feat) const noexcept;
+    std::u16string Title;
+    uint32_t Width = 1280, Height = 720;
+    uint16_t TargetFPS = 0;
 };
 
+
+class WindowBackend
+{
+private:
+    struct Pimpl;
+    std::unique_ptr<Pimpl> Impl;
+    virtual void OnPrepare() noexcept;
+    virtual void OnMessageLoop() = 0;
+    virtual void OnTerminate() noexcept;
+    virtual bool RequestStop() noexcept = 0;
+protected:
+    WindowBackend(bool supportNewThread) noexcept;
+    WDHOSTAPI void CheckIfInited();
+    virtual void OnInitialize(const void* info);
+    virtual void OnDeInitialize() noexcept;
+public:
+    virtual ~WindowBackend();
+    void Init()
+    {
+        CheckIfInited();
+        OnInitialize(nullptr);
+    }
+    WDHOSTAPI bool Run(bool isNewThread, common::BasicPromise<void>* pms = nullptr);
+    WDHOSTAPI bool Stop();
+    [[nodiscard]] virtual std::string_view Name() const noexcept = 0;
+    [[nodiscard]] virtual bool CheckFeature(std::string_view feat) const noexcept = 0;
+    
+    [[nodiscard]] WDHOSTAPI static common::span<WindowBackend* const> GetBackends() noexcept;
+    template<typename T>
+    [[nodiscard]] static T* GetBackend() noexcept
+    {
+        static_assert(std::is_base_of_v<WindowBackend, T>);
+        for (const auto& backend : GetBackends())
+        {
+            if (const auto ld = dynamic_cast<const T*>(backend); ld)
+                return ld;
+        }
+        return nullptr;
+    }
+    [[nodiscard]] static const WindowBackend* GetBackend(std::string_view name) noexcept
+    {
+        for (const auto& backend : GetBackends())
+        {
+            if (backend->Name() == name)
+                return backend;
+        }
+        return nullptr;
+    }
+    virtual WindowHost Create(const CreateInfo& info = {}) = 0;
+};
 
 
 template<typename... Args>
@@ -101,38 +137,31 @@ class WDHOSTAPI WindowHost_ :
     friend detail::WindowManagerXCB;
     friend detail::WindowManagerCocoa;
 private:
-    struct PrivateData;
+    struct Pimpl;
+    std::unique_ptr<Pimpl> Impl;
     detail::WindowManager& Manager;
-    PrivateData* Data;
     std::u16string Title;
     int32_t Width, Height;
     event::Position LastPos, LeftBtnPos;
-    common::AtomicBitfield<detail::WindowFlag> Flags;
     event::MouseButton PressedButton = event::MouseButton::None;
     event::ModifierKeys Modifiers = event::ModifierKeys::None;
     bool NeedCheckDrag = true, IsMouseDragging = false, MouseHasLeft = true;
 
-    [[nodiscard]] uintptr_t GetPrivateExtData() const noexcept;
-    template<typename T>
-    [[nodiscard]] T& GetOSData() const noexcept
-    {
-        static_assert(alignof(T) <= alignof(uint64_t));
-        return *reinterpret_cast<T*>(GetPrivateExtData());
-    }
-    [[nodiscard]] const void* GetWindowData_(std::string_view name) const noexcept;
+    [[nodiscard]] const std::any* GetWindowData_(std::string_view name) const noexcept;
+    void SetWindowData_(std::string_view name, std::any&& data) const noexcept;
     bool OnStart(std::any cookie) noexcept override final;
     LoopAction OnLoop() override final;
     void OnStop() noexcept override final;
     void Initialize();
     void RefreshMouseButton(event::MouseButton pressed) noexcept;
 protected:
-    WindowHost_(const int32_t width, const int32_t height, const std::u16string_view title);
+    WindowHost_(detail::WindowManager& manager, const CreateInfo& info) noexcept;
     using LoopBase::Wakeup;
     bool HandleInvoke() noexcept;
 
     // below callbacks are called inside UI thread (Window Loop)
     virtual void OnOpen() noexcept;
-    virtual LoopAction OnLoopPass() = 0;
+    virtual LoopAction OnLoopPass();
     virtual void OnDisplay() noexcept;
 
     // below callbacks are called inside Manager thread (Main Loop)
@@ -157,14 +186,14 @@ public:
     template<typename T>
     const T* GetWindowData(std::string_view name) const noexcept 
     { 
-        return reinterpret_cast<const T*>(GetWindowData_(name));
+        return std::any_cast<T>(GetWindowData_(name));
     }
-    std::byte* SetWindowData(std::string_view name, common::span<const std::byte> data, size_t align) const noexcept;
     template<typename T>
-    T* SetWindowData(std::string_view name, const T& data) const noexcept
+    void SetWindowData(std::string_view name, const T& data) const noexcept
     {
-        return reinterpret_cast<T*>(SetWindowData(name, { reinterpret_cast<const std::byte*>(&data), sizeof(T) }, alignof(T)));
+        SetWindowData_(name, std::any{ data });
     }
+    void RemoveWindowData(std::string_view name) const noexcept;
 
     // below delegates are called inside UI thread (Window Loop)
     WindowEventDelegate<> Openning() const noexcept;
@@ -193,46 +222,113 @@ public:
     void Invoke(std::function<void(void)> task);
     void InvokeUI(std::function<void(WindowHost_&)> task);
     virtual void Invalidate();
+    void SetTargetFPS(uint16_t fps) noexcept;
 
-    static WindowRunner Init();
+    /*static WindowRunner Init();
     static WindowHost CreatePassive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
-    static WindowHost CreateActive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});
+    static WindowHost CreateActive(const int32_t width = 1280, const int32_t height = 720, const std::u16string_view title = {});*/
 };
 
-
-class WindowHostPassive : public WindowHost_
+class Win32Backend : public WindowBackend
 {
-    friend class WindowHost_;
-private:
-    MAKE_ENABLER();
-    std::atomic_flag IsUptodate = ATOMIC_FLAG_INIT;
-
-    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
 protected:
-    WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title);
+    using WindowBackend::WindowBackend;
 public:
-    ~WindowHostPassive() override;
-    void Invalidate() override;
-};
+    struct Win32CreateInfo : public CreateInfo
+    {
 
-class WindowHostActive : public WindowHost_
+    };
+    class Win32WdHost : public WindowHost_
+    {
+    protected:
+        using WindowHost_::WindowHost_;
+    public:
+        [[nodiscard]] virtual void* GetHDC() const noexcept = 0;
+        [[nodiscard]] virtual void* GetHWND() const noexcept = 0;
+    };
+    [[nodiscard]] virtual std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info = {}) = 0;
+};
+using Win32WdHost = std::shared_ptr<Win32Backend::Win32WdHost>;
+
+class XCBBackend : public WindowBackend
 {
-    friend class WindowHost_;
-private:
-    MAKE_ENABLER();
-    common::SimpleTimer DrawTimer;
-    float TargetFPS = 60.0f;
-
-    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
-    void OnOpen() noexcept override;
 protected:
-    WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title);
+    using WindowBackend::WindowBackend;
 public:
-    ~WindowHostActive() override;
+    struct XCBCreateInfo : public CreateInfo
+    {
 
-    void SetTargetFPS(float fps) noexcept;
+    };
+    class XCBWdHost : public WindowHost_
+    {
+    protected:
+        using WindowHost_::WindowHost_;
+    public:
+        [[nodiscard]] virtual uint32_t GetWindow() const noexcept = 0;
+    };
+    [[nodiscard]] virtual std::shared_ptr<XCBWdHost> Create(const XCBCreateInfo& info = {}) = 0;
+    [[nodiscard]] virtual void* GetDisplay() const noexcept = 0;
+    [[nodiscard]] virtual void* GetConnection() const noexcept = 0;
+    [[nodiscard]] virtual int32_t GetDefaultScreen() const noexcept = 0;
 };
+using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
 
+class CocoaBackend : public WindowBackend
+{
+protected:
+    using WindowBackend::WindowBackend;
+public:
+    struct CocoaCreateInfo : public CreateInfo
+    {
+
+    };
+    class CocoaWdHost : public WindowHost_
+    {
+    protected:
+        using WindowHost_::WindowHost_;
+    public:
+        [[nodiscard]] virtual void* GetWindow() const noexcept = 0;
+    };
+    [[nodiscard]] virtual std::shared_ptr<CocoaWdHost> Create(const CocoaCreateInfo& info = {}) = 0;
+};
+using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
+
+
+//class WindowHostPassive : public WindowHost_
+//{
+//    friend class WindowHost_;
+//private:
+//    MAKE_ENABLER();
+//    std::atomic_flag IsUptodate = ATOMIC_FLAG_INIT;
+//
+//    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
+//protected:
+//    WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title);
+//public:
+//    ~WindowHostPassive() override;
+//    void Invalidate() override;
+//};
+//
+//class WindowHostActive : public WindowHost_
+//{
+//    friend class WindowHost_;
+//private:
+//    MAKE_ENABLER();
+//    common::SimpleTimer DrawTimer;
+//    float TargetFPS = 60.0f;
+//
+//    ::common::loop::LoopBase::LoopAction OnLoopPass() override final;
+//    void OnOpen() noexcept override;
+//protected:
+//    WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title);
+//public:
+//    ~WindowHostActive() override;
+//
+//    void SetTargetFPS(float fps) noexcept;
+//};
+
+//using XCBWdHost = std::shared_ptr<XCBBackend::XCBWdHost>;
+//using CocoaWdHost = std::shared_ptr<CocoaBackend::CocoaWdHost>;
 
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonRely.hpp"
 #include "TrunckedContainer.hpp"
+#include "StrBase.hpp"
 #include <tuple>
 #include <any>
 #include <string_view>
@@ -9,42 +10,6 @@
 
 namespace common::container
 {
-
-namespace detail
-{
-template<typename T> struct RDStrHelper
-{
-    static_assert(!AlwaysTrue<T>, "need char string-like");
-};
-template<> struct RDStrHelper<::std::string>
-{
-    const std::string_view Str;
-    const bool NeedCopy;
-    RDStrHelper(const std::string& str) noexcept : Str{ str }, NeedCopy(true) { }
-};
-template<> struct RDStrHelper<::std::string_view>
-{
-    const std::string_view Str;
-    const bool NeedCopy;
-    constexpr RDStrHelper(const std::string_view str) noexcept : Str{ str }, NeedCopy(false) { }
-};
-struct RDStrHelperRaw
-{
-    const std::string_view Str;
-    const bool NeedCopy;
-    constexpr RDStrHelperRaw(const char* str) noexcept : Str{ str }, NeedCopy(true) { }
-};
-template<typename T> struct RDStrHelper<T*> : public RDStrHelperRaw
-{
-    static_assert(std::is_same_v<std::remove_const_t<T>, char>, "need char pointer");
-};
-template<size_t N> struct RDStrHelper<char[N]>
-{
-    const std::string_view Str;
-    const bool NeedCopy;
-    constexpr RDStrHelper(const char(&str)[N]) noexcept : Str{ str }, NeedCopy(false) { }
-};
-}
 
 class ResourceDict
 {
@@ -107,12 +72,17 @@ public:
     template<typename T, typename S>
     bool Add(const S& key_, T&& val)
     {
-        const detail::RDStrHelper<S> key(key_);
+        using U = std::decay_t<T>;
+        constexpr bool NeedCopy = str::StrAcceptor<char, S>::NeedCopy;
+        std::string_view key{ key_ };
         for (auto& item : Items)
         {
-            if (item == key.Str)
+            if (item == key)
             {
-                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+                if constexpr (std::is_same_v<U, std::any>)
+                    item.Val = std::forward<T>(val);
+                else
+                    item.Val.emplace<U>(std::forward<T>(val));
                 return false;
             }
         }
@@ -120,16 +90,22 @@ public:
         {
             if (item.IsEmpty())
             {
-                item.SetStr(key.Str, key.NeedCopy);
-                item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+                item.SetStr(key, NeedCopy);
+                if constexpr (std::is_same_v<U, std::any>)
+                    item.Val = std::forward<T>(val);
+                else
+                    item.Val.emplace<U>(std::forward<T>(val));
                 UsedSlot++;
                 return true;
             }
         }
         auto& item = Items.AllocOne();
         new (&item) RawItem();
-        item.SetStr(key.Str, key.NeedCopy);
-        item.Val.emplace<std::decay_t<T>>(std::forward<T>(val));
+        item.SetStr(key, NeedCopy); 
+        if constexpr (std::is_same_v<U, std::any>)
+            item.Val = std::forward<T>(val);
+        else
+            item.Val.emplace<U>(std::forward<T>(val));
         UsedSlot++;
         return true;
     }
@@ -148,7 +124,7 @@ public:
         }
         return false;
     }
-    struct Item
+    /*struct Item
     {
         std::string_view Key;
         const std::any* Val;
@@ -156,7 +132,7 @@ public:
         {
             return Key.size() != SIZE_MAX;
         }
-    };
+    };*/
     const std::any* QueryItem(const std::string_view key) const noexcept
     {
         for (auto& item : Items)

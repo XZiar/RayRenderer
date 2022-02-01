@@ -17,6 +17,7 @@ using u8string = std::string;
 using u8string_view = std::string_view;
 #endif
 
+
 template<typename T>
 [[nodiscard]] inline constexpr auto ToStringView(T&& val) noexcept
 {
@@ -47,6 +48,30 @@ template<typename T>
         static_assert(!common::AlwaysTrue<T>, "unsupported type to be converted into string_view");
 }
 
+
+template<typename Char, typename T> struct StrAcceptor
+{
+    static_assert(!AlwaysTrue<T>, "need string-like");
+};
+template<typename Char> struct StrAcceptor<Char, ::std::basic_string<Char>>
+{
+    static constexpr bool NeedCopy = true;
+};
+template<typename Char> struct StrAcceptor<Char, ::std::basic_string_view<Char>>
+{
+    static constexpr bool NeedCopy = false;
+};
+template<typename Char, size_t N> struct StrAcceptor<Char, Char[N]>
+{
+    static constexpr bool NeedCopy = false;
+};
+template<typename Char, typename T> struct StrAcceptor<Char, T*>
+{
+    static_assert(std::is_same_v<std::remove_const_t<T>, Char>, "not a char pointer");
+    static constexpr bool NeedCopy = true;
+};
+
+
 template<typename Ch>
 struct StrVariant
 {
@@ -55,11 +80,19 @@ private:
     std::basic_string_view<Ch> View;
 public:
     StrVariant() noexcept { }
-    template<size_t N>
-    StrVariant(const Ch(&str)[N]) noexcept : View(str) { }
+    template<typename T>
+    StrVariant(const T& str) noexcept
+    {
+        if constexpr (StrAcceptor<Ch, T>::NeedCopy)
+            Str = str;
+        else
+            View = str;
+    }
+    /*template<size_t N>
+    StrVariant(const Ch(&str)[N]) noexcept : View(str) { }*/
     StrVariant(std::basic_string<Ch>&& str) noexcept : Str(std::move(str)), View(Str) { }
-    StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
-    StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }
+    /*StrVariant(const std::basic_string<Ch>& str) noexcept : View(str) { }
+    StrVariant(const std::basic_string_view<Ch> str) noexcept : View(str) { }*/
     StrVariant(const StrVariant<Ch>& other) noexcept :
         Str(other.Str), View(Str.empty() ? other.View : Str) { }
     StrVariant(StrVariant<Ch>&& other) noexcept : 

@@ -17,6 +17,7 @@ constexpr uint32_t MessageCreate    = WM_USER + 1;
 constexpr uint32_t MessageTask      = WM_USER + 2;
 constexpr uint32_t MessageUpdTitle  = WM_USER + 3;
 constexpr uint32_t MessageClose     = WM_USER + 4;
+constexpr uint32_t MessageStop      = WM_USER + 5;
 
 
 namespace xziar::gui::detail
@@ -24,17 +25,25 @@ namespace xziar::gui::detail
 using namespace std::string_view_literals;
 using event::CommonKeys;
 
-struct Win32Data
-{
-    HWND Handle = nullptr;
-    HDC DCHandle = nullptr;
-    bool NeedBackground = true;
-};
 
-
-class WindowManagerWin32 : public WindowManager
+class WindowManagerWin32 final : public Win32Backend, public WindowManager
 {
+public:
+    static constexpr std::string_view BackendName = "Win32"sv;
 private:
+    class WdHost final : public Win32Backend::Win32WdHost
+    {
+    public:
+        HWND Handle = nullptr;
+        HDC DCHandle = nullptr;
+        bool NeedBackground = true;
+        WdHost(WindowManagerWin32& manager, const Win32CreateInfo& info) noexcept :
+            Win32WdHost(manager, info) { }
+        ~WdHost() final {}
+        void* GetHDC() const noexcept final { return DCHandle; }
+        void* GetHWND() const noexcept final { return Handle; }
+    };
+
     //static intptr_t __stdcall WindowProc(uintptr_t, uint32_t, uintptr_t, intptr_t);
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
     static LRESULT CALLBACK FirstProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -51,37 +60,20 @@ private:
         return DefWindowProcW(hwnd, msg, wParam, lParam);
     }
 
-    void* InstanceHandle = nullptr;
-    uint32_t ThreadId = 0;
-
-    bool SupportNewThread() const noexcept final { return true; }
-    common::span<const std::string_view> GetFeature() const noexcept final
+    std::string_view Name() const noexcept { return BackendName; }
+    bool CheckFeature(std::string_view feat) const noexcept
     {
         constexpr std::string_view Features[] =
         {
-            "OpenGL"sv, "OpenGLES"sv, "DirectX"sv, "Vulkan"sv
+            "OpenGL"sv, "OpenGLES"sv, "DirectX"sv, "Vulkan"sv, "NewThread"sv,
         };
-        return Features;
+        return std::find(std::begin(Features), std::end(Features), feat) != std::end(Features);
     }
-    size_t AllocateOSData(void* ptr) const noexcept final
-    {
-        if (ptr)
-            new(ptr) Win32Data;
-        return sizeof(Win32Data);
-    }
-    void DeallocateOSData(void* ptr) const noexcept final
-    {
-        reinterpret_cast<Win32Data*>(ptr)->~Win32Data();
-    }
-    const void* GetWindowData(const WindowHost_* host, std::string_view name) const noexcept final
-    {
-        const auto& data = host->GetOSData<Win32Data>();
-        if (name == "HWND" || name == "window") return &data.Handle;
-        if (name == "HDC" || name == "display") return &data.DCHandle;
-        return nullptr;
-    }
+
+    void* InstanceHandle = nullptr;
+    uint32_t ThreadId = 0;
 public:
-    WindowManagerWin32() { }
+    WindowManagerWin32() : Win32Backend(true) { }
     ~WindowManagerWin32() final { }
 
     static void SetDPIMode()
@@ -98,7 +90,7 @@ public:
                 break;
     }
 
-    void Initialize() final
+    void OnInitialize(const void* info) final
     {
         const auto instance = GetModuleHandleW(nullptr);
         InstanceHandle = instance;
@@ -132,18 +124,21 @@ public:
             NULL, NULL, // parent window, menu
             reinterpret_cast<HINSTANCE>(InstanceHandle), this); // instance, param
         DestroyWindow(tmp);
+
+        Win32Backend::OnInitialize(info);
     }
 
-    void Prepare() noexcept final
+    void OnPrepare() noexcept final
     {
         ThreadId = GetCurrentThreadId();
     }
-    void MessageLoop() final
+    void OnMessageLoop() final
     {
         MSG msg;
         while (GetMessageW(&msg, nullptr, 0, 0) > 0)//, PM_REMOVE))
         {
             TranslateMessage(&msg);
+            bool finish = false;
             if (msg.hwnd == nullptr)
             {
                 switch (msg.message)
@@ -156,27 +151,35 @@ public:
                     continue;
                 case MessageUpdTitle:
                 {
-                    const auto host = reinterpret_cast<WindowHost_*>(msg.wParam);
-                    while (host->Flags.Add(detail::WindowFlag::TitleLocked))
-                        COMMON_PAUSE();
-                    SetWindowTextW(host->template GetOSData<Win32Data>().Handle,
+                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    TitleLock lock(host);
+                    SetWindowTextW(host->Handle,
                         reinterpret_cast<const wchar_t*>(host->Title.c_str())); // expects return after finish
-                    host->Flags.Extract(detail::WindowFlag::TitleLocked | detail::WindowFlag::TitleChanged);
                 } continue;
                 case MessageClose:
-                    DestroyWindow(reinterpret_cast<WindowHost_*>(msg.wParam)->template GetOSData<Win32Data>().Handle);
+                    DestroyWindow(static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam))->Handle);
                     continue;
+                case MessageStop:
+                    finish = true;
+                    break;
                 default:
                     Logger.verbose(FMT_STRING(u"Thread unknown MSG[{:x}]\n"), msg.message);
                 }
             }
+            if (finish)
+                break;
             DispatchMessageW(&msg);
         }
     }
-    void Terminate() noexcept final
+    void OnTerminate() noexcept final
     {
         ThreadId = 0;
     }
+    bool RequestStop() noexcept final
+    {
+        return SendGeneralMessage(0, MessageStop);
+    }
+
 
     void NotifyTask() noexcept final
     {
@@ -234,12 +237,25 @@ public:
     {
         SendGeneralMessage(reinterpret_cast<uintptr_t>(host), MessageClose);
     }
-    void ReleaseWindow(WindowHost_* host) final
+    void ReleaseWindow(WindowHost_* host_) final
     {
-        UnregisterHost(host);
-        const auto& data = host->template GetOSData<Win32Data>();
-        ReleaseDC(data.Handle, data.DCHandle);
+        UnregisterHost(host_);
+        const auto host = static_cast<WdHost*>(host_);
+        ReleaseDC(host->Handle, host->DCHandle);
     }
+
+    WindowHost Create(const CreateInfo& info_) final
+    {
+        Win32CreateInfo info;
+        static_cast<CreateInfo&>(info) = info_;
+        return Create(info);
+    }
+    std::shared_ptr<Win32WdHost> Create(const Win32CreateInfo& info) final
+    {
+        return std::make_shared<WdHost>(*this, info);
+    }
+
+    static inline const auto Dummy = RegisterBackend<WindowManagerWin32>();
 };
 
 
@@ -323,17 +339,16 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     if (msg == WM_CREATE)
     {
         const auto& payload = *reinterpret_cast<CreatePayload*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
-        const auto host = payload.Host;
+        const auto host = static_cast<WdHost*>(payload.Host);
         TheManager->Logger.success(FMT_STRING(u"Create window HWND[{:x}] with host [{:p}]\n"), handle, (void*)host);
         SetWindowLongPtrW(hwnd, 0, reinterpret_cast<LONG_PTR>(host));
-        auto& data = host->template GetOSData<Win32Data>();
-        data.Handle = hwnd;
-        data.DCHandle = GetDC(hwnd);
+        host->Handle = hwnd;
+        host->DCHandle = GetDC(hwnd);
         if (payload.ExtraData)
         {
             const auto bg = (*payload.ExtraData)("background");
             if (bg)
-                data.NeedBackground = *reinterpret_cast<const bool*>(bg);
+                host->NeedBackground = *reinterpret_cast<const bool*>(bg);
         }
         host->Initialize();
     }
@@ -343,7 +358,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     }
     else
     {
-        const auto host = reinterpret_cast<WindowHost_*>(GetWindowLongPtrW(hwnd, 0));
+        const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(GetWindowLongPtrW(hwnd, 0)));
         if (host != nullptr)
         {
             switch (msg)
@@ -386,7 +401,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             } return 0;
 
             case WM_ERASEBKGND:
-                if (host->template GetOSData<Win32Data>().NeedBackground) // let defwndproc to handle it
+                if (host->NeedBackground) // let defwndproc to handle it
                     break;
                 else // return 1(handled) to ignore
                     return 1;
@@ -544,11 +559,6 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-
-std::unique_ptr<WindowManager> CreateManagerImpl()
-{
-    return std::make_unique<WindowManagerWin32>();
-}
 
 
 }
