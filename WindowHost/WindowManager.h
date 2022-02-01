@@ -62,7 +62,29 @@ struct WaitablePayload : WaitablePayload<void>
     WaitablePayload(WindowHost_* host, T&& data) : WaitablePayload<void>{ host }, ExtraData(std::forward<T>(data))
     { }
 };
-using CreatePayload = WaitablePayload<const std::function<const void* (std::string_view)>*>;
+using CreatePayload = WaitablePayload<const std::function<std::any(std::string_view)>*>;
+
+template<typename T, typename U>
+inline void TryGetT(const T*& dst, const std::any& dat) noexcept
+{
+    if (!dst)
+    {
+        const auto ptr = std::any_cast<U>(&dat);
+        if (ptr)
+            dst = reinterpret_cast<const T*>(ptr);
+    }
+}
+template<typename T, typename... Ts>
+inline const T* TryGetFinally(const std::any& dat) noexcept
+{
+    const T* ret = nullptr;
+    if (dat.has_value())
+    {
+        TryGetT<T, T>(ret, dat);
+        (..., void(TryGetT<T, Ts>(ret, dat)));
+    }
+    return ret;
+}
 //struct CreatePayload : public WaitablePayload<void>
 //{
 //    const std::function<const void* (std::string_view)>* Provider;
@@ -126,7 +148,8 @@ public:
     virtual ~WindowManager();
     virtual bool CheckCapsLock() const noexcept = 0;
     virtual void CreateNewWindow(CreatePayload& payload) = 0;
-    virtual void PrepareForWindow(WindowHost_*) const {}
+    virtual void BeforeWindowOpen(WindowHost_*) const {}
+    virtual void AfterWindowOpen(WindowHost_*) const {}
     virtual void UpdateTitle(WindowHost_* host) const = 0;
     virtual void CloseWindow(WindowHost_* host) const = 0;
     virtual void ReleaseWindow(WindowHost_* host) = 0;

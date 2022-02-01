@@ -72,12 +72,6 @@
 namespace common
 {
 
-#if COMMON_OS_WIN
-[[nodiscard]] uint32_t GetWinBuildNumber() noexcept;
-#endif
-
-// follow initializer may not work
-// uint32_t RegisterInitializer(void(*func)() noexcept) noexcept;
 
 
 }

@@ -31,7 +31,9 @@ constexpr auto BtnToStr = [](xziar::gui::event::MouseButton btn)
 
 static void OpenTestWindow(WindowBackend& backend)
 {
-    const auto window = backend.Create();
+    xziar::gui::CreateInfo wdInfo;
+    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.TargetFPS = 60, wdInfo.Title = u"WdHostTest";
+    const auto window = backend.Create(wdInfo);
     window->Openning() += [](const auto&) { log().info(u"opened.\n"); };
     window->Closing() += [clickcnt = 0](const auto&, bool& should) mutable 
     {
@@ -55,6 +57,14 @@ static void OpenTestWindow(WindowBackend& backend)
     window->Resizing() += [](const auto&, int32_t width, int32_t height)
     {
         log().info(u"resize to [{:4} x {:4}].\n", width, height);
+    };
+    window->Minimizing() += [](const auto&)
+    {
+        log().info(u"minimized.\n");
+    };
+    window->DPIChanging() += [](const auto&, float x, float y)
+    {
+        log().info(u"DPI change to [{:4} x {:4}].\n", x, y);
     };
     window->DropFile() += [](const auto&, const auto& evt)
     {

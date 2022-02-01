@@ -222,20 +222,15 @@ static void RunTest(WindowBackend& backend)
         }
         window->Invalidate();
     };
-    window->Show([&](std::string_view name) -> const void* 
+    window->Show([&](std::string_view name) -> std::any 
     {
         if (name == "background")
-        {
-            static constexpr bool NoNeed = false;
-            return &NoNeed;
-        }
+            return false;
 #if COMMON_OS_LINUX
         else if (name == "visual")
-        {
-            return &host->GetVisualId();
-        }
+            return host->GetVisualId();
 #endif
-        return nullptr;
+        return {};
     });
 
     closePms.get_future().get();

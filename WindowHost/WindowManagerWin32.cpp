@@ -2,7 +2,7 @@
 #include "Win32MsgName.hpp"
 #include "WindowHost.h"
 
-//#include "SystemCommon/SystemCommonRely.h"
+#include "SystemCommon/SystemCommonRely.h"
 #include "common/ContainerEx.hpp"
 #include "common/StaticLookup.hpp"
 
@@ -18,6 +18,7 @@ constexpr uint32_t MessageTask      = WM_USER + 2;
 constexpr uint32_t MessageUpdTitle  = WM_USER + 3;
 constexpr uint32_t MessageClose     = WM_USER + 4;
 constexpr uint32_t MessageStop      = WM_USER + 5;
+constexpr uint32_t MessageDpi       = WM_USER + 6;
 
 
 namespace xziar::gui::detail
@@ -71,23 +72,36 @@ private:
     }
 
     void* InstanceHandle = nullptr;
+    uint32_t BuildNumber;
     uint32_t ThreadId = 0;
+    static inline const auto DPIModes =
+    {
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+        DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE,
+        DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED,
+        DPI_AWARENESS_CONTEXT_UNAWARE
+    };
 public:
-    WindowManagerWin32() : Win32Backend(true) { }
+    WindowManagerWin32() : Win32Backend(true), BuildNumber(common::GetWinBuildNumber())
+    {
+        Logger.info(u"Win32 WindowManager with build number [{}].\n", BuildNumber);
+        if (BuildNumber >= 15063) // since win10 1703(rs2)
+        {
+            for (const auto mode : DPIModes)
+                if (SetProcessDpiAwarenessContext(mode) != NULL)
+                    break;
+        }
+    }
     ~WindowManagerWin32() final { }
 
     static void SetDPIMode()
     {
-        const auto dpimodes =
+        if (common::GetWinBuildNumber() >= 14393) // since win10 1703(rs2)
         {
-            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
-            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE,
-            DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED,
-            DPI_AWARENESS_CONTEXT_UNAWARE
-        };
-        for (const auto mode : dpimodes)
-            if (SetThreadDpiAwarenessContext(mode) != NULL)
-                break;
+            for (const auto mode : DPIModes)
+                if (SetThreadDpiAwarenessContext(mode) != NULL)
+                    break;
+        }
     }
 
     void OnInitialize(const void* info) final
@@ -159,6 +173,14 @@ public:
                 case MessageClose:
                     DestroyWindow(static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam))->Handle);
                     continue;
+                case MessageDpi:
+                {
+                    const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(msg.wParam));
+                    float dpi = 96;
+                    if (BuildNumber >= 14393)
+                        dpi = gsl::narrow_cast<float>(GetDpiForWindow(host->Handle));
+                    host->OnDPIChange(dpi, dpi);
+                } continue;
                 case MessageStop:
                     finish = true;
                     break;
@@ -225,9 +247,13 @@ public:
         if (SendGeneralMessage(reinterpret_cast<uintptr_t>(&payload), MessageCreate))
             payload.Promise.get_future().get();
     }
-    void PrepareForWindow(WindowHost_*) const final
+    void BeforeWindowOpen(WindowHost_*) const final
     {
         SetDPIMode();
+    }
+    void AfterWindowOpen(WindowHost_* host_) const final
+    {
+        SendGeneralMessage(reinterpret_cast<uintptr_t>(host_), MessageDpi);
     }
     void UpdateTitle(WindowHost_* host) const final
     {
@@ -346,9 +372,9 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
         host->DCHandle = GetDC(hwnd);
         if (payload.ExtraData)
         {
-            const auto bg = (*payload.ExtraData)("background");
-            if (bg)
-                host->NeedBackground = *reinterpret_cast<const bool*>(bg);
+            const auto bg_ = (*payload.ExtraData)("background");
+            if (const auto bg = TryGetFinally<bool>(bg_); bg)
+                host->NeedBackground = *bg;
         }
         host->Initialize();
     }
@@ -378,6 +404,10 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
                     const auto width = LOWORD(lParam), height = HIWORD(lParam);
                     host->OnResize(width, height);
                 }
+                else if (wParam == SIZE_MINIMIZED)
+                {
+                    host->OnResize(0, 0);
+                }
             } return 0;
             case WM_SIZING:
             {
@@ -389,6 +419,7 @@ LRESULT CALLBACK WindowManagerWin32::WindowProc(HWND hwnd, UINT msg, WPARAM wPar
             case WM_DPICHANGED:
             {
                 const auto newdpi = HIWORD(wParam);
+                host->OnDPIChange(newdpi, newdpi);
 
                 RECT* const prcNewWindow = reinterpret_cast<RECT*>(lParam);
                 SetWindowPos(hwnd,

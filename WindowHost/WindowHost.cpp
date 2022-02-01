@@ -21,8 +21,9 @@ using common::loop::LoopBase;
 //MAKE_ENABLER_IMPL(WindowHostActive)
 
 
-#define WD_EVT_NAMES BOOST_PP_VARIADIC_TO_SEQ(Openning, Displaying, Closed,     \
-    Closing, Resizing, MouseEnter, MouseLeave, MouseButtonDown, MouseButtonUp,  \
+#define WD_EVT_NAMES BOOST_PP_VARIADIC_TO_SEQ(Openning, Displaying, Closed, \
+    Closing, DPIChanging, Resizing, Minimizing, \
+    MouseEnter, MouseLeave, MouseButtonDown, MouseButtonUp,  \
     MouseMove, MouseDrag, MouseScroll, KeyDown, KeyUp, DropFile)
 #define WD_EVT_EACH_(r, func, name) func(name)
 #define WD_EVT_EACH(func) BOOST_PP_SEQ_FOR_EACH(WD_EVT_EACH_, func, WD_EVT_NAMES)
@@ -117,8 +118,9 @@ void WindowHost_::SetWindowData_(std::string_view name, std::any&& data) const n
 
 bool WindowHost_::OnStart(std::any cookie) noexcept
 {
-    Manager.PrepareForWindow(this);
+    Manager.BeforeWindowOpen(this);
     OnOpen();
+    Manager.AfterWindowOpen(this);
     return true;
 }
 
@@ -210,8 +212,18 @@ bool WindowHost_::OnClose() noexcept
 
 void WindowHost_::OnResize(int32_t width, int32_t height) noexcept
 {
-    Impl->Resizing(*this, width, height);
-    Width = width; Height = height;
+    if (width == 0 || height == 0)
+        Impl->Minimizing(*this);
+    else
+    {
+        Impl->Resizing(*this, width, height);
+        Width = width; Height = height;
+    }
+}
+
+void WindowHost_::OnDPIChange(float x, float y) noexcept
+{
+    Impl->DPIChanging(*this, x, y);
 }
 
 void WindowHost_::RefreshMouseButton(event::MouseButton pressed) noexcept
@@ -347,7 +359,7 @@ void WindowHost_::OnDropFile(event::Position pos, common::StringPool<char16_t>&&
     Impl->DropFile(*this, evt);
 }
 
-void WindowHost_::Show(const std::function<const void* (std::string_view)>& provider)
+void WindowHost_::Show(const std::function<std::any(std::string_view)>& provider)
 {
     if (!Impl->Flags.Add(WindowFlag::Running))
     {
@@ -398,85 +410,6 @@ void WindowHost_::Close()
 {
     Manager.CloseWindow(this);
 }
-
-//WindowHost WindowHost_::CreatePassive(const int32_t width, const int32_t height, const std::u16string_view title)
-//{
-//    return MAKE_ENABLER_SHARED(WindowHostPassive, (width, height, title));
-//}
-//WindowHost WindowHost_::CreateActive(const int32_t width, const int32_t height, const std::u16string_view title)
-//{
-//    return MAKE_ENABLER_SHARED(WindowHostActive, (width, height, title));
-//}
-
-
-//WindowHostPassive::WindowHostPassive(const int32_t width, const int32_t height, const std::u16string_view title)
-//    : WindowHost_(width, height, title)
-//{ }
-//
-//WindowHostPassive::~WindowHostPassive()
-//{ }
-
-//LoopBase::LoopAction WindowHostPassive::OnLoopPass()
-//{
-//    if (!HandleInvoke())
-//    {
-//        if (!IsUptodate.test_and_set())
-//            OnDisplay();
-//        else
-//            return ::common::loop::LoopBase::LoopAction::Sleep();
-//    }
-//    return ::common::loop::LoopBase::LoopAction::Continue();
-//}
-//
-//void WindowHostPassive::Invalidate()
-//{
-//    IsUptodate.clear();
-//    Wakeup();
-//}
-
-
-//WindowHostActive::WindowHostActive(const int32_t width, const int32_t height, const std::u16string_view title)
-//    : WindowHost_(width, height, title)
-//{ }
-//
-//WindowHostActive::~WindowHostActive()
-//{ }
-
-//void WindowHostActive::SetTargetFPS(float fps) noexcept
-//{
-//    TargetFPS = fps;
-//}
-//
-//LoopBase::LoopAction WindowHostActive::OnLoopPass()
-//{
-//    const auto targetWaitTime = 1000.0f / TargetFPS;
-//    [[maybe_unused]] const auto curtime = DrawTimer.Stop();
-//    /*const auto elapse = DrawTimer.ElapseNs();
-//    const auto fromtime = curtime - elapse;*/
-//    const auto deltaTime = targetWaitTime - DrawTimer.ElapseMs();
-//    // printf("from [%zu], cur [%zu], delta [%f]\n", fromtime, curtime, deltaTime);
-//    if (deltaTime > targetWaitTime * 0.1f) // > 10% difference
-//    {
-//        if (HandleInvoke())
-//        {
-//            return ::common::loop::LoopBase::LoopAction::Continue();
-//        }
-//        else
-//        {
-//            const auto waitTime = static_cast<int32_t>(deltaTime) / (deltaTime > targetWaitTime * 0.2f ? 2 : 1);
-//            return ::common::loop::LoopBase::LoopAction::SleepFor(waitTime);
-//        }
-//    }
-//    DrawTimer.Start(); // Reset timer before draw, so that elapse time will include drawing itself
-//    OnDisplay();
-//    return ::common::loop::LoopBase::LoopAction::Continue();
-//}
-
-//void WindowHostActive::OnOpen() noexcept
-//{
-//    WindowHost_::OnOpen();
-//    DrawTimer.Start();
-//}
 
 
 }

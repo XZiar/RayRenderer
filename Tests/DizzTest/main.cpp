@@ -54,7 +54,7 @@ void PrintException(const common::ExceptionBasicInfo& be)
 }
 
 
-void RunDizzCore()
+void RunDizzCore(WindowBackend& backend)
 {
     std::unique_ptr<dizz::RenderCore> tester;
     std::shared_ptr<dizz::Drawable> CurObj;
@@ -79,25 +79,28 @@ void RunDizzCore()
             return {};
     };
 
-    const auto window = WindowHost_::CreatePassive(1280, 720, u"DizzTest"sv);
-    WindowHost wd2;
-    std::promise<void> openPms, closePms;
 #if COMMON_OS_WIN
     const auto loader = static_cast<WGLLoader*>(oglLoader::GetLoader("WGL"));
+    using WdType = Win32Backend::Win32WdHost;
 #elif COMMON_OS_LINUX
     const auto loader = static_cast<GLXLoader*>(oglLoader::GetLoader("GLX"));
-    using GLXHost = std::shared_ptr<GLXLoader::GLXHost>;
+    using WdType = XCBBackend::XCBWdHost;
+    const auto& xcbBackend = static_cast<XCBBackend&>(backend);
+    const auto host = loader->CreateHost(xcbBackend.GetDisplay(), xcbBackend.GetDefaultScreen());
 #endif
+    xziar::gui::CreateInfo wdInfo;
+    wdInfo.Width = 1280, wdInfo.Height = 720, wdInfo.Title = u"DizzTest";
+    const auto window = std::dynamic_pointer_cast<WdType>(backend.Create(wdInfo));
+    WindowHost wd2;
+    std::promise<void> openPms, closePms;
+
     window->Openning() += [&](const auto&) 
     {
         log().info(u"opened.\n"); 
 #if COMMON_OS_WIN
-        const auto& hdc = *window->GetWindowData<void*>("HDC");
-        const auto host = loader->CreateHost(hdc);
+        const auto host = loader->CreateHost(window->GetHDC());
 #elif COMMON_OS_LINUX
-        const auto& host = *window->GetWindowData<GLXHost>("glhost");
-        const auto wd = *window->GetWindowData<uint32_t>("window");
-        host->InitDrawable(wd);
+        host->InitDrawable(window->GetWindow());
 #endif
         tester.reset(new dizz::RenderCore(*host));
         tester->TestSceneInit();
@@ -131,11 +134,6 @@ void RunDizzCore()
     {
         isAnimate = false; 
         tester.release();
-#if COMMON_OS_LINUX
-        
-        if (const auto host = window->GetWindowData<GLXHost>("glhost"); host)
-            host->~GLXHost();
-#endif
         closePms.set_value();
     };
     window->Displaying() += [&]() 
@@ -143,33 +141,17 @@ void RunDizzCore()
         const auto ctx = oglContext_::CurrentContext();
         oglu::oglDefaultFrameBuffer_::Get()->ClearAll();
         tester->Draw();
-        oglContext_::CurrentContext()->SwapBuffer();
+        ctx->SwapBuffer();
     };
-    window->Show([&](std::string_view name) -> const void* 
+    window->Show([&](std::string_view name) -> std::any
     {
         if (name == "background")
-        {
-            static constexpr bool NoNeed = false;
-            return &NoNeed;
-        }
+            return false;
 #if COMMON_OS_LINUX
         else if (name == "visual")
-        {
-            const auto display = window->GetWindowData<void*>("display");
-            const auto defscreen = window->GetWindowData<int>("defscreen");
-            if (display && defscreen)
-            {
-                if (const auto host = loader->CreateHost(*display, *defscreen); host)
-                {
-                    alignas(GLXHost) std::array<std::byte, sizeof(host)> tmp = { std::byte(0) };
-                    new (tmp.data())GLXHost(host);
-                    window->SetWindowData("glhost", tmp);
-                    return &host->GetVisualId();
-                }
-            }
-        }
+            return host->GetVisualId();
 #endif
-        return nullptr;
+        return {};
     });
     openPms.get_future().get();
 
@@ -274,9 +256,12 @@ void RunDizzCore()
             case 'E':
                 CurObj->Rotate(0, -3 * muler, 0); break;
             case 'x':
-                wd2 = WindowHost_::CreatePassive(800, 600, u"Temp"sv);
+            {
+                xziar::gui::CreateInfo info;
+                info.Width = 800, info.Height = 600, info.Title = u"Temp";
+                wd2 = backend.Create(info);
                 wd2->Show();
-                break;
+            } break;
             case 'X':
                 wd2->Close(); break;
             case '+':
@@ -341,15 +326,15 @@ void RunDizzCore()
 
 int main([[maybe_unused]]int argc, [[maybe_unused]]char *argv[]) try
 {
-    const auto runner = WindowHost_::Init();
-    Expects(runner);
+    const auto backend = WindowBackend::GetBackends()[0];
+    backend->Init();
     common::BasicPromise<void> pms;
     std::thread Thread([&]()
         {
             pms.GetPromiseResult()->Get();
-            RunDizzCore();
+            RunDizzCore(*backend);
         });
-    runner.RunInplace(&pms);
+    backend->Run(true, &pms);
     if (Thread.joinable())
         Thread.join();
 }

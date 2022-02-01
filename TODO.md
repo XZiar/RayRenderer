@@ -72,7 +72,6 @@
   - [ ] Add support for touch screen logic
   - [ ] Add support for remote redering on Android (with IPC and shares ANativeWindow?)
   - [x] Add multi-backend support
-  - [ ] Add vsync signal support
   - [ ] Add Icon support
   - [ ] Add timer support
   - [x] Revert to use std::any for data storage to ensure lifetime management

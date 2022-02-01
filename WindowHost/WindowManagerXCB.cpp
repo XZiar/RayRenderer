@@ -28,6 +28,7 @@ constexpr uint32_t MessageTask      = 2;
 constexpr uint32_t MessageUpdTitle  = 3;
 constexpr uint32_t MessageClose     = 4;
 constexpr uint32_t MessageStop      = 5;
+constexpr uint32_t MessageDpi       = 6;
 
 
 namespace xziar::gui::detail
@@ -72,7 +73,7 @@ private:
 
     xcb_connection_t* Connection = nullptr;
     Display* TheDisplay = nullptr;
-    int DefScreen = 0;
+    int32_t DefScreen = 0;
     xkb_context* XKBContext = nullptr;
     xkb_keymap* XKBKeymap = nullptr;
     xkb_state* XKBState = nullptr;
@@ -80,6 +81,8 @@ private:
     xcb_window_t ControlWindow = 0;
     xcb_atom_t MsgAtom = 0;
     xcb_atom_t WMProtocolAtom = 0;
+    xcb_atom_t WMStateAtom = 0;
+    xcb_atom_t WMStateHiddenAtom = 0;
     xcb_atom_t CloseAtom = 0;
     xcb_atom_t XdndProxyAtom = 0;
     xcb_atom_t XdndAwareAtom = 0;
@@ -226,25 +229,40 @@ public:
     WindowManagerXCB() : XCBBackend(true) { }
     ~WindowManagerXCB() override { }
 
-    void OnInitialize(const void* info) final
+    void OnInitialize(const void* info_) final
     {
         using common::BaseException;
-        // XInitThreads();
-        TheDisplay = XOpenDisplay(nullptr);
-        /* open display */
-        if (!TheDisplay)
-            COMMON_THROW(BaseException, u"Failed to open display");
 
-        // Acquire event queue ownership
-        XSetEventQueueOwner(TheDisplay, XCBOwnsEventQueue);
+        const auto info = reinterpret_cast<const XCBInitInfo*>(info_);
+        const auto dispName = (info && !info->DisplayName.empty()) ? info->DisplayName.c_str() : nullptr;
 
-        const auto defScreen = DefaultScreen(TheDisplay);
-        // Get the XCB connection from the display
-        Connection = XGetXCBConnection(TheDisplay);
-        if (!Connection)
+        if (info && info->UsePureXCB)
         {
-            XCloseDisplay(TheDisplay);
-            COMMON_THROW(BaseException, u"Can't get xcb connection from display");
+            Connection = xcb_connect(dispName, &DefScreen);
+            if (!Connection)
+            {
+                COMMON_THROW(BaseException, u"Can't connect xcb");
+            }
+        }
+        else
+        {
+            // XInitThreads();
+            TheDisplay = XOpenDisplay(dispName);
+            /* open display */
+            if (!TheDisplay)
+                COMMON_THROW(BaseException, u"Failed to open display");
+
+            // Acquire event queue ownership
+            XSetEventQueueOwner(TheDisplay, XCBOwnsEventQueue);
+
+            DefScreen = DefaultScreen(TheDisplay);
+            // Get the XCB connection from the display
+            Connection = XGetXCBConnection(TheDisplay);
+            if (!Connection)
+            {
+                XCloseDisplay(TheDisplay);
+                COMMON_THROW(BaseException, u"Can't get xcb connection from display");
+            }
         }
 
         // Setup xkb
@@ -266,9 +284,11 @@ public:
         CapsLockIndex = xkb_keymap_mod_get_index(XKBKeymap, XKB_MOD_NAME_CAPS);
         UpdateXKBState();
 
+        auto setup = xcb_get_setup(Connection);
+        Logger.debug(u"xcb initialized as [{}.{}]\n"sv, setup->protocol_major_version, setup->protocol_minor_version);
         // Find XCB screen
-        auto screenIter = xcb_setup_roots_iterator(xcb_get_setup(Connection));
-        for (auto screenCnt = defScreen; screenIter.rem && screenCnt--;)
+        auto screenIter = xcb_setup_roots_iterator(setup);
+        for (auto screenCnt = DefScreen; screenIter.rem && screenCnt--;)
             xcb_screen_next(&screenIter);
         Screen = screenIter.data;
 
@@ -297,24 +317,26 @@ public:
         {
             const std::pair<xcb_atom_t*, std::string_view> atomList[] = 
             {
-                { &MsgAtom,             "1XZIAR_GUI_MSG"sv    },
-                { &WMProtocolAtom,      "0WM_PROTOCOLS"sv     },
-                { &CloseAtom,           "0WM_DELETE_WINDOW"sv },
-                { &XdndProxyAtom,       "0XdndProxy"sv        },
-                { &XdndAwareAtom,       "0XdndAware"sv        },
-                { &XdndTypeListAtom,    "0XdndTypeList"sv     },
-                { &XdndEnterAtom,       "0XdndEnter"sv        },
-                { &XdndLeaveAtom,       "0XdndLeave"sv        },
-                { &XdndPositionAtom,    "0XdndPosition"sv     },
-                { &XdndDropAtom,        "0XdndDrop"sv         },
-                { &XdndStatusAtom,      "0XdndStatus"sv       },
-                { &XdndFinishedAtom,    "0XdndFinished"sv     },
-                { &XdndSelectionAtom,   "0XdndSelection"sv    },
-                { &XdndActionCopyAtom,  "0XdndActionCopy"sv   },
-                { &XdndActionMoveAtom,  "0XdndActionMove"sv   },
-                { &XdndActionLinkAtom,  "0XdndActionLink"sv   },
-                { &UrlListAtom,         "0text/uri-list"sv    },
-                { &PrimaryAtom,         "0PRIMARY"sv          },
+                { &MsgAtom,             "1XZIAR_GUI_MSG"sv       },
+                { &WMProtocolAtom,      "0WM_PROTOCOLS"sv        },
+                { &WMStateAtom,         "0_NET_WM_STATE"sv       },
+                { &WMStateHiddenAtom,   "0_NET_WM_STATE_HIDDEN"sv},
+                { &CloseAtom,           "0WM_DELETE_WINDOW"sv    },
+                { &XdndProxyAtom,       "0XdndProxy"sv           },
+                { &XdndAwareAtom,       "0XdndAware"sv           },
+                { &XdndTypeListAtom,    "0XdndTypeList"sv        },
+                { &XdndEnterAtom,       "0XdndEnter"sv           },
+                { &XdndLeaveAtom,       "0XdndLeave"sv           },
+                { &XdndPositionAtom,    "0XdndPosition"sv        },
+                { &XdndDropAtom,        "0XdndDrop"sv            },
+                { &XdndStatusAtom,      "0XdndStatus"sv          },
+                { &XdndFinishedAtom,    "0XdndFinished"sv        },
+                { &XdndSelectionAtom,   "0XdndSelection"sv       },
+                { &XdndActionCopyAtom,  "0XdndActionCopy"sv      },
+                { &XdndActionMoveAtom,  "0XdndActionMove"sv      },
+                { &XdndActionLinkAtom,  "0XdndActionLink"sv      },
+                { &UrlListAtom,         "0text/uri-list"sv       },
+                { &PrimaryAtom,         "0PRIMARY"sv             },
             };
             std::vector<xcb_intern_atom_cookie_t> atomCookies;
             atomCookies.reserve(sizeof(atomList) / sizeof(atomList[0]));
@@ -334,7 +356,7 @@ public:
             }
         }
         xcb_flush(Connection);
-        XCBBackend::OnInitialize(info);
+        XCBBackend::OnInitialize(info_);
     }
     void OnDeInitialize() noexcept final
     {
@@ -355,12 +377,12 @@ public:
 
     bool HandleControlMessage(const uint32_t(&data)[5])
     {
+        const uintptr_t ptr = static_cast<uintptr_t>(((uint64_t)(data[2]) << 32) + data[1]);
         switch (data[0])
         {
         case MessageCreate:
         {
-            const uint64_t ptr = ((uint64_t)(data[2]) << 32) + data[1];
-            auto& payload = *reinterpret_cast<CreatePayload*>(static_cast<uintptr_t>(ptr));
+            auto& payload = *reinterpret_cast<CreatePayload*>(ptr);
             CreateNewWindow_(payload);
         } break;
         case MessageTask:
@@ -369,18 +391,25 @@ public:
         } break;
         case MessageUpdTitle:
         {
-            const uintptr_t ptr = static_cast<uintptr_t>(((uint64_t)(data[2]) << 32) + data[1]);
             const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
             TitleLock lock(host);
             SetTitle(host->Handle, host->Title);
         } break;
         case MessageClose:
         {
-            const uintptr_t ptr = static_cast<uintptr_t>(((uint64_t)(data[2]) << 32) + data[1]);
             const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
             const auto cookie = xcb_destroy_window(Connection, host->Handle);
             GeneralHandleError(cookie);
             host->Stop();
+        } break;
+        case MessageDpi:
+        {
+            const auto host = static_cast<WdHost*>(reinterpret_cast<WindowHost_*>(ptr));
+            //const auto screen = screen_of_display(Connection, DefScreen);
+            const auto wmm = Screen->width_in_millimeters, hmm = Screen->height_in_millimeters;
+            const auto wpix = Screen->width_in_pixels, hpix = Screen->height_in_pixels;
+            const auto dpix = 25.4f * wpix / wmm, dpiy = 25.4f * hpix / hmm;
+            host->OnDPIChange(dpix, dpiy);
         } break;
         case MessageStop:
             return false;
@@ -396,6 +425,14 @@ public:
             {
                 if (host->OnClose())
                     CloseWindow(host);
+                return;
+            }
+        }
+        else if (atom == WMStateAtom)
+        {
+            if (data.data32[0] == WMStateHiddenAtom)
+            {
+                host->OnResize(0, 0);
                 return;
             }
         }
@@ -706,12 +743,12 @@ public:
         bool needBackground = true;
         if (payload.ExtraData)
         {
-            const auto vi = (*payload.ExtraData)("visual");
-            if (vi)
-                visualId = *reinterpret_cast<const int*>(vi);
-            const auto bg = (*payload.ExtraData)("background");
-            if (bg)
-                needBackground = *reinterpret_cast<const bool*>(bg);
+            const auto vi_ = (*payload.ExtraData)("visual");
+            if (const auto vi = TryGetFinally<int>(vi_); vi)
+                visualId = *vi;
+            const auto bg_ = (*payload.ExtraData)("background");
+            if (const auto bg = TryGetFinally<bool>(bg_); bg)
+                host->NeedBackground = *bg;
         }
 
         // Create XID's for window 
@@ -776,6 +813,13 @@ public:
             static_cast<uint32_t>(ptr & 0xffffffff),
             static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
         payload.Promise.get_future().get();
+    }
+    void AfterWindowOpen(WindowHost_* host) const final
+    {
+        const uint64_t ptr = reinterpret_cast<uintptr_t>(host);
+        SendControlRequest(MessageDpi,
+            static_cast<uint32_t>(ptr & 0xffffffff),
+            static_cast<uint32_t>((ptr >> 32) & 0xffffffff));
     }
     void UpdateTitle(WindowHost_* host) const final
     {

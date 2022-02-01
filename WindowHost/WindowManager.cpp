@@ -130,37 +130,6 @@ bool WindowBackend::Stop()
     return false;
 }
 
-//void WindowManager::StartNewThread()
-//{
-//    std::promise<void> pms;
-//    MainThread = std::thread([&]()
-//        {
-//            common::SetThreadName(u"WindowManager");
-//            Prepare();
-//            pms.set_value();
-//            MessageLoop();
-//            Terminate();
-//        });
-//    pms.get_future().get();
-//}
-//
-//void WindowManager::StopNewThread()
-//{
-//    if (MainThread.joinable()) // ensure MainThread invalid
-//    {
-//        MainThread.join();
-//    }
-//}
-//
-//void WindowManager::StartInplace(common::BasicPromise<void>* pms)
-//{
-//    Prepare();
-//    if (pms)
-//        pms->SetData();
-//    MessageLoop();
-//    Terminate();
-//}
-
 
 namespace detail
 {
@@ -174,37 +143,6 @@ WindowManager::~WindowManager()
     //StopNewThread();
 }
 
-
-//void WindowManager::StartNewThread()
-//{
-//    std::promise<void> pms;
-//    MainThread = std::thread([&]()
-//        {
-//            common::SetThreadName(u"WindowManager");
-//            Prepare();
-//            pms.set_value();
-//            MessageLoop();
-//            Terminate();
-//        });
-//    pms.get_future().get();
-//}
-//
-//void WindowManager::StopNewThread()
-//{
-//    if (MainThread.joinable()) // ensure MainThread invalid
-//    {
-//        MainThread.join();
-//    }
-//}
-//
-//void WindowManager::StartInplace(common::BasicPromise<void>* pms)
-//{
-//    Prepare();
-//    if (pms)
-//        pms->SetData();
-//    MessageLoop();
-//    Terminate();
-//}
 
 const void* WindowManager::GetWindowData(const WindowHost_*, std::string_view) const noexcept
 {
@@ -240,24 +178,6 @@ void WindowManager::AddInvoke(std::function<void(void)>&& task)
     NotifyTask();
 }
 
-//WindowManager& WindowManager::Get()
-//{
-//    static auto Manager = []()
-//    {
-//        auto man = CreateManagerImpl();
-//        try
-//        {
-//            man->Initialize();
-//        }
-//        catch (const common::BaseException& be)
-//        {
-//            man->Logger.error(u"GetError when initialize WindowManager:\n{}\n", be.Message());
-//            std::rethrow_exception(std::current_exception());
-//        }
-//        return man;
-//    }();
-//    return *Manager;
-//}
 
 }
 

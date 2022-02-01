@@ -23,6 +23,7 @@
             [
                 "*.cpp",
                 {"-": "WindowManagerWin32.cpp"}, 
+                {"ifeq":  {"osname": "Darwin"}, "-": "WindowManagerXCB.cpp"},
                 {"ifneq": {"osname": "Darwin"}, "-": "WindowManagerCocoa.cpp"}
             ],
             "defines": ["WDHOST_EXPORT"]
