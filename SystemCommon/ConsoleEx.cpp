@@ -6,8 +6,16 @@
 #include <iostream>
 #if COMMON_OS_WIN
 #elif COMMON_OS_UNIX
+# if __has_include(<readline/readline.h>)
 #   include <readline/readline.h>
 #   include <readline/history.h>
+# else // hack for iOS with Procursus, whose libreadline-dev lacks header
+extern "C" 
+{
+extern char *readline(const char *);
+extern void add_history(const char *);
+}
+# endif
 #endif
 
 

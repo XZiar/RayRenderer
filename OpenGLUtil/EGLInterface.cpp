@@ -225,10 +225,10 @@ private:
 
     /*void Init() override
     { }*/
-    std::shared_ptr<EGLLoader::EGLHost> CreateHost(void* display, bool useOffscreen) final
+    std::shared_ptr<EGLLoader::EGLHost> CreateHost_(uintptr_t display, bool useOffscreen) final
     {
-        EGLDisplay disp = GetDisplay(reinterpret_cast<EGLNativeDisplayType>(display));
-        if (!disp)
+        EGLDisplay disp = GetDisplay((EGLNativeDisplayType)(display));
+        if (!disp && useOffscreen && display)
             disp = GetDisplay(EGL_DEFAULT_DISPLAY);
         if (!disp)
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Display: [{}]"sv, GetCurErrStr()));

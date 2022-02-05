@@ -10,6 +10,7 @@
 #   define WIN32_LEAN_AND_MEAN 1
 #   define NOMINMAX 1
 #   include <Windows.h>
+#elif COMMON_OS_DARWIN
 #else
 #   include <X11/X.h>
 #   include <X11/Xlib.h>
@@ -40,7 +41,7 @@ static std::shared_ptr<GLHost> GetHostWGL(oglLoader& loader, HDC dc, Args&&...)
     return static_cast<WGLLoader&>(loader).CreateHost(dc);
 }
 #endif
-#if COMMON_OS_UNIX
+#if COMMON_OS_UNIX && !COMMON_OS_DARWIN
 template<typename... Args>
 static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, int32_t screen, Args&&...)
 {
@@ -48,9 +49,13 @@ static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, i
 }
 #endif
 template<typename... Args>
-static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, void* dc, Args&&...)
+static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
 {
+#if COMMON_OS_DARWIN || COMMON_OS_ANDROID
+    return static_cast<EGLLoader&>(loader).CreateHost(0, true);
+#else
     return static_cast<EGLLoader&>(loader).CreateHost(dc, true);
+#endif
 }
 
 template<typename... Args>
@@ -59,7 +64,7 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 #if COMMON_OS_WIN
     if (loader.Name() == "WGL") return GetHostWGL(loader, args...);
 #endif
-#if COMMON_OS_UNIX
+#if COMMON_OS_UNIX && !COMMON_OS_DARWIN
     if (loader.Name() == "GLX") return GetHostGLX(loader, args...);
 #endif
     if (loader.Name() == "EGL") return GetHostEGL(loader, args...);
@@ -88,6 +93,8 @@ static void OGLStub()
         NULL, NULL,                         // parent window, menu
         nullptr, NULL);                     // instance, param
     HDC tmpDC = GetDC(tmpWND);
+#elif COMMON_OS_DARWIN
+    void* display = nullptr;
 #else
     const char* const disp = getenv("DISPLAY");
     Display* display = XOpenDisplay(disp ? disp : ":0.0");
@@ -109,6 +116,8 @@ static void OGLStub()
         auto& loader = *loaders[ldridx];
 #if COMMON_OS_WIN
         const auto host = GetHost(loader, tmpDC);
+#elif COMMON_OS_DARWIN
+        const auto host = GetHost(loader, display);
 #else
         const auto host = GetHost(loader, display, defScreen);
 #endif

@@ -365,7 +365,7 @@ private:
     static void WindowWillClose(id self, SEL _sel, id notification)
     {
         NSNotification noti(notification);
-        const auto& window = noti.Target;
+        const auto& window = static_cast<id>(noti.Target);
         if (const auto host = static_cast<WindowManagerCocoa*>(TheManager)->GetWindow(window); host)
             host->Stop();
     }
@@ -430,7 +430,7 @@ public:
 
         CocoaBackend::OnInitialize(info);
     }
-    void DeInitialize() noexcept final
+    void OnDeInitialize() noexcept final
     {
         AppDlg.Release();
         TheManager = nullptr;
@@ -454,7 +454,7 @@ public:
             NSAutoreleasePool pool;
             const NSEvent evt = App.Call<id, NSUInteger, id, id, BOOL>(SelNextEvt, NSUIntegerMax, distFut, NSDefaultRunLoopMode, YES);
             Expects(evt);
-            const auto host = GetWindow(evt.Window);
+            const auto host = GetWindow(static_cast<id>(evt.Window));
             switch (evt.Type)
             {
             case EventType::AppKitDefined:

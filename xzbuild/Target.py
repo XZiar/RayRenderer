@@ -101,6 +101,8 @@ class CXXTarget(BuildTarget, metaclass=abc.ABCMeta):
         if "iOS" in env:
             verstr = f"{int(env['iOSVer'] / 10000)}.{int((env['iOSVer'] / 100) % 100)}"
             self.flags += ["-miphoneos-version-min=" + verstr]
+            if "isdkroot" in env:
+                self.flags += ["-isysroot " + env["isdkroot"]]
         if "dsym" in env:
             self.flags += ["-g" + env["dsym"]]
         cxx = targets.get("cxx")

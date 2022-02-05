@@ -152,7 +152,22 @@ public:
         virtual void InitSurface(uintptr_t surface) = 0;
         virtual const int& GetVisualId() const noexcept = 0;
     };
-    virtual std::shared_ptr<EGLHost> CreateHost(void* display, bool useOffscreen = false) = 0;
+    template<typename T>
+    std::enable_if_t<std::is_pointer_v<T>, std::shared_ptr<EGLHost>> CreateHost(const T& display, bool useOffscreen = false)
+    {
+        return CreateHost_(reinterpret_cast<uintptr_t>(display), useOffscreen);
+    }
+    template<typename T>
+    std::enable_if_t<std::is_integral_v<T>, std::shared_ptr<EGLHost>> CreateHost(const T& display, bool useOffscreen = false)
+    {
+        return CreateHost_(static_cast<uintptr_t>(display), useOffscreen);
+    }
+    std::shared_ptr<EGLHost> CreateHost(bool useOffscreen = false)
+    {
+        return CreateHost_(0, useOffscreen);
+    }
+private:
+    virtual std::shared_ptr<EGLHost> CreateHost_(uintptr_t display, bool useOffscreen) = 0;
 };
 
 

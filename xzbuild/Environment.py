@@ -106,12 +106,17 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
     iOSSdkInfo = None
     if env["machine"].startswith("iPhone") or env["machine"].startswith("iPad"):
         env["iOS"] = True
+        if "isdkroot" in paras:
+            env["isdkroot"] = paras["isdkroot"]
         try:
-            with open("/usr/share/SDKs/iPhoneOS.sdk/SDKSettings.plist", "rb") as fp:
+            with open(os.path.join(paras.get("isdkroot", "/usr/share/SDKs/iPhoneOS.sdk"), "SDKSettings.plist"), "rb") as fp:
                 iOSSdkInfo = plistlib.load(fp)
-                env["iOSSDKVer"] = strToVer(iOSSdkInfo["Version"], 3) 
         except FileNotFoundError:
             pass
+        if "iOSSDKVer" in paras:
+            env["iOSSDKVer"] = paras["iOSSDKVer"]
+        elif iOSSdkInfo is not None:
+            env["iOSSDKVer"] = strToVer(iOSSdkInfo["Version"], 3) 
     if plat is None:
         is64Bits = sys.maxsize > 2**32
         env["bits"] = 64 if is64Bits else 32
@@ -212,6 +217,7 @@ def collectEnv(paras:dict, plat:str, tgt:str) -> dict:
                 print(COLOR.Yellow(f"Target SDK Version {env['iOSVer']} higher than installed SDK {env['iOSSDKVer']}"))
         else:
             env["iOSVer"] = env["iOSSDKVer"]
+        print(f"targeting iOS[{env['iOSVer']}] with sdk [{env['iOSSDKVer']}]")
 
     termuxVer = os.environ.get("TERMUX_VERSION")
     if termuxVer is not None:
