@@ -81,7 +81,7 @@ oglContext GLHost::CreateContext(CreateInfo cinfo, const oglContext_* sharedCtx)
             fmt::format(u"Loader [{}] does not support [{}] context"sv, Loader.Name(), cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv));
     if (cinfo.FlushWhenSwapContext && !SupportFlushControl)
         oglLog().warning(u"Request for FlushControl[{}] not supported, will be ignored\n"sv, cinfo.FlushWhenSwapContext.value());
-    if (cinfo.FramebufferSRGB && !SupportSRGB)
+    if (cinfo.FramebufferSRGB && !SupportSRGBFrameBuffer)
         oglLog().warning(u"Request for FrameBufferSRGB[{}] not supported, will be ignored\n"sv, cinfo.FramebufferSRGB.value());
     const auto Versions = cinfo.Type == GLType::Desktop ? common::to_span(DesktopVersion) : common::to_span(ESVersion);
     auto& LatestVer = cinfo.Type == GLType::Desktop ? VersionDesktop : VersionES;

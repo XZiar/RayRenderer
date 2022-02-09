@@ -259,6 +259,8 @@ static void FillConextBaseInfo(ContextBaseInfo& info, PFNGLGETSTRINGPROC GetStri
     GetIntegerv(GL_MAJOR_VERSION, &major);
     GetIntegerv(GL_MINOR_VERSION, &minor);
     info.Version = major * 10 + minor;
+    if (common::str::IsBeginWith(info.VersionString, u"OpenGL ES"sv))
+        info.ContextType = GLType::ES;
 }
 
 std::optional<ContextBaseInfo> GLHost::FillBaseInfo(void* hRC) const
@@ -658,19 +660,40 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     QUERY_FUNC(1, MEMORYBARRIER,         MemoryBarrier,        , EXT);
 
     FillConextBaseInfo(*this, GetString, GetIntegerv);
+
     Extensions = GetExtensions();
     SupportDebug            = DebugMessageCallback != nullptr || DebugMessageCallbackAMD != nullptr;
-    SupportSRGB             = host.SupportSRGB && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
     SupportClipControl      = ClipControl != nullptr;
-    SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
-    SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
-    SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
-    SupportBindlessTexture  = Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
-    SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
-    SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
-    SupportIndirectDraw     = Extensions.Has("GL_ARB_draw_indirect");
-    SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance") || Extensions.Has("GL_EXT_base_instance");
-    SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
+    if (ContextType == GLType::ES)
+    {
+        SupportSRGB             = Version >= 30 || Extensions.Has("GL_EXT_sRGB");
+        SupportSRGBFrameBuffer  = host.SupportSRGBFrameBuffer && Extensions.Has("GL_EXT_sRGB_write_control");
+        SupportGeometryShader   = Extensions.Has("GL_EXT_geometry_shader") || Extensions.Has("GL_INTEL_geometry_shader") || Extensions.Has("GL_OES_geometry_shader");
+        SupportComputeShader    = Version >= 31 || Extensions.Has("GL_ARB_compute_shader");
+        SupportTessShader       = Extensions.Has("GL_EXT_tessellation_shader") || Extensions.Has("GL_INTEL_tessellation_shader") || Extensions.Has("GL_OES_tessellation_shader");
+        SupportBindlessTexture  = Extensions.Has("GL_IMG_bindless_texture");
+        SupportImageLoadStore   = Version >= 31 || Extensions.Has("GL_ARB_shader_image_load_store");
+        SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
+        SupportIndirectDraw     = Version >= 31 || Extensions.Has("GL_ARB_draw_indirect");
+        SupportInstanceDraw     = Version >= 30 || Extensions.Has("GL_EXT_draw_instanced");
+        SupportBaseInstance     = Extensions.Has("GL_EXT_base_instance");
+        SupportVSMultiLayer     = false;
+    }
+    else
+    {
+        SupportSRGB             = Version >= 21 || Extensions.Has("GL_EXT_texture_sRGB");
+        SupportSRGBFrameBuffer  = host.SupportSRGBFrameBuffer && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
+        SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
+        SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
+        SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
+        SupportBindlessTexture  = Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
+        SupportImageLoadStore   = Extensions.Has("GL_ARB_shader_image_load_store") || Extensions.Has("GL_EXT_shader_image_load_store");
+        SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
+        SupportIndirectDraw     = Version >= 40 || Extensions.Has("GL_ARB_draw_indirect");
+        SupportInstanceDraw     = Version >= 31 || Extensions.Has("GL_ARB_draw_instanced") || Extensions.Has("GL_EXT_draw_instanced");
+        SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance");
+        SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
+    }
     
     const auto luid = GetLUID();
     const auto uuid = GetUUID();

@@ -1,16 +1,23 @@
-#extension GL_ARB_shading_language_420pack	: require
-#if defined(OGLU_COMP)
+//#extension GL_ARB_shading_language_420pack	: require
+#if defined(OGLU_COMP) && defined(GL_ES)
 #   extension GL_ARB_shader_image_load_store	: require
 #endif
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 //@OGLU@StageIf("GL_AMD_vertex_shader_layer", "!GEOM")
+
+#ifdef GL_ES
+precision highp float;
+precision highp int;
+precision mediump sampler2D;
+precision mediump sampler3D;
+#endif
 
 
 #if defined(OGLU_COMP) || defined(OGLU_FRAG)
 
 //Tonemappings
 //@OGLU@Property("exposure", FLOAT, "exposure luminunce", 0.4, 5.0)
-uniform float exposure = 1.0f;
+uniform float exposure;// = 1.0f;
 
 
 vec3 ToneMapping(const vec3 color)
@@ -21,7 +28,7 @@ vec3 ToneMapping(const vec3 color)
     const float D = 0.59f;
     const float E = 0.14f;
 
-    const vec3 lum = exposure * color;
+    vec3 lum = exposure * color;
     return (lum * (A * lum + B)) / (lum * (C * lum + D) + E);
 }
 
@@ -162,19 +169,19 @@ void main()
 #if defined(OGLU_FRAG)
 
 uniform int lutSize;
-in vec4 gl_FragCoord;
+//in vec4 gl_FragCoord;
 out vec4 FragColor;
 void main()
 {
-    const int xIdx = int(gl_FragCoord.x);
-    const int yIdx = int(lutSize - gl_FragCoord.y);
-    const int zIdx = ogluLayer;
-    const ivec3 lutPos = ivec3(xIdx, yIdx, zIdx);
-    const vec3 srcColor = lutPos * step;
-    const vec3 linearColor = LogUEToLinear(srcColor);
-    const vec3 acesColor = ToneMapping(linearColor);
-    const vec3 srgbColor = LinearToSRGB(acesColor);
-    const vec4 color = vec4(srgbColor, 1.0f);
+    /*const*/ int xIdx = int(gl_FragCoord.x);
+    /*const*/ int yIdx = int(float(lutSize) - gl_FragCoord.y);
+    /*const*/ int zIdx = ogluLayer;
+    /*const*/ ivec3 lutPos = ivec3(xIdx, yIdx, zIdx);
+    /*const*/ vec3 srcColor = vec3(lutPos) * step;
+    /*const*/ vec3 linearColor = LogUEToLinear(srcColor);
+    /*const*/ vec3 acesColor = ToneMapping(linearColor);
+    /*const*/ vec3 srgbColor = LinearToSRGB(acesColor);
+    /*const*/ vec4 color = vec4(srgbColor, 1.0f);
     FragColor = color;
 }
 

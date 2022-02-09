@@ -46,10 +46,10 @@ protected:
     std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
     bool SupportDesktop : 1;
     bool SupportES : 1;
-    bool SupportSRGB : 1;
+    bool SupportSRGBFrameBuffer : 1;
     bool SupportFlushControl : 1;
     GLHost(oglLoader& loader) noexcept : Loader(loader),
-        SupportDesktop(false), SupportES(false), SupportSRGB(false), SupportFlushControl(false) {}
+        SupportDesktop(false), SupportES(false), SupportSRGBFrameBuffer(false), SupportFlushControl(false) {}
     template<typename T>
     [[nodiscard]] T GetFunction(std::string_view name) const noexcept
     {

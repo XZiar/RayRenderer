@@ -71,14 +71,19 @@ private:
             }
             CreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)loader.GetProcAddress("wglCreateContextAttribsARB");
             SupportES = Extensions.Has("WGL_EXT_create_context_es2_profile");
-            SupportSRGB = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
+            SupportSRGBFrameBuffer = Extensions.Has("WGL_ARB_framebuffer_sRGB") || Extensions.Has("WGL_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("WGL_ARB_context_flush_control");
         }
         ~WGLHost() final {}
         void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
         {
             detail::AttribList attrib;
-            attrib.Set(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
+            auto ctxProfile = 0;
+            if (cinfo.Type == GLType::ES)
+                ctxProfile |= WGL_CONTEXT_ES2_PROFILE_BIT_EXT;
+            else
+                ctxProfile |= WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
+            attrib.Set(WGL_CONTEXT_PROFILE_MASK_ARB, ctxProfile);
             if (cinfo.DebugContext)
                 attrib.Set(WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB);
             if (cinfo.Version != 0)

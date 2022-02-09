@@ -126,9 +126,26 @@ static void OGLStub()
             log().error(u"Failed to init [{}] Host\n", loader.Name());
             continue;
         }
+
         CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
+        std::vector<GLType> glTypes;
+        for (const auto type : std::array<GLType, 2>{ GLType::Desktop, GLType::ES })
+        {
+            if (host->CheckSupport(type))
+                glTypes.emplace_back(type);
+        }
+        const auto gltidx = SelectIdx(glTypes, u"GLType", [&](const auto& type)
+            {
+                return type == GLType::Desktop ? u"[GL]" : u"[GLES]";
+            });
+        cinfo.Type = glTypes[gltidx];
         const auto ctx = host->CreateContext(cinfo);
+        if (!ctx)
+        {
+            log().error(u"Failed to init [{}] context from [{}] host\n", cinfo.Type == GLType::Desktop ? u"GL"sv : u"GLES"sv, loader.Name());
+            continue;
+        }
 
         ctx->UseContext();
         ctx->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);

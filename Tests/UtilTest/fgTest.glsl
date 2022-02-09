@@ -1,7 +1,13 @@
-#version 330 core
-#extension GL_ARB_shading_language_420pack : require
+//#extension GL_ARB_shading_language_420pack : require
 
 //@OGLU@Stage("VERT", "FRAG")
+
+#ifdef GL_ES
+precision highp float;
+precision highp int;
+precision mediump sampler2D;
+precision mediump sampler3D;
+#endif
 
 //Range compression
 vec3 LinearToLogUE(const vec3 val)
@@ -40,16 +46,17 @@ void main()
 #ifdef OGLU_FRAG
 
 OGLU_TEX uniform sampler3D lut;
-uniform float lutZ = 0.5f;
-uniform int shouldLut = 0;
-uniform vec2 lutOffset = vec2(63.0f / 64.0f, 0.5f / 64.0f);
+uniform float lutZ;
+uniform int shouldLut;
+const vec2 lutOffset = vec2(63.0f / 64.0f, 0.5f / 64.0f);
 out vec4 FragColor;
 
 float getNoise()
 {
-    uvec2 posi = uvec2(tpos * 8192);
+	vec2 pos8k = tpos * 8192.f;
+    uvec2 posi = uvec2(pos8k.x, pos8k.y);
     uint n = posi.y * 2048u + posi.x;
-    return (n * (n * n * 15731u + 789221u) + 1376312589u) / 4294967296.0f;
+    return float(n * (n * n * 15731u + 789221u) + 1376312589u) / 4294967296.0f;
 }
 
 void main() 

@@ -594,18 +594,28 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
     }
     if (version == UINT32_MAX)
     {
-        if (CtxFunc->Version >= 33)
-            version = CtxFunc->Version * 10;
-        else 
-            switch (CtxFunc->Version)
-            {
-            case 32:    version = 150; break;
-            case 31:    version = 140; break;
-            case 30:    version = 130; break;
-            case 21:    version = 120; break;
-            case 20:    version = 110; break;
-            default:    COMMON_THROWEX(BaseException, u"no correct GLSL version found, unsupported GL version");
-            }
+        if (CtxFunc->ContextType == GLType::ES)
+        {
+            if (CtxFunc->Version >= 30)
+                version = CtxFunc->Version * 10, verSuffix = " es";
+            else
+                version = 100;
+        }
+        else
+        {
+            if (CtxFunc->Version >= 33)
+                version = CtxFunc->Version * 10;
+            else
+                switch (CtxFunc->Version)
+                {
+                case 32:    version = 150; break;
+                case 31:    version = 140; break;
+                case 30:    version = 130; break;
+                case 21:    version = 120; break;
+                case 20:    version = 110; break;
+                default:    COMMON_THROWEX(BaseException, u"no correct GLSL version found, unsupported GL version");
+                }
+        }
         if (verPrefix.empty())
             verPrefix = "#version ";
     }
@@ -701,7 +711,7 @@ vector<oglShader> oglShader_::LoadFromExSrc(const string& src, ShaderExtInfo& in
             {
                 shaderType = ShaderType::Compute;
                 scopeDef = "#define OGLU_COMP\r\n";
-                curVer = std::max(curVer, 430u);
+                curVer = std::max(curVer, CtxFunc->ContextType == GLType::ES ? 310u : 430u);
             } break;
         default:
             oglLog().warning(u"meet shader type [{}], ignoreed.\n", stype);

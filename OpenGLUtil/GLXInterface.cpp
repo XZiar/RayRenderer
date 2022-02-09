@@ -116,7 +116,7 @@ private:
             const char* exts = loader.QueryExtensionsString(DeviceContext, screen);
             Extensions = common::str::Split(exts, ' ', false);
             SupportES = Extensions.Has("GLX_EXT_create_context_es2_profile");
-            SupportSRGB = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
+            SupportSRGBFrameBuffer = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
         }
         ~GLXHost() final
@@ -151,7 +151,12 @@ private:
         void* CreateContext_(const CreateInfo& cinfo, void* sharedCtx) noexcept final
         {
             detail::AttribList attrib;
-            attrib.Set(GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB);
+            auto ctxProfile = 0;
+            if (cinfo.Type == GLType::ES)
+                ctxProfile |= GLX_CONTEXT_ES2_PROFILE_BIT_EXT;
+            else
+                ctxProfile |= GLX_CONTEXT_CORE_PROFILE_BIT_ARB;
+            attrib.Set(GLX_CONTEXT_PROFILE_MASK_ARB, ctxProfile);
             if (cinfo.DebugContext)
                 attrib.Set(GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_DEBUG_BIT_ARB);
             if (cinfo.Version != 0)

@@ -74,7 +74,7 @@ private:
 
             const auto exts = loader.QueryString(DeviceContext, EGL_EXTENSIONS);
             Extensions = common::str::Split(exts, ' ', false);
-            SupportSRGB = Extensions.Has("EGL_KHR_gl_colorspace");
+            SupportSRGBFrameBuffer = Extensions.Has("EGL_KHR_gl_colorspace");
             SupportFlushControl = Extensions.Has("EGL_KHR_context_flush_control");
         }
         ~EGLHost() final
@@ -241,11 +241,11 @@ private:
         cfgAttrib.Set(EGL_ALPHA_SIZE,   8);
         cfgAttrib.Set(EGL_STENCIL_SIZE, 8);
         cfgAttrib.Set(EGL_DEPTH_SIZE,   24);
-        EGLint cfmBit = 0;
-        if (host->SupportDesktop) cfmBit |= EGL_OPENGL_BIT;
-        if (host->SupportES)      cfmBit |= EGL_OPENGL_ES2_BIT;
-        if (host->Version >= 15)  cfmBit |= EGL_OPENGL_ES3_BIT;
-        cfgAttrib.Set(EGL_CONFORMANT, cfmBit);
+        EGLint rdBit = 0;
+        if (host->SupportDesktop) rdBit |= EGL_OPENGL_BIT;
+        if (host->SupportES)      rdBit |= EGL_OPENGL_ES2_BIT;
+        if (host->Version >= 15)  rdBit |= EGL_OPENGL_ES3_BIT;
+        cfgAttrib.Set(EGL_RENDERABLE_TYPE, rdBit);
         int cfgCount = 0;
         if (EGL_TRUE != ChooseConfig(disp, cfgAttrib.Data(), &host->Config, 1, &cfgCount) || cfgCount == 0)
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to choose EGL Config: [{}]"sv, GetCurErrStr()));

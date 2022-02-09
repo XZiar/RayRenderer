@@ -72,10 +72,14 @@ static void TestErr()
 
 static void RunTest(WindowBackend& backend)
 {
-    if (!common::linq::FromIterable(GetCmdArgs())
-        .Where([](const auto arg) { return arg == "-renderdoc"; })
-        .Empty())
-        oglu::oglUtil::InJectRenderDoc("");
+    auto glType = GLType::Desktop;
+    for (const auto& cmd : GetCmdArgs())
+    {
+        if (cmd == "renderdoc")
+            oglu::oglUtil::InJectRenderDoc("");
+        else if (cmd == "es")
+            glType = GLType::ES;
+    }
     
     oglContext context;
     oglDrawProgram drawer;
@@ -109,6 +113,7 @@ static void RunTest(WindowBackend& backend)
         host->InitDrawable(window->GetWindow());
 #endif
         oglu::CreateInfo cinfo;
+        cinfo.Type = glType;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
         context = host->CreateContext(cinfo);
         context->UseContext();
@@ -119,7 +124,15 @@ static void RunTest(WindowBackend& backend)
         fbo->SetWindowSize(1280, 720);
         log().info(u"Def FBO is [{}]\n", fbo->IsSrgb() ? "SRGB" : "Linear");
         TestErr();
-        drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+        try
+        {
+            drawer = oglDrawProgram_::Create(u"MainDrawer", LoadShaderFallback(u"fgTest.glsl", IDR_GL_FGTEST));
+        }
+        catch (const common::BaseException& be)
+        {
+            common::mlog::SyncConsoleBackend();
+            log().error(u"failed to load shader: [{}]\n", be.Message());
+        }
         TestErr();
         screenBox = oglArrayBuffer_::Create();
         TestErr();
@@ -147,9 +160,10 @@ static void RunTest(WindowBackend& backend)
                 memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());
                 //xziar::img::WriteImage(img, u"lut.png");
             }
-            catch (const oglu::OGLException & gle)
+            catch (const common::BaseException& be)
             {
-                log().warning(u"Failed to load LUT Generator:\n{}\n", gle.Message());
+                common::mlog::SyncConsoleBackend();
+                log().warning(u"Failed to load LUT Generator:\n{}\n", be.Message());
             }
         }
 

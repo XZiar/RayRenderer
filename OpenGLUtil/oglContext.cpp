@@ -360,7 +360,7 @@ void oglContext_::SetDepthClip(const bool fix)
 void oglContext_::SetSRGBFBO(const bool isEnable)
 {
     CHECKCURRENT();
-    if (CtxFunc->SupportSRGB)
+    if (CtxFunc->SupportSRGBFrameBuffer)
     {
         if (isEnable)
             CtxFunc->Enable(GL_FRAMEBUFFER_SRGB);

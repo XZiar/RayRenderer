@@ -122,23 +122,31 @@ struct ContextBaseInfo
     std::u16string VendorString;
     std::u16string VersionString;
     uint32_t Version = 0;
+    GLType ContextType = GLType::Desktop;
 };
 struct ContextCapability : public ContextBaseInfo
 {
     common::container::FrozenDenseSet<std::string_view> Extensions;
-    bool SupportDebug           = false;
-    bool SupportSRGB            = false;
-    bool SupportClipControl     = false;
-    bool SupportGeometryShader  = false;
-    bool SupportComputeShader   = false;
-    bool SupportTessShader      = false;
-    bool SupportBindlessTexture = false;
-    bool SupportImageLoadStore  = false;
-    bool SupportSubroutine      = false;
-    bool SupportIndirectDraw    = false;
-    bool SupportBaseInstance    = false;
-    bool SupportVSMultiLayer    = false;
+    bool SupportDebug           : 1;
+    bool SupportSRGB            : 1;
+    bool SupportSRGBFrameBuffer : 1;
+    bool SupportClipControl     : 1;
+    bool SupportGeometryShader  : 1;
+    bool SupportComputeShader   : 1;
+    bool SupportTessShader      : 1;
+    bool SupportBindlessTexture : 1;
+    bool SupportImageLoadStore  : 1;
+    bool SupportSubroutine      : 1;
+    bool SupportIndirectDraw    : 1;
+    bool SupportInstanceDraw    : 1;
+    bool SupportBaseInstance    : 1;
+    bool SupportVSMultiLayer    : 1;
 
+    ContextCapability() noexcept : SupportDebug(false), SupportSRGB(false), SupportSRGBFrameBuffer(false), SupportClipControl(false), 
+        SupportGeometryShader(false), SupportComputeShader(false), SupportTessShader(false),
+        SupportBindlessTexture(false), SupportImageLoadStore(false), SupportSubroutine(false),
+        SupportIndirectDraw(false), SupportInstanceDraw(false), SupportBaseInstance(false), SupportVSMultiLayer(false)
+    { }
     OGLUAPI std::string GenerateSupportLog() const;
 };
 
