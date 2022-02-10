@@ -90,6 +90,7 @@ public:
 
     virtual ~oglLoader();
     [[nodiscard]] virtual std::string_view Name() const noexcept = 0;
+    [[nodiscard]] virtual std::u16string Description() const noexcept = 0;
     //void InitEnvironment();
 
     [[nodiscard]] OGLUAPI static common::span<const std::unique_ptr<oglLoader>> GetLoaders() noexcept;
@@ -144,6 +145,9 @@ public:
 class EGLLoader : public oglLoader
 {
 public:
+    enum class EGLType : uint8_t { Unknown, ANDROID, EAGL, MESA, ANGLE };
+    enum class AngleBackend : uint8_t { Any, D3D9, D3D11, D3D11on12, GL, GLES, Vulkan, SwiftShader, Metal };
+    [[nodiscard]] OGLUAPI static std::u16string_view GetAngleBackendName(AngleBackend backend) noexcept;
     struct EGLHost : public GLHost
     {
     protected:
@@ -152,22 +156,21 @@ public:
         virtual void InitSurface(uintptr_t surface) = 0;
         virtual const int& GetVisualId() const noexcept = 0;
     };
-    template<typename T>
-    std::enable_if_t<std::is_pointer_v<T>, std::shared_ptr<EGLHost>> CreateHost(const T& display, bool useOffscreen = false)
+#if COMMON_OS_DARWIN
+    using NativeDisplay = int;
+#else
+    using NativeDisplay = void*;
+#endif
+    [[nodiscard]] virtual EGLType GetType() const noexcept = 0;
+    [[nodiscard]] virtual bool CheckSupport(AngleBackend backend) const noexcept = 0;
+    [[nodiscard]] std::shared_ptr<EGLHost> CreateHost(bool useOffscreen = false)
     {
-        return CreateHost_(reinterpret_cast<uintptr_t>(display), useOffscreen);
+        return CreateHost(static_cast<NativeDisplay>(0), useOffscreen);
     }
-    template<typename T>
-    std::enable_if_t<std::is_integral_v<T>, std::shared_ptr<EGLHost>> CreateHost(const T& display, bool useOffscreen = false)
-    {
-        return CreateHost_(static_cast<uintptr_t>(display), useOffscreen);
-    }
-    std::shared_ptr<EGLHost> CreateHost(bool useOffscreen = false)
-    {
-        return CreateHost_(0, useOffscreen);
-    }
-private:
-    virtual std::shared_ptr<EGLHost> CreateHost_(uintptr_t display, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(NativeDisplay display, AngleBackend backend, bool useOffscreen) = 0;
 };
 
 

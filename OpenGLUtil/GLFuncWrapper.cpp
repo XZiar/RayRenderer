@@ -676,7 +676,7 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
         SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
         SupportIndirectDraw     = Version >= 31 || Extensions.Has("GL_ARB_draw_indirect");
         SupportInstanceDraw     = Version >= 30 || Extensions.Has("GL_EXT_draw_instanced");
-        SupportBaseInstance     = Extensions.Has("GL_EXT_base_instance");
+        SupportBaseInstance     = Extensions.Has("GL_EXT_base_instance") || Extensions.Has("GL_ANGLE_base_vertex_base_instance");
         SupportVSMultiLayer     = false;
     }
     else

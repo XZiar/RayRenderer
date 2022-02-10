@@ -51,10 +51,35 @@ static std::shared_ptr<GLHost> GetHostGLX(oglLoader& loader, Display* display, i
 template<typename... Args>
 static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
 {
+    auto& eglLdr = static_cast<EGLLoader&>(loader);
+    if (eglLdr.GetType() == EGLLoader::EGLType::ANGLE)
+    {
+        std::vector<EGLLoader::AngleBackend> bes;
+        constexpr EGLLoader::AngleBackend BEs[] =
+        { 
+            EGLLoader::AngleBackend::D3D9, EGLLoader::AngleBackend::D3D11, EGLLoader::AngleBackend::D3D11on12, 
+            EGLLoader::AngleBackend::GL, EGLLoader::AngleBackend::GLES, 
+            EGLLoader::AngleBackend::Vulkan, EGLLoader::AngleBackend::SwiftShader, 
+            EGLLoader::AngleBackend::Metal
+        };
+        for (const auto be : BEs)
+        {
+            if (eglLdr.CheckSupport(be))
+                bes.emplace_back(be);
+        }
+        if (!bes.empty())
+        {
+            const auto beidx = SelectIdx(bes, u"Backend", [&](const auto& type)
+                {
+                    return EGLLoader::GetAngleBackendName(type);
+                });
+            return eglLdr.CreateHostFromAngle(dc, bes[beidx], true);
+        }
+    }
 #if COMMON_OS_DARWIN || COMMON_OS_ANDROID
-    return static_cast<EGLLoader&>(loader).CreateHost(0, true);
+    return eglLdr.CreateHost(0, true);
 #else
-    return static_cast<EGLLoader&>(loader).CreateHost(dc, true);
+    return eglLdr.CreateHost(dc, true);
 #endif
 }
 
@@ -110,7 +135,7 @@ static void OGLStub()
     {
         const auto ldridx = SelectIdx(loaders, u"loader", [&](const auto& loader)
             {
-                return FMTSTR(u"[{}]", loader->Name());
+                return FMTSTR(u"[{}] {}", loader->Name(), loader->Description());
             });
 
         auto& loader = *loaders[ldridx];
@@ -126,6 +151,7 @@ static void OGLStub()
             log().error(u"Failed to init [{}] Host\n", loader.Name());
             continue;
         }
+        log().success(u"Init GLHost[{}] version [{}.{}]\n", loader.Name(), host->GetVersion() / 10, host->GetVersion() % 10);
 
         CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;

@@ -14,6 +14,7 @@
 #include "common/Linq2.hpp"
 #include "common/StringEx.hpp"
 #include "common/StringLinq.hpp"
+#include "common/EasyIterator.hpp"
 #include "common/ContainerEx.hpp"
 #include "common/math/VecSIMD.hpp"
 #include "common/math/MatSIMD.hpp"
@@ -25,6 +26,7 @@
 #define DEFINE_FUNC2(type, func, name) using T_P##name = type; static constexpr auto N_##name = #func ""sv
 #define DECLARE_FUNC(name) T_P##name name = nullptr
 #define LOAD_FUNC(lib, name) name = Lib##lib.GetFunction<T_P##name>(N_##name)
+#define TrLd_FUNC(lib, name) name = Lib##lib.TryGetFunction<T_P##name>(N_##name)
 
 
 namespace oglu
@@ -34,13 +36,19 @@ namespace msimd = common::math::simd;
 namespace detail
 {
 
+template<typename T = int32_t>
 class AttribList
 {
-    std::vector<int32_t> Attribs;
-    int32_t Ending;
+private:
+    std::vector<T> Attribs;
+    T Ending;
+    [[nodiscard]] std::pair<T, T> GetKVPair(size_t idx) const noexcept
+    {
+        return { Attribs[idx * 2], Attribs[idx * 2 + 1] };
+    }
 public:
-    AttribList(int32_t ending = 0) noexcept : Attribs{ ending }, Ending(ending) {}
-    bool Set(int32_t key, int32_t val) noexcept
+    AttribList(T ending = 0) noexcept : Attribs{ ending }, Ending(ending) {}
+    bool Set(T key, T val) noexcept
     {
         for (size_t i = 0; i + 1 < Attribs.size(); i += 2)
         {
@@ -55,10 +63,14 @@ public:
         Attribs.push_back(Ending);
         return true;
     }
-    const int32_t* Data() const noexcept
+    [[nodiscard]] const T* Data() const noexcept
     {
         return Attribs.data();
     }
+    using KVIter = ::common::container::IndirectIterator<const AttribList, std::pair<T, T>, &AttribList::GetKVPair>;
+    friend KVIter;
+    constexpr KVIter begin() const noexcept { return { this, 0 }; }
+              KVIter end()   const noexcept { return { this, Attribs.size() / 2 }; }
 };
 
 void RegisterLoader(std::string_view name, std::function<std::unique_ptr<oglLoader>()> creator) noexcept;

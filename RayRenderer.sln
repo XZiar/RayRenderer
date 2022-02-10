@@ -392,6 +392,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "math", "math", "{5C08AF6C-9
 		common\math\VecSIMD.hpp = common\math\VecSIMD.hpp
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EGL", "EGL", "{EBDD1D95-050D-4605-9707-FE4A20F0667B}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\EGL\egl.h = 3rdParty\EGL\egl.h
+		3rdParty\EGL\eglext.h = 3rdParty\EGL\eglext.h
+		3rdParty\EGL\eglplatform.h = 3rdParty\EGL\eglplatform.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "angle-Headers", "angle-Headers", "{6039AE45-F480-44F8-8CEC-D25D41CC47D9}"
+	ProjectSection(SolutionItems) = preProject
+		3rdParty\angle-Headers\eglext_angle.h = 3rdParty\angle-Headers\eglext_angle.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -793,6 +805,8 @@ Global
 		{89E210A7-7C00-378A-BA78-74493D370B99} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 		{4A40A101-97F5-4958-93FD-5E7F35D9A500} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
 		{5C08AF6C-9269-494C-91D5-FE1D0DBCDDBA} = {9ED3D83E-4963-469B-B98F-EDDE2D5AD2D9}
+		{EBDD1D95-050D-4605-9707-FE4A20F0667B} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
+		{6039AE45-F480-44F8-8CEC-D25D41CC47D9} = {F00DE4FE-8B9C-4F96-BEC0-BA21C67E158C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {38425CCD-9D0B-4DFB-B4D4-0434751AF145}

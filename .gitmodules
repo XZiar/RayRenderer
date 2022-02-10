@@ -71,3 +71,6 @@
 [submodule "3rdParty/EGL-Headers"]
 	path = 3rdParty/EGL-Headers
 	url = https://github.com/XZiar/EGL-Headers.git
+[submodule "3rdParty/angle-Headers"]
+	path = 3rdParty/angle-Headers
+	url = https://github.com/XZiar/angle-Headers.git

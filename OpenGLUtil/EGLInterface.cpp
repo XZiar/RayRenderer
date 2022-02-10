@@ -5,7 +5,9 @@
 #undef APIENTRY
 #include "EGL/egl.h"
 #include "EGL/eglext.h"
+#include "angle-Headers/eglext_angle.h"
 #pragma message("Compiling OpenGLUtil with egl-ext[" STRINGIZE(EGL_EGLEXT_VERSION) "]")
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 
 namespace oglu
@@ -13,16 +15,22 @@ namespace oglu
 using namespace std::string_view_literals;
 
 
+#define DEFINE_FUNC2(type, func, name) using T_P##name = type; static constexpr auto N_##name = #func ""sv
 
 DEFINE_FUNC(eglGetError,               GetError);
+DEFINE_FUNC2(PFNEGLQUERYDEVICESEXTPROC, eglQueryDevicesEXT,        QueryDevicesEXT);
 DEFINE_FUNC(eglGetDisplay,             GetDisplay);
+DEFINE_FUNC(eglGetPlatformDisplay,     GetPlatformDisplay);
+DEFINE_FUNC2(PFNEGLGETPLATFORMDISPLAYEXTPROC, eglGetPlatformDisplayEXT,  GetPlatformDisplayEXT);
 DEFINE_FUNC(eglInitialize,             Initialize);
 DEFINE_FUNC(eglQueryString,            QueryString);
 DEFINE_FUNC(eglGetProcAddress,         GetProcAddress);
 DEFINE_FUNC(eglChooseConfig,           ChooseConfig);
+DEFINE_FUNC(eglGetConfigs,             GetConfigs);
 DEFINE_FUNC(eglGetConfigAttrib,        GetConfigAttrib);
 DEFINE_FUNC(eglCreateWindowSurface,    CreateWindowSurface);
 DEFINE_FUNC(eglCreatePixmapSurface,    CreatePixmapSurface);
+DEFINE_FUNC(eglCreatePbufferSurface,   CreatePbufferSurface);
 DEFINE_FUNC(eglBindAPI,                BindAPI);
 DEFINE_FUNC(eglCreateContext,          CreateContext);
 DEFINE_FUNC(eglMakeCurrent,            MakeCurrent);
@@ -34,6 +42,46 @@ DEFINE_FUNC(eglDestroyContext,         DestroyContext);
 DEFINE_FUNC(eglDestroySurface,         DestroySurface);
 DEFINE_FUNC(eglTerminate,              Terminate);
 DEFINE_FUNC(eglSwapBuffers,            SwapBuffers);
+
+
+
+template<typename T, typename E>
+struct EnumBitfield
+{
+    static_assert(std::is_enum_v<E>);
+    static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
+    T Value = 0;
+    constexpr EnumBitfield operator+(E val) const noexcept
+    {
+        return { static_cast<T>((1u << common::enum_cast(val)) | Value) };
+    }
+    constexpr EnumBitfield operator-(E val) const noexcept
+    {
+        return { static_cast<T>(~(1u << common::enum_cast(val)) & Value) };
+    }
+    constexpr bool operator()(E val) const noexcept
+    {
+        return (Value & static_cast<T>(1u << common::enum_cast(val))) != 0;
+    }
+    constexpr EnumBitfield& operator+=(E val) noexcept
+    {
+        Value = operator+(val).Value;
+        return *this;
+    }
+    constexpr EnumBitfield& operator-=(E val) noexcept
+    {
+        Value = operator-(val).Value;
+        return *this;
+    }
+    constexpr EnumBitfield& Add(E val) noexcept
+    {
+        return operator+=(val);
+    }
+    constexpr EnumBitfield& Remove(E val) noexcept
+    {
+        return operator-=(val);
+    }
+};
 
 
 class EGLLoader_ final : public EGLLoader
@@ -50,8 +98,8 @@ private:
         EGLSurface Surface = nullptr;
         EGLint VisualId = 0;
         uint16_t Version = 0;
-        bool IsOffscreen = false;
-        EGLHost(EGLLoader_& loader, EGLDisplay dc) : EGLLoader::EGLHost(loader), DeviceContext(dc)
+        bool IsOffscreen;
+        EGLHost(EGLLoader_& loader, EGLDisplay dc, bool isOffscreen) : EGLLoader::EGLHost(loader), DeviceContext(dc), IsOffscreen(isOffscreen)
         {
             int verMajor = 0, verMinor = 0;
             if (loader.Initialize(DeviceContext, &verMajor, &verMinor) != EGL_TRUE)
@@ -89,7 +137,8 @@ private:
             auto& loader = static_cast<EGLLoader_&>(Loader);
             if (IsOffscreen)
             {
-                Surface = loader.CreatePixmapSurface(DeviceContext, Config, (EGLNativePixmapType)surface, nullptr);
+                //Surface = loader.CreatePixmapSurface(DeviceContext, Config, (EGLNativePixmapType)surface, nullptr);
+                Surface = loader.CreatePbufferSurface(DeviceContext, Config, nullptr);
             }
             else
             {
@@ -167,15 +216,20 @@ private:
     };
     common::DynLib LibEGL;
     DECLARE_FUNC(GetError);
+    DECLARE_FUNC(QueryDevicesEXT);
     DECLARE_FUNC(GetDisplay);
+    DECLARE_FUNC(GetPlatformDisplay);
+    DECLARE_FUNC(GetPlatformDisplayEXT);
     DECLARE_FUNC(Initialize);
     DECLARE_FUNC(QueryString);
     DECLARE_FUNC(GetProcAddress);
     DECLARE_FUNC(ChooseConfig);
+    DECLARE_FUNC(GetConfigs);
     DECLARE_FUNC(GetConfigAttrib);
     DECLARE_FUNC(CreateWindowSurface);
     DECLARE_FUNC(CreatePixmapSurface);
-    DECLARE_FUNC(BindAPI);
+    DECLARE_FUNC(CreatePbufferSurface);
+    DECLARE_FUNC(BindAPI); 
     DECLARE_FUNC(CreateContext);
     DECLARE_FUNC(MakeCurrent);
     DECLARE_FUNC(QuerySurface);
@@ -185,7 +239,14 @@ private:
     DECLARE_FUNC(DestroyContext);
     DECLARE_FUNC(DestroySurface);
     DECLARE_FUNC(Terminate);
-    DECLARE_FUNC(SwapBuffers);
+    DECLARE_FUNC(SwapBuffers); 
+    common::container::FrozenDenseSet<std::string_view> Extensions;
+    EnumBitfield<uint16_t, AngleBackend> BackendMask;
+#if COMMON_OS_DARWIN && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    EGLType Type = EGLType::EAGL;
+#else
+    EGLType Type = EGLType::Unknown;
+#endif
 public:
     static constexpr std::string_view LoaderName = "EGL"sv;
     EGLLoader_() :
@@ -198,14 +259,19 @@ public:
 #endif
     {
         LOAD_FUNC(EGL, GetError);
+        TrLd_FUNC(EGL, QueryDevicesEXT);
         LOAD_FUNC(EGL, GetDisplay);
+        TrLd_FUNC(EGL, GetPlatformDisplay);
+        TrLd_FUNC(EGL, GetPlatformDisplayEXT);
         LOAD_FUNC(EGL, Initialize);
         LOAD_FUNC(EGL, QueryString);
         LOAD_FUNC(EGL, GetProcAddress);
         LOAD_FUNC(EGL, ChooseConfig);
+        LOAD_FUNC(EGL, GetConfigs);
         LOAD_FUNC(EGL, GetConfigAttrib);
         LOAD_FUNC(EGL, CreateWindowSurface);
         LOAD_FUNC(EGL, CreatePixmapSurface);
+        LOAD_FUNC(EGL, CreatePbufferSurface);
         LOAD_FUNC(EGL, BindAPI);
         LOAD_FUNC(EGL, CreateContext);
         LOAD_FUNC(EGL, MakeCurrent);
@@ -217,24 +283,76 @@ public:
         LOAD_FUNC(EGL, DestroySurface);
         LOAD_FUNC(EGL, Terminate);
         LOAD_FUNC(EGL, SwapBuffers);
+        const auto exts = QueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+        if (exts)
+        {
+            Extensions = common::str::Split(exts, ' ', false);
+            std::string extNames;
+            for (const auto ext : Extensions)
+                extNames.append(ext).push_back('\n');
+            oglLog().debug(u"Loaded EGL with client exts:\n{}", extNames);
+            if (Extensions.Has("EGL_KHR_platform_android") || Extensions.Has("EGL_ANDROID_GLES_layers"sv))
+                Type = EGLType::ANDROID;
+            if (Extensions.Has("EGL_ANGLE_platform_angle"sv))
+                Type = EGLType::ANGLE;
+            else if (Extensions.Has("EGL_MESA_platform_gbm"sv) || Extensions.Has("EGL_MESA_platform_surfaceless"sv))
+                Type = EGLType::MESA;
+
+            if (Extensions.Has("EGL_ANGLE_platform_angle_d3d"sv))
+                BackendMask.Add(AngleBackend::D3D9).Add(AngleBackend::D3D11);
+            if (Extensions.Has("EGL_ANGLE_platform_angle_d3d11on12"sv))
+                BackendMask.Add(AngleBackend::D3D11on12);
+            if (Extensions.Has("EGL_ANGLE_platform_angle_opengl"sv))
+                BackendMask.Add(AngleBackend::GL).Add(AngleBackend::GLES);
+            if (Extensions.Has("EGL_ANGLE_platform_angle_vulkan"sv))
+                BackendMask.Add(AngleBackend::Vulkan);
+            if (Extensions.Has("EGL_ANGLE_platform_angle_metal"sv))
+                BackendMask.Add(AngleBackend::Metal);
+            /*if (Extensions.Has("EGL_EXT_device_base"sv) || (Extensions.Has("EGL_EXT_device_enumeration"sv) && Extensions.Has("EGL_EXT_device_query"sv)))
+            {
+                std::array<EGLDeviceEXT, 16> devices = { nullptr };
+                EGLint count = 0;
+                if (EGL_TRUE == QueryDevicesEXT(devices.size(), devices.data(), &count))
+                {
+                }
+            }*/
+        }
     }
     ~EGLLoader_() final {}
 private:
+    EGLType GetType() const noexcept final { return Type; }
+    bool CheckSupport(AngleBackend backend) const noexcept final
+    {
+        if (backend == AngleBackend::Any)
+            return BackendMask.Value != 0;
+        return BackendMask(backend);
+    }
+
     std::string_view Name() const noexcept final { return LoaderName; }
+    std::u16string Description() const noexcept final
+    {
+        std::u16string ret;
+        switch (Type)
+        {
+        case EGLType::ANDROID: ret = u"Android"; break;
+        case EGLType::ANGLE:   ret = u"Angle";   break;
+        case EGLType::EAGL:    ret = u"EAGL";    break;
+        case EGLType::MESA:    ret = u"MESA";    break;
+        default: break;
+        }
+        return ret;
+    }
     std::u16string_view GetCurErrStr() const noexcept { return GetErrorString(GetError()); }
 
     /*void Init() override
     { }*/
-    std::shared_ptr<EGLLoader::EGLHost> CreateHost_(uintptr_t display, bool useOffscreen) final
+    std::shared_ptr<EGLLoader::EGLHost> CreateFromDisplay(EGLDisplay display, bool useOffscreen)
     {
-        EGLDisplay disp = GetDisplay((EGLNativeDisplayType)(display));
-        if (!disp && useOffscreen && display)
-            disp = GetDisplay(EGL_DEFAULT_DISPLAY);
-        if (!disp)
+        if (!display)
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Display: [{}]"sv, GetCurErrStr()));
-        auto host = std::make_shared<EGLHost>(*this, disp);
+        auto host = std::make_shared<EGLHost>(*this, display, useOffscreen);
         detail::AttribList cfgAttrib(EGL_NONE);
-        cfgAttrib.Set(EGL_SURFACE_TYPE, useOffscreen ? EGL_PIXMAP_BIT : EGL_WINDOW_BIT);
+        cfgAttrib.Set(EGL_SURFACE_TYPE, useOffscreen ? EGL_PBUFFER_BIT : EGL_WINDOW_BIT);
         cfgAttrib.Set(EGL_RED_SIZE,     8);
         cfgAttrib.Set(EGL_GREEN_SIZE,   8);
         cfgAttrib.Set(EGL_BLUE_SIZE,    8);
@@ -247,12 +365,141 @@ private:
         if (host->Version >= 15)  rdBit |= EGL_OPENGL_ES3_BIT;
         cfgAttrib.Set(EGL_RENDERABLE_TYPE, rdBit);
         int cfgCount = 0;
-        if (EGL_TRUE != ChooseConfig(disp, cfgAttrib.Data(), &host->Config, 1, &cfgCount) || cfgCount == 0)
+        if (EGL_TRUE != ChooseConfig(display, cfgAttrib.Data(), &host->Config, 1, &cfgCount))
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to choose EGL Config: [{}]"sv, GetCurErrStr()));
-        if (EGL_TRUE != GetConfigAttrib(disp, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
+        if (cfgCount == 0)
+        {
+            EGLint cfgTotal = 0;
+            if (EGL_TRUE != GetConfigs(display, nullptr, 0, &cfgTotal))
+                COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL Configs: [{}]"sv, GetCurErrStr()));
+            std::u16string result;
+            std::vector<EGLConfig> configs; 
+            configs.resize(cfgTotal);
+            GetConfigs(display, configs.data(), cfgTotal, &cfgTotal);
+            for (EGLint i = 0; i < cfgTotal; ++i)
+            {
+                const auto& cfg = configs[i];
+                APPEND_FMT(result, u"cfg[{}]: "sv, i);
+                for (const auto& [k, v] : cfgAttrib)
+                {
+                    EGLint v2 = 0;
+                    if (EGL_TRUE == GetConfigAttrib(display, cfg, k, &v2))
+                    {
+                        const auto match = (k == EGL_RENDERABLE_TYPE || k == EGL_SURFACE_TYPE) ? (v & v2) == v : v == v2;
+                        if (!match)
+                            APPEND_FMT(result, u"[{:04X}]:[{:04X}]vs[{:04X}], "sv, k, v, v2);
+                    }
+                }
+                result.append(u"\n");
+            }
+            oglLog().debug(u"Totally [{}] configs avaliable:\n{}\n", cfgTotal, result);
+            COMMON_THROWEX(common::BaseException, u"Unable to choose EGL Config"sv);
+        }
+        if (EGL_TRUE != GetConfigAttrib(display, host->Config, EGL_NATIVE_VISUAL_ID, &host->VisualId))
             COMMON_THROWEX(common::BaseException, fmt::format(u"Unable to get EGL VisualId: [{}]"sv, GetCurErrStr()));
-        host->IsOffscreen = useOffscreen;
         return host;
+    }
+
+    std::shared_ptr<EGLLoader::EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) final
+    {
+        EGLDisplay disp = GetDisplay((EGLNativeDisplayType)(display));
+        if (!disp && useOffscreen && display)
+            disp = GetDisplay(EGL_DEFAULT_DISPLAY);
+        return CreateFromDisplay(disp, useOffscreen);
+    }
+
+    bool CheckSupportPlatformDisplay()
+    {
+        if (GetPlatformDisplay || GetPlatformDisplayEXT)
+            return true;
+        oglLog().warning(u"EGL Loader does not support GetPlatformDisplay.\n");
+        return false;
+    }
+    template<typename F>
+    EGLDisplay GetPlatformDisplayCombine(EGLenum platform, void* display, F&& fillAttrib) const
+    {
+        if (GetPlatformDisplay)
+        {
+            detail::AttribList<EGLAttrib> dpyAttrib(EGL_NONE);
+            fillAttrib(dpyAttrib);
+            return GetPlatformDisplay(platform, display, dpyAttrib.Data());
+        }
+        else
+        {
+            detail::AttribList<EGLint> dpyAttrib(EGL_NONE);
+            fillAttrib(dpyAttrib);
+            return GetPlatformDisplayEXT(platform, display, dpyAttrib.Data());
+        }
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) final
+    {
+        if (CheckSupportPlatformDisplay())
+        {
+            if (Extensions.Has("EGL_MESA_platform_xcb"sv))
+            {
+                EGLDisplay disp = GetPlatformDisplayCombine(EGL_PLATFORM_XCB_EXT, connection, [&](auto& list)
+                    {
+                        if (screen)
+                            list.Set(EGL_PLATFORM_XCB_SCREEN_EXT, screen.value());
+                    });
+                return CreateFromDisplay(disp, useOffscreen);
+            }
+            oglLog().warning(u"EGL Loader does not support create from xcb.\n");
+        }
+        return {};
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromX11(void* disp, std::optional<int32_t> screen, bool useOffscreen) final
+    {
+        if (CheckSupportPlatformDisplay())
+        {
+            if (Extensions.Has("EGL_EXT_platform_x11"sv) || Extensions.Has("EGL_KHR_platform_x11"sv))
+            {
+                EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_X11_EXT, disp, [&](auto& list)
+                    {
+                        if (screen)
+                            list.Set(EGL_PLATFORM_X11_SCREEN_EXT, screen.value());
+                    });
+                return CreateFromDisplay(display, useOffscreen);
+            }
+            oglLog().warning(u"EGL Loader does not support create from x11.\n");
+        }
+        return {};
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAngle(NativeDisplay disp, AngleBackend backend, bool useOffscreen) final
+    {
+        if (!BackendMask(backend))
+            oglLog().warning(u"EGL Loader does not support create from angle.\n");
+        else if (CheckSupportPlatformDisplay())
+        {
+            const int32_t plat = [&]()
+            {
+                switch (backend)
+                {
+                case AngleBackend::D3D9:        return EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE;
+                case AngleBackend::D3D11:
+                case AngleBackend::D3D11on12:   return EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE;
+                case AngleBackend::GL:          return EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE;
+                case AngleBackend::GLES:        return EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE;
+                case AngleBackend::Vulkan:
+                case AngleBackend::SwiftShader: return EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE;
+                case AngleBackend::Metal:       return EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE;
+                default:                        return 0;
+                }
+            }();
+            EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_ANGLE_ANGLE, disp, [&](auto& list)
+                {
+                    if (plat != 0)
+                        list.Set(EGL_PLATFORM_ANGLE_TYPE_ANGLE, plat);
+                    if (backend == AngleBackend::D3D11on12)
+                        list.Set(EGL_PLATFORM_ANGLE_D3D11ON12_ANGLE, EGL_TRUE);
+                    else if (backend == AngleBackend::SwiftShader)
+                        list.Set(EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_SWIFTSHADER_ANGLE);
+                    if (backend == AngleBackend::D3D11 || backend == AngleBackend::D3D11on12)
+                        list.Set(EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE, EGL_FALSE);
+                });
+            return CreateFromDisplay(display, useOffscreen);
+        }
+        return {};
     }
 
     static inline const auto Dummy = detail::RegisterLoader<EGLLoader_>();
@@ -269,17 +516,42 @@ inline constexpr std::u16string_view EGLLoader_::GetErrorString(EGLint err) noex
     CASE_ERR(BAD_ACCESS);
     CASE_ERR(BAD_ALLOC);
     CASE_ERR(BAD_ATTRIBUTE);
-    CASE_ERR(BAD_CONTEXT);
     CASE_ERR(BAD_CONFIG);
+    CASE_ERR(BAD_CONTEXT);
     CASE_ERR(BAD_CURRENT_SURFACE);
     CASE_ERR(BAD_DISPLAY);
-    CASE_ERR(BAD_SURFACE);
     CASE_ERR(BAD_MATCH);
-    CASE_ERR(BAD_PARAMETER);
     CASE_ERR(BAD_NATIVE_PIXMAP);
     CASE_ERR(BAD_NATIVE_WINDOW);
+    CASE_ERR(BAD_PARAMETER);
+    CASE_ERR(BAD_SURFACE);
     CASE_ERR(CONTEXT_LOST);
+    CASE_ERR(BAD_STREAM_KHR);
+    CASE_ERR(BAD_STATE_KHR);
+    CASE_ERR(BAD_DEVICE_EXT);
+    CASE_ERR(BAD_OUTPUT_LAYER_EXT);
+    CASE_ERR(BAD_OUTPUT_PORT_EXT);
+#undef CASE_ERR
     default: return u"Unknwon"sv;
+    }
+}
+
+
+std::u16string_view EGLLoader::GetAngleBackendName(AngleBackend backend) noexcept
+{
+    switch (backend)
+    {
+#define CASE_BE(name) case AngleBackend::name: return u"" #name ""sv
+    CASE_BE(D3D9);
+    CASE_BE(D3D11);
+    CASE_BE(D3D11on12);
+    CASE_BE(GL);
+    CASE_BE(GLES);
+    CASE_BE(Vulkan);
+    CASE_BE(SwiftShader);
+    CASE_BE(Metal);
+#undef CASE_BE
+    default: return u"Any"sv;
     }
 }
 

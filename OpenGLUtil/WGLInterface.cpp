@@ -164,6 +164,10 @@ public:
     ~WGLLoader_() final {}
 private:
     std::string_view Name() const noexcept final { return LoaderName; }
+    std::u16string Description() const noexcept final
+    {
+        return fmt::format(u"Windows [{}]", common::GetWinBuildNumber());
+    }
 
     /*void Init() override
     { }*/
