@@ -143,6 +143,7 @@ public:
     void SetName(std::u16string name) noexcept;
 
     [[nodiscard]] bool IsCompressed() const;
+    [[nodiscard]] bool IsStatic() const;
     [[nodiscard]] uint8_t GetMipmapCount() const noexcept { return Mipmap; }
     [[nodiscard]] xziar::img::TextureFormat GetInnerFormat() const noexcept { return InnerFormat; }
     [[nodiscard]] std::u16string_view GetName() const noexcept { return Name; }

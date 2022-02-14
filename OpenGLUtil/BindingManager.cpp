@@ -285,7 +285,8 @@ void CachedResManager<oglImgBase_>::BindRess(const oglImgBase_* img, const uint1
 template<>
 void CachedResManager<oglImgBase_>::BindToProg(const GLuint progId, const GLuint loc, const uint16_t slot) noexcept
 {
-    CtxFunc->ProgramUniform1i(progId, loc, slot);
+    if (CtxFunc->ContextType == GLType::Desktop)
+        CtxFunc->ProgramUniform1i(progId, loc, slot);
 }
 
 

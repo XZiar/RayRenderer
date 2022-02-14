@@ -250,6 +250,14 @@ bool oglTexBase_::IsCompressed() const
     return ret != GL_FALSE;
 }
 
+bool oglTexBase_::IsStatic() const
+{
+    CheckCurrent();
+    GLint ret = GL_FALSE;
+    CtxFunc->GetTextureParameteriv(TextureID, common::enum_cast(Type), GL_TEXTURE_IMMUTABLE_FORMAT, &ret);
+    return ret != GL_FALSE;
+}
+
 
 oglTex2D_::~oglTex2D_()
 { }
@@ -366,6 +374,8 @@ oglTex2DStatic_::oglTex2DStatic_(const uint32_t width, const uint32_t height, co
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, InnerFormat = format, Mipmap = mipmap;
     CtxFunc->TextureStorage2D(TextureID, GL_TEXTURE_2D, mipmap, OGLTexUtil::GetInnerFormat(InnerFormat), Width, Height);
+    if (!IsStatic())
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"failed to make tex2d static");
 }
 oglTex2DS oglTex2DStatic_::Create(const uint32_t width, const uint32_t height, const xziar::img::TextureFormat format, const uint8_t mipmap)
 {
@@ -645,6 +655,8 @@ oglTex3DStatic_::oglTex3DStatic_(const uint32_t width, const uint32_t height, co
     CtxFunc->TextureStorage3D(TextureID, GL_TEXTURE_3D, mipmap, OGLTexUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
     if (const auto e = oglUtil::GetError(); e.has_value())
         oglLog().warning(u"oglTex3DS occurs error due to {}.\n", e.value());
+    if (!IsStatic())
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"failed to make tex3d static");
 }
 oglTex3DS oglTex3DStatic_::Create(const uint32_t width, const uint32_t height, const uint32_t depth, const TextureFormat format, const uint8_t mipmap)
 {
@@ -733,6 +745,8 @@ oglImgBase_::oglImgBase_(const oglTexBase& tex, const TexImgUsage usage, const b
         oglLog().warning(u"Attempt to create oglImg on unsupported context\n");
     if (!InnerTex)
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"Empty oglTex");
+    if (!InnerTex->IsStatic())
+        COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"oglTex is not immutable");
     const auto format = InnerTex->GetInnerFormat();
     if (TexFormatUtil::IsCompressType(format))
         COMMON_THROWEX(OGLWrongFormatException, u"TexImg does not support compressed texture type", format);

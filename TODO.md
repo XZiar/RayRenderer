@@ -150,7 +150,8 @@
   - [ ] Allow disable feature via env or manually to allow compatiblilty test
   - [ ] Move VAO's prepare before returning actual VAO
   - [ ] Direct load ICD lib to support multi-device/context
-  - [ ] Seperate desktop/ES support
+  - [x] Seperate desktop/ES support
+  - [ ] Add dynamic function loading with consider of extension, to avoid loading GL ext within ES context
   * Threaded GL
 	- [ ] Provide 1:1 mapping between context and thread
 	- [ ] Add bundle and cmdlist to record api calls (use template to generate data pack/unpack)

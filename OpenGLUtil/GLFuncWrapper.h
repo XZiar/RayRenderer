@@ -60,9 +60,10 @@ public:
     void      (GLAPIENTRYP BufferSubData_) (GLenum target, GLintptr offset, GLsizeiptr size, const void* data) = nullptr;
     void*     (GLAPIENTRYP MapNamedBuffer_) (GLuint buffer, GLenum access) = nullptr;
     void*     (GLAPIENTRYP MapBuffer_) (GLenum target, GLenum access) = nullptr;
+    void*     (GLAPIENTRYP MapBufferRange) (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access) = nullptr;
     GLboolean (GLAPIENTRYP UnmapNamedBuffer_) (GLuint buffer) = nullptr;
     GLboolean (GLAPIENTRYP UnmapBuffer_) (GLenum target) = nullptr;
-    
+
     void NamedBufferStorage(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLbitfield flags) const;
     void NamedBufferData(GLenum target, GLuint buffer, GLsizeiptr size, const void* data, GLenum usage) const;
     void NamedBufferSubData(GLenum target, GLuint buffer, GLintptr offset, GLsizeiptr size, const void* data) const;
@@ -122,8 +123,6 @@ public:
     void     (GLAPIENTRYP TextureBuffer_) (GLuint texture, GLenum internalformat, GLuint buffer) = nullptr;
     void     (GLAPIENTRYP TextureBufferEXT_) (GLuint texture, GLenum target, GLenum internalformat, GLuint buffer) = nullptr;
     void     (GLAPIENTRYP TexBuffer_) (GLenum target, GLenum internalformat, GLuint buffer) = nullptr;
-    void     (GLAPIENTRYP GetTexImage) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels) = nullptr;
-    void     (GLAPIENTRYP GetTexLevelParameteriv) (GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;
     void     (GLAPIENTRYP GenerateTextureMipmap_) (GLuint texture) = nullptr;
     void     (GLAPIENTRYP GenerateTextureMipmapEXT_) (GLuint texture, GLenum target) = nullptr;
     void     (GLAPIENTRYP GenerateMipmap_) (GLenum target) = nullptr;
@@ -178,13 +177,18 @@ public:
     void     (GLAPIENTRYP TexStorage3D_) (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) = nullptr;
     void     (GLAPIENTRYP ClearTexImage) (GLuint texture, GLint level, GLenum format, GLenum type, const void* data) = nullptr;
     void     (GLAPIENTRYP ClearTexSubImage) (GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* data) = nullptr;
-    void     (GLAPIENTRYP GetTextureLevelParameteriv_) (GLuint texture, GLint level, GLenum pname, GLint* params) = nullptr;
-    void     (GLAPIENTRYP GetTextureLevelParameterivEXT_) (GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;
-    void     (GLAPIENTRYP GetTextureImage_) (GLuint texture, GLint level, GLenum format, GLenum type, GLsizei bufSize, void *pixels) = nullptr;
-    void     (GLAPIENTRYP GetTextureImageEXT_) (GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, void *pixels) = nullptr;
     void     (GLAPIENTRYP GetCompressedTextureImage_) (GLuint texture, GLint level, GLsizei bufSize, void *img) = nullptr;
     void     (GLAPIENTRYP GetCompressedTextureImageEXT_) (GLuint texture, GLenum target, GLint level, void *img) = nullptr;
     void     (GLAPIENTRYP GetCompressedTexImage_) (GLenum target, GLint lod, void *img) = nullptr;
+    void     (GLAPIENTRYP GetTextureImage_) (GLuint texture, GLint level, GLenum format, GLenum type, GLsizei bufSize, void* pixels) = nullptr;
+    void     (GLAPIENTRYP GetTextureImageEXT_) (GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, void* pixels) = nullptr;
+    void     (GLAPIENTRYP GetTexImage) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels) = nullptr;
+    void     (GLAPIENTRYP GetTextureLevelParameteriv_) (GLuint texture, GLint level, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP GetTextureLevelParameterivEXT_) (GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP GetTexLevelParameteriv_) (GLenum target, GLint level, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP GetTextureParameteriv_) (GLuint texture, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP GetTextureParameterivEXT_) (GLuint texture, GLenum target, GLenum pname, GLint* params) = nullptr;
+    void     (GLAPIENTRYP GetTexParameteriv_) (GLenum target, GLenum pname, GLint* params) = nullptr;
 
     void CreateTextures(GLenum target, GLsizei n, GLuint* textures) const;
     void BindTextureUnit(GLuint unit, GLuint texture, GLenum target) const;
@@ -206,9 +210,10 @@ public:
     void TextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const;
     void TextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const;
     void TextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const;
-    void GetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const;
     void GetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const;
     void GetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const;
+    void GetTextureLevelParameteriv(GLuint texture, GLenum target, GLint level, GLenum pname, GLint* params) const;
+    void GetTextureParameteriv(GLuint texture, GLenum target, GLenum pname, GLint* params) const;
 
     // rbo related
     void (GLAPIENTRYP GenRenderbuffers_) (GLsizei n, GLuint* renderbuffers) = nullptr;
@@ -232,6 +237,7 @@ public:
     mutable GLuint ReadFBO = 0, DrawFBO = 0;
     GLint MaxColorAttachment = 0;
     GLint MaxDrawBuffers = 0;
+    GLint MaxFBOLayers = 1;
     void   (GLAPIENTRYP GenFramebuffers_) (GLsizei n, GLuint* framebuffers) = nullptr;
     void   (GLAPIENTRYP CreateFramebuffers_) (GLsizei n, GLuint *framebuffers) = nullptr;
     void   (GLAPIENTRYP DeleteFramebuffers) (GLsizei n, const GLuint* framebuffers) = nullptr;
@@ -271,6 +277,7 @@ public:
     void   (GLAPIENTRYP ClearBufferfv_) (GLenum buffer, GLint drawbuffer, const GLfloat* value) = nullptr;
     void   (GLAPIENTRYP ClearNamedFramebufferfi_) (GLuint framebuffer, GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil) = nullptr;
     void   (GLAPIENTRYP ClearBufferfi_) (GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil) = nullptr;
+    void   (GLAPIENTRYP ReadPixels_)(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels) = nullptr;
 
     void RefreshFBOState() const;
     void CreateFramebuffers(GLsizei n, GLuint* framebuffers) const;

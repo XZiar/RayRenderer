@@ -10,40 +10,50 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/tuple/to_seq.hpp>
+#include <boost/vmd/is_tuple.hpp>
 
 
-typedef void (APIENTRYP PFNGLDRAWARRAYSPROC) (GLenum mode, GLint first, GLsizei count);
-typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLenum type, const void* indices);
-typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint* textures);
-typedef void (APIENTRYP PFNGLBINDTEXTUREPROC) (GLenum target, GLuint texture);
-typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint* textures);
-typedef void (APIENTRYP PFNGLGETTEXIMAGEPROC) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels); 
-typedef void (APIENTRYP PFNGLTEXIMAGE1DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels);
-typedef void (APIENTRYP PFNGLTEXIMAGE2DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels);
-typedef void (APIENTRYP PFNGLTEXSUBIMAGE1DPROC) (GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels);
-typedef void (APIENTRYP PFNGLTEXSUBIMAGE2DPROC) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
-typedef void (APIENTRYP PFNGLGETTEXLEVELPARAMETERIVPROC) (GLenum target, GLint level, GLenum pname, GLint* params);
-typedef void (APIENTRYP PFNGLCULLFACEPROC) (GLenum mode);
-typedef void (APIENTRYP PFNGLFRONTFACEPROC) (GLenum mode);
-typedef void (APIENTRYP PFNGLHINTPROC) (GLenum target, GLenum mode);
-typedef void (APIENTRYP PFNGLDISABLEPROC) (GLenum cap);
-typedef void (APIENTRYP PFNGLENABLEPROC) (GLenum cap);
-typedef GLboolean (APIENTRYP PFNGLISENABLEDPROC) (GLenum cap);
-typedef void (APIENTRYP PFNGLFINISHPROC) (void);
-typedef void (APIENTRYP PFNGLFLUSHPROC) (void);
-typedef void (APIENTRYP PFNGLCLEARPROC) (GLbitfield mask);
-typedef void (APIENTRYP PFNGLCLEARCOLORPROC) (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
-typedef void (APIENTRYP PFNGLCLEARSTENCILPROC) (GLint s);
-typedef void (APIENTRYP PFNGLCLEARDEPTHPROC) (GLdouble depth); typedef void (APIENTRYP PFNGLGETBOOLEANVPROC) (GLenum pname, GLboolean* data);
-typedef void (APIENTRYP PFNGLGETDOUBLEVPROC) (GLenum pname, GLdouble* data);
-typedef void (APIENTRYP PFNGLDEPTHFUNCPROC) (GLenum func);
-typedef void (APIENTRYP PFNGLVIEWPORTPROC) (GLint x, GLint y, GLsizei width, GLsizei height);
-typedef GLenum (APIENTRYP PFNGLGETERRORPROC) (void);
-typedef void (APIENTRYP PFNGLGETFLOATVPROC) (GLenum pname, GLfloat* data);
-typedef void (APIENTRYP PFNGLGETINTEGERVPROC) (GLenum pname, GLint* data);
-typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC) (GLenum name);
+//typedef void (APIENTRYP PFNGLDRAWARRAYSPROC) (GLenum mode, GLint first, GLsizei count);
+//typedef void (APIENTRYP PFNGLDRAWELEMENTSPROC) (GLenum mode, GLsizei count, GLenum type, const void* indices);
+//typedef void (APIENTRYP PFNGLGENTEXTURESPROC) (GLsizei n, GLuint* textures);
+//typedef void (APIENTRYP PFNGLBINDTEXTUREPROC) (GLenum target, GLuint texture);
+//typedef void (APIENTRYP PFNGLDELETETEXTURESPROC) (GLsizei n, const GLuint* textures);
+//typedef void (APIENTRYP PFNGLGETTEXIMAGEPROC) (GLenum target, GLint level, GLenum format, GLenum type, void* pixels); 
+//typedef void (APIENTRYP PFNGLTEXIMAGE1DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const void* pixels);
+//typedef void (APIENTRYP PFNGLTEXIMAGE2DPROC) (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels);
+//typedef void (APIENTRYP PFNGLTEXSUBIMAGE1DPROC) (GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const void* pixels);
+//typedef void (APIENTRYP PFNGLTEXSUBIMAGE2DPROC) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
+//typedef void (APIENTRYP PFNGLGETTEXLEVELPARAMETERIVPROC) (GLenum target, GLint level, GLenum pname, GLint* params);
+//typedef void (APIENTRYP PFNGLCULLFACEPROC) (GLenum mode);
+//typedef void (APIENTRYP PFNGLFRONTFACEPROC) (GLenum mode);
+//typedef void (APIENTRYP PFNGLHINTPROC) (GLenum target, GLenum mode);
+//typedef void (APIENTRYP PFNGLDISABLEPROC) (GLenum cap);
+//typedef void (APIENTRYP PFNGLENABLEPROC) (GLenum cap);
+//typedef GLboolean (APIENTRYP PFNGLISENABLEDPROC) (GLenum cap);
+//typedef void (APIENTRYP PFNGLFINISHPROC) (void);
+//typedef void (APIENTRYP PFNGLFLUSHPROC) (void);
+//typedef void (APIENTRYP PFNGLCLEARPROC) (GLbitfield mask);
+//typedef void (APIENTRYP PFNGLCLEARCOLORPROC) (GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
+//typedef void (APIENTRYP PFNGLCLEARSTENCILPROC) (GLint s);
+//typedef void (APIENTRYP PFNGLCLEARDEPTHPROC) (GLdouble depth); typedef void (APIENTRYP PFNGLGETBOOLEANVPROC) (GLenum pname, GLboolean* data);
+//typedef void (APIENTRYP PFNGLGETDOUBLEVPROC) (GLenum pname, GLdouble* data);
+//typedef void (APIENTRYP PFNGLDEPTHFUNCPROC) (GLenum func);
+//typedef void (APIENTRYP PFNGLVIEWPORTPROC) (GLint x, GLint y, GLsizei width, GLsizei height);
+//typedef GLenum (APIENTRYP PFNGLGETERRORPROC) (void);
+//typedef void (APIENTRYP PFNGLGETFLOATVPROC) (GLenum pname, GLfloat* data);
+//typedef void (APIENTRYP PFNGLGETINTEGERVPROC) (GLenum pname, GLint* data);
+//typedef const GLubyte* (APIENTRYP PFNGLGETSTRINGPROC) (GLenum name);
 
 
+#ifndef GL_APIENTRY
+#   define GL_APIENTRY APIENTRY
+#endif
+#ifndef GL_APIENTRYP
+#   define GL_APIENTRYP APIENTRY *
+#endif
+#undef GL_KHR_debug
+#include "GLES2/gl2ext.h"
 #undef APIENTRY
 #if COMMON_OS_WIN
 #   define WIN32_LEAN_AND_MEAN 1
@@ -73,12 +83,12 @@ const common::container::FrozenDenseSet<std::string_view> GLBasicAPIs = std::vec
 {
     "glGenTextures"sv,      "glDeleteTextures"sv,   "glBindTexture"sv,      "glGetTexImage"sv,
     "glTexImage1D"sv,       "glTexImage2D"sv,       "glTexSubImage1D"sv,    "glTexSubImage2D"sv,
-    "glTexParameteri"sv,    "glGetTexLevelParameteriv"sv,                   "glClear"sv,
+    "glTexParameteri"sv,    "glGetTexParameteriv"sv, "glGetTexLevelParameteriv"sv, "glClear"sv,
     "glClearColor"sv,       "glClearDepth"sv,       "glClearStencil"sv,     "glGetError"sv,
     "glGetFloatv"sv,        "glGetIntegerv"sv,      "glGetString"sv,        "glIsEnabled"sv,
     "glEnable"sv,           "glDisable"sv,          "glFinish"sv,           "glFlush"sv,
     "glDepthFunc"sv,        "glCullFace"sv,         "glFrontFace"sv,        "glViewport"sv,
-    "glDrawArrays"sv,       "glDrawElements"sv
+    "glDrawArrays"sv,       "glDrawElements"sv,     "glReadPixels"sv,
 };
 }
 
@@ -310,380 +320,396 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     "mismatch type for variant [" #sfx "] on [" STRINGIZE(name) "]");
 #define FUNC_TYPE_CHECK(r, tp, sfx) FUNC_TYPE_CHECK_(BOOST_PP_TUPLE_ELEM(0, tp), BOOST_PP_TUPLE_ELEM(1, tp), BOOST_PP_TUPLE_ELEM(2, tp), sfx)
 #define SFX_STR(r, data, i, sfx) BOOST_PP_COMMA_IF(i) STRINGIZE(sfx)""sv
-#define QUERY_FUNC_(dst, part, name, sfxs) BOOST_PP_SEQ_FOR_EACH(FUNC_TYPE_CHECK, (dst, part, name), sfxs)\
-    QueryGLFunc(dst, getFunc, #name, shouldPrint, std::array{ BOOST_PP_SEQ_FOR_EACH_I(SFX_STR, , sfxs) })
-#define QUERY_FUNC(direct, part, name, ...) QUERY_FUNC_(BOOST_PP_CAT(name, BOOST_PP_IF(direct, , _)), part, name, \
-    BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
     
-    // buffer related
-    QUERY_FUNC(1, GENBUFFERS,         GenBuffers,        , ARB);
-    QUERY_FUNC(1, DELETEBUFFERS,      DeleteBuffers,     , ARB);
-    QUERY_FUNC(1, BINDBUFFER,         BindBuffer,        , ARB);
-    QUERY_FUNC(1, BINDBUFFERBASE,     BindBufferBase,    , EXT, NV);
-    QUERY_FUNC(1, BINDBUFFERRANGE,    BindBufferRange,   , EXT, NV);
-    QUERY_FUNC(0, NAMEDBUFFERSTORAGE, NamedBufferStorage,, EXT);
-    QUERY_FUNC(0, BUFFERSTORAGE,      BufferStorage,     );
-    QUERY_FUNC(0, NAMEDBUFFERDATA,    NamedBufferData,   , EXT);
-    QUERY_FUNC(0, BUFFERDATA,         BufferData,        , ARB);
-    QUERY_FUNC(0, NAMEDBUFFERSUBDATA, NamedBufferSubData,, EXT);
-    QUERY_FUNC(0, BUFFERSUBDATA,      BufferSubData,     , ARB);
-    QUERY_FUNC(0, MAPNAMEDBUFFER,     MapNamedBuffer,    , EXT);
-    QUERY_FUNC(0, MAPBUFFER,          MapBuffer,         , ARB);
-    QUERY_FUNC(0, UNMAPNAMEDBUFFER,   UnmapNamedBuffer,  , EXT);
-    QUERY_FUNC(0, UNMAPBUFFER,        UnmapBuffer,       , ARB);
+#define TOSEQ(...) BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)
+#define QUERY_FUNC__(dst, part, name, sfxs, op) BOOST_PP_SEQ_FOR_EACH(FUNC_TYPE_CHECK, (dst, part, name), sfxs)\
+    if (ContextType op GLType::ES) QueryGLFunc(dst, getFunc, #name, shouldPrint, std::array{ BOOST_PP_SEQ_FOR_EACH_I(SFX_STR, , sfxs) })
+#define QUERY_FUNC_(dst, part, name, GLSfx, ESSfx) do {          \
+    BOOST_PP_IF(BOOST_VMD_IS_TUPLE(GLSfx), QUERY_FUNC__(dst, part, name, BOOST_PP_TUPLE_TO_SEQ(GLSfx), !=), );  \
+    BOOST_PP_IF(BOOST_VMD_IS_TUPLE(ESSfx), QUERY_FUNC__(dst, part, name, BOOST_PP_TUPLE_TO_SEQ(ESSfx), ==), );  \
+    } while (0)
+#define QUERY_FUNC(direct, part, name, GLSfx, ESSfx) QUERY_FUNC_(BOOST_PP_CAT(name, BOOST_PP_IF(direct, , _)), part, name, GLSfx, ESSfx)
 
-    // vao related
-    QUERY_FUNC(1, GENVERTEXARRAYS,         GenVertexArrays,        , APPLE);
-    QUERY_FUNC(1, DELETEVERTEXARRAYS,      DeleteVertexArrays,     , APPLE);
-    QUERY_FUNC(0, BINDVERTEXARRAY,         BindVertexArray,        , APPLE);
-    QUERY_FUNC(0, ENABLEVERTEXATTRIBARRAY, EnableVertexAttribArray,, ARB);
-    QUERY_FUNC(0, ENABLEVERTEXARRAYATTRIB, EnableVertexArrayAttrib,, EXT);
-    QUERY_FUNC(0, VERTEXATTRIBIPOINTER,    VertexAttribIPointer,   , EXT);
-    QUERY_FUNC(0, VERTEXATTRIBLPOINTER,    VertexAttribLPointer,   , EXT);
-    QUERY_FUNC(0, VERTEXATTRIBPOINTER,     VertexAttribPointer,    , ARB);
-    QUERY_FUNC(1, VERTEXATTRIBDIVISOR,     VertexAttribDivisor,    , ARB);
-
-    // draw related
-    QUERY_FUNC(1, DRAWARRAYS,                                  DrawArrays,                                 , EXT);
-    QUERY_FUNC(1, DRAWELEMENTS,                                DrawElements,                               );
-    QUERY_FUNC(1, MULTIDRAWARRAYS,                             MultiDrawArrays,                            , EXT);
-    QUERY_FUNC(1, MULTIDRAWELEMENTS,                           MultiDrawElements,                          , EXT);
-    QUERY_FUNC(0, MULTIDRAWARRAYSINDIRECT,                     MultiDrawArraysIndirect,                    , AMD);
-    QUERY_FUNC(0, DRAWARRAYSINSTANCEDBASEINSTANCE,             DrawArraysInstancedBaseInstance,            );
-    QUERY_FUNC(0, DRAWARRAYSINSTANCED,                         DrawArraysInstanced,                        , ARB, EXT);
-    QUERY_FUNC(0, MULTIDRAWELEMENTSINDIRECT,                   MultiDrawElementsIndirect,                  , AMD);
-    QUERY_FUNC(0, DRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCE, DrawElementsInstancedBaseVertexBaseInstance,);
-    QUERY_FUNC(0, DRAWELEMENTSINSTANCEDBASEINSTANCE,           DrawElementsInstancedBaseInstance,          );
-    QUERY_FUNC(0, DRAWELEMENTSINSTANCED,                       DrawElementsInstanced,                      , ARB, EXT);
-
-    //texture related
-    QUERY_FUNC(1, GENTEXTURES,                    GenTextures,                   );
-    QUERY_FUNC(0, CREATETEXTURES,                 CreateTextures,                );
-    QUERY_FUNC(1, DELETETEXTURES,                 DeleteTextures,                );
-    QUERY_FUNC(1, ACTIVETEXTURE,                  ActiveTexture,                 , ARB);
-    QUERY_FUNC(1, BINDTEXTURE,                    BindTexture,                   );
-    QUERY_FUNC(0, BINDTEXTUREUNIT,                BindTextureUnit,               );
-    QUERY_FUNC(0, BINDMULTITEXTUREEXT,            BindMultiTextureEXT,           );
-    QUERY_FUNC(1, BINDIMAGETEXTURE,               BindImageTexture,              , EXT);
-    QUERY_FUNC(1, TEXTUREVIEW,                    TextureView,                   );
-    QUERY_FUNC(0, TEXTUREBUFFER,                  TextureBuffer,                 );
-    QUERY_FUNC(0, TEXTUREBUFFEREXT,               TextureBufferEXT,              );
-    QUERY_FUNC(0, TEXBUFFER,                      TexBuffer,                     , ARB, EXT);
-    QUERY_FUNC(1, GETTEXIMAGE,                    GetTexImage,                   );
-    QUERY_FUNC(1, GETTEXLEVELPARAMETERIV,         GetTexLevelParameteriv,        );
-    QUERY_FUNC(0, GENERATETEXTUREMIPMAP,          GenerateTextureMipmap,         );
-    QUERY_FUNC(0, GENERATETEXTUREMIPMAPEXT,       GenerateTextureMipmapEXT,      );
-    QUERY_FUNC(0, GENERATEMIPMAP,                 GenerateMipmap,                , EXT);
-    QUERY_FUNC(1, GETTEXTUREHANDLE,               GetTextureHandle               , ARB, NV);
-    QUERY_FUNC(1, MAKETEXTUREHANDLERESIDENT,      MakeTextureHandleResident      , ARB, NV);
-    QUERY_FUNC(1, MAKETEXTUREHANDLENONRESIDENT,   MakeTextureHandleNonResident   , ARB, NV);
-    QUERY_FUNC(1, GETIMAGEHANDLE,                 GetImageHandle                 , ARB, NV);
-    QUERY_FUNC(1, MAKEIMAGEHANDLERESIDENT,        MakeImageHandleResident        , ARB, NV);
-    QUERY_FUNC(1, MAKEIMAGEHANDLENONRESIDENT,     MakeImageHandleNonResident     , ARB, NV);
-    QUERY_FUNC(0, TEXTUREPARAMETERI,              TextureParameteri,             );
-    QUERY_FUNC(0, TEXTUREPARAMETERIEXT,           TextureParameteriEXT,          );
-    QUERY_FUNC(1, TEXIMAGE1D,                     TexImage1D,                    );
-    QUERY_FUNC(1, TEXIMAGE2D,                     TexImage2D,                    );
-    QUERY_FUNC(0, TEXIMAGE3D,                     TexImage3D,                    , EXT);
-    QUERY_FUNC(0, TEXSUBIMAGE1D,                  TexSubImage1D,                 , EXT);
-    QUERY_FUNC(0, TEXSUBIMAGE2D,                  TexSubImage2D,                 , EXT);
-    QUERY_FUNC(0, TEXSUBIMAGE3D,                  TexSubImage3D,                 , EXT);
-    QUERY_FUNC(0, TEXTURESUBIMAGE1D,              TextureSubImage1D,             );
-    QUERY_FUNC(0, TEXTURESUBIMAGE2D,              TextureSubImage2D,             );
-    QUERY_FUNC(0, TEXTURESUBIMAGE3D,              TextureSubImage3D,             );
-    QUERY_FUNC(0, TEXTURESUBIMAGE1DEXT,           TextureSubImage1DEXT,          );
-    QUERY_FUNC(0, TEXTURESUBIMAGE2DEXT,           TextureSubImage2DEXT,          );
-    QUERY_FUNC(0, TEXTURESUBIMAGE3DEXT,           TextureSubImage3DEXT,          );
-    QUERY_FUNC(0, TEXTUREIMAGE1DEXT,              TextureImage1DEXT,             );
-    QUERY_FUNC(0, TEXTUREIMAGE2DEXT,              TextureImage2DEXT,             );
-    QUERY_FUNC(0, TEXTUREIMAGE3DEXT,              TextureImage3DEXT,             );
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE1D,    CompressedTextureSubImage1D,   );
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE2D,    CompressedTextureSubImage2D,   );
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE3D,    CompressedTextureSubImage3D,   );
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE1DEXT, CompressedTextureSubImage1DEXT,);
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE2DEXT, CompressedTextureSubImage2DEXT,);
-    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE3DEXT, CompressedTextureSubImage3DEXT,);
-    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE1D,        CompressedTexSubImage1D,       , ARB);
-    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE2D,        CompressedTexSubImage2D,       , ARB);
-    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE3D,        CompressedTexSubImage3D,       , ARB);
-    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE1DEXT,    CompressedTextureImage1DEXT,   );
-    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE2DEXT,    CompressedTextureImage2DEXT,   );
-    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE3DEXT,    CompressedTextureImage3DEXT,   );
-    QUERY_FUNC(0, COMPRESSEDTEXIMAGE1D,           CompressedTexImage1D,          , ARB);
-    QUERY_FUNC(0, COMPRESSEDTEXIMAGE2D,           CompressedTexImage2D,          , ARB);
-    QUERY_FUNC(0, COMPRESSEDTEXIMAGE3D,           CompressedTexImage3D,          , ARB);
-    QUERY_FUNC(1, COPYIMAGESUBDATA,               CopyImageSubData,              , NV);
-    QUERY_FUNC(0, TEXTURESTORAGE1D,               TextureStorage1D,              );
-    QUERY_FUNC(0, TEXTURESTORAGE2D,               TextureStorage2D,              );
-    QUERY_FUNC(0, TEXTURESTORAGE3D,               TextureStorage3D,              );
-    QUERY_FUNC(0, TEXTURESTORAGE1DEXT,            TextureStorage1DEXT,           );
-    QUERY_FUNC(0, TEXTURESTORAGE2DEXT,            TextureStorage2DEXT,           );
-    QUERY_FUNC(0, TEXTURESTORAGE3DEXT,            TextureStorage3DEXT,           );
-    QUERY_FUNC(0, TEXSTORAGE1D,                   TexStorage1D,                  );
-    QUERY_FUNC(0, TEXSTORAGE2D,                   TexStorage2D,                  );
-    QUERY_FUNC(0, TEXSTORAGE3D,                   TexStorage3D,                  );
-    QUERY_FUNC(1, CLEARTEXIMAGE,                  ClearTexImage,                 );
-    QUERY_FUNC(1, CLEARTEXSUBIMAGE,               ClearTexSubImage,              );
-    QUERY_FUNC(0, GETTEXTURELEVELPARAMETERIV,     GetTextureLevelParameteriv,    );
-    QUERY_FUNC(0, GETTEXTURELEVELPARAMETERIVEXT,  GetTextureLevelParameterivEXT, );
-    QUERY_FUNC(0, GETTEXTUREIMAGE,                GetTextureImage,               );
-    QUERY_FUNC(0, GETTEXTUREIMAGEEXT,             GetTextureImageEXT,            );
-    QUERY_FUNC(0, GETCOMPRESSEDTEXTUREIMAGE,      GetCompressedTextureImage,     );
-    QUERY_FUNC(0, GETCOMPRESSEDTEXTUREIMAGEEXT,   GetCompressedTextureImageEXT,  );
-    QUERY_FUNC(0, GETCOMPRESSEDTEXIMAGE,          GetCompressedTexImage,         , ARB);
-
-    //rbo related
-    QUERY_FUNC(0, GENRENDERBUFFERS,                               GenRenderbuffers,                              , EXT);
-    QUERY_FUNC(0, CREATERENDERBUFFERS,                            CreateRenderbuffers,                           );
-    QUERY_FUNC(1, DELETERENDERBUFFERS,                            DeleteRenderbuffers,                           , EXT);
-    QUERY_FUNC(0, BINDRENDERBUFFER,                               BindRenderbuffer,                              , EXT);
-    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGE,                       NamedRenderbufferStorage,                      , EXT);
-    QUERY_FUNC(0, RENDERBUFFERSTORAGE,                            RenderbufferStorage,                           , EXT);
-    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLE,            NamedRenderbufferStorageMultisample,           , EXT);
-    QUERY_FUNC(0, RENDERBUFFERSTORAGEMULTISAMPLE,                 RenderbufferStorageMultisample,                , EXT);
-    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLECOVERAGEEXT, NamedRenderbufferStorageMultisampleCoverageEXT,);
-    QUERY_FUNC(0, RENDERBUFFERSTORAGEMULTISAMPLECOVERAGENV,       RenderbufferStorageMultisampleCoverageNV,      );
-    QUERY_FUNC(0, GETRENDERBUFFERPARAMETERIV,                     GetRenderbufferParameteriv,                    , EXT);
-    
-    //fbo related
-    QUERY_FUNC(0, GENFRAMEBUFFERS,                          GenFramebuffers,                         , EXT);
-    QUERY_FUNC(0, CREATEFRAMEBUFFERS,                       CreateFramebuffers,                      );
-    QUERY_FUNC(1, DELETEFRAMEBUFFERS,                       DeleteFramebuffers,                      , EXT);
-    QUERY_FUNC(0, BINDFRAMEBUFFER,                          BindFramebuffer,                         , EXT);
-    QUERY_FUNC(0, BLITNAMEDFRAMEBUFFER,                     BlitNamedFramebuffer,                    );
-    QUERY_FUNC(0, BLITFRAMEBUFFER,                          BlitFramebuffer,                         , EXT);
-    QUERY_FUNC(1, DRAWBUFFERS,                              DrawBuffers,                             , ARB, ATI);
-    QUERY_FUNC(0, INVALIDATENAMEDFRAMEBUFFERDATA,           InvalidateNamedFramebufferData,          );
-    QUERY_FUNC(0, INVALIDATEFRAMEBUFFER,                    InvalidateFramebuffer,                   );
-    //QUERY_FUC(0, DISCARDFRAMEBUFFEREXT,                     DiscardFramebufferEXT,                   );
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERRENDERBUFFER,             NamedFramebufferRenderbuffer,            , EXT);
-    QUERY_FUNC(0, FRAMEBUFFERRENDERBUFFER,                  FramebufferRenderbuffer,                 , EXT);
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE1DEXT,             NamedFramebufferTexture1DEXT,            );
-    QUERY_FUNC(0, FRAMEBUFFERTEXTURE1D,                     FramebufferTexture1D,                    , EXT);
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE2DEXT,             NamedFramebufferTexture2DEXT,            );
-    QUERY_FUNC(0, FRAMEBUFFERTEXTURE2D,                     FramebufferTexture2D,                    , EXT);
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE3DEXT,             NamedFramebufferTexture3DEXT,            );
-    QUERY_FUNC(0, FRAMEBUFFERTEXTURE3D,                     FramebufferTexture3D,                    , EXT);
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE,                  NamedFramebufferTexture,                 , EXT);
-    QUERY_FUNC(0, FRAMEBUFFERTEXTURE,                       FramebufferTexture,                      , EXT);
-    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURELAYER,             NamedFramebufferTextureLayer,            , EXT);
-    QUERY_FUNC(0, FRAMEBUFFERTEXTURELAYER,                  FramebufferTextureLayer,                 , EXT);
-    QUERY_FUNC(0, CHECKNAMEDFRAMEBUFFERSTATUS,              CheckNamedFramebufferStatus,             , EXT);
-    QUERY_FUNC(0, CHECKFRAMEBUFFERSTATUS,                   CheckFramebufferStatus,                  , EXT);
-    QUERY_FUNC(0, GETNAMEDFRAMEBUFFERATTACHMENTPARAMETERIV, GetNamedFramebufferAttachmentParameteriv,, EXT);
-    QUERY_FUNC(0, GETFRAMEBUFFERATTACHMENTPARAMETERIV,      GetFramebufferAttachmentParameteriv,     , EXT);
-    QUERY_FUNC(1, CLEAR,                                    Clear,                                   );
-    QUERY_FUNC(1, CLEARCOLOR,                               ClearColor,                              );
-    QUERY_FUNC(0, CLEARDEPTH,                               ClearDepth,                              );
-    QUERY_FUNC(0, CLEARDEPTHF,                              ClearDepthf,                             );
-    QUERY_FUNC(1, CLEARSTENCIL,                             ClearStencil,                            );
-    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERIV,                  ClearNamedFramebufferiv,                 );
-    QUERY_FUNC(0, CLEARBUFFERIV,                            ClearBufferiv,                           );
-    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERUIV,                 ClearNamedFramebufferuiv,                );
-    QUERY_FUNC(0, CLEARBUFFERUIV,                           ClearBufferuiv,                          );
-    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERFV,                  ClearNamedFramebufferfv,                 );
-    QUERY_FUNC(0, CLEARBUFFERFV,                            ClearBufferfv,                           );
-    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERFI,                  ClearNamedFramebufferfi,                 );
-    QUERY_FUNC(0, CLEARBUFFERFI,                            ClearBufferfi,                           );
-
-    //shader related
-    QUERY_FUNC(1, CREATESHADER,     CreateShader,    );
-    QUERY_FUNC(1, DELETESHADER,     DeleteShader,    );
-    QUERY_FUNC(1, SHADERSOURCE,     ShaderSource,    );
-    QUERY_FUNC(1, COMPILESHADER,    CompileShader,   );
-    QUERY_FUNC(1, GETSHADERINFOLOG, GetShaderInfoLog,);
-    QUERY_FUNC(1, GETSHADERSOURCE,  GetShaderSource, );
-    QUERY_FUNC(1, GETSHADERIV,      GetShaderiv,     );
-
-    //program related
-    QUERY_FUNC(1, CREATEPROGRAM,           CreateProgram,          );
-    QUERY_FUNC(1, DELETEPROGRAM,           DeleteProgram,          );
-    QUERY_FUNC(1, ATTACHSHADER,            AttachShader,           );
-    QUERY_FUNC(1, DETACHSHADER,            DetachShader,           );
-    QUERY_FUNC(1, LINKPROGRAM,             LinkProgram,            );
-    QUERY_FUNC(1, USEPROGRAM,              UseProgram,             );
-    QUERY_FUNC(1, DISPATCHCOMPUTE,         DispatchCompute,        );
-    QUERY_FUNC(1, DISPATCHCOMPUTEINDIRECT, DispatchComputeIndirect,); 
-
-    QUERY_FUNC(0, UNIFORM1F,        Uniform1f,       );
-    QUERY_FUNC(0, UNIFORM1FV,       Uniform1fv,      );
-    QUERY_FUNC(0, UNIFORM1I,        Uniform1i,       );
-    QUERY_FUNC(0, UNIFORM1IV,       Uniform1iv,      );
-    QUERY_FUNC(0, UNIFORM2F,        Uniform2f,       );
-    QUERY_FUNC(0, UNIFORM2FV,       Uniform2fv,      );
-    QUERY_FUNC(0, UNIFORM2I,        Uniform2i,       );
-    QUERY_FUNC(0, UNIFORM2IV,       Uniform2iv,      );
-    QUERY_FUNC(0, UNIFORM3F,        Uniform3f,       );
-    QUERY_FUNC(0, UNIFORM3FV,       Uniform3fv,      );
-    QUERY_FUNC(0, UNIFORM3I,        Uniform3i,       );
-    QUERY_FUNC(0, UNIFORM3IV,       Uniform3iv,      );
-    QUERY_FUNC(0, UNIFORM4F,        Uniform4f,       );
-    QUERY_FUNC(0, UNIFORM4FV,       Uniform4fv,      );
-    QUERY_FUNC(0, UNIFORM4I,        Uniform4i,       );
-    QUERY_FUNC(0, UNIFORM4IV,       Uniform4iv,      );
-    QUERY_FUNC(0, UNIFORMMATRIX2FV, UniformMatrix2fv,);
-    QUERY_FUNC(0, UNIFORMMATRIX3FV, UniformMatrix3fv,);
-    QUERY_FUNC(0, UNIFORMMATRIX4FV, UniformMatrix4fv,);
-    
-    QUERY_FUNC(1, PROGRAMUNIFORM1D,          ProgramUniform1d,         );
-    QUERY_FUNC(1, PROGRAMUNIFORM1DV,         ProgramUniform1dv,        );
-    QUERY_FUNC(1, PROGRAMUNIFORM1F,          ProgramUniform1f,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM1FV,         ProgramUniform1fv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM1I,          ProgramUniform1i,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM1IV,         ProgramUniform1iv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM1UI,         ProgramUniform1ui,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM1UIV,        ProgramUniform1uiv,       , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2D,          ProgramUniform2d,         );
-    QUERY_FUNC(1, PROGRAMUNIFORM2DV,         ProgramUniform2dv,        );
-    QUERY_FUNC(1, PROGRAMUNIFORM2F,          ProgramUniform2f,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2FV,         ProgramUniform2fv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2I,          ProgramUniform2i,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2IV,         ProgramUniform2iv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2UI,         ProgramUniform2ui,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM2UIV,        ProgramUniform2uiv,       , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3D,          ProgramUniform3d,         );
-    QUERY_FUNC(1, PROGRAMUNIFORM3DV,         ProgramUniform3dv,        );
-    QUERY_FUNC(1, PROGRAMUNIFORM3F,          ProgramUniform3f,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3FV,         ProgramUniform3fv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3I,          ProgramUniform3i,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3IV,         ProgramUniform3iv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3UI,         ProgramUniform3ui,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM3UIV,        ProgramUniform3uiv,       , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4D,          ProgramUniform4d,         );
-    QUERY_FUNC(1, PROGRAMUNIFORM4DV,         ProgramUniform4dv,        );
-    QUERY_FUNC(1, PROGRAMUNIFORM4F,          ProgramUniform4f,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4FV,         ProgramUniform4fv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4I,          ProgramUniform4i,         , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4IV,         ProgramUniform4iv,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4UI,         ProgramUniform4ui,        , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORM4UIV,        ProgramUniform4uiv,       , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2DV,   ProgramUniformMatrix2dv,  );
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2FV,   ProgramUniformMatrix2fv,  , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X3DV, ProgramUniformMatrix2x3dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X3FV, ProgramUniformMatrix2x3fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X4DV, ProgramUniformMatrix2x4dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X4FV, ProgramUniformMatrix2x4fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3DV,   ProgramUniformMatrix3dv,  );
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3FV,   ProgramUniformMatrix3fv,  , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X2DV, ProgramUniformMatrix3x2dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X2FV, ProgramUniformMatrix3x2fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X4DV, ProgramUniformMatrix3x4dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X4FV, ProgramUniformMatrix3x4fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4DV,   ProgramUniformMatrix4dv,  );
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4FV,   ProgramUniformMatrix4fv,  , EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X2DV, ProgramUniformMatrix4x2dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X2FV, ProgramUniformMatrix4x2fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X3DV, ProgramUniformMatrix4x3dv,);
-    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X3FV, ProgramUniformMatrix4x3fv,, EXT);
-    QUERY_FUNC(1, PROGRAMUNIFORMHANDLEUI64,  ProgramUniformHandleui64  , ARB, NV);
-
-    QUERY_FUNC(1, GETUNIFORMFV,                    GetUniformfv,                   );
-    QUERY_FUNC(1, GETUNIFORMIV,                    GetUniformiv,                   );
-    QUERY_FUNC(1, GETUNIFORMUIV,                   GetUniformuiv,                  );
-    QUERY_FUNC(1, GETPROGRAMINFOLOG,               GetProgramInfoLog,              );
-    QUERY_FUNC(1, GETPROGRAMIV,                    GetProgramiv,                   );
-    QUERY_FUNC(1, GETPROGRAMINTERFACEIV,           GetProgramInterfaceiv,          );
-    QUERY_FUNC(1, GETPROGRAMRESOURCEINDEX,         GetProgramResourceIndex,        );
-    QUERY_FUNC(1, GETPROGRAMRESOURCELOCATION,      GetProgramResourceLocation,     );
-    QUERY_FUNC(1, GETPROGRAMRESOURCELOCATIONINDEX, GetProgramResourceLocationIndex,); 
-    QUERY_FUNC(1, GETPROGRAMRESOURCENAME,          GetProgramResourceName,         );
-    QUERY_FUNC(1, GETPROGRAMRESOURCEIV,            GetProgramResourceiv,           );
-    QUERY_FUNC(1, GETACTIVESUBROUTINENAME,         GetActiveSubroutineName,        );
-    QUERY_FUNC(1, GETACTIVESUBROUTINEUNIFORMNAME,  GetActiveSubroutineUniformName, );
-    QUERY_FUNC(1, GETACTIVESUBROUTINEUNIFORMIV,    GetActiveSubroutineUniformiv,   );
-    QUERY_FUNC(1, GETPROGRAMSTAGEIV,               GetProgramStageiv,              );
-    QUERY_FUNC(1, GETSUBROUTINEINDEX,              GetSubroutineIndex,             );
-    QUERY_FUNC(1, GETSUBROUTINEUNIFORMLOCATION,    GetSubroutineUniformLocation,   );
-    QUERY_FUNC(1, GETUNIFORMSUBROUTINEUIV,         GetUniformSubroutineuiv,        );
-    QUERY_FUNC(1, UNIFORMSUBROUTINESUIV,           UniformSubroutinesuiv,          );
-    QUERY_FUNC(1, GETACTIVEUNIFORMBLOCKNAME,       GetActiveUniformBlockName,      );
-    QUERY_FUNC(1, GETACTIVEUNIFORMBLOCKIV,         GetActiveUniformBlockiv,        );
-    QUERY_FUNC(1, GETACTIVEUNIFORMNAME,            GetActiveUniformName,           );
-    QUERY_FUNC(1, GETACTIVEUNIFORMSIV,             GetActiveUniformsiv,            );
-    QUERY_FUNC(1, GETINTEGERI_V,                   GetIntegeri_v,                  );
-    QUERY_FUNC(1, GETUNIFORMBLOCKINDEX,            GetUniformBlockIndex,           );
-    QUERY_FUNC(1, GETUNIFORMINDICES,               GetUniformIndices,              );
-    QUERY_FUNC(1, UNIFORMBLOCKBINDING,             UniformBlockBinding,            );
-
-    //query related
-    QUERY_FUNC(1, GENQUERIES,          GenQueries,         );
-    QUERY_FUNC(1, DELETEQUERIES,       DeleteQueries,      );
-    QUERY_FUNC(1, BEGINQUERY,          BeginQuery,         );
-    QUERY_FUNC(1, QUERYCOUNTER,        QueryCounter,       );
-    QUERY_FUNC(1, GETQUERYOBJECTIV,    GetQueryObjectiv,   );
-    QUERY_FUNC(1, GETQUERYOBJECTUIV,   GetQueryObjectuiv,  );
-    QUERY_FUNC(1, GETQUERYOBJECTI64V,  GetQueryObjecti64v, , EXT);
-    QUERY_FUNC(1, GETQUERYOBJECTUI64V, GetQueryObjectui64v,, EXT);
-    QUERY_FUNC(1, GETQUERYIV,          GetQueryiv,         );
-    QUERY_FUNC(1, FENCESYNC,           FenceSync,          );
-    QUERY_FUNC(1, DELETESYNC,          DeleteSync,         );
-    QUERY_FUNC(1, CLIENTWAITSYNC,      ClientWaitSync,     );
-    QUERY_FUNC(1, WAITSYNC,            WaitSync,           );
-    QUERY_FUNC(1, GETINTEGER64V,       GetInteger64v,      );
-    QUERY_FUNC(1, GETSYNCIV,           GetSynciv,          );
-
-    //debug
-    QUERY_FUNC(1, DEBUGMESSAGECALLBACK,    DebugMessageCallback,   , ARB);
-    QUERY_FUNC(1, DEBUGMESSAGECALLBACKAMD, DebugMessageCallbackAMD,);
-    QUERY_FUNC(0, OBJECTLABEL,             ObjectLabel,            );
-    QUERY_FUNC(0, LABELOBJECTEXT,          LabelObjectEXT,         );
-    QUERY_FUNC(0, OBJECTPTRLABEL,          ObjectPtrLabel,         );
-    QUERY_FUNC(0, PUSHDEBUGGROUP,          PushDebugGroup,         );
-    QUERY_FUNC(0, POPDEBUGGROUP,           PopDebugGroup,          );
-    QUERY_FUNC(0, PUSHGROUPMARKEREXT,      PushGroupMarkerEXT,     );
-    QUERY_FUNC(0, POPGROUPMARKEREXT,       PopGroupMarkerEXT,      );
-    QUERY_FUNC(0, DEBUGMESSAGEINSERT,      DebugMessageInsert,     , ARB);
-    QUERY_FUNC(1, DEBUGMESSAGEINSERTAMD,   DebugMessageInsertAMD,  );
-    QUERY_FUNC(1, INSERTEVENTMARKEREXT,    InsertEventMarkerEXT,   );
-
-    //others
-    QUERY_FUNC(0, GETERROR,              GetError,             );
-    QUERY_FUNC(1, GETFLOATV,             GetFloatv,            );
-    QUERY_FUNC(1, GETINTEGERV,           GetIntegerv,          );
-    QUERY_FUNC(1, GETUNSIGNEDBYTEVEXT,   GetUnsignedBytevEXT,  );
-    QUERY_FUNC(1, GETUNSIGNEDBYTEI_VEXT, GetUnsignedBytei_vEXT,);
-    QUERY_FUNC(1, GETSTRING,             GetString,            );
-    QUERY_FUNC(1, GETSTRINGI,            GetStringi,           );
-    QUERY_FUNC(1, ISENABLED,             IsEnabled,            );
-    QUERY_FUNC(1, ENABLE,                Enable,               );
-    QUERY_FUNC(1, DISABLE,               Disable,              );
-    QUERY_FUNC(1, FINISH,                Finish,               );
-    QUERY_FUNC(1, FLUSH,                 Flush,                );
-    QUERY_FUNC(1, DEPTHFUNC,             DepthFunc,            );
-    QUERY_FUNC(1, CULLFACE,              CullFace,             );
-    QUERY_FUNC(1, FRONTFACE,             FrontFace,            );
-    QUERY_FUNC(1, VIEWPORT,              Viewport,             );
-    QUERY_FUNC(1, VIEWPORTARRAYV,        ViewportArrayv,       );
-    QUERY_FUNC(1, VIEWPORTINDEXEDF,      ViewportIndexedf,     );
-    QUERY_FUNC(1, VIEWPORTINDEXEDFV,     ViewportIndexedfv,    );
-    QUERY_FUNC(1, CLIPCONTROL,           ClipControl,          );
-    QUERY_FUNC(1, MEMORYBARRIER,         MemoryBarrier,        , EXT);
-
+#define QUERY_FUNC2(part, name) QueryGLFunc(name, getFunc, #name, {false, false}, std::array{""sv})
+    QUERY_FUNC2(GETSTRING,   GetString);
+    QUERY_FUNC2(GETINTEGERV, GetIntegerv);
+#undef QUERY_FUNC2
     FillConextBaseInfo(*this, GetString, GetIntegerv);
 
+    // buffer related
+    QUERY_FUNC(1, GENBUFFERS,         GenBuffers,         (, ARB),     ());
+    QUERY_FUNC(1, DELETEBUFFERS,      DeleteBuffers,      (, ARB),     ());
+    QUERY_FUNC(1, BINDBUFFER,         BindBuffer,         (, ARB),     ());
+    QUERY_FUNC(1, BINDBUFFERBASE,     BindBufferBase,     (, EXT, NV), ());
+    QUERY_FUNC(1, BINDBUFFERRANGE,    BindBufferRange,    (, EXT, NV), ());
+    QUERY_FUNC(0, NAMEDBUFFERSTORAGE, NamedBufferStorage, (, EXT),     _);
+    QUERY_FUNC(0, BUFFERSTORAGE,      BufferStorage,      (),          (EXT));
+    QUERY_FUNC(0, NAMEDBUFFERDATA,    NamedBufferData,    (, EXT),     _);
+    QUERY_FUNC(0, BUFFERDATA,         BufferData,         (, ARB),     ());
+    QUERY_FUNC(0, NAMEDBUFFERSUBDATA, NamedBufferSubData, (, EXT),     _);
+    QUERY_FUNC(0, BUFFERSUBDATA,      BufferSubData,      (, ARB),     ());
+    QUERY_FUNC(0, MAPNAMEDBUFFER,     MapNamedBuffer,     (, EXT),     _);
+    QUERY_FUNC(0, MAPBUFFER,          MapBuffer,          (, ARB),     (OES));
+    QUERY_FUNC(1, MAPBUFFERRANGE,     MapBufferRange,     (),          (, EXT));
+    QUERY_FUNC(0, UNMAPNAMEDBUFFER,   UnmapNamedBuffer,   (, EXT),     _);
+    QUERY_FUNC(0, UNMAPBUFFER,        UnmapBuffer,        (, ARB),     (, OES));
+
+    // vao related
+    QUERY_FUNC(1, GENVERTEXARRAYS,         GenVertexArrays,         (, APPLE), (, OES));
+    QUERY_FUNC(1, DELETEVERTEXARRAYS,      DeleteVertexArrays,      (, APPLE), (, OES));
+    QUERY_FUNC(0, BINDVERTEXARRAY,         BindVertexArray,         (, APPLE), (, OES));
+    QUERY_FUNC(0, ENABLEVERTEXATTRIBARRAY, EnableVertexAttribArray, (, ARB),   ());
+    QUERY_FUNC(0, ENABLEVERTEXARRAYATTRIB, EnableVertexArrayAttrib, (, EXT),   _);
+    QUERY_FUNC(0, VERTEXATTRIBIPOINTER,    VertexAttribIPointer,    (, EXT),   ());
+    QUERY_FUNC(0, VERTEXATTRIBLPOINTER,    VertexAttribLPointer,    (, EXT),   _);
+    QUERY_FUNC(0, VERTEXATTRIBPOINTER,     VertexAttribPointer,     (, ARB),   ());
+    QUERY_FUNC(1, VERTEXATTRIBDIVISOR,     VertexAttribDivisor,     (, ARB),   (, EXT, ANGLE, NV));
+
+    // draw related
+    QUERY_FUNC(1, DRAWARRAYS,                                  DrawArrays,                                  (, EXT),      ());
+    QUERY_FUNC(1, DRAWELEMENTS,                                DrawElements,                                (),           ());
+    QUERY_FUNC(1, MULTIDRAWARRAYS,                             MultiDrawArrays,                             (, EXT),      (EXT));
+    QUERY_FUNC(1, MULTIDRAWELEMENTS,                           MultiDrawElements,                           (, EXT),      (EXT));
+    QUERY_FUNC(0, MULTIDRAWARRAYSINDIRECT,                     MultiDrawArraysIndirect,                     (, AMD),      (EXT));
+    QUERY_FUNC(0, DRAWARRAYSINSTANCEDBASEINSTANCE,             DrawArraysInstancedBaseInstance,             (),           (EXT));
+    QUERY_FUNC(0, DRAWARRAYSINSTANCED,                         DrawArraysInstanced,                         (, ARB, EXT), (, EXT, ANGLE, NV));
+    QUERY_FUNC(0, MULTIDRAWELEMENTSINDIRECT,                   MultiDrawElementsIndirect,                   (, AMD),      (EXT));
+    QUERY_FUNC(0, DRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCE, DrawElementsInstancedBaseVertexBaseInstance, (),           (EXT));
+    QUERY_FUNC(0, DRAWELEMENTSINSTANCEDBASEINSTANCE,           DrawElementsInstancedBaseInstance,           (),           (EXT));
+    QUERY_FUNC(0, DRAWELEMENTSINSTANCED,                       DrawElementsInstanced,                       (, ARB, EXT), (, EXT, ANGLE, NV));
+
+    //texture related
+    QUERY_FUNC(1, GENTEXTURES,                    GenTextures,                    (),           ());
+    QUERY_FUNC(0, CREATETEXTURES,                 CreateTextures,                 (),           _);
+    QUERY_FUNC(1, DELETETEXTURES,                 DeleteTextures,                 (),           ());
+    QUERY_FUNC(1, ACTIVETEXTURE,                  ActiveTexture,                  (, ARB),      ());
+    QUERY_FUNC(1, BINDTEXTURE,                    BindTexture,                    (),           ());
+    QUERY_FUNC(0, BINDTEXTUREUNIT,                BindTextureUnit,                (),           _);
+    QUERY_FUNC(0, BINDMULTITEXTUREEXT,            BindMultiTextureEXT,            (),           _);
+    QUERY_FUNC(1, BINDIMAGETEXTURE,               BindImageTexture,               (, EXT),      ());
+    QUERY_FUNC(1, TEXTUREVIEW,                    TextureView,                    (),           (EXT, OES));
+    QUERY_FUNC(0, TEXTUREBUFFER,                  TextureBuffer,                  (),           ());
+    QUERY_FUNC(0, TEXTUREBUFFEREXT,               TextureBufferEXT,               (),           ());
+    QUERY_FUNC(0, TEXBUFFER,                      TexBuffer,                      (, ARB, EXT), (, EXT, OES));
+    QUERY_FUNC(0, GENERATETEXTUREMIPMAP,          GenerateTextureMipmap,          (),           _);
+    QUERY_FUNC(0, GENERATETEXTUREMIPMAPEXT,       GenerateTextureMipmapEXT,       (),           _);
+    QUERY_FUNC(0, GENERATEMIPMAP,                 GenerateMipmap,                 (, EXT),      ());
+    QUERY_FUNC(1, GETTEXTUREHANDLE,               GetTextureHandle,               (ARB, NV),    (IMG, NV));
+    QUERY_FUNC(1, MAKETEXTUREHANDLERESIDENT,      MakeTextureHandleResident,      (ARB, NV),    (NV));
+    QUERY_FUNC(1, MAKETEXTUREHANDLENONRESIDENT,   MakeTextureHandleNonResident,   (ARB, NV),    (NV));
+    QUERY_FUNC(1, GETIMAGEHANDLE,                 GetImageHandle,                 (ARB, NV),    (NV));
+    QUERY_FUNC(1, MAKEIMAGEHANDLERESIDENT,        MakeImageHandleResident,        (ARB, NV),    (NV));
+    QUERY_FUNC(1, MAKEIMAGEHANDLENONRESIDENT,     MakeImageHandleNonResident,     (ARB, NV),    (NV));
+    QUERY_FUNC(1, TEXPARAMETERI,                  TexParameteri,                  (),           ());
+    QUERY_FUNC(0, TEXTUREPARAMETERI,              TextureParameteri,              (),           _);
+    QUERY_FUNC(0, TEXTUREPARAMETERIEXT,           TextureParameteriEXT,           (),           _);
+    QUERY_FUNC(1, TEXIMAGE1D,                     TexImage1D,                     (),           _);
+    QUERY_FUNC(1, TEXIMAGE2D,                     TexImage2D,                     (),           ());
+    QUERY_FUNC(0, TEXIMAGE3D,                     TexImage3D,                     (, EXT),      (, OES));
+    QUERY_FUNC(0, TEXSUBIMAGE1D,                  TexSubImage1D,                  (, EXT),      _);
+    QUERY_FUNC(0, TEXSUBIMAGE2D,                  TexSubImage2D,                  (, EXT),      ());
+    QUERY_FUNC(0, TEXSUBIMAGE3D,                  TexSubImage3D,                  (, EXT),      (, OES));
+    QUERY_FUNC(0, TEXTURESUBIMAGE1D,              TextureSubImage1D,              (),           _);
+    QUERY_FUNC(0, TEXTURESUBIMAGE2D,              TextureSubImage2D,              (),           _);
+    QUERY_FUNC(0, TEXTURESUBIMAGE3D,              TextureSubImage3D,              (),           _);
+    QUERY_FUNC(0, TEXTURESUBIMAGE1DEXT,           TextureSubImage1DEXT,           (),           _);
+    QUERY_FUNC(0, TEXTURESUBIMAGE2DEXT,           TextureSubImage2DEXT,           (),           _);
+    QUERY_FUNC(0, TEXTURESUBIMAGE3DEXT,           TextureSubImage3DEXT,           (),           _);
+    QUERY_FUNC(0, TEXTUREIMAGE1DEXT,              TextureImage1DEXT,              (),           _);
+    QUERY_FUNC(0, TEXTUREIMAGE2DEXT,              TextureImage2DEXT,              (),           _);
+    QUERY_FUNC(0, TEXTUREIMAGE3DEXT,              TextureImage3DEXT,              (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE1D,    CompressedTextureSubImage1D,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE2D,    CompressedTextureSubImage2D,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE3D,    CompressedTextureSubImage3D,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE1DEXT, CompressedTextureSubImage1DEXT, (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE2DEXT, CompressedTextureSubImage2DEXT, (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTURESUBIMAGE3DEXT, CompressedTextureSubImage3DEXT, (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE1D,        CompressedTexSubImage1D,        (, ARB),      _);
+    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE2D,        CompressedTexSubImage2D,        (, ARB),      ());
+    QUERY_FUNC(0, COMPRESSEDTEXSUBIMAGE3D,        CompressedTexSubImage3D,        (, ARB),      (, OES));
+    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE1DEXT,    CompressedTextureImage1DEXT,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE2DEXT,    CompressedTextureImage2DEXT,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXTUREIMAGE3DEXT,    CompressedTextureImage3DEXT,    (),           _);
+    QUERY_FUNC(0, COMPRESSEDTEXIMAGE1D,           CompressedTexImage1D,           (, ARB),      _);
+    QUERY_FUNC(0, COMPRESSEDTEXIMAGE2D,           CompressedTexImage2D,           (, ARB),      ());
+    QUERY_FUNC(0, COMPRESSEDTEXIMAGE3D,           CompressedTexImage3D,           (, ARB),      (, OES));
+    QUERY_FUNC(1, COPYIMAGESUBDATA,               CopyImageSubData,               (, NV),       (, EXT, OES));
+    QUERY_FUNC(0, TEXTURESTORAGE1D,               TextureStorage1D,               (),           _);
+    QUERY_FUNC(0, TEXTURESTORAGE2D,               TextureStorage2D,               (),           _);
+    QUERY_FUNC(0, TEXTURESTORAGE3D,               TextureStorage3D,               (),           _);
+    QUERY_FUNC(0, TEXTURESTORAGE1DEXT,            TextureStorage1DEXT,            (),           ());
+    QUERY_FUNC(0, TEXTURESTORAGE2DEXT,            TextureStorage2DEXT,            (),           ());
+    QUERY_FUNC(0, TEXTURESTORAGE3DEXT,            TextureStorage3DEXT,            (),           ());
+    QUERY_FUNC(0, TEXSTORAGE1D,                   TexStorage1D,                   (),           (EXT));
+    QUERY_FUNC(0, TEXSTORAGE2D,                   TexStorage2D,                   (),           (, EXT));
+    QUERY_FUNC(0, TEXSTORAGE3D,                   TexStorage3D,                   (),           (, EXT));
+    QUERY_FUNC(1, CLEARTEXIMAGE,                  ClearTexImage,                  (),           (EXT));
+    QUERY_FUNC(1, CLEARTEXSUBIMAGE,               ClearTexSubImage,               (),           (EXT));
+    QUERY_FUNC(0, GETCOMPRESSEDTEXTUREIMAGE,      GetCompressedTextureImage,      (),           _);
+    QUERY_FUNC(0, GETCOMPRESSEDTEXTUREIMAGEEXT,   GetCompressedTextureImageEXT,   (),           _);
+    QUERY_FUNC(0, GETCOMPRESSEDTEXIMAGE,          GetCompressedTexImage,          (, ARB),      _);
+    QUERY_FUNC(0, GETTEXTUREIMAGE,                GetTextureImage,                (),           _);
+    QUERY_FUNC(0, GETTEXTUREIMAGEEXT,             GetTextureImageEXT,             (),           _);
+    QUERY_FUNC(1, GETTEXIMAGE,                    GetTexImage,                    (),           _);
+    QUERY_FUNC(0, GETTEXTURELEVELPARAMETERIV,     GetTextureLevelParameteriv,     (),           _);
+    QUERY_FUNC(0, GETTEXTURELEVELPARAMETERIVEXT,  GetTextureLevelParameterivEXT,  (),           _);
+    QUERY_FUNC(0, GETTEXLEVELPARAMETERIV,         GetTexLevelParameteriv,         (),           ());
+    QUERY_FUNC(0, GETTEXTUREPARAMETERIV,          GetTextureParameteriv,          (),           _);
+    QUERY_FUNC(0, GETTEXTUREPARAMETERIVEXT,       GetTextureParameterivEXT,       (),           _);
+    QUERY_FUNC(0, GETTEXPARAMETERIV,              GetTexParameteriv,              (),           ());
+
+    //rbo related
+    QUERY_FUNC(0, GENRENDERBUFFERS,                               GenRenderbuffers,                               (, EXT), ());
+    QUERY_FUNC(0, CREATERENDERBUFFERS,                            CreateRenderbuffers,                            (),      _);
+    QUERY_FUNC(1, DELETERENDERBUFFERS,                            DeleteRenderbuffers,                            (, EXT), ());
+    QUERY_FUNC(0, BINDRENDERBUFFER,                               BindRenderbuffer,                               (, EXT), ());
+    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGE,                       NamedRenderbufferStorage,                       (, EXT), _);
+    QUERY_FUNC(0, RENDERBUFFERSTORAGE,                            RenderbufferStorage,                            (, EXT), ());
+    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLE,            NamedRenderbufferStorageMultisample,            (, EXT), _);
+    QUERY_FUNC(0, RENDERBUFFERSTORAGEMULTISAMPLE,                 RenderbufferStorageMultisample,                 (, EXT), (, EXT, IMG, ANGLE, NV, APPLE));
+    QUERY_FUNC(0, NAMEDRENDERBUFFERSTORAGEMULTISAMPLECOVERAGEEXT, NamedRenderbufferStorageMultisampleCoverageEXT, (),      _);
+    QUERY_FUNC(0, RENDERBUFFERSTORAGEMULTISAMPLECOVERAGENV,       RenderbufferStorageMultisampleCoverageNV,       (),      _);
+    QUERY_FUNC(0, GETRENDERBUFFERPARAMETERIV,                     GetRenderbufferParameteriv,                     (, EXT), ());
+    
+    //fbo related
+    QUERY_FUNC(0, GENFRAMEBUFFERS,                          GenFramebuffers,                          (, EXT),      ());
+    QUERY_FUNC(0, CREATEFRAMEBUFFERS,                       CreateFramebuffers,                       (),           _);
+    QUERY_FUNC(1, DELETEFRAMEBUFFERS,                       DeleteFramebuffers,                       (, EXT),      ());
+    QUERY_FUNC(0, BINDFRAMEBUFFER,                          BindFramebuffer,                          (, EXT),      ());
+    QUERY_FUNC(0, BLITNAMEDFRAMEBUFFER,                     BlitNamedFramebuffer,                     (),           _);
+    QUERY_FUNC(0, BLITFRAMEBUFFER,                          BlitFramebuffer,                          (, EXT),      (, ANGLE, NV));
+    QUERY_FUNC(1, DRAWBUFFERS,                              DrawBuffers,                              (, ARB, ATI), (, EXT, NV));
+    QUERY_FUNC(0, INVALIDATENAMEDFRAMEBUFFERDATA,           InvalidateNamedFramebufferData,           (),           _);
+    QUERY_FUNC(0, INVALIDATEFRAMEBUFFER,                    InvalidateFramebuffer,                    (),           ());
+    QUERY_FUNC(0, DISCARDFRAMEBUFFEREXT,                    DiscardFramebufferEXT,                    _,            ());
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERRENDERBUFFER,             NamedFramebufferRenderbuffer,             (, EXT),      _);
+    QUERY_FUNC(0, FRAMEBUFFERRENDERBUFFER,                  FramebufferRenderbuffer,                  (, EXT),      ());
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE1DEXT,             NamedFramebufferTexture1DEXT,             (),           _);
+    QUERY_FUNC(0, FRAMEBUFFERTEXTURE1D,                     FramebufferTexture1D,                     (, EXT),      _);
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE2DEXT,             NamedFramebufferTexture2DEXT,             (),           _);
+    QUERY_FUNC(0, FRAMEBUFFERTEXTURE2D,                     FramebufferTexture2D,                     (, EXT),      ());
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE3DEXT,             NamedFramebufferTexture3DEXT,             (),           _);
+    QUERY_FUNC(0, FRAMEBUFFERTEXTURE3D,                     FramebufferTexture3D,                     (, EXT),      (OES));
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURE,                  NamedFramebufferTexture,                  (, EXT),      _);
+    QUERY_FUNC(0, FRAMEBUFFERTEXTURE,                       FramebufferTexture,                       (, EXT),      (, EXT, OES));
+    QUERY_FUNC(0, NAMEDFRAMEBUFFERTEXTURELAYER,             NamedFramebufferTextureLayer,             (, EXT),      _);
+    QUERY_FUNC(0, FRAMEBUFFERTEXTURELAYER,                  FramebufferTextureLayer,                  (, EXT),      ());
+    QUERY_FUNC(0, CHECKNAMEDFRAMEBUFFERSTATUS,              CheckNamedFramebufferStatus,              (, EXT),      _);
+    QUERY_FUNC(0, CHECKFRAMEBUFFERSTATUS,                   CheckFramebufferStatus,                   (, EXT),      ());
+    QUERY_FUNC(0, GETNAMEDFRAMEBUFFERATTACHMENTPARAMETERIV, GetNamedFramebufferAttachmentParameteriv, (, EXT),      _);
+    QUERY_FUNC(0, GETFRAMEBUFFERATTACHMENTPARAMETERIV,      GetFramebufferAttachmentParameteriv,      (, EXT),      ());
+    QUERY_FUNC(1, CLEAR,                                    Clear,                                    (),           ());
+    QUERY_FUNC(1, CLEARCOLOR,                               ClearColor,                               (),           ());
+    QUERY_FUNC(0, CLEARDEPTH,                               ClearDepth,                               (),           _);
+    QUERY_FUNC(0, CLEARDEPTHF,                              ClearDepthf,                              (),           ());
+    QUERY_FUNC(1, CLEARSTENCIL,                             ClearStencil,                             (),           ());
+    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERIV,                  ClearNamedFramebufferiv,                  (),           _);
+    QUERY_FUNC(0, CLEARBUFFERIV,                            ClearBufferiv,                            (),           ());
+    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERUIV,                 ClearNamedFramebufferuiv,                 (),           _);
+    QUERY_FUNC(0, CLEARBUFFERUIV,                           ClearBufferuiv,                           (),           ());
+    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERFV,                  ClearNamedFramebufferfv,                  (),           _);
+    QUERY_FUNC(0, CLEARBUFFERFV,                            ClearBufferfv,                            (),           ());
+    QUERY_FUNC(0, CLEARNAMEDFRAMEBUFFERFI,                  ClearNamedFramebufferfi,                  (),           _);
+    QUERY_FUNC(0, CLEARBUFFERFI,                            ClearBufferfi,                            (),           ());
+    QUERY_FUNC(0, READPIXELS,                               ReadPixels,                               (),           ());
+
+    //shader related
+    QUERY_FUNC(1, CREATESHADER,     CreateShader,     (), ());
+    QUERY_FUNC(1, DELETESHADER,     DeleteShader,     (), ());
+    QUERY_FUNC(1, SHADERSOURCE,     ShaderSource,     (), ());
+    QUERY_FUNC(1, COMPILESHADER,    CompileShader,    (), ());
+    QUERY_FUNC(1, GETSHADERINFOLOG, GetShaderInfoLog, (), ());
+    QUERY_FUNC(1, GETSHADERSOURCE,  GetShaderSource,  (), ());
+    QUERY_FUNC(1, GETSHADERIV,      GetShaderiv,      (), ());
+
+    //program related
+    QUERY_FUNC(1, CREATEPROGRAM,           CreateProgram,           (), ());
+    QUERY_FUNC(1, DELETEPROGRAM,           DeleteProgram,           (), ());
+    QUERY_FUNC(1, ATTACHSHADER,            AttachShader,            (), ());
+    QUERY_FUNC(1, DETACHSHADER,            DetachShader,            (), ());
+    QUERY_FUNC(1, LINKPROGRAM,             LinkProgram,             (), ());
+    QUERY_FUNC(1, USEPROGRAM,              UseProgram,              (), ());
+    QUERY_FUNC(1, DISPATCHCOMPUTE,         DispatchCompute,         (), ());
+    QUERY_FUNC(1, DISPATCHCOMPUTEINDIRECT, DispatchComputeIndirect, (), ()); 
+
+    QUERY_FUNC(0, UNIFORM1F,        Uniform1f,        (), ());
+    QUERY_FUNC(0, UNIFORM1FV,       Uniform1fv,       (), ());
+    QUERY_FUNC(0, UNIFORM1I,        Uniform1i,        (), ());
+    QUERY_FUNC(0, UNIFORM1IV,       Uniform1iv,       (), ());
+    QUERY_FUNC(0, UNIFORM2F,        Uniform2f,        (), ());
+    QUERY_FUNC(0, UNIFORM2FV,       Uniform2fv,       (), ());
+    QUERY_FUNC(0, UNIFORM2I,        Uniform2i,        (), ());
+    QUERY_FUNC(0, UNIFORM2IV,       Uniform2iv,       (), ());
+    QUERY_FUNC(0, UNIFORM3F,        Uniform3f,        (), ());
+    QUERY_FUNC(0, UNIFORM3FV,       Uniform3fv,       (), ());
+    QUERY_FUNC(0, UNIFORM3I,        Uniform3i,        (), ());
+    QUERY_FUNC(0, UNIFORM3IV,       Uniform3iv,       (), ());
+    QUERY_FUNC(0, UNIFORM4F,        Uniform4f,        (), ());
+    QUERY_FUNC(0, UNIFORM4FV,       Uniform4fv,       (), ());
+    QUERY_FUNC(0, UNIFORM4I,        Uniform4i,        (), ());
+    QUERY_FUNC(0, UNIFORM4IV,       Uniform4iv,       (), ());
+    QUERY_FUNC(0, UNIFORMMATRIX2FV, UniformMatrix2fv, (), ());
+    QUERY_FUNC(0, UNIFORMMATRIX3FV, UniformMatrix3fv, (), ());
+    QUERY_FUNC(0, UNIFORMMATRIX4FV, UniformMatrix4fv, (), ());
+    
+    QUERY_FUNC(1, PROGRAMUNIFORM1D,          ProgramUniform1d,          (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM1DV,         ProgramUniform1dv,         (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM1F,          ProgramUniform1f,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM1FV,         ProgramUniform1fv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM1I,          ProgramUniform1i,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM1IV,         ProgramUniform1iv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM1UI,         ProgramUniform1ui,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM1UIV,        ProgramUniform1uiv,        (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2D,          ProgramUniform2d,          (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM2DV,         ProgramUniform2dv,         (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM2F,          ProgramUniform2f,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2FV,         ProgramUniform2fv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2I,          ProgramUniform2i,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2IV,         ProgramUniform2iv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2UI,         ProgramUniform2ui,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM2UIV,        ProgramUniform2uiv,        (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3D,          ProgramUniform3d,          (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM3DV,         ProgramUniform3dv,         (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM3F,          ProgramUniform3f,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3FV,         ProgramUniform3fv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3I,          ProgramUniform3i,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3IV,         ProgramUniform3iv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3UI,         ProgramUniform3ui,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM3UIV,        ProgramUniform3uiv,        (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4D,          ProgramUniform4d,          (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM4DV,         ProgramUniform4dv,         (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORM4F,          ProgramUniform4f,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4FV,         ProgramUniform4fv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4I,          ProgramUniform4i,          (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4IV,         ProgramUniform4iv,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4UI,         ProgramUniform4ui,         (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORM4UIV,        ProgramUniform4uiv,        (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2DV,   ProgramUniformMatrix2dv,   (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2FV,   ProgramUniformMatrix2fv,   (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X3DV, ProgramUniformMatrix2x3dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X3FV, ProgramUniformMatrix2x3fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X4DV, ProgramUniformMatrix2x4dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX2X4FV, ProgramUniformMatrix2x4fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3DV,   ProgramUniformMatrix3dv,   (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3FV,   ProgramUniformMatrix3fv,   (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X2DV, ProgramUniformMatrix3x2dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X2FV, ProgramUniformMatrix3x2fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X4DV, ProgramUniformMatrix3x4dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX3X4FV, ProgramUniformMatrix3x4fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4DV,   ProgramUniformMatrix4dv,   (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4FV,   ProgramUniformMatrix4fv,   (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X2DV, ProgramUniformMatrix4x2dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X2FV, ProgramUniformMatrix4x2fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X3DV, ProgramUniformMatrix4x3dv, (),        _);
+    QUERY_FUNC(1, PROGRAMUNIFORMMATRIX4X3FV, ProgramUniformMatrix4x3fv, (, EXT),   (, EXT));
+    QUERY_FUNC(1, PROGRAMUNIFORMHANDLEUI64,  ProgramUniformHandleui64,  (ARB, NV), (IMG, NV));
+
+    QUERY_FUNC(1, GETUNIFORMFV,                    GetUniformfv,                    (), ());
+    QUERY_FUNC(1, GETUNIFORMIV,                    GetUniformiv,                    (), ());
+    QUERY_FUNC(1, GETUNIFORMUIV,                   GetUniformuiv,                   (), ());
+    QUERY_FUNC(1, GETPROGRAMINFOLOG,               GetProgramInfoLog,               (), ());
+    QUERY_FUNC(1, GETPROGRAMIV,                    GetProgramiv,                    (), ());
+    QUERY_FUNC(1, GETPROGRAMINTERFACEIV,           GetProgramInterfaceiv,           (), ());
+    QUERY_FUNC(1, GETPROGRAMRESOURCEINDEX,         GetProgramResourceIndex,         (), ());
+    QUERY_FUNC(1, GETPROGRAMRESOURCELOCATION,      GetProgramResourceLocation,      (), ());
+    QUERY_FUNC(1, GETPROGRAMRESOURCELOCATIONINDEX, GetProgramResourceLocationIndex, (), (EXT)); 
+    QUERY_FUNC(1, GETPROGRAMRESOURCENAME,          GetProgramResourceName,          (), ());
+    QUERY_FUNC(1, GETPROGRAMRESOURCEIV,            GetProgramResourceiv,            (), ());
+    QUERY_FUNC(1, GETACTIVESUBROUTINENAME,         GetActiveSubroutineName,         (), _);
+    QUERY_FUNC(1, GETACTIVESUBROUTINEUNIFORMNAME,  GetActiveSubroutineUniformName,  (), _);
+    QUERY_FUNC(1, GETACTIVESUBROUTINEUNIFORMIV,    GetActiveSubroutineUniformiv,    (), _);
+    QUERY_FUNC(1, GETPROGRAMSTAGEIV,               GetProgramStageiv,               (), _);
+    QUERY_FUNC(1, GETSUBROUTINEINDEX,              GetSubroutineIndex,              (), _);
+    QUERY_FUNC(1, GETSUBROUTINEUNIFORMLOCATION,    GetSubroutineUniformLocation,    (), _);
+    QUERY_FUNC(1, GETUNIFORMSUBROUTINEUIV,         GetUniformSubroutineuiv,         (), _);
+    QUERY_FUNC(1, UNIFORMSUBROUTINESUIV,           UniformSubroutinesuiv,           (), _);
+    QUERY_FUNC(1, GETACTIVEUNIFORMBLOCKNAME,       GetActiveUniformBlockName,       (), ());
+    QUERY_FUNC(1, GETACTIVEUNIFORMBLOCKIV,         GetActiveUniformBlockiv,         (), ());
+    QUERY_FUNC(1, GETACTIVEUNIFORMNAME,            GetActiveUniformName,            (), _);
+    QUERY_FUNC(1, GETACTIVEUNIFORMSIV,             GetActiveUniformsiv,             (), ());
+    QUERY_FUNC(1, GETINTEGERI_V,                   GetIntegeri_v,                   (), (, EXT));
+    QUERY_FUNC(1, GETUNIFORMBLOCKINDEX,            GetUniformBlockIndex,            (), ());
+    QUERY_FUNC(1, GETUNIFORMINDICES,               GetUniformIndices,               (), ());
+    QUERY_FUNC(1, UNIFORMBLOCKBINDING,             UniformBlockBinding,             (), ());
+
+    //query related
+    QUERY_FUNC(1, GENQUERIES,          GenQueries,          (),      (, EXT));
+    QUERY_FUNC(1, DELETEQUERIES,       DeleteQueries,       (),      (, EXT));
+    QUERY_FUNC(1, BEGINQUERY,          BeginQuery,          (),      (, EXT));
+    QUERY_FUNC(1, QUERYCOUNTER,        QueryCounter,        (),      (EXT));
+    QUERY_FUNC(1, GETQUERYOBJECTIV,    GetQueryObjectiv,    (),      (EXT));
+    QUERY_FUNC(1, GETQUERYOBJECTUIV,   GetQueryObjectuiv,   (),      (, EXT));
+    QUERY_FUNC(1, GETQUERYOBJECTI64V,  GetQueryObjecti64v,  (, EXT), (EXT));
+    QUERY_FUNC(1, GETQUERYOBJECTUI64V, GetQueryObjectui64v, (, EXT), (EXT));
+    QUERY_FUNC(1, GETQUERYIV,          GetQueryiv,          (),      (, EXT));
+    QUERY_FUNC(1, FENCESYNC,           FenceSync,           (),      (, APPLE));
+    QUERY_FUNC(1, DELETESYNC,          DeleteSync,          (),      (, APPLE));
+    QUERY_FUNC(1, CLIENTWAITSYNC,      ClientWaitSync,      (),      (, APPLE));
+    QUERY_FUNC(1, WAITSYNC,            WaitSync,            (),      (, APPLE));
+    QUERY_FUNC(1, GETINTEGER64V,       GetInteger64v,       (),      (, EXT, APPLE));
+    QUERY_FUNC(1, GETSYNCIV,           GetSynciv,           (),      (, APPLE));
+
+    //debug
+    QUERY_FUNC(1, DEBUGMESSAGECALLBACK,    DebugMessageCallback,    (, ARB), (, KHR));
+    QUERY_FUNC(1, DEBUGMESSAGECALLBACKAMD, DebugMessageCallbackAMD, (),      _);
+    QUERY_FUNC(0, OBJECTLABEL,             ObjectLabel,             (),      (, KHR));
+    QUERY_FUNC(0, LABELOBJECTEXT,          LabelObjectEXT,          (),      ());
+    QUERY_FUNC(0, OBJECTPTRLABEL,          ObjectPtrLabel,          (),      (, KHR));
+    QUERY_FUNC(0, PUSHDEBUGGROUP,          PushDebugGroup,          (),      (, KHR));
+    QUERY_FUNC(0, POPDEBUGGROUP,           PopDebugGroup,           (),      (, KHR));
+    QUERY_FUNC(0, PUSHGROUPMARKEREXT,      PushGroupMarkerEXT,      (),      ());
+    QUERY_FUNC(0, POPGROUPMARKEREXT,       PopGroupMarkerEXT,       (),      ());
+    QUERY_FUNC(0, DEBUGMESSAGEINSERT,      DebugMessageInsert,      (, ARB), (, KHR));
+    QUERY_FUNC(1, DEBUGMESSAGEINSERTAMD,   DebugMessageInsertAMD,   (),      _);
+    QUERY_FUNC(1, INSERTEVENTMARKEREXT,    InsertEventMarkerEXT,    (),      ());
+
+    //others
+    QUERY_FUNC(0, GETERROR,              GetError,              (),      ());
+    QUERY_FUNC(1, GETFLOATV,             GetFloatv,             (),      ());
+    QUERY_FUNC(1, GETUNSIGNEDBYTEVEXT,   GetUnsignedBytevEXT,   (),      ());
+    QUERY_FUNC(1, GETUNSIGNEDBYTEI_VEXT, GetUnsignedBytei_vEXT, (),      ());
+    QUERY_FUNC(1, GETSTRINGI,            GetStringi,            (),      ());
+    QUERY_FUNC(1, ISENABLED,             IsEnabled,             (),      ());
+    QUERY_FUNC(1, ENABLE,                Enable,                (),      ());
+    QUERY_FUNC(1, DISABLE,               Disable,               (),      ());
+    QUERY_FUNC(1, FINISH,                Finish,                (),      ());
+    QUERY_FUNC(1, FLUSH,                 Flush,                 (),      ());
+    QUERY_FUNC(1, DEPTHFUNC,             DepthFunc,             (),      ());
+    QUERY_FUNC(1, CULLFACE,              CullFace,              (),      ());
+    QUERY_FUNC(1, FRONTFACE,             FrontFace,             (),      ());
+    QUERY_FUNC(1, VIEWPORT,              Viewport,              (),      ());
+    QUERY_FUNC(1, VIEWPORTARRAYV,        ViewportArrayv,        (),      (OES, NV));
+    QUERY_FUNC(1, VIEWPORTINDEXEDF,      ViewportIndexedf,      (),      (OES, NV));
+    QUERY_FUNC(1, VIEWPORTINDEXEDFV,     ViewportIndexedfv,     (),      (OES, NV));
+    QUERY_FUNC(1, CLIPCONTROL,           ClipControl,           (),      (EXT));
+    QUERY_FUNC(1, MEMORYBARRIER,         MemoryBarrier,         (, EXT), ());
+    
     Extensions = GetExtensions();
     SupportDebug            = DebugMessageCallback != nullptr || DebugMessageCallbackAMD != nullptr;
     SupportClipControl      = ClipControl != nullptr;
     if (ContextType == GLType::ES)
     {
+        //if (!Extensions.Has("GL_EXT_texture_storage"))
+        //    TextureStorage1DEXT_ = nullptr, TextureStorage2DEXT_ = nullptr, TextureStorage3DEXT_ = nullptr;
         SupportSRGB             = Version >= 30 || Extensions.Has("GL_EXT_sRGB");
         SupportSRGBFrameBuffer  = host.SupportSRGBFrameBuffer && Extensions.Has("GL_EXT_sRGB_write_control");
         SupportGeometryShader   = Extensions.Has("GL_EXT_geometry_shader") || Extensions.Has("GL_INTEL_geometry_shader") || Extensions.Has("GL_OES_geometry_shader");
         SupportComputeShader    = Version >= 31 || Extensions.Has("GL_ARB_compute_shader");
         SupportTessShader       = Extensions.Has("GL_EXT_tessellation_shader") || Extensions.Has("GL_INTEL_tessellation_shader") || Extensions.Has("GL_OES_tessellation_shader");
-        SupportBindlessTexture  = Extensions.Has("GL_IMG_bindless_texture");
+        SupportBindlessTexture  = Extensions.Has("GL_IMG_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
         SupportImageLoadStore   = Version >= 31 || Extensions.Has("GL_ARB_shader_image_load_store");
         SupportSubroutine       = Extensions.Has("GL_ARB_shader_subroutine");
         SupportIndirectDraw     = Version >= 31 || Extensions.Has("GL_ARB_draw_indirect");
         SupportInstanceDraw     = Version >= 30 || Extensions.Has("GL_EXT_draw_instanced");
         SupportBaseInstance     = Extensions.Has("GL_EXT_base_instance") || Extensions.Has("GL_ANGLE_base_vertex_base_instance");
+        SupportLayeredRender    = Version >= 32 || SupportGeometryShader;
         SupportVSMultiLayer     = false;
     }
     else
     {
         SupportSRGB             = Version >= 21 || Extensions.Has("GL_EXT_texture_sRGB");
         SupportSRGBFrameBuffer  = host.SupportSRGBFrameBuffer && (Extensions.Has("GL_ARB_framebuffer_sRGB") || Extensions.Has("GL_EXT_framebuffer_sRGB"));
-        SupportGeometryShader   = Version >= 33 || Extensions.Has("GL_ARB_geometry_shader4");
+        SupportGeometryShader   = Version >= 32 || Extensions.Has("GL_ARB_geometry_shader4");
         SupportComputeShader    = Extensions.Has("GL_ARB_compute_shader");
         SupportTessShader       = Extensions.Has("GL_ARB_tessellation_shader");
         SupportBindlessTexture  = Extensions.Has("GL_ARB_bindless_texture") || Extensions.Has("GL_NV_bindless_texture");
@@ -692,6 +718,7 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
         SupportIndirectDraw     = Version >= 40 || Extensions.Has("GL_ARB_draw_indirect");
         SupportInstanceDraw     = Version >= 31 || Extensions.Has("GL_ARB_draw_instanced") || Extensions.Has("GL_EXT_draw_instanced");
         SupportBaseInstance     = Extensions.Has("GL_ARB_base_instance");
+        SupportLayeredRender    = SupportGeometryShader;
         SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     }
     
@@ -707,7 +734,9 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
     GetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH,            &MaxMessageLen);
     if (SupportImageLoadStore)
         GetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &MaxTextureUnits);
-
+    if (SupportLayeredRender)
+        GetIntegerv(GL_MAX_FRAMEBUFFER_LAYERS, &MaxFBOLayers);
+    
 #undef QUERY_FUNC
 #undef QUERY_FUNC_
 #undef SFX_STR
@@ -1080,7 +1109,8 @@ void CtxFuncs::CompressedTextureImage3D(GLuint texture, GLenum target, GLint lev
 void CtxFuncs::TextureStorage1D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width) const
 {
     CALL_EXISTS(TextureStorage1D_,    texture,         levels, internalformat, width)
-    CALL_EXISTS(TextureStorage1DEXT_, texture, target, levels, internalformat, width)
+    if (TextureStorage1DEXT_ && !(ContextType == GLType::ES && Version >= 30))
+        return TextureStorage1DEXT_(texture, target, levels, internalformat, width);
     {
         ActiveTexture(GL_TEXTURE0);
         BindTexture(target, texture);
@@ -1090,7 +1120,8 @@ void CtxFuncs::TextureStorage1D(GLuint texture, GLenum target, GLsizei levels, G
 void CtxFuncs::TextureStorage2D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) const
 {
     CALL_EXISTS(TextureStorage2D_,    texture,         levels, internalformat, width, height)
-    CALL_EXISTS(TextureStorage2DEXT_, texture, target, levels, internalformat, width, height)
+    if (TextureStorage2DEXT_ && !(ContextType == GLType::ES && Version >= 30))
+        return TextureStorage2DEXT_(texture, target, levels, internalformat, width, height);
     {
         ActiveTexture(GL_TEXTURE0);
         BindTexture(target, texture);
@@ -1099,8 +1130,9 @@ void CtxFuncs::TextureStorage2D(GLuint texture, GLenum target, GLsizei levels, G
 }
 void CtxFuncs::TextureStorage3D(GLuint texture, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) const
 {
-    CALL_EXISTS(TextureStorage3D_,    texture,         levels, internalformat, width, height, depth)
-    CALL_EXISTS(TextureStorage3DEXT_, texture, target, levels, internalformat, width, height, depth)
+    CALL_EXISTS(TextureStorage3D_, texture, levels, internalformat, width, height, depth)
+    if (TextureStorage3DEXT_ && !(ContextType == GLType::ES && Version >= 30))
+        return TextureStorage3DEXT_(texture, target, levels, internalformat, width, height, depth);
     {
         ActiveTexture(GL_TEXTURE0);
         BindTexture(target, texture);
@@ -1113,16 +1145,66 @@ void CtxFuncs::GetTextureLevelParameteriv(GLuint texture, GLenum target, GLint l
     CALL_EXISTS(GetTextureLevelParameterivEXT_, texture, target, level, pname, params)
     {
         BindTexture(target, texture);
-        GetTexLevelParameteriv(target, level, pname, params);
+        GetTexLevelParameteriv_(target, level, pname, params);
+    }
+}
+void CtxFuncs::GetTextureParameteriv(GLuint texture, GLenum target, GLenum pname, GLint* params) const
+{
+    CALL_EXISTS(GetTextureParameteriv_, texture, pname, params)
+    CALL_EXISTS(GetTextureParameterivEXT_, texture, target, pname, params)
+    {
+        BindTexture(target, texture);
+        GetTexParameteriv_(target, pname, params);
     }
 }
 void CtxFuncs::GetTextureImage(GLuint texture, GLenum target, GLint level, GLenum format, GLenum type, size_t bufSize, void* pixels) const
 {
     CALL_EXISTS(GetTextureImage_,    texture,         level, format, type, bufSize > INT32_MAX ? INT32_MAX : static_cast<GLsizei>(bufSize), pixels)
     CALL_EXISTS(GetTextureImageEXT_, texture, target, level, format, type, pixels)
+    if (GetTexImage)
     {
         BindTexture(target, texture);
         GetTexImage(target, level, format, type, pixels);
+        return;
+    }
+    {
+        GLuint fbo = 0;
+        GenFramebuffers_(1, &fbo);
+        const auto lock = DataLock.LockScope();
+        const auto backup = this->ReadFBO;
+        constexpr auto FBTarget = GL_READ_FRAMEBUFFER;
+        constexpr auto FBAttach = GL_COLOR_ATTACHMENT0 + 0;
+        BindFramebuffer_(FBTarget, fbo);
+        BindTexture(target, texture);
+        const bool isLayeres = target != GL_TEXTURE_1D && target != GL_TEXTURE_2D;
+        GLint width = 0, height = 0, layers = 1;
+        GetTexLevelParameteriv_(target, level, GL_TEXTURE_WIDTH,  &width);
+        GetTexLevelParameteriv_(target, level, GL_TEXTURE_HEIGHT, &height);
+        if (isLayeres)
+            GetTexLevelParameteriv_(target, level, GL_TEXTURE_DEPTH, &layers);
+        for (GLint layer = 0; layer < layers; ++layer)
+        {
+            const auto ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(pixels) + (bufSize / layers * layer));
+            if (isLayeres)
+                FramebufferTextureLayer_(FBTarget, FBAttach, texture, level, layer);
+            else if (FramebufferTexture_)
+                FramebufferTexture_(FBTarget, FBAttach, texture, level);
+            else
+            {
+                switch (target)
+                {
+                case GL_TEXTURE_1D: FramebufferTexture1D_(FBTarget, FBAttach, target, texture, level); break;
+                case GL_TEXTURE_2D: FramebufferTexture2D_(FBTarget, FBAttach, target, texture, level); break;
+                default:            COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"should not enter");
+                }
+            }
+            const auto status = CheckFramebufferStatus_(FBTarget);
+            if (status != GL_FRAMEBUFFER_COMPLETE)
+                oglLog().warning("incomplete fbo.\n");
+            ReadPixels_(0, 0, width, height, format, type, ptr);
+        }
+        BindFramebuffer_(FBTarget, backup);
+        DeleteFramebuffers(1, &fbo);
     }
 }
 void CtxFuncs::GetCompressedTextureImage(GLuint texture, GLenum target, GLint level, size_t bufSize, void* img) const

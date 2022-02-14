@@ -36,6 +36,7 @@ std::string ContextCapability::GenerateSupportLog() const
     CHK_SUPPORT(IndirectDraw);
     CHK_SUPPORT(InstanceDraw);
     CHK_SUPPORT(BaseInstance);
+    CHK_SUPPORT(LayeredRender);
     CHK_SUPPORT(VSMultiLayer);
 #undef CHK_SUPPORT
 

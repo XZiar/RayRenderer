@@ -270,10 +270,10 @@ oglDefaultFrameBuffer_::FBOClear& oglDefaultFrameBuffer_::FBOClear::DiscardDepth
 
 oglDefaultFrameBuffer_::oglDefaultFrameBuffer_() : oglFrameBuffer_(0)
 {
-    DrawBindings[0] = GL_BACK_LEFT;
+    DrawBindings[0] = GL_BACK;
     const auto viewport = oglContext_::CurrentContext()->GetViewPort(); 
     Width = viewport.Z; Height = viewport.W;
-    IsSrgbColor = CheckIsSrgb(GL_BACK_LEFT);
+    IsSrgbColor = CheckIsSrgb(GL_BACK);
 }
 oglDefaultFrameBuffer_::~oglDefaultFrameBuffer_()
 { }
@@ -288,6 +288,8 @@ GLenum oglDefaultFrameBuffer_::GetAttachPoint(const std::string_view name) const
     switch (common::DJBHash::HashC(name))
     {
     case "default"_hash:
+    case "back"_hash:
+        return GL_BACK;
     case "left"_hash:
         return GL_BACK_LEFT;
     case "right"_hash:

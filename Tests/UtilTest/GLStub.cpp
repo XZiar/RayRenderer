@@ -201,6 +201,8 @@ static void OGLStub()
                 log().verbose(u"{}\n", exttxts);
                 continue;
             }
+            else if (fpath == "BREAK")
+                break;
             else if (fpath == "clear")
             {
                 GetConsole().ClearConsole();

@@ -47,6 +47,7 @@ struct Lutter
             .SetDrawSize(0, 6);
         LUTFrame = oglu::oglLayeredFrameBuffer_::Create();
         LUTFrame->AttachColorTexture(LutTex);
+        log().info(u"LUT FBO status:{}\n", LUTFrame->CheckStatus() == FBOStatus::Complete ? u"complete" : u"not complete");
         LutGenerator->SetVal("step", 1.0f / (64 - 1));
         LutGenerator->SetVal("exposure", 1.0f);
         LutGenerator->SetVal("lutSize", 64);
@@ -117,6 +118,7 @@ static void RunTest(WindowBackend& backend)
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
         context = host->CreateContext(cinfo);
         context->UseContext();
+        context->SetDebug(MsgSrc::All, MsgType::All, MsgLevel::Notfication);
         TestErr();
 
         log().debug(u"{}\n", context->Capability->GenerateSupportLog());
@@ -140,21 +142,26 @@ static void RunTest(WindowBackend& backend)
         TestErr();
         lutTex = oglTex3DStatic_::Create(64, 64, 64, xziar::img::TextureFormat::RGBA8);
         lutTex->SetProperty(oglu::TextureFilterVal::Linear, oglu::TextureWrapVal::ClampEdge);
+        TestErr();
         if (oglComputeProgram_::CheckSupport())
         {
             try
             {
                 const auto lutGenerator =
                     oglComputeProgram_::Create(u"ColorLut", LoadShaderFallback(u"ColorLUT.glsl", IDR_GL_FGLUT));
+                TestErr();
                 auto lutImg = oglImg3D_::Create(lutTex, TexImgUsage::WriteOnly);
+                TestErr();
                 lutGenerator->State()
                     .SetSubroutine("ToneMap", "ACES")
                     .SetImage(lutImg, "result");
                 lutGenerator->SetVal("step", 1.0f / 64);
                 lutGenerator->SetVal("exposure", 1.0f);
                 lutGenerator->Run(64, 64, 64);
+                TestErr();
                 context->ForceSync();
                 const auto lutdata = lutTex->GetData(TextureFormat::RGBA8);
+                TestErr();
                 Image img(ImageDataType::RGBA);
                 img.SetSize(64, 64 * 64);
                 memcpy_s(img.GetRawPtr(), img.GetSize(), lutdata.data(), lutdata.size());

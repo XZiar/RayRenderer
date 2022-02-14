@@ -140,12 +140,14 @@ struct ContextCapability : public ContextBaseInfo
     bool SupportIndirectDraw    : 1;
     bool SupportInstanceDraw    : 1;
     bool SupportBaseInstance    : 1;
+    bool SupportLayeredRender   : 1;
     bool SupportVSMultiLayer    : 1;
 
     ContextCapability() noexcept : SupportDebug(false), SupportSRGB(false), SupportSRGBFrameBuffer(false), SupportClipControl(false), 
         SupportGeometryShader(false), SupportComputeShader(false), SupportTessShader(false),
         SupportBindlessTexture(false), SupportImageLoadStore(false), SupportSubroutine(false),
-        SupportIndirectDraw(false), SupportInstanceDraw(false), SupportBaseInstance(false), SupportVSMultiLayer(false)
+        SupportIndirectDraw(false), SupportInstanceDraw(false), SupportBaseInstance(false), 
+        SupportLayeredRender(false), SupportVSMultiLayer(false)
     { }
     OGLUAPI std::string GenerateSupportLog() const;
 };

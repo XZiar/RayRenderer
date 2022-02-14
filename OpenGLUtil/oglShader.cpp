@@ -201,12 +201,19 @@ static std::optional<ShaderExtProperty> ParseExtProperty(const vector<string_vie
 constexpr static string_view OGLU_EXT_REQS = R"(
 #line 1 1 // OGLU_EXT_REQS
 
+#ifdef GL_ES
+#   extension GL_OES_shader_io_blocks           : enable
+#   extension GL_EXT_shader_io_blocks           : enable
+#endif
 #if defined(OGLU_VERT)
 #   extension GL_ARB_explicit_attrib_location   : enable
 #   extension GL_ARB_shader_draw_parameters     : enable
 #elif defined(OGLU_GEOM)
 #   extension GL_ARB_geometry_shader4           : enable
 #endif
+
+#   extension GL_ARB_shader_image_load_store	: enable
+#   extension GL_EXT_shader_image_load_store	: enable
 
 #extension GL_ARB_explicit_uniform_location     : enable
 
@@ -226,7 +233,29 @@ constexpr static string_view OGLU_EXT_REQS = R"(
 
 constexpr static string_view OGLU_DEFS = R"(
 #line 1 2 // OGLU_DEFS
-#if (!defined(GL_NV_bindless_texture) || !GL_NV_bindless_texture) && (defined(GL_ARB_bindless_texture) && GL_ARB_bindless_texture)
+#ifdef GL_ES
+#   if defined(GL_OES_shader_io_blocks) || defined(GL_EXT_shader_io_blocks)
+#       define OGLU_IBLK_IO 1
+#   endif
+#   if __VERSION__ >= 310 || defined(GL_ARB_shader_image_load_store)
+#       define OGLU_IMG_LS 1
+#   endif
+#else
+#   if __VERSION__ >= 150
+#       define OGLU_IBLK_IO 1
+#   endif
+#   if defined(GL_ARB_shader_image_load_store) || defined(GL_EXT_shader_image_load_store)
+#       define OGLU_IMG_LS 1
+#   endif
+#endif
+#ifndef OGLU_IBLK_IO
+#   define OGLU_IBLK_IO 0
+#endif
+#ifndef OGLU_IMG_LS
+#   define OGLU_IMG_LS 0
+#endif
+
+#if !defined(GL_NV_bindless_texture) && defined(GL_ARB_bindless_texture)
 #   define OGLU_bindless_tex 1
 #   define OGLU_TEX layout(bindless_sampler) 
 #   define OGLU_IMG layout(bindless_image) 
@@ -240,7 +269,7 @@ constexpr static string_view OGLU_DEFS = R"(
 #   define OGLU_IMG_LAYOUT
 #endif
 
-#if (defined(GL_ARB_gpu_shader_int64) && GL_ARB_gpu_shader_int64) || (defined(GL_AMD_gpu_shader_int64) && GL_AMD_gpu_shader_int64) || (defined(GL_NV_gpu_shader5) && GL_NV_gpu_shader5)
+#if defined(GL_ARB_gpu_shader_int64) || defined(GL_AMD_gpu_shader_int64) || defined(GL_NV_gpu_shader5)
 #   define OGLU_int64 1
 #   define OGLU_HANDLE uint64_t
 #else
@@ -248,17 +277,22 @@ constexpr static string_view OGLU_DEFS = R"(
 #   define OGLU_HANDLE uvec2
 #endif
 
-#if (defined(GL_ARB_shader_viewport_layer_array) && GL_ARB_shader_viewport_layer_array) || (defined(GL_AMD_vertex_shader_layer) && GL_AMD_vertex_shader_layer)
+#if !defined(GL_ES) && __VERSION__ >= 430 && (defined(GL_ARB_shader_viewport_layer_array) || defined(GL_AMD_vertex_shader_layer))
 #   define OGLU_VS_layer 1
 #else
 #   define OGLU_VS_layer 0
+#endif
+#if !defined(GL_ES) && __VERSION__ >= 430 // gl_Layer exists in FS since 4.3
+#   define OGLU_FS_layer 1
+#else
+#   define OGLU_FS_layer 0
 #endif
 
 #if defined(OGLU_VERT)
 
 #   define GLVARY out
 
-#   if defined(GL_ARB_shader_draw_parameters) && GL_ARB_shader_draw_parameters
+#   if defined(GL_ARB_shader_draw_parameters)
 #       define ogluDrawId gl_DrawIDARB
 #       define ogluBaseInstance gl_BaseInstance
 #   else
@@ -268,25 +302,27 @@ constexpr static string_view OGLU_DEFS = R"(
         uniform int ogluBaseInstance;
 #   endif
 
-#   if !(OGLU_VS_layer) || __VERSION__ < 430
+#   if OGLU_VS_layer
+#       define ogluLayer_ gl_Layer
+#   elif OGLU_IBLK_IO
         out ogluVertData
         {
             flat int ogluLayer;
         } ogluData;
-#       define OgluLayer ogluData.ogluLayer
+#       define ogluLayer_ ogluData.ogluLayer
 #   else
-#       define OgluLayer gl_Layer
+        out flat int ogluLayer_;
 #   endif
 #   if OGLU_VS_layer
         void ogluSetLayer(const in  int layer)
         {
-            gl_Layer = OgluLayer = layer;
+            gl_Layer = ogluLayer_ = layer;
         }
         void ogluSetLayer(const in uint layer)
         {
-            gl_Layer = OgluLayer = int(layer);
+            gl_Layer = ogluLayer_ = int(layer);
         }
-#   else
+#   elif OGLU_IBLK_IO
         void ogluSetLayer(const in  int layer)
         {
             ogluData.ogluLayer = layer;
@@ -295,23 +331,36 @@ constexpr static string_view OGLU_DEFS = R"(
         {
             ogluData.ogluLayer = int(layer);
         }
-
+#   else
+        void ogluSetLayer(const in  int layer)
+        {
+            ogluLayer_ = layer;
+        }
+        void ogluSetLayer(const in uint layer)
+        {
+            ogluLayer_ = int(layer);
+        }
 #   endif
 
 #elif defined(OGLU_GEOM)
 
+#   if !OGLU_IBLK_IO
+#       error with geometry shader, should support io_interface_block
+#   endif
     in  ogluVertData
     {
         flat int ogluLayer;
     } ogluDataIn[];
+#   if !OGLU_FS_layer
     out ogluVertData
     {
         flat int ogluLayer;
     } ogluData;
+#   endif
     // to please vmware which does not support varadic macro function
 #   define ogluLayerIn      ogluDataIn[0].ogluLayer
 #   define ogluGetLayer(x)  ogluDataIn[x].ogluLayer
-#   if __VERSION__ >= 430
+#   if OGLU_FS_layer
         void ogluSetLayer(const in  int layer)
         {
             gl_Layer = layer;
@@ -337,16 +386,17 @@ constexpr static string_view OGLU_DEFS = R"(
 
 #   define GLVARY in
 
-#   if !(OGLU_VS_layer) || __VERSION__ < 430
+#   if OGLU_FS_layer
+#       define ogluLayer gl_Layer
+#   elif OGLU_IBLK_IO
     in  ogluVertData
     {
         flat int ogluLayer;
     } ogluDataIn;
-#   endif
-#   if __VERSION__ >= 430
-#       define ogluLayer gl_Layer
-#   else
 #       define ogluLayer ogluDataIn.ogluLayer
+#   else
+    in flat int ogluLayer_;
+#       define ogluLayer ogluLayer_
 #   endif
 
 #else

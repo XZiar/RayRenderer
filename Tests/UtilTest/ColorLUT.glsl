@@ -1,7 +1,4 @@
 //#extension GL_ARB_shading_language_420pack	: require
-#if defined(OGLU_COMP) && defined(GL_ES)
-#   extension GL_ARB_shader_image_load_store	: require
-#endif
 //@OGLU@Stage("VERT", "GEOM", "FRAG", "COMP")
 //@OGLU@StageIf("GL_AMD_vertex_shader_layer", "!GEOM")
 
@@ -10,6 +7,7 @@ precision highp float;
 precision highp int;
 precision mediump sampler2D;
 precision mediump sampler3D;
+precision mediump image3D;
 #endif
 
 
@@ -116,15 +114,23 @@ uniform float step;
 
 #if defined(OGLU_COMP)
 
+#if !OGLU_IMG_LS
+#   error should support image_loadstore
+#endif
+
+#ifdef GL_ES
+layout(rgba8 OGLU_IMG_LAYOUT) writeonly uniform image3D result;
+#else
 OGLU_IMG writeonly uniform image3D result;
+#endif
 layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 void main()
 {
-    const vec3 srcColor = gl_GlobalInvocationID.xyz * step;
-    const vec3 linearColor = LogUEToLinear(srcColor);
-    const vec3 acesColor = ToneMapping(linearColor);
-    const vec3 srgbColor = LinearToSRGB(acesColor);
-    const vec4 color = vec4(srgbColor, 1.0f);
+    /*const*/ vec3 srcColor = vec3(gl_GlobalInvocationID.xyz) * step;
+    /*const*/ vec3 linearColor = LogUEToLinear(srcColor);
+    /*const*/ vec3 acesColor = ToneMapping(linearColor);
+    /*const*/ vec3 srgbColor = LinearToSRGB(acesColor);
+    /*const*/ vec4 color = vec4(srgbColor, 1.0f);
     imageStore(result, ivec3(gl_GlobalInvocationID.xyz), color);
 }
 
