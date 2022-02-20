@@ -8,11 +8,19 @@
         "static": [],
         "dynamic": ["dl"]
     },
+    "framework":
+    {
+        "framework": ["OpenGLES", "CoreFoundation"]
+    },
     "targets":
     {
         "cpp":
         {
-            "sources": ["*.cpp", {"-": "WGLInterface.cpp"}],
+            "sources":
+            [
+                "*.cpp", {"-": "WGLInterface.cpp"},
+                {"ifno": "iOS", "-": "EAGLInterface.cpp"}
+            ],
             "defines": ["OGLU_EXPORT"],
             "pch": "oglPch.h"
         }

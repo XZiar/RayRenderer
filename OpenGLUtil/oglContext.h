@@ -177,7 +177,6 @@ class OGLUAPI oglContext_ : public xcomp::RangeHolder, public std::enable_shared
     friend GLHost;
     friend oglWorker;
     friend class oglProgram_;
-    friend class oglUtil;
     friend struct BindingState;
     friend class ::oclu::GLInterop;
     friend class ::oclu::oclPlatform_;

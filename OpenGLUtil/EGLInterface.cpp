@@ -242,11 +242,7 @@ private:
     DECLARE_FUNC(SwapBuffers); 
     common::container::FrozenDenseSet<std::string_view> Extensions;
     EnumBitfield<uint16_t, AngleBackend> BackendMask;
-#if COMMON_OS_DARWIN && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-    EGLType Type = EGLType::EAGL;
-#else
     EGLType Type = EGLType::Unknown;
-#endif
 public:
     static constexpr std::string_view LoaderName = "EGL"sv;
     EGLLoader_() :
@@ -336,7 +332,6 @@ private:
         {
         case EGLType::ANDROID: ret = u"Android"; break;
         case EGLType::ANGLE:   ret = u"Angle";   break;
-        case EGLType::EAGL:    ret = u"EAGL";    break;
         case EGLType::MESA:    ret = u"MESA";    break;
         default: break;
         }
@@ -465,7 +460,7 @@ private:
         }
         return {};
     }
-    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAngle(NativeDisplay disp, AngleBackend backend, bool useOffscreen) final
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAngle(void* disp, AngleBackend backend, bool useOffscreen) final
     {
         if (!BackendMask(backend))
             oglLog().warning(u"EGL Loader does not support create from angle.\n");

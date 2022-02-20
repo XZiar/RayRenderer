@@ -1,7 +1,6 @@
 #include "oglPch.h"
 #include "oglVAO.h"
 #include "oglContext.h"
-#include "oglUtil.h"
 #include "oglProgram.h"
 
 

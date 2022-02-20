@@ -82,12 +82,22 @@ static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] vo
     return eglLdr.CreateHost(dc, true);
 #endif
 }
+#if COMMON_OS_IOS
+template<typename... Args>
+static std::shared_ptr<GLHost> GetHostEAGL(oglLoader& loader, void*, Args&&...)
+{
+    return static_cast<EAGLLoader&>(loader).CreateHost(true);
+}
+#endif
 
 template<typename... Args>
 static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
 {
 #if COMMON_OS_WIN
     if (loader.Name() == "WGL") return GetHostWGL(loader, args...);
+#endif
+#if COMMON_OS_IOS
+    if (loader.Name() == "EAGL") return GetHostEAGL(loader, args...);
 #endif
 #if COMMON_OS_UNIX && !COMMON_OS_DARWIN
     if (loader.Name() == "GLX") return GetHostGLX(loader, args...);

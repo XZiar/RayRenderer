@@ -2,7 +2,6 @@
 #include "oglProgram.h"
 #include "oglFBO.h"
 #include "oglContext.h"
-#include "oglUtil.h"
 #include "BindingManager.h"
 #include "oglStringify.hpp"
 

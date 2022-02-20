@@ -47,6 +47,9 @@
     <ClInclude Include="XZGLParser.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="EAGLInterface.cpp">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="EGLInterface.cpp" />
     <ClCompile Include="GLFuncWrapper.cpp" />
     <ClCompile Include="GLXInterface.cpp">

@@ -145,7 +145,7 @@ public:
 class EGLLoader : public oglLoader
 {
 public:
-    enum class EGLType : uint8_t { Unknown, ANDROID, EAGL, MESA, ANGLE };
+    enum class EGLType : uint8_t { Unknown, ANDROID, MESA, ANGLE };
     enum class AngleBackend : uint8_t { Any, D3D9, D3D11, D3D11on12, GL, GLES, Vulkan, SwiftShader, Metal };
     [[nodiscard]] OGLUAPI static std::u16string_view GetAngleBackendName(AngleBackend backend) noexcept;
     struct EGLHost : public GLHost
@@ -170,8 +170,21 @@ public:
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHost(NativeDisplay display, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
-    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(NativeDisplay display, AngleBackend backend, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(void* display, AngleBackend backend, bool useOffscreen) = 0;
 };
+
+class EAGLLoader : public oglLoader
+{
+public:
+    struct EAGLHost : public GLHost
+    {
+    protected:
+        using GLHost::GLHost;
+    public:
+        virtual void BindDrawable(oglContext_& ctx, void* caeaglLayer) = 0;
+    };
+    [[nodiscard]] virtual std::shared_ptr<EAGLHost> CreateHost(bool useOffscreen) = 0;
+ };
 
 
 class oglUtil

@@ -41,7 +41,11 @@ forceinline uint32_t SelectIdx(const T& container, std::u16string_view name, F&&
             FMTSTR(u"{}[{}] {}\n", name, GetIdx36(idx++), printer(item)));
     }
     if (container.size() <= 1)
+    {
+        GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR(u"Default select {}[0]\n", name));
+        common::console::ConsoleEx::ReadCharImmediate(false);
         return 0;
+    }
     GetConsole().Print(common::CommonColor::BrightWhite, FMTSTR(u"Select {}:\n", name));
     return Select36(container.size());
 }

@@ -1,7 +1,6 @@
 #include "oglPch.h"
 #include "oglTexture.h"
 #include "oglContext.h"
-#include "oglUtil.h"
 #include "BindingManager.h"
 
 namespace oglu
@@ -111,7 +110,7 @@ oglTexBase_::oglTexBase_(const TextureType type, const bool shouldBindType) noex
         CtxFunc->CreateTextures(common::enum_cast(Type), 1, &TextureID);
     else
         CtxFunc->GenTextures(1, &TextureID);
-    if (const auto e = oglUtil::GetError(); e.has_value())
+    if (const auto e = CtxFunc->GetError(); e.has_value())
         oglLog().warning(u"oglTexBase occurs error due to {}.\n", e.value());
     RegistTexture(*this);
 }
@@ -160,7 +159,7 @@ std::tuple<uint32_t, uint32_t, uint32_t> oglTexBase_::GetInternalSize3() const
     CtxFunc->GetTextureLevelParameteriv(TextureID, common::enum_cast(Type), 0, GL_TEXTURE_WIDTH, &w);
     CtxFunc->GetTextureLevelParameteriv(TextureID, common::enum_cast(Type), 0, GL_TEXTURE_HEIGHT, &h);
     CtxFunc->GetTextureLevelParameteriv(TextureID, common::enum_cast(Type), 0, GL_TEXTURE_DEPTH, &z);
-    if (const auto e = oglUtil::GetError(); e.has_value())
+    if (const auto e = CtxFunc->GetError(); e.has_value())
     {
         oglLog().warning(u"GetInternalSize3 occurs error due to {}.\n", e.value());
     }
@@ -653,7 +652,7 @@ oglTex3DStatic_::oglTex3DStatic_(const uint32_t width, const uint32_t height, co
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"texture's size should be aligned to 4 pixels");
     Width = width, Height = height, Depth = depth, InnerFormat = format, Mipmap = mipmap;
     CtxFunc->TextureStorage3D(TextureID, GL_TEXTURE_3D, mipmap, OGLTexUtil::GetInnerFormat(InnerFormat), Width, Height, Depth);
-    if (const auto e = oglUtil::GetError(); e.has_value())
+    if (const auto e = CtxFunc->GetError(); e.has_value())
         oglLog().warning(u"oglTex3DS occurs error due to {}.\n", e.value());
     if (!IsStatic())
         COMMON_THROWEX(OGLException, OGLException::GLComponent::OGLU, u"failed to make tex3d static");

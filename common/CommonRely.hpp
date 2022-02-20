@@ -46,6 +46,12 @@
 #if defined(_WIN32)
 #   define COMMON_OS_WIN 1
 #elif defined(__APPLE__)
+#   include <TargetConditionals.h>
+#   if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || (defined(TARGET_OS_IOS) && TARGET_OS_IOS)
+#       define COMMON_OS_IOS 1
+#   elif TARGET_OS_OSX
+#       define COMMON_OS_MACOS 1
+#   endif
 #   define COMMON_OS_DARWIN 1
 #elif defined(__ANDROID__)
 #   define COMMON_OS_ANDROID 1
@@ -57,6 +63,12 @@
 
 #ifndef COMMON_OS_WIN
 #   define COMMON_OS_WIN 0
+#endif
+#ifndef COMMON_OS_IOS
+#   define COMMON_OS_IOS 0
+#endif
+#ifndef COMMON_OS_MACOS
+#   define COMMON_OS_MACOS 0
 #endif
 #ifndef COMMON_OS_DARWIN
 #   define COMMON_OS_DARWIN 0
