@@ -75,6 +75,9 @@
     <ClCompile Include="Exceptions.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Format.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SystemCommonRely.h">

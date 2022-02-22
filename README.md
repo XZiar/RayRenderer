@@ -29,7 +29,7 @@ The old preject is [here](https://github.com/XZiar/RayTrace)
 | [ImageUtil](./ImageUtil) | Image Read/Write Utility | C++ | Win & Linux & Android & iOS |
 | [XComputeBase](./XComputeBase) | Base Library for Cross-Compute | C++ | Win & Linux & Android & iOS |
 | [OpenGLUtil](./OpenGLUtil) | Wrapper of OpenGL things | C++ | Win & Linux |
-| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Win & Linux & Android & iOS |
+| [OpenCLUtil](./OpenCLUtil) | Wrapper of OpenCL things | C++ | Win & Linux & Android |
 | [OpenCLInterop](./OpenCLInterop) | OpenCL Interoperation utility | C++ | Win & Linux |
 | [FontHelper](./FontHelper) | Helper for displaying font in OpenGL | C++ | Win & Linux |
 | [TextureUtil](./TextureUtil) | Texture Utility | C++ | Win & Linux |
@@ -82,7 +82,7 @@ python3 xzbuild buildall UtilTest
 
 ## Dependency
 
-* [gsl](https://github.com/microsoft/GSL) `submodule` 3.1.0
+* [gsl](https://github.com/microsoft/GSL) `submodule` 4.0.0
   
   [MIT License](./3rdParty/gsl/LICENSE)
 

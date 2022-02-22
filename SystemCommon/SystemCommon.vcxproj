@@ -212,6 +212,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="FileMapperEx.cpp" />
+    <ClCompile Include="Format.cpp" />
     <ClCompile Include="HResultHelper.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

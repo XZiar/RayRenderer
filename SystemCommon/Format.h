@@ -418,7 +418,7 @@ struct ParseResult
                 result.Opcodes[result.OpCount++] = output[i];
             // update argIdx
             if (id.index() == 2)
-                result.NamedArgCount = std::max(argIdx, result.NamedArgCount);
+                result.NamedArgCount = std::max(static_cast<uint8_t>(argIdx + 1), result.NamedArgCount);
             else
             {
                 if (id.index() == 0) // need update next idx
@@ -796,6 +796,16 @@ struct ParseResult
     }
 };
 
+
+struct StrArgInfo
+{
+    std::string_view FormatString;
+    common::span<const ArgType> IndexTypes;
+    common::span<const ParseResult::NamedArgType> NamedTypes;
+    /*constexpr StrArgInfo(std::string_view str, common::span<const ArgType> idxTypes, common::span<const ParseResult::NamedArgType> namedTypes) noexcept :
+        FormatString(str), IndexTypes(idxTypes), NamedTypes(namedTypes) { }*/
+};
+
 template<uint8_t IdxArgCount>
 struct IdxArgLimiter
 {
@@ -845,14 +855,27 @@ struct OpHolder<0>
     { }
 };
 
-template<uint16_t OpCount, uint8_t NamedArgCount, uint8_t IdxArgCount>
-struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<OpCount>, NamedArgLimiter<NamedArgCount>, IdxArgLimiter<IdxArgCount>
+template<uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
+struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
 {
+    static constexpr uint16_t OpCount = OpCount_;
+    static constexpr uint8_t NamedArgCount = NamedArgCount_;
+    static constexpr uint8_t IdxArgCount = IdxArgCount_;
     constexpr TrimedResult(const ParseResult& result) noexcept :
         OpHolder<OpCount>(result.FormatString, result.Opcodes),
         NamedArgLimiter<NamedArgCount>(result.NamedTypes),
         IdxArgLimiter<IdxArgCount>(result.IndexTypes)
     { }
+    constexpr operator StrArgInfo() const noexcept
+    {
+        common::span<const ArgType> idxTypes;
+        if constexpr (IdxArgCount > 0)
+            idxTypes = { this->IndexTypes, IdxArgCount };
+        common::span<const ParseResult::NamedArgType> namedTypes;
+        if constexpr (NamedArgCount > 0)
+            namedTypes = { this->NamedTypes, NamedArgCount };
+        return { this->FormatString, idxTypes, namedTypes };
+    }
 };
 
 
@@ -893,6 +916,10 @@ struct ArgResult
     uint8_t NamedTypes[ParseResult::NamedArgSlots] = { enum_cast(ArgType::Any) };
     uint8_t IndexTypes[ParseResult::IdxArgSlots] = { enum_cast(ArgType::Any) };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
+    static constexpr ArgType ToArgType(uint8_t type) noexcept
+    {
+        return static_cast<ArgType>(type & 0xf);
+    }
     template<typename T>
     static constexpr uint8_t EncodeTypeSizeData() noexcept
     {
@@ -942,7 +969,8 @@ struct ArgResult
             using X = std::decay_t<std::remove_pointer_t<U>>;
             if constexpr (CheckCharType<X>())
                 return GetCharTypeData<X>() | enum_cast(ArgType::String);
-            return uint8_t(std::is_same_v<X, void> ? 0x80 : 0x0) | enum_cast(ArgType::Pointer);
+            else
+                return uint8_t(std::is_same_v<X, void> ? 0x80 : 0x0) | enum_cast(ArgType::Pointer);
         }
         else if constexpr (std::is_floating_point_v<U>)
         {
@@ -985,15 +1013,99 @@ struct ArgResult
     }
 };
 
-template<uint16_t OpCount, uint8_t NamedArgCount, uint8_t IdxArgCount, typename... Args>
-std::string FormatSS(const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie, Args&&... args)
-{
-    std::string target; 
-    target.reserve(cookie.FormatString.size());
-    return target;
-}
 
-#define PasreFmtString(str) []()                                    \
+struct ArgChecker
+{
+    static constexpr bool CheckCompatible(ArgType ask, ArgType give) noexcept
+    {
+        if (give == ArgType::Any) return false;
+        if (ask == ArgType::Any || ask == give) return true;
+        if (ask == ArgType::Integer) // can cast to detail type
+        {
+            if (give == ArgType::Char || give == ArgType::Pointer) return true;
+        }
+        else if (ask == ArgType::Float)
+        {
+            if (give == ArgType::Char || give == ArgType::Pointer || give == ArgType::Integer) return true;
+        }
+        return false; // incompatible
+    }
+    static constexpr uint32_t GetIdxArgMismatch(const ArgType* ask, const uint8_t* give, uint8_t count) noexcept
+    {
+        for (uint8_t i = 0; i < count; ++i)
+            if (!CheckCompatible(ask[i], ArgResult::ToArgType(give[i])))
+                return i;
+        return ParseResult::IdxArgSlots;
+    }
+    template<uint32_t Index>
+    static constexpr void CheckIdxArgMismatch() noexcept
+    {
+        static_assert(Index == ParseResult::IdxArgSlots, "Type mismatch");
+    }
+    static constexpr std::pair<uint32_t, uint32_t> GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::string_view str, uint8_t askCount,
+        const uint8_t* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
+    {
+        for (uint8_t i = 0; i < askCount; ++i)
+        {
+            const auto askName = str.substr(ask[i].Offset, ask[i].Length);
+            bool found = false, match = false;
+            uint8_t j = 0;
+            for (; j < giveCount; ++j)
+            {
+                if (giveNames[j] == askName)
+                {
+                    found = true;
+                    match = CheckCompatible(ask[i].Type, ArgResult::ToArgType(give[j]));
+                    break;
+                }
+            }
+            if (!found)
+                return { i, ParseResult::NamedArgSlots };
+            if (!match)
+                return { i, j };
+        }
+        return { ParseResult::NamedArgSlots, ParseResult::NamedArgSlots };
+    }
+    template<uint32_t AskIdx, uint32_t GiveIdx>
+    static constexpr void CheckNamedArgMismatch() noexcept
+    {
+        static_assert(GiveIdx == ParseResult::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
+        static_assert(AskIdx  == ParseResult::NamedArgSlots, "Missing named arg at [AskIdx]");
+    }
+    SYSCOMMONAPI static void CheckDD(const StrArgInfo& strInfo, const ArgResult& argInfo);
+    template<typename... Args>
+    static void CheckDS(const StrArgInfo& strInfo, Args&&...)
+    {
+        CheckDD(strInfo, ArgResult::ParseArgs<Args...>());
+    }
+    template<typename StrType>
+    static void CheckSD(StrType&& strInfo, const ArgResult& argInfo)
+    {
+        CheckDD(strInfo, argInfo);
+    }
+    template<typename StrType, typename... Args>
+    static void CheckSS(StrType&&, Args&&...)
+    {
+        constexpr StrType StrInfo;
+        //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
+        constexpr auto ArgsInfo = ArgResult::ParseArgs<Args...>();
+        static_assert(ArgsInfo.IdxArgCount >= StrInfo.IdxArgCount, "No enough indexed arg");
+        static_assert(ArgsInfo.NamedArgCount >= StrInfo.NamedArgCount, "No enough named arg");
+        if constexpr (StrInfo.IdxArgCount > 0)
+        {
+            constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes, ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
+            CheckIdxArgMismatch<Index>();
+        }
+        if constexpr (StrInfo.NamedArgCount > 0)
+        {
+            constexpr auto IdxPair = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
+                ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
+            CheckNamedArgMismatch<IdxPair.first, IdxPair.second>();
+        }
+    }
+};
+
+#define FmtString2(str) []()                                         \
 {                                                                   \
     constexpr auto Result = ParseResult::ParseString(str);          \
     constexpr auto OpCount       = Result.OpCount;                  \
@@ -1002,8 +1114,21 @@ std::string FormatSS(const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& co
     ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();     \
     TrimedResult<OpCount, NamedArgCount, IdxArgCount> ret(Result);  \
     return ret;                                                     \
+}
+#define FmtString(str) []()                                                     \
+{                                                                               \
+    struct Type_ { const ParseResult Data = ParseResult::ParseString(str); };   \
+    constexpr Type_ Result;                                                     \
+    constexpr auto OpCount       = Result.Data.OpCount;                         \
+    constexpr auto NamedArgCount = Result.Data.NamedArgCount;                   \
+    constexpr auto IdxArgCount   = Result.Data.IdxArgCount;                     \
+    ParseResult::CheckErrorCompile<Result.Data.ErrorPos, OpCount>();            \
+    struct Type : public TrimedResult<OpCount, NamedArgCount, IdxArgCount>      \
+    {                                                                           \
+        constexpr Type() noexcept : TrimedResult(Type_{}.Data) {}               \
+    };                                                                          \
+    return Type{};                                                              \
 }()
-
 
 }
 

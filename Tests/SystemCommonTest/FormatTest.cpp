@@ -1,14 +1,17 @@
 #include "rely.h"
 #include <algorithm>
 #include "SystemCommon/Format.h"
+#include "SystemCommon/Exceptions.h"
+#include "SystemCommon/StringConvert.h"
 
 #include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/variadic/to_seq.hpp>
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using namespace common::str::exp;
-
+using common::BaseException;
 
 
 #define CheckSuc() EXPECT_EQ(ret.ErrorPos, UINT16_MAX)
@@ -32,9 +35,31 @@ using namespace common::str::exp;
     EXPECT_EQ(ret.NextArgIdx,    static_cast<uint8_t>(next));   \
     EXPECT_EQ(ret.IdxArgCount,   static_cast<uint8_t>(cnt));    \
 } while(0)
+#define CheckEachNamedArg(r, ret, tp) do                                        \
+{                                                                               \
+    const auto& namedArg = ret.NamedTypes[theArgIdx];                           \
+    EXPECT_EQ(namedArg.Type, ArgType::BOOST_PP_TUPLE_ELEM(2, 0, tp));           \
+    const auto str = ret.FormatString.substr(namedArg.Offset, namedArg.Length); \
+    EXPECT_EQ(str, BOOST_PP_TUPLE_ELEM(2, 1, tp));                              \
+    theArgIdx++;                                                                \
+} while(0);
+#define CheckNamedArgs(ret, ...) do                                                         \
+{                                                                                           \
+    uint8_t theArgIdx = 0;                                                                  \
+    BOOST_PP_SEQ_FOR_EACH(CheckEachNamedArg, ret, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))    \
+    EXPECT_EQ(ret.NamedArgCount, theArgIdx);                                                \
+} while(0)
+#define CheckNamedArgCount(ret, cnt) EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(cnt))
 
 #define CheckOp(op, ...) do { SCOPED_TRACE("Check" #op); Check##op##Op_(ret, idx, __VA_ARGS__); } while(0)
 #define CheckOpFinish() EXPECT_EQ(ret.OpCount, idx)
+
+#define EXPECT_EX_RES(ex, type, key, val) do    \
+{                                               \
+    const auto dat = ex.GetResource<type>(key); \
+    EXPECT_NE(dat, nullptr);                    \
+    if (dat) EXPECT_EQ(*dat, val);              \
+} while(0)
 
 static std::string OpToString(uint8_t op)
 {
@@ -168,6 +193,21 @@ static void CheckIdxArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx
     }
 }
 
+static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx, const ParseResult::FormatSpec* spec)
+{
+    const uint8_t field = ParseResult::ArgOp::FieldNamed | (spec ? ParseResult::ArgOp::FieldHasSpec : 0);
+    CheckOpCode(ret.Opcodes[idx++], ParseResult::ArgOp::Op | field);
+    EXPECT_EQ(ret.Opcodes[idx++], argidx);
+    if (spec)
+    {
+        uint8_t data[12] = { 0 };
+        const auto [type, opcnt] = ParseResult::ArgOp::EncodeSpec(*spec, data);
+        common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
+        EXPECT_THAT(src, testing::ContainerEq(ref));
+        idx += opcnt;
+    }
+}
+
 
 TEST(Format, ParseString)
 {
@@ -263,14 +303,16 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello{}{3}{}"sv);
+        constexpr auto ret = ParseResult::ParseString("Hello{}{3}{}{x}"sv);
         CheckSuc();
         CheckIdxArgType(ret, 2, Any, Any, Any, Any);
+        CheckNamedArgs(ret, (Any, "x"));
         uint16_t idx = 0;
         CheckOp(FmtStr, 0, 5, "Hello");
         CheckOp(IdxArg, 0, nullptr);
         CheckOp(IdxArg, 3, nullptr);
         CheckOp(IdxArg, 1, nullptr);
+        CheckOp(NamedArg, 0, nullptr);
         CheckOpFinish();
     }
     {
@@ -361,9 +403,9 @@ TEST(Format, ParseString)
 #elif COMMON_COMPILER_CLANG
 #   pragma clang diagnostic pop
 #endif
-    [[maybe_unused]] constexpr auto parse0 = PasreFmtString("{}"sv);
-    [[maybe_unused]] constexpr auto parse1 = PasreFmtString("here"sv);
-    [[maybe_unused]] constexpr auto parse2 = PasreFmtString("{3:p}xyz{@<black+}"sv);
+    [[maybe_unused]] constexpr auto parse0 = FmtString("{}"sv);
+    [[maybe_unused]] constexpr auto parse1 = FmtString("here"sv);
+    [[maybe_unused]] constexpr auto parse2 = FmtString("{3:p}xyz{@<black+}"sv);
     /*constexpr auto klp = []()
     {
         constexpr auto Result = ParseResult::ParseString("");
@@ -479,5 +521,67 @@ TEST(Format, ParseArg)
             CheckArg(Named, const char*,    String,  0x00,        "");
             CheckArgFinish(Named);
         }
+    }
+}
+
+using ArgTypePair = std::pair<ArgType, ArgType>;
+TEST(Format, CheckArg)
+{
+    {
+        ArgChecker::CheckSS(FmtString("{},{}"), 1234, "str");
+        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{},{}"), 1234, "str"));
+    }
+    {
+        //ArgChecker::CheckSS(FmtString("{3},{}"), 1234, "str");
+        try
+        {
+            ArgChecker::CheckDS(FmtString("{3},{}"), 1234, "str");
+            EXPECT_TRUE(false) << "should throw exception";
+        }
+        catch (const BaseException& be)
+        {
+            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+        }
+    }
+    {
+        //ArgChecker::CheckSS(FmtString("{},{:f}"), 1234, "str");
+        try
+        {
+            ArgChecker::CheckDS(FmtString("{},{:f}"), 1234, "str");
+        }
+        catch (const BaseException& be)
+        {
+            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+            EXPECT_EX_RES(be, uint32_t, "arg"sv, 1u);
+            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgType::Float, ArgType::String }));
+        }
+    }
+    {
+        //CheckSS(FmtString("{}{x}"), 1234, "str");
+        try
+        {
+            ArgChecker::CheckDS(FmtString("{}{x}"), 1234, "str");
+        }
+        catch (const BaseException& be)
+        {
+            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+        }
+    }
+    {
+        //CheckSS(FmtString("{}{x}"), 1234, "str");
+        try
+        {
+            ArgChecker::CheckDS(FmtString("{}{x:s}"), 1234, "str", NAMEARG("x")(13));
+        }
+        catch (const BaseException& be)
+        {
+            EXPECT_TRUE(true) << common::str::to_string(be.Message());
+            EXPECT_EX_RES(be, std::string_view, "arg"sv, "x"sv);
+            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgType::String, ArgType::Integer }));
+        }
+    }
+    {
+        ArgChecker::CheckSS(FmtString("{}{x}"), 1234, "str", NAMEARG("x")(13));
+        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{}{x}"), 1234, "str", NAMEARG("x")(13)));
     }
 }
