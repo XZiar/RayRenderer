@@ -3,17 +3,26 @@
 #include "SystemCommonRely.h"
 #include <optional>
 #include <variant>
+#include <boost/container/small_vector.hpp>
 
 namespace common::str::exp
 {
 
 
-enum class ArgType : uint8_t
+enum class ArgDispType : uint8_t
 {
-    Any = 0, String, Char, Integer, Float, Pointer, Time, 
-    Custom = 0xf
+    Any = 0, String, Char, Integer, Float, Pointer, Time, Numeric, Custom,
 };
-MAKE_ENUM_BITFIELD(ArgType)
+//- Any
+//    - String
+//    - Time
+//    - Custom
+//    - Numeric
+//        - Integer
+//            - Char
+//            - Pointer
+//        - Float
+MAKE_ENUM_BITFIELD(ArgDispType)
 
 
 struct ParseResult
@@ -31,7 +40,7 @@ struct ParseResult
         InvalidColor, MissingColorFGBG, InvalidCommonColor, Invalid8BitColor, Invalid24BitColor,
         InvalidArgIdx, ArgIdxTooLarge, InvalidArgName, ArgNameTooLong,
         WidthTooLarge, InvalidPrecision, PrecisionTooLarge,
-        InvalidType, ExtraFmtSpec, IncompType, InvalidFmt
+        InvalidType, ExtraFmtSpec, IncompNumSpec, IncompType, InvalidFmt
     };
     template<uint16_t ErrorPos, uint16_t OpCount>
     static constexpr void CheckErrorCompile() noexcept
@@ -60,6 +69,7 @@ struct ParseResult
             CHECK_ERROR_MSG(PrecisionTooLarge,  "Precision is too large");
             CHECK_ERROR_MSG(InvalidType,        "Invalid type specified for arg");
             CHECK_ERROR_MSG(ExtraFmtSpec,       "Unknown extra format spec left at the end");
+            CHECK_ERROR_MSG(IncompNumSpec,      "Numeric spec applied on non-numeric type");
             CHECK_ERROR_MSG(IncompType,         "In-compatible type being specified for the arg");
             CHECK_ERROR_MSG(InvalidFmt,         "Invalid format string");
 #undef CHECK_ERROR_MSG
@@ -72,14 +82,14 @@ struct ParseResult
     {
         uint16_t Offset = 0;
         uint8_t Length = 0;
-        ArgType Type = ArgType::Any;
+        ArgDispType Type = ArgDispType::Any;
     };
     std::string_view FormatString;
     uint16_t ErrorPos = UINT16_MAX;
     uint8_t Opcodes[OpSlots] = { 0 };
     uint16_t OpCount = 0;
     NamedArgType NamedTypes[NamedArgSlots] = {};
-    ArgType IndexTypes[IdxArgSlots] = { ArgType::Any };
+    ArgDispType IndexTypes[IdxArgSlots] = { ArgDispType::Any };
     uint8_t NamedArgCount = 0, IdxArgCount = 0, NextArgIdx = 0;
     constexpr ParseResult& SetError(size_t pos, ErrorCode err) noexcept
     {
@@ -88,15 +98,19 @@ struct ParseResult
         return *this;
     }
     
-    static constexpr std::optional<ArgType> CheckCompatible(ArgType prev, ArgType cur) noexcept
+    static constexpr std::optional<ArgDispType> CheckCompatible(ArgDispType prev, ArgDispType cur) noexcept
     {
-        if (cur  == ArgType::Any) return prev;
-        if (prev == ArgType::Any) return cur;
-        if (prev == ArgType::Integer) // can cast to detail type
+        if (prev == cur) return prev;
+        if (cur  == ArgDispType::Any) return prev;
+        if (prev == ArgDispType::Any) return cur;
+        if (prev == ArgDispType::Integer) // can cast to detail type
         {
-            if (cur == ArgType::Char || cur == ArgType::Pointer) return cur;
+            if (cur == ArgDispType::Char || cur == ArgDispType::Pointer) return cur;
         }
-        if (prev == cur) return prev; // need to be the same
+        else if (prev == ArgDispType::Numeric)
+        {
+            if (cur == ArgDispType::Char || cur == ArgDispType::Pointer || cur == ArgDispType::Integer || cur == ArgDispType::Float) return cur;
+        }
         return {}; // incompatible
     }
 
@@ -104,10 +118,52 @@ struct ParseResult
     {
         enum class Align : uint8_t { None, Left, Right, Middle };
         enum class Sign  : uint8_t { None, Pos, Neg, Space };
+        struct TypeIdentifier
+        {
+            ArgDispType Type  = ArgDispType::Any;
+            uint8_t Extra = 0;
+            constexpr TypeIdentifier() noexcept {}
+            constexpr TypeIdentifier(char ch) noexcept
+            {
+                // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X"
+                constexpr std::string_view types{ "gGaAeEfFdbBoxXcps" };
+                const auto typeidx = types.find_first_of(ch);
+                if (typeidx <= 7) // gGaAeEfF
+                {
+                    Type = ArgDispType::Float;
+                    Extra = static_cast<uint8_t>(typeidx);
+                }
+                else if (typeidx <= 13) // dbBoxX
+                {
+                    Type = ArgDispType::Integer;
+                    Extra = static_cast<uint8_t>(typeidx - 8);
+                }
+                else if (typeidx == 14)
+                {
+                    Type = ArgDispType::Char;
+                    Extra = 0x80;
+                }
+                else if (typeidx == 15)
+                {
+                    Type = ArgDispType::Pointer;
+                    Extra = 0x00;
+                }
+                else if (typeidx == 16)
+                {
+                    Type = ArgDispType::String;
+                    Extra = 0x00;
+                }
+                else
+                {
+                    if (ch != '\0')
+                        Extra = 0xff;
+                }
+            }
+        };
         uint32_t Fill       = ' ';
         uint32_t Precision  = 0;
         uint16_t Width      = 0;
-        char Type           = '\0';
+        TypeIdentifier Type;
         Align Alignment     = Align::None;
         Sign SignFlag       = Sign::None;
         bool AlterForm      = false;
@@ -223,7 +279,7 @@ struct ParseResult
             if (val < UINT16_MAX) return { (uint8_t)2, (uint8_t)2 };
             return { (uint8_t)3, (uint8_t)4 };
         }
-        static constexpr std::pair<ArgType, uint8_t> EncodeSpec(const FormatSpec& spec, uint8_t(&output)[12]) noexcept
+        static constexpr uint8_t EncodeSpec(const FormatSpec& spec, uint8_t(&output)[12]) noexcept
         {
             /*struct FormatSpec
             {
@@ -238,30 +294,7 @@ struct ParseResult
                 bool AlterForm = false;//1
                 bool ZeroPad = false;//1
             };*/
-            auto type = ArgType::Any;
-            // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X"
-            switch (spec.Type)
-            {
-            case 'g' : output[0] |= 0x00; type = ArgType::Float;   break;
-            case 'G' : output[0] |= 0x10; type = ArgType::Float;   break;
-            case 'a' : output[0] |= 0x20; type = ArgType::Float;   break;
-            case 'A' : output[0] |= 0x30; type = ArgType::Float;   break;
-            case 'e' : output[0] |= 0x40; type = ArgType::Float;   break;
-            case 'E' : output[0] |= 0x50; type = ArgType::Float;   break;
-            case 'f' : output[0] |= 0x60; type = ArgType::Float;   break;
-            case 'F' : output[0] |= 0x70; type = ArgType::Float;   break;
-            case 'd' : output[0] |= 0x00; type = ArgType::Integer; break;
-            case 'b' : output[0] |= 0x10; type = ArgType::Integer; break;
-            case 'B' : output[0] |= 0x20; type = ArgType::Integer; break;
-            case 'o' : output[0] |= 0x30; type = ArgType::Integer; break;
-            case 'x' : output[0] |= 0x40; type = ArgType::Integer; break;
-            case 'X' : output[0] |= 0x50; type = ArgType::Integer; break;
-            case 'c' : output[0] |= 0x80; type = ArgType::Char;    break;
-            case 'p' : output[0] |= 0x00; type = ArgType::Pointer; break;
-            case 's' : output[0] |= 0x00; type = ArgType::String;  break;
-            case '\0': output[0] |= 0x00; type = ArgType::Any;     break;
-            default: break; // should not happen
-            }
+            output[0] |= static_cast<uint8_t>(spec.Type.Extra << 4);
             output[0] |= static_cast<uint8_t>((enum_cast(spec.Alignment) & 0x3) << 2);
             output[0] |= static_cast<uint8_t>((enum_cast(spec.SignFlag)  & 0x3) << 0);
             uint8_t idx = 2;
@@ -319,7 +352,7 @@ struct ParseResult
                 output[1] |= 0b10;
             if (spec.ZeroPad)
                 output[1] |= 0b01;
-            return { type, idx };
+            return idx;
         }
         static constexpr bool EmitDefault(ParseResult& result, size_t offset) noexcept
         {
@@ -347,7 +380,7 @@ struct ParseResult
             uint16_t opcnt = 2;
             uint8_t opcode = Op;
             uint8_t argIdx = 0;
-            ArgType* dstType = nullptr;
+            ArgDispType* dstType = nullptr;
             if (id.index() == 2)
             {
                 const auto name = std::get<2>(id);
@@ -389,13 +422,12 @@ struct ParseResult
                 opcode |= FieldIndexed;
             }
             uint8_t output[12] = { 0 }, tailopcnt = 0;
-            auto type = ArgType::Any;
+            auto type = ArgDispType::Any;
             if (spec)
             {
                 opcode |= FieldHasSpec;
-                const auto [type_, opcnt_] = EncodeSpec(*spec, output);
-                type = type_;
-                tailopcnt = opcnt_;
+                tailopcnt = EncodeSpec(*spec, output);
+                type = spec->Type.Type;
             }
             opcnt += tailopcnt;
             if (result.OpCount > ParseResult::OpSlots - opcnt)
@@ -643,17 +675,9 @@ struct ParseResult
         if (str.empty()) return true;
         if (!ParsePrecision(result, fmtSpec, str.data() - start, str))
             return false;
-
-        // type        ::=  "a" | "A" | "b" | "B" | "c" | "d" | "e" | "E" | "f" | "F" | "g" | "G" | "o" | "p" | "s" | "x" | "X"
+        if (!str.empty())
         {
-            constexpr std::string_view types{ "aAbBcdeEfFgGopsxX" };
-            const char type = static_cast<char>(str[0]);
-            if (types.find_first_of(type) == std::string_view::npos)
-            {
-                result.SetError(str.data() - start, ErrorCode::InvalidType);
-                return false;
-            }
-            fmtSpec.Type = type;
+            fmtSpec.Type = { str[0] };
             str.remove_prefix(1);
         }
         if (!str.empty())
@@ -661,6 +685,25 @@ struct ParseResult
             result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
             return false;
         }
+        if (fmtSpec.Type.Extra == 0xff)
+        {
+            result.SetError(str.data() - start, ErrorCode::InvalidType);
+            return false;
+        }
+        // enhanced type check
+        ArgDispType gneralType = ArgDispType::Any;
+        if (fmtSpec.ZeroPad)
+            gneralType = ArgDispType::Numeric;
+        const auto newType = CheckCompatible(gneralType, fmtSpec.Type.Type);
+        if (!newType)
+        {
+            if (gneralType == ArgDispType::Numeric)
+                result.SetError(str.data() - start, ErrorCode::IncompNumSpec);
+            else
+                result.SetError(str.data() - start, ErrorCode::IncompType);
+            return false;
+        }
+        fmtSpec.Type.Type = *newType;
         return true;
     }
     static constexpr ParseResult ParseString(const std::string_view str) noexcept
@@ -800,17 +843,16 @@ struct ParseResult
 struct StrArgInfo
 {
     std::string_view FormatString;
-    common::span<const ArgType> IndexTypes;
+    common::span<const uint8_t> Opcodes;
+    common::span<const ArgDispType> IndexTypes;
     common::span<const ParseResult::NamedArgType> NamedTypes;
-    /*constexpr StrArgInfo(std::string_view str, common::span<const ArgType> idxTypes, common::span<const ParseResult::NamedArgType> namedTypes) noexcept :
-        FormatString(str), IndexTypes(idxTypes), NamedTypes(namedTypes) { }*/
 };
 
 template<uint8_t IdxArgCount>
 struct IdxArgLimiter
 {
-    ArgType IndexTypes[IdxArgCount] = { ArgType::Any };
-    constexpr IdxArgLimiter(const ArgType* type) noexcept
+    ArgDispType IndexTypes[IdxArgCount] = { ArgDispType::Any };
+    constexpr IdxArgLimiter(const ArgDispType* type) noexcept
     {
         for (uint8_t i = 0; i < IdxArgCount; ++i)
             IndexTypes[i] = type[i];
@@ -819,7 +861,7 @@ struct IdxArgLimiter
 template<>
 struct IdxArgLimiter<0>
 { 
-    constexpr IdxArgLimiter(const ArgType*) noexcept {}
+    constexpr IdxArgLimiter(const ArgDispType*) noexcept {}
 };
 template<uint8_t NamedArgCount>
 struct NamedArgLimiter
@@ -868,13 +910,13 @@ struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<OpCount_>, NamedArgLimi
     { }
     constexpr operator StrArgInfo() const noexcept
     {
-        common::span<const ArgType> idxTypes;
+        common::span<const ArgDispType> idxTypes;
         if constexpr (IdxArgCount > 0)
-            idxTypes = { this->IndexTypes, IdxArgCount };
+            idxTypes = this->IndexTypes;
         common::span<const ParseResult::NamedArgType> namedTypes;
         if constexpr (NamedArgCount > 0)
-            namedTypes = { this->NamedTypes, NamedArgCount };
-        return { this->FormatString, idxTypes, namedTypes };
+            namedTypes = this->NamedTypes;
+        return { this->FormatString, this->Opcodes, idxTypes, namedTypes };
     }
 };
 
@@ -910,36 +952,79 @@ inline constexpr auto WithName(std::string_view name, T&& arg) noexcept -> Named
     return NamedArg{std::forward<T>(arg)};          \
 }
 
-struct ArgResult
+struct ArgPack
+{
+    using NamedMapper = std::array<uint8_t, ParseResult::NamedArgSlots>;
+    boost::container::small_vector<uint16_t, 44> Args;
+    NamedMapper Mapper;
+    template<typename T>
+    forceinline void Put(T arg, uint16_t idx) noexcept
+    {
+        constexpr auto NeedSize = sizeof(T);
+        constexpr auto NeedSlot = (NeedSize + 1) / 2;
+        const auto offset = Args.size();
+        Args.resize(offset + NeedSlot);
+        *reinterpret_cast<T*>(&Args[offset]) = arg;
+        Args[idx] = static_cast<uint16_t>(offset);
+    }
+};
+
+enum class ArgRealType : uint8_t
+{
+    BaseTypeMask = 0xf0, SizeMask8 = 0b111, SizeMask4 = 0b11, SpanBit = 0b1000,
+    Error = 0x00, Custom = 0x01, Ptr = 0x02, Bool = 0x04, PtrVoidBit = 0b1,
+    TypeSpecial = 0x00, SpecialMax = Bool,
+    SInt    = 0x10,
+    UInt    = 0x20,
+    Float   = 0x30,
+    Char    = 0x40,
+    String  = 0x50, StrPtrBit = 0b100,
+    Empty   = 0x0,
+};
+MAKE_ENUM_BITFIELD(ArgRealType)
+MAKE_ENUM_RANGE(ArgRealType)
+
+struct ArgInfo
 {
     std::string_view Names[ParseResult::NamedArgSlots] = {};
-    uint8_t NamedTypes[ParseResult::NamedArgSlots] = { enum_cast(ArgType::Any) };
-    uint8_t IndexTypes[ParseResult::IdxArgSlots] = { enum_cast(ArgType::Any) };
+    ArgRealType NamedTypes[ParseResult::NamedArgSlots] = { ArgRealType::Error };
+    ArgRealType IndexTypes[ParseResult::IdxArgSlots] = { ArgRealType::Error };
     uint8_t NamedArgCount = 0, IdxArgCount = 0;
-    static constexpr ArgType ToArgType(uint8_t type) noexcept
+    static constexpr ArgRealType CleanRealType(ArgRealType type) noexcept
     {
-        return static_cast<ArgType>(type & 0xf);
-    }
-    template<typename T>
-    static constexpr uint8_t EncodeTypeSizeData() noexcept
-    {
-        switch (sizeof(T))
+        const auto base = type & ArgRealType::BaseTypeMask;
+        switch (base)
         {
-        case 1:  return 0x00;
-        case 2:  return 0x10;
-        case 4:  return 0x20;
-        case 8:  return 0x30;
-        case 16: return 0x40;
-        case 32: return 0x50;
-        case 64: return 0x60;
-        default: return 0xff;
+        case ArgRealType::SInt:
+        case ArgRealType::UInt:
+        case ArgRealType::Float:
+        case ArgRealType::Char:
+        case ArgRealType::String:
+            return base;
+        default:
+            return type <= ArgRealType::SpecialMax ? type : ArgRealType::Error;
         }
     }
     template<typename T>
-    static constexpr uint8_t GetCharTypeData() noexcept
+    static constexpr ArgRealType EncodeTypeSizeData() noexcept
+    {
+        switch (sizeof(T))
+        {
+        case 1:  return static_cast<ArgRealType>(0x0);
+        case 2:  return static_cast<ArgRealType>(0x1);
+        case 4:  return static_cast<ArgRealType>(0x2);
+        case 8:  return static_cast<ArgRealType>(0x3);
+        case 16: return static_cast<ArgRealType>(0x4);
+        case 32: return static_cast<ArgRealType>(0x5);
+        case 64: return static_cast<ArgRealType>(0x6);
+        default: return static_cast<ArgRealType>(0xff);
+        }
+    }
+    template<typename T>
+    static constexpr ArgRealType GetCharTypeData() noexcept
     {
         constexpr auto data = EncodeTypeSizeData<T>();
-        static_assert(data <= 0x20);
+        static_assert(enum_cast(data) <= 0x2);
         return data;
     }
     template<typename T>
@@ -952,33 +1037,37 @@ struct ArgResult
         return result;
     }
     template<typename T>
-    static constexpr uint8_t GetArgType() noexcept
+    static constexpr ArgRealType GetArgType() noexcept
     {
         using U = std::decay_t<T>;
         if constexpr (common::is_specialization<U, std::basic_string_view>::value || 
             common::is_specialization<U, std::basic_string>::value)
         {
-            return GetCharTypeData<typename U::value_type>() | enum_cast(ArgType::String);
+            return ArgRealType::String | GetCharTypeData<typename U::value_type>();
         }
         else if constexpr (CheckCharType<U>())
         {
-            return GetCharTypeData<U>() | enum_cast(ArgType::Char);
+            return ArgRealType::Char | GetCharTypeData<U>();
         }
         else if constexpr (std::is_pointer_v<U>)
         {
             using X = std::decay_t<std::remove_pointer_t<U>>;
             if constexpr (CheckCharType<X>())
-                return GetCharTypeData<X>() | enum_cast(ArgType::String);
+                return ArgRealType::String | ArgRealType::StrPtrBit | GetCharTypeData<X>();
             else
-                return uint8_t(std::is_same_v<X, void> ? 0x80 : 0x0) | enum_cast(ArgType::Pointer);
+                return (std::is_same_v<X, void> ? ArgRealType::PtrVoidBit : ArgRealType::Empty) | ArgRealType::Ptr;
         }
         else if constexpr (std::is_floating_point_v<U>)
         {
-            return EncodeTypeSizeData<U>() | enum_cast(ArgType::Float);
+            return ArgRealType::Float | EncodeTypeSizeData<U>();
         }
         else if constexpr (std::is_integral_v<U>)
         {
-            return uint8_t(std::is_unsigned_v<U> ? 0x80 : 0x0) | EncodeTypeSizeData<U>() | enum_cast(ArgType::Integer);
+            return (std::is_unsigned_v<U> ? ArgRealType::UInt : ArgRealType::SInt) | EncodeTypeSizeData<U>();
+        }
+        else if constexpr (std::is_same_v<U, bool>)
+        {
+            return ArgRealType::Bool;
         }
         else
         {
@@ -986,7 +1075,7 @@ struct ArgResult
         }
     }
     template<typename T>
-    static constexpr void ParseAnArg(ArgResult& result) noexcept
+    static constexpr void ParseAnArg(ArgInfo& result) noexcept
     {
         if constexpr (std::is_base_of_v<NamedArgTag, T>)
         {
@@ -1005,35 +1094,114 @@ struct ArgResult
         }
     }
     template<typename... Args>
-    static constexpr ArgResult ParseArgs() noexcept
+    static constexpr ArgInfo ParseArgs() noexcept
     {
-        ArgResult result;
-        (..., ParseAnArg<Args>(result));
-        return result;
+        ArgInfo info;
+        (..., ParseAnArg<Args>(info));
+        return info;
+    }
+
+    template<typename T>
+    static void PackAnArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, [[maybe_unused]] uint16_t& idx) noexcept
+    {
+        if constexpr (!std::is_base_of_v<NamedArgTag, T>)
+        {
+            using U = std::decay_t<T>;
+            if constexpr (common::is_specialization<U, std::basic_string_view>::value ||
+                common::is_specialization<U, std::basic_string>::value)
+            {
+                pack.Put(std::pair{ reinterpret_cast<uintptr_t>(arg.data()), arg.size() }, idx);
+            }
+            else if constexpr (CheckCharType<U>())
+            {
+                pack.Put(arg, idx);
+            }
+            else if constexpr (std::is_pointer_v<U>)
+            {
+                using X = std::decay_t<std::remove_pointer_t<U>>;
+                if constexpr (CheckCharType<X>())
+                {
+                    pack.Put(std::pair{ reinterpret_cast<uintptr_t>(arg), std::char_traits<X>::length(arg) }, idx);
+                }
+                else
+                    pack.Put(reinterpret_cast<uintptr_t>(arg), idx);
+            }
+            else if constexpr (std::is_floating_point_v<U>)
+            {
+                pack.Put(arg, idx);
+            }
+            else if constexpr (std::is_integral_v<U>)
+            {
+                pack.Put(arg, idx);
+            }
+            else if constexpr (std::is_same_v<U, bool>)
+            {
+                pack.Put(static_cast<uint8_t>(arg ? 1 : 0), idx);
+            }
+            else
+            {
+                static_assert(!AlwaysTrue<T>, "unsupported type");
+            }
+            idx++;
+        }
+    }
+    template<typename T>
+    static void PackAnNamedArg([[maybe_unused]] ArgPack& pack, [[maybe_unused]] T&& arg, uint16_t& idx) noexcept
+    {
+        if constexpr (std::is_base_of_v<NamedArgTag, T>)
+            PackAnArg(pack, arg.Data, idx);
+    }
+    template<typename... Args>
+    static ArgPack PackArgs(Args&&... args) noexcept
+    {
+        ArgPack pack;
+        pack.Args.resize(sizeof...(Args));
+        uint16_t argIdx = 0;
+        (..., PackAnArg     (pack, std::forward<Args>(args), argIdx));
+        (..., PackAnNamedArg(pack, std::forward<Args>(args), argIdx));
+        return pack;
     }
 };
 
 
 struct ArgChecker
 {
-    static constexpr bool CheckCompatible(ArgType ask, ArgType give) noexcept
+    struct NamedCheckResult
     {
-        if (give == ArgType::Any) return false;
-        if (ask == ArgType::Any || ask == give) return true;
-        if (ask == ArgType::Integer) // can cast to detail type
+        ArgPack::NamedMapper Mapper{ 0 };
+        std::optional<uint8_t> AskIndex;
+        std::optional<uint8_t> GiveIndex;
+    };
+    static constexpr bool CheckCompatible(ArgDispType ask, ArgRealType give_) noexcept
+    {
+        const auto give = ArgInfo::CleanRealType(give_);
+        if (give == ArgRealType::Error) return false;
+        if (ask == ArgDispType::Any) return true;
+        const auto isInteger = give == ArgRealType::SInt || give == ArgRealType::UInt || give == ArgRealType::Char || give == ArgRealType::Bool;
+        switch (ask)
         {
-            if (give == ArgType::Char || give == ArgType::Pointer) return true;
+        case ArgDispType::Integer:
+            return isInteger || give == ArgRealType::Ptr;
+        case ArgDispType::Float:
+            return isInteger || give == ArgRealType::Float;
+        case ArgDispType::Numeric:
+            return isInteger || give == ArgRealType::Float || give == ArgRealType::Ptr;
+        case ArgDispType::Char:
+            return give == ArgRealType::Char || give == ArgRealType::Bool;
+        case ArgDispType::String:
+            return give == ArgRealType::String;
+        case ArgDispType::Pointer:
+            return give == ArgRealType::Ptr || (give == ArgRealType::String && HAS_FIELD(give, ArgRealType::StrPtrBit));
+        case ArgDispType::Custom:
+            return give == ArgRealType::Custom;
+        default:
+            return false;
         }
-        else if (ask == ArgType::Float)
-        {
-            if (give == ArgType::Char || give == ArgType::Pointer || give == ArgType::Integer) return true;
-        }
-        return false; // incompatible
     }
-    static constexpr uint32_t GetIdxArgMismatch(const ArgType* ask, const uint8_t* give, uint8_t count) noexcept
+    static constexpr uint32_t GetIdxArgMismatch(const ArgDispType* ask, const ArgRealType* give, uint8_t count) noexcept
     {
         for (uint8_t i = 0; i < count; ++i)
-            if (!CheckCompatible(ask[i], ArgResult::ToArgType(give[i])))
+            if (!CheckCompatible(ask[i], give[i]))
                 return i;
         return ParseResult::IdxArgSlots;
     }
@@ -1042,9 +1210,10 @@ struct ArgChecker
     {
         static_assert(Index == ParseResult::IdxArgSlots, "Type mismatch");
     }
-    static constexpr std::pair<uint32_t, uint32_t> GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::string_view str, uint8_t askCount,
-        const uint8_t* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
+    static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::string_view str, uint8_t askCount,
+        const ArgRealType* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
     {
+        NamedCheckResult ret;
         for (uint8_t i = 0; i < askCount; ++i)
         {
             const auto askName = str.substr(ask[i].Offset, ask[i].Length);
@@ -1055,16 +1224,21 @@ struct ArgChecker
                 if (giveNames[j] == askName)
                 {
                     found = true;
-                    match = CheckCompatible(ask[i].Type, ArgResult::ToArgType(give[j]));
+                    match = CheckCompatible(ask[i].Type, give[j]);
                     break;
                 }
             }
-            if (!found)
-                return { i, ParseResult::NamedArgSlots };
+            if (found && match)
+            {
+                ret.Mapper[i] = j;
+                continue;
+            }
+            ret.AskIndex = i;
             if (!match)
-                return { i, j };
+                ret.GiveIndex = j;
+            break;
         }
-        return { ParseResult::NamedArgSlots, ParseResult::NamedArgSlots };
+        return ret;
     }
     template<uint32_t AskIdx, uint32_t GiveIdx>
     static constexpr void CheckNamedArgMismatch() noexcept
@@ -1072,23 +1246,23 @@ struct ArgChecker
         static_assert(GiveIdx == ParseResult::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
         static_assert(AskIdx  == ParseResult::NamedArgSlots, "Missing named arg at [AskIdx]");
     }
-    SYSCOMMONAPI static void CheckDD(const StrArgInfo& strInfo, const ArgResult& argInfo);
+    SYSCOMMONAPI static ArgPack::NamedMapper CheckDD(const StrArgInfo& strInfo, const ArgInfo& argInfo);
     template<typename... Args>
-    static void CheckDS(const StrArgInfo& strInfo, Args&&...)
+    static ArgPack::NamedMapper CheckDS(const StrArgInfo& strInfo, Args&&...)
     {
-        CheckDD(strInfo, ArgResult::ParseArgs<Args...>());
+        return CheckDD(strInfo, ArgInfo::ParseArgs<Args...>());
     }
     template<typename StrType>
-    static void CheckSD(StrType&& strInfo, const ArgResult& argInfo)
+    static ArgPack::NamedMapper CheckSD(StrType&& strInfo, const ArgInfo& argInfo)
     {
-        CheckDD(strInfo, argInfo);
+        return CheckDD(strInfo, argInfo);
     }
     template<typename StrType, typename... Args>
-    static void CheckSS(StrType&&, Args&&...)
+    static ArgPack::NamedMapper CheckSS(StrType&&, Args&&...)
     {
         constexpr StrType StrInfo;
         //const TrimedResult<OpCount, NamedArgCount, IdxArgCount>& cookie
-        constexpr auto ArgsInfo = ArgResult::ParseArgs<Args...>();
+        constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
         static_assert(ArgsInfo.IdxArgCount >= StrInfo.IdxArgCount, "No enough indexed arg");
         static_assert(ArgsInfo.NamedArgCount >= StrInfo.NamedArgCount, "No enough named arg");
         if constexpr (StrInfo.IdxArgCount > 0)
@@ -1096,16 +1270,55 @@ struct ArgChecker
             constexpr auto Index = GetIdxArgMismatch(StrInfo.IndexTypes, ArgsInfo.IndexTypes, StrInfo.IdxArgCount);
             CheckIdxArgMismatch<Index>();
         }
+        ArgPack::NamedMapper mapper = { 0 };
         if constexpr (StrInfo.NamedArgCount > 0)
         {
-            constexpr auto IdxPair = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
+            constexpr auto NamedRet = GetNamedArgMismatch(StrInfo.NamedTypes, StrInfo.FormatString, StrInfo.NamedArgCount,
                 ArgsInfo.NamedTypes, ArgsInfo.Names, ArgsInfo.NamedArgCount);
-            CheckNamedArgMismatch<IdxPair.first, IdxPair.second>();
+            CheckNamedArgMismatch<NamedRet.AskIndex ? *NamedRet.AskIndex : ParseResult::NamedArgSlots,
+                NamedRet.GiveIndex ? *NamedRet.GiveIndex : ParseResult::NamedArgSlots>();
+            mapper = NamedRet.Mapper;
         }
+        return mapper;
     }
 };
 
-#define FmtString2(str) []()                                         \
+struct Formatter;
+struct FormatterBase
+{
+protected:
+    using Color = std::variant<std::monostate, uint8_t, std::array<uint8_t, 3>, CommonColor>;
+    struct FormatSpec
+    {
+        enum class Align : uint8_t { None, Left, Right, Middle };
+        enum class Sign  : uint8_t { None, Pos, Neg, Space };
+        uint32_t Fill       = ' ';
+        uint32_t Precision  = 0;
+        uint16_t Width      = 0;
+        uint8_t TypeExtra   = 0;
+        Align Alignment     : 2;
+        Sign SignFlag       : 2;
+        bool AlterForm      : 2;
+        bool ZeroPad        : 2;
+        constexpr FormatSpec() noexcept : 
+            Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
+    };
+public:
+    SYSCOMMONAPI static void FormatTo(const Formatter& formatter, std::string& ret, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+};
+struct Formatter : public FormatterBase
+{
+    friend FormatterBase;
+private:
+    /*virtual*/ void PutColor(std::string& ret, bool isBackground, Color color) const;
+    /*virtual*/ void PutString(std::string& ret, std::   string_view str, const FormatSpec* spec) const;
+    /*virtual*/ void PutString(std::string& ret, std::u16string_view str, const FormatSpec* spec) const;
+    /*virtual*/ void PutString(std::string& ret, std::u32string_view str, const FormatSpec* spec) const;
+public:
+};
+
+
+#define FmtString2(str) []()                                        \
 {                                                                   \
     constexpr auto Result = ParseResult::ParseString(str);          \
     constexpr auto OpCount       = Result.OpCount;                  \

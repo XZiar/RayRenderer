@@ -22,7 +22,7 @@ using common::BaseException;
     EXPECT_EQ(ret.OpCount,   static_cast<uint16_t>(ParseResult::ErrorCode::err));   \
 } while(0)
 
-#define CheckEachIdxArgType(r, ret, type) EXPECT_EQ(ret.IndexTypes[theArgIdx++], ArgType::type);
+#define CheckEachIdxArgType(r, ret, type) EXPECT_EQ(ret.IndexTypes[theArgIdx++], ArgDispType::type);
 #define CheckIdxArgType(ret, next, ...) do                                                  \
 {                                                                                           \
     EXPECT_EQ(ret.NextArgIdx,    static_cast<uint8_t>(next));                               \
@@ -38,7 +38,7 @@ using common::BaseException;
 #define CheckEachNamedArg(r, ret, tp) do                                        \
 {                                                                               \
     const auto& namedArg = ret.NamedTypes[theArgIdx];                           \
-    EXPECT_EQ(namedArg.Type, ArgType::BOOST_PP_TUPLE_ELEM(2, 0, tp));           \
+    EXPECT_EQ(namedArg.Type, ArgDispType::BOOST_PP_TUPLE_ELEM(2, 0, tp));       \
     const auto str = ret.FormatString.substr(namedArg.Offset, namedArg.Length); \
     EXPECT_EQ(str, BOOST_PP_TUPLE_ELEM(2, 1, tp));                              \
     theArgIdx++;                                                                \
@@ -58,7 +58,7 @@ using common::BaseException;
 {                                               \
     const auto dat = ex.GetResource<type>(key); \
     EXPECT_NE(dat, nullptr);                    \
-    if (dat) EXPECT_EQ(*dat, val);              \
+    if (dat) { EXPECT_EQ(*dat, val); }          \
 } while(0)
 
 static std::string OpToString(uint8_t op)
@@ -186,7 +186,7 @@ static void CheckIdxArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argidx
     if (spec)
     {
         uint8_t data[12] = { 0 };
-        const auto [type, opcnt] = ParseResult::ArgOp::EncodeSpec(*spec, data);
+        const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ContainerEq(ref));
         idx += opcnt;
@@ -201,7 +201,7 @@ static void CheckNamedArgOp_(const ParseResult& ret, uint16_t& idx, uint8_t argi
     if (spec)
     {
         uint8_t data[12] = { 0 };
-        const auto [type, opcnt] = ParseResult::ArgOp::EncodeSpec(*spec, data);
+        const auto opcnt = ParseResult::ArgOp::EncodeSpec(*spec, data);
         common::span<const uint8_t> ref{ data, opcnt }, src{ ret.Opcodes + idx, opcnt };
         EXPECT_THAT(src, testing::ContainerEq(ref));
         idx += opcnt;
@@ -234,6 +234,11 @@ TEST(Format, ParseString)
     {
         constexpr auto ret = ParseResult::ParseString("{"sv);
         CheckFail(0, MissingRightBrace);
+        CheckIdxArgCount(ret, 0, 0);
+    }
+    {
+        constexpr auto ret = ParseResult::ParseString("{:0s}"sv);
+        CheckFail(4, IncompNumSpec);
         CheckIdxArgCount(ret, 0, 0);
     }
     {
@@ -420,48 +425,48 @@ TEST(Format, ParseString)
 }
 
 
-#define CheckArg(T, type, at, ...) do { SCOPED_TRACE("Check" #T "Arg"); Check##T##Arg_(ret, idx++, #type, ArgType::at, __VA_ARGS__); } while(0)
+#define CheckArg(T, type, at, ...) do { SCOPED_TRACE("Check" #T "Arg"); Check##T##Arg_(ret, idx++, #type, ArgRealType::at, __VA_ARGS__); } while(0)
 #define CheckArgFinish(T) EXPECT_EQ(ret.T##ArgCount, idx)
 
-void CheckAnArgType(std::string_view tname, uint8_t real, ArgType ref, uint8_t extra)
+void CheckAnArgType(std::string_view tname, ArgRealType real, ArgRealType ref, uint8_t extra)
 {
-    EXPECT_EQ(real & 0x0f, common::enum_cast(ref)) << "expects [" << tname.data() << "]";
-    EXPECT_EQ(real & 0xf0, extra);
+    const auto want = ref | static_cast<ArgRealType>(extra);
+    EXPECT_EQ(real, want) << "expects [" << tname.data() << "]";
 }
-void CheckIdxArg_(const ArgResult& ret, uint8_t idx, std::string_view tname, ArgType type, uint8_t extra)
+void CheckIdxArg_(const ArgInfo& ret, uint8_t idx, std::string_view tname, ArgRealType type, uint8_t extra)
 {
     CheckAnArgType(tname, ret.IndexTypes[idx], type, extra);
 }
-void CheckNamedArg_(const ArgResult& ret, uint8_t idx, std::string_view tname, ArgType type, uint8_t extra, std::string_view argName)
+void CheckNamedArg_(const ArgInfo& ret, uint8_t idx, std::string_view tname, ArgRealType type, uint8_t extra, std::string_view argName)
 {
     EXPECT_EQ(ret.Names[idx], argName);
     CheckAnArgType(tname, ret.NamedTypes[idx], type, extra);
 }
 
 template<typename... Args>
-static constexpr ArgResult ParseArgs(Args&&...) noexcept
+static constexpr ArgInfo ParseArgs(Args&&...) noexcept
 {
-    return ArgResult::ParseArgs<Args...>();
+    return ArgInfo::ParseArgs<Args...>();
 }
 TEST(Format, ParseArg)
 {
     {
-        constexpr auto ret = ArgResult::ParseArgs<>();
+        constexpr auto ret = ArgInfo::ParseArgs<>();
         EXPECT_EQ(ret.IdxArgCount, static_cast<uint8_t>(0));
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
     }
     {
-        constexpr auto ret = ArgResult::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view>();
+        constexpr auto ret = ArgInfo::ParseArgs<int, uint64_t, void*, char*, double, char32_t, std::string_view>();
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
-            CheckArg(Idx, int,          Integer, 0x00 | 0x20);
-            CheckArg(Idx, uint64_t,     Integer, 0x80 | 0x30);
-            CheckArg(Idx, void*,        Pointer, 0x80);
-            CheckArg(Idx, char*,        String,  0x00);
-            CheckArg(Idx, double,       Float,   0x30);
-            CheckArg(Idx, char32_t,     Char,    0x20);
-            CheckArg(Idx, string_view,  String,  0x00);
+            CheckArg(Idx, int,          SInt,   0x2);
+            CheckArg(Idx, uint64_t,     UInt,   0x3);
+            CheckArg(Idx, void*,        Ptr,    0x1);
+            CheckArg(Idx, char*,        String, 0x4);
+            CheckArg(Idx, double,       Float,  0x3);
+            CheckArg(Idx, char32_t,     Char,   0x2);
+            CheckArg(Idx, string_view,  String, 0x0);
             CheckArgFinish(Idx);
         }
     }
@@ -471,13 +476,13 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
-            CheckArg(Idx, int,          Integer, 0x00 | 0x20);
-            CheckArg(Idx, uint64_t,     Integer, 0x80 | 0x30);
-            CheckArg(Idx, void*,        Pointer, 0x80);
-            CheckArg(Idx, char*,        String,  0x00);
-            CheckArg(Idx, double,       Float,   0x30);
-            CheckArg(Idx, char32_t,     Char,    0x20);
-            CheckArg(Idx, string_view,  String,  0x00);
+            CheckArg(Idx, int,          SInt,   0x2);
+            CheckArg(Idx, uint64_t,     UInt,   0x3);
+            CheckArg(Idx, void*,        Ptr,    0x1);
+            CheckArg(Idx, char*,        String, 0x4);
+            CheckArg(Idx, double,       Float,  0x3);
+            CheckArg(Idx, char32_t,     Char,   0x2);
+            CheckArg(Idx, string_view,  String, 0x0);
             CheckArgFinish(Idx);
         }
     }
@@ -486,8 +491,8 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.IdxArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
-            CheckArg(Named, int,            Integer, 0x00 | 0x20, "x");
-            CheckArg(Named, const char*,    String,  0x00,        "y");
+            CheckArg(Named, int,         SInt,   0x2, "x");
+            CheckArg(Named, const char*, String, 0x4, "y");
             CheckArgFinish(Named);
         }
     }
@@ -496,8 +501,8 @@ TEST(Format, ParseArg)
         EXPECT_EQ(ret.IdxArgCount, static_cast<uint8_t>(0));
         {
             uint8_t idx = 0;
-            CheckArg(Named, int,            Integer, 0x00 | 0x20, "");
-            CheckArg(Named, const char*,    String,  0x00,        "");
+            CheckArg(Named, int,         SInt,   0x2, "");
+            CheckArg(Named, const char*, String, 0x4, "");
             CheckArgFinish(Named);
         }
     }
@@ -506,25 +511,25 @@ TEST(Format, ParseArg)
             u"x", WithName("x", 13), 1.0f, WithName("y", "y"), uint8_t(3));
         {
             uint8_t idx = 0;
-            CheckArg(Idx, int,          Integer, 0x00 | 0x20);
-            CheckArg(Idx, uint64_t,     Integer, 0x80 | 0x30);
-            CheckArg(Idx, char16_t*,    String,  0x10);
-            CheckArg(Idx, float,        Float,   0x20);
-            CheckArg(Idx, uint8_t,      Integer, 0x80 | 0x00);
+            CheckArg(Idx, int,       SInt,   0x2);
+            CheckArg(Idx, uint64_t,  UInt,   0x3);
+            CheckArg(Idx, char16_t*, String, 0x5);
+            CheckArg(Idx, float,     Float,  0x2);
+            CheckArg(Idx, uint8_t,   UInt,   0x0);
             CheckArgFinish(Idx);
         }
         {
             uint8_t idx = 0;
-            CheckArg(Named, int,            Integer, 0x00 | 0x20, "x");
-            CheckArg(Named, const char*,    String,  0x00,        "y");
-            CheckArg(Named, int,            Integer, 0x00 | 0x20, "");
-            CheckArg(Named, const char*,    String,  0x00,        "");
+            CheckArg(Named, int,         SInt,   0x2, "x");
+            CheckArg(Named, const char*, String, 0x4, "y");
+            CheckArg(Named, int,         SInt,   0x2, "");
+            CheckArg(Named, const char*, String, 0x4, "");
             CheckArgFinish(Named);
         }
     }
 }
 
-using ArgTypePair = std::pair<ArgType, ArgType>;
+using ArgTypePair = std::pair<ArgDispType, ArgRealType>;
 TEST(Format, CheckArg)
 {
     {
@@ -553,7 +558,7 @@ TEST(Format, CheckArg)
         {
             EXPECT_TRUE(true) << common::str::to_string(be.Message());
             EXPECT_EX_RES(be, uint32_t, "arg"sv, 1u);
-            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgType::Float, ArgType::String }));
+            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgDispType::Float, ArgRealType::String }));
         }
     }
     {
@@ -577,7 +582,7 @@ TEST(Format, CheckArg)
         {
             EXPECT_TRUE(true) << common::str::to_string(be.Message());
             EXPECT_EX_RES(be, std::string_view, "arg"sv, "x"sv);
-            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgType::String, ArgType::Integer }));
+            EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgDispType::String, ArgRealType::SInt }));
         }
     }
     {
@@ -585,3 +590,31 @@ TEST(Format, CheckArg)
         EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{}{x}"), 1234, "str", NAMEARG("x")(13)));
     }
 }
+
+TEST(Format, PackArg)
+{
+    std::string_view var0 = "x"sv;
+    uint64_t var1 = 256;
+    int16_t var2 = -8;
+}
+
+
+template<typename T, typename... Args>
+std::string ToString(T&& strInfo, Args&&... args)
+{
+    constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
+    const auto mapping = ArgChecker::CheckDD(strInfo, ArgsInfo);
+    auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
+    argPack.Mapper = mapping;
+    std::string ret;
+    FormatterBase::FormatTo(Formatter{}, ret, strInfo, ArgsInfo, argPack);
+    return ret;
+}
+TEST(Format, Formating)
+{
+    {
+        const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
+        EXPECT_EQ(ret, "hello,world, Hello,_World_");
+    }
+}
+
