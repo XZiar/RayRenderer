@@ -1,6 +1,7 @@
 #include "oglPch.h"
 #include "oglUtil.h"
 #include "SystemCommon/HResultHelper.h"
+#include "SystemCommon/MiscIntrins.h"
 
 #undef APIENTRY
 #define WIN32_LEAN_AND_MEAN 1
@@ -14,6 +15,31 @@
 #pragma message("Compiling OpenGLUtil with wgl-ext[" STRINGIZE(WGL_WGLEXT_VERSION) "]")
 //#pragma comment(lib, "opengl32.lib")// link Microsoft OpenGL lib
 //#pragma comment(lib, "glu32.lib")// link OpenGL Utility lib
+
+#ifndef NTSTATUS
+using NTSTATUS = LONG;
+using D3DDDI_VIDEO_PRESENT_SOURCE_ID = UINT;
+constexpr NTSTATUS STATUS_SUCCESS = 0x00000000L;
+constexpr NTSTATUS STATUS_BUFFER_TOO_SMALL = 0xC0000023;
+#endif
+
+#define THROW_HR(eval, msg) if (const common::HResultHolder hr___ = eval; !hr___) \
+    COMMON_THROWEX(common::BaseException, msg).Attach("HResult", hr___).Attach("detail", hr___.ToStr())
+
+typedef _Check_return_ HRESULT(APIENTRY* PFN_DXCoreCreateAdapterFactory)(REFIID riid, _COM_Outptr_ void** ppvFactory);
+
+typedef struct _D3DKMT_OPENADAPTERFROMHDC {
+    HDC hDc;            // in:  DC that maps to a single display
+    UINT hAdapter;      // out: adapter handle
+    LUID AdapterLuid;   // out: adapter LUID
+    D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId; // out: VidPN source ID for that particular display
+} D3DKMT_OPENADAPTERFROMHDC;
+
+typedef _Check_return_ NTSTATUS(APIENTRY* PFN_D3DKMTOpenAdapterFromHdc)(const D3DKMT_OPENADAPTERFROMHDC* unnamedParam1);
+
+
+
+#define APPEND_FMT(str, syntax, ...) fmt::format_to(std::back_inserter(str), FMT_STRING(syntax), __VA_ARGS__)
 
 namespace oglu
 {
@@ -48,7 +74,7 @@ DEFINE_FUNC(wglDeleteContext,       DeleteContext);
 DEFINE_FUNC(wglGetCurrentDC,        GetCurrentDC);
 DEFINE_FUNC(wglGetCurrentContext,   GetCurrentContext);
 DEFINE_FUNC(wglGetProcAddress,      GetProcAddress);
-
+DEFINE_FUNC2(PFN_D3DKMTOpenAdapterFromHdc, D3DKMTOpenAdapterFromHdc, OpenAdapterFromHdc);
 
 class WGLLoader_ final : public WGLLoader
 {
@@ -60,6 +86,19 @@ private:
         PFNWGLCREATECONTEXTATTRIBSARBPROC CreateContextAttribsARB = nullptr;
         WGLHost(WGLLoader_& loader, HDC dc) noexcept : WGLLoader::WGLHost(loader), DeviceContext(dc)
         {
+            if (loader.OpenAdapterFromHdc)
+            {
+                D3DKMT_OPENADAPTERFROMHDC openFromHdc = {};
+                openFromHdc.hDc = DeviceContext;
+                const auto ret = loader.OpenAdapterFromHdc(&openFromHdc);
+                if (ret == STATUS_SUCCESS)
+                {
+                    std::array<std::byte, 8> luid = { std::byte(0) };
+                    memcpy_s(luid.data(), luid.size(), &openFromHdc.AdapterLuid, sizeof(openFromHdc.AdapterLuid));
+                    CommonDev = xcomp::LocateDevice(&luid, nullptr, nullptr, nullptr, nullptr, {});
+                    //oglLog().verbose(u"KMTAdapter-LUID[{}] for HDC[{}].\n", common::MiscIntrin.HexToStr(luid), hdc_);
+                }
+            }
             SupportDesktop = true;
             if (const auto funcARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)loader.GetProcAddress("wglGetExtensionsStringARB"))
             {
@@ -141,6 +180,7 @@ private:
     DECLARE_FUNC(ChoosePixelFormat);
     DECLARE_FUNC(SetPixelFormat);
     DECLARE_FUNC(SwapBuffers);
+    DECLARE_FUNC(OpenAdapterFromHdc);
     DECLARE_FUNC(CreateContext);
     DECLARE_FUNC(MakeCurrent);
     DECLARE_FUNC(DeleteContext);
@@ -154,12 +194,27 @@ public:
         LOAD_FUNC(GDI, ChoosePixelFormat);
         LOAD_FUNC(GDI, SetPixelFormat);
         LOAD_FUNC(GDI, SwapBuffers);
+        TrLd_FUNC(GDI, OpenAdapterFromHdc);
         LOAD_FUNC(OGL, CreateContext);
         LOAD_FUNC(OGL, MakeCurrent);
         LOAD_FUNC(OGL, DeleteContext);
         LOAD_FUNC(OGL, GetCurrentDC);
         LOAD_FUNC(OGL, GetCurrentContext);
         LOAD_FUNC(OGL, GetProcAddress);
+        {
+            DISPLAY_DEVICEW dd;
+            dd.cb = sizeof(DISPLAY_DEVICEW);
+            std::u16string infoTxt = u"DisplayDevices:\n";
+            DWORD deviceNum = 0;
+            while (EnumDisplayDevicesW(nullptr, deviceNum, &dd, 0)) 
+            {
+                APPEND_FMT(infoTxt, u"[{}]{}\t[{:7}|{:3}]\n"sv, deviceNum, dd.DeviceName, 
+                    (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) ? u"Primary"sv : u""sv,
+                    (dd.StateFlags & DISPLAY_DEVICE_VGA_COMPATIBLE) ? u"VGA"sv : u""sv);
+                deviceNum++;
+            }
+            oglLog().verbose(infoTxt);
+        }
     }
     ~WGLLoader_() final {}
 private:
@@ -181,10 +236,10 @@ private:
         const auto oldHrc = GetCurrentContext();
         const auto tmpHrc = CreateContext(hdc);
         MakeCurrent(hdc, tmpHrc);
-        auto info = std::make_shared<WGLHost>(*this, hdc);
+        auto host = std::make_shared<WGLHost>(*this, hdc);
         MakeCurrent(oldHdc, oldHrc);
         DeleteContext(tmpHrc);
-        return info;
+        return host;
     }
 
     static inline const auto Dummy = detail::RegisterLoader<WGLLoader_>();

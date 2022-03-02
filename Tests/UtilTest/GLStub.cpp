@@ -52,7 +52,11 @@ template<typename... Args>
 static std::shared_ptr<GLHost> GetHostEGL(oglLoader& loader, [[maybe_unused]] void* dc, Args&&...)
 {
     auto& eglLdr = static_cast<EGLLoader&>(loader);
-    if (eglLdr.GetType() == EGLLoader::EGLType::ANGLE)
+    if (eglLdr.GetType() == EGLLoader::EGLType::ANDROID)
+    {
+        return eglLdr.CreateHostFromAndroid(true);
+    }
+    else if (eglLdr.GetType() == EGLLoader::EGLType::ANGLE)
     {
         std::vector<EGLLoader::AngleBackend> bes;
         constexpr EGLLoader::AngleBackend BEs[] =
@@ -108,6 +112,11 @@ static std::shared_ptr<GLHost> GetHost(oglLoader& loader, const Args&... args)
     return {};
 }
 
+std::u16string CommonDevInfoStr(const xcomp::CommonDeviceInfo& dev)
+{
+    return fmt::format(FMT_STRING(u"[{}] VID[{:#010x}] DID[{:#010x}]"sv),
+        dev.Name, dev.VendorId, dev.DeviceId);
+}
 
 static void OGLStub()
 {
@@ -162,6 +171,10 @@ static void OGLStub()
             continue;
         }
         log().success(u"Init GLHost[{}] version [{}.{}]\n", loader.Name(), host->GetVersion() / 10, host->GetVersion() % 10);
+        if (const auto cmDev = host->GetCommonDevice())
+        {
+            log().success(FMT_STRING(u"Host is on common device: {}\n"sv), CommonDevInfoStr(*cmDev));
+        }
 
         CreateInfo cinfo;
         cinfo.PrintFuncLoadFail = cinfo.PrintFuncLoadSuccess = true;
@@ -192,8 +205,7 @@ static void OGLStub()
         log().info(infotxt);
         if (ctx->XCompDevice)
         {
-            log().success(FMT_STRING(u"Match common device: [{}] VID[{:#010x}] DID[{:#010x}]\n"sv), 
-                ctx->XCompDevice->Name, ctx->XCompDevice->VendorId, ctx->XCompDevice->DeviceId);
+            log().success(FMT_STRING(u"Match common device: {}\n"sv), CommonDevInfoStr(*ctx->XCompDevice));
         }
         log().info(u"{}\n", ctx->Capability->GenerateSupportLog());
         while (true)

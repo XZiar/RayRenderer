@@ -1,5 +1,8 @@
 #include "XCompRely.h"
 #include "common/StaticLookup.hpp"
+#include "SystemCommon/ConsoleEx.h"
+#include "SystemCommon/StringFormat.h"
+#include "SystemCommon/MiscIntrins.h"
 
 #pragma message("Compiling miniBLAS with " STRINGIZE(COMMON_SIMD_INTRIN) )
 
@@ -92,6 +95,86 @@ common::span<const CommonDeviceInfo> ProbeDevice()
     return {};
 }
 #endif
+const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid,
+    const std::array<std::byte, 16>* guid, const PCI_BDF* pcie, const uint32_t* vid, const uint32_t* did,
+    std::u16string_view name)
+{
+    const auto devs = ProbeDevice();
+    const auto& console = common::console::ConsoleEx::Get();
+    const CommonDeviceInfo* ret = nullptr;
+    if (luid || guid || pcie)
+    {
+        for (const auto& dev : devs)
+        {
+            if (pcie && *pcie == dev.PCIEAddress)
+            {
+                ret = &dev;
+                break;
+            }
+            if (luid && *luid == dev.Luid)
+            {
+                ret = &dev;
+                break;
+            }
+            if (guid && *guid == dev.Guid)
+            {
+                ret = &dev;
+                break;
+            }
+        }
+        if (ret)
+        {
+            if (pcie && *pcie != ret->PCIEAddress)
+                console.Print(common::CommonColor::BrightYellow, 
+                    fmt::format(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})\n",
+                        name, *pcie, ret->Name, ret->PCIEAddress));
+            if (luid && *luid != ret->Luid)
+                console.Print(common::CommonColor::BrightYellow,
+                    fmt::format(u"Found luid mismatch for device [{}]({}) to [{}]({})\n",
+                        name, common::MiscIntrin.HexToStr(*luid), ret->Name, common::MiscIntrin.HexToStr(ret->Luid)));
+            if (guid && *guid != ret->Guid)
+                console.Print(common::CommonColor::BrightYellow,
+                    fmt::format(u"Found guid mismatch for device [{}]({}) to [{}]({})\n",
+                        name, common::MiscIntrin.HexToStr(*guid), ret->Name, common::MiscIntrin.HexToStr(ret->Guid)));
+            return ret;
+        }
+    }
+    if (vid || did)
+    {
+        for (const auto& dev : devs)
+        {
+            if ((!vid || *vid == dev.VendorId) && (!did || *did == dev.DeviceId))
+            {
+                if (!ret)
+                    ret = &dev;
+                else // multiple devices have same name, give up
+                {
+                    ret = nullptr;
+                    break;
+                }
+            }
+        }
+        if (ret)
+            return ret;
+    }
+    if (!name.empty())
+    {
+        for (const auto& dev : devs)
+        {
+            if (name == dev.Name)
+            {
+                if (!ret)
+                    ret = &dev;
+                else // multiple devices have same name, give up
+                {
+                    ret = nullptr;
+                    break;
+                }
+            }
+        }
+    }
+    return ret;
+}
 
 
 struct RangeHolder::Range

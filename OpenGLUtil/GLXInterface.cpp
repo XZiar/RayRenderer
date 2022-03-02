@@ -102,6 +102,8 @@ private:
         Display* DeviceContext;
         GLXFBConfig* FBConfigs = nullptr;
         PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = nullptr;
+        PFNGLXQUERYRENDERERINTEGERMESAPROC glXQueryRendererIntegerMESA = nullptr;
+        PFNGLXQUERYRENDERERSTRINGMESAPROC glXQueryRendererStringMESA = nullptr;
         uint32_t Version = 0;
         int VisualId = 0;
         GLXDrawable Drawable = 0;
@@ -112,12 +114,24 @@ private:
             int verMajor = 0, verMinor = 0;
             loader.QueryVersion(dc, &verMajor, &verMinor);
             Version = verMajor * 10 + verMinor;
-            glXCreateContextAttribsARB = GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC>("glXCreateContextAttribsARB");
+            glXCreateContextAttribsARB  = GetFunction<PFNGLXCREATECONTEXTATTRIBSARBPROC> ("glXCreateContextAttribsARB");
+            glXQueryRendererIntegerMESA = GetFunction<PFNGLXQUERYRENDERERINTEGERMESAPROC>("glXQueryRendererIntegerMESA");
+            glXQueryRendererStringMESA  = GetFunction<PFNGLXQUERYRENDERERSTRINGMESAPROC> ("glXQueryRendererStringMESA");
             const char* exts = loader.QueryExtensionsString(DeviceContext, screen);
             Extensions = common::str::Split(exts, ' ', false);
             SupportES = Extensions.Has("GLX_EXT_create_context_es2_profile");
             SupportSRGBFrameBuffer = Extensions.Has("GLX_ARB_framebuffer_sRGB") || Extensions.Has("GLX_EXT_framebuffer_sRGB");
             SupportFlushControl = Extensions.Has("GLX_ARB_context_flush_control");
+            if (Extensions.Has("GLX_MESA_query_renderer") && glXQueryRendererIntegerMESA)
+            {
+                uint32_t mesaVer[3] = { 0 };
+                glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_VERSION_MESA, mesaVer);
+                glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_VENDOR_ID_MESA, &VendorId);
+                glXQueryRendererIntegerMESA(DeviceContext, screen, 0, GLX_RENDERER_DEVICE_ID_MESA, &DeviceId);
+                oglLog().verbose(u"Create host on MESA[{}.{}.{}], device VID[{:#010x}] DID[{:#010x}].\n", 
+                    mesaVer[0], mesaVer[1], mesaVer[2], VendorId, DeviceId);
+                CommonDev = xcomp::LocateDevice(nullptr, nullptr, nullptr, &VendorId, &DeviceId, {});
+            }
         }
         ~GLXHost() final
         {

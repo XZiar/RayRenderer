@@ -1151,14 +1151,15 @@ struct ArgInfo
         if constexpr (std::is_base_of_v<NamedArgTag, T>)
             PackAnArg(pack, arg.Data, idx);
     }
-    template<typename... Args>
-    static ArgPack PackArgs(Args&&... args) noexcept
+    template<typename... Ts>
+    static ArgPack PackArgs(Ts&&... args) noexcept
     {
+        constexpr auto ArgCount = sizeof...(Ts);
         ArgPack pack;
-        pack.Args.resize(sizeof...(Args));
+        pack.Args.resize(ArgCount);
         uint16_t argIdx = 0;
-        (..., PackAnArg     (pack, std::forward<Args>(args), argIdx));
-        (..., PackAnNamedArg(pack, std::forward<Args>(args), argIdx));
+        (..., PackAnArg     (pack, std::forward<Ts>(args), argIdx));
+        (..., PackAnNamedArg(pack, std::forward<Ts>(args), argIdx));
         return pack;
     }
 };

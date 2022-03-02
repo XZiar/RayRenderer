@@ -289,28 +289,6 @@ std::optional<ContextBaseInfo> GLHost::FillBaseInfo(void* hRC) const
     return binfo;
 }
 
-static const xcomp::CommonDeviceInfo* TryGetCommonDev(const CtxFuncs* ctx, 
-    const std::optional<std::array<std::byte, 8>>& luid, const std::optional<std::array<std::byte, 16>>& uuid) noexcept
-{
-    const auto devs = xcomp::ProbeDevice();
-    for (const auto& dev : devs)
-    {
-        if (luid == dev.Luid || uuid == dev.Guid)
-            return &dev;
-    }
-    const xcomp::CommonDeviceInfo* ret = nullptr;
-    for (const auto& dev : devs)
-    {
-        if (dev.Name == ctx->RendererString)
-        {
-            if (!ret)
-                ret = &dev;
-            else // multiple devices have same name, give up
-                return nullptr;
-        }
-    }
-    return nullptr;
-}
 
 CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shouldPrint) : Target(target)
 {
@@ -722,9 +700,14 @@ CtxFuncs::CtxFuncs(void* target, const GLHost& host, std::pair<bool, bool> shoul
         SupportVSMultiLayer     = Extensions.Has("GL_ARB_shader_viewport_layer_array") || Extensions.Has("GL_AMD_vertex_shader_layer");
     }
     
-    const auto luid = GetLUID();
-    const auto uuid = GetUUID();
-    XCompDevice = TryGetCommonDev(this, luid, uuid);
+    XCompDevice = host.CommonDev;
+    if (!XCompDevice)
+    {
+        const auto luid = GetLUID();
+        const auto uuid = GetUUID();
+        XCompDevice = xcomp::LocateDevice(luid ? &*luid : nullptr, uuid ? &*uuid : nullptr, 
+            nullptr, nullptr, nullptr, RendererString);
+    }
 
     GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS,         &MaxUBOUnits);
     GetIntegerv(GL_MAX_IMAGE_UNITS,                     &MaxImageUnits);

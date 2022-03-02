@@ -289,7 +289,7 @@ public:
             oglLog().debug(u"Loaded EGL with client exts:\n{}", extNames);
             if (Extensions.Has("EGL_KHR_platform_android") || Extensions.Has("EGL_ANDROID_GLES_layers"sv))
                 Type = EGLType::ANDROID;
-            if (Extensions.Has("EGL_ANGLE_platform_angle"sv))
+            else if (Extensions.Has("EGL_ANGLE_platform_angle"sv))
                 Type = EGLType::ANGLE;
             else if (Extensions.Has("EGL_MESA_platform_gbm"sv) || Extensions.Has("EGL_MESA_platform_surfaceless"sv))
                 Type = EGLType::MESA;
@@ -491,6 +491,17 @@ private:
                         list.Set(EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_SWIFTSHADER_ANGLE);
                     if (backend == AngleBackend::D3D11 || backend == AngleBackend::D3D11on12)
                         list.Set(EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE, EGL_FALSE);
+                });
+            return CreateFromDisplay(display, useOffscreen);
+        }
+        return {};
+    }
+    std::shared_ptr<EGLLoader::EGLHost> CreateHostFromAndroid(bool useOffscreen) final
+    {
+        if (CheckSupportPlatformDisplay())
+        {
+            EGLDisplay display = GetPlatformDisplayCombine(EGL_PLATFORM_ANDROID_KHR, EGL_DEFAULT_DISPLAY, [&](auto&)
+                {
                 });
             return CreateFromDisplay(display, useOffscreen);
         }

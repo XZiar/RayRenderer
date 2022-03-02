@@ -43,6 +43,8 @@ private:
 protected:
     oglLoader& Loader;
     common::container::FrozenDenseSet<std::string_view> Extensions;
+    const xcomp::CommonDeviceInfo* CommonDev = nullptr;
+    uint32_t VendorId = 0, DeviceId = 0;
     std::atomic_uint16_t VersionDesktop = 0, VersionES = 0;
     bool SupportDesktop : 1;
     bool SupportES : 1;
@@ -68,6 +70,10 @@ public:
         case GLType::ES:      return SupportES;
         default:              return false;
         }
+    }
+    [[nodiscard]] constexpr const xcomp::CommonDeviceInfo* GetCommonDevice() const noexcept
+    {
+        return CommonDev;
     }
     [[nodiscard]] std::shared_ptr<oglContext_> CreateContext(const CreateInfo& cinfo)
     {
@@ -171,6 +177,7 @@ public:
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromXcb(void* connection, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromX11(void* display, std::optional<int32_t> screen, bool useOffscreen) = 0;
     [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAngle(void* display, AngleBackend backend, bool useOffscreen) = 0;
+    [[nodiscard]] virtual std::shared_ptr<EGLHost> CreateHostFromAndroid(bool useOffscreen) = 0;
 };
 
 class EAGLLoader : public oglLoader

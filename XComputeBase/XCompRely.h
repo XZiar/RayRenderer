@@ -165,6 +165,9 @@ struct CommonDeviceInfo
     PCI_BDF PCIEAddress;
 };
 XCOMPBASAPI common::span<const CommonDeviceInfo> ProbeDevice();
+XCOMPBASAPI const CommonDeviceInfo* LocateDevice(const std::array<std::byte, 8>* luid, 
+    const std::array<std::byte, 16>* guid, const PCI_BDF* pcie, const uint32_t* vid, const uint32_t* did,
+    std::u16string_view name);
 
 
 struct XCOMPBASAPI RangeHolder
