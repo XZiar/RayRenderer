@@ -89,7 +89,7 @@ std::u32string_view StringifyVDataType(const VTypeInfo vtype) noexcept
 }
 
 
-#if !COMMON_OS_WIN
+#if !COMMON_OS_WIN && !COMMON_OS_LINUX
 common::span<const CommonDeviceInfo> ProbeDevice()
 {
     return {};

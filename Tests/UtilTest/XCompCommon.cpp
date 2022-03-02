@@ -1,11 +1,29 @@
 #include "XCompCommon.h"
 #include "SystemCommon/StringConvert.h"
+#include "SystemCommon/ConsoleEx.h"
 #include "Nailang/NailangAutoVar.h"
 
 using namespace xziar::nailang;
 using namespace xcomp;
 using namespace std::string_view_literals;
 using common::str::Encoding;
+
+
+void PrintCommonDevice()
+{
+    [[maybe_unused]] static auto dummy = []() 
+    {
+        std::u16string str = u"Common Devices:\n";
+        for (const auto& dev : xcomp::ProbeDevice())
+        {
+            APPEND_FMT(str, u"[{}][VID {:#010x} DID {:#010x}]{} [{}][{}]\n"sv,
+                dev.PCIEAddress, dev.VendorId, dev.DeviceId, dev.Name, 
+                common::MiscIntrin.HexToStr(dev.Guid), common::MiscIntrin.HexToStr(dev.Luid));
+        }
+        common::console::ConsoleEx::Get().Print(common::CommonColor::BrightWhite, str);
+        return 0;
+    }();
+}
 
 
 std::u16string_view RunArgInfo::GetTypeName(const ArgType type) noexcept

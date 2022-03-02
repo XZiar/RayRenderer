@@ -12,6 +12,7 @@
     {
         "cpp":
         {
+            "incpath": ["$(usrDir)/include/drm"],
             "sources": ["*.cpp", {"-": "DeviceDiscoveryWin32.cpp"}],
             "defines": ["XCOMPBAS_EXPORT"]
         }

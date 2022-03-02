@@ -155,6 +155,7 @@ struct VecDimSupport
 struct CommonDeviceInfo
 {
     std::u16string Name;
+    std::u16string DevicePath;
     std::u16string OpenGLICDPath;
     std::u16string OpenCLICDPath;
     std::u16string VulkanICDPath;

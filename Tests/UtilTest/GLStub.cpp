@@ -120,7 +120,7 @@ std::u16string CommonDevInfoStr(const xcomp::CommonDeviceInfo& dev)
 
 static void OGLStub()
 {
-    [[maybe_unused]] const auto commondevs = xcomp::ProbeDevice();
+    PrintCommonDevice();
     const auto loaders = oglLoader::GetLoaders();
     if (loaders.size() == 0)
     {

@@ -93,3 +93,6 @@ public:
     virtual ~XCStubHelper();
     std::unique_ptr<xcomp::XCNLExtension> GenerateExtension(xcomp::XCNLContext& context, RunInfo& info) const;
 };
+
+
+void PrintCommonDevice();

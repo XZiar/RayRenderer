@@ -363,6 +363,7 @@ static void TestOCL(oclDevice dev, oclContext ctx, std::string fpath)
 
 static void OCLStub()
 {
+    PrintCommonDevice();
     const auto commondevs = xcomp::ProbeDevice();
     const auto plats = oclPlatform_::GetPlatforms();
     if (plats.size() == 0)

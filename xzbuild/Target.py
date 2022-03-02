@@ -23,7 +23,10 @@ class BuildTarget(metaclass=abc.ABCMeta):
         pass
 
     def porcPathDefine(self, path:str):
-        return os.path.normpath(path.replace("$(SolutionDir)", self.solDir).replace("$(BuildDir)", self.buildDir))
+        path = path.replace("$(SolutionDir)", self.solDir)
+        path = path.replace("$(BuildDir)", self.buildDir)
+        path = path.replace("$(usrDir)", os.environ.get("PREFIX", "/usr"))
+        return os.path.normpath(path)
     
     def write(self, file):
         file.write(f"\n\n# For target [{self.prefix()}]\n")

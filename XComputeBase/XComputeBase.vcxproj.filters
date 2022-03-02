@@ -44,6 +44,9 @@
     <ClCompile Include="DeviceDiscoveryWin32.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="DeviceDiscoveryLinux.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="xzbuild.proj.json" />
