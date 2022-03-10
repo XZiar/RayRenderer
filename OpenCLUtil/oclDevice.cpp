@@ -81,62 +81,6 @@ oclDevice_::oclDevice_(const oclPlatform_* plat, void* dID) : detail::oclCommon(
     Extensions = common::str::Split(GetStr(Funcs, *DeviceID, CL_DEVICE_EXTENSIONS), ' ', false);
 }
 
-static const xcomp::CommonDeviceInfo* TryGetCommonDev(const oclDevice_& target)
-{
-    const auto devs = xcomp::ProbeDevice();
-    const auto pcie = target.PCIEAddress;
-    const auto luid = target.GetLUID();
-    const auto guid = target.GetUUID();
-    const xcomp::CommonDeviceInfo* ret = nullptr;
-    if (!pcie && !luid && !guid)
-    {
-        for (const auto& dev : devs)
-        {
-            if (target.Name == dev.Name)
-            {
-                if (!ret)
-                    ret = &dev;
-                else // multiple devices have same name, give up
-                    return nullptr;
-            }
-        }
-    }
-    else
-    {
-        for (const auto& dev : devs)
-        {
-            if (pcie && pcie == dev.PCIEAddress)
-            {
-                ret = &dev;
-                break;
-            }
-            if (luid && *luid == dev.Luid)
-            {
-                ret = &dev;
-                break;
-            }
-            if (guid && *guid == dev.Guid)
-            {
-                ret = &dev;
-                break;
-            }
-        }
-        if (ret)
-        {
-            if (pcie && pcie != ret->PCIEAddress)
-                oclLog().warning(u"Found pcie-addr mismatch for device [{}]({}) to [{}]({})",
-                    target.Name, pcie, ret->Name, ret->PCIEAddress);
-            if (luid && *luid == ret->Luid)
-                oclLog().warning(u"Found luid mismatch for device [{}]({}) to [{}]({})",
-                    target.Name, common::MiscIntrin.HexToStr(*luid), ret->Name, common::MiscIntrin.HexToStr(ret->Luid));
-            if (guid && *guid == ret->Guid)
-                oclLog().warning(u"Found guid mismatch for device [{}]({}) to [{}]({})",
-                    target.Name, common::MiscIntrin.HexToStr(*guid), ret->Name, common::MiscIntrin.HexToStr(ret->Guid));
-        }
-    }
-    return ret;
-}
-
 void oclDevice_::Init()
 {
     F64Caps = static_cast<FPConfig>(GetNum<uint64_t>(Funcs, *DeviceID, CL_DEVICE_DOUBLE_FP_CONFIG));
@@ -185,7 +129,12 @@ void oclDevice_::Init()
             PCIEAddress = { pciinfo.pci_bus, pciinfo.pci_device, pciinfo.pci_function };
         }
     }
-    XCompDevice = TryGetCommonDev(*this);
+    {
+        const auto luid = GetLUID();
+        const auto guid = GetUUID();
+        XCompDevice = xcomp::LocateDevice(luid ? &*luid : nullptr, guid ? &*guid : nullptr, PCIEAddress ? &PCIEAddress : nullptr,
+            VendorId ? &VendorId : nullptr, nullptr, Name);
+    }
 
     const auto props        = GetNum<cl_command_queue_properties>(Funcs, *DeviceID, CL_DEVICE_QUEUE_PROPERTIES);
     SupportProfiling        = (props & CL_QUEUE_PROFILING_ENABLE) != 0;
