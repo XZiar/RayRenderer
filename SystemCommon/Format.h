@@ -692,7 +692,7 @@ struct ParseResult
         }
         // enhanced type check
         ArgDispType gneralType = ArgDispType::Any;
-        if (fmtSpec.ZeroPad)
+        if (fmtSpec.ZeroPad || fmtSpec.SignFlag != FormatSpec::Sign::None)
             gneralType = ArgDispType::Numeric;
         const auto newType = CheckCompatible(gneralType, fmtSpec.Type.Type);
         if (!newType)
@@ -972,7 +972,7 @@ struct ArgPack
 enum class ArgRealType : uint8_t
 {
     BaseTypeMask = 0xf0, SizeMask8 = 0b111, SizeMask4 = 0b11, SpanBit = 0b1000,
-    Error = 0x00, Custom = 0x01, Ptr = 0x02, Bool = 0x04, PtrVoidBit = 0b1,
+    Error = 0x00, Custom = 0x01, Ptr = 0x02, PtrVoid = 0x03, Bool = 0x04,
     TypeSpecial = 0x00, SpecialMax = Bool,
     SInt    = 0x10,
     UInt    = 0x20,
@@ -1055,19 +1055,19 @@ struct ArgInfo
             if constexpr (CheckCharType<X>())
                 return ArgRealType::String | ArgRealType::StrPtrBit | GetCharTypeData<X>();
             else
-                return (std::is_same_v<X, void> ? ArgRealType::PtrVoidBit : ArgRealType::Empty) | ArgRealType::Ptr;
+                return std::is_same_v<X, void> ? ArgRealType::PtrVoid : ArgRealType::Ptr;
         }
         else if constexpr (std::is_floating_point_v<U>)
         {
             return ArgRealType::Float | EncodeTypeSizeData<U>();
         }
-        else if constexpr (std::is_integral_v<U>)
-        {
-            return (std::is_unsigned_v<U> ? ArgRealType::UInt : ArgRealType::SInt) | EncodeTypeSizeData<U>();
-        }
         else if constexpr (std::is_same_v<U, bool>)
         {
             return ArgRealType::Bool;
+        }
+        else if constexpr (std::is_integral_v<U>)
+        {
+            return (std::is_unsigned_v<U> ? ArgRealType::UInt : ArgRealType::SInt) | EncodeTypeSizeData<U>();
         }
         else
         {
@@ -1118,13 +1118,7 @@ struct ArgInfo
             }
             else if constexpr (std::is_pointer_v<U>)
             {
-                using X = std::decay_t<std::remove_pointer_t<U>>;
-                if constexpr (CheckCharType<X>())
-                {
-                    pack.Put(std::pair{ reinterpret_cast<uintptr_t>(arg), std::char_traits<X>::length(arg) }, idx);
-                }
-                else
-                    pack.Put(reinterpret_cast<uintptr_t>(arg), idx);
+                pack.Put(reinterpret_cast<uintptr_t>(arg), idx);
             }
             else if constexpr (std::is_floating_point_v<U>)
             {
@@ -1315,6 +1309,11 @@ private:
     /*virtual*/ void PutString(std::string& ret, std::   string_view str, const FormatSpec* spec) const;
     /*virtual*/ void PutString(std::string& ret, std::u16string_view str, const FormatSpec* spec) const;
     /*virtual*/ void PutString(std::string& ret, std::u32string_view str, const FormatSpec* spec) const;
+    /*virtual*/ void PutInteger(std::string& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const;
+    /*virtual*/ void PutInteger(std::string& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const;
+    /*virtual*/ void PutFloat(std::string& ret, float val, const FormatSpec* spec) const;
+    /*virtual*/ void PutFloat(std::string& ret, double val, const FormatSpec* spec) const;
+    /*virtual*/ void PutPointer(std::string& ret, uintptr_t val, const FormatSpec* spec) const;
 public:
 };
 

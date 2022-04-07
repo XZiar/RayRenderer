@@ -591,11 +591,28 @@ TEST(Format, CheckArg)
     }
 }
 
+template<typename T>
+void CheckPackedArg(const ArgPack& pack, uint16_t idx, const T& val)
+{
+    const auto offset = pack.Args[idx];
+    const auto ptr = reinterpret_cast<const T*>(&pack.Args[offset]);
+    EXPECT_EQ(*ptr, val);
+}
+
 TEST(Format, PackArg)
 {
     std::string_view var0 = "x"sv;
     uint64_t var1 = 256;
     int16_t var2 = -8;
+    const auto var3 = U"y";
+    {
+        const auto pack = ArgInfo::PackArgs(var0, var1, var2, var3);
+        ASSERT_GT(pack.Args.size(), 4u);
+        CheckPackedArg(pack, 0, var0);
+        CheckPackedArg(pack, 1, var1);
+        CheckPackedArg(pack, 2, var2);
+        CheckPackedArg(pack, 3, var3);
+    }
 }
 
 
@@ -615,6 +632,19 @@ TEST(Format, Formating)
     {
         const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
         EXPECT_EQ(ret, "hello,world, Hello,_World_");
+    }
+    {
+        const auto ret = ToString(FmtString("{},{x},{:b},{:#X},{:05o}"), 13, NAMEARG("x")(-99), uint8_t(64), int64_t(65535), 042);
+        EXPECT_EQ(ret, "13,-99,1000000,0XFFFF,00042");
+    }
+    {
+        const auto ret = ToString(FmtString("{},{x},{:g},{:f},{:+010.4g}"), 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
+        EXPECT_EQ(ret, "0,392.65,4.9014e+06,-392.500000,+0000392.6");
+    }
+    {
+        const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
+        const auto ret = ToString(FmtString("{},{}"), ptr, false);
+        EXPECT_EQ(ret, "0x1,false");
     }
 }
 

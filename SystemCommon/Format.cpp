@@ -3,6 +3,8 @@
 #include "Exceptions.h"
 #include "StringFormat.h"
 #include "StringConvert.h"
+#define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
+#include "3rdParty/half/half.hpp"
 
 namespace common::str::exp
 {
@@ -56,31 +58,103 @@ ArgPack::NamedMapper ArgChecker::CheckDD(const StrArgInfo& strInfo, const ArgInf
 struct FormatterHelper : public FormatterBase
 {
     template<typename Char>
-    static constexpr fmt::basic_format_specs<Char> ConvertSpec(const FormatSpec& in)
+    static forceinline constexpr fmt::basic_format_specs<Char> ConvertSpecBasic(const FormatSpec& in) noexcept
     {
         fmt::basic_format_specs<Char> spec;
         spec.width = in.Width;
         spec.precision = static_cast<int32_t>(in.Precision);
         spec.alt = in.AlterForm;
         spec.localized = false;
-        spec.fill[0] = static_cast<Char>(in.Fill);
-        switch (in.Alignment)
+        if (in.ZeroPad)
         {
-        case FormatSpec::Align::None:   spec.align = fmt::align::none;   break;
-        case FormatSpec::Align::Left:   spec.align = fmt::align::left;   break;
-        case FormatSpec::Align::Middle: spec.align = fmt::align::center; break;
-        case FormatSpec::Align::Right:  spec.align = fmt::align::right;  break;
-        default: break;
+            spec.fill[0] = static_cast<Char>('0');
+            spec.align = fmt::align::numeric;
         }
-        switch (in.SignFlag)
+        else
         {
-        case FormatSpec::Sign::None:  spec.sign = fmt::sign::none;  break;
-        case FormatSpec::Sign::Neg:   spec.sign = fmt::sign::minus; break;
-        case FormatSpec::Sign::Pos:   spec.sign = fmt::sign::plus;  break;
-        case FormatSpec::Sign::Space: spec.sign = fmt::sign::space; break;
-        default: break;
+            spec.fill[0] = static_cast<Char>(in.Fill);
+            switch (in.Alignment)
+            {
+            default: 
+            case FormatSpec::Align::None:   spec.align = fmt::align::none;   break;
+            case FormatSpec::Align::Left:   spec.align = fmt::align::left;   break;
+            case FormatSpec::Align::Middle: spec.align = fmt::align::center; break;
+            case FormatSpec::Align::Right:  spec.align = fmt::align::right;  break;
+            }
         }
+        spec.sign = fmt::sign::none;
         return spec;
+    }
+    static forceinline constexpr fmt::sign_t ConvertSpecSign(const FormatSpec* spec) noexcept
+    {
+        if (!spec) return fmt::sign::none;
+        switch (spec->SignFlag)
+        {
+        default:
+        case Formatter::FormatSpec::Sign::None:  return fmt::sign::none;
+        case Formatter::FormatSpec::Sign::Neg:   return fmt::sign::minus;
+        case Formatter::FormatSpec::Sign::Pos:   return fmt::sign::plus;
+        case Formatter::FormatSpec::Sign::Space: return fmt::sign::space;
+        }
+    }
+    static forceinline constexpr uint32_t ConvertSpecIntSign(const FormatSpec* spec) noexcept
+    {
+        if (!spec) return 0;
+        constexpr const uint32_t Prefixes[4] = { 0, 0, 0x1000000u | '+', 0x1000000u | ' ' };
+        switch (spec->SignFlag)
+        {
+        default:
+        case Formatter::FormatSpec::Sign::None:  return Prefixes[fmt::sign::none];
+        case Formatter::FormatSpec::Sign::Neg:   return Prefixes[fmt::sign::minus];
+        case Formatter::FormatSpec::Sign::Pos:   return Prefixes[fmt::sign::plus];
+        case Formatter::FormatSpec::Sign::Space: return Prefixes[fmt::sign::space];
+        }
+    }
+    static forceinline constexpr fmt::presentation_type ConvertSpecIntPresent(const FormatSpec* spec) noexcept
+    {
+        if (!spec) return fmt::presentation_type::none;
+        // dbBoxX
+        constexpr fmt::presentation_type Types[] = 
+        {
+            fmt::presentation_type::dec,
+            fmt::presentation_type::bin_lower,
+            fmt::presentation_type::bin_upper,
+            fmt::presentation_type::oct,
+            fmt::presentation_type::hex_lower,
+            fmt::presentation_type::hex_upper,
+        };
+        return Types[spec->TypeExtra];
+    }
+    static forceinline constexpr fmt::presentation_type ConvertSpecFloatPresent(const FormatSpec* spec) noexcept
+    {
+        if (!spec) return fmt::presentation_type::none;
+        // gGaAeEfF
+        constexpr fmt::presentation_type Types[] =
+        {
+            fmt::presentation_type::general_lower,
+            fmt::presentation_type::general_upper,
+            fmt::presentation_type::hexfloat_lower,
+            fmt::presentation_type::hexfloat_upper,
+            fmt::presentation_type::exp_lower,
+            fmt::presentation_type::exp_upper,
+            fmt::presentation_type::fixed_lower,
+            fmt::presentation_type::fixed_upper,
+        };
+        return Types[spec->TypeExtra];
+    }
+    template<typename T>
+    static forceinline uint32_t ProcessIntSign(T& val, bool isSigned, const FormatSpec* spec) noexcept
+    {
+        using S = std::conditional_t<std::is_same_v<T, uint32_t>, int32_t, int64_t>;
+        if (const auto signedVal = static_cast<S>(val); isSigned && signedVal < 0)
+        {
+            val = static_cast<T>(S(0) - signedVal);
+            return 0x01000000 | '-';
+        }
+        else
+        {
+            return ConvertSpecIntSign(spec);
+        }
     }
 };
 
@@ -89,7 +163,7 @@ void Formatter::PutString(std::string& ret, std::   string_view str, const Forma
 {
     if (spec)
     {
-        auto fmtSpec = FormatterHelper::ConvertSpec<char>(*spec);
+        auto fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
         fmtSpec.type = fmt::presentation_type::string;
         fmt::detail::write<char>(std::back_inserter(ret), str, fmtSpec);
         //fmt::format_to(std::back_inserter(ret), "");
@@ -104,6 +178,64 @@ void Formatter::PutString(std::string& ret, std::u16string_view str, const Forma
 void Formatter::PutString(std::string& ret, std::u32string_view str, const FormatSpec* spec) const
 {
     return PutString(ret, str::to_string(str, str::Encoding::UTF8), spec);
+}
+
+template<typename T>
+forceinline std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexcept
+{
+    const auto arg = reinterpret_cast<const T*>(ptr);
+    if (len == SIZE_MAX)
+        len = std::char_traits<T>::length(arg);
+    return { arg, len };
+}
+
+void Formatter::PutInteger(std::string& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const
+{
+    fmt::basic_format_specs<char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+    fmtSpec.type = FormatterHelper::ConvertSpecIntPresent(spec);
+    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec);
+    fmt::detail::write_int_arg<uint32_t> arg { val, prefix };
+    fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+}
+void Formatter::PutInteger(std::string& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const
+{
+    fmt::basic_format_specs<char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+    fmtSpec.type = FormatterHelper::ConvertSpecIntPresent(spec);
+    const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec);
+    fmt::detail::write_int_arg<uint64_t> arg{ val, prefix };
+    fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
+}
+
+void Formatter::PutFloat(std::string& ret, float val, const FormatSpec* spec) const
+{
+    fmt::basic_format_specs<char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+    fmtSpec.type = FormatterHelper::ConvertSpecFloatPresent(spec);
+    fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec);
+    fmt::detail::write(std::back_inserter(ret), val, fmtSpec, {});
+}
+void Formatter::PutFloat(std::string& ret, double val, const FormatSpec* spec) const
+{
+    fmt::basic_format_specs<char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+    fmtSpec.type = FormatterHelper::ConvertSpecFloatPresent(spec);
+    fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec);
+    fmt::detail::write(std::back_inserter(ret), val, fmtSpec, {});
+}
+
+void Formatter::PutPointer(std::string& ret, uintptr_t val, const FormatSpec* spec) const
+{
+    fmt::basic_format_specs<char> fmtSpec = {};
+    if (spec)
+        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+    fmtSpec.type = fmt::presentation_type::pointer;
+    fmt::detail::write_ptr<char>(std::back_inserter(ret), val, &fmtSpec);
 }
 
 void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack& argPack)
@@ -233,22 +365,27 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
                 spec->Width     = static_cast<uint16_t>(ValLenReader(opPtr, widthSize, 0));
                 opPtr += widthSize;
             }
+            const auto specPtr = spec ? &*spec : nullptr;
             switch (realType)
             {
             case ArgRealType::String:
             {
-                const auto specPtr = spec ? &*spec : nullptr;
-                const auto [ptr, len] = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
+                uintptr_t ptr = 0; 
+                size_t len = SIZE_MAX;
+                if (enum_cast(argType & ArgRealType::StrPtrBit))
+                    ptr = *reinterpret_cast<const uintptr_t*>(argPtr);
+                else
+                    std::tie(ptr, len) = *reinterpret_cast<const std::pair<uintptr_t, size_t>*>(argPtr);
                 switch (enum_cast(argType & ArgRealType::SizeMask4))
                 {
                 case 0x0:
-                    formatter.PutString(ret, std::   string_view{ reinterpret_cast<const char    *>(ptr), len }, specPtr);
+                    formatter.PutString(ret, BuildStr<char    >(ptr, len), specPtr);
                     break;
                 case 0x1:
-                    formatter.PutString(ret, std::u16string_view{ reinterpret_cast<const char16_t*>(ptr), len }, specPtr);
+                    formatter.PutString(ret, BuildStr<char16_t>(ptr, len), specPtr);
                     break;
                 case 0x2:
-                    formatter.PutString(ret, std::u32string_view{ reinterpret_cast<const char32_t*>(ptr), len }, specPtr);
+                    formatter.PutString(ret, BuildStr<char32_t>(ptr, len), specPtr);
                     break;
                 default:
                     break;
@@ -256,7 +393,6 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
             } break;
             case ArgRealType::Char:
             {
-                const auto specPtr = spec ? &*spec : nullptr;
                 switch (enum_cast(argType & ArgRealType::SizeMask4))
                 {
                 case 0x0:
@@ -277,6 +413,55 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
                 default:
                     break;
                 }
+            } break;
+            case ArgRealType::SInt:
+            case ArgRealType::UInt:
+            {
+                const auto isSigned = realType == ArgRealType::SInt;
+                const auto size = enum_cast(argType & ArgRealType::SizeMask8);
+                if (size <= 2) // 32bit
+                {
+                    uint32_t val = 0;
+                    switch (size)
+                    {
+                    case 0x0: val = *reinterpret_cast<const uint8_t *>(argPtr); break;
+                    case 0x1: val = *reinterpret_cast<const uint16_t*>(argPtr); break;
+                    case 0x2: val = *reinterpret_cast<const uint32_t*>(argPtr); break;
+                    default: break;
+                    }
+                    formatter.PutInteger(ret, val, isSigned, specPtr);
+                }
+                else
+                {
+                    const auto val = *reinterpret_cast<const uint64_t*>(argPtr);
+                    formatter.PutInteger(ret, val, isSigned, specPtr);
+                }
+            } break;
+            case ArgRealType::Float:
+            {
+                const auto size = enum_cast(argType & ArgRealType::SizeMask4);
+                if (size <= 2) // 32bit
+                {
+                    const float val = size == 2 ? *reinterpret_cast<const float*>(argPtr) :
+                        *reinterpret_cast<const half_float::half*>(argPtr);
+                    formatter.PutFloat(ret, val, specPtr);
+                }
+                else
+                {
+                    const auto val = *reinterpret_cast<const double*>(argPtr);
+                    formatter.PutFloat(ret, val, specPtr);
+                }
+            } break;
+            case ArgRealType::Bool:
+            {
+                const bool val = *reinterpret_cast<const uint8_t*>(argPtr);
+                formatter.PutString(ret, val ? "true"sv : "false"sv, specPtr);
+            } break;
+            case ArgRealType::Ptr:
+            case ArgRealType::PtrVoid:
+            {
+                const auto val = *reinterpret_cast<const uintptr_t*>(argPtr);
+                formatter.PutPointer(ret, val, specPtr);
             } break;
             default: break;
             }
