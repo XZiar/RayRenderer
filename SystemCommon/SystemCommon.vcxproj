@@ -213,7 +213,7 @@
     </ClCompile>
     <ClCompile Include="FileMapperEx.cpp" />
     <ClCompile Include="Format.cpp" />
-    <ClCompile Include="HResultHelper.cpp">
+    <ClCompile Include="ErrorCodeHelper.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="MiniLogger.cpp" />
@@ -245,7 +245,7 @@
     <ClInclude Include="FileEx.h" />
     <ClInclude Include="FileMapperEx.h" />
     <ClInclude Include="Format.h" />
-    <ClInclude Include="HResultHelper.h" />
+    <ClInclude Include="ErrorCodeHelper.h" />
     <ClInclude Include="LoopBase.h" />
     <ClInclude Include="MiniLogger.h" />
     <ClInclude Include="MiniLoggerBackend.h" />

@@ -13,6 +13,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
 
 #else
 
+#include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/DynamicLibrary.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/Exceptions.h"
@@ -31,16 +32,6 @@ namespace xcomp
 {
 using namespace std::string_view_literals;
 
-static std::string_view GetErrStr(int err)
-{
-    thread_local char tmp[128] = { 0 };
-    const auto errret = strerror_r(err, tmp, sizeof(tmp));
-    if constexpr (std::is_integral_v<decltype(errret)>)
-        return tmp;
-    else
-        return errret;
-}
-
 common::span<const CommonDeviceInfo> ProbeDevice()
 {
     static const auto devs = []() 
@@ -57,7 +48,7 @@ common::span<const CommonDeviceInfo> ProbeDevice()
             GET_FUNC(FreeDevices);
             auto count = GetDevices2(0, nullptr, 0);
             if (count <= 0)
-                COMMON_THROW(common::BaseException, u"cannot list drm devices"sv).Attach("detail", common::str::to_u16string(GetErrStr(errno)));
+                COMMON_THROW(common::BaseException, u"cannot list drm devices"sv).Attach("detail", common::ErrnoHolder::GetCurError().ToStr());
             std::vector<drmDevicePtr> drmDevs(count, nullptr);
             count = GetDevices2(0, drmDevs.data(), count);
             if (count <= 0) return infos;
@@ -87,8 +78,8 @@ common::span<const CommonDeviceInfo> ProbeDevice()
                     const auto fd = open(node, O_RDONLY | O_CLOEXEC, 0);
                     if (fd == -1)
                     {
-                        const int err = errno;
-                        console.Print(common::CommonColor::BrightYellow, fmt::format(u"Failed when open device node [{}]: [{}]{}\n"sv, node, err, GetErrStr(err)));
+                        const auto err = common::ErrnoHolder::GetCurError();
+                        console.Print(common::CommonColor::BrightYellow, fmt::format(u"Failed when open device node [{}]: [{}]{}\n"sv, node, err, err.Value));
                     }
                     else
                     {

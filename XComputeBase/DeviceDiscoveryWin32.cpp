@@ -1,6 +1,6 @@
 #include "XCompRely.h"
 #include "SystemCommon/DynamicLibrary.h"
-#include "SystemCommon/HResultHelper.h"
+#include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/StackTrace.h"
 #include "SystemCommon/Exceptions.h"
 #include "SystemCommon/StringFormat.h"
@@ -121,7 +121,7 @@ struct CommonInfoHelper
                         if (GetDevProp(devinst, DEVPKEY_Device_BusNumber, bnum) && GetDevProp(devinst, DEVPKEY_Device_Address, addr))
                         {
                             const auto slot = (addr >> 16) & 0xFFFF, func = addr & 0xFFFF;
-                            console.Print(common::CommonColor::BrightCyan, fmt::format(u"--{:0X}-{:0X}-{:0X}\n", bnum, slot, func));
+                            //console.Print(common::CommonColor::BrightCyan, fmt::format(u"--{:0X}-{:0X}-{:0X}\n", bnum, slot, func));
                             address = PCI_BDF(bnum, slot, func);
                         }
                     }

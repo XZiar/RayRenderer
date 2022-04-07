@@ -45,7 +45,7 @@
     <ClCompile Include="PromiseTask.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="HResultHelper.cpp">
+    <ClCompile Include="ErrorCodeHelper.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="StackTrace.cpp">
@@ -119,7 +119,7 @@
     <ClInclude Include="PromiseTaskSTD.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="HResultHelper.h">
+    <ClInclude Include="ErrorCodeHelper.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="StackTrace.h">

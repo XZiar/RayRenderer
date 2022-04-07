@@ -1,6 +1,6 @@
 #include "oglPch.h"
 #include "oglUtil.h"
-#include "SystemCommon/HResultHelper.h"
+#include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/MiscIntrins.h"
 
 #undef APIENTRY

@@ -14,7 +14,7 @@
 #include "XComputeBase/XCompRely.h"
 #include "ImageUtil/ImageCore.h"
 #include "ImageUtil/TexFormat.h"
-#include "SystemCommon/HResultHelper.h"
+#include "SystemCommon/ErrorCodeHelper.h"
 #include "SystemCommon/PromiseTask.h"
 #include "SystemCommon/Exceptions.h"
 #include "common/EnumEx.hpp"

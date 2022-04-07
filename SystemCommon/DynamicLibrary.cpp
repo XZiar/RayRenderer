@@ -4,7 +4,7 @@
 #include "StackTrace.h"
 #include "StringConvert.h"
 #if COMMON_OS_WIN
-#   include "HResultHelper.h"
+#   include "ErrorCodeHelper.h"
 #endif
 
 namespace common
