@@ -1,6 +1,6 @@
 #include "XCompRely.h"
 
-#if !__has_include(<xf86drm.h>) && false
+#if !__has_include(<xf86drm.h>)
 #   pragma message("Missing libdrm header, skip libdrm device discovery")
 
 namespace xcomp
@@ -42,15 +42,15 @@ common::span<const CommonDeviceInfo> ProbeDevice()
         {
             common::DynLib libdrm("libdrm.so");
 #define GET_FUNC(name) const auto name = libdrm.GetFunction<decltype(&drm##name)>("drm" #name)
-            GET_FUNC(GetDevices2);
+            GET_FUNC(GetDevices);
             GET_FUNC(GetVersion);
             GET_FUNC(FreeVersion);
             GET_FUNC(FreeDevices);
-            auto count = GetDevices2(0, nullptr, 0);
+            auto count = GetDevices(nullptr, 0);
             if (count <= 0)
                 COMMON_THROW(common::BaseException, u"cannot list drm devices"sv).Attach("detail", common::ErrnoHolder::GetCurError().ToStr());
             std::vector<drmDevicePtr> drmDevs(count, nullptr);
-            count = GetDevices2(0, drmDevs.data(), count);
+            count = GetDevices(drmDevs.data(), count);
             if (count <= 0) return infos;
             drmDevs.resize(count);
             for (const auto& dev : drmDevs)
