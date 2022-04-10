@@ -84,7 +84,7 @@ struct ParseResult
         uint8_t Length = 0;
         ArgDispType Type = ArgDispType::Any;
     };
-    std::string_view FormatString;
+    //std::string_view FormatString;
     uint16_t ErrorPos = UINT16_MAX;
     uint8_t Opcodes[OpSlots] = { 0 };
     uint16_t OpCount = 0;
@@ -373,8 +373,10 @@ struct ParseResult
             result.IdxArgCount = std::max(++result.NextArgIdx, result.IdxArgCount);
             return true;
         }
-        using ArgIdType = std::variant<std::monostate, uint8_t, std::string_view>;
-        static constexpr bool Emit(ParseResult& result, size_t offset, const ArgIdType& id,
+        template<typename Char>
+        using ArgIdType = std::variant<std::monostate, uint8_t, std::basic_string_view<Char>>;
+        template<typename Char>
+        static constexpr bool Emit(ParseResult& result, std::basic_string_view<Char> str, size_t offset, const ArgIdType<Char>& id,
             const FormatSpec* spec) noexcept
         {
             uint16_t opcnt = 2;
@@ -387,7 +389,7 @@ struct ParseResult
                 for (uint8_t i = 0; i < result.NamedArgCount; ++i)
                 {
                     auto& target = result.NamedTypes[i];
-                    const auto targetName = result.FormatString.substr(target.Offset, target.Length);
+                    const auto targetName = str.substr(target.Offset, target.Length);
                     if (targetName == name)
                     {
                         argIdx = i;
@@ -404,7 +406,7 @@ struct ParseResult
                     }
                     argIdx = result.NamedArgCount;
                     auto& target = result.NamedTypes[argIdx];
-                    target.Offset = static_cast<uint16_t>(name.data() - result.FormatString.data());
+                    target.Offset = static_cast<uint16_t>(name.data() - str.data());
                     target.Length = static_cast<uint8_t>(name.size());
                     dstType = &target.Type;
                 }
@@ -460,26 +462,79 @@ struct ParseResult
             return true;
         }
     };
-    static constexpr std::optional<uint8_t> ParseHex8bit(std::string_view hex) noexcept
+    
+    template<typename Char>
+    static constexpr auto ParseString(const std::basic_string_view<Char> str) noexcept;
+};
+
+template<typename Char>
+struct ParseLiterals;
+template<>
+struct ParseLiterals<char>
+{
+    static constexpr std::string_view BracePair = "{}",
+        Color_Def = "default", Color_Black = "black", Color_Red = "red", Color_Green = "green", Color_Yellow = "yellow", 
+        Color_Blue = "blue", Color_Magenta = "magenta", Color_Cyan = "cyan", Color_White = "white";
+};
+template<>
+struct ParseLiterals<char16_t>
+{
+    static constexpr std::u16string_view BracePair = u"{}",
+        Color_Def = u"default", Color_Black = u"black", Color_Red = u"red", Color_Green = u"green", Color_Yellow = u"yellow",
+        Color_Blue = u"blue", Color_Magenta = u"magenta", Color_Cyan = u"cyan", Color_White = u"white";
+};
+template<>
+struct ParseLiterals<char32_t>
+{
+    static constexpr std::u32string_view BracePair = U"{}",
+        Color_Def = U"default", Color_Black = U"black", Color_Red = U"red", Color_Green = U"green", Color_Yellow = U"yellow",
+        Color_Blue = U"blue", Color_Magenta = U"magenta", Color_Cyan = U"cyan", Color_White = U"white";
+};
+template<>
+struct ParseLiterals<wchar_t>
+{
+    static constexpr std::wstring_view BracePair = L"{}",
+        Color_Def = L"default", Color_Black = L"black", Color_Red = L"red", Color_Green = L"green", Color_Yellow = L"yellow",
+        Color_Blue = L"blue", Color_Magenta = L"magenta", Color_Cyan = L"cyan", Color_White = L"white";
+};
+
+template<typename Char>
+struct ParseResultCh : public ParseResult, public ParseLiterals<Char>
+{
+    using CharType = Char;
+    using LCH = ParseLiterals<Char>;
+    static constexpr Char Char_0 = static_cast<Char>('0'), Char_9 = static_cast<Char>('9'),
+        Char_a = static_cast<Char>('a'), Char_A = static_cast<Char>('A'), 
+        Char_f = static_cast<Char>('f'), Char_F = static_cast<Char>('F'), 
+        Char_z = static_cast<Char>('z'), Char_Z = static_cast<Char>('Z'), 
+        Char_b = static_cast<Char>('b'),
+        Char_LT = static_cast<Char>('<'), Char_GT = static_cast<Char>('>'), Char_UP = static_cast<Char>('^'),
+        Char_LB = static_cast<Char>('{'), Char_RB = static_cast<Char>('}'), 
+        Char_Plus = static_cast<Char>('+'), Char_Minus = static_cast<Char>('-'), 
+        Char_Space = static_cast<Char>(' '), Char_Under = static_cast<Char>('_'), 
+        Char_Dot = static_cast<Char>('.'), Char_Colon = static_cast<Char>(':'),
+        Char_At = static_cast<Char>('@'), Char_NumSign = static_cast<Char>('#');
+    //std::basic_string_view<Char> FormatString;
+    static constexpr std::optional<uint8_t> ParseHex8bit(std::basic_string_view<Char> hex) noexcept
     {
         uint32_t ret = 0;
         for (uint32_t i = 0; i < 2; ++i)
         {
-                 if (hex[i] >= '0' && hex[i] <= '9') ret = ret * 16 + (hex[i] - '0');
-            else if (hex[i] >= 'a' && hex[i] <= 'f') ret = ret * 16 + (hex[i] - 'a' + 10);
-            else if (hex[i] >= 'A' && hex[i] <= 'F') ret = ret * 16 + (hex[i] - 'A' + 10);
+                 if (hex[i] >= Char_0 && hex[i] <= Char_9) ret = ret * 16 + (hex[i] - Char_0);
+            else if (hex[i] >= Char_a && hex[i] <= Char_f) ret = ret * 16 + (hex[i] - Char_a + 10);
+            else if (hex[i] >= Char_A && hex[i] <= Char_F) ret = ret * 16 + (hex[i] - Char_A + 10);
             else return {};
         }
         return static_cast<uint8_t>(ret);
     }
     template<typename T>
-    static constexpr std::pair<size_t, bool> ParseDecTail(std::string_view dec, T& val, T limit) noexcept
+    static constexpr std::pair<size_t, bool> ParseDecTail(std::basic_string_view<Char> dec, T& val, T limit) noexcept
     {
         for (size_t i = 1; i < dec.size(); ++i)
         {
             const auto ch = dec[i];
-            if (ch >= '0' && ch <= '9')
-                val = val * 10 + (ch - '0');
+            if (ch >= Char_0 && ch <= Char_9)
+                val = val * 10 + (ch - Char_0);
             else
                 return { i, true };
             if (val >= limit)
@@ -487,7 +542,7 @@ struct ParseResult
         }
         return { SIZE_MAX, true };
     }
-    static constexpr bool ParseColor(ParseResult& result, size_t pos, std::string_view str) noexcept
+    static constexpr bool ParseColor(ParseResult& result, size_t pos, std::basic_string_view<Char> str) noexcept
     {
         using namespace std::string_view_literals;
         if (str.size() <= 2) // at least 2 char needed
@@ -496,32 +551,32 @@ struct ParseResult
             return false;
         }
         const auto fgbg = str[0];
-        if (fgbg != '<' && fgbg != '>')
+        if (fgbg != Char_LT && fgbg != Char_GT)
         {
             result.SetError(pos, ParseResult::ErrorCode::MissingColorFGBG);
             return false;
         }
-        const bool isFG = fgbg == '<';
+        const bool isFG = fgbg == Char_LT;
         str.remove_prefix(1);
-        if (str == "default")
+        if (str == LCH::Color_Def)
             return ColorOp::EmitDefault(result, pos, isFG);
         std::optional<CommonColor> commonclr;
-#define CHECK_COLOR_CASE(s, clr) if (str.size() >= s.size() && std::char_traits<char>::compare(str.data(), s.data(), s.size()) == 0)    \
+#define CHECK_COLOR_CASE(s, clr) if (str.size() >= s.size() && std::char_traits<Char>::compare(str.data(), s.data(), s.size()) == 0)    \
     { commonclr = CommonColor::clr; str.remove_prefix(s.size()); }
-             CHECK_COLOR_CASE("black"sv,    Black)
-        else CHECK_COLOR_CASE("red"sv,      Red)
-        else CHECK_COLOR_CASE("green"sv,    Green)
-        else CHECK_COLOR_CASE("yellow"sv,   Yellow)
-        else CHECK_COLOR_CASE("blue"sv,     Blue)
-        else CHECK_COLOR_CASE("magenta"sv,  Magenta)
-        else CHECK_COLOR_CASE("cyan"sv,     Cyan)
-        else CHECK_COLOR_CASE("white"sv,    White)
+             CHECK_COLOR_CASE(LCH::Color_Black,    Black)
+        else CHECK_COLOR_CASE(LCH::Color_Red,      Red)
+        else CHECK_COLOR_CASE(LCH::Color_Green,    Green)
+        else CHECK_COLOR_CASE(LCH::Color_Yellow,   Yellow)
+        else CHECK_COLOR_CASE(LCH::Color_Blue,     Blue)
+        else CHECK_COLOR_CASE(LCH::Color_Magenta,  Magenta)
+        else CHECK_COLOR_CASE(LCH::Color_Cyan,     Cyan)
+        else CHECK_COLOR_CASE(LCH::Color_White,    White)
 #undef CHECK_COLOR_CASE
         if (commonclr)
         {
             if (!str.empty())
             {
-                if (str.size() == 1 && str[0] == '+')
+                if (str.size() == 1 && str[0] == Char_Plus)
                     *commonclr |= CommonColor::BrightBlack; // make it bright
                 else
                 {
@@ -531,7 +586,7 @@ struct ParseResult
             }
             return ColorOp::Emit(result, pos, *commonclr, isFG);
         }
-        if (str[0] == 'b' && str.size() == 3)
+        if (str[0] == Char_b && str.size() == 3)
         {
             const auto num = ParseHex8bit(str.substr(1));
             if (!num)
@@ -559,20 +614,20 @@ struct ParseResult
         result.SetError(pos, ParseResult::ErrorCode::InvalidColor);
         return false;
     }
-    static constexpr void ParseFillAlign(FormatSpec& fmtSpec, std::string_view& str) noexcept
+    static constexpr void ParseFillAlign(FormatSpec& fmtSpec, std::basic_string_view<Char>& str) noexcept
     {
         // [[fill]align]
         // fill        ::=  <a character other than '{' or '}'>
         // align       ::=  "<" | ">" | "^"
-        char fillalign[2] = { str[0], 0 };
+        Char fillalign[2] = { str[0], 0 };
         if (str.size() >= 2)
             fillalign[1] = str[1];
         for (uint8_t i = 0; i < 2; ++i)
         {
-            if (fillalign[i] == '<' || fillalign[i] == '>' || fillalign[i] == '^') // align
+            if (fillalign[i] == Char_LT || fillalign[i] == Char_GT || fillalign[i] == Char_UP) // align
             {
-                fmtSpec.Alignment = fillalign[i] == '<' ? FormatSpec::Align::Left :
-                    (fillalign[i] == '>' ? FormatSpec::Align::Right : FormatSpec::Align::Middle);
+                fmtSpec.Alignment = fillalign[i] == Char_LT ? FormatSpec::Align::Left :
+                    (fillalign[i] == Char_GT ? FormatSpec::Align::Right : FormatSpec::Align::Middle);
                 if (i == 1) // with fill
                     fmtSpec.Fill = fillalign[0];
                 str.remove_prefix(i + 1);
@@ -581,23 +636,23 @@ struct ParseResult
         }
         return;
     }
-    static constexpr void ParseSign(FormatSpec& fmtSpec, std::string_view& str) noexcept
+    static constexpr void ParseSign(FormatSpec& fmtSpec, std::basic_string_view<Char>& str) noexcept
     {
         // sign        ::=  "+" | "-" | " "
-             if (str[0] == '+') fmtSpec.SignFlag = FormatSpec::Sign::Pos;
-        else if (str[0] == '-') fmtSpec.SignFlag = FormatSpec::Sign::Neg;
-        else if (str[0] == ' ') fmtSpec.SignFlag = FormatSpec::Sign::Space;
+             if (str[0] == Char_Plus)  fmtSpec.SignFlag = FormatSpec::Sign::Pos;
+        else if (str[0] == Char_Minus) fmtSpec.SignFlag = FormatSpec::Sign::Neg;
+        else if (str[0] == Char_Space) fmtSpec.SignFlag = FormatSpec::Sign::Space;
         else return;
         str.remove_prefix(1);
         return;
     }
-    static constexpr bool ParseWidth(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::string_view& str) noexcept
+    static constexpr bool ParseWidth(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::basic_string_view<Char>& str) noexcept
     {
         // width       ::=  integer // | "{" [arg_id] "}"
         const auto firstCh = str[0];
-        if (firstCh > '0' && firstCh <= '9') // find width
+        if (firstCh > Char_0 && firstCh <= Char_9) // find width
         {
-            uint32_t width = firstCh - '0'; 
+            uint32_t width = firstCh - Char_0;
             const auto [errIdx, inRange] = ParseDecTail<uint32_t>(str, width, UINT16_MAX);
             if (inRange)
             {
@@ -615,19 +670,19 @@ struct ParseResult
         }
         return true;
     }
-    static constexpr bool ParsePrecision(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::string_view& str) noexcept
+    static constexpr bool ParsePrecision(ParseResult& result, FormatSpec& fmtSpec, size_t pos, std::basic_string_view<Char>& str) noexcept
     {
         // ["." precision]
         // precision   ::=  integer // | "{" [arg_id] "}"
-        if (str[0] == '.')
+        if (str[0] == Char_Dot)
         {
             if (str.size() > 1)
             {
                 str.remove_prefix(1);
                 const auto firstCh = str[0];
-                if (firstCh > '0' && firstCh <= '9') // find precision
+                if (firstCh > Char_0 && firstCh <= Char_9) // find precision
                 {
-                    uint32_t precision = firstCh - '0';
+                    uint32_t precision = firstCh - Char_0;
                     const auto [errIdx, inRange] = ParseDecTail<uint32_t>(str, precision, UINT32_MAX);
                     if (inRange)
                     {
@@ -650,7 +705,7 @@ struct ParseResult
         }
         return true;
     }
-    static constexpr bool ParseFormatSpec(ParseResult& result, FormatSpec& fmtSpec, const char* start, std::string_view str) noexcept
+    static constexpr bool ParseFormatSpec(ParseResult& result, FormatSpec& fmtSpec, const Char* start, std::basic_string_view<Char> str) noexcept
     {
         // format_spec ::=  [[fill]align][sign]["#"]["0"][width]["." precision][type]
 
@@ -658,13 +713,13 @@ struct ParseResult
         if (str.empty()) return true;
         ParseSign(fmtSpec, str);
         if (str.empty()) return true;
-        if (str[0] == '#')
+        if (str[0] == Char_NumSign)
         {
             fmtSpec.AlterForm = true;
             str.remove_prefix(1);
         }
         if (str.empty()) return true;
-        if (str[0] == '0')
+        if (str[0] == Char_0)
         {
             fmtSpec.ZeroPad = true;
             str.remove_prefix(1);
@@ -677,17 +732,22 @@ struct ParseResult
             return false;
         if (!str.empty())
         {
-            fmtSpec.Type = { str[0] };
-            str.remove_prefix(1);
-        }
-        if (!str.empty())
-        {
-            result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
-            return false;
+            const auto typestr = str[0];
+            if (typestr <= static_cast<Char>(127))
+            {
+                fmtSpec.Type = { static_cast<char>(str[0]) };
+                if (fmtSpec.Type.Extra != 0xff)
+                    str.remove_prefix(1);
+            }
         }
         if (fmtSpec.Type.Extra == 0xff)
         {
             result.SetError(str.data() - start, ErrorCode::InvalidType);
+            return false;
+        }
+        if (!str.empty())
+        {
+            result.SetError(str.data() - start, ErrorCode::ExtraFmtSpec);
             return false;
         }
         // enhanced type check
@@ -706,12 +766,11 @@ struct ParseResult
         fmtSpec.Type.Type = *newType;
         return true;
     }
-    static constexpr ParseResult ParseString(const std::string_view str) noexcept
+    static constexpr ParseResult ParseString(const std::basic_string_view<Char> str) noexcept
     {
         using namespace std::string_view_literals;
-        constexpr auto End = std::string_view::npos;
+        constexpr auto End = std::basic_string_view<Char>::npos;
         ParseResult result;
-        result.FormatString = str;
         size_t offset = 0;
         const auto size = str.size();
         if (size >= UINT16_MAX)
@@ -720,7 +779,7 @@ struct ParseResult
         }
         while (offset < size)
         {
-            const auto occur = str.find_first_of("{}"sv, offset);
+            const auto occur = str.find_first_of(LCH::BracePair, offset);
             bool isBrace = false;
             if (occur != End)
             {
@@ -728,7 +787,7 @@ struct ParseResult
                 {
                     isBrace = str[occur + 1] == str[occur]; // "{{" or "}}", emit single '{' or '}'
                 }
-                if (!isBrace && str[occur] == '}')
+                if (!isBrace && Char_RB == str[occur])
                     return result.SetError(occur, ParseResult::ErrorCode::MissingLeftBrace);
             }
             if (occur != offset) // need emit FmtStr
@@ -749,13 +808,13 @@ struct ParseResult
             {
                 if (isBrace) // need emit Brace
                 {
-                    if (!BuiltinOp::EmitBrace(result, occur, str[occur] == '{'))
+                    if (!BuiltinOp::EmitBrace(result, occur, Char_LB == str[occur]))
                         return result;
                     offset += 2; // eat brace "{{" or "}}"
                     continue;
                 }
             }
-            const auto argEnd = str.find_first_of('}', offset);
+            const auto argEnd = str.find_first_of(Char_RB, offset);
             if (argEnd == End)
                 return result.SetError(occur, ParseResult::ErrorCode::MissingRightBrace);
 
@@ -768,10 +827,10 @@ struct ParseResult
                 offset += 2; // eat "{}"
                 continue;
             }
-            const auto specSplit = argfmt.find_first_of(':');
+            const auto specSplit = argfmt.find_first_of(Char_Colon);
             const auto argPart1 = specSplit == End ? argfmt : argfmt.substr(0, specSplit);
             const auto argPart2 = specSplit == End ? argfmt.substr(0, 0) : argfmt.substr(specSplit + 1);
-            ArgOp::ArgIdType argId;
+            ArgOp::ArgIdType<Char> argId;
             if (!argPart1.empty())
             {
                 // see https://fmt.dev/latest/syntax.html#formatspec
@@ -784,27 +843,28 @@ struct ParseResult
                 // id_continue       ::=  id_start | digit
                 // color             ::=  "@" "<" | ">" id_start | digit
                 const auto firstCh = argPart1[0];
-                if (firstCh == '0')
+                if (Char_0 == firstCh)
                 {
                     if (argPart1.size() != 0)
                         return result.SetError(offset, ParseResult::ErrorCode::InvalidArgIdx);
                     argId = { static_cast<uint8_t>(0) };
                 }
-                else if (firstCh > '0' && firstCh <= '9')
+                else if (firstCh > Char_0 && firstCh <= Char_9)
                 {
-                    uint32_t id = firstCh - '0';
+                    uint32_t id = firstCh - Char_0;
                     const auto [errIdx, inRange] = ParseDecTail(argPart1, id, ParseResult::IdxArgSlots);
                     if (errIdx != SIZE_MAX)
                         return result.SetError(offset + errIdx, inRange ? ErrorCode::InvalidArgIdx : ErrorCode::ArgIdxTooLarge);
                     argId = { static_cast<uint8_t>(id) };
                 }
-                else if ((firstCh >= 'a' && firstCh <= 'z') || (firstCh >= 'A' && firstCh <= 'Z') || firstCh == '_')
+                else if ((firstCh >= Char_a && firstCh <= Char_z) ||
+                    (firstCh >= Char_A && firstCh <= Char_Z) || firstCh == Char_Under)
                 {
                     for (size_t i = 1; i < argPart1.size(); ++i)
                     {
                         const auto ch = argPart1[i];
-                        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-                            (ch >= '0' && ch <= '9') || ch == '_')
+                        if ((ch >= Char_a && ch <= Char_z) || (ch >= Char_A && ch <= Char_Z) ||
+                            (ch >= Char_0 && ch <= Char_9) || ch == Char_Under)
                             continue;
                         else
                             return result.SetError(offset + i, ParseResult::ErrorCode::InvalidArgName);
@@ -813,7 +873,7 @@ struct ParseResult
                         return result.SetError(offset, ParseResult::ErrorCode::ArgNameTooLong);
                     argId = { argPart1 };
                 }
-                else if (firstCh == '@') // Color
+                else if (static_cast<Char>(Char_At) == firstCh) // Color
                 {
                     if (!argPart2.empty())
                         return result.SetError(offset + 1, ParseResult::ErrorCode::InvalidColor);
@@ -831,13 +891,34 @@ struct ParseResult
                 if (!ParseFormatSpec(result, fmtSpec, str.data(), argPart2))
                     return result;
             }
-            if (!ArgOp::Emit(result, offset, argId, !argPart2.empty() ? &fmtSpec : nullptr)) // error
+            if (!ArgOp::Emit<Char>(result, str, offset, argId, !argPart2.empty() ? &fmtSpec : nullptr)) // error
                 return result;
             offset += 2 + argfmt.size(); // eat "{xxx}"
         }
         return result;
     }
 };
+
+template<>
+forceinline constexpr auto ParseResult::ParseString<char>(const std::basic_string_view<char> str) noexcept
+{
+    return ParseResultCh<char>::ParseString(str);
+}
+template<>
+forceinline constexpr auto ParseResult::ParseString<char16_t>(const std::basic_string_view<char16_t> str) noexcept
+{
+    return ParseResultCh<char16_t>::ParseString(str);
+}
+template<>
+forceinline constexpr auto ParseResult::ParseString<char32_t>(const std::basic_string_view<char32_t> str) noexcept
+{
+    return ParseResultCh<char32_t>::ParseString(str);
+}
+template<>
+forceinline constexpr auto ParseResult::ParseString<wchar_t>(const std::basic_string_view<wchar_t> str) noexcept
+{
+    return ParseResultCh<wchar_t>::ParseString(str);
+}
 
 
 struct StrArgInfo
@@ -878,33 +959,33 @@ struct NamedArgLimiter<0>
 { 
     constexpr NamedArgLimiter(const ParseResult::NamedArgType*) noexcept {}
 };
-template<uint16_t OpCount>
+template<typename Char, uint16_t OpCount>
 struct OpHolder
 {
-    std::string_view FormatString;
+    std::basic_string_view<Char> FormatString;
     uint8_t Opcodes[OpCount] = { 0 };
-    constexpr OpHolder(std::string_view str, const uint8_t* op) noexcept : FormatString(str)
+    constexpr OpHolder(std::basic_string_view<Char> str, const uint8_t* op) noexcept : FormatString(str)
     {
         for (uint16_t i = 0; i < OpCount; ++i)
             Opcodes[i] = op[i];
     }
 };
-template<>
-struct OpHolder<0>
+template<typename Char>
+struct OpHolder<Char, 0>
 {
-    std::string_view FormatString;
-    constexpr OpHolder(std::string_view str, const uint8_t*) noexcept : FormatString(str)
+    std::basic_string_view<Char> FormatString;
+    constexpr OpHolder(std::basic_string_view<Char> str, const uint8_t*) noexcept : FormatString(str)
     { }
 };
 
-template<uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
-struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
+template<typename Char, uint16_t OpCount_, uint8_t NamedArgCount_, uint8_t IdxArgCount_>
+struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<Char, OpCount_>, NamedArgLimiter<NamedArgCount_>, IdxArgLimiter<IdxArgCount_>
 {
     static constexpr uint16_t OpCount = OpCount_;
     static constexpr uint8_t NamedArgCount = NamedArgCount_;
     static constexpr uint8_t IdxArgCount = IdxArgCount_;
-    constexpr TrimedResult(const ParseResult& result) noexcept :
-        OpHolder<OpCount>(result.FormatString, result.Opcodes),
+    constexpr TrimedResult(const ParseResult& result, std::basic_string_view<Char> fmtStr) noexcept :
+        OpHolder<Char, OpCount>(fmtStr, result.Opcodes),
         NamedArgLimiter<NamedArgCount>(result.NamedTypes),
         IdxArgLimiter<IdxArgCount>(result.IndexTypes)
     { }
@@ -1318,29 +1399,31 @@ public:
 };
 
 
-#define FmtString2(str) []()                                        \
-{                                                                   \
-    constexpr auto Result = ParseResult::ParseString(str);          \
-    constexpr auto OpCount       = Result.OpCount;                  \
-    constexpr auto NamedArgCount = Result.NamedArgCount;            \
-    constexpr auto IdxArgCount   = Result.IdxArgCount;              \
-    ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();     \
-    TrimedResult<OpCount, NamedArgCount, IdxArgCount> ret(Result);  \
-    return ret;                                                     \
+#define FmtString2(str) []()                                            \
+{                                                                       \
+    using Char = std::decay_t<decltype(str[0])>;                        \
+    constexpr auto Result = ParseResult::ParseString(str);              \
+    constexpr auto OpCount       = Result.OpCount;                      \
+    constexpr auto NamedArgCount = Result.NamedArgCount;                \
+    constexpr auto IdxArgCount   = Result.IdxArgCount;                  \
+    ParseResult::CheckErrorCompile<Result.ErrorPos, OpCount>();         \
+    TrimedResult<Char, OpCount, NamedArgCount, IdxArgCount> ret(Result, str);\
+    return ret;                                                         \
 }
-#define FmtString(str) []()                                                     \
-{                                                                               \
-    struct Type_ { const ParseResult Data = ParseResult::ParseString(str); };   \
-    constexpr Type_ Result;                                                     \
-    constexpr auto OpCount       = Result.Data.OpCount;                         \
-    constexpr auto NamedArgCount = Result.Data.NamedArgCount;                   \
-    constexpr auto IdxArgCount   = Result.Data.IdxArgCount;                     \
-    ParseResult::CheckErrorCompile<Result.Data.ErrorPos, OpCount>();            \
-    struct Type : public TrimedResult<OpCount, NamedArgCount, IdxArgCount>      \
-    {                                                                           \
-        constexpr Type() noexcept : TrimedResult(Type_{}.Data) {}               \
-    };                                                                          \
-    return Type{};                                                              \
+#define FmtString(str) []()                                                             \
+{                                                                                       \
+    using Char = std::decay_t<decltype(str[0])>;                                        \
+    struct Type_ { const ParseResult Data = ParseResult::ParseString(str); };           \
+    constexpr Type_ Result;                                                             \
+    constexpr auto OpCount       = Result.Data.OpCount;                                 \
+    constexpr auto NamedArgCount = Result.Data.NamedArgCount;                           \
+    constexpr auto IdxArgCount   = Result.Data.IdxArgCount;                             \
+    ParseResult::CheckErrorCompile<Result.Data.ErrorPos, OpCount>();                    \
+    struct Type : public TrimedResult<Char, OpCount, NamedArgCount, IdxArgCount>        \
+    {                                                                                   \
+        constexpr Type() noexcept : TrimedResult(Type_{}.Data, str) {}                  \
+    };                                                                                  \
+    return Type{};                                                                      \
 }()
 
 }

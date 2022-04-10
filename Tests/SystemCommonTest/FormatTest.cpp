@@ -35,19 +35,21 @@ using common::BaseException;
     EXPECT_EQ(ret.NextArgIdx,    static_cast<uint8_t>(next));   \
     EXPECT_EQ(ret.IdxArgCount,   static_cast<uint8_t>(cnt));    \
 } while(0)
-#define CheckEachNamedArg(r, ret, tp) do                                        \
-{                                                                               \
-    const auto& namedArg = ret.NamedTypes[theArgIdx];                           \
-    EXPECT_EQ(namedArg.Type, ArgDispType::BOOST_PP_TUPLE_ELEM(2, 0, tp));       \
-    const auto str = ret.FormatString.substr(namedArg.Offset, namedArg.Length); \
-    EXPECT_EQ(str, BOOST_PP_TUPLE_ELEM(2, 1, tp));                              \
-    theArgIdx++;                                                                \
+#define CheckEachNamedArg(r, x, tp) do                                      \
+{                                                                           \
+    const auto& namedArg = pres.NamedTypes[theArgIdx];                      \
+    EXPECT_EQ(namedArg.Type, ArgDispType::BOOST_PP_TUPLE_ELEM(2, 0, tp));   \
+    const auto str = fmtstr.substr(namedArg.Offset, namedArg.Length);       \
+    EXPECT_EQ(str, BOOST_PP_TUPLE_ELEM(2, 1, tp));                          \
+    theArgIdx++;                                                            \
 } while(0);
-#define CheckNamedArgs(ret, ...) do                                                         \
-{                                                                                           \
-    uint8_t theArgIdx = 0;                                                                  \
-    BOOST_PP_SEQ_FOR_EACH(CheckEachNamedArg, ret, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))    \
-    EXPECT_EQ(ret.NamedArgCount, theArgIdx);                                                \
+#define CheckNamedArgs(ret, fmtStr, ...) do                                             \
+{                                                                                       \
+    uint8_t theArgIdx = 0;                                                              \
+    const auto& pres = ret;                                                             \
+    const auto& fmtstr = fmtStr;                                                        \
+    BOOST_PP_SEQ_FOR_EACH(CheckEachNamedArg, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))  \
+    EXPECT_EQ(pres.NamedArgCount, theArgIdx);                                           \
 } while(0)
 #define CheckNamedArgCount(ret, cnt) EXPECT_EQ(ret.NamedArgCount, static_cast<uint8_t>(cnt))
 
@@ -129,9 +131,10 @@ static void CheckOpCode(uint8_t opcode, uint8_t ref)
     EXPECT_EQ(opcode, ref) << "opcode is " << OpToString(opcode);
 }
 
-static void CheckFmtStrOp_(const ParseResult& ret, uint16_t& idx, uint16_t offset, uint16_t length, std::string_view str)
+template<typename Char>
+static void CheckFmtStrOp_(const ParseResult& ret, uint16_t& idx, std::basic_string_view<Char> fmtStr, uint16_t offset, uint16_t length, std::basic_string_view<Char> str)
 {
-    ASSERT_EQ(ret.FormatString.substr(offset, length), str);
+    ASSERT_EQ(fmtStr.substr(offset, length), str);
     uint8_t op = ParseResult::BuiltinOp::Op | ParseResult::BuiltinOp::FieldFmtStr;
     if (offset > UINT8_MAX) op |= ParseResult::BuiltinOp::DataOffset16;
     if (length > UINT8_MAX) op |= ParseResult::BuiltinOp::DataLength16;
@@ -273,47 +276,52 @@ TEST(Format, ParseString)
         CheckIdxArgCount(ret, 0, 0);
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello"sv);
+        constexpr auto fmtStr = "Hello"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
-        CheckOp(FmtStr, 0, 5, "Hello");
+        CheckOp(FmtStr, fmtStr, 0, 5, "Hello"sv);
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello{{"sv);
+        constexpr auto fmtStr = "Hello{{"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgCount(ret, 0, 0);
         uint16_t idx = 0;
-        CheckOp(FmtStr, 0, 6, "Hello{");
+        CheckOp(FmtStr, fmtStr, 0, 6, "Hello{"sv);
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello{}"sv);
+        constexpr auto fmtStr = "Hello{}"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 1, Any);
         uint16_t idx = 0;
-        CheckOp(FmtStr, 0, 5, "Hello");
+        CheckOp(FmtStr, fmtStr, 0, 5, "Hello"sv);
         CheckOp(IdxArg, 0, nullptr);
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello{}{}"sv);
+        constexpr auto fmtStr = "Hello{}{}"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 2, Any, Any);
         uint16_t idx = 0;
-        CheckOp(FmtStr, 0, 5, "Hello");
+        CheckOp(FmtStr, fmtStr, 0, 5, "Hello"sv);
         CheckOp(IdxArg, 0, nullptr);
         CheckOp(IdxArg, 1, nullptr);
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("Hello{}{3}{}{x}"sv);
+        constexpr auto fmtStr = "Hello{}{3}{}{x}"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 2, Any, Any, Any, Any);
-        CheckNamedArgs(ret, (Any, "x"));
+        CheckNamedArgs(ret, fmtStr, (Any, "x"));
         uint16_t idx = 0;
-        CheckOp(FmtStr, 0, 5, "Hello");
+        CheckOp(FmtStr, fmtStr, 0, 5, "Hello"sv);
         CheckOp(IdxArg, 0, nullptr);
         CheckOp(IdxArg, 3, nullptr);
         CheckOp(IdxArg, 1, nullptr);
@@ -390,7 +398,8 @@ TEST(Format, ParseString)
         CheckOpFinish();
     }
     {
-        constexpr auto ret = ParseResult::ParseString("{3:p}xyz{@<black+}"sv);
+        constexpr auto fmtStr = "{3:p}xyz{@<black+}"sv;
+        constexpr auto ret = ParseResult::ParseString(fmtStr);
         CheckSuc();
         CheckIdxArgType(ret, 0, Any, Any, Any, Pointer);
         uint16_t idx = 0;
@@ -399,7 +408,7 @@ TEST(Format, ParseString)
             .Type = 'p',
         };
         CheckOp(IdxArg, 3, &spec0);
-        CheckOp(FmtStr, 5, 3, "xyz");
+        CheckOp(FmtStr, fmtStr, 5, 3, "xyz"sv);
         CheckOp(ColorArg, true, common::CommonColor::BrightBlack);
         CheckOpFinish();
     }
@@ -533,14 +542,14 @@ using ArgTypePair = std::pair<ArgDispType, ArgRealType>;
 TEST(Format, CheckArg)
 {
     {
-        ArgChecker::CheckSS(FmtString("{},{}"), 1234, "str");
-        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{},{}"), 1234, "str"));
+        ArgChecker::CheckSS(FmtString("{},{}"sv), 1234, "str");
+        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{},{}"sv), 1234, "str"));
     }
     {
         //ArgChecker::CheckSS(FmtString("{3},{}"), 1234, "str");
         try
         {
-            ArgChecker::CheckDS(FmtString("{3},{}"), 1234, "str");
+            ArgChecker::CheckDS(FmtString("{3},{}"sv), 1234, "str");
             EXPECT_TRUE(false) << "should throw exception";
         }
         catch (const BaseException& be)
@@ -552,7 +561,7 @@ TEST(Format, CheckArg)
         //ArgChecker::CheckSS(FmtString("{},{:f}"), 1234, "str");
         try
         {
-            ArgChecker::CheckDS(FmtString("{},{:f}"), 1234, "str");
+            ArgChecker::CheckDS(FmtString("{},{:f}"sv), 1234, "str");
         }
         catch (const BaseException& be)
         {
@@ -565,7 +574,7 @@ TEST(Format, CheckArg)
         //CheckSS(FmtString("{}{x}"), 1234, "str");
         try
         {
-            ArgChecker::CheckDS(FmtString("{}{x}"), 1234, "str");
+            ArgChecker::CheckDS(FmtString("{}{x}"sv), 1234, "str");
         }
         catch (const BaseException& be)
         {
@@ -576,7 +585,7 @@ TEST(Format, CheckArg)
         //CheckSS(FmtString("{}{x}"), 1234, "str");
         try
         {
-            ArgChecker::CheckDS(FmtString("{}{x:s}"), 1234, "str", NAMEARG("x")(13));
+            ArgChecker::CheckDS(FmtString("{}{x:s}"sv), 1234, "str", NAMEARG("x")(13));
         }
         catch (const BaseException& be)
         {
@@ -586,8 +595,8 @@ TEST(Format, CheckArg)
         }
     }
     {
-        ArgChecker::CheckSS(FmtString("{}{x}"), 1234, "str", NAMEARG("x")(13));
-        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{}{x}"), 1234, "str", NAMEARG("x")(13)));
+        ArgChecker::CheckSS(FmtString("{}{x}"sv), 1234, "str", NAMEARG("x")(13));
+        EXPECT_NO_THROW(ArgChecker::CheckDS(FmtString("{}{x}"sv), 1234, "str", NAMEARG("x")(13)));
     }
 }
 
@@ -608,7 +617,8 @@ TEST(Format, PackArg)
     {
         const auto pack = ArgInfo::PackArgs(var0, var1, var2, var3);
         ASSERT_GT(pack.Args.size(), 4u);
-        CheckPackedArg(pack, 0, var0);
+        const auto var0_ = std::pair{var0.data(), var0.size()};
+        CheckPackedArg(pack, 0, var0_);
         CheckPackedArg(pack, 1, var1);
         CheckPackedArg(pack, 2, var2);
         CheckPackedArg(pack, 3, var3);
@@ -630,20 +640,20 @@ std::string ToString(T&& strInfo, Args&&... args)
 TEST(Format, Formating)
 {
     {
-        const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
+        const auto ret = ToString(FmtString("{},{x},{:>6},{:_^7}"sv), "hello", NAMEARG("x")("world"sv), u"Hello", U"World"sv);
         EXPECT_EQ(ret, "hello,world, Hello,_World_");
     }
     {
-        const auto ret = ToString(FmtString("{},{x},{:b},{:#X},{:05o}"), 13, NAMEARG("x")(-99), uint8_t(64), int64_t(65535), 042);
+        const auto ret = ToString(FmtString("{},{x},{:b},{:#X},{:05o}"sv), 13, NAMEARG("x")(-99), uint8_t(64), int64_t(65535), 042);
         EXPECT_EQ(ret, "13,-99,1000000,0XFFFF,00042");
     }
     {
-        const auto ret = ToString(FmtString("{},{x},{:g},{:f},{:+010.4g}"), 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
+        const auto ret = ToString(FmtString("{},{x},{:g},{:f},{:+010.4g}"sv), 0.0, NAMEARG("x")(392.65), 4.9014e6, -392.5f, 392.65);
         EXPECT_EQ(ret, "0,392.65,4.9014e+06,-392.500000,+0000392.6");
     }
     {
         const auto ptr = reinterpret_cast<const int*>(uintptr_t(1));
-        const auto ret = ToString(FmtString("{},{}"), ptr, false);
+        const auto ret = ToString(FmtString("{},{}"sv), ptr, false);
         EXPECT_EQ(ret, "0x1,false");
     }
 }
