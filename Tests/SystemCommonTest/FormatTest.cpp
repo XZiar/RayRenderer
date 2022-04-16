@@ -590,7 +590,7 @@ TEST(Format, CheckArg)
         catch (const BaseException& be)
         {
             EXPECT_TRUE(true) << common::str::to_string(be.Message());
-            EXPECT_EX_RES(be, std::string_view, "arg"sv, "x"sv);
+            EXPECT_EX_RES(be, std::string, "arg"sv, "x"sv);
             EXPECT_EX_RES(be, ArgTypePair, "argType"sv, (std::pair{ ArgDispType::String, ArgRealType::SInt }));
         }
     }
@@ -627,14 +627,15 @@ TEST(Format, PackArg)
 
 
 template<typename T, typename... Args>
-std::string ToString(T&& strInfo, Args&&... args)
+std::string ToString(T&& res, Args&&... args)
 {
+    const auto strInfo = res.ToStrArgInfo();
     constexpr auto ArgsInfo = ArgInfo::ParseArgs<Args...>();
     const auto mapping = ArgChecker::CheckDD(strInfo, ArgsInfo);
     auto argPack = ArgInfo::PackArgs(std::forward<Args>(args)...);
     argPack.Mapper = mapping;
     std::string ret;
-    FormatterBase::FormatTo(Formatter{}, ret, strInfo, ArgsInfo, argPack);
+    FormatterBase::FormatTo(Formatter<char>{}, ret, strInfo, ArgsInfo, argPack);
     return ret;
 }
 TEST(Format, Formating)

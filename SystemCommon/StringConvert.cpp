@@ -89,7 +89,6 @@ SYSCOMMONAPI std::basic_string<Char> ToUEng(const std::basic_string_view<Char> s
 {
     using namespace common::str::charset::detail;
     return DirectConv<Char>(str, inchset, EngUpper);
-
 }
 template SYSCOMMONTPL std::basic_string<char>     ToUEng(const std::basic_string_view<char>     str, const Encoding inchset);
 template SYSCOMMONTPL std::basic_string<wchar_t>  ToUEng(const std::basic_string_view<wchar_t>  str, const Encoding inchset);

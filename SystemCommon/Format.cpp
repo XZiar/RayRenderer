@@ -6,12 +6,20 @@
 #define HALF_ENABLE_F16C_INTRINSICS 0 // avoid platform compatibility
 #include "3rdParty/half/half.hpp"
 
+
+#if COMMON_COMPILER_MSVC
+#   define SYSCOMMONTPL SYSCOMMONAPI
+#else
+#   define SYSCOMMONTPL
+#endif
+
+
 namespace common::str::exp
 {
 using namespace std::string_view_literals;
 
 
-ArgPack::NamedMapper ArgChecker::CheckDD(const StrArgInfo& strInfo, const ArgInfo& argInfo)
+void ArgChecker::CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo)
 {
     const auto strIndexArgCount = static_cast<uint8_t>(strInfo.IndexTypes.size());
     const auto strNamedArgCount = static_cast<uint8_t>(strInfo.NamedTypes.size());
@@ -32,7 +40,13 @@ ArgPack::NamedMapper ArgChecker::CheckDD(const StrArgInfo& strInfo, const ArgInf
             COMMON_THROW(BaseException, FMTSTR(u"IndexArg[{}] type mismatch"sv, index)).Attach("arg", index)
                 .Attach("argType", std::pair{ strInfo.IndexTypes[index], ArgInfo::CleanRealType(argInfo.IndexTypes[index]) });
     }
+}
+
+template<typename Char>
+ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
+{
     ArgPack::NamedMapper mapper = { 0 };
+    const auto strNamedArgCount = static_cast<uint8_t>(strInfo.NamedTypes.size());
     if (strNamedArgCount > 0)
     {
         const auto namedRet = ArgChecker::GetNamedArgMismatch(
@@ -41,18 +55,31 @@ ArgPack::NamedMapper ArgChecker::CheckDD(const StrArgInfo& strInfo, const ArgInf
         if (namedRet.AskIndex)
         {
             const auto& namedArg = strInfo.NamedTypes[*namedRet.AskIndex];
-            const auto name = strInfo.FormatString.substr(namedArg.Offset, namedArg.Length);
+            const auto name_ = strInfo.FormatString.substr(namedArg.Offset, namedArg.Length);
+            std::string name;
+            if constexpr (std::is_same_v<Char, char>)
+                name.assign(name_);
+            else
+            {
+                name.reserve(name_.size());
+                for (const auto ch : name_)
+                    name.push_back(static_cast<char>(ch));
+            }
             if (namedRet.GiveIndex) // type mismatch
-                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] type mismatch"sv, name)).Attach("arg", name)
-                    .Attach("argType", std::pair{ namedArg.Type, ArgInfo::CleanRealType(argInfo.NamedTypes[*namedRet.GiveIndex]) });
+                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] type mismatch"sv, name_)).Attach("arg", name)
+                .Attach("argType", std::pair{ namedArg.Type, ArgInfo::CleanRealType(argInfo.NamedTypes[*namedRet.GiveIndex]) });
             else // arg not found
-                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] not found in args"sv, name)).Attach("arg", name);
+                COMMON_THROW(BaseException, FMTSTR(u"NamedArg [{}] not found in args"sv, name_)).Attach("arg", name);
         }
         Ensures(!namedRet.GiveIndex);
         mapper = namedRet.Mapper;
     }
     return mapper;
 }
+template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char>&     strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<wchar_t>&  strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo);
+template SYSCOMMONTPL ArgPack::NamedMapper ArgChecker::CheckDDNamedArg(const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo);
 
 
 struct FormatterHelper : public FormatterBase
@@ -91,10 +118,10 @@ struct FormatterHelper : public FormatterBase
         switch (spec->SignFlag)
         {
         default:
-        case Formatter::FormatSpec::Sign::None:  return fmt::sign::none;
-        case Formatter::FormatSpec::Sign::Neg:   return fmt::sign::minus;
-        case Formatter::FormatSpec::Sign::Pos:   return fmt::sign::plus;
-        case Formatter::FormatSpec::Sign::Space: return fmt::sign::space;
+        case FormatSpec::Sign::None:  return fmt::sign::none;
+        case FormatSpec::Sign::Neg:   return fmt::sign::minus;
+        case FormatSpec::Sign::Pos:   return fmt::sign::plus;
+        case FormatSpec::Sign::Space: return fmt::sign::space;
         }
     }
     static forceinline constexpr uint32_t ConvertSpecIntSign(const FormatSpec* spec) noexcept
@@ -104,10 +131,10 @@ struct FormatterHelper : public FormatterBase
         switch (spec->SignFlag)
         {
         default:
-        case Formatter::FormatSpec::Sign::None:  return Prefixes[fmt::sign::none];
-        case Formatter::FormatSpec::Sign::Neg:   return Prefixes[fmt::sign::minus];
-        case Formatter::FormatSpec::Sign::Pos:   return Prefixes[fmt::sign::plus];
-        case Formatter::FormatSpec::Sign::Space: return Prefixes[fmt::sign::space];
+        case FormatSpec::Sign::None:  return Prefixes[fmt::sign::none];
+        case FormatSpec::Sign::Neg:   return Prefixes[fmt::sign::minus];
+        case FormatSpec::Sign::Pos:   return Prefixes[fmt::sign::plus];
+        case FormatSpec::Sign::Space: return Prefixes[fmt::sign::space];
         }
     }
     static forceinline constexpr fmt::presentation_type ConvertSpecIntPresent(const FormatSpec* spec) noexcept
@@ -156,28 +183,76 @@ struct FormatterHelper : public FormatterBase
             return ConvertSpecIntSign(spec);
         }
     }
+    template<typename Dst, typename Src>
+    static void PutString(std::basic_string<Dst>& ret, std::basic_string_view<Src> str, const FormatSpec* spec)
+    {
+        if constexpr (std::is_same_v<Dst, Src>)
+        {
+            if (spec)
+            {
+                auto fmtSpec = ConvertSpecBasic<Dst>(*spec);
+                fmtSpec.type = fmt::presentation_type::string;
+                fmt::detail::write<Dst>(std::back_inserter(ret), str, fmtSpec);
+                //fmt::format_to(std::back_inserter(ret), "");
+            }
+            else
+                ret.append(str);
+        }
+        else if constexpr (std::is_same_v<Dst, char>)
+        {
+            PutString<char, char>(ret, str::to_string(str), spec);
+        }
+        else if constexpr (std::is_same_v<Dst, char16_t>)
+        {
+            PutString<char16_t, char16_t>(ret, str::to_u16string(str), spec);
+        }
+        else if constexpr (std::is_same_v<Dst, char32_t>)
+        {
+            PutString<char32_t, char32_t>(ret, str::to_u32string(str), spec);
+        }
+        else if constexpr (std::is_same_v<Dst, wchar_t>)
+        {
+            if constexpr (sizeof(wchar_t) == sizeof(char16_t))
+            {
+                const auto newStr = str::to_u16string(str);
+                PutString<wchar_t, wchar_t>(ret, std::wstring_view{ reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size() }, spec);
+            }
+            else if constexpr (sizeof(wchar_t) == sizeof(char32_t))
+            {
+                const auto newStr = str::to_u32string(str);
+                PutString<wchar_t, wchar_t>(ret, std::wstring_view{ reinterpret_cast<const wchar_t*>(newStr.data()), newStr.size() }, spec);
+            }
+            else
+                static_assert(!common::AlwaysTrue<Src>, "not supported");
+        }
+        else
+            static_assert(!common::AlwaysTrue<Src>, "not supported");
+    }
 };
 
-void Formatter::PutColor(std::string&, bool, Color) const { }
-void Formatter::PutString(std::string& ret, std::   string_view str, const FormatSpec* spec) const
+
+template<typename Char>
+void Formatter<Char>::PutColor(StrType&, bool, Color) const { }
+
+template<typename Char>
+void Formatter<Char>::PutString(StrType& ret, std::   string_view str, const FormatSpec* spec) const
 {
-    if (spec)
-    {
-        auto fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
-        fmtSpec.type = fmt::presentation_type::string;
-        fmt::detail::write<char>(std::back_inserter(ret), str, fmtSpec);
-        //fmt::format_to(std::back_inserter(ret), "");
-    }
-    else
-        ret.append(str);
+    FormatterHelper::PutString(ret, str, spec);
 }
-void Formatter::PutString(std::string& ret, std::u16string_view str, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec) const
 {
-    return PutString(ret, str::to_string(str, str::Encoding::UTF8), spec);
+    FormatterHelper::PutString(ret, str, spec);
 }
-void Formatter::PutString(std::string& ret, std::u32string_view str, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec) const
 {
-    return PutString(ret, str::to_string(str, str::Encoding::UTF8), spec);
+    FormatterHelper::PutString(ret, str, spec);
+}
+template<typename Char>
+void Formatter<Char>::PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec) const
+{
+    FormatterHelper::PutString(ret, str, spec);
 }
 
 template<typename T>
@@ -189,56 +264,98 @@ forceinline std::basic_string_view<T> BuildStr(uintptr_t ptr, size_t len) noexce
     return { arg, len };
 }
 
-void Formatter::PutInteger(std::string& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const
 {
-    fmt::basic_format_specs<char> fmtSpec = {};
+    fmt::basic_format_specs<Char> fmtSpec = {};
     if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = FormatterHelper::ConvertSpecIntPresent(spec);
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec);
     fmt::detail::write_int_arg<uint32_t> arg { val, prefix };
     fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
 }
-void Formatter::PutInteger(std::string& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const
 {
-    fmt::basic_format_specs<char> fmtSpec = {};
+    fmt::basic_format_specs<Char> fmtSpec = {};
     if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = FormatterHelper::ConvertSpecIntPresent(spec);
     const auto prefix = FormatterHelper::ProcessIntSign(val, isSigned, spec);
     fmt::detail::write_int_arg<uint64_t> arg{ val, prefix };
     fmt::detail::write_int(std::back_inserter(ret), arg, fmtSpec, {});
 }
 
-void Formatter::PutFloat(std::string& ret, float val, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutFloat(StrType& ret, float val, const FormatSpec* spec) const
 {
-    fmt::basic_format_specs<char> fmtSpec = {};
+    fmt::basic_format_specs<Char> fmtSpec = {};
     if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = FormatterHelper::ConvertSpecFloatPresent(spec);
     fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec);
     fmt::detail::write(std::back_inserter(ret), val, fmtSpec, {});
 }
-void Formatter::PutFloat(std::string& ret, double val, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutFloat(StrType& ret, double val, const FormatSpec* spec) const
 {
-    fmt::basic_format_specs<char> fmtSpec = {};
+    fmt::basic_format_specs<Char> fmtSpec = {};
     if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = FormatterHelper::ConvertSpecFloatPresent(spec);
     fmtSpec.sign = FormatterHelper::ConvertSpecSign(spec);
     fmt::detail::write(std::back_inserter(ret), val, fmtSpec, {});
 }
 
-void Formatter::PutPointer(std::string& ret, uintptr_t val, const FormatSpec* spec) const
+template<typename Char>
+void Formatter<Char>::PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec) const
 {
-    fmt::basic_format_specs<char> fmtSpec = {};
+    fmt::basic_format_specs<Char> fmtSpec = {};
     if (spec)
-        fmtSpec = FormatterHelper::ConvertSpecBasic<char>(*spec);
+        fmtSpec = FormatterHelper::ConvertSpecBasic<Char>(*spec);
     fmtSpec.type = fmt::presentation_type::pointer;
-    fmt::detail::write_ptr<char>(std::back_inserter(ret), val, &fmtSpec);
+    fmt::detail::write_ptr<Char>(std::back_inserter(ret), val, &fmtSpec);
 }
 
-void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack& argPack)
+template struct Formatter<char>;
+template struct Formatter<wchar_t>;
+template struct Formatter<char16_t>;
+template struct Formatter<char32_t>;
+
+
+template<typename Char>
+static constexpr std::basic_string_view<Char> GetStrTrueFalse(bool val) noexcept
+{
+    if constexpr (std::is_same_v<Char, char>)
+        return val ? "true"sv : "false"sv;
+    else if constexpr (std::is_same_v<Char, wchar_t>)
+        return val ? L"true"sv : L"false"sv;
+    else if constexpr (std::is_same_v<Char, char16_t>)
+        return val ? u"true"sv : u"false"sv;
+    else if constexpr (std::is_same_v<Char, char32_t>)
+        return val ? U"true"sv : U"false"sv;
+    else
+        static_assert(!AlwaysTrue<Char>);
+}
+
+template<typename Char>
+static constexpr std::basic_string_view<Char> GetStrBrace(bool isLeft) noexcept
+{
+    if constexpr (std::is_same_v<Char, char>)
+        return isLeft ?  "{"sv :  "}"sv;
+    else if constexpr (std::is_same_v<Char, wchar_t>)
+        return isLeft ? L"{"sv : L"}"sv;
+    else if constexpr (std::is_same_v<Char, char16_t>)
+        return isLeft ? u"{"sv : u"}"sv;
+    else if constexpr (std::is_same_v<Char, char32_t>)
+        return isLeft ? U"{"sv : U"}"sv;
+    else
+        static_assert(!AlwaysTrue<Char>);
+}
+
+template<typename Char>
+void FormatterBase::FormatTo(const Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack)
 {
     const uint8_t* opPtr = strInfo.Opcodes.data();
     const uint8_t* const opEnd = opPtr + strInfo.Opcodes.size();
@@ -269,8 +386,8 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
             {
                 switch (opdata)
                 {
-                case 0:  formatter.PutString(ret, "{"sv, nullptr); break;
-                case 1:  formatter.PutString(ret, "}"sv, nullptr); break;
+                case 0:  formatter.PutString(ret, GetStrBrace<Char>(true),  nullptr); break;
+                case 1:  formatter.PutString(ret, GetStrBrace<Char>(false), nullptr); break;
                 default: break;
                 }
             } break;
@@ -307,7 +424,7 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
         case ParseResult::ArgOp::Op:
         {
             const auto argIdx = *opPtr++;
-            ArgDispType fmtType = ArgDispType::Any;
+            [[maybe_unused]] ArgDispType fmtType = ArgDispType::Any;
             uint32_t argSlot = UINT32_MAX;
             ArgRealType argType = ArgRealType::Error;
             if (opfield & ParseResult::ArgOp::FieldNamed)
@@ -455,7 +572,7 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
             case ArgRealType::Bool:
             {
                 const bool val = *reinterpret_cast<const uint8_t*>(argPtr);
-                formatter.PutString(ret, val ? "true"sv : "false"sv, specPtr);
+                formatter.PutString(ret, GetStrTrueFalse<Char>(val), specPtr);
             } break;
             case ArgRealType::Ptr:
             case ArgRealType::PtrVoid:
@@ -471,6 +588,10 @@ void FormatterBase::FormatTo(const Formatter& formatter, std::string& ret, const
         }
     }
 }
+template SYSCOMMONTPL void FormatterBase::FormatTo(const Formatter<char>    & formatter, std::basic_string<char>    & ret, const StrArgInfoCh<char>    & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+template SYSCOMMONTPL void FormatterBase::FormatTo(const Formatter<wchar_t> & formatter, std::basic_string<wchar_t> & ret, const StrArgInfoCh<wchar_t> & strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+template SYSCOMMONTPL void FormatterBase::FormatTo(const Formatter<char16_t>& formatter, std::basic_string<char16_t>& ret, const StrArgInfoCh<char16_t>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+template SYSCOMMONTPL void FormatterBase::FormatTo(const Formatter<char32_t>& formatter, std::basic_string<char32_t>& ret, const StrArgInfoCh<char32_t>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 
 
 

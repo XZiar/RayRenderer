@@ -923,10 +923,14 @@ forceinline constexpr auto ParseResult::ParseString<wchar_t>(const std::basic_st
 
 struct StrArgInfo
 {
-    std::string_view FormatString;
     common::span<const uint8_t> Opcodes;
     common::span<const ArgDispType> IndexTypes;
     common::span<const ParseResult::NamedArgType> NamedTypes;
+};
+template<typename Char>
+struct StrArgInfoCh : public StrArgInfo
+{
+    std::basic_string_view<Char> FormatString;
 };
 
 template<uint8_t IdxArgCount>
@@ -989,7 +993,7 @@ struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<Char, OpCount_>, NamedA
         NamedArgLimiter<NamedArgCount>(result.NamedTypes),
         IdxArgLimiter<IdxArgCount>(result.IndexTypes)
     { }
-    constexpr operator StrArgInfo() const noexcept
+    constexpr operator StrArgInfoCh<Char>() const noexcept
     {
         common::span<const ArgDispType> idxTypes;
         if constexpr (IdxArgCount > 0)
@@ -997,7 +1001,11 @@ struct COMMON_EMPTY_BASES TrimedResult : public OpHolder<Char, OpCount_>, NamedA
         common::span<const ParseResult::NamedArgType> namedTypes;
         if constexpr (NamedArgCount > 0)
             namedTypes = this->NamedTypes;
-        return { this->FormatString, this->Opcodes, idxTypes, namedTypes };
+        return { this->Opcodes, idxTypes, namedTypes, this->FormatString };
+    }
+    constexpr StrArgInfoCh<Char> ToStrArgInfo() const noexcept
+    {
+        return *this;
     }
 };
 
@@ -1205,13 +1213,13 @@ struct ArgInfo
             {
                 pack.Put(arg, idx);
             }
-            else if constexpr (std::is_integral_v<U>)
-            {
-                pack.Put(arg, idx);
-            }
             else if constexpr (std::is_same_v<U, bool>)
             {
                 pack.Put(static_cast<uint8_t>(arg ? 1 : 0), idx);
+            }
+            else if constexpr (std::is_integral_v<U>)
+            {
+                pack.Put(arg, idx);
             }
             else
             {
@@ -1286,22 +1294,36 @@ struct ArgChecker
     {
         static_assert(Index == ParseResult::IdxArgSlots, "Type mismatch");
     }
-    static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::string_view str, uint8_t askCount,
+    template<typename Char>
+    static constexpr NamedCheckResult GetNamedArgMismatch(const ParseResult::NamedArgType* ask, const std::basic_string_view<Char> fmtStr, uint8_t askCount,
         const ArgRealType* give, const std::string_view* giveNames, uint8_t giveCount) noexcept
     {
         NamedCheckResult ret;
         for (uint8_t i = 0; i < askCount; ++i)
         {
-            const auto askName = str.substr(ask[i].Offset, ask[i].Length);
+            const auto askName = fmtStr.substr(ask[i].Offset, ask[i].Length);
             bool found = false, match = false;
             uint8_t j = 0;
             for (; j < giveCount; ++j)
             {
-                if (giveNames[j] == askName)
+                const auto& giveName = giveNames[j];
+                if (giveName.size() == askName.size())
                 {
-                    found = true;
-                    match = CheckCompatible(ask[i].Type, give[j]);
-                    break;
+                    bool fullMatch = true;
+                    for (size_t k = 0; k < giveName.size(); ++k)
+                    {
+                        if (static_cast<Char>(giveName[k]) != askName[k])
+                        {
+                            fullMatch = false;
+                            break;
+                        }
+                    }
+                    if (fullMatch)
+                    {
+                        found = true;
+                        match = CheckCompatible(ask[i].Type, give[j]);
+                        break;
+                    }
                 }
             }
             if (found && match)
@@ -1322,9 +1344,22 @@ struct ArgChecker
         static_assert(GiveIdx == ParseResult::NamedArgSlots, "Named arg type mismatch at [AskIdx, GiveIdx]");
         static_assert(AskIdx  == ParseResult::NamedArgSlots, "Missing named arg at [AskIdx]");
     }
-    SYSCOMMONAPI static ArgPack::NamedMapper CheckDD(const StrArgInfo& strInfo, const ArgInfo& argInfo);
-    template<typename... Args>
-    static ArgPack::NamedMapper CheckDS(const StrArgInfo& strInfo, Args&&...)
+    SYSCOMMONAPI static void CheckDDBasic(const StrArgInfo& strInfo, const ArgInfo& argInfo);
+    template<typename Char>
+    SYSCOMMONAPI static ArgPack::NamedMapper CheckDDNamedArg(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo);
+    template<typename Char>
+    static ArgPack::NamedMapper CheckDD(const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo)
+    {
+        CheckDDBasic(strInfo, argInfo);
+        return CheckDDNamedArg(strInfo, argInfo);
+    }
+    template<typename Char, uint16_t Op, uint8_t Na, uint8_t Ia>
+    static ArgPack::NamedMapper CheckDD(const TrimedResult<Char, Op, Na, Ia>& res, const ArgInfo& argInfo)
+    {
+        return CheckDD(res.ToStrArgInfo(), argInfo);
+    }
+    template<typename T, typename... Args>
+    static ArgPack::NamedMapper CheckDS(const T& strInfo, Args&&...)
     {
         return CheckDD(strInfo, ArgInfo::ParseArgs<Args...>());
     }
@@ -1359,6 +1394,7 @@ struct ArgChecker
     }
 };
 
+template<typename Char>
 struct Formatter;
 struct FormatterBase
 {
@@ -1380,21 +1416,25 @@ protected:
             Alignment(Align::None), SignFlag(Sign::None), AlterForm(false), ZeroPad(false) {}
     };
 public:
-    SYSCOMMONAPI static void FormatTo(const Formatter& formatter, std::string& ret, const StrArgInfo& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
+    template<typename Char>
+    SYSCOMMONAPI static void FormatTo(const Formatter<Char>& formatter, std::basic_string<Char>& ret, const StrArgInfoCh<Char>& strInfo, const ArgInfo& argInfo, const ArgPack& argPack);
 };
+template<typename Char>
 struct Formatter : public FormatterBase
 {
     friend FormatterBase;
+    using StrType = std::basic_string<Char>;
 private:
-    /*virtual*/ void PutColor(std::string& ret, bool isBackground, Color color) const;
-    /*virtual*/ void PutString(std::string& ret, std::   string_view str, const FormatSpec* spec) const;
-    /*virtual*/ void PutString(std::string& ret, std::u16string_view str, const FormatSpec* spec) const;
-    /*virtual*/ void PutString(std::string& ret, std::u32string_view str, const FormatSpec* spec) const;
-    /*virtual*/ void PutInteger(std::string& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const;
-    /*virtual*/ void PutInteger(std::string& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const;
-    /*virtual*/ void PutFloat(std::string& ret, float val, const FormatSpec* spec) const;
-    /*virtual*/ void PutFloat(std::string& ret, double val, const FormatSpec* spec) const;
-    /*virtual*/ void PutPointer(std::string& ret, uintptr_t val, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutColor(StrType& ret, bool isBackground, Color color) const;
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::   string_view str, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::  wstring_view str, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u16string_view str, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutString(StrType& ret, std::u32string_view str, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint32_t val, bool isSigned, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutInteger(StrType& ret, uint64_t val, bool isSigned, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutFloat(StrType& ret, float val, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutFloat(StrType& ret, double val, const FormatSpec* spec) const;
+    SYSCOMMONAPI virtual void PutPointer(StrType& ret, uintptr_t val, const FormatSpec* spec) const;
 public:
 };
 
