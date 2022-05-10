@@ -502,9 +502,6 @@
     <ClInclude Include="$(RealSourceDir)\jsimddct.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="$(RealSourceDir)\jversion.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="$(RealSourceDir)\tjutil.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -527,6 +524,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="jconfigint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="jversion.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="$(RealSourceDir)\jdcoefct.h">

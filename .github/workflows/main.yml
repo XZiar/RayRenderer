@@ -3,9 +3,9 @@
 name: CI
 
 env:
-  boost_ver1: "1_78_0"
-  boost_ver2: "1.78.0"
-  ispc_ver: "1.16.1"
+  boost_ver1: "1_79_0"
+  boost_ver2: "1.79.0"
+  ispc_ver: "1.18.0"
 
 # Controls when the action will run. 
 on:

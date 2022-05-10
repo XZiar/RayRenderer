@@ -90,7 +90,7 @@ python3 xzbuild buildall UtilTest
 
   [BSD 3-Clause License](https://github.com/google/googletest/blob/master/LICENSE)
 
-* [boost](http://www.boost.org/)  1.78.0 (not included in this repo)
+* [boost](http://www.boost.org/)  1.79.0 (not included in this repo)
 
   [Boost Software License](./License/boost.txt)
 
@@ -98,7 +98,7 @@ python3 xzbuild buildall UtilTest
 
   [MIT License](https://github.com/XZiar/fmt/blob/master/LICENSE.rst)
 
-* [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.10
+* [ghc-filesystem](https://github.com/gulrak/filesystem) `submodule` 1.5.12
 
   [MIT License](https://github.com/gulrak/filesystem/blob/master/LICENSE)
 
@@ -110,7 +110,7 @@ python3 xzbuild buildall UtilTest
   
   [Public Domain](https://github.com/kerukuro/digestpp/blob/master/LICENSE)
 
-* [FreeType](https://www.freetype.org/) `submodule` 2.11.1
+* [FreeType](https://www.freetype.org/) `submodule` 2.12.1
 
   [The FreeType License](./3rdParty/FreeType/LICENSE.TXT)
 

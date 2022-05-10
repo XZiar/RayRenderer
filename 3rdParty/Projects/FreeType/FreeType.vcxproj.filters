@@ -108,6 +108,9 @@
     <ClCompile Include="$(RealSourceDir)\src\sfnt\sfnt.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>
+    <ClCompile Include="$(RealSourceDir)\src\svg\svg.c">
+      <Filter>源文件\freetype</Filter>
+    </ClCompile>
     <ClCompile Include="$(RealSourceDir)\src\truetype\truetype.c">
       <Filter>源文件\freetype</Filter>
     </ClCompile>

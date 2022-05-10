@@ -273,6 +273,7 @@
     <ClCompile Include="$(RealSourceDir)\src\sdf\sdf.c" />
     <ClCompile Include="$(RealSourceDir)\src\sfnt\sfnt.c" />
     <ClCompile Include="$(RealSourceDir)\src\smooth\smooth.c" />
+    <ClCompile Include="$(RealSourceDir)\src\svg\svg.c" />
     <ClCompile Include="$(RealSourceDir)\src\truetype\truetype.c" />
     <ClCompile Include="$(RealSourceDir)\src\type1\type1.c" />
     <ClCompile Include="$(RealSourceDir)\src\type42\type42.c" />

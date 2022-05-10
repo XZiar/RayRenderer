@@ -679,6 +679,7 @@
   <ItemGroup>
     <ClInclude Include="jconfig.h" />
     <ClInclude Include="jconfigint.h" />
+    <ClInclude Include="jversion.h" />
     <ClInclude Include="$(RealSourceDir)\cderror.h" />
     <ClInclude Include="$(RealSourceDir)\cdjpeg.h" />
     <ClInclude Include="$(RealSourceDir)\cmyk.h" />
@@ -699,7 +700,6 @@
     <ClInclude Include="$(RealSourceDir)\jpeg_nbits_table.h" />
     <ClInclude Include="$(RealSourceDir)\jsimd.h" />
     <ClInclude Include="$(RealSourceDir)\jsimddct.h" />
-    <ClInclude Include="$(RealSourceDir)\jversion.h" />
     <ClInclude Include="$(RealSourceDir)\tjutil.h" />
     <ClInclude Include="$(RealSourceDir)\transupp.h" />
     <ClInclude Include="$(RealSourceDir)\turbojpeg.h" />

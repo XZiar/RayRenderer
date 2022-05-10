@@ -2,7 +2,7 @@
     "name": "FreeType",
     "type": "static",
     "description": "A freely available software library to render fonts",
-    "version": "2.11.1",
+    "version": "2.12.1",
     "dependency": ["zlib-ng", "png"],
     "srcPath": "../../FreeType",
     "library": 
@@ -36,7 +36,7 @@
                     "dir": "src", "+":
                     [
                         "autofit/autofit.c", "bdf/bdf.c", "bzip2/ftbzip2.c", "cache/ftcache.c", "cff/cff.c", "cid/type1cid.c", "gzip/ftgzip.c", "lzw/ftlzw.c", "pcf/pcf.c",
-                        "pfr/pfr.c", "psaux/psaux.c", "pshinter/pshinter.c", "psnames/psnames.c", "raster/raster.c", "sdf/sdf.c", "sfnt/sfnt.c", "smooth/smooth.c",
+                        "pfr/pfr.c", "psaux/psaux.c", "pshinter/pshinter.c", "psnames/psnames.c", "raster/raster.c", "sdf/sdf.c", "sfnt/sfnt.c", "smooth/smooth.c", "svg/svg.c",
                         "truetype/truetype.c", "type1/type1.c", "type42/type42.c", "winfonts/winfnt.c"
                     ]
                 },
